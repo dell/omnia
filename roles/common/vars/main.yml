@@ -1,0 +1,10 @@
+---
+
+common_packages:
+  - epel-release
+  - python-pip
+  - docker
+  - bash-completion
+  - kubelet 
+  - kubeadm
+  - kubectl

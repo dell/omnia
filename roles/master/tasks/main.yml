@@ -1,0 +1,31 @@
+---
+- name: Firewall Rule K8s:6443/tcp
+  command: firewall-cmd  --zone=internal --add-port=6443/tcp --permanent
+  tags: master
+
+- name: Firewall Rule K8s:10250/tcp
+  command: firewall-cmd  --zone=internal --add-port=10250/tcp --permanent
+  tags: master
+
+- name: Firewall Reload
+  command: firewall-cmd  --reload
+  tags: master
+
+- name: Create /root/bin (if it doesn't exist)
+  file:
+    path: /root/bin
+    state: directory
+    mode: 0755
+
+- name: Get Helm Installer
+  get_url:
+    url: https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get 
+    dest: /root/bin/get_helm.sh
+    mode: 700 
+  tags: master
+
+- name: Install Helm
+  command: /root/bin/get_helm.sh
+  tags: master
+
+# install and start up OpenSM -  III
