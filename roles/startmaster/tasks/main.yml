@@ -1,0 +1,145 @@
+---
+- name: Turn Swap OFF (if not already disabled)
+  command: /usr/sbin/swapoff -a
+  tags: init
+
+- name: Initialize kubeadm
+  command: /bin/kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address=10.0.0.1
+  #command: /bin/kubeadm init 
+  register: init_output 
+  tags: init
+
+- name: Setup Directory for Kubernetes environment for root
+  file: path=/root/.kube state=directory
+  tags: init
+
+- name: Copy Kubernetes Config for root #do this for other users too?
+  copy: src=/etc/kubernetes/admin.conf dest=/root/.kube/config owner=root group=root mode=644
+  tags: init
+
+- name: Cluster token
+  shell: kubeadm token list | cut -d ' ' -f1 | sed -n '2p'
+  register: K8S_TOKEN
+  tags: init
+
+- name: CA Hash
+  shell: openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt | openssl rsa -pubin -outform der 2>/dev/null | openssl dgst -sha256 -hex | sed 's/^.* //'
+  register: K8S_MASTER_CA_HASH
+  tags: init
+
+- name: Add K8S Master IP, Token, and Hash to dummy host
+  add_host:
+    name:   "K8S_TOKEN_HOLDER"
+    token:  "{{ K8S_TOKEN.stdout }}"
+    hash:   "{{ K8S_MASTER_CA_HASH.stdout }}"
+    #ip:     "{{ ansible_ib0.ipv4.address }}"
+    ip:     "{{ ansible_p3p1.ipv4.address }}"
+  tags: init
+
+- name:
+  debug:
+    msg: "[Master] K8S_TOKEN_HOLDER K8S token is {{ hostvars['K8S_TOKEN_HOLDER']['token'] }}"
+  tags: init
+
+- name:
+  debug:
+    msg: "[Master] K8S_TOKEN_HOLDER K8S Hash is  {{ hostvars['K8S_TOKEN_HOLDER']['hash'] }}"
+  tags: init
+
+- name:
+  debug:
+    msg: "[Master] K8S_MASTER_IP is  {{ hostvars['K8S_TOKEN_HOLDER']['ip'] }}"
+  tags: init
+
+  
+- name: Setup Flannel SDN network
+  shell: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+  tags: init
+
+- name: Enabled GPU support in Kubernetes
+  #script: enable_gpu_k8s.sh
+  shell: kubectl create -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/1.0.0-beta4/nvidia-device-plugin.yml
+                           #https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v1.11/nvidia-device-plugin.yml
+  register: gpu_enable
+  tags: init
+
+
+- name: Create yaml repo for setup
+  file: 
+    path: /root/k8s 
+    state: directory
+  tags: init
+
+
+#- name: Persistent Volume Setup Files
+  #copy: src=persistent_volumes.yaml dest=/root/k8s/persistent_volumes.yaml owner=root group=root mode=655
+  #tags: init
+#
+#- name: Persistent Volume Setup - Apply 
+  #shell: kubectl apply -f /root/k8s/persistent_volumes.yaml
+  #tags: init
+  #
+
+#- name: Copy Service Account (NFS Setup)
+  #copy: src=nfs-serviceaccount.yaml dest=/root/k8s/nfs-serviceaccount.yaml owner=root group=root mode=655
+  #tags: init
+#
+#- name: Copy Cluster Role (NFS Setup)
+  #copy: src=nfs_clusterrole.yaml dest=/root/k8s/nfs_clusterrole.yaml owner=root group=root mode=655
+  #tags: init
+#
+#- name: Copy Cluster Role Binding (NFS Setup)
+  #copy: src=nfs_clusterrolebinding.yaml dest=/root/k8s/nfs_clusterrolebinding.yaml owner=root group=root mode=655
+  #tags: init
+#
+#- name: Copy NFS Storage Deployment (NFS Setup)
+  #copy: src=nfs-deployment.yaml dest=/root/k8s/nfs-deployment.yaml owner=root group=root mode=655
+  #tags: init
+#
+#- name: Copy NFS Storage Class (NFS Setup)
+  #copy: src=nfs-class.yaml dest=/root/k8s/nfs-class.yaml owner=root group=root mode=655
+  #tags: init
+#
+#- name: Deploy NFS (NFS Setup)
+  #shell: kubectl create -f /root/k8s/nfs-deployment.yaml -f /root/k8s/nfs-class.yaml -f /root/k8s/nfs-serviceaccount.yaml -f /root/k8s/nfs_clusterrole.yaml -f /root/k8s/nfs_clusterrolebinding.yaml 
+  #tags: init
+
+#- name: Patch NFS Setup (NFS Setup)
+  #shell: kubectl patch deployment nfs-client-provisioner -p '{"spec":{"template":{"spec":{"serviceAccount":"nfs-client-provisioner"}}}}'
+  #tags: init
+
+#- name: Patch NFS Setup (NFS Setup)
+  #shell: "kubectl patch storageclass managed-nfs-storage -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'"
+  #tags: init
+
+  
+- name: Create Service Account (K8S Dashboard) Files
+  copy: src=create_admin_user.yaml dest=/root/k8s/create_admin_user.yaml owner=root group=root mode=655
+  tags: init
+
+- name: Create Service Account (K8S Dashboard) - Create
+  shell: kubectl create -f /root/k8s/create_admin_user.yaml
+  tags: init
+
+- name: Create ClusterRoleBinding (K8S Dashboard) Files
+  copy: src=create_clusterRoleBinding.yaml dest=/root/k8s/create_clusterRoleBinding.yaml owner=root group=root mode=655
+  tags: init
+
+- name: Create ClusterRoleBinding (K8S Dashboard) - Apply
+  shell: kubectl create -f /root/k8s/create_clusterRoleBinding.yaml
+  tags: init
+
+- name: Start K8S Dashboard
+  shell: kubectl create -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0-beta6/aio/deploy/recommended.yaml
+  tags: init
+
+- name: Dump Bearer Token for K8S Dashboard Login
+  shell: kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep admin-user | awk '{print $1}') > /root/k8s/token
+  tags: init
+
+#- name: Proxy K8S Dashboard to 8001 on localhost
+  #shell: nohup kubectl proxy </dev/null >/dev/null 2>&1 & 
+  #tags: init
+
+#- debug: var=init_output.stdout_lines
+  #tags: init

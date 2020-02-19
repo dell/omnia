@@ -1,0 +1,19 @@
+#!/bin/bash
+
+kubeadm reset -f
+clush -ab "kubeadm reset -f"
+rm -rf /var/lib/etcd/*
+clush -ab "rm -rf /var/lib/etcd/*"
+rm -rf /var/lib/cni/
+clush -ab "rm -rf /var/lib/cni/"
+rm -rf /run/flannel/
+clush -ab "rm -rf /run/flannel/"
+rm -rf /etc/cni/
+clush -ab "rm -rf /etc/cni/"
+ifconfig cni0 down
+clush -ab "ifconfig cni0 down"
+ifconfig flannel.1 down
+clush -ab "ifconfig flannel.1 down"
+brctl delbr flannel.1
+clush -ab "brctl delbr flannel.1"
+clush -ab "brctl delbr cni0"

@@ -1,0 +1,35 @@
+---
+#Playbook for kubernetes cluster 
+
+#collect info from everything
+- hosts: all
+
+# Apply Common Installation and Config
+- hosts: cluster
+  gather_facts: false
+  roles:
+    - common
+
+# Apply GPU Node Config
+- hosts: gpus
+  gather_facts: false
+  roles:
+    - computeGPU
+
+# Apply Master Config
+- hosts: master
+  gather_facts: false
+  roles:
+    - master
+
+# Start K8s on master server
+- hosts: master
+  gather_facts: false
+  roles:
+    - startmaster
+
+# Start K8s worker servers
+- hosts: compute,gpus
+  gather_facts: false
+  roles:
+    - startworkers
