@@ -61,4 +61,5 @@ Use either `--signoff` or `-s` with the commit command.
 Make sure you have your user name and e-mail set. The `--signoff | -s` option will use the configured user name and e-mail, so it is important to configure it before the first time you commit. Check the following references:
 
 [Setting up your github user name](https://help.github.com/articles/setting-your-username-in-git/)
+
 [Setting up your e-mail address](https://help.github.com/articles/setting-your-commit-email-address-in-git/)
