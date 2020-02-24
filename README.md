@@ -9,5 +9,6 @@ To install Omnia, see [INSTALL](INSTALL.md)
 ## Contributing
 To contribute to the Omnia project, see [CONTRIBUTE](CONTRIBUTE.md)
 
-### Current collaborators:
-* Dell Technologies
+### Current maintainers:
+* Lucas A. Wilson (Dell Technologies)
+* John Lockman (Dell Technologies)
