@@ -1,55 +1,13 @@
-Dancing to the beat of a different drum.
+# Omnia
+#### Ansible playbook-based deployment of Slurm and Kubernetes on factory-provisioned Dell EMC PowerEdge servers
 
-# Short Version:
+Omnia (Latin: all or everything) is a deployment tool to turn Dell EMC PowerEdge servers with factory-installed OS images into a functioning Slurm/Kubernetes cluster.
 
-Install Kubernetes and all dependencies
-```
-ansible-playbook -i host_inventory_file build-kubernetes-cluster.yml
-```
+## Installing Omnia
+To install Omnia, see [INSTALL](INSTALL.md)
 
-Initialize K8S cluster
-```
-ansible-playbook -i host_inventory_file build-kubernetes-cluster.yml --tags "init"
-```
+## Contributing
+To contribute to the Omnia project, see [CONTRIBUTE](CONTRIBUTE.md)
 
-
-# What this does:
-
-## Build/Install
-
-### Add additional repositories:
-
-- Kubernetes (Google)
-- El Repo (nvidia drivers)
-- Nvidia (nvidia-docker)
-- EPEL (Extra Packages for Enterprise Linux)
-
-### Install common packages
- - gcc
- - python-pip
- - docker
- - kubelet
- - kubeadm
- - kubectl
- - nvidia-detect
- - kmod-nvidia
- - nvidia-x11-drv
- - nvidia-container-runtime
- - ksonnet (CLI framework for K8S configs)
-
-### Enable GPU Device Plugins (nvidia-container-runtime-hook)
-
-### Modify kubeadm config to allow GPUs as schedulable resource 
-
-### Start and enable services
- - Docker
- - Kubelet
-
-## Initialize Cluster
-### Head/master
-- Start K8S pass startup token to compute/slaves
-- Initialize networking (Currently using WeaveNet)
--Setup K8S Dashboard
-- Create dynamic/persistent volumes
-### Compute/slaves
-- Join k8s cluster
+### Current collaborators:
+* Dell Technologies
