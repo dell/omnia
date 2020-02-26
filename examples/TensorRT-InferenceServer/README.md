@@ -116,3 +116,24 @@ spec:
 cd ~/tensorrt-inference-server/deploy/single_server/
 $ helm install --name example .
 </pre>
+
+### Verify deployment
+<pre>
+helm ls
+NAME           	REVISION	UPDATED                 	STATUS  	CHART                          	APP VERSION	NAMESPACE
+example        	1       	Wed Feb 26 15:46:18 2020	DEPLOYED	tensorrt-inference-server-1.0.0	1.0        	default  
+example-metrics	1       	Tue Feb 25 17:45:54 2020	DEPLOYED	prometheus-operator-8.9.2      	0.36.0     	default  
+</pre>
+
+<pre>
+kubectl get pods
+NAME                                                     READY   STATUS    RESTARTS   AGE
+example-tensorrt-inference-server-f45d865dc-62c46        1/1     Running   0          53m
+</pre>
+
+<pre>
+kubectl get svc
+NAME                                        TYPE           CLUSTER-IP       EXTERNAL-IP      PORT(S)                                        AGE
+...
+example-tensorrt-inference-server           LoadBalancer   10.150.77.138    192.168.60.150   8000:31165/TCP,8001:31408/TCP,8002:30566/TCP   53m
+</pre>
