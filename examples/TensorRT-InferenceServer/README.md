@@ -31,7 +31,7 @@ Setup port-forward to the Grafana service for local access
 Navigate in your browser to localhost:8080 for the Grafana login page. 
 `username=admin password=prom-operator`
 
-## Deploy TensorRT Inference Server
+## Setup TensorRT Inference Server Deployment
 Change to helm chart directory
 `cd ~/tensorrt-inference-server/deploy/single_server/`
 
@@ -68,11 +68,11 @@ Modify `templates/deployment.yaml` in **bold** to add the local NFS mount:
    </pre>
 
 
-### Deploy the inference server using the default configuration with:
+### Deploy the inference server
 
 <pre>
 cd ~/tensorrt-inference-server/deploy/single_server/
-$ helm install --name example .
+helm install --name example .
 </pre>
 
 ### Verify deployment
@@ -129,7 +129,7 @@ NAME              READY   STATUS    RESTARTS   AGE
 tensorrt-client   1/1     Running   0          5m
 </pre>
 
-Run the inception test using the client Pod. The TensorRT Inference Service IP Address
+Run the inception test using the client Pod. The TensorRT Inference IP Address can be found by running `kubectl get svc`
 <pre>
 kubectl exec -it tensorrt-client -- /bin/bash -c "image_client -u 192.168.60.150:8000 -m resnet50_netdef -s INCEPTION images/mug.jpg"
 Request 0, batch size 1
