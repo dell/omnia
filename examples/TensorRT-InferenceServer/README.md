@@ -137,3 +137,6 @@ NAME                                        TYPE           CLUSTER-IP       EXTE
 ...
 example-tensorrt-inference-server           LoadBalancer   10.150.77.138    192.168.60.150   8000:31165/TCP,8001:31408/TCP,8002:30566/TCP   53m
 </pre>
+
+## Run TensorRT Client
+
