@@ -13,6 +13,11 @@ Copy models to shared NFS location
 
 `cp -rp model_repository ensemble_model_repository /home/k8sSHARE`
 
+Fix permissions on model files
+
+`chmod -R a+r /home/k8sSHARE/model_repository`
+
+
 ## Deploy Prometheus and Grafana
 
 Prometheus collects metrics for viewing in Grafana. Install the prometheus-operator for these components. The serviceMonitorSelectorNilUsesHelmValues flag is needed so that Prometheus can find the inference server metrics in the example release deployed below:
