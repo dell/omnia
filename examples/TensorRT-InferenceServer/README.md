@@ -139,7 +139,9 @@ example-tensorrt-inference-server           LoadBalancer   10.150.77.138    192.
 </pre>
 
 ## Setup NGC login secret for nvcr.io
-`kubectl create secret docker-registry <your-secret-name> --docker-server=<your-registry-server> --docker-username=<your-registry-username> --docker-password=<your-registry-apikey> --docker-email=<your-email>`
+
+<pre> kubectl create secret docker-registry <your-secret-name> --docker-server=<your-registry-server> --docker-username=<your-registry-username> --docker-password=<your-registry-apikey> --docker-email=<your-email>
+</pre> 
 
 Parameter Description:
 docker-registry <your-secret-name> – the name you will use for this secret
