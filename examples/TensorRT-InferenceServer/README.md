@@ -138,5 +138,46 @@ NAME                                        TYPE           CLUSTER-IP       EXTE
 example-tensorrt-inference-server           LoadBalancer   10.150.77.138    192.168.60.150   8000:31165/TCP,8001:31408/TCP,8002:30566/TCP   53m
 </pre>
 
+## Setup NGC login secret for nvcr.io
+`kubectl create secret docker-registry <your-secret-name> --docker-server=<your-registry-server> --docker-username=<your-registry-username> --docker-password=<your-registry-apikey> --docker-email=<your-email>`
+
+Parameter Description:
+docker-registry <your-secret-name> – the name you will use for this secret
+docker-server <your-registry-server> – nvcr.io is the container registry for NGC
+docker-username <your-registry-username> – for nvcr.io this is ‘$oauthtoken’ (including quotes)
+docker-password <your-registry-apikey> – this is the API Key you obtained earlier
+docker-email <your-email> – your NGC email address
+
+Example (you will need to generate your own oauth token)
+`kubectl create secret docker-registry ngc-secret --docker-server=nvcr.io --docker-username='$oauthtoken' --docker-password=clkaw309f3jfaJ002EIVCJAC0Cpcklajser90wezxc98wdn09ICJA09xjc09j09JV00JV0JVCLR0WQE8ACZz --docker-email=john@example.com`
+
+Verify your secret has been stored:
+<pre>
+kubectl get secrets
+NAME                                                          TYPE                                  DATA   AGE
+...
+ngc-secret                                                    kubernetes.io/dockerconfigjson        1      106m
+</pre>
+
 ## Run TensorRT Client
+`kubectl apply -f trt-client.yaml`
+
+Verify it is running:
+<pre>
+kubectl get pod tensorrt-client 
+NAME              READY   STATUS    RESTARTS   AGE
+tensorrt-client   1/1     Running   0          5m
+</pre>
+
+Run the inception test using the client Pod. The TensorRT Inference Service IP Address
+<pre>
+kubectl exec -it tensorrt-client -- /bin/bash -c "image_client -u 192.168.60.150:8000 -m resnet50_netdef -s INCEPTION images/mug.jpg"
+Request 0, batch size 1
+Image 'images/mug.jpg':
+    504 (COFFEE MUG) = 0.723992
+</pre>
+
+
+
+
 
