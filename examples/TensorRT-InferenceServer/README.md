@@ -1,4 +1,4 @@
-# Run Nvidia's TensorRT Inference Server
+# Run Nvidia's TensorRT Inference Server on omnia 
 
 Clone the repo
 
