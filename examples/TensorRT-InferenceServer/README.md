@@ -33,7 +33,7 @@ Navigate in your browser to localhost:8080 for the Grafana login page.
 
 ## Deploy TensorRT Inference Server
 Change to helm chart directory
-`cd ~/tensorrt-inference-server/deploy/single_server/`'
+`cd ~/tensorrt-inference-server/deploy/single_server/`
 
 Modify `values.yaml` changing `modelRepositoryPath`
 
