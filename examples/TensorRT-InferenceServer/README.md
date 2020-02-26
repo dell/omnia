@@ -43,28 +43,7 @@ image:
 
 Modify `templates/deployment.yaml` in **bold** to add the local NFS mount:
 <pre>
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ template "tensorrt-inference-server.fullname" . }}
-  namespace: {{ .Release.Namespace }}
-  labels:
-    app: {{ template "tensorrt-inference-server.name" . }}
-    chart: {{ template "tensorrt-inference-server.chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
-spec:
-  replicas: {{ .Values.replicaCount }}
-  selector:
-    matchLabels:
-      app: {{ template "tensorrt-inference-server.name" . }}
-      release: {{ .Release.Name }}
-  template:
-    metadata:
-      labels:
-        app: {{ template "tensorrt-inference-server.name" . }}
-        release: {{ .Release.Name }}
-
+...
     spec:
       containers:
         - name: {{ .Chart.Name }}
@@ -73,33 +52,7 @@ spec:
          <b style='background-color:yellow'> volumeMounts:
             - mountPath: /data/
               name: work-volume</b>
-          resources:
-            limits:
-              nvidia.com/gpu: {{ .Values.image.numGpus }}
-
-          args: ["trtserver", "--model-store={{ .Values.image.modelRepositoryPath }}"]
-
-          ports:
-            - containerPort: 8000
-              name: http
-            - containerPort: 8001
-              name: grpc
-            - containerPort: 8002
-              name: metrics
-          livenessProbe:
-            httpGet:
-              path: /api/health/live
-              port: http
-          readinessProbe:
-            initialDelaySeconds: 5
-            periodSeconds: 5
-            httpGet:
-              path: /api/health/ready
-              port: http
-
-          securityContext:
-            runAsUser: 1000
-            fsGroup: 1000
+ ...
    <b>   volumes:
       - name: work-volume
         hostPath:
