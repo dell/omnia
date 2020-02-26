@@ -137,6 +137,19 @@ Image 'images/mug.jpg':
     504 (COFFEE MUG) = 0.723992
 </pre>
 
+Run inception test with batch size 2 and print top 3 classifications
+<pre>
+ kubectl exec -it tensorrt-client -- /bin/bash -c "image_client  -u 192.168.60.150:8000 -m resnet50_netdef -s INCEPTION images/ -c 3 -b 2"
+Request 0, batch size 2
+Image 'images//mug.jpg':
+    504 (COFFEE MUG) = 0.723992
+    968 (CUP) = 0.270953
+    967 (ESPRESSO) = 0.00115996
+Image 'images//mug.jpg':
+    504 (COFFEE MUG) = 0.723992
+    968 (CUP) = 0.270953
+    967 (ESPRESSO) = 0.00115996
+</pre>
 
 
 
