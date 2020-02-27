@@ -86,7 +86,7 @@
 
 - name: Add KUBE_EXTRA_ARGS to enable GPUs
   lineinfile:
-    path: /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
+    path: /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
     line: 'Environment="KUBELET_EXTRA_ARGS=--feature-gates=DevicePlugins=true"'
     insertbefore: 'KUBELET_KUBECONFIG_ARGS='
   tags: install
