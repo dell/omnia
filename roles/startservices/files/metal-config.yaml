@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: metallb-system
+  name: config
+data:
+  config: |
+    address-pools:
+    - name: default
+      protocol: layer2
+      addresses:
+      - 10.0.0.150/32
+      - 10.0.0.151/32
+      - 10.0.0.152/32
+      - 10.0.0.153/32
+      - 10.0.0.154/32
+      - 10.0.0.155/32
+      - 10.0.0.156/32
+      - 10.0.0.157/32
+      - 10.0.0.158/32
+      - 10.0.0.159/32
