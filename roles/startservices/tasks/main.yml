@@ -1,0 +1,36 @@
+---
+- name: Deploy MetalLB
+  shell: kubectl apply -f https://raw.githubusercontent.com/google/metallb/v0.8.1/manifests/metallb.yaml
+  tags: init
+
+- name: Create MetalLB Setup Config Files
+  copy: src=metal-config.yaml dest=/root/k8s/metal-config.yaml owner=root group=root mode=655
+  tags: init
+
+- name: Create MetalLB Setup Deployment Files
+  copy: src=metallb.yaml dest=/root/k8s/metallb.yaml owner=root group=root mode=655
+  tags: init
+
+- name: Deploy MetalLB
+  shell: kubectl apply -f /root/k8s/metallb.yaml
+  tags: init
+
+- name: Create default setup for MetalLB
+  shell: kubectl apply -f /root/k8s/metal-config.yaml
+  tags: init
+
+- name: Helm - create service account
+  shell: kubectl create serviceaccount --namespace kube-system tiller
+  tags: init
+
+- name: Helm - create cluster role Binding
+  shell: kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
+  tags: init
+
+- name: Helm - init
+  shell: helm init  --upgrade
+  tags: init
+
+- name: Start K8S Dashboard
+  shell: kubectl create -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0-beta6/aio/deploy/recommended.yaml
+  tags: init
