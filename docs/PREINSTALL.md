@@ -16,3 +16,7 @@ Omnia can configure systems which use Ethernet- or Infiniband-based fabric to co
 ![Example system configuration with Ethernet fabric](images/example-system-ethernet.png)
 
 ![Example system configuration with Infiniband fabric](images/example-system-infiniband.png)
+
+## Network Setup
+Omnia assumes that servers are already connected to the network and have access to the internet. Possible network configurations include:
+* 
