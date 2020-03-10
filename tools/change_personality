@@ -22,7 +22,7 @@ then
 elif [ $new_personality == "s" ]
 then
 # Change Personality to Slurm
-  echo "INFO: Changing personality to Slurm"
+  echo "[INFO] Changing personality to Slurm"
   for node in $*
   do
     echo -n "$node"
@@ -31,5 +31,5 @@ then
     echo " [OK]"
   done
 else
-  echo "ERROR: $new_personality is not a valid personality. Use 'k' or 's'"
+  echo "[ERROR] $new_personality is not a valid personality. Use 'k' or 's'"
 fi 
