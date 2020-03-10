@@ -1,0 +1,32 @@
+#!/bin/bash
+
+#Usage: change_personality <k|s> <node_name>
+#       k = Kubernetes
+#       s = Slurm
+
+new_personality=$1
+shift
+
+if [ $new_personality == "k" ] 
+then
+# Change Personality to Kubernetes
+  echo "[INFO] Changing personality to Kubernetes"
+  for node in $*
+  do
+    echo "$node"
+    echo "   [COMMAND] scontrol update nodename=$node state=DRAIN reason=\"used for k8s\""
+    echo "   [COMMAND] kubectl uncordon $node"   
+  done
+elif [ $new_personality == "s" ]
+then
+# Change Personality to Slurm
+  echo "INFO: Changing personality to Slurm"
+  for node in $*
+  do
+    echo "$node"
+    echo "   [COMMAND] kubectl cordon $node"
+    echo "   [COMMAND] scontrol update nodename=$node state=IDLE reason=\"used for Slurm\""
+  done
+else
+  echo "ERROR: $new_personality is not a valid personality. Use 'k' or 's'"
+fi 
