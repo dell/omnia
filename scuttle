@@ -14,6 +14,6 @@ ifconfig cni0 down
 clush -ab "ifconfig cni0 down"
 ifconfig flannel.1 down
 clush -ab "ifconfig flannel.1 down"
-brctl delbr flannel.1
-clush -ab "brctl delbr flannel.1"
+#brctl delbr flannel.1
+#clush -ab "brctl delbr flannel.1"
 clush -ab "brctl delbr cni0"

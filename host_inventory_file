@@ -2,13 +2,14 @@
 friday
 
 [compute]
-compute[000:005]
-#compute000
-#compute001
-#compute002
+compute000
+compute[002:005]
 
 [gpus]
-compute[003:005]
+#compute001
+compute002
+compute004
+compute005
 
 [workers:children]
 compute
