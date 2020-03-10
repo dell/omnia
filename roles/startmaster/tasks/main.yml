@@ -63,56 +63,12 @@
   register: gpu_enable
   tags: init
 
-
 - name: Create yaml repo for setup
   file: 
     path: /root/k8s 
     state: directory
   tags: init
 
-
-#- name: Persistent Volume Setup Files
-  #copy: src=persistent_volumes.yaml dest=/root/k8s/persistent_volumes.yaml owner=root group=root mode=655
-  #tags: init
-#
-#- name: Persistent Volume Setup - Apply 
-  #shell: kubectl apply -f /root/k8s/persistent_volumes.yaml
-  #tags: init
-  #
-
-#- name: Copy Service Account (NFS Setup)
-  #copy: src=nfs-serviceaccount.yaml dest=/root/k8s/nfs-serviceaccount.yaml owner=root group=root mode=655
-  #tags: init
-#
-#- name: Copy Cluster Role (NFS Setup)
-  #copy: src=nfs_clusterrole.yaml dest=/root/k8s/nfs_clusterrole.yaml owner=root group=root mode=655
-  #tags: init
-#
-#- name: Copy Cluster Role Binding (NFS Setup)
-  #copy: src=nfs_clusterrolebinding.yaml dest=/root/k8s/nfs_clusterrolebinding.yaml owner=root group=root mode=655
-  #tags: init
-#
-#- name: Copy NFS Storage Deployment (NFS Setup)
-  #copy: src=nfs-deployment.yaml dest=/root/k8s/nfs-deployment.yaml owner=root group=root mode=655
-  #tags: init
-#
-#- name: Copy NFS Storage Class (NFS Setup)
-  #copy: src=nfs-class.yaml dest=/root/k8s/nfs-class.yaml owner=root group=root mode=655
-  #tags: init
-#
-#- name: Deploy NFS (NFS Setup)
-  #shell: kubectl create -f /root/k8s/nfs-deployment.yaml -f /root/k8s/nfs-class.yaml -f /root/k8s/nfs-serviceaccount.yaml -f /root/k8s/nfs_clusterrole.yaml -f /root/k8s/nfs_clusterrolebinding.yaml 
-  #tags: init
-
-#- name: Patch NFS Setup (NFS Setup)
-  #shell: kubectl patch deployment nfs-client-provisioner -p '{"spec":{"template":{"spec":{"serviceAccount":"nfs-client-provisioner"}}}}'
-  #tags: init
-
-#- name: Patch NFS Setup (NFS Setup)
-  #shell: "kubectl patch storageclass managed-nfs-storage -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'"
-  #tags: init
-
-  
 - name: Create Service Account (K8S Dashboard) Files
   copy: src=create_admin_user.yaml dest=/root/k8s/create_admin_user.yaml owner=root group=root mode=655
   tags: init
@@ -129,17 +85,11 @@
   shell: kubectl create -f /root/k8s/create_clusterRoleBinding.yaml
   tags: init
 
-- name: Start K8S Dashboard
-  shell: kubectl create -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0-beta6/aio/deploy/recommended.yaml
-  tags: init
-
 - name: Dump Bearer Token for K8S Dashboard Login
   shell: kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep admin-user | awk '{print $1}') > /root/k8s/token
   tags: init
 
-#- name: Proxy K8S Dashboard to 8001 on localhost
-  #shell: nohup kubectl proxy </dev/null >/dev/null 2>&1 & 
-  #tags: init
 
+# If more debug information is needed during init uncomment the following 2 lines
 #- debug: var=init_output.stdout_lines
   #tags: init
