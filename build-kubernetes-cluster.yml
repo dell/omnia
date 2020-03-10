@@ -33,3 +33,9 @@
   gather_facts: false
   roles:
     - startworkers
+
+# Start K8s worker servers
+- hosts: master
+  gather_facts: false
+  roles:
+    - startservices
