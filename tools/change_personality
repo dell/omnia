@@ -5,6 +5,7 @@
 #       s = Slurm
 
 new_personality=$1
+dnsdomain=`dnsdomainname`
 shift
 
 if [ $new_personality == "k" ] 
@@ -13,9 +14,10 @@ then
   echo "[INFO] Changing personality to Kubernetes"
   for node in $*
   do
-    echo "$node"
-    echo "   [COMMAND] scontrol update nodename=$node state=DRAIN reason=\"used for k8s\""
-    echo "   [COMMAND] kubectl uncordon $node"   
+    echo -n "$node"
+    scontrol update nodename=$node state=DRAIN reason="used for k8s"
+    kubectl uncordon $node.$dnsdomain > /dev/null  
+    echo " [OK]"
   done
 elif [ $new_personality == "s" ]
 then
@@ -23,9 +25,10 @@ then
   echo "INFO: Changing personality to Slurm"
   for node in $*
   do
-    echo "$node"
-    echo "   [COMMAND] kubectl cordon $node"
-    echo "   [COMMAND] scontrol update nodename=$node state=IDLE reason=\"used for Slurm\""
+    echo -n "$node"
+    kubectl cordon $node.$dnsdomain > /dev/null
+    scontrol update nodename=$node state=IDLE reason="used for Slurm"
+    echo " [OK]"
   done
 else
   echo "ERROR: $new_personality is not a valid personality. Use 'k' or 's'"
