@@ -1,5 +1,5 @@
 ---
-- name: Kick CoreDNS (needed for kubernetes <= v1.15.10)
+- name: Kick CoreDNS (this is a hack that needs to be fixed)
   shell:  kubectl get pods -n kube-system --no-headers=true | awk '/coredns/{print $1}'|xargs kubectl delete -n kube-system pod
   tags: init
 
