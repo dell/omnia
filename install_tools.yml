@@ -1,0 +1,9 @@
+---
+- name: Install Change Personality Script
+  hosts: master
+  copy:
+    src: tools/change_personality
+    dest: /usr/sbin/
+    owner: root
+    group: root
+    mode: '0700'
