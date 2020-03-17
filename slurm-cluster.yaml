@@ -1,0 +1,23 @@
+---
+#Playbook for installing Slurm on a cluster 
+
+#collect info from everything
+- hosts: all
+
+# Apply Common Installation and Config
+- hosts: cluster
+  gather_facts: false
+  roles:
+    - slurm-common
+
+# Apply Master Config, start services
+- hosts: master
+  gather_facts: false
+  roles:
+    - slurm-master
+
+# Start SLURM workers
+- hosts: compute
+  gather_facts: false
+  roles:
+    - start-slurm-workers
