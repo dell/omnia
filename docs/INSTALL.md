@@ -18,6 +18,10 @@ ansible-playbook -i host_inventory_file slurm/slurm.yml
 ```
 
 ## Build/Install
+Omnia is a collection of [Ansible](https://www.ansible.com/) playbooks which perform:
+* Installation of [Slurm](https://slurm.schedmd.com/) and/or [Kubernetes](https://kubernetes.io/) on servers already provisioned with a standard [CentOS](https://www.centos.org/) image.
+* Installation of auxiliary scripts for administrator functions such as moving nodes between Slurm and Kubernetes personalities.
+
 ### Kubernetes
 
 * Add additional repositories:
@@ -50,3 +54,12 @@ ansible-playbook -i host_inventory_file slurm/slurm.yml
         - Create dynamic/persistent volumes
     * Compute/slaves
         - Join k8s cluster
+
+### Slurm
+* Download and build Slurm source
+* Install necessary dependencies
+    - Python3
+    - munge
+    - MariaDB
+    - MariaDB development libraries
+* Build Slurm configuration files
