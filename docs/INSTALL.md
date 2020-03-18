@@ -15,6 +15,7 @@ ansible-playbook -i host_inventory_file kubernetes/kubernetes.yml --tags "init"
 ### Slurm
 ```
 ansible-playbook -i host_inventory_file slurm/slurm.yml
+```
 
 ## Build/Install
 ### Kubernetes
