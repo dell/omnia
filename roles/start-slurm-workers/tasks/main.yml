@@ -1,9 +1,0 @@
----
-- name: Install SLURM RPMs on compute
-  yum:
-    name: "{{ item }}"
-    #name: "{{ query('fileglob', ['/home/rpms/slurm*20*.rpm']) }}" <-- how it should work to avoid loop
-  with_fileglob:
-    - /home/rpms/slurm*20*.rpm
-  tags: install
-
