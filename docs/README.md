@@ -8,3 +8,17 @@ Once servers have functioning OS and networking, you can using Omnia to install 
 
 ## Contributing to Omnia
 The Omnia project was started to give members of the [Dell Technologies HPC Community](https://dellhpc.org) a way to easily setup clusters of Dell EMC servers, but to contribute useful tools, fixes, and functionality back to the HPC Community.
+
+### Open to All
+While we started Omnia within the Dell Technologies HPC Community, that doesn't mean that it's limited to Dell EMC servers, networking, and storage. This is an open project, and we want to encourage *everyone* to use and contribute to Omnia!
+
+### Anyone Can Contribute!
+It's not just new features and bug fixes that can be contributed to the Omnia project! Anyone should feel comfortable contributing. We are asking for all types of contributions:
+* New feature code
+* Bug fixes
+* Documentation updates
+* Feature suggestions
+* Feedback
+* Validation that it works for your particular configuration
+
+If you would like to contribute, see [CONTRIBUTING](../CONTRIBUTING.md).
