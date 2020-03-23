@@ -12,5 +12,5 @@ spec:
   nfs:
     server: 10.0.0.1
     path: /work/k8s/jhub-db
-  persistentVolumeReclaimPolicy: Retain
+  persistentVolumeReclaimPolicy: Recycle
 

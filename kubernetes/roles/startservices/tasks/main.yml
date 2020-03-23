@@ -78,3 +78,7 @@
 - name: jupyterHub deploy
   shell: helm install jupyterhub/jupyterhub  --namespace default --version 0.8.2 --values /root/k8s/jupyter_config.yaml
   tags: init
+
+- name: Prometheus deployment
+  shell: helm install stable/prometheus --set alertmanager.persistentVolume.storageClass=nfs-client,server.persistentVolume.storageClass=nfs-client,server.service.type=LoadBalancer
+  tags: init
