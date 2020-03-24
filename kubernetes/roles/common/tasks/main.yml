@@ -45,17 +45,23 @@
 - name: install common packages
   yum: 
     name:
+      - yum-plugin-versionlock
       - gcc
       - nfs-utils
       - python-pip
       - docker
       - bash-completion
-      - kubelet
-      - kubeadm
-      - kubectl
+      - kubelet-1.16.7
+      - kubeadm-1.16.7
+      - kubectl-1.16.7
       - nvidia-detect
     state: present
   tags: install
+
+- name: versionlock kubernetes
+  command: yum versionlock kubelet-1.16.7 kubectl-1.16.7 kubeadm-1.16.7
+  tags: install
+  
 
 - name: install InfiniBand Support
   yum:
