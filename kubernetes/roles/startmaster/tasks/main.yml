@@ -51,13 +51,15 @@
     msg: "[Master] K8S_MASTER_IP is  {{ hostvars['K8S_TOKEN_HOLDER']['ip'] }}"
   tags: init
 
-  
-- name: Setup Flannel SDN network
-  shell: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+- name: Setup Calico SDN network
+  shell: kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
   tags: init
+  
+#- name: Setup Flannel SDN network
+  #shell: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+  #tags: init
 
 - name: Enabled GPU support in Kubernetes
-  #script: enable_gpu_k8s.sh
   shell: kubectl create -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/1.0.0-beta4/nvidia-device-plugin.yml
                            #https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v1.11/nvidia-device-plugin.yml
   register: gpu_enable
@@ -88,7 +90,6 @@
 - name: Dump Bearer Token for K8S Dashboard Login
   shell: kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep admin-user | awk '{print $1}') > /root/k8s/token
   tags: init
-
 
 # If more debug information is needed during init uncomment the following 2 lines
 #- debug: var=init_output.stdout_lines
