@@ -19,7 +19,7 @@
 
 - name: Get Helm Installer
   get_url:
-    url: https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get 
+    url: https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
     dest: /root/bin/get_helm.sh
     mode: 700 
   tags: master
