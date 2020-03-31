@@ -82,3 +82,7 @@
 - name: Prometheus deployment
   shell: helm install stable/prometheus --set alertmanager.persistentVolume.storageClass=nfs-client,server.persistentVolume.storageClass=nfs-client,server.service.type=LoadBalancer --generate-name
   tags: init
+
+- name: Install MPI Operator
+  shell: kubectl create -f https://raw.githubusercontent.com/kubeflow/mpi-operator/v0.2.2/deploy/mpi-operator.yaml
+  tags: init
