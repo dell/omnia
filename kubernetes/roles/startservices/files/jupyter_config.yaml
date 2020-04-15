@@ -19,7 +19,7 @@ singleuser:
     - display_name: "DellHPC Improved Environment"
       description: "Dell curated Jupyter Stacks"
       kubespawner_override:
-        image: "dellhpc/datasciencelab-base:1.0"
+        image: "dellhpc/datasciencelab-cpu:1.0"
     - display_name: "DellHPC GPU Environment"
       description: "Dell curated Jupyter Stacks 1 GPU"
       kubespawner_override:
