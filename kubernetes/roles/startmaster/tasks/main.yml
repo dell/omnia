@@ -14,7 +14,13 @@
   tags: init
 
 - name: Copy Kubernetes Config for root #do this for other users too?
-  copy: src=/etc/kubernetes/admin.conf dest=/root/.kube/config owner=root group=root mode=644
+  copy: 
+    src: /etc/kubernetes/admin.conf 
+    dest: /root/.kube/config 
+    owner: root 
+    group: root 
+    mode: 644
+    remote_src: yes
   tags: init
 
 - name: Cluster token
