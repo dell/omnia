@@ -18,6 +18,16 @@ Contributions to Omnia are made through [Pull Requests (PRs)](https://help.githu
 3. **Issue branch:** [Create a new branch](https://help.github.com/en/desktop/contributing-to-projects/creating-a-branch-for-your-work) on your fork of the repository. All contributions should be branched from `devel`. Use `git checkout devel; git checkout -b <new-branch-name>` to create the new branch.
    * **Branch name:** The branch name should be based on the issue you are addressing. Use the following pattern to create your new branch name: issue-number, e.g., issue-1023.
 4. **Commit changes to the issue branch:** It is important to commit your changes to the issue branch. Commit messages should be descriptive of the changes being made.
+   * **Signing your commits:** All commits to Omnia need to be signed with the [Developer Certificate of Origin (DCO)](https://developercertificate.org/) in order to certify that the contributor has permission to contribute the code. In order to sign commits, use either the `--signoff` or `-s` option to `git commit`:
+   ```
+   git commit --signoff
+   git commit -s
+   ```
+   Make sure you have your user name and e-mail set. The `--signoff | -s` option will use the configured user name and e-mail, so it is important to configure it before the first time you commit. Check the following references:
+
+      * [Setting up your github user name](https://help.github.com/articles/setting-your-username-in-git/)
+      * [Setting up your e-mail address](https://help.github.com/articles/setting-your-commit-email-address-in-git/)
+   
 5. **Push the changes to your personal repo:** To be able to create a pull request, push the changes to origin: `git push origin <new-branch-name>`. Here I assume that `origin` is your personal repo, e.g., `lwilson/omnia.git`.
 6. **Create a pull request:** [Create a pull request](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request) with a title following this format Issue ###: Description (_i.e., Issue 1023: Reformat testutils_). It is important that you do a good job with the description to make the job of the code reviewer easier. A good description not only reduces review time, but also reduces the probability of a misunderstanding with the pull request.
    * **Important:** When preparing a pull request it is important to stay up-to-date with the project repository. We recommend that you rebase against the upstream repo _frequently_. To do this, use the following commands:
@@ -35,22 +45,3 @@ Contributions to Omnia are made through [Pull Requests (PRs)](https://help.githu
 The diagram below describes the contribution flow. Omnia has two lifetime branches: `devel` and `master`. The `master` branch is reserved for releases and their associated tags. The `devel` branch is where all development work occurs. The `devel` branch is also the default branch for the project.
 
 ![Omnia Branch Flowchart](docs/images/omnia-branch-structure.png "Flowchart of Omnia branches")
-
-
-## Signing Your Commits
-We require that developers sign off their commits to certify that they have permission to contribute the code in a pull request. This way of certifying is commonly known as the [Developer Certificate of Origin (DCO)](https://developercertificate.org/). We encourage all contributors to read the DCO text before signing a commit and making contributions.
-
-To make sure that pull requests have all commits signed off, we use the [Probot DCO plugin](https://probot.github.io/apps/dco/).
-
-### Signing off a commit
-To sign your commit, use either `--signoff` or `-s` with the commit command:
-```
-git commit --signoff
-git commit -s
-```
-
-Make sure you have your user name and e-mail set. The `--signoff | -s` option will use the configured user name and e-mail, so it is important to configure it before the first time you commit. Check the following references:
-
-[Setting up your github user name](https://help.github.com/articles/setting-your-username-in-git/)
-
-[Setting up your e-mail address](https://help.github.com/articles/setting-your-commit-email-address-in-git/)
