@@ -7,21 +7,28 @@ These guidelines are based on the [pravega project](https://github.com/pravega/p
 
 This document will evolve as the project matures. Please be sure to regularly refer back in order to stay in-line with contribution guidelines.
 
-## Issues and Pull Requests
-To produce a pull request against Omnia, follow these steps:
+## How to Contribute to Omnia
+Contributions to Omnia are made through [Pull Requests (PRs)](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-requests). To make a pull request against Omnia, use the following steps:
 
-* **Create an issue:** Create an issue and describe what you are trying to solve. It doesn't matter whether it is a new feature, a bug fix, or an improvement. All pull requests need to be associated to an issue. See more here: Creating an issue
-* **Issue branch:** Create a new branch on your fork of the repository. Typically, you need to branch off master, but there could be exceptions. To branch off master, use git checkout master; git checkout -b <new-branch-name>.
-* **Push the changes:** To be able to create a pull request, push the changes to origin: git push --set-upstream origin <new-branch-name>. I'm assuming that origin is your personal repo, e.g., `lwilson/omnia.git`.
-* **Branch name:** Use the following pattern to create your new branch name: issue-number-description, e.g., issue-1023-reformat-testutils.
-* **Create a pull request:** Github gives you the option of creating a pull request. Give it a title following this format Issue ###: Description, _e.g., Issue 1023: Reformat testutils. Follow the guidelines in the description and try to provide as much information as possible to help the reviewer understand what is being addressed. It is important that you try to do a good job with the description to make the job of the code reviewer easier. A good description not only reduces review time, but also reduces the probability of a misunderstanding with the pull request.
-* **Merging:** Merging of pull requests will be handled by project mantainers
+1. **Create an issue:** [Create an issue](https://help.github.com/en/github/managing-your-work-on-github/creating-an-issue) and describe what you are trying to solve. It does not matter whether it is a new feature, a bug fix, or an improvement. All pull requests need to be associated to an issue.
+2. **Create a personal fork:** All work on Omnia should be done in a [fork of the repository](https://help.github.com/en/github/getting-started-with-github/fork-a-repo). Only the maintiners are allowed to commit directly to the project repository.
+3. **Issue branch:** [Create a new branch](https://help.github.com/en/desktop/contributing-to-projects/creating-a-branch-for-your-work) on your fork of the repository. All contributions should be branched from `devel`. Use `git checkout devel; git checkout -b <new-branch-name>` to create the new branch.
+   * **Branch name:** The branch name should be based on the issue you are addressing. Use the following pattern to create your new branch name: issue-number, e.g., issue-1023.
+4. **Commit changes to the issue branch: ** It is important to commit your changes to the issue branch. Commit messages should be descriptive of the changes being made.
+5. **Push the changes to your personal repo:** To be able to create a pull request, push the changes to origin: `git push origin <new-branch-name>`. Here I assume that `origin` is your personal repo, e.g., `lwilson/omnia.git`.
+6. **Create a pull request:** [Create a pull request](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request) with a title following this format Issue ###: Description (_i.e., Issue 1023: Reformat testutils_). It is important that you do a good job with the description to make the job of the code reviewer easier. A good description not only reduces review time, but also reduces the probability of a misunderstanding with the pull request.
 
-When preparing a pull request it is important to stay up-to-date with the master. We recommend that you rebase against the upstream repository _frequently_. To do this, use the following commands:
-```
-git pull --rebase upstream master #upstream is dellhpc/omnia
-git push --force origin <pr-branch-name> #origin is your fork of the repository (e.g., <github_user_name>/omnia.git)
-```
+   When preparing a pull request it is important to stay up-to-date with the project repository. We recommend that you rebase against the upstream repo _frequently_. To do this, use the following commands:
+   ```
+   git pull --rebase upstream master #upstream is dellhpc/omnia
+   git push --force origin <pr-branch-name> #origin is your fork of the repository (e.g., <github_user_name>/omnia.git)
+   ```
+### Omnia Branches and Contribution Flow
+The diagram below describes the contribution flow. Omnia has two lifetime branches: `devel` and `master`. The `master` branch is reserved for releases and their associated tags. The `devel` branch is where all development work occurs. The `devel` branch is also the default branch for the project.
+
+![Omnia Branch Flowchart](docs/images/omnia-branch-structure.png "Flowchart of Omnia branches")
+
+
 ## Creating an Issue
 When creating an issue, there are two important parts: title and description. The title should be succinct, but give a good idea of what the issue is about. Try to add all important keywords to make it clear to the reader. For example, if the issue is about changing the log level of some messages in the segment store, then instead of saying "Log level" say "Change log level in the segment store". The suggested way includes both the goal where in the code we are supposed to do it.
 
