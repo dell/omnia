@@ -1,7 +1,5 @@
-# Installing Omnia
-
-## TL;DR
-
+## TL;DR Installation
+ 
 ### Kubernetes
 Install Kubernetes and all dependencies
 ```
@@ -12,54 +10,91 @@ Initialize K8s cluster
 ```
 ansible-playbook -i host_inventory_file kubernetes/kubernetes.yml --tags "init"
 ```
+
 ### Slurm
 ```
 ansible-playbook -i host_inventory_file slurm/slurm.yml
 ```
 
-## Build/Install
+# Omnia  
 Omnia is a collection of [Ansible](https://www.ansible.com/) playbooks which perform:
 * Installation of [Slurm](https://slurm.schedmd.com/) and/or [Kubernetes](https://kubernetes.io/) on servers already provisioned with a standard [CentOS](https://www.centos.org/) image.
 * Installation of auxiliary scripts for administrator functions such as moving nodes between Slurm and Kubernetes personalities.
 
-### Kubernetes
-
-* Add additional repositories:
+Omnia playbooks perform several tasks:
+`common` playbook handles installation of software 
+* Add yum repositories:
     - Kubernetes (Google)
-    - El Repo (nvidia drivers)
-    - Nvidia (nvidia-docker)
+    - El Repo (for Nvidia drivers)
     - EPEL (Extra Packages for Enterprise Linux)
-* Install common packages
+* Install Packages from repos:
+    - bash-completion
+    - docker
     - gcc
     - python-pip
-    - docker
     - kubelet
     - kubeadm
     - kubectl
+    - nfs-utils
     - nvidia-detect
-    - kmod-nvidia
-    - nvidia-x11-drv
-    - nvidia-container-runtime
-    - ksonnet (CLI framework for K8S configs)
-* Enable GPU Device Plugins (nvidia-container-runtime-hook)
-* Modify kubeadm config to allow GPUs as schedulable resource 
-* Start and enable services
+    - yum-plugin-versionlock
+* Restart and enable system level services
     - Docker
     - Kubelet
-* Initialize Cluster
+
+`computeGPU` playbook installs Nvidia drivers and nvidia-container-runtime-hook
+* Add yum repositories:
+    - Nvidia (container runtime)
+* Install Packages from repos:
+    - kmod-nvidia
+    - nvidia-container-runtime-hook
+* Restart and enable system level services
+    - Docker
+    - Kubelet
+* Configuration:
+    - Enable GPU Device Plugins (nvidia-container-runtime-hook)
+    - Modify kubeadm config to allow GPUs as schedulable resource 
+* Restart and enable system level services
+    - Docker
+    - Kubelet
+
+`master` playbook
+* Install Helm v3
+* (optional) add firewall rules for Slurm and kubernetes
+
+Everything from this point on can be called by using the `init` tag
+```
+ansible-playbook -i host_inventory_file kubernetes/kubernetes.yml --tags "init"
+```
+
+`startmaster` playbook
+* turn off swap
+*Initialize Kubernetes
     * Head/master
         - Start K8S pass startup token to compute/slaves
-        - Initialize networking (Currently using WeaveNet)
-        - Setup K8S Dashboard
-        - Create dynamic/persistent volumes
-    * Compute/slaves
-        - Join k8s cluster
+        - Initialize software defined networking (Calico)
+
+`startworkers` playbook
+* turn off swap
+* Join k8s cluster
+
+`startservices` playbook
+* Setup K8S Dashboard
+* Add `stable` repo to helm
+* Add `jupyterhub` repo to helm
+* Update helm repos
+* Deploy NFS client Provisioner
+* Deploy Jupyterhub
+* Deploy Prometheus
+* Install MPI Operator
+
 
 ### Slurm
-* Download and build Slurm source
-* Install necessary dependencies
+* Downloads and builds Slurm from source
+* Install package dependencies
     - Python3
     - munge
     - MariaDB
     - MariaDB development libraries
 * Build Slurm configuration files
+
