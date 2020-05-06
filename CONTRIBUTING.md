@@ -7,59 +7,83 @@ These guidelines are based on the [pravega project](https://github.com/pravega/p
 
 This document will evolve as the project matures. Please be sure to regularly refer back in order to stay in-line with contribution guidelines.
 
-## Issues and Pull Requests
-To produce a pull request against Omnia, follow these steps:
+## How to Contribute to Omnia
+Contributions to Omnia are made through [Pull Requests (PRs)](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-requests). To make a pull request against Omnia, use the following steps:
 
-* **Create an issue:** Create an issue and describe what you are trying to solve. It doesn't matter whether it is a new feature, a bug fix, or an improvement. All pull requests need to be associated to an issue. See more here: Creating an issue
-* **Issue branch:** Create a new branch on your fork of the repository. Typically, you need to branch off master, but there could be exceptions. To branch off master, use git checkout master; git checkout -b <new-branch-name>.
-* **Push the changes:** To be able to create a pull request, push the changes to origin: git push --set-upstream origin <new-branch-name>. I'm assuming that origin is your personal repo, e.g., `lwilson/omnia.git`.
-* **Branch name:** Use the following pattern to create your new branch name: issue-number-description, e.g., issue-1023-reformat-testutils.
-* **Create a pull request:** Github gives you the option of creating a pull request. Give it a title following this format Issue ###: Description, _e.g., Issue 1023: Reformat testutils. Follow the guidelines in the description and try to provide as much information as possible to help the reviewer understand what is being addressed. It is important that you try to do a good job with the description to make the job of the code reviewer easier. A good description not only reduces review time, but also reduces the probability of a misunderstanding with the pull request.
-* **Merging:** Merging of pull requests will be handled by project mantainers
+1. **Create an issue:** [Create an issue](https://help.github.com/en/github/managing-your-work-on-github/creating-an-issue) and describe what you are trying to solve. It does not matter whether it is a new feature, a bug fix, or an improvement. All pull requests need to be associated to an issue. When creating an issue, be sure to use the appropriate issue template (bug fix or feature request) and complete all of the required fields. If your issue does not fit in either a bug fix or feature request, then create a blank issue and be sure to including the following information:
+   * **Problem description:** Describe what you believe needs to be addressed
+   * **Problem location:** In which file and at what line does this issue occur?
+   * **Suggested resolution:** How do you intend to resolve the problem?
+2. **Create a personal fork:** All work on Omnia should be done in a [fork of the repository](https://help.github.com/en/github/getting-started-with-github/fork-a-repo). Only the maintiners are allowed to commit directly to the project repository.
+3. **Issue branch:** [Create a new branch](https://help.github.com/en/desktop/contributing-to-projects/creating-a-branch-for-your-work) on your fork of the repository. All contributions should be branched from `devel`. Use `git checkout devel; git checkout -b <new-branch-name>` to create the new branch.
+   * **Branch name:** The branch name should be based on the issue you are addressing. Use the following pattern to create your new branch name: issue-number, e.g., issue-1023.
+4. **Commit changes to the issue branch:** It is important to commit your changes to the issue branch. Commit messages should be descriptive of the changes being made.
+   * **Signing your commits:** All commits to Omnia need to be signed with the [Developer Certificate of Origin (DCO)](https://developercertificate.org/) in order to certify that the contributor has permission to contribute the code. In order to sign commits, use either the `--signoff` or `-s` option to `git commit`:
+   ```
+   git commit --signoff
+   git commit -s
+   ```
+   Make sure you have your user name and e-mail set. The `--signoff | -s` option will use the configured user name and e-mail, so it is important to configure it before the first time you commit. Check the following references:
 
-When preparing a pull request it is important to stay up-to-date with the master. We recommend that you rebase against the upstream repository _frequently_. To do this, use the following commands:
+      * [Setting up your github user name](https://help.github.com/articles/setting-your-username-in-git/)
+      * [Setting up your e-mail address](https://help.github.com/articles/setting-your-commit-email-address-in-git/)
+   
+5. **Push the changes to your personal repo:** To be able to create a pull request, push the changes to origin: `git push origin <new-branch-name>`. Here I assume that `origin` is your personal repo, e.g., `lwilson/omnia.git`.
+6. **Create a pull request:** [Create a pull request](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request) with a title following this format Issue ###: Description (_i.e., Issue 1023: Reformat testutils_). It is important that you do a good job with the description to make the job of the code reviewer easier. A good description not only reduces review time, but also reduces the probability of a misunderstanding with the pull request.
+   * **Important:** When preparing a pull request it is important to stay up-to-date with the project repository. We recommend that you rebase against the upstream repo _frequently_. To do this, use the following commands:
+   ```
+   git pull --rebase upstream master #upstream is dellhpc/omnia
+   git push --force origin <pr-branch-name> #origin is your fork of the repository (e.g., <github_user_name>/omnia.git)
+   ```
+   * **PR Description:** Be sure to fully describe the pull request. Ideally, your PR description will contain:
+      1. A description of the main point (_e.g., why was this PR made?_),
+      2. Linking text to the related issue (_e.g., This PR closes issue #<issue_number>_),
+      3. How the changes solves the problem, and
+      4. How to verify that the changes work correctly.
+   
+## Omnia Branches and Contribution Flow
+The diagram below describes the contribution flow. Omnia has two lifetime branches: `devel` and `master`. The `master` branch is reserved for releases and their associated tags. The `devel` branch is where all development work occurs. The `devel` branch is also the default branch for the project.
+
+![Omnia Branch Flowchart](docs/images/omnia-branch-structure.png "Flowchart of Omnia branches")
+
+## Developer Certificate of Origin
+Contributions to Omnia must be signed with the [Developer Certificate of Origin (DCO)](https://developercertificate.org/):
 ```
-git pull --rebase upstream master #upstream is dellhpc/omnia
-git push --force origin <pr-branch-name> #origin is your fork of the repository (e.g., <github_user_name>/omnia.git)
+Developer Certificate of Origin
+Version 1.1
+
+Copyright (C) 2004, 2006 The Linux Foundation and its contributors.
+1 Letterman Drive
+Suite D4700
+San Francisco, CA, 94129
+
+Everyone is permitted to copy and distribute verbatim copies of this
+license document, but changing it is not allowed.
+
+
+Developer's Certificate of Origin 1.1
+
+By making a contribution to this project, I certify that:
+
+(a) The contribution was created in whole or in part by me and I
+    have the right to submit it under the open source license
+    indicated in the file; or
+
+(b) The contribution is based upon previous work that, to the best
+    of my knowledge, is covered under an appropriate open source
+    license and I have the right under that license to submit that
+    work with modifications, whether created in whole or in part
+    by me, under the same open source license (unless I am
+    permitted to submit under a different license), as indicated
+    in the file; or
+
+(c) The contribution was provided directly to me by some other
+    person who certified (a), (b) or (c) and I have not modified
+    it.
+
+(d) I understand and agree that this project and the contribution
+    are public and that a record of the contribution (including all
+    personal information I submit with it, including my sign-off) is
+    maintained indefinitely and may be redistributed consistent with
+    this project or the open source license(s) involved.
 ```
-## Creating an Issue
-When creating an issue, there are two important parts: title and description. The title should be succinct, but give a good idea of what the issue is about. Try to add all important keywords to make it clear to the reader. For example, if the issue is about changing the log level of some messages in the segment store, then instead of saying "Log level" say "Change log level in the segment store". The suggested way includes both the goal where in the code we are supposed to do it.
-
-For the description, there three parts:
-
-* *Problem description:* Describe what it is that we need to change. If it is a bug, describe the observed symptoms. If it is a new feature, describe it is supposed to be with as much detail as possible.
-
-* *Problem location:* This part refers to where in the code we are supposed to make changes. For example, if it is bug in the client, then in this part say at least "Client". If you know more about it, then please add it. For example, if you that there is an issue with SegmentOutputStreamImpl, say it in this part.
-
-* *Suggestion for an improvement:* This section is designed to let you give a suggestion for how to fix the bug described in the Problem description or how to implement the feature described in that same section. Please make an effort to separate between problem statement (Problem Description section) and solution (Suggestion for an improvement).
-
-We next discuss how to create a pull request.
-
-## Creating a Pull Request
-When creating a pull request, there are also two important parts: title and description. The title can be the same as the one of the issue, but it must be prefixed with the issue number, e.g.:
-```
-Issue 724: Change log level in the segment store
-```
-The description has four parts:
-
-* __Changelog description*:__ This section should be the two or three main points about this PR. A detailed description should be left for the What the code does section. The two or three points here should be used by a committer for the merge log.
-* __Purpose of the change:__ Say whether this closes an issue or perhaps is a subtask of an issue. This section should link the PR to at least one issue.
-* __What the code does:__ Use this section to freely describe the changes in this PR. Make sure to give as much detail as possible to help a reviewer to do a better job understanding your changes.
-* __How to verify it:__ For most of the PRs, the answer here will be trivial: the build must pass, system tests must pass, visual inspection, etc. This section becomes more important when the way to reproduce the issue the PR is resolving is non-trivial, like running some specific command or workload generator.
-
-## Signing Your Commits
-We require that developers sign off their commits to certify that they have permission to contribute the code in a pull request. This way of certifying is commonly known as the [Developer Certificate of Origin (DCO)](https://developercertificate.org/). We encourage all contributors to read the DCO text before signing a commit and making contributions.
-
-To make sure that pull requests have all commits signed off, we use the [Probot DCO plugin](https://probot.github.io/apps/dco/).
-
-### Signing off a commit
-
-#### Using the command line
-To make sure that pull requests have all commits signed off, we use the Probot DCO plugin.
-Use either `--signoff` or `-s` with the commit command.
-
-Make sure you have your user name and e-mail set. The `--signoff | -s` option will use the configured user name and e-mail, so it is important to configure it before the first time you commit. Check the following references:
-
-[Setting up your github user name](https://help.github.com/articles/setting-your-username-in-git/)
-
-[Setting up your e-mail address](https://help.github.com/articles/setting-your-commit-email-address-in-git/)
