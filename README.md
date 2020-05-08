@@ -6,10 +6,10 @@ Omnia (Latin: all or everything) is a deployment tool to turn Dell EMC PowerEdge
 ## Omnia Documentation
 For Omnia documentation, including installation and contribution instructions, see [docs](docs/README.md).
 
-### Current maintainers:
+## Current maintainers:
 * Lucas A. Wilson (Dell Technologies)
 * John Lockman (Dell Technologies)
 
-### Omnia Contributors:
+## Omnia Contributors:
 <img src="docs/images/delltech.jpg" width="250px" alt="Dell Technologies">
 <img src="docs/images/pisa.png" width="250px" alt="Universita di Pisa">
