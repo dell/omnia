@@ -9,3 +9,7 @@ For Omnia documentation, including installation and contribution instructions, s
 ### Current maintainers:
 * Lucas A. Wilson (Dell Technologies)
 * John Lockman (Dell Technologies)
+
+### Omnia Contributors:
+![Dell Technologies](docs/images/delltech.jpg =250px)
+![Universita di Pisa](docs/images/pisa.png =250px)
