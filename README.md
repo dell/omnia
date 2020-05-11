@@ -1,6 +1,6 @@
 <img src="docs/images/omnia-logo.png" width="500px">
 
-![GitHub](https://img.shields.io/github/license/dellhpc/omnia) ![GitHub issues](https://img.shields.io/github/issues-raw/dellhpc/omnia)
+![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/dellhpc/omnia?include_prereleases) ![GitHub](https://img.shields.io/github/license/dellhpc/omnia) ![GitHub issues](https://img.shields.io/github/issues-raw/dellhpc/omnia) ![GitHub last commit (branch)](https://img.shields.io/github/last-commit/dellhpc/omnia/devel) ![GitHub commits since tagged version](https://img.shields.io/github/commits-since/dellhpc/omnia/omnia-v0.1/devel) 
 
 #### Ansible playbook-based deployment of Slurm and Kubernetes on Dell EMC PowerEdge servers running an RPM-based Linux OS
 
