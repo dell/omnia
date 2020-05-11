@@ -14,4 +14,4 @@ For Omnia documentation, including installation and contribution instructions, s
 * John Lockman (Dell Technologies)
 
 ## Omnia Contributors:
-<img src="docs/images/delltech.jpg" width="250px" alt="Dell Technologies"> <img src="docs/images/pisa.png" width="250px" alt="Universita di Pisa">
+<img src="docs/images/delltech.jpg" height="150px" alt="Dell Technologies"> <img src="docs/images/pisa.png" height="150px" alt="Universita di Pisa">
