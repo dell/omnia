@@ -89,6 +89,10 @@
   shell: helm install stable/nfs-client-provisioner --set nfs.server=10.0.0.1 --set nfs.path=/work --generate-name
   tags: init
 
+- name: Set NFS-Client Provisioner as DEFAULT StorageClass
+  shell: "kubectl patch storageclasses.storage.k8s.io nfs-client -p '{\"metadata\": {\"annotations\":{\"storageclass.kubernetes.io/is-default-class\":\"true\"}}}'"
+  tags: init
+
 - name: JupyterHub Persistent Volume Creation (files)  
   copy: src=jhub-db-pv.yaml dest=/root/k8s/jhub-db-pv.yaml owner=root group=root mode=655
   tags: init
