@@ -1,0 +1,197 @@
+#  Copyright 2020 Dell Technologies
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---    
+    
+    # Stop, disable firewalld
+    - name: Stop, disable iptables
+      systemd:
+         name: firewalld
+         state: stopped
+         enabled: no
+    
+    # Add Epel Repo
+    - name: Add epel repository
+      yum:
+        vars:
+          rpms:
+            - "epel-release"
+          state: present
+    
+    # Install Cobbler Server
+    - name: Install Cobbler Server
+      yum:
+         enablerepo: "*base,*epel,*extras,*updates"
+         name: "{{ rpms }}"
+      vars:
+         rpms:
+          - "bind"
+          - "cobbler"
+          - "cobbler-web"
+          - "dnsmasq"
+          - "fence-agents"
+          - "git"
+          - "libselinux-python"
+          - "pykickstart"
+          - "syslinux"
+          - "vim"
+          - "wget"
+          - "xinetd"
+         state: present
+    
+    #  disable SELinux
+    #  requirement: libselinux-python on target host
+    - name: Disable Selinux 
+      selinux:
+        state: disabled
+
+    # Create /tftpboot
+    - name: Create tftpboot
+      file:
+        path: /tftpboot
+        owner: root
+        group: root
+        mode: 0775
+        state: directory
+      replace:
+        path: /etc/xinetd.d/tftp
+        regexp: '.*disable.*'
+        replace: 'disable  = no'
+        backup: yes
+
+    #  Setup Distro signature file
+    - name: Setup Distro signature file
+      copy:
+        src: distro_signatures.json
+        dest: /var/lib/cobbler/distro_signatures.json
+        owner: root
+        group: root
+        mode: "0644"
+        backup: yes
+    
+    #  Setup login info
+    - name: Setup cobbler web login info
+      tasks:
+        - replace:
+            path: /etc/cobbler/pxe/pxedefault.template
+            regexp: '^MENU TITLE.*'
+            replace: 'MENU TITLE Welcome to {{ inventory_hostname }}'
+            backup: yes
+        - replace:
+            path: /usr/share/cobbler/web/cobbler_web/templates/login.tmpl
+            regexp: '.*Username:.*'
+            replace: 'LDAP Username: '
+        - replace:
+            path: /usr/share/cobbler/web/cobbler_web/templates/login.tmpl
+            regexp: '.*Password:.*'
+            replace: 'LDAP Password: '
+            backup: yes
+
+    #  Setup authorization file users.conf
+    - name: Setup authorization file users.conf
+      copy:
+        src: users.conf
+        dest: /etc/cobbler/users.conf
+        owner: root
+        group: root
+        mode: "0644"
+        backup: yes
+
+    # ------------------------------
+    # Setup authentication, authorization methods
+    # http://cobbler.github.io/manuals/2.8.0/5/3_-_Web_Authorization.html
+    # -------------------------------
+    # - replace:
+    #     path: /etc/cobbler/modules.conf
+    #     regexp: 'module = authn_.*'
+    #     replace: 'module = authn_ldap'
+    # - replace:
+    #     path: /etc/cobbler/modules.conf
+    #     regexp: 'module = authz_.*'
+    #     replace: 'module = authz_configfile'
+    #     backup: yes
+
+    # Adjust Cobbler settings
+    - name: Adjust Cobbler Settings
+      tasks:
+        - replace:
+            path: /etc/cobbler/settings
+            regexp: '^server:.*'
+            replace: 'server: {{ inventory_hostname }}'
+        - replace:
+            path: /etc/cobbler/settings
+            regexp: '^next_server:.*'
+            replace: 'next_server: {{ inventory_hostname }}'
+        - replace:
+            path: /etc/cobbler/settings
+            regexp: '^ldap_base_dn.*'
+            replace: 'ldap_base_dn: "dc=domain,dc=com"'
+        - replace:
+            path: /etc/cobbler/settings
+            regexp: '^ldap_server.*'
+            replace: 'ldap_server: your-ldap-server1.domain.com your-ldap-server2.domain.com'
+        - replace:
+            path: /etc/cobbler/settings
+            regexp: '^ldap_port.*'
+            replace: 'ldap_port: 636'
+        - replace:
+            path: /etc/cobbler/settings
+            regexp: '^ldap_anonymous_bind.*'
+            replace: 'ldap_anonymous_bind: 1'
+        - replace:
+            path: /etc/cobbler/settings
+            regexp: '^ldap_tls.*'
+            replace: 'ldap_tls: 1'
+        - replace:
+            path: /etc/cobbler/settings
+            regexp: '^ldap_search_prefix.*'
+            replace: 'ldap_search_prefix: uid='
+        - replace:
+            path: /etc/cobbler/settings
+            regexp: '^proxy_url_ext.*'
+            replace: 'proxy_url_ext: http://www-your-proxy.domain.com:80'
+            backup: yes
+
+    # Start , enable needed services ...
+    - name: Start, enable needed services
+      systemd:
+         name: "{{ item }}"
+         state: restarted
+         enabled: yes
+      with_list:
+          - xinetd
+          - httpd
+          - cobblerd
+          - bind
+          - dhcpd
+
+    #  Get Cobbler loaders
+    - name: Get loaders
+      raw: /usr/bin/cobbler get-loaders
+      register: result
+      failed_when:
+      - "result is failed and 'TASK FAILED' in result.stdout"
+
+    # Cobbler check
+    - name: Cobbler check
+      raw: /usr/bin/cobbler check
+      register: result
+      debug:
+        msg: "{{ result }}"
+    
+    # Cobbler synch
+    - name: Cobbler sync
+      raw: /usr/bin/cobbler sync
+      register: result
+      failed_when:
+      - "result is failed and 'TASK FAILED' in result.stdout"
