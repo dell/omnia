@@ -32,7 +32,7 @@ singleuser:
   cpu:
     limit: 1
   memory:
-    limit: 100G
+    limit: 5G
     guarantee: 1G
   defaultUrl: "/lab"
 
