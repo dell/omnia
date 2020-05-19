@@ -41,44 +41,12 @@
   shell: kubectl apply -f /root/k8s/metal-config.yaml
   tags: init
 
-#- name: Helm - create service account
-  #shell: kubectl create serviceaccount --namespace kube-system tiller
-  #tags: init
-
-#- name: Helm - create clusterRole Binding for tiller-cluster-rule
-  #shell: kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
-  #tags: init
-
-#- name: Helm - create clusterRoleBinding for admin
-  #shell: kubectl create clusterrolebinding tiller-cluster-admin --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
-  #tags: init
-
-#- name: Helm - init
-  #shell: helm init  --upgrade
-  #tags: init
-
-#- name: Wait for tiller to start 
-  #shell: kubectl rollout status deployment/tiller-deploy -n kube-system
-  #tags: init
-
-#- name: Helm - patch cluster Role Binding for tiller
-  #shell:  kubectl --namespace kube-system patch deploy tiller-deploy -p '{"spec":{"template":{"spec":{"serviceAccount":"tiller"}}}}'
-  #tags: init
-
-#- name: Wait for tiller to start 
-  #shell: kubectl rollout status deployment/tiller-deploy -n kube-system
-  #tags: init
-
 - name: Start K8S Dashboard
   shell: kubectl create -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0-beta6/aio/deploy/recommended.yaml
   tags: init
 
 - name: Helm - Add Stable Repo
   shell: helm repo add stable https://kubernetes-charts.storage.googleapis.com/
-  tags: init
-
-- name: Helm - Add JupyterHub Repo
-  shell: helm repo add jupyterhub https://jupyterhub.github.io/helm-chart/
   tags: init
 
 - name: Helm - Update Repo
@@ -91,22 +59,6 @@
 
 - name: Set NFS-Client Provisioner as DEFAULT StorageClass
   shell: "kubectl patch storageclasses.storage.k8s.io nfs-client -p '{\"metadata\": {\"annotations\":{\"storageclass.kubernetes.io/is-default-class\":\"true\"}}}'"
-  tags: init
-
-- name: JupyterHub Persistent Volume Creation (files)  
-  copy: src=jhub-db-pv.yaml dest=/root/k8s/jhub-db-pv.yaml owner=root group=root mode=655
-  tags: init
-
-- name: jupyterHub Persistent Volume creation
-  shell: kubectl create -f /root/k8s/jhub-db-pv.yaml
-  tags: init
-
-- name: JupyterHub Custom Config (files)  
-  copy: src=jupyter_config.yaml dest=/root/k8s/jupyter_config.yaml owner=root group=root mode=655
-  tags: init
- 
-- name: jupyterHub deploy
-  shell: helm install jupyterhub/jupyterhub  --namespace default --version 0.9.0 --values /root/k8s/jupyter_config.yaml --generate-name
   tags: init
 
 - name: Prometheus deployment
