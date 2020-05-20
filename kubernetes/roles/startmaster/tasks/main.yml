@@ -18,7 +18,7 @@
   tags: init
 
 - name: Initialize kubeadm
-  command: /bin/kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address=10.0.0.100
+  command: /bin/kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address={{ master_ip }}
   #command: /bin/kubeadm init 
   register: init_output 
   tags: init
@@ -52,8 +52,7 @@
     name:   "K8S_TOKEN_HOLDER"
     token:  "{{ K8S_TOKEN.stdout }}"
     hash:   "{{ K8S_MASTER_CA_HASH.stdout }}"
-    #ip:     "{{ ansible_ib0.ipv4.address }}"
-    ip:     "{{ ansible_p1p1.ipv4.address }}"
+    ip:     "{{ master_ip }}"
   tags: init
 
 - name:
@@ -68,7 +67,7 @@
 
 - name:
   debug:
-    msg: "[Master] K8S_MASTER_IP is  {{ hostvars['K8S_TOKEN_HOLDER']['ip'] }}"
+    msg: "[Master] K8S_MASTER_IP is  {{ master_ip }}"
   tags: init
 
 - name: Setup Calico SDN network
