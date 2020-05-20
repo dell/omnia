@@ -18,7 +18,7 @@
   tags: init
 
 - name: Initialize kubeadm
-  command: /bin/kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address=10.0.0.1
+  command: /bin/kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address=10.0.0.100
   #command: /bin/kubeadm init 
   register: init_output 
   tags: init
@@ -53,7 +53,7 @@
     token:  "{{ K8S_TOKEN.stdout }}"
     hash:   "{{ K8S_MASTER_CA_HASH.stdout }}"
     #ip:     "{{ ansible_ib0.ipv4.address }}"
-    ip:     "{{ ansible_p3p1.ipv4.address }}"
+    ip:     "{{ ansible_p1p1.ipv4.address }}"
   tags: init
 
 - name:
