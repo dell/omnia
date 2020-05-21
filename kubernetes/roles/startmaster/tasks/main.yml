@@ -110,6 +110,12 @@
   shell: kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep admin-user | awk '{print $1}') > /root/k8s/token
   tags: init
 
+- name: Edge / Workstation Install allows pods to scheudle on master
+  shell: kubectl taint nodes --all node-role.kubernetes.io/master-
+  when: edge_install 
+  tags: init
+
+
 # If more debug information is needed during init uncomment the following 2 lines
 #- debug: var=init_output.stdout_lines
   #tags: init

@@ -13,18 +13,18 @@
 #  limitations under the License.
 
 ---
-- name: Firewall Rule K8s:6443/tcp
-  command: firewall-cmd  --zone=internal --add-port=6443/tcp --permanent
-  tags: master
-
-- name: Firewall Rule K8s:10250/tcp
-  command: firewall-cmd  --zone=internal --add-port=10250/tcp --permanent
-  tags: master
-
-- name: Firewall Reload
-  command: firewall-cmd  --reload
-  tags: master
-
+#- name: Firewall Rule K8s:6443/tcp
+  #command: firewall-cmd  --zone=internal --add-port=6443/tcp --permanent
+  #tags: master
+#
+#- name: Firewall Rule K8s:10250/tcp
+  #command: firewall-cmd  --zone=internal --add-port=10250/tcp --permanent
+  #tags: master
+##
+#- name: Firewall Reload
+  #command: firewall-cmd  --reload
+  #tags: master
+#
 - name: Create /root/bin (if it doesn't exist)
   file:
     path: /root/bin

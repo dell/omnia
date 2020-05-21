@@ -82,20 +82,6 @@
     name: "@Infiniband Support"
     state: present
 
-- name: Install KSonnet
-  unarchive:
-    src: https://github.com/ksonnet/ksonnet/releases/download/v0.13.1/ks_0.13.1_linux_amd64.tar.gz
-    dest: /usr/bin/
-    extra_opts: [--strip-components=1]
-    remote_src: yes
-    exclude:
-      - ks_0.11.0_linux_amd64/CHANGELOG.md
-      - ks_0.11.0_linux_amd64/CODE-OF-CONDUCT.md
-      - ks_0.11.0_linux_amd64/CONTRIBUTING.md
-      - ks_0.11.0_linux_amd64/LICENSE
-      - ks_0.11.0_linux_amd64/README.md
-  tags: install
-
 - name: upgrade pip
   command: /bin/pip install --upgrade pip
   tags: install
@@ -142,7 +128,7 @@
 - name: Start and nfs-lock service
   service:
     name: nfs-lock
-    state: restarted
+    #state: restarted
     enabled: yes
   tags: install
 
