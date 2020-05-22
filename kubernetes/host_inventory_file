@@ -1,28 +1,20 @@
 all: 
-  hosts: 
   children:
-    master:
-      hosts:
-        compute000
-      vars: 
-        master_ip: 10.0.0.100
-    compute:
-      hosts:
-        compute002:
-        compute004:
-        compute005:
-    gpus:
-      hosts:
-        compute002:
-        compute004:
-        compute005:
-    workers:
-      children:
-        compute:
-        gpu: 
     cluster:
       children:
         master:
+          hosts:
+            compute000:
         workers:
-
-        
+          children:
+            compute:
+              hosts:
+                compute003:
+            gpus:
+              hosts:
+                compute002:
+                compute004:
+                compute005:
+      vars:
+        single_node: false
+        master_ip: 10.0.0.100
