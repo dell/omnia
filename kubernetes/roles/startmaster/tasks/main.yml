@@ -112,7 +112,7 @@
 
 - name: Edge / Workstation Install allows pods to scheudle on master
   shell: kubectl taint nodes --all node-role.kubernetes.io/master-
-  when: edge_install 
+  when: single_node 
   tags: init
 
 

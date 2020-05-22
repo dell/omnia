@@ -16,5 +16,5 @@ all:
                 compute004:
                 compute005:
       vars:
-        edge_install: false
+        single_node: false
         master_ip: 10.0.0.100
