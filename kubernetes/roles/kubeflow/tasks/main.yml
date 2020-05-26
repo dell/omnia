@@ -75,7 +75,7 @@
   replace:
     path: /root/k8s/omnia-kubeflow/kustomize/kfserving-gateway/base/deployment.yaml
     after: 'serviceAccountName: istio-ingressgateway-service-account'
-    before: '---'
+    before: 'env:'
     regexp: 'cpu: 100m'
     replace: 'cpu: 2'
   
@@ -83,7 +83,7 @@
   replace:
     path: /root/k8s/omnia-kubeflow/kustomize/kfserving-gateway/base/deployment.yaml
     after: 'serviceAccountName: istio-ingressgateway-service-account'
-    before: '---'
+    before: 'env:'
     regexp: 'memory: 128Mi'
     replace: 'memory: 512Mi'
 
@@ -91,7 +91,7 @@
   replace:
     path: /root/k8s/omnia-kubeflow/kustomize/kfserving-gateway/base/deployment.yaml
     after: 'serviceAccountName: istio-ingressgateway-service-account'
-    before: '---'
+    before: 'env:'
     regexp: 'cpu: 10m'
     replace: 'cpu: 1'
   
@@ -99,7 +99,7 @@
   replace:
     path: /root/k8s/omnia-kubeflow/kustomize/kfserving-gateway/base/deployment.yaml
     after: 'serviceAccountName: istio-ingressgateway-service-account'
-    before: '---'
+    before: 'env:'
     regexp: 'memory: 40Mi'
     replace: 'memory: 256Mi'
 
