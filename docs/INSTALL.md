@@ -11,6 +11,11 @@ Initialize K8s cluster
 ansible-playbook -i host_inventory_file kubernetes/kubernetes.yml --tags "init"
 ```
 
+### Install Kubeflow 
+```
+ansible-playbook -i host_inventory_file kubernetes/kubeflow.yaml
+```
+
 ### Slurm
 ```
 ansible-playbook -i host_inventory_file slurm/slurm.yml
