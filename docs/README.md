@@ -22,3 +22,6 @@ It's not just new features and bug fixes that can be contributed to the Omnia pr
 * Validation that it works for your particular configuration
 
 If you would like to contribute, see [CONTRIBUTING](https://github.com/dellhpc/omnia/blob/master/CONTRIBUTING.md).
+
+### Omnia Contributors
+<img src="images/delltech.jpg" height="100px" alt="Dell Technologies"> <img src="images/pisa.png" height="100px" alt="Universita di Pisa">
