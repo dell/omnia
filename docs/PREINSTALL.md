@@ -5,7 +5,7 @@ Omnia assumes that prior to installation:
 * Systems have a base operating system (currently CentOS 7 or 8)
 * Network(s) has been cabled and nodes can reach the internet
 * SSH Keys for `root` have been installed on all nodes to allow for password-less SSH
-* Ansible is installed on the master node
+* Ansible is installed on either the master node or a separate deployment node
 ```
 yum install ansible
 ```

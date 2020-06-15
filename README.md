@@ -7,7 +7,7 @@
 Omnia (Latin: all or everything) is a deployment tool to turn Dell EMC PowerEdge servers with RPM-based Linux images into a functioning Slurm/Kubernetes cluster.
 
 ## Omnia Documentation
-For Omnia documentation, including installation and contribution instructions, see [docs](docs/README.md).
+For Omnia documentation, including installation and contribution instructions, please see the [website](https://dellhpc.github.io/omnia).
 
 ## Current maintainers:
 * Lucas A. Wilson (Dell Technologies)
