@@ -1,4 +1,22 @@
-Omnia (Latin: all or everything) is a deployment tool to turn Dell EMC PowerEdge servers with standard RPM-based Linux OS images into a functioning Slurm/Kubernetes cluster. Omnia is a collection of [Ansible](https://ansible.org) playbooks for installing and configuring Slurm or Kubernetes on an inventory of servers, along with additional software packages and services.
+**Omnia** (Latin: all or everything) is a deployment tool to configure Dell EMC PowerEdge servers running standard RPM-based Linux OS images into cluster capable of supporting HPC, AI, and data analytics workloads. Omnia installs Slurm and/or Kubernetes for managing jobs and enables installation of many other packages and services for running diverse workloads on the same converged solution. Omnia is a collection of [Ansible](https://ansible.org) playbooks, is open source, and is constantly being extended to enable comprehensive workloads.
+
+## What Omnia Does
+Omnia can build clusters which use Slurm or Kubernetes (or both!) for workload management. Omnia will install software from a variety of sources, including:
+- Standard CentOS and [ELRepo](http://elrepo.org) repositories
+- Helm repositories
+- Source code compilation
+- [OpenHPC](https://openhpc.community) repositories (_coming soon!_)
+- [OperatorHub](https://operatorhub.io) (_coming soon!_)
+
+Whenever possible, Omnia will opt to leverage existing projects rather than reinvent the wheel.
+
+![Omnia draws from existing repositories](images/omnia-overview.png)
+
+### Omnia Stacks
+Omnia can install Kubernetes or Slurm (or both), along with additional drivers, services, libraries, and user applications.
+![Omnia Kubernetes Stack](images/omnia-k8s.png)
+
+![Omnia Slurm Stack](images/omnia-slurm.png) 
 
 ## Installing Omnia
 Omnia requires that servers already have an RPM-based Linux OS running on them, and are all connected to the Internet. Currently all Omnia testing is done on [CentOS](https://centos.org). Please see [PREINSTALL](PREINSTALL.md) for instructions on network setup.
