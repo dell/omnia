@@ -84,6 +84,11 @@
   register: gpu_enable
   tags: init
 
+- name: Deploy Xilinx Device Plugin 
+  shell: kubectl create -f https://raw.githubusercontent.com/Xilinx/FPGA_as_a_Service/master/k8s-fpga-device-plugin/fpga-device-plugin.yml
+  register: fpga_enable
+  tags: init
+
 - name: Create yaml repo for setup
   file: 
     path: /root/k8s 
