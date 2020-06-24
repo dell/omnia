@@ -1,3 +1,17 @@
+#  Copyright 2020 Dell Technologies
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
 ---
 #- name: Kick CoreDNS (this is a hack that needs to be fixed)
   #shell:  kubectl get pods -n kube-system --no-headers=true | awk '/coredns/{print $1}'|xargs kubectl delete -n kube-system pod
@@ -27,58 +41,30 @@
   shell: kubectl apply -f /root/k8s/metal-config.yaml
   tags: init
 
-#- name: Helm - create service account
-  #shell: kubectl create serviceaccount --namespace kube-system tiller
-  #tags: init
-
-#- name: Helm - create clusterRole Binding for tiller-cluster-rule
-  #shell: kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
-  #tags: init
-
-#- name: Helm - create clusterRoleBinding for admin
-  #shell: kubectl create clusterrolebinding tiller-cluster-admin --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
-  #tags: init
-
-#- name: Helm - init
-  #shell: helm init  --upgrade
-  #tags: init
-
-#- name: Wait for tiller to start 
-  #shell: kubectl rollout status deployment/tiller-deploy -n kube-system
-  #tags: init
-
-#- name: Helm - patch cluster Role Binding for tiller
-  #shell:  kubectl --namespace kube-system patch deploy tiller-deploy -p '{"spec":{"template":{"spec":{"serviceAccount":"tiller"}}}}'
-  #tags: init
-
-#- name: Wait for tiller to start 
-  #shell: kubectl rollout status deployment/tiller-deploy -n kube-system
-  #tags: init
-
 - name: Start K8S Dashboard
   shell: kubectl create -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0-beta6/aio/deploy/recommended.yaml
+  tags: init
+
+- name: Helm - Add Stable Repo
+  shell: helm repo add stable https://kubernetes-charts.storage.googleapis.com/
+  tags: init
+
+- name: Helm - Update Repo
+  shell: helm repo update
   tags: init
 
 - name: Start NFS Client Provisioner
   shell: helm install stable/nfs-client-provisioner --set nfs.server=10.0.0.1 --set nfs.path=/work --generate-name
   tags: init
 
-- name: JupyterHub Persistent Volume Creation (files)  
-  copy: src=jhub-db-pv.yaml dest=/root/k8s/jhub-db-pv.yaml owner=root group=root mode=655
-  tags: init
-
-- name: jupyterHub Persistent Volume creation
-  shell: kubectl create -f /root/k8s/jhub-db-pv.yaml
-  tags: init
-
-- name: JupyterHub Custom Config (files)  
-  copy: src=jupyter_config.yaml dest=/root/k8s/jupyter_config.yaml owner=root group=root mode=655
-  tags: init
- 
-- name: jupyterHub deploy
-  shell: helm install jupyterhub/jupyterhub  --namespace default --version 0.8.2 --values /root/k8s/jupyter_config.yaml --generate-name
+- name: Set NFS-Client Provisioner as DEFAULT StorageClass
+  shell: "kubectl patch storageclasses.storage.k8s.io nfs-client -p '{\"metadata\": {\"annotations\":{\"storageclass.kubernetes.io/is-default-class\":\"true\"}}}'"
   tags: init
 
 - name: Prometheus deployment
   shell: helm install stable/prometheus --set alertmanager.persistentVolume.storageClass=nfs-client,server.persistentVolume.storageClass=nfs-client,server.service.type=LoadBalancer --generate-name
+  tags: init
+
+- name: Install MPI Operator
+  shell: kubectl create -f https://raw.githubusercontent.com/kubeflow/mpi-operator/master/deploy/v1alpha2/mpi-operator.yaml
   tags: init

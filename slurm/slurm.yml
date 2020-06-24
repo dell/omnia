@@ -11,13 +11,26 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
 ---
-- name: Install SLURM RPMs on compute
-  yum:
-    name: "{{ item }}"
-    #name: "{{ query('fileglob', ['/home/rpms/slurm*20*.rpm']) }}" <-- how it should work to avoid loop
-  with_fileglob:
-    - /home/rpms/slurm*20*.rpm
-  tags: install
+#Playbook for installing Slurm on a cluster 
 
+#collect info from everything
+- hosts: all
+
+# Apply Common Installation and Config
+- hosts: cluster
+  gather_facts: false
+  roles:
+    - slurm-common
+
+# Apply Master Config, start services
+- hosts: master
+  gather_facts: false
+  roles:
+    - slurm-master
+
+# Start SLURM workers
+- hosts: compute
+  gather_facts: false
+  roles:
+    - start-slurm-workers

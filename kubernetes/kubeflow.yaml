@@ -13,11 +13,10 @@
 #  limitations under the License.
 
 ---
-- name: Install SLURM RPMs on compute
-  yum:
-    name: "{{ item }}"
-    #name: "{{ query('fileglob', ['/home/rpms/slurm*20*.rpm']) }}" <-- how it should work to avoid loop
-  with_fileglob:
-    - /home/rpms/slurm*20*.rpm
-  tags: install
-
+#Playbook for installing Kubeflow v1.0 on Omnia
+ 
+# Start K8s worker servers
+- hosts: master
+  gather_facts: false
+  roles:
+    - kubeflow

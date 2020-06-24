@@ -1,20 +1,20 @@
-[master]
-friday
-
-[compute]
-compute000
-compute[002:005]
-
-[gpus]
-#compute001
-compute002
-compute004
-compute005
-
-[workers:children]
-compute
-gpus
-
-[cluster:children]
-master
-workers
+all: 
+  children:
+    cluster:
+      children:
+        master:
+          hosts:
+            compute000:
+        workers:
+          children:
+            compute:
+              hosts:
+                compute003:
+            gpus:
+              hosts:
+                compute002:
+                compute004:
+                compute005:
+      vars:
+        single_node: false
+        master_ip: 10.0.0.100
