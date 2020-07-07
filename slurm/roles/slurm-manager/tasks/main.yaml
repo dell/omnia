@@ -33,7 +33,7 @@
     - /root/rpmbuild/RPMS/x86_64/slurm*20*.rpm
   tags: install
 
-- name: Install SLURM RPMs on Master
+- name: Install SLURM RPMs on Manager
   yum: 
     name: "{{ item }}"
     #name: "{{ query('fileglob', ['/home/rpms/slurm*20*.rpm']) }}" <-- how it should work to avoid loop
@@ -96,14 +96,14 @@
   command: sacctmgr -i add user root DefaultAccount=defaultgroup
   tags: install
 
-- name: Start slurmctld on Master
+- name: Start slurmctld on Manager
   service: 
     name: slurmctld
     state: restarted
     enabled: yes
   tags: install
 
-- name: Enable Slurmdbd on Master
+- name: Enable Slurmdbd on Manager
   service: 
     name: slurmdbd
     state: restarted

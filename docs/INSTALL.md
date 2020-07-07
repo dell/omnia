@@ -63,7 +63,7 @@ Omnia playbooks perform several tasks:
     - Docker
     - Kubelet
 
-`master` playbook
+`manager` playbook
 * Install Helm v3
 * (optional) add firewall rules for Slurm and kubernetes
 
@@ -72,10 +72,10 @@ Everything from this point on can be called by using the `init` tag
 ansible-playbook -i host_inventory_file kubernetes/kubernetes.yml --tags "init"
 ```
 
-`startmaster` playbook
+`startmanager` playbook
 * turn off swap
 *Initialize Kubernetes
-    * Head/master
+    * Head/manager
         - Start K8S pass startup token to compute/slaves
         - Initialize software defined networking (Calico)
 

@@ -30,7 +30,7 @@
 
 #- name:
   #debug:
-    #msg: "[Worker] K8S_MASTER_IP is  {{ hostvars['K8S_TOKEN_HOLDER']['ip'] }}"
+    #msg: "[Worker] K8S_MANGER_IP is  {{ hostvars['K8S_TOKEN_HOLDER']['ip'] }}"
   #tags: init
 
 - name: "Kubeadmn join"

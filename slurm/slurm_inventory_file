@@ -1,7 +1,7 @@
-[master]
+[manager]
 friday
 
-[master:vars]
+[manager:vars]
 slurm_url=https://download.schedmd.com/slurm/slurm-20.02.0.tar.bz2
 slurm_md5=md5:8ed2257471ff24ca213b510a4c1c3563
 
@@ -14,5 +14,5 @@ compute[002:005]
 compute
 
 [cluster:children]
-master
+manager
 workers

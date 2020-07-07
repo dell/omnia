@@ -16,7 +16,7 @@
 #Playbook for installing Kubeflow v1.0 on Omnia
  
 # Start K8s worker servers
-- hosts: master
+- hosts: manager
   gather_facts: false
   roles:
     - kubeflow
