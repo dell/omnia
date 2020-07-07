@@ -19,7 +19,7 @@
 #
 #- name: Firewall Rule K8s:10250/tcp
   #command: firewall-cmd  --zone=internal --add-port=10250/tcp --permanent
-  #tags: manater
+  #tags: manager
 ##
 #- name: Firewall Reload
   #command: firewall-cmd  --reload
