@@ -16,7 +16,7 @@
 #Playbook for installing JupyterHub v1.1.0 in Omnia
  
 # Start K8s worker servers
-- hosts: master
+- hosts: manager
   gather_facts: false
   roles:
     - jupyterhub

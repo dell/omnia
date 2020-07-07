@@ -18,7 +18,7 @@
   tags: init
 
 - name: Initialize kubeadm
-  command: /bin/kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address={{ master_ip }}
+  command: /bin/kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address={{ manager_ip }}
   #command: /bin/kubeadm init 
   register: init_output 
   tags: init
@@ -44,30 +44,30 @@
 
 - name: CA Hash
   shell: openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt | openssl rsa -pubin -outform der 2>/dev/null | openssl dgst -sha256 -hex | sed 's/^.* //'
-  register: K8S_MASTER_CA_HASH
+  register: K8S_MANAGER_CA_HASH
   tags: init
 
-- name: Add K8S Master IP, Token, and Hash to dummy host
+- name: Add K8S Manager IP, Token, and Hash to dummy host
   add_host:
     name:   "K8S_TOKEN_HOLDER"
     token:  "{{ K8S_TOKEN.stdout }}"
-    hash:   "{{ K8S_MASTER_CA_HASH.stdout }}"
-    ip:     "{{ master_ip }}"
+    hash:   "{{ K8S_MANAGER_CA_HASH.stdout }}"
+    ip:     "{{ manager_ip }}"
   tags: init
 
 - name:
   debug:
-    msg: "[Master] K8S_TOKEN_HOLDER K8S token is {{ hostvars['K8S_TOKEN_HOLDER']['token'] }}"
+    msg: "[Manager] K8S_TOKEN_HOLDER K8S token is {{ hostvars['K8S_TOKEN_HOLDER']['token'] }}"
   tags: init
 
 - name:
   debug:
-    msg: "[Master] K8S_TOKEN_HOLDER K8S Hash is  {{ hostvars['K8S_TOKEN_HOLDER']['hash'] }}"
+    msg: "[Manager] K8S_TOKEN_HOLDER K8S Hash is  {{ hostvars['K8S_TOKEN_HOLDER']['hash'] }}"
   tags: init
 
 - name:
   debug:
-    msg: "[Master] K8S_MASTER_IP is  {{ master_ip }}"
+    msg: "[Manager] K8S_MANAGER_IP is  {{ manager_ip }}"
   tags: init
 
 - name: Setup Calico SDN network
@@ -115,7 +115,7 @@
   shell: kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep admin-user | awk '{print $1}') > /root/k8s/token
   tags: init
 
-- name: Edge / Workstation Install allows pods to scheudle on master
+- name: Edge / Workstation Install allows pods to scheudle on manager
   shell: kubectl taint nodes --all node-role.kubernetes.io/master-
   when: single_node 
   tags: init

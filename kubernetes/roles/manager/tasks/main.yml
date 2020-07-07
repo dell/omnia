@@ -15,15 +15,15 @@
 ---
 #- name: Firewall Rule K8s:6443/tcp
   #command: firewall-cmd  --zone=internal --add-port=6443/tcp --permanent
-  #tags: master
+  #tags: manager
 #
 #- name: Firewall Rule K8s:10250/tcp
   #command: firewall-cmd  --zone=internal --add-port=10250/tcp --permanent
-  #tags: master
+  #tags: manager
 ##
 #- name: Firewall Reload
   #command: firewall-cmd  --reload
-  #tags: master
+  #tags: manager
 #
 - name: Create /root/bin (if it doesn't exist)
   file:
@@ -36,10 +36,10 @@
     url: https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
     dest: /root/bin/get_helm.sh
     mode: 700 
-  tags: master
+  tags: manager
 
 - name: Install Helm
   command: /root/bin/get_helm.sh
-  tags: master
+  tags: manager
 
 # install and start up OpenSM -  III

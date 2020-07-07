@@ -23,11 +23,11 @@
   roles:
     - slurm-common
 
-# Apply Master Config, start services
-- hosts: master
+# Apply Manager Config, start services
+- hosts: manager
   gather_facts: false
   roles:
-    - slurm-master
+    - slurm-manager
 
 # Start SLURM workers
 - hosts: compute

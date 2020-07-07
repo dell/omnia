@@ -38,6 +38,6 @@ It's not just new features and bug fixes that can be contributed to the Omnia pr
 * Feedback
 * Validation that it works for your particular configuration
 
-If you would like to contribute, see [CONTRIBUTING](https://github.com/dellhpc/omnia/blob/master/CONTRIBUTING.md).
+If you would like to contribute, see [CONTRIBUTING](https://github.com/dellhpc/omnia/blob/devel/CONTRIBUTING.md).
 
 ### [Omnia Contributors](CONTRIBUTORS.md)

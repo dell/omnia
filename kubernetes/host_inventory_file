@@ -2,7 +2,7 @@ all:
   children:
     cluster:
       children:
-        master:
+        manager:
           hosts:
             compute000:
         workers:
@@ -14,7 +14,7 @@ all:
               hosts:
                 compute002:
                 compute004:
-                compute005:
+                #compute005:
       vars:
         single_node: false
-        master_ip: 10.0.0.100
+        manager_ip: 10.0.0.100

@@ -30,17 +30,17 @@
   roles:
     - computeGPU
 
-# Apply Master Config
-- hosts: master
+# Apply Manager Config
+- hosts: manager
   gather_facts: false
   roles:
-    - master
+    - manager
 
-# Start K8s on master server
-- hosts: master
+# Start K8s on manager server
+- hosts: manager
   gather_facts: false
   roles:
-    - startmaster
+    - startmanager
 
 # Start K8s worker servers
 - hosts: compute,gpus
@@ -49,7 +49,7 @@
     - startworkers
 
 # Start K8s worker servers
-- hosts: master
+- hosts: manager
   gather_facts: false
   roles:
     - startservices
