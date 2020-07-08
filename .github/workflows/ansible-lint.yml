@@ -24,7 +24,7 @@ jobs:
         #   playbook_1.yml
         #   playbook_2.yml
         targets: |
-          "/github/workspace/kubernetes/jupyterhub.yml"
+          /github/workspace/kubernetes/jupyterhub.yml
         #  "./kubernetes/kubeflow.yml"
         #  ./kubernetes/kubernetes.yml
         #  ./kubernetes/roles/common/tasks/main.yml
