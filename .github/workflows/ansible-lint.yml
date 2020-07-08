@@ -25,8 +25,10 @@ jobs:
         #   playbook_2.yml
         targets: |
           /github/workspace/kubernetes/jupyterhub.yml
-          /github/workspace/kubernetes/kubeflow.yml"
+          /github/workspace/kubernetes/kubeflow.yml
           /github/workspace/kubernetes/kubernetes.yml
+          /github/workspace/slurm/slurm.yml
+          /github/workspace/tools/install_tools.yml
         #  ./kubernetes/roles/common/tasks/main.yml
         #  ./kubernetes/roles/computeGPU/tasks/main.yml
         #  ./kubernetes/roles/jupyterhub/tasks/main.yml
@@ -35,11 +37,9 @@ jobs:
         #  ./kubernetes/roles/startmanager/tasks/main.yml
         #  ./kubernetes/roles/startservices/tasks/main.yml
         #  ./kubernetes/roles/startworkers/tasks/main.yml
-          /github/workspace/slurm/slurm.yml
         #  ./slurm/roles/slurm-common/tasks/main.yml
         #  ./slurm/roles/slurm-manager/tasks/main.yml
         #  ./slurm/roles/start-slurm-workers/tasks/main.yml
-          /github/workspace/tools/install_tools.yml
         # [optional]
         # Arguments to override a package and its version to be set explicitly.
         # Must follow the example syntax.
