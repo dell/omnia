@@ -23,10 +23,9 @@ jobs:
         # targets: |
         #   playbook_1.yml
         #   playbook_2.yml
-        targets: "./"
         #targets: |
-        #  ./kubernetes/jupyterhub.yml
-        #  ./kubernetes/kubeflow.yml
+          "./kubernetes/jupyterhub.yml"
+          "./kubernetes/kubeflow.yml"
         #  ./kubernetes/kubernetes.yml
         #  ./kubernetes/roles/common/tasks/main.yml
         #  ./kubernetes/roles/computeGPU/tasks/main.yml
