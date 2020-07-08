@@ -13,7 +13,7 @@ jobs:
 
     - name: ansible-lint 
       # replace "master" with any valid ref
-      uses: ansible/ansible-lint-action@v4.1.0.post0
+      uses: ansible/ansible-lint-action@151b9a2
       with:
         # [required]
         # Paths to ansible files (i.e., playbooks, tasks, handlers etc..)
@@ -24,22 +24,22 @@ jobs:
         #   playbook_1.yml
         #   playbook_2.yml
         targets: |
-          kubernetes/jupyterhub.yml
-          kubernetes/kubeflow.yml
-          kubernetes/kubernetes.yml
-          kubernetes/roles/common/tasks/main.yml
-          kubernetes/roles/computeGPU/tasks/main.yml
-          kubernetes/roles/jupyterhub/tasks/main.yml
-          kubernetes/roles/kubeflow/tasks/main.yml
-          kubernetes/roles/manager/tasks/main.yml
-          kubernetes/roles/startmanager/tasks/main.yml
-          kubernetes/roles/startservices/tasks/main.yml
-          kubernetes/roles/startworkers/tasks/main.yml
-          slurm/slurm.yml
-          slurm/roles/slurm-common/tasks/main.yml
-          slurm/roles/slurm-manager/tasks/main.yml
-          slurm/roles/start-slurm-workers/tasks/main.yml
-          tools/install_tools.yml
+          /github/workspace/kubernetes/jupyterhub.yml
+          /github/workspace/kubernetes/kubeflow.yml
+          /github/workspace/kubernetes/kubernetes.yml
+          /github/workspace/slurm/slurm.yml
+          /github/workspace/tools/install_tools.yml
+        #  ./kubernetes/roles/common/tasks/main.yml
+        #  ./kubernetes/roles/computeGPU/tasks/main.yml
+        #  ./kubernetes/roles/jupyterhub/tasks/main.yml
+        #  ./kubernetes/roles/kubeflow/tasks/main.yml
+        #  ./kubernetes/roles/manager/tasks/main.yml
+        #  ./kubernetes/roles/startmanager/tasks/main.yml
+        #  ./kubernetes/roles/startservices/tasks/main.yml
+        #  ./kubernetes/roles/startworkers/tasks/main.yml
+        #  ./slurm/roles/slurm-common/tasks/main.yml
+        #  ./slurm/roles/slurm-manager/tasks/main.yml
+        #  ./slurm/roles/start-slurm-workers/tasks/main.yml
         # [optional]
         # Arguments to override a package and its version to be set explicitly.
         # Must follow the example syntax.
@@ -68,4 +68,4 @@ jobs:
         #                         path to directories or files to skip. This option is
         #                         repeatable.
         #   -c C                  Specify configuration file to use. Defaults to ".ansible-lint"
-        args: ""
+        args: "-x 305"
