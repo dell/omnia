@@ -3,22 +3,22 @@
 ### Kubernetes
 Install Kubernetes and all dependencies
 ```
-ansible-playbook -i host_inventory_file kubernetes/kubernetes.yml
+ansible-playbook -i kubernetes/host_inventory_file kubernetes/kubernetes.yml
 ```
 
 Initialize K8s cluster
 ```
-ansible-playbook -i host_inventory_file kubernetes/kubernetes.yml --tags "init"
+ansible-playbook -i kubernetes/host_inventory_file kubernetes/kubernetes.yml --tags "init"
 ```
 
 ### Install Kubeflow 
 ```
-ansible-playbook -i host_inventory_file kubernetes/kubeflow.yaml
+ansible-playbook -i kubernetes/host_inventory_file kubernetes/kubeflow.yaml
 ```
 
 ### Slurm
 ```
-ansible-playbook -i host_inventory_file slurm/slurm.yml
+ansible-playbook -i slurm/slurm_inventory_file slurm/slurm.yml
 ```
 
 # Omnia  
@@ -69,7 +69,7 @@ Omnia playbooks perform several tasks:
 
 Everything from this point on can be called by using the `init` tag
 ```
-ansible-playbook -i host_inventory_file kubernetes/kubernetes.yml --tags "init"
+ansible-playbook -i kubernetes/host_inventory_file kubernetes/kubernetes.yml --tags "init"
 ```
 
 `startmanager` playbook
