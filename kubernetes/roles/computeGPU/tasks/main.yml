@@ -14,8 +14,8 @@
 
 ---
 - name: install Nvidia driver
-  yum: 
-    name: 
+  yum:
+    name:
       - kmod-nvidia
       #- nvidia-x11-drv
     state: present
@@ -42,8 +42,8 @@
   tags: testing
 
 - name: install Nvidia-container-runtime-hook
-  yum: 
-    name: 
+  yum:
+    name:
       #- nvidia-detect
       #- kmod-nvidia-410.73-1.el7_5.elrepo
       - nvidia-container-runtime-hook
@@ -51,7 +51,7 @@
   tags: install
 
 
-# This needs to be done on GPU nodes 
+# This needs to be done on GPU nodes
 #- name: Enable DevicePlugins for all GPU nodes (nvidia-container-runtime-hook)
   #copy: src=nvidia dest=/usr/libexec/oci/hooks.d/ owner=root group=root mode=755
   #tags: install

@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved. 
+#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -57,7 +57,7 @@
   tags: install
 
 - name: install common packages
-  yum: 
+  yum:
     name:
       - yum-plugin-versionlock
       - gcc
@@ -75,7 +75,7 @@
 - name: versionlock kubernetes
   command: yum versionlock kubelet-1.16.7 kubectl-1.16.7 kubeadm-1.16.7
   tags: install
-  
+
 
 - name: install InfiniBand Support
   yum:
