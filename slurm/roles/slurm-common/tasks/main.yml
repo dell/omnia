@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved. 
+#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 ---
 
 - name: install packages for slurm
-  yum: 
+  yum:
     name:
       - munge
       - mariadb
@@ -45,8 +45,8 @@
 
 
 - name: create SLURM Group
-  group: 
-    name: slurm 
+  group:
+    name: slurm
     state: present
   tags: install
 
@@ -69,7 +69,7 @@
   tags: install
 
 - name: give slurm user permission to spool
-  file: 
+  file:
     path: /var/spool/slurm
     owner: slurm
     group: slurm
@@ -78,7 +78,7 @@
     recurse: yes
 
 - name: give slurm user permission to slurmctld
-  file: 
+  file:
     path: /var/run/slurmctld.pid
     owner: slurm
     group: slurm
@@ -86,7 +86,7 @@
     state: touch
 
 - name: give slurm user permission to slurmd
-  file: 
+  file:
     path: /var/run/slurmd.pid
     owner: slurm
     group: slurm
@@ -95,7 +95,7 @@
 
 - name: start munge service
   service:
-    name: munge 
+    name: munge
     state: restarted
     enabled: yes
   tags: install

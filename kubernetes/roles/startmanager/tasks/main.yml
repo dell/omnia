@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved. 
+#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -19,8 +19,8 @@
 
 - name: Initialize kubeadm
   command: /bin/kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address={{ manager_ip }}
-  #command: /bin/kubeadm init 
-  register: init_output 
+  #command: /bin/kubeadm init
+  register: init_output
   tags: init
 
 - name: Setup Directory for Kubernetes environment for root
@@ -28,11 +28,11 @@
   tags: init
 
 - name: Copy Kubernetes Config for root #do this for other users too?
-  copy: 
-    src: /etc/kubernetes/admin.conf 
-    dest: /root/.kube/config 
-    owner: root 
-    group: root 
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /root/.kube/config
+    owner: root
+    group: root
     mode: 644
     remote_src: yes
   tags: init
@@ -73,7 +73,7 @@
 - name: Setup Calico SDN network
   shell: kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
   tags: init
-  
+
 #- name: Setup Flannel SDN network
   #shell: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
   #tags: init
@@ -84,14 +84,14 @@
   register: gpu_enable
   tags: init
 
-- name: Deploy Xilinx Device Plugin 
+- name: Deploy Xilinx Device Plugin
   shell: kubectl create -f https://raw.githubusercontent.com/Xilinx/FPGA_as_a_Service/master/k8s-fpga-device-plugin/fpga-device-plugin.yml
   register: fpga_enable
   tags: init
 
 - name: Create yaml repo for setup
-  file: 
-    path: /root/k8s 
+  file:
+    path: /root/k8s
     state: directory
   tags: init
 
@@ -117,7 +117,7 @@
 
 - name: Edge / Workstation Install allows pods to scheudle on manager
   shell: kubectl taint nodes --all node-role.kubernetes.io/master-
-  when: single_node 
+  when: single_node
   tags: init
 
 

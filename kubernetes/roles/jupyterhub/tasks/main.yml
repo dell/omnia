@@ -19,8 +19,8 @@
 - name: Helm - Update Repo
   shell: helm repo update
 
-- name: JupyterHub Custom Config (files)  
-  copy: src=jupyter_config.yaml dest=/root/k8s/jupyter_config.yaml owner=root group=root mode=655
- 
+- name: JupyterHub Custom Config (files)
+  copy: src=jupyter_config.yaml dest=/root/k8s/jupyter_config.yaml owner=root group=root mode=0655
+
 - name: jupyterHub deploy
   shell: helm install jupyterhub/jupyterhub  --namespace default --version 0.9.0 --values /root/k8s/jupyter_config.yaml --generate-name --wait --timeout 60m
