@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved. 
+#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -18,23 +18,23 @@
   get_url:
     url: "{{ slurm_url }}"
     dest: /root/Downloads/
-    checksum: "{{ slurm_md5 }}" 
+    checksum: "{{ slurm_md5 }}"
   tags: install
 
 - name: Build SLURM RPMs
-  command: rpmbuild -ta /root/Downloads/slurm-20.02.0.tar.bz2 
+  command: rpmbuild -ta /root/Downloads/slurm-20.02.0.tar.bz2
   tags: install
 
 - name: Copy RPMs to NFS share
   copy:
-    src: "{{ item }}" 
+    src: "{{ item }}"
     dest: /home/rpms/
   with_fileglob:
     - /root/rpmbuild/RPMS/x86_64/slurm*20*.rpm
   tags: install
 
 - name: Install SLURM RPMs on Manager
-  yum: 
+  yum:
     name: "{{ item }}"
     #name: "{{ query('fileglob', ['/home/rpms/slurm*20*.rpm']) }}" <-- how it should work to avoid loop
   with_fileglob:
@@ -62,7 +62,7 @@
   tags: install
 
 
-- name: Start MariaDB 
+- name: Start MariaDB
   service:
     name: mariadb
     state: restarted
@@ -92,19 +92,19 @@
   command: sacctmgr -i add account defaultgroup Cluster={{inventory_hostname}} Description="Default Account" Organization="Default Org"
   tags: install
 
-- name: Add root to the Default Account 
+- name: Add root to the Default Account
   command: sacctmgr -i add user root DefaultAccount=defaultgroup
   tags: install
 
 - name: Start slurmctld on Manager
-  service: 
+  service:
     name: slurmctld
     state: restarted
     enabled: yes
   tags: install
 
 - name: Enable Slurmdbd on Manager
-  service: 
+  service:
     name: slurmdbd
     state: restarted
     enabled: yes
