@@ -1,6 +1,10 @@
 name: Ansible Lint  # feel free to pick your own name
 
-on: [push, pull_request]
+on:
+  pull_request:
+    branches:
+      - release
+      - devel
 
 jobs:
   build:
@@ -29,23 +33,12 @@ jobs:
           /github/workspace/kubernetes/kubernetes.yml
           /github/workspace/slurm/slurm.yml
           /github/workspace/tools/install_tools.yml
-        #  ./kubernetes/roles/common/tasks/main.yml
-        #  ./kubernetes/roles/computeGPU/tasks/main.yml
-        #  ./kubernetes/roles/jupyterhub/tasks/main.yml
-        #  ./kubernetes/roles/kubeflow/tasks/main.yml
-        #  ./kubernetes/roles/manager/tasks/main.yml
-        #  ./kubernetes/roles/startmanager/tasks/main.yml
-        #  ./kubernetes/roles/startservices/tasks/main.yml
-        #  ./kubernetes/roles/startworkers/tasks/main.yml
-        #  ./slurm/roles/slurm-common/tasks/main.yml
-        #  ./slurm/roles/slurm-manager/tasks/main.yml
-        #  ./slurm/roles/start-slurm-workers/tasks/main.yml
         # [optional]
         # Arguments to override a package and its version to be set explicitly.
         # Must follow the example syntax.
-        override-deps: |
-          ansible==2.9
-          ansible-lint==4.2.0
+        #override-deps: |
+        #  ansible==2.9
+        #  ansible-lint==4.2.0
         # [optional]
         # Arguments to be passed to the ansible-lint
 
