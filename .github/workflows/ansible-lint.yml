@@ -7,7 +7,7 @@ on:
       - devel
 
 jobs:
-  build:
+  ansible-lint:
 
     runs-on: ubuntu-latest
 
