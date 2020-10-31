@@ -3,12 +3,8 @@
   service: name=ntpd state=restarted enabled=yes
 
 - name: sync clocks
-  shell: ntpdc -np
+  command: ntpdc -np
   register: ntp_clock
   until:  ntp_clock.stdout.find('*') > -1
   retries: 10
   delay: 60
- 
-
-
-

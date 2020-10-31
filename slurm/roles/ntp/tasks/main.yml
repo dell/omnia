@@ -1,9 +1,13 @@
 ---
 - name: deploy ntpd
-  yum: name=ntp state=present
+  yum:
+    name: ntp
+    state: present
 
 - name: deploy ntpdate
-  yum: name=ntpdate state=present
+  yum:
+    name: ntpdate
+    state: present
 
 # ntp server
 - name: update ntp servers
