@@ -13,12 +13,17 @@
 #  limitations under the License.
 
 ---
-
+- name: create download folder
+  file:
+    path: /root/Downloads
+    state: directory
+    mode: '0755'
 - name: Download Slurm source
   get_url:
     url: "{{ slurm_url }}"
     dest: /root/Downloads/
     checksum: "{{ slurm_md5 }}"
+    validate_certs: no    
   tags: install
 
 - name: Build SLURM RPMs

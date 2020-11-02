@@ -21,6 +21,7 @@
 - hosts: cluster
   gather_facts: false
   roles:
+    - common
     - slurm-common
 
 # Apply Manager Config, start services

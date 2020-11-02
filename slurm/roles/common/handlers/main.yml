@@ -1,0 +1,20 @@
+---
+- name: restart ntpd
+  service: name=ntpd state=restarted enabled=yes
+
+- name: restart chrony
+  service: name=chronyd state=restarted enabled=yes
+
+- name: sync ntp clocks
+  command: ntpdc -np
+  register: ntp_clock
+  until:  ntp_clock.stdout.find('*') > -1
+  retries: 10
+  delay: 60
+
+- name: sync chrony sources
+  command: chronyc sources
+  register: chrony_src
+  until:  chrony_src.stdout.find('^*') > -1
+  retries: 6
+  delay: 10

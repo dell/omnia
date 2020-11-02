@@ -1,0 +1,42 @@
+---
+  
+  - name: deploy ntp servers
+    block:
+      - name: deploy ntpd
+        package:
+          name: ntp
+          state: present
+      - name: deploy ntpdate
+        package:
+          name: ntpdate
+          state: present
+      - name: update ntp servers
+        template:
+          src: ntp.conf.j2
+          dest: /etc/ntp.conf
+          owner: root
+          group: root
+          mode: u=rw,g=r,o=r
+          backup: yes
+        notify:
+          - restart ntpd
+          - sync ntp clocks
+    when:  ( ansible_distribution == "CentOS" or   ansible_distribution == "RedHat" ) and ansible_distribution_major_version | int < 8
+  - name:   deploy chrony server
+    block:
+      - name: deploy chrony
+        package:
+            name: chrony
+            state: present
+      - name: update ntp servers
+        template:
+          src: chrony.conf.j2
+          dest: /etc/chrony.conf
+          owner: root
+          group: root
+          mode: u=rw,g=r,o=r
+          backup: yes
+        notify:
+          - restart chrony
+          - sync chrony sources
+    when:  ( ansible_distribution == "CentOS" or   ansible_distribution == "RedHat" ) and ansible_distribution_major_version | int > 7
