@@ -1,4 +1,2 @@
-- name: enable required repos
-  include_tasks: base.yml
 - name: deploy time ntp/chrony
   include_tasks: ntp.yml

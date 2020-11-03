@@ -1,9 +1,15 @@
 ---
 - name: restart ntpd
-  service: name=ntpd state=restarted enabled=yes
+  service: 
+    name=ntpd
+    state=restarted
+    enabled=yes
 
 - name: restart chrony
-  service: name=chronyd state=restarted enabled=yes
+  service: 
+    name=chronyd 
+    state=restarted 
+    enabled=yes
 
 - name: sync ntp clocks
   command: ntpdc -np
