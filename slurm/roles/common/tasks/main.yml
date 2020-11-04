@@ -1,0 +1,2 @@
+- name: deploy time ntp/chrony
+  include_tasks: ntp.yml
