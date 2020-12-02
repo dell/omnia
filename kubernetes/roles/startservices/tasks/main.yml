@@ -46,7 +46,7 @@
   tags: init
 
 - name: Helm - Add Stable Repo
-  shell: helm repo add stable https://kubernetes-charts.storage.googleapis.com/
+  shell: helm repo add stable https://charts.helm.sh/stable
   tags: init
 
 - name: Helm - Update Repo
