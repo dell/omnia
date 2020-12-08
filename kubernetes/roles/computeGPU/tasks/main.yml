@@ -13,13 +13,6 @@
 #  limitations under the License.
 
 ---
-#- name: install Nvidia driver
-  #package:
-    #name:
-      #- kmod-nvidia
-    #state: present
-  #tags: install
-
 - name: add Nvidia container runtime support
   get_url:
     url: https://nvidia.github.io/nvidia-container-runtime/centos7/nvidia-container-runtime.repo
