@@ -1,14 +1,14 @@
 ---
 - name: restart ntpd
-  service: 
+  service:
     name=ntpd
     state=restarted
     enabled=yes
 
 - name: restart chrony
-  service: 
-    name=chronyd 
-    state=restarted 
+  service:
+    name=chronyd
+    state=restarted
     enabled=yes
 
 - name: sync ntp clocks

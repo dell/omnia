@@ -19,7 +19,8 @@
   tags: install
 
 # add ElRepo GPG Key
-- rpm_key:
+- name: add ElRepo GPG Key
+  rpm_key:
     state: present
     key: https://www.elrepo.org/RPM-GPG-KEY-elrepo.org
   tags: install
@@ -51,8 +52,8 @@
   command: /sbin/swapoff -a
   tags: install
 
-# Disable selinux
-- selinux:
+- name: Disable SELinux
+  selinux:
     state: disabled
   tags: install
 
