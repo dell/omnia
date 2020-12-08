@@ -31,6 +31,11 @@
     state: present
   tags: install
 
+- name: Add Docker Community Edition Repo
+  get_url:
+    url: https://download.docker.com/linux/centos/docker-ce.repo
+    dest: /etc/yum.repos.d/docker-ce.repo
+
 - name: update sysctl to handle incorrectly routed traffic when iptables is bypassed
   copy: src=k8s.conf dest=/etc/sysctl.d/ owner=root group=root mode=644
   tags: install
@@ -42,11 +47,6 @@
 - name: Install EPEL Repository
   yum: name=epel-release state=present
   tags: install
-
-#likely need to add a reboot hook in here
-#- name: update kernel and all other system packages
-  #yum: name=* state=latest
-  #tags: install
 
 - name: disable swap
   command: /sbin/swapoff -a
@@ -64,7 +64,7 @@
       - gcc
       - nfs-utils
       - python-pip
-      - docker
+      - docker-ce
       - bash-completion
       - kubelet-1.16.7
       - kubeadm-1.16.7
@@ -77,7 +77,6 @@
   command: yum versionlock kubelet-1.16.7 kubectl-1.16.7 kubeadm-1.16.7
   tags: install
 
-
 - name: install InfiniBand Support
   package:
     name: "@Infiniband Support"
@@ -85,17 +84,6 @@
 
 - name: upgrade pip
   command: /bin/pip install --upgrade pip
-  tags: install
-
-#- name: Enable DevicePlugins for all GPU nodes (nvidia-container-runtime-hook)
-  #copy: src=nvidia dest=/usr/libexec/oci/hooks.d/ owner=root group=root mode=755
-  #tags: install
-
-- name: Add KUBE_EXTRA_ARGS to enable GPUs
-  lineinfile:
-    path: /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
-    line: 'Environment="KUBELET_EXTRA_ARGS=--feature-gates=DevicePlugins=true"'
-    insertbefore: 'KUBELET_KUBECONFIG_ARGS='
   tags: install
 
 - name: Start and Enable docker service
@@ -108,34 +96,6 @@
 - name: Start and Enable Kubernetes - kubelet
   service:
     name: kubelet
-    state: restarted
-    enabled: yes
-  tags: install
-
-- name: Start and rpcbind service
-  service:
-    name: rpcbind
-    state: restarted
-    enabled: yes
-  tags: install
-
-- name: Start and nfs-server service
-  service:
-    name: nfs-server
-    state: restarted
-    enabled: yes
-  tags: install
-
-- name: Start and nfs-lock service
-  service:
-    name: nfs-lock
-    #state: restarted
-    enabled: yes
-  tags: install
-
-- name: Start and nfs-idmap service
-  service:
-    name: nfs-idmap
     state: restarted
     enabled: yes
   tags: install

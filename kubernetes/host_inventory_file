@@ -18,3 +18,6 @@ all:
       vars:
         single_node: false
         manager_ip: 10.0.0.100
+        nfs_server: 10.0.0.100
+        nfs_path: /work
+        MIG_STRATEGY: none

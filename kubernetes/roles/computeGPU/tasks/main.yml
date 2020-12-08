@@ -13,20 +13,6 @@
 #  limitations under the License.
 
 ---
-- name: install Nvidia driver
-  package:
-    name:
-      - kmod-nvidia
-      #- nvidia-x11-drv
-    state: present
-  tags: install
-
-#- name: add Nvidia container runtime support
-  #get_url:
-    #url: https://nvidia.github.io/nvidia-docker/centos7/nvidia-docker.repo
-    #dest: /etc/yum.repos.d/nvidia-docker.repo
-  #tags: install
-
 - name: add Nvidia container runtime support
   get_url:
     url: https://nvidia.github.io/nvidia-container-runtime/centos7/nvidia-container-runtime.repo
@@ -39,29 +25,20 @@
     regexp: 'repo_gpgcheck=1'
     replace: 'repo_gpgcheck=0'
     backup: yes
-  tags: testing
+  tags: install
 
 - name: install Nvidia-container-runtime-hook
   package:
     name:
-      #- nvidia-detect
-      #- kmod-nvidia-410.73-1.el7_5.elrepo
+      - kmod-nvidia
       - nvidia-container-runtime-hook
+      - nvidia-docker2
     state: present
   tags: install
 
-
-# This needs to be done on GPU nodes
-#- name: Enable DevicePlugins for all GPU nodes (nvidia-container-runtime-hook)
-  #copy: src=nvidia dest=/usr/libexec/oci/hooks.d/ owner=root group=root mode=755
-  #tags: install
-
-#- name: Add KUBE_EXTRA_ARGS to enable Plugins (GPU support)  --III alreday done in common
-  #lineinfile:
-    #path: /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
-    #line: 'Environment="KUBELET_EXTRA_ARGS=--feature-gates=DevicePlugins=true"'
-    #insertbefore: 'KUBELET_KUBECONFIG_ARGS='
-  #tags: install
+- name: Set nvidia as default runtime 
+  copy: src=daemon.json dest=/etc/docker/ owner=root group=root mode=644
+  tags: install
 
 - name: Restart and Enable docker service
   service:
