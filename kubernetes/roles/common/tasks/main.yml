@@ -57,7 +57,7 @@
   tags: install
 
 - name: install common packages
-  yum:
+  package:
     name:
       - yum-plugin-versionlock
       - gcc
@@ -78,7 +78,7 @@
 
 
 - name: install InfiniBand Support
-  yum:
+  package:
     name: "@Infiniband Support"
     state: present
 

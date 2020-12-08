@@ -14,7 +14,7 @@
 
 ---
 - name: install Nvidia driver
-  yum:
+  package:
     name:
       - kmod-nvidia
       #- nvidia-x11-drv
@@ -42,7 +42,7 @@
   tags: testing
 
 - name: install Nvidia-container-runtime-hook
-  yum:
+  package:
     name:
       #- nvidia-detect
       #- kmod-nvidia-410.73-1.el7_5.elrepo
