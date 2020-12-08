@@ -13,28 +13,27 @@
 #  limitations under the License.
 
 ---
-#- name: Kick CoreDNS (this is a hack that needs to be fixed)
-  #shell:  kubectl get pods -n kube-system --no-headers=true | awk '/coredns/{print $1}'|xargs kubectl delete -n kube-system pod
-  #tags: init
-
-- name: Wait for CoreDNS to restart
+- name: Wait for CoreDNS to become ready
   shell: kubectl rollout status deployment/coredns -n kube-system
   tags: init
 
-- name: Deploy MetalLB
+#- name: Create MetalLB Namespace
+#  shell: kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.5/manifests/namespace.yaml
+#  tags: init
+
+- name: Deploy MetalLB Manifest
+  #shell: kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.5/manifests/metallb.yaml
   shell: kubectl apply -f https://raw.githubusercontent.com/google/metallb/v0.8.1/manifests/metallb.yaml
   tags: init
 
-- name: Create MetalLB Setup Config Files
-  copy: src=metal-config.yaml dest=/root/k8s/metal-config.yaml owner=root group=root mode=655
-  tags: init
+#- name: Create MetalLB Secret
+#  shell: "kubectl create secret generic -n metallb-system memberlist --from-literal=secretkey=\"$(openssl rand -base64 128)\""
+#  tags: init
 
-- name: Create MetalLB Setup Deployment Files
-  copy: src=metallb.yaml dest=/root/k8s/metallb.yaml owner=root group=root mode=655
-  tags: init
-
-- name: Deploy MetalLB
-  shell: kubectl apply -f /root/k8s/metallb.yaml
+- name: Copy default setup for MetalLB to manager
+  copy:
+    src: metal-config.yaml
+    dest: /root/k8s/
   tags: init
 
 - name: Create default setup for MetalLB
@@ -42,19 +41,17 @@
   tags: init
 
 - name: Start K8S Dashboard
-  shell: kubectl create -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0-beta6/aio/deploy/recommended.yaml
+  shell: kubectl create -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0/aio/deploy/recommended.yaml
   tags: init
 
 - name: Helm - Add Stable Repo
-  shell: helm repo add stable https://kubernetes-charts.storage.googleapis.com/
-  tags: init
-
-- name: Helm - Update Repo
-  shell: helm repo update
+  community.kubernetes.helm_repository:
+    name: stable
+    repo_url: "https://charts.helm.sh/stable"
   tags: init
 
 - name: Start NFS Client Provisioner
-  shell: helm install stable/nfs-client-provisioner --set nfs.server=10.0.0.1 --set nfs.path=/work --generate-name
+  shell: helm install stable/nfs-client-provisioner --set nfs.server={{ nfs_server}} --set nfs.path={{ nfs_path }} --generate-name
   tags: init
 
 - name: Set NFS-Client Provisioner as DEFAULT StorageClass

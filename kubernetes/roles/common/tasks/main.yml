@@ -26,9 +26,15 @@
 
 - name: add ElRepo (Nvidia kmod drivers)
   yum:
-    name: http://www.elrepo.org/elrepo-release-7.0-3.el7.elrepo.noarch.rpm
+    name: https://www.elrepo.org/elrepo-release-8.el8.elrepo.noarch.rpm
+    #name: http://www.elrepo.org/elrepo-release-7.0-3.el7.elrepo.noarch.rpm
     state: present
   tags: install
+
+- name: Add Docker Repo
+  get_url:
+    url: https://download.docker.com/linux/centos/docker-ce.repo
+    dest: /etc/yum.repos.d/docker-ce.repo
 
 - name: update sysctl to handle incorrectly routed traffic when iptables is bypassed
   copy: src=k8s.conf dest=/etc/sysctl.d/ owner=root group=root mode=644
@@ -38,8 +44,27 @@
   command: /sbin/sysctl --system
   tags: install
 
+- name: flush iptables
+  command: /usr/sbin/iptables --flush
+  tags: install
+
+- name: flush nta iptables
+  command: /usr/sbin/iptables -tnat --flush
+  tags: install
+
+- name: update iptables
+  command: /usr/sbin/iptables -P FORWARD ACCEPT
+  tags: install
+
 - name: Install EPEL Repository
   yum: name=epel-release state=present
+  tags: install
+
+- name: Install containerd
+  package:
+    name: https://download.docker.com/linux/centos/7/x86_64/stable/Packages/containerd.io-1.2.6-3.3.el7.x86_64.rpm
+    state: present
+    disable_gpg_check: yes
   tags: install
 
 #likely need to add a reboot hook in here
@@ -57,13 +82,13 @@
   tags: install
 
 - name: install common packages
-  yum:
+  package:
     name:
       - yum-plugin-versionlock
       - gcc
       - nfs-utils
-      - python-pip
-      - docker
+      - python3-pip
+      - docker-ce
       - bash-completion
       - kubelet-1.16.7
       - kubeadm-1.16.7
@@ -78,13 +103,13 @@
 
 
 - name: install InfiniBand Support
-  yum:
+  package:
     name: "@Infiniband Support"
     state: present
 
-- name: upgrade pip
-  command: /bin/pip install --upgrade pip
-  tags: install
+#- name: upgrade pip
+# command: /bin/pip install --upgrade pip
+# tags: install
 
 #- name: Enable DevicePlugins for all GPU nodes (nvidia-container-runtime-hook)
   #copy: src=nvidia dest=/usr/libexec/oci/hooks.d/ owner=root group=root mode=755
@@ -107,34 +132,6 @@
 - name: Start and Enable Kubernetes - kubelet
   service:
     name: kubelet
-    state: restarted
-    enabled: yes
-  tags: install
-
-- name: Start and rpcbind service
-  service:
-    name: rpcbind
-    state: restarted
-    enabled: yes
-  tags: install
-
-- name: Start and nfs-server service
-  service:
-    name: nfs-server
-    state: restarted
-    enabled: yes
-  tags: install
-
-- name: Start and nfs-lock service
-  service:
-    name: nfs-lock
-    #state: restarted
-    enabled: yes
-  tags: install
-
-- name: Start and nfs-idmap service
-  service:
-    name: nfs-idmap
     state: restarted
     enabled: yes
   tags: install

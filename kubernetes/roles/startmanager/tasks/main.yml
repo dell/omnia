@@ -19,7 +19,9 @@
 
 - name: Initialize kubeadm
   command: /bin/kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address={{ manager_ip }}
-  #command: /bin/kubeadm init
+  environment: 
+    no_proxy: ".svc,.svc.cluster.local"
+    additional_no_proxy: ".svc,.svc.cluster.local"
   register: init_output
   tags: init
 
@@ -68,6 +70,10 @@
 - name:
   debug:
     msg: "[Manager] K8S_MANAGER_IP is  {{ manager_ip }}"
+  tags: init
+
+- name: Add Docker Secret for unlimited pulls
+  command: /bin/kubectl create secret docker-registry regcred --docker-server=docker.io --docker-username=jlockman3 --docker-password=whi+eCrown60 --docker-email=jlockman3@gmail.com
   tags: init
 
 - name: Setup Calico SDN network
