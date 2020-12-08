@@ -33,7 +33,7 @@
     dest: /root/.kube/config
     owner: root
     group: root
-    mode: 644
+    mode: 0644
     remote_src: yes
   tags: init
 
@@ -92,6 +92,9 @@
 - name: Create yaml repo for setup
   file:
     path: /root/k8s
+    owner: root
+    group: root
+    mode: 0755
     state: directory
   tags: init
 

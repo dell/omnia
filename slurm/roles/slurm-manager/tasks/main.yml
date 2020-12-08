@@ -34,6 +34,7 @@
   copy:
     src: "{{ item }}"
     dest: /home/rpms/
+    mode: '0755'
   with_fileglob:
     - /root/rpmbuild/RPMS/x86_64/slurm*20*.rpm
   tags: install
@@ -90,7 +91,7 @@
   tags: install
 
 - name: Create Slurm Cluster
-  command: sacctmgr -i add cluster {{inventory_hostname}}
+  command: sacctmgr -i add cluster {{ inventory_hostname }}
   tags: install
 
 - name: Create Default Slurm Group

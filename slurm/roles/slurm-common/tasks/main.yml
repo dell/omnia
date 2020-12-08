@@ -14,7 +14,7 @@
 ---
 
 - name: install packages for slurm
-  yum:
+  package:
     name:
       - munge
       - mariadb

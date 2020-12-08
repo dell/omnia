@@ -1,5 +1,5 @@
 ---
-  
+
   - name: deploy ntp servers
     block:
       - name: deploy ntpd
