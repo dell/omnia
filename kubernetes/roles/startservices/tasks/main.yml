@@ -49,12 +49,20 @@
   shell: helm repo add stable https://charts.helm.sh/stable
   tags: init
 
+- name: Helm - Add Nvidia k8s-device-plugin (nvdp) Repo
+  shell: helm repo add nvdp https://nvidia.github.io/k8s-device-plugin
+  tags: init
+
+- name: Helm - Add Nvidia GPU Discovery (nvgfd) Repo
+  shell: helm repo add nvgfd https://nvidia.github.io/gpu-feature-discovery
+  tags: init
+
 - name: Helm - Update Repo
   shell: helm repo update
   tags: init
 
 - name: Start NFS Client Provisioner
-  shell: helm install stable/nfs-client-provisioner --set nfs.server=10.0.0.1 --set nfs.path=/work --generate-name
+  shell: helm install stable/nfs-client-provisioner --set nfs.server={{ nfs_server }}  --set nfs.path={{ nfs_path }} --generate-name
   tags: init
 
 - name: Set NFS-Client Provisioner as DEFAULT StorageClass
@@ -67,4 +75,12 @@
 
 - name: Install MPI Operator
   shell: kubectl create -f https://raw.githubusercontent.com/kubeflow/mpi-operator/master/deploy/v1alpha2/mpi-operator.yaml
+  tags: init
+
+- name: Install nvidia-device-plugin
+  shell: helm install --version=0.7.0  --generate-name  --set migStrategy={{ MIG_STRATEGY }}  nvdp/nvidia-device-plugin 
+  tags: init
+
+- name: Install GPU Feature Discovery
+  shell: helm install  --version=0.2.0  --generate-name  --set migStrategy={{ MIG_STRATEGY }}  nvgfd/gpu-feature-discovery
   tags: init
