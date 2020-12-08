@@ -42,7 +42,7 @@
   tags: init
 
 - name: Start K8S Dashboard
-  shell: kubectl create -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0-beta6/aio/deploy/recommended.yaml
+  shell: kubectl create -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0/aio/deploy/recommended.yaml
   tags: init
 
 - name: Helm - Add Stable Repo
