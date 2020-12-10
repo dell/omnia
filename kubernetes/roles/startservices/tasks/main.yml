@@ -13,10 +13,6 @@
 #  limitations under the License.
 
 ---
-#- name: Kick CoreDNS (this is a hack that needs to be fixed)
-  #shell:  kubectl get pods -n kube-system --no-headers=true | awk '/coredns/{print $1}'|xargs kubectl delete -n kube-system pod
-  #tags: init
-
 - name: Wait for CoreDNS to restart
   shell: kubectl rollout status deployment/coredns -n kube-system
   tags: init
@@ -83,4 +79,9 @@
 
 - name: Install GPU Feature Discovery
   shell: helm install  --version=0.2.0  --generate-name  --set migStrategy={{ MIG_STRATEGY }}  nvgfd/gpu-feature-discovery
+  tags: init
+
+- name: Deploy Xilinx Device Plugin
+  shell: kubectl create -f https://raw.githubusercontent.com/Xilinx/FPGA_as_a_Service/master/k8s-fpga-device-plugin/fpga-device-plugin.yml
+  register: fpga_enable
   tags: init
