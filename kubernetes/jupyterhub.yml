@@ -13,9 +13,8 @@
 # limitations under the License.
 ---
 
-#Playbook for installing JupyterHub v1.1.0 in Omnia
-# Start K8s worker servers
-- hosts: manager
+- name: Installing JupyterHub
+  hosts: manager
   gather_facts: false
   roles:
     - jupyterhub

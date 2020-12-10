@@ -11,39 +11,64 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
 ---
-- name: Turn Swap OFF (if not already disabled)
+
+- name: Disable swap (if not already disabled)
   command: /usr/sbin/swapoff -a
+  changed_when: true
   tags: init
 
+- name: Start and enable docker service
+  systemd:
+    name: docker
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  tags: docker
+
 - name: Initialize kubeadm
-  command: /bin/kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address={{ manager_ip }}
-  #command: /bin/kubeadm init
+  command: "/bin/kubeadm init --pod-network-cidr='{{ pod_network_cidr_ip }}' --apiserver-advertise-address='{{ manager_ip }}'"
+  changed_when: true
   register: init_output
   tags: init
 
-- name: Setup Directory for Kubernetes environment for root
-  file: path=/root/.kube state=directory
+- name: Setup directory for Kubernetes environment for root
+  file:
+    path: "{{ k8s_root_directory }}"
+    state: directory
+    mode: "{{ k8s_root_directory_mode }}"
   tags: init
 
-- name: Copy Kubernetes Config for root #do this for other users too?
+- name: Copy Kubernetes config for root
   copy:
-    src: /etc/kubernetes/admin.conf
-    dest: /root/.kube/config
+    src: "{{ k8s_config_src }}"
+    dest: "{{ k8s_config_dest }}"
     owner: root
     group: root
-    mode: 0644
+    mode: "{{ k8s_config_file_mode }}"
     remote_src: yes
   tags: init
 
+- name: Update the kubernetes config file permissions
+  shell: "chown $(id -u):$(id -g) '{{ k8s_config_dest }}'"
+  args:
+    warn: false
+  changed_when: true
+  tags: init
+
 - name: Cluster token
-  shell: kubeadm token list | cut -d ' ' -f1 | sed -n '2p'
+  shell: >
+    set -o pipefail && \
+      kubeadm token list | cut -d ' ' -f1 | sed -n '2p'
+  changed_when: false
   register: K8S_TOKEN
   tags: init
 
 - name: CA Hash
-  shell: openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt | openssl rsa -pubin -outform der 2>/dev/null | openssl dgst -sha256 -hex | sed 's/^.* //'
+  shell: >
+    set -o pipefail && \
+      openssl x509 -pubkey -in {{ k8s_cert_path }} | openssl rsa -pubin -outform der 2>/dev/null | openssl dgst -sha256 -hex | sed 's/^.* //'
+  changed_when: false
   register: K8S_MANAGER_CA_HASH
   tags: init
 
@@ -55,75 +80,77 @@
     ip:     "{{ manager_ip }}"
   tags: init
 
-- name:
+- name: Print k8s token
   debug:
     msg: "[Manager] K8S_TOKEN_HOLDER K8S token is {{ hostvars['K8S_TOKEN_HOLDER']['token'] }}"
+    verbosity: 2
   tags: init
 
-- name:
+- name: Print k8s hash
   debug:
     msg: "[Manager] K8S_TOKEN_HOLDER K8S Hash is  {{ hostvars['K8S_TOKEN_HOLDER']['hash'] }}"
+    verbosity: 2
   tags: init
 
-- name:
+- name: Print k8s manager_ip
   debug:
     msg: "[Manager] K8S_MANAGER_IP is  {{ manager_ip }}"
+    verbosity: 2
   tags: init
 
 - name: Setup Calico SDN network
-  shell: kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
+  command: "kubectl apply -f '{{ calico_yml_url }}'"
+  when: k8s_cni == "calico"
   tags: init
 
-#- name: Setup Flannel SDN network
-  #shell: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
-  #tags: init
-
-- name: Enabled GPU support in Kubernetes
-  shell: kubectl create -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/1.0.0-beta4/nvidia-device-plugin.yml
-                           #https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v1.11/nvidia-device-plugin.yml
-  register: gpu_enable
-  tags: init
-
-- name: Deploy Xilinx Device Plugin
-  shell: kubectl create -f https://raw.githubusercontent.com/Xilinx/FPGA_as_a_Service/master/k8s-fpga-device-plugin/fpga-device-plugin.yml
-  register: fpga_enable
+- name: Setup Flannel SDN network
+  command: "kubectl apply -f '{{ flannel_yml_url }}'"
+  when: k8s_cni == "flannel"
   tags: init
 
 - name: Create yaml repo for setup
   file:
-    path: /root/k8s
+    path: "{{ yaml_repo_dir_path }}"
+    state: directory
+    mode: "{{ yaml_repo_dir_mode }}"
+  tags: init
+
+- name: Create service account (K8s dashboard) files
+  copy:
+    src: create_admin_user.yaml
+    dest: "{{ k8s_service_account_file_dest }}"
     owner: root
     group: root
-    mode: 0755
-    state: directory
+    mode: "{{ k8s_service_account_file_mode }}"
   tags: init
 
-- name: Create Service Account (K8S Dashboard) Files
-  copy: src=create_admin_user.yaml dest=/root/k8s/create_admin_user.yaml owner=root group=root mode=655
+- name: Create service account (K8s dashboard)
+  command: "kubectl create -f '{{ k8s_service_account_file_dest }}'"
+  changed_when: true
   tags: init
 
-- name: Create Service Account (K8S Dashboard) - Create
-  shell: kubectl create -f /root/k8s/create_admin_user.yaml
+- name: Create clusterRoleBinding (K8s dashboard) files
+  copy:
+    src: create_clusterRoleBinding.yaml
+    dest: "{{ k8s_clusterRoleBinding_file_dest }}"
+    owner: root
+    group: root
+    mode: "{{ k8s_clusterRoleBinding_file_mode }}"
   tags: init
 
-- name: Create ClusterRoleBinding (K8S Dashboard) Files
-  copy: src=create_clusterRoleBinding.yaml dest=/root/k8s/create_clusterRoleBinding.yaml owner=root group=root mode=655
+- name: Create clusterRoleBinding (K8s dashboard)
+  command: "kubectl create -f '{{ k8s_clusterRoleBinding_file_dest }}'"
+  changed_when: true
   tags: init
 
-- name: Create ClusterRoleBinding (K8S Dashboard) - Apply
-  shell: kubectl create -f /root/k8s/create_clusterRoleBinding.yaml
-  tags: init
-
-- name: Dump Bearer Token for K8S Dashboard Login
-  shell: kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep admin-user | awk '{print $1}') > /root/k8s/token
+- name: Dump bearer token for K8s dashboard login
+  shell: >
+    set -o pipefail && \
+      kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep admin-user | awk '{print $1}') > /root/k8s/token
+  changed_when: true
   tags: init
 
 - name: Edge / Workstation Install allows pods to scheudle on manager
-  shell: kubectl taint nodes --all node-role.kubernetes.io/master-
+  command: kubectl taint nodes --all node-role.kubernetes.io/master-
   when: single_node
   tags: init
-
-
-# If more debug information is needed during init uncomment the following 2 lines
-#- debug: var=init_output.stdout_lines
-  #tags: init

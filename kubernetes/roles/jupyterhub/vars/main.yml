@@ -13,33 +13,14 @@
 #  limitations under the License.
 ---
 
-common_packages:
-  - epel-release
-  - yum-plugin-versionlock
-  - gcc
-  - nfs-utils
-  - python3-pip
-  - docker-ce
-  - bash-completion
-  - nvidia-detect
+jupyterhub_helm_chart_repo: https://jupyterhub.github.io/helm-chart/
 
-k8s_packages:
-  - kubelet-1.16.7
-  - kubeadm-1.16.7
-  - kubectl-1.16.7
+jupyter_config_file_dest: /root/k8s/jupyter_config.yaml
 
-k8s_repo_dest: /etc/yum.repos.d/
+jupyter_config_file_mode: 0655
 
-elrepo_gpg_key_url: https://www.elrepo.org/RPM-GPG-KEY-elrepo.org
+helm_chart_version: 0.9.0
 
-elrepo_rpm_url: https://www.elrepo.org/elrepo-release-8.el8.elrepo.noarch.rpm
+timeout_min_sec: 60m
 
-docker_repo_url: https://download.docker.com/linux/centos/docker-ce.repo
-
-docker_repo_dest: /etc/yum.repos.d/docker-ce.repo
-
-k8s_conf_dest: /etc/sysctl.d/
-
-k8s_repo_file_mode: 0644
-
-k8s_conf_file_mode: 0644
+jupyterhub_namespace: default

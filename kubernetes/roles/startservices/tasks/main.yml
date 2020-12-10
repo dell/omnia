@@ -11,76 +11,111 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
 ---
-#- name: Kick CoreDNS (this is a hack that needs to be fixed)
-  #shell:  kubectl get pods -n kube-system --no-headers=true | awk '/coredns/{print $1}'|xargs kubectl delete -n kube-system pod
-  #tags: init
 
 - name: Wait for CoreDNS to restart
-  shell: kubectl rollout status deployment/coredns -n kube-system
+  command: kubectl rollout status deployment/coredns -n kube-system
+  changed_when: false
+  ignore_errors: True
   tags: init
 
 - name: Deploy MetalLB
-  shell: kubectl apply -f https://raw.githubusercontent.com/google/metallb/v0.8.1/manifests/metallb.yaml
+  command: "kubectl apply -f '{{ metallb_yaml_url }}'"
+  changed_when: true
   tags: init
 
 - name: Create MetalLB Setup Config Files
-  copy: src=metal-config.yaml dest=/root/k8s/metal-config.yaml owner=root group=root mode=655
+  copy:
+    src: metal-config.yaml
+    dest: "{{ metallb_config_file_dest }}"
+    owner: root
+    group: root
+    mode: "{{ metallb_config_file_mode }}"
   tags: init
 
 - name: Create MetalLB Setup Deployment Files
-  copy: src=metallb.yaml dest=/root/k8s/metallb.yaml owner=root group=root mode=655
+  copy:
+    src: metallb.yaml
+    dest: "{{ metallb_deployment_file_dest }}"
+    owner: root
+    group: root
+    mode: "{{ metallb_deployment_file_mode }}"
   tags: init
 
 - name: Deploy MetalLB
-  shell: kubectl apply -f /root/k8s/metallb.yaml
+  command: "kubectl apply -f '{{ metallb_deployment_file_dest }}'"
+  changed_when: true
   tags: init
 
 - name: Create default setup for MetalLB
-  shell: kubectl apply -f /root/k8s/metal-config.yaml
+  command: "kubectl apply -f '{{ metallb_config_file_dest }}'"
+  changed_when: true
   tags: init
 
-- name: Start K8S Dashboard
-  shell: kubectl create -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0/aio/deploy/recommended.yaml
+- name: Start k8s dashboard
+  command: "kubectl create -f '{{ k8s_dashboard_yaml_url }}'"
+  changed_when: true
+  register: result
   tags: init
 
-- name: Helm - Add Stable Repo
-  shell: helm repo add stable https://charts.helm.sh/stable
+- name: Helm - add stable repo
+  command: "helm repo add stable '{{ helm_stable_repo_url }}'"
+  changed_when: true
   tags: init
 
-- name: Helm - Add Nvidia k8s-device-plugin (nvdp) Repo
-  shell: helm repo add nvdp https://nvidia.github.io/k8s-device-plugin
+- name: Helm - add Nvidia k8s-device-plugin (nvdp) repo
+  command: "helm repo add nvdp '{{ nvidia_k8s_device_plugin_repo_url }}'"
+  changed_when: true
   tags: init
 
-- name: Helm - Add Nvidia GPU Discovery (nvgfd) Repo
-  shell: helm repo add nvgfd https://nvidia.github.io/gpu-feature-discovery
+- name: Helm - add Nvidia GPU discovery (nvgfd) repo
+  command: "helm repo add nvgfd '{{ nvidia_gpu_discovery_repo_url }}'"
+  changed_when: true
   tags: init
 
-- name: Helm - Update Repo
-  shell: helm repo update
+- name: Helm - update repo
+  command: helm repo update
+  changed_when: true
   tags: init
 
 - name: Start NFS Client Provisioner
-  shell: helm install stable/nfs-client-provisioner --set nfs.server={{ nfs_server }}  --set nfs.path={{ nfs_path }} --generate-name
+  command: "helm install stable/nfs-client-provisioner --set nfs.server='{{ nfs_server }}' --set nfs.path='{{ nfs_path }}' --generate-name"
+  changed_when: true
+  register: result
   tags: init
 
 - name: Set NFS-Client Provisioner as DEFAULT StorageClass
-  shell: "kubectl patch storageclasses.storage.k8s.io nfs-client -p '{\"metadata\": {\"annotations\":{\"storageclass.kubernetes.io/is-default-class\":\"true\"}}}'"
+  shell: >
+    kubectl patch storageclasses.storage.k8s.io nfs-client \
+    -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+  changed_when: true
   tags: init
 
 - name: Prometheus deployment
-  shell: helm install stable/prometheus --set alertmanager.persistentVolume.storageClass=nfs-client,server.persistentVolume.storageClass=nfs-client,server.service.type=LoadBalancer --generate-name
+  command: >
+    helm install stable/prometheus \
+    --set alertmanager.persistentVolume.storageClass=nfs-client,server.persistentVolume.storageClass=nfs-client,server.service.type=LoadBalancer \
+    --generate-name
+  changed_when: true
   tags: init
 
 - name: Install MPI Operator
-  shell: kubectl create -f https://raw.githubusercontent.com/kubeflow/mpi-operator/master/deploy/v1alpha2/mpi-operator.yaml
+  command: "kubectl create -f '{{ mpi_operator_yaml_url }}'"
+  changed_when: true
   tags: init
 
 - name: Install nvidia-device-plugin
-  shell: helm install --version=0.7.0  --generate-name  --set migStrategy={{ MIG_STRATEGY }}  nvdp/nvidia-device-plugin 
+  command: "helm install --version='{{ nvidia_device_plugin_version }}' --generate-name --set migStrategy='{{ mig_strategy }}' nvdp/nvidia-device-plugin"
+  changed_when: true
   tags: init
 
 - name: Install GPU Feature Discovery
-  shell: helm install  --version=0.2.0  --generate-name  --set migStrategy={{ MIG_STRATEGY }}  nvgfd/gpu-feature-discovery
+  command: "helm install --version='{{ gpu_feature_discovery_version }}' --generate-name --set migStrategy='{{ mig_strategy }}' nvgfd/gpu-feature-discovery"
+  changed_when: true
+  tags: init
+
+- name: Deploy Xilinx Device plugin
+  command: "kubectl create -f '{{ fpga_device_plugin_yaml_url }}'"
+  changed_when: true
+  register: fpga_enable
   tags: init
