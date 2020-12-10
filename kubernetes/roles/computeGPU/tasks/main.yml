@@ -13,25 +13,16 @@
 #  limitations under the License.
 
 ---
-- name: add Nvidia container runtime support
+- name: add nvidia-docker2 Repo
   get_url:
-    url: https://nvidia.github.io/nvidia-container-runtime/centos7/nvidia-container-runtime.repo
-    dest: /etc/yum.repos.d/nvidia-container-runtime.repo
+    url: https://nvidia.github.io/nvidia-docker/centos7/nvidia-docker.repo
+    dest: /etc/yum.repos.d/nvidia-docker.repo
   tags: install, testing
 
-- name:  disable gpg key for nvidia-container-runtime
-  replace:
-    path: /etc/yum.repos.d/nvidia-container-runtime.repo
-    regexp: 'repo_gpgcheck=1'
-    replace: 'repo_gpgcheck=0'
-    backup: yes
-  tags: install
-
-- name: install Nvidia-container-runtime-hook
+- name: install Nvidia driver and nvidia-docker2
   package:
     name:
       - kmod-nvidia
-      - nvidia-container-runtime-hook
       - nvidia-docker2
     state: present
   tags: install
