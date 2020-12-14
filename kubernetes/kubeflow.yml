@@ -11,12 +11,10 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
 ---
-#Playbook for installing Kubeflow v1.0 on Omnia
 
-# Start K8s worker servers
-- hosts: manager
+- name: Installing Kubeflow
+  hosts: manager
   gather_facts: false
   roles:
     - kubeflow
