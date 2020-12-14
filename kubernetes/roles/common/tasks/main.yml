@@ -11,89 +11,91 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
 ---
 
-- name: add kubernetes repo
-  copy: src=kubernetes.repo dest=/etc/yum.repos.d/ owner=root group=root mode=644
+- name: Add kubernetes repo
+  copy:
+    src: kubernetes.repo
+    dest: "{{ k8s_repo_dest }}"
+    owner: root
+    group: root
+    mode: "{{ k8s_repo_file_mode }}"
   tags: install
 
-# add ElRepo GPG Key
-- name: add ElRepo GPG Key
+- name: Add elrepo GPG key
   rpm_key:
     state: present
-    key: https://www.elrepo.org/RPM-GPG-KEY-elrepo.org
+    key: "{{ elrepo_gpg_key_url }}"
   tags: install
 
-- name: add ElRepo (Nvidia kmod drivers)
-  yum:
-    name: http://www.elrepo.org/elrepo-release-7.0-3.el7.elrepo.noarch.rpm
+- name: Add elrepo (nvidia kmod drivers)
+  package:
+    name: "{{ elrepo_rpm_url }}"
     state: present
   tags: install
 
-- name: Add Docker Community Edition Repo
+- name: Add docker community edition repository
   get_url:
-    url: https://download.docker.com/linux/centos/docker-ce.repo
-    dest: /etc/yum.repos.d/docker-ce.repo
-
-- name: update sysctl to handle incorrectly routed traffic when iptables is bypassed
-  copy: src=k8s.conf dest=/etc/sysctl.d/ owner=root group=root mode=644
+    url: "{{ docker_repo_url }}"
+    dest: "{{ docker_repo_dest }}"
   tags: install
 
-- name: update sysctl
+- name: Update sysctl to handle incorrectly routed traffic when iptables is bypassed
+  copy:
+    src: k8s.conf
+    dest: "{{ k8s_conf_dest }}"
+    owner: root
+    group: root
+    mode: "{{ k8s_conf_file_mode }}"
+  tags: install
+
+- name: Update sysctl
   command: /sbin/sysctl --system
+  changed_when: true
   tags: install
 
-- name: Install EPEL Repository
-  yum: name=epel-release state=present
-  tags: install
-
-- name: disable swap
+- name: Disable swap
   command: /sbin/swapoff -a
+  changed_when: true
   tags: install
 
-- name: Disable SELinux
+- name: Disable selinux
   selinux:
     state: disabled
   tags: install
 
-- name: install common packages
+- name: Install common packages
   package:
-    name:
-      - yum-plugin-versionlock
-      - gcc
-      - nfs-utils
-      - python-pip
-      - docker-ce
-      - bash-completion
-      - kubelet-1.16.7
-      - kubeadm-1.16.7
-      - kubectl-1.16.7
-      - nvidia-detect
+    name: "{{ item }}"
     state: present
+  with_items:
+    - "{{ common_packages }}"
+    - "{{ k8s_packages }}"
   tags: install
 
-- name: versionlock kubernetes
-  command: yum versionlock kubelet-1.16.7 kubectl-1.16.7 kubeadm-1.16.7
+- name: Versionlock kubernetes
+  command: "dnf versionlock '{{ item }}'"
+  args:
+    warn: false
+  with_items:
+    - "{{ k8s_packages }}"
+  changed_when: true
   tags: install
 
-- name: install InfiniBand Support
+- name: Install infiniBand support
   package:
     name: "@Infiniband Support"
     state: present
-
-- name: upgrade pip
-  command: /bin/pip install --upgrade pip
   tags: install
 
-- name: Start and Enable docker service
+- name: Start and enable docker service
   service:
     name: docker
     state: restarted
     enabled: yes
   tags: install
 
-- name: Start and Enable Kubernetes - kubelet
+- name: Start and enable kubernetes - kubelet
   service:
     name: kubelet
     state: restarted

@@ -12,26 +12,33 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+
 #Playbook for installing Slurm on a cluster
 
 #collect info from everything
 - hosts: all
 
-# Apply Common Installation and Config
-- hosts: cluster
+- name: Apply common installation and config
+  hosts: manager,compute
   gather_facts: false
   roles:
+    - slurm_common
     - common
-    - slurm-common
 
-# Apply Manager Config, start services
-- hosts: manager
+- name: Apply manager config
+  hosts: manager
   gather_facts: false
   roles:
-    - slurm-manager
+    - slurm_manager
 
-# Start SLURM workers
-- hosts: compute
+- name: Start slurm workers
+  hosts: compute
+  gather_facts: true
+  roles:
+    - start_slurm_workers
+
+- name: Start services
+  hosts: manager
   gather_facts: false
   roles:
-    - start-slurm-workers
+    - slurm_start_services

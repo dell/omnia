@@ -11,34 +11,40 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
 ---
-- name: add nvidia-docker2 Repo
+
+- name: Add nvidia-docker2 Repo
   get_url:
-    url: https://nvidia.github.io/nvidia-docker/centos7/nvidia-docker.repo
-    dest: /etc/yum.repos.d/nvidia-docker.repo
+    url: "{{ nvidia_docker_repo_url }}"
+    dest: "{{ nvidia_docker_repo_dest }}"
   tags: install, testing
 
-- name: install Nvidia driver and nvidia-docker2
+- name: Install nvidia driver and nvidia-docker2
   package:
-    name:
-      - kmod-nvidia
-      - nvidia-docker2
+    name: "{{ item }}"
     state: present
+  with_items:
+    - "{{ nvidia_packages }}"
   tags: install
 
-- name: Set nvidia as default runtime 
-  copy: src=daemon.json dest=/etc/docker/ owner=root group=root mode=644
+- name: Set nvidia as default runtime
+  copy:
+    src: daemon.json
+    dest: "{{ daemon_file_dest }}"
+    owner: root
+    group: root
+    mode: "{{ daemon_file_mode }}"
   tags: install
 
-- name: Restart and Enable docker service
+- name: Restart and enable docker service
   service:
     name: docker
     state: restarted
     enabled: yes
+    daemon_reload: yes
   tags: install
 
-- name: Restart and Enable Kubernetes - kubelet
+- name: Restart and enable kubernetes - kubelet
   service:
     name: kubelet
     state: restarted

@@ -13,5 +13,6 @@
 #  limitations under the License.
 ---
 
-- name: Deploy time ntp/chrony
-  include_tasks: ntp.yml
+single_node: false
+
+apiserver_bind_port: 6443

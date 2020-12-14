@@ -1,42 +1,56 @@
+#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
 ---
 
-  - name: deploy ntp servers
+  - name: Deploy ntp servers
     block:
-      - name: deploy ntpd
+      - name: Deploy ntpd
         package:
           name: ntp
           state: present
-      - name: deploy ntpdate
+      - name: Deploy ntpdate
         package:
           name: ntpdate
           state: present
-      - name: update ntp servers
+      - name: Update ntp servers
         template:
           src: ntp.conf.j2
-          dest: /etc/ntp.conf
+          dest: "{{ ntp_path }}"
           owner: root
           group: root
-          mode: u=rw,g=r,o=r
+          mode: "{{ ntp_mode }}"
           backup: yes
         notify:
           - restart ntpd
           - sync ntp clocks
-    when:  ( ansible_distribution == "CentOS" or   ansible_distribution == "RedHat" ) and ansible_distribution_major_version | int < 8
-  - name:   deploy chrony server
+    when:  ( ansible_distribution == "CentOS" or   ansible_distribution == "RedHat" ) and ansible_distribution_major_version  < os_higher_version
+
+  - name: Deploy chrony server
     block:
-      - name: deploy chrony
+      - name: Deploy chrony
         package:
             name: chrony
             state: present
-      - name: update ntp servers
+      - name: Update ntp servers
         template:
           src: chrony.conf.j2
-          dest: /etc/chrony.conf
+          dest: "{{ chrony_path }}"
           owner: root
           group: root
-          mode: u=rw,g=r,o=r
+          mode: "{{ ntp_mode }}"
           backup: yes
         notify:
           - restart chrony
           - sync chrony sources
-    when:  ( ansible_distribution == "CentOS" or   ansible_distribution == "RedHat" ) and ansible_distribution_major_version | int > 7
+    when:  ( ansible_distribution == "CentOS" or   ansible_distribution == "RedHat" ) and ansible_distribution_major_version  > os_version

@@ -11,16 +11,52 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
 ---
-- name: Helm - Add JupyterHub Repo
-  shell: helm repo add jupyterhub https://jupyterhub.github.io/helm-chart/
 
-- name: Helm - Update Repo
-  shell: helm repo update
+- name: Helm - add JupyterHub repo
+  command: "helm repo add jupyterhub '{{ jupyterhub_helm_chart_repo }}'"
+  changed_when: true
 
-- name: JupyterHub Custom Config (files)
-  copy: src=jupyter_config.yaml dest=/root/k8s/jupyter_config.yaml owner=root group=root mode=0655
+- name: Helm - update repo
+  command: helm repo update
+  changed_when: true
 
-- name: jupyterHub deploy
-  shell: helm install jupyterhub/jupyterhub  --namespace default --version 0.9.0 --values /root/k8s/jupyter_config.yaml --generate-name --wait --timeout 60m
+- name: Copy JupyterHub custom config file
+  copy:
+   src: jupyter_config.yaml
+   dest: "{{ jupyter_config_file_dest }}"
+   owner: root
+   group: root
+   mode: "{{ jupyter_config_file_mode }}"
+
+- name: JupyterHub deploy
+  block:
+    - name: JupyterHub deploy
+      command: >
+        helm upgrade --cleanup-on-fail \
+        --install {{ jupyterhub_namespace }} jupyterhub/jupyterhub \
+        --namespace {{ jupyterhub_namespace }} \
+        --create-namespace \
+        --version {{ helm_chart_version }} \
+        --values {{ jupyter_config_file_dest }} \
+        --timeout {{ timeout_min_sec }}
+      register: deployment_output
+
+  rescue:
+    - name: JupyterHub deployment error
+      debug:
+        msg: "Previous JupyterHub deployment is in progress"
+      when: "'another operation (install/upgrade/rollback) is in progress' in deployment_output.stderr"
+
+    - name: Delete existing release
+      command: helm delete '{{ jupyterhub_namespace }}'
+
+    - name: JupyterHub deploy
+      command: >
+        helm upgrade --cleanup-on-fail \
+        --install {{ jupyterhub_namespace }} jupyterhub/jupyterhub \
+        --namespace {{ jupyterhub_namespace }} \
+        --create-namespace \
+        --version {{ helm_chart_version }} \
+        --values {{ jupyter_config_file_dest }} \
+        --timeout {{ timeout_min_sec }}

@@ -12,11 +12,15 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-- name: Install SLURM RPMs on compute
-  yum:
-    name: "{{ item }}"
-    #name: "{{ query('fileglob', ['/home/rpms/slurm*20*.rpm']) }}" <-- how it should work to avoid loop
-  with_fileglob:
-    - /home/rpms/slurm*20*.rpm
-  tags: install
 
+nvidia_docker_repo_url: https://nvidia.github.io/nvidia-docker/centos7/nvidia-docker.repo
+
+nvidia_docker_repo_dest: /etc/yum.repos.d/nvidia-docker.repo
+
+nvidia_packages:
+  - kmod-nvidia
+  - nvidia-docker2
+
+daemon_file_dest: /etc/docker/
+
+daemon_file_mode: 0644

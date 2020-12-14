@@ -13,5 +13,12 @@
 #  limitations under the License.
 ---
 
-- name: Deploy time ntp/chrony
-  include_tasks: ntp.yml
+helm_installer_file_directory: /root/bin
+
+helm_installer_file_directory_mode: 0755
+
+helm_installer_url: https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
+
+helm_installer_file_dest: /root/bin/get_helm.sh
+
+helm_installer_file_mode: 0700

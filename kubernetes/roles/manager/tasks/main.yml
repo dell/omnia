@@ -11,35 +11,22 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
 ---
-#- name: Firewall Rule K8s:6443/tcp
-  #command: firewall-cmd  --zone=internal --add-port=6443/tcp --permanent
-  #tags: manager
-#
-#- name: Firewall Rule K8s:10250/tcp
-  #command: firewall-cmd  --zone=internal --add-port=10250/tcp --permanent
-  #tags: manager
-##
-#- name: Firewall Reload
-  #command: firewall-cmd  --reload
-  #tags: manager
-#
-- name: Create /root/bin (if it doesn't exist)
+
+- name: Create directory for helm installer file
   file:
-    path: /root/bin
+    path: "{{ helm_installer_file_directory }}"
     state: directory
-    mode: 0755
+    mode: "{{ helm_installer_file_directory_mode }}"
 
-- name: Get Helm Installer
+- name: Get helm installer
   get_url:
-    url: https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
-    dest: /root/bin/get_helm.sh
-    mode: 700
+    url: "{{ helm_installer_url }}"
+    dest: "{{ helm_installer_file_dest }}"
+    mode: "{{ helm_installer_file_mode }}"
   tags: manager
 
-- name: Install Helm
-  command: /root/bin/get_helm.sh
+- name: Install helm
+  command: "/bin/bash {{ helm_installer_file_dest }}"
+  changed_when: true
   tags: manager
-
-# install and start up OpenSM -  III
