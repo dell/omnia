@@ -1,0 +1,212 @@
+#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Testcase OMNIA_CRM_US_AWXD_TC_008
+# Test case to validate the AWX configuration
+- name: OMNIA_CRM_US_AWXD_TC_008
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - ../roles/web_ui/vars/main.yml
+    - ../roles/common/vars/main.yml
+    - test_vars/test_web_ui_vars.yml
+  tasks:
+
+    - block:
+        - name: Call the role to be tested
+          include_role:
+            name: ../roles/web_ui
+      tags: TC_008
+
+    - name: Get the package facts
+      package_facts:
+        manager: auto
+      tags: TC_008
+
+    - name: Check if ansible-tower-cli is already installed
+      assert:
+        that: "'{{ tower_cli_package_name }}' in ansible_facts.packages"
+        success_msg: "{{ resource_exists_success_msg }}"
+        fail_msg: "{{ resource_exists_fail_msg }}"
+      tags: TC_008
+
+    - name: Get the existing organizations
+      command: >-
+        awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ admin_password }}" organizations list -f human
+      register: organizations_array
+      changed_when: False
+      tags: TC_008
+
+    - name: Check for organization
+      assert:
+        that: organization_name in organizations_array.stdout
+        success_msg: "{{ resource_exists_success_msg }}"
+        fail_msg: "{{ resource_exists_fail_msg }}"
+      tags: TC_008
+
+    - name: Get the existing projects
+      command: >-
+        awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ admin_password }}" projects list -f human
+      changed_when: False
+      register: projects_array
+      tags: TC_008
+
+    - name: Check for project
+      assert:
+        that: project_name in projects_array.stdout
+        success_msg: "{{ resource_exists_success_msg }}"
+        fail_msg: "{{ resource_exists_fail_msg }}"
+      tags: TC_008
+
+    - name: Get the existing inventories
+      command: >-
+        awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ admin_password }}" inventory list -f human
+      changed_when: False
+      register: inventory_array
+      tags: TC_008
+
+    - name: Check for inventories
+      assert:
+        that: omnia_inventory_name in inventory_array.stdout
+        success_msg: "{{ resource_exists_success_msg }}"
+        fail_msg: "{{ resource_exists_fail_msg }}"
+      tags: TC_008
+
+    - name: Get the existing groups if omnia-inventory exists
+      command: >-
+        awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ admin_password }}"
+        groups list --inventory "{{ omnia_inventory_name }}" -f human
+      changed_when: False
+      register: groups_array
+      when: omnia_inventory_name in inventory_array.stdout
+      tags: TC_008
+
+    - name: Check for manager and compute groups
+      assert:
+        that: manager_group_name and compute_group_name in groups_array.stdout
+        success_msg: "{{ resource_exists_success_msg }}"
+        fail_msg: "{{ resource_exists_fail_msg }}"
+      tags: TC_008
+
+    - name: Get the existing job templates
+      command: >-
+        awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ admin_password }}" job_templates list -f human
+      changed_when: False
+      register: templates_array
+      tags: TC_008
+
+    - name: Check for templates
+      assert:
+        that: omnia_template_name and inventory_template_name in templates_array.stdout
+        success_msg: "{{ resource_exists_success_msg }}"
+        fail_msg: "{{ resource_exists_fail_msg }}"
+      tags: TC_008
+
+    - name: Get the existing schedules for job templates
+      command: >-
+        awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ admin_password }}" schedules list -f human
+      changed_when: False
+      register: schedules_array
+      tags: TC_008
+
+    - name: Check for schedules to job template
+      assert:
+        that: schedule_name in schedules_array.stdout
+        success_msg: "{{ resource_exists_success_msg }}"
+        fail_msg: "{{ resource_exists_fail_msg }}"
+      tags: TC_008
+
+# Testcase OMNIA_CRM_US_AWXD_TC_009
+# Execute common role in management station without internet connectivity
+- name: OMNIA_CRM_US_AWXD_TC_009
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - name: Down internet connectivity
+      lineinfile:
+        path: /etc/hosts
+        line: "172.16.0.5 github.com"
+        state: present
+        backup: yes
+      tags: TC_009
+
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/web_ui
+
+      rescue:
+        - name: Validate internet connectivity failure message
+          assert:
+            that: internet_status in internet_value.msg
+            success_msg: "{{ internet_check_success_msg }}"
+            fail_msg: "{{ internet_check_fail_msg }}"
+      tags: TC_009
+
+    - name: Up internet connectivity
+      lineinfile:
+        path: /etc/hosts
+        line: "172.16.0.5 github.com"
+        state: absent
+      tags: TC_009
+
+# Testcase OMNIA_CRM_US_AWXD_TC_010
+# Execute provision role in management station and reboot management station
+- name: OMNIA_CRM_US_AWXD_TC_010
+  hosts: localhost
+  connection: local
+  vars_files:
+    - test_vars/test_web_ui_vars.yml
+  tasks:
+    - name: Check last uptime of the server
+      shell: |
+        current_time=$(date +"%Y-%m-%d %H")
+        uptime -s | grep "$current_time"
+      register: uptime_status
+      changed_when: false
+      ignore_errors: yes
+      tags: TC_010
+
+    - block:
+        - name: Call web_ui role
+          include_role:
+            name: ../roles/web_ui
+          vars:
+            no_prompt: true
+      tags: TC_010
+
+    - name: Reboot localhost
+      command: reboot
+      when: uptime_status.stdout|length < 1
+      tags: TC_010
+
+    - name: Inspect AWX web container
+      docker_container_info:
+        name: "{{ docker_container_name }}"
+      register: awx_container_status
+      tags: TC_010
+
+    - name: Verify AWX container is running after reboot
+      assert:
+        that:
+          - "'running' in awx_container_status.container.State.Status"
+      tags: TC_010

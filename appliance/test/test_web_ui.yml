@@ -1,0 +1,266 @@
+#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Testcase OMNIA_CRM_US_AWXD_TC_001
+# Test case to validate the AWX password with empty string
+- name: OMNIA_CRM_US_AWXD_TC_001
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - ../roles/web_ui/vars/main.yml
+    - ../roles/common/vars/main.yml
+    - test_vars/test_web_ui_vars.yml
+  tasks:
+    - block:
+        - name: Test the awx password with empty string
+          include_tasks: ../roles/web_ui/tasks/awx_password.yml
+          vars:
+            no_prompt: true
+            admin_password: "{{ empty_password }}"
+            admin_password_confirm: "{{ empty_password }}"
+
+      rescue:
+        - name: Validate error message
+          assert:
+            that: fail_msg_pwd_format in msg_pwd_format.msg
+            success_msg: "{{ validate_password_success_msg }}"
+            fail_msg: "{{ validate_password_fail_msg }}"
+      tags: TC_001
+
+# Testcase OMNIA_CRM_US_AWXD_TC_002
+# Test case to validate the AWX password with exactly 8 characters
+- name: OMNIA_CRM_US_AWXD_TC_002
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - ../roles/web_ui/vars/main.yml
+    - ../roles/common/vars/main.yml
+    - test_vars/test_web_ui_vars.yml
+  tasks:
+    - name: Test the awx password with 8 characters
+      include_tasks: ../roles/web_ui/tasks/awx_password.yml
+      vars:
+        no_prompt: true
+        admin_password: "{{ boundary_password }}"
+        admin_password_confirm: "{{ boundary_password }}"
+      tags: TC_002
+
+    - name: Validate success message
+      assert:
+        that: success_msg_pwd_format in msg_pwd_format.msg
+        success_msg: "{{ validate_password_success_msg }}"
+        fail_msg: "{{ validate_password_fail_msg }}"
+      tags: TC_002
+
+# Testcase OMNIA_CRM_US_AWXD_TC_003
+# Test case to validate the AWX password with length greater than 15 characters
+- name: OMNIA_CRM_US_AWXD_TC_003
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - ../roles/web_ui/vars/main.yml
+    - ../roles/common/vars/main.yml
+    - test_vars/test_web_ui_vars.yml
+  tasks:
+    - name: Test the awx password with length greater than 15 characters
+      include_tasks: ../roles/web_ui/tasks/awx_password.yml
+      vars:
+        no_prompt: true
+        admin_password: "{{ lengthy_password }}"
+        admin_password_confirm: "{{ lengthy_password }}"
+      tags: TC_003
+
+    - name: Validate success message
+      assert:
+        that: success_msg_pwd_format in msg_pwd_format.msg
+        success_msg: "{{ validate_password_success_msg }}"
+        fail_msg: "{{ validate_password_fail_msg }}"
+      tags: TC_003
+
+# Testcase OMNIA_CRM_US_AWXD_TC_004
+# Test case to validate the AWX password when confirm password is given incorrect
+- name: OMNIA_CRM_US_AWXD_TC_004
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - ../roles/web_ui/vars/main.yml
+    - ../roles/common/vars/main.yml
+    - test_vars/test_web_ui_vars.yml
+  tasks:
+    - block:
+        - name: Test the awx installation if confirm password is given incorrect
+          include_tasks: ../roles/web_ui/tasks/awx_password.yml
+          vars:
+            no_prompt: true
+            admin_password: "{{ boundary_password }}"
+            admin_password_confirm: "{{ lengthy_password }}"
+
+      rescue:
+        - name: Validate error message
+          assert:
+            that: fail_msg_pwd_confirm in msg_pwd_confirm.msg
+            success_msg: "{{ validate_password_success_msg }}"
+            fail_msg: "{{ validate_password_fail_msg }}"
+      tags: TC_004
+
+# Testcase OMNIA_CRM_US_AWXD_TC_005
+# Test case to validate the AWX password with unsupported strings
+- name: OMNIA_CRM_US_AWXD_TC_005
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - ../roles/web_ui/vars/main.yml
+    - ../roles/common/vars/main.yml
+    - test_vars/test_web_ui_vars.yml
+  tasks:
+    - block:
+        - name: Test the awx password with unsupported strings
+          include_tasks: ../roles/web_ui/tasks/awx_password.yml
+          vars:
+            no_prompt: true
+            admin_password: "{{ unsupported_password }}"
+            admin_password_confirm: "{{ unsupported_password }}"
+
+      rescue:
+        - name: Validate error message
+          assert:
+            that: fail_msg_pwd_format in msg_pwd_format.msg
+            success_msg: "{{ validate_password_success_msg }}"
+            fail_msg: "{{ validate_password_fail_msg }}"
+      tags: TC_005
+
+# Testcase OMNIA_CRM_US_AWXD_TC_006
+# Test case to verify the prerequisites are installed and execute the AWX deployment
+- name: OMNIA_CRM_US_AWXD_TC_006
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - ../roles/web_ui/vars/main.yml
+    - test_vars/test_web_ui_vars.yml
+  tasks:
+    - name: Get the docker package facts
+      package_facts:
+        manager: auto
+      tags: TC_006
+
+    - name: Check if docker-ce is already installed
+      debug:
+        var: ansible_facts.packages['{{ package }}']
+      tags: TC_006
+
+    - block:
+        - name: Calling the role to be tested
+          include_role:
+            name: ../roles/web_ui
+      tags: TC_006
+
+    - name: Check that you can connect to github repo and it returns a status 200
+      uri:
+        url: "{{ awx_git_repo }}"
+        status_code: "{{ return_status }}"
+        return_content: true
+      tags: TC_006
+
+    - name: Check that you can can connect to AWX UI and it returns a status 200
+      uri:
+        url: "{{ awx_url }}"
+        status_code: "{{ return_status }}"
+        return_content: true
+      tags: TC_006
+
+    - name: verify awx-server is listening on 80
+      wait_for:
+        port: "{{ awx_listening_port }}"
+        timeout: "{{ time }}"
+      tags: TC_006
+
+    - name: Get the containers count
+      shell: |
+        set -o pipefail
+        docker ps -a | grep awx | wc -l
+      register: containers_count
+      changed_when: False
+      tags: TC_006
+
+    - name: Validate the containers count
+      assert:
+        that: containers_count.stdout | int >= actual_containers
+        success_msg: "{{ awx_exists_msg }}"
+        fail_msg: "{{ awx_not_exists_msg }}"
+      tags: TC_006
+
+# Testcase OMNIA_CRM_US_AWXD_TC_007
+# Test case to verify regression testing
+- name: OMNIA_CRM_US_AWXD_TC_007
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - ../roles/web_ui/vars/main.yml
+    - test_vars/test_web_ui_vars.yml
+  tasks:
+    - block:
+        - name: Calling the role to be tested
+          include_role:
+            name: ../roles/web_ui
+      tags: TC_007
+
+    - name: Check that you can connect to github repo and it returns a status 200
+      uri:
+        url: "{{ awx_git_repo }}"
+        status_code: "{{ return_status }}"
+        return_content: true
+      tags: TC_007
+
+    - name: Check that you can can connect to AWX UI and it returns a status 200
+      uri:
+        url: "{{ awx_url }}"
+        status_code: "{{ return_status }}"
+        return_content: true
+      tags: TC_007
+
+    - name: verify awx-server is listening on 80
+      wait_for:
+        port: "{{ awx_listening_port }}"
+        timeout: "{{ time }}"
+      tags: TC_007
+
+    - name: Get the containers count
+      shell: |
+        set -o pipefail
+        docker ps -a | grep awx | wc -l
+      register: containers_count
+      changed_when: False
+      tags: TC_007
+
+    - name: Validate the containers count
+      assert:
+        that: containers_count.stdout | int >= actual_containers
+        success_msg: "{{ awx_exists_msg }}"
+        fail_msg: "{{ awx_not_exists_msg }}"
+      tags: TC_007
