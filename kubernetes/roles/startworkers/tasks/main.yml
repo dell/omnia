@@ -11,38 +11,17 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
 ---
 
-- name: Turn Swap OFF (if not already disabled)
+- name: Disable swap (if not already disabled)
   command: /usr/sbin/swapoff -a
+  changed_when: true
   tags: init
 
-#- name:
-  #debug:
-    #msg: "[Worker] K8S_TOKEN_HOLDER K8S token is {{ hostvars['K8S_TOKEN_HOLDER']['token'] }}"
-  #tags: init
-
-#- name:
-  #debug:
-    #msg: "[Worker] K8S_TOKEN_HOLDER K8S Hash is  {{ hostvars['K8S_TOKEN_HOLDER']['hash'] }}"
-  #tags: init
-
-#- name:
-  #debug:
-    #msg: "[Worker] K8S_MANGER_IP is  {{ hostvars['K8S_TOKEN_HOLDER']['ip'] }}"
-  #tags: init
-
-- name: "Kubeadmn join"
+- name: Execute kubeadm join command
   shell: >
     kubeadm join --token={{ hostvars['K8S_TOKEN_HOLDER']['token'] }}
     --discovery-token-ca-cert-hash sha256:{{ hostvars['K8S_TOKEN_HOLDER']['hash'] }}
-    {{ hostvars['K8S_TOKEN_HOLDER']['ip'] }}:6443
+    {{ hostvars['K8S_TOKEN_HOLDER']['ip'] }}:{{ apiserver_bind_port }}
   when: not single_node
   tags: init
-
-
-#- name: Join Computes to pool
-#   command: "{{ kubeJoinCommand }}"
-# tags: init
-

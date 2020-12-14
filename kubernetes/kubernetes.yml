@@ -11,45 +11,50 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
 ---
 #Playbook for kubernetes cluster
 
-#collect info from everything
-- hosts: all
+- name: Gather facts from all the nodes
+  hosts: all
 
-# Apply Common Installation and Config
-- hosts: cluster
+- name: Apply common installation and config
+  hosts: manager, compute
   gather_facts: false
   roles:
     - common
 
-# Apply GPU Node Config
-- hosts: gpus
+- name: Apply GPU node config
+  hosts: compute
   gather_facts: false
   roles:
-    - computeGPU
+    - compute_gpu
 
-# Apply Manager Config
-- hosts: manager
+- name: Apply manager config
+  hosts: manager
   gather_facts: false
   roles:
     - manager
 
-# Start K8s on manager server
-- hosts: manager
+- name: Apply firewalld config on manager and compute nodes
+  hosts: manager, compute
+  gather_facts: false
+  roles:
+    - firewalld
+
+- name: Start K8s on manager server
+  hosts: manager
   gather_facts: false
   roles:
     - startmanager
 
-# Start K8s worker servers
-- hosts: compute,gpus
+- name: Start K8s worker servers on compute nodes
+  hosts: compute
   gather_facts: false
   roles:
     - startworkers
 
-# Start K8s worker servers
-- hosts: manager
+- name: Start K8s worker servers on manager nodes
+  hosts: manager
   gather_facts: false
   roles:
     - startservices
