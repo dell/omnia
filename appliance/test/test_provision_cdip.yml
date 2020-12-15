@@ -1,0 +1,458 @@
+#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Testcase OMNIA_DIO_US_CDIP_TC_001
+# Execute provison role in management station with cobbler as empty
+- name: OMNIA_DIO_US_CDIP_TC_001
+  hosts: localhost
+  connection: local
+  vars_files:
+    - test_vars/test_provision_vars.yml
+    - ../roles/provision/vars/main.yml
+  tasks:
+    - name: Delete the cobbler container if exits
+      docker_container:
+        name: "{{ docker_container_name }}"
+        state: absent
+      tags: TC_001
+
+    - name: Delete docker image if exists
+      docker_image:
+        name: "{{ docker_image_name }}"
+        tag: "{{ docker_image_tag }}"
+        state: absent
+      tags: TC_001
+
+    - block:
+        - name: Test cobbler password with empty string
+          include_role:
+            name: ../roles/provision
+            tasks_from: "{{ item }}"
+          with_items:
+           - "{{ cobbler_image_files }}"
+          vars:
+            no_prompt: true
+            admin_password: "{{ empty_password }}"
+            admin_password_confirm: "{{ empty_password }}"
+      rescue:
+        - name: Validate failure message
+          assert:
+            that: fail_msg_pwd_format in msg_pwd_format.msg
+            success_msg: "{{ validate_password_success_msg }}"
+            fail_msg: "{{ validate_password_fail_msg }}"
+      tags: TC_001
+
+# Testcase OMNIA_DIO_US_CDIP_TC_002
+# Execute provison role in management station with cobbler password of length 8 characters
+- name: OMNIA_DIO_US_CDIP_TC_002
+  hosts: localhost
+  connection: local
+  vars_files:
+    - test_vars/test_provision_vars.yml
+    - ../roles/provision/vars/main.yml
+  tasks:
+    - name: Delete the cobbler container if exits
+      docker_container:
+        name: "{{ docker_container_name }}"
+        state: absent
+      tags: TC_002
+
+    - name: Delete docker image if exists
+      docker_image:
+        name: "{{ docker_image_name }}"
+        tag: "{{ docker_image_tag }}"
+        state: absent
+      tags: TC_002
+
+    - block:
+        - name: Test cobbler password with 8 characters
+          include_role:
+            name: ../roles/provision
+            tasks_from: "{{ item }}"
+          with_items:
+           - "{{ cobbler_image_files }}"
+          vars:
+            no_prompt: true
+            admin_password: "{{ boundary_password }}"
+            admin_password_confirm: "{{ boundary_password }}"
+      always:
+        - name: Validate success message
+          assert:
+            that:  success_msg_pwd_format in msg_pwd_format.msg
+            success_msg: "{{ validate_password_success_msg }}"
+            fail_msg: "{{ validate_password_fail_msg }}"
+      tags: TC_002
+
+# Testcase OMNIA_DIO_US_CDIP_TC_003
+# Execute provison role in management station with cobbler password of length greather than 15 characters
+- name: OMNIA_DIO_US_CDIP_TC_003
+  hosts: localhost
+  connection: local
+  vars_files:
+    - test_vars/test_provision_vars.yml
+    - ../roles/provision/vars/main.yml
+  tasks:
+    - name: Delete the cobbler container if exits
+      docker_container:
+        name: "{{ docker_container_name }}"
+        state: absent
+      tags: TC_003
+
+    - name: Delete docker image if exists
+      docker_image:
+        name: "{{ docker_image_name }}"
+        tag: "{{ docker_image_tag }}"
+        state: absent
+      tags: TC_003
+
+    - block:
+        - name: Test cobbler password with lengthy string
+          include_role:
+             name: ../roles/provision
+             tasks_from: "{{ item }}"
+          with_items:
+           - "{{ cobbler_image_files }}"
+          vars:
+            no_prompt: true
+            admin_password: "{{ lengthy_password }}"
+            admin_password_confirm: "{{ lengthy_password }}"
+      always:
+        - name: Validate success message
+          assert:
+            that:  success_msg_pwd_format in msg_pwd_format.msg
+            success_msg: "{{ validate_password_success_msg }}"
+            fail_msg: "{{ validate_password_fail_msg }}"
+      tags: TC_003
+
+# Testcase OMNIA_DIO_US_CDIP_TC_004
+# Execute provison role in management station with cobbler password contains white spaces
+- name: OMNIA_DIO_US_CDIP_TC_004
+  hosts: localhost
+  connection: local
+  vars_files:
+    - test_vars/test_provision_vars.yml
+    - ../roles/provision/vars/main.yml
+  tasks:
+    - name: Delete the cobbler container if exits
+      docker_container:
+        name: "{{ docker_container_name }}"
+        state: absent
+      tags: TC_004
+
+    - name: Delete docker image if exists
+      docker_image:
+        name: "{{ docker_image_name }}"
+        tag: "{{ docker_image_tag }}"
+        state: absent
+      tags: TC_004
+
+    - block:
+        - name: Test cobbler password with string contains white space
+          include_role:
+            name: ../roles/provision
+            tasks_from: "{{ item }}"
+          with_items:
+           - "{{ cobbler_image_files }}"
+          vars:
+            no_prompt: true
+            admin_password: "{{ whitespace_password }}"
+            admin_password_confirm: "{{ whitespace_password }}"
+      always:
+        - name: Validate success message
+          assert:
+            that:  success_msg_pwd_format in msg_pwd_format.msg
+            success_msg: "{{ validate_password_success_msg }}"
+            fail_msg: "{{ validate_password_fail_msg }}"
+      tags: TC_004
+
+# Testcase OMNIA_DIO_US_CDIP_TC_005
+# Execute provison role in management station with cobbler password as string with special characters
+- name: OMNIA_DIO_US_CDIP_TC_005
+  hosts: localhost
+  connection: local
+  vars_files:
+    - test_vars/test_provision_vars.yml
+    - ../roles/provision/vars/main.yml
+  tasks:
+    - name: Delete the cobbler container if exits
+      docker_container:
+        name: "{{ docker_container_name }}"
+        state: absent
+      tags: TC_005
+
+    - name: Delete docker image if exists
+      docker_image:
+        name: "{{ docker_image_name }}"
+        tag: "{{ docker_image_tag }}"
+        state: absent
+      tags: TC_005
+
+    - block:
+        - name: Test cobbler password with string contains special characters
+          include_role:
+            name: ../roles/provision
+            tasks_from: "{{ item }}"
+          with_items:
+           - "{{ cobbler_image_files }}"
+          vars:
+            no_prompt: true
+            admin_password: "{{ special_character_password }}"
+            admin_password_confirm: "{{ special_character_password }}"
+      always:
+        - name: Validate success message
+          assert:
+            that:  success_msg_pwd_format in msg_pwd_format.msg
+            success_msg: "{{ validate_password_success_msg }}"
+            fail_msg: "{{ validate_password_success_msg }}"
+      tags: TC_005
+
+# Testcase OMNIA_DIO_US_CDIP_TC_006
+# Execute provison role in management station with cobbler password and cobbler password confirm having unequal values
+- name: OMNIA_DIO_US_CDIP_TC_006
+  hosts: localhost
+  connection: local
+  vars_files:
+    - test_vars/test_provision_vars.yml
+    - ../roles/provision/vars/main.yml
+  tasks:
+    - name: Delete the cobbler container if exits
+      docker_container:
+        name: "{{ docker_container_name }}"
+        state: absent
+      tags: TC_006
+
+    - name: Delete docker image if exists
+      docker_image:
+        name: "{{ docker_image_name }}"
+        tag: "{{ docker_image_tag }}"
+        state: absent
+      tags: TC_006
+
+    - block:
+        - name: Test cobbler password with unequal values
+          include_role:
+            name: ../roles/provision
+            tasks_from: "{{ item }}"
+          with_items:
+           - "{{ cobbler_image_files }}"
+          vars:
+            no_prompt: true
+            admin_password: "{{ boundary_password }}"
+            admin_password_confirm: "{{ lengthy_password }}"
+      rescue:
+        - name: Validate failure message
+          assert:
+            that:  fail_msg_pwd_confirm in msg_pwd_confirm.msg
+            success_msg: "{{ validate_password_success_msg }}"
+            fail_msg: "{{ validate_password_success_msg }}"
+      tags: TC_006
+
+# Testcase OMNIA_DIO_US_CDIP_TC_007
+# Execute provison role in management station where docker service not running
+- name: OMNIA_DIO_US_CDIP_TC_007
+  hosts: localhost
+  connection: local
+  vars_files:
+    - test_vars/test_provision_vars.yml
+    - ../roles/provision/vars/main.yml
+  tasks:
+    - name: Delete the cobbler container if exits
+      docker_container:
+        name: "{{ docker_container_name }}"
+        state: absent
+      tags: TC_007
+
+    - name: Delete docker image if exists
+      docker_image:
+        name: "{{ docker_image_name }}"
+        tag: "{{ docker_image_tag }}"
+        state: absent
+      tags: TC_007
+
+    - name: Stop docker service
+      service:
+        name: docker
+        state: stopped
+      tags: TC_007
+
+    - block:
+        - name: Call provision role
+          include_role:
+            name: ../roles/provision
+          vars:
+            no_prompt: true
+            admin_password: "{{ boundary_password }}"
+            admin_password_confirm: "{{ boundary_password }}"
+
+        - name: Docker service stopped usecase fail message
+          fail:
+            msg: "{{ docker_check_fail_msg }}"
+      rescue:
+        - name: Docker service stopped usecase success message
+          debug:
+            msg: "{{ docker_check_success_msg }}"
+      always:
+        - name: Start docker service
+          service:
+            name: docker
+            state: started
+      tags: TC_007
+
+# Testcase OMNIA_DIO_US_CDIP_TC_008
+# Execute provison role in management station with os installed centos 8.2
+- name: OMNIA_DIO_US_CDIP_TC_008
+  hosts: localhost
+  connection: local
+  vars_files:
+    - test_vars/test_provision_vars.yml
+    - ../roles/provision/vars/main.yml
+  tasks:
+    - name: Delete the cobbler container if exits
+      docker_container:
+        name: "{{ docker_container_name }}"
+        state: absent
+      tags: TC_008
+
+    - name: Delete docker image if exists
+      docker_image:
+        name: "{{ docker_image_name }}"
+        tag: "{{ docker_image_tag }}"
+        state: absent
+      tags: TC_008
+
+    - block:
+        - name: Call provision role
+          include_role:
+            name: ../roles/provision
+            tasks_from: "{{ item }}"
+          with_items:
+           - "{{ cobbler_image_files }}"
+          vars:
+            no_prompt: true
+            admin_password: "{{ boundary_password }}"
+            admin_password_confirm: "{{ boundary_password }}"
+      tags: TC_008
+
+    - name: Inspect cobbler docker image
+      docker_image_info:
+        name: "{{ docker_image_name }}"
+      register: cobbler_image_status
+      tags: TC_008
+
+    - name: Validate cobbler docker image
+      assert:
+        that:
+          - cobbler_image_status.images
+        fail_msg: "{{ cobbler_img_fail_msg }}"
+        success_msg: "{{ cobbler_img_success_msg }}"
+      tags: TC_008
+
+    - name: Inspect cobbler container
+      docker_container_info:
+        name: "{{ docker_container_name }}"
+      register: cobbler_cnt_status
+      tags: TC_008
+
+    - name: Validate cobbler docker container
+      assert:
+        that:
+          - cobbler_cnt_status.exists
+        fail_msg: "{{ cobbler_cnt_fail_msg }}"
+        success_msg: "{{ cobbler_cnt_success_msg }}"
+      tags: TC_008
+
+    - name: Validate first NIC is not assigned to public internet
+      shell: |
+        set -o pipefail
+        ip route get 8.8.8.8 | awk '{print $5}'
+      register: nic_output
+      args:
+        executable: /bin/bash
+      failed_when: first_nic in nic_output.stdout
+      changed_when: false
+      tags: TC_008
+
+    - name: "Validate NIC-1 is assigned to IP {{ nic1_ip_address }}"
+      assert:
+        that: "'{{ nic1_ip_address }}' in ansible_eno1.ipv4.address"
+        fail_msg: "{{ nic_check_fail_msg }}"
+        success_msg: "{{ nic_check_success_msg }}"
+      tags: TC_008
+
+# Testcase OMNIA_DIO_US_CDIP_TC_009
+# Execute provison role in management station where cobbler container and image already created
+- name: OMNIA_DIO_US_CDIP_TC_009
+  hosts: localhost
+  connection: local
+  vars_files:
+    - test_vars/test_provision_vars.yml
+    - ../roles/provision/vars/main.yml
+  tasks:
+    - block:
+        - name: Call provision role
+          include_role:
+            name: ../roles/provision
+          vars:
+            no_prompt: true
+            username: "{{ cobbler_username }}"
+            admin_password: "{{ boundary_password }}"
+            admin_password_confirm: "{{ boundary_password }}"
+      tags: TC_009
+
+    - name: Inspect cobbler docker image
+      docker_image_info:
+        name: "{{ docker_image_name }}"
+      register: cobbler_image_status
+      tags: TC_009
+
+    - name: Validate cobbler docker image
+      assert:
+        that:
+          - cobbler_image_status.images
+        fail_msg: "{{ cobbler_img_fail_msg }}"
+        success_msg: "{{ cobbler_img_success_msg }}"
+      tags: TC_009
+
+    - name: Inspect cobbler container
+      docker_container_info:
+        name: "{{ docker_container_name }}"
+      register: cobbler_cnt_status
+      tags: TC_009
+
+    - name: Validate cobbler docker container
+      assert:
+        that:
+          - cobbler_cnt_status.exists
+        fail_msg: "{{ cobbler_cnt_fail_msg }}"
+        success_msg: "{{ cobbler_cnt_success_msg }}"
+      tags: TC_009
+
+    - name: Validate first NIC is not assigned to public internet
+      shell: |
+        set -o pipefail
+        ip route get 8.8.8.8 | awk '{print $5}'
+      register: nic_output
+      args:
+        executable: /bin/bash
+      failed_when: first_nic in nic_output.stdout
+      changed_when: false
+      tags: TC_009
+
+    - name: "Validate NIC-1 is assigned to IP {{ nic1_ip_address }}"
+      assert:
+        that: "'{{ nic1_ip_address }}' in ansible_eno1.ipv4.address"
+        fail_msg: "{{ nic_check_fail_msg }}"
+        success_msg: "{{ nic_check_success_msg }}"
+      tags: TC_009
