@@ -13,8 +13,49 @@
 #  limitations under the License.
 ---
 
-- name: Install cobbler is called
-  debug:
-    msg:
-      - "cobbler file called"
+#Tasks for Deploying cobbler on the system
+- name: Configure nic
+  import_tasks: configure_nic.yml
 
+- name: Check cobbler status on machine
+  include_tasks: check_prerequisites.yml
+
+- name: Mount iso image
+  import_tasks: mount_iso.yml
+  when: not cobbler_image_status
+
+- name: Modify firewall settings for Cobbler
+  import_tasks: firewall_settings.yml
+  when: not cobbler_status
+
+- name: Include common variables
+  include_vars: ../../common/vars/main.yml
+  when: not cobbler_status
+
+- name: Internet validation
+  include_tasks: ../../common/tasks/internet_validation.yml
+  when: not cobbler_status
+
+- name: Provision password validation
+  import_tasks: provision_password.yml
+  when: not cobbler_image_status
+
+- name: Cobbler image creation
+  import_tasks: cobbler_image.yml
+  when: not cobbler_status
+
+- name: Cobbler configuration
+  import_tasks: configure_cobbler.yml
+  when: not cobbler_status
+
+- name: Cobbler container status message
+  block:
+    - debug:
+        msg: "{{ message_skipped }}"
+        verbosity: 2
+      when: cobbler_status
+    - debug:
+        msg: "{{ message_installed }}"
+        verbosity: 2
+      when: not cobbler_status
+  tags: install

@@ -54,3 +54,8 @@
     src: daemon.json
     dest: "{{ daemon_dest }}"
   tags: install
+
+- name: Restart docker
+  service:
+    name: docker 
+    state: restarted

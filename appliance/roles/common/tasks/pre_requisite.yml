@@ -38,3 +38,9 @@
   when: ansible_selinux.status != 'disabled'
   register: selinux_value
   tags: install
+
+- name: State of firewall
+  service:
+    name: firewalld
+    state: started
+    enabled: yes

@@ -15,7 +15,7 @@
 
 # vars file for common
 
-# Usage: package_installation.yml
+# Usage: tasks/package_installation.yml
 common_packages:
   - epel-release
   - yum-utils
@@ -30,18 +30,18 @@ common_packages:
   - lvm2
   - gettext
 
-# Usage: pre_requisite.yml
+# Usage: tasks/pre_requisite.yml
 internet_delay: 0
 internet_timeout: 1
 hostname: github.com
 port_no: 22
 os_name: CentOS
-os_version: '8'
+os_version: '8' 
 internet_status: "Failed:No Internet connection.Connect to Internet."
 os_status: "Unsupported OS or OS version.OS must be {{ os_name }} and Version must be {{ os_version }} or more"
 selinux_status: "SElinux is not disabled. Disable it in /etc/sysconfig/selinux and reboot the system"
 
-# Usage: docker_installation.yml
+# Usage: tasks/docker_installation.yml
 docker_repo_url: https://download.docker.com/linux/centos/docker-ce.repo
 docker_repo_dest: /etc/yum.repos.d/docker-ce.repo
 success: '0'
@@ -50,5 +50,5 @@ container_repo_install: docker-ce
 docker_compose: docker-compose
 daemon_dest: /etc/docker/
 
-# Usage: docker_volume.yml
+# Usage: tasks/docker_volume.yml
 docker_volume_name: omnia-storage
