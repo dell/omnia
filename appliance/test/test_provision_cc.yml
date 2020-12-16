@@ -1,0 +1,363 @@
+#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Testcase OMNIA_DIO_US_CC_TC_010
+# Execute provision role in management station and verify cobbler configuration
+- name: OMNIA_DIO_US_CC_TC_010
+  hosts: localhost
+  connection: local
+  vars_files:
+    - test_vars/test_provision_vars.yml
+    - ../roles/provision/vars/main.yml
+  tasks:
+    - name: Delete the cobbler container if exits
+      docker_container:
+        name: "{{ docker_container_name }}"
+        state: absent
+      tags: TC_010
+
+    - name: Delete docker image if exists
+      docker_image:
+        name: "{{ docker_image_name }}"
+        tag: "{{ docker_image_tag }}"
+        state: absent
+      tags: TC_010
+
+    - block:
+        - name: Call provision role
+          include_role:
+            name: ../roles/provision
+          vars:
+            no_prompt: true
+            admin_password: "{{ boundary_password }}"
+            admin_password_confirm: "{{ boundary_password }}"
+      tags: TC_010
+
+    - name: Check the connection to cobbler UI and it returns a status 200
+      uri:
+        url: https://localhost/cobbler_web
+        status_code: 200
+        return_content: yes
+        validate_certs: no
+      tags: TC_010
+
+    - name: Fetch cobbler version in cobbler container
+      command: docker exec {{ docker_container_name }} cobbler version
+      changed_when: false
+      register: cobbler_version
+      tags: TC_010
+
+    - name: Verify cobbler version
+      assert:
+        that:
+          - "'Cobbler' in cobbler_version.stdout"
+          - "'Error' not in cobbler_version.stdout"
+        fail_msg: "{{ cobbler_version_fail_msg }}"
+        success_msg: "{{ cobbler_version_success_msg }}"
+      tags: TC_010
+
+    - name: Run cobbler check command in cobbler container
+      command: docker exec {{ docker_container_name }} cobbler check
+      changed_when: false
+      register: cobbler_check
+      tags: TC_010
+
+    - name: Verify cobbler check command output
+      assert:
+        that:
+          - "'The following are potential configuration items that you may want to fix' not in cobbler_check.stdout"
+          - "'Error' not in cobbler_check.stdout"
+        fail_msg: "{{ cobbler_check_fail_msg }}"
+        success_msg: "{{ cobbler_check_success_msg }}"
+      ignore_errors: yes
+      tags: TC_010
+
+    - name: Run cobbler sync command in cobbler container
+      command: docker exec {{ docker_container_name }} cobbler sync
+      changed_when: false
+      register: cobbler_sync
+      tags: TC_010
+
+    - name: Verify cobbler sync command output
+      assert:
+        that:
+          - "'TASK COMPLETE' in cobbler_sync.stdout"
+          - "'Fail' not in cobbler_sync.stdout"
+          - "'Error' not in cobbler_sync.stdout"
+        fail_msg: "{{ cobbler_sync_fail_msg }}"
+        success_msg: "{{ cobbler_sync_success_msg }}"
+      tags: TC_010
+
+    - name: Fetch cobbler distro list
+      command: docker exec {{ docker_container_name }} cobbler distro list
+      changed_when: false
+      register: cobbler_distro_list
+      tags: TC_010
+
+    - name: Verify cobbler distro list
+      assert:
+        that:
+          - "'CentOS' in cobbler_distro_list.stdout"
+        fail_msg: "{{ cobbler_distro_list_fail_msg }}"
+        success_msg: "{{ cobbler_distro_list_success_msg }}"
+      tags: TC_010
+
+    - name: Fetch cobbler profile list
+      command: docker exec cobbler cobbler profile list
+      changed_when: false
+      register: cobbler_profile_list
+      tags: TC_010
+
+    - name: Verify cobbler profile list
+      assert:
+        that:
+          - "'CentOS' in cobbler_profile_list.stdout"
+        fail_msg: "{{ cobbler_profile_list_fail_msg }}"
+        success_msg: "{{ cobbler_profile_list_success_msg }}"
+      tags: TC_010
+
+    - name: Check kickstart file
+      shell: |
+        docker exec {{ docker_container_name }} [ -f /var/lib/cobbler/kickstarts/{{ kickstart_filename }} ] && echo "File exist" || echo "File does not exist"
+      changed_when: false
+      register: kickstart_file_status
+      tags: TC_010
+
+    - name: Verify kickstart file present
+      assert:
+        that:
+          - "'File exist' in kickstart_file_status.stdout"
+        fail_msg: "{{ kickstart_file_fail_msg }}"
+        success_msg: "{{ kickstart_file_success_msg }}"
+      tags: TC_010
+
+# Testcase OMNIA_DIO_US_CC_TC_011
+# Execute provision role in management station where already one container present
+- name: OMNIA_DIO_US_CC_TC_011
+  hosts: localhost
+  connection: local
+  vars_files:
+    - test_vars/test_provision_vars.yml
+    - ../roles/provision/vars/main.yml
+  tasks:
+    - name: Delete the cobbler container if exits
+      docker_container:
+        name: "{{ docker_container_name }}"
+        state: absent
+      tags: TC_011
+
+    - name: Delete docker image if exists
+      docker_image:
+        name: "{{ docker_image_name }}"
+        tag: "{{ docker_image_tag }}"
+        state: absent
+      tags: TC_011
+
+    - name: Create docker image
+      docker_image:
+        name: ubuntu
+        tag: latest
+        source: pull
+      tags: TC_011
+
+    - name: Create docker container
+      command: docker run -dit ubuntu
+      register: create_docker_container
+      changed_when: true
+      args:
+        warn: false
+      tags: TC_011
+
+    - block:
+        - name: Call provision role
+          include_role:
+            name: ../roles/provision
+          vars:
+            no_prompt: true
+            admin_password: "{{ boundary_password }}"
+            admin_password_confirm: "{{ boundary_password }}"
+      tags: TC_011
+
+    - name: Check the connection to cobbler UI and it returns a status 200
+      uri:
+        url: https://localhost/cobbler_web
+        status_code: 200
+        return_content: yes
+        validate_certs: no
+      tags: TC_011
+
+    - name: Fetch cobbler version in cobbler container
+      command: docker exec {{ docker_container_name }} cobbler version
+      changed_when: false
+      register: cobbler_version
+      tags: TC_011
+
+    - name: Verify cobbler version
+      assert:
+        that:
+          - "'Cobbler' in cobbler_version.stdout"
+          - "'Error' not in cobbler_version.stdout"
+        fail_msg: "{{ cobbler_version_fail_msg }}"
+        success_msg: "{{ cobbler_version_success_msg }}"
+      tags: TC_011
+
+    - name: Run cobbler check command in cobbler container
+      command: docker exec {{ docker_container_name }} cobbler check
+      changed_when: false
+      register: cobbler_check
+      tags: TC_011
+
+    - name: Verify cobbler check command output
+      assert:
+        that:
+          - "'The following are potential configuration items that you may want to fix' not in cobbler_check.stdout"
+          - "'Error' not in cobbler_check.stdout"
+        fail_msg: "{{ cobbler_check_fail_msg }}"
+        success_msg: "{{ cobbler_check_success_msg }}"
+      ignore_errors: yes
+      tags: TC_011
+
+    - name: Run cobbler sync command in cobbler container
+      command: docker exec {{ docker_container_name }} cobbler sync
+      changed_when: false
+      register: cobbler_sync
+      tags: TC_011
+
+    - name: Verify cobbler sync command output
+      assert:
+        that:
+          - "'TASK COMPLETE' in cobbler_sync.stdout"
+          - "'Fail' not in cobbler_sync.stdout"
+          - "'Error' not in cobbler_sync.stdout"
+        fail_msg: "{{ cobbler_sync_fail_msg }}"
+        success_msg: "{{ cobbler_sync_success_msg }}"
+      tags: TC_011
+
+    - name: Fetch cobbler distro list
+      command: docker exec {{ docker_container_name }} cobbler distro list
+      changed_when: false
+      register: cobbler_distro_list
+      tags: TC_011
+
+    - name: Verify cobbler distro list
+      assert:
+        that:
+          - "'CentOS' in cobbler_distro_list.stdout"
+        fail_msg: "{{ cobbler_distro_list_fail_msg }}"
+        success_msg: "{{ cobbler_distro_list_success_msg }}"
+      tags: TC_011
+
+    - name: Fetch cobbler profile list
+      command: docker exec cobbler cobbler profile list
+      changed_when: false
+      register: cobbler_profile_list
+      tags: TC_011
+
+    - name: Verify cobbler profile list
+      assert:
+        that:
+          - "'CentOS' in cobbler_profile_list.stdout"
+        fail_msg: "{{ cobbler_profile_list_fail_msg }}"
+        success_msg: "{{ cobbler_profile_list_success_msg }}"
+      tags: TC_011
+
+    - name: Check kickstart file
+      shell: |
+        docker exec {{ docker_container_name }} [ -f /var/lib/cobbler/kickstarts/{{ kickstart_filename }} ] && echo "File exist" || echo "File does not exist"
+      changed_when: false
+      register: kickstart_file_status
+      tags: TC_011
+
+    - name: Verify kickstart file present
+      assert:
+        that:
+          - "'File exist' in kickstart_file_status.stdout"
+        fail_msg: "{{ kickstart_file_fail_msg }}"
+        success_msg: "{{ kickstart_file_success_msg }}"
+      tags: TC_011
+
+    - name: Delete the ubuntu container
+      docker_container:
+        name: "{{ create_docker_container.stdout }}"
+        state: absent
+      tags: TC_011
+
+    - name: Delete the ubuntu umage
+      docker_image:
+        name: ubuntu
+        state: absent
+      tags: TC_011
+
+# Testcase OMNIA_DIO_US_CC_TC_012
+# Execute provision role in management station and reboot management station
+- name: OMNIA_DIO_US_CC_TC_012
+  hosts: localhost
+  connection: local
+  vars_files:
+    - test_vars/test_provision_vars.yml
+    - ../roles/provision/vars/main.yml
+  tasks:
+    - name: Check last uptime of the server
+      shell: |
+        current_time=$(date +"%Y-%m-%d %H")
+        uptime -s | grep "$current_time"
+      register: uptime_status
+      changed_when: false
+      ignore_errors: yes
+      tags: TC_012
+
+    - name: Delete the cobbler container if exits
+      docker_container:
+        name: "{{ docker_container_name }}"
+        state: absent
+      when: uptime_status.stdout|length < 1
+      tags: TC_012
+
+    - name: Delete docker image if exists
+      docker_image:
+        name: "{{ docker_image_name }}"
+        tag: "{{ docker_image_tag }}"
+        state: absent
+      when: uptime_status.stdout|length < 1
+      tags: TC_012
+
+    - block:
+        - name: Call provision role
+          include_role:
+            name: ../roles/provision
+          vars:
+            no_prompt: true
+            admin_password: "{{ boundary_password }}"
+            admin_password_confirm: "{{ boundary_password }}"
+      when: uptime_status.stdout|length < 1
+      tags: TC_012
+
+    - name: Reboot localhost
+      command: reboot
+      when: uptime_status.stdout|length < 1
+      tags: TC_012
+
+    - name: Inspect cobbler container
+      docker_container_info:
+        name: "{{ docker_container_name }}"
+      register: cobbler_cnt_status
+      tags: TC_012
+
+    - name: Verify cobbler container is running after reboot
+      assert:
+        that: "'running' in cobbler_cnt_status.container.State.Status"
+        fail_msg: "{{ cobbler_reboot_fail_msg }}"
+        success_msg: "{{ cobbler_reboot_success_msg }}"
+      tags: TC_012
