@@ -15,8 +15,6 @@
 
 single_node: false
 
-manager_ip: 10.0.0.101
-
 k8s_cni: calico
 
 pod_network_cidr_ip: 10.244.0.0/16

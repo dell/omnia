@@ -29,10 +29,10 @@
   gather_facts: false
   roles:
     - compute_gpu
- 
+
 - name: Apply K8s manager config
   hosts: manager
-  gather_facts: false
+  gather_facts: true
   roles:
     - manager
 
@@ -44,7 +44,7 @@
 
 - name: Start K8s on manager server
   hosts: manager
-  gather_facts: false
+  gather_facts: true
   roles:
     - startmanager
 

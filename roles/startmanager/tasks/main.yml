@@ -13,21 +13,17 @@
 #  limitations under the License.
 ---
 
-- name: Disable swap (if not already disabled)
+- name: Disable swap
   command: /usr/sbin/swapoff -a
   changed_when: true
   tags: init
 
-- name: Start and enable docker service
-  systemd:
-    name: docker
-    state: started
-    enabled: yes
-    daemon_reload: yes
-  tags: docker
+- name: Get netaddr
+  setup:
+    filter: ansible_default_ipv4.address
 
 - name: Initialize kubeadm
-  command: "/bin/kubeadm init --pod-network-cidr='{{ pod_network_cidr_ip }}' --apiserver-advertise-address='{{ manager_ip }}'"
+  command: "/bin/kubeadm init --pod-network-cidr='{{ pod_network_cidr_ip }}' --apiserver-advertise-address='{{ ansible_default_ipv4.address }}'"
   changed_when: true
   register: init_output
   tags: init
@@ -77,7 +73,7 @@
     name:   "K8S_TOKEN_HOLDER"
     token:  "{{ K8S_TOKEN.stdout }}"
     hash:   "{{ K8S_MANAGER_CA_HASH.stdout }}"
-    ip:     "{{ manager_ip }}"
+    ip:     "{{ ansible_default_ipv4.address }}"
   tags: init
 
 - name: Print k8s token
@@ -92,9 +88,9 @@
     verbosity: 2
   tags: init
 
-- name: Print k8s manager_ip
+- name: Print k8s ansible_default_ipv4.address
   debug:
-    msg: "[Manager] K8S_MANAGER_IP is  {{ manager_ip }}"
+    msg: "[Manager] K8S_MANAGER_IP is  {{ ansible_default_ipv4.address }}"
     verbosity: 2
   tags: init
 
