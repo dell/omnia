@@ -16,11 +16,7 @@
 - name: Executing omnia roles
   hosts: localhost
   connection: local
-  gather_subset:
-    - 'min'
   roles:
     - common
     - provision
-    - core
     - web_ui
-
