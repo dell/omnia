@@ -15,12 +15,75 @@
 
 # Omnia playbook. Will be updated later.
 
-- name: omnia
-  hosts: localhost
-  connection: local
-  gather_facts: no
-  tasks:
-    - name: Hello
-      debug:
-        msg: "Hello omnia.yml"
+- name: Gather facts from all the nodes
+  hosts: all
 
+- name: Apply common installation and config
+  hosts: manager, compute
+  gather_facts: false
+  roles:
+    - common
+ 
+- name: Apply GPU node config
+  hosts: gpus
+  gather_facts: false
+  roles:
+    - compute_gpu
+
+- name: Apply K8s manager config
+  hosts: manager
+  gather_facts: true
+  roles:
+    - manager
+
+- name: Apply K8s firewalld config on manager and compute nodes
+  hosts: manager, compute
+  gather_facts: false
+  roles:
+    - firewalld
+
+- name: Start K8s on manager server
+  hosts: manager
+  gather_facts: true
+  roles:
+    - startmanager
+
+- name: Start K8s worker servers on compute nodes
+  hosts: compute
+  gather_facts: false
+  roles:
+    - startworkers
+
+- name: Start K8s worker servers on manager nodes
+  hosts: manager
+  gather_facts: false
+  roles:
+    - startservices
+
+- name: Apply SLURM manager config
+  hosts: manager
+  gather_facts: false
+  roles:
+    - slurm_manager
+  tags: slurm
+
+- name: Apply common Slurm installation and config
+  hosts: manager, compute
+  gather_facts: false
+  roles:
+    - slurm_common
+  tags: slurm
+
+- name: Start slurm workers
+  hosts: compute
+  gather_facts: false
+  roles:
+    - start_slurm_workers
+  tags: slurm
+
+- name: Start Slurm services
+  hosts: manager
+  gather_facts: false
+  roles:
+    - slurm_start_services
+  tags: slurm
