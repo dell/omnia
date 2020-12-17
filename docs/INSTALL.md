@@ -1,24 +1,24 @@
 ## TL;DR Installation
  
-### Kubernetes
+### Kubernetes Only
 Install Kubernetes and all dependencies
 ```
-ansible-playbook -i host_inventory_file kubernetes/kubernetes.yml
+ansible-playbook -i host_inventory_file omnia.yml --skip-tags "slurm"
 ```
 
 Initialize K8s cluster
 ```
-ansible-playbook -i host_inventory_file kubernetes/kubernetes.yml --tags "init"
+ansible-playbook -i host_inventory_file omnia.yml --tags "init"
 ```
 
 ### Install Kubeflow 
 ```
-ansible-playbook -i host_inventory_file kubernetes/kubeflow.yaml
+ansible-playbook -i host_inventory_file platform/kubeflow.yaml
 ```
 
-### Slurm
+### Slurm Only
 ```
-ansible-playbook -i host_inventory_file slurm/slurm.yml
+ansible-playbook -i host_inventory_file omnia.yml --skip-tags "k8s"
 ```
 
 # Omnia  
