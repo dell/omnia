@@ -1,0 +1,50 @@
+# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# vars file for provision
+
+# Usage: provision_password.yml
+provision_encrypted_dest: ../files/
+min_length: 8
+no_of_retry: 3
+retry_delay: 0.001
+username: cobbler
+prompt_password: "Enter cobbler password.( Min. Length of Password should be {{ min_length| int }}." 
+confirm_password: "Confirm cobbler Password"
+msg_incorrect_format: "Failed. Incorrect format."
+msg_failed_password_confirm: "Failed. Passwords did not match"
+success_msg_pwd_format: "admin_password validated"
+fail_msg_pwd_format: "admin_password validation failed"
+success_msg_pwd_confirm: "admin_password confirmed"
+fail_msg_pwd_confirm: "admin_password confirmation failed"
+success_msg_format: "random_phrase validated"
+fail_msg_format: "random_phrase validation failed"
+
+# Usage: cobbler_image.yml
+docker_image_name: cobbler
+docker_image_tag: latest
+cobbler_run_command: docker run -itd --privileged --net=host --restart=always -v cobbler_www:/var/www/cobbler:Z -v cobbler_backup:/var/lib/cobbler/backup:Z -v /mnt/iso:/mnt:Z -p 69:69/udp -p 81:80 -p 443:443 -p 25151:25151 --name cobbler  cobbler:latest  /sbin/init
+
+
+# Usage: main.yml
+message_skipped: "Installation Skipped: Cobbler instance is already running on your system"
+message_installed: "Installation Successful"
+
+# Usage: os_provsion.yml
+iso_image: CentOS-8.2.2004-x86_64-minimal.iso 
+iso_path: iso
+
+# Usage: configure_nic.yml
+eno: eno1

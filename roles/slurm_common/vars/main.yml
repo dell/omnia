@@ -1,0 +1,43 @@
+#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+epel_url: https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+
+common_packages:
+   - munge
+   - munge-libs
+   - mariadb-server
+   - mariadb-devel
+   - python3
+   - python-pip
+
+munge_dest: "/etc/munge/"
+munge_cmd: "/usr/sbin/create-munge-key -f"
+munge_mode: "0400"
+slurm_mode: "0644"
+slurm_dest: "/etc/slurm/"
+slurm_confpth: "/etc/slurm/slurm.conf"
+slurm_user: "slurm"
+slurmctld_port: "6817"
+slurmd_port: "6818"
+slurm_uid: "6001"
+slurm_logpth: "/var/log/slurm/"
+gen_mode: "0755"
+spool_pth: "/var/spool/slurm/"
+slurmctld_pid: "/var/run/slurmctld.pid"
+slurmd_pid: "/var/run/slurmd.pid"
+cluster_name : "manager,compute"
+slurmctld_log: "/var/log/slurm/slurmctld.log"
+slurmd_log: "/var/log/slurm/slurmd.log"

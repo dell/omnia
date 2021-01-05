@@ -1,0 +1,89 @@
+# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Omnia playbook. Will be updated later.
+
+- name: Gather facts from all the nodes
+  hosts: all
+
+- name: Apply common installation and config
+  hosts: manager, compute
+  gather_facts: false
+  roles:
+    - common
+ 
+- name: Apply GPU node config
+  hosts: gpus
+  gather_facts: false
+  roles:
+    - compute_gpu
+
+- name: Apply K8s manager config
+  hosts: manager
+  gather_facts: true
+  roles:
+    - manager
+
+- name: Apply K8s firewalld config on manager and compute nodes
+  hosts: manager, compute
+  gather_facts: false
+  roles:
+    - firewalld
+
+- name: Start K8s on manager server
+  hosts: manager
+  gather_facts: true
+  roles:
+    - startmanager
+
+- name: Start K8s worker servers on compute nodes
+  hosts: compute
+  gather_facts: false
+  roles:
+    - startworkers
+
+- name: Start K8s worker servers on manager nodes
+  hosts: manager
+  gather_facts: false
+  roles:
+    - startservices
+
+- name: Apply SLURM manager config
+  hosts: manager
+  gather_facts: false
+  roles:
+    - slurm_manager
+  tags: slurm
+
+- name: Apply common Slurm installation and config
+  hosts: manager, compute
+  gather_facts: false
+  roles:
+    - slurm_common
+  tags: slurm
+
+- name: Start slurm workers
+  hosts: compute
+  gather_facts: false
+  roles:
+    - start_slurm_workers
+  tags: slurm
+
+- name: Start Slurm services
+  hosts: manager
+  gather_facts: false
+  roles:
+    - slurm_start_services
+  tags: slurm

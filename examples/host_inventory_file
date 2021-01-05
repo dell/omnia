@@ -1,0 +1,17 @@
+all: 
+  children:
+    cluster:
+      children:
+        manager:
+          hosts:
+            compute000:
+        workers:
+          children:
+            compute:
+              hosts:
+                compute001:
+            gpus:
+              hosts:
+                compute002:
+                compute003:
+                compute004:

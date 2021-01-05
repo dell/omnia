@@ -1,0 +1,183 @@
+#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Install epel repository
+  package:
+    name: epel-release
+    state: present
+  tags: install
+
+- name: Munge installation
+  package:
+    name: munge-devel
+    state: present
+  tags: install
+
+- name: Install packages for slurm
+  package:
+    name: "{{ common_packages }}"
+    state: present
+  tags: install
+
+- name: pip upgrade pip
+  pip:
+    name: pip
+    executable: pip3
+    extra_args: --upgrade
+    state: latest
+  tags: install
+
+- name: create munge key
+  command: "{{ munge_cmd }}"
+  changed_when: true
+  tags: install
+
+- name: copy munge key
+  copy:
+    src: munge.key
+    dest: "{{ munge_dest }}"
+    owner: munge
+    group: munge
+    mode: "{{ munge_mode }}"
+  tags: install
+
+- name: slurm configuration - slurm.conf
+  copy:
+    src: slurm.conf
+    dest: "{{ slurm_dest }}"
+    mode: "{{ slurm_mode }}"
+  tags: install
+
+- name: add cluster name
+  lineinfile:
+    path: "{{ slurm_confpth }}"
+    regexp: "clustername="
+    line: "clustername={{ cluster_name }}"
+  tags: install
+
+- name: add slurm user name
+  lineinfile:
+    path: "{{ slurm_confpth }}"
+    regexp: "SlurmUser="
+    line: "SlurmUser={{ slurm_user }}"
+  tags: install
+
+- name: Add slurmctld port no
+  lineinfile:
+    path: "{{ slurm_confpth }}"
+    regexp: "SlurmctldPort="
+    line: "SlurmctldPort={{ slurmctld_port }}"
+  tags: install
+
+- name: Add slurmd port no
+  lineinfile:
+    path: "{{ slurm_confpth }}"
+    regexp: "SlurmdPort="
+    line: "SlurmdPort={{ slurmd_port }}"
+  tags: install
+
+- name: Add spool path
+  lineinfile:
+    path: "{{ slurm_confpth }}"
+    regexp: "SlurmdSpoolDir="
+    line: "SlurmdSpoolDir={{ spool_pth }}"
+  tags: install
+
+- name: Add slurmctld pid file path
+  lineinfile:
+    path: "{{ slurm_confpth }}"
+    regexp: "SlurmctldPidFile="
+    line: "SlurmctldPidFile={{ slurmctld_pid }}"
+  tags: install
+
+- name: Add slurmd pid file path
+  lineinfile:
+    path: "{{ slurm_confpth }}"
+    regexp: "SlurmdPidFile="
+    line: "SlurmdPidFile={{ slurmd_pid }}"
+  tags: install
+
+- name: Add slurmctld log file path
+  lineinfile:
+    path: "{{ slurm_confpth }}"
+    regexp: "SlurmctldLogFile="
+    line: "SlurmctldLogFile={{ slurmctld_log }}"
+  tags: install
+
+- name: Add slurmd log file path
+  lineinfile:
+    path: "{{ slurm_confpth }}"
+    regexp: "SlurmdLogFile="
+    line: "SlurmdLogFile={{ slurmd_log }}"
+  tags: install
+
+- name: Create slurm group
+  group:
+    name: slurm
+    state: present
+  tags: install
+
+- name: Add the user 'slurm' with uid 6001 and a primary group of 'slurm'
+  user:
+    name: slurm
+    comment: Slurm User Account
+    uid: "{{ slurm_uid }}"
+    group: slurm
+  tags: install
+
+- name: Create slurm log directory
+  file:
+    path: "{{ slurm_logpth }}"
+    state: directory
+    owner: slurm
+    group: slurm
+    mode: "{{ gen_mode }}"
+    recurse: yes
+  tags: install
+
+- name: Give slurm user permission to spool
+  file:
+    path: "{{ spool_pth }}"
+    owner: slurm
+    group: slurm
+    state: directory
+    mode: "{{ gen_mode }}"
+    recurse: yes
+  tags: install
+
+- name: Give slurm user permission to slurmctld
+  file:
+    path: "{{ slurmctld_pid }}"
+    owner: slurm
+    group: slurm
+    mode: "{{ gen_mode }}"
+    state: touch
+  tags: install
+
+- name: Give slurm user permission to slurmd
+  file:
+    path: "{{ slurmd_pid }}"
+    owner: slurm
+    group: slurm
+    mode: "{{ gen_mode }}"
+    state: touch
+  tags: install
+
+- name: Start munge service
+  service:
+    name: munge
+    state: restarted
+    enabled: yes
+  tags: install

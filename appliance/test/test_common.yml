@@ -1,0 +1,225 @@
+#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Testcase OMNIA_DIO_US_DVC_TC_001 
+# Execute common role in management station with os installed centos 8.2
+- name: OMNIA_DIO_US_DVC_TC_001
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - name: Check OS support
+      fail:
+        msg: "{{ os_status }}"
+      when: not(ansible_distribution == os_name and ansible_distribution_version >= os_version)
+      tags: TC_001
+
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+      tags: TC_001
+
+    - name: Fetching docker volume info
+      docker_volume_info:
+        name: "{{ docker_volume_name }}"
+      register: docker_volume_status
+      tags: TC_001
+
+    - name: Validate docker volume
+      assert:
+        that:
+          - docker_volume_status.exists
+        fail_msg: "{{ docker_volume_fail_msg }}"
+        success_msg: "{{ docker_volume_success_msg }}"
+      tags: TC_001
+
+# Testcase OMNIA_DIO_US_DVC_TC_002 
+# Execute common role in management station with docker volume omnia-storage already present
+- name: OMNIA_DIO_US_DVC_TC_002
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+      tags: TC_002
+
+    - name: Fetching docker volume info
+      docker_volume_info:
+        name: "{{ docker_volume_name }}"
+      register: docker_volume_status
+      tags: TC_002
+
+    - name: Validate docker volume
+      assert:
+        that:
+          - docker_volume_status.exists
+        fail_msg: "{{ docker_volume_fail_msg }}"
+        success_msg: "{{ docker_volume_success_msg }}"
+      tags: TC_002
+
+# Testcase OMNIA_DIO_US_DVC_TC_003 
+# Execute common role in management station with os installed different than centos 8.2
+- name: OMNIA_DIO_US_DVC_TC_003
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+          vars:
+            ansible_distribution_version: "{{ centos_version }}"
+
+      rescue:
+        - name: Validate OS check failure message
+          assert:
+            that: os_status in os_value.msg
+            success_msg: "{{ os_check_success_msg }}"
+            fail_msg: "{{ os_check_fail_msg }}"
+      tags: TC_003
+
+# Testcase OMNIA_DIO_US_DVC_TC_004
+# Execute common role in management station without internet connectivity
+- name: OMNIA_DIO_US_DVC_TC_004
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - name: Down internet connectivity
+      lineinfile:
+        path: /etc/hosts
+        line: "172.16.0.5 github.com"
+        state: present
+        backup: yes
+      tags: TC_004
+
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+
+      rescue:
+        - name: Validate internet connectivity failure message
+          assert:
+            that: internet_status in internet_value.msg
+            success_msg: "{{ internet_check_success_msg }}"
+            fail_msg: "{{ internet_check_fail_msg }}"
+      tags: TC_004
+
+    - name: Up internet connectivity
+      lineinfile:
+        path: /etc/hosts
+        line: "172.16.0.5 github.com"
+        state: absent
+      tags: TC_004
+
+# Testcase OMNIA_DIO_US_DVC_TC_005
+# Execute common role in management station with different user than root
+- name: OMNIA_DIO_US_DVC_TC_005
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+  tasks:
+    - name: Create temp user
+      user:
+        name: temp
+      tags: TC_005
+
+    - block:
+        - name: Execute playbook with different user
+          command: ansible-playbook ../appliance.yml --become-user=temp
+          register: temp_user_output
+
+      rescue:
+        - name: Validate the different user execution failure message
+          assert:
+            that:
+              - '"FAILED" in temp_user_output.stdout'
+              - '"This command has to be run under the root user" in temp_user_output.stdout'
+            success_msg: "{{ different_user_check_success_msg }}"
+            fail_msg: "{{ different_user_check_fail_msg }}"
+      tags: TC_005
+
+    - name: Remove temp user
+      user:
+        name: temp
+        state: absent
+        remove: yes
+      tags: TC_005
+
+# Testcase OMNIA_DIO_US_DVC_TC_006
+# Execute common role in management station with selinux enabled.
+- name: OMNIA_DIO_US_DVC_TC_006
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - name: Enable selinux
+      selinux:
+        policy: targeted
+        state: enforcing
+      when: ansible_selinux.status == "disabled"
+      tags: TC_006
+
+    - name: Reboot localhost
+      command: reboot
+      when: ansible_selinux.status == "disabled"
+      tags: TC_006
+
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+
+      rescue:
+        - name: Validate selinux failure message
+          assert:
+            that: selinux_status in selinux_value.msg
+            success_msg: "{{ selinux_check_success_msg }}"
+            fail_msg: "{{ selinux_check_fail_msg  }}"
+      tags: TC_006
+
+    - name: Disable selinux
+      selinux:
+        state: disabled
+      tags: TC_006
