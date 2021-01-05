@@ -46,7 +46,6 @@
 
 - name: Cobbler configuration
   import_tasks: configure_cobbler.yml
-  when: not cobbler_status
 
 - name: Cobbler container status message
   block:

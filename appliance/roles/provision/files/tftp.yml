@@ -13,8 +13,20 @@
 #  limitations under the License.
 ---
 
-- name: Install packages
-  package:
-    name: "{{ common_packages }}"
-    state: present
-  tags: install
+- name: Start tftp
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Fetch tftp status
+      command: systemctl is-active tftp
+      args:
+        warn: no
+      register: tftp_status
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Start tftp if inactive state
+      command: systemctl start tftp.service
+      args:
+        warn: no
+      when: "('inactive' in tftp_status.stdout) or ('unknown' in tftp_status.stdout)"

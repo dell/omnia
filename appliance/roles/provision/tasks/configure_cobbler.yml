@@ -13,13 +13,21 @@
 # limitations under the License.
 ---
 
-- name: Stop the firewall
-  service:
-    name: firewalld
-    state: stopped
-  tags: install
-
 - name: Configuring cobbler inside container (It may take 5-10 mins)
   command: docker exec cobbler ansible-playbook /root/kickstart.yml
   changed_when: false
   tags: install
+  when: not cobbler_status
+
+- name: Schedule task
+  cron:
+    name: "start cobbler on reboot"
+    special_time: reboot
+    job: "ansible-playbook {{ role_path }}/files/start_cobbler.yml"
+  tags: install
+  when: not cobbler_status
+
+- name: Execute cobbler sync in cobbler container
+  command: docker exec cobbler cobbler sync
+  changed_when: true
+  when: cobbler_status == true
