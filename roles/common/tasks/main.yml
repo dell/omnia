@@ -24,9 +24,6 @@
     dest: /etc/ansible/facts.d/inventory.fact
     mode: 0755
 
-- name: Collect host facts (including acclerator information)
-  setup: ~
-
 - name: Add kubernetes repo
   copy:
     src: kubernetes.repo
@@ -83,6 +80,9 @@
     name: "{{ common_packages }}"
     state: present
   tags: install
+
+- name: Collect host facts (including acclerator information)
+  setup: ~
 
 - name: Install k8s packages
   package:

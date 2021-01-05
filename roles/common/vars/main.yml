@@ -23,6 +23,7 @@ common_packages:
   - bash-completion
   - nvidia-detect
   - chrony
+  - pciutils
 
 k8s_packages:
   - kubelet-1.16.7
