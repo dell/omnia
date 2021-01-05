@@ -13,6 +13,17 @@
 #  limitations under the License.
 ---
 
+- name: Create a custom fact directory on each host
+  file:
+    path: /etc/ansible/facts.d
+    state: directory
+
+- name: Install accelerator discovery script
+  copy:
+    src: inventory.fact
+    dest: /etc/ansible/facts.d/inventory.fact
+    mode: 0755
+
 - name: Add kubernetes repo
   copy:
     src: kubernetes.repo
@@ -70,6 +81,9 @@
     state: present
   tags: install
 
+- name: Collect host facts (including acclerator information)
+  setup: ~
+
 - name: Install k8s packages
   package:
     name: "{{ k8s_packages }}"
@@ -107,3 +121,7 @@
 - name: Deploy time ntp/chrony
   include_tasks: ntp.yml
   tags: install
+
+- name: Install Nvidia drivers and software components
+  include_tasks: nvidia.yml
+  when: ansible_local.inventory.nvidia_gpu > 0

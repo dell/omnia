@@ -13,18 +13,12 @@
 #  limitations under the License.
 ---
 
-nvidia_docker_repo_url: https://nvidia.github.io/nvidia-docker/centos7/nvidia-docker.repo
-
-nvidia_docker_repo_dest: /etc/yum.repos.d/nvidia-docker.repo
-
-nvidia_container_repo_url: https://nvidia.github.io/libnvidia-container/centos7/libnvidia-container.repo 
-
-nvidia_container_repo_dest: /etc/yum.repos.d/libnvidia-container.repo
-
-nvidia_packages:
-  - kmod-nvidia
-  - nvidia-docker2
-
-daemon_file_dest: /etc/docker/
-
-daemon_file_mode: 0644
+# Usage: test_omnia.yml
+host1: "100.10.20.30"
+host2: "100.20.30.40"
+host3: "100.30.40.50"
+inventory_path: "/var/lib/awx/projects/omnia/appliance/test"
+test_input_config_filename: "input_config_test.yml"
+test_case_success_msg: "Test case passed"
+test_case_failure_msg: "Test case failed"
+file_permission: 0644
