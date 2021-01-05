@@ -1,0 +1,46 @@
+#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+metallb_config_file_dest: /root/k8s/metal-config.yaml
+
+metallb_config_file_mode: 0655
+
+metallb_deployment_file_dest: /root/k8s/metallb.yaml
+
+metallb_deployment_file_mode: 0655
+
+metallb_yaml_url: https://raw.githubusercontent.com/google/metallb/v0.8.1/manifests/metallb.yaml
+
+k8s_dashboard_yaml_url: https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0/aio/deploy/recommended.yaml
+
+helm_stable_repo_url: https://charts.helm.sh/stable
+
+nfs_server: {{ ansible_host }}
+
+nfs_path: /home/k8snfs
+
+mpi_operator_yaml_url: https://raw.githubusercontent.com/kubeflow/mpi-operator/master/deploy/v1alpha2/mpi-operator.yaml
+
+nvidia_k8s_device_plugin_repo_url: https://nvidia.github.io/k8s-device-plugin
+
+nvidia_gpu_discovery_repo_url: https://nvidia.github.io/gpu-feature-discovery
+
+nvidia_device_plugin_version: 0.7.0
+
+mig_strategy: none
+
+gpu_feature_discovery_version: 0.2.0
+
+fpga_device_plugin_yaml_url: https://raw.githubusercontent.com/Xilinx/FPGA_as_a_Service/master/k8s-fpga-device-plugin/fpga-device-plugin.yml

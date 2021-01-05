@@ -1,0 +1,105 @@
+#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Add kubernetes repo
+  copy:
+    src: kubernetes.repo
+    dest: "{{ k8s_repo_dest }}"
+    owner: root
+    group: root
+    mode: "{{ k8s_repo_file_mode }}"
+  tags: install
+
+- name: Add elrepo GPG key
+  rpm_key:
+    state: present
+    key: "{{ elrepo_gpg_key_url }}"
+  tags: install
+
+- name: Add elrepo (nvidia kmod drivers)
+  package:
+    name: "{{ elrepo_rpm_url }}"
+    state: present
+  tags: install
+
+- name: Add docker community edition repository
+  get_url:
+    url: "{{ docker_repo_url }}"
+    dest: "{{ docker_repo_dest }}"
+  tags: install
+
+- name: Update sysctl to handle incorrectly routed traffic when iptables is bypassed
+  copy:
+    src: k8s.conf
+    dest: "{{ k8s_conf_dest }}"
+    owner: root
+    group: root
+    mode: "{{ k8s_conf_file_mode }}"
+  tags: install
+
+- name: Update sysctl
+  command: /sbin/sysctl --system
+  changed_when: true
+  tags: install
+
+- name: Disable swap
+  command: /sbin/swapoff -a
+  changed_when: true
+  tags: install
+
+- name: Disable selinux
+  selinux:
+    state: disabled
+  tags: install
+
+- name: Install common packages
+  package:
+    name: "{{ common_packages }}"
+    state: present
+  tags: install
+
+- name: Install k8s packages
+  package:
+    name: "{{ k8s_packages }}"
+    state: present
+  tags: install
+
+- name: Versionlock kubernetes
+  command: "yum versionlock '{{ item }}'"
+  args:
+    warn: false
+  with_items:
+    - "{{ k8s_packages }}"
+  changed_when: true
+  tags: install
+
+- name: Install infiniBand support
+  package:
+    name: "@Infiniband Support"
+    state: present
+  tags: install
+
+- name: Start and enable docker service
+  service:
+    name: docker
+    state: restarted
+    enabled: yes
+  tags: install
+
+- name: Start and enable kubernetes - kubelet
+  service:
+    name: kubelet
+    state: restarted
+    enabled: yes
