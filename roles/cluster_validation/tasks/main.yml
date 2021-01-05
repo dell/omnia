@@ -12,19 +12,11 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+- name: Include vars file of common role
+  include_vars: "{{ role_path }}/../../appliance/roles/common/vars/main.yml"
 
-nvidia_docker_repo_url: https://nvidia.github.io/nvidia-docker/centos7/nvidia-docker.repo
+- name: Perform validations
+  include_tasks: validations.yml
 
-nvidia_docker_repo_dest: /etc/yum.repos.d/nvidia-docker.repo
-
-nvidia_container_repo_url: https://nvidia.github.io/libnvidia-container/centos7/libnvidia-container.repo 
-
-nvidia_container_repo_dest: /etc/yum.repos.d/libnvidia-container.repo
-
-nvidia_packages:
-  - kmod-nvidia
-  - nvidia-docker2
-
-daemon_file_dest: /etc/docker/
-
-daemon_file_mode: 0644
+- name: Fetch cobbler password
+  include_tasks: fetch_password.yml

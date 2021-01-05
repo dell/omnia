@@ -17,7 +17,6 @@
 - name: Initialize variables
   set_fact:
     awx_status: false
-    awx_task_status: false
   tags: install
 
 - name: Check awx_task status on the machine
@@ -26,17 +25,10 @@
   register: awx_task_result
   tags: install
 
-- name: Update awx status
-  set_fact:
-    awx_task_status: true
-  when: awx_task_result.exists
-  tags: install
-
 - name: Check awx_web status on the machine
   docker_container_info:
     name: awx_web
   register: awx_web_result
-  when: awx_task_status
   tags: install
 
 - name: Update awx status

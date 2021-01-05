@@ -1,0 +1,73 @@
+# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Set Facts
+  set_fact:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+
+- name: Disable key host checking
+  replace:
+    path: /etc/ansible/ansible.cfg
+    regexp: '#host_key_checking = False'
+    replace: 'host_key_checking = False'
+
+- name: Disable host key checking
+  replace:
+    path: /etc/ssh/ssh_config
+    regexp: '#   StrictHostKeyChecking ask'
+    replace: 'StrictHostKeyChecking no'
+
+- name: Check if provisioned host file exists
+  stat:
+    path: "{{ role_path }}/files/provisioned_hosts.yml"
+  register: provisioned_file_result
+
+- name: Include vars file of common role
+  include_vars: "{{ role_path }}/../common/vars/main.yml"
+
+- name: Include vars file of web_ui role
+  include_vars: "{{ role_path }}/../web_ui/vars/main.yml"
+
+- name: Update inventory file
+  block:
+    - name: Decrpyt input_config.yml
+      command: >-
+        ansible-vault decrypt {{ input_config_filename }}
+        --vault-password-file roles/common/files/{{ vault_filename }}
+      changed_when: false
+
+    - name: Include variable file input_config.yml
+      include_vars: "{{ input_config_filename }}"
+
+    - name: Save input variables from file
+      set_fact:
+        cobbler_password: "{{ provision_password }}"
+
+    - name: Encrypt input config file
+      command: >-
+        ansible-vault encrypt {{ input_config_filename }}
+        --vault-password-file roles/common/files/{{ vault_filename }}
+
+    - name: add hosts with description to inventory file
+      command: >-
+        ansible-playbook -i {{ role_path }}/files/provisioned_hosts.yml
+        {{ role_path }}/files/create_inventory.yml
+        --extra-vars "cobbler_username={{ cobbler_username }} cobbler_password={{ cobbler_password }}"
+      ignore_errors: yes
+
+  when: provisioned_file_result.stat.exists
+
+- name: push inventory to AWX
+  command: awx-manage inventory_import --inventory-name {{ omnia_inventory_name }} --source {{ role_path }}/files/inventory
+  changed_when: no

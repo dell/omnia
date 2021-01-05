@@ -15,7 +15,7 @@
 
 # Tasks for Deploying AWX on the system
 - name: Check AWX status on machine
-  include_tasks: check_prerequisites.yml
+  include_tasks: check_awx_status.yml
   tags: install
 
 - name: Include common variables
@@ -28,7 +28,7 @@
   tags: install
 
 - name: Get and encrypt AWX password
-  include_tasks: awx_password.yml
+  include_tasks: clone_awx.yml
   when: not awx_status
   tags: install
 
@@ -58,13 +58,50 @@
   include_tasks: ../../common/tasks/internet_validation.yml
   tags: install
 
+- name: Waiting for AWX UI to be accessible
+  wait_for:
+    timeout: 300
+  delegate_to: localhost
+  tags: install
+
+- name: Re-install if in migrating state
+  block:
+    - name: Check if AWX UI is accessible
+      command: >-
+        awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ admin_password }}"
+        organizations list -f human
+      changed_when: no
+
+  rescue:
+    - name: Remove old containers
+      docker_container:
+        name: "{{ item }}"
+        state: absent
+      loop:
+        - awx_task
+        - awx_web
+
+    - name: Restart docker
+      service:
+        name: docker
+        state: restarted
+
+    - name: Run AWX install.yml file
+      command: ansible-playbook -i inventory install.yml --extra-vars "admin_password={{ admin_password }}"
+      args:
+        chdir: "{{ awx_installer_path }}"
+      ignore_errors: yes
+
+    - name: Waiting for AWX UI to be accessible
+      wait_for:
+        timeout: 150
+      delegate_to: localhost
+  tags: install
+
 - name: Install AWX-CLI
   include_tasks: install_awx_cli.yml
   tags: install
 
-- name: AWX configuration
-  command: >-
-    ansible-playbook "{{ role_path }}"/files/awx_configuration.yml
-    -e @"{{ awx_installer_path + awx_password_file }}"
-    --vault-password-file "{{ awx_installer_path + vault_file }}"
+- name: Configure AWX
+  include_tasks: awx_configuration.yml
   tags: install
