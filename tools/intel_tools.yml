@@ -22,11 +22,11 @@
       state: present
       key: https://yum.repos.intel.com/2020/setup/RPM-GPG-KEY-intel-psxe-runtime-2020
   - name: Enable the Intel(R) Parallel Studio XE Runtime Repository
-    dnf:
+    package:
       name: https://yum.repos.intel.com/2020/setup/intel-psxe-runtime-2020-reposetup-1-0.noarch.rpm
       state: present
   - name: Install Intel(R) Parallel Studio XE Runtime 2020
-    dnf:
+    package:
       name: intel-psxe-runtime
       state: present
 
@@ -52,6 +52,6 @@
       gpgcheck: yes
       gpgkey: https://yum.repos.intel.com/clck-ext/2019/setup/PUBLIC_KEY.PUB
   - name: Install the Intel(R) Cluster Checker
-    dnf:
+    package:
       name: intel-clck-2019.8-*
       state: present
