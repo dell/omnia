@@ -9,9 +9,9 @@ INTEL_A10_FPGA=$(cat $INVENTORY | grep "Processing accelerators: Intel Corporati
 
 cat << EOF
 {
-     "xilinx_fpga"    : "$XILINX_FPGA"
-     "nvidia_gpu"     : "$NVIDIA_GPU"
-     "intel_a10_fpga" : "$INTEL_A10_FPGA"
+	"xilinx_fpga" : $XILINX_FPGA,
+	"nvidia_gpu" : $NVIDIA_GPU,
+	"intel_a10_fpga" : $INTEL_A10_FPGA
 }
 EOF
 
