@@ -13,27 +13,34 @@
 #  limitations under the License.
 ---
 
-epel_url: https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+epel_url: https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
 
 common_packages:
    - munge
    - munge-libs
+   - munge-devel
    - mariadb-server
    - mariadb-devel
    - python3
-   - python-pip
+   - man2html
+   - MySQL-python
 
+hostname_dest: "/etc/hostname"
+hosts_dest: "/etc/hosts"
 munge_dest: "/etc/munge/"
 munge_cmd: "/usr/sbin/create-munge-key -f"
 munge_mode: "0400"
 slurm_mode: "0644"
+common_mode: "0777"
 slurm_dest: "/etc/slurm/"
 slurm_confpth: "/etc/slurm/slurm.conf"
 slurm_user: "slurm"
 slurmctld_port: "6817"
 slurmd_port: "6818"
+acct_port: "6819"
 slurm_uid: "6001"
 slurm_logpth: "/var/log/slurm/"
+slurm_pidpth: "/var/run/slurm/"
 gen_mode: "0755"
 spool_pth: "/var/spool/slurm/"
 slurmctld_pid: "/var/run/slurmctld.pid"
@@ -41,3 +48,19 @@ slurmd_pid: "/var/run/slurmd.pid"
 cluster_name : "manager,compute"
 slurmctld_log: "/var/log/slurm/slurmctld.log"
 slurmd_log: "/var/log/slurm/slurmd.log"
+chrony_path: "/etc/chrony.conf"
+ntp_path: "/etc/ntp.conf"
+ntp_mode: "0644"
+os_higher_version: "8"
+os_version: "7"
+retry_count_one: "10"
+delay_count_one: "60"
+retry_count: "6"
+delay_count: "10"
+
+ntp_servers:
+  - 0.centos.pool.ntp.org
+  - 1.centos.pool.ntp.org
+  - 2.centos.pool.ntp.org
+chrony_servers:
+  - 2.centos.pool.ntp.org

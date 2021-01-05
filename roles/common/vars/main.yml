@@ -23,6 +23,7 @@ common_packages:
   - bash-completion
   - nvidia-detect
   - chrony
+  - pciutils
 
 k8s_packages:
   - kubelet-1.16.7
@@ -61,3 +62,15 @@ ntp_servers:
   - 2.centos.pool.ntp.org
 chrony_servers:
   - 2.centos.pool.ntp.org
+
+nvidia_docker_repo_url: https://nvidia.github.io/nvidia-docker/centos7/nvidia-docker.repo
+nvidia_docker_repo_dest: /etc/yum.repos.d/nvidia-docker.repo
+nvidia_container_repo_url: https://nvidia.github.io/libnvidia-container/centos7/libnvidia-container.repo
+nvidia_container_repo_dest: /etc/yum.repos.d/libnvidia-container.repo
+
+nvidia_packages:
+  - kmod-nvidia
+  - nvidia-docker2
+
+daemon_file_dest: /etc/docker/
+daemon_file_mode: 0644

@@ -17,35 +17,48 @@ slurm_packages:
    - python3
    - gcc
    - openssl
-   - openssl-devel
    - numactl
-   - numactl-devel
    - hwloc
    - lua
    - readline
-   - readline-devel
-   - pam-devel
    - perl-ExtUtils-MakeMaker
-   - cpanm*
    - rpm-build
+   - perl-DBI
+   - perl-Switch
+   - libibumad
 
 dev_tools:
    - rrdtool-devel
    - lua-devel
    - hwloc-devel
+   - libssh2-devel
+   - pam-devel
+   - readline-devel
+   - openssl-devel
+   - numactl-devel
+   - ncurses-devel
+   - gtk2-devel
+
+log_files_master:
+   - slurm_jobacct.log
+   - slurm_jobcomp.log
 
 tmp_path: "/root/slurm-tmp"
 tmp_mode: "0755"
-slurm_url: https://download.schedmd.com/slurm/slurm-20.02.3.tar.bz2
-slurm_md5: "md5:c71a300d6c5d33ef8ca60e52a203bb1e"
-rpmbuild_path: "/root/slurm-tmp/slurm-20.02.3.tar.bz2"
+cluster_state_path: "/var/spool/slurm/cluster_state"
+spool_slurmctld_pth: "/var/spool/slurmctld"
+spool_slurmd_pth: "/var/spool/slurmd"
+slurm_logpth: "/var/log/slurm/"
+slurm_url: https://download.schedmd.com/slurm/slurm-20.11.2.tar.bz2
+slurm_md5: "md5:592b8b24ff0f24327033eec59cd438d7"
+rpmbuild_path: "/root/slurm-tmp/slurm-20.11.2.tar.bz2"
 rpm_loop: "/rpmbuild/RPMS/x86_64/*.rpm"
 tcp_port1: "6817/tcp"
 tcp_port2: "6818/tcp"
 tcp_port3: "6819/tcp"
-tcp_port4: "7321/tcp"
 udp_port1: "6817/udp"
-udp_port2: "7321/udp"
+udp_port2: "6818/udp"
+udp_port3: "6819/udp"
 family: "ipv4"
 db_user: "slurm"
 db_host: "localhost"
@@ -56,7 +69,9 @@ slurm_user: "slurm"
 DbdAddr: "localhost"
 DbdHost: "localhost"
 logfile: "/var/log/slurm/slurmdbd.log"
-pidfile: "/var/run/slurm/slurmdbd.pid"
+pidfile: "/var/run/slurmdbd.pid"
 buffer_path: "/tmp/slurm.conf"
 rpm_path: "/root/rpmbuild/RPMS/x86_64/"
 slurm_mode: "0644"
+input_config_pth: "omnia/appliance/input_config.yml"
+vault_path: "omnia/appliance/roles/common/files/.vault_key"

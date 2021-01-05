@@ -13,17 +13,65 @@
 #  limitations under the License.
 ---
 
-#- name: Install packages for slurm
-# package:
-#   name: "{{ slurm_packages }}"
-#   state: present
-# tags: install
+- name: Give slurm user permission to slurmctld spool
+  file:
+    path: "{{ spool_slurmctld_pth }}"
+    owner: slurm
+    group: slurm
+    mode: "{{ tmp_mode }}"
+    state: touch
 
-#- name: Install development tools
-# package:
-#   name: "{{ dev_tools }}"
-#   state: present
-# tags: install
+- name: Give slurm ownership to cluster state
+  file:
+    path: "{{ cluster_state_path }}"
+    owner: slurm
+    group: slurm
+    mode: "{{ tmp_mode }}"
+    state: touch
+
+- name: Create slurmctld log file on master
+  file:
+    path: "{{ slurm_logpth }}"
+    owner: slurm
+    mode: "{{ tmp_mode }}"
+    state: touch
+  with_items:
+    - slurmctld.log
+
+- name: Create log files on master
+  file:
+    path: "{{ slurm_logpth }}"
+    owner: slurm
+    mode: "{{ tmp_mode }}"
+    state: touch
+  with_items:
+    - "{{ log_files_master }}"
+
+- name: Get mariadb password from vault
+  command: ansible-vault view {{ input_config_pth }} --vault-password-file {{ vault_path }}
+  register: vault_contents
+  delegate_to: localhost
+  changed_when: true
+
+- name: Extract db password from input config file
+  set_fact:
+    db_password="{{ vault_contents.stdout | regex_findall('[\n\r].*mariadb_password:\s*\"([^\n\r]*)\"') }}"
+
+- name: Install packages for slurm
+  package:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - "{{ slurm_packages }}"
+  tags: install
+
+- name: Install development tools
+  package:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - "{{ dev_tools }}"
+  tags: install
 
 - name: Create temporary download folder for slurm
   file:
@@ -40,38 +88,62 @@
     checksum: "{{ slurm_md5 }}"
     validate_certs: no
   tags: install
- 
+
 - name: Build slurm rpms
-  command: rpmbuild -ta "{{ rpmbuild_path }}"
+  command: rpmbuild -ta "{{ rpmbuild_path }}" --with mysql
   changed_when: false
   args:
     warn: no
 
-#- name: Verify package md5
-#command: rpm -qa
-#  ignore_errors: true
-#  register: verify_result
-#  changed_when: no
-#  failed_when: no
-#  args:
-#    warn: no
+- name: Verify package md5
+  command: rpm -qa
+  ignore_errors: true
+  register: verify_result
+  changed_when: no
+  failed_when: no
+  args:
+    warn: no
 
 - name: Install rpms
   command: rpm -Uvh ~"{{ rpm_loop }}"
   args:
     chdir: "{{ rpm_path }}"
     warn: no
-    #  when: verify_result.rc != 0
+  changed_when: true
+
+- name: Get the hostname
+  command: hostname -s
+  register: machine_name
+  changed_when: true
 
 - name: Add control machine name
   lineinfile:
     path: "{{ slurm_confpth }}"
     regexp: "ControlMachine="
-    line: "ControlMachine={{ group_names[0] }}"
+    line: "ControlMachine={{ machine_name.stdout }}"
 
-- name: Firewall rule for slurm - tcp/ip,udp
+- name: Add slurm user name
+  lineinfile:
+    path: "{{ slurm_confpth }}"
+    regexp: "SlurmUser="
+    line: "SlurmUser={{ slurm_user }}"
+
+- name: Install firewalld
+  package:
+    name: firewalld
+    state: present
+  tags: firewalld
+
+- name: Start and enable firewalld
+  service:
+    name: firewalld
+    state: started
+    enabled: yes
+  tags: firewalld
+
+- name: Firewall rule for slurm - tcp/udp ports
   firewalld:
-    zone: internal
+    zone: public
     port: "{{ item }}"
     permanent: true
     state: enabled
@@ -79,10 +151,11 @@
     - "{{ tcp_port1 }}"
     - "{{ tcp_port2 }}"
     - "{{ tcp_port3 }}"
-    - "{{ tcp_port4 }}"
+    - "{{ udp_port3 }}"
     - "{{ udp_port1 }}"
     - "{{ udp_port2 }}"
-  tags: install
+  when: "'manager' in group_names"
+  tags: firewalld
 
 - name: Get network address/subnet mask through ipaddr
   set_fact:
@@ -94,23 +167,22 @@
     rich_rule: 'rule family="{{ family }}" source address="{{ network_address }}" accept'
     permanent: true
     state: enabled
-  tags: install
+  tags: firewalld
 
-- name: Firewall reload
-  systemd:
-    name: firewalld
-    state: reloaded
-  tags: install
+- name: Reload firewalld
+  command: firewall-cmd --reload
+  changed_when: true
+  tags: firewalld
 
 - name: Start mariadb
-  service:
+  systemd:
     name: mariadb
     state: restarted
     enabled: yes
   tags: install
 
 - name: Grant permissions for slurm db
-  command: mysql -u root -e "GRANT ALL ON slurm_acct_db.* TO 'slurm'@'localhost' identified by 'password' with grant option;"
+  command: mysql -u root -e "GRANT ALL ON slurm_acct_db.* TO '{{ db_user }}'@'{{ db_host }}' identified by '{{ db_password[0] }}'with grant option;"
   tags: install
   changed_when: true
 
@@ -119,6 +191,7 @@
     src: slurmdbd.conf
     dest: "{{ slurmdbd_path }}"
     mode: "{{ slurmdbd_mode }}"
+    owner: slurm
   tags: install
 
 - name: Add slurm user name
@@ -139,6 +212,18 @@
     regexp: "DbdHost="
     line: "DbdHost={{ DbdHost }}"
 
+- name: Add storage password
+  lineinfile:
+    path: "{{ slurmdbd_path }}"
+    regexp: "StoragePass="
+    line: "StoragePass={{ db_password[0] }}"
+
+- name: Add storage user
+  lineinfile:
+    path: "{{ slurmdbd_path }}"
+    regexp: "StorageUser="
+    line: "StorageUser={{ slurm_user }}"
+
 - name: Add log file path
   lineinfile:
     path: "{{ slurmdbd_path }}"
@@ -150,11 +235,6 @@
     path: "{{ slurmdbd_path }}"
     regexp: "PidFile="
     line: "PidFile={{ pidfile }}"
-
-- name: Populate accounting database
-  command: slurmdbd
-  tags: install
-  changed_when: true
 
 - name: Save slurm conf file in buffer
   fetch:

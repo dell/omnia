@@ -16,32 +16,35 @@
 - name: Include common variables
   include_vars: ../../slurm_manager/vars/main.yml
 
+- name: Include common variables
+  include_vars: ../../slurm_common/vars/main.yml
+
 - name: Copy slurm conf from buffer
   copy:
     src: "{{ buffer_path }}"
     dest: "{{ slurm_confpth }}"
     mode: "{{ slurm_mode }}"
 
-- name: Start slurmctld on manager
-  service:
-    name: slurmctld
-    enabled: yes
-  tags: install
-
 - name: Enable slurmdbd on manager
   service:
     name: slurmdbd
-    enabled: yes
+    state: restarted
+  tags: install
+
+- name: Start slurmctld on manager
+  systemd:
+    name: slurmctld
+    state: started
   tags: install
 
 - name: Show cluster if exists
-  command: sacctmgr -n show cluster {{ inventory_hostname }}
+  command: sacctmgr -n show cluster {{ cluster_name }}
   register: slurm_clusterlist
   changed_when: false
 
 - name: Create slurm cluster
-  command: sacctmgr -i add cluster {{ inventory_hostname }}
-  when: slurm_clusterlist.stdout.find(inventory_hostname) == 1
+  command: sacctmgr -i add cluster {{ cluster_name }}
+  when: slurm_clusterlist.stdout.find(cluster_name) == 1
 
 - name: Show account
   command: sacctmgr show account
@@ -49,8 +52,8 @@
   changed_when: false
 
 - name: Create default slurm group
-  command: sacctmgr -i add account defaultgroup Cluster={{ inventory_hostname }} Description="Default Account" Organization="Default Org"
-  when: account_added.stdout.find(inventory_hostname) == 1
+  command: sacctmgr -i add account defaultgroup Cluster={{ cluster_name }} Description="Default Account" Organization="Default Org"
+  when: account_added.stdout.find(cluster_name) == 1
   tags: install
 
 - name: Check if user exists
@@ -60,5 +63,5 @@
 
 - name: Add root to the default account
   command: sacctmgr -i add user root DefaultAccount=defaultgroup
-  when: account_added.stdout.find(inventory_hostname) == 1
+  when: account_added.stdout.find(cluster_name) == 1
   tags: install

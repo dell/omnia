@@ -16,6 +16,37 @@
 - name: Include common variables
   include_vars: ../../slurm_manager/vars/main.yml
 
+- name: Give slurm user permission to slurmd spool
+  file:
+    path: "{{ spool_slurmd_pth }}"
+    owner: slurm
+    group: slurm
+    mode: "{{ tmp_mode }}"
+    state: touch
+
+- name: Create log files on compute nodes
+  file:
+    path: "{{ slurm_logpth }}"
+    owner: slurm
+    group: slurm
+    mode: "{{ tmp_mode }}"
+    state: touch
+  with_items:
+    - slurmd.log
+
+- name: Install firewalld
+  package:
+    name: firewalld
+    state: present
+  tags: firewalld
+
+- name: Stop and disable firewalld
+  service:
+    name: firewalld
+    state: stopped
+    enabled: no
+  tags: firewalld
+
 - name: Copy slurm conf from buffer
   copy:
     src: "{{ buffer_path }}"
@@ -32,7 +63,7 @@
 
 - name: Install development tools
   package:
-    name: "{{ item | join (',') }}"
+    name: "{{ item }}"
     state: present
   with_items:
     - "{{ dev_tools }}"
@@ -55,7 +86,7 @@
   tags: install
 
 - name: Build slurm rpms
-  command: rpmbuild -ta "{{ rpmbuild_path }}"
+  command: rpmbuild -ta "{{ rpmbuild_path }}" --with mysql
   changed_when: false
   args:
     warn: no
@@ -74,14 +105,20 @@
   args:
     chdir: "{{ rpm_path }}"
     warn: no
-  when: verify_result.rc != 0
+  changed_when: true
+
+- name: Get the hostname
+  command: hostname -s
+  register: machine_name
+  changed_when: true
 
 - name: Add socket and core info
   lineinfile:
     path: "{{ slurm_confpth }}"
     regexp: "NodeName= Sockets= CoresPerSocket="
-    line: "NodeName={{ group_names[0] }} Sockets={{ hostvars[inventory_hostname]['ansible_facts']['processor_count'] }}
+    line: "NodeName={{ machine_name.stdout }} Sockets={{ hostvars[inventory_hostname]['ansible_facts']['processor_count'] }}
       CoresPerSocket={{ hostvars[inventory_hostname]['ansible_facts']['processor_cores'] }}"
+
 
 - name: Save slurm conf in buffer
   fetch:
@@ -90,7 +127,7 @@
     flat: true
 
 - name: Start slurmd on compute nodes
-  service:
+  systemd:
     name: slurmd.service
-    enabled: yes
+    state: started
   tags: install

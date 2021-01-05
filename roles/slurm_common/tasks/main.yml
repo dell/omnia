@@ -13,38 +13,46 @@
 #  limitations under the License.
 ---
 
+- name: Get hostname
+  command: hostname -s
+  register: host_name
+  changed_when: true
+
+- name: Add host name in file
+  replace:
+    dest: "{{ hostname_dest }}"
+    regexp: localhost.localdomain
+    replace: "{{ host_name.stdout }}"
+    backup: yes
+    mode: "{{ common_mode ]}"
+
+- name: Add host name in hosts file
+  lineinfile:
+    dest: "{{ hosts_dest }}"
+    line: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }} {{ host_name.stdout }}"
+    state: present
+    create: yes
+    mode: "{{ common_mode }}"
+
 - name: Install epel repository
   package:
     name: epel-release
     state: present
   tags: install
 
-- name: Munge installation
-  package:
-    name: munge-devel
-    state: present
-  tags: install
-
 - name: Install packages for slurm
   package:
-    name: "{{ common_packages }}"
+    name: "{{ item }}"
     state: present
+  with_items:
+    - "{{ common_packages }}"
   tags: install
 
-- name: pip upgrade pip
-  pip:
-    name: pip
-    executable: pip3
-    extra_args: --upgrade
-    state: latest
-  tags: install
-
-- name: create munge key
+- name: Create munge key
   command: "{{ munge_cmd }}"
   changed_when: true
-  tags: install
 
-- name: copy munge key
+- name: Copy munge key
   copy:
     src: munge.key
     dest: "{{ munge_dest }}"
@@ -53,75 +61,72 @@
     mode: "{{ munge_mode }}"
   tags: install
 
-- name: slurm configuration - slurm.conf
+- name: Slurm configuration - slurm.conf
   copy:
     src: slurm.conf
     dest: "{{ slurm_dest }}"
     mode: "{{ slurm_mode }}"
   tags: install
 
-- name: add cluster name
+- name: Add cluster name
   lineinfile:
     path: "{{ slurm_confpth }}"
-    regexp: "clustername="
-    line: "clustername={{ cluster_name }}"
-  tags: install
+    regexp: "ClusterName="
+    line: "ClusterName={{ cluster_name }}"
 
-- name: add slurm user name
+- name: Add slurm user name
   lineinfile:
     path: "{{ slurm_confpth }}"
     regexp: "SlurmUser="
     line: "SlurmUser={{ slurm_user }}"
-  tags: install
 
 - name: Add slurmctld port no
   lineinfile:
     path: "{{ slurm_confpth }}"
     regexp: "SlurmctldPort="
     line: "SlurmctldPort={{ slurmctld_port }}"
-  tags: install
 
 - name: Add slurmd port no
   lineinfile:
     path: "{{ slurm_confpth }}"
     regexp: "SlurmdPort="
     line: "SlurmdPort={{ slurmd_port }}"
-  tags: install
 
 - name: Add spool path
   lineinfile:
     path: "{{ slurm_confpth }}"
     regexp: "SlurmdSpoolDir="
     line: "SlurmdSpoolDir={{ spool_pth }}"
-  tags: install
 
 - name: Add slurmctld pid file path
   lineinfile:
     path: "{{ slurm_confpth }}"
     regexp: "SlurmctldPidFile="
     line: "SlurmctldPidFile={{ slurmctld_pid }}"
-  tags: install
 
 - name: Add slurmd pid file path
   lineinfile:
     path: "{{ slurm_confpth }}"
     regexp: "SlurmdPidFile="
     line: "SlurmdPidFile={{ slurmd_pid }}"
-  tags: install
 
 - name: Add slurmctld log file path
   lineinfile:
     path: "{{ slurm_confpth }}"
     regexp: "SlurmctldLogFile="
     line: "SlurmctldLogFile={{ slurmctld_log }}"
-  tags: install
 
 - name: Add slurmd log file path
   lineinfile:
     path: "{{ slurm_confpth }}"
     regexp: "SlurmdLogFile="
     line: "SlurmdLogFile={{ slurmd_log }}"
-  tags: install
+
+- name: Add accounting storage port no
+  lineinfile:
+    path: "{{ slurm_confpth }}"
+    regexp: "AccountingStoragePort="
+    line: "AccountingStoragePort={{ acct_port }}"
 
 - name: Create slurm group
   group:
@@ -155,6 +160,15 @@
     state: directory
     mode: "{{ gen_mode }}"
     recurse: yes
+
+- name: Create slurm pid directory
+  file:
+    path: "{{ slurm_pidpth }}"
+    state: directory
+    owner: slurm
+    group: slurm
+    mode: "{{ gen_mode }}"
+    recurse: yes
   tags: install
 
 - name: Give slurm user permission to slurmctld
@@ -164,7 +178,6 @@
     group: slurm
     mode: "{{ gen_mode }}"
     state: touch
-  tags: install
 
 - name: Give slurm user permission to slurmd
   file:
@@ -173,11 +186,19 @@
     group: slurm
     mode: "{{ gen_mode }}"
     state: touch
-  tags: install
 
 - name: Start munge service
-  service:
+  systemd:
     name: munge
     state: restarted
     enabled: yes
   tags: install
+  ignore_errors: yes
+
+- name: Disable selinux
+  selinux:
+    state: disabled
+  tags: install
+
+- name: Deploy time ntp/chrony
+  include_tasks: ntp.yml
