@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,20 +13,6 @@
 #  limitations under the License.
 ---
 
-packages_status_success_msg: "Common packages are installed"
+ntpd_service_fail_msg: "Ntpd service is not running"
 
-packages_status_fail_msg: "Common packages are not installed"
-
-munge_service_fail_msg: "Munge service is not running"
-
-munge_service_success_msg: "Munge service is running"
-
-common_packages:
-   - munge
-   - munge-libs
-   - munge-devel
-   - mariadb-server
-   - mariadb-devel
-   - python3
-   - man2html
-   - MySQL-python
+ntpd_service_success_msg: "Ntpd service is running"

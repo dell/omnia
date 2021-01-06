@@ -37,12 +37,6 @@
       register: munge_service
       tags: TC_001, VERIFY_001
 
-    - name: Checking ntpd service status
-      systemd:
-        name: ntpd
-      register: ntpd_service
-      tags: TC_001, VERIFY_001
-
     - name: Verify all required packages are installed
       assert:
         that: "'{{ item }}' in ansible_facts.packages"
@@ -57,14 +51,6 @@
           - munge_service.status.ActiveState == 'active'
         fail_msg: "{{ munge_service_fail_msg }}"
         success_msg: "{{ munge_service_success_msg }}"
-      tags: TC_001, VERIFY_001
-
-    - name: Validating ntpd service status
-      assert:
-        that:
-          - ntpd_service.status.ActiveState == 'active'
-        fail_msg: "{{ ntpd_service_fail_msg }}"
-        success_msg: "{{ ntpd_service_success_msg }}"
       tags: TC_001, VERIFY_001
 
 # Testcase OMNIA_USP_US_VFSP_TC_002
@@ -91,12 +77,6 @@
       register: munge_service
       tags: TC_002, VERIFY_002
 
-    - name: Checking ntpd service status
-      systemd:
-        name: ntpd
-      register: ntpd_service
-      tags: TC_002, VERIFY_002
-
     - name: Verify all required packages are installed
       assert:
         that: "'{{ item }}' in ansible_facts.packages"
@@ -111,12 +91,4 @@
           - munge_service.status.ActiveState == 'active'
         fail_msg: "{{ munge_service_fail_msg }}"
         success_msg: "{{ munge_service_success_msg }}"
-      tags: TC_002, VERIFY_002
-
-    - name: Validating ntpd service status
-      assert:
-        that:
-          - ntpd_service.status.ActiveState == 'active'
-        fail_msg: "{{ ntpd_service_fail_msg }}"
-        success_msg: "{{ ntpd_service_success_msg }}"
       tags: TC_002, VERIFY_002

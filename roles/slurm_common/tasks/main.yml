@@ -24,7 +24,7 @@
     regexp: localhost.localdomain
     replace: "{{ host_name.stdout }}"
     backup: yes
-    mode: "{{ common_mode ]}"
+    mode: "{{ common_mode }}"
 
 - name: Add host name in hosts file
   lineinfile:
@@ -33,12 +33,6 @@
     state: present
     create: yes
     mode: "{{ common_mode }}"
-
-- name: Install epel repository
-  package:
-    name: epel-release
-    state: present
-  tags: install
 
 - name: Install packages for slurm
   package:
@@ -194,11 +188,3 @@
     enabled: yes
   tags: install
   ignore_errors: yes
-
-- name: Disable selinux
-  selinux:
-    state: disabled
-  tags: install
-
-- name: Deploy time ntp/chrony
-  include_tasks: ntp.yml

@@ -14,7 +14,6 @@
 ---
 
 slurm_packages:
-   - python3
    - gcc
    - openssl
    - numactl
@@ -73,5 +72,3 @@ pidfile: "/var/run/slurmdbd.pid"
 buffer_path: "/tmp/slurm.conf"
 rpm_path: "/root/rpmbuild/RPMS/x86_64/"
 slurm_mode: "0644"
-input_config_pth: "omnia/appliance/input_config.yml"
-vault_path: "omnia/appliance/roles/common/files/.vault_key"

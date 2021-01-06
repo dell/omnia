@@ -19,12 +19,19 @@
   hosts: manager
   vars_files:
     - test_vars/test_slurm_manager_vars.yml
+    - ../appliance/roles/common/vars/main.yml
   tasks:
     - block:
+        - name: Call cluster_validation role
+          include_role:
+            name: ../roles/cluster_validation
+            tasks_from: fetch_password
+          tags: TC_003
+
         - name: Call slurm manager role
           include_role:
             name: ../roles/slurm_manager
-      tags: TC_003
+          tags: TC_003
 
     - name: Fetch slurm packages installed
       package_facts:
@@ -88,12 +95,19 @@
   hosts: manager
   vars_files:
     - test_vars/test_slurm_manager_vars.yml
+    - ../appliance/roles/common/vars/main.yml
   tasks:
     - block:
+        - name: Call cluster_validation role
+          include_role:
+            name: ../roles/cluster_validation
+            tasks_from: fetch_password
+          tags: TC_004
+
         - name: Call slurm manager role
           include_role:
             name: ../roles/slurm_manager
-      tags: TC_004
+          tags: TC_004
 
     - name: Fetch slurm packages installed
       package_facts:

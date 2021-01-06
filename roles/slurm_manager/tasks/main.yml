@@ -47,16 +47,6 @@
   with_items:
     - "{{ log_files_master }}"
 
-- name: Get mariadb password from vault
-  command: ansible-vault view {{ input_config_pth }} --vault-password-file {{ vault_path }}
-  register: vault_contents
-  delegate_to: localhost
-  changed_when: true
-
-- name: Extract db password from input config file
-  set_fact:
-    db_password="{{ vault_contents.stdout | regex_findall('[\n\r].*mariadb_password:\s*\"([^\n\r]*)\"') }}"
-
 - name: Install packages for slurm
   package:
     name: "{{ item }}"
