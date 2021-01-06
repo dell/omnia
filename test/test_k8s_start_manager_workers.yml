@@ -14,7 +14,7 @@
 ---
 
 # OMNIA_UKP_US_VFKP_TC_009, OMNIA_UKP_US_VFKP_TC_010
-# Execute k8s_start_manager role in manager nodes with os installed centos 7.8 and swap enabled
+# Execute k8s_start_manager role in manager nodes with os installed centos 7.9 and swap enabled
 - name: OMNIA_UKP_US_VFKP_TC_009, OMNIA_UKP_US_VFKP_TC_010
   hosts: manager
   gather_facts: false
@@ -106,7 +106,7 @@
       tags: TC_009, TC_010, VERIFY_009
 
 # OMNIA_UKP_US_VFKP_TC_011, OMNIA_UKP_US_VFKP_TC_012
-# Execute k8s_start_workers role in compute nodes with os installed centos 7.8 and swap enabled
+# Execute k8s_start_workers role in compute nodes with os installed centos 7.9 and swap enabled
 - name: OMNIA_UKP_US_VFKP_TC_011, OMNIA_UKP_US_VFKP_TC_012
   hosts: compute
   gather_facts: false

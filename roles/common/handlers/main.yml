@@ -13,18 +13,28 @@
 #  limitations under the License.
 ---
 
-nvidia_docker_repo_url: https://nvidia.github.io/nvidia-docker/centos7/nvidia-docker.repo
+- name: Restart ntpd
+  systemd:
+    name: ntpd
+    state: started
+    enabled: yes
 
-nvidia_docker_repo_dest: /etc/yum.repos.d/nvidia-docker.repo
+- name: Restart chrony
+  service:
+    name: chronyd
+    state: restarted
+    enabled: yes
 
-nvidia_container_repo_url: https://nvidia.github.io/libnvidia-container/centos7/libnvidia-container.repo 
+- name: Sync tp clocks
+  command: ntpdc -np
+  register: ntp_clock
+  until:  ntp_clock.stdout.find('*') > -1
+  retries: "{{ retry_count_one }}"
+  delay: "{{ delay_count_one }}"
 
-nvidia_container_repo_dest: /etc/yum.repos.d/libnvidia-container.repo
-
-nvidia_packages:
-  - kmod-nvidia
-  - nvidia-docker2
-
-daemon_file_dest: /etc/docker/
-
-daemon_file_mode: 0644
+- name: Sync chrony sources
+  command: chronyc sources
+  register: chrony_src
+  until:  chrony_src.stdout.find('^*') > -1
+  retries: "{{ retry_count }}"
+  delay: "{{ delay_count }}"

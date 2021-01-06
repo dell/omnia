@@ -14,12 +14,8 @@
 ---
 
 common_packages:
-  - gcc
-  - python3
-  - pip3
   - docker
-  - nvidia-detect
-  - kubelet
+  - kubelet 
 
 k8_packages:
   - kubeadm

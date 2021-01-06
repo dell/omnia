@@ -14,7 +14,7 @@
 ---
 
 # OMNIA_UKP_US_VFKP_TC_013, OMNIA_UKP_US_VFKP_TC_014
-# Execute startworkers role in compute nodes with os installed centos 7.8 and swap enabled
+# Execute startworkers role in compute nodes with os installed centos 7.9 and swap enabled
 - name: OMNIA_UKP_US_VFKP_TC_013, OMNIA_UKP_US_VFKP_TC_014
   hosts: compute
   vars_files:

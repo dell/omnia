@@ -14,7 +14,7 @@
 ---
 
 # OMNIA_UKP_US_VFKP_TC_005
-# Execute k8s_manager role in manager nodes with os installed centos 7.8
+# Execute k8s_manager role in manager nodes with os installed centos 7.9
 - name: OMNIA_UKP_US_VFKP_TC_005
   hosts: manager
   vars_files:

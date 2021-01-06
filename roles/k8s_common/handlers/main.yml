@@ -18,11 +18,11 @@
     name: docker
     state: restarted
     enabled: yes
-  #tags: install
+  tags: install
 
 - name: Start and Enable Kubernetes - kubelet
   service:
     name: kubelet
     state: started
     enabled: yes
-  #tags: install
+  tags: install

@@ -44,16 +44,6 @@
       ignore_errors: True
       tags: TC_001, VERIFY_001
 
-    - name: Checking nfs-utils and versionlock status
-      command: "{{ item }}"
-      with_items:
-        - "yum versionlock"
-        - "nfsstat"
-      register: nfs_versionlock_status
-      changed_when: false
-      ignore_errors: True
-      tags: TC_001, VERIFY_001
-
     - name: Checking docker service status
       systemd:
         name: docker
@@ -75,7 +65,6 @@
       with_items:
         - "{{ common_packages_status.results }}"
         - "{{ k8s_packages_status.results }}"
-        - "{{ nfs_versionlock_status.results }}"
       tags: TC_001, VERIFY_001
 
     - name: Validating docker service status
@@ -125,16 +114,6 @@
       ignore_errors: True
       tags: TC_002, VERIFY_002
 
-    - name: Checking nfs-utils and versionlock status
-      command: "{{ item }}"
-      with_items:
-        - "yum versionlock"
-        - "nfsstat"
-      register: nfs_versionlock_status
-      changed_when: false
-      ignore_errors: True
-      tags: TC_002, VERIFY_002
-
     - name: Checking docker service status
       systemd:
         name: docker
@@ -157,7 +136,6 @@
       with_items:
         - "{{ common_packages_status.results }}"
         - "{{ k8s_packages_status.results }}"
-        - "{{ nfs_versionlock_status.results }}"
       tags: TC_002, VERIFY_002
 
     - name: Validating docker service status

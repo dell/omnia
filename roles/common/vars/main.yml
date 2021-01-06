@@ -1,0 +1,66 @@
+#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+common_packages:
+  - epel-release
+  - yum-plugin-versionlock
+  - gcc
+  - nfs-utils
+  - python3-pip
+  - bash-completion
+  - nvidia-detect
+  - chrony
+  - pciutils
+
+custom_fact_dir: /etc/ansible/facts.d
+
+custom_fact_dir_mode: 0755
+
+accelerator_discovery_script_dest: /etc/ansible/facts.d/inventory.fact
+
+accelerator_discovery_script_mode: 0755
+
+elrepo_gpg_key_url: https://www.elrepo.org/RPM-GPG-KEY-elrepo.org
+
+elrepo_rpm_url: https://www.elrepo.org/elrepo-release-7.el7.elrepo.noarch.rpm
+
+chrony_path: "/etc/chrony.conf"
+ntp_path: "/etc/ntp.conf"
+ntp_mode: "0644"
+os_higher_version: "8"
+os_version: "7"
+retry_count_one: "10"
+delay_count_one: "60"
+retry_count: "6"
+delay_count: "10"
+
+ntp_servers: 
+  - 0.centos.pool.ntp.org
+  - 1.centos.pool.ntp.org
+  - 2.centos.pool.ntp.org
+chrony_servers:
+  - 2.centos.pool.ntp.org
+
+nvidia_docker_repo_url: https://nvidia.github.io/nvidia-docker/centos7/nvidia-docker.repo
+nvidia_docker_repo_dest: /etc/yum.repos.d/nvidia-docker.repo
+nvidia_container_repo_url: https://nvidia.github.io/libnvidia-container/centos7/libnvidia-container.repo
+nvidia_container_repo_dest: /etc/yum.repos.d/libnvidia-container.repo
+
+nvidia_packages:
+  - kmod-nvidia
+  - nvidia-docker2
+
+daemon_file_dest: /etc/docker/
+daemon_file_mode: 0644

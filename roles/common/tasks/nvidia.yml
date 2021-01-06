@@ -28,7 +28,7 @@
 - name: Install nvidia driver and nvidia-docker2
   package:
     name: "{{ nvidia_packages }}"
-    enablerepo: libnvidia-container, nvidia-docker
+    enablerepo: libnvidia-container,nvidia-docker
     state: present
   tags: install
 
