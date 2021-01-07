@@ -57,12 +57,6 @@
     - k8s_common
   tags: kubernetes
 
-- name: Apply GPU node config
-  hosts: gpus
-  gather_facts: false
-  roles:
-    - compute_gpu
-
 - name: Apply K8s manager config
   hosts: manager
   gather_facts: true
