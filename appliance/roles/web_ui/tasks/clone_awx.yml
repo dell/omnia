@@ -12,9 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-- name: Dynamic Inventory
-  hosts: localhost
-  connection: local
-  gather_facts: no
-  roles:
-    - inventory
+
+- name: Clone AWX repo
+  git:
+    repo: "{{ awx_git_repo }}"
+    dest: "{{ awx_repo_path }}"
+    force: yes
+    version: devel
+  tags: install

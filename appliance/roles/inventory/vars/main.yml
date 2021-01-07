@@ -12,9 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-- name: Dynamic Inventory
-  hosts: localhost
-  connection: local
-  gather_facts: no
-  roles:
-    - inventory
+host_added_msg: "Added host to inventory: "
+host_unreachable_msg: "Following hosts are unreachable: "
