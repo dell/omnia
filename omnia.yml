@@ -13,59 +13,104 @@
 # limitations under the License.
 ---
 
-# Omnia playbook. Will be updated later.
+- name: Validate the cluster
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  roles:
+    - cluster_validation
 
 - name: Gather facts from all the nodes
   hosts: all
 
+- name: Prepare the cluster with passwordless ssh from manager to compute
+  hosts: manager
+  gather_facts: false
+  pre_tasks:
+    - name: Set Fact
+      set_fact:
+        ssh_to: "{{ groups['compute'] }}"
+  roles:
+    - cluster_preperation
+
+- name: Prepare the cluster with passwordless ssh from compute to manager
+  hosts: compute
+  gather_facts: false
+  pre_tasks:
+    - name: Set Fact
+      set_fact:
+        ssh_to: "{{ groups['manager'] }}"
+  roles:
+    - cluster_preperation
+    
 - name: Apply common installation and config
   hosts: manager, compute
   gather_facts: false
   roles:
     - common
- 
-#- name: Apply GPU node config
-#  hosts: gpus
-#  gather_facts: false
-#  roles:
-#    - compute_gpu
+  tags: common
+
+- name: Apply common K8s installation and config
+  hosts: manager, compute
+  gather_facts: false
+  roles:
+    - k8s_common
+  tags: kubernetes
+
+- name: Apply GPU node config
+  hosts: gpus
+  gather_facts: false
+  roles:
+    - compute_gpu
 
 - name: Apply K8s manager config
   hosts: manager
   gather_facts: true
   roles:
-    - manager
+    - k8s_manager
+  tags: kubernetes
 
 - name: Apply K8s firewalld config on manager and compute nodes
   hosts: manager, compute
   gather_facts: false
   roles:
-    - firewalld
+    - k8s_firewalld
+  tags: kubernetes
+
+- name: Apply NFS server setup on manager node
+  hosts: manager
+  gather_facts: false
+  roles:
+    - k8s_nfs_server_setup
+  tags: kubernetes
+
+- name: Apply NFS client setup on compute nodes
+  hosts: compute
+  gather_facts: false
+  roles:
+    - k8s_nfs_client_setup
+  tags: kubernetes
 
 - name: Start K8s on manager server
   hosts: manager
   gather_facts: true
   roles:
-    - startmanager
+    - k8s_start_manager
+  tags: kubernetes
 
 - name: Start K8s worker servers on compute nodes
   hosts: compute
   gather_facts: false
   roles:
-    - startworkers
+    - k8s_start_workers
+  tags: kubernetes
 
 - name: Start K8s worker servers on manager nodes
   hosts: manager
   gather_facts: false
   roles:
-    - startservices
-
-- name: Apply SLURM manager config
-  hosts: manager
-  gather_facts: false
-  roles:
-    - slurm_manager
-  tags: slurm
+    - k8s_start_services
+  tags: kubernetes
 
 - name: Apply common Slurm installation and config
   hosts: manager, compute
@@ -74,11 +119,18 @@
     - slurm_common
   tags: slurm
 
-- name: Start slurm workers
+- name: Apply Slurm manager config
+  hosts: manager
+  gather_facts: false
+  roles:
+    - slurm_manager
+  tags: slurm
+
+- name: Start Slurm workers
   hosts: compute
   gather_facts: false
   roles:
-    - start_slurm_workers
+    - slurm_workers
   tags: slurm
 
 - name: Start Slurm services
@@ -86,4 +138,11 @@
   gather_facts: false
   roles:
     - slurm_start_services
+  tags: slurm
+
+- name: Install slurm exporter
+  hosts: manager
+  gather_facts: false
+  roles:
+    - slurm_exporter
   tags: slurm

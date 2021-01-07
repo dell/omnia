@@ -13,28 +13,10 @@
 #  limitations under the License.
 ---
 
-- name: Restart ntpd
-  systemd:
-    name: ntpd
-    state: started
-    enabled: yes
+kubeflow_install_fail_msg: "Kubeflow (kfctl) is not installed"
 
-- name: Restart chrony
-  service:
-    name: chronyd
-    state: restarted
-    enabled: yes
+kubeflow_install_success_msg: "Kubeflow (kfctl) is installed"
 
-- name: Sync tp clocks
-  command: ntpdc -np
-  register: ntp_clock
-  until:  ntp_clock.stdout.find('*') > -1
-  retries: "{{ retry_count_one }}"
-  delay: "{{ delay_count_one }}"
+kubeflow_pods_deployment_fail_msg: "Kubeflow pods are not deployed"
 
-- name: Sync chrony sources
-  command: chronyc sources
-  register: chrony_src
-  until:  chrony_src.stdout.find('^*') > -1
-  retries: "{{ retry_count }}"
-  delay: "{{ delay_count }}"
+kubeflow_pods_deployment_success_msg: "Kubeflow pods are deployed"
