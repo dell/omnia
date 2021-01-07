@@ -45,7 +45,7 @@
 
 - name:  Permit traffic in default zone on port 69/udp
   firewalld:
-    port: 69/tcp
+    port: 69/udp
     permanent: yes
     state: enabled
   tags: install
