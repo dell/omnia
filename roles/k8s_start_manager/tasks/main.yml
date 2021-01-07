@@ -146,7 +146,7 @@
   changed_when: true
   tags: init
 
-- name: Edge / Workstation Install allows pods to scheudle on manager
+- name: Edge / Workstation Install allows pods to schedule on manager
   command: kubectl taint nodes --all node-role.kubernetes.io/master-
   when: single_node
   tags: init

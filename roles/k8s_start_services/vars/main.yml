@@ -27,8 +27,7 @@ k8s_dashboard_yaml_url: https://raw.githubusercontent.com/kubernetes/dashboard/v
 
 helm_stable_repo_url: https://charts.helm.sh/stable
 
-#nfs_server: "{{ ansible_host }}"
-nfs_server: 10.0.0.1
+nfs_server: "{{ ansible_host }}"
 
 nfs_path: /home/k8snfs
 
