@@ -13,8 +13,8 @@
 #  limitations under the License.
 ---
 
-# Testcase OMNIA_DIO_US_DVC_TC_001 
-# Execute common role in management station with os installed centos 8.2
+# Testcase OMNIA_DIO_US_DVC_TC_001
+# Execute common role in management station with os installed centos 7.9
 - name: OMNIA_DIO_US_DVC_TC_001
   hosts: localhost
   connection: local
@@ -30,27 +30,68 @@
       when: not(ansible_distribution == os_name and ansible_distribution_version >= os_version)
       tags: TC_001
 
+    - name: Delete docker volume
+      docker_volume:
+        name: "{{ docker_volume_name }}"
+        state: absent
+      tags: TC_001
+
     - block:
         - name: Call common role
           include_role:
             name: ../roles/common
+          vars:
+            input_config_filename: "{{ test_input_config_filename }}"
       tags: TC_001
+
+    - name: Fetch package installed
+      package_facts:
+        manager: auto
+      tags: TC_001,VERIFY_001
+
+    - name: Verify all required packages is installed
+      assert:
+        that: "'{{ item }}' in ansible_facts.packages"
+        success_msg: "{{ install_package_success_msg }}"
+        fail_msg: "{{ install_package_fail_msg }}"
+      when: "'python-docker' not in item"
+      with_items: "{{ common_packages }}"
+      tags: TC_001,VERIFY_001
+
+    - name: Verify python-docker-py package is installed
+      assert:
+        that: "'python-docker-py' in ansible_facts.packages"
+        success_msg: "{{ install_package_success_msg }}"
+        fail_msg: "{{ install_package_fail_msg }}"
+      tags: TC_001,VERIFY_001
 
     - name: Fetching docker volume info
       docker_volume_info:
         name: "{{ docker_volume_name }}"
       register: docker_volume_status
-      tags: TC_001
+      tags: TC_001,VERIFY_001
 
     - name: Validate docker volume
       assert:
-        that:
-          - docker_volume_status.exists
+        that: docker_volume_status.exists
         fail_msg: "{{ docker_volume_fail_msg }}"
         success_msg: "{{ docker_volume_success_msg }}"
-      tags: TC_001
+      tags: TC_001,VERIFY_001
 
-# Testcase OMNIA_DIO_US_DVC_TC_002 
+    - name: Check input config file is encrypted
+      command: cat {{ test_input_config_filename }}
+      changed_when: false
+      register: config_content
+      tags: TC_001,VERIFY_001
+
+    - name: Validate input config file is encypted or not
+      assert:
+        that: "'$ANSIBLE_VAULT;' in config_content.stdout"
+        fail_msg: "{{ input_config_fail_msg }}"
+        success_msg: "{{ input_config_success_msg }}"
+      tags: TC_001,VERIFY_001
+
+# Testcase OMNIA_DIO_US_DVC_TC_002
 # Execute common role in management station with docker volume omnia-storage already present
 - name: OMNIA_DIO_US_DVC_TC_002
   hosts: localhost
@@ -65,24 +106,59 @@
         - name: Call common role
           include_role:
             name: ../roles/common
+          vars:
+            input_config_filename: "{{ test_input_config_filename }}"
       tags: TC_002
+
+    - name: Fetch package installed
+      package_facts:
+        manager: auto
+      tags: TC_002,VERIFY_002
+
+    - name: Verify all required packages is installed
+      assert:
+        that: "'{{ item }}' in ansible_facts.packages"
+        success_msg: "{{ install_package_success_msg }}"
+        fail_msg: "{{ install_package_fail_msg }}"
+      when: "'python-docker' not in item"
+      with_items: "{{ common_packages }}"
+      tags: TC_002,VERIFY_002
+
+    - name: Verify python-docker-py package is installed
+      assert:
+        that: "'python-docker-py' in ansible_facts.packages"
+        success_msg: "{{ install_package_success_msg }}"
+        fail_msg: "{{ install_package_fail_msg }}"
+      tags: TC_002,VERIFY_002
 
     - name: Fetching docker volume info
       docker_volume_info:
         name: "{{ docker_volume_name }}"
       register: docker_volume_status
-      tags: TC_002
+      tags: TC_002,VERIFY_002
 
     - name: Validate docker volume
       assert:
-        that:
-          - docker_volume_status.exists
+        that: docker_volume_status.exists
         fail_msg: "{{ docker_volume_fail_msg }}"
         success_msg: "{{ docker_volume_success_msg }}"
-      tags: TC_002
+      tags: TC_002,VERIFY_002
 
-# Testcase OMNIA_DIO_US_DVC_TC_003 
-# Execute common role in management station with os installed different than centos 8.2
+    - name: Check input config file is encrypted
+      command: cat {{ test_input_config_filename }}
+      changed_when: false
+      register: config_content
+      tags: TC_002,VERIFY_002
+
+    - name: Validate input config file is encypted or not
+      assert:
+        that: "'$ANSIBLE_VAULT;' in config_content.stdout"
+        fail_msg: "{{ input_config_fail_msg }}"
+        success_msg: "{{ input_config_success_msg }}"
+      tags: TC_002,VERIFY_002
+
+# Testcase OMNIA_DIO_US_DVC_TC_003
+# Execute common role in management station with os installed different than centos 7.9
 - name: OMNIA_DIO_US_DVC_TC_003
   hosts: localhost
   connection: local
@@ -97,6 +173,7 @@
           include_role:
             name: ../roles/common
           vars:
+            input_config_filename: "{{ test_input_config_filename }}"
             ansible_distribution_version: "{{ centos_version }}"
 
       rescue:
@@ -130,6 +207,8 @@
         - name: Call common role
           include_role:
             name: ../roles/common
+          vars:
+            input_config_filename: "{{ test_input_config_filename }}"
 
       rescue:
         - name: Validate internet connectivity failure message
@@ -163,7 +242,7 @@
 
     - block:
         - name: Execute playbook with different user
-          command: ansible-playbook ../appliance.yml --become-user=temp
+          command: ansible-playbook ../appliance.yml --become-user=temp -e "input_config_filename=test/input_config_test.yml"
           register: temp_user_output
 
       rescue:
@@ -210,6 +289,8 @@
         - name: Call common role
           include_role:
             name: ../roles/common
+          vars:
+            input_config_filename: "{{ test_input_config_filename }}"
 
       rescue:
         - name: Validate selinux failure message
@@ -223,3 +304,1240 @@
       selinux:
         state: disabled
       tags: TC_006
+
+# Testcase OMNIA_DIO_US_DVC_TC_007
+# Execute common role in management station with all input paramter as empty
+- name: OMNIA_DIO_US_DVC_TC_007
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+            tasks_from: "{{ password_config_file }}"
+          vars:
+            input_config_filename: "{{ empty_input_config_filename }}"
+      rescue:
+        - name: Validate error
+          assert:
+            that: input_config_failure_msg in input_config_check.msg
+            success_msg: "{{ input_config_check_success_msg }}"
+            fail_msg: "{{ input_config_check_fail_msg }}"
+      tags: TC_007
+
+# Testcase OMNIA_DIO_US_DVC_TC_008
+# Execute common role in management station with provision_password as empty
+- name: OMNIA_DIO_US_DVC_TC_008
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_008
+
+    - name: Copy "{{ empty_input_config_filename }}" to new file
+      copy:
+        src: "{{ empty_input_config_filename }}"
+        dest: "{{ new_input_config_filename }}"
+      tags: TC_008
+
+    - name: Edit "{{ new_input_config_filename }}"
+      replace:
+        path: "{{ new_input_config_filename }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      with_items:
+        - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ min_length_password }}\"" }
+      tags: TC_008
+
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+            tasks_from: "{{ password_config_file }}"
+          vars:
+            input_config_filename: "{{ new_input_config_filename }}"
+      rescue:
+        - name: Validate error
+          assert:
+            that: input_config_failure_msg in input_config_check.msg
+            success_msg: "{{ input_config_check_success_msg }}"
+            fail_msg: "{{ input_config_check_fail_msg }}"
+      tags: TC_008
+
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_008
+
+# Testcase OMNIA_DIO_US_DVC_TC_009
+# Execute common role in management station with awx_password as empty
+- name: OMNIA_DIO_US_DVC_TC_009
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_009
+
+    - name: Copy "{{ empty_input_config_filename }}" to new file
+      copy:
+        src: "{{ empty_input_config_filename }}"
+        dest: "{{ new_input_config_filename }}"
+      tags: TC_009
+
+    - name: Edit "{{ new_input_config_filename }}"
+      replace:
+        path: "{{ new_input_config_filename }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      with_items:
+        - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ min_length_password }}\"" }
+      tags: TC_009
+
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+            tasks_from: "{{ password_config_file }}"
+          vars:
+            input_config_filename: "{{ new_input_config_filename }}"
+      rescue:
+        - name: Validate error
+          assert:
+            that: input_config_failure_msg in input_config_check.msg
+            success_msg: "{{ input_config_check_success_msg }}"
+            fail_msg: "{{ input_config_check_fail_msg }}"
+      tags: TC_009
+
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_009
+
+# Testcase OMNIA_DIO_US_DVC_TC_010
+# Execute common role in management station with mariadb_password as empty
+- name: OMNIA_DIO_US_DVC_TC_010
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_010
+
+    - name: Copy "{{ empty_input_config_filename }}" to new file
+      copy:
+        src: "{{ empty_input_config_filename }}"
+        dest: "{{ new_input_config_filename }}"
+      tags: TC_010
+
+    - name: Edit "{{ new_input_config_filename }}"
+      replace:
+        path: "{{ new_input_config_filename }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      with_items:
+        - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
+        - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
+      tags: TC_010
+
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+            tasks_from: "{{ password_config_file }}"
+          vars:
+            input_config_filename: "{{ new_input_config_filename }}"
+      rescue:
+        - name: Validate error
+          assert:
+            that: input_config_failure_msg in input_config_check.msg
+            success_msg: "{{ input_config_check_success_msg }}"
+            fail_msg: "{{ input_config_check_fail_msg }}"
+      tags: TC_010
+
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_010
+
+# Testcase OMNIA_DIO_US_DVC_TC_011
+# Execute common role in management station with provision_password of more than 31 characters
+- name: OMNIA_DIO_US_DVC_TC_011
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_011
+
+    - name: Copy "{{ empty_input_config_filename }}" to new file
+      copy:
+        src: "{{ empty_input_config_filename }}"
+        dest: "{{ new_input_config_filename }}"
+      tags: TC_011
+
+    - name: Edit "{{ new_input_config_filename }}"
+      replace:
+        path: "{{ new_input_config_filename }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      with_items:
+        - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ long_password }}\"" }
+        - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ min_length_password }}\"" }
+      tags: TC_011
+
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+            tasks_from: "{{ password_config_file }}"
+          vars:
+            input_config_filename: "{{ new_input_config_filename }}"
+      rescue:
+        - name: Validate error
+          assert:
+            that: fail_msg_provision_password in cobbler_password_check.msg
+            success_msg: "{{ input_config_check_success_msg }}"
+            fail_msg: "{{ input_config_check_fail_msg }}"
+      tags: TC_011
+
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_011
+
+# Testcase OMNIA_DIO_US_DVC_TC_012
+# Execute common role in management station with provision_password as string contains white spaces
+- name: OMNIA_DIO_US_DVC_TC_012
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_012
+
+    - name: Copy "{{ empty_input_config_filename }}" to new file
+      copy:
+        src: "{{ empty_input_config_filename }}"
+        dest: "{{ new_input_config_filename }}"
+      tags: TC_012
+
+    - name: Edit "{{ new_input_config_filename }}"
+      replace:
+        path: "{{ new_input_config_filename }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      with_items:
+        - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ white_space_password }}\"" }
+        - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ min_length_password }}\"" }
+      tags: TC_012
+
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+            tasks_from: "{{ password_config_file }}"
+          vars:
+            input_config_filename: "{{ new_input_config_filename }}"
+      always:
+        - name: Validate success message
+          assert:
+            that: success_msg_provision_password in cobbler_password_check.msg
+            success_msg: "{{ input_config_check_success_msg }}"
+            fail_msg: "{{ input_config_check_fail_msg }}"
+      tags: TC_012
+
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_012
+
+# Testcase OMNIA_DIO_US_DVC_TC_013
+# Execute common role in management station with provision_password as string contains characters like '/' and '-'
+- name: OMNIA_DIO_US_DVC_TC_013
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_013
+
+    - name: Copy "{{ empty_input_config_filename }}" to new file
+      copy:
+        src: "{{ empty_input_config_filename }}"
+        dest: "{{ new_input_config_filename }}"
+      tags: TC_013
+
+    - name: Edit "{{ new_input_config_filename }}"
+      replace:
+        path: "{{ new_input_config_filename }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      with_items:
+        - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ special_character_password1 }}\"" }
+        - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ min_length_password }}\"" }
+      tags: TC_013
+
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+            tasks_from: "{{ password_config_file }}"
+          vars:
+            input_config_filename: "{{ new_input_config_filename }}"
+      rescue:
+        - name: Validate error
+          assert:
+            that: fail_msg_provision_password in cobbler_password_check.msg
+            success_msg: "{{ input_config_check_success_msg }}"
+            fail_msg: "{{ input_config_check_fail_msg }}"
+      tags: TC_013
+
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_013
+
+# Testcase OMNIA_DIO_US_DVC_TC_014
+# Execute common role in management station with provision_password as string contains special characters other than '-', '/'
+- name: OMNIA_DIO_US_DVC_TC_014
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_014
+
+    - name: Copy "{{ empty_input_config_filename }}" to new file
+      copy:
+        src: "{{ empty_input_config_filename }}"
+        dest: "{{ new_input_config_filename }}"
+      tags: TC_014
+
+    - name: Edit "{{ new_input_config_filename }}"
+      replace:
+        path: "{{ new_input_config_filename }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      with_items:
+        - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ special_character_password2 }}\"" }
+        - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ min_length_password }}\"" }
+      tags: TC_014
+
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+            tasks_from: "{{ password_config_file }}"
+          vars:
+            input_config_filename: "{{ new_input_config_filename }}"
+      always:
+        - name: Validate success message
+          assert:
+            that: success_msg_provision_password in cobbler_password_check.msg
+            success_msg: "{{ input_config_check_success_msg }}"
+            fail_msg: "{{ input_config_check_fail_msg }}"
+      tags: TC_014
+
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_014
+
+# Testcase OMNIA_DIO_US_DVC_TC_015
+# Execute common role in management station with awx_password of more than 31 characters
+- name: OMNIA_DIO_US_DVC_TC_015
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_015
+
+    - name: Copy "{{ empty_input_config_filename }}" to new file
+      copy:
+        src: "{{ empty_input_config_filename }}"
+        dest: "{{ new_input_config_filename }}"
+      tags: TC_015
+
+    - name: Edit "{{ new_input_config_filename }}"
+      replace:
+        path: "{{ new_input_config_filename }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      with_items:
+        - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ long_password }}\"" }
+        - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ min_length_password }}\"" }
+      tags: TC_015
+
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+            tasks_from: "{{ password_config_file }}"
+          vars:
+            input_config_filename: "{{ new_input_config_filename }}"
+      rescue:
+        - name: Validate error
+          assert:
+            that: fail_msg_awx_password in awx_password_check.msg
+            success_msg: "{{ input_config_check_success_msg }}"
+            fail_msg: "{{ input_config_check_fail_msg }}"
+      tags: TC_015
+
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_015
+
+# Testcase OMNIA_DIO_US_DVC_TC_016
+# Execute common role in management station with awx_password as string contains white spaces
+- name: OMNIA_DIO_US_DVC_TC_016
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_016
+
+    - name: Copy "{{ empty_input_config_filename }}" to new file
+      copy:
+        src: "{{ empty_input_config_filename }}"
+        dest: "{{ new_input_config_filename }}"
+      tags: TC_016
+
+    - name: Edit "{{ new_input_config_filename }}"
+      replace:
+        path: "{{ new_input_config_filename }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      with_items:
+        - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ white_space_password }}\"" }
+        - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ min_length_password }}\"" }
+      tags: TC_016
+
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+            tasks_from: "{{ password_config_file }}"
+          vars:
+            input_config_filename: "{{ new_input_config_filename }}"
+      always:
+        - name: Validate success message
+          assert:
+            that: success_msg_awx_password in awx_password_check.msg
+            success_msg: "{{ input_config_check_success_msg }}"
+            fail_msg: "{{ input_config_check_fail_msg }}"
+      tags: TC_016
+
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_016
+
+# Testcase OMNIA_DIO_US_DVC_TC_017
+# Execute common role in management station with awx_password as string contains characters like '/' and '-'
+- name: OMNIA_DIO_US_DVC_TC_017
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_017
+
+    - name: Copy "{{ empty_input_config_filename }}" to new file
+      copy:
+        src: "{{ empty_input_config_filename }}"
+        dest: "{{ new_input_config_filename }}"
+      tags: TC_017
+
+    - name: Edit "{{ new_input_config_filename }}"
+      replace:
+        path: "{{ new_input_config_filename }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      with_items:
+        - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ special_character_password1 }}\"" }
+        - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ min_length_password }}\"" }
+      tags: TC_017
+
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+            tasks_from: "{{ password_config_file }}"
+          vars:
+            input_config_filename: "{{ new_input_config_filename }}"
+      rescue:
+        - name: Validate error
+          assert:
+            that: fail_msg_awx_password in awx_password_check.msg
+            success_msg: "{{ input_config_check_success_msg }}"
+            fail_msg: "{{ input_config_check_fail_msg }}"
+      tags: TC_017
+
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_017
+
+# Testcase OMNIA_DIO_US_DVC_TC_018
+# Execute common role in management station with awx_password as string contains special characters other than '-', '/'
+- name: OMNIA_DIO_US_DVC_TC_018
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_018
+
+    - name: Copy "{{ empty_input_config_filename }}" to new file
+      copy:
+        src: "{{ empty_input_config_filename }}"
+        dest: "{{ new_input_config_filename }}"
+      tags: TC_018
+
+    - name: Edit "{{ new_input_config_filename }}"
+      replace:
+        path: "{{ new_input_config_filename }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      with_items:
+        - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ special_character_password2 }}\"" }
+        - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ min_length_password }}\"" }
+      tags: TC_018
+
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+            tasks_from: "{{ password_config_file }}"
+          vars:
+            input_config_filename: "{{ new_input_config_filename }}"
+      always:
+        - name: Validate success message
+          assert:
+            that: success_msg_awx_password in awx_password_check.msg
+            success_msg: "{{ input_config_check_success_msg }}"
+            fail_msg: "{{ input_config_check_fail_msg }}"
+      tags: TC_018
+
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_018
+
+# Testcase OMNIA_DIO_US_DVC_TC_019
+# Execute common role in management station with mariadb_password of more than 31 characters
+- name: OMNIA_DIO_US_DVC_TC_019
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_019
+
+    - name: Copy "{{ empty_input_config_filename }}" to new file
+      copy:
+        src: "{{ empty_input_config_filename }}"
+        dest: "{{ new_input_config_filename }}"
+      tags: TC_019
+
+    - name: Edit "{{ new_input_config_filename }}"
+      replace:
+        path: "{{ new_input_config_filename }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      with_items:
+        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ long_password }}\"" }
+        - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
+        - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
+      tags: TC_019
+
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+            tasks_from: "{{ password_config_file }}"
+          vars:
+            input_config_filename: "{{ new_input_config_filename }}"
+      rescue:
+        - name: Validate error
+          assert:
+            that: fail_msg_mariadb_password in mariadb_password_check.msg
+            success_msg: "{{ input_config_check_success_msg }}"
+            fail_msg: "{{ input_config_check_fail_msg }}"
+      tags: TC_019
+
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_019
+
+# Testcase OMNIA_DIO_US_DVC_TC_020
+# Execute common role in management station with mariadb_password as string contains white spaces
+- name: OMNIA_DIO_US_DVC_TC_020
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_020
+
+    - name: Copy "{{ empty_input_config_filename }}" to new file
+      copy:
+        src: "{{ empty_input_config_filename }}"
+        dest: "{{ new_input_config_filename }}"
+      tags: TC_020
+
+    - name: Edit "{{ new_input_config_filename }}"
+      replace:
+        path: "{{ new_input_config_filename }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      with_items:
+        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ white_space_password }}\"" }
+        - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
+        - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
+      tags: TC_020
+
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+            tasks_from: "{{ password_config_file }}"
+          vars:
+            input_config_filename: "{{ new_input_config_filename }}"
+      always:
+        - name: Validate success message
+          assert:
+            that: success_msg_mariadb_password in mariadb_password_check.msg
+            success_msg: "{{ input_config_check_success_msg }}"
+            fail_msg: "{{ input_config_check_fail_msg }}"
+      tags: TC_020
+
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_020
+
+# Testcase OMNIA_DIO_US_DVC_TC_021
+# Execute common role in management station with mariadb_password as string contains characters like '/' and '-'
+- name: OMNIA_DIO_US_DVC_TC_021
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_021
+
+    - name: Copy "{{ empty_input_config_filename }}" to new file
+      copy:
+        src: "{{ empty_input_config_filename }}"
+        dest: "{{ new_input_config_filename }}"
+      tags: TC_021
+
+    - name: Edit "{{ new_input_config_filename }}"
+      replace:
+        path: "{{ new_input_config_filename }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      with_items:
+        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ special_character_password1 }}\"" }
+        - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
+        - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
+      tags: TC_021
+
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+            tasks_from: "{{ password_config_file }}"
+          vars:
+            input_config_filename: "{{ new_input_config_filename }}"
+      rescue:
+        - name: Validate error
+          assert:
+            that: fail_msg_mariadb_password in mariadb_password_check.msg
+            success_msg: "{{ input_config_check_success_msg }}"
+            fail_msg: "{{ input_config_check_fail_msg }}"
+      tags: TC_021
+
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_021
+
+# Testcase OMNIA_DIO_US_DVC_TC_022
+# Execute common role in management station with mariadb_password as string contains special characters other than '-', '/'
+- name: OMNIA_DIO_US_DVC_TC_022
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_022
+
+    - name: Copy "{{ empty_input_config_filename }}" to new file
+      copy:
+        src: "{{ empty_input_config_filename }}"
+        dest: "{{ new_input_config_filename }}"
+      tags: TC_022
+
+    - name: Edit "{{ new_input_config_filename }}"
+      replace:
+        path: "{{ new_input_config_filename }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      with_items:
+        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ special_character_password2 }}\"" }
+        - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
+        - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
+      tags: TC_022
+
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+            tasks_from: "{{ password_config_file }}"
+          vars:
+            input_config_filename: "{{ new_input_config_filename }}"
+      always:
+        - name: Validate success message
+          assert:
+            that: success_msg_mariadb_password in mariadb_password_check.msg
+            success_msg: "{{ input_config_check_success_msg }}"
+            fail_msg: "{{ input_config_check_fail_msg }}"
+      tags: TC_022
+
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_022
+
+# Testcase OMNIA_DIO_US_DVC_TC_023
+# Execute common role in management station with mariadb_password of 30 characters
+- name: OMNIA_DIO_US_DVC_TC_023
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_023
+
+    - name: Copy "{{ empty_input_config_filename }}" to new file
+      copy:
+        src: "{{ empty_input_config_filename }}"
+        dest: "{{ new_input_config_filename }}"
+      tags: TC_023
+
+    - name: Edit "{{ new_input_config_filename }}"
+      replace:
+        path: "{{ new_input_config_filename }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      with_items:
+        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ max_length_password }}\"" }
+        - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
+        - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
+      tags: TC_023
+
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+            tasks_from: "{{ password_config_file }}"
+          vars:
+            input_config_filename: "{{ new_input_config_filename }}"
+      always:
+        - name: Validate success message
+          assert:
+            that: success_msg_mariadb_password in mariadb_password_check.msg
+            success_msg: "{{ input_config_check_success_msg }}"
+            fail_msg: "{{ input_config_check_fail_msg }}"
+      tags: TC_023
+
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_023
+
+# Testcase OMNIA_DIO_US_DVC_TC_024
+# Execute common role in management station with awx_password of 30 characters
+- name: OMNIA_DIO_US_DVC_TC_024
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_024
+
+    - name: Copy "{{ empty_input_config_filename }}" to new file
+      copy:
+        src: "{{ empty_input_config_filename }}"
+        dest: "{{ new_input_config_filename }}"
+      tags: TC_024
+
+    - name: Edit "{{ new_input_config_filename }}"
+      replace:
+        path: "{{ new_input_config_filename }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      with_items:
+        - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ max_length_password }}\"" }
+        - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ min_length_password }}\"" }
+      tags: TC_024
+
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+            tasks_from: "{{ password_config_file }}"
+          vars:
+            input_config_filename: "{{ new_input_config_filename }}"
+      always:
+        - name: Validate success message
+          assert:
+            that: success_msg_awx_password in awx_password_check.msg
+            success_msg: "{{ input_config_check_success_msg }}"
+            fail_msg: "{{ input_config_check_fail_msg }}"
+      tags: TC_024
+
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_024
+
+# Testcase OMNIA_DIO_US_DVC_TC_025
+# Execute common role in management station with provision_password of 30 characters
+- name: OMNIA_DIO_US_DVC_TC_025
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_025
+
+    - name: Copy "{{ empty_input_config_filename }}" to new file
+      copy:
+        src: "{{ empty_input_config_filename }}"
+        dest: "{{ new_input_config_filename }}"
+      tags: TC_025
+
+    - name: Edit "{{ new_input_config_filename }}"
+      replace:
+        path: "{{ new_input_config_filename }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      with_items:
+        - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ max_length_password }}\"" }
+        - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ min_length_password }}\"" }
+      tags: TC_025
+
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+            tasks_from: "{{ password_config_file }}"
+          vars:
+            input_config_filename: "{{ new_input_config_filename }}"
+      always:
+        - name: Validate success message
+          assert:
+            that: success_msg_provision_password in cobbler_password_check.msg
+            success_msg: "{{ input_config_check_success_msg }}"
+            fail_msg: "{{ input_config_check_fail_msg }}"
+      tags: TC_025
+
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_025
+
+# Testcase OMNIA_DIO_US_DVC_TC_026
+# Execute common role in management station with hpc_nic and public_nic as same value
+- name: OMNIA_DIO_US_DVC_TC_026
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_026
+
+    - name: Copy "{{ empty_input_config_filename }}" to new file
+      copy:
+        src: "{{ empty_input_config_filename }}"
+        dest: "{{ new_input_config_filename }}"
+      tags: TC_026
+
+    - name: Edit "{{ new_input_config_filename }}"
+      replace:
+        path: "{{ new_input_config_filename }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      with_items:
+        - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
+        - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ min_length_password }}\"" }
+        - { regexp: "hpc_nic: \"em1\"", replace: "hpc_nic: \"em2\"" }
+      tags: TC_026
+
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+            tasks_from: "{{ password_config_file }}"
+          vars:
+            input_config_filename: "{{ new_input_config_filename }}"
+      rescue:
+        - name: Validate error
+          assert:
+            that: fail_msg_hpc_nic in hpc_nic_check.msg
+            success_msg: "{{ input_config_check_success_msg }}"
+            fail_msg: "{{ input_config_check_fail_msg }}"
+      tags: TC_026
+
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_026
+
+# Testcase OMNIA_DIO_US_DVC_TC_027
+# Execute common role in management station with hpc_nic as empty
+- name: OMNIA_DIO_US_DVC_TC_027
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_027
+
+    - name: Copy "{{ empty_input_config_filename }}" to new file
+      copy:
+        src: "{{ empty_input_config_filename }}"
+        dest: "{{ new_input_config_filename }}"
+      tags: TC_027
+
+    - name: Edit "{{ new_input_config_filename }}"
+      replace:
+        path: "{{ new_input_config_filename }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      with_items:
+        - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
+        - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ min_length_password }}\"" }
+        - { regexp: "hpc_nic: \"em1\"", replace: "hpc_nic: \"\"" }
+      tags: TC_027
+
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+            tasks_from: "{{ password_config_file }}"
+          vars:
+            input_config_filename: "{{ new_input_config_filename }}"
+      rescue:
+        - name: Validate error
+          assert:
+            that: input_config_failure_msg in input_config_check.msg
+            success_msg: "{{ input_config_check_success_msg }}"
+            fail_msg: "{{ input_config_check_fail_msg }}"
+      tags: TC_027
+
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_027
+
+# Testcase OMNIA_DIO_US_DVC_TC_028
+# Execute common role in management station with public_nic as empty
+- name: OMNIA_DIO_US_DVC_TC_028
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_028
+
+    - name: Copy "{{ empty_input_config_filename }}" to new file
+      copy:
+        src: "{{ empty_input_config_filename }}"
+        dest: "{{ new_input_config_filename }}"
+      tags: TC_028
+
+    - name: Edit "{{ new_input_config_filename }}"
+      replace:
+        path: "{{ new_input_config_filename }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      with_items:
+        - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
+        - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ min_length_password }}\"" }
+        - { regexp: "public_nic: \"em2\"", replace: "public_nic: \"\"" }
+      tags: TC_028
+
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+            tasks_from: "{{ password_config_file }}"
+          vars:
+            input_config_filename: "{{ new_input_config_filename }}"
+      rescue:
+        - name: Validate error
+          assert:
+            that: input_config_failure_msg in input_config_check.msg
+            success_msg: "{{ input_config_check_success_msg }}"
+            fail_msg: "{{ input_config_check_fail_msg }}"
+      tags: TC_028
+
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_028
+
+# Testcase OMNIA_DIO_US_DVC_TC_029
+# Execute common role in management station with public_nic other than em1, em2 or em3
+- name: OMNIA_DIO_US_DVC_TC_029
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_029
+
+    - name: Copy "{{ empty_input_config_filename }}" to new file
+      copy:
+        src: "{{ empty_input_config_filename }}"
+        dest: "{{ new_input_config_filename }}"
+      tags: TC_029
+
+    - name: Edit "{{ new_input_config_filename }}"
+      replace:
+        path: "{{ new_input_config_filename }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      with_items:
+        - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
+        - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ min_length_password }}\"" }
+        - { regexp: "public_nic: \"em2\"", replace: "public_nic: \"em5\"" }
+      tags: TC_029
+
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+            tasks_from: "{{ password_config_file }}"
+          vars:
+            input_config_filename: "{{ new_input_config_filename }}"
+      rescue:
+        - name: Validate error
+          assert:
+            that: fail_msg_public_nic in public_nic_check.msg
+            success_msg: "{{ input_config_check_success_msg }}"
+            fail_msg: "{{ input_config_check_fail_msg }}"
+      tags: TC_029
+
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_029

@@ -14,11 +14,7 @@
 ---
 
 # Usage: test_provision_cdip.yml
-empty_password: ""
-lengthy_password: "a1b2c3d4e5f6g7h8i9j10k11"
-whitespace_password: "hello world 123"
-special_character_password: "hello@123#%"
-first_nic: "eno1"
+first_nic: "em1"
 nic1_ip_address: 172.17.0.1
 validate_password_success_msg: "Password validation successful"
 validate_password_fail_msg: "Password validation failed"
@@ -35,6 +31,8 @@ cobbler_image_files:
  - firewall_settings
  - provision_password
  - cobbler_image
+password_config_file: "password_config"
+test_input_config_filename: "input_config_test.yml"
 
 # Usage: test_provision_cc.yml
 docker_check_success_msg: "Docker service stopped usescase validation successful"
@@ -55,7 +53,20 @@ kickstart_file_fail_msg: "Kickstart file validation failed"
 kickstart_file_success_msg: "Kickstart file validation successful"
 cobbler_reboot_fail_msg: "Cobbler container failed to start after reboot"
 cobbler_reboot_success_msg: "Cobbler container started successfully after reboot"
-kickstart_filename: "centos8.ks"
+crontab_list_fail_msg: "Crontab list validation failed"
+crontab_list_success_msg: "Crontab list validation successful"
+iso_check_fail_msg: "centos iso file check validation failed"
+iso_check_success_msg: "centos iso file check validation successful"
+cobbler_service_check_fail_msg: "TFTP service validation failed"
+cobbler_service_check_success_msg: "TFTP service validation successful"
+kickstart_filename: "centos7.ks"
+iso_file_path: "../roles/provision/files"
+temp_iso_name: "temp_centos.iso"
+cobbler_services:
+ - tftp
+ - dhcpd
+ - cobblerd
+ - xinetd
 
 # Usage: test_provision_cdip.yml, test_provision_cc.yml, test_provision_ndod.yml
 docker_container_name: "cobbler"
@@ -68,5 +79,7 @@ authentication_fail_msg: "Server authentication validation failed"
 authentication_success_msg: "Server authentication validation successful"
 ip_address_fail_msg: "IP address validation failed"
 ip_address_success_msg: "IP address validation successful"
-cobbler_groupname: "cobbler_servers"
+cobbler_groupname: "all"
+inventory_file: "provisioned_hosts.yml"
 file_permission: 0644
+vault_path: ../roles/common/files/.vault_key
