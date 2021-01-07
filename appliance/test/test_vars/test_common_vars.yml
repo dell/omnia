@@ -14,24 +14,31 @@
 ---
 
 # vars file for test_common.yml file
-docker_volume_fail_msg: "Docker volume omnia-storage does not exist"
+centos_version: '7.8'
+test_input_config_filename: "input_config_test.yml"
+empty_input_config_filename: "input_config_empty.yml"
+new_input_config_filename: "input_config_new.yml"
+password_config_file: "password_config"
+min_length_password: "testpass"
+max_length_password: "helloworld123helloworld12hello"
+long_password: "helloworld123hellowordl12hello3"
+white_space_password: "hello world 123"
+special_character_password1: "hello-world/"
+special_character_password2: "hello@$%!world"
 
 docker_volume_success_msg: "Docker volume omnia-storage exists"
-
-centos_version: '7.8'
-
+docker_volume_fail_msg: "Docker volume omnia-storage does not exist"
+input_config_success_msg: "Input config file is encrypted using ansible-vault successfully"
+input_config_fail_msg: "Input config file is failed to encrypt using ansible-vault"
 os_check_success_msg: "OS check passed"
-
 os_check_fail_msg: "OS check failed"
-
 internet_check_success_msg: "Internet connectivity check passed"
-
 internet_check_fail_msg: "Internet connectivity check failed"
-
 different_user_check_success_msg: "Different user execution check passed"
-
 different_user_check_fail_msg: "Different user execution check failed"
-
 selinux_check_success_msg: "selinux check passed"
-
 selinux_check_fail_msg: "selinux check failed"
+input_config_check_success_msg: "input_config.yml validation passed"
+input_config_check_fail_msg: "input_config.yml validation failed"
+install_package_success_msg: "Installation of package is successful"
+install_package_fail_msg: "Installation of package is failed"

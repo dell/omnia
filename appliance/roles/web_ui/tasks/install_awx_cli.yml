@@ -16,10 +16,12 @@
 # Tasks for installing AWX-CLI
 - name: Add AWX CLI repo
   block:
-    - get_url:
+    - name: Get repo
+      get_url:
         url: "{{ awx_cli_repo }}"
         dest: "{{ awx_cli_repo_path }}"
-    - replace:
+    - name: Disable gpgcheck
+      replace:
         path: "{{ awx_cli_repo_path }}"
         regexp: 'gpgcheck=1'
         replace: 'gpgcheck=0'
