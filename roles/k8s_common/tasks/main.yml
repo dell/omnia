@@ -14,12 +14,16 @@
 ---
 
 - name: Add kubernetes repo
-  copy:
-    src: kubernetes.repo
-    dest: "{{ k8s_repo_dest }}"
-    owner: root
-    group: root
-    mode: "{{ k8s_repo_file_mode }}"
+  yum_repository:
+    name: kubernetes
+    description: kubernetes
+    baseurl: https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+    enabled: yes
+    gpgcheck: no
+    repo_gpgcheck: no
+    gpgkey: 
+      - https://packages.cloud.google.com/yum/doc/yum-key.gpg 
+      - https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
   tags: install
 
 - name: Update sysctl to handle incorrectly routed traffic when iptables is bypassed
