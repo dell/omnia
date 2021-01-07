@@ -15,17 +15,17 @@
 
 - name: Configure NIC-1
   copy:
-    src: "ifcfg-{{ eno }}"
-    dest: "/etc/sysconfig/network-scripts/ifcfg-{{ eno }}"
+    src: "ifcfg-{{ nic }}"
+    dest: "/etc/sysconfig/network-scripts/ifcfg-{{ nic }}"
     mode: 0644
   tags: install
 
 - name: Restart NIC
-  command: ifdown {{ eno }}
+  command: ifdown {{ nic }}
   changed_when: false
   tags: install
 
 - name: Restart NIC
-  command: ifup {{ eno }}
+  command: ifup {{ nic }}
   changed_when: false
   tags: install

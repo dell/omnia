@@ -32,13 +32,13 @@
 
 - name: Update mount status
   set_fact:
-    mount_check: result.failed
+    mount_check: "{{ result.failed }}"
   tags: install
 
 - name: Mount the iso file
-  command: mount -o loop {{ role_path }}/files/{{ iso_image }} /mnt/{{ iso_path }}
+  command: mount -o loop {{ role_path }}/files/{{ iso_name }} /mnt/{{ iso_path }}
   changed_when: false
   args:
     warn: no
-  when:  mount_check
+  when: mount_check == true
   tags: install
