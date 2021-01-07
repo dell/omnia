@@ -12,6 +12,9 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+- name: Mount Path
+  set_fact:
+    mount_path: "{{ role_path + '/../../..'  }}"
 
 - name: Pre-requisite validation
   import_tasks: pre_requisite.yml
@@ -27,3 +30,6 @@
 
 - name: Docker volume creation
   import_tasks: docker_volume.yml
+
+- name: Basic Configuration
+  import_tasks: password_config.yml

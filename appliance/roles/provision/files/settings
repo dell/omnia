@@ -98,7 +98,7 @@ default_ownership:
 # The simplest way to change the password is to run
 # openssl passwd -1
 # and put the output between the "" below.
-default_password_crypted: "$1$mF86/UHC$WvcIcX2t6crBz2onWxyac."
+default_password_crypted: "password"
 
 # the default template type to use in the absence of any
 # other detected template. If you do not specify the template
@@ -243,7 +243,7 @@ manage_dhcp: 1
 
 # set to 1 to enable Cobbler's DNS management features.
 # the choice of DNS mangement engine is in /etc/cobbler/modules.conf
-manage_dns: 1
+manage_dns: 0
 
 # set to path of bind chroot to create bind-chroot compatible bind
 # configuration files.  This should be automatically detected.

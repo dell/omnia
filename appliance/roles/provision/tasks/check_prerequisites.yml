@@ -13,6 +13,17 @@
 # limitations under the License.
 ---
 
+- name: Check availability of iso file
+  stat:
+    path: "{{ role_path }}/files/{{ iso_name }}"
+  register: iso_status
+
+- name: Iso file not present
+  fail:
+    msg: "{{ iso_fail }}"
+  when: iso_status.stat.exists == false
+  register: iso_file_check
+
 - name: Initialize variables
   set_fact:
     cobbler_status: false
