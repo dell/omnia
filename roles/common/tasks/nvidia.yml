@@ -52,10 +52,3 @@
     enabled: yes
     daemon_reload: yes
   tags: install
-
-- name: Restart and enable kubernetes - kubelet
-  service:
-    name: kubelet
-    state: restarted
-    enabled: yes
-  tags: install
