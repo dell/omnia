@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,19 +13,16 @@
 #  limitations under the License.
 ---
 
-packages_status_success_msg: "Common packages are installed"
+- name: Install slurm exporter
+  include_tasks: install_slurm_exporter.yml
 
-packages_status_fail_msg: "Common packages are not installed"
+- name: Start slurm exporter services
+  include_tasks: start_services.yml
 
-munge_service_fail_msg: "Munge service is not running"
+- name: Install prometheus on host
+  include_tasks: install_prometheus.yml
+  when: "'kubernetes' in ansible_skip_tags"
 
-munge_service_success_msg: "Munge service is running"
-
-common_packages:
-   - munge
-   - munge-libs
-   - munge-devel
-   - mariadb-server
-   - mariadb-devel
-   - man2html
-   - MySQL-python
+- name: Apply slurm exporter config to prometheus pod
+  include_tasks: configure_prometheus_pod.yml
+  tags: kubernetes

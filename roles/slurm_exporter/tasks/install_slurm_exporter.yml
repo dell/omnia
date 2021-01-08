@@ -1,0 +1,65 @@
+#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Download and untar go package
+  unarchive:
+    src: "{{ go_pack_url }}"
+    dest: "{{ installation_dir }}"
+    remote_src: yes
+
+- name: Add to the linux path
+  shell: echo $PATH
+  environment:
+    PATH: "{{ extended_path }}:{{ ansible_env.PATH }}"
+  changed_when: False
+
+- name: Clone the source code
+  git:
+    repo: "{{ slurm_exporter_git_repo }}"
+    dest: "{{ slurm_exporter_inst_dir }}"
+    version: "master"
+
+- name: export GOPATH
+  shell: echo $GOPATH
+  environment:
+    PATH: "{{ ansible_env.PATH }}:/var/lib/go/bin/"
+    GOPATH: "{{ go_modules_path }}"
+  changed_when: False
+
+- name: Download dependencies
+  command: "{{ go_exec_path }} mod download"
+  args:
+    chdir: "{{ slurm_exporter_inst_dir }}"
+  changed_when: False
+
+- name: Build the exporter
+  shell: "{{ go_exec_path }} build -o bin/prometheus-slurm-exporter {main,accounts,cpus,nodes,partitions,queue,scheduler,users}.go"
+  args:
+    chdir: "{{ slurm_exporter_inst_dir }}"
+  changed_when: False
+
+- name: Run all tests included in _test.go files
+  shell: "{{ go_exec_path }} test -v *.go"
+  args:
+    chdir: "{{ slurm_exporter_inst_dir }}"
+  changed_when: False
+  ignore_errors: yes
+
+- name: Copy executable to /usr/bin
+  copy:
+    src: "{{ slurm_exporter_exec }}"
+    dest: "{{ system_path }}"
+    remote_src: yes
+    mode: "{{ file_permission }}"
