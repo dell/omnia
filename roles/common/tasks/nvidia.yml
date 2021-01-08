@@ -13,17 +13,44 @@
 #  limitations under the License.
 ---
 
-- name: Add nvidia-docker2 Repo
-  get_url:
-    url: "{{ nvidia_docker_repo_url }}"
-    dest: "{{ nvidia_docker_repo_dest }}"
-  tags: install, testing
-
 - name: Add libnvidia container Repo
-  get_url:
-    url: "{{ nvidia_container_repo_url }}"
-    dest: "{{ nvidia_container_repo_dest }}"
-  tags: install, testing
+  yum_repository:
+    name: libnvidia-container
+    description:  libnvidia-container
+    baseurl: https://nvidia.github.io/libnvidia-container/stable/centos7/$basearch
+    repo_gpgcheck: no
+    gpgcheck: no
+    gpgkey: https://nvidia.github.io/libnvidia-container/gpgkey
+    sslverify: yes
+    sslcacert: /etc/pki/tls/certs/ca-bundle.crt
+    enabled: yes
+  tags: install
+
+- name: Add nvidia-container-runtime Repo 
+  yum_repository:
+    name: nvidia-container-runtime
+    description:  nvidia-container-runtime
+    baseurl: https://nvidia.github.io/nvidia-container-runtime/stable/centos7/$basearch
+    repo_gpgcheck: no
+    gpgcheck: no
+    gpgkey: https://nvidia.github.io/nvidia-container-runtime/gpgkey
+    sslverify: yes
+    sslcacert: /etc/pki/tls/certs/ca-bundle.crt
+    enabled: yes
+  tags: install
+
+- name: Add nvidia-docker Repo 
+  yum_repository:
+    name: nvidia-docker
+    description:  nvidia-docker
+    baseurl: https://nvidia.github.io/nvidia-docker/centos7/$basearch
+    repo_gpgcheck: no
+    gpgcheck: no
+    gpgkey: https://nvidia.github.io/nvidia-docker/gpgkey
+    enabled: yes
+    sslverify: yes
+    sslcacert: /etc/pki/tls/certs/ca-bundle.crt
+  tags: install
 
 - name: Install nvidia driver and nvidia-docker2
   package:
@@ -51,11 +78,4 @@
     state: restarted
     enabled: yes
     daemon_reload: yes
-  tags: install
-
-- name: Restart and enable kubernetes - kubelet
-  service:
-    name: kubelet
-    state: restarted
-    enabled: yes
   tags: install
