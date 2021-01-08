@@ -13,19 +13,14 @@
 #  limitations under the License.
 ---
 
-packages_status_success_msg: "Common packages are installed"
+slurm_exporter_service_fail_msg: "Slurm exporter service is not running"
 
-packages_status_fail_msg: "Common packages are not installed"
+slurm_exporter_service_success_msg: "Slurm exporter service is active and running"
 
-munge_service_fail_msg: "Munge service is not running"
+slurm_exporter_job_fail_msg: "Slurm-exporter-metrics not configured as k8s service"
 
-munge_service_success_msg: "Munge service is running"
+slurm_exporter_job_success_msg: "Slurm-exporter-metrics successfully configured as k8s service"
 
-common_packages:
-   - munge
-   - munge-libs
-   - munge-devel
-   - mariadb-server
-   - mariadb-devel
-   - man2html
-   - MySQL-python
+prometheus_installation_fail_msg: "Prometheus not installed"
+
+prometheus_installation_success_msg: "Prometheus is installed"

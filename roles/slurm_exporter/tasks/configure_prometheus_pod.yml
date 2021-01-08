@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,19 +13,6 @@
 #  limitations under the License.
 ---
 
-packages_status_success_msg: "Common packages are installed"
-
-packages_status_fail_msg: "Common packages are not installed"
-
-munge_service_fail_msg: "Munge service is not running"
-
-munge_service_success_msg: "Munge service is running"
-
-common_packages:
-   - munge
-   - munge-libs
-   - munge-devel
-   - mariadb-server
-   - mariadb-devel
-   - man2html
-   - MySQL-python
+- name: Apply slurm exporter configuration to prometheus
+  command: kubectl apply -f "{{ role_path }}/files/{{ slurm_config_file }}" --validate=false
+  changed_when: False
