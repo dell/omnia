@@ -27,6 +27,5 @@ common_packages:
    - munge-devel
    - mariadb-server
    - mariadb-devel
-   - python3
    - man2html
    - MySQL-python

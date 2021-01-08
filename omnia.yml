@@ -13,12 +13,12 @@
 # limitations under the License.
 ---
 
-- name: Validate the cluster
-  hosts: localhost
-  connection: local
-  gather_facts: no
-  roles:
-    - cluster_validation
+#- name: Validate the cluster
+# hosts: localhost
+# connection: local
+# gather_facts: no
+# roles:
+#   - cluster_validation
 
 - name: Gather facts from all the nodes
   hosts: all
@@ -76,14 +76,18 @@
   gather_facts: false
   roles:
     - k8s_nfs_server_setup
-  tags: kubernetes
+  tags: 
+    - kubernetes
+    - nfs
 
 - name: Apply NFS client setup on compute nodes
   hosts: compute
   gather_facts: false
   roles:
     - k8s_nfs_client_setup
-  tags: kubernetes
+  tags: 
+    - kubernetes
+    - nfs
 
 - name: Start K8s on manager server
   hosts: manager
@@ -134,9 +138,9 @@
     - slurm_start_services
   tags: slurm
 
-- name: Install slurm exporter
-  hosts: manager
-  gather_facts: false
-  roles:
-    - slurm_exporter
-  tags: slurm
+#- name: Install slurm exporter
+# hosts: manager
+# gather_facts: false
+# roles:
+#   - slurm_exporter
+# tags: slurm

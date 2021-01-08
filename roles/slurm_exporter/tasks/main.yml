@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,15 +13,16 @@
 #  limitations under the License.
 ---
 
-k8s_packages:
-  - kubelet-1.16.7
-  - kubeadm-1.16.7
-  - kubectl-1.16.7
+- name: Install slurm exporter
+  include_tasks: install_slurm_exporter.yml
 
-k8s_repo_dest: /etc/yum.repos.d/
+- name: Start slurm exporter services
+  include_tasks: start_services.yml
 
-k8s_conf_dest: /etc/sysctl.d/
+- name: Install prometheus on host
+  include_tasks: install_prometheus.yml
+  when: "'kubernetes' in ansible_skip_tags"
 
-k8s_repo_file_mode: 0644
-
-k8s_conf_file_mode: 0644
+- name: Apply slurm exporter config to prometheus pod
+  include_tasks: configure_prometheus_pod.yml
+  tags: kubernetes

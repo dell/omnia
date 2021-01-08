@@ -39,6 +39,12 @@
     state: present
   tags: install
 
+- name: Add docker community edition repository
+  get_url:
+    url: "{{ docker_repo_url }}"
+    dest: "{{ docker_repo_dest }}"
+  tags: install
+
 - name: Disable swap
   command: /sbin/swapoff -a
   changed_when: true
@@ -71,3 +77,4 @@
 - name: Install Nvidia drivers and software components
   include_tasks: nvidia.yml
   when: ansible_local.inventory.nvidia_gpu > 0
+  tags: install
