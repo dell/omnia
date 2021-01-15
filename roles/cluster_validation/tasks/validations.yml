@@ -28,9 +28,3 @@
     that: "groups['compute'] | length | int >= 1"
     fail_msg: "{{ compute_group_fail_msg }}"
     success_msg: "{{ compute_group_success_msg }}"
-
-- name: Manager and compute groups should be disjoint
-  assert:
-    that: "groups['manager'][0] not in groups['compute']"
-    fail_msg: "{{ disjoint_fail_msg }}"
-    success_msg: "{{ disjoint_success_msg }}"
