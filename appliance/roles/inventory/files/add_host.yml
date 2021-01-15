@@ -14,7 +14,7 @@
 ---
 
 - name: Check if host already exists
-  command: awk "{{ '/'+ item + '/' }}" inventory
+  command: awk "{{ '/'+ item + '/' }}" /root/inventory
   register: check_host
   changed_when: no
 
@@ -27,13 +27,13 @@
     host_description: "CPU:{{ hostvars[item]['ansible_processor_count'] }}
     Cores:{{ hostvars[item]['ansible_processor_cores'] }}
     Memory:{{ hostvars[item]['ansible_memtotal_mb'] }}MB
-    BIOS:{{ hostvars[item]['ansible_bios_version']}}"
-  changed_when: no
+    BIOS:{{ hostvars[item]['ansible_bios_version'] }}"
+  when: not check_host.stdout | regex_search(item)
   ignore_errors: yes
 
 - name: Add host
   lineinfile:
-    path:  "inventory"
+    path:  "/root/inventory"
     line: "    {{ item }}:\n      _awx_description: {{ host_description }}"
   when: not check_host.stdout | regex_search(item)
 

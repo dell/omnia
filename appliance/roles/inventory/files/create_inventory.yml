@@ -46,6 +46,7 @@
   vars:
     ansible_password: "{{ cobbler_password }}"
     ansible_become_pass: "{{ cobbler_password }}"
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
   tasks:
     - name: Setup
       setup:
@@ -53,27 +54,15 @@
 
     - name: Set the system hostname
       hostname:
-        name: "compute{{ inventory_hostname.split('.')[-2] + '.' + inventory_hostname.split('.')[-1] }}"
+        name: "compute{{ inventory_hostname.split('.')[-2] + '-' + inventory_hostname.split('.')[-1] }}"
       register: result_name
 
     - name: Add new hostname to /etc/hosts
       lineinfile:
         dest: /etc/hosts
         regexp: '^127\.0\.0\.1[ \t]+localhost'
-        line: "127.0.0.1 localhost 'compute{{ inventory_hostname.split('.')[-1] }}'"
+        line: "127.0.0.1 localhost 'compute{{ inventory_hostname.split('.')[-2] + '-' + inventory_hostname.split('.')[-1] }}'"
         state: present
-
-    - name: Ensure networking connection
-      command: nmcli networking off
-      changed_when: false
-
-    - name: Ensure networking connection
-      command: nmcli networking on
-      changed_when: false
-
-    - name: Ensure networking connection
-      command: nmcli networking on
-      changed_when: false
 
 - name: Update inventory
   hosts: localhost

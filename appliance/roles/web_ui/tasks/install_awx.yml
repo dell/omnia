@@ -49,6 +49,7 @@
       args:
         chdir: "{{ awx_installer_path }}"
       register: awx_installation
+      no_log: True
 
   rescue:
     - name: Check AWX status on machine
@@ -56,7 +57,8 @@
 
     - name: Fail if container are not running
       fail:
-        msg: "AWX installation failed."
+        msg: "AWX installation failed with error msg:
+        {{ awx_installation.stdout | regex_replace(admin_password) }}."
       when: not awx_status
 
   tags: install
