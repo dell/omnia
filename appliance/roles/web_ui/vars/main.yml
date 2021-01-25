@@ -38,7 +38,8 @@ message_skipped: "Installation Skipped: AWX instance is already running on your 
 message_installed: "Installation Successful"
 awx_ip: http://localhost:8081
 return_status: 200
-migrating_msg: "IsMigrating"
+awx_ui_msg: "Password Dialog"
+conf_fail_msg: "AWX configuration failed at the last executed task."
 
 # Usage: install_awx_cli.yml
 awx_cli_repo: "https://releases.ansible.com/ansible-tower/cli/ansible-tower-cli-centos7.repo"

@@ -13,35 +13,15 @@
 # limitations under the License.
 ---
 
-#- name: Validate the cluster
-# hosts: localhost
-# connection: local
-# gather_facts: no
-# roles:
-#   - cluster_validation
+- name: Validate the cluster
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  roles:
+    - cluster_validation
 
 - name: Gather facts from all the nodes
   hosts: all
-
-- name: Prepare the cluster with passwordless ssh from manager to compute
-  hosts: manager
-  gather_facts: false
-  pre_tasks:
-    - name: Set Fact
-      set_fact:
-        ssh_to: "{{ groups['compute'] }}"
-  roles:
-    - cluster_preperation
-
-- name: Prepare the cluster with passwordless ssh from compute to manager
-  hosts: compute
-  gather_facts: false
-  pre_tasks:
-    - name: Set Fact
-      set_fact:
-        ssh_to: "{{ groups['manager'] }}"
-  roles:
-    - cluster_preperation
     
 - name: Apply common installation and config
   hosts: manager, compute
@@ -144,3 +124,23 @@
 # roles:
 #   - slurm_exporter
 # tags: slurm
+
+- name: Prepare the cluster with passwordless ssh from manager to compute
+  hosts: manager
+  gather_facts: false
+  pre_tasks:
+    - name: Set Fact
+      set_fact:
+        ssh_to: "{{ groups['compute'] }}"
+  roles:
+    - cluster_preperation
+
+- name: Prepare the cluster with passwordless ssh from compute to manager
+  hosts: compute
+  gather_facts: false
+  pre_tasks:
+    - name: Set Fact
+      set_fact:
+        ssh_to: "{{ groups['manager'] }}"
+  roles:
+    - cluster_preperation

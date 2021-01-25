@@ -18,5 +18,5 @@
     repo: "{{ awx_git_repo }}"
     dest: "{{ awx_repo_path }}"
     force: yes
-    version: devel
+    version: 15.0.0
   tags: install

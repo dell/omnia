@@ -16,18 +16,6 @@
   set_fact:
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
 
-- name: Disable key host checking
-  replace:
-    path: /etc/ansible/ansible.cfg
-    regexp: '#host_key_checking = False'
-    replace: 'host_key_checking = False'
-
-- name: Disable host key checking
-  replace:
-    path: /etc/ssh/ssh_config
-    regexp: '#   StrictHostKeyChecking ask'
-    replace: 'StrictHostKeyChecking no'
-
 - name: Check if provisioned host file exists
   stat:
     path: "{{ role_path }}/files/provisioned_hosts.yml"
@@ -35,39 +23,72 @@
 
 - name: Include vars file of common role
   include_vars: "{{ role_path }}/../common/vars/main.yml"
+  no_log: True
 
 - name: Include vars file of web_ui role
   include_vars: "{{ role_path }}/../web_ui/vars/main.yml"
+  no_log: True
 
 - name: Update inventory file
   block:
+    - name: Check if input config file is encrypted
+      command: cat {{ input_config_filename }}
+      changed_when: false
+      register: config_content
+
     - name: Decrpyt input_config.yml
       command: >-
         ansible-vault decrypt {{ input_config_filename }}
         --vault-password-file roles/common/files/{{ vault_filename }}
-      changed_when: false
+      when: "'$ANSIBLE_VAULT;' in config_content.stdout"
 
     - name: Include variable file input_config.yml
       include_vars: "{{ input_config_filename }}"
+      no_log: True
 
     - name: Save input variables from file
       set_fact:
         cobbler_password: "{{ provision_password }}"
+      no_log: True
 
     - name: Encrypt input config file
       command: >-
         ansible-vault encrypt {{ input_config_filename }}
         --vault-password-file roles/common/files/{{ vault_filename }}
+      when: "'$ANSIBLE_VAULT;' not in config_content.stdout"
 
-    - name: add hosts with description to inventory file
-      command: >-
-        ansible-playbook -i {{ role_path }}/files/provisioned_hosts.yml
-        {{ role_path }}/files/create_inventory.yml
-        --extra-vars "cobbler_username={{ cobbler_username }} cobbler_password={{ cobbler_password }}"
-      ignore_errors: yes
+    - name: Check if inventory file already exists
+      stat:
+        path: "/root/inventory"
+      register: stat_result
+
+    - name: Create inventory file if doesnt exist
+      copy:
+        dest:  "/root/inventory"
+        content: |
+          ---
+          all:
+            hosts:
+        owner: root
+        mode: 0775
+      when: not stat_result.stat.exists
+
+    - name: Add inventory playbook
+      block:
+        - name: add hosts with description to inventory file
+          command: >-
+            ansible-playbook -i {{ role_path }}/files/provisioned_hosts.yml
+            {{ role_path }}/files/create_inventory.yml
+            --extra-vars "cobbler_username={{ cobbler_username }} cobbler_password={{ cobbler_password }}"
+          no_log: True
+          register: register_error
+      rescue:
+        - name: Fail if host addition was not successful
+          fail:
+            msg: "{{ register_error.stdout | regex_replace(cobbler_username) | regex_replace(cobbler_password) }}"
 
   when: provisioned_file_result.stat.exists
 
 - name: push inventory to AWX
-  command: awx-manage inventory_import --inventory-name {{ omnia_inventory_name }} --source {{ role_path }}/files/inventory
+  command: awx-manage inventory_import --inventory-name {{ omnia_inventory_name }} --source /root/inventory
   changed_when: no

@@ -37,3 +37,8 @@ hpc_nic: "em1"
 # The public_nic should be em2, em1 or em3
 # Default value of nic is em2.
 public_nic: "em2"
+
+# Kubernetes SDN network.
+# Options: calico/flannel.
+# Default value is calico.
+k8s_cni: "calico"
