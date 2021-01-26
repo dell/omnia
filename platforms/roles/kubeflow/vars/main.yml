@@ -32,25 +32,3 @@ kfserving_gateway_yaml_file_path: "{{ omnia_kubeflow_dir_path }}/kustomize/kfser
 argo_yaml_file_path: "{{ omnia_kubeflow_dir_path }}/kustomize/argo/base/service.yaml"
 
 kubeflow_config_file: "{{ omnia_kubeflow_dir_path }}/kfctl_k8s_istio.v1.0.2.yaml"
-
-cert_manager_block: >
-    - kustomizeConfig:
-          overlays:
-          - self-signed
-          - application
-          parameters:
-          - name: namespace
-            value: cert-manager
-          repoRef:
-            name: manifests
-            path: cert-manager/cert-manager
-        name: cert-manager
-
-seldon_core_operator_block: >
-    - kustomizeConfig:
-          overlays:
-          - application
-          repoRef:
-            name: manifests
-            path: seldon/seldon-core-operator
-        name: seldon-core-operator

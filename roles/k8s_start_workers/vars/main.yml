@@ -13,6 +13,4 @@
 #  limitations under the License.
 ---
 
-single_node: false
-
 apiserver_bind_port: 6443
