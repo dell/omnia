@@ -36,7 +36,7 @@
   tags: nfs_client
 
 - name: Mounting NFS Share
-  command: "mount {{ groups['manager'][0] }}:{{ nfs_mnt_dir }} {{ nfs_mnt_dir }}"
+  command: "mount {{ mounthost }}:{{ nfs_share_dir }} {{ nfs_mnt_dir }}"
   changed_when: true
   args:
     warn: false
@@ -46,6 +46,6 @@
 - name: Configuring Automount NFS Shares on reboot
   lineinfile:
     path: "{{ fstab_file_path }}"
-    line: "{{ groups['manager'][0] }}:{{ nfs_mnt_dir }}     {{ nfs_mnt_dir }}  nfs     nosuid,rw,sync,hard,intr 0 0"
+    line: "{{ mounthost }}:{{ nfs_share_dir }}     {{ nfs_mnt_dir }}  nfs     nosuid,rw,sync,hard,intr 0 0"
   when: groups['manager'][0] not in mounted_share.stdout
   tags: nfs_client
