@@ -114,18 +114,6 @@
     regexp: 'NodePort'
     replace: 'LoadBalancer'
 
-- name: Remove cert-manager application block
-  replace:
-    path: "{{ kubeflow_config_file }}"
-    regexp: "{{ cert_manager_block }}"
-    replace: "\n"
-
-- name: Remove seldon-core-operator application block
-  replace:
-    path: "{{ kubeflow_config_file }}"
-    regexp: "{{ seldon_core_operator_block }}"
-    replace: "\n"
-
 - name: Apply kubeflow configuration
   command:
     cmd: "/usr/bin/kfctl apply -V -f '{{ kubeflow_config_file }}'"

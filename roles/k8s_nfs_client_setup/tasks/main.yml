@@ -19,6 +19,15 @@
     state: present
   tags: nfs_client
 
+- name: Check mounted share
+  shell: mount | grep nfs
+  changed_when: false
+  args:
+    warn: false
+  register: mounted_share
+  ignore_errors: True
+  tags: nfs_client
+
 - name: Creating directory to mount NFS Share
   file:
     path: "{{ nfs_mnt_dir }}"
@@ -27,14 +36,16 @@
   tags: nfs_client
 
 - name: Mounting NFS Share
-  command: "mount {{ groups['manager'] }}:{{ nfs_mnt_dir }} {{ nfs_mnt_dir }}"
+  command: "mount {{ groups['manager'][0] }}:{{ nfs_mnt_dir }} {{ nfs_mnt_dir }}"
   changed_when: true
   args:
     warn: false
+  when: groups['manager'][0] not in mounted_share.stdout
   tags: nfs_client
 
 - name: Configuring Automount NFS Shares on reboot
   lineinfile:
     path: "{{ fstab_file_path }}"
-    line: "{{ groups['manager'] }}:{{ nfs_mnt_dir }}     {{ nfs_mnt_dir }}  nfs     nosuid,rw,sync,hard,intr 0 0"
+    line: "{{ groups['manager'][0] }}:{{ nfs_mnt_dir }}     {{ nfs_mnt_dir }}  nfs     nosuid,rw,sync,hard,intr 0 0"
+  when: groups['manager'][0] not in mounted_share.stdout
   tags: nfs_client

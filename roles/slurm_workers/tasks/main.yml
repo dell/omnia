@@ -92,7 +92,7 @@
     warn: no
 
 - name: Verify package md5
-  command: rpm -qa
+  shell: rpm -qa | grep slurm
   ignore_errors: true
   register: verify_result
   changed_when: no
@@ -106,9 +106,10 @@
     chdir: "{{ rpm_path }}"
     warn: no
   changed_when: true
+  when: verify_result.rc != 0
 
 - name: Get the hostname
-  command: hostname -s
+  command: hostname
   register: machine_name
   changed_when: true
 
@@ -118,7 +119,6 @@
     regexp: "NodeName= Sockets= CoresPerSocket="
     line: "NodeName={{ machine_name.stdout }} Sockets={{ hostvars[inventory_hostname]['ansible_facts']['processor_count'] }}
       CoresPerSocket={{ hostvars[inventory_hostname]['ansible_facts']['processor_cores'] }}"
-
 
 - name: Save slurm conf in buffer
   fetch:

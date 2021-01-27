@@ -22,7 +22,7 @@
 
 - name: Gather facts from all the nodes
   hosts: all
-    
+
 - name: Apply common installation and config
   hosts: manager, compute
   gather_facts: false
@@ -56,7 +56,7 @@
   gather_facts: false
   roles:
     - k8s_nfs_server_setup
-  tags: 
+  tags:
     - kubernetes
     - nfs
 
@@ -65,7 +65,7 @@
   gather_facts: false
   roles:
     - k8s_nfs_client_setup
-  tags: 
+  tags:
     - kubernetes
     - nfs
 

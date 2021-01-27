@@ -24,6 +24,7 @@ common_packages:
   - chrony
   - pciutils
   - docker-ce
+  - openssl
 
 custom_fact_dir: /etc/ansible/facts.d
 

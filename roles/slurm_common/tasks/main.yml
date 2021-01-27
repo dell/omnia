@@ -14,7 +14,7 @@
 ---
 
 - name: Get hostname
-  command: hostname -s
+  command: hostname
   register: host_name
   changed_when: true
 
@@ -29,7 +29,7 @@
 - name: Add host name in hosts file
   lineinfile:
     dest: "{{ hosts_dest }}"
-    line: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }} {{ host_name.stdout }}"
+    line: "{{ inventory_hostname }} {{ host_name.stdout }}"
     state: present
     create: yes
     mode: "{{ common_mode }}"
@@ -153,6 +153,15 @@
     group: slurm
     state: directory
     mode: "{{ gen_mode }}"
+    recurse: yes
+
+- name: Give slurm user permission to spool directory
+  file:
+    path: "{{ spool_dir }}"
+    owner: slurm
+    group: slurm
+    state: directory
+    mode: "{{ common_mode }}"
     recurse: yes
 
 - name: Create slurm pid directory
