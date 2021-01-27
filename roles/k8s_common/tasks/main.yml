@@ -21,8 +21,8 @@
     enabled: yes
     gpgcheck: no
     repo_gpgcheck: no
-    gpgkey: 
-      - https://packages.cloud.google.com/yum/doc/yum-key.gpg 
+    gpgkey:
+      - https://packages.cloud.google.com/yum/doc/yum-key.gpg
       - https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
   tags: install
 

@@ -13,9 +13,6 @@
 #  limitations under the License.
 ---
 
-# Kubernetes SDN network
-k8s_cni: calico
-
 # Master nodes firewall ports
 k8s_master_ports:
   - 6443

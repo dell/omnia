@@ -26,7 +26,7 @@
     enabled: yes
   tags: install
 
-- name: Add nvidia-container-runtime Repo 
+- name: Add nvidia-container-runtime Repo
   yum_repository:
     name: nvidia-container-runtime
     description:  nvidia-container-runtime
@@ -39,7 +39,7 @@
     enabled: yes
   tags: install
 
-- name: Add nvidia-docker Repo 
+- name: Add nvidia-docker Repo
   yum_repository:
     name: nvidia-docker
     description:  nvidia-docker

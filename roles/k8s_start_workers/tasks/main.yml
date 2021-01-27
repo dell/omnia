@@ -18,10 +18,16 @@
   changed_when: true
   tags: init
 
+- name: Get hostname
+  command: hostname
+  changed_when: true
+  register: node_hostname
+  tags: init
+
 - name: Execute kubeadm join command
   shell: >
     kubeadm join --token={{ hostvars['K8S_TOKEN_HOLDER']['token'] }}
     --discovery-token-ca-cert-hash sha256:{{ hostvars['K8S_TOKEN_HOLDER']['hash'] }}
     {{ hostvars['K8S_TOKEN_HOLDER']['ip'] }}:{{ apiserver_bind_port }}
-  when: not single_node
+  when: groups['manager'][0] != groups['compute'][0] and groups['compute']|length >= 1 and node_hostname.stdout not in hostvars['K8S_TOKEN_HOLDER']['k8s_nodes']
   tags: init
