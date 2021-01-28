@@ -35,9 +35,13 @@
   lineinfile:
     path:  "/root/inventory"
     line: "    {{ item }}:\n      _awx_description: {{ host_description }}"
-  when: not check_host.stdout | regex_search(item)
+  when:
+    - not check_host.stdout | regex_search(item)
+    - host_description != "Description Unavailable"
 
 - name: Host added msg
   debug:
     msg: "{{ host_added_msg + item }}"
-  when: not check_host.stdout | regex_search(item)
+  when:
+    - not check_host.stdout | regex_search(item)
+    - host_description != "Description Unavailable"

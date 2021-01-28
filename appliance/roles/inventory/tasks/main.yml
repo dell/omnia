@@ -49,6 +49,7 @@
     - name: Save input variables from file
       set_fact:
         cobbler_password: "{{ provision_password }}"
+        mapping_file: "{{ mapping_file_exists }}"
       no_log: True
 
     - name: Encrypt input config file
@@ -79,13 +80,13 @@
           command: >-
             ansible-playbook -i {{ role_path }}/files/provisioned_hosts.yml
             {{ role_path }}/files/create_inventory.yml
-            --extra-vars "cobbler_username={{ cobbler_username }} cobbler_password={{ cobbler_password }}"
+            --extra-vars "cobbler_username={{ cobbler_username }} cobbler_password={{ cobbler_password }} mapping_file={{ mapping_file }}"
           no_log: True
           register: register_error
       rescue:
         - name: Fail if host addition was not successful
           fail:
-            msg: "{{ register_error.stdout | regex_replace(cobbler_username) | regex_replace(cobbler_password) }}"
+            msg: "{{ register_error.stderr + register_error.stdout | regex_replace(cobbler_username) | regex_replace(cobbler_password) }}"
 
   when: provisioned_file_result.stat.exists
 
