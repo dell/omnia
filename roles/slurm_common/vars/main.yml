@@ -13,8 +13,6 @@
 #  limitations under the License.
 ---
 
-epel_url: https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
-
 common_packages:
    - munge
    - munge-libs
@@ -41,6 +39,7 @@ slurm_uid: "6001"
 slurm_logpth: "/var/log/slurm/"
 slurm_pidpth: "/var/run/slurm/"
 gen_mode: "0755"
+spool_dir: "/var/spool/"
 spool_pth: "/var/spool/slurm/"
 slurmctld_pid: "/var/run/slurmctld.pid"
 slurmd_pid: "/var/run/slurmd.pid"
