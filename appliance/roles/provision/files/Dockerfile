@@ -21,7 +21,6 @@ RUN yum install -y \
   rsync \
   httpd\
   dhcp \
-  dnsmasq\
   xinetd \
   net-tools \
   memtest86+ \
@@ -33,7 +32,6 @@ RUN mkdir /root/omnia
 #Copy Configuration files
 COPY settings /etc/cobbler/settings
 COPY dhcp.template  /etc/cobbler/dhcp.template
-COPY dnsmasq.template /etc/cobbler/dnsmasq.template
 COPY modules.conf  /etc/cobbler/modules.conf
 COPY tftp /etc/xinetd.d/tftp
 COPY .users.digest /etc/cobbler/users.digest
@@ -50,6 +48,5 @@ VOLUME [ "/var/www/cobbler", "/var/lib/cobbler/backup", "/mnt" ]
 RUN systemctl enable cobblerd
 RUN systemctl enable httpd
 RUN systemctl enable rsyncd
-RUN systemctl enable dnsmasq
 
 CMD ["sbin/init"]
