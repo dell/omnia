@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -12,8 +12,13 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-- name: Perform validations
-  include_tasks: validations.yml
 
-- name: Fetch passwords
-  include_tasks: fetch_password.yml
+# Password used for Slurm database.
+# The Length of the password should be atleast 8.
+# The password must not contain -,\, ',"
+mariadb_password: "password"
+
+# Kubernetes SDN network.
+# It can either be "calico" or "flannel".
+# Default value assigned is "calico".
+k8s_cni: "calico"
