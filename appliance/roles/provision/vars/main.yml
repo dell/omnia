@@ -15,6 +15,12 @@
 
 # vars file for provision
 
+#Usage: mapping_file.yml
+mapping_file_name: mapping_file.csv
+mapping_file_fail: "Mapping file absent: Copy the mapping file in omnia/appliance/roles/provision/files"
+fail_hostname_duplicate:  "Duplicate hostname exists. Please check"
+remove_header: awk 'NR > 1 { print }' {{ role_path }}/files/new_mapping_file.csv
+
 #Usage: check_prerequisite.yml
 iso_name: CentOS-7-x86_64-Minimal-2009.iso
 iso_fail: "Iso file absent: Download and copy the iso file in omnia/appliance/roles/provision/files"
@@ -27,7 +33,6 @@ username: cobbler
 docker_image_name: cobbler
 docker_image_tag: latest
 cobbler_run_command: docker run -itd --privileged --net=host --restart=always -v {{ mount_path }}:/root/omnia  -v cobbler_www:/var/www/cobbler:Z -v cobbler_backup:/var/lib/cobbler/backup:Z -v /mnt/iso:/mnt:Z -p 69:69/udp -p 81:80 -p 443:443 -p 25151:25151 --name cobbler  cobbler:latest  /sbin/init
-
 
 # Usage: main.yml
 message_skipped: "Installation Skipped: Cobbler instance is already running on your system"

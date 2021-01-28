@@ -36,13 +36,13 @@
       changed_when: false
       register: config_content
 
-    - name: Decrpyt input_config.yml
+    - name: Decrpyt appliance_config.yml
       command: >-
         ansible-vault decrypt {{ input_config_filename }}
-        --vault-password-file roles/common/files/{{ vault_filename }}
+        --vault-password-file {{ vault_filename }}
       when: "'$ANSIBLE_VAULT;' in config_content.stdout"
 
-    - name: Include variable file input_config.yml
+    - name: Include variable file appliance_config.yml
       include_vars: "{{ input_config_filename }}"
       no_log: True
 
@@ -54,7 +54,7 @@
     - name: Encrypt input config file
       command: >-
         ansible-vault encrypt {{ input_config_filename }}
-        --vault-password-file roles/common/files/{{ vault_filename }}
+        --vault-password-file {{ vault_filename }}
       when: "'$ANSIBLE_VAULT;' not in config_content.stdout"
 
     - name: Check if inventory file already exists
@@ -91,4 +91,4 @@
 
 - name: push inventory to AWX
   command: awx-manage inventory_import --inventory-name {{ omnia_inventory_name }} --source /root/inventory
-  changed_when: no
+  when: provisioned_file_result.stat.exists

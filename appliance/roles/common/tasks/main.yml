@@ -25,11 +25,11 @@
 - name: Common packages installation
   import_tasks: package_installation.yml
 
+- name: Basic Configuration
+  import_tasks: password_config.yml
+
 - name: Docker installation and configuration
   import_tasks: docker_installation.yml
 
 - name: Docker volume creation
   import_tasks: docker_volume.yml
-
-- name: Basic Configuration
-  import_tasks: password_config.yml
