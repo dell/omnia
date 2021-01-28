@@ -32,7 +32,7 @@
   tags: install
 
 - name: Start slurmctld on manager
-  systemd:
+  service:
     name: slurmctld
     state: started
   tags: install
@@ -44,24 +44,22 @@
 
 - name: Create slurm cluster
   command: sacctmgr -i add cluster {{ cluster_name }}
-  when: slurm_clusterlist.stdout.find(cluster_name) == 1
+  when: not slurm_clusterlist.stdout
 
 - name: Show account
-  command: sacctmgr show account
+  command: sacctmgr show account -s
   register: account_added
   changed_when: false
 
 - name: Create default slurm group
   command: sacctmgr -i add account defaultgroup Cluster={{ cluster_name }} Description="Default Account" Organization="Default Org"
-  when: account_added.stdout.find(cluster_name) == 1
-  tags: install
+  when: account_added.rc != 0
 
 - name: Check if user exists
-  command: sacctmgr show user
+  command: sacctmgr show user -s
   register: user_added
   changed_when: false
 
 - name: Add root to the default account
   command: sacctmgr -i add user root DefaultAccount=defaultgroup
-  when: account_added.stdout.find(cluster_name) == 1
-  tags: install
+  when: user_added.rc != 0
