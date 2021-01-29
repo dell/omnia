@@ -25,6 +25,7 @@ slurm_packages:
    - perl-DBI
    - perl-Switch
    - libibumad
+   - git
 
 dev_tools:
    - rrdtool-devel
