@@ -41,7 +41,7 @@
     permanent: yes
     state: enabled
   with_items: '{{ k8s_compute_ports }}'
-  when: "'compute' in group_names"
+  when: "'compute' in group_names and groups['manager'][0] != groups['compute'][0] and groups['compute']|length >= 1"
   tags: firewalld
 
 - name: Open flannel ports on the firewall
