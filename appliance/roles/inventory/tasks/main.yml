@@ -80,7 +80,7 @@
           command: >-
             ansible-playbook -i {{ role_path }}/files/provisioned_hosts.yml
             {{ role_path }}/files/create_inventory.yml
-            --extra-vars "cobbler_username={{ cobbler_username }} cobbler_password={{ cobbler_password }} mapping_file={{ mapping_file }}"
+            --extra-vars "cobbler_username={{ cobbler_username }} cobbler_password={{ cobbler_password }} mapping_file={{ mapping_file | bool }}"
           no_log: True
           register: register_error
       rescue:
