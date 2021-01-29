@@ -47,53 +47,66 @@
 - name: Set hostname on reachable nodes and gather facts
   hosts: reachable
   gather_facts: False
+  ignore_unreachable: true
   remote_user: "{{ cobbler_username }}"
   vars:
     ansible_password: "{{ cobbler_password }}"
     ansible_become_pass: "{{ cobbler_password }}"
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    mapping_file_present: ""
   tasks:
     - name: Setup
       setup:
        filter: ansible_*
-    
+
     - name: Check hostname of server
       command: hostname
       register: hostname_check
-      changed_when: false     
+      changed_when: false
+      ignore_errors: true
 
     - name: Check if IP present in mapping file
-      shell: grep "{{ inventory_hostname }}" {{ role_path }}/files/new_mapping_file.csv
+      command: grep "{{ inventory_hostname }}" ../../provision/files/new_mapping_file.csv
       delegate_to: localhost
       register: file_present
-      changed_when: false
+      when: mapping_file | bool == true
+      ignore_errors: true
+
+    - name: Set fact if mapping file present
+      set_fact:
+        mapping_file_present: "{{ file_present.stdout }}"
+      when: mapping_file | bool == true
+      ignore_errors: true
 
     - name: Get the static hostname from mapping file
-      shell:  grep -Po ".* (?="{{ inventory_hostname }}")" {{ role_path }}/files/new_mapping_file.csv| awk -F',' '{print $2}'
+      shell: awk -F',' '$3 == "{{ inventory_hostname }}" { print $2 }' ../../provision/files/new_mapping_file.csv
       delegate_to: localhost
-      when: ('localhost' in hostname_check.stdout) and (file_present.stdout != "")
-      changed_when: false
+      when: ('localhost' in hostname_check.stdout) and (mapping_file_present != "" ) and ( mapping_file | bool == true )
       register: host_name
+      ignore_errors: true
 
     - name: Set the hostname from mapping file
       hostname:
         name: "{{ host_name.stdout }}"
       register: result_host_name
-      when: ('localhost' in hostname_check.stdout) and (file_present.stdout != "")
+      when: ('localhost' in hostname_check.stdout) and (mapping_file_present != "" ) and  (mapping_file | bool == true )
+      ignore_errors: true
 
     - name: Set the system hostname
       hostname:
         name: "compute{{ inventory_hostname.split('.')[-2] + '-' + inventory_hostname.split('.')[-1] }}"
       register: result_name
-      when: ('localhost' in hostname_check.stdout) and (file_present.stdout == "")
+      when: ('localhost' in hostname_check.stdout) and (mapping_file | bool == false)
+      ignore_errors: true
 
-    - name: Add new hostname to /etc/hosts
+    - name: Add new hostname to /etc/hosts from mapping file
       lineinfile:
         dest: /etc/hosts
         regexp: '^127\.0\.0\.1[ \t]+localhost'
         line: "127.0.0.1 localhost {{ host_name.stdout }}"
         state: present
-      when: "'localhost' in hostname_check.stdout" and (file_present.stdout != "")
+      when: ('localhost' in hostname_check.stdout) and ( mapping_file_present != "" ) and ( mapping_file | bool == true )
+      ignore_errors: true
 
     - name: Add new hostname to /etc/hosts
       lineinfile:
@@ -101,7 +114,8 @@
         regexp: '^127\.0\.0\.1[ \t]+localhost'
         line: "127.0.0.1 localhost 'compute{{ inventory_hostname.split('.')[-2] + '-' + inventory_hostname.split('.')[-1] }}'"
         state: present
-      when: "'localhost' in hostname_check.stdout" and (file_present.stdout == "" )
+      when: ('localhost' in hostname_check.stdout) and (mapping_file | bool == false )
+      ignore_errors: true
 
 - name: Update inventory
   hosts: localhost
