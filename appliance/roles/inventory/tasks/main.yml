@@ -56,7 +56,7 @@
       command: >-
         ansible-vault encrypt {{ input_config_filename }}
         --vault-password-file {{ vault_filename }}
-      when: "'$ANSIBLE_VAULT;' not in config_content.stdout"
+      changed_when: false
 
     - name: Check if inventory file already exists
       stat:
