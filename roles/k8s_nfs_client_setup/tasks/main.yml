@@ -17,6 +17,7 @@
   package:
     name: nfs-utils
     state: present
+  when: groups['manager'][0] != groups['compute'][0] and groups['compute']|length >= 1
   tags: nfs_client
 
 - name: Check mounted share
@@ -33,6 +34,7 @@
     path: "{{ nfs_mnt_dir }}"
     state: directory
     mode: "{{ nfs_mnt_dir_mode }}"
+  when: groups['manager'][0] != groups['compute'][0] and groups['compute']|length >= 1
   tags: nfs_client
 
 - name: Mounting NFS Share
@@ -40,12 +42,12 @@
   changed_when: true
   args:
     warn: false
-  when: groups['manager'][0] not in mounted_share.stdout
+  when: groups['manager'][0] not in mounted_share.stdout and groups['manager'][0] != groups['compute'][0] and groups['compute']|length >= 1
   tags: nfs_client
 
 - name: Configuring Automount NFS Shares on reboot
   lineinfile:
     path: "{{ fstab_file_path }}"
     line: "{{ mounthost }}:{{ nfs_share_dir }}     {{ nfs_mnt_dir }}  nfs     nosuid,rw,sync,hard,intr 0 0"
-  when: groups['manager'][0] not in mounted_share.stdout
+  when: groups['manager'][0] not in mounted_share.stdout and groups['manager'][0] != groups['compute'][0] and groups['compute']|length >= 1
   tags: nfs_client
