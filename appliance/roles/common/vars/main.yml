@@ -80,3 +80,9 @@ min_length: 8
 max_length: 30
 nic_min_length: 3
 vault_filename: .vault_key
+config_filename: "omnia_config.yml"
+config_vaultname: .omnia_vault_key
+fail_msg_mariadb_password: "maria_db password not given in correct format."
+success_msg_mariadb_password: "mariadb_password validated"
+success_msg_k8s_cni: "Kubernetes CNI Validated"
+fail_msg_k8s_cni: "Kubernetes CNI not correct."
