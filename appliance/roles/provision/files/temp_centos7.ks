@@ -59,5 +59,6 @@ reboot
 
 %packages
 @core
+net-tools
 %end
 

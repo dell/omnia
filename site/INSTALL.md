@@ -1,24 +1,29 @@
 ## TL;DR Installation
  
-### Kubernetes Only
-Install Kubernetes and all dependencies
+### Kubernetes
+Install Slurm and Kubernetes, along with all dependencies
 ```
-ansible-playbook -i host_inventory_file omnia.yml --skip-tags "slurm"
+ansible-playbook -i host_inventory_file omnia.yml
 ```
 
-Initialize K8s cluster
+Install Slurm only
 ```
-ansible-playbook -i host_inventory_file omnia.yml --tags "init"
+ansible-playbook -i host_inventory_file omnia.yml --skip-tags "k8s"
+```
+
+Install Kubernetes only
+```
+ansible-playbook -i host_inventory_file omnia.yml --skip-tags "slurm"
+ 
+
+Initialize Kubernetes cluster (packages already installed)
+```
+ansible-playbook -i host_inventory_file omnia.yml --skip-tags "slurm" --tags "init"
 ```
 
 ### Install Kubeflow 
 ```
-ansible-playbook -i host_inventory_file platform/kubeflow.yaml
-```
-
-### Slurm Only
-```
-ansible-playbook -i host_inventory_file omnia.yml --skip-tags "k8s"
+ansible-playbook -i host_inventory_file platforms/kubeflow.yml
 ```
 
 # Omnia  
@@ -63,7 +68,7 @@ Omnia playbooks perform several tasks:
     - Docker
     - Kubelet
 
-`manager` playbook
+`master` playbook
 * Install Helm v3
 * (optional) add firewall rules for Slurm and kubernetes
 
@@ -72,10 +77,10 @@ Everything from this point on can be called by using the `init` tag
 ansible-playbook -i host_inventory_file kubernetes/kubernetes.yml --tags "init"
 ```
 
-`startmanager` playbook
+`startmaster` playbook
 * turn off swap
 *Initialize Kubernetes
-    * Head/manager
+    * Head/master
         - Start K8S pass startup token to compute/slaves
         - Initialize software defined networking (Calico)
 

@@ -38,7 +38,7 @@ dev_tools:
    - ncurses-devel
    - gtk2-devel
 
-log_files_master:
+log_files_manager:
    - slurm_jobacct.log
    - slurm_jobcomp.log
 

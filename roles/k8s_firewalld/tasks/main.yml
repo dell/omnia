@@ -41,7 +41,7 @@
     permanent: yes
     state: enabled
   with_items: '{{ k8s_compute_ports }}'
-  when: "'compute' in group_names"
+  when: "'compute' in group_names and groups['manager'][0] != groups['compute'][0] and groups['compute']|length >= 1"
   tags: firewalld
 
 - name: Open flannel ports on the firewall
@@ -50,7 +50,7 @@
     permanent: yes
     state: enabled
   with_items: "{{ flannel_udp_ports }}"
-  when: k8s_cni == "flannel"
+  when: hostvars['127.0.0.1']['k8s_cni'] == "flannel"
   tags: firewalld
 
 - name: Open calico UDP ports on the firewall
@@ -59,7 +59,7 @@
     permanent: yes
     state: enabled
   with_items: "{{ calico_udp_ports }}"
-  when: k8s_cni == "calico"
+  when: hostvars['127.0.0.1']['k8s_cni'] == "calico"
   tags: firewalld
 
 - name: Open calico TCP ports on the firewall
@@ -68,7 +68,7 @@
     permanent: yes
     state: enabled
   with_items: "{{ calico_tcp_ports }}"
-  when: k8s_cni == "calico"
+  when: hostvars['127.0.0.1']['k8s_cni'] == "calico"
   tags: firewalld
 
 - name: Reload firewalld

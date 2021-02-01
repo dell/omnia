@@ -19,9 +19,16 @@
   ignore_errors: True
   tags: init
 
+- name: Get K8s pods
+  command: kubectl get pods --all-namespaces
+  changed_when: false
+  register: k8s_pods
+  tags: init
+
 - name: Deploy MetalLB
   command: "kubectl apply -f '{{ metallb_yaml_url }}'"
   changed_when: true
+  when: "'metallb' not in k8s_pods.stdout"
   tags: init
 
 - name: Create MetalLB Setup Config Files
@@ -45,17 +52,19 @@
 - name: Deploy MetalLB
   command: "kubectl apply -f '{{ metallb_deployment_file_dest }}'"
   changed_when: true
+  when: "'metallb' not in k8s_pods.stdout"
   tags: init
 
 - name: Create default setup for MetalLB
   command: "kubectl apply -f '{{ metallb_config_file_dest }}'"
   changed_when: true
+  when: "'metallb' not in k8s_pods.stdout"
   tags: init
 
 - name: Start k8s dashboard
   command: "kubectl create -f '{{ k8s_dashboard_yaml_url }}'"
   changed_when: true
-  register: result
+  when: "'kubernetes-dashboard' not in k8s_pods.stdout"
   tags: init
 
 - name: Helm - add stable repo
@@ -81,7 +90,7 @@
 - name: Start NFS Client Provisioner
   command: "helm install stable/nfs-client-provisioner --set nfs.server='{{ nfs_server }}' --set nfs.path='{{ nfs_path }}' --generate-name"
   changed_when: true
-  register: result
+  when: "'nfs-client-provisioner' not in k8s_pods.stdout"
   tags: init
 
 - name: Set NFS-Client Provisioner as DEFAULT StorageClass
@@ -97,25 +106,30 @@
     --set alertmanager.persistentVolume.storageClass=nfs-client,server.persistentVolume.storageClass=nfs-client,server.service.type=LoadBalancer \
     --generate-name
   changed_when: true
+  when: "'prometheus' not in k8s_pods.stdout"
   tags: init
 
 - name: Install MPI Operator
   command: "kubectl create -f '{{ mpi_operator_yaml_url }}'"
   changed_when: true
+  when: "'mpi-operator' not in k8s_pods.stdout"
   tags: init
 
 - name: Install nvidia-device-plugin
   command: "helm install --version='{{ nvidia_device_plugin_version }}' --generate-name --set migStrategy='{{ mig_strategy }}' nvdp/nvidia-device-plugin"
   changed_when: true
+  when: "'nvidia-device-plugin' not in k8s_pods.stdout"
   tags: init
 
 - name: Install GPU Feature Discovery
   command: "helm install --version='{{ gpu_feature_discovery_version }}' --generate-name --set migStrategy='{{ mig_strategy }}' nvgfd/gpu-feature-discovery"
   changed_when: true
+  when: "'node-feature-discovery' not in k8s_pods.stdout"
   tags: init
 
 - name: Deploy Xilinx Device plugin
   command: "kubectl create -f '{{ fpga_device_plugin_yaml_url }}'"
   changed_when: true
   register: fpga_enable
+  when: "'fpga-device-plugin' not in k8s_pods.stdout"
   tags: init

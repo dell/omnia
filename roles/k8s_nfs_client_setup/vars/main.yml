@@ -15,6 +15,10 @@
 
 nfs_mnt_dir: /home/k8snfs
 
+nfs_share_dir: /home/k8snfs
+
+mounthost: "{{ groups['manager'][0] }}"
+
 nfs_mnt_dir_mode: 0755
 
 fstab_file_path: /etc/fstab

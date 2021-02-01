@@ -1,0 +1,84 @@
+# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Check availability of mapping file
+  stat:
+    path: "{{ role_path }}/files/{{ mapping_file_name }}"
+  register: mapping_file_status
+  tags: install
+
+- name: Mapping file not present
+  fail:
+    msg: "{{ mapping_file_fail }}"
+  when: mapping_file_status.stat.exists == false
+  register: mapping_file_check
+  tags: install
+
+- name: Remove blank lines
+  shell:  awk -F, 'length>NF+1' {{ role_path }}/files/{{ mapping_file_name }} > {{ role_path }}/files/new_mapping_file.csv
+  changed_when: false
+  tags: install
+
+- name: Remove blank spaces
+  shell:  sed -i.bak -E 's/(^|,)[[:blank:]]+/\1/g; s/[[:blank:]]+(,|$)/\1/g'  {{ role_path }}/files/new_mapping_file.csv
+  args:
+    warn: no
+  changed_when: false
+  tags: install
+
+- name: Count the rows
+  shell: awk -F',' '{print $2}' {{ role_path }}/files/new_mapping_file.csv | wc -l
+  register: total_count
+  changed_when: false
+  tags: install
+
+- name: Check for duplicate hostname
+  shell: awk -F',' '{print $2}' {{ role_path }}/files/new_mapping_file.csv | uniq | wc -l
+  register: count_host
+  changed_when: false
+  tags: install
+
+- name: Fail if duplicate hosts exist
+  fail:
+    msg: "{{ fail_hostname_duplicate }}"
+  when:  total_count.stdout >  count_host.stdout
+  tags: install
+
+- name: Check if _ or . or space present in hostname
+  shell: awk -F',' '{print $2}' {{ role_path }}/files/new_mapping_file.csv |grep -E -- '_|\.| '
+  register: hostname_result
+  ignore_errors: true
+  changed_when: false
+  tags: install
+
+- name: Fail if  _ or . or space present in hostname
+  fail:
+    msg: "{{ hostname_result.stdout + ' :Hostname should not contain _ or . as it will cause error with slurm and K8s'}}"
+  when: hostname_result.stdout != ""
+  tags: install
+
+- name: Fetch input
+  blockinfile:
+    path: "{{ role_path }}/files/dhcp.template"
+    insertafter: '^#insert the static DHCP leases for configuration here'
+    block: |
+      host {{ item.split(',')[1] }} {
+        hardware ethernet {{ item.split(',')[0] }};
+        fixed-address {{ item.split(',')[2] }};
+      }
+    marker: "# {mark} DHCP BLOCK OF {{ item.split(',')[0] }}"
+  with_lines: "{{ remove_header }}"
+  ignore_errors: true
+  tags: install

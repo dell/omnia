@@ -12,11 +12,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-- name: Include vars file of common role
-  include_vars: "{{ role_path }}/../../appliance/roles/common/vars/main.yml"
-
 - name: Perform validations
   include_tasks: validations.yml
 
-- name: Fetch cobbler password
+- name: Fetch passwords
   include_tasks: fetch_password.yml

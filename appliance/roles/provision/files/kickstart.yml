@@ -58,7 +58,6 @@
 
   - name: Adding curl
     shell: export PATH="/usr/bin/curl:$PATH"
-    changed_when: true
 
   - name: Run import command
     command: cobbler import --arch=x86_64 --path=/mnt --name="{{ name_iso }}"
@@ -75,10 +74,28 @@
   - name: Syncing of cobbler
     command: cobbler sync
     changed_when: false
+  
+  - name: Disable default apache webpage
+    blockinfile:
+      state: present
+      insertafter: '^#insert the content here for disabling the default apache webpage'
+      dest: /etc/httpd/conf/httpd.conf
+      block: |
+        <Directory />
+           Order Deny,Allow
+           Deny from all
+           Options None
+           AllowOverride None
+         </Directory>
 
   - name: Restart cobbler
     service:
       name: cobblerd
+      state: restarted
+ 
+  - name: Restart httpdd
+    service:
+      name: httpd
       state: restarted
 
   - name: Restart xinetd

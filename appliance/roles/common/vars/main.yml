@@ -31,6 +31,8 @@ common_packages:
   - lvm2
   - gettext
   - python-docker
+  - net-tools
+  - python-netaddr
 
 # Usage: pre_requisite.yml
 internet_delay: 0
@@ -58,19 +60,29 @@ daemon_dest: /etc/docker/
 docker_volume_name: omnia-storage
 
 # Usage: password_config.yml
-input_config_filename: "input_config.yml"
+input_config_filename: "appliance_config.yml"
 fail_msg_provision_password: "Failed. Incorrect provision_password format provided in input_config.yml file"
 success_msg_provision_password: "provision_password validated"
 fail_msg_awx_password: "Failed. Incorrect awx_password format provided in input_config.yml file"
 success_msg_awx_password: "awx_password validated"
-fail_msg_mariadb_password: "Failed. Incorrect mariadb_password format provided in input_config.yml file"
-success_msg_mariadb_password: "mariadb_password validated"
 fail_msg_hpc_nic: "Failed. Incorrect hpc_nic format provided in input_config.yml file"
 success_msg_hpc_nic: "hpc_nic validated"
 fail_msg_public_nic: "Failed. Incorrect public_nic format provided in input_config.yml file"
 success_msg_public_nic: "public_nic validated"
+success_mapping_file: "mapping_file_exists validated"
+fail_mapping_file: "Failed. Incorrect mapping_file_exists value in input_config.yml. It should be either true or false"
 input_config_failure_msg: "Please provide all the required parameters in input_config.yml"
+success_dhcp_range: "Dhcp_range validated"
+fail_dhcp_range: "Failed: Incorrect range assigned for dhcp"
+success_hpc_ip: "IP validated"
+fail_hpc_ip: "Failed: Nic should be configured"
 min_length: 8
 max_length: 30
 nic_min_length: 3
 vault_filename: .vault_key
+config_filename: "omnia_config.yml"
+config_vaultname: .omnia_vault_key
+fail_msg_mariadb_password: "maria_db password not given in correct format."
+success_msg_mariadb_password: "mariadb_password validated"
+success_msg_k8s_cni: "Kubernetes CNI Validated"
+fail_msg_k8s_cni: "Kubernetes CNI not correct."
