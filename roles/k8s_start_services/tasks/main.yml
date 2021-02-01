@@ -137,5 +137,6 @@
 - name: Deploy ROCm Device plugin
   command: "kubectl create -f '{{ rocm_device_plugin_yaml_url }}'"
   changed_when: true
-  when: ansible_local.inventory.amd_gpu > 0 
+  register: amd_gpu_enable
+  when: "'amdgpu-device-plugin' not in k8s_pods.stdout" 
   tags: init
