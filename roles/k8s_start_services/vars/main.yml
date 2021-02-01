@@ -44,3 +44,5 @@ mig_strategy: none
 gpu_feature_discovery_version: 0.2.0
 
 fpga_device_plugin_yaml_url: https://raw.githubusercontent.com/Xilinx/FPGA_as_a_Service/master/k8s-fpga-device-plugin/fpga-device-plugin.yml
+
+rocm_device_plugin_yaml_url: https://raw.githubusercontent.com/RadeonOpenCompute/k8s-device-plugin/master/k8s-ds-amdgpu-dp.yaml 
