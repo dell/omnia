@@ -118,9 +118,9 @@
     - slurm_start_services
   tags: slurm
 
-#- name: Install slurm exporter
-# hosts: manager
-# gather_facts: false
-# roles:
-#   - slurm_exporter
-# tags: slurm
+- name: Install slurm exporter
+  hosts: manager
+  gather_facts: false
+  roles:
+    - slurm_exporter
+  tags: slurm

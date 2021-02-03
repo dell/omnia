@@ -25,14 +25,14 @@ cobbler_cnt_success_msg: "Docker container cobbler exists"
 nic_check_fail_msg: "NIC-1 ip address validation failed"
 nic_check_success_msg: "NIC-1 ip address validation successful"
 cobbler_image_files:
- - configure_nic
  - check_prerequisites
  - mount_iso
  - firewall_settings
  - provision_password
+ - dhcp_configure
  - cobbler_image
 password_config_file: "password_config"
-test_input_config_filename: "input_config_test.yml"
+test_input_config_filename: "appliance_config_test.yml"
 
 # Usage: test_provision_cc.yml
 docker_check_success_msg: "Docker service stopped usescase validation successful"
@@ -57,8 +57,8 @@ crontab_list_fail_msg: "Crontab list validation failed"
 crontab_list_success_msg: "Crontab list validation successful"
 iso_check_fail_msg: "centos iso file check validation failed"
 iso_check_success_msg: "centos iso file check validation successful"
-cobbler_service_check_fail_msg: "TFTP service validation failed"
-cobbler_service_check_success_msg: "TFTP service validation successful"
+cobbler_service_check_fail_msg: "cobbler service validation failed"
+cobbler_service_check_success_msg: "cobbler service validation successful"
 kickstart_filename: "centos7.ks"
 iso_file_path: "../roles/provision/files"
 temp_iso_name: "temp_centos.iso"
