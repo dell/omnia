@@ -12,7 +12,7 @@ __Note:__ If you are connecting remotely make sure your putty or any other simil
 
 ## Access Kuberentes Dashboard
 1. To verify if the __Kubernetes-dashboard service__ is __running__, run the following command:
-  `kubectl get pods --all-namespaces`
+  `kubectl get pods --namespace kubernetes-dashboard`
 2. To start the Kubernetes dashboard, run the following command:
   `kubectl proxy`
 3. From the CLI, run the following command to see the generated tokens: `kubectl get secrets`

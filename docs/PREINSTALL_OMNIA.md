@@ -2,13 +2,13 @@
 
 ## Assumptions
 Omnia assumes that prior to installation:
-* Systems have a base operating system (currently CentOS 7 or 8)
-* Network(s) has been cabled and nodes can reach the internet
-* SSH Keys for `root` have been installed on all nodes to allow for password-less SSH
-* Ansible is installed on either the manager node or a separate deployment node
-```
-yum install ansible
-```
+* The manager and compute nodes must be installed with CentOS 7.9 2009 OS.
+* Network(s) has been cabled and nodes can reach the Internet.
+* SSH Keys for root have been installed on all nodes to allow for password-less SSH.
+* On the manager node, install Ansible and Git using the following commands:
+	* `yum install epel-release -y`
+	* `yum install ansible git -y`  
+__Note:__ Ansible must be installed using __yum__. If Ansible is installed using __pip3__, re-install it using the __yum__ command.
 
 ## Example system designs
 Omnia can configure systems which use Ethernet- or Infiniband-based fabric to connect the compute servers.
