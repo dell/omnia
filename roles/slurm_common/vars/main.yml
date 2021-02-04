@@ -21,6 +21,7 @@ common_packages:
    - mariadb-devel
    - man2html
    - MySQL-python
+   - python-netaddr
 
 hostname_dest: "/etc/hostname"
 hosts_dest: "/etc/hosts"

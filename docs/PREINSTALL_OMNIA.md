@@ -8,7 +8,8 @@ Omnia assumes that prior to installation:
 * On the manager node, install Ansible and Git using the following commands:
 	* `yum install epel-release -y`
 	* `yum install ansible git -y`  
-__Note:__ Ansible must be installed using __yum__. If Ansible is installed using __pip3__, re-install it using the __yum__ command.
+__Note:__ Ansible must be installed using __yum__. If Ansible is installed using __pip3__, re-install it using the __yum__ command again.
+
 
 ## Example system designs
 Omnia can configure systems which use Ethernet- or Infiniband-based fabric to connect the compute servers.
