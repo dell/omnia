@@ -24,6 +24,16 @@
     src: "{{ buffer_path }}"
     dest: "{{ slurm_confpth }}"
     mode: "{{ slurm_mode }}"
+ 
+- name: Add compute hosts info in hosts file
+  lineinfile:
+    dest: "{{ hosts_dest }}"
+    line: "{{ hostvars[item].compute_host }} {{ hostvars[item].compute_ip }}"
+    state: present
+    create: yes
+    mode: "{{ common_mode }}"
+  with_items:
+    - "{{ groups['compute'] }}"
 
 - name: Enable slurmdbd on manager
   service:

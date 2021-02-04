@@ -39,7 +39,6 @@ COPY kickstart.yml /root
 COPY tftp.yml /root
 COPY inventory_creation.yml /root
 COPY centos7.ks /var/lib/cobbler/kickstarts
-COPY first-sync.sh /usr/local/bin/first-sync.sh
 
 EXPOSE 69 80 443 25151
 
