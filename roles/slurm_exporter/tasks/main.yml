@@ -22,7 +22,3 @@
 - name: Install prometheus on host
   include_tasks: install_prometheus.yml
   when: "'kubernetes' in ansible_skip_tags"
-
-- name: Apply slurm exporter config to prometheus pod
-  include_tasks: configure_prometheus_pod.yml
-  tags: kubernetes

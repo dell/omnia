@@ -29,7 +29,7 @@
   git:
     repo: "{{ slurm_exporter_git_repo }}"
     dest: "{{ slurm_exporter_inst_dir }}"
-    version: "master"
+    version: "{{ stable_commit_id }}"
 
 - name: export GOPATH
   shell: echo $GOPATH

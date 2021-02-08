@@ -99,10 +99,31 @@
     -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
   changed_when: true
   tags: init
+  
+- name: Copy the slurm exporter config file
+  copy:
+    src: "{{ slurm_exporter_config_file }}"
+    dest: "{{ slurm_exporter_config_file_path }}"
+    owner: root
+    group: root
+    mode: "{{ slurm_exporter_file_mode }}"
+
+- name: Fetch the public IP of the host
+  shell: ip route get 8.8.8.8 | awk '{print $7}'
+  register: public_ip
+  changed_when: False
+
+- name: Add the host IP to config file
+  replace:
+    path: "{{ slurm_exporter_config_file_path }}{{ slurm_exporter_config_file }}"
+    regexp: "localhost"
+    replace: "{{ public_ip.stdout }}"
+  tags: init
 
 - name: Prometheus deployment
   command: >
     helm install stable/prometheus \
+    --set-file extraScrapeConfigs="{{ slurm_exporter_config_file_path }}{{ slurm_exporter_config_file }}" \
     --set alertmanager.persistentVolume.storageClass=nfs-client,server.persistentVolume.storageClass=nfs-client,server.service.type=LoadBalancer \
     --generate-name
   changed_when: true
