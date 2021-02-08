@@ -13,7 +13,7 @@
 #  limitations under the License.
 ---
 
-- name: Start tftp
+- name: Start tftp and dhcp
   hosts: localhost
   connection: local
   tasks:
@@ -30,3 +30,17 @@
       args:
         warn: no
       when: "('inactive' in tftp_status.stdout) or ('unknown' in tftp_status.stdout)"
+
+    - name: Fetch dhcp status
+      command: systemctl is-active dhcpd
+      args:
+        warn: no
+      register: dhcp_status
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Start dhcp if inactive state
+      command: systemctl start dhcpd.service
+      args:
+        warn: no
+      when: "('inactive' in dhcp_status.stdout) or ('unknown' in dhcp_status.stdout)"

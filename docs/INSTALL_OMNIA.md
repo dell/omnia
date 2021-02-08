@@ -3,30 +3,28 @@
 The following sections provide details on installing Omnia using CLI. If you want to install the Omnia appliance and manage workloads using the Omnia appliance, see [INSTALL_OMNIA_APPLIANCE](INSTALL_OMNIA_APPLIANCE.md) and [MONITOR_CLUSTERS](MONITOR_CLUSTERS.md) files for more information.
 
 ## Prerequisties to install Omnia using CLI
-Ensure that all the prequisites listed in the [PREINSTALL_OMNIA](PREINSTALL_OMNIA.md) file are met before installing Omnia.
+Ensure that all the prerequisites listed in the [PREINSTALL_OMNIA](PREINSTALL_OMNIA.md) file are met before installing Omnia.
 
 ## Steps to install Omnia using CLI
-__Note:__ The user should have root privileges to perform installations and configurations.  
-__Note:__ If there are errors when any of the following Ansible playbook commands are executed, re-run the commands again.
+__Note:__ If there are errors when any of the following Ansible playbook commands are run, re-run the commands again.  
+__Note:__ The user should have root privileges to perform installations and configurations.
 
-1. On the manager node, change the working directory to the directory where you want to clone the Omnia Git repository.
-2. Clone the Omnia repository.
+1. Clone the Omnia repository.
 ``` 
 $ git clone https://github.com/dellhpc/omnia.git 
 ```
 __Note:__ After the Omnia repository is cloned, a folder named __omnia__ is created. It is recommended that you do not rename this folder.
 
-3. Change the directory to __omnia__, by executing the following command:
-   `cd omnia`
+2. Change the directory to __omnia__: `cd omnia`
 
-4. An inventory file must be created in the __omnia__ folder. Add compute node IPs under **[compute]** group and the manager node IP under **[manager]** group. See the template INVENTORY file under `omnia\docs` folder.
+3. An inventory file must be created in the __omnia__ folder. Add compute node IPs under **[compute]** group and the manager node IP under **[manager]** group. See the INVENTORY template file under `omnia\docs` folder.
 
-5. To install Omnia, run the following command:
+4. To install Omnia, run the following command.
 ```
 ansible-playbook omnia.yml -i inventory -e "ansible_python_interpreter=/usr/bin/python2" 
 ```
 
-6. By default, no skip tags are selected and both Kubernetes and Slurm will be deployed.  
+5. By default, no skip tags are selected and both Kubernetes and Slurm will be deployed.  
 To skip the installation of Kubernetes, enter:  
 `ansible-playbook omnia.yml -i inventory -e "ansible_python_interpreter=/usr/bin/python2"  --skip-tags "kubernetes"`  
 Similarly, to skip Slurm, enter:  
@@ -34,15 +32,14 @@ Similarly, to skip Slurm, enter:
 __Note:__ If you would like to skip the NFS client setup, enter the following command to skip the k8s_nfs_client_setup role of Kubernetes:  
 `ansible-playbook omnia.yml -i inventory -e "ansible_python_interpreter=/usr/bin/python2"  --skip-tags "nfs_client"`
 
-7. To provide password for mariaDB Database for Slurm accounting and Kubernetes CNI, edit the `omnia_config.yml` file.  
+6. To provide password for mariaDB Database for Slurm accounting and Kubernetes CNI, edit the `omnia_config.yml` file.  
 __Note:__ Supported Kubernetes CNI : calico and flannel. The default CNI is calico.  
 To view the set passwords of omnia_config.yml at a later time, run the following command:  
 `ansible-vault view omnia_config.yml --vault-password-file .omnia_vault_key`
 
-Omnia considers the following usernames as default:
-* `slurm` for MariaDB
+Omnia considers `slurm` as the default username for MariaDB.  
 
-The following __kubernetes__ roles are provided by Omnia when __omnia.yml__ file is executed:
+The following __kubernetes__ roles are provided by Omnia when __omnia.yml__ file is run:
 - __common__ role:
 	- Install common packages on manager and compute nodes
 	- Docker is installed
@@ -50,7 +47,7 @@ The following __kubernetes__ roles are provided by Omnia when __omnia.yml__ file
 	- Install Nvidia drivers and software components
 - **k8s_common** role: 
 	- Required Kubernetes packages are installed
-	- Starts the docker and kubernetes services.
+	- Starts the docker and Kubernetes services.
 - **k8s_manager** role: 
 	- __helm__ package for Kubernetes is installed.
 - **k8s_firewalld** role: This role is used to enable the required ports to be used by Kubernetes. 
@@ -70,24 +67,24 @@ The following __kubernetes__ roles are provided by Omnia when __omnia.yml__ file
 - **k8s_start_services** role
 	- Kubernetes services are deployed such as Kubernetes Dashboard, Prometheus, MetalLB and NFS client provisioner
 
-__Note:__ After Kubernetes is installed and configured, few Kubernetes and calico/flannel related ports will be opened in the manager and compute nodes. This is required for Kubernetes Pod-to-Pod and Pod-to-Service communications. Calico/flannel provides a full networking stack for Kubernetes pods.
+__Note:__ After Kubernetes is installed and configured, few Kubernetes and calico/flannel related ports are opened in the manager and compute nodes. This is required for Kubernetes Pod-to-Pod and Pod-to-Service communications. Calico/flannel provides a full networking stack for Kubernetes pods.
 
-The following __Slurm__ roles are provided by Omnia when __omnia.yml__ file is executed:
+The following __Slurm__ roles are provided by Omnia when __omnia.yml__ file is run:
 - **slurm_common** role:
-	- Install the common packages on manager node and compute node.
+	- Installs the common packages on manager node and compute node.
 - **slurm_manager** role:
-	- Install the packages only related to manager node
-	- This role also enables the required ports to be used by slurm.  
+	- Installs the packages only related to manager node
+	- This role also enables the required ports to be used by Slurm.  
 	    **tcp_ports**: 6817,6818,6819  
 		**udp_ports**: 6817,6818,6819
-	- Creating and updating the slurm configuration files based on the manager node requirements.
+	- Creating and updating the Slurm configuration files based on the manager node requirements.
 - **slurm_workers** role:
-	- Install the slurm packages into all compute nodes as per the compute node requirements.
+	- Installs the Slurm packages into all compute nodes as per the compute node requirements.
 - **slurm_start_services** role: 
-	- Starting the slurm services so that compute node starts to communicate with manager node.
+	- Starting the Slurm services so that compute node communicates with manager node.
 - **slurm_exporter** role: 
-	- slurm exporter is a package for exporting metrics collected from slurm resource scheduling system to prometheus.
-	- Slurm exporter is installed on the host just like slurm and slurm exporter will be successfully installed only if slurm is installed.
+	- Slurm exporter is a package for exporting metrics collected from Slurm resource scheduling system to prometheus.
+	- Slurm exporter is installed on the host like Slurm, and Slurm exporter will be successfully installed only if Slurm is installed.
 
 **Note:** If you want to install JupyterHub and Kubeflow playbooks, you have to first install the JupyterHub playbook and then install the Kubeflow playbook.
 
@@ -97,4 +94,4 @@ Commands to install JupyterHub and Kubeflow:
 
 ## Adding a new compute node to the cluster
 
-The user has to update the INVENTORY file present in omnia directory with the new node IP address in the compute group. Then, omnia.yml has to be executed to add the new node to the cluster and update the configurations of the manager node.
+The user has to update the INVENTORY file present in `omnia` directory with the new node IP address in the compute group. Then, `omnia.yml` has to be run to add the new node to the cluster and update the configurations of the manager node.

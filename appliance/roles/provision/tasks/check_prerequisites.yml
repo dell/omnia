@@ -61,6 +61,7 @@
   command: docker exec cobbler cobbler profile list
   changed_when: false
   register: cobbler_profile_list
+  ignore_errors: true
   when: cobbler_container_status == true
 
 - name: Check crontab list
