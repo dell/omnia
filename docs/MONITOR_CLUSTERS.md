@@ -4,11 +4,16 @@ Omnia provides playbooks to configure additional software components for Kuberne
 __Note:__ To access the below dashboards, user has to login to the manager node and open the installed web browser.
 
 __Note:__ If you are connecting remotely make sure your putty or any other similar client supports X11 forwarding. If you are using mobaxterm version 8 and above, follow the below mentioned steps:
-1. `yum install firefox -y`
-2. `yum install xorg-x11-xauth`
-3. `logout and login back`
-4. To launch firefox from terminal use the following command: 
+1. To provide __ssh__ to the manager node.
+   `ssh -x root@<ip>` (where ip is the private ip of manager node)
+2. `yum install firefox -y`
+3. `yum install xorg-x11-xauth`
+4. `export DISPLAY=:10.0`
+5. `logout and login back`
+6. To launch firefox from terminal use the following command: 
    `firefox&`
+
+__Note:__ Everytime user logouts, the user have to run __export DISPLAY=:10.0__ command.
 
 ## Access Kuberentes Dashboard
 1. To verify if the __Kubernetes-dashboard service__ is __running__, run the following command:
@@ -26,12 +31,13 @@ __Note:__ If you are connecting remotely make sure your putty or any other simil
 ## Access Kubeflow Dashboard
 
 __Note:__ Use only port number between __8000-8999__
+__Note:__ Suggested port number : 8085
 
 1. To see which are the ports are in use, use the following command:
    `netstat -an`
 2. Choose port number from __8000-8999__ which is not in use.
 3. To run the __kubeflow__ dashboard at selected port number, run the following command:
-   `kubectl port-forward -n istio-system svc/istio-ingressgateway __selected-port-number__:80`
+   `kubectl port-forward -n kubeflow service/centraldashboard __selected_port_number__:80`
 4. On a web browser installed on the __manager node__, go to http://localhost:selected-port-number/ to launch the kubeflow central navigation dashboard.
 
 ## Access JupyterHub Dashboard
