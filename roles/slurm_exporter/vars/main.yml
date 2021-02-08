@@ -23,6 +23,7 @@ slurm_exporter_git_repo: "https://github.com/vpenso/prometheus-slurm-exporter.gi
 go_modules_path: "{{ slurm_exporter_inst_dir }}/go/modules"
 slurm_exporter_exec: "{{ slurm_exporter_inst_dir }}/bin/prometheus-slurm-exporter"
 system_path: "/usr/bin"
+stable_commit_id: "00a7dee"
 
 #Usage: install_prometheus.yml
 prometheus_git_repo: "https://github.com/prometheus/prometheus/releases/download/v2.23.0/prometheus-2.23.0.linux-amd64.tar.gz"
