@@ -361,7 +361,9 @@
         replace: "{{ item.replace }}"
       with_items:
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
+        - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_008
 
     - block:
@@ -415,7 +417,9 @@
         replace: "{{ item.replace }}"
       with_items:
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
+        - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_009
 
     - block:
@@ -440,7 +444,7 @@
       tags: TC_009
 
 # Testcase OMNIA_DIO_US_DVC_TC_010
-# Execute common role in management station with mariadb_password as empty
+# Execute common role in management station with mapping_file_exists as empty
 - name: OMNIA_DIO_US_DVC_TC_010
   hosts: localhost
   connection: local
@@ -470,6 +474,8 @@
       with_items:
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
+        - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
+        - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_010
 
     - block:
@@ -482,7 +488,7 @@
       rescue:
         - name: Validate error
           assert:
-            that: input_config_failure_msg in input_config_check.msg
+            that: fail_mapping_file in mapping_file_check.msg
             success_msg: "{{ input_config_check_success_msg }}"
             fail_msg: "{{ input_config_check_fail_msg }}"
       tags: TC_010
@@ -524,7 +530,9 @@
       with_items:
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ long_password }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
+        - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_011
 
     - block:
@@ -579,7 +587,9 @@
       with_items:
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ white_space_password }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
+        - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_012
 
     - block:
@@ -634,7 +644,9 @@
       with_items:
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ special_character_password1 }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
+        - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_013
 
     - block:
@@ -689,7 +701,9 @@
       with_items:
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ special_character_password2 }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
+        - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_014
 
     - block:
@@ -744,7 +758,9 @@
       with_items:
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ long_password }}\"" }
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
+        - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_015
 
     - block:
@@ -799,7 +815,9 @@
       with_items:
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ white_space_password }}\"" }
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
+        - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_016
 
     - block:
@@ -854,7 +872,9 @@
       with_items:
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ special_character_password1 }}\"" }
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
+        - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_017
 
     - block:
@@ -909,7 +929,9 @@
       with_items:
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ special_character_password2 }}\"" }
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
+        - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_018
 
     - block:
@@ -934,7 +956,7 @@
       tags: TC_018
 
 # Testcase OMNIA_DIO_US_DVC_TC_019
-# Execute common role in management station with mariadb_password of more than 31 characters
+# Execute common role in management station with mapping_file_exists status as true
 - name: OMNIA_DIO_US_DVC_TC_019
   hosts: localhost
   connection: local
@@ -962,9 +984,11 @@
         regexp: "{{ item.regexp }}"
         replace: "{{ item.replace }}"
       with_items:
-        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ long_password }}\"" }
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"true\"" }
+        - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
+        - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_019
 
     - block:
@@ -974,10 +998,10 @@
             tasks_from: "{{ password_config_file }}"
           vars:
             input_config_filename: "{{ new_input_config_filename }}"
-      rescue:
-        - name: Validate error
+      always:
+        - name: Validate success message
           assert:
-            that: fail_msg_mariadb_password in mariadb_password_check.msg
+            that: success_mapping_file in mapping_file_check.msg
             success_msg: "{{ input_config_check_success_msg }}"
             fail_msg: "{{ input_config_check_fail_msg }}"
       tags: TC_019
@@ -989,7 +1013,7 @@
       tags: TC_019
 
 # Testcase OMNIA_DIO_US_DVC_TC_020
-# Execute common role in management station with mariadb_password as string contains white spaces
+# Execute common role in management station with mapping_file_exists status other than true or false
 - name: OMNIA_DIO_US_DVC_TC_020
   hosts: localhost
   connection: local
@@ -1017,9 +1041,11 @@
         regexp: "{{ item.regexp }}"
         replace: "{{ item.replace }}"
       with_items:
-        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ white_space_password }}\"" }
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"test\"" }
+        - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
+        - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_020
 
     - block:
@@ -1029,10 +1055,10 @@
             tasks_from: "{{ password_config_file }}"
           vars:
             input_config_filename: "{{ new_input_config_filename }}"
-      always:
-        - name: Validate success message
+      rescue:
+        - name: Validate error
           assert:
-            that: success_msg_mariadb_password in mariadb_password_check.msg
+            that: fail_mapping_file in mapping_file_check.msg
             success_msg: "{{ input_config_check_success_msg }}"
             fail_msg: "{{ input_config_check_fail_msg }}"
       tags: TC_020
@@ -1044,7 +1070,7 @@
       tags: TC_020
 
 # Testcase OMNIA_DIO_US_DVC_TC_021
-# Execute common role in management station with mariadb_password as string contains characters like '/' and '-'
+# Execute common role in management station with dhcp_start_ip_range as empty
 - name: OMNIA_DIO_US_DVC_TC_021
   hosts: localhost
   connection: local
@@ -1072,9 +1098,10 @@
         regexp: "{{ item.regexp }}"
         replace: "{{ item.replace }}"
       with_items:
-        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ special_character_password1 }}\"" }
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_021
 
     - block:
@@ -1087,7 +1114,7 @@
       rescue:
         - name: Validate error
           assert:
-            that: fail_msg_mariadb_password in mariadb_password_check.msg
+            that: input_config_failure_msg in input_config_check.msg
             success_msg: "{{ input_config_check_success_msg }}"
             fail_msg: "{{ input_config_check_fail_msg }}"
       tags: TC_021
@@ -1099,7 +1126,7 @@
       tags: TC_021
 
 # Testcase OMNIA_DIO_US_DVC_TC_022
-# Execute common role in management station with mariadb_password as string contains special characters other than '-', '/'
+# Execute common role in management station with dhcp_end_ip_range as empty
 - name: OMNIA_DIO_US_DVC_TC_022
   hosts: localhost
   connection: local
@@ -1127,9 +1154,10 @@
         regexp: "{{ item.regexp }}"
         replace: "{{ item.replace }}"
       with_items:
-        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ special_character_password2 }}\"" }
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
       tags: TC_022
 
     - block:
@@ -1139,10 +1167,10 @@
             tasks_from: "{{ password_config_file }}"
           vars:
             input_config_filename: "{{ new_input_config_filename }}"
-      always:
-        - name: Validate success message
+      rescue:
+        - name: Validate error
           assert:
-            that: success_msg_mariadb_password in mariadb_password_check.msg
+            that: input_config_failure_msg in input_config_check.msg
             success_msg: "{{ input_config_check_success_msg }}"
             fail_msg: "{{ input_config_check_fail_msg }}"
       tags: TC_022
@@ -1154,7 +1182,7 @@
       tags: TC_022
 
 # Testcase OMNIA_DIO_US_DVC_TC_023
-# Execute common role in management station with mariadb_password of 30 characters
+# Execute common role in management station with mapping_file_exists status as false
 - name: OMNIA_DIO_US_DVC_TC_023
   hosts: localhost
   connection: local
@@ -1182,9 +1210,11 @@
         regexp: "{{ item.regexp }}"
         replace: "{{ item.replace }}"
       with_items:
-        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ max_length_password }}\"" }
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
+        - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_023
 
     - block:
@@ -1197,7 +1227,7 @@
       always:
         - name: Validate success message
           assert:
-            that: success_msg_mariadb_password in mariadb_password_check.msg
+            that: success_mapping_file in mapping_file_check.msg
             success_msg: "{{ input_config_check_success_msg }}"
             fail_msg: "{{ input_config_check_fail_msg }}"
       tags: TC_023
@@ -1239,7 +1269,9 @@
       with_items:
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ max_length_password }}\"" }
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
+        - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_024
 
     - block:
@@ -1294,7 +1326,9 @@
       with_items:
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ max_length_password }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
+        - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_025
 
     - block:
@@ -1349,7 +1383,9 @@
       with_items:
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
+        - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
         - { regexp: "hpc_nic: \"em1\"", replace: "hpc_nic: \"em2\"" }
       tags: TC_026
 
@@ -1405,7 +1441,9 @@
       with_items:
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
+        - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
         - { regexp: "hpc_nic: \"em1\"", replace: "hpc_nic: \"\"" }
       tags: TC_027
 
@@ -1461,7 +1499,9 @@
       with_items:
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
+        - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
         - { regexp: "public_nic: \"em2\"", replace: "public_nic: \"\"" }
       tags: TC_028
 
@@ -1487,7 +1527,7 @@
       tags: TC_028
 
 # Testcase OMNIA_DIO_US_DVC_TC_029
-# Execute common role in management station with public_nic other than em1, em2 or em3
+# Execute common role in management station with public_nic not present in device
 - name: OMNIA_DIO_US_DVC_TC_029
   hosts: localhost
   connection: local
@@ -1517,7 +1557,9 @@
       with_items:
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mariadb_password: \"\"", replace: "mariadb_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
+        - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
         - { regexp: "public_nic: \"em2\"", replace: "public_nic: \"em5\"" }
       tags: TC_029
 
@@ -1531,7 +1573,7 @@
       rescue:
         - name: Validate error
           assert:
-            that: fail_msg_public_nic in public_nic_check.msg
+            that: fail_hpc_ip in public_ip_check.msg
             success_msg: "{{ input_config_check_success_msg }}"
             fail_msg: "{{ input_config_check_fail_msg }}"
       tags: TC_029
@@ -1541,3 +1583,289 @@
         path: "{{ new_input_config_filename }}"
         state: absent
       tags: TC_029
+
+# Testcase OMNIA_DIO_US_DVC_TC_030
+# Execute common role in management station with hpc_nic not present in device
+- name: OMNIA_DIO_US_DVC_TC_030
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_030
+
+    - name: Copy "{{ empty_input_config_filename }}" to new file
+      copy:
+        src: "{{ empty_input_config_filename }}"
+        dest: "{{ new_input_config_filename }}"
+      tags: TC_030
+
+    - name: Edit "{{ new_input_config_filename }}"
+      replace:
+        path: "{{ new_input_config_filename }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      with_items:
+        - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
+        - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
+        - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
+        - { regexp: "hpc_nic: \"em1\"", replace: "hpc_nic: \"em5\"" }
+      tags: TC_030
+
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+            tasks_from: "{{ password_config_file }}"
+          vars:
+            input_config_filename: "{{ new_input_config_filename }}"
+      rescue:
+        - name: Validate error
+          assert:
+            that: fail_hpc_ip in hpc_ip_check.msg
+            success_msg: "{{ input_config_check_success_msg }}"
+            fail_msg: "{{ input_config_check_fail_msg }}"
+      tags: TC_030
+
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_030
+
+# Testcase OMNIA_DIO_US_DVC_TC_031
+# Execute common role with dhcp_start_ip_range in wrong ip range
+- name: OMNIA_DIO_US_DVC_TC_031
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_031
+
+    - name: Copy "{{ empty_input_config_filename }}" to new file
+      copy:
+        src: "{{ empty_input_config_filename }}"
+        dest: "{{ new_input_config_filename }}"
+      tags: TC_031
+
+    - name: Edit "{{ new_input_config_filename }}"
+      replace:
+        path: "{{ new_input_config_filename }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      with_items:
+        - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
+        - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ invalid_dhcp_ip }}\"" }
+        - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
+      tags: TC_031
+
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+            tasks_from: "{{ password_config_file }}"
+          vars:
+            input_config_filename: "{{ new_input_config_filename }}"
+      rescue:
+        - name: Validate error
+          assert:
+            that: fail_dhcp_range in dhcp_start_ip_check.msg
+            success_msg: "{{ input_config_check_success_msg }}"
+            fail_msg: "{{ input_config_check_fail_msg }}"
+      tags: TC_031
+
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_031
+
+# Testcase OMNIA_DIO_US_DVC_TC_032
+# Execute common role with dhcp_start_ip_range in wrong format
+- name: OMNIA_DIO_US_DVC_TC_032
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_032
+
+    - name: Copy "{{ empty_input_config_filename }}" to new file
+      copy:
+        src: "{{ empty_input_config_filename }}"
+        dest: "{{ new_input_config_filename }}"
+      tags: TC_032
+
+    - name: Edit "{{ new_input_config_filename }}"
+      replace:
+        path: "{{ new_input_config_filename }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      with_items:
+        - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
+        - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ wrong_dhcp_ip }}\"" }
+        - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
+      tags: TC_032
+
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+            tasks_from: "{{ password_config_file }}"
+          vars:
+            input_config_filename: "{{ new_input_config_filename }}"
+      rescue:
+        - name: Validate error
+          assert:
+            that: fail_dhcp_range in dhcp_start_ip_check.msg
+            success_msg: "{{ input_config_check_success_msg }}"
+            fail_msg: "{{ input_config_check_fail_msg }}"
+      tags: TC_032
+
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_032
+
+# Testcase OMNIA_DIO_US_DVC_TC_033
+#Execute common role with dhcp_end_ip_range in wrong format
+- name: OMNIA_DIO_US_DVC_TC_033
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_033
+
+    - name: Copy "{{ empty_input_config_filename }}" to new file
+      copy:
+        src: "{{ empty_input_config_filename }}"
+        dest: "{{ new_input_config_filename }}"
+      tags: TC_033
+
+    - name: Edit "{{ new_input_config_filename }}"
+      replace:
+        path: "{{ new_input_config_filename }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      with_items:
+        - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
+        - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
+        - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ wrong_dhcp_ip }}\"" }
+      tags: TC_033
+
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+            tasks_from: "{{ password_config_file }}"
+          vars:
+            input_config_filename: "{{ new_input_config_filename }}"
+      rescue:
+        - name: Validate error
+          assert:
+            that: fail_dhcp_range in dhcp_start_ip_check.msg
+            success_msg: "{{ input_config_check_success_msg }}"
+            fail_msg: "{{ input_config_check_fail_msg }}"
+      tags: TC_033
+
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_033
+
+# Testcase OMNIA_DIO_US_DVC_TC_034
+#Execute common role with dhcp_end_ip_range in wrong ip range
+- name: OMNIA_DIO_US_DVC_TC_034
+  hosts: localhost
+  connection: local
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_common_vars.yml
+    - ../roles/common/vars/main.yml
+  tasks:
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_034
+
+    - name: Copy "{{ empty_input_config_filename }}" to new file
+      copy:
+        src: "{{ empty_input_config_filename }}"
+        dest: "{{ new_input_config_filename }}"
+      tags: TC_034
+
+    - name: Edit "{{ new_input_config_filename }}"
+      replace:
+        path: "{{ new_input_config_filename }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      with_items:
+        - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
+        - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
+        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
+        - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ invalid_dhcp_ip }}\"" }
+      tags: TC_034
+
+    - block:
+        - name: Call common role
+          include_role:
+            name: ../roles/common
+            tasks_from: "{{ password_config_file }}"
+          vars:
+            input_config_filename: "{{ new_input_config_filename }}"
+      rescue:
+        - name: Validate error
+          assert:
+            that: fail_dhcp_range in dhcp_start_ip_check.msg
+            success_msg: "{{ input_config_check_success_msg }}"
+            fail_msg: "{{ input_config_check_fail_msg }}"
+      tags: TC_034
+
+    - name: Delete "{{ new_input_config_filename }}"
+      file:
+        path: "{{ new_input_config_filename }}"
+        state: absent
+      tags: TC_034

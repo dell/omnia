@@ -1,0 +1,25 @@
+HPC Cluster
+-----------
+Reachable Hosts:
+{% if reachable_host_number > 0 %}
+{% for host in groups['reachable'] %}
+{% if reachable_host_number == 1 %}
+  inet={{ host }}, link/ether={{ ethernet_detail_reachable.stdout | replace(';','')}}
+{% elif reachable_host_number > 1 %}
+  inet={{ host }}, link/ether={{ ethernet_detail_reachable.results[loop.index|int - 1].stdout | replace(';','')}}
+{% endif %}
+{% endfor %}
+{% endif %}
+Total reachable hosts: {{ reachable_host_number }}
+
+Unreachable Hosts:
+{% if unreachable_host_number > 0 %}
+{% for host in groups['ungrouped'] %}
+{% if unreachable_host_number == 1 %}
+  inet={{ host }}, link/ether={{ ethernet_detail_unreachable.stdout | replace(';','')}}
+{% elif unreachable_host_number > 1 %}
+  inet={{ host }}, link/ether={{ ethernet_detail_unreachable.results[loop.index|int - 1].stdout | replace(';','')}}
+{% endif %}
+{% endfor %}
+{% endif %}
+Total unreachable hosts: {{ unreachable_host_number }}

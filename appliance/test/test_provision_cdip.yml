@@ -78,24 +78,6 @@
         success_msg: "{{ cobbler_cnt_success_msg }}"
       tags: TC_001,VERIFY_001
 
-    - name: Validate first NIC is not assigned to public internet
-      shell: |
-        set -o pipefail
-        ip route get 8.8.8.8 | awk '{print $5}'
-      register: nic_output
-      args:
-        executable: /bin/bash
-      failed_when: first_nic in nic_output.stdout
-      changed_when: false
-      tags: TC_001,VERIFY_001
-
-    - name: "Validate NIC-1 is assigned to IP {{ nic1_ip_address }}"
-      assert:
-        that: "'{{ nic1_ip_address }}' in ansible_em1.ipv4.address"
-        fail_msg: "{{ nic_check_fail_msg }}"
-        success_msg: "{{ nic_check_success_msg }}"
-      tags: TC_001,VERIFY_001
-
 # Testcase OMNIA_DIO_US_CDIP_TC_002
 # Execute provison role in management station where cobbler container and image already created
 - name: OMNIA_DIO_US_CDIP_TC_002
@@ -143,24 +125,6 @@
           - cobbler_cnt_status.exists
         fail_msg: "{{ cobbler_cnt_fail_msg }}"
         success_msg: "{{ cobbler_cnt_success_msg }}"
-      tags: TC_002,VERIFY_002
-
-    - name: Validate first NIC is not assigned to public internet
-      shell: |
-        set -o pipefail
-        ip route get 8.8.8.8 | awk '{print $5}'
-      register: nic_output
-      args:
-        executable: /bin/bash
-      failed_when: first_nic in nic_output.stdout
-      changed_when: false
-      tags: TC_002,VERIFY_002
-
-    - name: "Validate NIC-1 is assigned to IP {{ nic1_ip_address }}"
-      assert:
-        that: "'{{ nic1_ip_address }}' in ansible_em1.ipv4.address"
-        fail_msg: "{{ nic_check_fail_msg }}"
-        success_msg: "{{ nic_check_success_msg }}"
       tags: TC_002,VERIFY_002
 
 # Testcase OMNIA_DIO_US_CDIP_TC_003

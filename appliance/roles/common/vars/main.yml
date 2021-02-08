@@ -41,11 +41,11 @@ hostname: github.com
 port_no: 22
 os_name: CentOS
 os_version: '7.9' 
-internet_status: "Failed: No Internet connection.Connect to Internet."
-os_status: "Unsupported OS or OS version.OS must be {{ os_name }} and Version must be {{ os_version }} or more"
+internet_status: "Failed. No Internet connection. Make sure network is up."
+os_status: "Unsupported OS or OS version. OS should be {{ os_name }} and Version should be {{ os_version }} or more"
 selinux_status: "SElinux is not disabled. Disable it in /etc/sysconfig/selinux and reboot the system"
 iso_name: CentOS-7-x86_64-Minimal-2009.iso
-iso_fail: "Iso file absent: Download and copy the iso file in omnia/appliance/roles/provision/files"
+iso_fail: "Iso file not found. Download and copy the iso file to omnia/appliance/roles/provision/files"
 
 # Usage: docker_installation.yml
 docker_repo_url: https://download.docker.com/linux/centos/docker-ce.repo
@@ -61,28 +61,28 @@ docker_volume_name: omnia-storage
 
 # Usage: password_config.yml
 input_config_filename: "appliance_config.yml"
-fail_msg_provision_password: "Failed. Incorrect provision_password format provided in input_config.yml file"
+fail_msg_provision_password: "Failed. Incorrect provision_password format provided in appliance_config.yml file"
 success_msg_provision_password: "provision_password validated"
-fail_msg_awx_password: "Failed. Incorrect awx_password format provided in input_config.yml file"
+fail_msg_awx_password: "Failed. Incorrect awx_password format provided in appliance_config.yml file"
 success_msg_awx_password: "awx_password validated"
-fail_msg_hpc_nic: "Failed. Incorrect hpc_nic format provided in input_config.yml file"
+fail_msg_hpc_nic: "Failed. Incorrect hpc_nic format provided in appliance_config.yml file"
 success_msg_hpc_nic: "hpc_nic validated"
-fail_msg_public_nic: "Failed. Incorrect public_nic format provided in input_config.yml file"
+fail_msg_public_nic: "Failed. Incorrect public_nic format provided in appliance_config.yml file"
 success_msg_public_nic: "public_nic validated"
 success_mapping_file: "mapping_file_exists validated"
-fail_mapping_file: "Failed. Incorrect mapping_file_exists value in input_config.yml. It should be either true or false"
-input_config_failure_msg: "Please provide all the required parameters in input_config.yml"
+fail_mapping_file: "Failed. Incorrect mapping_file_exists value in appliance_config.yml. It should be either true or false"
+input_config_failure_msg: "Please provide all the required parameters in appliance_config.yml"
 success_dhcp_range: "Dhcp_range validated"
-fail_dhcp_range: "Failed: Incorrect range assigned for dhcp"
+fail_dhcp_range: "Failed. Incorrect range assigned for dhcp"
 success_hpc_ip: "IP validated"
-fail_hpc_ip: "Failed: Nic should be configured"
+fail_hpc_ip: "Failed. Nic should be configured"
 min_length: 8
 max_length: 30
 nic_min_length: 3
 vault_filename: .vault_key
 config_filename: "omnia_config.yml"
 config_vaultname: .omnia_vault_key
-fail_msg_mariadb_password: "maria_db password not given in correct format."
+fail_msg_mariadb_password: "Failed. Incorrect mariadb_password format provided in omnia_config.yml file"
 success_msg_mariadb_password: "mariadb_password validated"
 success_msg_k8s_cni: "Kubernetes CNI Validated"
-fail_msg_k8s_cni: "Kubernetes CNI not correct."
+fail_msg_k8s_cni: "Failed. Kubernetes CNI is incorrect in omnia_config.yml"

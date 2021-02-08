@@ -55,6 +55,10 @@
     state: present
   tags: install
 
+- name: Update pip
+  command: pip3 install --upgrade pip
+  changed_when: false
+
 - name: Installation using python3
   pip:
     name: "{{ docker_compose }}"
