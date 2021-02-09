@@ -13,20 +13,20 @@
 #  limitations under the License.
 ---
 
-- name: Add AMD ROCm repository 
+- name: Add AMD ROCm repository
   yum_repository:
-    name: ROCm 
-    description: AMD GPU ROCm Repository 
-    baseurl: https://repo.radeon.com/rocm/yum/rpm 
-    gpgcheck: yes 
-    gpgkey: https://repo.radeon.com/rocm/rocm.gpg.key 
+    name: ROCm
+    description: AMD GPU ROCm Repository
+    baseurl: https://repo.radeon.com/rocm/yum/rpm
+    gpgcheck: yes
+    gpgkey: https://repo.radeon.com/rocm/rocm.gpg.key
     enabled: yes
   tags: install
 
-- name: Install AMD ROCm drivers 
+- name: Install AMD ROCm drivers
   package:
-    name: rocm-dkms 
-    enablerepo: ROCm 
+    name: rocm-dkms
+    enablerepo: ROCm
     state: present
   tags: install
 

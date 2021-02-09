@@ -24,7 +24,7 @@
     src: "{{ buffer_path }}"
     dest: "{{ slurm_confpth }}"
     mode: "{{ slurm_mode }}"
- 
+
 - name: Add compute hosts info in hosts file
   lineinfile:
     dest: "{{ hosts_dest }}"
