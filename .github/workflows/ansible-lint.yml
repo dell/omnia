@@ -17,7 +17,7 @@ jobs:
 
     - name: ansible-lint 
       # replace "master" with any valid ref
-      uses: ansible/ansible-lint-action@151b9a2
+      uses: ansible/ansible-lint-action@master
       with:
         # [required]
         # Paths to ansible files (i.e., playbooks, tasks, handlers etc..)
@@ -28,10 +28,10 @@ jobs:
         #   playbook_1.yml
         #   playbook_2.yml
         targets: |
-          /github/workspace/kubernetes/jupyterhub.yml
-          /github/workspace/kubernetes/kubeflow.yml
-          /github/workspace/kubernetes/kubernetes.yml
-          /github/workspace/slurm/slurm.yml
+          /github/workspace/omnia.yml
+          /github/workspace/omnia_config.yml
+          /github/workspace/platforms/jupyterhub.yml
+          /github/workspace/platforms/kubeflow.yml
           /github/workspace/tools/install_tools.yml
         # [optional]
         # Arguments to override a package and its version to be set explicitly.
