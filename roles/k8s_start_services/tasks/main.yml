@@ -108,11 +108,16 @@
     group: root
     mode: "{{ slurm_exporter_file_mode }}"
 
+- name: Fetch the public IP of the host
+  shell: ip route get 8.8.8.8 | awk '{print $7}'
+  register: public_ip
+  changed_when: False
+
 - name: Add the host IP to config file
   replace:
     path: "{{ slurm_exporter_config_file_path }}{{ slurm_exporter_config_file }}"
     regexp: "localhost"
-    replace: "{{ inventory_hostname }}"
+    replace: "{{ public_ip.stdout }}"
   tags: init
 
 - name: Prometheus deployment
