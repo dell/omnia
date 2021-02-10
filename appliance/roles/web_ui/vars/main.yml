@@ -51,7 +51,6 @@ default_org: Default
 default_template: 'Demo Job Template'
 default_projects: 'Demo Project'
 default_credentials: 'Demo Credential'
-dir_name: omnia
 organization_name: DellEMC
 project_name: omnia
 omnia_inventory_name: omnia_inventory

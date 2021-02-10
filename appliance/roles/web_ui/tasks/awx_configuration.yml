@@ -30,7 +30,7 @@
   rescue:
     - name: Message
       fail:
-        msg: "{{ organizations_list.stderr | regex_replace(awx_user) | regex_replace(admin_password) }}"
+        msg: "{{ organizations_list.stdout | regex_replace(awx_user) | regex_replace(admin_password) }}"
 
 - name: Project list
   block:
@@ -44,7 +44,7 @@
   rescue:
     - name: Message
       fail:
-        msg: "{{ projects_list.stderr | regex_replace(awx_user) | regex_replace(admin_password) }}"
+        msg: "{{ projects_list.stdout | regex_replace(awx_user) | regex_replace(admin_password) }}"
 
 - name: Inventory list
   block:
@@ -58,7 +58,7 @@
   rescue:
     - name: Message
       fail:
-        msg: "{{ inventory_list.stderr | regex_replace(awx_user) | regex_replace(admin_password) }}"
+        msg: "{{ inventory_list.stdout | regex_replace(awx_user) | regex_replace(admin_password) }}"
 
 - name: Credential list
   block:
@@ -72,7 +72,7 @@
   rescue:
     - name: Message
       fail:
-        msg: "{{ credentials_list.stderr | regex_replace(awx_user) | regex_replace(admin_password) }}"
+        msg: "{{ credentials_list.stdout | regex_replace(awx_user) | regex_replace(admin_password) }}"
 
 - name: Template List
   block:
@@ -86,7 +86,7 @@
   rescue:
     - name: Message
       fail:
-        msg: "{{ job_templates_list.stderr | regex_replace(awx_user) | regex_replace(admin_password) }}"
+        msg: "{{ job_templates_list.stdout | regex_replace(awx_user) | regex_replace(admin_password) }}"
 
 - name: Group names
   block:
@@ -100,7 +100,7 @@
   rescue:
     - name: Message
       fail:
-        msg: "{{ groups_list.stderr | regex_replace(awx_user) | regex_replace(admin_password) }}"
+        msg: "{{ groups_list.stdout | regex_replace(awx_user) | regex_replace(admin_password) }}"
 
 - name: Schedules list
   block:
@@ -114,7 +114,7 @@
   rescue:
     - name: Message
       fail:
-        msg: "{{ schedules_list.stderr | regex_replace(awx_user) | regex_replace(admin_password) }}"
+        msg: "{{ schedules_list.stdout | regex_replace(awx_user) | regex_replace(admin_password) }}"
 
 # Delete Default Configurations
 - name: Delete default configurations
@@ -154,7 +154,7 @@
   rescue:
     - name: Message
       fail:
-        msg: "{{ register_error.stderr | regex_replace(awx_user) | regex_replace(admin_password) }}"
+        msg: "{{ register_error.stdout | regex_replace(awx_user) | regex_replace(admin_password) }}"
 
 # Create required configuration if not present
 - name: Create required configurations
@@ -171,7 +171,7 @@
       command: >-
         awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ admin_password }}"
         projects create --name "{{ project_name }}" --organization "{{ organization_name }}"
-        --local_path "{{ dir_name }}"
+        --local_path "{{ role_path.split('/')[-4] }}"
       when: project_name not in projects_list.stdout
       register: register_error
       no_log: True
@@ -281,4 +281,4 @@
   rescue:
     - name: Message
       fail:
-        msg: "{{ register_error.stderr | regex_replace(awx_user) | regex_replace(admin_password) }}"
+        msg: "{{ register_error.stdout | regex_replace(awx_user) | regex_replace(admin_password) }}"
