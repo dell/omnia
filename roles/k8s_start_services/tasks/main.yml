@@ -100,6 +100,21 @@
   changed_when: true
   tags: init
 
+- name: Check if prometheus is installed on the host
+  stat:
+    path: "{{ prometheus_path_on_host }}"
+  register: prometheus_status
+  changed_when: False
+  ignore_errors: yes
+  tags: init
+
+- name: Delete prometheus installed on host if it exists
+  file:
+    path: "{{ prometheus_path_on_host }}"
+    state: absent
+  when: prometheus_status.stat.exists
+  tags: init
+
 - name: Copy the slurm exporter config file
   copy:
     src: "{{ slurm_exporter_config_file }}"
