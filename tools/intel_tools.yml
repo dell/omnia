@@ -31,7 +31,7 @@
       state: present
 
 # Install the Intel Cluster Checker
-- hosts: cluster 
+- hosts: cluster
   tasks:
   - name: Import the Intel(R) Cluster Checker Repo GPG Key
     rpm_key:
