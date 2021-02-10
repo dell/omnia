@@ -30,8 +30,8 @@
 
 - name: Install docker
   package:
-    name: "{{ container_repo_install }}" 
-    state: latest
+    name: "{{ container_repo_install }}"
+    state: present
   become: yes
   tags: install
 
@@ -42,6 +42,22 @@
     enabled: yes
   become: yes
   tags: install
+
+- name: Uninstall docker-py using pip
+  pip:
+    name: ['docker-py','docker']
+    state: absent
+  tags: install
+
+- name: Install docker using pip
+  pip:
+    name: docker
+    state: present
+  tags: install
+
+- name: Update pip
+  command: pip3 install --upgrade pip
+  changed_when: false
 
 - name: Installation using python3
   pip:
@@ -57,5 +73,5 @@
 
 - name: Restart docker
   service:
-    name: docker 
+    name: docker
     state: restarted

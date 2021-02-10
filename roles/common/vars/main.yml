@@ -19,17 +19,20 @@ common_packages:
   - gcc
   - nfs-utils
   - python3-pip
-  - docker-ce
   - bash-completion
   - nvidia-detect
   - chrony
+  - pciutils
+  - docker-ce
+  - openssl
 
-k8s_packages:
-  - kubelet-1.16.7
-  - kubeadm-1.16.7
-  - kubectl-1.16.7
+custom_fact_dir: /etc/ansible/facts.d
 
-k8s_repo_dest: /etc/yum.repos.d/
+custom_fact_dir_mode: 0755
+
+accelerator_discovery_script_dest: /etc/ansible/facts.d/inventory.fact
+
+accelerator_discovery_script_mode: 0755
 
 elrepo_gpg_key_url: https://www.elrepo.org/RPM-GPG-KEY-elrepo.org
 
@@ -38,12 +41,6 @@ elrepo_rpm_url: https://www.elrepo.org/elrepo-release-7.el7.elrepo.noarch.rpm
 docker_repo_url: https://download.docker.com/linux/centos/docker-ce.repo
 
 docker_repo_dest: /etc/yum.repos.d/docker-ce.repo
-
-k8s_conf_dest: /etc/sysctl.d/
-
-k8s_repo_file_mode: 0644
-
-k8s_conf_file_mode: 0644
 
 chrony_path: "/etc/chrony.conf"
 ntp_path: "/etc/ntp.conf"
@@ -61,3 +58,15 @@ ntp_servers:
   - 2.centos.pool.ntp.org
 chrony_servers:
   - 2.centos.pool.ntp.org
+
+nvidia_docker_repo_url: https://nvidia.github.io/nvidia-docker/centos7/nvidia-docker.repo
+nvidia_docker_repo_dest: /etc/yum.repos.d/nvidia-docker.repo
+nvidia_container_repo_url: https://nvidia.github.io/libnvidia-container/centos7/libnvidia-container.repo
+nvidia_container_repo_dest: /etc/yum.repos.d/libnvidia-container.repo
+
+nvidia_packages:
+  - kmod-nvidia
+  - nvidia-docker2
+
+daemon_file_dest: /etc/docker/
+daemon_file_mode: 0644

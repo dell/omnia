@@ -17,53 +17,105 @@
   connection: local
   gather_facts: false
   vars:
-    name_iso: CentOS8
-    distro_name: CentOS8-x86_64
-    kernel_path: /var/www/cobbler/ks_mirror/CentOS8-x86_64/isolinux/vmlinuz
-
+    name_iso: CentOS7
+    distro_name: CentOS7-x86_64
   tasks:
   - name: Inside cobbler container
     debug:
       msg: "Hiii! I am cobbler"
 
-  - name: Start services
+  - name: Start xinetd
     service:
       name: "{{ item }}"
       state: started
     loop:
       - cobblerd
-      - httpd
-      - rsyncd
       - xinetd
+      - rsyncd
       - tftp
+      - httpd
 
   - name: Cobbler get-loaders
     command: cobbler get-loaders
     changed_when: false
+
+  - name: Get fence agents
+    package:
+      name: fence-agents
+      state: present
+
+  - name: Replace in /etc/debian
+    replace:
+      path: "/etc/debmirror.conf"
+      regexp: "^@dists=\"sid\";"
+      replace: "#@dists=\"sid\";"
+
+  - name: Replace in /etc/debian
+    replace:
+      path: "/etc/debmirror.conf"
+      regexp: "^@arches=\"i386\";"
+      replace: "#@arches=\"i386\";"
+
+  - name: Adding curl
+    shell: export PATH="/usr/bin/curl:$PATH"
 
   - name: Run import command
     command: cobbler import --arch=x86_64 --path=/mnt --name="{{ name_iso }}"
     changed_when: false
 
   - name: Distro list
-    command: >-
-      cobbler distro edit --name="{{ distro_name }}" --kernel="{{ kernel_path }}" --initrd=/var/www/cobbler/ks_mirror/CentOS8-x86_64/isolinux/initrd.img
+    command: cobbler distro edit --name="{{ distro_name }}" --kernel=/var/www/cobbler/ks_mirror/CentOS7-x86_64/isolinux/vmlinuz --initrd=/var/www/cobbler/ks_mirror/CentOS7-x86_64/isolinux/initrd.img
     changed_when: false
 
   - name: Kickstart profile
-    command: cobbler profile edit --name="{{ distro_name }}" --kickstart=/var/lib/cobbler/kickstarts/centos8.ks
+    command: cobbler profile edit --name="{{ distro_name }}" --kickstart=/var/lib/cobbler/kickstarts/centos7.ks
     changed_when: false
 
   - name: Syncing of cobbler
     command: cobbler sync
     changed_when: false
+  
+  - name: Disable default apache webpage
+    blockinfile:
+      state: present
+      insertafter: '^#insert the content here for disabling the default apache webpage'
+      dest: /etc/httpd/conf/httpd.conf
+      block: |
+        <Directory />
+           Order Deny,Allow
+           Deny from all
+           Options None
+           AllowOverride None
+         </Directory>
 
-  - name: Start xinetd
+  - name: Restart cobbler
+    service:
+      name: cobblerd
+      state: restarted
+ 
+  - name: Restart httpdd
+    service:
+      name: httpd
+      state: restarted
+
+  - name: Restart xinetd
     service:
       name: xinetd
       state: restarted
 
-  - name: Start dhcp
+  - name: Restart dhcpd
     service:
       name: dhcpd
       state: restarted
+
+  - name: Add tftp cron job
+    cron:
+      name: Start tftp service
+      minute: "*"
+      job: "ansible-playbook /root/tftp.yml"
+
+  - name: Add inventory cron job
+    cron:
+      name: Create inventory
+      minute: "*/5"
+      job: "ansible-playbook /root/inventory_creation.yml"

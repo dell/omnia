@@ -13,14 +13,19 @@
 #  limitations under the License.
 ---
 
-- name: Add kubernetes repo
+- name: Create a custom fact directory on each host
+  file:
+    path: "{{ custom_fact_dir }}"
+    state: directory
+    mode: "{{ custom_fact_dir_mode }}"
+
+- name: Install accelerator discovery script
   copy:
-    src: kubernetes.repo
-    dest: "{{ k8s_repo_dest }}"
+    src: inventory.fact
+    dest: "{{ accelerator_discovery_script_dest }}"
     owner: root
     group: root
-    mode: "{{ k8s_repo_file_mode }}"
-  tags: install
+    mode: "{{ accelerator_discovery_script_mode }}"
 
 - name: Add elrepo GPG key
   rpm_key:
@@ -40,20 +45,6 @@
     dest: "{{ docker_repo_dest }}"
   tags: install
 
-- name: Update sysctl to handle incorrectly routed traffic when iptables is bypassed
-  copy:
-    src: k8s.conf
-    dest: "{{ k8s_conf_dest }}"
-    owner: root
-    group: root
-    mode: "{{ k8s_conf_file_mode }}"
-  tags: install
-
-- name: Update sysctl
-  command: /sbin/sysctl --system
-  changed_when: true
-  tags: install
-
 - name: Disable swap
   command: /sbin/swapoff -a
   changed_when: true
@@ -70,20 +61,8 @@
     state: present
   tags: install
 
-- name: Install k8s packages
-  package:
-    name: "{{ k8s_packages }}"
-    state: present
-  tags: install
-
-- name: Versionlock kubernetes
-  command: "yum versionlock '{{ item }}'"
-  args:
-    warn: false
-  with_items:
-    - "{{ k8s_packages }}"
-  changed_when: true
-  tags: install
+- name: Collect host facts (including acclerator information)
+  setup: ~
 
 - name: Install infiniBand support
   package:
@@ -91,19 +70,16 @@
     state: present
   tags: install
 
-- name: Start and enable docker service
-  service:
-    name: docker
-    state: restarted
-    enabled: yes
-  tags: install
-
-- name: Start and enable kubernetes - kubelet
-  service:
-    name: kubelet
-    state: restarted
-    enabled: yes
-
 - name: Deploy time ntp/chrony
   include_tasks: ntp.yml
+  tags: install
+
+- name: Install Nvidia drivers and software components
+  include_tasks: nvidia.yml
+  when: ansible_local.inventory.nvidia_gpu > 0
+  tags: install
+
+- name: Install AMD GPU drivers and software components
+  include_tasks: amd.yml
+  when: ansible_local.inventory.amd_gpu > 0
   tags: install

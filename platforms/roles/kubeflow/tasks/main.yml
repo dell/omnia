@@ -70,6 +70,22 @@
     regexp: 'memory: 40Mi'
     replace: 'memory: 256Mi'
 
+- name: Modify memory request for istio-engressgateway-service-account
+  replace:
+    path: "{{ istio_noauth_yaml_file_path }}"
+    after: 'serviceAccountName: istio-egressgateway-service-account'
+    before: '---'
+    regexp: 'memory: 128Mi'
+    replace: 'memory: 256Mi'
+
+- name: Modify memory request for istio-engressgateway-service-account
+  replace:
+    path: "{{ istio_noauth_yaml_file_path }}"
+    after: 'serviceAccountName: istio-egressgateway-service-account'
+    before: '---'
+    regexp: 'memory: 40Mi'
+    replace: 'memory: 128Mi'
+
 - name: Modify CPU limit for kfserving-gateway
   replace:
     path: "{{ kfserving_gateway_yaml_file_path }}"
@@ -113,18 +129,6 @@
     path: "{{ istio_noauth_yaml_file_path }}"
     regexp: 'NodePort'
     replace: 'LoadBalancer'
-
-- name: Remove cert-manager application block
-  replace:
-    path: "{{ kubeflow_config_file }}"
-    regexp: "{{ cert_manager_block }}"
-    replace: "\n"
-
-- name: Remove seldon-core-operator application block
-  replace:
-    path: "{{ kubeflow_config_file }}"
-    regexp: "{{ seldon_core_operator_block }}"
-    replace: "\n"
 
 - name: Apply kubeflow configuration
   command:

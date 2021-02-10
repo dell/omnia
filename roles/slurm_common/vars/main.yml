@@ -13,28 +13,34 @@
 #  limitations under the License.
 ---
 
-epel_url: https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
-
 common_packages:
    - munge
    - munge-libs
+   - munge-devel
    - mariadb-server
    - mariadb-devel
-   - python3
-   - python-pip
+   - man2html
+   - MySQL-python
+   - python-netaddr
 
+hostname_dest: "/etc/hostname"
+hosts_dest: "/etc/hosts"
 munge_dest: "/etc/munge/"
 munge_cmd: "/usr/sbin/create-munge-key -f"
 munge_mode: "0400"
 slurm_mode: "0644"
+common_mode: "0777"
 slurm_dest: "/etc/slurm/"
 slurm_confpth: "/etc/slurm/slurm.conf"
 slurm_user: "slurm"
 slurmctld_port: "6817"
 slurmd_port: "6818"
+acct_port: "6819"
 slurm_uid: "6001"
 slurm_logpth: "/var/log/slurm/"
+slurm_pidpth: "/var/run/slurm/"
 gen_mode: "0755"
+spool_dir: "/var/spool/"
 spool_pth: "/var/spool/slurm/"
 slurmctld_pid: "/var/run/slurmctld.pid"
 slurmd_pid: "/var/run/slurmd.pid"

@@ -16,5 +16,5 @@
 - name: Install packages
   package:
     name: "{{ common_packages }}"
-    state: latest
+    state: present
   tags: install

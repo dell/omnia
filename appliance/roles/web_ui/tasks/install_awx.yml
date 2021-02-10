@@ -14,10 +14,6 @@
 ---
 
 # Tasks for installing AWX
-- name: Store omnia parent directory path
-  set_fact:
-     dir_path:
-  tags: install
 
 - name: Change inventory file
   replace:
@@ -32,14 +28,37 @@
     label: "{{ item.name }}"
   tags: install
 
+- name: Ensure port is 8081
+  lineinfile:
+    path: "{{ awx_inventory_path }}"
+    regexp: "{{ port_old }}"
+    line: "{{ port_new }}"
+    state: present
+
 - name: Create pgdocker directory
   file:
     path: "{{ pgdocker_dir_path }}"
     state: directory
+    mode: 0775
   tags: install
 
-- name: Run AWX install.yml file
-  command: ansible-playbook -i inventory install.yml -e @"{{ awx_password_file }}" --vault-password-file "{{ vault_file }}"
-  args:
-    chdir: "{{ awx_installer_path }}"
+- name: Install AWX
+  block:
+    - name: Run AWX install.yml file
+      command: ansible-playbook -i inventory install.yml --extra-vars "admin_password={{ admin_password }}"
+      args:
+        chdir: "{{ awx_installer_path }}"
+      register: awx_installation
+      no_log: True
+
+  rescue:
+    - name: Check AWX status on machine
+      include_tasks: check_awx_status.yml
+
+    - name: Fail if container are not running
+      fail:
+        msg: "AWX installation failed with error msg:
+        {{ awx_installation.stdout | regex_replace(admin_password) }}."
+      when: not awx_status
+
   tags: install

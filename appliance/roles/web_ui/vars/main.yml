@@ -15,25 +15,11 @@
 
 # vars file for web_ui
 
-# Usage: awx_password.yml
+# Usage: clone_awx.yml
 awx_git_repo: "https://github.com/ansible/awx.git"
-min_length: 8
-retries: 3
-confirm_retries: 1
-retry_delay: 0.01
-prompt_password: "Enter AWX password.( Min. Length of Password should be {{ min_length| int }}. Dont use chars: - \' \\ \" )"
-confirm_password: "Confirm AWX Password"
-msg_incorrect_password_format: "Failed. Password format not correct."
-msg_failed_password_confirm: "Failed. Passwords did not match"
 docker_volume: "/var/lib/docker/volumes/{{ docker_volume_name }}"
 awx_repo_path: "{{ docker_volume }}/awx/"
 awx_installer_path: "{{ awx_repo_path }}/installer/"
-vault_file: .vault_key
-awx_password_file: .password.yml
-success_msg_pwd_format: "admin_password validated"
-fail_msg_pwd_format: "admin_password validation failed"
-success_msg_pwd_confirm: "admin_password confirmed"
-fail_msg_pwd_confirm: "admin_password confirmation failed"
 
 # Usage: install_awx.yml
 awx_inventory_path: "{{ awx_repo_path }}/installer/inventory"
@@ -44,21 +30,27 @@ awx_alternate_dns_servers_old: '#awx_alternate_dns_servers="10.1.2.3,10.2.3.4"'
 awx_alternate_dns_servers_new: 'awx_alternate_dns_servers="8.8.8.8,8.8.4.4"'
 admin_password_old: "admin_password=password"
 admin_password_new: "#admin_password=password"
+port_old: "host_port=80"
+port_new: "host_port=8081"
 
 # Usage: main.yml
 message_skipped: "Installation Skipped: AWX instance is already running on your system"
 message_installed: "Installation Successful"
+awx_ip: http://localhost:8081
+return_status: 200
+awx_ui_msg: "Password Dialog"
+conf_fail_msg: "AWX configuration failed at the last executed task."
 
 # Usage: install_awx_cli.yml
-awx_cli_repo: "https://releases.ansible.com/ansible-tower/cli/ansible-tower-cli-centos8.repo"
-awx_cli_repo_path: "/etc/yum.repos.d/ansible-tower-cli-centos8.repo"
+awx_cli_repo: "https://releases.ansible.com/ansible-tower/cli/ansible-tower-cli-centos7.repo"
+awx_cli_repo_path: "/etc/yum.repos.d/ansible-tower-cli-centos7.repo"
 
 # Usage: awx_configuration.yml
-awx_ip: http://localhost
 awx_user: admin         #Don't change it. It is set as admin while installing AWX
 default_org: Default
 default_template: 'Demo Job Template'
 default_projects: 'Demo Project'
+default_credentials: 'Demo Credential'
 dir_name: omnia
 organization_name: DellEMC
 project_name: omnia
@@ -66,6 +58,9 @@ omnia_inventory_name: omnia_inventory
 group_names:
   - manager
   - compute
+credential_name: omnia_credential
+credential_type: Machine
+cobbler_username: root
 omnia_template_name: DeployOmnia
 omnia_playbook: omnia.yml
 inventory_template_name: DynamicInventory

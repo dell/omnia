@@ -15,7 +15,7 @@
 
 # Tasks for Deploying AWX on the system
 - name: Check AWX status on machine
-  include_tasks: check_prerequisites.yml
+  include_tasks: check_awx_status.yml
   tags: install
 
 - name: Include common variables
@@ -27,8 +27,8 @@
   when: not awx_status
   tags: install
 
-- name: Get and encrypt AWX password
-  include_tasks: awx_password.yml
+- name: Clone AWX repo
+  include_tasks: clone_awx.yml
   when: not awx_status
   tags: install
 
@@ -62,9 +62,15 @@
   include_tasks: install_awx_cli.yml
   tags: install
 
-- name: AWX configuration
-  command: >-
-    ansible-playbook "{{ role_path }}"/files/awx_configuration.yml
-    -e @"{{ awx_installer_path + awx_password_file }}"
-    --vault-password-file "{{ awx_installer_path + vault_file }}"
+- name: Check if AWX-UI is accessible
+  include_tasks: ui_accessibility.yml
+  tags: install
+
+- name: Configure AWX
+  block:
+    - include_tasks: awx_configuration.yml
+  rescue:
+    - name: Display msg
+      debug:
+        msg: "{{ conf_fail_msg }}"
   tags: install
