@@ -69,6 +69,15 @@
     - "{{ dev_tools }}"
   tags: install
 
+- name: Verify if slurm is installed
+  shell: rpm -qa | grep slurm
+  ignore_errors: true
+  register: verify_result
+  changed_when: no
+  failed_when: no
+  args:
+    warn: no
+
 - name: Create temporary download folder for slurm
   file:
     path: "{{ tmp_path }}"
@@ -76,6 +85,7 @@
     group: slurm
     mode: "{{ tmp_mode }}"
     state: directory
+  when: verify_result.rc != 0
 
 - name: Download slurm source
   get_url:
@@ -84,19 +94,12 @@
     checksum: "{{ slurm_md5 }}"
     validate_certs: no
   tags: install
+  when: verify_result.rc != 0
 
 - name: Build slurm rpms
   command: rpmbuild -ta "{{ rpmbuild_path }}" --with mysql
   changed_when: false
-  args:
-    warn: no
-
-- name: Verify package md5
-  shell: rpm -qa | grep slurm
-  ignore_errors: true
-  register: verify_result
-  changed_when: no
-  failed_when: no
+  when: verify_result.rc != 0
   args:
     warn: no
 

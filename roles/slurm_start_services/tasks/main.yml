@@ -44,7 +44,7 @@
 - name: Start slurmctld on manager
   service:
     name: slurmctld
-    state: started
+    state: restarted
   tags: install
 
 - name: Show cluster if exists
