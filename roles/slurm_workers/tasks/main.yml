@@ -69,6 +69,15 @@
     - "{{ dev_tools }}"
   tags: install
 
+- name: Verify if slurm is installed
+  shell: rpm -qa | grep slurm
+  ignore_errors: true
+  register: verify_result
+  changed_when: no
+  failed_when: no
+  args:
+    warn: no
+
 - name: Create temporary download folder for slurm
   file:
     path: "{{ tmp_path }}"
@@ -76,6 +85,7 @@
     group: slurm
     mode: "{{ tmp_mode }}"
     state: directory
+  when: verify_result.rc != 0
 
 - name: Download slurm source
   get_url:
@@ -84,19 +94,12 @@
     checksum: "{{ slurm_md5 }}"
     validate_certs: no
   tags: install
+  when: verify_result.rc != 0
 
 - name: Build slurm rpms
   command: rpmbuild -ta "{{ rpmbuild_path }}" --with mysql
   changed_when: false
-  args:
-    warn: no
-
-- name: Verify package md5
-  shell: rpm -qa | grep slurm
-  ignore_errors: true
-  register: verify_result
-  changed_when: no
-  failed_when: no
+  when: verify_result.rc != 0
   args:
     warn: no
 
@@ -115,14 +118,14 @@
 
 - name: Set compute node hostname/host ip to add in manager hosts file
   set_fact:
-    compute_host: "{{ inventory_hostname }}" 
+    compute_host: "{{ inventory_hostname }}"
     compute_ip: "{{ machine_name.stdout }}"
 
 - name: Get socket and core info from compute nodes
   set_fact:
     node_name: "{{ machine_name.stdout }}"
     sockets: "{{ hostvars[inventory_hostname]['ansible_facts']['processor_count'] }}"
-    cores: "{{ hostvars[inventory_hostname]['ansible_facts']['processor_cores'] }}"  
+    cores: "{{ hostvars[inventory_hostname]['ansible_facts']['processor_cores'] }}"
 
 - name: Add compute nodes core & socket info in slurm config file
   lineinfile:

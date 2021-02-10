@@ -24,7 +24,7 @@
     src: "{{ buffer_path }}"
     dest: "{{ slurm_confpth }}"
     mode: "{{ slurm_mode }}"
- 
+
 - name: Add compute hosts info in hosts file
   lineinfile:
     dest: "{{ hosts_dest }}"
@@ -44,7 +44,7 @@
 - name: Start slurmctld on manager
   service:
     name: slurmctld
-    state: started
+    state: restarted
   tags: install
 
 - name: Show cluster if exists

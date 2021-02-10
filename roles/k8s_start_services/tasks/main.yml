@@ -99,7 +99,7 @@
     -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
   changed_when: true
   tags: init
-  
+
 - name: Copy the slurm exporter config file
   copy:
     src: "{{ slurm_exporter_config_file }}"
@@ -107,11 +107,15 @@
     owner: root
     group: root
     mode: "{{ slurm_exporter_file_mode }}"
+  tags: init
 
 - name: Fetch the public IP of the host
-  shell: ip route get 8.8.8.8 | awk '{print $7}'
+  shell: >
+    set -o pipefail && \
+      ip route get 8.8.8.8 | awk '{print $7}'
   register: public_ip
   changed_when: False
+  tags: init
 
 - name: Add the host IP to config file
   replace:
@@ -159,5 +163,5 @@
   command: "kubectl create -f '{{ rocm_device_plugin_yaml_url }}'"
   changed_when: true
   register: amd_gpu_enable
-  when: "'amdgpu-device-plugin' not in k8s_pods.stdout" 
+  when: "'amdgpu-device-plugin' not in k8s_pods.stdout"
   tags: init
