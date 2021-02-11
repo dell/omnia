@@ -50,7 +50,7 @@
   changed_when: true
   tags: install
 
-- name: Permanently Disable SWAP in fstab 
+- name: Permanently Disable SWAP in fstab
   replace:
     path: /etc/fstab
     regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
