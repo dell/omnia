@@ -45,10 +45,11 @@
     dest: "{{ docker_repo_dest }}"
   tags: install
 
-- name: Disable swap
-  command: /sbin/swapoff -a
-  changed_when: true
-  tags: install
+- name: Permanently Disable swap
+  mount:
+    name: "swap"
+    fstype: swap
+    state: absent
 
 - name: Disable selinux
   selinux:
