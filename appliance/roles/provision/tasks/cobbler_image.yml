@@ -21,6 +21,7 @@
     build:
       path: "{{ role_path }}/files/"
       network: host
+      pull: yes
     state: present
   tags: install
 

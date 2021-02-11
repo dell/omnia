@@ -13,11 +13,23 @@
 #  limitations under the License.
 ---
 
+- name: Verify the ansible and python versions installed
+  fail:
+    msg: "{{ ansible_python_version_status }}"
+  when: ansible_python_version != python_version_support
+  tags: install
+
+- name: Verify whether ansible configuration file exists
+  stat:
+    path: "{{ default_ansible_config_file_path }}"
+  register: file_exists
+
 - name: Set omnia.log file
   replace:
-    path: /etc/ansible/ansible.cfg
+    path: "{{ default_ansible_config_file_path }}"
     regexp: '#log_path = /var/log/ansible.log'
     replace: 'log_path = /var/log/omnia.log'
+  when: file_exists.stat.exists
   tags: install
 
 - name: Check OS support
@@ -27,15 +39,23 @@
   register: os_value
   tags: install
 
+- name: Fetch SElinux mode
+  command: sestatus
+  register: sestatus_current
+  changed_when: false
+
 - name: Disable SElinux
-  selinux:
-    state: disabled
+  replace:
+    path: /etc/sysconfig/selinux
+    regexp: 'SELINUX=[a-z]+'
+    replace: 'SELINUX=disabled'
+  when: '"SELinux status:                 enabled" in sestatus_current.stdout_lines'
   tags: install
 
 - name: Status of SElinux
   fail:
     msg: "{{ selinux_status }}"
-  when: ansible_selinux.status != 'disabled'
+  when: '"SELinux status:                 enabled" in sestatus_current.stdout_lines'
   register: selinux_value
   tags: install
 
