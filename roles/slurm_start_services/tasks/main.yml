@@ -36,15 +36,17 @@
     - "{{ groups['compute'] }}"
 
 - name: Enable slurmdbd on manager
-  service:
+  systemd:
     name: slurmdbd
     state: restarted
+    enabled: yes
   tags: install
 
 - name: Start slurmctld on manager
-  service:
+  systemd:
     name: slurmctld
     state: restarted
+    enabled: yes
   tags: install
 
 - name: Show cluster if exists

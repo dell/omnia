@@ -147,4 +147,5 @@
   systemd:
     name: slurmd.service
     state: started
+    enabled: yes
   tags: install
