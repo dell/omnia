@@ -24,3 +24,9 @@
   systemd:
     name: prometheus-slurm-exporter
     state: restarted
+
+- name: Schedule a cron job to restart prometheus slurm exporter service
+  cron:
+    name: "Restart prometheus slurm exporter service on reboot"
+    special_time: reboot
+    job: "systemctl restart prometheus-slurm-exporter.service"

@@ -73,3 +73,15 @@
 - name: Add root to the default account
   command: sacctmgr -i add user root DefaultAccount=defaultgroup
   when: user_added.rc != 0
+
+- name: Schedule a cron job to restart slurmdbd service
+  cron:
+    name: "Restart slurmdbd service on reboot"
+    special_time: reboot
+    job: "systemctl restart slurmdbd"
+
+- name: Schedule a cron job to restart slurmctld service
+  cron:
+    name: "Restart slurmctld service on reboot"
+    special_time: reboot
+    job: "systemctl restart slurmctld"

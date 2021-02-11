@@ -148,3 +148,9 @@
     name: slurmd.service
     state: started
   tags: install
+
+- name: Schedule a cron job to restart slurmd service
+  cron:
+    name: "Restart slurmd service on reboot"
+    special_time: reboot
+    job: "systemctl restart slurmd.service"
