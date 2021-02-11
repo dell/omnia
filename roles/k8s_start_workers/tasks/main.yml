@@ -18,6 +18,12 @@
   changed_when: true
   tags: init
 
+- name: Reset kubeadm
+  command: kubeadm reset -f
+  changed_when: true
+  ignore_errors: True
+  tags: init
+
 - name: Get hostname
   command: hostname
   changed_when: true

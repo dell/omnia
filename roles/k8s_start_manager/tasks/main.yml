@@ -22,6 +22,12 @@
   setup:
     filter: ansible_default_ipv4.address
 
+- name: Reset kubeadm
+  command: kubeadm reset -f
+  changed_when: true
+  ignore_errors: True
+  tags: init
+
 - name: Check K8s nodes status
   command: kubectl get nodes
   changed_when: false
