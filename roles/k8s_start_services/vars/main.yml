@@ -52,3 +52,5 @@ slurm_exporter_config_file: extraScrapeConfigs.yaml
 slurm_exporter_config_file_path: /var/lib/
 
 slurm_exporter_file_mode: 0655
+
+prometheus_path_on_host: /var/lib/prometheus-2.23.0.linux-amd64/
