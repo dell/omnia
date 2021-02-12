@@ -69,6 +69,10 @@ __Note:__ If Prometheus is installed on the host, start the Prometheus web serve
 
 Go to http://localhost:9090 to launch the Prometheus UI in the browser.
 
+__Note:__ Prometheus instance on the host (if already installed through slurm without Kubernetes) will be removed when Kubernetes is installed as Prometheus would be running as a pod. 
+__Note:__ The user can use a single instance of Prometheus when both k8s and slurm is installed.
+
+
 
 
 
