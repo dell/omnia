@@ -40,11 +40,11 @@
 
 - name: Dhcp Configuration
   import_tasks: dhcp_configure.yml
-  when: not cobbler_image_status
+  when: (not cobbler_image_status) or ( backup_map_status == true)
 
 - name: Mapping file validation
   import_tasks: mapping_file.yml
-  when: (not cobbler_image_status) and (mapping_file == true)
+  when: (not cobbler_image_status) and (mapping_file == true) or ( backup_map_status == true)
 
 - name: Cobbler image creation
   import_tasks: cobbler_image.yml

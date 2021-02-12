@@ -16,10 +16,13 @@
 # vars file for provision
 
 #Usage: mapping_file.yml
-mapping_file_name: mapping_file.csv
-mapping_file_fail: "Mapping file not found. Copy the mapping_file.csv to omnia/appliance/roles/provision/files"
-fail_hostname_duplicate:  "Duplicate hostname exists. Please verify mapping file again."
+fail_hostname_duplicate:  "Failed: Duplicate hostname exists. Please verify mapping file again."
 remove_header: awk 'NR > 1 { print }' {{ role_path }}/files/new_mapping_file.csv
+fail_ip_duplicate:  "Failed: Duplicate ip exists. Please verify mapping file again."
+fail_mac_duplicate:  "Failed: Duplicate mac exists. Please verify mapping file again."
+header_fail: "Failed: Header (MAC,Hostname,IP) should be present in the mapping file"
+valid_header: MAC,Hostname,IP
+not_comma_seperated: "Failed: Mapping file should be comma seperated." 
 
 #Usage: check_prerequisite.yml
 iso_name: CentOS-7-x86_64-Minimal-2009.iso
