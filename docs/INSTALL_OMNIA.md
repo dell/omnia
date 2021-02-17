@@ -11,7 +11,7 @@ __Note:__ The user should have root privileges to perform installations and conf
 
 1. Clone the Omnia repository.
 ``` 
-$ git clone https://github.com/dellhpc/omnia.git 
+git clone https://github.com/dellhpc/omnia.git 
 ```
 __Note:__ After the Omnia repository is cloned, a folder named __omnia__ is created. It is recommended that you do not rename this folder.
 
@@ -24,7 +24,7 @@ __Note:__ After the Omnia repository is cloned, a folder named __omnia__ is crea
 ansible-playbook omnia.yml -i inventory -e "ansible_python_interpreter=/usr/bin/python2" 
 ```
 
-5. By default, no skip tags are selected and both Kubernetes and Slurm will be deployed.  
+5. By default, no skip tags are selected, and both Kubernetes and Slurm will be deployed.  
 To skip the installation of Kubernetes, enter:  
 `ansible-playbook omnia.yml -i inventory -e "ansible_python_interpreter=/usr/bin/python2"  --skip-tags "kubernetes"`  
 Similarly, to skip Slurm, enter:  
@@ -32,8 +32,8 @@ Similarly, to skip Slurm, enter:
 __Note:__ If you would like to skip the NFS client setup, enter the following command to skip the k8s_nfs_client_setup role of Kubernetes:  
 `ansible-playbook omnia.yml -i inventory -e "ansible_python_interpreter=/usr/bin/python2"  --skip-tags "nfs_client"`
 
-6. To provide password for mariaDB Database for Slurm accounting and Kubernetes CNI, edit the `omnia_config.yml` file.  
-__Note:__ Supported Kubernetes CNI : calico and flannel. The default CNI is calico.  
+6. To provide password for mariaDB Database (for Slurm accounting) and Kubernetes CNI, edit the `omnia_config.yml` file.  
+__Note:__ Supported values for Kubernetes CNI are calico and flannel. The default value of CNI considered by Omnia is calico.  
 To view the set passwords of omnia_config.yml at a later time, run the following command:  
 `ansible-vault view omnia_config.yml --vault-password-file .omnia_vault_key`
 
@@ -94,4 +94,4 @@ Commands to install JupyterHub and Kubeflow:
 
 ## Adding a new compute node to the cluster
 
-The user has to update the INVENTORY file present in `omnia` directory with the new node IP address in the compute group. Then, `omnia.yml` has to be run to add the new node to the cluster and update the configurations of the manager node.
+The user has to update the INVENTORY file present in `omnia` directory with the new node IP address under the compute group. Make sure the other nodes which are already a part of the cluster are also present in the compute group along with the new node. Then, run`omnia.yml` to add the new node to the cluster and update the configurations of the manager node.

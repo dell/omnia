@@ -32,4 +32,4 @@ tower_cli_package_name: "ansible-tower-cli"
 docker_container_name: "awx_web"
 container_up_status_success_msg: "Container is running successfully after the reboot"
 container_up_status_fail_msg: "Container is not running after the reboot"
-test_input_config_filename: input_config_test.yml
+test_input_config_filename: appliance_config_test.yml
