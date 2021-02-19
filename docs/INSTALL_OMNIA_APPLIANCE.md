@@ -1,50 +1,56 @@
 # Install the Omnia appliance
 
 ## Prerequisties
-Ensure that all the prerequisites listed in the [PREINSTALL_OMNIA_APPLIANCE](PREINSTALL_OMNIA_APPLIANCE.md) file are met before installing Omnia appliance
+Ensure that all the prerequisites listed in the [PREINSTALL_OMNIA_APPLIANCE](PREINSTALL_OMNIA_APPLIANCE.md) file are met before installing the Omnia appliance.
 
-__Note:__ Changing the manager node after the installation of Omnia is not supported by Omnia. If you want to change the manager node, you must redeploy the entire cluster.  
-__Note:__ The user should have root privileges to perform installations and configurations.
+__Note:__ After the installation of the Omnia appliance, changing the manager node is not supported. If you need to change the manager node, you must redeploy the entire cluster.  
+
+__Note:__ You must have root privileges to perform installations and configurations using the Omnia appliance.
 
 ## Steps to install the Omnia appliance
 __Note:__ If there are errors when any of the following Ansible playbook commands are run, re-run the commands again.
 1. On the management node, change the working directory to the directory where you want to clone the Omnia Git repository.
 2. Clone the Omnia repository.
 ``` 
-$ git clone https://github.com/dellhpc/omnia.git 
+git clone https://github.com/dellhpc/omnia.git 
 ```
-__Note:__ After the Omnia repository is cloned, a folder named __omnia__ is created. It is recommended that you do not rename this folder.
+3. Change the directory to `omnia`
+4. Edit the `omnia_config.yml` file to:  
+	a. Provide passwords for mariaDB Database (for Slurm accounting) and Kubernetes CNI under `mariadb_password` and `k8s_cni` respectively.  
+	__Note:__ Supported values for Kubernetes CNI are calico and flannel. The default value of CNI considered by Omnia is calico.
+	
+	To view the set passwords of `omnia_config.yml`, run the following command.
+```
+ansible-vault view omnia_config.yml --vault-password-file .omnia_vault_key
+```
 
-3. Change the directory to `omnia/appliance`
-4. To provide passwords for Cobbler and AWX, edit the `appliance_config.yml` file.
-* To provide a mapping file for DHCP configuration, go to **appliance_config.yml** file and set the variable named **mapping_file_exits** as __true__, else set it to __false__.
+5. Change the directory to `omnia/appliance`
+6. Edit the `appliance_config.yml` file to:  
+	a. Provide passwords for Cobbler and AWX under `provision_password` and `awx_password` respectively.  
+	__Note:__ Minimum length of the password must be at least eight characters and a maximum of 30 characters. Do not use these characters while entering a password: -, \\, "", and \'  
+	
+	b. Change the NIC for the DHCP server under `hpc_nic`, and the NIC used to connect to the Internet under `public_nic`. The default values of **hpc_nic** and **public_nic** are set to em1 and em2 respectively.  
+	
+	c. Provide the CentOS-7-x86_64-Minimal-2009 ISO file path under `iso_file_path`. This ISO file is used by Cobbler to provision the OS on the compute nodes.  
+	__Note:__ It is recommended that the ISO image file is not renamed. And, you **must not** change the path of this ISO image file as the provisioning of the OS on the compute nodes may be impacted.
+	
+	d. Provide a mapping file for DHCP configuration under `mapping_file_path`. The **mapping_file.csv** template file is present under `omnia/examples`. Enter the details in the order: `MAC, Hostname, IP`. The header in the template file must not be deleted before saving the file.  
+	If you want to continue without providing a mapping file, leave the `mapping_file_path` value as blank.  
+	__Note:__ Ensure that duplicate values are not provided for MAC, Hostname, and IP in the mapping file. The Hostname should not contain the following characters: , (comma), \. (period), and - (hyphen).
+	
+	e. Provide valid DHCP range for HPC cluster under the variables `dhcp_start_ip_range` and `dhcp_end_ip_range`. 
+	
+	To view the set passwords of `appliance_config.yml`, run the following command.
+```
+ansible-vault view appliance_config.yml --vault-password-file .vault_key
+```
 
 Omnia considers the following usernames as default:  
 * `cobbler` for Cobbler Server
 * `admin` for AWX
 * `slurm` for MariaDB
 
-**Note**: 
-* Minimum length of the password must be at least eight characters and a maximum of 30 characters.
-* Do not use these characters while entering a password: -, \\, "", and \'
-
-5. Using the `appliance_config.yml` file, you can change the NIC for the DHCP server under **hpc_nic** and the NIC used to connect to the Internet under **public_nic**. Default values of **hpc_nic** and **public_nic** are set to em1 and em2 respectively.
-6. The valid DHCP range for HPC cluster is set in two variables named __Dhcp_start_ip_range__ and __Dhcp_end_ip_range__ present in the `appliance_config.yml` file.
-7. To provide passwords for mariaDB Database for Slurm accounting and Kubernetes CNI, edit the `omnia_config.yml` file.
-
-__Note:__ Supported Kubernetes CNI : calico and flannel. The default CNI is calico.
-
-To view the set passwords of `appliance_config.yml`, run the following command under omnia->appliance:
-```
-ansible-vault view appliance_config.yml --vault-password-file .vault_key
-```
-
-To view the set passwords of `omnia_config.yml`, run the following command:
-```
-ansible-vault view omnia_config.yml --vault-password-file .omnia_vault_key
-```
-
-8. To install Omnia, run the following command:
+7. To install Omnia, run the following command.
 ```
 ansible-playbook appliance.yml -e "ansible_python_interpreter=/usr/bin/python2"
 ```
@@ -53,71 +59,72 @@ Omnia creates a log file which is available at: `/var/log/omnia.log`.
 
 **Provision operating system on the target nodes**  
 Omnia role used: *provision*  
-Ports used by __Cobbler__:  
-* __TCP__ ports: 80,443,69
-* __UDP__ ports: 69,4011
+Ports used by Cobbler:  
+* TCP ports: 80,443,69
+* UDP ports: 69,4011
 
 To create the Cobbler image, Omnia configures the following:
 * Firewall settings.
-* The kickstart file of Cobbler will enable the UEFI PXE boot.
+* The kickstart file of Cobbler which will enable the UEFI PXE boot.
 
 To access the Cobbler dashboard, enter `https://<IP>/cobbler_web` where `<IP>` is the Global IP address of the management node. For example, enter
 `https://100.98.24.225/cobbler_web` to access the Cobbler dashboard.
 
 __Note__: After the Cobbler Server provisions the operating system on the nodes, IP addresses and host names are assigned by the DHCP service.  
-* If a mapping file is not provided, the hostname to the server is provided based on the following format: **computexxx-xxx** where "xxx-xxx" is the last two octets of Host IP address. For example, if the Host IP address is 172.17.0.11 then he assigned hostname by Omnia is compute0-11.  
-* If a mapping file is provided, the hostnames follow the format provided in the mapping file.
+* If a mapping file is not provided, the hostname to the server is provided based on the following format: **computexxx-xxx** where "xxx-xxx" is the last two octets of Host IP address. For example, if the Host IP address is 172.17.0.11 then the assigned hostname by Omnia is compute0-11.  
+* If a mapping file is provided, the hostnames follow the format provided in the mapping file.  
+
+__Note__: If you want to add more nodes, append the new nodes in the existing mapping file. However, do not modify the previous nodes in the mapping file as it may impact the existing cluster.  
 
 **Install and configure Ansible AWX**  
 Omnia role used: *web_ui*  
-Port used by __AWX__ is __8081__.  
-AWX repository is cloned from the GitHub path: https://github.com/ansible/awx.git 
+The port used by AWX is __8081__.  
+The AWX repository is cloned from the GitHub path: https://github.com/ansible/awx.git 
 
-Omnia performs the following configuration on AWX:
+Omnia performs the following configurations on AWX:
 * The default organization name is set to **Dell EMC**.
 * The default project name is set to **omnia**.
-* Credential: omnia_credential
-* Inventory: omnia_inventory with compute and manager groups
-* Template: DeployOmnia and Dynamic Inventory
-* Schedules: DynamicInventorySchedule which is scheduled for every 10 mins
+* The credentials are stored in the **omnia_credential**.
+* Two groups, namely compute and manager groups, are provided under **omnia_inventory**. You can add hosts to these groups using the AWX UI. 
+* Pre-defined templates are provided: **DeployOmnia** and **DynamicInventory**
+* **DynamicInventorySchedule** which is scheduled to run every 10 minutes updates the inventory details dynamically. 
 
 To access the AWX dashboard, enter `http://<IP>:8081` where **\<IP>** is the Global IP address of the management node. For example, enter `http://100.98.24.225:8081` to access the AWX dashboard.
 
 **Note**: The AWX configurations are automatically performed Omnia and Dell Technologies recommends that you do not change the default configurations provided by Omnia as the functionality may be impacted.
 
-__Note__: Although AWX UI is accessible, hosts will be shown only after few nodes have been provisioned by Cobbler. It takes approximately 10 to 15 minutes to display the host details after the provisioning by Cobbler. If a server is provisioned but you are unable to view the host details on the AWX UI, then you can run **provision_report.yml** playbook from __omnia__ -> __appliance__ ->__tools__ folder to view the hosts which are reachable.
+__Note__: Although AWX UI is accessible, hosts will be shown only after few nodes have been provisioned by Cobbler. It takes approximately 10 to 15 minutes to display the host details after the provisioning by Cobbler. If a server is provisioned but you are unable to view the host details on the AWX UI, then you can run the following command from __omnia__ -> __appliance__ ->__tools__ folder to view the hosts which are reachable.
+```
+ansible-playbook -i ../roles/inventory/provisioned_hosts.yml provision_report.yml
+```
 
 ## Install Kubernetes and Slurm using AWX UI
 Kubernetes and Slurm are installed by deploying the **DeployOmnia** template on the AWX dashboard.
 
-1. On the AWX dashboard, under __RESOURCES__ __->__ __Inventories__, select __Groups__.
-2. Select either __compute__ or __manager__ group.
-3. Select the __Hosts__ tab.
-4. To add the hosts provisioned by Cobbler, select __Add__ __->__ __Add__ __existing__ __host__, and then select the hosts from the list and click __Save__.
-5. To deploy Omnia, under __RESOURCES__ -> __Templates__, select __DeployOmnia__ and click __LAUNCH__.
-6. By default, no skip tags are selected and both Kubernetes and Slurm will be deployed. To install only Kubernetes, enter `slurm` and select **Create "slurm"**. Similarly, to install only Slurm, select and add `kubernetes` skip tag. 
+1. On the AWX dashboard, under __RESOURCES__ __->__ __Inventories__, select **omnia_inventory**.
+2. Select __GROUPS__, and then select either __compute__ or __manager__ group.
+3. Select the __HOSTS__ tab.
+4. To add the hosts provisioned by Cobbler, click **+**, and then select **Existing Host**. 
+5. Select the hosts from the list and click __SAVE__.
+5. To deploy Omnia, under __RESOURCES__ -> __Templates__, select __DeployOmnia__, and then click __LAUNCH__.
+6. By default, no skip tags are selected and both Kubernetes and Slurm will be deployed. To install only Kubernetes, enter `slurm` and select **slurm**. Similarly, to install only Slurm, select and add `kubernetes` skip tag. 
 
 __Note:__
 *	If you would like to skip the NFS client setup, enter `nfs_client` in the skip tag section to skip the **k8s_nfs_client_setup** role of Kubernetes.
 
-7. Click **Next**.
-8. Review the details in the **Preview** window, and click **Launch** to run the DeployOmnia template. 
-
-To establish the passwordless communication between compute nodes and manager node:
-1. In AWX UI, under __RESOURCES__ -> __Templates__, select __DeployOmnia__ template.
-2. From __Playbook dropdown__ menu, select __appliance/tools/passwordless_ssh.yml__ and launch the template.
+7. Click **NEXT**.
+8. Review the details in the **PREVIEW** window, and click **LAUNCH** to run the DeployOmnia template. 
 
 __Note:__ If you want to install __JupyterHub__ and __Kubeflow__ playbooks, you have to first install the __JupyterHub__ playbook and then install the __Kubeflow__ playbook.
 
 __Note:__ To install __JupyterHub__ and __Kubeflow__ playbooks:
-*	From __AWX UI__, under __RESOURCES__ -> __Templates__, select __DeployOmnia__ template.
-*	From __Playbook dropdown__ menu, select __platforms/jupyterhub.yml__ option and launch the template to install JupyterHub playbook.
-*	From __Playbook dropdown__ menu, select __platforms/kubeflow.yml__ option and launch the template to install Kubeflow playbook.
-
+*	From AWX UI, under __RESOURCES__ -> __Templates__, select __DeployOmnia__ template.
+*	From __PLAYBOOK__ dropdown menu, select __platforms/jupyterhub.yml__ and launch the template to install JupyterHub playbook.
+*	From __PLAYBOOK__ dropdown menu, select __platforms/kubeflow.yml__ and launch the template to install Kubeflow playbook.
 
 The DeployOmnia template may not run successfully if:
 - The Manager group contains more than one host.
-- The Compute group does not contain a host. Ensure that the Compute group must be assigned with a minimum of one host node.
+- The Compute group does not contain a host. Ensure that the Compute group is assigned with at least one host node.
 - Under Skip Tags, when both kubernetes and slurm tags are selected.
 
 After **DeployOmnia** template is run from the AWX UI, the **omnia.yml** file installs Kubernetes and Slurm, or either Kubernetes or slurm, as per the selection in the template on the management node. Additionally, appropriate roles are assigned to the compute and manager groups.
@@ -164,11 +171,11 @@ The following __Slurm__ roles are provided by Omnia when __omnia.yml__ file is r
 - **slurm_workers** role:
 	- Installs the Slurm packages into all compute nodes as per the compute node requirements.
 - **slurm_start_services** role: 
-	- Starting the Slurm services so that compute node communicates with manager node.
+	- Starting the Slurm services so that communicates with manager node.
 - **slurm_exporter** role: 
 	- Slurm exporter is a package for exporting metrics collected from Slurm resource scheduling system to prometheus.
 	- Slurm exporter is installed on the host like Slurm, and Slurm exporter will be successfully installed only if Slurm is installed.
 
 ## Adding a new compute node to the Cluster
 
-If a new node is provisioned through Cobbler, the node address is automatically displayed on the AWX dashboard. The node is not assigned to any group. You can add the node to the compute group and run `omnia.yml` to add the new node to the cluster and update the configurations in the manager node.
+If a new node is provisioned through Cobbler, the node address is automatically displayed on the AWX dashboard. The node is not assigned to any group. You can add the node to the compute group along with the existing nodes and run `omnia.yml` to add the new node to the cluster and update the configurations in the manager node.
