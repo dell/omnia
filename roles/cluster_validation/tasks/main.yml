@@ -17,3 +17,21 @@
 
 - name: Fetch passwords
   include_tasks: fetch_password.yml
+
+- name: Check if omnia is running from AWX
+  block:
+    - name: Appliance status
+      set_fact:
+        appliance_status: false
+
+    - name: Check AWX instance
+      command: awx-manage --version
+
+    - name: Update appliance status
+      set_fact:
+        appliance_status: true
+
+  rescue:
+    - name: Passwordless SSH status
+      debug:
+        msg: "omnia.yml running on host"
