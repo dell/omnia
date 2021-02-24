@@ -17,8 +17,8 @@
 host1: "100.10.20.30"
 host2: "100.20.30.40"
 host3: "100.30.40.50"
-inventory_path: "/var/lib/awx/projects/omnia/appliance/test"
-test_input_config_filename: "input_config_test.yml"
+inventory_path: "/var/lib/awx/projects"
+test_input_config_filename: "appliance_config_test.yml"
 test_case_success_msg: "Test case passed"
 test_case_failure_msg: "Test case failed"
 file_permission: 0644

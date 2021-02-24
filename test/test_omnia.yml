@@ -18,24 +18,24 @@
   hosts: localhost
   connection: local
   vars_files:
-    - ../roles/web_ui/vars/main.yml
-    - ../roles/common/vars/main.yml
+    - ../appliance/roles/web_ui/vars/main.yml
+    - ../appliance/roles/common/vars/main.yml
     - test_vars/test_omnia_vars.yml
   tasks:
     - name: Check input config file is encrypted
-      command: cat {{ test_input_config_filename }}
+      command: cat ../appliance/test/{{ test_input_config_filename }}
       changed_when: false
       register: config_content
       tags: TC_006
 
     - name: Decrpyt input_config.yml
-      command: ansible-vault decrypt {{ test_input_config_filename }} --vault-password-file {{ vault_filename }}
+      command: ansible-vault decrypt ../appliance/test/{{ test_input_config_filename }} --vault-password-file {{ vault_filename }}
       changed_when: false
       when: "'$ANSIBLE_VAULT;' in config_content.stdout"
       tags: TC_006
 
     - name: Include variable file input_config.yml
-      include_vars: "{{ test_input_config_filename }}"
+      include_vars: "../appliance/test/{{ test_input_config_filename }}"
       tags: TC_006
 
     - name: Creating inventory file with hosts associated to the groups
@@ -53,10 +53,17 @@
               {{ host2 }}
       tags: TC_006
 
+    - name: Get present working directory
+      command: >-
+        pwd
+      register: path
+      changed_when: false
+      tags: TC_006
+
     - name: Push the inventory to AWX
       shell: |
         set -o pipefail
-        docker exec awx_task awx-manage inventory_import --inventory-name {{ omnia_inventory_name }} --source "{{ inventory_path }}/testinventory.yml"
+        docker exec awx_task awx-manage inventory_import --inventory-name {{ omnia_inventory_name }} --source "{{ inventory_path }}/{{ path.stdout.split('/')[-2] }}/test/testinventory.yml"
       changed_when: false
       tags: TC_006
 
@@ -106,24 +113,24 @@
   hosts: localhost
   connection: local
   vars_files:
-    - ../roles/web_ui/vars/main.yml
-    - ../roles/common/vars/main.yml
+    - ../appliance/roles/web_ui/vars/main.yml
+    - ../appliance/roles/common/vars/main.yml
     - test_vars/test_omnia_vars.yml
   tasks:
     - name: Check input config file is encrypted
-      command: cat {{ test_input_config_filename }}
+      command: cat ../appliance/test/{{ test_input_config_filename }}
       changed_when: false
       register: config_content
       tags: TC_007
 
     - name: Decrpyt input_config.yml
-      command: ansible-vault decrypt {{ test_input_config_filename }} --vault-password-file {{ vault_filename }}
+      command: ansible-vault decrypt ../appliance/test/{{ test_input_config_filename }} --vault-password-file {{ vault_filename }}
       changed_when: false
       when: "'$ANSIBLE_VAULT;' in config_content.stdout"
       tags: TC_007
 
     - name: Include variable file input_config.yml
-      include_vars: "{{ test_input_config_filename }}"
+      include_vars: "../appliance/test/{{ test_input_config_filename }}"
       tags: TC_007
 
     - name: Creating inventory file with hosts associated to the groups
@@ -141,10 +148,17 @@
               {{ host2 }}
       tags: TC_007
 
+    - name: Get present working directory
+      command: >-
+        pwd
+      register: path
+      changed_when: false
+      tags: TC_007
+
     - name: Push the inventory to AWX
       shell: |
         set -o pipefail
-        docker exec awx_task awx-manage inventory_import --inventory-name {{ omnia_inventory_name }} --source "{{ inventory_path }}/testinventory.yml"
+        docker exec awx_task awx-manage inventory_import --inventory-name {{ omnia_inventory_name }} --source "{{ inventory_path }}/{{ path.stdout.split('/')[-2] }}/test/testinventory.yml"
       changed_when: false
       tags: TC_007
 
@@ -155,12 +169,14 @@
             job_templates launch "{{ omnia_template_name }}" --credentials "{{ credential_name }}" --skip_tags slurm --monitor -f human
           changed_when: false
           register: command_output
+      tags: TC_007
 
-    - name: Validate success message
-      assert:
-        that: "'FAILED!' not in command_output.stdout"
-        success_msg: "{{ test_case_success_msg }}"
-        fail_msg: "{{ test_case_failure_msg }}"
+      rescue:
+        - name: Validate success message
+          assert:
+            that: "'FAILED!' not in command_output.stdout"
+            success_msg: "{{ test_case_success_msg }}"
+            fail_msg: "{{ test_case_failure_msg }}"
       tags: TC_007
 
     - name: Delete the hosts
@@ -193,24 +209,24 @@
   hosts: localhost
   connection: local
   vars_files:
-    - ../roles/web_ui/vars/main.yml
-    - ../roles/common/vars/main.yml
+    - ../appliance/roles/web_ui/vars/main.yml
+    - ../appliance/roles/common/vars/main.yml
     - test_vars/test_omnia_vars.yml
   tasks:
     - name: Check input config file is encrypted
-      command: cat {{ test_input_config_filename }}
+      command: cat ../appliance/test/{{ test_input_config_filename }}
       changed_when: false
       register: config_content
       tags: TC_008
 
     - name: Decrpyt input_config.yml
-      command: ansible-vault decrypt {{ test_input_config_filename }} --vault-password-file {{ vault_filename }}
+      command: ansible-vault decrypt ../appliance/test/{{ test_input_config_filename }} --vault-password-file {{ vault_filename }}
       changed_when: false
       when: "'$ANSIBLE_VAULT;' in config_content.stdout"
       tags: TC_008
 
     - name: Include variable file input_config.yml
-      include_vars: "{{ test_input_config_filename }}"
+      include_vars: "../appliance/test/{{ test_input_config_filename }}"
       tags: TC_008
 
     - name: Creating inventory file with hosts associated to the groups
@@ -228,10 +244,17 @@
               {{ host2 }}
       tags: TC_008
 
+    - name: Get present working directory
+      command: >-
+        pwd
+      register: path
+      changed_when: false
+      tags: TC_008
+
     - name: Push the inventory to AWX
       shell: |
         set -o pipefail
-        docker exec awx_task awx-manage inventory_import --inventory-name {{ omnia_inventory_name }} --source "{{ inventory_path }}/testinventory.yml"
+        docker exec awx_task awx-manage inventory_import --inventory-name {{ omnia_inventory_name }} --source "{{ inventory_path }}/{{ path.stdout.split('/')[-2] }}/test/testinventory.yml"
       changed_when: false
       tags: TC_008
 
@@ -243,11 +266,12 @@
           changed_when: false
           register: command_output
 
-    - name: Validate success message
-      assert:
-        that: "'FAILED!' not in command_output.stdout"
-        success_msg: "{{ test_case_success_msg }}"
-        fail_msg: "{{ test_case_failure_msg }}"
+      rescue:
+        - name: Validate success message
+          assert:
+            that: "'FAILED!' not in command_output.stdout"
+            success_msg: "{{ test_case_success_msg }}"
+            fail_msg: "{{ test_case_failure_msg }}"
       tags: TC_008
 
     - name: Delete the hosts
@@ -280,24 +304,24 @@
   hosts: localhost
   connection: local
   vars_files:
-    - ../roles/web_ui/vars/main.yml
-    - ../roles/common/vars/main.yml
+    - ../appliance/roles/web_ui/vars/main.yml
+    - ../appliance/roles/common/vars/main.yml
     - test_vars/test_omnia_vars.yml
   tasks:
     - name: Check input config file is encrypted
-      command: cat {{ test_input_config_filename }}
+      command: cat ../appliance/test/{{ test_input_config_filename }}
       changed_when: false
       register: config_content
       tags: TC_009
 
     - name: Decrpyt input_config.yml
-      command: ansible-vault decrypt {{ test_input_config_filename }} --vault-password-file {{ vault_filename }}
+      command: ansible-vault decrypt ../appliance/test/{{ test_input_config_filename }} --vault-password-file {{ vault_filename }}
       changed_when: false
       when: "'$ANSIBLE_VAULT;' in config_content.stdout"
       tags: TC_009
 
     - name: Include variable file input_config.yml
-      include_vars: "{{ test_input_config_filename }}"
+      include_vars: "../appliance/test/{{ test_input_config_filename }}"
       tags: TC_009
 
     - name: Creating inventory file with hosts associated to the groups
@@ -314,10 +338,17 @@
               {{ host2 }}
       tags: TC_009
 
+    - name: Get present working directory
+      command: >-
+        pwd
+      register: path
+      changed_when: false
+      tags: TC_009
+
     - name: Push the inventory to AWX
       shell: |
         set -o pipefail
-        docker exec awx_task awx-manage inventory_import --inventory-name {{ omnia_inventory_name }} --source "{{ inventory_path }}/testinventory.yml"
+        docker exec awx_task awx-manage inventory_import --inventory-name {{ omnia_inventory_name }} --source "{{ inventory_path }}/{{ path.stdout.split('/')[-2] }}/test/testinventory.yml"
       changed_when: false
       tags: TC_009
 
@@ -365,24 +396,24 @@
   hosts: localhost
   connection: local
   vars_files:
-    - ../roles/web_ui/vars/main.yml
-    - ../roles/common/vars/main.yml
+    - ../appliance/roles/web_ui/vars/main.yml
+    - ../appliance/roles/common/vars/main.yml
     - test_vars/test_omnia_vars.yml
   tasks:
     - name: Check input config file is encrypted
-      command: cat {{ test_input_config_filename }}
+      command: cat ../appliance/test/{{ test_input_config_filename }}
       changed_when: false
       register: config_content
       tags: TC_010
 
     - name: Decrpyt input_config.yml
-      command: ansible-vault decrypt {{ test_input_config_filename }} --vault-password-file {{ vault_filename }}
+      command: ansible-vault decrypt ../appliance/test/{{ test_input_config_filename }} --vault-password-file {{ vault_filename }}
       changed_when: false
       when: "'$ANSIBLE_VAULT;' in config_content.stdout"
       tags: TC_010
 
     - name: Include variable file input_config.yml
-      include_vars: "{{ test_input_config_filename }}"
+      include_vars: "../appliance/test/{{ test_input_config_filename }}"
       tags: TC_010
 
     - name: Creating inventory file with hosts associated to the groups
@@ -400,10 +431,17 @@
               {{ host2 }}
       tags: TC_010
 
+    - name: Get present working directory
+      command: >-
+        pwd
+      register: path
+      changed_when: false
+      tags: TC_010
+
     - name: Push the inventory to AWX
       shell: |
         set -o pipefail
-        docker exec awx_task awx-manage inventory_import --inventory-name {{ omnia_inventory_name }} --source "{{ inventory_path }}/testinventory.yml"
+        docker exec awx_task awx-manage inventory_import --inventory-name {{ omnia_inventory_name }} --source "{{ inventory_path }}/{{ path.stdout.split('/')[-2] }}/test/testinventory.yml"
       changed_when: false
       tags: TC_010
 
@@ -416,11 +454,12 @@
           register: command_output
       tags: TC_010
 
-    - name: Validate success message
-      assert:
-        that: "'FAILED!' not in command_output.stdout"
-        success_msg: "{{ test_case_success_msg }}"
-        fail_msg: "{{ test_case_failure_msg }}"
+      rescue:
+        - name: Validate success message
+          assert:
+            that: "'FAILED!' not in command_output.stdout"
+            success_msg: "{{ test_case_success_msg }}"
+            fail_msg: "{{ test_case_failure_msg }}"
       tags: TC_010
 
     - name: Delete the hosts
@@ -453,24 +492,24 @@
   hosts: localhost
   connection: local
   vars_files:
-    - ../roles/web_ui/vars/main.yml
-    - ../roles/common/vars/main.yml
+    - ../appliance/roles/web_ui/vars/main.yml
+    - ../appliance/roles/common/vars/main.yml
     - test_vars/test_omnia_vars.yml
   tasks:
     - name: Check input config file is encrypted
-      command: cat {{ test_input_config_filename }}
+      command: cat ../appliance/test/{{ test_input_config_filename }}
       changed_when: false
       register: config_content
       tags: TC_011
 
     - name: Decrpyt input_config.yml
-      command: ansible-vault decrypt {{ test_input_config_filename }} --vault-password-file {{ vault_filename }}
+      command: ansible-vault decrypt ../appliance/test/{{ test_input_config_filename }} --vault-password-file {{ vault_filename }}
       changed_when: false
       when: "'$ANSIBLE_VAULT;' in config_content.stdout"
       tags: TC_011
 
     - name: Include variable file input_config.yml
-      include_vars: "{{ test_input_config_filename }}"
+      include_vars: "../appliance/test/{{ test_input_config_filename }}"
       tags: TC_011
 
     - name: Creating inventory file with hosts associated to the groups
@@ -485,13 +524,20 @@
 
           compute:
             hosts:
-            
+
+      tags: TC_011
+
+    - name: Get present working directory
+      command: >-
+        pwd
+      register: path
+      changed_when: false
       tags: TC_011
 
     - name: Push the inventory to AWX
       shell: |
         set -o pipefail
-        docker exec awx_task awx-manage inventory_import --inventory-name {{ omnia_inventory_name }} --source "{{ inventory_path }}/testinventory.yml"
+        docker exec awx_task awx-manage inventory_import --inventory-name {{ omnia_inventory_name }} --source "{{ inventory_path }}/{{ path.stdout.split('/')[-2] }}/test/testinventory.yml"
       changed_when: false
       tags: TC_011
 
@@ -539,24 +585,24 @@
   hosts: localhost
   connection: local
   vars_files:
-    - ../roles/web_ui/vars/main.yml
-    - ../roles/common/vars/main.yml
+    - ../appliance/roles/web_ui/vars/main.yml
+    - ../appliance/roles/common/vars/main.yml
     - test_vars/test_omnia_vars.yml
   tasks:
     - name: Check input config file is encrypted
-      command: cat {{ test_input_config_filename }}
+      command: cat ../appliance/test/{{ test_input_config_filename }}
       changed_when: false
       register: config_content
       tags: TC_012
 
     - name: Decrpyt input_config.yml
-      command: ansible-vault decrypt {{ test_input_config_filename }} --vault-password-file {{ vault_filename }}
+      command: ansible-vault decrypt ../appliance/test/{{ test_input_config_filename }} --vault-password-file {{ vault_filename }}
       changed_when: false
       when: "'$ANSIBLE_VAULT;' in config_content.stdout"
       tags: TC_012
 
     - name: Include variable file input_config.yml
-      include_vars: "{{ test_input_config_filename }}"
+      include_vars: "../appliance/test/{{ test_input_config_filename }}"
       tags: TC_012
 
     - name: Creating inventory file with hosts associated to the groups
@@ -576,10 +622,17 @@
               {{ host3 }}
       tags: TC_012
 
+    - name: Get present working directory
+      command: >-
+        pwd
+      register: path
+      changed_when: false
+      tags: TC_012
+
     - name: Push the inventory to AWX
       shell: |
         set -o pipefail
-        docker exec awx_task awx-manage inventory_import --inventory-name {{ omnia_inventory_name }} --source "{{ inventory_path }}/testinventory.yml"
+        docker exec awx_task awx-manage inventory_import --inventory-name {{ omnia_inventory_name }} --source "{{ inventory_path }}/{{ path.stdout.split('/')[-2] }}/test/testinventory.yml"
       changed_when: false
       tags: TC_012
 
@@ -591,11 +644,12 @@
           changed_when: false
           register: command_output
 
-    - name: Validate success message
-      assert:
-        that: "'FAILED!' not in command_output.stdout"
-        success_msg: "{{ test_case_success_msg }}"
-        fail_msg: "{{ test_case_failure_msg }}"
+      rescue:
+        - name: Validate success message
+          assert:
+            that: "'FAILED!' not in command_output.stdout"
+            success_msg: "{{ test_case_success_msg }}"
+            fail_msg: "{{ test_case_failure_msg }}"
       tags: TC_012
 
     - name: Delete the hosts
@@ -625,29 +679,29 @@
       tags: TC_012
 
 # Testcase OMNIA_CRM_US_AWXD_TC_013
-# Test case to validate the error meesage when a host is present in both manager and compute groups
+# Test case to validate the success meesage when a host is present in both manager and compute groups
 - name: OMNIA_CRM_US_AWXD_TC_013
   hosts: localhost
   connection: local
   vars_files:
-    - ../roles/web_ui/vars/main.yml
-    - ../roles/common/vars/main.yml
+    - ../appliance/roles/web_ui/vars/main.yml
+    - ../appliance/roles/common/vars/main.yml
     - test_vars/test_omnia_vars.yml
   tasks:
     - name: Check input config file is encrypted
-      command: cat {{ test_input_config_filename }}
+      command: cat ../appliance/test/{{ test_input_config_filename }}
       changed_when: false
       register: config_content
       tags: TC_013
 
     - name: Decrpyt input_config.yml
-      command: ansible-vault decrypt {{ test_input_config_filename }} --vault-password-file {{ vault_filename }}
+      command: ansible-vault decrypt ../appliance/test/{{ test_input_config_filename }} --vault-password-file {{ vault_filename }}
       changed_when: false
       when: "'$ANSIBLE_VAULT;' in config_content.stdout"
       tags: TC_013
 
     - name: Include variable file input_config.yml
-      include_vars: "{{ test_input_config_filename }}"
+      include_vars: "../appliance/test/{{ test_input_config_filename }}"
       tags: TC_013
 
     - name: Creating inventory file with hosts associated to the groups
@@ -665,10 +719,17 @@
               {{ host1 }}
       tags: TC_013
 
+    - name: Get present working directory
+      command: >-
+        pwd
+      register: path
+      changed_when: false
+      tags: TC_013
+
     - name: Push the inventory to AWX
       shell: |
         set -o pipefail
-        docker exec awx_task awx-manage inventory_import --inventory-name {{ omnia_inventory_name }} --source "{{ inventory_path }}/testinventory.yml"
+        docker exec awx_task awx-manage inventory_import --inventory-name {{ omnia_inventory_name }} --source "{{ inventory_path }}/{{ path.stdout.split('/')[-2] }}/test/testinventory.yml"
       changed_when: false
       tags: TC_013
 
@@ -681,9 +742,9 @@
           register: command_output
 
       rescue:
-        - name: Validate error message
+        - name: Validate success message
           assert:
-            that: "'FAILED!' in command_output.stdout"
+            that: "'FAILED!' not in command_output.stdout"
             success_msg: "{{ test_case_success_msg }}"
             fail_msg: "{{ test_case_failure_msg }}"
       tags: TC_013
@@ -711,117 +772,30 @@
       tags: TC_013
 
 # Testcase OMNIA_CRM_US_AWXD_TC_014
-# Test case to verify the disjunction validation when the hosts are disjoint
+# Test case to validate whether the proper error message is displayed when more than one host is added to manager group
 - name: OMNIA_CRM_US_AWXD_TC_014
   hosts: localhost
   connection: local
   vars_files:
-    - ../roles/web_ui/vars/main.yml
-    - ../roles/common/vars/main.yml
+    - ../appliance/roles/web_ui/vars/main.yml
+    - ../appliance/roles/common/vars/main.yml
     - test_vars/test_omnia_vars.yml
   tasks:
     - name: Check input config file is encrypted
-      command: cat {{ test_input_config_filename }}
+      command: cat ../appliance/test/{{ test_input_config_filename }}
       changed_when: false
       register: config_content
       tags: TC_014
 
     - name: Decrpyt input_config.yml
-      command: ansible-vault decrypt {{ test_input_config_filename }} --vault-password-file {{ vault_filename }}
+      command: ansible-vault decrypt ../appliance/test/{{ test_input_config_filename }} --vault-password-file {{ vault_filename }}
       changed_when: false
       when: "'$ANSIBLE_VAULT;' in config_content.stdout"
       tags: TC_014
 
     - name: Include variable file input_config.yml
-      include_vars: "{{ test_input_config_filename }}"
+      include_vars: "../appliance/test/{{ test_input_config_filename }}"
       tags: TC_014
-
-    - name: Creating inventory file with hosts associated to the groups
-      copy:
-        dest: "testinventory.yml"
-        mode: '{{ file_permission }}'
-        content: |
-          ---
-          manager:
-            hosts:
-              {{ host1 }}
-
-          compute:
-            hosts:
-              {{ host2 }}
-      tags: TC_014
-
-    - name: Push the inventory to AWX
-      shell: |
-        set -o pipefail
-        docker exec awx_task awx-manage inventory_import --inventory-name {{ omnia_inventory_name }} --source "{{ inventory_path }}/testinventory.yml"
-      changed_when: false
-      tags: TC_014
-
-    - block:
-        - name: Launch the job template
-          command: >-
-            awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ awx_password }}" --conf.insecure
-            job_templates launch "{{ omnia_template_name }}" --credentials "{{ credential_name }}" --monitor -f human
-          changed_when: false
-          register: command_output
-
-    - name: Validate success message
-      assert:
-        that: "'FAILED!' not in command_output.stdout"
-        success_msg: "{{ test_case_success_msg }}"
-        fail_msg: "{{ test_case_failure_msg }}"
-      tags: TC_014
-
-    - name: Delete the hosts
-      command: >-
-        awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ awx_password }}" --conf.insecure
-        hosts delete {{ host1 }} --monitor -f human
-        awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ awx_password }}" --conf.insecure
-        hosts delete {{ host2 }} --monitor -f human
-      changed_when: false
-      tags: TC_014
-
-    - name: Delete the inventory file
-      ignore_errors: yes
-      file:
-        state: absent
-        path: testinventory.yml
-      tags: TC_014
-
-    - name: Create inventory file if it doesn't exist
-      ignore_errors: yes
-      file:
-        path: "testinventory.yml"
-        state: touch
-        mode: '{{ file_permission }}'
-      tags: TC_014
-
-# Testcase OMNIA_CRM_US_AWXD_TC_015
-# Test case to validate whether the proper error message is displayed when more than one host is added to manager group
-- name: OMNIA_CRM_US_AWXD_TC_015
-  hosts: localhost
-  connection: local
-  vars_files:
-    - ../roles/web_ui/vars/main.yml
-    - ../roles/common/vars/main.yml
-    - test_vars/test_omnia_vars.yml
-  tasks:
-    - name: Check input config file is encrypted
-      command: cat {{ test_input_config_filename }}
-      changed_when: false
-      register: config_content
-      tags: TC_015
-
-    - name: Decrpyt input_config.yml
-      command: ansible-vault decrypt {{ test_input_config_filename }} --vault-password-file {{ vault_filename }}
-      changed_when: false
-      when: "'$ANSIBLE_VAULT;' in config_content.stdout"
-      tags: TC_015
-
-    - name: Include variable file input_config.yml
-      include_vars: "{{ test_input_config_filename }}"
-      tags: TC_015
 
     - name: Creating inventory file with hosts associated to the groups
       copy:
@@ -839,14 +813,21 @@
             hosts:
               {{ host3 }}
 
-      tags: TC_015
+      tags: TC_014
+
+    - name: Get present working directory
+      command: >-
+        pwd
+      register: path
+      changed_when: false
+      tags: TC_014
 
     - name: Push the inventory to AWX
       shell: |
         set -o pipefail
-        docker exec awx_task awx-manage inventory_import --inventory-name {{ omnia_inventory_name }} --source "{{ inventory_path }}/testinventory.yml"
+        docker exec awx_task awx-manage inventory_import --inventory-name {{ omnia_inventory_name }} --source "{{ inventory_path }}/{{ path.stdout.split('/')[-2] }}/test/testinventory.yml"
       changed_when: false
-      tags: TC_015
+      tags: TC_014
 
     - block:
         - name: Launch the job template
@@ -862,7 +843,7 @@
             that: "'FAILED!' in command_output.stdout"
             success_msg: "{{ test_case_success_msg }}"
             fail_msg: "{{ test_case_failure_msg }}"
-      tags: TC_015
+      tags: TC_014
 
     - name: Delete the hosts
       command: >-
@@ -873,14 +854,14 @@
         awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ awx_password }}" --conf.insecure
         hosts delete {{ host3 }} --monitor -f human
       changed_when: false
-      tags: TC_015
+      tags: TC_014
 
     - name: Delete the inventory file
       ignore_errors: yes
       file:
         state: absent
         path: testinventory.yml
-      tags: TC_015
+      tags: TC_014
 
     - name: Create inventory file if it doesn't exist
       ignore_errors: yes
@@ -888,4 +869,4 @@
         path: "testinventory.yml"
         state: touch
         mode: '{{ file_permission }}'
-      tags: TC_015
+      tags: TC_014
