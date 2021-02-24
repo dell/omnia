@@ -126,5 +126,5 @@
   tags: slurm
 
 - name: Passwordless SSH between manager and compute nodes
-  include: appliance/tools/passwordless_ssh.yml
+  import_playbook: appliance/tools/passwordless_ssh.yml
   when: hostvars['127.0.0.1']['appliance_status']
