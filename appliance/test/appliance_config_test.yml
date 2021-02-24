@@ -14,12 +14,12 @@
 ---
 
 # Password used while deploying OS on bare metal servers and for Cobbler UI.
-# The Length of the password should be atleast 8.
+# The Length of the password should be at least 8.
 # The password must not contain -,\, ',"
 provision_password: "omnia@123"
 
 # Password used for the AWX UI.
-# The Length of the password should be atleast 8.
+# The Length of the password should be at least 8.
 # The password must not contain -,\, ',"
 awx_password: "omnia@123"
 
