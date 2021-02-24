@@ -49,8 +49,14 @@
     - name: Save input variables from file
       set_fact:
         cobbler_password: "{{ provision_password }}"
-        mapping_file: "{{ mapping_file_exists }}"
+        mapping_file: false
+        path_mapping_file: "{{ mapping_file_path }}"
       no_log: True
+
+    - name: Check the status for mapping file
+      set_fact:
+        mapping_file: true
+      when: path_mapping_file != ""
 
     - name: Encrypt input config file
       command: >-
@@ -59,11 +65,11 @@
       changed_when: false
 
     - name: Check if inventory file already exists
-      stat:
+      file:
         path: "/root/inventory"
-      register: stat_result
+        state: absent
 
-    - name: Create inventory file if doesnt exist
+    - name: Create empty inventory file
       copy:
         dest:  "/root/inventory"
         content: |
@@ -72,7 +78,6 @@
             hosts:
         owner: root
         mode: 0775
-      when: not stat_result.stat.exists
 
     - name: Add inventory playbook
       block:
