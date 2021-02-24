@@ -26,14 +26,6 @@
     backup: yes
     mode: "{{ common_mode }}"
 
-- name: Add host name in hosts file
-  lineinfile:
-    dest: "{{ hosts_dest }}"
-    line: "{{ inventory_hostname }} {{ host_name.stdout }}"
-    state: present
-    create: yes
-    mode: "{{ common_mode }}"
-
 - name: Install packages for slurm
   package:
     name: "{{ item }}"
@@ -85,6 +77,12 @@
     path: "{{ slurm_confpth }}"
     regexp: "SlurmdPort="
     line: "SlurmdPort={{ slurmd_port }}"
+
+- name: Add srun port range
+  lineinfile:
+    path: "{{ slurm_confpth }}"
+    regexp: "SrunPortRange="
+    line: "SrunPortRange={{ srun_port_range }}"
 
 - name: Add spool path
   lineinfile:

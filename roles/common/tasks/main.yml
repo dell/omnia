@@ -84,3 +84,43 @@
   include_tasks: amd.yml
   when: ansible_local.inventory.amd_gpu > 0
   tags: install
+
+- name: Get the hostname
+  command: hostname
+  register: machine_hostname
+  changed_when: true
+
+- name: Set facts for node hostname and ip
+  set_fact:
+    node_ip: "{{ inventory_hostname }}"
+    node_hostname: "{{ machine_hostname.stdout }}"
+
+- name: Add host name in hosts file
+  lineinfile:
+    dest: "{{ hosts_file_dest }}"
+    line: "{{ inventory_hostname }} {{ machine_hostname.stdout }}"
+    state: present
+    create: yes
+    mode: "{{ hosts_file_mode }}"
+
+- name: Add compute hosts info in manager node hosts file
+  lineinfile:
+    dest: "{{ hosts_file_dest }}"
+    line: "{{ hostvars[item].node_ip }} {{ hostvars[item].node_hostname }}"
+    state: present
+    create: yes
+    mode: "{{ hosts_file_mode }}"
+  with_items:
+    - "{{ groups['compute'] }}"
+  when: "'manager' in group_names"
+
+- name: Add manager hosts info in compute node hosts file
+  lineinfile:
+    dest: "{{ hosts_file_dest }}"
+    line: "{{ hostvars[item].node_ip }} {{ hostvars[item].node_hostname }}"
+    state: present
+    create: yes
+    mode: "{{ hosts_file_mode }}"
+  with_items:
+    - "{{ groups['manager'] }}"
+  when: "'compute' in group_names"
