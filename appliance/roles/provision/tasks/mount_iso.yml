@@ -36,7 +36,7 @@
   tags: install
 
 - name: Mount the iso file
-  command: mount -o loop {{ role_path }}/files/{{ iso_name }} /mnt/{{ iso_path }}
+  command: mount -o loop {{ path_for_iso_file }} /mnt/{{ iso_path }}
   changed_when: false
   args:
     warn: no

@@ -18,7 +18,14 @@
 
 # Command to execute: ansible-playbook provision_report.yml -i ../roles/inventory/files/provisioned_hosts.yml
 
-- name: Find reachable hosts
+- name: Fetch provision_password
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  roles:
+    - fetch_password
+
+- name: Find reachable hosts using ping
   hosts: all
   gather_facts: false
   ignore_unreachable: true
@@ -31,53 +38,44 @@
       ignore_errors: yes
       changed_when: false
 
+    - name: Refresh ssh keys
+      command: ssh-keygen -R {{ inventory_hostname }}
+      delegate_to: localhost
+      changed_when: false
+
     - name: Group reachable hosts
       group_by:
         key: "reachable"
       when: "'100% packet loss' not in ping_result.stdout"
 
+- name: Find reachable hosts using ssh
+  hosts: reachable
+  gather_facts: False
+  ignore_unreachable: true
+  remote_user: "root"
+  vars:
+    ansible_password: "{{ hostvars['127.0.0.1']['cobbler_password'] }}"
+    ansible_become_pass: "{{ hostvars['127.0.0.1']['cobbler_password'] }}"
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+  tasks:
+    - name: Check ssh status
+      command: hostname
+      register: ssh_status
+      ignore_errors: yes
+
+    - name: Group unreachable ssh hosts
+      group_by:
+        key: "unreachable_ssh"
+      when: ssh_status.unreachable is defined and ssh_status.unreachable == true
+
+    - name: Group reachable ssh hosts
+      group_by:
+        key: "reachable_ssh"
+      when: (ssh_status.unreachable is defined and ssh_status.unreachable == false) or (ssh_status.rc is defined and ssh_status.rc == 0)
+
 - name: Display hosts list
   hosts: localhost
   connection: local
   gather_facts: false
-  tasks:
-    - name: Set reachable and unreachable host number
-      set_fact:
-        reachable_host_number: "{{ groups['reachable'] | length}}"
-        unreachable_host_number: "{{ groups['ungrouped'] | length}}"
-
-    - name: Copy dhcpd.leases from cobbler
-      command: docker cp cobbler:/var/lib/dhcpd/dhcpd.leases dhcpd.leases
-      changed_when: true
-
-    - name: Fetch ethernet details of unreachable hosts
-      shell: sed -n '/{{ item }}/,/ethernet/p' dhcpd.leases | grep "ethernet" | awk '{ print $3 }' | uniq
-      register: ethernet_detail_unreachable
-      changed_when: false
-      args:
-        warn: no
-      with_items:
-        - "{{ groups['ungrouped'] }}"
-
-    - name: Fetch ethernet details of reachable hosts
-      shell: sed -n '/{{ item }}/,/ethernet/p' dhcpd.leases | grep "ethernet" | awk '{ print $3 }' | uniq
-      register: ethernet_detail_reachable
-      changed_when: false
-      args:
-        warn: no
-      with_items:
-        - "{{ groups['reachable'] }}"
-
-    - name: Copy host information to file
-      template:
-        src: provision_host_report.j2
-        dest: provision_host_report.txt
-
-    - name: Read provision host report
-      command: cat provision_host_report.txt
-      register: host_report
-      changed_when: false
-
-    - name: Display provision host report
-      debug:
-        var: host_report.stdout_lines
+  roles:
+    - hpc_cluster_report

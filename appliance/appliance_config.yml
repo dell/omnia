@@ -32,11 +32,18 @@ hpc_nic: "em1"
 # Default value of nic is em2
 public_nic: "em2"
 
-# The mapping file consists of the MAC address and its respective IP address and hostname.
-# If user wants to provide a mapping file, set this value to "true"
-# The format of mapping file should be MAC,hostname,IP and must be a CSV file.
-mapping_file_exists: ""
+# This is the  path where user has kept the iso image that needs to be provisioned in target nodes.
+# The iso file should be CentOS7-2009-minimal edition.
+# Other iso file not supported.
+iso_file_path: "" 
 
-# The dhcp range for assigning the IP address to the baremetal nodes.
+# The mapping file consists of the MAC address and its respective IP address and hostname.
+# The format of mapping file should be MAC,hostname,IP and must be a CSV file.
+# A template for mapping file exists in omnia/examples and is named as mapping_file.csv.
+# This depicts the path where user has kept the mapping file for DHCP configurations.
+mapping_file_path: ""
+
+# The dhcp range for assigning the IPv4 address to the baremetal nodes.
+# Example: 10.1.23.1
 dhcp_start_ip_range: ""
 dhcp_end_ip_range: ""

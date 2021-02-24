@@ -30,11 +30,13 @@
 
 - name: Include variable file appliance_config.yml
   include_vars: "{{ role_path }}/../../../{{ input_config_filename }}"
+  no_log: true
 
 - name: Save input variables from file
   set_fact:
     cobbler_password: "{{ provision_password }}"
-
+  no_log: true
+  
 - name: Encrypt input config file
   command: >-
     ansible-vault encrypt {{ role_path }}/../../../{{ input_config_filename }}
