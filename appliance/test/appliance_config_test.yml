@@ -34,7 +34,7 @@ public_nic: "em2"
 
 # This is the  path where user has kept the iso image that needs to be provisioned in target nodes.
 # The iso file should be CentOS7-2009-minimal edition.
-# Other iso file not supported.
+# Other iso files are not supported.
 iso_file_path: "/root/CentOS-7-x86_64-Minimal-2009.iso"
 
 # The mapping file consists of the MAC address and its respective IP address and hostname.

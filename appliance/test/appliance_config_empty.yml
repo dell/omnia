@@ -14,12 +14,12 @@
 ---
 
 # Password used while deploying OS on bare metal servers and for Cobbler UI.
-# The Length of the password should be atleast 8.
+# The Length of the password should be at least 8.
 # The password must not contain -,\, ',"
 provision_password: ""
 
 # Password used for the AWX UI.
-# The Length of the password should be atleast 8.
+# The Length of the password should be at least 8.
 # The password must not contain -,\, ',"
 awx_password: ""
 
@@ -34,7 +34,7 @@ public_nic: "em2"
 
 # This is the  path where user has kept the iso image that needs to be provisioned in target nodes.
 # The iso file should be CentOS7-2009-minimal edition.
-# Other iso file not supported.
+# Other iso files are not supported.
 iso_file_path: ""
 
 # The mapping file consists of the MAC address and its respective IP address and hostname.
