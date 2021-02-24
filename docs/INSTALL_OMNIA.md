@@ -1,43 +1,51 @@
-# Install Omnia
+# Install Omnia using CLI
 
-The following sections provide details on installing Omnia using CLI. If you want to install the Omnia appliance and manage workloads using the Omnia appliance, see [INSTALL_OMNIA_APPLIANCE](INSTALL_OMNIA_APPLIANCE.md) and [MONITOR_CLUSTERS](MONITOR_CLUSTERS.md) files for more information.
+The following sections provide details on installing Omnia using CLI. If you want to install the Omnia appliance and manage workloads using the Omnia appliance, see [Install the Omnia appliance](INSTALL_OMNIA_APPLIANCE.md) and [Monitor Kubernetes and Slurm](MONITOR_CLUSTERS.md) for more information.
 
-## Prerequisties to install Omnia using CLI
-Ensure that all the prerequisites listed in the [PREINSTALL_OMNIA](PREINSTALL_OMNIA.md) file are met before installing Omnia.
+## Prerequisites
+* Ensure that all the prerequisites listed in the [Preparation to install Omnia](PREINSTALL_OMNIA.md) are met before installing Omnia.
+* If there are errors when any of the following Ansible playbook commands are run, re-run the commands again. 
+* The user should have root privileges to perform installations and configurations.
+ 
+## Install Omnia using CLI
 
-## Steps to install Omnia using CLI
-__Note:__ If there are errors when any of the following Ansible playbook commands are run, re-run the commands again.  
-__Note:__ The user should have root privileges to perform installations and configurations.
-
-1. Clone the Omnia repository.
+1. Clone the Omnia repository:
 ``` 
 git clone https://github.com/dellhpc/omnia.git 
 ```
-__Note:__ After the Omnia repository is cloned, a folder named __omnia__ is created. It is recommended that you do not rename this folder.
+__Note:__ After the Omnia repository is cloned, a folder named __omnia__ is created. Ensure that you do not rename this folder.
 
 2. Change the directory to __omnia__: `cd omnia`
 
 3. An inventory file must be created in the __omnia__ folder. Add compute node IPs under **[compute]** group and the manager node IP under **[manager]** group. See the INVENTORY template file under `omnia\docs` folder.
 
-4. To install Omnia, run the following command.
+4. To install Omnia:
 ```
 ansible-playbook omnia.yml -i inventory -e "ansible_python_interpreter=/usr/bin/python2" 
 ```
 
-5. By default, no skip tags are selected, and both Kubernetes and Slurm will be deployed.  
+5. By default, no skip tags are selected, and both Kubernetes and Slurm will be deployed.
+
 To skip the installation of Kubernetes, enter:  
-`ansible-playbook omnia.yml -i inventory -e "ansible_python_interpreter=/usr/bin/python2"  --skip-tags "kubernetes"`  
-Similarly, to skip Slurm, enter:  
+`ansible-playbook omnia.yml -i inventory -e "ansible_python_interpreter=/usr/bin/python2"  --skip-tags "kubernetes"` 
+
+To skip the installation of Slurm, enter:  
 `ansible-playbook omnia.yml -i inventory -e "ansible_python_interpreter=/usr/bin/python2"  --skip-tags "slurm"`  
-__Note:__ If you would like to skip the NFS client setup, enter the following command to skip the k8s_nfs_client_setup role of Kubernetes:  
+
+To skip the NFS client setup, enter the following command to skip the k8s_nfs_client_setup role of Kubernetes:  
 `ansible-playbook omnia.yml -i inventory -e "ansible_python_interpreter=/usr/bin/python2"  --skip-tags "nfs_client"`
 
-6. To provide password for mariaDB Database (for Slurm accounting) and Kubernetes CNI, edit the `omnia_config.yml` file.  
-__Note:__ Supported values for Kubernetes CNI are calico and flannel. The default value of CNI considered by Omnia is calico.  
-To view the set passwords of omnia_config.yml at a later time, run the following command:  
+6. To provide passwords for mariaDB Database (for Slurm accounting), Kubernetes Pod Network CIDR, and Kubernetes CNI, edit the `omnia_config.yml` file.  
+__Note:__ 
+* Supported values for Kubernetes CNI are calico and flannel. The default value of CNI considered by Omnia is calico. 
+* The default value of Kubernetes Pod Network CIDR is 10.244.0.0/16. If 10.244.0.0/16 is already in use within your network, select a different Pod Network CIDR. For more information, see __https://docs.projectcalico.org/getting-started/kubernetes/quickstart__.
+
+To view the set passwords of omnia_config.yml at a later time:  
 `ansible-vault view omnia_config.yml --vault-password-file .omnia_vault_key`
 
 Omnia considers `slurm` as the default username for MariaDB.  
+
+## Kubernetes roles
 
 The following __kubernetes__ roles are provided by Omnia when __omnia.yml__ file is run:
 - __common__ role:
@@ -67,7 +75,14 @@ The following __kubernetes__ roles are provided by Omnia when __omnia.yml__ file
 - **k8s_start_services** role
 	- Kubernetes services are deployed such as Kubernetes Dashboard, Prometheus, MetalLB and NFS client provisioner
 
-__Note:__ After Kubernetes is installed and configured, few Kubernetes and calico/flannel related ports are opened in the manager and compute nodes. This is required for Kubernetes Pod-to-Pod and Pod-to-Service communications. Calico/flannel provides a full networking stack for Kubernetes pods.
+__Note:__ 
+* After Kubernetes is installed and configured, few Kubernetes and calico/flannel related ports are opened in the manager and compute nodes. This is required for Kubernetes Pod-to-Pod and Pod-to-Service communications. Calico/flannel provides a full networking stack for Kubernetes pods.
+* If Kubernetes Pods are unable to communicate with the servers when the DNS servers are not responding, then the Kubernetes Pod Network CIDR may be overlapping with the host network which is DNS issue. To resolve this issue follow the below steps:
+1. In your Kubernetes cluster, run `kubeadm reset -f` on the nodes.
+2. In the management node, edit the `omnia_config.yml` file to change the Kubernetes Pod Network CIDR. Suggested IP range is 192.168.0.0/16 and ensure you provide an IP which is not in use in your host network.
+3. Execute omnia.yml and skip slurm using --skip-tags slurm.
+
+## Slurm roles
 
 The following __Slurm__ roles are provided by Omnia when __omnia.yml__ file is run:
 - **slurm_common** role:
@@ -92,6 +107,6 @@ Commands to install JupyterHub and Kubeflow:
 * `ansible-playbook platforms/jupyterhub.yml -i inventory -e "ansible_python_interpreter=/usr/bin/python2"`
 * `ansible-playbook platforms/kubeflow.yml -i inventory -e "ansible_python_interpreter=/usr/bin/python2" `
 
-## Adding a new compute node to the cluster
+## Add a new compute node to the cluster
 
-The user has to update the INVENTORY file present in `omnia` directory with the new node IP address under the compute group. Make sure the other nodes which are already a part of the cluster are also present in the compute group along with the new node. Then, run`omnia.yml` to add the new node to the cluster and update the configurations of the manager node.
+To update the INVENTORY file present in `omnia` directory with the new node IP address under the compute group. Ensure the other nodes which are already a part of the cluster are also present in the compute group along with the new node. Then, run`omnia.yml` to add the new node to the cluster and update the configurations of the manager node.

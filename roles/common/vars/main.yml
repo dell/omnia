@@ -70,3 +70,6 @@ nvidia_packages:
 
 daemon_file_dest: /etc/docker/
 daemon_file_mode: 0644
+
+hosts_file_dest: "/etc/hosts"
+hosts_file_mode: "0644"
