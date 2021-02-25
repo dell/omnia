@@ -22,3 +22,8 @@ mariadb_password: "password"
 # It can either be "calico" or "flannel".
 # Default value assigned is "calico".
 k8s_cni: "calico"
+
+# Kubernetes pod network CIDR.
+# Default value is "10.244.0.0/16"
+# Make sure this value does not overlap with any of the host networks.
+k8s_pod_network_cidr: "10.244.0.0/16"
