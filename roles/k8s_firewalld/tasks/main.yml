@@ -29,7 +29,7 @@
 - name: Configure firewalld on master nodes
   firewalld:
     port: "{{ item }}/tcp"
-    permanent: yes
+    permanent: true
     state: enabled
   with_items: '{{ k8s_master_ports }}'
   when: "'manager' in group_names"
