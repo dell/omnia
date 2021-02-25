@@ -1,31 +1,28 @@
 # Install the Omnia appliance
 
-## Prerequisties
-Ensure that all the prerequisites listed in the [PREINSTALL_OMNIA_APPLIANCE](PREINSTALL_OMNIA_APPLIANCE.md) file are met before installing the Omnia appliance.
-
-__Note:__ After the installation of the Omnia appliance, changing the manager node is not supported. If you need to change the manager node, you must redeploy the entire cluster.  
-
-__Note:__ You must have root privileges to perform installations and configurations using the Omnia appliance.
+## Prerequisites
+* Ensure that all the prerequisites listed in the [Prerequisites to install the Omnia appliance](PREINSTALL_OMNIA_APPLIANCE.md) file are met before installing the Omnia appliance.
+* After the installation of the Omnia appliance, changing the manager node is not supported. If you need to change the manager node, you must redeploy the entire cluster.  
+* You must have root privileges to perform installations and configurations using the Omnia appliance.
+* If there are errors when any of the following Ansible playbook commands are run, re-run the commands again.
 
 ## Steps to install the Omnia appliance
-__Note:__ If there are errors when any of the following Ansible playbook commands are run, re-run the commands again.
+
 1. On the management node, change the working directory to the directory where you want to clone the Omnia Git repository.
-2. Clone the Omnia repository.
+2. Clone the Omnia repository:
 ``` 
 git clone https://github.com/dellhpc/omnia.git 
 ```
-3. Change the directory to `omnia`
-4. Edit the `omnia_config.yml` file to:  
-	a. Provide passwords for mariaDB Database (for Slurm accounting) and Kubernetes CNI under `mariadb_password` and `k8s_cni` respectively.  
-	__Note:__ Supported values for Kubernetes CNI are calico and flannel. The default value of CNI considered by Omnia is calico.
-	
-	To view the set passwords of `omnia_config.yml`, run the following command.
-```
-ansible-vault view omnia_config.yml --vault-password-file .omnia_vault_key
-```
+3. Change the directory to __omnia__: `cd omnia`
+4. Edit the `omnia_config.yml` file to:
+* Provide passwords for mariaDB Database (for Slurm accounting), Kubernetes Pod Network CIDR, Kubernetes CNI under `mariadb_password` and `k8s_cni` respectively.  
+__Note:__ 
+* Supported values for Kubernetes CNI are calico and flannel. The default value of CNI considered by Omnia is calico.	
+* The default value of Kubernetes Pod Network CIDR is 10.244.0.0/16. If 10.244.0.0/16 is already in use within your network, select a different Pod Network CIDR. For more information, see __https://docs.projectcalico.org/getting-started/kubernetes/quickstart__.
 
-5. Change the directory to `omnia/appliance`
-6. Edit the `appliance_config.yml` file to:  
+5. Run `ansible-vault view omnia_config.yml --vault-password-file .omnia_vault_key` to view the set passwords of __omnia_config.yml__.
+6. Change the directory to __omnia__->__appliance__: `cd omnia/appliance`
+7. Edit the `appliance_config.yml` file to:  
 	a. Provide passwords for Cobbler and AWX under `provision_password` and `awx_password` respectively.  
 	__Note:__ Minimum length of the password must be at least eight characters and a maximum of 30 characters. Do not use these characters while entering a password: -, \\, "", and \'  
 	
@@ -40,24 +37,19 @@ ansible-vault view omnia_config.yml --vault-password-file .omnia_vault_key
 	
 	e. Provide valid DHCP range for HPC cluster under the variables `dhcp_start_ip_range` and `dhcp_end_ip_range`. 
 	
-	To view the set passwords of `appliance_config.yml`, run the following command.
-```
-ansible-vault view appliance_config.yml --vault-password-file .vault_key
-```
+8. Run `ansible-vault view appliance_config.yml --vault-password-file .vault_key` to view the set passwords of __appliance_config.yml__.
 
 Omnia considers the following usernames as default:  
 * `cobbler` for Cobbler Server
 * `admin` for AWX
 * `slurm` for MariaDB
 
-7. To install Omnia, run the following command.
-```
-ansible-playbook appliance.yml -e "ansible_python_interpreter=/usr/bin/python2"
-```
+8. Run `ansible-playbook appliance.yml -e "ansible_python_interpreter=/usr/bin/python2"` to install Omnia appliance.
+
    
 Omnia creates a log file which is available at: `/var/log/omnia.log`.
 
-**Provision operating system on the target nodes**  
+## Provision operating system on the target nodes 
 Omnia role used: *provision*  
 Ports used by Cobbler:  
 * TCP ports: 80,443,69
@@ -76,7 +68,7 @@ __Note__: After the Cobbler Server provisions the operating system on the nodes,
 
 __Note__: If you want to add more nodes, append the new nodes in the existing mapping file. However, do not modify the previous nodes in the mapping file as it may impact the existing cluster.  
 
-**Install and configure Ansible AWX**  
+## Install and configure Ansible AWX 
 Omnia role used: *web_ui*  
 The port used by AWX is __8081__.  
 The AWX repository is cloned from the GitHub path: https://github.com/ansible/awx.git 
@@ -106,14 +98,16 @@ Kubernetes and Slurm are installed by deploying the **DeployOmnia** template on 
 3. Select the __HOSTS__ tab.
 4. To add the hosts provisioned by Cobbler, click **+**, and then select **Existing Host**. 
 5. Select the hosts from the list and click __SAVE__.
-5. To deploy Omnia, under __RESOURCES__ -> __Templates__, select __DeployOmnia__, and then click __LAUNCH__.
-6. By default, no skip tags are selected and both Kubernetes and Slurm will be deployed. To install only Kubernetes, enter `slurm` and select **slurm**. Similarly, to install only Slurm, select and add `kubernetes` skip tag. 
+6. To deploy Omnia, under __RESOURCES__ -> __Templates__, select __DeployOmnia__, and then click __LAUNCH__.
+7. By default, no skip tags are selected and both Kubernetes and Slurm will be deployed. 
+8. To install only Kubernetes, enter `slurm` and select **slurm**. 
+9. To install only Slurm, select and add `kubernetes` skip tag. 
 
 __Note:__
 *	If you would like to skip the NFS client setup, enter `nfs_client` in the skip tag section to skip the **k8s_nfs_client_setup** role of Kubernetes.
 
-7. Click **NEXT**.
-8. Review the details in the **PREVIEW** window, and click **LAUNCH** to run the DeployOmnia template. 
+10. Click **NEXT**.
+11. Review the details in the **PREVIEW** window, and click **LAUNCH** to run the DeployOmnia template. 
 
 __Note:__ If you want to install __JupyterHub__ and __Kubeflow__ playbooks, you have to first install the __JupyterHub__ playbook and then install the __Kubeflow__ playbook.
 
@@ -128,6 +122,8 @@ The DeployOmnia template may not run successfully if:
 - Under Skip Tags, when both kubernetes and slurm tags are selected.
 
 After **DeployOmnia** template is run from the AWX UI, the **omnia.yml** file installs Kubernetes and Slurm, or either Kubernetes or slurm, as per the selection in the template on the management node. Additionally, appropriate roles are assigned to the compute and manager groups.
+
+## Kubernetes roles
 
 The following __kubernetes__ roles are provided by Omnia when __omnia.yml__ file is run:
 - __common__ role:
@@ -157,7 +153,14 @@ The following __kubernetes__ roles are provided by Omnia when __omnia.yml__ file
 - **k8s_start_services** role
 	- Kubernetes services are deployed such as Kubernetes Dashboard, Prometheus, MetalLB and NFS client provisioner
 
-__Note:__ After Kubernetes is installed and configured, few Kubernetes and calico/flannel related ports are opened in the manager and compute nodes. This is required for Kubernetes Pod-to-Pod and Pod-to-Service communications. Calico/flannel provides a full networking stack for Kubernetes pods.
+__Note:__ 
+* After Kubernetes is installed and configured, few Kubernetes and calico/flannel related ports are opened in the manager and compute nodes. This is required for Kubernetes Pod-to-Pod and Pod-to-Service communications. Calico/flannel provides a full networking stack for Kubernetes pods.
+* If Kubernetes Pods are unable to communicate with the servers when the DNS servers are not responding, then the Kubernetes Pod Network CIDR may be overlapping with the host network which is DNS issue. To resolve this issue:
+1. In your Kubernetes cluster, run `kubeadm reset -f` on the nodes.
+2. In the management node, edit the `omnia_config.yml` file to change the Kubernetes Pod Network CIDR. Suggested IP range is 192.168.0.0/16 and ensure you provide an IP which is not in use in your host network.
+3. Execute omnia.yml and skip slurm using --skip-tags slurm
+ 
+## Slurm roles
 
 The following __Slurm__ roles are provided by Omnia when __omnia.yml__ file is run:
 - **slurm_common** role:
@@ -176,6 +179,6 @@ The following __Slurm__ roles are provided by Omnia when __omnia.yml__ file is r
 	- Slurm exporter is a package for exporting metrics collected from Slurm resource scheduling system to prometheus.
 	- Slurm exporter is installed on the host like Slurm, and Slurm exporter will be successfully installed only if Slurm is installed.
 
-## Adding a new compute node to the Cluster
+## Add a new compute node to the Cluster
 
 If a new node is provisioned through Cobbler, the node address is automatically displayed on the AWX dashboard. The node is not assigned to any group. You can add the node to the compute group along with the existing nodes and run `omnia.yml` to add the new node to the cluster and update the configurations in the manager node.
