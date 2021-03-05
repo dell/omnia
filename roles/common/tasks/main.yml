@@ -62,6 +62,15 @@
     state: present
   tags: install
 
+- name: Versionlock docker
+  command: "yum versionlock '{{ item }}'"
+  args:
+    warn: false
+  with_items:
+    - "{{ docker_packages }}"
+  changed_when: true
+  tags: install
+
 - name: Collect host facts (including acclerator information)
   setup: ~
 
