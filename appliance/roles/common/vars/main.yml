@@ -33,6 +33,7 @@ common_packages:
   - python-docker
   - net-tools
   - python-netaddr
+  - yum-plugin-versionlock
 
 # Usage: pre_requisite.yml
 internet_delay: 0
@@ -52,7 +53,9 @@ docker_repo_url: https://download.docker.com/linux/centos/docker-ce.repo
 docker_repo_dest: /etc/yum.repos.d/docker-ce.repo
 success: '0'
 container_type: docker
-container_repo_install: docker-ce
+container_repo_install:
+  - docker-ce-cli-20.10.2
+  - docker-ce-20.10.2
 docker_compose: docker-compose
 daemon_dest: /etc/docker/
 

@@ -23,8 +23,13 @@ common_packages:
   - nvidia-detect
   - chrony
   - pciutils
-  - docker-ce
+  - docker-ce-cli-20.10.2
+  - docker-ce-20.10.2
   - openssl
+
+docker_packages:
+  - docker-ce-cli-20.10.2
+  - docker-ce-20.10.2
 
 custom_fact_dir: /etc/ansible/facts.d
 
@@ -52,7 +57,7 @@ delay_count_one: "60"
 retry_count: "6"
 delay_count: "10"
 
-ntp_servers: 
+ntp_servers:
   - 0.centos.pool.ntp.org
   - 1.centos.pool.ntp.org
   - 2.centos.pool.ntp.org

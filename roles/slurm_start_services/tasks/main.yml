@@ -39,6 +39,13 @@
     enabled: yes
   tags: install
 
+- name: check slurmdbd is active
+  systemd:
+    name: slurmdbd
+  register: slurmdbd_status
+  until: 'slurmdbd_status.status.ActiveState=="active"'
+  retries: 20
+
 - name: Show cluster if exists
   command: sacctmgr -n show cluster {{ cluster_name }}
   register: slurm_clusterlist
