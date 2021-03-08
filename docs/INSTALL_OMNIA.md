@@ -107,6 +107,11 @@ Commands to install JupyterHub and Kubeflow:
 * `ansible-playbook platforms/jupyterhub.yml -i inventory -e "ansible_python_interpreter=/usr/bin/python2"`
 * `ansible-playbook platforms/kubeflow.yml -i inventory -e "ansible_python_interpreter=/usr/bin/python2" `
 
+__Note:__ When the Internet connectivity is unstable or slow, it may take more time to pull the images to create the Kubeflow containers. If the time limit is exceeded, the **Apply Kubeflow configurations** task may fail. To resolve this issue, you must redeploy Kubernetes cluster and reinstall Kubeflow by completing the following steps:
+* Format the OS on manager and compute nodes.
+* In the `omnia_config.yml` file, change the k8s_cni variable value from calico to flannel.
+* Run the Kubernetes and Kubeflow playbooks.
+
 ## Add a new compute node to the cluster
 
 To update the INVENTORY file present in `omnia` directory with the new node IP address under the compute group. Ensure the other nodes which are already a part of the cluster are also present in the compute group along with the new node. Then, run`omnia.yml` to add the new node to the cluster and update the configurations of the manager node.
