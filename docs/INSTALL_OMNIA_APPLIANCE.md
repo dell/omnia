@@ -137,7 +137,7 @@ The following __kubernetes__ roles are provided by Omnia when __omnia.yml__ file
 - **k8s_manager** role: 
 	- __helm__ package for Kubernetes is installed.
 - **k8s_firewalld** role: This role is used to enable the required ports to be used by Kubernetes. 
-	- For __head-node-ports__: 6443, 2379-2380,10251,10252
+	- For __head-node-ports__: 6443, 2379-2380,10251,10250,10252
 	- For __compute-node-ports__: 10250,30000-32767
 	- For __calico-udp-ports__: 4789
 	- For __calico-tcp-ports__: 5473,179
