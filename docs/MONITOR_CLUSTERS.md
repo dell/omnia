@@ -36,14 +36,18 @@ __Note:__ Kuberenetes and Slurm job can be scheduled only for users with __sudo_
 
 ## Access Kubeflow Dashboard
 
-It is recommended that use port numbers between __8000-8999__ and suggested port number is __8085__.
+It is recommended that you use port numbers between __8000-8999__ and the suggested port number is __8085__.
 
-1. To see which are the ports are in use, use the following command:
+1. To view the ports which are in use, run the following command:
    `netstat -an`
-2. Choose a port number between __8000-8999__ which is not in use.
-3. To run the __kubeflow__ dashboard at selected port number, run the following command:
-   `kubectl port-forward -n kubeflow service/centraldashboard __selected_port_number__:80`
-4. On a web browser installed on the __manager node__, go to http://localhost:selected-port-number/ to launch the kubeflow central navigation dashboard.
+2. Select a port number between __8000-8999__ which is not in use.
+3. To run the **Kubeflow Dashboard** at selected port number, run one of the following commands:  
+	`kubectl port-forward -n kubeflow service/centraldashboard __selected_port_number__:80`  
+	(Or)  
+	`kubectl port-forward -n istio-system svc/istio-ingressgateway __selected_port_number__:80`
+4. On a web browser installed on the manager node, go to http://localhost:selected-port-number/ to launch the Kubeflow Central Dashboard.  
+
+For more information about the Kubeflow Central Dashboard, see https://www.kubeflow.org/docs/components/central-dash/overview/.
 
 ## Access JupyterHub Dashboard
 
