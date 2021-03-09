@@ -21,10 +21,11 @@
   vars_files:
     - test_vars/test_provision_vars.yml
     - ../roles/provision/vars/main.yml
+    - "{{ test_input_config_filename }}"
   tasks:
     - name: Check the iso file is present
       stat:
-        path: "{{ iso_file_path }}/{{ iso_name }}"
+        path: "{{ iso_file_path }}"
       register: iso_status
       tags: TC_004
 
@@ -605,57 +606,3 @@
         fail_msg: "{{ cobbler_reboot_fail_msg }}"
         success_msg: "{{ cobbler_reboot_success_msg }}"
       tags: TC_007,VERIFY_007
-
-# Testcase OMNIA_DIO_US_CC_TC_008
-# Execute provison role in management station with centos iso file not present in files folder of provision role
-- name: OMNIA_DIO_US_CC_TC_008
-  hosts: localhost
-  connection: local
-  vars_files:
-    - test_vars/test_provision_vars.yml
-    - ../roles/provision/vars/main.yml
-  tasks:
-    - name: Check the iso file is present
-      stat:
-        path: "{{ iso_file_path }}/{{ iso_name }}"
-      register: iso_status
-      tags: TC_008
-
-    - name: Copy iso file to different name
-      copy:
-        src: "{{ iso_file_path }}/{{ iso_name }}"
-        dest: "{{ iso_file_path }}/{{ temp_iso_name }}"
-      when: iso_status.stat.exists == true
-      tags: TC_008
-
-    - name: Delete iso file
-      file:
-        path: "{{ iso_file_path }}/{{ iso_name }}"
-        state: "absent"
-      when: iso_status.stat.exists == true
-      tags: TC_008
-
-    - block:
-        - name: Call common role
-          include_role:
-            name: ../roles/common
-          vars:
-            input_config_filename: "{{ test_input_config_filename }}"
-
-        - name: Call provision role
-          include_role:
-            name: ../roles/provision
-      rescue:
-        - name: Validate iso missing error
-          assert:
-            that: iso_fail in iso_file_check.msg
-            success_msg: "{{ iso_check_success_msg }}"
-            fail_msg: "{{ iso_check_fail_msg }}"
-      tags: TC_008
-
-    - name: Copy iso file to old name
-      copy:
-        src: "{{ iso_file_path }}/{{ temp_iso_name }}"
-        dest: "{{ iso_file_path }}/{{ iso_name }}"
-      when: iso_status.stat.exists == true
-      tags: TC_008

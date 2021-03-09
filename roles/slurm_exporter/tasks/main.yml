@@ -13,12 +13,27 @@
 #  limitations under the License.
 ---
 
+- name: Verify if slurm-exporter is already installed
+  command: ls /usr/bin/prometheus-slurm-exporter
+  register: slurm_exporter_status
+  changed_when: False
+  ignore_errors: yes
+
 - name: Install slurm exporter
   include_tasks: install_slurm_exporter.yml
+  when: "'No such file or directory' in slurm_exporter_status.stderr"
 
 - name: Start slurm exporter services
   include_tasks: start_services.yml
 
+- name: Verify if kubernetes is already installed
+  command: ls /usr/bin/kubectl
+  register: k8s_installation_status
+  changed_when: False
+  ignore_errors: yes
+
 - name: Install prometheus on host
   include_tasks: install_prometheus.yml
-  when: "'kubernetes' in ansible_skip_tags"
+  when:
+    - "'kubernetes' in ansible_skip_tags"
+    - "'No such file' in k8s_installation_status.stderr"

@@ -65,6 +65,15 @@
     executable: pip3
   tags: install
 
+- name: Versionlock docker
+  command: "yum versionlock '{{ item }}'"
+  args:
+    warn: false
+  with_items:
+    - "{{ container_repo_install }}"
+  changed_when: true
+  tags: install
+
 - name: Configure docker
   copy:
     src: daemon.json

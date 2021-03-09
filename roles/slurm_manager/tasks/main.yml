@@ -145,6 +145,7 @@
     - "{{ tcp_port1 }}"
     - "{{ tcp_port2 }}"
     - "{{ tcp_port3 }}"
+    - "{{ tcp_port4 }}"
     - "{{ udp_port3 }}"
     - "{{ udp_port1 }}"
     - "{{ udp_port2 }}"

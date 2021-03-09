@@ -12,13 +12,10 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+# olm.yml: Install Operator Lifecycle Manager (OLM) for Operator Framework
 
-# Usage: test_omnia.yml
-host1: "100.10.20.30"
-host2: "100.20.30.40"
-host3: "100.30.40.50"
-inventory_path: "/var/lib/awx/projects/omnia/appliance/test"
-test_input_config_filename: "input_config_test.yml"
-test_case_success_msg: "Test case passed"
-test_case_failure_msg: "Test case failed"
-file_permission: 0644
+- name: Deploy Operator Lifecycle Manager (OLM) CRDs
+  command: kubectl apply -f https://github.com/operator-framework/operator-lifecycle-manager/releases/download/v0.17.0/crds.yaml
+
+- name: Deploy Operator Lifecycle Manager (OLM)
+  command: kubectl apply -f https://github.com/operator-framework/operator-lifecycle-manager/releases/download/v0.17.0/olm.yaml

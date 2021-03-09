@@ -23,4 +23,5 @@
 - name: Start services
   systemd:
     name: prometheus-slurm-exporter
-    state: started
+    state: restarted
+    enabled: yes

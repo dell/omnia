@@ -361,7 +361,7 @@
         replace: "{{ item.replace }}"
       with_items:
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "iso_file_path: \"\"", replace: "iso_file_path: \"{{ valid_iso_path }}\"" }
         - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
         - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_008
@@ -417,7 +417,7 @@
         replace: "{{ item.replace }}"
       with_items:
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "iso_file_path: \"\"", replace: "iso_file_path: \"{{ valid_iso_path }}\"" }
         - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
         - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_009
@@ -444,7 +444,7 @@
       tags: TC_009
 
 # Testcase OMNIA_DIO_US_DVC_TC_010
-# Execute common role in management station with mapping_file_exists as empty
+# Execute common role in management station with iso_file_path as empty
 - name: OMNIA_DIO_US_DVC_TC_010
   hosts: localhost
   connection: local
@@ -488,7 +488,7 @@
       rescue:
         - name: Validate error
           assert:
-            that: fail_mapping_file in mapping_file_check.msg
+            that: input_config_failure_msg in input_config_check.msg
             success_msg: "{{ input_config_check_success_msg }}"
             fail_msg: "{{ input_config_check_fail_msg }}"
       tags: TC_010
@@ -530,7 +530,7 @@
       with_items:
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ long_password }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "iso_file_path: \"\"", replace: "iso_file_path: \"{{ valid_iso_path }}\"" }
         - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
         - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_011
@@ -587,7 +587,7 @@
       with_items:
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ white_space_password }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "iso_file_path: \"\"", replace: "iso_file_path: \"{{ valid_iso_path }}\"" }
         - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
         - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_012
@@ -644,7 +644,7 @@
       with_items:
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ special_character_password1 }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "iso_file_path: \"\"", replace: "iso_file_path: \"{{ valid_iso_path }}\"" }
         - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
         - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_013
@@ -701,7 +701,7 @@
       with_items:
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ special_character_password2 }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "iso_file_path: \"\"", replace: "iso_file_path: \"{{ valid_iso_path }}\"" }
         - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
         - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_014
@@ -758,7 +758,7 @@
       with_items:
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ long_password }}\"" }
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "iso_file_path: \"\"", replace: "iso_file_path: \"{{ valid_iso_path }}\"" }
         - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
         - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_015
@@ -815,7 +815,7 @@
       with_items:
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ white_space_password }}\"" }
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "iso_file_path: \"\"", replace: "iso_file_path: \"{{ valid_iso_path }}\"" }
         - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
         - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_016
@@ -872,7 +872,7 @@
       with_items:
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ special_character_password1 }}\"" }
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "iso_file_path: \"\"", replace: "iso_file_path: \"{{ valid_iso_path }}\"" }
         - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
         - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_017
@@ -929,7 +929,7 @@
       with_items:
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ special_character_password2 }}\"" }
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "iso_file_path: \"\"", replace: "iso_file_path: \"{{ valid_iso_path }}\"" }
         - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
         - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_018
@@ -956,7 +956,7 @@
       tags: TC_018
 
 # Testcase OMNIA_DIO_US_DVC_TC_019
-# Execute common role in management station with mapping_file_exists status as true
+# Execute common role in management station with valid iso_file_path
 - name: OMNIA_DIO_US_DVC_TC_019
   hosts: localhost
   connection: local
@@ -986,7 +986,7 @@
       with_items:
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"true\"" }
+        - { regexp: "iso_file_path: \"\"", replace: "iso_file_path: \"{{ valid_iso_path }}\"" }
         - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
         - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_019
@@ -1001,7 +1001,7 @@
       always:
         - name: Validate success message
           assert:
-            that: success_mapping_file in mapping_file_check.msg
+            that: result_path_iso_file.stat.exists == true
             success_msg: "{{ input_config_check_success_msg }}"
             fail_msg: "{{ input_config_check_fail_msg }}"
       tags: TC_019
@@ -1013,7 +1013,7 @@
       tags: TC_019
 
 # Testcase OMNIA_DIO_US_DVC_TC_020
-# Execute common role in management station with mapping_file_exists status other than true or false
+# Execute common role in management station with wrong iso_file_path
 - name: OMNIA_DIO_US_DVC_TC_020
   hosts: localhost
   connection: local
@@ -1043,7 +1043,7 @@
       with_items:
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"test\"" }
+        - { regexp: "iso_file_path: \"\"", replace: "iso_file_path: \"{{ wrong_iso_path }}\"" }
         - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
         - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_020
@@ -1056,9 +1056,14 @@
           vars:
             input_config_filename: "{{ new_input_config_filename }}"
       rescue:
+        - name: Check log file
+          command: tail /var/log/omnia.log
+          register: iso_fail_log_check
+          changed_when: false
+            
         - name: Validate error
           assert:
-            that: fail_mapping_file in mapping_file_check.msg
+            that: invalid_iso_file_path in iso_fail_log_check.stdout
             success_msg: "{{ input_config_check_success_msg }}"
             fail_msg: "{{ input_config_check_fail_msg }}"
       tags: TC_020
@@ -1100,7 +1105,7 @@
       with_items:
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "iso_file_path: \"\"", replace: "iso_file_path: \"{{ valid_iso_path }}\"" }
         - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_021
 
@@ -1156,7 +1161,7 @@
       with_items:
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "iso_file_path: \"\"", replace: "iso_file_path: \"{{ valid_iso_path }}\"" }
         - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
       tags: TC_022
 
@@ -1182,7 +1187,7 @@
       tags: TC_022
 
 # Testcase OMNIA_DIO_US_DVC_TC_023
-# Execute common role in management station with mapping_file_exists status as false
+# Execute common role in management station with mapping_file_path provided
 - name: OMNIA_DIO_US_DVC_TC_023
   hosts: localhost
   connection: local
@@ -1212,7 +1217,8 @@
       with_items:
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "iso_file_path: \"\"", replace: "iso_file_path: \"{{ valid_iso_path }}\"" }
+        - { regexp: "mapping_file_path: \"\"", replace: "mapping_file_path: \"{{ valid_mapping_file_path }}\"" }
         - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
         - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_023
@@ -1225,9 +1231,14 @@
           vars:
             input_config_filename: "{{ new_input_config_filename }}"
       always:
+        - name: Check log file
+          command: tail -100 /var/log/omnia.log
+          register: mapping_success_log_check
+          changed_when: false
+          
         - name: Validate success message
           assert:
-            that: success_mapping_file in mapping_file_check.msg
+            that: success_mapping_file in mapping_success_log_check.stdout
             success_msg: "{{ input_config_check_success_msg }}"
             fail_msg: "{{ input_config_check_fail_msg }}"
       tags: TC_023
@@ -1269,7 +1280,7 @@
       with_items:
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ max_length_password }}\"" }
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "iso_file_path: \"\"", replace: "iso_file_path: \"{{ valid_iso_path }}\"" }
         - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
         - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_024
@@ -1326,7 +1337,7 @@
       with_items:
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ max_length_password }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "iso_file_path: \"\"", replace: "iso_file_path: \"{{ valid_iso_path }}\"" }
         - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
         - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_025
@@ -1383,7 +1394,7 @@
       with_items:
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "iso_file_path: \"\"", replace: "iso_file_path: \"{{ valid_iso_path }}\"" }
         - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
         - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
         - { regexp: "hpc_nic: \"em1\"", replace: "hpc_nic: \"em2\"" }
@@ -1441,7 +1452,7 @@
       with_items:
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "iso_file_path: \"\"", replace: "iso_file_path: \"{{ valid_iso_path }}\"" }
         - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
         - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
         - { regexp: "hpc_nic: \"em1\"", replace: "hpc_nic: \"\"" }
@@ -1499,7 +1510,7 @@
       with_items:
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "iso_file_path: \"\"", replace: "iso_file_path: \"{{ valid_iso_path }}\"" }
         - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
         - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
         - { regexp: "public_nic: \"em2\"", replace: "public_nic: \"\"" }
@@ -1557,7 +1568,7 @@
       with_items:
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "iso_file_path: \"\"", replace: "iso_file_path: \"{{ valid_iso_path }}\"" }
         - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
         - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
         - { regexp: "public_nic: \"em2\"", replace: "public_nic: \"em5\"" }
@@ -1615,7 +1626,7 @@
       with_items:
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "iso_file_path: \"\"", replace: "iso_file_path: \"{{ valid_iso_path }}\"" }
         - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
         - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
         - { regexp: "hpc_nic: \"em1\"", replace: "hpc_nic: \"em5\"" }
@@ -1673,7 +1684,7 @@
       with_items:
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "iso_file_path: \"\"", replace: "iso_file_path: \"{{ valid_iso_path }}\"" }
         - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ invalid_dhcp_ip }}\"" }
         - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_031
@@ -1730,7 +1741,7 @@
       with_items:
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "iso_file_path: \"\"", replace: "iso_file_path: \"{{ valid_iso_path }}\"" }
         - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ wrong_dhcp_ip }}\"" }
         - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ valid_dhcp_end_range }}\"" }
       tags: TC_032
@@ -1787,7 +1798,7 @@
       with_items:
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "iso_file_path: \"\"", replace: "iso_file_path: \"{{ valid_iso_path }}\"" }
         - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
         - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ wrong_dhcp_ip }}\"" }
       tags: TC_033
@@ -1844,7 +1855,7 @@
       with_items:
         - { regexp: "provision_password: \"\"", replace: "provision_password: \"{{ min_length_password }}\"" }
         - { regexp: "awx_password: \"\"", replace: "awx_password: \"{{ min_length_password }}\"" }
-        - { regexp: "mapping_file_exists: \"\"", replace: "mapping_file_exists: \"false\"" }
+        - { regexp: "iso_file_path: \"\"", replace: "iso_file_path: \"{{ valid_iso_path }}\"" }
         - { regexp: "dhcp_start_ip_range: \"\"", replace: "dhcp_start_ip_range: \"{{ valid_dhcp_start_range }}\"" }
         - { regexp: "dhcp_end_ip_range: \"\"", replace: "dhcp_end_ip_range: \"{{ invalid_dhcp_ip }}\"" }
       tags: TC_034

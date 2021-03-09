@@ -13,25 +13,31 @@
 # limitations under the License.
 ---
 
-- name: Check availability of iso file
-  stat:
-    path: "{{ role_path }}/files/{{ iso_name }}"
-  register: iso_status
-  tags: install
-
-- name: Iso file not present
-  fail:
-    msg: "{{ iso_fail }}"
-  when: iso_status.stat.exists == false
-  register: iso_file_check
-  tags: install
-
 - name: Initialize variables
   set_fact:
     cobbler_container_status: false
     cobbler_image_status: false
     cobbler_config_status: false
+    backup_map_status: false
+    new_node_status: false
   tags: install
+
+- name: Check if any backup file exists
+  block:
+  - name: Check status of backup file
+    stat:
+      path: "{{ role_path }}/files/backup_mapping_file.csv"
+    register: backup_map
+
+  - name: Set status for backup file
+    set_fact:
+      backup_map_status: true
+    when: backup_map.stat.exists == true  
+  rescue:
+  - name: Message
+    debug:
+      msg: "All nodes are new"
+      verbosity: 2
 
 - name: Inspect the cobbler image
   docker_image_info:

@@ -33,6 +33,7 @@ common_packages:
   - python-docker
   - net-tools
   - python-netaddr
+  - yum-plugin-versionlock
 
 # Usage: pre_requisite.yml
 internet_delay: 0
@@ -52,7 +53,9 @@ docker_repo_url: https://download.docker.com/linux/centos/docker-ce.repo
 docker_repo_dest: /etc/yum.repos.d/docker-ce.repo
 success: '0'
 container_type: docker
-container_repo_install: docker-ce
+container_repo_install:
+  - docker-ce-cli-20.10.2
+  - docker-ce-20.10.2
 docker_compose: docker-compose
 daemon_dest: /etc/docker/
 
@@ -76,6 +79,9 @@ success_dhcp_range: "Dhcp_range validated"
 fail_dhcp_range: "Failed. Incorrect range assigned for dhcp"
 success_hpc_ip: "IP validated"
 fail_hpc_ip: "Failed. Nic should be configured"
+fail_mapping_file_path: "Failed. Mapping_file_path input is empty in appliance_config.yml. Either set mapping_file_exists to false or provide a path for a valid mapping file."
+invalid_mapping_file_path: "Incorrect mapping_file_path provided in appliance_config.yml"
+invalid_iso_file_path: "Incorrect iso_file_path provided in appliance_config.yml."
 min_length: 8
 max_length: 30
 nic_min_length: 3

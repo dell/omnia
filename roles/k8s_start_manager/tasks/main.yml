@@ -22,15 +22,30 @@
   setup:
     filter: ansible_default_ipv4.address
 
-- name: Check K8s nodes status
+- name: Get K8s nodes status
   command: kubectl get nodes
   changed_when: false
   ignore_errors: True
   register: k8s_nodes
   tags: init
 
+- name: Get K8s ready compute nodes
+  shell: kubectl get node --selector='!node-role.kubernetes.io/master' | grep -v 'NotReady'
+  changed_when: false
+  ignore_errors: True
+  register: k8s_nodes_ready
+  tags: init
+
+- name: Get K8s not ready compute nodes
+  shell: kubectl get node --selector='!node-role.kubernetes.io/master' | grep 'NotReady'
+  changed_when: false
+  ignore_errors: True
+  register: k8s_nodes_not_ready
+  tags: init
+
 - name: Initialize kubeadm
-  command: "/bin/kubeadm init --pod-network-cidr='{{ pod_network_cidr_ip }}' --apiserver-advertise-address='{{ ansible_default_ipv4.address }}'"
+  command: "/bin/kubeadm init --pod-network-cidr='{{ hostvars['127.0.0.1']['k8s_pod_network_cidr'] }}' \
+    --apiserver-advertise-address='{{ ansible_default_ipv4.address }}'"
   changed_when: true
   when: "'master' not in k8s_nodes.stdout"
   register: init_output
@@ -83,6 +98,8 @@
     hash:   "{{ K8S_MANAGER_CA_HASH.stdout }}"
     ip:     "{{ ansible_default_ipv4.address }}"
     k8s_nodes:  "{{ k8s_nodes.stdout }}"
+    k8s_nodes_ready:  "{{ k8s_nodes_ready.stdout }}"
+    k8s_nodes_not_ready: "{{ k8s_nodes_not_ready.stdout }}"
   tags: init
 
 - name: Print k8s token

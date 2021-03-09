@@ -25,27 +25,26 @@
     dest: "{{ slurm_confpth }}"
     mode: "{{ slurm_mode }}"
 
-- name: Add compute hosts info in hosts file
-  lineinfile:
-    dest: "{{ hosts_dest }}"
-    line: "{{ hostvars[item].compute_host }} {{ hostvars[item].compute_ip }}"
-    state: present
-    create: yes
-    mode: "{{ common_mode }}"
-  with_items:
-    - "{{ groups['compute'] }}"
-
 - name: Enable slurmdbd on manager
-  service:
+  systemd:
     name: slurmdbd
     state: restarted
+    enabled: yes
   tags: install
 
 - name: Start slurmctld on manager
-  service:
+  systemd:
     name: slurmctld
     state: restarted
+    enabled: yes
   tags: install
+
+- name: check slurmdbd is active
+  systemd:
+    name: slurmdbd
+  register: slurmdbd_status
+  until: 'slurmdbd_status.status.ActiveState=="active"'
+  retries: 20
 
 - name: Show cluster if exists
   command: sacctmgr -n show cluster {{ cluster_name }}
