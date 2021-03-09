@@ -78,10 +78,10 @@ Issue: Hosts do not display on the AWX UI.
 Resolution:  
 * Verify if `provisioned_hosts.yml` is present in the `omnia/appliance/roles/inventory/files` folder.
 * Verify if hosts are not listed in the `provisioned_hosts.yml` file. If hosts are not listed, then servers are not PXE booted yet.
-* If hosts are listed in the `provisioned_hosts.yml` file, then an IP address has been assigned to them by DHCP. However, hosts are not displyed on the AWX UI as the PXE boot is still in process or is not initiated.
+* If hosts are listed in the `provisioned_hosts.yml` file, then an IP address has been assigned to them by DHCP. However, hosts are not displayed on the AWX UI as the PXE boot is still in process or is not initiated.
 * Check for the reachable and unreachable hosts using the `provisioned_report.yml` tool present in the `omnia/appliance/tools` folder. To run provisioned_report.yml, in the omnia/appliance directory, run `playbook -i roles/inventory/files/provisioned_hosts.yml tools/provisioned_report.yml`.
 
-# Frequently asked questio
+# Frequently asked questions
 * Why is the error "Wait for AWX UI to be up" displayed when `appliance.yaml` fails?  
 	Cause: 
 	1. When AWX is not accessible even after five minutes of wait time. 
