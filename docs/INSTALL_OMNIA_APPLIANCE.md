@@ -44,7 +44,7 @@ Omnia considers the following usernames as default:
 * `admin` for AWX
 * `slurm` for MariaDB
 
-8. Run `ansible-playbook appliance.yml -e "ansible_python_interpreter=/usr/bin/python2"` to install Omnia appliance.
+9. Run `ansible-playbook appliance.yml -e "ansible_python_interpreter=/usr/bin/python2"` to install Omnia appliance.
 
    
 Omnia creates a log file which is available at: `/var/log/omnia.log`.
@@ -115,6 +115,11 @@ __Note:__ To install __JupyterHub__ and __Kubeflow__ playbooks:
 *	From AWX UI, under __RESOURCES__ -> __Templates__, select __DeployOmnia__ template.
 *	From __PLAYBOOK__ dropdown menu, select __platforms/jupyterhub.yml__ and launch the template to install JupyterHub playbook.
 *	From __PLAYBOOK__ dropdown menu, select __platforms/kubeflow.yml__ and launch the template to install Kubeflow playbook.
+
+__Note:__ When the Internet connectivity is unstable or slow, it may take more time to pull the images to create the Kubeflow containers. If the time limit is exceeded, the **Apply Kubeflow configurations** task may fail. To resolve this issue, you must redeploy Kubernetes cluster and reinstall Kubeflow by completing the following steps:
+* Complete the PXE booting of the manager and compute nodes.
+* In the `omnia_config.yml` file, change the k8s_cni variable value from calico to flannel.
+* Run the Kubernetes and Kubeflow playbooks.
 
 The DeployOmnia template may not run successfully if:
 - The Manager group contains more than one host.

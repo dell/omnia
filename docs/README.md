@@ -78,7 +78,7 @@ Issue: Hosts do not display on the AWX UI.
 Resolution:  
 * Verify if `provisioned_hosts.yml` is present in the `omnia/appliance/roles/inventory/files` folder.
 * Verify if hosts are not listed in the `provisioned_hosts.yml` file. If hosts are not listed, then servers are not PXE booted yet.
-* If hosts are listed in the `provisioned_hosts.yml` file, then an IP address has been assigned to them by DHCP. However, hosts are not displyed on the AWX UI as the PXE boot is still in process or is not initiated.
+* If hosts are listed in the `provisioned_hosts.yml` file, then an IP address has been assigned to them by DHCP. However, hosts are not displayed on the AWX UI as the PXE boot is still in process or is not initiated.
 * Check for the reachable and unreachable hosts using the `provisioned_report.yml` tool present in the `omnia/appliance/tools` folder. To run provisioned_report.yml, in the omnia/appliance directory, run `playbook -i roles/inventory/files/provisioned_hosts.yml tools/provisioned_report.yml`.
 
 # Frequently asked questions
@@ -87,7 +87,7 @@ Resolution:
 	1. When AWX is not accessible even after five minutes of wait time. 
 	2. When __isMigrating__ or __isInstalling__ is seen in the failure message.
 	
-  Resolution:  
+	Resolution:  
 	Wait for AWX UI to be accessible at http://\<management-station-IP>:8081, and then run the `appliance.yaml` file again, where __management-station-IP__ is the ip address of the management node.
 
 * What are the next steps after the nodes in a Kubernetes cluster reboots?  
@@ -111,7 +111,7 @@ Resolution:
 	Cause:
 	* When the mounted .iso file is corrupt.
 	
-  Resolution:
+	Resolution:
 	1. Go to __var__->__log__->__cobbler__->__cobbler.log__ to view the error.
 	2. If the error message is **repo verification failed** then it signifies that the .iso file is not mounted properly.
 	3. Verify if the downloaded .iso file is valid and correct.
@@ -122,7 +122,7 @@ Resolution:
 	* When RAID is configured on the server.
 	* When more than two servers in the same network have Cobbler services running.  
 	
-  Resolution:  
+	Resolution:  
 	1. Create a Non-RAID or virtual disk in the server.  
 	2. Check if other systems except for the management node has cobblerd running. If yes, then stop the Cobbler container using the following commands: `docker rm -f cobbler` and `docker image rm -f cobbler`.
 
@@ -156,12 +156,19 @@ Resolution:
 		* systemctl restart slurmdbd on manager node
 		* systemctl restart slurmd on compute node
 		
-* What to do if Kubernetes Pods are unable to communicate with the servers when the DNS servers are not responding?
-	Cause: With the host network which is DNS issue.
+* What to do if Kubernetes Pods are unable to communicate with the servers when the DNS servers are not responding?  
+	Cause: With the host network which is DNS issue.  
 	Resolution:
 	1. In your Kubernetes cluster, run `kubeadm reset -f` on the nodes.
 	2. In the management node, edit the `omnia_config.yml` file to change the Kubernetes Pod Network CIDR. Suggested IP range is 192.168.0.0/16 and ensure you provide an IP which is not in use in your host network.
 	3. Execute omnia.yml and skip slurm using __skip_ tag __slurm__.
+
+* What to do if time taken to pull the images to create the Kubeflow containers exceeds the limit and the Apply Kubeflow configurations task fails?  
+	Cause: Unstable or slow Internet connectivity.  
+	Resolution:
+	1. Complete the PXE booting/ format the OS on manager and compute nodes.
+	2. In the omnia_config.yml file, change the k8s_cni variable value from calico to flannel.
+	3. Run the Kubernetes and Kubeflow playbooks.
 
 # Limitations
 1. Removal of Slurm and Kubernetes component roles are not supported. However, skip tags can be provided at the start of installation to select the component roles.​
