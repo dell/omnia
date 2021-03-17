@@ -37,7 +37,7 @@ common_packages:
 
 # Usage: pre_requisite.yml
 internet_delay: 0
-internet_timeout: 1
+internet_timeout: 10
 hostname: github.com
 port_no: 22
 os_name: CentOS
