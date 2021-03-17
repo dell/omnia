@@ -18,15 +18,17 @@ Omnia can install Kubernetes or Slurm (or both), along with additional drivers, 
 
 ![Omnia Slurm Stack](images/omnia-slurm.png) 
 
-## Installing Omnia
-Omnia requires that servers already have an RPM-based Linux OS running on them, and are all connected to the Internet. Currently all Omnia testing is done on [CentOS](https://centos.org). Please see [Preparation to install Omnia](PREINSTALL_OMNIA.md) for instructions on network setup.
+## Deploying clusters using the Omnia Appliance
+The Omnia Appliance will automate the entire cluster deployment process, starting with provisioning the operating system to servers.
 
-Once servers have functioning OS and networking, you can use Omnia to install and start Slurm and/or Kubernetes. Please see [Install Omnia using CLI](INSTALL_OMNIA.md) for detailed instructions.  
-
-## Installing the Omnia appliance
 Ensure all the prerequisites listed in [preparation to install Omnia Appliance](PREINSTALL_OMNIA_APPLIANCE.md) are met before installing the Omnia appliance.
 
 For detailed instructions on installing the Omnia appliance, see [Install Omnia Appliance](INSTALL_OMNIA_APPLIANCE.md).
+
+## Installing Omnia to servers with a pre-provisioned OS
+Omnia can be deploy clusters to servers that already have an RPM-based Linux OS running on them, and are all connected to the Internet. Currently all Omnia testing is done on [CentOS](https://centos.org). Please see [Preparation to install Omnia](PREINSTALL_OMNIA.md) for instructions on network setup.
+
+Once servers have functioning OS and networking, you can use Omnia to install and start Slurm and/or Kubernetes. Please see [Install Omnia using CLI](INSTALL_OMNIA.md) for detailed instructions.  
 
 # System requirements  
 Ensure the supported version of all the software are installed as per the following table and other versions than those listed are not supported by Omnia. This is to ensure that there is no impact to the functionality of Omnia.
