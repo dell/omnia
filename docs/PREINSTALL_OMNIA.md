@@ -7,7 +7,7 @@ Ensure that the following prerequisites are met:
 * SSH Keys for root have been installed on all nodes to allow for password-less SSH.
 * On the manager node, install Ansible and Git using the following commands:
 	* `yum install epel-release -y`
-	* `yum install ansible-2.9.17 git -y`  
+	* `yum install ansible-2.9.18 git -y`  
 __Note:__ Ansible must be installed using __yum__. If Ansible is installed using __pip3__, re-install it using the __yum__ command again.
 
 
