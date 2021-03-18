@@ -36,7 +36,7 @@
   set_fact:
     cobbler_password: "{{ provision_password }}"
   no_log: true
-  
+
 - name: Encrypt input config file
   command: >-
     ansible-vault encrypt {{ role_path }}/../../../{{ input_config_filename }}
