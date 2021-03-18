@@ -1,0 +1,86 @@
+#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Add docker repo
+  get_url:
+    url: "{{ docker_repo_url }}"
+    dest: "{{ docker_repo_dest }}"
+  tags: install
+
+- name: Enable docker edge and test repo
+  ini_file:
+    dest: "{{ docker_repo_dest }}"
+    section: "{{ item }}"
+    option: enabled
+    value: "{{ success }}"
+  with_items: ['docker-ce-test', 'docker-ce-edge']
+  tags: install
+
+- name: Install docker
+  package:
+    name: "{{ container_repo_install }}"
+    state: present
+  become: yes
+  tags: install
+
+- name: Start services
+  service:
+    name: "{{ container_type }}"
+    state: started
+    enabled: yes
+  become: yes
+  tags: install
+
+- name: Uninstall docker-py using pip
+  pip:
+    name: ['docker-py','docker']
+    state: absent
+  tags: install
+
+- name: Install docker using pip
+  pip:
+    name: docker
+    state: present
+  tags: install
+
+- name: Update pip
+  command: pip3 install --upgrade pip
+  changed_when: false
+
+- name: Installation using python3
+  pip:
+    name: "{{ docker_compose }}"
+    executable: pip3
+  tags: install
+
+- name: Versionlock docker
+  command: "yum versionlock '{{ item }}'"
+  args:
+    warn: false
+  with_items:
+    - "{{ container_repo_install }}"
+  changed_when: true
+  tags: install
+
+- name: Configure docker
+  copy:
+    src: daemon.json
+    dest: "{{ daemon_dest }}"
+  tags: install
+
+- name: Restart docker
+  service:
+    name: docker
+    state: restarted

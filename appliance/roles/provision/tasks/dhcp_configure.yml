@@ -1,0 +1,60 @@
+# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Create the dhcp template
+  copy:
+    src: "{{ role_path }}/files/temp_dhcp.template"
+    dest: "{{ role_path }}/files/dhcp.template"
+    mode: 0775
+  tags: install
+
+- name: Assign subnet and netmask
+  replace:
+    path: "{{ role_path }}/files/dhcp.template"
+    regexp: '^subnet subnet_mask netmask net_mask {'
+    replace: 'subnet {{ subnet }} netmask {{ netmask }} {'
+  tags: install
+
+- name: Assign netmask
+  replace:
+    path: "{{ role_path }}/files/dhcp.template"
+    regexp: '^option subnet-mask net_mask;'
+    replace: 'option subnet-mask {{ netmask }};'
+
+- name: Assign DHCP range
+  replace:
+    path: "{{ role_path }}/files/dhcp.template"
+    regexp: '^range dynamic-bootp start end;'
+    replace: 'range dynamic-bootp {{ dhcp_start_ip }} {{ dhcp_end_ip }};'
+
+- name: Create the cobbler settings file
+  copy:
+    src: "{{ role_path }}/files/cobbler_settings"
+    dest: "{{ role_path }}/files/settings"
+    mode: 0775
+  tags: install
+
+- name: Assign server ip
+  replace:
+    path: "{{ role_path }}/files/settings"
+    regexp: '^server: ip'
+    replace: 'server: {{ hpc_ip }}'
+
+- name: Assign next server ip
+  replace:
+    path: "{{ role_path }}/files/settings"
+    regexp: '^next_server: ip'
+    replace: 'next_server: {{ hpc_ip }}'
+

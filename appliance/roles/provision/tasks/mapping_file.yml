@@ -1,0 +1,166 @@
+# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# limitations under the License.
+---
+
+- name: Check if file is comma seperated
+  shell: awk -F\, '{print NF-1}' {{ path_for_mapping_file }}
+  register: comma_seperated
+  changed_when: false
+  tags: install
+
+- name: Fail if not comma seperated
+  fail:
+    msg: "{{ not_comma_seperated }}"
+  when: item != "2"
+  with_items: "{{ comma_seperated.stdout_lines }}"
+  tags: install
+
+- name: Remove blank lines
+  shell:  awk -F, 'length>NF+1' {{ path_for_mapping_file }} > {{ role_path }}/files/new_mapping_file.csv
+  changed_when: false
+  tags: install
+
+- name: Remove blank spaces
+  shell:  sed -i.bak -E 's/(^|,)[[:blank:]]+/\1/g; s/[[:blank:]]+(,|$)/\1/g'  {{ role_path }}/files/new_mapping_file.csv
+  args:
+    warn: no
+  changed_when: false
+  tags: install
+
+- name: Check if header present
+  shell:  awk 'NR==1 { print $1}' {{ role_path }}/files/new_mapping_file.csv
+  register: header
+  changed_when: false
+  tags: install
+
+- name: Fail if header not present
+  fail:
+    msg: "{{ header_fail }}"
+  when: header.stdout !=  valid_header
+
+- name: Count the hostname
+  shell: awk -F',' '{print $2}' {{ role_path }}/files/new_mapping_file.csv | wc -l
+  register: total_hostname
+  changed_when: false
+  tags: install
+
+- name: Count the ip
+  shell: awk -F',' '{print $3}' {{ role_path }}/files/new_mapping_file.csv | wc -l
+  register: total_ip
+  changed_when: false
+  tags: install
+
+- name: Count the macs
+  shell: awk -F',' '{print $1}' {{ role_path }}/files/new_mapping_file.csv | wc -l
+  register: total_mac
+  changed_when: false
+  tags: install
+
+- name: Check for duplicate hostname
+  shell: awk -F',' '{print $2}' {{ role_path }}/files/new_mapping_file.csv | uniq | wc -l
+  register: uniq_hostname
+  changed_when: false
+  tags: install
+
+- name: Check for duplicate ip
+  shell: awk -F',' '{print $3}' {{ role_path }}/files/new_mapping_file.csv | uniq | wc -l
+  register: uniq_ip
+  changed_when: false
+  tags: install
+
+- name: Check for duplicate mac
+  shell: awk -F',' '{print $1}' {{ role_path }}/files/new_mapping_file.csv | uniq | wc -l
+  register: uniq_mac
+  changed_when: false
+  tags: install
+
+- name: Fail if duplicate hosts exist
+  fail:
+    msg: "{{ fail_hostname_duplicate }}"
+  when:  total_hostname.stdout >  uniq_hostname.stdout
+  tags: install
+
+- name: Fail if duplicate ips exist
+  fail:
+    msg: "{{ fail_ip_duplicate }}"
+  when:  total_ip.stdout >  uniq_ip.stdout
+  tags: install
+
+- name: Fail if duplicate mac exist
+  fail:
+    msg: "{{ fail_mac_duplicate }}"
+  when:  total_mac.stdout >  uniq_mac.stdout
+  tags: install
+
+- name: Check if _ or . or space present in hostname
+  shell: awk -F',' '{print $2}' {{ role_path }}/files/new_mapping_file.csv |grep -E -- '_|\.| '
+  register: hostname_result
+  ignore_errors: true
+  changed_when: false
+  tags: install
+
+- name: Fail if  _ or . or space present in hostname
+  fail:
+    msg: "{{ hostname_result.stdout + ' :Hostname should not contain _ or . as it will cause error with slurm and K8s'}}"
+  when: hostname_result.stdout != ""
+  tags: install
+
+- name: Compare the file for new nodes
+  block:
+  - name: difference
+    shell: diff {{ role_path }}/files/new_mapping_file.csv {{role_path}}/files/backup_mapping_file.csv| tr -d \>|tr -d \<| grep -E -- ', & :| '
+    register: diff_output
+    when: backup_map_status == true
+
+  - name: status of new nodes
+    set_fact:
+      new_node_status: true
+    when: diff_output.stdout!= ""
+  rescue:
+  - name: No new nodes
+    debug:
+      msg: "No new nodes to add"
+      verbosity: 2
+
+- name: Fetch input
+  blockinfile:
+    path: "{{ role_path }}/files/dhcp.template"
+    insertafter: '^#insert the static DHCP leases for configuration here'
+    block: |
+      host {{ item.split(',')[1] }} {
+        hardware ethernet {{ item.split(',')[0] }};
+        fixed-address {{ item.split(',')[2] }};
+      }
+    marker: "# {mark} DHCP BLOCK OF {{ item.split(',')[0] }}"
+  with_lines: "{{ remove_header }}"
+  ignore_errors: true
+  when: (not cobbler_image_status) or (new_node_status == true)
+  tags: install
+
+- name: Create a backup file
+  copy:
+    src: "{{ role_path }}/files/new_mapping_file.csv"
+    dest: "{{ role_path }}/files/backup_mapping_file.csv"
+
+- name: Copy the dhcp.template inside container
+  command: docker exec cobbler cp /root/omnia/appliance/roles/provision/files/dhcp.template /etc/cobbler/dhcp.template
+  when:  ( cobbler_container_status == true ) and ( new_node_status == true )
+
+- name: Cobbler sync for adding new nodes
+  command: docker exec cobbler cobbler sync
+  when:  ( cobbler_container_status == true ) and ( new_node_status == true )
+
+- name: Restart dhcpd
+  command: docker exec cobbler systemctl restart dhcpd
+  when:  ( cobbler_container_status == true ) and ( new_node_status == true )
+

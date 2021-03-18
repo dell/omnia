@@ -1,0 +1,284 @@
+# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Get Current AWX configuration
+- name: Waiting for 30 seconds for UI components to be accessible
+  wait_for:
+    timeout: 30
+
+- name: Organization list
+  block:
+    - name: Get organization list
+      command: >-
+        awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ admin_password }}"
+        organizations list -f human
+      register: organizations_list
+      changed_when: no
+      no_log: True
+  rescue:
+    - name: Message
+      fail:
+        msg: "{{ organizations_list.stdout | regex_replace(awx_user) | regex_replace(admin_password) }}"
+
+- name: Project list
+  block:
+    - name: Get project list
+      command: >-
+        awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ admin_password }}"
+        projects list -f human
+      register: projects_list
+      changed_when: no
+      no_log: True
+  rescue:
+    - name: Message
+      fail:
+        msg: "{{ projects_list.stdout | regex_replace(awx_user) | regex_replace(admin_password) }}"
+
+- name: Inventory list
+  block:
+    - name: Get inventory list
+      command: >-
+        awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ admin_password }}"
+        inventory list -f human
+      register: inventory_list
+      changed_when: no
+      no_log: True
+  rescue:
+    - name: Message
+      fail:
+        msg: "{{ inventory_list.stdout | regex_replace(awx_user) | regex_replace(admin_password) }}"
+
+- name: Credential list
+  block:
+    - name: Get credentials list
+      command: >-
+        awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ admin_password }}"
+        credentials list -f human
+      register: credentials_list
+      changed_when: no
+      no_log: True
+  rescue:
+    - name: Message
+      fail:
+        msg: "{{ credentials_list.stdout | regex_replace(awx_user) | regex_replace(admin_password) }}"
+
+- name: Template List
+  block:
+    - name: Get template list
+      command: >-
+        awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ admin_password }}"
+        job_templates list -f human
+      register: job_templates_list
+      changed_when: no
+      no_log: True
+  rescue:
+    - name: Message
+      fail:
+        msg: "{{ job_templates_list.stdout | regex_replace(awx_user) | regex_replace(admin_password) }}"
+
+- name: Group names
+  block:
+    - name: If omnia-inventory exists, fetch group names in the inventory
+      command: >-
+        awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ admin_password }}"
+        groups list --inventory "{{ omnia_inventory_name }}" -f human
+      register: groups_list
+      when: omnia_inventory_name in inventory_list.stdout
+      no_log: True
+  rescue:
+    - name: Message
+      fail:
+        msg: "{{ groups_list.stdout | regex_replace(awx_user) | regex_replace(admin_password) }}"
+
+- name: Schedules list
+  block:
+    - name: Get schedules list
+      command: >-
+        awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ admin_password }}"
+        schedules list -f human
+      register: schedules_list
+      changed_when: no
+      no_log: True
+  rescue:
+    - name: Message
+      fail:
+        msg: "{{ schedules_list.stdout | regex_replace(awx_user) | regex_replace(admin_password) }}"
+
+# Delete Default Configurations
+- name: Delete default configurations
+  block:
+    - name: Delete default organization
+      command: >-
+        awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ admin_password }}"
+        organizations delete "{{ default_org }}"
+      when: default_org in organizations_list.stdout
+      register: register_error
+      no_log: True
+
+    - name: Delete default job template
+      command: >-
+        awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ admin_password }}"
+        job_templates delete "{{ default_template }}"
+      when: default_template in job_templates_list.stdout
+      register: register_error
+      no_log: True
+
+    - name: Delete default project
+      command: >-
+        awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ admin_password }}"
+        projects delete "{{ default_projects }}"
+      when: default_projects in projects_list.stdout
+      register: register_error
+      no_log: True
+
+    - name: Delete default credential
+      command: >-
+        awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ admin_password }}"
+        credentials delete "{{ default_credentials }}"
+      when: default_credentials in credentials_list.stdout
+      register: register_error
+      no_log: True
+
+  rescue:
+    - name: Message
+      fail:
+        msg: "{{ register_error.stdout | regex_replace(awx_user) | regex_replace(admin_password) }}"
+
+# Create required configuration if not present
+- name: Create required configurations
+  block:
+    - name: Create organisation
+      command: >-
+        awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ admin_password }}"
+        organizations create --name "{{ organization_name }}"
+      when: organization_name not in organizations_list.stdout
+      register: register_error
+      no_log: True
+
+    - name: Create new project
+      command: >-
+        awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ admin_password }}"
+        projects create --name "{{ project_name }}" --organization "{{ organization_name }}"
+        --local_path "{{ role_path.split('/')[-4] }}"
+      when: project_name not in projects_list.stdout
+      register: register_error
+      no_log: True
+
+    - name: Create new omnia inventory
+      command: >-
+        awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ admin_password }}"
+        inventory create --name "{{ omnia_inventory_name }}" --organization "{{ organization_name }}"
+      when: omnia_inventory_name not in inventory_list.stdout
+      register: register_error
+      no_log: True
+
+    - name: Create groups in omnia inventory
+      command: >-
+        awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ admin_password }}"
+        groups create --name "{{ item }}" --inventory "{{ omnia_inventory_name }}"
+      when: omnia_inventory_name not in inventory_list.stdout or item not in groups_list.stdout
+      register: register_error
+      no_log: True
+      loop: "{{ group_names }}"
+
+    - name: Create credentials for omnia
+      command: >-
+        awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ admin_password }}"
+        credentials create --name "{{ credential_name }}" --organization "{{ organization_name }}"
+        --credential_type "{{ credential_type }}"
+        --inputs '{"username": "{{ cobbler_username }}", "password": "{{ cobbler_password }}"}'
+      when: credential_name not in credentials_list.stdout
+      register: register_error
+      no_log: True
+
+    - name: DeployOmnia Template
+      block:
+        - name: Create template to deploy omnia
+          command: >-
+            awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ admin_password }}"
+            job_templates create
+            --name "{{ omnia_template_name }}"
+            --job_type run
+            --inventory "{{ omnia_inventory_name }}"
+            --project "{{ project_name }}"
+            --playbook "{{ omnia_playbook }}"
+            --verbosity "{{ playbooks_verbosity }}"
+            --ask_skip_tags_on_launch true
+          register: register_error
+          no_log: True
+
+        - name: Associate credential
+          command: >-
+            awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ admin_password }}"
+            job_templates associate "{{ omnia_template_name }}"
+            --credential ""{{ credential_name }}""
+          register: register_error
+          no_log: True
+
+      when: omnia_template_name not in job_templates_list.stdout
+
+    - name: DynamicInventory template
+      block:
+        - name: Create template to fetch dynamic inventory
+          command: >-
+            awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ admin_password }}"
+            job_templates create
+            --name "{{ inventory_template_name }}"
+            --job_type run
+            --inventory "{{ omnia_inventory_name }}"
+            --project "{{ project_name }}"
+            --playbook "{{ inventory_playbook }}"
+            --verbosity "{{ playbooks_verbosity }}"
+            --use_fact_cache true
+          register: register_error
+          no_log: True
+
+        - name: Associate credential
+          command: >-
+            awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ admin_password }}"
+            job_templates associate "{{ inventory_template_name }}"
+            --credential ""{{ credential_name }}""
+          register: register_error
+          no_log: True
+
+      when: inventory_template_name not in job_templates_list.stdout
+
+    - name: Schedule dynamic inventory template
+      block:
+        - name: Get unified job template list
+          command: >-
+            awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ admin_password }}"
+            unified_job_templates list --name "{{ inventory_template_name }}" -f human
+          no_log: True
+          register: unified_job_template_list
+
+        - name: Get job ID
+          set_fact:
+            job_id: "{{ unified_job_template_list.stdout | regex_search('[0-9]+') }}"
+
+        - name: Schedule dynamic inventory job
+          command: >-
+            awx --conf.host "{{ awx_ip }}" --conf.username "{{ awx_user }}" --conf.password "{{ admin_password }}"
+            schedules create --name "{{ schedule_name }}"
+            --unified_job_template="{{ job_id }}" --rrule="{{ schedule_rule }}"
+          register: register_error
+          no_log: True
+
+      when: schedule_name not in schedules_list.stdout
+
+  rescue:
+    - name: Message
+      fail:
+        msg: "{{ register_error.stdout | regex_replace(awx_user) | regex_replace(admin_password) }}"

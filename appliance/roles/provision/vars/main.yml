@@ -1,0 +1,45 @@
+# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# vars file for provision
+
+#Usage: mapping_file.yml
+fail_hostname_duplicate:  "Failed: Duplicate hostname exists. Please verify mapping file again."
+remove_header: awk 'NR > 1 { print }' {{ role_path }}/files/new_mapping_file.csv
+fail_ip_duplicate:  "Failed: Duplicate ip exists. Please verify mapping file again."
+fail_mac_duplicate:  "Failed: Duplicate mac exists. Please verify mapping file again."
+header_fail: "Failed: Header (MAC,Hostname,IP) should be present in the mapping file"
+valid_header: MAC,Hostname,IP
+not_comma_seperated: "Failed: Mapping file should be comma seperated." 
+
+#Usage: check_prerequisite.yml
+iso_name: CentOS-7-x86_64-Minimal-2009.iso
+iso_fail: "Iso file not found. Download and copy the iso file to omnia/appliance/roles/provision/files"
+
+# Usage: provision_password.yml
+provision_encrypted_dest: ../files/
+username: cobbler
+
+# Usage: cobbler_image.yml
+docker_image_name: cobbler
+docker_image_tag: latest
+cobbler_run_command: docker run -itd --privileged --net=host --restart=always -v {{ mount_path }}:/root/omnia  -v cobbler_www:/var/www/cobbler:Z -v cobbler_backup:/var/lib/cobbler/backup:Z -v /mnt/iso:/mnt:Z -p 69:69/udp -p 81:80 -p 443:443 -p 25151:25151 --name cobbler  cobbler:latest  /sbin/init
+
+# Usage: main.yml
+message_skipped: "Installation Skipped: Cobbler instance is already running in your system"
+message_installed: "Installation Successful"
+
+# Usage: mount_iso.yml
+iso_path: iso

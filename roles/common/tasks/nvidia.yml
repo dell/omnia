@@ -1,0 +1,81 @@
+#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Add libnvidia container Repo
+  yum_repository:
+    name: libnvidia-container
+    description:  libnvidia-container
+    baseurl: https://nvidia.github.io/libnvidia-container/stable/centos7/$basearch
+    repo_gpgcheck: no
+    gpgcheck: no
+    gpgkey: https://nvidia.github.io/libnvidia-container/gpgkey
+    sslverify: yes
+    sslcacert: /etc/pki/tls/certs/ca-bundle.crt
+    enabled: yes
+  tags: install
+
+- name: Add nvidia-container-runtime Repo
+  yum_repository:
+    name: nvidia-container-runtime
+    description:  nvidia-container-runtime
+    baseurl: https://nvidia.github.io/nvidia-container-runtime/stable/centos7/$basearch
+    repo_gpgcheck: no
+    gpgcheck: no
+    gpgkey: https://nvidia.github.io/nvidia-container-runtime/gpgkey
+    sslverify: yes
+    sslcacert: /etc/pki/tls/certs/ca-bundle.crt
+    enabled: yes
+  tags: install
+
+- name: Add nvidia-docker Repo
+  yum_repository:
+    name: nvidia-docker
+    description:  nvidia-docker
+    baseurl: https://nvidia.github.io/nvidia-docker/centos7/$basearch
+    repo_gpgcheck: no
+    gpgcheck: no
+    gpgkey: https://nvidia.github.io/nvidia-docker/gpgkey
+    enabled: yes
+    sslverify: yes
+    sslcacert: /etc/pki/tls/certs/ca-bundle.crt
+  tags: install
+
+- name: Install nvidia driver and nvidia-docker2
+  package:
+    name: "{{ nvidia_packages }}"
+    enablerepo: libnvidia-container,nvidia-docker
+    state: present
+  tags: install
+
+- name: Reboot after installing GPU drivers
+  reboot:
+  tags: install
+
+- name: Set nvidia as default runtime
+  copy:
+    src: daemon.json
+    dest: "{{ daemon_file_dest }}"
+    owner: root
+    group: root
+    mode: "{{ daemon_file_mode }}"
+  tags: install
+
+- name: Restart and enable docker service
+  service:
+    name: docker
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
+  tags: install

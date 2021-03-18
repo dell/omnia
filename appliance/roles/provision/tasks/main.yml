@@ -1,0 +1,66 @@
+#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+#Tasks for Deploying cobbler on the system
+
+- name: Check cobbler status on machine
+  include_tasks: check_prerequisites.yml
+
+- name: Mount iso image
+  import_tasks: mount_iso.yml
+  when: not cobbler_image_status
+
+- name: Modify firewall settings for Cobbler
+  import_tasks: firewall_settings.yml
+  when: not cobbler_container_status
+
+- name: Include common variables
+  include_vars: ../../common/vars/main.yml
+  when: not cobbler_container_status
+
+- name: Internet validation
+  include_tasks: ../../common/tasks/internet_validation.yml
+  when: not cobbler_container_status
+
+- name: Provision password validation
+  import_tasks: provision_password.yml
+  when: not cobbler_image_status
+
+- name: Dhcp Configuration
+  import_tasks: dhcp_configure.yml
+  when: (not cobbler_image_status) or ( backup_map_status == true)
+
+- name: Mapping file validation
+  import_tasks: mapping_file.yml
+  when: (not cobbler_image_status) and (mapping_file == true) or ( backup_map_status == true)
+
+- name: Cobbler image creation
+  import_tasks: cobbler_image.yml
+  when: not cobbler_container_status
+
+- name: Cobbler configuration
+  import_tasks: configure_cobbler.yml
+
+- name: Cobbler container status message
+  block:
+    - debug:
+        msg: "{{ message_skipped }}"
+        verbosity: 2
+      when: cobbler_container_status
+    - debug:
+        msg: "{{ message_installed }}"
+        verbosity: 2
+      when: not cobbler_container_status
+  tags: install

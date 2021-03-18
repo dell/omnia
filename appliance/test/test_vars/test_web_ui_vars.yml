@@ -1,0 +1,35 @@
+#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Usage: test_web_ui.yml
+return_status: 200
+fail_return_status: -1
+awx_listening_port: 8081
+time: 1
+actual_containers: 4
+package: "docker-ce"
+awx_exists_msg: "Test case passed: AWX instance is already running on your system"
+awx_not_exists_msg: "Test case failed: AWX does not exist"
+validate_password_success_msg: "Test case passed: Password validation succesful"
+validate_password_fail_msg: "Test case failed: Password validation failed"
+resource_exists_success_msg: "Success: Requested resource(s) exists"
+resource_exists_fail_msg: "Failure: Requested resource(s) does not exists"
+compute_group_name: "compute"
+manager_group_name: "manager"
+tower_cli_package_name: "ansible-tower-cli"
+docker_container_name: "awx_web"
+container_up_status_success_msg: "Container is running successfully after the reboot"
+container_up_status_fail_msg: "Container is not running after the reboot"
+test_input_config_filename: appliance_config_test.yml

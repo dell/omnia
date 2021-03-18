@@ -1,0 +1,51 @@
+#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# vars file for test_common.yml file
+centos_version: '7.8'
+test_input_config_filename: "appliance_config_test.yml"
+empty_input_config_filename: "appliance_config_empty.yml"
+new_input_config_filename: "appliance_config_new.yml"
+password_config_file: "password_config"
+min_length_password: "testpass"
+max_length_password: "helloworld123helloworld12hello"
+long_password: "helloworld123hellowordl12hello3"
+white_space_password: "hello world 123"
+special_character_password1: "hello-world/"
+special_character_password2: "hello@$%!world"
+valid_dhcp_start_range: "172.17.0.10"
+valid_dhcp_end_range: "172.17.0.200"
+invalid_dhcp_ip: "1720.1700.1000.1000"
+wrong_dhcp_ip: "d6:dh1:dsj:10"
+valid_iso_path: "/root/CentOS-7-x86_64-Minimal-2009.iso"
+wrong_iso_path: "/root/testfile"
+valid_mapping_file_path: "test_mapping_file"
+
+docker_volume_success_msg: "Docker volume omnia-storage exists"
+docker_volume_fail_msg: "Docker volume omnia-storage does not exist"
+input_config_success_msg: "Input config file is encrypted using ansible-vault successfully"
+input_config_fail_msg: "Input config file is failed to encrypt using ansible-vault"
+os_check_success_msg: "OS check passed"
+os_check_fail_msg: "OS check failed"
+internet_check_success_msg: "Internet connectivity check passed"
+internet_check_fail_msg: "Internet connectivity check failed"
+different_user_check_success_msg: "Different user execution check passed"
+different_user_check_fail_msg: "Different user execution check failed"
+selinux_check_success_msg: "selinux check passed"
+selinux_check_fail_msg: "selinux check failed"
+input_config_check_success_msg: "appliance_config.yml validation passed"
+input_config_check_fail_msg: "appliance_config.yml validation failed"
+install_package_success_msg: "Installation of package is successful"
+install_package_fail_msg: "Installation of package is failed"

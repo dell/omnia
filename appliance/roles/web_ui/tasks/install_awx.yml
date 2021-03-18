@@ -1,0 +1,64 @@
+# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Tasks for installing AWX
+
+- name: Change inventory file
+  replace:
+    path: "{{ awx_inventory_path }}"
+    regexp: "{{ item.regexp }}"
+    replace: "{{ item.replace }}"
+  loop:
+    - { name: Project data directory, regexp: "{{ project_data_dir_old }}" , replace: "{{ project_data_dir_new }}" }
+    - { name: Alternate DNS Servers, regexp: "{{ awx_alternate_dns_servers_old }}", replace: "{{ awx_alternate_dns_servers_new }}" }
+    - { name: Credentials, regexp: "{{ admin_password_old }}", replace: "{{ admin_password_new }}"}
+  loop_control:
+    label: "{{ item.name }}"
+  tags: install
+
+- name: Ensure port is 8081
+  lineinfile:
+    path: "{{ awx_inventory_path }}"
+    regexp: "{{ port_old }}"
+    line: "{{ port_new }}"
+    state: present
+
+- name: Create pgdocker directory
+  file:
+    path: "{{ pgdocker_dir_path }}"
+    state: directory
+    mode: 0775
+  tags: install
+
+- name: Install AWX
+  block:
+    - name: Run AWX install.yml file
+      command: ansible-playbook -i inventory install.yml --extra-vars "admin_password={{ admin_password }}"
+      args:
+        chdir: "{{ awx_installer_path }}"
+      register: awx_installation
+      no_log: True
+
+  rescue:
+    - name: Check AWX status on machine
+      include_tasks: check_awx_status.yml
+
+    - name: Fail if container are not running
+      fail:
+        msg: "AWX installation failed with error msg:
+        {{ awx_installation.stdout | regex_replace(admin_password) }}."
+      when: not awx_status
+
+  tags: install

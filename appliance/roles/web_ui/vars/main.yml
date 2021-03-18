@@ -1,0 +1,69 @@
+# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# vars file for web_ui
+
+# Usage: clone_awx.yml
+awx_git_repo: "https://github.com/ansible/awx.git"
+docker_volume: "/var/lib/docker/volumes/{{ docker_volume_name }}"
+awx_repo_path: "{{ docker_volume }}/awx/"
+awx_installer_path: "{{ awx_repo_path }}/installer/"
+
+# Usage: install_awx.yml
+awx_inventory_path: "{{ awx_repo_path }}/installer/inventory"
+pgdocker_dir_path: /var/lib/pgdocker
+project_data_dir_old: "#project_data_dir=/var/lib/awx/projects"
+project_data_dir_new: "project_data_dir= {{ role_path + '/../../../..' }} "
+awx_alternate_dns_servers_old: '#awx_alternate_dns_servers="10.1.2.3,10.2.3.4"'
+awx_alternate_dns_servers_new: 'awx_alternate_dns_servers="8.8.8.8,8.8.4.4"'
+admin_password_old: "admin_password=password"
+admin_password_new: "#admin_password=password"
+port_old: "host_port=80"
+port_new: "host_port=8081"
+
+# Usage: main.yml
+message_skipped: "Installation Skipped: AWX instance is already running on your system"
+message_installed: "Installation Successful"
+awx_ip: http://localhost:8081
+return_status: 200
+awx_ui_msg: "Password Dialog"
+conf_fail_msg: "AWX configuration failed at the last executed task."
+
+# Usage: install_awx_cli.yml
+awx_cli_repo: "https://releases.ansible.com/ansible-tower/cli/ansible-tower-cli-centos7.repo"
+awx_cli_repo_path: "/etc/yum.repos.d/ansible-tower-cli-centos7.repo"
+
+# Usage: awx_configuration.yml
+awx_user: admin         #Don't change it. It is set as admin while installing AWX
+default_org: Default
+default_template: 'Demo Job Template'
+default_projects: 'Demo Project'
+default_credentials: 'Demo Credential'
+organization_name: DellEMC
+project_name: omnia
+omnia_inventory_name: omnia_inventory
+group_names:
+  - manager
+  - compute
+credential_name: omnia_credential
+credential_type: Machine
+cobbler_username: root
+omnia_template_name: DeployOmnia
+omnia_playbook: omnia.yml
+inventory_template_name: DynamicInventory
+inventory_playbook: appliance/inventory.yml
+playbooks_verbosity: 0
+schedule_name: DynamicInventorySchedule
+schedule_rule: "DTSTART:20201201T000000Z RRULE:FREQ=MINUTELY;INTERVAL=10"
