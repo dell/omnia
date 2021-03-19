@@ -23,6 +23,8 @@
       network: host
     state: present
   tags: install
+  vars:
+    ansible_python_interpreter: "/usr/bin/python3"
 
 - name: Run cobbler container
   command: "{{ cobbler_run_command }}"
