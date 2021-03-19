@@ -38,7 +38,7 @@ rootpw --iscrypted password
 services --enabled="chronyd"
 
 # System timezone
-timezone Asia/Kolkata --isUtc
+timezone --utc ks_timezone
 
 # System bootloader configuration
 bootloader --location=mbr --boot-drive=sda
@@ -61,4 +61,3 @@ reboot
 @core
 net-tools
 %end
-
