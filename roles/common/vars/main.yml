@@ -26,6 +26,7 @@ common_packages:
   - docker-ce-cli-20.10.2
   - docker-ce-20.10.2
   - openssl
+  - singularity
 
 docker_packages:
   - docker-ce-cli-20.10.2
