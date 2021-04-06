@@ -4,6 +4,8 @@
 
 ![GitHub contributors](https://img.shields.io/github/contributors-anon/dellhpc/omnia) ![GitHub forks](https://img.shields.io/github/forks/dellhpc/omnia) ![GitHub Repo stars](https://img.shields.io/github/stars/dellhpc/omnia) ![GitHub all releases](https://img.shields.io/github/downloads/dellhpc/omnia/total)
 
+[<img src="https://img.shields.io/badge/slack-dellhpc-blue.svg?logo=slack">](https://app.slack.com/client/TH80K68HY/C018L5109PW)
+
 #### Ansible playbook-based deployment of Slurm and Kubernetes on Dell EMC PowerEdge servers running an RPM-based Linux OS
 
 Omnia (Latin: all or everything) is a deployment tool to turn Dell EMC PowerEdge servers with RPM-based Linux images into a functioning Slurm/Kubernetes cluster.
