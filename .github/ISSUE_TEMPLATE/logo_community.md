@@ -1,5 +1,5 @@
 ---
-name: Add your logo to the Omnia community list
+name: Add organization logo to the Omnia community list
 about: Display your organization's logo on the Omnia website
 title: 'Add logo to Omnia community list'
 labels: 'logo'
