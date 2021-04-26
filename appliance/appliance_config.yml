@@ -35,7 +35,7 @@ public_nic: "em2"
 # This is the  path where user has kept the iso image that needs to be provisioned in target nodes.
 # The iso file should be CentOS7-2009-minimal edition.
 # Other iso file not supported.
-iso_file_path: "" 
+iso_file_path: ""
 
 # The mapping file consists of the MAC address and its respective IP address and hostname.
 # The format of mapping file should be MAC,hostname,IP and must be a CSV file.
@@ -47,3 +47,9 @@ mapping_file_path: ""
 # Example: 10.1.23.1
 dhcp_start_ip_range: ""
 dhcp_end_ip_range: ""
+
+# This is the timezone that will be set during provisioning of OS
+# Available timezone are provided in list appliance/common/files/timezone.txt
+# Default timezone will be set to "GMT"
+# Some of the other available timezone are EST,CET,MST,CST6CDT,PST8PDT
+timezone: "GMT"
