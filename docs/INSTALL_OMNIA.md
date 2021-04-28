@@ -11,7 +11,7 @@ The following sections provide details on installing Omnia using CLI. If you wan
 
 1. Clone the Omnia repository:
 ``` 
-git clone https://github.com/dellhpc/omnia.git 
+git clone -b release https://github.com/dellhpc/omnia.git 
 ```
 __Note:__ After the Omnia repository is cloned, a folder named __omnia__ is created. Ensure that you do not rename this folder.
 
@@ -107,9 +107,9 @@ Commands to install JupyterHub and Kubeflow:
 * `ansible-playbook platforms/jupyterhub.yml -i inventory -e "ansible_python_interpreter=/usr/bin/python2"`
 * `ansible-playbook platforms/kubeflow.yml -i inventory -e "ansible_python_interpreter=/usr/bin/python2" `
 
-__Note:__ When the Internet connectivity is unstable or slow, it may take more time to pull the images to create the Kubeflow containers. If the time limit is exceeded, the **Apply Kubeflow configurations** task may fail. To resolve this issue, you must redeploy Kubernetes cluster and reinstall Kubeflow by completing the following steps:
+__Note:__ When the Internet connectivity is unstable or slow, it may take more time to pull the images to create the Kubeflow containers. If the time limit is exceeded, the Apply Kubeflow configurations task may fail. To resolve this issue, you must redeploy Kubernetes cluster and reinstall Kubeflow by completing the following steps:
 * Format the OS on manager and compute nodes.
-* In the `omnia_config.yml` file, change the k8s_cni variable value from calico to flannel.
+* In the omnia_config.yml file, change the k8s_cni variable value from calico to flannel.
 * Run the Kubernetes and Kubeflow playbooks.
 
 ## Add a new compute node to the cluster

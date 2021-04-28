@@ -44,12 +44,16 @@
     name: cobbler
   register: cobbler_image_result
   tags: install
+  vars:
+    ansible_python_interpreter: "/usr/bin/python3"
 
 - name: Check cobbler status on the machine
   docker_container_info:
     name: cobbler
   register: cobbler_result
   tags: install
+  vars:
+    ansible_python_interpreter: "/usr/bin/python3"
 
 - name: Update cobbler image status
   set_fact:
