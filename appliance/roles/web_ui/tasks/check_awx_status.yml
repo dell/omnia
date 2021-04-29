@@ -24,12 +24,16 @@
     name: awx_task
   register: awx_task_result
   tags: install
+  vars:
+    ansible_python_interpreter: "/usr/bin/python3"
 
 - name: Check awx_web status on the machine
   docker_container_info:
     name: awx_web
   register: awx_web_result
   tags: install
+  vars:
+    ansible_python_interpreter: "/usr/bin/python3"
 
 - name: Update awx status
   set_fact:

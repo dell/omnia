@@ -92,3 +92,5 @@ fail_msg_mariadb_password: "Failed. Incorrect mariadb_password format provided i
 success_msg_mariadb_password: "mariadb_password validated"
 success_msg_k8s_cni: "Kubernetes CNI Validated"
 fail_msg_k8s_cni: "Failed. Kubernetes CNI is incorrect in omnia_config.yml"
+success_timezone: "timezone validated"
+fail_timezone: "Failed. Incorrect timezone provided. Please check the file timezone.txt in appliance/roles/common/files/ folder"
