@@ -11,7 +11,7 @@
 1. On the management node, change the working directory to the directory where you want to clone the Omnia Git repository.
 2. Clone the Omnia repository:
 ``` 
-git clone https://github.com/dellhpc/omnia.git 
+git clone -b release https://github.com/dellhpc/omnia.git 
 ```
 3. Change the directory to __omnia__: `cd omnia`
 4. Edit the `omnia_config.yml` file to:
@@ -43,7 +43,8 @@ Omnia considers the following usernames as default:
 * `admin` for AWX
 * `slurm` for MariaDB
 
-7. Run `ansible-playbook appliance.yml` to the install the Omnia appliance.  
+
+7. Run `ansible-playbook appliance.yml` to install the Omnia appliance.  
 
 Omnia creates a log file which is available at: `/var/log/omnia.log`.
 
