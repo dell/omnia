@@ -43,6 +43,7 @@ Omnia considers the following usernames as default:
 * `admin` for AWX
 * `slurm` for MariaDB
 
+
 7. Run `ansible-playbook appliance.yml` to install the Omnia appliance.  
 
 Omnia creates a log file which is available at: `/var/log/omnia.log`.
