@@ -11,7 +11,7 @@
 1. On the management node, change the working directory to the directory where you want to clone the Omnia Git repository.
 2. Clone the Omnia repository:
 ``` 
-git clone https://github.com/dellhpc/omnia.git 
+git clone -b release https://github.com/dellhpc/omnia.git 
 ```
 3. Change the directory to __omnia__: `cd omnia`
 4. Edit the `omnia_config.yml` file to:
@@ -32,7 +32,7 @@ __Note:__
 	
 	d. Provide a mapping file for DHCP configuration under `mapping_file_path`. The **mapping_file.csv** template file is present under `omnia/examples`. Enter the details in the order: `MAC, Hostname, IP`. The header in the template file must not be deleted before saving the file.  
 	If you want to continue without providing a mapping file, leave the `mapping_file_path` value as blank.  
-	__Note:__ Ensure that duplicate values are not provided for MAC, Hostname, and IP in the mapping file. The Hostname should not contain the following characters: , (comma), \. (period), and - (hyphen).
+	__Note:__ Ensure that duplicate values are not provided for MAC, Hostname, and IP in the mapping file. The Hostname should not contain the following characters: , (comma), \. (period), and _ (underscore).
 	
 	e. Provide valid DHCP range for HPC cluster under the variables `dhcp_start_ip_range` and `dhcp_end_ip_range`. 
 	
@@ -43,7 +43,7 @@ Omnia considers the following usernames as default:
 * `admin` for AWX
 * `slurm` for MariaDB
 
-7. Run `ansible-playbook appliance.yml` to the install the Omnia appliance.  
+7. Run `ansible-playbook appliance.yml` to install the Omnia appliance.  
 
 Omnia creates a log file which is available at: `/var/log/omnia.log`.
 
