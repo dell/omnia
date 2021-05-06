@@ -13,7 +13,7 @@
 #  limitations under the License.
 ---
 
-- name: Add AMD ROCm repository for RHEL/CentOS 7
+- name: Add AMD ROCm repository for CentOS 7.x
   yum_repository:
     name: ROCm
     description: AMD GPU ROCm Repository
@@ -24,7 +24,7 @@
   tags: install
   when: ansible_facts['distribution_major_version'] == "7"
 
-- name: Add AMD ROCm repository for RHEL/CentOS/Rocky 8
+- name: Add AMD ROCm repository for CentOS/RockyLinux 8.x
   yum_repository:
     name: ROCm
     description: AMD GPU ROCm Repository
