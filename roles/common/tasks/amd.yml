@@ -13,7 +13,7 @@
 #  limitations under the License.
 ---
 
-- name: Add AMD ROCm repository
+- name: Add AMD ROCm repository for CentOS 7.x
   yum_repository:
     name: ROCm
     description: AMD GPU ROCm Repository
@@ -22,6 +22,18 @@
     gpgkey: https://repo.radeon.com/rocm/rocm.gpg.key
     enabled: yes
   tags: install
+  when: ansible_facts['distribution_major_version'] == "7"
+
+- name: Add AMD ROCm repository for CentOS/RockyLinux 8.x
+  yum_repository:
+    name: ROCm
+    description: AMD GPU ROCm Repository
+    baseurl: https://repo.radeon.com/rocm/centos8/rpm
+    gpgcheck: yes
+    gpgkey: https://repo.radeon.com/rocm/rocm.gpg.key
+    enabled: yes
+  tags: install
+  when: ansible_facts['distribution_major_version'] == "8"
 
 - name: Install AMD ROCm drivers
   package:
