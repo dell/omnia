@@ -10,7 +10,7 @@ Ensure that the following prequisites are met before installing the Omnia applia
 * To provision the bare metal servers, go to http://isoredirect.centos.org/centos/7/isos/x86_64/ and download the **CentOS-7-x86_64-Minimal-2009** ISO file.
 * For DHCP configuration, you can provide a mapping file. The provided details must be in the format: MAC, Hostname, IP. For example, `xx:xx:4B:C4:xx:44,validation01,172.17.0.81` and  `xx:xx:4B:C5:xx:52,validation02,172.17.0.82` are valid entries.  
 __Note:__ A template for mapping file is present in the `omnia/examples`, named `mapping_file.csv`. The header in the template file must not be deleted before saving the file.  
-__Note:__ Ensure that duplicate values are not provided for MAC, Hostname, and IP in the mapping file. The Hostname should not contain the following characters: , (comma), \. (period), and - (hyphen).
+__Note:__ Ensure that duplicate values are not provided for MAC, Hostname, and IP in the mapping file. The Hostname should not contain the following characters: , (comma), \. (period), and _ (underscore).
 * Connect one of the Ethernet cards on the management node to the HPC switch and the other ethernet card connected to the global network.
 * If SELinux is not disabled on the management node, disable it from `/etc/sysconfig/selinux` and restart the management node.
 * The default mode of PXE is __UEFI__, and the BIOS Legacy Mode is not supported.
