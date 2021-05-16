@@ -32,6 +32,21 @@
     path: "{{ role_path }}/files/dhcp.template"
     regexp: '^option subnet-mask net_mask;'
     replace: 'option subnet-mask {{ netmask }};'
+  tags: install
+
+- name: Assign gateway
+  replace:
+    path: "{{ role_path }}/files/dhcp.template"
+    regexp: '^option routers router-ip;'
+    replace: 'option routers {{ dhcp_gateway }};'
+  tags: install
+
+- name: Assign DNS
+  replace:
+    path: "{{ role_path }}/files/dhcp.template"
+    regexp: '^option domain-name-servers dns1, dns2;'
+    replace: 'option domain-name-servers {{ dhcp_dns1 }}, {{ dhcp_dns2 }};'
+  tags: install
 
 - name: Assign DHCP range
   replace:
