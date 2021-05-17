@@ -45,6 +45,9 @@ mapping_file_path: ""
 
 # The dhcp range for assigning the IPv4 address to the baremetal nodes.
 # Example: 10.1.23.1
+dhcp_gateway: ""
+dhcp_dns1: ""
+dhcp_dns2: ""
 dhcp_start_ip_range: ""
 dhcp_end_ip_range: ""
 
