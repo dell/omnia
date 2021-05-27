@@ -27,3 +27,9 @@ k8s_cni: "calico"
 # Default value is "10.244.0.0/16"
 # Make sure this value does not overlap with any of the host networks.
 k8s_pod_network_cidr: "10.244.0.0/16"
+
+# Path to directory hosting ansible config file (ansible.cfg file)
+# Default value is "/etc/ansible"
+# This directory is on the host running ansible, if ansible is installed using dnf
+# If ansible is installed using pip, this path should be set
+ansible_config_file_path: /etc/ansible

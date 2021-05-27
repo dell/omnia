@@ -18,3 +18,8 @@
     name: "{{ common_packages }}"
     state: present
   tags: install
+
+- name: Install netaddr
+  command: pip3 install netaddr
+  tags: install
+  changed_when: false

@@ -56,3 +56,9 @@ dhcp_end_ip_range: ""
 # Default timezone will be set to "GMT"
 # Some of the other available timezone are EST,CET,MST,CST6CDT,PST8PDT
 timezone: "GMT"
+
+# Path to directory hosting ansible config file (ansible.cfg file)
+# Default value is "/etc/ansible"
+# This directory is on the host running ansible, if ansible is installed using dnf
+# If ansible is installed using pip, this path should be set
+ansible_config_file_path: /etc/ansible

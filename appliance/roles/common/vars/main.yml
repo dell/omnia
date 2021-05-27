@@ -30,9 +30,8 @@ common_packages:
   - nano
   - lvm2
   - gettext
-  - python-docker
   - net-tools
-  - python-netaddr
+  - python3-netaddr
   - yum-plugin-versionlock
 
 # Usage: pre_requisite.yml
@@ -41,12 +40,15 @@ internet_timeout: 10
 hostname: github.com
 port_no: 22
 os_name: CentOS
-os_version: '7.9' 
+os_version: '8.3' 
 internet_status: "Failed. No Internet connection. Make sure network is up."
 os_status: "Unsupported OS or OS version. OS should be {{ os_name }} and Version should be {{ os_version }} or more"
 selinux_status: "SElinux is not disabled. Disable it in /etc/sysconfig/selinux and reboot the system"
 iso_name: CentOS-7-x86_64-Minimal-2009.iso
 iso_fail: "Iso file not found. Download and copy the iso file to omnia/appliance/roles/provision/files"
+ansible_python_version_status: "For CentOS 8.3, python bindings of firewalld, dnf, selinux are not available if python is installed from source and not from dnf. So please make sure python3.6 is installed using dnf. And ansible uses the python version 3.6 installed using dnf"
+python_version_support: '3.6.8'
+default_ansible_config_file_path: /etc/ansible/ansible.cfg
 
 # Usage: docker_installation.yml
 docker_repo_url: https://download.docker.com/linux/centos/docker-ce.repo
@@ -94,3 +96,4 @@ success_msg_k8s_cni: "Kubernetes CNI Validated"
 fail_msg_k8s_cni: "Failed. Kubernetes CNI is incorrect in omnia_config.yml"
 success_timezone: "timezone validated"
 fail_timezone: "Failed. Incorrect timezone provided. Please check the file timezone.txt in appliance/roles/common/files/ folder"
+file_perm: '0755'
