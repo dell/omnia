@@ -35,14 +35,13 @@
       - tftp
       - httpd
 
-  - name: Cobbler get-loaders
-    command: cobbler get-loaders
+  - name: Remove loaders if it exists
+    command: rm -rfd /var/lib/cobbler/loaders
     changed_when: false
 
-  - name: Get fence agents
-    package:
-      name: fence-agents
-      state: present
+  - name: Untar loaders
+    command: tar -xf /root/omnia/appliance/roles/provision/files/loaders.tar -C /var/lib/cobbler
+    changed_when: false
 
   - name: Replace in /etc/debian
     replace:
