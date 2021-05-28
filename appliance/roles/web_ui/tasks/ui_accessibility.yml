@@ -74,8 +74,8 @@
             return_content: yes
           register: register_error
           until: awx_ui_msg in register_error.content
-          retries: 30
-          delay: 10
+          retries: 240
+          delay: 15
           changed_when: no
           no_log: True
       rescue:
