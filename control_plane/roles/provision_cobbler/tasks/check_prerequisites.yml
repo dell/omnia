@@ -1,0 +1,91 @@
+# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Initialize variables
+  set_fact:
+    cobbler_container_status: false
+    cobbler_image_status: false
+    cobbler_config_status: false
+    backup_map_status: false
+    new_node_status: false
+  tags: install
+
+- name: Check if any backup file exists
+  block:
+  - name: Check status of backup file
+    stat:
+      path: "{{ role_path }}/files/backup_mapping_file.csv"
+    register: backup_map
+
+  - name: Set status for backup file
+    set_fact:
+      backup_map_status: true
+    when: backup_map.stat.exists == true  
+  rescue:
+  - name: Message
+    debug:
+      msg: "All nodes are new"
+      verbosity: 2
+
+- name: Inspect the cobbler image
+  docker_image_info:
+    name: cobbler
+  register: cobbler_image_result
+  tags: install
+  vars:
+    ansible_python_interpreter: "/usr/bin/python3"
+
+- name: Check cobbler status on the machine
+  docker_container_info:
+    name: cobbler
+  register: cobbler_result
+  tags: install
+  vars:
+    ansible_python_interpreter: "/usr/bin/python3"
+
+- name: Update cobbler image status
+  set_fact:
+    cobbler_image_status: true
+  when: cobbler_image_result.images| length==1
+  tags: install
+
+- name: Update cobbler container status
+  set_fact:
+    cobbler_container_status: true
+  when: cobbler_result.exists
+  tags: install
+
+- name: Fetch cobbler profile list
+  command: docker exec cobbler cobbler profile list
+  changed_when: false
+  register: cobbler_profile_list
+  ignore_errors: true
+  when: cobbler_container_status == true
+
+- name: Check crontab list
+  command: docker exec cobbler crontab -l
+  changed_when: false
+  register: crontab_list
+  ignore_errors: true
+  when: cobbler_container_status == true
+
+- name: Update cobbler container status
+  set_fact:
+    cobbler_config_status: true
+  when:
+    - cobbler_container_status == true
+    - "'CentOS' in cobbler_profile_list.stdout"
+    - "'* * * * * ansible-playbook /root/tftp.yml' in crontab_list.stdout"
+    - "'5 * * * * ansible-playbook /root/inventory_creation.yml' in crontab_list.stdout"

@@ -1,0 +1,44 @@
+# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+#Tasks for verifying if AWX is already installed on the system
+- name: Initialize variables
+  set_fact:
+    awx_status: false
+  tags: install
+
+- name: Check awx_task status on the machine
+  docker_container_info:
+    name: awx_task
+  register: awx_task_result
+  tags: install
+  vars:
+    ansible_python_interpreter: "/usr/bin/python3"
+
+- name: Check awx_web status on the machine
+  docker_container_info:
+    name: awx_web
+  register: awx_web_result
+  tags: install
+  vars:
+    ansible_python_interpreter: "/usr/bin/python3"
+
+- name: Update awx status
+  set_fact:
+    awx_status: true
+  when:
+    - awx_task_result.exists
+    - awx_web_result.exists
+  tags: install

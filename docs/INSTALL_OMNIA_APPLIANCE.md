@@ -11,7 +11,7 @@
 1. On the management node, change the working directory to the directory where you want to clone the Omnia Git repository.
 2. Clone the Omnia repository:
 ``` 
-git clone https://github.com/dellhpc/omnia.git 
+git clone -b release https://github.com/dellhpc/omnia.git 
 ```
 3. Change the directory to __omnia__: `cd omnia`
 4. Edit the `omnia_config.yml` file to:
@@ -32,21 +32,22 @@ __Note:__
 	
 	d. Provide a mapping file for DHCP configuration under `mapping_file_path`. The **mapping_file.csv** template file is present under `omnia/examples`. Enter the details in the order: `MAC, Hostname, IP`. The header in the template file must not be deleted before saving the file.  
 	If you want to continue without providing a mapping file, leave the `mapping_file_path` value as blank.  
-	__Note:__ Ensure that duplicate values are not provided for MAC, Hostname, and IP in the mapping file. The Hostname should not contain the following characters: , (comma), \. (period), and - (hyphen).
+	__Note:__ Ensure that duplicate values are not provided for MAC, Hostname, and IP in the mapping file. The Hostname should not contain the following characters: , (comma), \. (period), and _ (underscore).
 	
 	e. Provide valid DHCP range for HPC cluster under the variables `dhcp_start_ip_range` and `dhcp_end_ip_range`. 
 	
-7. Run `ansible-vault view appliance_config.yml --vault-password-file .vault_key` to view the set passwords of __appliance_config.yml__.
-
+	f. **GMT** is the default configured time zone set during the provisioning of OS on compute nodes. To change the time zone, edit the `timezone` variable and enter a time zone. You can set the time zone to **EST**, **CET**, **MST**, **CST6CDT**, or **PST8PDT**. For a list of available time zones, see the `appliance/roles/common/files/timezone.txt` file. 
+	
 Omnia considers the following usernames as default:  
 * `cobbler` for Cobbler Server
 * `admin` for AWX
 * `slurm` for MariaDB
 
-9. Run `ansible-playbook appliance.yml -e "ansible_python_interpreter=/usr/bin/python2"` to install Omnia appliance.
+7. Run `ansible-playbook appliance.yml` to install the Omnia appliance.  
 
-   
 Omnia creates a log file which is available at: `/var/log/omnia.log`.
+
+**Note**: If you want to view the Cobbler and AWX passwords provided in the **appliance_config.yml** file, run `ansible-vault view appliance_config.yml --vault-password-file .vault_key`.  
 
 ## Provision operating system on the target nodes 
 Omnia role used: *provision*  
@@ -183,6 +184,6 @@ The following __Slurm__ roles are provided by Omnia when __omnia.yml__ file is r
 	- Slurm exporter is a package for exporting metrics collected from Slurm resource scheduling system to prometheus.
 	- Slurm exporter is installed on the host like Slurm, and Slurm exporter will be successfully installed only if Slurm is installed.
 
-## Add a new compute node to the Cluster
+## Add a new compute node to the cluster
 
 If a new node is provisioned through Cobbler, the node address is automatically displayed on the AWX dashboard. The node is not assigned to any group. You can add the node to the compute group along with the existing nodes and run `omnia.yml` to add the new node to the cluster and update the configurations in the manager node.
