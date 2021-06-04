@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,8 +13,14 @@
 #  limitations under the License.
 ---
 
-- name: Create a docker volume
-  docker_volume:
-    name: "{{ docker_volume_name }}"
-  vars:
-    ansible_python_interpreter: "/usr/bin/python3"
+# vars file for offline_repo
+
+# Usage: nfs_server_setup.yml
+nfs_share_offline_repo: /var/nfs_repo
+nfs_share_awx: /var/nfs_awx
+nfs_share_dir_mode: 0777
+exports_file_path: /etc/exports
+nfs_services:
+  - mountd
+  - rpc-bind
+  - nfs

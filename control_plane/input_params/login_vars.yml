@@ -12,3 +12,72 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+
+### Usage: provision_cobbler, provison_idrac ###
+
+# Password used while deploying OS on bare metal servers.
+# The Length of the password should be at least 8.
+# The password must not contain -,\, ',"
+# Mandatory value required
+provision_password: ""
+
+### Usage: provision_cobbler ###
+
+# Password used for cobbler
+# The Length of the password should be at least 8.
+# The password must not contain -,\, ',"
+# Mandatory value required
+cobbler_password: ""
+
+### Usage: webui_awx ###
+
+# Password used for awx UI
+# The Length of the password should be at least 8.
+# The password must not contain -,\, ',"
+#awx_password: ""
+
+### Usage: network_ethernet ###
+
+# The username for ethernet switch
+# The username must not contain -,\, ',"
+ethernet_switch_username: ""
+
+# Password used for ethernet switch
+# The Length of the password should be at least 8.
+# The password must not contain -,\, ',"
+ethernet_switch_password: ""
+
+### Usage: network_ib ###
+
+# The username for infiniband switch
+# The username must not contain -,\, ',"
+ib_username: ""
+
+# Password used for infiniband switch
+# The Length of the password should be at least 8.
+# The password must not contain -,\, ',"
+ib_password: ""
+
+### Usage: provision_idrac ###
+
+# The username for idrac
+# The username must not contain -,\, ',"
+# Mandatory value required
+idrac_username: ""
+
+# Password used for idrac
+# The Length of the password should be at least 8.
+# The password must not contain -,\, ',"
+# Mandatory value required
+idrac_password: ""
+
+### Usage: powervault_me4 ###
+
+# The username for powervault_me4
+# The username must not contain -,\, ',"
+powervault_me4_username: ""
+
+# Password used for powervault_me4
+# The Length of the password should be at least 8.
+# The password must not contain -,\, ',"
+powervault_me4_password: ""

@@ -26,10 +26,10 @@
   import_tasks: package_installation.yml
 
 - name: Basic Configuration
+  import_tasks: fetch_base_inputs.yml
+
+- name: Credentials Configuration
   import_tasks: password_config.yml
 
-- name: Docker installation and configuration
-  import_tasks: docker_installation.yml
-
-- name: Docker volume creation
-  import_tasks: docker_volume.yml
+- name: Omnia inputs validation
+  import_tasks: verify_omnia_params.yml

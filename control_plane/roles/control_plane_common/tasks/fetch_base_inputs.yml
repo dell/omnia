@@ -1,0 +1,455 @@
+# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Include base variable file base_vars.yml
+  include_vars: "{{ base_vars_filename }}"
+  no_log: true
+
+- name: Validate input parameters of base_vars are not empty
+  fail:
+    msg: "{{ input_base_failure_msg }}"
+  register: input_base_check
+  when:
+    - ansible_conf_file_path | length < 1 or
+      public_nic | length < 1 or
+      appliance_k8s_pod_net_cidr | length < 1 or
+      awx_organization | length < 1 or
+      timezone | length < 1 or
+      language | length < 1 or
+      iso_file_path | length < 1 or
+      mngmnt_network_nic | length < 1 or
+      mngmnt_network_dhcp_start_range | length < 1 or
+      mngmnt_network_dhcp_end_range | length < 1 or
+      host_network_nic | length < 1 or
+      host_network_dhcp_start_range | length < 1 or
+      host_network_dhcp_end_range | length < 1 or
+      dhcp_gateway | length < 1 or
+      dhcp_dns1 | length < 1 or
+      dhcp_dns2 | length < 1
+
+- name: Validate infiniband base_vars are not empty
+  fail:
+    msg: "{{ input_base_failure_msg }} for infiniBand as ib_switch_support is true"
+  register: ib_check
+  when:
+    - ib_network_nic | length < 1 or
+      ib_network_dhcp_start_range | length < 1 or
+      ib_network_dhcp_end_range | length < 1 and ib_switch_support
+
+- name: Set facts to validate snmp support
+  set_fact:
+    snmp_enabled: false   
+    mngmnt_mapping_file: false
+    host_mapping_file: false
+    ib_mapping_file: false
+
+- name: Verify snmp_trap_destination IP address
+  set_fact:
+    snmp_enabled: true
+  when: snmp_trap_destination | length > 1
+
+- name: Assert snmp trap destination address
+  assert:
+    that:
+      - snmp_enabled
+      - snmp_trap_destination | length > 7
+      - snmp_trap_destination | ipv4
+    success_msg: "{{ success_snmp_trap_dest }}"
+    fail_msg: "{{ fail_snmp_trap_dest }}"
+  when: snmp_enabled
+
+- name: Assert snmp community string
+  assert:
+    that:
+      - snmp_enabled
+      - snmp_community_name
+    success_msg: "{{ success_snmp_comm_msg }}"
+    fail_msg: "{{ fail_snmp_comm_msg }}"
+  when: snmp_enabled
+
+- name: Check whether ansible config file exists
+  stat:
+    path: "{{ ansible_conf_file_path }}/ansible.cfg"
+  register: ansible_conf_exists
+
+- name: Create the directory if it does not exist
+  file:
+    path: "{{ ansible_conf_file_path }}"
+    state: directory
+    mode: "{{ file_perm }}"
+  when: not ansible_conf_exists.stat.exists
+  changed_when: false
+
+- name: Create ansible config file if it does not exist
+  copy:
+    dest: '{{ ansible_conf_file_path }}/ansible.cfg'
+    mode: "{{ file_perm }}"
+    content: |
+      [defaults]
+      log_path = /var/log/omnia.log
+  when: not ansible_conf_exists.stat.exists
+
+- name: Assert ethernet_switch_support
+  assert:
+    that:
+      - ethernet_switch_support == true or ethernet_switch_support == false
+    success_msg: "{{ ethernet_switch_support_success_msg }}"
+    fail_msg: "{{ ethernet_switch_support_fail_msg }}"
+
+- name: Assert ib_switch_support
+  assert:
+    that:
+      - ib_switch_support == true or ib_switch_support == false
+    success_msg: "{{ ib_switch_support_success_msg }}"
+    fail_msg: "{{ ib_switch_support_fail_msg }}"
+
+- name: Assert powervault_support
+  assert:
+    that:
+      - powervault_support == true or powervault_support == false
+    success_msg: "{{ powervault_support_success_msg }}"
+    fail_msg: "{{ powervault_support_fail_msg }}"
+
+- name: Fetch the network interfaces in UP state in the system
+  shell: set -o pipefail && ip a | awk '/state UP/{print $2}'
+  register: nic_addr_up
+  changed_when: false
+  
+- name: Assert public nic
+  assert:
+    that:
+      - public_nic in nic_addr_up.stdout
+    success_msg: "{{ success_msg_public_nic }}"
+    fail_msg: "{{ fail_msg_public_nic }}"
+
+- name: Fetch the system public IP
+  set_fact:
+    public_ip: "{{ lookup('vars','ansible_'+public_nic).ipv4.address }}"
+
+- name: Assert kubernetes pod network CIDR
+  assert:
+    that:
+      - appliance_k8s_pod_net_cidr | ipv4
+      - appliance_k8s_pod_net_cidr | length > 9
+      - '"/" in appliance_k8s_pod_net_cidr '
+    success_msg: "{{ success_msg_k8s_pod_network_cidr }}"
+    fail_msg: "{{ fail_msg_k8s_pod_network_cidr }}"
+
+- name: Assert Organization in awx
+  assert:
+    that:
+      - awx_organization | length >= min_username_length
+      - awx_organization | length < max_length
+      - '"-" not in awx_organization '
+      - '"\\" not in awx_organization '
+      - '"\"" not in awx_organization '
+      - " \"'\" not in awx_organization "
+    success_msg: "{{ success_awx_organization }}"
+    fail_msg: "{{ fail_awx_organization }}"
+
+- name: Check timezone file
+  command: grep -Fx "{{ timezone }}" {{ role_path }}/files/timezone.txt
+  ignore_errors: yes
+  register: timezone_out
+  changed_when: false
+
+- name: Assert timezone
+  assert:
+    that: timezone in timezone_out.stdout
+    success_msg: "{{ success_timezone_msg }}"
+    fail_msg: "{{ fail_timezone_msg }}"
+  register: timezone_check
+
+- name: Assert language for provisioning nodes
+  fail:
+    msg: "{{ fail_language }}"
+  when: '"en-US" not in language'
+
+- name: Verify the iso_file_path
+  stat:
+    path: "{{ iso_file_path }}"
+  register: result_path_iso_file
+
+- name : Assert iso_file_path
+  fail:
+    msg: "{{ invalid_iso_file_path }}"
+  when: ( not result_path_iso_file.stat.exists ) and ( ".iso" not in  iso_file_path )
+
+- name: Fail when iso path valid but image not right
+  fail:
+    msg: "{{ invalid_iso_file_path }}"
+  when: ( result_path_iso_file.stat.exists ) and ( ".iso" not in iso_file_path )
+
+####management_net_dhcp_start_end_range
+- name: Assert management network nic
+  assert:
+    that:
+      - mngmnt_network_nic in nic_addr_up.stdout
+    success_msg: "{{ success_msg_mngmnt_network_nic }}"
+    fail_msg: "{{ fail_msg_mngmnt_network_nic }}"
+
+- name: Fetch the management network ip, netmask and subnet
+  set_fact:
+    mngmnt_network_ip: "{{ lookup('vars','ansible_'+mngmnt_network_nic).ipv4.address }}"
+    mngmnt_network_netmask: "{{ lookup('vars','ansible_'+mngmnt_network_nic).ipv4.netmask }}"
+    mngmnt_network_subnet: "{{ lookup('vars','ansible_'+mngmnt_network_nic).ipv4.network }}"
+
+- name: Check the subnet of management network dhcp start range
+  shell: |
+    IFS=. read -r i1 i2 i3 i4 <<< "{{ mngmnt_network_dhcp_start_range }}"
+    IFS=. read -r m1 m2 m3 m4 <<< "{{ mngmnt_network_netmask }}"
+    printf "%d.%d.%d.%d\n" "$((i1 & m1))" "$((i2 & m2))" "$((i3 & m3))" "$((i4 & m4))"
+  args:
+    warn: no
+  register: dhcp_start_mgmnt_result
+  changed_when: false
+
+- name: Set the start dhcp subnet for management network
+  set_fact:
+    dhcp_start_mgmnt: "{{ dhcp_start_mgmnt_result.stdout }}"
+
+- name: Check the subnet of dhcp end range for management network
+  shell: |
+    IFS=. read -r i1 i2 i3 i4 <<< "{{ mngmnt_network_dhcp_end_range }}"
+    IFS=. read -r m1 m2 m3 m4 <<< "{{ mngmnt_network_netmask }}"
+    printf "%d.%d.%d.%d\n" "$((i1 & m1))" "$((i2 & m2))" "$((i3 & m3))" "$((i4 & m4))"
+  register: dhcp_end_mgmnt_result
+  changed_when: false
+
+- name: Set the end dhcp subnet for management network
+  set_fact:
+    dhcp_end_mgmnt: "{{ dhcp_end_mgmnt_result.stdout }}"
+
+- name: Assert management_net_dhcp_start_range
+  assert:
+    that:
+      - mngmnt_network_dhcp_start_range
+      - mngmnt_network_dhcp_start_range | ipv4
+      - mngmnt_network_dhcp_start_range != mngmnt_network_dhcp_end_range
+      - dhcp_start_mgmnt == mngmnt_network_subnet
+      - dhcp_start_mgmnt == dhcp_end_mgmnt
+    success_msg: "{{ success_dhcp_range }} for management network"
+    fail_msg: "{{ fail_dhcp_range }} for management network"
+
+- name: Assert management_net_dhcp_end_range
+  assert:
+    that:
+      - mngmnt_network_dhcp_end_range
+      - mngmnt_network_dhcp_end_range | ipv4
+      - mngmnt_network_dhcp_start_range != mngmnt_network_dhcp_end_range
+      - dhcp_end_mgmnt == mngmnt_network_subnet
+      - dhcp_start_mgmnt == dhcp_end_mgmnt
+    success_msg: "{{ success_dhcp_range }} for management network"
+    fail_msg: "{{ fail_dhcp_range }} for management network"
+
+- name: Set the mapping file value for management network
+  set_fact:
+    mngmnt_mapping_file: true
+  when: mngmnt_mapping_file_path | length > 0
+
+- name: Assert valid mngmnt_mapping_file_path
+  stat:
+    path: "{{ mngmnt_mapping_file_path }}"
+  when: mngmnt_mapping_file
+  register: result_mngmnt_mapping_file
+
+- name : Valid mngmnt_mapping_file_path
+  fail:
+    msg: "{{ invalid_mapping_file_path }} for management network"
+  when: mngmnt_mapping_file and not result_mngmnt_mapping_file.stat.exists
+#########
+
+###Host network####
+- name: Assert host network nic
+  assert:
+    that:
+      - host_network_nic in nic_addr_up.stdout
+    success_msg: "{{ success_msg_host_network_nic }}"
+    fail_msg: "{{ fail_msg_host_network_nic }}"
+
+- name: Fetch the host network ip, netmask and subnet
+  set_fact:
+    hpc_ip: "{{ lookup('vars','ansible_'+host_network_nic).ipv4.address }}"
+    netmask: "{{ lookup('vars','ansible_'+host_network_nic).ipv4.netmask }}"
+    subnet: "{{ lookup('vars','ansible_'+host_network_nic).ipv4.network }}"
+
+- name: Check the subnet of host network dhcp start range
+  shell: |
+    IFS=. read -r i1 i2 i3 i4 <<< "{{ host_network_dhcp_start_range }}"
+    IFS=. read -r m1 m2 m3 m4 <<< "{{ netmask }}"
+    printf "%d.%d.%d.%d\n" "$((i1 & m1))" "$((i2 & m2))" "$((i3 & m3))" "$((i4 & m4))"
+  args:
+    warn: no
+  register: dhcp_start_host_result
+  changed_when: false
+
+- name: Set the start dhcp subnet for host network
+  set_fact:
+    dhcp_start_host: "{{ dhcp_start_host_result.stdout }}"
+
+- name: Check the subnet of dhcp end range for host network
+  shell: |
+    IFS=. read -r i1 i2 i3 i4 <<< "{{ host_network_dhcp_end_range }}"
+    IFS=. read -r m1 m2 m3 m4 <<< "{{ netmask }}"
+    printf "%d.%d.%d.%d\n" "$((i1 & m1))" "$((i2 & m2))" "$((i3 & m3))" "$((i4 & m4))"
+  register: dhcp_end_host_result
+  changed_when: false
+
+- name: Set the end dhcp subnet for host network
+  set_fact:
+    dhcp_end_host: "{{ dhcp_end_host_result.stdout }}"
+
+- name: Assert host_network_dhcp_start_range
+  assert:
+    that:
+      - host_network_dhcp_start_range
+      - host_network_dhcp_start_range | ipv4
+      - host_network_dhcp_start_range != host_network_dhcp_end_range
+      - dhcp_start_host == subnet
+      - dhcp_start_host == dhcp_end_host
+    success_msg: "{{ success_dhcp_range }} for host network"
+    fail_msg: "{{ fail_dhcp_range }} for host network"
+
+- name: Assert host_network_dhcp_end_range
+  assert:
+    that:
+      - host_network_dhcp_end_range
+      - host_network_dhcp_end_range | ipv4
+      - host_network_dhcp_start_range != host_network_dhcp_end_range
+      - dhcp_end_host == subnet
+      - dhcp_start_host == dhcp_end_host
+    success_msg: "{{ success_dhcp_range }} for host network"
+    fail_msg: "{{ fail_dhcp_range }} for host network"
+
+- name: Set the mapping file value for host network
+  set_fact:
+    host_mapping_file: true
+  when: host_mapping_file_path | length > 0
+  
+- name: Assert valid mapping_file_path
+  stat: 
+    path: "{{ host_mapping_file_path }}"
+  when: host_mapping_file
+  register: result_host_mapping_file
+  
+- name: Valid mapping_file_path
+  fail:
+    msg: "{{ invalid_mapping_file_path }} for host_network"
+  when: host_mapping_file and not result_host_mapping_file.stat.exists
+
+- name: Verify different nics
+  assert:
+    that:
+      - public_nic != mngmnt_network_nic
+      - mngmnt_network_nic != host_network_nic
+      - public_nic != host_network_nic
+    success_msg: "{{ success_msg_different_nics }}"
+    fail_msg: "{{ fail_msg_different_nics }}"
+
+########
+- name: Assert infiniband network nic
+  assert:
+    that:
+      - ib_network_nic in nic_addr_up.stdout
+    success_msg: "{{ success_msg_ib_network_nic }}"
+    fail_msg: "{{ fail_msg_ib_network_nic }}"
+  when: ib_switch_support
+
+- name: Fetch the infiniband network ip, netmask and subnet
+  set_fact:
+    ib_ip: "{{ lookup('vars','ansible_'+ib_network_nic).ipv4.address }}"
+    ib_netmask: "{{ lookup('vars','ansible_'+ib_network_nic).ipv4.netmask }}"
+    ib_subnet: "{{ lookup('vars','ansible_'+ib_network_nic).ipv4.network }}"
+  when: ib_switch_support
+
+- name: Check the subnet of infiniband network dhcp start range
+  shell: |
+    IFS=. read -r i1 i2 i3 i4 <<< "{{ ib_network_dhcp_start_range }}"
+    IFS=. read -r m1 m2 m3 m4 <<< "{{ ib_netmask }}"
+    printf "%d.%d.%d.%d\n" "$((i1 & m1))" "$((i2 & m2))" "$((i3 & m3))" "$((i4 & m4))"
+  args:
+    warn: no
+  register: dhcp_start_ib_result
+  when: ib_switch_support
+  changed_when: false
+
+- name: Set the start dhcp subnet for infiniband network
+  set_fact:
+    dhcp_start_ib: "{{ dhcp_start_ib_result.stdout }}"
+  when: ib_switch_support
+
+- name: Check the subnet of dhcp end range for infiniband network
+  shell: |
+    IFS=. read -r i1 i2 i3 i4 <<< "{{ ib_network_dhcp_end_range }}"
+    IFS=. read -r m1 m2 m3 m4 <<< "{{ ib_netmask }}"
+    printf "%d.%d.%d.%d\n" "$((i1 & m1))" "$((i2 & m2))" "$((i3 & m3))" "$((i4 & m4))"
+  register: dhcp_end_ib_result
+  when: ib_switch_support
+  changed_when: false
+
+- name: Set the end dhcp subnet for infiniband network
+  set_fact:
+    dhcp_end_ib: "{{ dhcp_end_ib_result.stdout }}"
+  when: ib_switch_support
+
+- name: Assert infiniband_net_dhcp_start_range
+  assert:
+    that:
+      - ib_network_dhcp_start_range
+      - ib_network_dhcp_start_range | ipv4
+      - ib_network_dhcp_start_range != ib_network_dhcp_end_range
+      - dhcp_start_ib == ib_subnet
+      - dhcp_start_ib == dhcp_end_ib
+    success_msg: "{{ success_dhcp_range }} for infiniband network"
+    fail_msg: "{{ fail_dhcp_range }} for infiniband network"
+  when: ib_switch_support
+
+- name: Assert infiniband_net_dhcp_end_range
+  assert:
+    that:
+      - ib_network_dhcp_end_range
+      - ib_network_dhcp_end_range | ipv4
+      - ib_network_dhcp_start_range != ib_network_dhcp_end_range
+      - dhcp_end_ib == ib_subnet
+      - dhcp_start_ib == dhcp_end_ib
+    success_msg: "{{ success_dhcp_range }} for infiniband network"
+    fail_msg: "{{ fail_dhcp_range }} for infiniband network"
+  when: ib_switch_support
+
+- name: Set the mapping file value for infiniband
+  set_fact:
+    ib_mapping_file: true
+  when: (ib_switch_support) and (ib_mapping_file_path | length > 0)
+
+- name: Assert valid infiniband_mapping_file_path
+  stat:
+    path: "{{ ib_mapping_file_path }}"
+  when: ib_switch_support and ib_mapping_file
+  register: result_ib_mapping_file
+
+- name : Valid infiniband_mapping_file_path
+  fail:
+    msg: "{{ invalid_mapping_file_path }} for infiniBand network configuration"
+  when: ib_mapping_file and (not result_ib_mapping_file.stat.exists)
+
+- name: Verify different nics with infiniband nic
+  assert:
+    that:
+      - public_nic != ib_network_nic
+      - mngmnt_network_nic != ib_network_nic
+      - ib_network_nic != host_network_nic
+    success_msg: "{{ success_msg_different_nics_ib }}"
+    fail_msg: "{{ fail_msg_different_nics_ib }}"
+  when: ib_switch_support

@@ -41,6 +41,7 @@
 - name: Fetch SElinux mode
   command: sestatus
   register: sestatus_current
+  changed_when: false
 
 - name: Disable SElinux
   replace:
