@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,8 +13,11 @@
 #  limitations under the License.
 ---
 
-- name: Create a docker volume
-  docker_volume:
-    name: "{{ docker_volume_name }}"
-  vars:
-    ansible_python_interpreter: "/usr/bin/python3"
+- name: Start mngmnt_network on reboot
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Wait for 2 minutes
+      pause:
+        minutes: 2

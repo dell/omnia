@@ -61,10 +61,3 @@ reboot
 @core
 net-tools
 %end
-
-%post
-$SNIPPET('post_install_kernel_options')
-$SNIPPET('cobbler_register')
-$SNIPPET('kickstart_done')
-%end
-

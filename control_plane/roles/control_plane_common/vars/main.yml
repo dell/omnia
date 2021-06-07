@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -40,29 +40,13 @@ internet_timeout: 10
 hostname: github.com
 port_no: 22
 os_name: CentOS
-os_version: '8.3' 
+os_version: '8.3'
 internet_status: "Failed. No Internet connection. Make sure network is up."
 os_status: "Unsupported OS or OS version. OS should be {{ os_name }} and Version should be {{ os_version }} or more"
 selinux_status: "SElinux is not disabled. Disable it in /etc/sysconfig/selinux and reboot the system"
-iso_name: CentOS-7-x86_64-Minimal-2009.iso
-iso_fail: "Iso file not found. Download and copy the iso file to omnia/control_plane/roles/provision_cobbler/files"
 ansible_python_version_status: "For CentOS 8.3, python bindings of firewalld, dnf, selinux are not available if python is installed from source and not from dnf. So please make sure python3.6 is installed using dnf. And ansible uses the python version 3.6 installed using dnf"
 python_version_support: '3.6.8'
 default_ansible_config_file_path: /etc/ansible/ansible.cfg
-
-# Usage: docker_installation.yml
-docker_repo_url: https://download.docker.com/linux/centos/docker-ce.repo
-docker_repo_dest: /etc/yum.repos.d/docker-ce.repo
-success: '0'
-container_type: docker
-container_repo_install:
-  - docker-ce-cli-20.10.2
-  - docker-ce-20.10.2
-docker_compose: docker-compose
-daemon_dest: /etc/docker/
-
-# Usage: docker_volume.yml
-docker_volume_name: omnia-storage
 
 # Usage: password_config.yml
 login_vars_filename: "input_params/login_vars.yml"
@@ -146,3 +130,13 @@ success_msg_different_nics: "The nics of different containers and public nic are
 fail_msg_different_nics: "Failed. Incorrect nic information. public nic, management network nic and host network nic should not be the same"
 success_msg_different_nics_ib: "The nics of different containers and public nic are not the same as infiniband nic- Validated"
 fail_msg_different_nics_ib: "Failed. Infiniband nic cannot be the same as other nics"
+
+# Usage: fetch_sm_inputs.yml
+ib_config_file: "{{ role_path }}/../../input_params/ib_vars.yml"
+opensm_conf_file: "{{ role_path }}/../../input_params/opensm.conf"
+
+fail_msg_config_file: ib_vars.yml file doesn't exist.
+fail_msg_opensm_config_file: opensm.conf file doesn't exist.
+
+fail_msg_ib_input_definition: Infiniband config directories must be defined.
+fail_msg_ib_input: Infiniband config directories can't be left empty.

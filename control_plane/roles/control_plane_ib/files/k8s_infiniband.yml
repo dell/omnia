@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: infiniband-container
+  namespace: network-config
+  labels:
+    app: infiniband
+spec:
+  selector:
+    matchLabels:
+      app: infiniband
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: infiniband
+    spec:
+      hostNetwork: true
+      volumes:
+        - name: omnia-storage
+          hostPath:
+            path: /home/omnia/
+            type: Directory
+      containers:
+        - name: infiniband-container
+          image: 'localhost/infiniband_container:latest'
+          imagePullPolicy: Never
+          command:
+            - /sbin/init
+          volumeMounts:
+            - name: omnia-storage
+              mountPath: /root/omnia
+          securityContext:
+            privileged: true

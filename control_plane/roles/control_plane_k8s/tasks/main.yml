@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,7 +13,17 @@
 #  limitations under the License.
 ---
 
-# Will be updated later in each PR
-- name: Pass
-  debug:
-    msg: "Pass"
+- name: Install K8s packages
+  import_tasks: k8s_installation.yml
+
+- name: Configure firewalld
+  import_tasks: k8s_firewalld.yml
+
+- name: Install helm
+  import_tasks: k8s_helm.yml
+
+- name: Initialize K8s
+  import_tasks: k8s_init.yml
+
+- name: Deploy K8s dashboard
+  import_tasks: k8s_services.yml

@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -31,11 +31,9 @@
 - name: Credentials Configuration
   import_tasks: password_config.yml
 
-- name: Omnia inputs validation
+- name: omnia inputs validation
   import_tasks: verify_omnia_params.yml
 
-- name: Docker installation and configuration
-  import_tasks: docker_installation.yml
-
-- name: Docker volume creation
-  import_tasks: docker_volume.yml
+- name: Subnet manager inputs validation
+  import_tasks: fetch_sm_inputs.yml
+  when: ib_switch_support

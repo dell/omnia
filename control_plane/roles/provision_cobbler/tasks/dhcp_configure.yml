@@ -1,4 +1,4 @@
-# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -32,27 +32,12 @@
     path: "{{ role_path }}/files/dhcp.template"
     regexp: '^option subnet-mask net_mask;'
     replace: 'option subnet-mask {{ netmask }};'
-  tags: install
-
-- name: Assign gateway
-  replace:
-    path: "{{ role_path }}/files/dhcp.template"
-    regexp: '^option routers router-ip;'
-    replace: 'option routers {{ dhcp_gateway }};'
-  tags: install
-
-- name: Assign DNS
-  replace:
-    path: "{{ role_path }}/files/dhcp.template"
-    regexp: '^option domain-name-servers dns1, dns2;'
-    replace: 'option domain-name-servers {{ dhcp_dns1 }}, {{ dhcp_dns2 }};'
-  tags: install
 
 - name: Assign DHCP range
   replace:
     path: "{{ role_path }}/files/dhcp.template"
     regexp: '^range dynamic-bootp start end;'
-    replace: 'range dynamic-bootp {{ dhcp_start_ip }} {{ dhcp_end_ip }};'
+    replace: 'range dynamic-bootp {{ host_network_dhcp_start_range }} {{ host_network_dhcp_end_range }};'
 
 - name: Create the cobbler settings file
   copy:
@@ -72,4 +57,3 @@
     path: "{{ role_path }}/files/settings"
     regexp: '^next_server: ip'
     replace: 'next_server: {{ hpc_ip }}'
-

@@ -34,20 +34,17 @@
       mngmnt_network_dhcp_end_range | length < 1 or
       host_network_nic | length < 1 or
       host_network_dhcp_start_range | length < 1 or
-      host_network_dhcp_end_range | length < 1 or
-      dhcp_gateway | length < 1 or
-      dhcp_dns1 | length < 1 or
-      dhcp_dns2 | length < 1
+      host_network_dhcp_end_range | length < 1
 
-- name: Validate infiniband base_vars are not empty
-  fail:
-    msg: "{{ input_base_failure_msg }} for infiniBand as ib_switch_support is true"
-  register: ib_check
-  when:
-    - ib_network_nic | length < 1 or
-      ib_network_dhcp_start_range | length < 1 or
-      ib_network_dhcp_end_range | length < 1
-  when: ib_switch_support
+#- name: Validate infiniband base_vars are not empty
+#  fail:
+#    msg: "{{ input_base_failure_msg }} for infiniBand as ib_switch_support is true"
+#  register: ib_check
+#  when:
+#    - ib_network_nic | length < 1 or
+#      ib_network_dhcp_start_range | length < 1 or
+#      ib_network_dhcp_end_range | length < 1
+#  when: ib_switch_support
 
 - name: Set facts to validate snmp support
   set_fact:
@@ -194,12 +191,12 @@
   when: ( result_path_iso_file.stat.exists ) and ( ".iso" not in iso_file_path )
 
 ####management_net_dhcp_start_end_range
-- name: Assert management network nic
-  assert:
-    that:
-      - mngmnt_network_nic in nic_addr_up.stdout
-    success_msg: "{{ success_msg_mngmnt_network_nic }}"
-    fail_msg: "{{ fail_msg_mngmnt_network_nic }}"
+#- name: Assert management network nic
+#  assert:
+#    that:
+#      - mngmnt_network_nic in nic_addr_up.stdout
+#    success_msg: "{{ success_msg_mngmnt_network_nic }}"
+#    fail_msg: "{{ fail_msg_mngmnt_network_nic }}"
 
 - name: Fetch the management network ip, netmask and subnet
   set_fact:
@@ -273,12 +270,12 @@
 #########
 
 ###Host network####
-- name: Assert host network nic
-  assert:
-    that:
-      - host_network_nic in nic_addr_up.stdout
-    success_msg: "{{ success_msg_host_network_nic }}"
-    fail_msg: "{{ fail_msg_host_network_nic }}"
+#- name: Assert host network nic
+#  assert:
+#    that:
+#      - host_network_nic in nic_addr_up.stdout
+#    success_msg: "{{ success_msg_host_network_nic }}"
+#    fail_msg: "{{ fail_msg_host_network_nic }}"
 
 - name: Fetch the host network ip, netmask and subnet
   set_fact:
@@ -360,13 +357,13 @@
     fail_msg: "{{ fail_msg_different_nics }}"
 
 ########
-- name: Assert infiniband network nic
-  assert:
-    that:
-      - ib_network_nic in nic_addr_up.stdout
-    success_msg: "{{ success_msg_ib_network_nic }}"
-    fail_msg: "{{ fail_msg_ib_network_nic }}"
-  when: ib_switch_support
+#- name: Assert infiniband network nic
+#  assert:
+#    that:
+#      - ib_network_nic in nic_addr_up.stdout
+#    success_msg: "{{ success_msg_ib_network_nic }}"
+#    fail_msg: "{{ fail_msg_ib_network_nic }}"
+#  when: ib_switch_support
 
 - name: Fetch the infiniband network ip, netmask and subnet
   set_fact:

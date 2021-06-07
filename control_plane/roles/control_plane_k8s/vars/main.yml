@@ -1,0 +1,95 @@
+#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# vars file for kubernetes
+
+# Usage: k8s_installation.yml
+common_packages:
+  - openssl
+  - bash-completion
+  - cri-o
+  - buildah
+k8s_packages:
+  - kubelet-1.21.0
+  - kubeadm-1.21.0
+  - kubectl-1.21.0
+k8s_conf_dest: /etc/modules-load.d/
+crio_conf_dest: /etc/modules-load.d/
+k8s_crio_conf_dest: /etc/sysctl.d/
+conf_file_mode: 0644
+crio_repo1_url: https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8/devel:kubic:libcontainers:stable.repo
+crio_repo1_dest: /etc/yum.repos.d/devel:kubic:libcontainers:stable.repo
+crio_repo2_url: https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable:cri-o:1.21/CentOS_8/devel:kubic:libcontainers:stable:cri-o:1.21.repo
+crio_repo2_dest: /etc/yum.repos.d/devel:kubic:libcontainers:stable:cri-o:1.21.repo
+
+# Usage: k8s_firewalld.yml
+k8s_master_ports:
+  - 6443
+  - 2379-2380
+  - 10250
+  - 10251
+  - 10252
+calico_udp_ports:
+  - 4789
+calico_tcp_ports:
+  - 5473
+  - 179
+
+# Usage: k8s_helm.yml
+helm_installer_file_directory: /root/bin
+helm_installer_file_directory_mode: 0755
+helm_installer_url: https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
+helm_installer_file_dest: /root/bin/get_helm.sh
+helm_installer_file_mode: 0700
+helm_stable_repo_url: https://charts.helm.sh/stable
+
+# Usage: k8s_init.yml
+k8s_root_directory: /root/.kube
+k8s_root_directory_mode: 0755
+k8s_config_src: /etc/kubernetes/admin.conf
+k8s_config_dest: /root/.kube/config
+k8s_config_file_mode: 0644
+k8s_cert_path: /etc/kubernetes/pki/ca.crt
+yaml_repo_dir_path: /root/k8s
+yaml_repo_dir_mode: 0755
+tigera_operator_url: https://docs.projectcalico.org/manifests/tigera-operator.yaml
+calico_yml_url: https://docs.projectcalico.org/manifests/custom-resources.yaml
+
+# Usage: k8s_services.yml
+metallb_config_file_dest: /root/k8s/metal-config.yaml
+metallb_config_updated_file_dest: /root/k8s/metal-config-updated.yaml
+metallb_config_file_mode: 0655
+metallb_deployment_file_dest: /root/k8s/metallb.yaml
+metallb_deployment_file_mode: 0655
+metallb_yaml_url: https://raw.githubusercontent.com/google/metallb/v0.8.1/manifests/metallb.yaml
+metallb_addresses: |
+  addresses:
+        - 192.168.2.150/32
+        - 192.168.2.151/32
+        - 192.168.2.151/32
+        - 192.168.2.152/32
+        - 192.168.2.153/32
+        - 192.168.2.154/32
+        - 192.168.2.155/32
+        - 192.168.2.156/32
+        - 192.168.2.157/32
+        - 192.168.2.158/32
+        - 192.168.2.159/32
+metallb_container_port: "7472"
+metallb_run_as_user_port: "65534"
+k8s_dashboard_yaml_url: https://raw.githubusercontent.com/kubernetes/dashboard/v2.2.0/aio/deploy/recommended.yaml
+k8s_dashboard_admin_file_dest: /root/k8s/k8s_dashboard_admin.yaml
+k8s_dashboard_admin_file_mode: 0655
+nfs_path: /var/nfs_awx

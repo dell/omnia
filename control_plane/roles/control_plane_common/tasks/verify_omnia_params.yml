@@ -85,4 +85,4 @@
   command: >-
     ansible-vault encrypt {{ role_path }}/../../../{{ config_filename }}
     --vault-password-file {{ role_path }}/../../../{{ config_vaultname }}
-  changed when: false
+  changed_when: false
