@@ -50,20 +50,6 @@ ansible_python_version_status: "For CentOS 8.3, python bindings of firewalld, dn
 python_version_support: '3.6.8'
 default_ansible_config_file_path: /etc/ansible/ansible.cfg
 
-# Usage: docker_installation.yml
-docker_repo_url: https://download.docker.com/linux/centos/docker-ce.repo
-docker_repo_dest: /etc/yum.repos.d/docker-ce.repo
-success: '0'
-container_type: docker
-container_repo_install:
-  - docker-ce-cli-20.10.2
-  - docker-ce-20.10.2
-docker_compose: docker-compose
-daemon_dest: /etc/docker/
-
-# Usage: docker_volume.yml
-docker_volume_name: omnia-storage
-
 # Usage: password_config.yml
 login_vars_filename: "input_params/login_vars.yml"
 vault_filename: input_params/.login_vault_key

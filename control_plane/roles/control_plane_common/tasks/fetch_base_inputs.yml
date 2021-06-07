@@ -46,8 +46,7 @@
   when:
     - ib_network_nic | length < 1 or
       ib_network_dhcp_start_range | length < 1 or
-      ib_network_dhcp_end_range | length < 1
-  when: ib_switch_support
+      ib_network_dhcp_end_range | length < 1 and ib_switch_support
 
 - name: Set facts to validate snmp support
   set_fact:
