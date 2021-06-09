@@ -49,9 +49,9 @@ cluster_state_path: "/var/spool/slurm/cluster_state"
 spool_slurmctld_pth: "/var/spool/slurmctld"
 spool_slurmd_pth: "/var/spool/slurmd"
 slurm_logpth: "/var/log/slurm/"
-slurm_url: https://download.schedmd.com/slurm/slurm-20.11.2.tar.bz2
-slurm_md5: "md5:592b8b24ff0f24327033eec59cd438d7"
-rpmbuild_path: "/root/slurm-tmp/slurm-20.11.2.tar.bz2"
+slurm_url: https://download.schedmd.com/slurm/slurm-20.11.7.tar.bz2
+slurm_md5: "md5:0f5c768d3e895030f286120c3591912f"
+rpmbuild_path: "/root/slurm-tmp/slurm-20.11.7.tar.bz2"
 rpm_loop: "/rpmbuild/RPMS/x86_64/*.rpm"
 tcp_port1: "6817/tcp"
 tcp_port2: "6818/tcp"
