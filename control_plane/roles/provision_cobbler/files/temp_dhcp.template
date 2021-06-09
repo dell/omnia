@@ -19,8 +19,6 @@ set vendorclass = option vendor-class-identifier;
 option pxe-system-type code 93 = unsigned integer 16;
 
 subnet subnet_mask netmask net_mask {
-option routers router-ip;
-option domain-name-servers dns1, dns2;
 option subnet-mask net_mask;
 range dynamic-bootp start end;
 default-lease-time  21600;

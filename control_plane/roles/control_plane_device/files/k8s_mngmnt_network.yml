@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mngmnt-network-container
+  namespace: network-config
+  labels:
+    app: mngmnt-network
+spec:
+  selector:
+    matchLabels:
+      app: mngmnt-network
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: mngmnt-network
+    spec:
+      hostNetwork: true
+      volumes:
+        - name: omnia-storage
+          hostPath:
+            path: /home/omnia/
+            type: Directory
+      containers:
+        - name: mngmnt-network-container
+          image: 'localhost/mngmnt_network_container:latest'
+          imagePullPolicy: Never
+          command:
+            - /sbin/init
+          volumeMounts:
+            - name: omnia-storage
+              mountPath: /root/omnia
+          securityContext:
+            privileged: true

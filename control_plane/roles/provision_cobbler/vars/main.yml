@@ -1,4 +1,4 @@
-# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,20 +26,23 @@ not_comma_seperated: "Failed: Mapping file should be comma seperated."
 
 #Usage: check_prerequisite.yml
 iso_name: CentOS-7-x86_64-Minimal-2009.iso
-iso_fail: "Iso file not found. Download and copy the iso file to omnia/appliance/roles/provision/files"
+iso_fail: "Iso file not found. Download and copy the iso file to omnia/control_plane/roles/provision_cobbler/files"
 
 # Usage: provision_password.yml
 provision_encrypted_dest: ../files/
+login_file: "{{ role_path }}/../../input_params/login_vars.yml"
+base_file: "{{ role_path }}/../../input_params/base_vars.yml"
+login_vault_file: "{{ role_path }}/../../input_params/.login_vault_key"
 username: cobbler
+user_mode: 0644
 
 # Usage: cobbler_image.yml
-docker_image_name: cobbler
-docker_image_tag: latest
-cobbler_run_command: docker run -itd --privileged --net=host --restart=always -v {{ mount_path }}:/root/omnia  -v cobbler_www:/var/www/cobbler:Z -v cobbler_backup:/var/lib/cobbler/backup:Z -v /mnt/iso:/mnt:Z -p 69:69/udp -p 81:80 -p 443:443 -p 25151:25151 --name cobbler  cobbler:latest  /sbin/init
+cobbler_image_name: cobbler
+cobbler_image_tag: latest
 
 # Usage: main.yml
 message_skipped: "Installation Skipped: Cobbler instance is already running in your system"
 message_installed: "Installation Successful"
 
 # Usage: mount_iso.yml
-iso_path: iso
+iso_dir_name: iso

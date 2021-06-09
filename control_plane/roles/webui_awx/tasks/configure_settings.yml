@@ -1,0 +1,71 @@
+# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Get Current AWX configuration
+
+- name: Get awx-service Cluster-IP
+  command: "kubectl get svc awx-service -n {{ awx_namespace }} -o jsonpath='{.spec.clusterIP}'"
+  register: awx_cluster_ip
+  changed_when: false
+
+- name: Get AWX admin password
+  shell: "kubectl get secret awx-admin-password -n {{ awx_namespace }} -o jsonpath='{.data.password}' | base64 --decode"
+  register: awx_admin_password
+  changed_when: false
+
+- name: Check if config file exists
+  stat:
+    path: "~/.tower_cli.cfg"
+  register: config_file_status
+
+- name: Create config file
+  copy:
+    dest:  "~/.tower_cli.cfg"
+    content: |
+      [general]
+      host: http://{{ awx_cluster_ip.stdout }}
+      username: admin
+      password: {{ awx_admin_password.stdout }}
+      verify_ssl: false
+      use_token: false
+    owner: root
+    mode: "{{ file_perm }}"
+
+- name: Stop and disable firewalld
+  service:
+    name: firewalld
+    state: stopped
+    enabled: no
+
+- name: Waiting for the AWX UI to be up
+  uri:
+    url: "http://{{ awx_cluster_ip.stdout }}"
+    status_code: "{{ return_status }}"
+  register: display
+  until: display.status == 200
+  retries: 20
+  delay: 15
+  changed_when: false
+
+- name: Waiting for the AWX UI to be in running state
+  uri:
+    url: "http://{{ awx_cluster_ip.stdout }}"
+    status_code: "{{ return_status }}"
+    return_content: true
+  register: display
+  until: awx_ui_msg not in display.content
+  retries: 20
+  delay: 15
+  changed_when: false

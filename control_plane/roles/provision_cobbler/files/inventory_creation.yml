@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -26,18 +26,18 @@
         vars_new: "{{ var| ipv4('address')| to_nice_yaml}}"
 
     - name: Create the static ip
-      shell: awk -F',' 'NR >1{print $3}' omnia/control_plane/roles/provision/files/new_mapping_file.csv > static_hosts.yml
+      shell: awk -F',' 'NR >1{print $3}' omnia/control_plane/roles/provision_cobbler/files/new_mapping_file.csv > static_hosts.yml
       changed_when: false
       ignore_errors: true
 
     - name: Create the dynamic inventory
       shell: |
-        echo "[all]" >  omnia/control_plane/roles/collect_node_info/files/provisioned_hosts.yml
+        echo "[all]" >  omnia/control_plane/roles/inventory/files/provisioned_hosts.yml
         echo "{{ vars_new }}" > temp.txt
         egrep -o '[1-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' temp.txt >>dynamic_hosts.yml
       changed_when: false
       ignore_errors: true
 
     - name: Final inventory
-      shell: cat dynamic_hosts.yml static_hosts.yml| sort -ur  >> omnia/control_plane/roles/collect_node_info/files/provisioned_hosts.yml
-      changed_when: false     
+      shell: cat dynamic_hosts.yml static_hosts.yml| sort -ur  >> omnia/control_plane/roles/inventory/files/provisioned_hosts.yml
+      changed_when: false

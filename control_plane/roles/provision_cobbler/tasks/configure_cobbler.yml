@@ -1,4 +1,4 @@
-# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,24 +12,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-- name: Delete the cobbler container if exits
-  docker_container:
-    name: cobbler
-    state: absent
-  tags: install
-  when: cobbler_container_status == true and cobbler_config_status == false
 
-- name: Run cobbler container
-  command: "{{ cobbler_run_command }}"
+- name: Deploy cobbler pod
+  command: "kubectl apply -f {{ role_path }}/files/k8s_cobbler.yml"
+  changed_when: true
+  tags: install
+  when: cobbler_container_status and not cobbler_config_status
+
+- name: Wait for cobbler pod to come to ready state
+  command: kubectl wait --for=condition=ready -n cobbler pod -l app=cobbler
   changed_when: false
   tags: install
-  when: cobbler_container_status == true and cobbler_config_status == false
+
+- name: Get cobbler pod name
+  command: 'kubectl get pod -n cobbler -l app=cobbler -o jsonpath="{.items[0].metadata.name}"'
+  changed_when: false
+  register: cobbler_pod_name
+  tags: install
 
 - name: Configuring cobbler inside container (It may take 5-10 mins)
-  command: docker exec cobbler ansible-playbook /root/kickstart.yml
-  changed_when: false
+  command: "kubectl exec --stdin --tty -n cobbler {{ cobbler_pod_name.stdout }} -- ansible-playbook /root/kickstart.yml"
+  changed_when: true
   tags: install
-  when: cobbler_config_status == false
+  when: not cobbler_config_status
 
 - name: Schedule task
   cron:
@@ -37,12 +42,12 @@
     special_time: reboot
     job: "ansible-playbook {{ role_path }}/files/start_cobbler.yml"
   tags: install
-  when: cobbler_config_status == false
+  when: not cobbler_config_status
 
 - name: Execute cobbler sync in cobbler container
-  command: docker exec cobbler cobbler sync
+  command: 'kubectl exec --stdin --tty -n cobbler {{ cobbler_pod_name.stdout }} -- cobbler sync'
   changed_when: true
-  when: cobbler_config_status == true
+  when: cobbler_config_status
 
 - name: Remove the files
   file:

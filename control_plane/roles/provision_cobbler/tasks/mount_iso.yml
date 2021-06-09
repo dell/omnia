@@ -1,4 +1,4 @@
-# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,12 +19,12 @@
 
 - name: Create iso directory
   file:
-    path: "/mnt/{{ iso_path }}"
+    path: "/mnt/{{ iso_dir_name }}"
     state: directory
   tags: install
 
 - name: Check mountpoint
-  command: mountpoint /mnt/{{ iso_path }}
+  command: mountpoint /mnt/{{ iso_dir_name }}
   changed_when: false
   register: result
   ignore_errors: yes
@@ -36,7 +36,7 @@
   tags: install
 
 - name: Mount the iso file
-  command: mount -o loop {{ path_for_iso_file }} /mnt/{{ iso_path }}
+  command: mount -o loop {{ iso_file_path }} /mnt/{{ iso_dir_name }}
   changed_when: false
   args:
     warn: no
