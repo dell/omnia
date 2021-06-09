@@ -57,16 +57,12 @@
   package:
     name: "{{ slurm_packages }}"
     state: present
-  with_items:
-    - "{{ slurm_packages }}"
   tags: install
 
 - name: Install development tools
   package:
-    name: "{{ item }}"
+    name: "{{ dev_tools }}"
     state: present
-  with_items:
-    - "{{ dev_tools }}"
   tags: install
 
 - name: Verify if slurm is installed
