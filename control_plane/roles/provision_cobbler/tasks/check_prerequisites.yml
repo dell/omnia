@@ -1,4 +1,4 @@
-# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,53 +39,68 @@
       msg: "All nodes are new"
       verbosity: 2
 
-- name: Inspect the cobbler image
-  docker_image_info:
-    name: cobbler
-  register: cobbler_image_result
-  tags: install
-  vars:
-    ansible_python_interpreter: "/usr/bin/python3"
+- name: Get K8s namespaces
+  command: kubectl get namespaces
+  changed_when: false
+  register: k8s_namespaces
 
-- name: Check cobbler status on the machine
-  docker_container_info:
-    name: cobbler
-  register: cobbler_result
+- name: Create namespace network-config
+  command: kubectl create namespace cobbler
+  changed_when: true
+  when: "'cobbler' not in k8s_namespaces.stdout"
+
+- name: Inspect the cobbler image
+  command: "buildah images {{ cobbler_image_name }}"
+  register: cobbler_image_result
+  ignore_errors: true
+  changed_when: false
   tags: install
-  vars:
-    ansible_python_interpreter: "/usr/bin/python3"
+
+- name: Check cobbler pod status on the machine
+  command: kubectl get pods -n cobbler
+  register: cobbler_pod_result
+  ignore_errors: true
+  changed_when: false
+  tags: install
 
 - name: Update cobbler image status
   set_fact:
     cobbler_image_status: true
-  when: cobbler_image_result.images| length==1
+  when: "'No such image' not in cobbler_image_result.stderr"
   tags: install
 
 - name: Update cobbler container status
   set_fact:
     cobbler_container_status: true
-  when: cobbler_result.exists
+  when: "'cobbler' in cobbler_pod_result.stdout"
+  tags: install
+
+- name: Get cobbler pod name
+  command: 'kubectl get pod -n cobbler -l app=cobbler -o jsonpath="{.items[0].metadata.name}"'
+  changed_when: false
+  register: cobbler_pod_name
+  when: cobbler_container_status
   tags: install
 
 - name: Fetch cobbler profile list
-  command: docker exec cobbler cobbler profile list
+  command: "kubectl exec --stdin --tty -n {{ cobbler_pod_name.stdout }} -- cobbler profile list"
   changed_when: false
   register: cobbler_profile_list
   ignore_errors: true
-  when: cobbler_container_status == true
+  when: cobbler_container_status
 
 - name: Check crontab list
-  command: docker exec cobbler crontab -l
+  command: "kubectl exec --stdin --tty -n {{ cobbler_pod_name.stdout }} -- crontab -l"
   changed_when: false
   register: crontab_list
   ignore_errors: true
-  when: cobbler_container_status == true
+  when: cobbler_container_status
 
-- name: Update cobbler container status
+- name: Update cobbler config status
   set_fact:
     cobbler_config_status: true
   when:
-    - cobbler_container_status == true
+    - cobbler_container_status
     - "'CentOS' in cobbler_profile_list.stdout"
     - "'* * * * * ansible-playbook /root/tftp.yml' in crontab_list.stdout"
     - "'5 * * * * ansible-playbook /root/inventory_creation.yml' in crontab_list.stdout"

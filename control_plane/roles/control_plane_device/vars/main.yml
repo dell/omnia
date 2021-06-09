@@ -12,33 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-- name: Initialize vars
-  set_fact:
-    mount_check: true
-  tags: install
 
-- name: Create iso directory
-  file:
-    path: "/mnt/{{ iso_dir_name }}"
-    state: directory
-  tags: install
+# vars file for mngmnt_network
 
-- name: Check mountpoint
-  command: mountpoint /mnt/{{ iso_dir_name }}
-  changed_when: false
-  register: result
-  ignore_errors: yes
-  tags: install
-
-- name: Update mount status
-  set_fact:
-    mount_check: "{{ result.failed }}"
-  tags: install
-
-- name: Mount the iso file
-  command: mount -o loop {{ iso_file_path }} /mnt/{{ iso_dir_name }}
-  changed_when: false
-  args:
-    warn: no
-  when: mount_check == true
-  tags: install
+# Usage: check_prerequisites.yml, mngmnt_network_container_image.yml
+mngmnt_network_image_name: mngmnt_network_container
+mngmnt_network_image_tag: latest
+mount_path: /root/omnia
+message_skipped: "The container is already present"
+message_installed: "The container is installed"
+mngmnt_base_file: "{{ role_path }}/../../input_params/base_vars.yml"

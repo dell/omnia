@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -26,7 +26,21 @@
   import_tasks: firewall_settings.yml
   when: not cobbler_container_status
 
-- name: Include control_plane_common variables
+- name: Decrpyt login_vars.yml
+  command: >-
+    ansible-vault decrypt {{ login_file }}
+    --vault-password-file {{ login_vault_file }}
+  changed_when: false
+
+- name: Include variable file login_vars.yml
+  include_vars: "{{ login_file }}"
+#  no_log: true
+
+- name: Include variable file base_vars.yml
+  include_vars: "{{ base_file }}"
+#  no_log: true
+
+- name: Include common variables
   include_vars: ../../control_plane_common/vars/main.yml
   when: not cobbler_container_status
 
@@ -38,13 +52,19 @@
   import_tasks: provision_password.yml
   when: not cobbler_image_status
 
+- name: Encypt login file
+  command: >-
+    ansible-vault encrypt {{ login_file }}
+    --vault-password-file {{ login_vault_file }}
+  changed_when: false
+
 - name: Dhcp Configuration
   import_tasks: dhcp_configure.yml
   when: (not cobbler_image_status) or ( backup_map_status == true)
 
 - name: Mapping file validation
   import_tasks: mapping_file.yml
-  when: (not cobbler_image_status) and (mapping_file == true) or ( backup_map_status == true)
+  when: (not cobbler_image_status) and (host_mapping_file == true) or ( backup_map_status == true)
 
 - name: Cobbler image creation
   import_tasks: cobbler_image.yml

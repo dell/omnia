@@ -13,13 +13,11 @@
 #  limitations under the License.
 ---
 
-- name: Install packages
-  package:
-    name: "{{ common_packages }}"
-    state: present
-  tags: install
-  
-- name: Install netaddr
-  command: pip3 install netaddr
-  tags: install
-  changed_when: false
+- name: Start mngmnt_network on reboot
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Wait for 2 minutes
+      pause:
+        minutes: 2

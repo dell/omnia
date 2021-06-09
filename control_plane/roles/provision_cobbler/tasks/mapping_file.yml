@@ -1,4 +1,4 @@
-# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 ---
 
 - name: Check if file is comma seperated
-  shell: awk -F\, '{print NF-1}' {{ path_for_mapping_file }}
+  shell: awk -F\, '{print NF-1}' {{ host_mapping_file_path }}
   register: comma_seperated
   changed_when: false
   tags: install
@@ -26,19 +26,19 @@
   tags: install
 
 - name: Remove blank lines
-  shell:  awk -F, 'length>NF+1' {{ path_for_mapping_file }} > {{ role_path }}/files/new_mapping_file.csv
+  shell:  awk -F, 'length>NF+1' {{ host_mapping_file_path }} > {{ role_path }}/files/new_host_mapping_file.csv
   changed_when: false
   tags: install
 
 - name: Remove blank spaces
-  shell:  sed -i.bak -E 's/(^|,)[[:blank:]]+/\1/g; s/[[:blank:]]+(,|$)/\1/g'  {{ role_path }}/files/new_mapping_file.csv
+  shell:  sed -i.bak -E 's/(^|,)[[:blank:]]+/\1/g; s/[[:blank:]]+(,|$)/\1/g'  {{ role_path }}/files/new_host_mapping_file.csv
   args:
     warn: no
   changed_when: false
   tags: install
 
 - name: Check if header present
-  shell:  awk 'NR==1 { print $1}' {{ role_path }}/files/new_mapping_file.csv
+  shell:  awk 'NR==1 { print $1}' {{ role_path }}/files/new_host_mapping_file.csv
   register: header
   changed_when: false
   tags: install
@@ -49,37 +49,37 @@
   when: header.stdout !=  valid_header
 
 - name: Count the hostname
-  shell: awk -F',' '{print $2}' {{ role_path }}/files/new_mapping_file.csv | wc -l
+  shell: awk -F',' '{print $2}' {{ role_path }}/files/new_host_mapping_file.csv | wc -l
   register: total_hostname
   changed_when: false
   tags: install
 
 - name: Count the ip
-  shell: awk -F',' '{print $3}' {{ role_path }}/files/new_mapping_file.csv | wc -l
+  shell: awk -F',' '{print $3}' {{ role_path }}/files/new_host_mapping_file.csv | wc -l
   register: total_ip
   changed_when: false
   tags: install
 
 - name: Count the macs
-  shell: awk -F',' '{print $1}' {{ role_path }}/files/new_mapping_file.csv | wc -l
+  shell: awk -F',' '{print $1}' {{ role_path }}/files/new_host_mapping_file.csv | wc -l
   register: total_mac
   changed_when: false
   tags: install
 
 - name: Check for duplicate hostname
-  shell: awk -F',' '{print $2}' {{ role_path }}/files/new_mapping_file.csv | uniq | wc -l
+  shell: awk -F',' '{print $2}' {{ role_path }}/files/new_host_mapping_file.csv | uniq | wc -l
   register: uniq_hostname
   changed_when: false
   tags: install
 
 - name: Check for duplicate ip
-  shell: awk -F',' '{print $3}' {{ role_path }}/files/new_mapping_file.csv | uniq | wc -l
+  shell: awk -F',' '{print $3}' {{ role_path }}/files/new__host_mapping_file.csv | uniq | wc -l
   register: uniq_ip
   changed_when: false
   tags: install
 
 - name: Check for duplicate mac
-  shell: awk -F',' '{print $1}' {{ role_path }}/files/new_mapping_file.csv | uniq | wc -l
+  shell: awk -F',' '{print $1}' {{ role_path }}/files/new_host_mapping_file.csv | uniq | wc -l
   register: uniq_mac
   changed_when: false
   tags: install
@@ -103,7 +103,7 @@
   tags: install
 
 - name: Check if _ or . or space present in hostname
-  shell: awk -F',' '{print $2}' {{ role_path }}/files/new_mapping_file.csv |grep -E -- '_|\.| '
+  shell: awk -F',' '{print $2}' {{ role_path }}/files/new_host_mapping_file.csv |grep -E -- '_|\.| '
   register: hostname_result
   ignore_errors: true
   changed_when: false
@@ -118,7 +118,7 @@
 - name: Compare the file for new nodes
   block:
   - name: difference
-    shell: diff {{ role_path }}/files/new_mapping_file.csv {{role_path}}/files/backup_mapping_file.csv| tr -d \>|tr -d \<| grep -E -- ', & :| '
+    shell: diff {{ role_path }}/files/new_host_mapping_file.csv {{role_path}}/files/backup_host_mapping_file.csv| tr -d \>|tr -d \<| grep -E -- ', & :| '
     register: diff_output
     when: backup_map_status == true
 
@@ -149,18 +149,28 @@
 
 - name: Create a backup file
   copy:
-    src: "{{ role_path }}/files/new_mapping_file.csv"
-    dest: "{{ role_path }}/files/backup_mapping_file.csv"
+    src: "{{ role_path }}/files/new_host_mapping_file.csv"
+    dest: "{{ role_path }}/files/backup_host_mapping_file.csv"
+
+- name: Get cobbler pod name
+  command: 'kubectl get pod -n cobbler -l app=cobbler -o jsonpath="{.items[0].metadata.name}"'
+  changed_when: false
+  register: cobbler_pod_name
+  when: cobbler_container_status
+  tags: install
 
 - name: Copy the dhcp.template inside container
-  command: docker exec cobbler cp {{ role_path }}/files/dhcp.template /etc/cobbler/dhcp.template
+  command: 'kubectl exec --stdin --tty -n cobbler {{ cobbler_pod_name.stdout }} \
+    -- cp /root/omnia/control_plane/roles/provision_cobbler/files/dhcp.template /etc/cobbler/dhcp.template'
+  changed_when: true
   when:  ( cobbler_container_status == true ) and ( new_node_status == true )
 
 - name: Cobbler sync for adding new nodes
-  command: docker exec cobbler cobbler sync
+  command: 'kubectl exec --stdin --tty -n cobbler {{ cobbler_pod_name.stdout }} -- cobbler sync'
+  changed_when: true
   when:  ( cobbler_container_status == true ) and ( new_node_status == true )
 
 - name: Restart dhcpd
-  command: docker exec cobbler systemctl restart dhcpd
+  command: 'kubectl exec --stdin --tty -n cobbler {{ cobbler_pod_name.stdout }} -- systemctl restart dhcpd'
+  changed_when: true
   when:  ( cobbler_container_status == true ) and ( new_node_status == true )
-

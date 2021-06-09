@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -22,6 +22,11 @@
       pause:
         minutes: 2
 
+    - name: Get cobbler pod name
+      command: 'kubectl get pod -n cobbler -l app=cobbler -o jsonpath="{.items[0].metadata.name}"'
+      changed_when: false
+      register: cobbler_pod_name
+
     - name: Execute cobbler sync in cobbler container
-      command: docker exec cobbler cobbler sync
+      command: 'kubectl exec --stdin --tty -n cobbler {{ cobbler_pod_name.stdout }} -- cobbler sync'
       changed_when: true

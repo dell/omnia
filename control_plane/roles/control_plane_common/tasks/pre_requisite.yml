@@ -29,6 +29,7 @@
     path: "{{ default_ansible_config_file_path }}"
     regexp: '#log_path = /var/log/ansible.log'
     replace: 'log_path = /var/log/omnia.log'
+  when: file_exists.stat.exists
   tags: install
 
 - name: Check OS support

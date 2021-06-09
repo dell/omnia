@@ -12,33 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-- name: Initialize vars
-  set_fact:
-    mount_check: true
+
+#Tasks for modifying firewall configurations for mngmnt_network_container
+
+- name: Permit traffic in default zone for tftp service
+  firewalld:
+    service: tftp
+    permanent: yes
+    state: enabled
   tags: install
 
-- name: Create iso directory
-  file:
-    path: "/mnt/{{ iso_dir_name }}"
-    state: directory
-  tags: install
-
-- name: Check mountpoint
-  command: mountpoint /mnt/{{ iso_dir_name }}
-  changed_when: false
-  register: result
-  ignore_errors: yes
-  tags: install
-
-- name: Update mount status
-  set_fact:
-    mount_check: "{{ result.failed }}"
-  tags: install
-
-- name: Mount the iso file
-  command: mount -o loop {{ iso_file_path }} /mnt/{{ iso_dir_name }}
-  changed_when: false
-  args:
-    warn: no
-  when: mount_check == true
+- name: Reboot firewalld
+  systemd:
+    name: firewalld
+    state: reloaded
   tags: install

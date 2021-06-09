@@ -13,13 +13,12 @@
 #  limitations under the License.
 ---
 
-- name: Install packages
-  package:
-    name: "{{ common_packages }}"
-    state: present
-  tags: install
-  
-- name: Install netaddr
-  command: pip3 install netaddr
-  tags: install
-  changed_when: false
+- name: Initial  setup
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+  - name: Start dhcpd services
+    service:
+      name: dhcpd
+      state: started

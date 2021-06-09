@@ -14,25 +14,25 @@
 ---
 
 - name: Image creation (It may take 5-10 mins)
-  command: "buildah bud -t {{ cobbler_image_name }}:{{ cobbler_image_tag }} --network host ."
+  command: "buildah bud -t {{ mngmnt_network_image_name }}:{{ mngmnt_network_image_tag }} --network host ."
   changed_when: true
   args:
     chdir: "{{ role_path }}/files/"
   tags: install
 
-- name: Update image name in k8s_cobbler.yml
+- name: Update image name in k8s_mngmnt_network.yml
   replace:
-    path: "{{ role_path }}/files/k8s_cobbler.yml"
-    regexp: 'localhost/cobbler:latest'
-    replace: "localhost/{{ cobbler_image_name }}:{{ cobbler_image_tag }}"
+    path: "{{ role_path }}/files/k8s_mngmnt_network.yml"
+    regexp: 'localhost/mngmnt_network_container:latest'
+    replace: "localhost/{{ mngmnt_network_image_name }}:{{ mngmnt_network_image_tag }}"
 
-- name: Update omnia project path in k8s_cobbler.yml
+- name: Update omnia project path in k8s_mngmnt_network.yml
   replace:
-    path: "{{ role_path }}/files/k8s_cobbler.yml"
+    path: "{{ role_path }}/files/k8s_mngmnt_network.yml"
     regexp: 'path: /root/omnia'
     replace: "path: {{ role_path.split('control_plane')[0] }}"
 
-- name: Deploy cobbler pod
-  command: "kubectl apply -f {{ role_path }}/files/k8s_cobbler.yml"
+- name: Deploy mngmnt_network pod
+  command: "kubectl apply -f {{ role_path }}/files/k8s_mngmnt_network.yml"
   changed_when: true
   tags: install
