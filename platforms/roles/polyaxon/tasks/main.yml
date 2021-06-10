@@ -13,50 +13,50 @@
 #  limitations under the License.
 ---
 
-- name: Helm - add JupyterHub repo
-  command: "helm repo add jupyterhub '{{ jupyterhub_helm_chart_repo }}'"
+- name: Helm - add Polyaxon repo
+  command: "helm repo add polyaxon '{{ polyaxon_helm_chart_repo }}'"
   changed_when: true
 
 - name: Helm - update repo
   command: helm repo update
   changed_when: true
 
-- name: Copy JupyterHub custom config file
+- name: Copy Polyaxon custom config file
   copy:
-   src: jupyter_config.yaml
-   dest: "{{ jupyter_config_file_dest }}"
+   src: polyaxon_config.yaml
+   dest: "{{ polyaxon_config_file_dest }}"
    owner: root
    group: root
-   mode: "{{ jupyter_config_file_mode }}"
+   mode: "{{ polyaxon_config_file_mode }}"
 
-- name: JupyterHub deploy
+- name: Polyaxon deploy
   block:
-    - name: JupyterHub deploy
+    - name: Polyaxon deploy
       command: >
         helm upgrade --cleanup-on-fail \
-        --install {{ jupyterhub_namespace }} jupyterhub/jupyterhub \
-        --namespace {{ jupyterhub_namespace }} \
+        --install {{ polyaxon_namespace }} polyaxon/polyaxon \
+        --namespace {{ polyaxon_namespace }} \
         --create-namespace \
         --version {{ helm_chart_version }} \
-        --values {{ jupyter_config_file_dest }} \
+        --values {{ polyaxon_config_file_dest }} \
         --timeout {{ timeout_min_sec }}
       register: deployment_output
 
   rescue:
-    - name: JupyterHub deployment error
+    - name: Polyaxon deployment error
       debug:
-        msg: "Previous JupyterHub deployment is in progress"
+        msg: "Previous Polyaxon deployment is in progress"
       when: "'another operation (install/upgrade/rollback) is in progress' in deployment_output.stderr"
 
     - name: Delete existing release
-      command: helm delete '{{ jupyterhub_namespace }}'
+      command: helm delete '{{ polyaxon_namespace }}'
 
-    - name: JupyterHub deploy
+    - name: Polyaxon deploy
       command: >
         helm upgrade --cleanup-on-fail \
-        --install {{ jupyterhub_namespace }} jupyterhub/jupyterhub \
-        --namespace {{ jupyterhub_namespace }} \
+        --install {{ polyaxon_namespace }} polyaxon/polyaxon \
+        --namespace {{ polyaxon_namespace }} \
         --create-namespace \
         --version {{ helm_chart_version }} \
-        --values {{ jupyter_config_file_dest }} \
+        --values {{ polyaxon_config_file_dest }} \
         --timeout {{ timeout_min_sec }}
