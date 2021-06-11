@@ -1,0 +1,156 @@
+# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Include control_plane_repo vars
+  include_vars: ../../control_plane_repo/vars/main.yml
+  run_once: true
+
+- name: Include custom_iso vars
+  include_vars: ../../control_plane_customiso/vars/main.yml
+  run_once: true
+
+- name: Check unattended ISO file
+  stat:
+    path: "{{ role_path }}/../control_plane_customiso/files/{{ unattended_iso_filename }}"
+  register: custom_iso_check
+  run_once: true
+
+- name: Custom ISO file not present
+  fail:
+    msg: "{{ custom_iso_check_fail_msg }}"
+  when: not custom_iso_check.stat.exists
+  register: custom_iso_fail
+
+- name: Adding NFS share entries in {{ exports_file_path }}
+  lineinfile:
+    path: "{{ exports_file_path }}"
+    line: "{{ nfs_share_offline_repo }} {{ inventory_hostname }}(rw,sync,no_root_squash)"
+  when: '"awx-" not in hostname.stdout'
+
+- name: Exporting the shared directories
+  command: exportfs -r
+  changed_when: true
+  when: '"awx-" not in hostname.stdout'
+  run_once: true
+
+- name: Check nfs exports file present
+  stat:
+    path: "{{ role_path }}/../control_plane_customiso/files/exports"
+  register: nfs_exports_present
+  when: '"awx-" in hostname.stdout'
+  run_once: true
+
+- name: Check nfs exports file content
+  command: cat "{{ role_path }}/../control_plane_customiso/files/exports"
+  changed_when: false
+  register: check_exports_path
+  run_once: true
+  when:
+    - '"awx-" in hostname.stdout'
+    - nfs_exports_present.stat.exists
+
+- name: Missing entries in nfs exports
+  fail:
+    msg: "{{ missing_exports_fail_msg }}"
+  when:
+    - '"awx-" in hostname.stdout'
+    - not nfs_exports_present.stat.exists or
+      check_exports_path.rc == 1 or
+      inventory_hostname not in check_exports_path.stdout
+
+- name: Fetch management station ip from exports file
+  shell: awk 'FNR==1' {{ role_path }}/../control_plane_customiso/files/exports | awk '{print $2}'
+  changed_when: false
+  register: fetch_public_ip
+  when: '"awx-" in hostname.stdout'
+
+- name: Set public ip
+  set_fact:
+    public_ip: "{{ fetch_public_ip.stdout.split(\"(\")[0] }}"
+  when: '"awx-" in hostname.stdout'
+
+- name: Initialize variables
+  set_fact:
+    raid_type: false
+    raid_controller_sensor: ""
+    raid_enclosure_name: ""
+    drives_id: ""
+    enterprise_license: false
+    datacenter_license: false
+    provision_status: false
+
+- name: Check provisioned_idrac_ip.yml file present
+  stat:
+    path: "{{ role_path }}/files/provisioned_idrac_ip.yml"
+  register: provisioned_file_present
+  run_once: true
+
+- name: Check idrac server is already provisioned
+  command: cat {{ role_path }}/files/provisioned_idrac_ip.yml
+  changed_when: false
+  register: check_provision_status
+  when: provisioned_file_present.stat.exists
+  run_once: true
+
+- name: Removing hosts already provisioned
+  fail:
+    msg: "{{ provision_fail_msg }}"
+  when:
+    - provisioned_file_present.stat.exists
+    - inventory_hostname in check_provision_status.stdout
+
+- name: Show status of the Lifecycle Controller
+  dellemc.openmanage.idrac_lifecycle_controller_status_info:
+    idrac_ip: "{{ inventory_hostname }}"
+    idrac_user: "{{ idrac_username }}"
+    idrac_password: "{{ idrac_password }}"
+  register: lc_check_status
+
+- name: LC not available
+  fail:
+    msg: "{{ lc_check_fail_msg }}"
+  when: not lc_check_status.lc_status_info.LCReady
+  register: lc_fail
+
+- name: Get system inventory
+  dellemc.openmanage.idrac_system_info:
+    idrac_ip: "{{ inventory_hostname }}"
+    idrac_user: "{{ idrac_username }}"
+    idrac_password: "{{ idrac_password }}"
+  register: idrac_info
+
+- name: Set enterprise license status
+  set_fact:
+    enterprise_license: true
+  with_items: "{{ idrac_info.system_info.License }}"
+  when:
+    - '"iDRAC" in idrac_info.system_info.License[my_idx1].LicenseDescription'
+    - '"Enterprise" in idrac_info.system_info.License[my_idx1].LicenseDescription'
+    - '"License" in idrac_info.system_info.License[my_idx1].LicenseDescription'
+    - '"Healthy" in idrac_info.system_info.License[my_idx1].PrimaryStatus'
+  loop_control:
+    index_var: my_idx1
+
+- name: Set datacenter license status
+  set_fact:
+    datacenter_license: true
+  with_items: "{{ idrac_info.system_info.License }}"
+  when:
+    - '"iDRAC" in idrac_info.system_info.License[my_idx2].LicenseDescription'
+    - '"Datacenter" in idrac_info.system_info.License[my_idx2].LicenseDescription'
+    - '"License" in idrac_info.system_info.License[my_idx2].LicenseDescription'
+    - '"Healthy" in idrac_info.system_info.License[my_idx2].PrimaryStatus'
+  loop_control:
+    index_var: my_idx2

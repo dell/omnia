@@ -1,4 +1,4 @@
-# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,58 +12,62 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 # vars file for webui_awx
 
-# Usage: clone_awx.yml
-awx_git_repo: "https://github.com/ansible/awx.git"
-docker_volume: "/var/lib/docker/volumes/{{ docker_volume_name }}"
-awx_repo_path: "{{ docker_volume }}/awx/"
-awx_installer_path: "{{ awx_repo_path }}/installer/"
-
 # Usage: install_awx.yml
-awx_inventory_path: "{{ awx_repo_path }}/installer/inventory"
-pgdocker_dir_path: /var/lib/pgdocker
-project_data_dir_old: "#project_data_dir=/var/lib/awx/projects"
-project_data_dir_new: "project_data_dir= {{ role_path + '/../../../..' }} "
-awx_alternate_dns_servers_old: '#awx_alternate_dns_servers="10.1.2.3,10.2.3.4"'
-awx_alternate_dns_servers_new: 'awx_alternate_dns_servers="8.8.8.8,8.8.4.4"'
-admin_password_old: "admin_password=password"
-admin_password_new: "#admin_password=password"
-port_old: "host_port=80"
-port_new: "host_port=8081"
+awx_namespace: awx
+awx_pv_yml_file_path: "{{ role_path }}/files/awx_projects_pv.yml"
+awx_postgres_pv_file_path: "{{ role_path }}/files/awx_postgres_pv.yml"
+awx_pvc_yml_file_path: "{{ role_path }}/files/awx_projects_pvclaim.yml"
+awx_operator_yml_file_path: "{{ role_path }}/files/awx_operator.yml"
+awx_ee_docker_file: "{{ role_path }}/files/awx_ee.yml"
+awx_yml_file_path: "{{ role_path }}/files/awx.yml"
+postgres_storage_class: nfs-client
+projects_existing_claim: awx-pv-claim
+awx_version: 19.1.0
+file_perm: 644
+awx_wait_time: 90
 
-# Usage: main.yml
-message_skipped: "Installation Skipped: AWX instance is already running on your system"
-message_installed: "Installation Successful"
-awx_ip: http://localhost:8081
+# Usage: configure_settings.yml
+awx_ui_msg: "AWX Upgrading"
 return_status: 200
-awx_ui_msg: "Password Dialog"
-conf_fail_msg: "AWX configuration failed at the last executed task."
-
-# Usage: install_awx_cli.yml
-awx_cli_repo: "https://releases.ansible.com/ansible-tower/cli/ansible-tower-cli-centos7.repo"
-awx_cli_repo_path: "/etc/yum.repos.d/ansible-tower-cli-centos7.repo"
 
 # Usage: awx_configuration.yml
-awx_user: admin         #Don't change it. It is set as admin while installing AWX
 default_org: Default
 default_template: 'Demo Job Template'
-default_projects: 'Demo Project'
-default_credentials: 'Demo Credential'
-organization_name: DellEMC
-project_name: omnia
-omnia_inventory_name: omnia_inventory
+default_project: 'Demo Project'
+default_credential: 'Demo Credential'
+default_credential_type: Machine
+organization_name: 'DellEMC'
+project_name: 'omnia'
+project_description: "Directory which contains configuration playbooks"
+inventory_names:
+  - { name: idrac_inventory, description: "Inventory to store IPs of idrac servers", flag: true }
+  - { name: ethernet_inventory, description: "Inventory to store IPs of ethernet switches", flag: "{{ ethernet_switch_support }}" }
+  - { name: infiniband_inventory, description: "Inventory to store IPs of infiniband switches", flag: "{{ ib_switch_support }}" }
+  - { name: powervault_me4_inventory, description: "Inventory to store IPs of ME4 servers", flag: "{{ powervault_support }}" }
+  - { name: node_inventory, description: "Inventory to store host IPs of servers", flag: true }
 group_names:
-  - manager
-  - compute
-credential_name: omnia_credential
-credential_type: Machine
-cobbler_username: root
-omnia_template_name: DeployOmnia
-omnia_playbook: omnia.yml
-inventory_template_name: DynamicInventory
-inventory_playbook: control_plane/collect_node_info.yml
-playbooks_verbosity: 0
-schedule_name: DynamicInventorySchedule
-schedule_rule: "DTSTART:20201201T000000Z RRULE:FREQ=MINUTELY;INTERVAL=10"
+  - { name: manager, description: "Group to store IP of head node" }
+  - { name: compute, description: "Group to store IPs of compute nodes" }
+  - { name: login, description: "Group to store IP of login node" }
+  - { name: nfs, description: "Group to store IP of NFS node" }
+credential_details:
+  - { name: idrac_credential, type: Network, username: "{{ idrac_username }}", password: "{{ idrac_password }}", flag: true }
+  - { name: ethernet_credential, type: Machine, username: "{{ ethernet_switch_username }}", password: "{{ ethernet_switch_password }}", flag: "{{ ethernet_switch_support }}" }
+  - { name: infiniband_credential, type: Network, username: "{{ ib_username }}", password: "{{ ib_password }}", flag: "{{ ib_switch_support }}" }
+  - { name: powervault_me4_credential, type: Network, username: "{{ powervault_me4_username }}", password: "{{ powervault_me4_password }}", flag: "{{ powervault_support }}" }
+  - { name: node_credential, type: Machine, username: root, password: "{{ provision_password }}", flag: true }
+job_template_details:
+  - { name: idrac_template, inventory: idrac_inventory, playbook: control_plane/idrac.yml, credential: idrac_credential, flag: true }
+  - { name: ethernet_template, inventory: ethernet_inventory, playbook: control_plane/ethernet.yml, credential: ethernet_credential, flag: "{{ ethernet_switch_support }}" }
+  - { name: infiniband_template, inventory: infiniband_inventory, playbook: control_plane/infiniband.yml, credential: infiniband_credential, flag: "{{ ib_switch_support }}" }
+  - { name: powervault_me4_template, inventory: powervault_me4_inventory, playbook: control_plane/powervault_me4.yml, credential: powervault_me4_credential, flag: "{{ powervault_support }}" }
+  - { name: node_inventory_job, inventory: node_inventory, playbook: control_plane/collect_node_info.yml, credential: node_credential, flag: true }
+  - { name: device_inventory_job, inventory: node_inventory, playbook: control_plane/collect_device_info.yml, credential: node_credential, flag: true }
+deploy_omnia_details:
+  - { name: deploy_omnia_template, inventory: node_inventory, playbook: omnia.yml, credential: node_credential }
+schedule_rule: "DTSTART:20210608T120000Z RRULE:FREQ=MINUTELY;INTERVAL=10"
+scheduled_templates:
+  - { name: NodeInventorySchedule, template: node_inventory_job }
+  - { name: DeviceInventorySchedule, template: device_inventory_job }

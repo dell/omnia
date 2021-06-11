@@ -1,4 +1,4 @@
-# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,50 +15,82 @@
 
 # Tasks for installing AWX
 
-- name: Change inventory file
-  replace:
-    path: "{{ awx_inventory_path }}"
-    regexp: "{{ item.regexp }}"
-    replace: "{{ item.replace }}"
-  loop:
-    - { name: Project data directory, regexp: "{{ project_data_dir_old }}" , replace: "{{ project_data_dir_new }}" }
-    - { name: Alternate DNS Servers, regexp: "{{ awx_alternate_dns_servers_old }}", replace: "{{ awx_alternate_dns_servers_new }}" }
-    - { name: Credentials, regexp: "{{ admin_password_old }}", replace: "{{ admin_password_new }}"}
-  loop_control:
-    label: "{{ item.name }}"
-  tags: install
+- name: Get all namespaces
+  command: kubectl get ns
+  changed_when: false
+  register: namespaces
 
-- name: Ensure port is 8081
-  lineinfile:
-    path: "{{ awx_inventory_path }}"
-    regexp: "{{ port_old }}"
-    line: "{{ port_new }}"
+- name: Create namespace
+  command: "kubectl create namespace {{ awx_namespace }}"
+  changed_when: true
+  when: "'awx' not in namespaces.stdout"
+
+- name: Get K8s pods
+  command: "kubectl get pods -n {{ awx_namespace }}"
+  changed_when: false
+  register: k8s_pods
+
+- name: Deploy awx-operator
+  command: "kubectl apply -f {{ awx_operator_yml_file_path }}"
+  changed_when: true
+  when: '"awx-operator" not in k8s_pods.stdout'
+
+- name: Get K8s persistent volumes
+  command: "kubectl get pv -n {{ awx_namespace }}"
+  changed_when: false
+  register: k8s_pvs
+
+- name: Configure host volume as playbooks directory path
+  replace:
+    path: "{{ awx_pv_yml_file_path }}"
+    regexp: 'path: "/etc"'
+    replace: 'path: "{{ playbook_dir | dirname | dirname }}"'
+  when: "'awx-projects-pv' not in k8s_pvs.stdout"
+
+- name: Create persistent volume and volumeclaim for projects
+  command: "kubectl apply -f {{ awx_pv_yml_file_path }}"
+  changed_when: true
+  when: "'awx-projects-pv' not in k8s_pvs.stdout"
+
+- name: Create persistent volume for postgres
+  command: "kubectl apply -f {{ awx_postgres_pv_file_path }}"
+  changed_when: true
+  when: "'awx-postgres-pv' not in k8s_pvs.stdout"
+
+- name: Get the docker images
+  command: buildah images
+  changed_when: false
+  register: docker_images
+
+- name: Build the custom-awx-ee image from the docker file
+  command: "buildah bud -t custom-awx-ee {{ awx_ee_docker_file }}"
+  changed_when: false
+  when: "'custom-awx-ee' not in docker_images.stdout"
+
+- name: Waiting for awx-operator deployment to be up and running
+  shell: "kubectl wait --for=condition=available deployment/awx-operator -n {{ awx_namespace }} --timeout=600s"
+  changed_when: false
+
+- name: Deploy awx
+  command: "kubectl apply -f {{ awx_yml_file_path }}"
+  changed_when: true
+  when: not k8s_pods.stdout | regex_search('awx-([A-Za-z0-9]{10})-([A-Za-z0-9]{5})')
+
+- name: Install awxkit using pip3
+  pip:
+    name: awxkit
     state: present
 
-- name: Create pgdocker directory
-  file:
-    path: "{{ pgdocker_dir_path }}"
-    state: directory
-    mode: 0775
-  tags: install
+- name: Install awx collection
+  command: "ansible-galaxy collection install awx.awx:{{ awx_version }}"
+  changed_when: true
+  register: installation_status
 
-- name: Install AWX
-  block:
-    - name: Run AWX install.yml file
-      command: ansible-playbook -i inventory install.yml --extra-vars "admin_password={{ admin_password }}"
-      args:
-        chdir: "{{ awx_installer_path }}"
-      register: awx_installation
-      no_log: True
+- name: Wait for awx pods to get created
+  wait_for:
+    timeout: "{{ awx_wait_time }}"
+  when: not k8s_pods.stdout | regex_search('awx-([A-Za-z0-9]{10})-([A-Za-z0-9]{5})')
 
-  rescue:
-    - name: Check AWX status on machine
-      include_tasks: check_awx_status.yml
-
-    - name: Fail if container are not running
-      fail:
-        msg: "AWX installation failed with error msg:
-        {{ awx_installation.stdout | regex_replace(admin_password) }}."
-      when: not awx_status
-
-  tags: install
+- name: Waiting for awx deployment to be up and running
+  shell: "kubectl wait --for=condition=available deployment/awx -n {{ awx_namespace }} --timeout=1200s"
+  changed_when: false
