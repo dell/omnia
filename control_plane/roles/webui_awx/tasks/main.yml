@@ -1,4 +1,4 @@
-# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,63 +14,27 @@
 ---
 
 # Tasks for Deploying AWX on the system
-- name: Check AWX status on machine
-  include_tasks: check_awx_status.yml
-  tags: install
-
-- name: Include control_plane_common variables
-  include_vars: ../../control_plane_common/vars/main.yml
-  tags: install
 
 - name: Internet validation
   include_tasks: ../../control_plane_common/tasks/internet_validation.yml
-  when: not awx_status
-  tags: install
-
-- name: Clone AWX repo
-  include_tasks: clone_awx.yml
-  when: not awx_status
-  tags: install
-
-- name: Modify firewall config
-  include_tasks: firewall_settings.yml
-  when: not awx_status
   tags: install
 
 - name: Install AWX
   include_tasks: install_awx.yml
-  when: not awx_status
-  tags: install
-
-- name: Status message
-  block:
-    - debug:
-        msg: "{{ message_skipped }}"
-        verbosity: 2
-      when: awx_status
-    - debug:
-        msg: "{{ message_installed }}"
-        verbosity: 2
-      when: not awx_status
   tags: install
 
 - name: Internet validation
   include_tasks: ../../control_plane_common/tasks/internet_validation.yml
   tags: install
 
-- name: Install AWX-CLI
-  include_tasks: install_awx_cli.yml
+- name: Configure settings
+  include_tasks: configure_settings.yml
   tags: install
 
-- name: Check if AWX-UI is accessible
-  include_tasks: ui_accessibility.yml
+- name: Internet validation
+  include_tasks: ../../control_plane_common/tasks/internet_validation.yml
   tags: install
 
 - name: Configure AWX
-  block:
-    - include_tasks: awx_configuration.yml
-  rescue:
-    - name: Display msg
-      debug:
-        msg: "{{ conf_fail_msg }}"
+  include_tasks: awx_configuration.yml
   tags: install
