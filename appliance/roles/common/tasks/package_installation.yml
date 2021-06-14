@@ -1,4 +1,4 @@
-# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,17 +13,8 @@
 #  limitations under the License.
 ---
 
-# Password used for Slurm database.
-# The Length of the password should be atleast 8.
-# The password must not contain -,\, ',"
-mariadb_password: "password"
-
-# Kubernetes SDN network.
-# It can either be "calico" or "flannel".
-# Default value assigned is "calico".
-k8s_cni: "calico"
-
-# Kubernetes pod network CIDR.
-# Default value is "10.244.0.0/16"
-# Make sure this value does not overlap with any of the host networks.
-k8s_pod_network_cidr: "10.244.0.0/16"
+- name: Install packages
+  package:
+    name: "{{ common_packages }}"
+    state: present
+  tags: install

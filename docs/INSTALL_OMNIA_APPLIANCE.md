@@ -36,7 +36,7 @@ __Note:__
 	
 	e. Provide valid DHCP range for HPC cluster under the variables `dhcp_start_ip_range` and `dhcp_end_ip_range`. 
 	
-	f. **GMT** is the default configured time zone set during the provisioning of OS on compute nodes. To change the time zone, edit the `timezone` variable and enter a time zone. You can set the time zone to **EST**, **CET**, **MST**, **CST6CDT**, or **PST8PDT**. For a list of available time zones, see the `appliance/roles/common/files/timezone.txt` file. 
+	f. **GMT** is the default configured time zone set during the provisioning of OS on compute nodes. To change the time zone, edit the `timezone` variable and enter a time zone. You can set the time zone to **EST**, **CET**, **MST**, **CST6CDT**, or **PST8PDT**. For a list of available time zones, see the `appliance/common/files/timezone.txt` file. 
 	
 Omnia considers the following usernames as default:  
 * `cobbler` for Cobbler Server

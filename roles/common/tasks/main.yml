@@ -27,12 +27,6 @@
     group: root
     mode: "{{ accelerator_discovery_script_mode }}"
 
-- name: Add epel-release repo
-  package:
-    name: epel-release
-    state: present
-  tags: install
-
 - name: Add elrepo GPG key
   rpm_key:
     state: present

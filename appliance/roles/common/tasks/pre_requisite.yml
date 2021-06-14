@@ -13,23 +13,34 @@
 #  limitations under the License.
 ---
 
-- name: Add AMD ROCm repository
-  yum_repository:
-    name: ROCm
-    description: AMD GPU ROCm Repository
-    baseurl: https://repo.radeon.com/rocm/yum/rpm
-    gpgcheck: yes
-    gpgkey: https://repo.radeon.com/rocm/rocm.gpg.key
+- name: Set omnia.log file
+  replace:
+    path: /etc/ansible/ansible.cfg
+    regexp: '#log_path = /var/log/ansible.log'
+    replace: 'log_path = /var/log/omnia.log'
+  tags: install
+
+- name: Check OS support
+  fail:
+    msg: "{{ os_status }}"
+  when: not(ansible_distribution == os_name and ansible_distribution_version >= os_version)
+  register: os_value
+  tags: install
+
+- name: Disable SElinux
+  selinux:
+    state: disabled
+  tags: install
+
+- name: Status of SElinux
+  fail:
+    msg: "{{ selinux_status }}"
+  when: ansible_selinux.status != 'disabled'
+  register: selinux_value
+  tags: install
+
+- name: State of firewall
+  service:
+    name: firewalld
+    state: started
     enabled: yes
-  tags: install
-
-- name: Install AMD ROCm drivers
-  package:
-    name: rocm-dkms
-    enablerepo: ROCm
-    state: present
-  tags: install
-
-- name: Reboot after installing GPU drivers
-  reboot:
-  tags: install

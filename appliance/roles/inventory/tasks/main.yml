@@ -1,0 +1,100 @@
+# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Set Facts
+  set_fact:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+
+- name: Check if provisioned host file exists
+  stat:
+    path: "{{ role_path }}/files/provisioned_hosts.yml"
+  register: provisioned_file_result
+
+- name: Include vars file of common role
+  include_vars: "{{ role_path }}/../common/vars/main.yml"
+  no_log: True
+
+- name: Include vars file of web_ui role
+  include_vars: "{{ role_path }}/../web_ui/vars/main.yml"
+  no_log: True
+
+- name: Update inventory file
+  block:
+    - name: Check if input config file is encrypted
+      command: cat {{ input_config_filename }}
+      changed_when: false
+      register: config_content
+
+    - name: Decrpyt appliance_config.yml
+      command: >-
+        ansible-vault decrypt {{ input_config_filename }}
+        --vault-password-file {{ vault_filename }}
+      when: "'$ANSIBLE_VAULT;' in config_content.stdout"
+
+    - name: Include variable file appliance_config.yml
+      include_vars: "{{ input_config_filename }}"
+      no_log: True
+
+    - name: Save input variables from file
+      set_fact:
+        cobbler_password: "{{ provision_password }}"
+        mapping_file: false
+        path_mapping_file: "{{ mapping_file_path }}"
+      no_log: True
+
+    - name: Check the status for mapping file
+      set_fact:
+        mapping_file: true
+      when: path_mapping_file != ""
+
+    - name: Encrypt input config file
+      command: >-
+        ansible-vault encrypt {{ input_config_filename }}
+        --vault-password-file {{ vault_filename }}
+      changed_when: false
+
+    - name: Check if inventory file already exists
+      file:
+        path: "/root/inventory"
+        state: absent
+
+    - name: Create empty inventory file
+      copy:
+        dest:  "/root/inventory"
+        content: |
+          ---
+          all:
+            hosts:
+        owner: root
+        mode: 0775
+
+    - name: Add inventory playbook
+      block:
+        - name: add hosts with description to inventory file
+          command: >-
+            ansible-playbook -i {{ role_path }}/files/provisioned_hosts.yml
+            {{ role_path }}/files/create_inventory.yml
+            --extra-vars "cobbler_username={{ cobbler_username }} cobbler_password={{ cobbler_password }} mapping_file={{ mapping_file | bool }}"
+          no_log: True
+          register: register_error
+      rescue:
+        - name: Fail if host addition was not successful
+          fail:
+            msg: "{{ register_error.stderr + register_error.stdout | regex_replace(cobbler_username) | regex_replace(cobbler_password) }}"
+
+  when: provisioned_file_result.stat.exists
+
+- name: push inventory to AWX
+  command: awx-manage inventory_import --inventory-name {{ omnia_inventory_name }} --source /root/inventory
+  when: provisioned_file_result.stat.exists

@@ -1,0 +1,55 @@
+# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Password used while deploying OS on bare metal servers and for Cobbler UI.
+# The Length of the password should be at least 8.
+# The password must not contain -,\, ',"
+provision_password: ""
+
+# Password used for the AWX UI.
+# The Length of the password should be at least 8.
+# The password must not contain -,\, ',"
+awx_password: ""
+
+# The nic/ethernet card that needs to be connected to the HPC switch.
+# This nic will be configured by Omnia for the DHCP server.
+# Default value of nic is em1.
+hpc_nic: "em1"
+
+# The nic/ethernet card that will be connected to the public internet.
+# Default value of nic is em2
+public_nic: "em2"
+
+# This is the  path where user has kept the iso image that needs to be provisioned in target nodes.
+# The iso file should be CentOS7-2009-minimal edition.
+# Other iso file not supported.
+iso_file_path: ""
+
+# The mapping file consists of the MAC address and its respective IP address and hostname.
+# The format of mapping file should be MAC,hostname,IP and must be a CSV file.
+# A template for mapping file exists in omnia/examples and is named as mapping_file.csv.
+# This depicts the path where user has kept the mapping file for DHCP configurations.
+mapping_file_path: ""
+
+# The dhcp range for assigning the IPv4 address to the baremetal nodes.
+# Example: 10.1.23.1
+dhcp_start_ip_range: ""
+dhcp_end_ip_range: ""
+
+# This is the timezone that will be set during provisioning of OS
+# Available timezone are provided in list appliance/common/files/timezone.txt
+# Default timezone will be set to "GMT"
+# Some of the other available timezone are EST,CET,MST,CST6CDT,PST8PDT
+timezone: "GMT"

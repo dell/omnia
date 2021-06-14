@@ -1,0 +1,120 @@
+#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+- name: Initial cobbler setup
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    name_iso: CentOS7
+    distro_name: CentOS7-x86_64
+  tasks:
+  - name: Inside cobbler container
+    debug:
+      msg: "Hiii! I am cobbler"
+
+  - name: Start xinetd
+    service:
+      name: "{{ item }}"
+      state: started
+    loop:
+      - cobblerd
+      - xinetd
+      - rsyncd
+      - tftp
+      - httpd
+
+  - name: Remove loaders if it exists
+    command: rm -rfd /var/lib/cobbler/loaders
+    changed_when: false
+
+  - name: Untar loaders
+    command: tar -xf /root/omnia/appliance/roles/provision/files/loaders.tar -C /var/lib/cobbler
+    changed_when: false
+
+  - name: Replace in /etc/debian
+    replace:
+      path: "/etc/debmirror.conf"
+      regexp: "^@dists=\"sid\";"
+      replace: "#@dists=\"sid\";"
+
+  - name: Replace in /etc/debian
+    replace:
+      path: "/etc/debmirror.conf"
+      regexp: "^@arches=\"i386\";"
+      replace: "#@arches=\"i386\";"
+
+  - name: Adding curl
+    shell: export PATH="/usr/bin/curl:$PATH"
+
+  - name: Run import command
+    command: cobbler import --arch=x86_64 --path=/mnt --name="{{ name_iso }}"
+    changed_when: false
+
+  - name: Distro list
+    command: cobbler distro edit --name="{{ distro_name }}" --kernel=/var/www/cobbler/ks_mirror/CentOS7-x86_64/isolinux/vmlinuz --initrd=/var/www/cobbler/ks_mirror/CentOS7-x86_64/isolinux/initrd.img
+    changed_when: false
+
+  - name: Kickstart profile
+    command: cobbler profile edit --name="{{ distro_name }}" --kickstart=/var/lib/cobbler/kickstarts/centos7.ks
+    changed_when: false
+
+  - name: Syncing of cobbler
+    command: cobbler sync
+    changed_when: false
+  
+  - name: Disable default apache webpage
+    blockinfile:
+      state: present
+      insertafter: '^#insert the content here for disabling the default apache webpage'
+      dest: /etc/httpd/conf/httpd.conf
+      block: |
+        <Directory />
+           Order Deny,Allow
+           Deny from all
+           Options None
+           AllowOverride None
+         </Directory>
+
+  - name: Restart cobbler
+    service:
+      name: cobblerd
+      state: restarted
+ 
+  - name: Restart httpdd
+    service:
+      name: httpd
+      state: restarted
+
+  - name: Restart xinetd
+    service:
+      name: xinetd
+      state: restarted
+
+  - name: Restart dhcpd
+    service:
+      name: dhcpd
+      state: restarted
+
+  - name: Add tftp cron job
+    cron:
+      name: Start tftp service
+      minute: "*"
+      job: "ansible-playbook /root/tftp.yml"
+
+  - name: Add inventory cron job
+    cron:
+      name: Create inventory
+      minute: "*/5"
+      job: "ansible-playbook /root/inventory_creation.yml"

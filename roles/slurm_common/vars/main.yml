@@ -14,8 +14,6 @@
 ---
 
 common_packages:
-   - slurm-slurmd 
-   - slurm-pmi
    - munge
    - munge-libs
    - munge-devel
