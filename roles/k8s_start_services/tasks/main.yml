@@ -180,3 +180,8 @@
   register: amd_gpu_enable
   when: "'amdgpu-device-plugin' not in k8s_pods.stdout"
   tags: init
+
+- name: Deploy Volcano Scheduling
+  command: "kubectl apply -f https://raw.githubusercontent.com/volcano-sh/volcano/master/installer/volcano-development.yaml"
+  changed_when: true
+  tags: init
