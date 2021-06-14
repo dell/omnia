@@ -28,10 +28,8 @@
 
 - name: Install packages for slurm
   package:
-    name: "{{ item }}"
+    name: "{{ common_packages }}"
     state: present
-  with_items:
-    - "{{ common_packages }}"
   tags: install
 
 - name: Create munge key

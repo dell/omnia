@@ -1,0 +1,134 @@
+#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# vars file for common
+
+# Usage: package_installation.yml
+common_packages:
+  - epel-release
+  - yum-utils
+  - git
+  - gcc
+  - gcc-c++
+  - nodejs
+  - device-mapper-persistent-data
+  - bzip2
+  - python2-pip
+  - python3-pip
+  - nano
+  - lvm2
+  - gettext
+  - net-tools
+  - python3-netaddr
+  - yum-plugin-versionlock
+
+# Usage: pre_requisite.yml
+internet_delay: 0
+internet_timeout: 10
+hostname: github.com
+port_no: 22
+os_name: CentOS
+os_version: '8.3' 
+internet_status: "Failed. No Internet connection. Make sure network is up."
+os_status: "Unsupported OS or OS version. OS should be {{ os_name }} and Version should be {{ os_version }} or more"
+selinux_status: "SElinux is not disabled. Disable it in /etc/sysconfig/selinux and reboot the system"
+iso_name: CentOS-7-x86_64-Minimal-2009.iso
+iso_fail: "Iso file not found. Download and copy the iso file to omnia/control_plane/roles/provision_cobbler/files"
+ansible_python_version_status: "For CentOS 8.3, python bindings of firewalld, dnf, selinux are not available if python is installed from source and not from dnf. So please make sure python3.6 is installed using dnf. And ansible uses the python version 3.6 installed using dnf"
+python_version_support: '3.6.8'
+default_ansible_config_file_path: /etc/ansible/ansible.cfg
+
+# Usage: password_config.yml
+login_vars_filename: "input_params/login_vars.yml"
+vault_filename: input_params/.login_vault_key
+min_length: 8
+max_length: 30
+min_username_length: 4
+file_perm: '0755'
+vault_file_perm: '0600'
+nic_min_length: 3
+input_config_failure_msg: "Please provide all the required parameters in login_vars.yml"
+fail_msg_provision_password: "Failed. Incorrect provision_password format provided in login_vars.yml"
+success_msg_provision_password: "provision_password validated"
+fail_msg_cobbler_password: "Failed. Incorrect cobbler_password format provided in login_vars.yml file"
+success_msg_cobbler_password: "cobbler_password validated"
+success_idrac_username: "idrac username validated"
+fail_idrac_username: "Failed. Incorrect idrac_username format provided in base_vars.yml"
+success_msg_idrac_password: "idrac password validated"
+fail_msg_idrac_password: "Failed. Incorrect idrac_password format provided in base_vars.yml"
+ethernet_params_success_msg: "Ethernet switch username and password are not blank"
+ethernet_params_empty_fail_msg: "Failed. ethernet switch username or password cannot be empty when ethernet_switch_support is true"
+success_ethernet_switch_username: "Ethernet switch username validated"
+fail_ethernet_switch_username: "Failed. Incorrect ethernet_switch_username format provided in base_vars.yml"
+success_msg_ethernet_switch_password: "Ethernet password validated"
+fail_msg_ethernet_switch_password: "Failed. Incorrect ethernet_switch_password format provided in base_vars.yml"
+ib_params_success_msg: "InfiniBand switch username and password are not blank"
+ib_params_empty_fail_msg: "Failed. InfiniBand username or password cannot be empty when ib_switch_support is true"
+success_ib_username: "ib username validated"
+fail_ib_username: "Failed. Incorrect ib_username format provided in base_vars.yml"
+success_msg_ib_password: "ib password validated"
+fail_msg_ib_password: "Failed. Incorrect ib_password format provided in base_vars.yml"
+pv_params_success_msg: "Powervault switch username and password are not blank"
+pv_params_empty_fail_msg: "Failed. Powervault username or password cannot be empty when powervault_support is true"
+success_powervault_username: "powervault username validated"
+fail_powervault_username: "Failed. Incorrect powervault_username format provided in base_vars.yml"
+success_msg_powervault_password: "powervault password validated"
+fail_msg_powervault_password: "Failed. Incorrect powervault_password format provided in base_vars.yml"
+
+# Usage: verify_omnia_params.yml
+config_filename: "omnia_config.yml"
+config_vaultname: .omnia_vault_key
+input_omnia_failure_msg: "Please provide all the required parameters in omnia_config.yml"
+fail_msg_mariadb_password: "Failed. Incorrect mariadb_password format provided in omnia_config.yml file"
+success_msg_mariadb_password: "mariadb_password validated"
+success_msg_k8s_cni: "Kubernetes CNI Validated"
+fail_msg_k8s_cni: "Failed. Kubernetes CNI is incorrect in omnia_config.yml"
+
+# Usage: fetch_base_inputs.yml
+base_vars_filename: "input_params/base_vars.yml"
+input_base_failure_msg: "Please provide all the required parameters in base_vars.yml"
+success_snmp_trap_dest: "SNMP trap destination IP validated"
+fail_snmp_trap_dest: "Failed. Incorrect SNMP trap destination IP format provided in base_address.yml"
+success_snmp_comm_msg: "SNMP community string validated"
+fail_snmp_comm_msg: "snmp community string cannoy be blank in base_vars.yml"
+success_msg_public_nic: "Public nic successfully validated"
+fail_msg_public_nic: "Failed. Incorrect public nic provided in base_vars.yml"
+success_msg_k8s_pod_network_cidr: "Appliance k8s pod network cidr validated"
+fail_msg_k8s_pod_network_cidr: "Failed. Incorrect appliance k8s pod network cidr provided in base_vars.yml"
+success_awx_organization: "awx organization validated"
+fail_awx_organization: "Failed. Incorrect format in awx organization"
+success_timezone_msg: "timezone validated"
+fail_timezone_msg: "Failed. Incorrect timezone provided. Please check the file timezone.txt in control_plane/roles/control_plane_common/files/ folder"
+fail_language: "Failed. Only en-US(english) language supported"
+invalid_iso_file_path: "Incorrect iso_file_path provided in base_vars.yml."
+ethernet_switch_support_success_msg: "ethernet_switch_support validated"
+ethernet_switch_support_fail_msg: "Failed. ethernet_switch_support only accepts boolean values true or false"
+ib_switch_support_success_msg: "ib_switch_support validated"
+ib_switch_support_fail_msg: "Failed. ib_switch_support only accepts boolean values true or false"
+powervault_support_success_msg: "powervault_support validated"
+powervault_support_fail_msg: "Failed. power_vault_support only accepts boolean values true or false"
+success_msg_mngmnt_network_nic: "Management network nic successfully validated"
+fail_msg_mngmnt_network_nic: "Failed. Incorrect Management network nic provided in base_vars.yml"
+success_msg_host_network_nic: "Host network nic successfully validated"
+fail_msg_host_network_nic: "Failed. Incorrect host network nic provided in base_vars.yml"
+success_msg_ib_network_nic: "Infiniband network nic successfully validated"
+fail_msg_ib_network_nic: "Failed. Incorrect infiniband network nic provided in base_vars.yml"
+success_dhcp_range: "Dhcp_range validated"
+fail_dhcp_range: "Failed. Incorrect range assigned for dhcp"
+invalid_mapping_file_path: "Incorrect mapping_file_path provided in base_vars.yml"
+success_msg_different_nics: "The nics of different containers and public nic are not the same - Validated"
+fail_msg_different_nics: "Failed. Incorrect nic information. public nic, management network nic and host network nic should not be the same"
+success_msg_different_nics_ib: "The nics of different containers and public nic are not the same as infiniband nic- Validated"
+fail_msg_different_nics_ib: "Failed. Infiniband nic cannot be the same as other nics"
