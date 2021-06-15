@@ -1,4 +1,4 @@
-# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,19 +14,25 @@
 ---
 
 - name: Image creation (It may take 5-10 mins)
-  docker_image:
-    name: "{{ docker_image_name }}"
-    tag: "{{ docker_image_tag }}"
-    source: build
-    build:
-      path: "{{ role_path }}/files/"
-      network: host
-    state: present
+  command: "buildah bud -t {{ cobbler_image_name }}:{{ cobbler_image_tag }} --network host ."
+  changed_when: true
+  args:
+    chdir: "{{ role_path }}/files/"
   tags: install
-  vars:
-    ansible_python_interpreter: "/usr/bin/python3"
 
-- name: Run cobbler container
-  command: "{{ cobbler_run_command }}"
-  changed_when: false
+- name: Update image name in k8s_cobbler.yml
+  replace:
+    path: "{{ role_path }}/files/k8s_cobbler.yml"
+    regexp: 'localhost/cobbler:latest'
+    replace: "localhost/{{ cobbler_image_name }}:{{ cobbler_image_tag }}"
+
+- name: Update omnia project path in k8s_cobbler.yml
+  replace:
+    path: "{{ role_path }}/files/k8s_cobbler.yml"
+    regexp: 'path: /root/omnia'
+    replace: "path: {{ role_path.split('control_plane')[0] }}"
+
+- name: Deploy cobbler pod
+  command: "kubectl apply -f {{ role_path }}/files/k8s_cobbler.yml"
+  changed_when: true
   tags: install
