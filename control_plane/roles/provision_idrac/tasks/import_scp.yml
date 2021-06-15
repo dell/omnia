@@ -1,0 +1,119 @@
+# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Remove the scp file if exists
+  file:
+    path: "{{ role_path }}/files/{{ scp_filename }}"
+    state: absent
+  run_once: true
+
+- name: Create scp file
+  copy:
+    src: "{{ role_path }}/files/temp_scp.xml"
+    dest: "{{ role_path }}/files/{{ scp_filename }}"
+    mode: preserve
+  run_once: true
+
+- name: Add system profile value Performance to scp file
+  lineinfile:
+    path: "{{ role_path }}/files/{{ scp_filename }}"
+    line: '  <Attribute Name="SysProfile">PerfOptimized</Attribute>'
+    insertafter: '^(.*)BootSeqRetry'
+  when: idrac_system_profile == "Performance"
+  run_once: true
+
+- name: Add system profile value PerformancePerWatt(OS) to scp file
+  lineinfile:
+    path: "{{ role_path }}/files/{{ scp_filename }}"
+    line: '  <Attribute Name="SysProfile">PerfPerWattOptimizedOs</Attribute>'
+    insertafter: '^(.*)BootSeqRetry'
+  when: idrac_system_profile == "PerformancePerWatt(OS)"
+  run_once: true
+
+- name: Add system profile value PerformancePerWatt(DAPC) to scp file
+  lineinfile:
+    path: "{{ role_path }}/files/{{ scp_filename }}"
+    line: '  <Attribute Name="SysProfile">PerfPerWattOptimizedDapc</Attribute>'
+    insertafter: '^(.*)BootSeqRetry'
+  when: idrac_system_profile == "PerformancePerWatt(DAPC)"
+  run_once: true
+
+- name: Add system profile value WorkstationPerformance to scp file
+  lineinfile:
+    path: "{{ role_path }}/files/{{ scp_filename }}"
+    line: '  <Attribute Name="SysProfile">PerfWorkStationOptimized</Attribute>'
+    insertafter: '^(.*)BootSeqRetry'
+  when: idrac_system_profile == "WorkstationPerformance"
+  run_once: true
+
+- name: Add PXE attributes to scp file
+  lineinfile:
+    path: "{{ role_path }}/files/{{ scp_filename }}"
+    line: "{{ item }}"
+    insertafter: '^(.*)SysProfile'
+    with_items:
+      - '  <Attribute Name="PxeDev1VlanPriority">0</Attribute>'
+      - '  <Attribute Name="PxeDev1Interface">NIC.Integrated.1-1-1</Attribute>'
+      - '  <Attribute Name="PxeDev1VlanId">1</Attribute>'
+      - '  <Attribute Name="PxeDev1VlanEnDis">Enabled</Attribute>'
+      - '  <Attribute Name="PxeDev1Protocol">IPv4</Attribute>'
+      - '  <Attribute Name="PxeDev1EnDis">Enabled</Attribute>'
+  when: not (enterprise_license or datacenter_license)
+  run_once: true
+
+- name: Disable PXE attributes to scp file
+  lineinfile:
+    path: "{{ role_path }}/files/{{ scp_filename }}"
+    line: '  <Attribute Name="PxeDev1EnDis">Disabled</Attribute>'
+    insertafter: '^(.*)SysProfile'
+  when: enterprise_license or datacenter_license
+  run_once: true
+
+- name: Add SNMP community name attribute to scp file
+  lineinfile:
+    path: "{{ role_path }}/files/{{ scp_filename }}"
+    line: '  <Attribute Name="SNMP.1#AgentCommunity">{{ snmp_community_name }}</Attribute>'
+    insertafter: '^(.*)SNMP.1#AgentEnable'
+  run_once: true
+
+- name: Add SNMP trap destination attributes to scp file
+  lineinfile:
+    path: "{{ role_path }}/files/{{ scp_filename }}"
+    line: "{{ item }}"
+    insertafter: '^(.*)SNMP.1#AlertPort'
+  with_items:
+    - '  <Attribute Name="SNMPAlert.1#Destination">{{ snmp_trap_destination }}</Attribute>'
+    - '  <Attribute Name="SNMPAlert.1#State">Enabled</Attribute>'
+  when: snmp_trap_status
+  run_once: true
+
+- name: Import SCP from a local path and wait for this job to get completed
+  dellemc.openmanage.idrac_server_config_profile:
+    idrac_ip: "{{ inventory_hostname }}"
+    idrac_user: "{{ idrac_username }}"
+    idrac_password: "{{ idrac_password }}"
+    share_name: "{{ role_path }}/files/"
+    command: "import"
+    scp_file: "{{ scp_filename }}"
+    scp_components: "ALL"
+    shutdown_type: "Graceful"
+    job_wait: "True"
+  register: import_scp_status
+
+- name: Remove the scp file
+  file:
+    path: "{{ role_path }}/files/{{ scp_filename }}"
+    state: absent
+  run_once: true
