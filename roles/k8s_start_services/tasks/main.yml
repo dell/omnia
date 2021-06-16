@@ -181,7 +181,7 @@
   when: "'amdgpu-device-plugin' not in k8s_pods.stdout"
   tags: init
 
-- name: Install Spark Operator 
+- name: Install Spark Operator
   command: "helm repo add spark-operator https://googlecloudplatform.github.io/spark-on-k8s-operator"
   changed_when: true
   tags: init
