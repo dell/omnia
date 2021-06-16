@@ -1,0 +1,112 @@
+# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Create iso directory
+  file:
+    path: "{{ tmp_iso_dir }}"
+    state: directory
+    mode: "{{ file_permission }}"
+  tags: install
+
+- name: Copy files to tmpiso folder
+  copy:
+    src: "{{ iso_mount_path }}"
+    dest: "{{ tmp_iso_dir }}"
+    mode: preserve
+  tags: install
+
+- name: Edit isolinux.cfg
+  replace:
+    path: "{{ tmp_iso_dir }}{{ isolinux_cfg_path }}"
+    regexp: "{{ item.regexp }}"
+    replace: "{{ item.replace }}"
+  with_items:
+      - { regexp: "append initrd=initrd.img", replace: "append initrd=initrd.img ks=cdrom:/{{ kickstart_file }}" }
+      - { regexp: "rd.live.check quiet", replace: "" }
+  tags: install
+
+- name: Edit grub.cfg
+  replace:
+    path: "{{ tmp_iso_dir }}{{ grub_cfg_path }}"
+    regexp: "{{ item.regexp }}"
+    replace: "{{ item.replace }}"
+  with_items:
+      - { regexp: "kernel /images/pxeboot/vmlinuz", replace: "kernel /images/pxeboot/vmlinuz ks=cdrom:/{{ kickstart_file }}" }
+      - { regexp: "linuxefi /images/pxeboot/vmlinuz", replace: "linuxefi /images/pxeboot/vmlinuz ks=cdrom:/{{ kickstart_file }}" }
+      - { regexp: "rd.live.check quiet", replace: "" }
+  tags: install
+
+- name: Remove the kickstart file if exists
+  file:
+    path: "{{ role_path }}/files/{{ kickstart_file }}"
+    state: absent
+  tags: install
+
+- name: Create the kickstart file
+  copy:
+    src: "{{ role_path }}/files/temp_centos7.cfg"
+    dest: "{{ role_path }}/files/{{ kickstart_file }}"
+    mode: "{{ file_permission }}"
+  tags: install
+
+- name: Random phrase generation
+  command: openssl rand -base64 12
+  changed_when: false
+  register: generate_random_phrase
+  tags: install
+  no_log: true
+
+- name: Encrypt login password
+  command: openssl passwd -1 -salt {{ generate_random_phrase.stdout }} {{ provision_password }}
+  no_log: true
+  changed_when: false
+  register: encrypt_login_pass
+  tags: install
+
+- name: Configure kickstart file - Password
+  replace:
+    path: "{{ role_path }}/files/{{ kickstart_file }}"
+    regexp: '^rootpw --iscrypted ks_password'
+    replace: 'rootpw --iscrypted {{ encrypt_login_pass.stdout }}'
+  no_log: true
+  tags: install
+
+- name: Configure kickstart file - nic
+  replace:
+    path: "{{ role_path }}/files/{{ kickstart_file }}"
+    regexp: '^network  --bootproto=dhcp --device=ks_nic --onboot=on'
+    replace: 'network  --bootproto=dhcp --device={{ host_network_nic }} --onboot=on'
+  tags: install
+
+- name: Configure kickstart file - timezone
+  replace:
+    path: "{{ role_path }}/files/{{ kickstart_file }}"
+    regexp: '^timezone --utc ks_timezone'
+    replace: 'timezone --utc {{ timezone }}'
+  tags: install
+
+- name: Configure kickstart file - language
+  replace:
+    path: "{{ role_path }}/files/{{ kickstart_file }}"
+    regexp: '^lang ks_language'
+    replace: 'lang {{ language }}'
+  tags: install
+
+- name: Copy kickstart file to iso mount path
+  copy:
+    src: "{{ role_path }}/files/{{ kickstart_file }}"
+    dest: "/tmp/tmpiso/{{ kickstart_file }}"
+    mode: preserve
+  tags: install

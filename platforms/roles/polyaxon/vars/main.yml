@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,13 +13,13 @@
 #  limitations under the License.
 ---
 
-# tasks file for control_plane_customiso
+polyaxon_helm_chart_repo: https://charts.polyaxon.com
+polyaxon_config_file_dest: /root/k8s/polyaxon_config.yaml
 
-- name: Check iso mount path
-  include_tasks: check_prerequisites.yml
+#jupyter_config_file_mode: 0655
 
-- name: Edit iso config files
-  include_tasks: edit_iso_config.yml
+#helm_chart_version: 0.9.0
 
-- name: Create unattended iso file
-  include_tasks: create_unattended_iso.yml
+timeout_min_sec: 60m
+
+polyaxon_namespace: polyaxon

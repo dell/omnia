@@ -1,0 +1,58 @@
+# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Set RAID status
+  set_fact:
+    raid_type: true
+    raid_controller_sensor: "{{ idrac_info.system_info.ControllerSensor[my_idx3].FQDD }}"
+    raid_enclosure_name: "Enclosure.Internal.0-1:{{ idrac_info.system_info.ControllerSensor[my_idx3].FQDD }}"
+    raid_vd_status: "{{ idrac_info.system_info.VirtualDisk is defined and idrac_info.system_info.VirtualDisk[0].Name == \"omnia_vd\" }}"
+  with_items: "{{ idrac_info.system_info.Controller }}"
+  loop_control:
+    index_var: my_idx3
+  when: '"RAID" in idrac_info.system_info.ControllerSensor[my_idx3].FQDD'
+
+- name: View existing storage details
+  dellemc.openmanage.dellemc_idrac_storage_volume:
+    idrac_ip: "{{ inventory_hostname }}"
+    idrac_user: "{{ idrac_username }}"
+    idrac_password: "{{ idrac_password }}"
+    state: "view"
+  register: idrac_volume_list
+  when: raid_type and not raid_vd_status
+
+- name: Set drives details
+  set_fact:
+    drives_id: "{{ idrac_volume_list.storage_status.Message.Controller[raid_controller_sensor].Enclosure[raid_enclosure_name].PhysicalDisk }}"
+    drives_count: "{{ idrac_volume_list.storage_status.Message.Controller[raid_controller_sensor].Enclosure[raid_enclosure_name].PhysicalDisk | length }}"
+  when: raid_type and not raid_vd_status
+
+- name: Create VD
+  dellemc.openmanage.dellemc_idrac_storage_volume:
+    idrac_ip: "{{ inventory_hostname }}"
+    idrac_user: "{{ idrac_username }}"
+    idrac_password: "{{ idrac_password }}"
+    state: "create"
+    controller_id: "{{ raid_controller_sensor }}"
+    raid_reset_config: "True"
+    volume_type: "{{ raid_level }}"
+    raid_init_operation: "Fast"
+    volumes:
+      - name: "omnia_vd"
+        span_length: "{{ drives_count }}"
+        drives:
+          id: "{{ drives_id }}"
+  register: create_vd_status
+  when: raid_type and not raid_vd_status

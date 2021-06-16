@@ -1,0 +1,52 @@
+# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Set one-time boot device to PXE
+  community.general.redfish_command:
+    category: Systems
+    command: SetOneTimeBoot
+    bootdevice: "Pxe"
+    baseuri: "{{ inventory_hostname }}"
+    username: "{{ idrac_username }}"
+    password: "{{ idrac_password }}"
+  when: not (enterprise_license or datacenter_license)
+
+- name: Reboot server
+  dellemc.openmanage.redfish_powerstate:
+    baseuri: "{{ inventory_hostname }}"
+    username: "{{ idrac_username }}"
+    password: "{{ idrac_password }}"
+    reset_type: ForceRestart
+  when: not (enterprise_license or datacenter_license)
+  register: deploy_os
+
+- name: Install OS using iDRAC
+  dellemc.openmanage.idrac_os_deployment:
+    idrac_ip: "{{ inventory_hostname }}"
+    idrac_user: "{{ idrac_username }}"
+    idrac_password: "{{ idrac_password }}"
+    share_name: "{{ public_ip }}:{{ nfs_share_offline_repo }}"
+    iso_image: "{{ unattended_iso_filename }}"
+    expose_duration: "{{ expose_duration }}"
+  register: deploy_os
+  when: enterprise_license or datacenter_license
+
+- name: Add idrac ip to provisioned_idrac_ip.yml
+  lineinfile:
+    path: "{{ role_path }}/files/provisioned_idrac_ip.yml"
+    create: yes
+    mode: "{{ file_permission }}"
+    line: "{{ inventory_hostname }}"
+  when: not deploy_os.failed
