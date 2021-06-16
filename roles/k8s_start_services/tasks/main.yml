@@ -181,6 +181,16 @@
   when: "'amdgpu-device-plugin' not in k8s_pods.stdout"
   tags: init
 
+- name: Install Spark Operator
+  command: "helm repo add spark-operator https://googlecloudplatform.github.io/spark-on-k8s-operator"
+  changed_when: true
+  tags: init
+
+- name: Install Spark Operator Namespace
+  command: "helm install my-release spark-operator/spark-operator --namespace spark-operator --create-namespace"
+  changed_when: true
+  tags: init
+
 - name: Deploy Volcano Scheduling
   command: "kubectl apply -f https://raw.githubusercontent.com/volcano-sh/volcano/master/installer/volcano-development.yaml"
   changed_when: true

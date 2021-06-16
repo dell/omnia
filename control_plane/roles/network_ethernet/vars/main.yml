@@ -12,22 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# tasks file for network_ethernet
+# vars file for network_ethernet
 
-- name: Include base variable file
-  include_vars: "{{ base_vars_file }}"
-
-- name: Check if ethernet switch is supported
-  block:
-    - name: Check pre-requisites
-      include_tasks: pre_requisites.yml
-
-    - name: Configure switch
-      include_tasks: apply_config.yml
-
-    - name: Save current switch configuration to startup-configuration
-      dellos10_command:
-        commands: "copy running-configuration startup-configuration"
-      when: save_changes_to_startup
-
-  when: ethernet_switch_support
+# Usage: pre_requisites.yml
+base_vars_file: "{{ role_path }}/../../input_params/base_vars.yml"
+config_file: "{{ role_path }}/../../input_params/ethernet_vars.yml"
+fail_msg_config_file: Ethernet config file doesn't exist.
+success_msg_save_config: Ethernet config file validated.
+fail_msg_save_config: save_config variable can only be set to true or false.

@@ -17,6 +17,8 @@
    hosts: all
    gather_facts: false
    connection: network_cli
+   collections:
+    - dellemc.os10
    vars:
      ansible_network_os: dellemc.os10.os10
    roles:

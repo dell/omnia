@@ -11,23 +11,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 ---
-# tasks file for network_ethernet
+- name: Set build directory
+  set_fact:
+    build_dir: "{{ role_path }}/files/temp"
 
-- name: Include base variable file
-  include_vars: "{{ base_vars_file }}"
+- name: Apply switch configuration
+  dellos10_config:
+    commands: "{{ os10_config }}"
+  when: os10_config is defined
 
-- name: Check if ethernet switch is supported
-  block:
-    - name: Check pre-requisites
-      include_tasks: pre_requisites.yml
-
-    - name: Configure switch
-      include_tasks: apply_config.yml
-
-    - name: Save current switch configuration to startup-configuration
-      dellos10_command:
-        commands: "copy running-configuration startup-configuration"
-      when: save_changes_to_startup
-
-  when: ethernet_switch_support
+- name: Apply switch interface configuration
+  include_role:
+    name: dellemc.os10.os10_interface
+  vars:
+    - hostname: "{{ inventory_hostname }}"
+      os10_cfg_generate: true
+  when: os10_interface is defined
