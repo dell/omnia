@@ -188,5 +188,8 @@
 
 - name: Install Spark Operator Namespace
   command: "helm install my-release spark-operator/spark-operator --namespace spark-operator --create-namespace"
+
+- name: Deploy Volcano Scheduling
+  command: "kubectl apply -f https://raw.githubusercontent.com/volcano-sh/volcano/master/installer/volcano-development.yaml"
   changed_when: true
   tags: init
