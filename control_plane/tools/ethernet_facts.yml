@@ -12,22 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# tasks file for network_ethernet
 
-- name: Include base variable file
-  include_vars: "{{ base_vars_file }}"
+-  name: Ethernet Facts 
+   hosts: all
+   gather_facts: false
+   connection: network_cli
+   vars:
+     ansible_network_os: dellemc.os10.os10
+   collections:
+    - dellemc.os10
+   tasks:
+     - name: Fetch facts for- {{ inventory_hostname }}
+       dellos10_facts:
+         gather_subset: all
+       register: facts
 
-- name: Check if ethernet switch is supported
-  block:
-    - name: Check pre-requisites
-      include_tasks: pre_requisites.yml
-
-    - name: Configure switch
-      include_tasks: apply_config.yml
-
-    - name: Save current switch configuration to startup-configuration
-      dellos10_command:
-        commands: "copy running-configuration startup-configuration"
-      when: save_changes_to_startup
-
-  when: ethernet_switch_support
+     - name: Show Facts for- {{ inventory_hostname }}
+       debug:
+         msg: "{{ facts }}"
