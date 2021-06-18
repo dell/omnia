@@ -29,8 +29,8 @@
 - name: Update omnia project path in k8s_cobbler.yml
   replace:
     path: "{{ role_path }}/files/k8s_cobbler.yml"
-    regexp: 'path: /root/omnia'
-    replace: "path: {{ role_path.split('control_plane')[0] }}"
+    regexp: '        - name: omnia-storage\n          hostPath:\n            path:.*'
+    replace: "        - name: omnia-storage\n          hostPath:\n            path: {{ role_path.split('control_plane')[0] }}"
 
 - name: Deploy cobbler pod
   command: "kubectl apply -f {{ role_path }}/files/k8s_cobbler.yml"
