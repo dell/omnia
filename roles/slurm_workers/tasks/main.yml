@@ -65,48 +65,6 @@
     state: present
   tags: install
 
-- name: Verify if slurm is installed
-  shell: rpm -qa | grep slurm
-  ignore_errors: true
-  register: verify_result
-  changed_when: no
-  failed_when: no
-  args:
-    warn: no
-
-- name: Create temporary download folder for slurm
-  file:
-    path: "{{ tmp_path }}"
-    owner: slurm
-    group: slurm
-    mode: "{{ tmp_mode }}"
-    state: directory
-  when: verify_result.rc != 0
-
-- name: Download slurm source
-  get_url:
-    url: "{{ slurm_url }}"
-    dest: "{{ tmp_path }}"
-    checksum: "{{ slurm_md5 }}"
-    validate_certs: no
-  tags: install
-  when: verify_result.rc != 0
-
-- name: Build slurm rpms
-  command: rpmbuild -ta "{{ rpmbuild_path }}" --with mysql
-  changed_when: false
-  when: verify_result.rc != 0
-  args:
-    warn: no
-
-- name: Install rpms
-  command: rpm -Uvh ~"{{ rpm_loop }}"
-  args:
-    chdir: "{{ rpm_path }}"
-    warn: no
-  changed_when: true
-  when: verify_result.rc != 0
-
 - name: Get the hostname
   command: hostname
   register: machine_name

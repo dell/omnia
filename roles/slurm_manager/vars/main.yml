@@ -45,16 +45,11 @@ log_files_manager:
    - slurm_jobacct.log
    - slurm_jobcomp.log
 
-tmp_path: "/root/slurm-tmp"
 tmp_mode: "0755"
 cluster_state_path: "/var/spool/slurm/cluster_state"
 spool_slurmctld_pth: "/var/spool/slurmctld"
 spool_slurmd_pth: "/var/spool/slurmd"
 slurm_logpth: "/var/log/slurm/"
-slurm_url: https://download.schedmd.com/slurm/slurm-20.11.7.tar.bz2
-slurm_md5: "md5:0f5c768d3e895030f286120c3591912f"
-rpmbuild_path: "/root/slurm-tmp/slurm-20.11.7.tar.bz2"
-rpm_loop: "/rpmbuild/RPMS/x86_64/*.rpm"
 tcp_port1: "6817/tcp"
 tcp_port2: "6818/tcp"
 tcp_port3: "6819/tcp"
@@ -74,5 +69,4 @@ DbdHost: "localhost"
 logfile: "/var/log/slurm/slurmdbd.log"
 pidfile: "/var/run/slurmdbd.pid"
 buffer_path: "/tmp/slurm.conf"
-rpm_path: "/root/rpmbuild/RPMS/x86_64/"
 slurm_mode: "0644"

@@ -31,6 +31,9 @@
 - name: Install helm
   command: "/bin/bash {{ helm_installer_file_dest }}"
   changed_when: true
+  register: install_helm_result
+  until: install_helm_result is not failed
+  retries: 20
 
 - name: Helm - add stable repo
   command: "helm repo add stable '{{ helm_stable_repo_url }}'"
