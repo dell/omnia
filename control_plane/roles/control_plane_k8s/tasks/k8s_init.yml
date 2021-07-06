@@ -49,7 +49,7 @@
       changed_when: true
 
     - name: Initialize kubeadm
-      command: "/bin/kubeadm init --pod-network-cidr='{{ k8s_pod_network_cidr }}' \
+      command: "/bin/kubeadm init --pod-network-cidr='{{ appliance_k8s_pod_net_cidr }}' \
           --apiserver-advertise-address='{{ ansible_default_ipv4.address }}'"
       changed_when: true
       register: init_output

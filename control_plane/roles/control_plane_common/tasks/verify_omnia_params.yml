@@ -55,6 +55,7 @@
   register: input_config_check
   when:
     - mariadb_password | length < 1 or
+      k8s_version | length < 1 or
       k8s_cni | length < 1
 
 - name: Assert mariadb_password
@@ -69,6 +70,12 @@
     success_msg: "{{ success_msg_mariadb_password }}"
     fail_msg: "{{ fail_msg_mariadb_password }}"
 
+- name: Assert kubernetes version
+  assert:
+    that: "('1.16.7' in k8s_version) or ('1.19.3' in k8s_version)"
+    success_msg: "{{ success_msg_k8s_version }}"
+    fail_msg: "{{ fail_msg_k8s_version }}"
+
 - name: Assert kubernetes cni
   assert:
     that: "('calico' in k8s_cni) or ('flannel' in k8s_cni)"
@@ -78,6 +85,7 @@
 - name: Save input variables from file
   set_fact:
     db_password: "{{ mariadb_password }}"
+    k8s_version: "{{ k8s_version }}"
     k8s_cni: "{{ k8s_cni }}"
   no_log: True
 

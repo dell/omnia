@@ -19,6 +19,8 @@ min_length: 8
 max_length: 30
 fail_msg_mariadb_password: "maria_db password not given in correct format."
 success_msg_mariadb_password: "mariadb_password validated"
+success_msg_k8s_version: "Kubernetes Version Validated"
+fail_msg_k8s_version: "Failed. Kubernetes Version is unsupported or incorrect in omnia_config.yml"
 success_msg_k8s_cni: "Kubernetes CNI Validated"
 fail_msg_k8s_cni: "Kubernetes CNI not correct."
 success_msg_k8s_pod_network_cidr: "Kubernetes pod network cidr validated"

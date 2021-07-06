@@ -23,7 +23,11 @@ metallb_deployment_file_mode: 0655
 
 metallb_yaml_url: https://raw.githubusercontent.com/google/metallb/v0.8.1/manifests/metallb.yaml
 
-k8s_dashboard_yaml_url: https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0/aio/deploy/recommended.yaml
+k8s_dashboard_admin_file_dest: /root/k8s/k8s_dashboard_admin.yaml
+
+k8s_dashboard_admin_file_mode: 0655
+
+k8s_dashboard_yaml_url: https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.5/aio/deploy/recommended.yaml
 
 helm_stable_repo_url: https://charts.helm.sh/stable
 
@@ -45,7 +49,7 @@ gpu_feature_discovery_version: 0.2.0
 
 fpga_device_plugin_yaml_url: https://raw.githubusercontent.com/Xilinx/FPGA_as_a_Service/master/k8s-fpga-device-plugin/fpga-device-plugin.yml
 
-rocm_device_plugin_yaml_url: https://raw.githubusercontent.com/RadeonOpenCompute/k8s-device-plugin/master/k8s-ds-amdgpu-dp.yaml 
+rocm_device_plugin_yaml_url: https://raw.githubusercontent.com/RadeonOpenCompute/k8s-device-plugin/master/k8s-ds-amdgpu-dp.yaml
 
 slurm_exporter_config_file: extraScrapeConfigs.yaml
 
@@ -54,3 +58,7 @@ slurm_exporter_config_file_path: /var/lib/
 slurm_exporter_file_mode: 0655
 
 prometheus_path_on_host: /var/lib/prometheus-2.23.0.linux-amd64/
+
+spark_operator_repo: https://googlecloudplatform.github.io/spark-on-k8s-operator
+
+volcano_scheduling_yaml_url: https://raw.githubusercontent.com/volcano-sh/volcano/master/installer/volcano-development.yaml

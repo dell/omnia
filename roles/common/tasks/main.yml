@@ -37,18 +37,30 @@
   rpm_key:
     state: present
     key: "{{ elrepo_gpg_key_url }}"
+  register: elrepo_gpg_key
+  until: elrepo_gpg_key is not failed
+  retries: 20
+  delay: 10
   tags: install
 
 - name: Add elrepo (nvidia kmod drivers)
   package:
     name: "{{ elrepo_rpm_url }}"
     state: present
+  register: elrepo
+  until: elrepo is not failed
+  retries: 20
+  delay: 10
   tags: install
 
 - name: Add docker community edition repository
   get_url:
     url: "{{ docker_repo_url }}"
     dest: "{{ docker_repo_dest }}"
+  register: docker_repo
+  until: docker_repo is not failed
+  retries: 20
+  delay: 10
   tags: install
 
 - name: Permanently Disable swap
