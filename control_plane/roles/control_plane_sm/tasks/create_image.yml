@@ -12,20 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# tasks file for control_plane_sm
+# tasks file for sm image creation
 
-- name: Check if IB switch is supported
-  block:
-    - name: Check pre-requisites
-      include_tasks: pre_requisites.yml
-      tags: install
+- name: Get buildah images
+  command: buildah images
+  changed_when: false
+  register: buildah_images
+  tags: install
 
-    - name: Create image
-      include_tasks: create_image.yml
-      tags: install
-
-    - name: Check pod
-      include_tasks: create_pod.yml
-      tags: install
-
-  when: ib_switch_support
+- name: Subnet manager image creation (It may take 5-10 mins)
+  command: "buildah bud -t {{ sm_docker_image_name }}:{{ sm_docker_image_tag }} --network host -f {{ role_path }}/files/Dockerfile"
+  args:
+    chdir: "{{ role_path }}/files/"
+  when: "sm_docker_image_name not in buildah_images.stdout"
+  tags: install

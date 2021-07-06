@@ -13,6 +13,19 @@
 # limitations under the License.
 ---
 
+- name: Firewall port addition - 8081
+  firewalld:
+    zone: public
+    port: "{{ slurm_exporter_port }}"
+    permanent: true
+    state: enabled
+  tags: firewalld
+
+- name: Reload firewalld
+  command: firewall-cmd --reload
+  changed_when: true
+  tags: firewalld
+
 - name: Create systemd unit file
   copy:
     src: "{{ role_path }}/files/prometheus-slurm-exporter.service"

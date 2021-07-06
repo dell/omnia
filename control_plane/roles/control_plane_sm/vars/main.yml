@@ -12,20 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# tasks file for control_plane_sm
 
-- name: Check if IB switch is supported
-  block:
-    - name: Check pre-requisites
-      include_tasks: pre_requisites.yml
-      tags: install
+# Usage: pre_requisites.yml
+folder_perm: 644
+opensm_conf_file: "{{ role_path }}/../../input_params/opensm.conf"
+opensm_conf_file_dest: "{{ role_path }}/files/opensm.conf"
 
-    - name: Create image
-      include_tasks: create_image.yml
-      tags: install
+# Usage: create_image.yml
+sm_docker_image_name: opensm-service
+sm_docker_image_tag: latest
 
-    - name: Check pod
-      include_tasks: create_pod.yml
-      tags: install
-
-  when: ib_switch_support
+#Usage: create_pod.yml
+sm_container_name: opensm-container
+sm_kube_config_file: "{{ role_path }}/files/k8s_sm.yml"
+opensm_conf_file: "{{ role_path }}/../../input_params/opensm.conf"
