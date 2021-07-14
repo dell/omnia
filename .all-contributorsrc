@@ -4,7 +4,7 @@
   ],
   "imageSize": 100,
   "commit": false,
-  "badgeTemplate": "",
+  "badgeTemplate": "<!-- DO NOT ADD A BADGE -->",
   "contributors": [
     {
       "login": "j0hnL",
