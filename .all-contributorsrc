@@ -28,6 +28,24 @@
         "mentoring",
         "design"
       ]
+    },
+    {
+      "login": "lwilson",
+      "name": "Lucas A. Wilson",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1236922?v=4",
+      "profile": "https://github.com/lwilson",
+      "contributions": [
+        "code",
+        "design",
+        "maintenance",
+        "ideas",
+        "blog",
+        "doc",
+        "mentoring",
+        "projectManagement",
+        "review",
+        "talk"
+      ]
     }
   ],
   "contributorsPerLine": 7,
