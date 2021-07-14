@@ -1,6 +1,6 @@
 <img src="docs/images/omnia-logo.png" width="500px">
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-1-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-2-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 
@@ -31,6 +31,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
 <table>
   <tr>
     <td align="center"><a href="https://github.com/DeepikaKrishnaiah"><img src="https://avatars.githubusercontent.com/u/73213880?v=4?s=100" width="100px;" alt=""/><br /><sub><b>DeepikaKrishnaiah</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=DeepikaKrishnaiah" title="Code">💻</a></td>
+    <td align="center"><a href="http://johnlockman.com"><img src="https://avatars.githubusercontent.com/u/912987?v=4?s=100" width="100px;" alt=""/><br /><sub><b>John Lockman</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=j0hnL" title="Tests">⚠️</a> <a href="https://github.com/dellhpc/omnia/commits?author=j0hnL" title="Code">💻</a> <a href="#blog-j0hnL" title="Blogposts">📝</a> <a href="#ideas-j0hnL" title="Ideas, Planning, & Feedback">🤔</a> <a href="#maintenance-j0hnL" title="Maintenance">🚧</a> <a href="#mentoring-j0hnL" title="Mentoring">🧑‍🏫</a> <a href="#design-j0hnL" title="Design">🎨</a></td>
   </tr>
 </table>
 
