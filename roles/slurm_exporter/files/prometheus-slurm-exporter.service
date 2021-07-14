@@ -2,7 +2,7 @@
 Description = Start prometheus slurm exporter
 
 [Service]
-ExecStart = /usr/bin/prometheus-slurm-exporter
+ExecStart = /usr/bin/prometheus-slurm-exporter "--listen-address=0.0.0.0:8080"
 Restart = always
 RestartSec = 15
 

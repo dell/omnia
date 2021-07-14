@@ -13,12 +13,35 @@
 # limitations under the License.
 ---
 
+- name: Firewall port addition for slurm exporter
+  firewalld:
+    zone: public
+    port: "{{ item }}"
+    permanent: true
+    state: enabled
+  with_items:
+    - "{{ slurm_exporter_port }}/tcp"
+    - "{{ slurm_exporter_port }}/udp"
+  tags: firewalld
+
+- name: Reload firewalld
+  command: firewall-cmd --reload
+  changed_when: true
+  tags: firewalld
+
 - name: Create systemd unit file
   copy:
     src: "{{ role_path }}/files/prometheus-slurm-exporter.service"
     dest: "{{ systemd_path_dest }}"
     remote_src: no
     mode: "{{ file_permission }}"
+
+- name: Update the port in service file
+  replace:
+    path: "{{ systemd_path_dest }}/prometheus-slurm-exporter.service"
+    regexp: "0.0.0.0:8080"
+    replace: "0.0.0.0:{{ slurm_exporter_port }}"
+  tags: init
 
 - name: Start services
   systemd:

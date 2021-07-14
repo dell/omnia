@@ -37,4 +37,4 @@
           scrape_interval:  30s
           scrape_timeout:   30s
           static_configs:
-            - targets: ['localhost:8080']
+            - targets: ['localhost:{{ slurm_exporter_port }}']
