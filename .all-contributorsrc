@@ -74,6 +74,17 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "leereyno-asu",
+      "name": "Lee Reynolds",
+      "avatar_url": "https://avatars.githubusercontent.com/u/81774548?v=4",
+      "profile": "https://github.com/leereyno-asu",
+      "contributions": [
+        "code",
+        "doc",
+        "tutorial"
+      ]
     }
   ],
   "contributorsPerLine": 7,

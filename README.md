@@ -35,13 +35,13 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/DeepikaKrishnaiah"><img src="https://avatars.githubusercontent.com/u/73213880?v=4?s=100" width="100px;" alt=""/><br /><sub><b>DeepikaKrishnaiah</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=DeepikaKrishnaiah" title="Code">💻</a></td>
     <td align="center"><a href="https://github.com/sujit-jadhav"><img src="https://avatars.githubusercontent.com/u/73123831?v=4?s=100" width="100px;" alt=""/><br /><sub><b>sujit-jadhav</b></sub></a><br /><a href="#ideas-sujit-jadhav" title="Ideas, Planning, & Feedback">🤔</a></td>
     <td align="center"><a href="https://github.com/araji"><img src="https://avatars.githubusercontent.com/u/216020?v=4?s=100" width="100px;" alt=""/><br /><sub><b>araji</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=araji" title="Code">💻</a></td>
+
     <td align="center"><a href="https://mike.renf.ro/blog/"><img src="https://avatars.githubusercontent.com/u/1451881?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Mike Renfro</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=mikerenfro" title="Documentation">📖</a></td>
+    <td align="center"><a href="https://github.com/leereyno-asu"><img src="https://avatars.githubusercontent.com/u/81774548?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Lee Reynolds</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=leereyno-asu" title="Code">💻</a> <a href="https://github.com/dellhpc/omnia/commits?author=leereyno-asu" title="Documentation">📖</a> <a href="#tutorial-leereyno-asu" title="Tutorials">✅</a></td>
   </tr>
 </table>
 
 <!-- markdownlint-restore -->
 <!-- prettier-ignore-end -->
-
-<!-- ALL-CONTRIBUTORS-LIST:END -->
 
 <!-- ALL-CONTRIBUTORS-LIST:END -->
