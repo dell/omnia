@@ -13,6 +13,21 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "j0hnL",
+      "name": "John Lockman",
+      "avatar_url": "https://avatars.githubusercontent.com/u/912987?v=4",
+      "profile": "http://johnlockman.com",
+      "contributions": [
+        "test",
+        "code",
+        "blog",
+        "ideas",
+        "maintenance",
+        "mentoring",
+        "design"
+      ]
     }
   ],
   "contributorsPerLine": 7,
