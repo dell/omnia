@@ -1,6 +1,6 @@
 <img src="docs/images/omnia-logo.png" width="500px">
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-4-orange.svg?style=flat-square)](#contributors-)
+<!-- DO NOT ADD A BADGE -->
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 
@@ -34,6 +34,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/lwilson"><img src="https://avatars.githubusercontent.com/u/1236922?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Lucas A. Wilson</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=lwilson" title="Code">💻</a> <a href="#design-lwilson" title="Design">🎨</a> <a href="#maintenance-lwilson" title="Maintenance">🚧</a> <a href="#ideas-lwilson" title="Ideas, Planning, & Feedback">🤔</a> <a href="#blog-lwilson" title="Blogposts">📝</a> <a href="https://github.com/dellhpc/omnia/commits?author=lwilson" title="Documentation">📖</a> <a href="#mentoring-lwilson" title="Mentoring">🧑‍🏫</a> <a href="#projectManagement-lwilson" title="Project Management">📆</a> <a href="https://github.com/dellhpc/omnia/pulls?q=is%3Apr+reviewed-by%3Alwilson" title="Reviewed Pull Requests">👀</a> <a href="#talk-lwilson" title="Talks">📢</a></td>
     <td align="center"><a href="https://github.com/DeepikaKrishnaiah"><img src="https://avatars.githubusercontent.com/u/73213880?v=4?s=100" width="100px;" alt=""/><br /><sub><b>DeepikaKrishnaiah</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=DeepikaKrishnaiah" title="Code">💻</a></td>
     <td align="center"><a href="https://github.com/sujit-jadhav"><img src="https://avatars.githubusercontent.com/u/73123831?v=4?s=100" width="100px;" alt=""/><br /><sub><b>sujit-jadhav</b></sub></a><br /><a href="#ideas-sujit-jadhav" title="Ideas, Planning, & Feedback">🤔</a></td>
+    <td align="center"><a href="https://github.com/araji"><img src="https://avatars.githubusercontent.com/u/216020?v=4?s=100" width="100px;" alt=""/><br /><sub><b>araji</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=araji" title="Code">💻</a></td>
   </tr>
 </table>
 
