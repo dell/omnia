@@ -25,6 +25,9 @@
     - name: Configure switch
       include_tasks: apply_config.yml
 
+    - name: Configure SNMP
+      include_tasks: snmp_config.yml
+
     - name: Save current switch configuration to startup-configuration
       dellos10_command:
         commands: "copy running-configuration startup-configuration"
