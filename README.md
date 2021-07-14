@@ -6,7 +6,7 @@
 
 ![GitHub](https://img.shields.io/github/license/dellhpc/omnia) ![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/dellhpc/omnia?include_prereleases) ![GitHub last commit (branch)](https://img.shields.io/github/last-commit/dellhpc/omnia/devel) ![GitHub commits since tagged version](https://img.shields.io/github/commits-since/dellhpc/omnia/v1.0.3/devel) 
 
-![GitHub contributors](https://img.shields.io/github/contributors-anon/dellhpc/omnia) ![GitHub forks](https://img.shields.io/github/forks/dellhpc/omnia) ![GitHub Repo stars](https://img.shields.io/github/stars/dellhpc/omnia) ![GitHub all releases](https://img.shields.io/github/downloads/dellhpc/omnia/total)
+![All contributors](https://img.shields.io/github/all-contributors/dellhpc/omnia) ![GitHub forks](https://img.shields.io/github/forks/dellhpc/omnia) ![GitHub Repo stars](https://img.shields.io/github/stars/dellhpc/omnia) ![GitHub all releases](https://img.shields.io/github/downloads/dellhpc/omnia/total)
 
 ![GitHub issues](https://img.shields.io/github/issues-raw/dellhpc/omnia) ![GitHub Discussions](https://img.shields.io/github/discussions/dellhpc/omnia) [<img src="https://img.shields.io/badge/slack-dellhpc-blue.svg?logo=slack">](https://app.slack.com/client/TH80K68HY/C018L5109PW)
 
