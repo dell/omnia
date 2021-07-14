@@ -14,12 +14,10 @@ Omnia (Latin: all or everything) is a deployment tool to turn servers with RPM-b
 ## Omnia Documentation
 For Omnia documentation, including installation and contribution instructions, please see the [website](https://dellhpc.github.io/omnia).
 
-## Current maintainers:
-* Lucas A. Wilson (Dell Technologies)
-* John Lockman (Dell Technologies)
-
 ## Omnia Community Members:
 <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Dell_Technologies_logo.svg/512px-Dell_Technologies_logo.svg.png" height="50px" alt="Dell Technologies">
 <img src="https://upload.wikimedia.org/wikipedia/commons/0/0e/Intel_logo_%282020%2C_light_blue%29.svg" height="50px" alt="Intel Corporation">
 
 <img src="docs/images/pisa.png" height="100px" alt="Universita di Pisa"> <img src="https://user-images.githubusercontent.com/83095575/117071024-64956c80-ace3-11eb-9d90-2dac7daef11c.png" height="80px" alt="Arizona State University"> <img src="https://www.vizias.com/uploads/1/1/8/9/118906653/published/thick-blue-white-ring-letters-full.png" height="60px" alt="Vizias">
+
+## Contributors
