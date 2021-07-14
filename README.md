@@ -1,4 +1,7 @@
 <img src="docs/images/omnia-logo.png" width="500px">
+<!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
+[![All Contributors](https://img.shields.io/badge/all_contributors-1-orange.svg?style=flat-square)](#contributors-)
+<!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 
 ![GitHub](https://img.shields.io/github/license/dellhpc/omnia) ![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/dellhpc/omnia?include_prereleases) ![GitHub last commit (branch)](https://img.shields.io/github/last-commit/dellhpc/omnia/devel) ![GitHub commits since tagged version](https://img.shields.io/github/commits-since/dellhpc/omnia/v1.0.3/devel) 
@@ -23,5 +26,17 @@ For Omnia documentation, including installation and contribution instructions, p
 ## Contributors
 Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/docs/en/emoji-key)):
 <!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
+<!-- prettier-ignore-start -->
+<!-- markdownlint-disable -->
+<table>
+  <tr>
+    <td align="center"><a href="https://github.com/DeepikaKrishnaiah"><img src="https://avatars.githubusercontent.com/u/73213880?v=4?s=100" width="100px;" alt=""/><br /><sub><b>DeepikaKrishnaiah</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=DeepikaKrishnaiah" title="Code">💻</a></td>
+  </tr>
+</table>
+
+<!-- markdownlint-restore -->
+<!-- prettier-ignore-end -->
+
+<!-- ALL-CONTRIBUTORS-LIST:END -->
 
 <!-- ALL-CONTRIBUTORS-LIST:END -->
