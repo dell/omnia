@@ -38,6 +38,9 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://mike.renf.ro/blog/"><img src="https://avatars.githubusercontent.com/u/1451881?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Mike Renfro</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=mikerenfro" title="Documentation">📖</a></td>
     <td align="center"><a href="https://github.com/leereyno-asu"><img src="https://avatars.githubusercontent.com/u/81774548?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Lee Reynolds</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=leereyno-asu" title="Code">💻</a> <a href="https://github.com/dellhpc/omnia/commits?author=leereyno-asu" title="Documentation">📖</a> <a href="#tutorial-leereyno-asu" title="Tutorials">✅</a></td>
   </tr>
+  <tr>
+    <td align="center"><a href="https://github.com/blesson-james"><img src="https://avatars.githubusercontent.com/u/72782936?v=4?s=100" width="100px;" alt=""/><br /><sub><b>blesson-james</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=blesson-james" title="Code">💻</a> <a href="https://github.com/dellhpc/omnia/commits?author=blesson-james" title="Tests">⚠️</a> <a href="https://github.com/dellhpc/omnia/issues?q=author%3Ablesson-james" title="Bug reports">🐛</a></td>
+  </tr>
 </table>
 
 <!-- markdownlint-restore -->
