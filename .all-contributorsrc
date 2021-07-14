@@ -1,10 +1,10 @@
 {
   "files": [
-    "README.md",
-    "badgeTemplate": ""
+    "README.md"
   ],
   "imageSize": 100,
   "commit": false,
+  "badgeTemplate": "",
   "contributors": [
     {
       "login": "j0hnL",
