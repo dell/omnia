@@ -18,6 +18,11 @@
 # The password must not contain -,\, ',"
 mariadb_password: "password"
 
+# Kubernetes version.
+# Supported Versions: "1.16.7" or "1.19.3".
+# Default k8s version is "1.16.7".
+k8s_version: "1.16.7"
+
 # Kubernetes SDN network.
 # It can either be "calico" or "flannel".
 # Default value assigned is "calico".

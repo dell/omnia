@@ -13,10 +13,16 @@
 #  limitations under the License.
 ---
 
-- name: Disable swap
+- name: Disable SWAP (1/2)
   command: /usr/sbin/swapoff -a
   changed_when: true
   tags: init
+
+- name: Disable SWAP in fstab (2/2)
+  replace:
+    path: /etc/fstab
+    regexp: '^([^#].*?\sswap\s+.*)$'
+    replace: '# \1'
 
 - name: Get netaddr
   setup:
@@ -44,12 +50,25 @@
   tags: init
 
 - name: Initialize kubeadm
-  command: "/bin/kubeadm init --pod-network-cidr='{{ hostvars['127.0.0.1']['k8s_pod_network_cidr'] }}' \
-    --apiserver-advertise-address='{{ ansible_default_ipv4.address }}'"
-  changed_when: true
+  block:
+    - name: Initialize kubeadm
+      command: "/bin/kubeadm init --pod-network-cidr='{{ hostvars['127.0.0.1']['k8s_pod_network_cidr'] }}' \
+        --apiserver-advertise-address='{{ ansible_default_ipv4.address }}'"
+      changed_when: true
+      register: init_output
+      tags: init
+  rescue:
+    - name: Reset kubeadm
+      command: "kubeadm reset -f"
+      changed_when: true
+
+    - name: Initialize kubeadm
+      command: "/bin/kubeadm init --pod-network-cidr='{{ hostvars['127.0.0.1']['k8s_pod_network_cidr'] }}' \
+        --apiserver-advertise-address='{{ ansible_default_ipv4.address }}'"
+      changed_when: true
+      register: init_output
+      tags: init
   when: "'master' not in k8s_nodes.stdout"
-  register: init_output
-  tags: init
 
 - name: Setup directory for Kubernetes environment for root
   file:
@@ -183,4 +202,5 @@
 - name: Edge / Workstation Install allows pods to scheudle on manager
   command: kubectl taint nodes --all node-role.kubernetes.io/master-
   when: groups['manager'][0] == groups['compute'][0] and groups['compute']|length == 1
+  ignore_errors: True
   tags: init

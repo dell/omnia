@@ -67,6 +67,18 @@
   when: "'kubernetes-dashboard' not in k8s_pods.stdout"
   tags: init
 
+- name: Copy k8s_dashboard_admin.yml file
+  copy:
+    src: k8s_dashboard_admin.yaml
+    dest: "{{ k8s_dashboard_admin_file_dest }}"
+    owner: root
+    group: root
+    mode: "{{ k8s_dashboard_admin_file_mode }}"
+
+- name: Create admin user for K8s dashboard
+  command: "kubectl apply -f {{ k8s_dashboard_admin_file_dest }}"
+  changed_when: true
+
 - name: Helm - add stable repo
   command: "helm repo add stable '{{ helm_stable_repo_url }}'"
   changed_when: true
@@ -182,16 +194,18 @@
   tags: init
 
 - name: Install Spark Operator
-  command: "helm repo add spark-operator https://googlecloudplatform.github.io/spark-on-k8s-operator"
+  command: "helm repo add spark-operator '{{ spark_operator_repo }}'"
   changed_when: true
   tags: init
 
 - name: Install Spark Operator Namespace
   command: "helm install my-release spark-operator/spark-operator --namespace spark-operator --create-namespace"
   changed_when: true
+  when: "'spark-operator' not in k8s_pods.stdout"
   tags: init
 
 - name: Deploy Volcano Scheduling
-  command: "kubectl apply -f https://raw.githubusercontent.com/volcano-sh/volcano/master/installer/volcano-development.yaml"
+  command: "kubectl apply -f '{{ volcano_scheduling_yaml_url }}'"
   changed_when: true
+  when: "'volcano-system' not in k8s_pods.stdout"
   tags: init

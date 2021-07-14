@@ -24,9 +24,16 @@
     url: "{{ helm_installer_url }}"
     dest: "{{ helm_installer_file_dest }}"
     mode: "{{ helm_installer_file_mode }}"
+  register: helm_installer
+  until: helm_installer is not failed
+  retries: 20
+  delay: 10
   tags: manager
 
 - name: Install helm
   command: "/bin/bash {{ helm_installer_file_dest }}"
   changed_when: true
+  register: install_helm
+  until: install_helm is not failed
+  retries: 20
   tags: manager
