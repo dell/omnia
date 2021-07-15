@@ -35,6 +35,7 @@ prometheus_config_file: "{{ prometheus_inst_path }}/prometheus.yml"
 #Usage: start_service.yml
 file_permission: "0755"
 systemd_path_dest: "/etc/systemd/system/"
+slurm_exporter_port: "8081"
 
 #Usage: configure_prometheus_pod.yml
 slurm_config_file: "slurm_exporter_config.yaml"
