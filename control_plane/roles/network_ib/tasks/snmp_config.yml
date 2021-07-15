@@ -12,11 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# vars file for network_ethernet
 
-# Usage: pre_requisites.yml
-base_vars_file: "{{ role_path }}/../../input_params/base_vars.yml"
-config_file: "{{ role_path }}/../../input_params/ethernet_vars.yml"
-fail_msg_config_file: Ethernet config file doesn't exist.
-success_msg_save_config: Ethernet config file validated.
-fail_msg_save_config: save_changes_to_startup variable can only be set to true or false.
+- name: Configure SNMP
+  block:
+  - name: Set parameters for SNMP configuration
+    set_fact:
+      snmp_config:
+        - "snmp-server enable"
+        - "snmp-server enable notify"
+        - "snmp-server community {{ snmp_community_name }} ro"
+        - "snmp-server host {{ snmp_trap_destination }} traps version 1 {{ snmp_community_name }}"
+
+  - name: Configure SNMP on Switch
+    include_tasks: global_config.yml
+    with_items: "{{ snmp_config }}"
+
+  when: snmp_trap_destination | length > 1

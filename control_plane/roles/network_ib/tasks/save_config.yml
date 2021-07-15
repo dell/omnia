@@ -12,11 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# vars file for network_ethernet
 
-# Usage: pre_requisites.yml
-base_vars_file: "{{ role_path }}/../../input_params/base_vars.yml"
-config_file: "{{ role_path }}/../../input_params/ethernet_vars.yml"
-fail_msg_config_file: Ethernet config file doesn't exist.
-success_msg_save_config: Ethernet config file validated.
-fail_msg_save_config: save_changes_to_startup variable can only be set to true or false.
+- name: Save configuration
+  block:
+  - name: Set parameters to save configuration
+    set_fact:
+      save_config: "configuration write"
+
+  - name: Save current switch configuration to startup-configuration
+    include_tasks: global_config.yml
+    with_items: "{{ save_config }}"
+
+  when: save_changes_to_startup

@@ -26,7 +26,7 @@
 - name: Include switch config variable file
   include_vars: "{{ config_file }}"
 
-- name: Assert save_config variable
+- name: Assert save_changes_to_startup variable
   assert:
     that: "save_changes_to_startup == true or save_changes_to_startup == false"
     success_msg: "{{ success_msg_save_config }}"
