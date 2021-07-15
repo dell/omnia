@@ -40,6 +40,7 @@ Thanks goes to everyone who makes Omnia possible ([emoji key](https://allcontrib
   </tr>
   <tr>
     <td align="center"><a href="https://github.com/blesson-james"><img src="https://avatars.githubusercontent.com/u/72782936?v=4?s=100" width="100px;" alt=""/><br /><sub><b>blesson-james</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=blesson-james" title="Code">💻</a> <a href="https://github.com/dellhpc/omnia/commits?author=blesson-james" title="Tests">⚠️</a> <a href="https://github.com/dellhpc/omnia/issues?q=author%3Ablesson-james" title="Bug reports">🐛</a></td>
+    <td align="center"><a href="https://github.com/sakshiarora13"><img src="https://avatars.githubusercontent.com/u/73195862?v=4?s=100" width="100px;" alt=""/><br /><sub><b>sakshiarora13</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=sakshiarora13" title="Code">💻</a></td>
   </tr>
 </table>
 
