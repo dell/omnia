@@ -13,6 +13,9 @@
 #  limitations under the License.
 ---
 
+- name: Include common variables
+  include_vars: ../../slurm_exporter/vars/main.yml
+
 - name: Wait for CoreDNS to restart
   command: kubectl rollout status deployment/coredns -n kube-system
   changed_when: false
@@ -147,8 +150,8 @@
 - name: Add the host IP to config file
   replace:
     path: "{{ slurm_exporter_config_file_path }}{{ slurm_exporter_config_file }}"
-    regexp: "localhost"
-    replace: "{{ public_ip.stdout }}"
+    regexp: "localhost:8080"
+    replace: "{{ public_ip.stdout }}:{{ slurm_exporter_port }}"
   tags: init
 
 - name: Prometheus deployment
