@@ -44,7 +44,7 @@ OS installed on the management node  |  CentOS 7.9 2009
 OS deployed by Omnia on bare-metal servers | CentOS 7.9 2009 Minimal Edition
 Cobbler  |  2.8.5
 Ansible AWX  |  15.0.0
-Slurm Workload Manager  |  20.11.2
+Slurm Workload Manager  |  20.11.7
 Kubernetes Controllers  |  1.16.7
 Kubeflow  |  1
 Prometheus  |  2.23.0
@@ -56,7 +56,7 @@ Ensure the supported version of all the software are installed as per the follow
 Software	|	Licence	|	Compatible Version	|	Description
 -----------	|	-------	|	----------------	|	-----------------
 MariaDB	|	GPL 2.0	|	5.5.68	|	Relational database used by Slurm
-Slurm	|	GNU General Public	|	20.11.2	|	HPC Workload Manager
+Slurm	|	GNU General Public	|	20.11.7	|	HPC Workload Manager
 Docker CE	|	Apache-2.0	|	20.10.2	|	Docker Service
 NVIDIA container runtime	|	Apache-2.0	|	3.4.2	|	Nvidia container runtime library
 Python PIP	|	MIT Licence	|	3.2.1	|	Python Package
