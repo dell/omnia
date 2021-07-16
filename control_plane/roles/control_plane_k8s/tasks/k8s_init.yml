@@ -36,6 +36,18 @@
   ignore_errors: True
   register: k8s_pods
 
+- name: Docker login
+  command: docker login -u {{ docker_username }} -p {{ docker_password }}
+  changed_when: true
+  register: docker_login_output
+  ignore_errors: True
+  when: docker_username and docker_password
+
+- name: Docker login check
+  fail:
+    msg: "{{ docker_login_fail_msg }}"
+  when: docker_login_output is failed
+
 - name: Initialize kubeadm
   block:
     - name: Initialize kubeadm

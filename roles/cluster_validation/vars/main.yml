@@ -25,6 +25,8 @@ success_msg_k8s_cni: "Kubernetes CNI Validated"
 fail_msg_k8s_cni: "Kubernetes CNI not correct."
 success_msg_k8s_pod_network_cidr: "Kubernetes pod network cidr validated"
 fail_msg_k8s_pod_network_cidr: "Kubernetes pod network cidr not given in correct format"
+success_msg_docker_credentials: "docker username and password validated"
+fail_msg_docker_credentials: "Failed. Docker username or password is missing"
 file_perm: '0755'
 
 #Usage: validations.yml

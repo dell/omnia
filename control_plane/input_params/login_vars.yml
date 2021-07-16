@@ -81,3 +81,13 @@ powervault_me4_username: ""
 # The Length of the password should be at least 8.
 # The password must not contain -,\, ',"
 powervault_me4_password: ""
+
+# Username for Dockerhub account
+# This will be used for Docker login
+# This value is optional but suggested to avoid docker pull limit issues
+docker_username: ""
+
+# Password for Dockerhub account
+# This will be used for Docker login
+# This value is mandatory if docker username is provided
+docker_password: ""

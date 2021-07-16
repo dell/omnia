@@ -17,10 +17,38 @@
   include_vars: ../../slurm_exporter/vars/main.yml
 
 - name: Wait for CoreDNS to restart
-  command: kubectl rollout status deployment/coredns -n kube-system
-  changed_when: false
-  ignore_errors: True
-  tags: init
+  block:
+    - name: Wait for CoreDNS to restart
+      command: kubectl rollout status deployment/coredns -n kube-system  --timeout=4m
+      changed_when: false
+      tags: init
+  rescue:
+    - name: Get K8s pods
+      command: kubectl get pods --all-namespaces
+      register: k8s_pods
+      tags: init
+
+    - name: Pull docker images
+      command: docker pull {{ item }}
+      with_items: "{{ kube_system_docker_images }}"
+      when:
+        - hostvars['127.0.0.1']['docker_username'] and hostvars['127.0.0.1']['docker_password']
+        - "'ImagePullBackOff' in k8s_pods.stdout"
+      register: docker_image_pull_result
+      until: docker_image_pull_result is not failed
+      retries: 5
+
+    - name: Wait for CoreDNS to restart
+      command: kubectl rollout status deployment/coredns -n kube-system
+      when: hostvars['127.0.0.1']['docker_username'] and hostvars['127.0.0.1']['docker_password']
+      tags: init
+
+    - name: Fail message
+      fail:
+        msg: "{{ docker_pull_limit_msg }}"
+      when:
+        - "'ImagePullBackOff' in k8s_pods.stdout or 'ErrImagePull' in k8s_pods.stdout"
+        - not hostvars['127.0.0.1']['docker_username'] and not hostvars['127.0.0.1']['docker_password']
 
 - name: Get K8s pods
   command: kubectl get pods --all-namespaces
@@ -212,3 +240,19 @@
   changed_when: true
   when: "'volcano-system' not in k8s_pods.stdout"
   tags: init
+
+- name: Get K8s pods
+  command: kubectl get pods --all-namespaces
+  changed_when: false
+  register: k8s_pods
+  tags: init
+
+- name: Pull K8s services docker images
+  command: docker pull {{ item }}
+  with_items: "{{ k8s_services_docker_images }}"
+  when:
+    - "'ImagePullBackOff' in k8s_pods.stdout"
+    - hostvars['127.0.0.1']['docker_username'] and hostvars['127.0.0.1']['docker_password']
+  register: docker_image_pull_result
+  until: docker_image_pull_result is not failed
+  retries: 5

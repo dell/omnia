@@ -49,6 +49,18 @@
   register: k8s_nodes_not_ready
   tags: init
 
+- name: Docker login
+  command: docker login -u {{ hostvars['127.0.0.1']['docker_username'] }} -p {{ hostvars['127.0.0.1']['docker_password'] }}
+  changed_when: true
+  register: docker_login_output
+  ignore_errors: True
+  when: hostvars['127.0.0.1']['docker_username'] and hostvars['127.0.0.1']['docker_password']
+
+- name: Docker login check
+  fail:
+    msg: "{{ docker_login_fail_msg }}"
+  when: docker_login_output is failed
+
 - name: Initialize kubeadm
   block:
     - name: Initialize kubeadm
@@ -138,6 +150,28 @@
     msg: "[Manager] K8S_MANAGER_IP is  {{ ansible_default_ipv4.address }}"
     verbosity: 2
   tags: init
+
+- name: Get K8s secrets
+  command: kubectl get secrets
+  changed_when: false
+  register: k8s_secret
+  when: hostvars['127.0.0.1']['docker_username'] and hostvars['127.0.0.1']['docker_password']
+
+- name: Create docker secret
+  command: kubectl create secret docker-registry dockerregcred --docker-username={{ hostvars['127.0.0.1']['docker_username'] }} \
+    --docker-password={{ hostvars['127.0.0.1']['docker_password'] }}
+  when:
+    - hostvars['127.0.0.1']['docker_username'] and hostvars['127.0.0.1']['docker_password']
+    - "'dockerregcred' not in k8s_secret.stdout"
+
+- name: Add docker secret to default service account
+  shell: >
+    kubectl patch serviceaccount default -p '{"imagePullSecrets": [{"name": "dockerregcred"}]}'
+  register: patch_service_account
+  when: hostvars['127.0.0.1']['docker_username'] and hostvars['127.0.0.1']['docker_password']
+  until: patch_service_account is not failed
+  retries: 10
+  tags: install
 
 - name: Setup Calico SDN network
   command: "kubectl apply -f '{{ calico_yml_url }}'"
