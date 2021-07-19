@@ -31,6 +31,9 @@
     - name: Configure SNMP
       include_tasks: snmp_config.yml
 
+    - name: Ensure SM is disabled on switch
+      include_tasks: disable_switch_sm.yml
+
     - name: Save running-config to startup-config
       include_tasks: save_config.yml
 
