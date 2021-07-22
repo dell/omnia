@@ -33,6 +33,17 @@ k8s_cni: "calico"
 # Make sure this value does not overlap with any of the host networks.
 k8s_pod_network_cidr: "10.244.0.0/16"
 
+# Username for Dockerhub account
+# This will be used for Docker login and a kubernetes secret will be created and patched to service account in default namespace.
+# This kubernetes secret can be used to pull images from private repositories
+# This value is optional but suggested to avoid docker pull limit issues
+docker_username: ""
+
+# Password for Dockerhub account
+# This will be used for Docker login
+# This value is mandatory if docker username is provided
+docker_password: ""
+
 # Path to directory hosting ansible config file (ansible.cfg file)
 # Default value is "/etc/ansible"
 # This directory is on the host running ansible, if ansible is installed using dnf

@@ -13,6 +13,8 @@
 #  limitations under the License.
 ---
 
+docker_login_fail_msg: "Docker login failed! Please check the credentials and re-execute playbook."
+
 k8s_root_directory: /root/.kube
 
 k8s_root_directory_mode: 0755

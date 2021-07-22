@@ -13,6 +13,33 @@
 #  limitations under the License.
 ---
 
+kube_system_docker_images:
+  - docker.io/calico/kube-controllers:v3.19.1
+  - docker.io/calico/cni:v3.19.1
+  - docker.io/calico/pod2daemon-flexvol:v3.19.1
+  - docker.io/calico/node:v3.19.1
+  - xilinxatg/xilinx_k8s_fpga_plugin:2020.11.24
+  - nvidia/k8s-device-plugin:v0.7.0
+
+k8s_services_docker_images:
+  - docker.io/rocm/k8s-device-plugin
+  - kubernetesui/dashboard:v2.0.5
+  - kubernetesui/metrics-scraper:v1.0.6
+  - prom/alertmanager:v0.21.0
+  - jimmidyson/configmap-reload:v0.4.0
+  - prom/node-exporter:v1.0.1
+  - prom/pushgateway:v1.2.0
+  - prom/prometheus:v2.20.1
+  - metallb/controller:v0.8.1
+  - metallb/controller:v0.7.3
+  - metallb/speaker:v0.7.3
+  - volcanosh/vc-controller-manager:latest
+  - volcanosh/vc-scheduler:latest
+  - volcanosh/vc-webhook-manager:latest
+  - quay.io/external_storage/nfs-client-provisioner:v3.1.0-k8s1.11
+
+docker_pull_limit_msg: "You have reached your docker pull rate limit. Please provide docker credentials in omnia_config.yml and try again"
+
 metallb_config_file_dest: /root/k8s/metal-config.yaml
 
 metallb_config_file_mode: 0655

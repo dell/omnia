@@ -105,6 +105,23 @@
     - "{{ k8s_packages }}"
   changed_when: true
 
+- name: Add docker community edition repository for docker-ce-cli
+  get_url:
+    url: "{{ docker_repo_url }}"
+    dest: "{{ docker_repo_dest }}"
+  when: docker_username and docker_password
+  register: docker_repo
+  until: docker_repo is not failed
+  retries: 20
+  delay: 10
+  tags: install
+
+- name: Install docker-ce-cli
+  package:
+    name: docker-ce-cli
+    state: present
+  when: docker_username and docker_password
+
 - name: Start and enable crio
   service:
     name: crio
