@@ -87,6 +87,8 @@
     db_password: "{{ mariadb_password }}"
     k8s_version: "{{ k8s_version }}"
     k8s_cni: "{{ k8s_cni }}"
+    docker_username: "{{ docker_username }}"
+    docker_password: "{{ docker_password }}"
   no_log: True
 
 - name: Encrypt input config file

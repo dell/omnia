@@ -33,6 +33,8 @@ crio_repo1_url: https://download.opensuse.org/repositories/devel:/kubic:/libcont
 crio_repo1_dest: /etc/yum.repos.d/devel:kubic:libcontainers:stable.repo
 crio_repo2_url: https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable:cri-o:1.21/CentOS_8/devel:kubic:libcontainers:stable:cri-o:1.21.repo
 crio_repo2_dest: /etc/yum.repos.d/devel:kubic:libcontainers:stable:cri-o:1.21.repo
+docker_repo_url: https://download.docker.com/linux/centos/docker-ce.repo
+docker_repo_dest: /etc/yum.repos.d/docker-ce.repo
 
 # Usage: k8s_firewalld.yml
 k8s_master_ports:
@@ -56,6 +58,7 @@ helm_installer_file_mode: 0700
 helm_stable_repo_url: https://charts.helm.sh/stable
 
 # Usage: k8s_init.yml
+docker_login_fail_msg: "Docker login failed! Please check the credentials and re-execute playbook."
 k8s_root_directory: /root/.kube
 k8s_root_directory_mode: 0755
 k8s_config_src: /etc/kubernetes/admin.conf

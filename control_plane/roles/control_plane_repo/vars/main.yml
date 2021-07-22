@@ -15,12 +15,14 @@
 
 # vars file for offline_repo
 
-# Usage: nfs_server_setup.yml
-nfs_share_offline_repo: /var/nfs_repo
-nfs_share_awx: /var/nfs_awx
-nfs_share_dir_mode: 0777
-exports_file_path: /etc/exports
-nfs_services:
-  - mountd
-  - rpc-bind
-  - nfs
+# Usage: validate_idrac_vars.yml
+idrac_input_filename: input_params/idrac_vars.yml
+firmware_update_success_msg: "firmware_update_required validated"
+firmware_update_fail_msg: "Failed. firmware_update_required accepts only true or false in idrac_vars.yml"
+poweredge_model_success_msg: "poweredge_model validated"
+poweredge_model_fail_msg: "Failed. poweredge_model is incorrect or unsupported. Please update the list with the supported models in the correct format"
+
+# Usage: install_dsu.yml
+dsu_folder_dest: /root/dsu
+dsu_folder_dest_mode: 0644
+bootstrap_repo_url: https://linux.dell.com/repo/hardware/dsu/bootstrap.cgi
