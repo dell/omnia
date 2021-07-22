@@ -13,18 +13,9 @@
 #  limitations under the License.
 ---
 
-- name: Create iso directory
-  file:
-    path: "{{ tmp_iso_dir }}"
-    state: directory
-    mode: "{{ file_permission }}"
-  tags: install
-
-- name: Copy files to tmpiso folder
-  copy:
-    src: "{{ iso_mount_path }}"
-    dest: "{{ tmp_iso_dir }}"
-    mode: preserve
+- name: Copy files to tmp folder
+  command: cp -r {{ iso_mount_path }} /tmp/
+  changed_when: true
   tags: install
 
 - name: Edit isolinux.cfg
@@ -84,11 +75,12 @@
   tags: install
 
 - name: Configure kickstart file - nic
-  replace:
+  lineinfile:
     path: "{{ role_path }}/files/{{ kickstart_file }}"
-    regexp: '^network  --bootproto=dhcp --device=ks_nic --onboot=on'
-    replace: 'network  --bootproto=dhcp --device={{ host_network_nic }} --onboot=on'
+    insertafter: '^network  --bootproto=dhcp --device=link --onboot=on --activate'
+    line: 'network  --bootproto=dhcp --device={{ item }} --onboot=on --activate'
   tags: install
+  with_items: "{{ host_nic }}"
 
 - name: Configure kickstart file - timezone
   replace:
@@ -107,6 +99,6 @@
 - name: Copy kickstart file to iso mount path
   copy:
     src: "{{ role_path }}/files/{{ kickstart_file }}"
-    dest: "/tmp/tmpiso/{{ kickstart_file }}"
+    dest: "{{ tmp_iso_dir }}{{ kickstart_file }}"
     mode: preserve
   tags: install

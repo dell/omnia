@@ -37,16 +37,25 @@
     idrac_ip: "{{ inventory_hostname }}"
     idrac_user: "{{ idrac_username }}"
     idrac_password: "{{ idrac_password }}"
-    share_name: "{{ public_ip }}:{{ nfs_share_offline_repo }}"
+    share_name: "{{ management_station_ip }}:{{ nfs_share_offline_repo }}"
     iso_image: "{{ unattended_iso_filename }}"
     expose_duration: "{{ expose_duration }}"
   register: deploy_os
   when: enterprise_license or datacenter_license
 
-- name: Add idrac ip to provisioned_idrac_ip.yml
-  lineinfile:
-    path: "{{ role_path }}/files/provisioned_idrac_ip.yml"
-    create: yes
-    mode: "{{ file_permission }}"
-    line: "{{ inventory_hostname }}"
+- name: Add to provisioned_hosts to inventory
+  command: >-
+    awx --conf.host {{ awx_host }} --conf.username {{ awx_username }} --conf.password {{ awx_password }} 
+    hosts create --name {{ inventory_hostname }} --inventory "{{ provisioned_idrac_inventory_name }}"
+  register: update_inventory
+  changed_when: true
+  no_log: true
+  when:
+    - awx_search_key in hostname.stdout
+    - inventory_hostname not in fetch_inventory.stdout
+    - not deploy_os.failed
+
+- name: Provision OS status
+  debug:
+    msg: "{{ provision_os_msg }}"
   when: not deploy_os.failed

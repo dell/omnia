@@ -74,29 +74,14 @@
   register: hostname
   run_once: true
 
-- name: Fetch the system public IP
-  set_fact:
-    public_ip: "{{ lookup('vars','ansible_'+public_nic).ipv4.address }}"
-  run_once: true
-  when: '"awx-" not in hostname.stdout'
-
-- name: Assert public IP
-  assert:
-    that:
-      - public_ip | length > 7
-      - public_ip | ipv4
-    success_msg: "{{ public_ip_success_msg }}"
-    fail_msg: "{{ public_ip_fail_msg }}"
-  when: '"awx-" not in hostname.stdout'
-
 - name: Fetch idrac credentials
   include_tasks: fetch_idrac_credentials.yml
-  when: '"awx-" not in hostname.stdout'
+  when: awx_search_key not in hostname.stdout
 
 - name: Set idrac credentials
   set_fact:
     idrac_username: "{{ lookup('env','ANSIBLE_NET_USERNAME') }}"
     idrac_password: "{{ lookup('env','ANSIBLE_NET_PASSWORD') }}"
   no_log: true
-  when: '"awx-" in hostname.stdout'
+  when: awx_search_key in hostname.stdout
   run_once: true

@@ -15,7 +15,7 @@
 
 - name: Create custom ISO
   command: >-
-    mkisofs -o {{ role_path }}/files/{{ unattended_iso_filename }} -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4
+    mkisofs -o /tmp/{{ unattended_iso_filename }} -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4
     -boot-info-table -eltorito-alt-boot -e images/efiboot.img -no-emul-boot -J -R -V "CentOS 7 x86_64"  {{ tmp_iso_dir }}
   changed_when: true
   register: custom_iso_status
@@ -45,20 +45,7 @@
 
 - name: Copy ISO file to nfs share
   copy:
-    src: "{{ role_path }}/files/{{ unattended_iso_filename }}"
+    src: "/tmp/{{ unattended_iso_filename }}"
     dest: "{{ nfs_share_offline_repo }}/{{ unattended_iso_filename }}"
     mode: preserve
-  tags: install
-
-- name: Fetch ansible-playbook location
-  command: whereis ansible-playbook
-  changed_when: false
-  register: ansible_playbook_location
-  tags: install
-
-- name: Schedule task
-  cron:
-    name: "Add idrac IP to nfs exports"
-    minute: "*/10"
-    job: "if ! out=`{{ ansible_playbook_location.stdout.split(' ')[1] }} {{ role_path }}/files/add_nfs_client.yml`; then echo $out >> {{ cron_error_log }}; fi"
   tags: install

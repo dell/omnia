@@ -21,6 +21,10 @@
 - name: Check prerequisites
   include_tasks: check_prerequisites.yml
 
+- name: Update firmware
+  include_tasks: update_firmware.yml
+  when: firmware_update_required
+
 - name: Import SCP
   include_tasks: import_scp.yml
 

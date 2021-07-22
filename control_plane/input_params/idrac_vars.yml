@@ -23,7 +23,16 @@ idrac_system_profile: "Performance"
 # Boolean value indicating whether OMNIA should perform firmware update or not
 # It takes values "true" or "false" indicating required and not required cases respectively.
 # Default value is "true"
-firmware_update_required: true
+# firmware_update_required should be 'false' now as there is bug in DSU & OMAM modules and firmware updates dependent on that.
+# It will be updated to 'true' once DSU and OMAM fix the bugs
+firmware_update_required: false
+
+# This is the list of poweredge server models
+# The firmware updates will be downloaded only for the below list of models
+# Update the list in the format given below
+# poweredge_model: R640,R740,C4140
+# supported models: C4140,C6420,C6520,R240,R340,R440,R540,R640,R650,R740,R740xd,R740xd2,R750,R750xa,R840,R940,R940xa
+poweredge_model: C6420
 
 #****Security Requirements Configuration****#
 ###Enable the security parameters listed below only if you want to configure the security settings in idrac###
@@ -44,3 +53,22 @@ uefi_secure_boot: "disabled"
 # If required it can be "enabled"
 # Make sure system_lockdown is enabled only after OS provisioning is completed
 system_lockdown: "disabled"
+
+### Usage: idrac_2fa ###
+
+# Specify whether the two factor authentication to be enabled
+# By default two factor authentication will be "disabled"
+# If required it can be "enabled"
+# [WARNING] Once 2FA is enabled, user has to disable 2FA manually. Other iDRAC playbooks won't run if 2FA is enabled
+# Update 2FA input parameters in idrac_tools_vars.yml if two_factor_authentication is enabled
+# Command to edit idrac_tools_vars.yml: ansible-vault edit idrac_tools_vars.yml --vault-password-file .idrac_vault_key
+two_factor_authentication: "disabled"
+
+### Usage: idrac_ldap ###
+
+# Specify whether the LDAP directory services to be enabled
+# By default LDAP directory services will be disabled
+# If required it can be "enabled"
+# Update 2FA input parameters in idrac_tools_vars.yml if two_factor_authentication is enabled
+# Command to edit idrac_tools_vars.yml: ansible-vault edit idrac_tools_vars.yml --vault-password-file .idrac_vault_key
+ldap_directory_services: "disabled"

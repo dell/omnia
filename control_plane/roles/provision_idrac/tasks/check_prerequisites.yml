@@ -21,65 +21,49 @@
   include_vars: ../../control_plane_customiso/vars/main.yml
   run_once: true
 
-- name: Check unattended ISO file
+- name: Check {{ management_station_ip_file }} file is present
   stat:
-    path: "{{ role_path }}/../control_plane_customiso/files/{{ unattended_iso_filename }}"
-  register: custom_iso_check
+    path: "{{ role_path }}/files/{{ management_station_ip_file }}"
+  register: ip_file_check
   run_once: true
 
-- name: Custom ISO file not present
-  fail:
-    msg: "{{ custom_iso_check_fail_msg }}"
-  when: not custom_iso_check.stat.exists
-  register: custom_iso_fail
-
-- name: Adding NFS share entries in {{ exports_file_path }}
-  lineinfile:
-    path: "{{ exports_file_path }}"
-    line: "{{ nfs_share_offline_repo }} {{ inventory_hostname }}(rw,sync,no_root_squash)"
-  when: '"awx-" not in hostname.stdout'
-
-- name: Exporting the shared directories
-  command: exportfs -r
-  changed_when: true
-  when: '"awx-" not in hostname.stdout'
-  run_once: true
-
-- name: Check nfs exports file present
-  stat:
-    path: "{{ role_path }}/../control_plane_customiso/files/exports"
-  register: nfs_exports_present
-  when: '"awx-" in hostname.stdout'
-  run_once: true
-
-- name: Check nfs exports file content
-  command: cat "{{ role_path }}/../control_plane_customiso/files/exports"
+- name: Fetch management station ip from {{ management_station_ip_file }}
+  shell: cat {{ role_path }}/files/{{ management_station_ip_file }}
   changed_when: false
-  register: check_exports_path
+  register: fetch_ip
   run_once: true
-  when:
-    - '"awx-" in hostname.stdout'
-    - nfs_exports_present.stat.exists
+  when: ip_file_check.stat.exists
+
+- name: Missing {{ management_station_ip_file }}
+  fail:
+    msg: "{{ missing_ip_file_fail_msg }}"
+  when: not ip_file_check.stat.exists
+
+- name: Set management_station_ip
+  set_fact:
+    management_station_ip: "{{ fetch_ip.stdout }}"
+
+- name: Check NFS share access
+  idrac_server_config_profile:
+    idrac_ip: "{{ inventory_hostname }}"
+    idrac_user: "{{ idrac_username }}"
+    idrac_password: "{{ idrac_password }}"
+    share_name: "{{ management_station_ip }}:{{ nfs_share_offline_repo }}"
+    command: "export"
+    scp_components: "BIOS"
+    scp_file: "{{ nfs_check_file }}"
+    export_format: XML
+    export_use: Default
+    job_wait: true
+  register: nfs_check
+  ignore_errors: true
 
 - name: Missing entries in nfs exports
   fail:
     msg: "{{ missing_exports_fail_msg }}"
   when:
-    - '"awx-" in hostname.stdout'
-    - not nfs_exports_present.stat.exists or
-      check_exports_path.rc == 1 or
-      inventory_hostname not in check_exports_path.stdout
-
-- name: Fetch management station ip from exports file
-  shell: awk 'FNR==1' {{ role_path }}/../control_plane_customiso/files/exports | awk '{print $2}'
-  changed_when: false
-  register: fetch_public_ip
-  when: '"awx-" in hostname.stdout'
-
-- name: Set public ip
-  set_fact:
-    public_ip: "{{ fetch_public_ip.stdout.split(\"(\")[0] }}"
-  when: '"awx-" in hostname.stdout'
+    - nfs_check_key in nfs_check.msg or
+      nfs_check_key in nfs_check.scp_status.Status
 
 - name: Initialize variables
   set_fact:
@@ -91,25 +75,102 @@
     datacenter_license: false
     provision_status: false
 
-- name: Check provisioned_idrac_ip.yml file present
-  stat:
-    path: "{{ role_path }}/files/provisioned_idrac_ip.yml"
-  register: provisioned_file_present
-  run_once: true
-
-- name: Check idrac server is already provisioned
-  command: cat {{ role_path }}/files/provisioned_idrac_ip.yml
+- name: Check tower_cli.cfg is encrypted
+  command: cat "{{ playbook_dir }}/roles/webui_awx/files/{{ awx_vars_filename }}"
   changed_when: false
-  register: check_provision_status
-  when: provisioned_file_present.stat.exists
+  register: awx_content
   run_once: true
+  when: awx_search_key in hostname.stdout
+
+- name: Decrpyt tower_cli.cfg
+  command: >-
+    ansible-vault decrypt "{{ playbook_dir }}/roles/webui_awx/files/{{ awx_vars_filename }}"
+    --vault-password-file "{{ playbook_dir }}/roles/webui_awx/files/{{ awx_vaultname }}"
+  changed_when: false
+  run_once: true
+  when:
+    - awx_search_key in hostname.stdout
+    - "'$ANSIBLE_VAULT;' in awx_content.stdout"
+
+- name: Fetch awx host
+  command: grep "host:" "{{ playbook_dir }}/roles/webui_awx/files/{{ awx_vars_filename }}"
+  register: fetch_awx_host
+  changed_when: false
+  run_once: true
+  when: awx_search_key in hostname.stdout
+
+- name: Fetch awx username
+  command: grep "username:" "{{ playbook_dir }}/roles/webui_awx/files/{{ awx_vars_filename }}"
+  register: fetch_awx_username
+  changed_when: false
+  run_once: true
+  no_log: true
+  when: awx_search_key in hostname.stdout
+
+- name: Fetch awx password
+  command: grep "password:" "{{ playbook_dir }}/roles/webui_awx/files/{{ awx_vars_filename }}"
+  register: fetch_awx_password
+  changed_when: false
+  run_once: true
+  no_log: true
+  when: awx_search_key in hostname.stdout
+
+- name: Set awx variables
+  set_fact:
+    awx_host: "{{ fetch_awx_host.stdout | regex_replace('host: ','') }}"
+    awx_username: "{{ fetch_awx_username.stdout | regex_replace('username: ','') }}"
+    awx_password: "{{ fetch_awx_password.stdout | regex_replace('password: ','') }}"
+  no_log: true
+  when: awx_search_key in hostname.stdout
+
+- name: Encrypt tower_cli.cfg
+  command: >-
+    ansible-vault encrypt "{{ playbook_dir }}/roles/webui_awx/files/{{ awx_vars_filename }}"
+    --vault-password-file "{{ playbook_dir }}/roles/webui_awx/files/{{ awx_vaultname }}"
+  changed_when: false
+  run_once: true
+  when:
+    - awx_search_key in hostname.stdout
+    - "'$ANSIBLE_VAULT;' in awx_content.stdout"
+
+- name: Get inventory list
+  command: >-
+     awx --conf.host "{{ awx_host }}" --conf.username "{{ awx_username }}" --conf.password "{{ awx_password }}"
+     inventory list -f human --filter "name"
+  register: inventory_list
+  run_once: true
+  changed_when: false
+  no_log: true
+  when: awx_search_key in hostname.stdout
+
+- name: Create provisioned_idrac inventory
+  command: >-
+    awx --conf.host {{ awx_host }} --conf.username {{ awx_username }} --conf.password {{ awx_password }}
+    inventory create --name "{{ provisioned_idrac_inventory_name }}" --organization "{{ awx_organization }}"
+  register: create_inventory
+  run_once: true
+  changed_when: true
+  no_log: true
+  when:
+    - awx_search_key in hostname.stdout
+    - provisioned_idrac_inventory_name not in inventory_list.stdout
+
+- name: Fetch provisioned_idrac inventory
+  command: >-
+    awx --conf.host {{ awx_host }} --conf.username {{ awx_username }} --conf.password {{ awx_password }}
+    hosts list --inventory "{{ provisioned_idrac_inventory_name }}" -f human --filter "name"
+  register: fetch_inventory
+  run_once: true
+  changed_when: false
+  no_log: true
+  when: awx_search_key in hostname.stdout
 
 - name: Removing hosts already provisioned
   fail:
-    msg: "{{ provision_fail_msg }}"
+    msg: "{{ provision_skip_msg }}"
   when:
-    - provisioned_file_present.stat.exists
-    - inventory_hostname in check_provision_status.stdout
+    - awx_search_key in hostname.stdout
+    - inventory_hostname in fetch_inventory.stdout
 
 - name: Show status of the Lifecycle Controller
   dellemc.openmanage.idrac_lifecycle_controller_status_info:
