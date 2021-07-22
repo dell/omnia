@@ -114,6 +114,24 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "abhishek-s-a",
+      "name": "abhishek-s-a",
+      "avatar_url": "https://avatars.githubusercontent.com/u/73212230?v=4",
+      "profile": "https://github.com/abhishek-s-a",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "Shubhangi-dell",
+      "name": "Shubhangi Srivastava",
+      "avatar_url": "https://avatars.githubusercontent.com/u/72869337?v=4",
+      "profile": "https://github.com/Shubhangi-dell",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,

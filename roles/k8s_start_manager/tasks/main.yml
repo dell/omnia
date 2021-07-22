@@ -54,7 +54,7 @@
   changed_when: true
   register: docker_login_output
   ignore_errors: True
-  when: hostvars['127.0.0.1']['docker_username'] and hostvars['127.0.0.1']['docker_password']
+  when: hostvars['127.0.0.1']['docker_username'] or hostvars['127.0.0.1']['docker_password']
 
 - name: Docker login check
   fail:

@@ -13,52 +13,33 @@
 # limitations under the License.
 ---
 
-- name: Remove the scp file if exists
+- name: Remove the SCP file if exists
   file:
     path: "{{ role_path }}/files/{{ scp_filename }}"
     state: absent
   run_once: true
 
-- name: Create scp file
+- name: Create SCP file
   copy:
     src: "{{ role_path }}/files/temp_scp.xml"
     dest: "{{ role_path }}/files/{{ scp_filename }}"
     mode: preserve
   run_once: true
 
-- name: Add system profile value Performance to scp file
+- name: Add system profile value to SCP file
   lineinfile:
     path: "{{ role_path }}/files/{{ scp_filename }}"
-    line: '  <Attribute Name="SysProfile">PerfOptimized</Attribute>'
+    line: "{{ item.line }}"
     insertafter: '^(.*)BootSeqRetry'
-  when: idrac_system_profile == "Performance"
+  when: idrac_system_profile == item.name
+  with_items:
+    - { name: "Performance", line: "  <Attribute Name=\"SysProfile\">PerfOptimized</Attribute>" }
+    - { name: "PerformancePerWatt(OS)", line: "  <Attribute Name=\"SysProfile\">PerfPerWattOptimizedOs</Attribute>" }
+    - { name: "PerformancePerWatt(DAPC)", line: "  <Attribute Name=\"SysProfile\">PerfPerWattOptimizedDapc</Attribute>" }
+    - { name: "WorkstationPerformance", line: "  <Attribute Name=\"SysProfile\">PerfWorkStationOptimized</Attribute>" }
   run_once: true
 
-- name: Add system profile value PerformancePerWatt(OS) to scp file
-  lineinfile:
-    path: "{{ role_path }}/files/{{ scp_filename }}"
-    line: '  <Attribute Name="SysProfile">PerfPerWattOptimizedOs</Attribute>'
-    insertafter: '^(.*)BootSeqRetry'
-  when: idrac_system_profile == "PerformancePerWatt(OS)"
-  run_once: true
-
-- name: Add system profile value PerformancePerWatt(DAPC) to scp file
-  lineinfile:
-    path: "{{ role_path }}/files/{{ scp_filename }}"
-    line: '  <Attribute Name="SysProfile">PerfPerWattOptimizedDapc</Attribute>'
-    insertafter: '^(.*)BootSeqRetry'
-  when: idrac_system_profile == "PerformancePerWatt(DAPC)"
-  run_once: true
-
-- name: Add system profile value WorkstationPerformance to scp file
-  lineinfile:
-    path: "{{ role_path }}/files/{{ scp_filename }}"
-    line: '  <Attribute Name="SysProfile">PerfWorkStationOptimized</Attribute>'
-    insertafter: '^(.*)BootSeqRetry'
-  when: idrac_system_profile == "WorkstationPerformance"
-  run_once: true
-
-- name: Add PXE attributes to scp file
+- name: Add PXE attributes to SCP file
   lineinfile:
     path: "{{ role_path }}/files/{{ scp_filename }}"
     line: "{{ item }}"
@@ -73,7 +54,7 @@
   when: not (enterprise_license or datacenter_license)
   run_once: true
 
-- name: Disable PXE attributes to scp file
+- name: Disable PXE attributes to SCP file
   lineinfile:
     path: "{{ role_path }}/files/{{ scp_filename }}"
     line: '  <Attribute Name="PxeDev1EnDis">Disabled</Attribute>'
@@ -81,14 +62,14 @@
   when: enterprise_license or datacenter_license
   run_once: true
 
-- name: Add SNMP community name attribute to scp file
+- name: Add SNMP community name attribute to SCP file
   lineinfile:
     path: "{{ role_path }}/files/{{ scp_filename }}"
     line: '  <Attribute Name="SNMP.1#AgentCommunity">{{ snmp_community_name }}</Attribute>'
     insertafter: '^(.*)SNMP.1#AgentEnable'
   run_once: true
 
-- name: Add SNMP trap destination attributes to scp file
+- name: Add SNMP trap destination attributes to SCP file
   lineinfile:
     path: "{{ role_path }}/files/{{ scp_filename }}"
     line: "{{ item }}"
@@ -112,7 +93,7 @@
     job_wait: "True"
   register: import_scp_status
 
-- name: Remove the scp file
+- name: Remove the SCP file
   file:
     path: "{{ role_path }}/files/{{ scp_filename }}"
     state: absent

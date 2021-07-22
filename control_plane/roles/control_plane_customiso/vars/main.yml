@@ -20,14 +20,21 @@ iso_mount_path: /mnt/iso/
 iso_mount_check_fail_msg: "ISO file not mounted. Ensure /mnt/iso path is mounted with centos ISO file."
 
 #Usage: edit_iso_config.yml
-tmp_iso_dir: /tmp/tmpiso/
+tmp_iso_dir: /tmp/iso/
 kickstart_file: centos7.cfg
 file_permission: 0744
 isolinux_cfg_path: isolinux/isolinux.cfg
 grub_cfg_path: EFI/BOOT/grub.cfg
+host_nic:
+ - em1
+ - em2
+ - em3
+ - em4
+ - p4p1
+ - p4p2
 
 #Usage: create_unattended_iso.yml
 unattended_iso_filename: unattended_centos7.iso
 custom_iso_success_msg: "Unattended ISO file created successfully"
 custom_iso_fail_msg: "Unattended ISO file creation failed. Ensure /mnt/iso path is mounted with valid centos minimal ISO file."
-cron_error_log: /var/log/nfs_cron_error.log
+management_station_ip_file: "management_station_ip.txt"

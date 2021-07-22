@@ -33,13 +33,22 @@ public_ip_success_msg: "public_ip validated"
 public_ip_fail_msg: "Failed. Incorrect value for public_nic in base_vars.yml"
 
 # Usage: check_prerequisites.yml
-custom_iso_check_fail_msg: "Custom ISO file is not present in the device. Please run appliance.yml first to create custom iso file unattended_centos7.iso"
-missing_exports_fail_msg: "Missing iDRAC IP entry in /etc/exports file. Wait for 10 minutes and retry again"
-lc_check_fail_msg: "LC is not ready. Retry again after LC is ready"
-provision_fail_msg: "Skipping remaining tasks for already provisioned servers. To provision server again remove iDRAC IP from the file control_plane/roles/provision_idrac/files/provisioned_idrac_ip.yml"
+missing_exports_fail_msg: "Failed. Missing network cidr entry of iDRAC IP in /etc/exports file. Add entries if iDRAC IP is not in the management network range provided in base_vars.yml"
+lc_check_fail_msg: "Failed. LC is not ready. Retry again after LC is ready"
+provision_skip_msg: "Skipping remaining tasks for already provisioned servers. To provision server again remove iDRAC IP from the provision_idrac_inventory in awx"
+missing_ip_file_fail_msg: "Failed. Missing management_station_ip.txt in provision_idrac/files folder. Please run control_plane.yml to create management_station_ip.txt"
+awx_search_key: "awx-"
+nfs_check_key: "Failed"
+nfs_check_file: "nfs_check.xml"
+provisioned_idrac_inventory_name: "provisioned_idrac_inventory"
+awx_vars_filename: ".tower_cli.cfg"
+awx_vaultname: ".tower_vault_key"
+
+# Usage: update_firmware.yml
+idrac_port: 443
 
 # Usage: import_scp.yml
-scp_filename: idrac_scp.yml
+scp_filename: idrac_scp.xml
 
 # Usage: create_vd.yml
 raid_level: "RAID 0"
@@ -47,3 +56,4 @@ raid_level: "RAID 0"
 # Usage: deploy_os.yml
 expose_duration: 60
 file_permission: 0644
+provision_os_msg: "OS provisioning is initiated. Wait for installation to complete for all servers."

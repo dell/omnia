@@ -31,13 +31,18 @@
     idrac_password: "{{ idrac_password }}"
     state: "view"
   register: idrac_volume_list
-  when: raid_type and not raid_vd_status
+  when: 
+    - raid_type
+    - not raid_vd_status
 
 - name: Set drives details
   set_fact:
     drives_id: "{{ idrac_volume_list.storage_status.Message.Controller[raid_controller_sensor].Enclosure[raid_enclosure_name].PhysicalDisk }}"
     drives_count: "{{ idrac_volume_list.storage_status.Message.Controller[raid_controller_sensor].Enclosure[raid_enclosure_name].PhysicalDisk | length }}"
-  when: raid_type and not raid_vd_status
+  when: 
+    - raid_type
+    - not raid_vd_status
+    - idrac_volume_list.storage_status.Message.Controller[raid_controller_sensor].Enclosure[raid_enclosure_name].PhysicalDisk is defined
 
 - name: Create VD
   dellemc.openmanage.dellemc_idrac_storage_volume:
@@ -55,4 +60,7 @@
         drives:
           id: "{{ drives_id }}"
   register: create_vd_status
-  when: raid_type and not raid_vd_status
+  when: 
+    - raid_type
+    - not raid_vd_status
+    - idrac_volume_list.storage_status.Message.Controller[raid_controller_sensor].Enclosure[raid_enclosure_name].PhysicalDisk is defined

@@ -44,3 +44,10 @@
   when: not check_mount_iso.stat.exists
   register: iso_mount_fail
   tags: install
+
+- name: Copy management station ip to {{ management_station_ip_file }}
+  lineinfile:
+    path: "{{ role_path }}/../provision_idrac/files/{{ management_station_ip_file }}"
+    line: "{{ mngmnt_network_ip }}"
+    mode: "{{ file_permission }}"
+    create: yes

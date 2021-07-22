@@ -16,5 +16,6 @@
 - name: Deploy OS via idrac
   hosts: all
   connection: local
+  gather_facts: false
   roles:
     - provision_idrac
