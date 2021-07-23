@@ -40,8 +40,8 @@
     state: absent
   tags: install
 
-- name: Include control_plane_repo vars
-  include_vars: ../../control_plane_repo/vars/main.yml
+- name: Include control_plane_common vars
+  include_vars: ../../control_plane_common/vars/main.yml
 
 - name: Copy ISO file to nfs share
   copy:

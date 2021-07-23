@@ -17,6 +17,10 @@
   include_vars: "{{ playbook_dir }}/../roles/provision_idrac/vars/main.yml"
   run_once: true
 
+- name: Include control_plane_common vars
+  include_vars: "{{ playbook_dir }}/../roles/control_plane_common/vars/main.yml"
+  run_once: true
+
 - name: Include idrac_vars.yml
   include_vars: "{{ playbook_dir }}/../{{ idrac_input_filename }}"
   run_once: true
@@ -38,8 +42,8 @@
 - name: Fetch idrac credentials
   include_tasks: "{{ playbook_dir }}/../roles/provision_idrac/tasks/fetch_idrac_credentials.yml"
   vars:
-    login_input_filename: "{{ playbook_dir }}/../input_params/login_vars.yml"
-    login_vault_filename: "{{ playbook_dir }}/../input_params/.login_vault_key"
+    login_input_filename: "{{ playbook_dir }}/../{{ login_vars_filename }}"
+    login_vault_filename: "{{ playbook_dir }}/../{{ vault_filename }}"
   when: '"awx-" not in hostname.stdout'
 
 - name: Show status of the Lifecycle Controller

@@ -13,6 +13,10 @@
 # limitations under the License.
 ---
 
+- name: Set uefi_secure_boot in lowercase
+  set_fact:
+    uefi_secure_boot: "{{ uefi_secure_boot | lower }}"
+
 - name: Assert uefi_secure_boot value
   assert:
     that:
@@ -20,7 +24,6 @@
       - uefi_secure_boot == "enabled" or uefi_secure_boot == "disabled"
     success_msg: "{{ secure_boot_success_msg }}"
     fail_msg: "{{ secure_boot_fail_msg }}"
-  run_once: true
 
 - name: Enable secure boot
   dellemc.openmanage.idrac_bios:

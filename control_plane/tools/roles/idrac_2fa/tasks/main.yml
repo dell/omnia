@@ -13,28 +13,16 @@
 # limitations under the License.
 ---
 
-# tasks file for provision_idrac
-
-- name: Validate idrac parameters
-  include_tasks: validate_idrac_vars.yml
+- name: Validate 2FA vars
+  include_tasks: validate_2fa_vars.yml
 
 - name: Check prerequisites
-  include_tasks: check_prerequisites.yml
+  include_tasks: ./../idrac_system_lockdown/tasks/check_prerequisites.yml
 
-- name: Update firmware
-  include_tasks: update_firmware.yml
-  when:
-    - not provision_status
-    - firmware_update_required
+- name: Configure SMTP
+  include_tasks: configure_smtp.yml
+  when: two_factor_authentication == "enabled"
 
-- name: Import SCP
-  include_tasks: import_scp.yml
-  when: not provision_status
-
-- name: Create VD
-  include_tasks: create_vd.yml
-  when: not provision_status
-
-- name: Deploy OS
-  include_tasks: deploy_os.yml
-  when: not provision_status
+- name: Configure 2FA
+  include_tasks: configure_2fa.yml
+  when: two_factor_authentication == "enabled"

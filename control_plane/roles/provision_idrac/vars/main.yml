@@ -46,6 +46,9 @@ awx_vaultname: ".tower_vault_key"
 
 # Usage: update_firmware.yml
 idrac_port: 443
+idrac_error_message: "Unable to complete the operation because the catalog name entered has either unsupported firmware packages or same version installed on the server"
+firmware_job_fail_msg: "Failed. Error occured while updating firmware"
+firmware_job_success_msg: "Firmware update job compeleted successfully"
 
 # Usage: import_scp.yml
 scp_filename: idrac_scp.xml

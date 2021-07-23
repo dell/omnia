@@ -55,7 +55,7 @@ min_length: 8
 max_length: 30
 min_username_length: 4
 file_perm: '0755'
-vault_file_perm: '0600'
+vault_file_perm: '0644'
 nic_min_length: 3
 input_config_failure_msg: "Please provide all the required parameters in login_vars.yml"
 fail_msg_provision_password: "Failed. Incorrect provision_password format provided in login_vars.yml"
@@ -80,10 +80,10 @@ success_msg_ib_password: "ib password validated"
 fail_msg_ib_password: "Failed. Incorrect ib_password format provided in base_vars.yml"
 pv_params_success_msg: "Powervault switch username and password are not blank"
 pv_params_empty_fail_msg: "Failed. Powervault username or password cannot be empty when powervault_support is true"
-success_powervault_username: "powervault username validated"
-fail_powervault_username: "Failed. Incorrect powervault_username format provided in base_vars.yml"
-success_msg_powervault_password: "powervault password validated"
-fail_msg_powervault_password: "Failed. Incorrect powervault_password format provided in base_vars.yml"
+success_powervault_me4_username: "powervault username validated"
+fail_powervault_me4_username: "Failed. Incorrect powervault_username format provided in base_vars.yml"
+success_msg_powervault_me4_password: "powervault password validated"
+fail_msg_powervault_me4_password: "Failed. Incorrect powervault_password format provided in base_vars.yml"
 
 # Usage: verify_omnia_params.yml
 config_filename: "omnia_config.yml"
@@ -132,6 +132,8 @@ success_msg_different_nics: "The nics of different containers and public nic are
 fail_msg_different_nics: "Failed. Incorrect nic information. public nic, management network nic and host network nic should not be the same"
 success_msg_different_nics_ib: "The nics of different containers and public nic are not the same as infiniband nic- Validated"
 fail_msg_different_nics_ib: "Failed. Infiniband nic cannot be the same as other nics"
+success_msg_ib: "Infiniband variables validated"
+fail_msg_ib: "Failed. Please provide all the InfiniBand related parameters in base_vars.yml"
 
 # Usage: fetch_sm_inputs.yml
 ib_config_file: "{{ role_path }}/../../input_params/ib_vars.yml"
@@ -142,3 +144,17 @@ fail_msg_opensm_config_file: opensm.conf file doesn't exist.
 
 fail_msg_ib_input_definition: Infiniband config directories must be defined.
 fail_msg_ib_input: Infiniband config directories can't be left empty.
+
+# Usage: encrypt_idrac_2fa_vars.yml
+idrac_tools_vaultname: input_params/.idrac_vault_key
+idrac_tools_vars_filename: input_params/idrac_tools_vars.yml
+
+# Usage: nfs_server_setup.yml
+nfs_share_offline_repo: /var/nfs_repo
+nfs_share_awx: /var/nfs_awx
+nfs_share_dir_mode: 0644
+exports_file_path: /etc/exports
+nfs_services:
+  - mountd
+  - rpc-bind
+  - nfs
