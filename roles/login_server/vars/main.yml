@@ -13,16 +13,13 @@
 #  limitations under the License.
 ---
 
-- name: Include common variables
-  include_vars:  ../../control_plane_common/vars/main.yml
+# Usage: install_packages.yml
+ipa_server_packages:
+  - bind
+  - bind-dyndb-ldap
+  - ipa-server-dns
+  - freeipa-server
 
-- name: Validate idrac_vars
-  include_tasks: validate_idrac_vars.yml
-
-- name: Install DSU
-  include_tasks: install_dsu.yml
-  when: firmware_update_required
-
-- name: Download iDRAC firmware updates
-  include_tasks: download_fmw_updates.yml
-  when: firmware_update_required
+resolv_conf_path: /etc/resolv.conf
+temp_resolv_conf_path: /tmp/resolv.conf
+resolv_file_mode: '0644'

@@ -13,16 +13,14 @@
 #  limitations under the License.
 ---
 
-- name: Include common variables
-  include_vars:  ../../control_plane_common/vars/main.yml
+- name: Include variables
+  include_vars: ../../login_common/vars/main.yml
+  when: hostvars['127.0.0.1']['login_node_required']
 
-- name: Validate idrac_vars
-  include_tasks: validate_idrac_vars.yml
+- name: Install required packages
+  include_tasks: install_packages.yml
+  when: hostvars['127.0.0.1']['login_node_required']
 
-- name: Install DSU
-  include_tasks: install_dsu.yml
-  when: firmware_update_required
-
-- name: Download iDRAC firmware updates
-  include_tasks: download_fmw_updates.yml
-  when: firmware_update_required
+- name: Install free-ipa server
+  include_tasks: install_ipa_server.yml
+  when: hostvars['127.0.0.1']['login_node_required']

@@ -142,3 +142,13 @@ fail_msg_opensm_config_file: opensm.conf file doesn't exist.
 
 fail_msg_ib_input_definition: Infiniband config directories must be defined.
 fail_msg_ib_input: Infiniband config directories can't be left empty.
+
+# Usage: nfs_server_setup.yml
+nfs_share_offline_repo: /var/nfs_repo
+nfs_share_awx: /var/nfs_awx
+nfs_share_dir_mode: 0644
+exports_file_path: /etc/exports
+nfs_services:
+  - mountd
+  - rpc-bind
+  - nfs

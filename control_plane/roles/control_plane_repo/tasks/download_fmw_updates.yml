@@ -13,16 +13,8 @@
 #  limitations under the License.
 ---
 
-- name: Include common variables
-  include_vars:  ../../control_plane_common/vars/main.yml
-
-- name: Validate idrac_vars
-  include_tasks: validate_idrac_vars.yml
-
-- name: Install DSU
-  include_tasks: install_dsu.yml
-  when: firmware_update_required
-
-- name: Download iDRAC firmware updates
-  include_tasks: download_fmw_updates.yml
-  when: firmware_update_required
+- name: Downloading Firwmare Updates (This process may take few hours depending upon the poweredge_model list)
+  command: 'dsu --destination-type=REP --input-inventory-file="{{ role_path }}/files/{{ item }}_inv.xml" \
+    --destination-location="{{ nfs_share_offline_repo }}" --non-interactive'
+  with_items: "{{ poweredge_model.split(',') | map('trim') }}"
+  changed_when: true

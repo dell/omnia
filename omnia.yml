@@ -30,6 +30,27 @@
     - common
   tags: common
 
+- name: Apply login common installation and config
+  hosts: manager, login_node
+  gather_facts: false
+  roles:
+    - login_common
+  tags: freeipa
+
+- name: Apply login server installation and config
+  hosts: manager
+  gather_facts: false
+  roles:
+    - login_server
+  tags: freeipa
+
+- name: Apply login node installation and config
+  hosts: login_node
+  gather_facts: false
+  roles:
+    - login_node
+  tags: freeipa
+
 - name: Apply common K8s installation and config
   hosts: manager, compute
   gather_facts: false

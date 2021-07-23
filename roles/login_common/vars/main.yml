@@ -13,16 +13,20 @@
 #  limitations under the License.
 ---
 
-- name: Include common variables
-  include_vars:  ../../control_plane_common/vars/main.yml
+# Usage: set_fqdn.yml
+etc_hosts_file_dest: /etc/hosts
+file_mode: '0644'
 
-- name: Validate idrac_vars
-  include_tasks: validate_idrac_vars.yml
-
-- name: Install DSU
-  include_tasks: install_dsu.yml
-  when: firmware_update_required
-
-- name: Download iDRAC firmware updates
-  include_tasks: download_fmw_updates.yml
-  when: firmware_update_required
+# Usage: firewall_settings.yml
+https_port1: "80/tcp"
+https_port2: "443/tcp"
+ldap_port1: "389/tcp"
+ldap_port2: "636/tcp"
+kerberos_port1: "88/tcp"
+kerberos_port2: "464/tcp"
+kerberos_port3: "88/udp"
+kerberos_port4: "464/udp"
+dns_port1: "53/tcp"
+dns_port2: "53/udp"
+dt_port1: "7389/tcp"
+ntp_port1: "123/udp"

@@ -13,16 +13,10 @@
 #  limitations under the License.
 ---
 
-- name: Include common variables
-  include_vars:  ../../control_plane_common/vars/main.yml
+- name: Add ports to firewall to run slurm jobs
+  include_tasks: firewall_settings.yml
+  when: hostvars['127.0.0.1']['login_node_required']
 
-- name: Validate idrac_vars
-  include_tasks: validate_idrac_vars.yml
-
-- name: Install DSU
-  include_tasks: install_dsu.yml
-  when: firmware_update_required
-
-- name: Download iDRAC firmware updates
-  include_tasks: download_fmw_updates.yml
-  when: firmware_update_required
+- name: Install ipa client
+  include_tasks: install_ipa_client.yml
+  when: hostvars['127.0.0.1']['login_node_required']
