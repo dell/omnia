@@ -37,3 +37,6 @@
 - name: Subnet manager inputs validation
   import_tasks: fetch_sm_inputs.yml
   when: ib_switch_support
+
+- name: NFS Server setup for offline repo and awx
+  import_tasks: nfs_server_setup.yml

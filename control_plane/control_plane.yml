@@ -18,11 +18,11 @@
   connection: local
   roles:
     - control_plane_common
-    - control_plane_repo
     - control_plane_k8s
     - control_plane_device
     - provision_cobbler
+    - webui_awx
     - control_plane_ib
     - control_plane_sm
     - control_plane_customiso
-    - webui_awx
+    - control_plane_repo
