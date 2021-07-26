@@ -135,3 +135,7 @@
     cmd: "/usr/bin/kfctl apply -V -f '{{ kubeflow_config_file }}'"
     chdir: "{{ omnia_kubeflow_dir_path }}"
   changed_when: true
+  register: apply_kubeflow_config
+  until: apply_kubeflow_config is not failed
+  retries: 20
+  delay: 10

@@ -1,0 +1,111 @@
+# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+### Usage: idrac_2fa ###
+
+# Specify 2FA related paramters when two_factor_authentication is enabled in idrac_vars.yml
+# By default two factor authentication will be "disabled"
+# If required it can be "enabled" in idrac_vars.yml
+# [WARNING] Once 2FA is enabled, user has to disable 2FA manually. Other iDRAC playbooks won't run if 2FA is enabled
+# The SMTP server details should be valid. 
+# 2FA will be enabled only if email notification is working using SMTP.
+
+# DNS domain name to set to iDRAC
+# Mandatory value required
+dns_domain_name: ""
+
+# IPV4 static DNS1 and DNS2
+# Mandatory value required
+ipv4_static_dns1: ""
+ipv4_static_dns2: ""
+
+# Server IP used for SMTP
+# Mandatory value required
+smtp_server_ip: ""
+
+# Username used for SMTP
+# Mandatory value required
+smtp_username: ""
+   
+# Password used for SMTP
+# Mandatory value required    
+smtp_password: ""
+
+# Email address used for enabling 2FA
+# Mandatory value required
+use_email_address_2fa: ""
+
+
+### Usage: idrac_ldap ###
+
+# Specify LDAP related paramters when ldap_directory_services is enabled in idrac_vars.yml
+# By default LDAP directory services will be "disabled"
+# If required it can be "enabled" in idrac_vars.yml
+# The LDAP server details should be valid.
+
+# CA certification validation value
+# cert_validation_enable supports only disabled
+# CA Certificate can't be upload using this playbook idrac_ldap.yml.
+# If required user has to manually upload CA certificate after idrac_ldap.yml execution.
+cert_validation_enable: "disabled"
+
+# Sever address used for LDAP
+# Mandatory value required
+# Recommended to provided LDAP server ip address instead of FQDN
+ldap_server_address: ""
+
+# TCP port port at which the LDAP server is listening for connections
+# Default port for LDAP: 389
+# Default port for LDAP over SSL: 636
+ldap_port: "636"
+
+# Distinguished Name of the node in your directory tree from which to start searching for records
+# For example: cn=Administrator,cn=Users,dc=mycompany,dc=com
+bind_dn: ""
+
+# Password used for bind_dn
+bind_password: ""
+
+# The distinguished name of the search base. 
+# For example: dc=mycompany,dc=com
+# Mandatory value required
+base_dn: ""
+
+# User attribute used for search in LDAP server
+user_attribute: ""
+
+# Group attribute used for search in LDAP server
+group_attribute: ""
+
+# Specify group attribute type is DN or not
+# Supported options are "enabled" or "disabled"
+# By default group_attribute_is_dn will be disabled
+group_attribute_is_dn: "disabled"
+
+# Search scope is related to the Base DN. 
+# The search scope defines how LDAP will search for your objects.
+search_filter: ""
+
+# DN of LDAP group be to added
+# Supports adding only one role group
+# For example: cn=Admins,cn=Group,dc=mycompany,dc=com
+# Mandatory value required
+role_group1_dn: ""
+
+# Privielege to LDAP role group 1
+# Supported options are Administrator, Operator, ReadOnly
+# By default role_group1_privilege will be Administrator
+# Mandatory value required
+role_group1_privilege: "Administrator"

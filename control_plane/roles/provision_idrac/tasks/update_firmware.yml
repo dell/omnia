@@ -13,25 +13,46 @@
 # limitations under the License.
 ---
 
-- name: Update firmware (This task will take time based on current firmware version)
-  dellemc.openmanage.idrac_firmware:
-    idrac_ip: "{{ inventory_hostname }}"
-    idrac_user: "{{ idrac_username }}"
-    idrac_password: "{{ idrac_password }}"
-    share_name: "{{ management_station_ip }}:{{ nfs_share_offline_repo }}/dellupdates"
-    reboot: True
-    job_wait: True
-    apply_update: True
-    catalog_file_name: "Catalog.xml"
-  register: update_firmware
+- block:
+    - name: Update firmware (This task will take time based on current firmware version)
+      dellemc.openmanage.idrac_firmware:
+        idrac_ip: "{{ inventory_hostname }}"
+        idrac_user: "{{ idrac_username }}"
+        idrac_password: "{{ idrac_password }}"
+        share_name: "{{ management_station_ip }}:{{ nfs_share_offline_repo }}/dellupdates"
+        reboot: True
+        job_wait: True
+        apply_update: True
+        catalog_file_name: "Catalog.xml"
+      register: update_firmware
 
-- name: Wait for one minute to complete firmware update
-  wait_for:
-    timeout: 60 
-  run_once: true
+    - name: Wait for one minute to complete firmware update
+      wait_for:
+        timeout: 60
+      run_once: true
 
-- name: Wait for iDRAC port to become active
-  wait_for:
-    host: "{{ inventory_hostname }}"
-    port: "{{ idrac_port }}"
-    state: started
+    - name: Wait for iDRAC port to become active
+      wait_for:
+        host: "{{ inventory_hostname }}"
+        port: "{{ idrac_port }}"
+        state: started
+
+    - name: Firmware update status
+      debug:
+        msg: "{{ firmware_job_success_msg }}"
+      when: not update_firmware.failed
+
+  rescue:
+    - name: Firmware update job status
+      debug:
+        msg: "{{ update_firmware.msg }}"
+      when:
+        - update_firmware.failed
+        - idrac_error_message in update_firmware.msg
+
+    - name: Firmware update job failed
+      fail:
+        msg: "{{ firmware_job_fail_msg }}, Error: {{ update_firmware.msg }}"
+      when:
+        - update_firmware.failed
+        - idrac_error_message not in update_firmware.msg

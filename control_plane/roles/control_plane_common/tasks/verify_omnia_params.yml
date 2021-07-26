@@ -96,3 +96,8 @@
     ansible-vault encrypt {{ role_path }}/../../../{{ config_filename }}
     --vault-password-file {{ role_path }}/../../../{{ config_vaultname }}
   changed_when: false
+
+- name: Update omnia_config.yml permission
+  file:
+    path: "{{ role_path }}/../../../{{ config_filename }}"
+    mode: "{{ vault_file_perm }}"
