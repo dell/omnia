@@ -13,6 +13,10 @@
 # limitations under the License.
 ---
 
+- name: Set system_lockdown in lowercase
+  set_fact:
+    system_lockdown: "{{ system_lockdown | lower }}"
+
 - name: Assert system_lockdown value
   assert:
     that:
@@ -20,8 +24,7 @@
       - system_lockdown == "enabled" or system_lockdown == "disabled"
     success_msg: "{{ system_lockdown_success_msg }}"
     fail_msg: "{{ system_lockdown_fail_msg }}"
-  run_once: true
-
+    
 - name: Enable system lockdown
   dellemc.openmanage.dellemc_system_lockdown_mode:
     idrac_ip: "{{ inventory_hostname }}"

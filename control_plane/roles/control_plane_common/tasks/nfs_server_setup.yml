@@ -50,10 +50,13 @@
 - name: Adding NFS share entries in /etc/exports
   lineinfile:
     path: "{{ exports_file_path }}"
-    line: "{{ item }} {{ ansible_default_ipv4.address }}(rw,sync,no_root_squash)"
+    line: "{{ item.path }} {{ item.ip }}(rw,sync,no_root_squash)"
   with_items:
-    - "{{ nfs_share_offline_repo }}"
-    - "{{ nfs_share_awx }}"
+    - { path: "{{ nfs_share_offline_repo }}", ip: "{{ mngmnt_network_ip }}" }
+    - { path: "{{ nfs_share_offline_repo }}", ip: "{{ public_ip }}" }
+    - { path: "{{ nfs_share_awx }}", ip: "{{ mngmnt_network_ip }}" }
+    - { path: "{{ nfs_share_awx }}", ip: "{{ public_ip }}" }
+    - { path: "{{ nfs_share_offline_repo }}", ip: "{{ mngmnt_network_subnet }}/{{ mngmnt_network_netmask }}" }
 
 - name: Exporting the shared directories
   command: exportfs -r

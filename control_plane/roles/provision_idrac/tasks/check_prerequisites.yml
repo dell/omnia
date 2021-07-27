@@ -13,8 +13,8 @@
 # limitations under the License.
 ---
 
-- name: Include control_plane_repo vars
-  include_vars: ../../control_plane_repo/vars/main.yml
+- name: Include control_plane_common vars
+  include_vars: ../../control_plane_common/vars/main.yml
   run_once: true
 
 - name: Include custom_iso vars
@@ -26,7 +26,7 @@
     path: "{{ role_path }}/files/{{ management_station_ip_file }}"
   register: ip_file_check
   run_once: true
-
+  
 - name: Fetch management station ip from {{ management_station_ip_file }}
   shell: cat {{ role_path }}/files/{{ management_station_ip_file }}
   changed_when: false
@@ -38,11 +38,11 @@
   fail:
     msg: "{{ missing_ip_file_fail_msg }}"
   when: not ip_file_check.stat.exists
-
+  
 - name: Set management_station_ip
   set_fact:
     management_station_ip: "{{ fetch_ip.stdout }}"
-
+    
 - name: Check NFS share access
   idrac_server_config_profile:
     idrac_ip: "{{ inventory_hostname }}"
@@ -75,143 +75,138 @@
     datacenter_license: false
     provision_status: false
 
-- name: Check tower_cli.cfg is encrypted
-  command: cat "{{ playbook_dir }}/roles/webui_awx/files/{{ awx_vars_filename }}"
-  changed_when: false
-  register: awx_content
-  run_once: true
+- block:
+    - name: Check tower_cli.cfg is encrypted
+      command: cat "{{ playbook_dir }}/roles/webui_awx/files/{{ awx_vars_filename }}"
+      changed_when: false
+      register: awx_content
+      run_once: true
+
+    - name: Decrpyt tower_cli.cfg
+      command: >-
+        ansible-vault decrypt "{{ playbook_dir }}/roles/webui_awx/files/{{ awx_vars_filename }}"
+        --vault-password-file "{{ playbook_dir }}/roles/webui_awx/files/{{ awx_vaultname }}"
+      changed_when: false
+      run_once: true
+      when: "'$ANSIBLE_VAULT;' in awx_content.stdout"
+
+    - name: Fetch awx host
+      command: grep "host:" "{{ playbook_dir }}/roles/webui_awx/files/{{ awx_vars_filename }}"
+      register: fetch_awx_host
+      changed_when: false
+      run_once: true
+
+    - name: Fetch awx username
+      command: grep "username:" "{{ playbook_dir }}/roles/webui_awx/files/{{ awx_vars_filename }}"
+      register: fetch_awx_username
+      changed_when: false
+      run_once: true
+      no_log: true
+
+    - name: Fetch awx password
+      command: grep "password:" "{{ playbook_dir }}/roles/webui_awx/files/{{ awx_vars_filename }}"
+      register: fetch_awx_password
+      changed_when: false
+      run_once: true
+      no_log: true
+
+    - name: Set awx variables
+      set_fact:
+        awx_host: "{{ fetch_awx_host.stdout | regex_replace('host: ','') }}"
+        awx_username: "{{ fetch_awx_username.stdout | regex_replace('username: ','') }}"
+        awx_password: "{{ fetch_awx_password.stdout | regex_replace('password: ','') }}"
+      no_log: true
+
+    - name: Encrypt tower_cli.cfg
+      command: >-
+        ansible-vault encrypt "{{ playbook_dir }}/roles/webui_awx/files/{{ awx_vars_filename }}"
+        --vault-password-file "{{ playbook_dir }}/roles/webui_awx/files/{{ awx_vaultname }}"
+      changed_when: false
+      run_once: true
+      when: "'$ANSIBLE_VAULT;' in awx_content.stdout"
+      
+    - name: Get inventory list
+      command: >-
+        awx --conf.host "{{ awx_host }}" --conf.username "{{ awx_username }}" --conf.password "{{ awx_password }}"
+        inventory list -f human --filter "name"
+      register: inventory_list
+      run_once: true
+      changed_when: false
+      no_log: true
+
+    - name: Create provisioned_idrac inventory
+      command: >-
+        awx --conf.host {{ awx_host }} --conf.username {{ awx_username }} --conf.password {{ awx_password }}
+        inventory create --name "{{ provisioned_idrac_inventory_name }}" --organization "{{ awx_organization }}"
+      register: create_inventory
+      run_once: true
+      changed_when: true
+      no_log: true
+      when: provisioned_idrac_inventory_name not in inventory_list.stdout
+
+    - name: Fetch provisioned_idrac inventory
+      command: >-
+        awx --conf.host {{ awx_host }} --conf.username {{ awx_username }} --conf.password {{ awx_password }}
+        hosts list --inventory "{{ provisioned_idrac_inventory_name }}" -f human --filter "name"
+      register: fetch_inventory
+      run_once: true
+      changed_when: false
+      no_log: true
+
+    - name: Set provision status
+      set_fact:
+        provision_status: true
+      when: inventory_hostname in fetch_inventory.stdout
+
+    - name: Removing hosts already provisioned
+      debug:
+        msg: "{{ provision_skip_msg }}"
+      when: provision_status
+
   when: awx_search_key in hostname.stdout
 
-- name: Decrpyt tower_cli.cfg
-  command: >-
-    ansible-vault decrypt "{{ playbook_dir }}/roles/webui_awx/files/{{ awx_vars_filename }}"
-    --vault-password-file "{{ playbook_dir }}/roles/webui_awx/files/{{ awx_vaultname }}"
-  changed_when: false
-  run_once: true
-  when:
-    - awx_search_key in hostname.stdout
-    - "'$ANSIBLE_VAULT;' in awx_content.stdout"
+- block:
+    - name: Show status of the Lifecycle Controller
+      dellemc.openmanage.idrac_lifecycle_controller_status_info:
+        idrac_ip: "{{ inventory_hostname }}"
+        idrac_user: "{{ idrac_username }}"
+        idrac_password: "{{ idrac_password }}"
+      register: lc_check_status
 
-- name: Fetch awx host
-  command: grep "host:" "{{ playbook_dir }}/roles/webui_awx/files/{{ awx_vars_filename }}"
-  register: fetch_awx_host
-  changed_when: false
-  run_once: true
-  when: awx_search_key in hostname.stdout
+    - name: LC not available
+      fail:
+        msg: "{{ lc_check_fail_msg }}"
+      when: not lc_check_status.lc_status_info.LCReady
+      register: lc_fail
 
-- name: Fetch awx username
-  command: grep "username:" "{{ playbook_dir }}/roles/webui_awx/files/{{ awx_vars_filename }}"
-  register: fetch_awx_username
-  changed_when: false
-  run_once: true
-  no_log: true
-  when: awx_search_key in hostname.stdout
+    - name: Get system inventory
+      dellemc.openmanage.idrac_system_info:
+        idrac_ip: "{{ inventory_hostname }}"
+        idrac_user: "{{ idrac_username }}"
+        idrac_password: "{{ idrac_password }}"
+      register: idrac_info
 
-- name: Fetch awx password
-  command: grep "password:" "{{ playbook_dir }}/roles/webui_awx/files/{{ awx_vars_filename }}"
-  register: fetch_awx_password
-  changed_when: false
-  run_once: true
-  no_log: true
-  when: awx_search_key in hostname.stdout
+    - name: Set enterprise license status
+      set_fact:
+        enterprise_license: true
+      with_items: "{{ idrac_info.system_info.License }}"
+      when:
+        - '"iDRAC" in idrac_info.system_info.License[my_idx1].LicenseDescription'
+        - '"Enterprise" in idrac_info.system_info.License[my_idx1].LicenseDescription'
+        - '"License" in idrac_info.system_info.License[my_idx1].LicenseDescription'
+        - '"Healthy" in idrac_info.system_info.License[my_idx1].PrimaryStatus'
+      loop_control:
+        index_var: my_idx1
 
-- name: Set awx variables
-  set_fact:
-    awx_host: "{{ fetch_awx_host.stdout | regex_replace('host: ','') }}"
-    awx_username: "{{ fetch_awx_username.stdout | regex_replace('username: ','') }}"
-    awx_password: "{{ fetch_awx_password.stdout | regex_replace('password: ','') }}"
-  no_log: true
-  when: awx_search_key in hostname.stdout
-
-- name: Encrypt tower_cli.cfg
-  command: >-
-    ansible-vault encrypt "{{ playbook_dir }}/roles/webui_awx/files/{{ awx_vars_filename }}"
-    --vault-password-file "{{ playbook_dir }}/roles/webui_awx/files/{{ awx_vaultname }}"
-  changed_when: false
-  run_once: true
-  when:
-    - awx_search_key in hostname.stdout
-    - "'$ANSIBLE_VAULT;' in awx_content.stdout"
-
-- name: Get inventory list
-  command: >-
-     awx --conf.host "{{ awx_host }}" --conf.username "{{ awx_username }}" --conf.password "{{ awx_password }}"
-     inventory list -f human --filter "name"
-  register: inventory_list
-  run_once: true
-  changed_when: false
-  no_log: true
-  when: awx_search_key in hostname.stdout
-
-- name: Create provisioned_idrac inventory
-  command: >-
-    awx --conf.host {{ awx_host }} --conf.username {{ awx_username }} --conf.password {{ awx_password }}
-    inventory create --name "{{ provisioned_idrac_inventory_name }}" --organization "{{ awx_organization }}"
-  register: create_inventory
-  run_once: true
-  changed_when: true
-  no_log: true
-  when:
-    - awx_search_key in hostname.stdout
-    - provisioned_idrac_inventory_name not in inventory_list.stdout
-
-- name: Fetch provisioned_idrac inventory
-  command: >-
-    awx --conf.host {{ awx_host }} --conf.username {{ awx_username }} --conf.password {{ awx_password }}
-    hosts list --inventory "{{ provisioned_idrac_inventory_name }}" -f human --filter "name"
-  register: fetch_inventory
-  run_once: true
-  changed_when: false
-  no_log: true
-  when: awx_search_key in hostname.stdout
-
-- name: Removing hosts already provisioned
-  fail:
-    msg: "{{ provision_skip_msg }}"
-  when:
-    - awx_search_key in hostname.stdout
-    - inventory_hostname in fetch_inventory.stdout
-
-- name: Show status of the Lifecycle Controller
-  dellemc.openmanage.idrac_lifecycle_controller_status_info:
-    idrac_ip: "{{ inventory_hostname }}"
-    idrac_user: "{{ idrac_username }}"
-    idrac_password: "{{ idrac_password }}"
-  register: lc_check_status
-
-- name: LC not available
-  fail:
-    msg: "{{ lc_check_fail_msg }}"
-  when: not lc_check_status.lc_status_info.LCReady
-  register: lc_fail
-
-- name: Get system inventory
-  dellemc.openmanage.idrac_system_info:
-    idrac_ip: "{{ inventory_hostname }}"
-    idrac_user: "{{ idrac_username }}"
-    idrac_password: "{{ idrac_password }}"
-  register: idrac_info
-
-- name: Set enterprise license status
-  set_fact:
-    enterprise_license: true
-  with_items: "{{ idrac_info.system_info.License }}"
-  when:
-    - '"iDRAC" in idrac_info.system_info.License[my_idx1].LicenseDescription'
-    - '"Enterprise" in idrac_info.system_info.License[my_idx1].LicenseDescription'
-    - '"License" in idrac_info.system_info.License[my_idx1].LicenseDescription'
-    - '"Healthy" in idrac_info.system_info.License[my_idx1].PrimaryStatus'
-  loop_control:
-    index_var: my_idx1
-
-- name: Set datacenter license status
-  set_fact:
-    datacenter_license: true
-  with_items: "{{ idrac_info.system_info.License }}"
-  when:
-    - '"iDRAC" in idrac_info.system_info.License[my_idx2].LicenseDescription'
-    - '"Datacenter" in idrac_info.system_info.License[my_idx2].LicenseDescription'
-    - '"License" in idrac_info.system_info.License[my_idx2].LicenseDescription'
-    - '"Healthy" in idrac_info.system_info.License[my_idx2].PrimaryStatus'
-  loop_control:
-    index_var: my_idx2
+    - name: Set datacenter license status
+      set_fact:
+        datacenter_license: true
+      with_items: "{{ idrac_info.system_info.License }}"
+      when:
+        - '"iDRAC" in idrac_info.system_info.License[my_idx2].LicenseDescription'
+        - '"Datacenter" in idrac_info.system_info.License[my_idx2].LicenseDescription'
+        - '"License" in idrac_info.system_info.License[my_idx2].LicenseDescription'
+        - '"Healthy" in idrac_info.system_info.License[my_idx2].PrimaryStatus'
+      loop_control:
+        index_var: my_idx2
+  when: not provision_status
