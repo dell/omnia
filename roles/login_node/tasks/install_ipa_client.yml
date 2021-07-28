@@ -1,0 +1,40 @@
+#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Include ipa server variables
+  include_vars: ../../login_common/vars/main.yml
+
+- name: Fetch hostname
+  command: hostname
+  register: loginnode_hostname
+  changed_when: false
+
+- name: Install freeipa client package
+  package:
+    name: "{{ ipa_client_package }}"
+    state: present
+  tags: install
+
+- name: Uninstall client if already installed
+  command: ipa-client-install --uninstall -U
+  changed_when: false
+  failed_when: false
+
+- name: Install ipa client
+  command: >-
+    ipa-client-install --domain '{{ hostvars['127.0.0.1']['domain_name'] }}' --server '{{ hostvars[groups['manager'][0]]['server_hostname'] }}'
+    --principal admin --password '{{ hostvars['127.0.0.1']['ipa_admin_password'] }}' --force-join --enable-dns-updates --force-ntpd -U
+  changed_when: true
+  no_log: true

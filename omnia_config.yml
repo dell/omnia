@@ -49,3 +49,27 @@ docker_password: ""
 # This directory is on the host running ansible, if ansible is installed using dnf
 # If ansible is installed using pip, this path should be set
 ansible_config_file_path: /etc/ansible
+
+# Boolean indicating whether login node is required or not
+# It can be set to true or false
+# By default it is set to true indicating login node will be configured
+login_node_required: true
+
+# This variable is used to accept the domain name the user intends to configure
+# Eg: ipa.test
+domain_name: ""
+
+# A Kerberos realm is the domain over which a Kerberos authentication server has the authority to authenticate a user, host or service. 
+# A realm name is often, but not always the upper case version of the name of the DNS domain over which it presides
+realm_name: ""
+
+# The directory server operations require an administrative user. 
+# This user is referred to as the Directory Manager and has full access to the Directory for system management tasks 
+# and will be added to the instance of directory server created for IPA. 
+# The password must be at least 8 characters long
+# The password must not contain -,\, ',"
+directory_manager_password: ""
+
+# The IPA server requires an administrative user, named 'admin'. 
+# This user is a regular system account used for IPA server administration
+ipa_admin_password: ""

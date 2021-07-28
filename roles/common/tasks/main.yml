@@ -151,3 +151,42 @@
   with_items:
     - "{{ groups['manager'] }}"
   when: "'compute' in group_names"
+
+- name: Add login node info in /etc/hosts of manager node
+  lineinfile:
+    dest: "{{ hosts_file_dest }}"
+    line: "{{ hostvars[item].node_ip }} {{ hostvars[item].node_hostname }}"
+    state: present
+    create: yes
+    mode: "{{ hosts_file_mode }}"
+  with_items:
+    - "{{ groups['login_node'] }}"
+  when:
+    - '"manager" in group_names'
+    - hostvars["127.0.0.1"]["login_node_required"]
+
+- name: Add manager info in /etc/hosts of login node
+  lineinfile:
+    dest: "{{ hosts_file_dest }}"
+    line: "{{ hostvars[item].node_ip }} {{ hostvars[item].node_hostname }}"
+    state: present
+    create: yes
+    mode: "{{ hosts_file_mode }}"
+  with_items:
+    - "{{ groups['manager'] }}"
+  when:
+    - '"login_node" in group_names'
+    - hostvars["127.0.0.1"]["login_node_required"]
+
+- name: Add compute info in /etc/hosts of login node
+  lineinfile:
+    dest: "{{ hosts_file_dest }}"
+    line: "{{ hostvars[item].node_ip }} {{ hostvars[item].node_hostname }}"
+    state: present
+    create: yes
+    mode: "{{ hosts_file_mode }}"
+  with_items:
+    - "{{ groups['compute'] }}"
+  when:
+    - hostvars["127.0.0.1"]["login_node_required"]
+    - '"login_node" in group_names'
