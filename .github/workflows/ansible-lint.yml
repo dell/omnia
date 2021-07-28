@@ -30,6 +30,7 @@ jobs:
         targets: |
           /github/workspace/omnia.yml
           /github/workspace/omnia_config.yml
+          /github/workspace/control_plane/control_plane.yml
           /github/workspace/platforms/jupyterhub.yml
           /github/workspace/platforms/kubeflow.yml
           /github/workspace/tools/install_tools.yml
