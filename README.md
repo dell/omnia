@@ -44,6 +44,7 @@ Thanks goes to everyone who makes Omnia possible ([emoji key](https://allcontrib
     <td align="center"><a href="https://github.com/avinashvishwanath"><img src="https://avatars.githubusercontent.com/u/77823538?v=4?s=100" width="100px;" alt=""/><br /><sub><b>avinashvishwanath</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=avinashvishwanath" title="Documentation">📖</a></td>
     <td align="center"><a href="https://github.com/abhishek-s-a"><img src="https://avatars.githubusercontent.com/u/73212230?v=4?s=100" width="100px;" alt=""/><br /><sub><b>abhishek-s-a</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=abhishek-s-a" title="Code">💻</a></td>
     <td align="center"><a href="https://github.com/Shubhangi-dell"><img src="https://avatars.githubusercontent.com/u/72869337?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Shubhangi Srivastava</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=Shubhangi-dell" title="Code">💻</a></td>
+    <td align="center"><a href="https://github.com/Franklin-Johnson"><img src="https://avatars.githubusercontent.com/u/84760103?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Franklin-Johnson</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=Franklin-Johnson" title="Code">💻</a> <a href="#blog-Franklin-Johnson" title="Blogposts">📝</a></td>
   </tr>
 </table>
 
