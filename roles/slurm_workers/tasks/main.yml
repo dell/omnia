@@ -40,6 +40,29 @@
     state: present
   tags: firewalld
 
+- name: Start and enable firewalld
+  service:
+    name: firewalld
+    state: started
+    enabled: yes
+  tags: firewalld
+
+- name: Firewall rule for slurm - tcp/udp ports
+  firewalld:
+    zone: public
+    port: "{{ item }}"
+    permanent: true
+    state: enabled
+  with_items:
+    - "{{ tcp_port2 }}"
+    - "{{ udp_port2 }}"
+  tags: firewalld
+
+- name: Reload firewalld
+  command: firewall-cmd --reload
+  changed_when: true
+  tags: firewalld
+
 - name: Stop and disable firewalld
   service:
     name: firewalld
@@ -90,16 +113,43 @@
     mode: "{{ slurm_mode }}"
   with_items:
     - "{{ groups['compute'] }}"
+  when: '"compute" in group_names'
+
+- name: Add login node core & socket info in slurm config file
+  lineinfile:
+    dest: "{{ slurm_confpth }}"
+    line: "NodeName={{ hostvars[item].node_name }} Sockets={{ hostvars[item].sockets }} CoresPerSocket={{ hostvars[item].cores }}"
+    state: present
+    create: yes
+    mode: "{{ slurm_mode }}"
+  with_items:
+    - "{{ groups['login_node'] }}"
+  when:
+    - hostvars["127.0.0.1"]["login_node_required"]
+    - '"login_node" in group_names'
+
+- name: Update hostnames of compute node when ALL in partition nodes
+  replace:
+    path: "{{ slurm_confpth }}"
+    regexp: 'PartitionName=normal Nodes=ALL'
+    replace: 'PartitionName=normal Nodes={{ machine_name.stdout }}'
+  when:
+    - hostvars["127.0.0.1"]["login_node_required"]
+    - '"compute" in group_names'
+  register: output
+
+- name: Update hostnames of compute node in partition nodes
+  replace:
+    path: "{{ slurm_confpth }}"
+    regexp: ' Default=YES MaxTime=INFINITE State=UP'
+    replace: ',{{ machine_name.stdout }} Default=YES MaxTime=INFINITE State=UP'
+  when:
+    - hostvars["127.0.0.1"]["login_node_required"]
+    - '"compute" in group_names'
+    - output.msg | length == 0
 
 - name: Save slurm conf in buffer
   fetch:
     src: "{{ slurm_confpth }}"
     dest: "{{ buffer_path }}"
     flat: true
-
-- name: Start slurmd on compute nodes
-  systemd:
-    name: slurmd.service
-    state: started
-    enabled: yes
-  tags: install

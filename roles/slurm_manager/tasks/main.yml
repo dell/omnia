@@ -156,13 +156,13 @@
   lineinfile:
     path: "{{ slurmdbd_path }}"
     regexp: "DbdAddr="
-    line: "DbdAddr={{ DbdAddr }}"
+    line: "DbdAddr={{ dbd_addr }}"
 
 - name: Add db host
   lineinfile:
     path: "{{ slurmdbd_path }}"
     regexp: "DbdHost="
-    line: "DbdHost={{ DbdHost }}"
+    line: "DbdHost={{ dbd_host }}"
 
 - name: Add storage password
   lineinfile:

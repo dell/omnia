@@ -192,4 +192,4 @@
     state: restarted
     enabled: yes
   tags: install
-  ignore_errors: yes
+  failed_when: false
