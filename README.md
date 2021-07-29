@@ -49,6 +49,7 @@ Thanks goes to everyone who makes Omnia possible ([emoji key](https://allcontrib
   </tr>
   <tr>
     <td align="center"><a href="https://github.com/VishnupriyaKrish"><img src="https://avatars.githubusercontent.com/u/72784834?v=4?s=100" width="100px;" alt=""/><br /><sub><b>VishnupriyaKrish</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=VishnupriyaKrish" title="Code">💻</a></td>
+    <td align="center"><a href="https://rb.gy/ndlbhv"><img src="https://avatars.githubusercontent.com/u/48859631?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Ishita Datta</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=ishitadatta" title="Documentation">📖</a></td>
   </tr>
 </table>
 
