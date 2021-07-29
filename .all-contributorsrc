@@ -132,6 +132,16 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "Franklin-Johnson",
+      "name": "Franklin-Johnson",
+      "avatar_url": "https://avatars.githubusercontent.com/u/84760103?v=4",
+      "profile": "https://github.com/Franklin-Johnson",
+      "contributions": [
+        "code",
+        "blog"
+      ]
     }
   ],
   "contributorsPerLine": 7,
