@@ -47,6 +47,9 @@ Thanks goes to everyone who makes Omnia possible ([emoji key](https://allcontrib
     <td align="center"><a href="https://github.com/Franklin-Johnson"><img src="https://avatars.githubusercontent.com/u/84760103?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Franklin-Johnson</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=Franklin-Johnson" title="Code">💻</a> <a href="#blog-Franklin-Johnson" title="Blogposts">📝</a></td>
     <td align="center"><a href="https://github.com/teiland7"><img src="https://avatars.githubusercontent.com/u/85184708?v=4?s=100" width="100px;" alt=""/><br /><sub><b>teiland7</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=teiland7" title="Code">💻</a> <a href="#blog-teiland7" title="Blogposts">📝</a></td>
   </tr>
+  <tr>
+    <td align="center"><a href="https://github.com/VishnupriyaKrish"><img src="https://avatars.githubusercontent.com/u/72784834?v=4?s=100" width="100px;" alt=""/><br /><sub><b>VishnupriyaKrish</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=VishnupriyaKrish" title="Code">💻</a></td>
+  </tr>
 </table>
 
 <!-- markdownlint-restore -->
