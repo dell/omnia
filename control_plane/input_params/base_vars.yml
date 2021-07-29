@@ -118,10 +118,6 @@ host_network_nic: "eno3"
 host_network_dhcp_start_range: ""
 host_network_dhcp_end_range: ""
 
-dhcp_gateway: ""
-dhcp_dns1: ""
-dhcp_dns2: ""
-
 # The mapping file consists of the MAC address and its respective IP address and hostname.
 # The format of mapping file should be MAC,hostname,IP and must be a CSV file.
 # Eg: xx:yy:zz:aa:bb,server,172.17.0.5
@@ -133,8 +129,8 @@ host_mapping_file_path: ""
 
 # The nic/ethernet card that needs to be connected to configure infiniband switch
 # This nic will be configured by Omnia for the DHCP server.
-# Default value of nic is ib0
-ib_network_nic: "ib0"
+# Default value of nic is ib1
+ib_network_nic: "ib1"
 
 # The dhcp range for assigning the IPv4 address
 # Example: 172.17.0.1
