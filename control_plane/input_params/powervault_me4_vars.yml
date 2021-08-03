@@ -15,27 +15,18 @@
 
 ### Usage: powervault_me4 ###
 
-# User type of powervault_me4
-# The vaules supported are "standard" and "SNMPv3"
-# The default value is "standard"
-powervault_me4_usertype: "standard"
-
-# The user roles for managing and monitoring powervault_me4
-# The values supported are "monitor" and "manage"
-# The default value is "manage"
-# Only "manage" role allows - Addition of disk groups and creation of volumes 
-powervault_me4_roles: "manage"
-
 # This variable indicates the language selection
 # Currently only "English" is supported
 locale: "English"
 
 # Specify the system name to identify the system
-# By default it is set to "Uninitialized Name"
-powervault_me4_system_name: "Unintialized Name"
+# By default it is set to "Uninitialized_Name"
+# Length should be less than 30 and it should not contain space.
+# This is "optional"
+powervault_me4_system_name: "Unintialized_Name"
 
 # Specify the snmp notification level
-# critical: Sends notifications for Critical events only.
+# crit: Sends notifications for Critical events only.
 # error: Sends notifications for Error and Critical events.
 # warn: Sends notifications for Warning, Error, and Critical events.
 # resolved: Sends notifications for Resolved, Warning, Error, and Critical events.
@@ -43,26 +34,19 @@ powervault_me4_system_name: "Unintialized Name"
 # none: All events are excluded from trap notification and traps are disabled. 
 # However, Critical events and managed-logs events 400–402 are sent regardless of the notification setting.
 # Default value is "none"
+# Compulsory
 powervault_me4_snmp_notify_level: "none"
-
-# Specify the disk group name
-# If left blank, system automatically assigns the name
-powervault_me4_disk_group_name: ""
-
-# Specify the disk type
-# Values supported are "Virtual" and "Read Cache"
-powervault_me4_disk_type: "Virtual"
 
 # Specify the required RAID Level
 # The different RAID levels and the min and max number of disks supported for each RAID are
-# RAID1: 2
-# RAID5: 3-16
-# RAID6: 4-16
-# RAID10: 4-16
-# ADAPT: 12-128
-# Default value is "RAID1"
-# If Type "Read Cache" is selected, then RAID levels are not required
-powervault_me4_raid_levels: "RAID1"
+# r1/raid1: 2
+# r5/raid5: 3-16
+# r6/raid6: 4-16
+# r10/raid10: 4-16
+# adapt: 12-128
+# Default value is "raid1"
+# Compulsory
+powervault_me4_raid_levels: "raid1"
 
 # Specify the range of disks
 # Select a range of disks within an enclosure by entering a comma-separated list that contains 
@@ -70,13 +54,37 @@ powervault_me4_raid_levels: "RAID1"
 # Use the format enclosure-number.disk-range,enclosure-number.disk-range. 
 # For example, to select disks 3-12 in enclosure 1 and 5-23 in enclosure 2, enter 1.3-12,2.5-23.
 # For ME4012 - 0.0-0.11,1.0-1.11 are the allowed values
-powervault_me4_disk_range: ""
+# Default value is 0.1-2
+# Compulsory
+powervault_me4_disk_range: "0.1-2"
 
-# Specify the volume name
+# Specify the volume names
 # Cannot be left blank
-# the default value is "pv_omnia"
-powervault_me4_volume_name: "pv_omnia"
+# the default value is "k8s_volume" and "slurm_volume"
+# Compulsory
+powervault_me4_k8s_volume_name: "k8s_volume"
+powervault_me4_slurm_volume_name: "slurm_volume"
+
+# Specify the disk group name
+# If left blank, system automatically assigns the name
+powervault_me4_disk_group_name: "omnia"
+
+# Specify the percentage for partition in disk
+# Default value is "60%"
+# Compulsory
+powervault_me4_disk_partition_size: "60"
 
 # Specify the volume size
 # Format: 100GB <SizeGB>
+# Compulsory
 powervault_me4_volume_size: "100GB"
+
+#Specify the pool for volume
+# Pool can either be  a/A or b/B.
+# Compulsory
+powervault_me4_pool: "a"
+
+# Specify the nic of the server with which Powervault is connected.
+# Default value is eno1.
+# Compulsory
+powervault_me4_server_nic: "eno1"
