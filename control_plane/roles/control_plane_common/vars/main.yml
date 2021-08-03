@@ -59,31 +59,11 @@ vault_file_perm: '0644'
 nic_min_length: 3
 input_config_failure_msg: "Please provide all the required parameters in login_vars.yml"
 fail_msg_provision_password: "Failed. Incorrect provision_password format provided in login_vars.yml"
-success_msg_provision_password: "provision_password validated"
 fail_msg_cobbler_password: "Failed. Incorrect cobbler_password format provided in login_vars.yml file"
-success_msg_cobbler_password: "cobbler_password validated"
-success_idrac_username: "idrac username validated"
-fail_idrac_username: "Failed. Incorrect idrac_username format provided in base_vars.yml"
-success_msg_idrac_password: "idrac password validated"
-fail_msg_idrac_password: "Failed. Incorrect idrac_password format provided in base_vars.yml"
-ethernet_params_success_msg: "Ethernet switch username and password are not blank"
-ethernet_params_empty_fail_msg: "Failed. ethernet switch username or password cannot be empty when ethernet_switch_support is true"
-success_ethernet_switch_username: "Ethernet switch username validated"
-fail_ethernet_switch_username: "Failed. Incorrect ethernet_switch_username format provided in base_vars.yml"
-success_msg_ethernet_switch_password: "Ethernet password validated"
-fail_msg_ethernet_switch_password: "Failed. Incorrect ethernet_switch_password format provided in base_vars.yml"
-ib_params_success_msg: "InfiniBand switch username and password are not blank"
-ib_params_empty_fail_msg: "Failed. InfiniBand username or password cannot be empty when ib_switch_support is true"
-success_ib_username: "ib username validated"
-fail_ib_username: "Failed. Incorrect ib_username format provided in base_vars.yml"
-success_msg_ib_password: "ib password validated"
-fail_msg_ib_password: "Failed. Incorrect ib_password format provided in base_vars.yml"
-pv_params_success_msg: "Powervault switch username and password are not blank"
-pv_params_empty_fail_msg: "Failed. Powervault username or password cannot be empty when powervault_support is true"
-success_powervault_me4_username: "powervault username validated"
-fail_powervault_me4_username: "Failed. Incorrect powervault_username format provided in base_vars.yml"
-success_msg_powervault_me4_password: "powervault password validated"
-fail_msg_powervault_me4_password: "Failed. Incorrect powervault_password format provided in base_vars.yml"
+fail_msg_idrac_credentials: "Failed. Incorrect idrac_username or idrac_password format provided in login_vars.yml"
+fail_msg_ethernet_credentials: "Failed. Incorrect ethernet_switch_username or ethernet_switch_password format provided in login_vars.yml"
+fail_msg_ib_credentials: "Failed. Incorrect ib_username or ib_password format provided in login_vars.yml"
+fail_msg_me4_credentials: "Failed. Incorrect powervault_me4_username or powervault_me4_password format provided in login_vars.yml"
 
 # Usage: verify_omnia_params.yml
 config_filename: "omnia_config.yml"
@@ -152,7 +132,7 @@ idrac_tools_vars_filename: input_params/idrac_tools_vars.yml
 # Usage: nfs_server_setup.yml
 nfs_share_offline_repo: /var/nfs_repo
 nfs_share_awx: /var/nfs_awx
-nfs_share_dir_mode: 0644
+nfs_share_dir_mode: 0777
 exports_file_path: /etc/exports
 nfs_services:
   - mountd
