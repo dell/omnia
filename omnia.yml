@@ -112,7 +112,7 @@
   tags: kubernetes
 
 - name: Apply common Slurm installation and config
-  hosts: manager, compute
+  hosts: manager, compute, login_node
   gather_facts: false
   roles:
     - slurm_common
@@ -125,11 +125,19 @@
     - slurm_manager
   tags: slurm
 
-- name: Start Slurm workers
-  hosts: compute
+- name: Configure Slurm workers
+  hosts: compute, login_node
+  serial: 1
   gather_facts: false
   roles:
     - slurm_workers
+  tags: slurm
+
+- name: Start Slurm workers
+  hosts: compute, login_node
+  gather_facts: false
+  roles:
+    - slurm_workers_service
   tags: slurm
 
 - name: Start Slurm services

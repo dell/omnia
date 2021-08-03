@@ -129,8 +129,8 @@ host_mapping_file_path: ""
 
 # The nic/ethernet card that needs to be connected to configure infiniband switch
 # This nic will be configured by Omnia for the DHCP server.
-# Default value of nic is ib1
-ib_network_nic: "ib1"
+# Default value of nic is ib0
+ib_network_nic: "ib0"
 
 # The dhcp range for assigning the IPv4 address
 # Example: 172.17.0.1
