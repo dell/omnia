@@ -15,47 +15,47 @@
 
 # Tasks file for infiniband
 
-- name: Check infiniband_container status on machine
-  include_tasks: check_prerequisites.yml
-
-- name: Include common variables
-  include_vars:  ../../control_plane_common/vars/main.yml
-  when: not infiniband_container_status
-
-- name: Internet validation
-  include_tasks:  ../../control_plane_common/tasks/internet_validation.yml
-  when: not infiniband_container_status
-
-#- name: Fetch base inputs
-#  include_tasks: ../../control_plane_common/tasks/fetch_base_inputs.yml
-#  when: not infiniband_container_status
-
-- name: Include variable file base_vars.yml
-  include_vars: "{{ ib_base_file }}"
-
-- name: Dhcp Configuration
-  import_tasks: dhcp_configure.yml
-  when: (not infiniband_container_image_status) or ( infiniband_backup_map_status == true)
-
-#- name: Mapping file validation
-#  import_tasks: mapping_file.yml
-#  when: (not infiniband_container_image_status) and (mapping_file == true) or ( backup_map_status == true)
-
-- name: infiniband_container image creation
-  import_tasks: infiniband_container_image.yml
-  when: not infiniband_container_status
-
-- name: infiniband_container configuration
-  import_tasks: configure_infiniband_container.yml
-
-- name: infiniband_container container status message
+- name: Check if IB switch is supported
   block:
-    - debug:
-        msg: "{{ infiniband_message_skipped }}"
-        verbosity: 2
-      when: infiniband_container_status
-    - debug:
-        msg: "{{ infiniband_message_installed }}"
-        verbosity: 2
+    - name: Check infiniband_container status on machine
+      include_tasks: check_prerequisites.yml
+
+    - name: Include common variables
+      include_vars:  ../../control_plane_common/vars/main.yml
       when: not infiniband_container_status
-  tags: install
+
+    - name: Internet validation
+      include_tasks:  ../../control_plane_common/tasks/internet_validation.yml
+      when: not infiniband_container_status
+
+    - name: Include variable file base_vars.yml
+      include_vars: "{{ base_file }}"
+
+    - name: Dhcp Configuration
+      import_tasks: dhcp_configure.yml
+      when: (not infiniband_container_image_status) or ( infiniband_backup_map_status == true)
+
+    #- name: Mapping file validation
+    #  import_tasks: mapping_file.yml
+    #  when: (not infiniband_container_image_status) and (mapping_file == true) or ( backup_map_status == true)
+
+    - name: infiniband_container image creation
+      import_tasks: infiniband_container_image.yml
+      when: not infiniband_container_status
+
+    - name: infiniband_container configuration
+      import_tasks: configure_infiniband_container.yml
+
+    - name: infiniband_container container status message
+      block:
+        - debug:
+            msg: "{{ infiniband_message_skipped }}"
+            verbosity: 2
+          when: infiniband_container_status
+        - debug:
+            msg: "{{ infiniband_message_installed }}"
+            verbosity: 2
+          when: not infiniband_container_status
+      tags: install
+
+  when: ib_switch_support

@@ -91,6 +91,14 @@
     docker_password: "{{ docker_password }}"
   no_log: True
 
+- name: Validate the domain name
+  assert:
+    that:
+      - domain_name is regex("^(?!-)[A-Za-z0-9-]+([\\-\\.]{1}[a-z0-9]+)*\\.[A-Za-z]{2,6}$")
+    success_msg: "{{ domain_name_success_msg }}"
+    fail_msg: "{{ domain_name_fail_msg }}"
+  when: domain_name | length > 0
+
 - name: Encrypt input config file
   command: >-
     ansible-vault encrypt {{ role_path }}/../../../{{ config_filename }}

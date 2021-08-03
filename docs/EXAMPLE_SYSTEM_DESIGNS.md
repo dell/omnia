@@ -1,16 +1,3 @@
-# Preparation to install Omnia
-
-## Assumptions
-Ensure that the following prerequisites are met:
-* The manager and compute nodes must be running CentOS 7.9 2009 OS.
-* All nodes are connected to the network and have access to Internet.
-* SSH Keys for root have been installed on all nodes to allow for password-less SSH.
-* On the manager node, install Ansible and Git using the following commands:
-	* `yum install epel-release -y`
-	* `yum install ansible-2.9.18 git -y`  
-__Note:__ Ansible must be installed using __yum__. If Ansible is installed using __pip3__, re-install it using the __yum__ command again.
-
-
 ## Example system designs
 Omnia can configure systems which use Ethernet or Infiniband-based fabric to connect the compute servers.
 

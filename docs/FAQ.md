@@ -1,20 +1,17 @@
 # Frequently Asked Questions
 
-* TOC
-{:toc}
-
-## Why is the error "Wait for AWX UI to be up" displayed when `appliance.yaml` fails?  
+## Why is the error "Wait for AWX UI to be up" displayed when `appliance.yml` fails?  
 Cause: 
 1. When AWX is not accessible even after five minutes of wait time. 
 2. When __isMigrating__ or __isInstalling__ is seen in the failure message.
 	
 Resolution:  
-Wait for AWX UI to be accessible at http://\<management-station-IP>:8081, and then run the `appliance.yaml` file again, where __management-station-IP__ is the ip address of the management node.
+Wait for AWX UI to be accessible at http://\<management-station-IP>:8081, and then run the `appliance.yml` file again, where __management-station-IP__ is the IP address of the management node.
 
-## What are the next steps after the nodes in a Kubernetes cluster reboots?  
+## What are the next steps after the nodes in a Kubernetes cluster reboot?  
 Resolution: 
-Wait for upto 15 minutes after the Kubernetes cluster reboots. Next, verify status of the cluster using the following services:
-* `kubectl get nodes` on the manager node provides correct k8s cluster status.  
+Wait for 15 minutes after the Kubernetes cluster reboots. Next, verify the status of the cluster using the following services:
+* `kubectl get nodes` on the manager node provides the correct k8s cluster status.  
 * `kubectl get pods --all-namespaces` on the manager node displays all the pods in the **Running** state.
 * `kubectl cluster-info` on the manager node displays both k8s master and kubeDNS are in the **Running** state.
 
@@ -24,9 +21,9 @@ Resolution:
 2. If the pods are not in the **Running** state, delete the pods using the command:`kubectl delete pods <name of pod>`
 3. Run the corresponding playbook that was used to install Kubernetes: `omnia.yml`, `jupyterhub.yml`, or `kubeflow.yml`.
 
-## What to do when the JupyterHub or Prometheus UI are not accessible?  
+## What to do when the JupyterHub or Prometheus UI is not accessible?  
 Resolution:
-Run the command `kubectl get pods --namespace default` to ensure **nfs-client** pod and all prometheus server pods are in the **Running** state. 
+Run the command `kubectl get pods --namespace default` to ensure **nfs-client** pod and all Prometheus server pods are in the **Running** state. 
 
 ## While configuring the Cobbler, why does the `appliance.yml` fail with an error during the Run import command?  
 Cause:
@@ -67,7 +64,7 @@ slurmctld -Dvvv
 ```
 2. Verify `/var/lib/log/slurmctld.log` file.
 
-## What to do when when the error "ports are unavailable" is displayed?
+## How to resolve the "Ports are unavailable" error?
 Cause: Slurm database connection fails.  
 Resolution:
 1. Run the following commands:
@@ -86,15 +83,48 @@ systemctl restart slurmd on compute node
 ```
 		
 ## What to do if Kubernetes Pods are unable to communicate with the servers when the DNS servers are not responding?  
-Cause: With the host network which is DNS issue.  
+Cause: With the host network which is a DNS issue.  
 Resolution:
 1. In your Kubernetes cluster, run `kubeadm reset -f` on the nodes.
-2. In the management node, edit the `omnia_config.yml` file to change the Kubernetes Pod Network CIDR. Suggested IP range is 192.168.0.0/16 and ensure you provide an IP which is not in use in your host network.
+2. In the management node, edit the `omnia_config.yml` file to change the Kubernetes Pod Network CIDR. The suggested IP range is 192.168.0.0/16 and ensure that you provide an IP that is not in use in your host network.
 3. Execute omnia.yml and skip slurm using __skip_ tag __slurm__.
 
-## What to do if time taken to pull the images to create the Kubeflow containers exceeds the limit and the Apply Kubeflow configurations task fails?  
+## What to do if the time taken to pull the images to create the Kubeflow containers exceeds the limit and the Apply Kubeflow configurations task fails?  
 Cause: Unstable or slow Internet connectivity.  
 Resolution:
-1. Complete the PXE booting/ format the OS on manager and compute nodes.
+1. Complete the PXE booting/ format the OS on the manager and compute nodes.
 2. In the omnia_config.yml file, change the k8s_cni variable value from calico to flannel.
-3. Run the Kubernetes and Kubeflow playbooks.
+3. Run the Kubernetes and Kubeflow playbooks.  
+
+## How to resolve the "Permission denied" error while executing the `idrac.yml` file or other .yml files from AWX?
+Cause: The "PermissionError: [Errno 13] Permission denied" error is displayed if you have used the ansible-vault decrypt or encrypt commands.  
+Resolution:
+* Provide Chmod 644 permission to the .yml files which is missing the required permission. 
+
+It is suggested that you use the ansible-vault view or edit commands and that you do not use the ansible-vault decrypt or encrypt commands.
+
+## What to do if LC is not ready?
+Resolution:
+* Ensure LC is in a ready state for all the servers.
+* Launch iDRAC template.
+
+## What to do if the network CIDR entry of iDRAC IP in /etc/exports file is missing?
+Resolution:
+* Add additional network CIDR range of idrac IP in the */etc/exports* file if iDRAC IP is not in the management network range provided in base_vars.yml.
+
+## What to do if a custom ISO file is not present in the device?
+Resolution:
+* Re-run the *control_plane.yml* file.
+
+## What to do if the *management_station_ip.txt* file under *provision_idrac/files* folder is missing?
+Resolution:
+* Re-run the *control_plane.yml* file.
+
+## Is Disabling 2FA supported by Omnia?
+Resolution:
+* Disabling 2FA is not supported by Omnia and must be manually disabled.
+
+## The provisioning of PowerEdge servers failed. How to resolve the issue and reprovision the servers?
+Resolution:
+1. Delete the respective iDRAC IP addresses from the *provisioned_idrac_inventory* on the AWX UI or delete the *provisioned_idrac_inventory* to delete the iDRAC IP addresses of all the servers in the cluster.
+2. Launch the iDRAC template from the AWX UI.

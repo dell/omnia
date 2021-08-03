@@ -1,93 +1,95 @@
-# Monitor Kuberentes and Slurm
+# Monitor Kubernetes and Slurm
 Omnia provides playbooks to configure additional software components for Kubernetes such as JupyterHub and Kubeflow. For workload management (submitting, conrolling, and managing jobs) of HPC, AI, and Data Analytics clusters, you can access Kubernetes and Slurm dashboards and other supported applications. 
 
-To access any of the dashboards login to the manager node and open the installed web browser.
+## Before accessing the dashboards
+To access any of the dashboards, ensure that a compatible web browser is installed. If you are connecting remotely to your Linux server by using MobaXterm version later than 8 or other X11 Clients though *ssh*, follow the below mentioned steps to launch the Firefox Browser:  
+* On the management station:
+	1. Connect using *ssh*. Run `ssh <user>@<IP-address>`, where *IP-address* is the private IP of the management station.
+	2. `dnf install mesa-libGL-devel -y`
+	3. `dnf install firefox -y`
+	4. `dnf install xorg-x11-xauth`
+	5. `export DISPLAY=:10.0`
+	6. `logout and login back`
+	7. To launch Firefox from terminal, run `firefox&`.  
+	
+* On the manager node:
+	1. Connect using *ssh*. Run `ssh <user>@<IP-address>`, where *IP-address* is the private IP of the manager node.
+	2. `yum install firefox -y`
+	3. `yum install xorg-x11-xauth`
+	4. `export DISPLAY=:10.0`
+	5. `logout and login back`
+	6. To launch Firefox from terminal, run `firefox&`
 
-If you are connecting remotely ensure your putty or any X11 based clients and you are using mobaxterm version 8 and above, follow the below mentioned steps:
+**NOTE**: When the PuTTY or MobaXterm session ends, you must run **export DISPLAY=:10.0** command each time, else Firefox cannot be launched again.  
 
-1. To provide __ssh__ to the manager node.
-   `ssh -x root@<ip>` (where IP is the private IP of manager node)
-2. `yum install firefox -y`
-3. `yum install xorg-x11-xauth`
-4. `export DISPLAY=:10.0`
-5. `logout and login back`
-6. To launch firefox from terminal use the following command: 
-   `firefox&`
+## Access FreeIPA Dashboard  
+The FreeIPA Dashboard can be accessed from the management station, manager, and login nodes. To access the dashboard:
+1.	Install the Firefox Browser.
+2.	Open the Firefox Browser and enter the url: `https://<hostname>`. For example, enter `https://manager.example.com`.
+3.	Enter the username and password. If the admin or user has obtained a Kerberos ticket, then the credentials need not be provided.  
 
-__Note:__ When the putty/mobaxterm session ends, you must run __export DISPLAY=:10.0__ command each time, else Firefox cannot be launched again.
+**Note**: To obtain a Kerberos ticket, perform the following actions:
+1. Enter `kinit <username>`
+2. When prompted, enter the password.
 
-## Setup user account in manager node
-1. Login to head node as root user and run `adduser __<username>__`.
-2. Run `passwd __<username>__` to set password.
-3. Run `usermod -a -G wheel __<username>__` to give sudo permission.
-
-__Note:__ Kuberenetes and Slurm job can be scheduled only for users with __sudo__ privileges.
+An administrator can create users on the login node using FreeIPA. The users will be prompted to change the passwords upon first login.
 
 ## Access Kuberentes Dashboard
-1. To verify if the __Kubernetes-dashboard service__ is __running__, run `kubectl get pods --namespace kubernetes-dashboard`.
+1. To verify if the **Kubernetes-dashboard** service is in the Running state, run `kubectl get pods --namespace kubernetes-dashboard`.
 2. To start the Kubernetes dashboard, run `kubectl proxy`.
-3. From the CLI, run `kubectl get secrets` to see the generated tokens.
-4. Copy the token with the name __prometheus-__-kube-state-metrics__ of the type __kubernetes.io/service-account-token__.
-5. Run `kubectl describe secret __<copied token name>__`
-6. Copy the encrypted token value.
-7. On a web browser(installed on the manager node), enter http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/ to access the Kubernetes Dashboard.
-8. Select the authentication method as __Token__.
-9. On the Kuberenetes Dashboard, paste the copied encrypted token and click __Sign in__.
+3. To retrieve the encrypted token, run `kubectl get secret -n kubernetes-dashboard $(kubectl get serviceaccount admin-user -n kubernetes-dashboard -o jsonpath="{.secrets[0].name}") -o jsonpath="{.data.token}" | base64 --decode`.
+4. Copy the encrypted token value.
+5. On a web browser on the management station (for control_plane.yml) or manager node (for omnia.yml) enter http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/.
+6. Select the authentication method as __Token__.
+7. On the Kuberenetes Dashboard, paste the copied encrypted token and click **Sign in** to access the Kubernetes Dashboard.
 
 ## Access Kubeflow Dashboard
-
-It is recommended that you use port numbers between __8000-8999__ and the suggested port number is __8085__.
-
-1. To view the ports which are in use, run the following command:
-   `netstat -an`
-2. Select a port number between __8000-8999__ which is not in use.
-3. To run the **Kubeflow Dashboard** at selected port number, run one of the following commands:  
-	`kubectl port-forward -n kubeflow service/centraldashboard __selected_port_number__:80`  
-	(Or)  
-	`kubectl port-forward -n istio-system svc/istio-ingressgateway __selected_port_number__:80`
-4. On a web browser installed on the manager node, go to http://localhost:selected-port-number/ to launch the Kubeflow Central Dashboard.  
+1. Before accessing the Kubeflow Dashboard, run `kubectl -n kubeflow get applications -o yaml profiles`. Wait till **profiles-deployment** enters the Ready state.
+2. To retrieve the **External IP** or **CLUSTER IP**, run `kubectl get services istio-ingressgateway --namespace istio-system`.
+3. On a web browser installed on the manager node, enter the **External IP** or **Cluster IP** to open the Kubeflow Central Dashboard.  
 
 For more information about the Kubeflow Central Dashboard, see https://www.kubeflow.org/docs/components/central-dash/overview/.
 
 ## Access JupyterHub Dashboard
 
 1. To verify if the JupyterHub services are running, run `kubectl get pods --namespace jupyterhub`.
-2. Ensure that the pod names starting with __hub__ and __proxy__ are in __Running__ status.
-3. Run `kubectl get services --namespace jupyterhub`.
-4. Copy the **External IP** of __proxy-public__ service.
-5. On a web browser installed on the __manager node__, use the External IP address to access the JupyterHub Dashboard.
-6. Enter any __username__ and __password__ combination to enter the Jupyterhub. The __username__ and __password__ can be later configured from the JupyterHub dashboard.
+2. Ensure that the pod names starting with __hub__ and __proxy__ are in the **Running** state.
+3. To retrieve the **External IP** or **CLUSTER IP**, run `kubectl get services proxy-public --namespace jupyterhub`.
+4. On a web browser installed on the manager node, enter the **External IP** or **Cluster IP** to open the JupyterHub Dashboard.
+5. JupyterHub is running with a default dummy authenticator. Enter any username and password combination to access the dashboard.
 
-## Prometheus
+For more information about configuring username and password, and to access the JupyterHub Dashboard, see https://zero-to-jupyterhub.readthedocs.io/en/stable/jupyterhub/customization.html.
 
-Prometheus is installed in two different ways:
-  * It is installed on the host when Slurm is installed without installing Kubernetes.
-  * It is installed as a Kubernetes role, if you install both Slurm and Kubernetes.
+## Access Prometheus UI
 
-If Prometheus is installed as part of kubernetes role, run the following commands before starting the Prometheus UI:
-1. `export POD_NAME=$(kubectl get pods --namespace default -l "app=prometheus,component=server" -o jsonpath="{.items[0].metadata.name}")`
-2. `echo $POD_NAME`
-3. `kubectl --namespace default port-forward $POD_NAME 9090`
+Prometheus is installed:
+  * As a Kubernetes role (**A**), when both Slurm and Kubernetes are installed.
+  * On the host when only Slurm is installed (**B**).
 
-If Prometheus is installed on the host, start the Prometheus web server by run the following command:
-1. Navigate to Prometheus folder. The default path is __/var/lib/prometheus-2.23.0.linux-amd64/__.
-2. Start the web server, 
-  `./prometheus`
+**A**. When Prometheus is installed as a Kubernetes role.  
+* Access Prometheus with local host:  
+    1. Run the following commands:  
+       `export POD_NAME=$(kubectl get pods --namespace default -l "app=prometheus,component=server" -o jsonpath="{.items[0].metadata.name}")`  
+       `echo $POD_NAME`  
+       `kubectl --namespace default port-forward $POD_NAME 9090`  
+    2. To launch the Prometheus UI, in the web browser, enter `http://localhost:9090`.
+  
+* Access Prometheus with a private IP address:
+    1. Run `kubectl get services --all-namespaces`.
+    2. From the list of services, find  the **prometheus-xxxx-server** service under the **Name** column, and copy the **EXTERNAL-IP** address.  
+   For example, in the below list of services, `192.168.2.150` is the external IP address for the service `prometheus-1619158141-server`.  
+		NAMESPACE	|	NAME	|	TYPE	|	CLUSTER-IP	|	EXTERNAL-IP	|	PORT(S)	|	AGE  
+		---------	|	----	|	----	|	----------	|	-----------	|	-------	|	----  
+		default	|	kubernetes	|	ClusterIP	|	10.96.0.1	|	none	|	443/TCP	|	107m  
+		default	|	**prometheus-1619158141-server**	|	LoadBalancer	|	10.97.40.140	|	**192.168.2.150**	|	80:31687/TCP	|	106m  
+    3. To open Firefox, run `firefox&`.
+    4. Enter the copied External IP address to access Prometheus. For example, enter `192.168.2.150` to access Prometheus UI.
 
-Go to http://localhost:9090 to launch the Prometheus UI in the browser.
+**B**. When Prometheus is installed on the host.
+1. Navigate to Prometheus folder. The default path is `/var/lib/prometheus-2.23.0.linux-amd64/`.
+2. Start the web server: `./prometheus`.  
+3. To launch the Prometheus UI, in the web browser, enter `http://localhost:9090`. 
 
 __Note:__ 
-* If Prometheus was installed through slurm without Kubernetes then it will be removed when Kubernetes is installed as Prometheus would be running as a pod. 
-* You can use a single instance of Prometheus when both kubernetes and slurm are installed.
-
-
-
-
-
- 
-
-
-
-
-
-
+* If Prometheus is installed through Slurm without installing Kubernetes, then it will be removed when Kubernetes is installed because Prometheus would be running as a pod. 
+* Only a single instance of Prometheus is installed when both Kubernetes and Slurm are installed.
