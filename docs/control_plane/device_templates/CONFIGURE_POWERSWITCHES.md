@@ -1,4 +1,4 @@
-# Configuring Dell EMC Networking Switches  
+# Configuring Dell EMC PowerSwitches  
 
 ## Update the input parameters 
 Under the `control_plane/input_params` directory, edit the following files:
@@ -22,7 +22,7 @@ Under the `control_plane/input_params` directory, edit the following files:
 	os10_interface	|	By default: <ul><li>Port description is provided.</li> <li>Each interface is set to "up" state.</li>	|	Update the individual interfaces of the PowerSwitch S3048-ON (ToR Switch). </br>The interfaces are from **ethernet 1/1/1** to **ethernet 1/1/30**. For more information about the interfaces, see the *Supported interface keys of PowerSwitch S3048-ON (ToR Switch)* section in the README file. </br>**NOTE**: The playbooks will fail if any invalid configurations are entered.
 	save_changes_to_startup	|	<ul><li>**false**</li><li>true</li></ul>	|	Change it to "true" only when you are certain that the updated configurations and commands are valid. </br>**WARNING**: When set to "true", the startup configuration file is updated. If incorrect configurations or commands are entered, the Ethernet switches may not operate as expected.   
 	
-## Configuring Dell EMC Networking Switches
+## Configuring PowerSwitches
 
 ### Run ethernet_template on the AWX UI.
 1. Run `kubectl get svc -n awx`.

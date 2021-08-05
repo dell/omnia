@@ -128,7 +128,7 @@ git clone -b release https://github.com/dellhpc/omnia.git
 	host_mapping_file_path	|		| Enter the file path containing a host mapping file with the MAC addresses, hostnames, IP addresses, and component role.	A *mapping_host_file.csv* template file is provided under `omnia/examples`. Enter the details in the order: **MAC address, Hostname, IP address, Component_role**. For example, `10:11:12:13,server1,100.96.20.66,compute`, `14:15:16:17,server2,100.96.22.199,manager`, `18.19.20.21,server3,100.96.23.67,nfs_node`, and `22.23.24.25,server4,100.96.23.75,login_node` are all valid entries. The Hostname should not contain the following characters: , (comma), \. (period), and - (hyphen). Ensure that you do not provide any duplicate entries in the file.	|  
   
 7. Depending on the devices connected in the cluster, you must enable the support and provide other device-specific input parameters in the *base_vars.yml* file and *login_vars.yml* files. Click the link specific to the devices:  
-	* [Networking Switches](control_plane/input_parameters/NETWORK_SWITCHES.md#dell-emc-networking-switches)
+	* [PowerSwitches](control_plane/input_parameters/POWERSWITCHES.md)
 	* [PowerEdge Servers](control_plane/input_parameters/PROVISION_SERVERS.md#dell-emc-poweredge-servers)
 	* [InfiniBand Switches](control_plane/input_parameters/INFINIBAND_SWITCHES.md#mellanox-infiniband-switches)
 	* [PowerVault Storage](control_plane/input_parameters/POWERVAULT_STORAGE.md#dell-emc-powervault-storage)  
@@ -172,7 +172,7 @@ Omnia performs the following configurations on AWX:
 
 # Configuring new devices added to the cluster
 For Omnia to configure the devices and to provision the bare metal servers which are introduced newly in the cluster, you must configure the corresponding input parameters and deploy the device-specific template from the AWX UI. Based on the devices added to the cluster, click the respective link to go to configuration section.  
-* [Configure Dell EMC Networking Switches](control_plane/device_templates/CONFIGURE_NETWORK_SWITCHES.md#configuring-dell-emc-networking-switches)
+* [Configure Dell EMC PowerSwitches](control_plane/device_templates/CONFIGURE_POWERSWITCHES.md)
 * [Provision OS on PowerEdge Servers](control_plane/device_templates/PROVISION_SERVERS.md#custom-iso-provisioning-on-dell-emc-poweredge-servers)
 * [Configure Mellanox InfiniBand Switches](control_plane/device_templates/CONFIGURE_INFINIBAND_SWITCHES.md#configuring-mellanox-infiniband-switches)
 * [Configure PowerVault Storage](control_plane/device_templates/CONFIGURE_POWERVAULT_STORAGE.md#configuring-dell-emc-powervault-storage)  

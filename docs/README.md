@@ -4,7 +4,12 @@
 1.1
 
 #### Previous release version
-1.0
+1.0  
+
+## Blogs about Omnia
+- [Introduction to Omnia](https://infohub.delltechnologies.com/p/omnia-open-source-deployment-of-high-performance-clusters-to-run-simulation-ai-and-data-analytics-workloads/)
+- [Taming the Accelerator Cambrian Explosion with Omnia](https://infohub.delltechnologies.com/p/taming-the-accelerator-cambrian-explosion-with-omnia/)
+- [Containerized HPC Workloads Made Easy with Omnia and Singularity](https://infohub.delltechnologies.com/p/containerized-hpc-workloads-made-easy-with-omnia-and-singularity/)
 
 ## What Omnia does
 Omnia can build clusters that use Slurm or Kubernetes (or both!) for workload management. Omnia will install software from a variety of sources, including:
@@ -65,7 +70,7 @@ Dell EMC Networking Switches	|	PowerSwitch S3048-ON and PowerSwitch S5232F-ON
 Mellanox InfiniBand Switches	|	NVIDIA MQM8700-HS2F Quantum HDR InfiniBand Switch 40 QSFP56
 
 
-## Software managed by Omnia
+## Software deployed by Omnia
 The following table lists the software and its compatible version managed by Omnia. To avoid any impact on the proper functioning of Omnia, other versions than those listed are not supported.
 
 Software	|	License	|	Compatible Version	|	Description

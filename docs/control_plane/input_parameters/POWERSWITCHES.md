@@ -1,4 +1,4 @@
-# Dell EMC Networking Switches  
+# Dell EMC PowerSwitches  
 
 ## Update the input parameters 
 Under the `control_plane/input_params` directory, edit the following files:
@@ -23,4 +23,4 @@ Under the `control_plane/input_params` directory, edit the following files:
 	save_changes_to_startup	|	<ul><li>**false**</li><li>true</li></ul>	|	Change it to "true" only when you are certain that the updated configurations and commands are valid. </br>**WARNING**: When set to "true", the startup configuration file is updated. If incorrect configurations or commands are entered, the Ethernet switches may not operate as expected.   
 	
 ## Deploy Omnia Control Plane
-Before you configure the Dell EMC Networking Switches, you must complete the deployment of Omnia control plane. Go to Step 8 in the [Steps to install the Omnia Control Plane](../../INSTALL_OMNIA_CONTROL_PLANE.md#steps-to-deploy-the-omnia-control-plane) file to run the `ansible-playbook control_plane.yml` file.  
+Before you configure the Dell EMC PowerSwitches, you must complete the deployment of Omnia control plane. Go to Step 8 in the [Steps to install the Omnia Control Plane](../../INSTALL_OMNIA_CONTROL_PLANE.md#steps-to-deploy-the-omnia-control-plane) file to run the `ansible-playbook control_plane.yml` file.  
