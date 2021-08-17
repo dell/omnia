@@ -1,0 +1,82 @@
+#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Get auth string
+  shell: echo -n {{ powervault_me4_username }}_{{ powervault_me4_password }}  | sha256sum
+  register: vol_auth_string
+  changed_when: false
+  ignore_errors: yes
+  tags: install
+
+- name: Get session key
+  uri:
+    url: https://{{ inventory_hostname }}/api/login/{{ vol_auth_string.stdout | replace(" -", "") }}
+    method: GET
+    headers:
+      {'datatype': 'json'}
+    validate_certs: no
+  register: vol_session_key
+  tags: install
+
+- name: Add disk group
+  uri:
+    url: https://{{ inventory_hostname }}/api/add/disk-group/type/{{ type }}/disks/{{ powervault_me4_disk_range }}/level/{{ powervault_me4_raid_levels }}/pool/{{ powervault_me4_pool }}/{{ powervault_me4_disk_group_name }}
+    method: GET
+    body_format: json
+    validate_certs: no
+    use_proxy: no
+    headers:
+      {'sessionKey': "{{ vol_session_key.json.status[0].response }}", 'datatype':'json'}
+  register: pv_disk
+  tags: install
+
+- name: Assert if disk group created or not
+  fail:
+    msg: "{{ pv_disk.json.status[0].response }}"
+  when:  pv_disk.json.status[0] ['response-type'] == "Error"
+
+- name: Create volume1
+  uri:
+    url: https://{{ inventory_hostname }}/api/create/volume/size/{{ powervault_me4_volume_size }}/pool/{{ powervault_me4_pool }}/{{ powervault_me4_k8s_volume_name }}
+    method: GET
+    body_format: json
+    validate_certs: no
+    use_proxy: no
+    headers:
+      {'sessionKey': "{{ vol_session_key.json.status[0].response }}", 'datatype':'json'}
+  register: pv_vol1
+  tags: install
+
+- name: Create volume2
+  uri:
+    url: https://{{ inventory_hostname }}/api/create/volume/size/{{ powervault_me4_volume_size }}/pool/{{ powervault_me4_pool }}/{{ powervault_me4_slurm_volume_name }}
+    method: GET
+    body_format: json
+    validate_certs: no
+    use_proxy: no
+    headers:
+      {'sessionKey': "{{ vol_session_key.json.status[0].response }}", 'datatype':'json'}
+  register: pv_vol2
+  tags: install
+
+- name: Assert if k8s_volume created correctly
+  fail:
+    msg: "{{ pv_vol1.json.status[0].response }}"
+  when: pv_vol1.json.status[0]['response-type'] == "Error"
+
+- name: Assert if slurm_volume created correctly
+  fail:
+    msg: "{{ pv_vol2.json.status[0].response }}"
+  when: pv_vol2.json.status[0]['response-type'] == "Error"

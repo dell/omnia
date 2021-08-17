@@ -16,7 +16,7 @@
 - name: Wait for CoreDNS to restart
   command: kubectl rollout status deployment/coredns -n kube-system
   changed_when: false
-  ignore_errors: True
+  failed_when: false
 
 - name: Get K8s pods
   command: kubectl get pods --all-namespaces
