@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,7 +13,33 @@
 #  limitations under the License.
 ---
 
-# Will be updated later in each PR
-- name: Pass
-  debug:
-    msg: "Pass"
+- name: Set powervault credentials
+  set_fact:
+    powervault_me4_username: "{{ lookup('env','ANSIBLE_NET_USERNAME') }}"
+    powervault_me4_password: "{{ lookup('env','ANSIBLE_NET_PASSWORD') }}"
+  no_log: true
+  run_once: true
+
+- name: Include variable file base_vars.yml
+  include_vars: "{{ base_pv_file }}"
+  no_log: true
+
+- name: Include variable file for powervault
+  include_vars: "{{ pv_file }}"
+  no_log: true
+
+- name: Include common variables
+  include_vars: ../../control_plane_common/vars/main.yml
+
+- name: Validation of powervault vars
+  include: pv_validation.yml
+
+- name: Check powervault pre-requisite
+  include_tasks: pv_me4_prereq.yml
+
+- name: Create volume
+  include_tasks: volume.yml
+
+- name: Set snmp parameters
+  include_tasks: set_snmp.yml
+  when: snmp_trap_destination != ""
