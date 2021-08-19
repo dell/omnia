@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -31,21 +31,25 @@
 - name: Get K8s nodes status
   command: kubectl get nodes
   changed_when: false
-  ignore_errors: True
+  failed_when: false
   register: k8s_nodes
   tags: init
 
 - name: Get K8s ready compute nodes
-  shell: kubectl get node --selector='!node-role.kubernetes.io/master' | grep -v 'NotReady'
+  shell: >
+    set -o pipefail && \
+    kubectl get node --selector='!node-role.kubernetes.io/master' | grep -v 'NotReady'
   changed_when: false
-  ignore_errors: True
+  failed_when: false
   register: k8s_nodes_ready
   tags: init
 
 - name: Get K8s not ready compute nodes
-  shell: kubectl get node --selector='!node-role.kubernetes.io/master' | grep 'NotReady'
+  shell: >
+    set -o pipefail && \
+    kubectl get node --selector='!node-role.kubernetes.io/master' | grep 'NotReady'
   changed_when: false
-  ignore_errors: True
+  failed_when: false
   register: k8s_nodes_not_ready
   tags: init
 
@@ -53,17 +57,18 @@
   command: docker login -u {{ hostvars['127.0.0.1']['docker_username'] }} -p {{ hostvars['127.0.0.1']['docker_password'] }}
   changed_when: true
   register: docker_login_output
-  ignore_errors: True
+  failed_when: false
   when: hostvars['127.0.0.1']['docker_username'] or hostvars['127.0.0.1']['docker_password']
+  no_log: true
 
 - name: Docker login check
   fail:
     msg: "{{ docker_login_fail_msg }}"
   when: docker_login_output is failed
 
-- name: Initialize kubeadm
+- name: Initialize kubeadm (This process may take 5-10min)
   block:
-    - name: Initialize kubeadm
+    - name: Initialize kubeadm (This process may take 5-10min)
       command: "/bin/kubeadm init --pod-network-cidr='{{ hostvars['127.0.0.1']['k8s_pod_network_cidr'] }}' \
         --apiserver-advertise-address='{{ ansible_default_ipv4.address }}'"
       changed_when: true
@@ -74,7 +79,7 @@
       command: "kubeadm reset -f"
       changed_when: true
 
-    - name: Initialize kubeadm
+    - name: Initialize kubeadm (This process may take 5-10min)
       command: "/bin/kubeadm init --pod-network-cidr='{{ hostvars['127.0.0.1']['k8s_pod_network_cidr'] }}' \
         --apiserver-advertise-address='{{ ansible_default_ipv4.address }}'"
       changed_when: true
@@ -111,7 +116,7 @@
     set -o pipefail && \
       kubeadm token list | cut -d ' ' -f1 | sed -n '2p'
   changed_when: false
-  register: K8S_TOKEN
+  register: k8s_token
   tags: init
 
 - name: CA Hash
@@ -119,14 +124,14 @@
     set -o pipefail && \
       openssl x509 -pubkey -in {{ k8s_cert_path }} | openssl rsa -pubin -outform der 2>/dev/null | openssl dgst -sha256 -hex | sed 's/^.* //'
   changed_when: false
-  register: K8S_MANAGER_CA_HASH
+  register: k8s_manager_ca_hash
   tags: init
 
 - name: Add K8S Manager IP, Token, and Hash to dummy host
   add_host:
     name:   "K8S_TOKEN_HOLDER"
-    token:  "{{ K8S_TOKEN.stdout }}"
-    hash:   "{{ K8S_MANAGER_CA_HASH.stdout }}"
+    token:  "{{ k8s_token.stdout }}"
+    hash:   "{{ k8s_manager_ca_hash.stdout }}"
     ip:     "{{ ansible_default_ipv4.address }}"
     k8s_nodes:  "{{ k8s_nodes.stdout }}"
     k8s_nodes_ready:  "{{ k8s_nodes_ready.stdout }}"
@@ -214,16 +219,16 @@
 - name: Create clusterRoleBinding (K8s dashboard) files
   copy:
     src: create_clusterRoleBinding.yaml
-    dest: "{{ k8s_clusterRoleBinding_file_dest }}"
+    dest: "{{ cluster_role_binding_file_dest }}"
     owner: root
     group: root
-    mode: "{{ k8s_clusterRoleBinding_file_mode }}"
+    mode: "{{ cluster_role_binding_file_mode }}"
   tags: init
 
 - name: Create clusterRoleBinding (K8s dashboard)
-  command: "kubectl create -f '{{ k8s_clusterRoleBinding_file_dest }}'"
+  command: "kubectl create -f '{{ cluster_role_binding_file_dest }}'"
   changed_when: true
-  ignore_errors: True
+  failed_when: false
   tags: init
 
 - name: Dump bearer token for K8s dashboard login
@@ -236,5 +241,5 @@
 - name: Edge / Workstation Install allows pods to scheudle on manager
   command: kubectl taint nodes --all node-role.kubernetes.io/master-
   when: groups['manager'][0] == groups['compute'][0] and groups['compute']|length == 1
-  ignore_errors: True
+  failed_when: false
   tags: init

@@ -27,7 +27,7 @@
 - name: Reset kubeadm
   command: kubeadm reset -f
   changed_when: true
-  ignore_errors: True
+  failed_when: false
   when:
     - groups['manager'][0] != groups['compute'][0]
     - groups['compute']|length >= 1

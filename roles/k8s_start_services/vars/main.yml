@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,15 +13,14 @@
 #  limitations under the License.
 ---
 
-kube_system_docker_images:
+k8s_docker_images:
   - docker.io/calico/kube-controllers:v3.19.1
   - docker.io/calico/cni:v3.19.1
   - docker.io/calico/pod2daemon-flexvol:v3.19.1
   - docker.io/calico/node:v3.19.1
   - xilinxatg/xilinx_k8s_fpga_plugin:2020.11.24
   - nvidia/k8s-device-plugin:v0.7.0
-
-k8s_services_docker_images:
+  - quay.io/external_storage/nfs-client-provisioner:v3.1.0-k8s1.11
   - docker.io/rocm/k8s-device-plugin
   - kubernetesui/dashboard:v2.0.5
   - kubernetesui/metrics-scraper:v1.0.6
@@ -36,7 +35,6 @@ k8s_services_docker_images:
   - volcanosh/vc-controller-manager:latest
   - volcanosh/vc-scheduler:latest
   - volcanosh/vc-webhook-manager:latest
-  - quay.io/external_storage/nfs-client-provisioner:v3.1.0-k8s1.11
 
 docker_pull_limit_msg: "You have reached your docker pull rate limit. Please provide docker credentials in omnia_config.yml and try again"
 
@@ -88,4 +86,6 @@ prometheus_path_on_host: /var/lib/prometheus-2.23.0.linux-amd64/
 
 spark_operator_repo: https://googlecloudplatform.github.io/spark-on-k8s-operator
 
-volcano_scheduling_yaml_url: https://raw.githubusercontent.com/volcano-sh/volcano/master/installer/volcano-development.yaml
+operator_image_tag: v1beta2-1.2.3-3.1.1
+
+volcano_scheduling_yaml_url: https://raw.githubusercontent.com/volcano-sh/volcano/v1.3.0/installer/volcano-development.yaml
