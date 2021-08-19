@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -37,9 +37,9 @@ k8s_service_account_file_dest: /root/k8s/create_admin_user.yaml
 
 k8s_service_account_file_mode: 0655
 
-k8s_clusterRoleBinding_file_dest: /root/k8s/create_clusterRoleBinding.yaml
+cluster_role_binding_file_dest: /root/k8s/create_clusterRoleBinding.yaml
 
-k8s_clusterRoleBinding_file_mode: 0655
+cluster_role_binding_file_mode: 0655
 
 calico_yml_url: https://docs.projectcalico.org/manifests/calico.yaml
 

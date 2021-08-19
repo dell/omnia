@@ -27,30 +27,31 @@
 - name: Get K8s nodes status
   command: kubectl get nodes
   changed_when: false
-  ignore_errors: True
+  failed_when: false
   register: k8s_nodes
 
 - name: Get K8s pods status
   command: kubectl get pods --all-namespaces
   changed_when: false
-  ignore_errors: True
+  failed_when: false
   register: k8s_pods
 
 - name: Docker login
   command: docker login -u {{ docker_username }} -p {{ docker_password }}
   changed_when: true
   register: docker_login_output
-  ignore_errors: True
+  failed_when: false
   when: docker_username or docker_password
+  no_log: true
 
 - name: Docker login check
   fail:
     msg: "{{ docker_login_fail_msg }}"
   when: docker_login_output is failed
 
-- name: Initialize kubeadm
+- name: Initialize kubeadm (This process may take 5-10min)
   block:
-    - name: Initialize kubeadm
+    - name: Initialize kubeadm (This process may take 5-10min)
       command: "/bin/kubeadm init --pod-network-cidr='{{ appliance_k8s_pod_net_cidr }}' \
         --apiserver-advertise-address='{{ ansible_default_ipv4.address }}'"
       changed_when: true
@@ -60,7 +61,7 @@
       command: "kubeadm reset -f"
       changed_when: true
 
-    - name: Initialize kubeadm
+    - name: Initialize kubeadm (This process may take 5-10min)
       command: "/bin/kubeadm init --pod-network-cidr='{{ appliance_k8s_pod_net_cidr }}' \
           --apiserver-advertise-address='{{ ansible_default_ipv4.address }}'"
       changed_when: true
@@ -69,7 +70,7 @@
     - name: Get K8s pods status
       command: kubectl get pods --all-namespaces
       changed_when: false
-      ignore_errors: True
+      failed_when: false
       register: k8s_pods
   when: "'master' not in k8s_nodes.stdout"
 
@@ -99,20 +100,20 @@
     set -o pipefail && \
       kubeadm token list | cut -d ' ' -f1 | sed -n '2p'
   changed_when: false
-  register: K8S_TOKEN
+  register: k8s_token
 
 - name: CA Hash
   shell: >
     set -o pipefail && \
       openssl x509 -pubkey -in {{ k8s_cert_path }} | openssl rsa -pubin -outform der 2>/dev/null | openssl dgst -sha256 -hex | sed 's/^.* //'
   changed_when: false
-  register: K8S_MANAGER_CA_HASH
+  register: k8s_manager_ca_hash
 
 - name: Add K8S Manager IP, Token, and Hash to dummy host
   add_host:
     name:   "K8S_TOKEN_HOLDER"
-    token:  "{{ K8S_TOKEN.stdout }}"
-    hash:   "{{ K8S_MANAGER_CA_HASH.stdout }}"
+    token:  "{{ k8s_token.stdout }}"
+    hash:   "{{ k8s_manager_ca_hash.stdout }}"
     ip:     "{{ ansible_default_ipv4.address }}"
 
 - name: Create yaml repo for setup
@@ -129,10 +130,10 @@
 - name: Setup Calico SDN network - custom-resources
   command: "kubectl create -f {{ calico_yml_url }}"
   changed_when: true
-  ignore_errors: True
+  failed_when: false
   when: "'calico-system' not in k8s_pods.stdout"
 
 - name: Edge / Workstation Install allows pods to schedule on manager
   command: kubectl taint nodes --all node-role.kubernetes.io/master-
   changed_when: true
-  ignore_errors: True
+  failed_when: false
