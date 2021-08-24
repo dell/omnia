@@ -24,7 +24,7 @@
       {
       "commands":
        [
-         "interface {{ item.key}}",
+         "interface {{ item.key }}",
          "description {{ item.value.description | default('<none>') }}",
          "{{ item.value.config | default([]) |join(', ') }}"
        ]
