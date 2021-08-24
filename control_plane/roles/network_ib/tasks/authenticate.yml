@@ -45,7 +45,7 @@
   rescue:
     - name: Filtered response creation
       set_fact:
-        filtered_dict: "{{filtered_dict |combine({item.key: item.value})}}"
+        filtered_dict: "{{ filtered_dict |combine({ item.key: item.value }) }}"
       when: item.key not in 'invocation'
       with_dict: "{{ login }}"
       no_log: true
