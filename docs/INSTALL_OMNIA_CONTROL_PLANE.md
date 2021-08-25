@@ -24,7 +24,7 @@ Depending on the pass-through switch configured in your HPC environment, the num
 
 ## Prerequisites to install the Omnia Control Plane version 1.1
 * Ensure that a stable Internet connection is available on management station, manager node, login node, and compute nodes. 
-* CentOS 8.3 is installed on the management station.
+* CentOS 8.4 is installed on the management station.
 * To provision the bare metal servers, go to http://isoredirect.centos.org/centos/7/isos/x86_64/ and download the **CentOS-7-x86_64-Minimal-2009** ISO file.
 * For DHCP configuration, you can provide a host mapping file. If the mapping file is not provided and the variable is left blank, a default mapping file will be created. The provided details must be in the format: MAC address, Hostname, IP address, Component_role. For example, `10:11:12:13,server1,100.96.20.66,compute` and  `14:15:16:17,server2,100.96.22.199,manager` are valid entries.  
 __Note:__  
