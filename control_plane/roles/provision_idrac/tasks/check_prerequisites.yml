@@ -28,7 +28,7 @@
   run_once: true
   
 - name: Fetch management station ip from {{ management_station_ip_file }}
-  shell: cat {{ role_path }}/files/{{ management_station_ip_file }}
+  command: cat {{ role_path }}/files/{{ management_station_ip_file }}
   changed_when: false
   register: fetch_ip
   run_once: true
@@ -57,6 +57,8 @@
     job_wait: true
   register: nfs_check
   ignore_errors: true
+  until: not nfs_check.failed
+  retries: 3
 
 - name: Missing entries in nfs exports
   fail:
@@ -74,6 +76,7 @@
     enterprise_license: false
     datacenter_license: false
     provision_status: false
+    model_status: false
 
 - block:
     - name: Check tower_cli.cfg is encrypted
