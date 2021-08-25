@@ -12,24 +12,25 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-- name: Include variables from common role
+
+- name: Include variables from control_plane_common role
   include_vars: "{{ role_path }}/../../../roles/control_plane_common/vars/main.yml"
   no_log: True
 
-- name: Check input config file is encrypted
-  command: cat {{ role_path }}/../../../{{ input_config_filename }}
+- name: Check login_vars.yml is encrypted
+  command: cat {{ role_path }}/../../../{{ login_vars_filename }}
   changed_when: false
   register: config_content
 
-- name: Decrpyt appliance_config.yml
+- name: Decrpyt login_vars.yml
   command: >-
-    ansible-vault decrypt {{ role_path }}/../../../{{ input_config_filename }}
+    ansible-vault decrypt {{ role_path }}/../../../{{ login_vars_filename }}
     --vault-password-file {{ role_path }}/../../../{{ vault_filename }}
   changed_when: false
   when: "'$ANSIBLE_VAULT;' in config_content.stdout"
 
 - name: Include variable file appliance_config.yml
-  include_vars: "{{ role_path }}/../../../{{ input_config_filename }}"
+  include_vars: "{{ role_path }}/../../../{{ login_vars_filename }}"
   no_log: true
 
 - name: Save input variables from file
@@ -37,8 +38,8 @@
     cobbler_password: "{{ provision_password }}"
   no_log: true
 
-- name: Encrypt input config file
+- name: Encrypt login_vars.yml
   command: >-
-    ansible-vault encrypt {{ role_path }}/../../../{{ input_config_filename }}
+    ansible-vault encrypt {{ role_path }}/../../../{{ login_vars_filename }}
     --vault-password-file {{ role_path }}/../../../{{ vault_filename }}
   changed_when: false
