@@ -1,8 +1,5 @@
 # Frequently Asked Questions
 
-* TOC
-{:toc}
-
 ## Why is the error "Wait for AWX UI to be up" displayed when `appliance.yaml` fails?  
 Cause: 
 1. When AWX is not accessible even after five minutes of wait time. 
