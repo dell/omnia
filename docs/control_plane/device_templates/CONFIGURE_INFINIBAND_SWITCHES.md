@@ -1,8 +1,9 @@
 # Configuring Mellanox InfiniBand Switches  
 In your HPC cluster, connect the Mellanox InfiniBand switches using the Fat-Tree topology. In the fat-tree topology, switches in layer 1 are connected through the switches in the upper layer, i.e., layer 2. And, all the compute nodes in the cluster, such as PowerEdge servers and PowerVault storage devices, are connected to switches in layer 1. With this topology in place, we ensure that a 1x1 communication path is established between the compute nodes. For more information on the fat-tree topology, see https://community.mellanox.com/s/article/designing-an-hpc-cluster-with-mellanox-infiniband-solutions.
 
-Omnia uses the server-based Subnet Manager (SM). SM runs as a Kubernetes pod on the management station. To enable the SM, Omnia configures the required parameters in the `opensm.conf` file. Based on the requirement, the parameters can be edited. 
+Omnia uses the server-based Subnet Manager (SM). SM runs as a Kubernetes pod on the management station. To enable the SM, Omnia configures the required parameters in the `opensm.conf` file. Based on the requirement, the parameters can be edited.  
 
+**NOTE**: Install the InfiniBand hardware drivers by running the command: `yum groupinstall "Infiniband Support" -y`.   
 ## Edit the "input_params" file 
 Under the `control_plane/input_params` directory, edit the following files:
 1. `base_vars.yml` file
@@ -34,7 +35,7 @@ By default, Omnia enables and configures the Subnet Manager with the default att
 
 ### Run infiniband_template on the AWX UI.
 1. Run `kubectl get svc -n awx`.
-2. Copy the Cluster-IP address of the awx-service. 
+2. Copy the Cluster-IP address of the awx-ui. 
 3. To retrieve the AWX UI password, run `kubectl get secret awx-admin-password -n awx -o jsonpath="{.data.password}" | base64 --decode`.
-4. Open the default web browser on the management station and enter the awx-service IP address. Log in to the AWX UI using the username as `admin` and the retrieved password.
+4. Open the default web browser on the management station and enter `http://<IP>:8052`, where IP is the awx-ui IP address and 8052 is the awx-ui port number. Log in to the AWX UI using the username as `admin` and the retrieved password.  
 5. Under __RESOURCES__ -> __Templates__, launch the **infiniband_template**.

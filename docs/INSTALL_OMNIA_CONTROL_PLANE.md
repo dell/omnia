@@ -24,7 +24,8 @@ Depending on the pass-through switch configured in your HPC environment, the num
 
 ## Prerequisites to install the Omnia Control Plane version 1.1
 * Ensure that a stable Internet connection is available on management station, manager node, login node, and compute nodes. 
-* CentOS 8.4 is installed on the management station.
+* CentOS 8.4 is installed on the management station.  
+* If the login node is enabled, then set the hostnames in the format: __hostname.domainname__. For example, "manager.omnia.test" is a valid hostname.		 
 * To provision the bare metal servers, go to http://isoredirect.centos.org/centos/7/isos/x86_64/ and download the **CentOS-7-x86_64-Minimal-2009** ISO file.
 * For DHCP configuration, you can provide a host mapping file. If the mapping file is not provided and the variable is left blank, a default mapping file will be created. The provided details must be in the format: MAC address, Hostname, IP address, Component_role. For example, `10:11:12:13,server1,100.96.20.66,compute` and  `14:15:16:17,server2,100.96.22.199,manager` are valid entries.  
 __Note:__  
@@ -146,7 +147,7 @@ Omnia creates a log file which is available at: `/var/log/omnia.log`.
 
 **NOTE**: If you want to view or edit the *login_vars.yml* file, run the following commands:
 1. `cd input_params`
-2. `ansible-vault view login_vars.yml --vault-password-file .vault_key` or `ansible-vault edit login_vars.yml --vault-password-file .vault_key`.  
+2. `ansible-vault view login_vars.yml --vault-password-file .login_vault_key` or `ansible-vault edit login_vars.yml --vault-password-file .login_vault_key`.   
 
 **NOTE**: It is suggested that you use the ansible-vault view or edit commands and that you do not use the ansible-vault decrypt or encrypt commands. If you have used the ansible-vault decrypt or encrypt commands, provide 644 permission to *login_vars.yml*.
 
@@ -179,9 +180,9 @@ For Omnia to configure the devices and to provision the bare metal servers which
 
 # Assign component roles using AWX UI
 1. Run `kubectl get svc -n awx`.
-2. Copy the Cluster-IP address of the awx-service. 
+2. Copy the Cluster-IP address of the awx-ui.  
 3. To retrieve the AWX UI password, run `kubectl get secret awx-admin-password -n awx -o jsonpath="{.data.password}" | base64 --decode`.
-4. Open the default web browser on the management station and enter the awx-service IP address. Log in to the AWX UI using the username as `admin` and the retrieved password.
+4. Open the default web browser on the management station and enter `http://<IP>:8052`, where IP is the awx-ui IP address and 8052 is the awx-ui port number. Log in to the AWX UI using the username as `admin` and the retrieved password.  
 5. On the AWX dashboard, under __RESOURCES__ __->__ __Inventories__, select **node_inventory**.
 6. Select the **Hosts** tab.
 7. To add hosts to the groups, click **+**. 
@@ -219,8 +220,11 @@ To install __JupyterHub__ and __Kubeflow__ playbooks:
 __Note:__ When the Internet connectivity is unstable or slow, it may take more time to pull the images to create the Kubeflow containers. If the time limit is exceeded, the **Apply Kubeflow configurations** task may fail. To resolve this issue, you must redeploy Kubernetes cluster and reinstall Kubeflow by completing the following steps:
 1. Complete the PXE booting of the head and compute nodes.
 2. In the `omnia_config.yml` file, change the k8s_cni variable value from calico to flannel.
-3. Run the Kubernetes and Kubeflow playbooks.
+3. Run the Kubernetes and Kubeflow playbooks.  
 
+**NOTE**: If you want to view or edit the `omnia_config.yml` file, run the following command:  
+- `ansible-vault view omnia_config.yml --vault-password-file .omnia_vault_key` -- To view the file. 
+- `ansible-vault edit omnia_config.yml --vault-password-file .omnia_vault_key` -- To edit the file.  
 ## Roles assigned to the compute and manager groups
 After **DeployOmnia** template is run from the AWX UI, the **omnia.yml** file installs Kubernetes and Slurm, or either Kubernetes or Slurm, as per the selection in the template on the management station. Additionally, appropriate roles are assigned to the compute and manager groups.
 

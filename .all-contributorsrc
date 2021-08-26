@@ -180,6 +180,15 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "asu-wdizon",
+      "name": "William Dizon",
+      "avatar_url": "https://avatars.githubusercontent.com/u/81772355?v=4",
+      "profile": "https://github.com/asu-wdizon",
+      "contributions": [
+        "tutorial"
+      ]
     }
   ],
   "contributorsPerLine": 7,
