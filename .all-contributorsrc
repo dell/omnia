@@ -54,7 +54,8 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/73123831?v=4",
       "profile": "https://github.com/sujit-jadhav",
       "contributions": [
-        "ideas"
+        "ideas",
+        "doc"
       ]
     },
     {
@@ -167,6 +168,15 @@
       "name": "Ishita Datta",
       "avatar_url": "https://avatars.githubusercontent.com/u/48859631?v=4",
       "profile": "https://rb.gy/ndlbhv",
+      "contributions": [
+        "doc"
+      ]
+    },
+    {
+      "login": "cgoveas",
+      "name": "Cassey Goveas",
+      "avatar_url": "https://avatars.githubusercontent.com/u/88071888?v=4",
+      "profile": "https://github.com/cgoveas",
       "contributions": [
         "doc"
       ]
