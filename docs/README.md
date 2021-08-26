@@ -49,7 +49,7 @@ The following table lists the software and operating system requirements on the 
 
 Requirements  |   Version
 ----------------------------------  |   -------
-OS pre-installed on the management station  |  CentOS 8.3
+OS pre-installed on the management station  |  CentOS 8.4
 OS deployed by Omnia on bare-metal Dell EMC PowerEdge Servers | CentOS 7.9 2009 Minimal Edition
 Cobbler  |  2.8.5
 Ansible AWX  |  19.1.0
@@ -76,7 +76,7 @@ The following table lists the software and its compatible version managed by Omn
 Software	|	License	|	Compatible Version	|	Description
 -----------	|	-------	|	----------------	|	-----------------
 CentOS Linux release 7.9.2009 (Core)	|	-	|	7.9	|	Operating system on entire cluster except for management station
-CentOS Linux release 8.3.2011	|	-	|	8.3	|	Operating system on the management station	
+CentOS Linux release 8.4.2105	|	-	|	8.4	|	Operating system on the management station	
 MariaDB	|	GPL 2.0	|	5.5.68	|	Relational database used by Slurm
 Slurm	|	GNU General Public	|	20.11.7	|	HPC Workload Manager
 Docker CE	|	Apache-2.0	|	20.10.2	|	Docker Service
