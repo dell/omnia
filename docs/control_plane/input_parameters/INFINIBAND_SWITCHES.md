@@ -1,7 +1,9 @@
 # Mellanox InfiniBand Switches  
 In your HPC cluster, Mellanox InfiniBand switches must be connected using the Fat-Tree topology. In the fat-tree topology, switches in layer 1 are connected through the switches in the upper layer-layer 2. And, all the compute nodes in the cluster such as PowerEdge servers and PowerVault storage devices are connected to switches in layer 1. With this topology in place, we are ensuring that a 1x1 communication path is established between the compute nodes. For more information on the fat-tree topology, see https://community.mellanox.com/s/article/designing-an-hpc-cluster-with-mellanox-infiniband-solutions.
 
-Omnia uses the server-based Subnet Manager (SM) where the SM runs as a Kubernetes pod on the management station. To enable the SM, Omnia configures the required parameters in the `opensm.conf` file. These parameters can be edited based on the requirement to enable the SM on the Mellanox InfiniBand Switches. 
+Omnia uses the server-based Subnet Manager (SM) where the SM runs as a Kubernetes pod on the management station. To enable the SM, Omnia configures the required parameters in the `opensm.conf` file. These parameters can be edited based on the requirement to enable the SM on the Mellanox InfiniBand Switches.    
+
+**NOTE**: Install the InfiniBand hardware drivers by running the command: `yum groupinstall "Infiniband Support" -y`.    
 
 ## Edit the "input_params" file 
 Under the `control_plane/input_params` directory, edit the following files:

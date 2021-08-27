@@ -26,16 +26,16 @@ Under the `control_plane/input_params` directory, edit the following files:
 	powervault_me4_k8s_volume_name [Required] |	<ul><li>**k8s_volume**</li><li>User-defined name</li></ul> |	Enter the Kubernetes volume name.	
 	powervault_me4_slurm_volume_name [Required] |	<ul><li>**slurm_volume**</li><li>User-defined name</li></ul> |	Enter the Slurm volume name.
 	powervault_me4_disk_group_name |	<ul><li>**omnia**</li><li>User-defined name</li></ul> |	Enter the group name of the disk.
-	powervault_me4_disk_partition_size [Required] |	<ul><li>**5**</li><li>Any value between 0-99</li></ul> |	Enter the partition size which would be used as an NFS share.  
-	powervault_me4_volume_size [Required] |	<ul><li>**100GB**</li><li>Custom value</li></ul> |	Enter the volume size in the format *SizeGB*.  
-	powervault_me4_pool [Required] |	<ul><li>**a**</li><li>b (or B)</li></ul> |	Enter the pool for the volume.  
-	powervault_me4_server_nic [Required] |	<ul><li>**eno1**</li></ul> |	Enter the NIC of the server to which the PowerVault Storage is connected.  
+	powervault_me4_disk_partition_size [Required] |	<ul><li>**5**</li><li>Any value between 5-99</li></ul> |	Enter the partition size which would be used as an NFS share.  
+	powervault_me4_volume_size [Required] |	<ul><li>**100GB**</li><li>Custom value</li></ul> |	Enter the volume size in the format: *SizeTB*, *SizeGB*, *SizeMB*, or *SizeB*.  
+	powervault_me4_pool [Required] |	<ul><li>**a** (or A)</li><li>b (or B)</li></ul> |	Enter the pool for the volume.  
+	powervault_me4_server_nic [Required] |	<ul><li>**em1**</li></ul> |	Enter the NIC of the server to which the PowerVault Storage is connected.    
 	
 ## Configuring PowerVault Storage
 
 ### Run ME4_template on the AWX UI.
 1. Run `kubectl get svc -n awx`.
-2. Copy the Cluster-IP address of the awx-service. 
+2. Copy the Cluster-IP address of the awx-ui. 
 3. To retrieve the AWX UI password, run `kubectl get secret awx-admin-password -n awx -o jsonpath="{.data.password}" | base64 --decode`.
-4. Open the default web browser on the management station and enter the awx-service IP address. Log in to the AWX UI using the username as `admin` and the retrieved password.
+4. Open the default web browser on the management station and enter `http://<IP>:8052`, where IP is the awx-ui IP address and 8052 is the awx-ui port number. Log in to the AWX UI using the username as `admin` and the retrieved password.  
 5. Under __RESOURCES__ -> __Templates__, launch the **powervault_me4_template**.

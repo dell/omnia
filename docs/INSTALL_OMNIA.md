@@ -9,7 +9,7 @@ To install the Omnia control plane and manage workloads on your cluster using th
 * If you have configured the `omnia_config.yml` file to enable the login node, the login node must be part of the cluster. 
 * All nodes must be connected to the network and must have access to the Internet.
 * Set the hostnames of all the nodes in the cluster.
-	* If the login node is enabled, then set the hostnames in the format: __hostname.domainname__. For example, "manager.example.com" is a valid hostname.
+	* If the login node is enabled, then set the hostnames in the format: __hostname.domainname__. For example, "manager.omnia.test" is a valid hostname.
 	* Include the hostnames under /etc/hosts in the format: </br>*ipaddress hostname.domainname*. For example, "192.168.12.1 manager.example.com" is a valid entry.
 * SSH Keys for root are installed on all nodes to allow for password-less SSH.
 * The user should have root privileges to perform installations and configurations.
@@ -111,9 +111,10 @@ __Note:__
 * Supported values for Kubernetes CNI are calico and flannel. The default value of CNI considered by Omnia is calico. 
 * The default value of Kubernetes Pod Network CIDR is 10.244.0.0/16. If 10.244.0.0/16 is already in use within your network, select a different Pod Network CIDR. For more information, see __https://docs.projectcalico.org/getting-started/kubernetes/quickstart__.
 
-**NOTE**: If you want to view or edit the `omnia_config.yml` file, run the following commands:
-1. `cd input_params`
-2. `ansible-vault view omnia_config.yml --vault-password-file .vault_key` or `ansible-vault edit omnia_config.yml --vault-password-file .vault_key`.  
+**NOTE**: If you want to view or edit the `omnia_config.yml` file, run the following command:  
+					
+- `ansible-vault view omnia_config.yml --vault-password-file .omnia_vault_key` -- To view the file. 
+- `ansible-vault edit omnia_config.yml --vault-password-file .omnia_vault_key` -- To edit the file.  
 
 **NOTE**: It is suggested that you use the ansible-vault view or edit commands and that you do not use the ansible-vault decrypt or encrypt commands. If you have used the ansible-vault decrypt or encrypt commands, provide 644 permission to `omnia_config.yml`.  
 

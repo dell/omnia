@@ -172,8 +172,15 @@ stp_rpvst_default_behaviour	|	boolean: false, true	|	Configures RPVST default be
 	* `systemctl restart kubelet`  
 	
 * **Issue**: If control_plane.yml fails at the webui_awx role, then the previous IP address and password are not cleared when control_plane.yml is re-run.   
-	**Resolution**: In the *webui_awx/files* directory, delete the *.tower_cli.cfg* and *.tower_vault_key* files, and then re-run `control_plane.yml`.
+	**Resolution**: In the *webui_awx/files* directory, delete the *.tower_cli.cfg* and *.tower_vault_key* files, and then re-run `control_plane.yml`.  
 
+* **Issue**: The FreeIPA server and client installation fails.  
+	**Cause**: The hostnames of the manager and login nodes are not set in the correct format.  
+	**Resolution**: If you have enabled the option to install the login node in the cluster, set the hostnames of the nodes in the format: *hostname.domainname*. For example, *manager.omnia.test* is a valid hostname for the login node. **Note**: To find the cause for the failure of the FreeIPA server and client installation, see *ipaserver-install.log* in the manager node or */var/log/ipaclient-install.log* in the login node.  
+	
+* **Issue**: The inventoy details are not updated in AWX when device or host credentials are invalid.  
+	**Resolution**: Provide valid credentials of the devices and hosts in the cluster.  
+	
 # [Frequently asked questions](FAQ.md)
 
 # Limitations
