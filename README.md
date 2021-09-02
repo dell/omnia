@@ -53,6 +53,7 @@ Thanks goes to everyone who makes Omnia possible ([emoji key](https://allcontrib
     <td align="center"><a href="https://github.com/cgoveas"><img src="https://avatars.githubusercontent.com/u/88071888?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Cassey Goveas</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=cgoveas" title="Documentation">📖</a></td>
     <td align="center"><a href="https://github.com/asu-wdizon"><img src="https://avatars.githubusercontent.com/u/81772355?v=4?s=100" width="100px;" alt=""/><br /><sub><b>William Dizon</b></sub></a><br /><a href="#tutorial-asu-wdizon" title="Tutorials">✅</a></td>
     <td align="center"><a href="https://github.com/renzo-granados"><img src="https://avatars.githubusercontent.com/u/83035817?v=4?s=100" width="100px;" alt=""/><br /><sub><b>renzo-granados</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/issues?q=author%3Arenzo-granados" title="Bug reports">🐛</a></td>
+    <td align="center"><a href="https://github.com/kbuggenhout"><img src="https://avatars.githubusercontent.com/u/30471699?v=4?s=100" width="100px;" alt=""/><br /><sub><b>kris buggenhout</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/issues?q=author%3Akbuggenhout" title="Bug reports">🐛</a></td>
   </tr>
 </table>
 
