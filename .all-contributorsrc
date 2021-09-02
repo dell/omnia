@@ -189,6 +189,15 @@
       "contributions": [
         "tutorial"
       ]
+    },
+    {
+      "login": "bssitton-BU",
+      "name": "bssitton-BU",
+      "avatar_url": "https://avatars.githubusercontent.com/u/14130464?v=4",
+      "profile": "https://github.com/bssitton-BU",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
