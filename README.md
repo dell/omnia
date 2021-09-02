@@ -59,6 +59,7 @@ Thanks goes to everyone who makes Omnia possible ([emoji key](https://allcontrib
   <tr>
     <td align="center"><a href="https://github.com/kbuggenhout"><img src="https://avatars.githubusercontent.com/u/30471699?v=4?s=100" width="100px;" alt=""/><br /><sub><b>kris buggenhout</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/issues?q=author%3Akbuggenhout" title="Bug reports">🐛</a></td>
     <td align="center"><a href="https://github.com/jiad-vmware"><img src="https://avatars.githubusercontent.com/u/68653329?v=4?s=100" width="100px;" alt=""/><br /><sub><b>jiad-vmware</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/issues?q=author%3Ajiad-vmware" title="Bug reports">🐛</a></td>
+    <td align="center"><a href="https://jlec.de"><img src="https://avatars.githubusercontent.com/u/79732?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Justin Lecher</b></sub></a><br /><a href="#ideas-jlec" title="Ideas, Planning, & Feedback">🤔</a></td>
   </tr>
 </table>
 
