@@ -189,6 +189,15 @@
       "contributions": [
         "tutorial"
       ]
+    },
+    {
+      "login": "renzo-granados",
+      "name": "renzo-granados",
+      "avatar_url": "https://avatars.githubusercontent.com/u/83035817?v=4",
+      "profile": "https://github.com/renzo-granados",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
