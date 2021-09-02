@@ -198,6 +198,31 @@
       "contributions": [
         "bug"
       ]
+    },
+      "login": "hearnsj",
+      "name": "John Hearns",
+      "avatar_url": "https://avatars.githubusercontent.com/u/19259589?v=4",
+      "profile": "https://github.com/hearnsj",
+        "contributions": [
+        "bug"
+      ]
+    },
+      "login": "renzo-granados",
+      "name": "renzo-granados",
+      "avatar_url": "https://avatars.githubusercontent.com/u/83035817?v=4",
+      "profile": "https://github.com/renzo-granados",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "kbuggenhout",
+      "name": "kris buggenhout",
+      "avatar_url": "https://avatars.githubusercontent.com/u/30471699?v=4",
+      "profile": "https://github.com/kbuggenhout",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
