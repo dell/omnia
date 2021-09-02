@@ -15,10 +15,15 @@
 
 # vars file for mngmnt_network
 
+# Usage: main.yml
+base_mngmnt_file: "{{ role_path }}/../../input_params/base_vars.yml"
+
 # Usage: check_prerequisites.yml, mngmnt_network_container_image.yml
 mngmnt_network_image_name: mngmnt_network_container
 mngmnt_network_image_tag: latest
 mount_path: /root/omnia
 message_skipped: "The container is already present"
 message_installed: "The container is installed"
-mngmnt_base_file: "{{ role_path }}/../../input_params/base_vars.yml"
+
+# Usage: mapping_file.yml
+temp_mgmt_mapping_file: "{{ role_path }}/files/new_mngmnt_mapping_file.csv"
