@@ -29,12 +29,20 @@
 
 - name: Execute bootstrap.cgi
   shell: >
+    set -o pipefail && \
     echo "y" | bash {{ dsu_folder_dest }}/bootstrap.cgi
   changed_when: true
   register: bootstrap_execution_result
   failed_when: "'FAILED' in bootstrap_execution_result.stderr"
 
+- name: Download dell-omnia-system-update.rpm
+  get_url:
+    url: "{{ dsu_rpm_url }}"
+    dest: "{{ dsu_folder_dest }}"
+  register: dsu_rpm_result
+  until: dsu_rpm_result is not failed
+  retries: 20
+
 - name: Install DSU
-  package:
-    name: dell-system-update
-    state: present
+  command: dnf install "{{ dsu_folder_dest }}/{{ dsu_rpm_file }}" -y
+  changed_when: true
