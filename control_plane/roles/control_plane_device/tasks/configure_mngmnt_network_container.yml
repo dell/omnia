@@ -17,13 +17,7 @@
   command: kubectl get pods -n network-config
   changed_when: false
   register: mngmnt_network_pod_status
-  ignore_errors: true
-
-- name: Deploy mngmnt_network pod
-  command: "kubectl apply -f {{ role_path }}/files/k8s_mngmnt_network.yml"
-  changed_when: true
-  tags: install
-  when: mngmnt_network_container_status == true and  mngmnt_network_container_config_status == false
+  failed_when: false
 
 - name: Wait for mngmnt_network pod to come to ready state
   command: kubectl wait --for=condition=ready -n network-config pod -l app=mngmnt-network
@@ -38,15 +32,15 @@
 
 - name: Configuring mngmnt_network container
   command: 'kubectl exec --stdin --tty -n network-config {{ mngmnt_network_pod_name.stdout }} \
-    -- ansible-playbook /root/omnia/control_plane/roles/control_plane_device/files/mngmnt_container_configure.yml'
+    -- ansible-playbook /root/mngmnt_container_configure.yml'
   changed_when: false
   tags: install
-  when: mngmnt_network_container_config_status == false
+  when: not mngmnt_network_container_status
 
-- name: Schedule task
-  cron:
-    name: "start mngmnt_network_container on reboot"
-    special_time: reboot
-    job: "ansible-playbook {{ role_path }}/files/start_mngmnt_container.yml"
-  tags: install
-  #when: mngmnt_network_container_config_status == false
+- name: Remove the files
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - "{{ role_path }}/files/dhcpd.conf"
+    - "{{ role_path }}/files/temp_mgmt_mapping_file.csv.bak"
