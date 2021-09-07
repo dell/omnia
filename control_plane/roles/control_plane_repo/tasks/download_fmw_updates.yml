@@ -14,7 +14,8 @@
 ---
 
 - name: Downloading Firwmare Updates (This process may take few hours depending upon the poweredge_model list)
-  command: 'dsu --destination-type=REP --input-inventory-file="{{ role_path }}/files/{{ item }}_inv.xml" \
+  command: 'dsu --destination-type=REP --source-type=REPOSITORY --input-inventory-file="{{ role_path }}/files/{{ item }}_inv.xml" \
     --destination-location="{{ nfs_share_offline_repo }}" --non-interactive'
   with_items: "{{ poweredge_model.split(',') | map('trim') }}"
   changed_when: true
+  failed_when: false

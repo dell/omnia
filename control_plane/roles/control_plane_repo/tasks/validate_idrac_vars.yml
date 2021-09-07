@@ -26,7 +26,7 @@
 
 - name: Read poweredge_model file
   command: cat {{ role_path }}/files/poweredge_models.txt
-  ignore_errors: yes
+  failed_when: false
   register: poweredge_models_file_output
   changed_when: false
 

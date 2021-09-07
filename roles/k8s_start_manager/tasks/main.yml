@@ -178,21 +178,63 @@
   retries: 10
   tags: install
 
-- name: Setup Calico SDN network
-  command: "kubectl apply -f '{{ calico_yml_url }}'"
-  when: hostvars['127.0.0.1']['k8s_cni'] == "calico"
-  tags: init
-
-- name: Setup Flannel SDN network
-  command: "kubectl apply -f '{{ flannel_yml_url }}'"
-  when: hostvars['127.0.0.1']['k8s_cni'] == "flannel"
-  tags: init
-
 - name: Create yaml repo for setup
   file:
     path: "{{ yaml_repo_dir_path }}"
     state: directory
     mode: "{{ yaml_repo_dir_mode }}"
+  tags: init
+
+- name: Delete Calico yaml file if exists
+  file:
+    path: "{{ calico_yml_file_path }}"
+    state: absent
+  when: hostvars['127.0.0.1']['k8s_cni'] == "calico"
+  tags: init
+
+- name: Copy Calico yaml file
+  copy:
+    src: kube-calico.yaml
+    dest: "{{ calico_yml_file_path }}"
+    owner: root
+    group: root
+    mode: "{{ calico_yml_file_mode }}"
+  when: hostvars['127.0.0.1']['k8s_cni'] == "calico"
+  tags: init
+
+- name: Setup Calico SDN network
+  command: "kubectl apply -f '{{ calico_yml_file_path }}'"
+  when: hostvars['127.0.0.1']['k8s_cni'] == "calico"
+  tags: init
+
+- name: Delete Flannel yaml file if exists
+  file:
+    path: "{{ flannel_yml_file_path }}"
+    state: absent
+  when: hostvars['127.0.0.1']['k8s_cni'] == "flannel"
+  tags: init
+
+- name: Copy Flannel yaml file
+  copy:
+    src: kube-flannel.yaml
+    dest: "{{ flannel_yml_file_path }}"
+    owner: root
+    group: root
+    mode: "{{ flannel_yml_file_mode }}"
+  when: hostvars['127.0.0.1']['k8s_cni'] == "flannel"
+  tags: init
+
+- name: Replace flannel network cidr
+  replace:
+    path: "{{ flannel_yml_file_path }}"
+    regexp: "10.244.0.0/16"
+    replace: "{{ hostvars['127.0.0.1']['k8s_pod_network_cidr'] }}"
+  when: hostvars['127.0.0.1']['k8s_cni'] == "flannel"
+  tags: init
+
+- name: Setup Flannel SDN network
+  command: "kubectl apply -f '{{ flannel_yml_file_path }}'"
+  when: hostvars['127.0.0.1']['k8s_cni'] == "flannel"
   tags: init
 
 - name: Create service account (K8s dashboard) files
