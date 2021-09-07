@@ -68,3 +68,14 @@
     service:
       name: dhcpd
       state: started
+
+  - name: Fetch ansible-playbook location
+    command: whereis ansible-playbook
+    changed_when: false
+    register: ansible_playbook_location
+
+  - name: Add inventory cron job
+    cron:
+      name: Create inventory
+      minute: "*/5"
+      job: "{{ ansible_playbook_location.stdout.split(' ')[1] }} /root/inventory_creation.yml"

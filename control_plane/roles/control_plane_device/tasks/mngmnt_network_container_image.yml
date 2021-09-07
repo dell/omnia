@@ -16,6 +16,7 @@
 - name: Image creation (It may take 5-10 mins)
   command: "buildah bud -t {{ mngmnt_network_image_name }}:{{ mngmnt_network_image_tag }} --network host ."
   changed_when: true
+  when: not mngmnt_network_container_image_status
   args:
     chdir: "{{ role_path }}/files/"
   tags: install
