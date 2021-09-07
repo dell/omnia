@@ -26,3 +26,5 @@ poweredge_model_fail_msg: "Failed. poweredge_model is incorrect or unsupported. 
 dsu_folder_dest: /root/dsu
 dsu_folder_dest_mode: 0644
 bootstrap_repo_url: https://linux.dell.com/repo/hardware/dsu/bootstrap.cgi
+dsu_rpm_url: https://linux.dell.com/repo/hardware/omnia/os_independent/x86_64/dell-omnia-system-update-1.9.2.1-21.08.00.x86_64.rpm
+dsu_rpm_file: dell-omnia-system-update-1.9.2.1-21.08.00.x86_64.rpm
