@@ -18,6 +18,7 @@
   changed_when: true
   args:
     chdir: "{{ role_path }}/files/"
+  when: not cobbler_image_status
   tags: install
 
 - name: Update image name in k8s_cobbler.yml

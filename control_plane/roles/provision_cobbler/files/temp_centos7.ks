@@ -29,7 +29,7 @@ keyboard us
 lang en_US
 
 # Network information
-network  --bootproto=dhcp --device=nic --onboot=on
+network  --bootproto=dhcp --device=link --onboot=on --activate
 
 # Root password
 rootpw --iscrypted password
@@ -60,4 +60,9 @@ reboot
 %packages
 @core
 net-tools
+%end
+
+%post --log=/root/ks-post.log
+yum groupinstall "Infiniband Support" -y
+yum install infiniband-diags perftest qperf -y
 %end
