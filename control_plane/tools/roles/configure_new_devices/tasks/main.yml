@@ -93,6 +93,10 @@
       changed_when: true
       no_log: true
 
+    - name: Wait for 10 mins for DHCP to assign IP to devices
+      wait_for:
+        timeout: "{{ dhcp_wait_time }}"
+
     - name: Launch idrac_template
       command: >-
         awx --conf.host {{ awx_host }} --conf.username {{ awx_username }} --conf.password {{ awx_password }}
