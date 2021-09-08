@@ -105,7 +105,7 @@
   tags: kubernetes
 
 - name: Start K8s worker servers on manager nodes
-  hosts: manager
+  hosts: manager, compute
   gather_facts: false
   roles:
     - k8s_start_services
