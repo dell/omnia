@@ -42,18 +42,18 @@
 - name: Create the cobbler settings file
   copy:
     src: "{{ role_path }}/files/cobbler_settings"
-    dest: "{{ role_path }}/files/settings"
+    dest: "{{ role_path }}/files/settings.yaml"
     mode: 0775
   tags: install
 
 - name: Assign server ip
   replace:
-    path: "{{ role_path }}/files/settings"
-    regexp: '^server: ip'
+    path: "{{ role_path }}/files/settings.yaml"
+    regexp: '^server: 127.0.0.1'
     replace: 'server: {{ hpc_ip }}'
 
 - name: Assign next server ip
   replace:
-    path: "{{ role_path }}/files/settings"
-    regexp: '^next_server: ip'
+    path: "{{ role_path }}/files/settings.yaml"
+    regexp: '^next_server: 127.0.0.1'
     replace: 'next_server: {{ hpc_ip }}'
