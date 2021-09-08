@@ -30,33 +30,14 @@
    mode: "{{ jupyter_config_file_mode }}"
 
 - name: JupyterHub deploy
-  block:
-    - name: JupyterHub deploy
-      command: >
-        helm upgrade --cleanup-on-fail \
-        --install {{ jupyterhub_namespace }} jupyterhub/jupyterhub \
-        --namespace {{ jupyterhub_namespace }} \
-        --create-namespace \
-        --version {{ helm_chart_version }} \
-        --values {{ jupyter_config_file_dest }} \
-        --timeout {{ timeout_min_sec }}
-      register: deployment_output
-
-  rescue:
-    - name: JupyterHub deployment error
-      debug:
-        msg: "Previous JupyterHub deployment is in progress"
-      when: "'another operation (install/upgrade/rollback) is in progress' in deployment_output.stderr"
-
-    - name: Delete existing release
-      command: helm delete '{{ jupyterhub_namespace }}'
-
-    - name: JupyterHub deploy
-      command: >
-        helm upgrade --cleanup-on-fail \
-        --install {{ jupyterhub_namespace }} jupyterhub/jupyterhub \
-        --namespace {{ jupyterhub_namespace }} \
-        --create-namespace \
-        --version {{ helm_chart_version }} \
-        --values {{ jupyter_config_file_dest }} \
-        --timeout {{ timeout_min_sec }}
+  command: >
+    helm upgrade --cleanup-on-fail \
+    --install {{ jupyterhub_namespace }} jupyterhub/jupyterhub \
+    --namespace {{ jupyterhub_namespace }} \
+    --create-namespace \
+    --version {{ helm_chart_version }} \
+    --values {{ jupyter_config_file_dest }} \
+    --timeout {{ timeout_min_sec }}
+  changed_when: true
+  failed_when: false
+  register: deployment_output
