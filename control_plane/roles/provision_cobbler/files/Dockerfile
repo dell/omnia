@@ -1,51 +1,71 @@
-FROM centos:7
+FROM centos:8.3.2011
 
 # RPM REPOs
-RUN yum install -y \
+RUN dnf install -y \
     epel-release \
-    && yum clean all \
-    && rm -rf /var/cache/yum
+    && dnf clean all \
+    && rm -rf /var/cache/dnf
 
-RUN yum update -y \
-    && yum clean all \
-    && rm -rf /var/cache/yum
+RUN dnf update -y \
+    && dnf clean all \
+    && rm -rf /var/cache/dnf
 
-RUN yum install -y \
-  cobbler \
-  cobbler-web \
-  ansible \
-  pykickstart \
-  cronie \
-  debmirror \
-  curl \
-  rsync \
-  httpd\
-  dhcp \
-  xinetd \
-  net-tools \
-  memtest86+ \
-  && yum clean all \
-  &&  rm -rf /var/cache/yum
+RUN dnf install -y git
+RUN git clone -b release32  https://github.com/cobbler/cobbler.git
+RUN cd cobbler/
 
 RUN mkdir /root/omnia
 
+RUN dnf install -y mod_ssl \
+        python3-librepo \
+        python3-schema \
+        syslinux \
+        wget \
+        dhcp-server \
+        pykickstart \
+        dnf-plugins-core \
+        cronie \
+        xinetd \
+        python3-coverage \
+        python3-cheetah \
+        python3-netaddr \
+        python3-distro \
+        python3-devel \
+        python3-future \
+        python3-mod_wsgi \
+        gcc \
+        xinetd \
+        epel-rpm-macros \
+        rpm-build \
+        ansible \
+        make \
+        grub2-efi-x64-modules \
+        efibootmgr \
+        && dnf clean all \
+        &&  rm -rf /var/cache/dnf
+
+RUN yum install -y  grub2-efi-x64 shim-x64 
+RUN yum install -y yum-utils
+RUN dnf config-manager --set-enabled powertools
+RUN dnf install -y python3-sphinx
+RUN pip3 install wheel
+
 #Copy Configuration files
-COPY settings /etc/cobbler/settings
+COPY settings.yaml /etc/cobbler/settings.yaml
 COPY dhcp.template  /etc/cobbler/dhcp.template
 COPY modules.conf  /etc/cobbler/modules.conf
 COPY tftp /etc/xinetd.d/tftp
 COPY .users.digest /etc/cobbler/users.digest
-COPY kickstart.yml /root
+COPY cobbler_configurations.yml /root
 COPY tftp.yml /root
 COPY inventory_creation.yml /root
-COPY centos7.ks /var/lib/cobbler/kickstarts
+COPY centos7.ks /var/lib/cobbler/templates/
 
 EXPOSE 69 80 443 25151
 
 VOLUME [ "/var/www/cobbler", "/var/lib/cobbler/backup", "/mnt" ]
 
-RUN systemctl enable cobblerd
 RUN systemctl enable httpd
-RUN systemctl enable rsyncd
+RUN systemctl enable dhcpd
 
 CMD ["sbin/init"]

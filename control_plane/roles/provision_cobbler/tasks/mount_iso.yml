@@ -12,27 +12,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+
 - name: Initialize vars
   set_fact:
-    mount_check: true
+    mount_check: "0"
   tags: install
+
+- name: Check iso directory status
+  stat:
+    path: "/mnt/{{ iso_dir_name }}"
+  register: check_iso_dir
 
 - name: Create iso directory
   file:
     path: "/mnt/{{ iso_dir_name }}"
     state: directory
+    mode: 0644
   tags: install
+  when: not check_iso_dir.stat.exists
 
 - name: Check mountpoint
   command: mountpoint /mnt/{{ iso_dir_name }}
   changed_when: false
   register: result
-  ignore_errors: yes
+  failed_when: false
   tags: install
 
 - name: Update mount status
   set_fact:
-    mount_check: "{{ result.failed }}"
+    mount_check: "{{ result.rc }}"
   tags: install
 
 - name: Mount the iso file
@@ -40,5 +48,5 @@
   changed_when: false
   args:
     warn: no
-  when: mount_check == true
+  when: "'1' in mount_check"
   tags: install
