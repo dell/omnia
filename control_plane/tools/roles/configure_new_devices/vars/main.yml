@@ -18,3 +18,4 @@
 # Usage: main.yml
 ethernet_template_name: "ethernet_template"
 idrac_template_name: "idrac_template"
+dhcp_wait_time: 600
