@@ -68,6 +68,13 @@ awx_organization: "DellEMC"
 
 ### Usage: provision_cobbler, provision_idrac ###
 
+# This variable is used to set node provisioning method
+# It accepts values: idrac, pxe
+# Default value is "idrac"
+# If provisioning needs to be done through cobbler, set it to "pxe"
+# If idrac license is not present, provisioning mode will be set to "pxe"
+provision_method: "idrac"
+
 # This is the timezone that will be set during provisioning of OS
 # Available timezones are provided in control_plane/common/files/timezone.txt
 # Default timezone will be "GMT"
