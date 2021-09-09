@@ -105,6 +105,27 @@
       mode: 0775
     tags: install
 
+  - name: Pxe menu
+    copy:
+      src: "/root/omnia/control_plane/roles/provision_cobbler/files/menu.yml"
+      dest: "/etc/cobbler/boot_loader_conf/pxedefault.template"
+      mode: 0775
+    tags: install
+
+  - name: Assign default grub option
+    replace:
+      path: "/var/lib/cobbler/grub_config/grub/grub.cfg"
+      regexp: "^set default=\'local\'"
+      replace: "set default=\'1\'"
+    tags: install
+
+  - name: Assign default grub timeout
+    replace:
+      path: "/var/lib/cobbler/grub_config/grub/grub.cfg"
+      regexp: '^set timeout=80'
+      replace: 'set timeout=10'
+    tags: install
+
   - name: Syncing of cobbler
     command: cobbler sync
     changed_when: false 

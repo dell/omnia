@@ -13,24 +13,21 @@
 # limitations under the License.
 ---
 
-- name: Set one-time boot device to PXE
-  community.general.redfish_command:
-    category: Systems
-    command: SetOneTimeBoot
-    bootdevice: "Pxe"
-    baseuri: "{{ inventory_hostname }}"
-    username: "{{ idrac_username }}"
-    password: "{{ idrac_password }}"
-  when: not (enterprise_license or datacenter_license)
+- name: Configure boot order for PXE booting
+  dellemc.openmanage.idrac_bios:
+    idrac_ip: "{{ inventory_hostname }}"
+    idrac_user: "{{ idrac_username }}"
+    idrac_password: "{{ idrac_password }}"
+    attributes:
+      SetBootOrderEn: NIC.PxeDevice.1-1,NIC.PxeDevice.2-1,NIC.PxeDevice.3-1,NIC.PxeDevice.4-1
+      UefiBootSeq: NIC.PxeDevice.1-1,NIC.PxeDevice.2-1,NIC.PxeDevice.3-1,NIC.PxeDevice.4-1
+  register: deploy_os_pxe
+  when: provision_method == "pxe"
 
-- name: Reboot server
-  dellemc.openmanage.redfish_powerstate:
-    baseuri: "{{ inventory_hostname }}"
-    username: "{{ idrac_username }}"
-    password: "{{ idrac_password }}"
-    reset_type: ForceRestart
-  when: not (enterprise_license or datacenter_license)
-  register: deploy_os
+- name: Set deploy_os_status when provision_method == pxe
+  set_fact:
+    deploy_os_status: "{{ not deploy_os_pxe.failed }}"
+  when: provision_method == "pxe"
 
 - name: Install OS using iDRAC
   dellemc.openmanage.idrac_os_deployment:
@@ -40,12 +37,17 @@
     share_name: "{{ management_station_ip }}:{{ nfs_share_offline_repo }}"
     iso_image: "{{ unattended_iso_filename }}"
     expose_duration: "{{ expose_duration }}"
-  register: deploy_os
-  when: enterprise_license or datacenter_license
+  register: deploy_os_idrac
+  when: provision_method == "idrac"
+
+- name: Set deploy_os_status when provision_method == idrac
+  set_fact:
+    deploy_os_status: "{{ not deploy_os_idrac.failed }}"
+  when: provision_method == "idrac"
 
 - name: Add to provisioned_hosts to inventory
   command: >-
-    awx --conf.host {{ awx_host }} --conf.username {{ awx_username }} --conf.password {{ awx_password }} 
+    awx --conf.host {{ awx_host }} --conf.username {{ awx_username }} --conf.password {{ awx_password }}
     hosts create --name {{ inventory_hostname }} --inventory "{{ provisioned_idrac_inventory_name }}"
   register: update_inventory
   changed_when: true
@@ -53,9 +55,9 @@
   when:
     - awx_search_key in hostname.stdout
     - inventory_hostname not in fetch_inventory.stdout
-    - not deploy_os.failed
+    - deploy_os_status
 
 - name: Provision OS status
   debug:
     msg: "{{ provision_os_msg }}"
-  when: not deploy_os.failed
+  when: deploy_os_status
