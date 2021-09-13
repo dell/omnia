@@ -112,8 +112,7 @@ Resolution:
 It is recommended that the ansible-vault view or edit commands are used and not the ansible-vault decrypt or encrypt commands.
 
 ## What to do if the LC is not ready?
-* Ensure the LC is in a ready state for all the servers.
-* Command to check lc is busy or not: `racadm getremoteservicesstatus`
+* Verify the state of the LC in all servers by running `racadm getremoteservicesstatus`
 * Launch iDRAC template.
 
 ## What to do if the network CIDR entry of iDRAC IP in /etc/exports file is missing?
