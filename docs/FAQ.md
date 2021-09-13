@@ -113,6 +113,7 @@ It is recommended that the ansible-vault view or edit commands are used and not 
 
 ## What to do if the LC is not ready?
 * Ensure the LC is in a ready state for all the servers.
+* Command to check lc is busy or not: `racadm getremoteservicesstatus`
 * Launch iDRAC template.
 
 ## What to do if the network CIDR entry of iDRAC IP in /etc/exports file is missing?
@@ -127,6 +128,15 @@ It is recommended that the ansible-vault view or edit commands are used and not 
 ## Is Disabling 2FA supported by Omnia?
 * Disabling 2FA is not supported by Omnia and must be manually disabled.
 
+## Is provisioning server using BOSS controller supported by Omnia?
+* Provisioning server using BOSS controller is not supported by Omnia. It will be supported in upcoming releases.
+
 ## The provisioning of PowerEdge servers failed. How do I clean up before starting over?
 1. Delete the respective iDRAC IP addresses from the *provisioned_idrac_inventory* on the AWX UI or delete the *provisioned_idrac_inventory* to delete the iDRAC IP addresses of all the servers in the cluster.
 2. Launch the iDRAC template from the AWX UI.
+
+## What to do when WARNING message regarding older firmware displayed during idrac_template execution and idrac_template task failed?
+Potential Cause: Older firmware version in PowerEdge servers. Omnia supports only iDRAC 8 based Dell EMC PowerEdge Servers with firmware versions 2.75.75.75 and above and iDRAC 9 based Dell EMC PowerEdge Servers with Firmware versions 4.40.40.00 and above.
+
+1. Update idrac firmware version in PowerEdge servers manually to the supported version.
+2. Re-run idrac_template.
