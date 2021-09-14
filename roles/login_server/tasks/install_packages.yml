@@ -24,6 +24,7 @@
     src: "{{ resolv_conf_path }}"
     dest: "{{ temp_resolv_conf_path }}"
     mode: "{{ resolv_file_mode }}"
+    remote_src: yes
 
 - name: Add the domain name in /etc/resolv.conf
   replace:

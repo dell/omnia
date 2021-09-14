@@ -122,7 +122,8 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/73212230?v=4",
       "profile": "https://github.com/abhishek-s-a",
       "contributions": [
-        "code"
+        "code",
+        "doc"
       ]
     },
     {
@@ -252,6 +253,26 @@
       "contributions": [
         "code",
         "test"
+      ]
+    },
+    {
+      "login": "vedaprakashanp",
+      "name": "vedaprakashanp",
+      "avatar_url": "https://avatars.githubusercontent.com/u/90596073?v=4",
+      "profile": "https://github.com/vedaprakashanp",
+      "contributions": [
+        "test",
+        "code"
+      ]
+    },
+    {
+      "login": "Bhagyashree-shetty",
+      "name": "Bhagyashree-shetty",
+      "avatar_url": "https://avatars.githubusercontent.com/u/90620926?v=4",
+      "profile": "https://github.com/Bhagyashree-shetty",
+      "contributions": [
+        "test",
+        "code"
       ]
     }
   ],
