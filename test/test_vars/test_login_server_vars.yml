@@ -19,7 +19,5 @@ ipa_server_packages:
   - ipa-server-dns
   - freeipa-server
 
-
 freeipa_server_packages_status_success_msg: "Freeipa-server packages are installed"
 freeipa_server_packages_status_fail_msg: "Freeipa-server packages are not installed"
-
