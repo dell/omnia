@@ -41,7 +41,7 @@ compute_node_success_msg: "New compute node is successfully added to the cluster
 compute_node_fail_msg: " New compute node failed to add in the cluster"
 
 compute_node_del_success_msg: "New compute node is successfully deleted from the cluster"
-compute_node_del_fail_msg: " New compute node failed to delete from the cluster"
+compute_node_del_fail_msg: " New compute node failed to get deleted from the cluster"
 
 ipa_password_error_fail_msg: "ipa admin invalid password value passed"
 ipa_password_error_success_msg: "ipa admin invalid password value failed"
