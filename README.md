@@ -61,6 +61,7 @@ Thanks goes to everyone who makes Omnia possible ([emoji key](https://allcontrib
     <td align="center"><a href="https://github.com/jiad-vmware"><img src="https://avatars.githubusercontent.com/u/68653329?v=4?s=100" width="100px;" alt=""/><br /><sub><b>jiad-vmware</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/issues?q=author%3Ajiad-vmware" title="Bug reports">🐛</a></td>
     <td align="center"><a href="https://jlec.de"><img src="https://avatars.githubusercontent.com/u/79732?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Justin Lecher</b></sub></a><br /><a href="#ideas-jlec" title="Ideas, Planning, & Feedback">🤔</a></td>
     <td align="center"><a href="https://github.com/Kavyabr23"><img src="https://avatars.githubusercontent.com/u/90390587?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Kavyabr23</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=Kavyabr23" title="Code">💻</a> <a href="https://github.com/dellhpc/omnia/commits?author=Kavyabr23" title="Tests">⚠️</a></td>
+    <td align="center"><a href="https://github.com/vedaprakashanp"><img src="https://avatars.githubusercontent.com/u/90596073?v=4?s=100" width="100px;" alt=""/><br /><sub><b>vedaprakashanp</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=vedaprakashanp" title="Tests">⚠️</a> <a href="https://github.com/dellhpc/omnia/commits?author=vedaprakashanp" title="Code">💻</a></td>
   </tr>
 </table>
 
