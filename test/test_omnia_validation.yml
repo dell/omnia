@@ -465,4 +465,4 @@
         that: "'{{ nfs_dir }}' in nfs_share.stdout"
         fail_msg: "{{ nfs_server_fail_msg }}"
         success_msg: "{{ nfs_server_success_msg }}"
-      tags: VERIFY_OMNIA_01      
+      tags: VERIFY_OMNIA_01
