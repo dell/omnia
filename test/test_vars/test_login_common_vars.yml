@@ -25,4 +25,4 @@ ipa_configuration_fail_msg: "Freeipa is not configured properly"
 ipa_configuration_success_msg: "Freeipa is configured properly"
 
 admin_user_authentication_status_fail_msg: "Admin user denied access"
-admin_user_authentication_status_success_msg: "Admin user successfully authenticated" 
+admin_user_authentication_status_success_msg: "Admin user successfully authenticated"
