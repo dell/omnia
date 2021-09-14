@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -114,6 +114,9 @@
   with_items:
     - "{{ groups['compute'] }}"
   when: '"compute" in group_names'
+  delegate_to: "{{ item }}"
+  with_items:
+    - "{{ play_hosts }}"
 
 - name: Add login node core & socket info in slurm config file
   lineinfile:
@@ -127,6 +130,9 @@
   when:
     - hostvars["127.0.0.1"]["login_node_required"]
     - '"login_node" in group_names'
+  delegate_to: "{{ item }}"
+  with_items:
+    - "{{ play_hosts }}"
 
 - name: Update hostnames of compute node when ALL in partition nodes
   replace:
