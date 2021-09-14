@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -12,6 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+
 - name: Perform validations
   include_tasks: validations.yml
 
@@ -20,18 +21,72 @@
 
 - name: Check if omnia is running from AWX
   block:
-    - name: Appliance status
+    - name: Initialize variables
       set_fact:
-        appliance_status: false
+        control_plane_status: false
+        powervault_status: false
+        nfs_node_status: false
 
     - name: Check AWX instance
-      command: awx-manage --version
+      command: awx --version
+      changed_when: false
+      failed_when: false
+      register: awx_version_check
 
-    - name: Update appliance status
+    - name: Check AWX hostname
+      command: hostname
+      changed_when: false
+      register: awx_hostname
+
+    - name: Set control_plane_status
       set_fact:
-        appliance_status: true
+        control_plane_status: true
+      when:
+        - not awx_version_check.failed
+        - '"awx-" in awx_hostname.stdout'
 
-  rescue:
+    - name: Set NFS node status
+      set_fact:
+        nfs_node_status: true
+      when:
+        - control_plane_status
+        - groups['nfs_node'] | length == 1
+
+    - name: Fetch powervault status
+      include_tasks: fetch_powervault_status.yml
+      when: nfs_node_status
+
+- name: omnia.yml runing on host
+  block:
     - name: Passwordless SSH status
       debug:
         msg: "omnia.yml running on host"
+
+    - name: Check whether ansible config file exists
+      stat:
+        path: "{{ ansible_conf_file_path }}/ansible.cfg"
+      register: ansible_conf_exists
+
+    - name: Create the directory if it does not exist
+      file:
+        path: "{{ ansible_conf_file_path }}"
+        state: directory
+        mode: "{{ file_perm }}"
+      when: not ansible_conf_exists.stat.exists
+
+    - name: Create ansible config file if it does not exist
+      copy:
+        dest: "{{ ansible_conf_file_path }}/ansible.cfg"
+        mode: "{{ file_perm }}"
+        content: |
+          [defaults]
+          log_path = /var/log/omnia.log
+      when: not ansible_conf_exists.stat.exists
+
+    - name: Set omnia.log file
+      replace:
+        path: "{{ ansible_conf_file_path }}/ansible.cfg"
+        regexp: '#log_path = /var/log/ansible.log'
+        replace: 'log_path = /var/log/omnia.log'
+      when: ansible_conf_exists.stat.exists
+  when: not control_plane_status
