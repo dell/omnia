@@ -34,7 +34,8 @@
       mngmnt_network_dhcp_end_range | length < 1 or
       host_network_nic | length < 1 or
       host_network_dhcp_start_range | length < 1 or
-      host_network_dhcp_end_range | length < 1
+      host_network_dhcp_end_range | length < 1 or
+      provision_method | length < 1
 
 - name: Validate infiniband base_vars are not empty
   assert:
@@ -46,7 +47,6 @@
     fail_msg: "{{ fail_msg_ib }}"
   register: ib_check
   when: ib_switch_support
-
 
 - name: Set facts to validate snmp support
   set_fact:
@@ -159,6 +159,13 @@
     success_msg: "{{ success_awx_organization }}"
     fail_msg: "{{ fail_awx_organization }}"
 
+- name: Assert provisioning method
+  assert:
+    that:
+      - provision_method == "pxe" or provision_method == "idrac"
+    success_msg: "{{ success_provision_method }}"
+    fail_msg: "{{ fail_provision_method }}"
+    
 - name: Check timezone file
   command: grep -Fx "{{ timezone }}" {{ role_path }}/files/timezone.txt
   ignore_errors: yes

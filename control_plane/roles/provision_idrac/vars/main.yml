@@ -44,6 +44,11 @@ nfs_check_file: "nfs_check.xml"
 provisioned_idrac_inventory_name: "provisioned_idrac_inventory"
 awx_vars_filename: ".tower_cli.cfg"
 awx_vaultname: ".tower_vault_key"
+idrac9_supported_version: "4.40.40.00"
+idrac9_firmware_not_supported_msg: "[WARNING]Firmware version of iDRAC9 less than 4.40.40.00 is not supported for provisioning. Following tasks can be failed due to older firmware version. In case of failure, update firmware manually and re-run the idrac_template"
+idrac8_supported_version: "2.75.75.75"
+idrac8_firmware_not_supported_msg: "[WARNING]Firmware version of iDRAC8 less than 2.75.75.75 is not supported for provisioning. Following tasks can be failed due to older firmware version. In case of failure, update firmware manually and re-run the idrac_template"
+retries_count: 5
 
 # Usage: update_firmware.yml
 idrac_port: 443
