@@ -18,7 +18,7 @@
 - name: OMNIA_1.1_EF_TC_007
   hosts: ethernet
   gather_facts: false
-  tags: VERIFY_OMNIA_01
+  tags: TC_007
   connection: local
   vars_files:
     - test_vars/test_ethernet_vars.yml
@@ -29,7 +29,7 @@
       copy:
         src: "{{ ethernet_config_dir }}"
         dest: "{{ ethernet_config_backup_dir }}"
-        mode: '0644'
+        mode: "{{ file_perm }}"
       tags: TC_007
 
     - name: Executing ethernet role with default ethernet_config
@@ -46,16 +46,16 @@
        - name: Validate default flow
          assert:
            that:
-             - "'successful' in job_status.status"
+             - ethernet_success_msg in job_status.status
            success_msg: "{{ success_message }}"
            fail_msg: "{{ fail_case }}"
          changed_when: false
 
-    - name: Set MTU of port 4
+    - name: Set MTU of port {{ port_num }}
       lineinfile:
        dest: "{{ ethernet_config_dir }}"
-       insertbefore: '    ethernet 1/1/5:'
-       line: '      mtu: 2345'
+       insertbefore: "{{ search_line }}"
+       line: "{{ add_mtu_line }}"
     
     - name: Executing ethernet role with default ethernet_config
       vars:
@@ -67,16 +67,16 @@
        delete_status: true
       include_tasks: "{{ awx_script_path }}"
       
-    - name: Getting MTU of ethernet 1/1/4
+    - name: Getting MTU of ethernet {{ validation_port }}
       command: ansible-playbook -i "{{ inventory_dir }}" "{{ get_mtu_dir }}" --tags 'mtu'
       changed_when: false
-      register: port4
+      register: mtu_out
       tags: TC_007,TC_002
        
     - name: Validate role exec output pre and post MTU addition
       assert:
         that:          
-          - "'MTU 2345 bytes' in port4.stdout"
+          - validate_mtu_line in mtu_out.stdout
         success_msg: "{{ success_message }}"
         fail_msg: "{{ fail_case }}"
       changed_when: false
@@ -101,18 +101,18 @@
     
     - name: Pausing for switch to come up
       pause:
-        minutes: 4
+        minutes: "{{ time_to_pause }}"
         
-    - name: Getting MTU of ethernet 1/1/4
+    - name: Getting MTU of ethernet {{ validation_port }}
       command: ansible-playbook -i "{{ inventory_dir }}" "{{ get_mtu_dir }}" --tags 'mtu'
       changed_when: false
-      register: port4
+      register: mtu_out
       
     - block:
        - name: Validate that MTU is changed
          assert:
            that:
-             - "'MTU 2345 bytes' not in port4.stdout"
+             - validate_mtu_line not in mtu_out.stdout
            success_msg: "{{ success_message }}"
            fail_msg: "{{ fail_case }}"
          changed_when: false
@@ -152,18 +152,18 @@
     
     - name: Pausing for switch to come up
       pause:
-        minutes: 4
+        minutes: "{{ time_to_pause }}"
         
-    - name: Getting MTU of ethernet 1/1/4
+    - name: Getting MTU of ethernet {{ validation_port }}
       command: ansible-playbook -i "{{ inventory_dir }}" "{{ get_mtu_dir }}" --tags 'mtu'
       changed_when: false
-      register: port4
+      register: mtu_out
     
     - block:
        - name: Validate that MTU is changed
          assert:
            that:
-             - "'MTU 2345 bytes' in port4.stdout"
+             - validate_mtu_line in mtu_out.stdout
            success_msg: "{{ success_message }}"
            fail_msg: "{{ fail_case }}"
          changed_when: false
@@ -201,30 +201,23 @@
        - name: Validate role exec output
          assert:
            that:
-             - "'failed' in job_status.status"
+             - ethernet_fail_msg in job_status.status
            success_msg: "{{ success_message }}"
            fail_msg: "{{ fail_case }}"
 
 # Testcase OMNIA_1.1_EF_TC_009
-# Execute ethernet.yml with only interface and no Global configs in ethernet_config.yml 
+# Validation of ethernet default configuration
 - name: OMNIA_1.1_EF_TC_009
   hosts: ethernet
   gather_facts: false
-  tags: TC_009
+  tags: VERIFY_OMNIA_01
   connection: local
   vars_files:
     - test_vars/test_ethernet_vars.yml
     - ../roles/webui_awx/vars/main.yml    
     - ../input_params/base_vars.yml    
   tasks:
-    - name: Deleting global config completely
-      ansible.builtin.command: sed -i '18,23d' "{{ ethernet_config_dir }}"
-      args:
-       warn: no
-      changed_when: false
-      tags: TC_009
-      
-    - name: Executing ethernet role with no global config
+    - name: Executing ethernet role
       vars:
        inventory_name: "{{ eth_inventory_name }}"
        host_name: "{{ eth_host_name }}"
@@ -238,7 +231,7 @@
        - name: Validate default flow
          assert:
            that:
-             - "'successful' in job_status.status"
+             - ethernet_success_msg in job_status.status
            success_msg: "{{ success_message }}"
            fail_msg: "{{ fail_case }}"
          changed_when: false
@@ -274,7 +267,7 @@
        - name: Validate role exec output
          assert:
            that:
-             - "'failed' in job_status.status"
+             - ethernet_fail_msg in job_status.status
            success_msg: "{{ success_message }}"
            fail_msg: "{{ fail_case }}"      
 
@@ -294,7 +287,7 @@
       copy:
         src: "{{ ethernet_config_backup_dir }}"
         dest: "{{ ethernet_config_dir }}"
-        mode: '0644'
+        mode: "{{ file_perm }}"
       tags: TC_008
     
     - name: Removing interface config from ethernet_config
@@ -318,7 +311,7 @@
        - name: Validate default flow
          assert:
            that:
-             - "'successful' in job_status.status"
+             - ethernet_success_msg in job_status.status
            success_msg: "{{ success_message }}"
            fail_msg: "{{ fail_case }}"
          changed_when: false
@@ -327,7 +320,7 @@
       copy:
         src: "{{ ethernet_config_backup_dir }}"
         dest: "{{ ethernet_config_dir }}"
-        mode: '0644'
+        mode: "{{ file_perm }}"
       tags: TC_008
       
     - name: Set save_changes_to_startup to True in ethernet_vars

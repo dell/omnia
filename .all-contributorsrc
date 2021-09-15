@@ -18,7 +18,8 @@
         "ideas",
         "maintenance",
         "mentoring",
-        "design"
+        "design",
+        "review"
       ]
     },
     {
@@ -270,6 +271,16 @@
       "name": "Bhagyashree-shetty",
       "avatar_url": "https://avatars.githubusercontent.com/u/90620926?v=4",
       "profile": "https://github.com/Bhagyashree-shetty",
+      "contributions": [
+        "test",
+        "code"
+      ]
+    },
+    {
+      "login": "nihalranjan-hpc",
+      "name": "Nihal Ranjan",
+      "avatar_url": "https://avatars.githubusercontent.com/u/84398828?v=4",
+      "profile": "https://github.com/nihalranjan-hpc",
       "contributions": [
         "test",
         "code"

@@ -29,7 +29,7 @@
 
    - name: View running configurations
      dellos10_command:
-       commands: show interface ethernet 1/1/4
+       commands: show interface ethernet {{ validation_port }}
      register: var1
      tags: mtu
 

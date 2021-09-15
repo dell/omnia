@@ -44,3 +44,13 @@ login_vars_vault_path: "../input_params/.login_vault_key"
 tower_config_file_path: "../roles/webui_awx/files/.tower_cli.cfg"
 tower_vault_file_path: "../roles/webui_awx/files/.tower_vault_key"
 file_perm: '0644'
+
+# Usage : test_eth_mtu.yml, test_ethernet_config.yml
+validation_port: 1/1/4:1
+port_num: 4
+search_line: "    ethernet 1/1/5:"
+add_mtu_line: "      mtu: 2345"
+time_to_pause: 4
+validate_mtu_line: "MTU 2345 bytes"
+ethernet_success_msg: "successful"
+ethernet_fail_msg: "failed"
