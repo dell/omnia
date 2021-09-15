@@ -23,7 +23,7 @@ correct_disk_range: "Succes: Disk range is correct"
 wrong_pool: "Failed: Given pool value is wrong"
 wrong_partition: "Failed: Given partition is wrong"
 wrong_vol_size: "Failed: Given volume size is wrong"
-
+wrong_pool_type: "Failed: Given pool type value is wrong"
 
 # Usage: pv_me4_prereq.yml
 scsi_product_id: ME4
@@ -37,7 +37,6 @@ base_pv_file: "{{ role_path }}/../../input_params/base_vars.yml"
 # Usage: volume.yml
 lun1: 0
 lun2: 1
-type: virtual
 
 # Usage: ports.yml
 port_ip: 192.168.25.

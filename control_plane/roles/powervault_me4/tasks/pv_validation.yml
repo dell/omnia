@@ -33,6 +33,7 @@
 - name: Check if system name has space
   shell: echo {{ powervault_me4_system_name }} | grep '\s' -c
   register: space_count
+  changed_when: false
   ignore_errors: true
   tags: install
 
@@ -46,6 +47,7 @@
 - name: Check if volume name has space
   shell: echo {{ powervault_me4_k8s_volume_name }} | grep '\s' -c
   register: vol_count1
+  changed_when: false
   ignore_errors: true
   tags: install
 
@@ -59,6 +61,7 @@
 - name: Check if volume name has space
   shell: echo {{ powervault_me4_slurm_volume_name }} | grep '\s' -c
   register: vol_count2
+  changed_when: false
   ignore_errors: true
   tags: install
 
@@ -80,6 +83,7 @@
   assert:
     that:
       - disk_count.stdout == "0"
+      - powervault_me4_disk_group_name | length > 1
       - powervault_me4_disk_group_name | length < 30
     msg: "{{ system_name_wrong }}" 
 
@@ -89,7 +93,7 @@
       - powervault_me4_snmp_notify_level | length >1
       - powervault_me4_snmp_notify_level == "crit" or powervault_me4_snmp_notify_level == "error" or powervault_me4_snmp_notify_level == "warn" or powervault_me4_snmp_notify_level == "resolved" or powervault_me4_snmp_notify_level == "info" or powervault_me4_snmp_notify_level == "none"
     fail_msg: "{{ snmp_wrong_value }}"
-    success_msg: "{{ snmp_success }}" 
+    success_msg: "{{ snmp_success }}"
 
 - name: Assert RAID value
   assert:
@@ -113,12 +117,20 @@
     that: 
       - powervault_me4_pool == "a" or powervault_me4_pool == "A" or powervault_me4_pool == "b" or powervault_me4_pool == "B"
     msg: "{{ wrong_pool }}"
+  when: powervault_me4_pool_type == "virtual"
+
+- name: Check pool type
+  assert:
+    that:
+      - powervault_me4_pool_type | length > 1
+      - powervault_me4_pool_type | lower == "virtual" or powervault_me4_pool_type | lower == "linear"
+    msg: "{{ wrong_pool_type }}"
 
 - name: Check parition percentage
   assert:
     that:
       - powervault_me4_disk_partition_size|int
-      - powervault_me4_disk_partition_size|int < 99
+      - powervault_me4_disk_partition_size|int < 90
       - powervault_me4_disk_partition_size|int > 5
     msg: "{{ wrong_partition }}"
 
