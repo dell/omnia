@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -12,7 +12,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-#Usage: fetch_password.yml
+
+# Usage: fetch_password.yml
 config_filename: "omnia_config.yml"
 config_vaultname: .omnia_vault_key
 min_length: 8
@@ -39,7 +40,7 @@ input_config_failure_msg: "Input parameters cannot be empty"
 login_node_required_success_msg: "Login_node_required successfully validated"
 login_node_required_fail_msg: "Failed. login_node_required can be either true or false"
 
-#Usage: validations.yml
+# Usage: validations.yml
 skip_tag_fail_msg: "Can't skip both slurm and kubernetes"
 manager_group_fail_msg: "manager group should contain exactly 1 node"
 manager_group_success_msg: "manager group check passed"
@@ -49,3 +50,11 @@ disjoint_fail_msg: "manager and compute groups should be disjoint"
 disjoint_success_msg: "manager and compute groups are disjoint"
 login_node_group_fail_msg: "Login node group should contain atleast 1 node when login_node_required is true"
 login_node_group_success_msg: "Login node group check passed when login_node_required is true"
+nfs_node_group_fail_msg: "nfs_node group should contain exactly 1 node"
+nfs_node_group_success_msg: "nfs_node group check passed"
+
+# Usage: fetch_powervault_status.yml
+tower_config_path: "{{ playbook_dir }}/control_plane/roles/webui_awx/files/.tower_cli.cfg"
+tower_vault_path: "{{ playbook_dir }}/control_plane/roles/webui_awx/files/.tower_vault_key"
+powervault_inventory_name: "powervault_me4_inventory"
+powervault_group: "powervault_me4"
