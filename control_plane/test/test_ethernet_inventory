@@ -1,0 +1,5 @@
+[ethernet]
+1.2.3.4
+
+[ethernet:vars]
+ansible_network_os= dellemc.os10.os10
