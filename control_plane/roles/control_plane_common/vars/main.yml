@@ -89,6 +89,8 @@ success_msg_k8s_pod_network_cidr: "Appliance k8s pod network cidr validated"
 fail_msg_k8s_pod_network_cidr: "Failed. Incorrect appliance k8s pod network cidr provided in base_vars.yml"
 success_awx_organization: "awx organization validated"
 fail_awx_organization: "Failed. Incorrect format in awx organization"
+success_provision_method: "Provision method validated"
+fail_provision_method: "Failed. Provision method can either be set to idrac or pxe"
 success_timezone_msg: "timezone validated"
 fail_timezone_msg: "Failed. Incorrect timezone provided. Please check the file timezone.txt in control_plane/roles/control_plane_common/files/ folder"
 fail_language: "Failed. Only en-US(english) language supported"
@@ -138,3 +140,33 @@ nfs_services:
   - mountd
   - rpc-bind
   - nfs
+
+# Usage: validate_host_mapping_file.yml
+fail_msg_mapping_file: "Mapping file doesn't exist at given path: "
+mapping_file_key: "MAC"
+fail_mapping_file_header: "Header of csv file is not in correct format.
+                          It should be of the format: MAC,Hostname,IP,Component_role or MAC,Hostname,IP"
+host_mapping_header_format: "MAC,Hostname,IP"
+host_mapping_header_with_role_format: "MAC,Hostname,IP,Component_role"
+fail_mapping_file_field_seperation: "Failed: Mapping file should be comma separated and all fields must be filled."
+fail_mapping_file_duplicate_ip: "Failed: Duplicate ip exists. Please verify following mapping file again: "
+fail_mapping_file_duplicate_hostname: "Failed: Duplicate hostname exists. Please verify host mapping file again."
+fail_mapping_file_hostname_chars: "Hostname should not contain _ or . or space as it will cause error with slurm and K8s. Found in: "
+fail_mapping_file_roles_error: "Failed. Define correct Component Roles for each node.
+                                Component roles can only take values: {{ group_name_manager }}, {{group_name_compute}},
+                                 {{ group_name_login }}, {{ group_name_nfs }}"
+fail_mapping_file_manager_role: "Exactly 1 manager node must be defined"
+fail_mapping_file_compute_role: "Atleast 1 compute node must be defined"
+fail_mapping_file_login_role: "Exactly 1 login node must be defined"
+fail_mapping_file_nfs_role: "Exactly 1 nfs node must be defined"
+count_of_roles_defined: "Component Roles defined: Manager Node: {{ count_of_manager }},
+                        Compute Nodes: {{ count_of_compute }}, Login Node: {{ count_of_login }},
+                        Nfs Node: {{ count_of_nfs_node }}, Total Nodes: {{ count_total_items }} "
+group_name_manager: "manager"
+group_name_compute: "compute"
+group_name_login: "login_node"
+group_name_nfs: "nfs_node"
+
+# Usage: validate_device_mapping_file.yml
+fail_device_mapping_file_header: "Failed: Header (MAC,IP) should be present in the mapping file."
+device_mapping_header_format: "MAC,IP"

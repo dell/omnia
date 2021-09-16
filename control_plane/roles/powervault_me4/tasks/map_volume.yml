@@ -24,6 +24,7 @@
   changed_when: false
   no_log: true
   register: config_content
+  delegate_to: localhost
   run_once: true
 
 - name: Decrpyt login_vars.yml
@@ -32,6 +33,7 @@
     --vault-password-file {{ login_pv_vault_file }}
   changed_when: false
   run_once: true
+  delegate_to: localhost
   when: "'$ANSIBLE_VAULT;' in config_content.stdout"
 
 - name: Include variable file login_vars.yml
@@ -57,9 +59,18 @@
   delegate_to: localhost
   tags: install
 
+- name: Get map port
+  set_fact:
+    map_port: "{{ item.0 }}"
+  when: hostvars['pv']['map_ip'] == item.1
+  with_together:
+    - "{{ up_port }}"
+    - "{{ set_port_ip }}"
+  register: output
+
 - name: Map volume
   uri:
-    url: https://{{ groups['powervault_me4'][0] }}/api/map/volume/{{ powervault_me4_k8s_volume_name }}/access/{{ access }}/ports/{{ item.0 }}/lun/{{ lun1 }}/initiator/{{ hostvars['server_iqdn_id']['server_iqdn'] }}
+    url: https://{{ groups['powervault_me4'][0] }}/api/map/volume/{{ powervault_me4_k8s_volume_name }}/access/{{ access }}/ports/{{ map_port }}/lun/{{ lun1 }}/initiator/{{ hostvars['server_iqdn_id']['server_iqdn'] }}
     method: GET
     body_format: json
     validate_certs: no
@@ -67,14 +78,12 @@
     headers:
       {'sessionKey': "{{ map_session_key.json.status[0].response }}", 'datatype':'json'}
   register: map_vol1
-  with_together:
-    - "{{ up_port }}"
   delegate_to: localhost
   tags: install
 
 - name: Map volume
   uri:
-    url: https://{{ groups['powervault_me4'][0] }}/api/map/volume/{{ powervault_me4_slurm_volume_name }}/access/{{ access }}/ports/{{ item.0 }}/lun/{{ lun2 }}/initiator/{{ hostvars['server_iqdn_id']['server_iqdn']  }}
+    url: https://{{ groups['powervault_me4'][0] }}/api/map/volume/{{ powervault_me4_slurm_volume_name }}/access/{{ access }}/ports/{{ map_port }}/lun/{{ lun2 }}/initiator/{{ hostvars['server_iqdn_id']['server_iqdn']  }}
     method: GET
     body_format: json
     validate_certs: no
@@ -82,8 +91,6 @@
     headers:
       {'sessionKey': "{{ map_session_key.json.status[0].response }}", 'datatype':'json'}
   register: map_vol2
-  with_together:
-    - "{{ up_port }}"
   delegate_to: localhost
   tags: install
 
@@ -93,4 +100,5 @@
     --vault-password-file {{ login_pv_vault_file }}
   changed_when: false
   run_once: true
+  delegate_to: localhost
   when: "'$ANSIBLE_VAULT;' in config_content.stdout"

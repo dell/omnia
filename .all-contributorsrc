@@ -18,7 +18,8 @@
         "ideas",
         "maintenance",
         "mentoring",
-        "design"
+        "design",
+        "review"
       ]
     },
     {
@@ -122,7 +123,9 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/73212230?v=4",
       "profile": "https://github.com/abhishek-s-a",
       "contributions": [
-        "code"
+        "code",
+        "doc",
+        "test"
       ]
     },
     {
@@ -160,7 +163,8 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/72784834?v=4",
       "profile": "https://github.com/VishnupriyaKrish",
       "contributions": [
-        "code"
+        "code",
+        "test"
       ]
     },
     {
@@ -242,6 +246,46 @@
       "profile": "https://jlec.de",
       "contributions": [
         "ideas"
+      ]
+    },
+    {
+      "login": "Kavyabr23",
+      "name": "Kavyabr23",
+      "avatar_url": "https://avatars.githubusercontent.com/u/90390587?v=4",
+      "profile": "https://github.com/Kavyabr23",
+      "contributions": [
+        "code",
+        "test"
+      ]
+    },
+    {
+      "login": "vedaprakashanp",
+      "name": "vedaprakashanp",
+      "avatar_url": "https://avatars.githubusercontent.com/u/90596073?v=4",
+      "profile": "https://github.com/vedaprakashanp",
+      "contributions": [
+        "test",
+        "code"
+      ]
+    },
+    {
+      "login": "Bhagyashree-shetty",
+      "name": "Bhagyashree-shetty",
+      "avatar_url": "https://avatars.githubusercontent.com/u/90620926?v=4",
+      "profile": "https://github.com/Bhagyashree-shetty",
+      "contributions": [
+        "test",
+        "code"
+      ]
+    },
+    {
+      "login": "nihalranjan-hpc",
+      "name": "Nihal Ranjan",
+      "avatar_url": "https://avatars.githubusercontent.com/u/84398828?v=4",
+      "profile": "https://github.com/nihalranjan-hpc",
+      "contributions": [
+        "test",
+        "code"
       ]
     }
   ],
