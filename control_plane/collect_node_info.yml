@@ -16,6 +16,6 @@
 - name: Collect control_plane host inventory
   hosts: localhost
   connection: local
-  gather_facts: no
+  gather_facts: false
   roles:
     - collect_node_info
