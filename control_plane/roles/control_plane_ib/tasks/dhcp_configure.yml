@@ -39,6 +39,18 @@
     regexp: '^range dynamic-bootp start end;'
     replace: 'range dynamic-bootp {{ ib_network_dhcp_start_range }} {{ ib_network_dhcp_end_range }};'
 
+- name: Assign default lease time
+  replace:
+    path: "{{ role_path }}/files/dhcpd.conf"
+    regexp: '^default-lease-time default;'
+    replace: 'default-lease-time {{ default_lease_time }};'
+
+- name: Assign max lease time
+  replace:
+    path: "{{ role_path }}/files/dhcpd.conf"
+    regexp: '^max-lease-time max;'
+    replace: 'max-lease-time {{ max_lease_time }};'
+
 - name: Assign next server range
   replace:
     path: "{{ role_path }}/files/dhcpd.conf"
