@@ -32,6 +32,18 @@
     path: "{{ role_path }}/files/dhcp.template"
     regexp: '^option subnet-mask net_mask;'
     replace: 'option subnet-mask {{ netmask }};'
+    
+- name: Assign default lease time
+  replace:
+    path: "{{ role_path }}/files/dhcp.template"
+    regexp: '^default-lease-time default;'
+    replace: 'default-lease-time {{ default_lease_time }};'
+
+- name: Assign max lease time
+  replace:
+    path: "{{ role_path }}/files/dhcp.template"
+    regexp: '^max-lease-time max;'
+    replace: 'max-lease-time {{ max_lease_time }};'
 
 - name: Assign DHCP range
   replace:
