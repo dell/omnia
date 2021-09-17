@@ -53,7 +53,6 @@
     snmp_enabled: false   
     mngmnt_mapping_file: false
     host_mapping_file: false
-    ib_mapping_file: false
 
 - name: Verify snmp_trap_destination IP address
   set_fact:
@@ -165,7 +164,7 @@
       - provision_method == "pxe" or provision_method == "idrac"
     success_msg: "{{ success_provision_method }}"
     fail_msg: "{{ fail_provision_method }}"
-    
+
 - name: Check timezone file
   command: grep -Fx "{{ timezone }}" {{ role_path }}/files/timezone.txt
   ignore_errors: yes
@@ -199,7 +198,7 @@
     msg: "{{ invalid_iso_file_path }}"
   when: ( result_path_iso_file.stat.exists ) and ( ".iso" not in iso_file_path )
 
-####management_net_dhcp_start_end_range
+#### management_net_dhcp_start_end_range
 - name: Assert management network nic
   assert:
     that:
@@ -244,6 +243,7 @@
     that:
       - mngmnt_network_dhcp_start_range
       - mngmnt_network_dhcp_start_range | ipv4
+      - mngmnt_network_dhcp_start_range != mngmnt_network_ip
       - mngmnt_network_dhcp_start_range != mngmnt_network_dhcp_end_range
       - dhcp_start_mgmnt == mngmnt_network_subnet
       - dhcp_start_mgmnt == dhcp_end_mgmnt
@@ -255,6 +255,7 @@
     that:
       - mngmnt_network_dhcp_end_range
       - mngmnt_network_dhcp_end_range | ipv4
+      - mngmnt_network_dhcp_end_range != mngmnt_network_ip
       - mngmnt_network_dhcp_start_range != mngmnt_network_dhcp_end_range
       - dhcp_end_mgmnt == mngmnt_network_subnet
       - dhcp_start_mgmnt == dhcp_end_mgmnt
@@ -279,13 +280,6 @@
 #########
 
 ###Host network####
-- name: Assert host network nic
-  assert:
-    that:
-      - host_network_nic in nic_addr_up.stdout
-    success_msg: "{{ success_msg_host_network_nic }}"
-    fail_msg: "{{ fail_msg_host_network_nic }}"
-
 - name: Fetch the host network ip, netmask and subnet
   set_fact:
     hpc_ip: "{{ lookup('vars','ansible_'+host_network_nic).ipv4.address }}"
@@ -323,6 +317,7 @@
     that:
       - host_network_dhcp_start_range
       - host_network_dhcp_start_range | ipv4
+      - host_network_dhcp_start_range != hpc_ip
       - host_network_dhcp_start_range != host_network_dhcp_end_range
       - dhcp_start_host == subnet
       - dhcp_start_host == dhcp_end_host
@@ -334,6 +329,7 @@
     that:
       - host_network_dhcp_end_range
       - host_network_dhcp_end_range | ipv4
+      - host_network_dhcp_end_range != hpc_ip
       - host_network_dhcp_start_range != host_network_dhcp_end_range
       - dhcp_end_host == subnet
       - dhcp_start_host == dhcp_end_host
@@ -366,14 +362,6 @@
     fail_msg: "{{ fail_msg_different_nics }}"
 
 ########
-- name: Assert infiniband network nic
-  assert:
-    that:
-      - ib_network_nic in nic_addr_up.stdout
-    success_msg: "{{ success_msg_ib_network_nic }}"
-    fail_msg: "{{ fail_msg_ib_network_nic }}"
-  when: ib_switch_support
-
 - name: Fetch the infiniband network ip, netmask and subnet
   set_fact:
     ib_ip: "{{ lookup('vars','ansible_'+ib_network_nic).ipv4.address }}"
@@ -416,6 +404,7 @@
     that:
       - ib_network_dhcp_start_range
       - ib_network_dhcp_start_range | ipv4
+      - ib_network_dhcp_start_range != ib_ip
       - ib_network_dhcp_start_range != ib_network_dhcp_end_range
       - dhcp_start_ib == ib_subnet
       - dhcp_start_ib == dhcp_end_ib
@@ -428,28 +417,13 @@
     that:
       - ib_network_dhcp_end_range
       - ib_network_dhcp_end_range | ipv4
+      - ib_network_dhcp_end_range != ib_ip
       - ib_network_dhcp_start_range != ib_network_dhcp_end_range
       - dhcp_end_ib == ib_subnet
       - dhcp_start_ib == dhcp_end_ib
     success_msg: "{{ success_dhcp_range }} for infiniband network"
     fail_msg: "{{ fail_dhcp_range }} for infiniband network"
   when: ib_switch_support
-
-- name: Set the mapping file value for infiniband
-  set_fact:
-    ib_mapping_file: true
-  when: (ib_switch_support) and (ib_mapping_file_path | length > 0)
-
-- name: Assert valid infiniband_mapping_file_path
-  stat:
-    path: "{{ ib_mapping_file_path }}"
-  when: ib_switch_support and ib_mapping_file
-  register: result_ib_mapping_file
-
-- name : Valid infiniband_mapping_file_path
-  fail:
-    msg: "{{ invalid_mapping_file_path }} for infiniBand network configuration"
-  when: ib_mapping_file and (not result_ib_mapping_file.stat.exists)
 
 - name: Verify different nics with infiniband nic
   assert:
