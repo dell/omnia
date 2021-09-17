@@ -48,7 +48,7 @@ Slurm Workload Manager  |  20.11.7
 Kubernetes Controllers  |  1.16.7
 Kubeflow  |  1
 Prometheus  |  2.23.0
-Supported PowerEdge servers  |  R640, R740, R7525, C4140, DSS8440, and C6420
+Supported PowerEdge servers  |  R640, R740, C4140, DSS8440, and C6420
 
 ## Software managed by Omnia
 Ensure the supported version of all the software are installed as per the following table and other versions than those listed are not supported by Omnia. This is to ensure that there is no impact to the functionality of Omnia.
