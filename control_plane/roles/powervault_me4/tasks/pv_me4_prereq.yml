@@ -57,14 +57,14 @@
 
 - name: Get the product id
   set_fact:
-    pv_id: system_info.json.system[0]['product-id']
+    pv_id: "{{ system_info.json.system[0]['product-id'] }}"
 
 - name: Verify the product id and model no. of device
   fail:
     msg: "{{ fail_pv_support }}"
   when:
-    - scsi_product_id in system_info.json.system[0]['scsi-product-id']
-    - pv_id  == "ME4084" or pv_id == "ME4024"  or pv_id == "ME4012"
+    - scsi_product_id not in system_info.json.system[0]['scsi-product-id']
+    - pv_id  != "ME4084" or pv_id != "ME4024"  or pv_id != "ME4012"
 
 - name: Set system name
   uri:
@@ -76,5 +76,5 @@
     headers:
       {'sessionKey': "{{ session_key.json.status[0].response }}", 'datatype':'json'}
   register: system_name
-  when: powervault_me4_system_name != ""
+  when: powervault_me4_system_name
   tags: install
