@@ -21,4 +21,3 @@ infiniband_image_tag: latest
 mount_path: /root/omnia
 infiniband_message_skipped: "The container is already present"
 infiniband_message_installed: "The container is installed"
-ib_base_file: "{{ role_path }}/../../input_params/base_vars.yml" 

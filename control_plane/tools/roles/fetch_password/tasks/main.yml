@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -43,3 +43,8 @@
     ansible-vault encrypt {{ role_path }}/../../../{{ login_vars_filename }}
     --vault-password-file {{ role_path }}/../../../{{ vault_filename }}
   changed_when: false
+
+- name: Update login_vars.yml permission
+  file:
+    path: "{{ role_path }}/../../../{{ login_vars_filename }}"
+    mode: "{{ file_perm }}"

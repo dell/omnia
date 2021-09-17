@@ -1,4 +1,4 @@
-# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,10 +21,10 @@
     - cluster_validation
 
 - name: Gather facts from all the nodes
-  hosts: all
+  hosts: manager, compute, login_node, nfs_node
 
 - name: Apply common installation and config
-  hosts: manager, compute
+  hosts: manager, compute, login_node
   gather_facts: false
   roles:
     - common
@@ -72,23 +72,73 @@
     - k8s_firewalld
   tags: kubernetes
 
+- name: Powervault Server Configuration
+  hosts: nfs_node
+  gather_facts: false
+  tasks:
+    - name: Configuring NFS node
+      include_role:
+        name: powervault_me4_nfs
+      when: hostvars['127.0.0.1']['powervault_status']
+
+- name: Map volume
+  hosts: powervault_me4
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Include map volume task
+      include_tasks: "{{ playbook_dir }}/control_plane/roles/powervault_me4/tasks/ports.yml"
+      when: hostvars['127.0.0.1']['powervault_status']
+
+    - name: Include map volume task
+      include_tasks: "{{ playbook_dir }}/control_plane/roles/powervault_me4/tasks/map_volume.yml"
+      when: hostvars['127.0.0.1']['powervault_status']
+
+- name: Apply NFS server setup on NFS node
+  hosts: nfs_node
+  gather_facts: false
+  tasks:
+    - name: Check the mapped volume on server
+      include_role:
+        name: powervault_me4_nfs
+        tasks_from: nfs_volume
+      when: hostvars['127.0.0.1']['powervault_status']
+
+    - name: Mount partitions
+      include_role:
+         name: powervault_me4_nfs
+         tasks_from: mount_me4_partitions
+      when: hostvars['127.0.0.1']['powervault_status']
+
+    - name: Setup NFS server on the partitions
+      include_role:
+         name: powervault_me4_nfs
+         tasks_from: me4_nfs_server_setup
+      when: hostvars['127.0.0.1']['powervault_status']
+
 - name: Apply NFS server setup on manager node
   hosts: manager
   gather_facts: false
-  roles:
-    - k8s_nfs_server_setup
-  tags:
-    - kubernetes
-    - nfs
+  tasks:
+    - name: Apply NFS server setup on manager node
+      include_role:
+        name: k8s_nfs_server_setup
+      when: not hostvars['127.0.0.1']['powervault_status']
+      tags:
+        - kubernetes
+        - nfs
 
 - name: Apply NFS client setup on compute nodes
   hosts: compute
   gather_facts: false
-  roles:
-    - k8s_nfs_client_setup
-  tags:
-    - kubernetes
-    - nfs
+  tasks:
+    - name: Apply NFS client setup on compute nodes
+      include_role:
+        name: k8s_nfs_client_setup
+      when: not hostvars['127.0.0.1']['powervault_status']
+      tags:
+        - kubernetes
+        - nfs
 
 - name: Start K8s on manager server
   hosts: manager
@@ -156,4 +206,4 @@
 
 - name: Passwordless SSH between manager and compute nodes
   include: control_plane/tools/passwordless_ssh.yml
-  when: hostvars['127.0.0.1']['appliance_status']
+  when: hostvars['127.0.0.1']['control_plane_status']
