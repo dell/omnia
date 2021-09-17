@@ -91,6 +91,14 @@ language: "en-US"
 # Mandatory value required
 iso_file_path: ""
 
+# Default lease time that will be used by dhcp
+# Its unit is seconds
+# Min: 21600 seconds
+# Default: 86400 seconds
+# Max: 31536000 seconds
+# Mandatory value required
+default_lease_time: "86400"
+
 ### Usage: control_plane_device ###
 
 # The nic/ethernet card that needs to be connected to provision 
