@@ -127,6 +127,8 @@ success_msg_different_nics_ib: "The nics of different containers and public nic 
 fail_msg_different_nics_ib: "Failed. Infiniband nic cannot be the same as other nics"
 success_msg_ib: "Infiniband variables validated"
 fail_msg_ib: "Failed. Please provide all the InfiniBand related parameters in base_vars.yml"
+success_msg_lease_time: "Default lease time validated"
+fail_msg_lease_time: "Failed. Please provide a valid default lease time"
 
 # Usage: fetch_sm_inputs.yml
 ib_config_file: "{{ role_path }}/../../input_params/ib_vars.yml"
