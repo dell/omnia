@@ -51,7 +51,7 @@ Requirements  |   Version
 ----------------------------------  |   -------
 OS pre-installed on the management station  |  CentOS 8.4
 OS deployed by Omnia on bare-metal Dell EMC PowerEdge Servers | CentOS 7.9 2009 Minimal Edition
-Cobbler  |  2.8.5
+Cobbler  |  3.2.1
 Ansible AWX  |  19.1.0
 Slurm Workload Manager  |  20.11.2
 Kubernetes on the management station  |  1.21.0
@@ -64,7 +64,7 @@ The following table lists the supported devices managed by Omnia. Other devices 
 
 Device type	|	Supported models	
 -----------	|	-------	
-Dell EMC PowerEdge Servers	|	PowerEdge C4140, C6420, C6520, R240, R340, R440, R540, R640, R650, R740, R740xd, R740xd2, R750, R750xa, R840, R940, R940xa
+Dell EMC PowerEdge Servers	|	PowerEdge C4140, C6420, R240, R340, R440, R540, R640, R740, R740xd, R740xd2, R840, R940, R940xa
 Dell EMC PowerVault Storage	|	PowerVault ME4084, ME4024, and ME4012 Storage Arrays
 Dell EMC Networking Switches	|	PowerSwitch S3048-ON and PowerSwitch S5232F-ON
 Mellanox InfiniBand Switches	|	NVIDIA MQM8700-HS2F Quantum HDR InfiniBand Switch 40 QSFP56
