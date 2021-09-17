@@ -30,22 +30,45 @@
   register: vol_session_key
   tags: install
 
-- name: Add disk group
+- name: Add disk group in virtual pool
   uri:
-    url: https://{{ inventory_hostname }}/api/add/disk-group/type/{{ type }}/disks/{{ powervault_me4_disk_range }}/level/{{ powervault_me4_raid_levels }}/pool/{{ powervault_me4_pool }}/{{ powervault_me4_disk_group_name }}
+    url: https://{{ inventory_hostname }}/api/add/disk-group/type/{{ powervault_me4_pool_type }}/disks/{{ powervault_me4_disk_range }}/level/{{ powervault_me4_raid_levels }}/pool/{{ powervault_me4_pool }}/{{ powervault_me4_disk_group_name }}
     method: GET
     body_format: json
     validate_certs: no
     use_proxy: no
     headers:
       {'sessionKey': "{{ vol_session_key.json.status[0].response }}", 'datatype':'json'}
-  register: pv_disk
+  register: pv_disk1
+  when: powervault_me4_pool_type|lower == "virtual"
+  tags: install
+
+- name: Add disk group in linear pool
+  uri:
+    url: https://{{ inventory_hostname }}/api/add/disk-group/type/{{ powervault_me4_pool_type }}/disks/{{ powervault_me4_disk_range }}/level/{{ powervault_me4_raid_levels }}/{{ powervault_me4_disk_group_name }}
+    method: GET
+    body_format: json
+    validate_certs: no
+    use_proxy: no
+    headers:
+      {'sessionKey': "{{ vol_session_key.json.status[0].response }}", 'datatype':'json'}
+  register: pv_disk2
+  when: powervault_me4_pool_type|lower == "linear"
   tags: install
 
 - name: Assert if disk group created or not
   fail:
-    msg: "{{ pv_disk.json.status[0].response }}"
-  when:  pv_disk.json.status[0] ['response-type'] == "Error"
+    msg: "{{ pv_disk1.json.status[0].response }}"
+  when:
+    - powervault_me4_pool_type|lower == "virtual"
+    - pv_disk1.json.status[0] ['response-type'] == "Error"
+
+- name: Assert if disk group created or not
+  fail:
+    msg: "{{ pv_disk2.json.status[0].response }}"
+  when:
+    - powervault_me4_pool_typ|lower e== "linear"
+    - pv_disk2.json.status[0] ['response-type'] == "Error"
 
 - name: Create volume1
   uri:
@@ -57,6 +80,7 @@
     headers:
       {'sessionKey': "{{ vol_session_key.json.status[0].response }}", 'datatype':'json'}
   register: pv_vol1
+  when: powervault_me4_pool_type|lower == "virtual"
   tags: install
 
 - name: Create volume2
@@ -69,14 +93,59 @@
     headers:
       {'sessionKey': "{{ vol_session_key.json.status[0].response }}", 'datatype':'json'}
   register: pv_vol2
+  when: powervault_me4_pool_type|lower == "virtual"
+  tags: install
+
+- name: Create volume1
+  uri:
+    url: https://{{ inventory_hostname }}/api/create/volume/size/{{ powervault_me4_volume_size }}/pool/{{ powervault_me4_disk_group_name }}/{{ powervault_me4_k8s_volume_name }}
+    method: GET
+    body_format: json
+    validate_certs: no
+    use_proxy: no
+    headers:
+      {'sessionKey': "{{ vol_session_key.json.status[0].response }}", 'datatype':'json'}
+  register: pv_vol3
+  when: powervault_me4_pool_type|lower == "linear"
+  tags: install
+
+- name: Create volume2
+  uri:
+    url: https://{{ inventory_hostname }}/api/create/volume/size/{{ powervault_me4_volume_size }}/pool/{{ powervault_me4_disk_group_name }}/{{ powervault_me4_slurm_volume_name }}
+    method: GET
+    body_format: json
+    validate_certs: no
+    use_proxy: no
+    headers:
+      {'sessionKey': "{{ vol_session_key.json.status[0].response }}", 'datatype':'json'}
+  register: pv_vol4
+  when: powervault_me4_pool_type|lower == "linear"
   tags: install
 
 - name: Assert if k8s_volume created correctly
   fail:
     msg: "{{ pv_vol1.json.status[0].response }}"
-  when: pv_vol1.json.status[0]['response-type'] == "Error"
+  when:
+    - powervault_me4_pool_type| lower == "virtual"
+    - pv_vol1.json.status[0]['response-type'] == "Error"
 
 - name: Assert if slurm_volume created correctly
   fail:
     msg: "{{ pv_vol2.json.status[0].response }}"
-  when: pv_vol2.json.status[0]['response-type'] == "Error"
+  when:
+    - powervault_me4_pool_type| lower == "virtual"
+    - pv_vol2.json.status[0]['response-type'] == "Error"
+
+- name: Assert if k8s_volume created correctly
+  fail:
+    msg: "{{ pv_vol3.json.status[0].response }}"
+  when:
+    - powervault_me4_pool_type| lower == "linear"
+    - pv_vol3.json.status[0]['response-type'] == "Error"
+
+- name: Assert if slurm_volume created correctly
+  fail:
+    msg: "{{ pv_vol4.json.status[0].response }}"
+  when:
+    - powervault_me4_pool_type|lower == "linear"
+    - pv_vol4.json.status[0]['response-type'] == "Error"

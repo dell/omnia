@@ -22,7 +22,7 @@ locale: "English"
 # Specify the system name to identify the system
 # By default it is set to "Uninitialized_Name"
 # Length should be less than 30 and it should not contain space.
-# This is "optional"
+# Optional
 powervault_me4_system_name: "Unintialized_Name"
 
 # Specify the snmp notification level
@@ -36,6 +36,11 @@ powervault_me4_system_name: "Unintialized_Name"
 # Default value is "none"
 # Compulsory
 powervault_me4_snmp_notify_level: "none"
+
+# The type of pool to be created on the powervault
+# It can be either linear or virtual.
+# Default: linear
+powervault_me4_pool_type: "linear"
 
 # Specify the required RAID Level
 # The different RAID levels and the min and max number of disks supported for each RAID are
@@ -53,24 +58,27 @@ powervault_me4_raid_levels: "raid1"
 # the enclosure number and disk range in the Enter Range of Disks text box. 
 # Use the format enclosure-number.disk-range,enclosure-number.disk-range. 
 # For example, to select disks 3-12 in enclosure 1 and 5-23 in enclosure 2, enter 1.3-12,2.5-23.
-# For ME4012 - 0.0-0.11,1.0-1.11 are the allowed values
+# For ME4012 - 0.0-0.11 are the allowed values
+# For RAID 10 disk range should be given in subgroups separated by colons with no spaces.
+# RAID-10 example:1.1-2:1.3-4:1.7,1.10
 # Default value is 0.1-2
 # Compulsory
 powervault_me4_disk_range: "0.1-2"
 
 # Specify the volume names
-# Cannot be left blank
 # the default value is "k8s_volume" and "slurm_volume"
 # Compulsory
 powervault_me4_k8s_volume_name: "k8s_volume"
 powervault_me4_slurm_volume_name: "slurm_volume"
 
 # Specify the disk group name
-# If left blank, system automatically assigns the name
+# Mandatory
 powervault_me4_disk_group_name: "omnia"
 
 # Specify the percentage for partition in disk
 # Default value is "60%"
+# Min: 5
+# Max: 90
 # Compulsory
 powervault_me4_disk_partition_size: "60"
 
@@ -79,12 +87,12 @@ powervault_me4_disk_partition_size: "60"
 # Compulsory
 powervault_me4_volume_size: "100GB"
 
-#Specify the pool for volume
+# Specify the pool for disk and volumes
 # Pool can either be  a/A or b/B.
-# Compulsory
+# Mandatory if powervault_me4_pool_type selected as "virtual".
 powervault_me4_pool: "a"
 
 # Specify the nic of the server with which Powervault is connected.
-# Default value is eno1.
+# Default value is em1.
 # Compulsory
-powervault_me4_server_nic: "eno1"
+powervault_me4_server_nic: "em1"
