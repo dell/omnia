@@ -67,7 +67,7 @@
   fail:
     msg: "{{ pv_disk2.json.status[0].response }}"
   when:
-    - powervault_me4_pool_typ|lower e== "linear"
+    - powervault_me4_pool_type|lower == "linear"
     - pv_disk2.json.status[0] ['response-type'] == "Error"
 
 - name: Create volume1
