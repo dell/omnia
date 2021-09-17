@@ -12,9 +12,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-##All variables except mapping_file_path are mandatory##
-
-###default###
 
 # Path to directory hosting ansible config file (ansible.cfg file)
 # Default value is /etc/ansible
@@ -26,13 +23,13 @@ ansible_conf_file_path: /etc/ansible
 # It accepts boolean values "true" or "false". 
 # By default its value is "false".
 # If ethernet switch support is needed set this to "true"
-ethernet_switch_support: false
+ethernet_switch_support: true
 
 # This variable is used to enable infiniband switch configuration
 # It accepts boolean values "true" or "false". 
 # By default its value is "false".
 # If infiniband configuration is needed set this to "true"
-ib_switch_support: false
+ib_switch_support: true
 
 # This variable is used to enable powervault configuration
 # It accepts boolean values "true" or "false". 
@@ -89,7 +86,7 @@ language: "en-US"
 # The iso file should be CentOS7-2009-minimal edition.
 # Other iso files are not supported.
 # Mandatory value required
-iso_file_path: ""
+iso_file_path: "/root/CentOS-7-x86_64-Minimal-2009.iso"
 
 # Default lease time that will be used by dhcp
 # Its unit is seconds
@@ -110,13 +107,13 @@ mngmnt_network_nic: "eno1"
 # The dhcp range for assigning the IPv4 address
 # Example: 172.17.0.1
 # Mandatory value required
-mngmnt_network_dhcp_start_range: ""
-mngmnt_network_dhcp_end_range: ""
+mngmnt_network_dhcp_start_range: "172.19.0.100"
+mngmnt_network_dhcp_end_range: "172.19.0.200"
 
-# The mapping file consists of the MAC address and its respective IP address and hostname.
-# The format of mapping file should be MAC,hostname,IP and must be a CSV file.
-# Eg: xx:yy:zz:aa:bb,server,172.17.0.5
-# A template for mapping file exists in omnia/examples and is named as mapping_file.csv.
+# The mapping file consists of the MAC address and its respective IP address.
+# The format of mapping file should be MAC,IP and must be a CSV file.
+# Eg: xx:yy:zz:aa:bb,172.17.0.5
+# A template for mapping file exists in omnia/examples and is named as mapping_device_file.csv.
 # This depicts the path where user has kept the mapping file for DHCP configurations.
 mngmnt_mapping_file_path: ""
 
@@ -130,13 +127,18 @@ host_network_nic: "eno3"
 # The dhcp range for assigning the IPv4 address
 # Example: 172.17.0.1
 # Mandatory value required
-host_network_dhcp_start_range: ""
-host_network_dhcp_end_range: ""
+host_network_dhcp_start_range: "172.17.0.100"
+host_network_dhcp_end_range: "172.17.0.200"
 
-# The mapping file consists of the MAC address and its respective IP address and hostname.
-# The format of mapping file should be MAC,hostname,IP and must be a CSV file.
-# Eg: xx:yy:zz:aa:bb,server,172.17.0.5
-# A template for mapping file exists in omnia/examples and is named as mapping_file.csv.
+# The mapping file consists of the MAC address and its respective IP address and Hostname and Component_role(if any)
+# 2 Formats are supported for host mapping files:
+# If user wants one-touch provisioning of omnia cluster, format of csv: MAC,Hostname,IP,Component_role
+# Component_role can take values: manager, compute, login_node, nfs_node
+# Ex. xx:yy:zz:aa:bb,server,172.17.0.5,manager.
+# A templates for mapping file exists in omnia/examples and is named as host_mapping_file_one_touch.csv
+# If user wants to skip one touch deployment and only static IP assignment is required, format of csv: MAC,Hostname,IP
+# Ex. xx:yy:zz:aa:bb,server,172.17.0.5
+# A templates for mapping file exists in omnia/examples and is named as host_mapping_file_os_provisioning.csv
 # This depicts the path where user has kept the mapping file for DHCP configurations.
 host_mapping_file_path: ""
 
@@ -149,12 +151,5 @@ ib_network_nic: "ib0"
 
 # The dhcp range for assigning the IPv4 address
 # Example: 172.17.0.1
-ib_network_dhcp_start_range: ""
-ib_network_dhcp_end_range: ""
-
-# The mapping file consists of the MAC address and its respective IP address and hostname.
-# The format of mapping file should be MAC,hostname,IP and must be a CSV file.
-# Eg: xx:yy:zz:aa:bb,server,172.17.0.5
-# A template for mapping file exists in omnia/examples and is named as mapping_file.csv.
-# This depicts the path where user has kept the mapping file for DHCP configurations.
-ib_mapping_file_path: ""
+ib_network_dhcp_start_range: "172.25.0.100"
+ib_network_dhcp_end_range: "172.25.0.200"
