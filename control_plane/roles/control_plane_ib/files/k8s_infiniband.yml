@@ -21,11 +21,11 @@ spec:
       volumes:
         - name: omnia-storage
           hostPath:
-            path: /home/omnia/
+            path: /root/omnia
             type: Directory
       containers:
         - name: infiniband-container
-          image: 'localhost/infiniband_container:latest'
+          image: 'localhost/infiniband-container:latest'
           imagePullPolicy: Never
           command:
             - /sbin/init

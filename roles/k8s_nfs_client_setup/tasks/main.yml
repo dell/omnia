@@ -21,12 +21,14 @@
   tags: nfs_client
 
 - name: Check mounted share
-  shell: mount | grep nfs
+  shell: >
+    set -o pipefail && \
+    mount | grep nfs
   changed_when: false
   args:
     warn: false
   register: mounted_share
-  ignore_errors: True
+  failed_when: false
   tags: nfs_client
 
 - name: Creating directory to mount NFS Share

@@ -14,7 +14,7 @@
 ---
 
 # Tasks file for infiniband
-
+-
 - name: Check if IB switch is supported
   block:
     - name: Check infiniband_container status on machine
@@ -29,15 +29,11 @@
       when: not infiniband_container_status
 
     - name: Include variable file base_vars.yml
-      include_vars: "{{ base_file }}"
+      include_vars: ../../../input_params/base_vars.yml
 
     - name: Dhcp Configuration
       import_tasks: dhcp_configure.yml
-      when: (not infiniband_container_image_status) or ( infiniband_backup_map_status == true)
-
-    #- name: Mapping file validation
-    #  import_tasks: mapping_file.yml
-    #  when: (not infiniband_container_image_status) and (mapping_file == true) or ( backup_map_status == true)
+      when: (not infiniband_container_image_status)
 
     - name: infiniband_container image creation
       import_tasks: infiniband_container_image.yml
@@ -57,5 +53,4 @@
             verbosity: 2
           when: not infiniband_container_status
       tags: install
-
   when: ib_switch_support

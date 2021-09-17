@@ -1,0 +1,36 @@
+# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.​0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+
+# vars file for collect_device_info role
+# This role will not group the devices if user provides invalid credentials
+
+# Usage main.yml
+mgmt_provisioned_hosts_file: "{{ role_path }}/files/mgmt_provisioned_hosts.yml"
+
+# Usage create_inventory.yml
+infiniband_status_code: 302
+idrac_search_key: "Integrated Dell Remote Access Controller"
+ethernet_search_key: "OS10"
+infiniband_search_key: "MLNX-OS"
+me4_powervault_search_key: "ME4"
+idrac_inventory_fail_msg: "Failed. Unable to add {{ inventory_hostname }} to idrac_inventory"
+ethernet_inventory_fail_msg:  "Failed. Unable to add {{ inventory_hostname }} to ethernet_inventory"
+ib_inventory_fail_msg: "Failed. Unable to add {{ inventory_hostname }} to ib_inventory"
+powervault_me4_fail_msg: "Failed. Unable to add {{ inventory_hostname }} to powervault_me4_inventory"
+base_vars_file: "{{ playbook_dir }}/../../../input_params/base_vars.yml"
+login_vars_file: "{{ playbook_dir }}/../../../input_params/login_vars.yml"
+login_vault_file: "{{ playbook_dir }}/../../../input_params/.login_vault_key"
+file_perm: '0644'

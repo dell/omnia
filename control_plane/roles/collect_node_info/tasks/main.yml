@@ -1,4 +1,4 @@
-# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,85 +16,75 @@
   set_fact:
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
 
+- name: Fetch the execution environment
+  command: hostname
+  register: host_name
+  changed_when: false
+
+- name: Install sshpass
+  package:
+    name: sshpass
+    state: present
+  when: awx_search_key not in host_name.stdout
+
 - name: Check if provisioned host file exists
   stat:
-    path: "{{ role_path }}/files/provisioned_hosts.yml"
-  register: provisioned_file_result
+    path: "{{ provisioned_hosts_file }}"
+  register: provisioned_file
 
-- name: Include vars file of control_plane_common role
-  include_vars: "{{ role_path }}/../control_plane_common/vars/main.yml"
-  no_log: True
-
-- name: Include vars file of webui_awx role
-  include_vars: "{{ role_path }}/../webui_awx/vars/main.yml"
-  no_log: True
-
-- name: Update inventory file
+- name: Include variable file base_vars.yml
+  include_vars: "{{ base_vars_file }}"
+  
+- name: Update inventory
   block:
-    - name: Check if input config file is encrypted
-      command: cat {{ input_config_filename }}
+    - name: Check if {{ login_vars_file }} file is encrypted
+      command: cat {{ login_vars_file }}
       changed_when: false
+      no_log: true
       register: config_content
+      run_once: true
 
-    - name: Decrpyt appliance_config.yml
+    - name: Decrpyt {{ login_vars_file }}
       command: >-
-        ansible-vault decrypt {{ input_config_filename }}
-        --vault-password-file {{ vault_filename }}
+        ansible-vault decrypt {{ login_vars_file }}
+        --vault-password-file {{ login_vault_file }}
       when: "'$ANSIBLE_VAULT;' in config_content.stdout"
+      changed_when: false
+      run_once: true
 
-    - name: Include variable file appliance_config.yml
-      include_vars: "{{ input_config_filename }}"
-      no_log: True
-
+    - name: Include variable file {{ login_vars_file }}
+      include_vars: "{{ login_vars_file }}"
+      no_log: true
+      run_once: true
+    
     - name: Save input variables from file
       set_fact:
-        cobbler_password: "{{ provision_password }}"
         mapping_file: false
-        path_mapping_file: "{{ mapping_file_path }}"
-      no_log: True
 
     - name: Check the status for mapping file
       set_fact:
         mapping_file: true
-      when: path_mapping_file != ""
+      when: host_mapping_file_path
 
-    - name: Encrypt input config file
+    - name: Encrypt {{ login_vars_file }}
       command: >-
-        ansible-vault encrypt {{ input_config_filename }}
-        --vault-password-file {{ vault_filename }}
+        ansible-vault encrypt {{ login_vars_file }}
+        --vault-password-file {{ login_vault_file }}
       changed_when: false
-
-    - name: Check if inventory file already exists
-      file:
-        path: "/root/inventory"
-        state: absent
-
-    - name: Create empty inventory file
-      copy:
-        dest:  "/root/inventory"
-        content: |
-          ---
-          all:
-            hosts:
-        owner: root
-        mode: 0775
+      when: "'$ANSIBLE_VAULT;' in config_content.stdout"
+      run_once: true
 
     - name: Add inventory playbook
       block:
         - name: add hosts with description to inventory file
           command: >-
-            ansible-playbook -i {{ role_path }}/files/provisioned_hosts.yml
+            ansible-playbook -i {{ provisioned_hosts_file }}
             {{ role_path }}/files/create_inventory.yml
-            --extra-vars "cobbler_username={{ cobbler_username }} cobbler_password={{ cobbler_password }} mapping_file={{ mapping_file | bool }}"
+            --extra-vars "host_username={{ host_username }} host_password={{ provision_password }} mapping_file={{ mapping_file | bool }}"
           no_log: True
           register: register_error
       rescue:
         - name: Fail if host addition was not successful
           fail:
-            msg: "{{ register_error.stderr + register_error.stdout | regex_replace(cobbler_username) | regex_replace(cobbler_password) }}"
-
-  when: provisioned_file_result.stat.exists
-
-- name: push inventory to AWX
-  command: awx-manage inventory_import --inventory-name {{ omnia_inventory_name }} --source /root/inventory
-  when: provisioned_file_result.stat.exists
+            msg: "{{ register_error.stderr + register_error.stdout | regex_replace(host_username) | regex_replace(provision_password) }}"
+  when: provisioned_file.stat.exists
