@@ -61,9 +61,9 @@ k8s_dashboard_yaml_url: https://raw.githubusercontent.com/kubernetes/dashboard/v
 
 helm_stable_repo_url: https://charts.helm.sh/stable
 
-nfs_server: "{{ ansible_host }}"
+nfs_server_manager_node: "{{ ansible_host }}"
 
-nfs_path: /home/k8snfs
+nfs_server_nfs_node: "{{ groups['nfs_node'][0] }}"
 
 mpi_operator_yaml_url: https://raw.githubusercontent.com/kubeflow/mpi-operator/master/deploy/v1alpha2/mpi-operator.yaml
 
