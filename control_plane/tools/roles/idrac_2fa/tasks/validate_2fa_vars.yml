@@ -76,9 +76,15 @@
           ipv4_static_dns1 | length < 1 or
           ipv4_static_dns2 | length < 1 or
           smtp_server_ip | length < 1 or
-          smtp_username | length < 1 or
-          smtp_password | length < 1 or
           use_email_address_2fa | length < 1 
+
+    - name: Validate SMTP parameters if smtp_authentication is enabled
+      fail:
+        msg: "{{ smtp_input_fail_msg }} when smtp_authentication is enabled"
+      when:
+        - smtp_authentication | lower == "enabled"
+        - smtp_username | length < 1 or
+          smtp_password | length < 1
 
     - name: Assert use_email_address_2fa value
       assert:

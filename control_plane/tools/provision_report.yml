@@ -1,4 +1,4 @@
-# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@
 - name: Fetch provision_password
   hosts: localhost
   connection: local
-  gather_facts: no
+  gather_facts: false
   roles:
     - fetch_password
 
@@ -50,7 +50,7 @@
 
 - name: Find reachable hosts using ssh
   hosts: reachable
-  gather_facts: False
+  gather_facts: false
   ignore_unreachable: true
   remote_user: "root"
   vars:
