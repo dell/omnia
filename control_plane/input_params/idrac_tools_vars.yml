@@ -35,17 +35,20 @@ ipv4_static_dns2: ""
 # Mandatory value required
 smtp_server_ip: ""
 
-# Username used for SMTP
-# Mandatory value required
-smtp_username: ""
-   
-# Password used for SMTP
-# Mandatory value required    
-smtp_password: ""
-
 # Email address used for enabling 2FA
 # Mandatory value required
 use_email_address_2fa: ""
+
+# SMTP authentication disabled by default
+# If enabled provide smtp username and password
+# Mandatory value required
+smtp_authentication: "disabled"
+
+# Username used for SMTP
+smtp_username: ""
+   
+# Password used for SMTP
+smtp_password: ""
 
 
 ### Usage: idrac_ldap ###
