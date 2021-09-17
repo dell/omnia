@@ -5,14 +5,16 @@ USER root
 # add Ansible galaxy dependencies
 ADD requirements.yml /tmp/requirements.yml
 
-# install omsdk
-RUN pip install omsdk --upgrade
+# install packages
+RUN pip install --upgrade \
+omsdk \
+netaddr
 
 # install Ansible Galaxy collections
 RUN ansible-galaxy collection install -r /tmp/requirements.yml --collections-path /usr/share/ansible/collections
 
 # add certificates
 RUN update-ca-trust force-enable
-RUN chmod -R 0777 /usr/share/ansible/collections
+RUN chmod -R 0777 /usr/share/ansible/collections 
 
 USER 1000
