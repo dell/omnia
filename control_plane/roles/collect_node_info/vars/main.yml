@@ -1,4 +1,4 @@
-# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,5 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-host_added_msg: "Added host to inventory: "
+provisioned_hosts_file: "{{ role_path }}/files/provisioned_hosts.yml"
+base_vars_file: "{{ role_path }}/../../input_params/base_vars.yml"
+login_vars_file: "{{ role_path }}/../../input_params/login_vars.yml"
+login_vault_file: "{{ role_path }}/../../input_params/.login_vault_key"
+omnia_config_file: "../../../../omnia_config.yml"
+omnia_config_vault_file: "../../../../.omnia_vault_key"
+file_perm: '0644'
+host_username: root
+host_added_msg: "Added host to awx inventory: "
 host_unreachable_msg: "Following hosts are unreachable: "
+awx_search_key: awx

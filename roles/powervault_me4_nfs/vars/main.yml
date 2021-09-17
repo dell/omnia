@@ -1,0 +1,38 @@
+#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# vars file for powervault_me4_nfs
+
+# Usage: mount_me4_partitions.yml
+me4_volume_fail_msg: "ME4 volumes not found!"
+me4_nfs_share_k8s: "/me4_k8s_nfs"
+me4_nfs_share_slurm: "/me4_slurm_nfs"
+fstab_file_path: "/etc/fstab"
+
+# Usage: me4_nfs_server_setup.yml
+exports_file_path: /etc/exports
+nfs_services:
+  - mountd
+  - rpc-bind
+  - nfs
+nfs_share_dir_mode: 0777
+
+# Usage: nfs_node_configure.yml
+pv_nic: "{{ powervault_me4_server_nic }}"
+pv_nic_ip: 192.168.25.3
+pv_nic_gateway: 192.168.25.1
+pv_port_ip: 192.168.25.5
+pv_nfs_file: "{{ role_path }}/../../control_plane/input_params/powervault_me4_vars.yml"
+nic_path: "/etc/sysconfig/network-scripts/ifcfg-{{ powervault_me4_server_nic }}"    
