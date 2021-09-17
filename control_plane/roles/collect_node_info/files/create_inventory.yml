@@ -1,4 +1,4 @@
-# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 - name: Find reachable hosts
   hosts: all
   gather_facts: false
@@ -44,14 +43,29 @@
     - name: Include vars file of inventory role
       include_vars: ../vars/main.yml
 
-- name: Set hostname on reachable nodes and gather facts
+    - name: Check if omnia config file is encrypted
+      command: "cat {{ omnia_config_file }}"
+      changed_when: false
+      register: config_content
+      #no_log: True
+
+    - name: Decrpyt omnia_config.yml
+      command: >-
+        ansible-vault decrypt "{{ omnia_config_file }}"
+        --vault-password-file "{{ omnia_config_vault_file }}"
+      when: "'$ANSIBLE_VAULT;' in config_content.stdout"
+
+    - name: Include vars file of inventory role
+      include_vars: "{{ omnia_config_file }}"
+
+- name: Set hostname for reachable nodes and gather facts
   hosts: reachable
   gather_facts: False
   ignore_unreachable: true
-  remote_user: "{{ cobbler_username }}"
+  remote_user: "{{ host_username }}"
   vars:
-    ansible_password: "{{ cobbler_password }}"
-    ansible_become_pass: "{{ cobbler_password }}"
+    ansible_password: "{{ host_password }}"
+    ansible_become_pass: "{{ host_password }}"
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
     mapping_file_present: ""
   tasks:
@@ -65,21 +79,21 @@
       changed_when: false
       ignore_errors: true
 
-    - name: Check if IP present in mapping file
-      command: grep "{{ inventory_hostname }}" ../../provision/files/new_mapping_file.csv
+    - name: Check if IP is present in mapping file
+      command: grep "{{ inventory_hostname }}" ../../provision_cobbler/files/new_host_mapping_file.csv
       delegate_to: localhost
       register: file_present
       when: mapping_file | bool == true
       ignore_errors: true
 
-    - name: Set fact if mapping file present
+    - name: Set fact if mapping file is present
       set_fact:
         mapping_file_present: "{{ file_present.stdout }}"
       when: mapping_file | bool == true
       ignore_errors: true
 
     - name: Get the static hostname from mapping file
-      shell: awk -F',' '$3 == "{{ inventory_hostname }}" { print $2 }' ../../provision/files/new_mapping_file.csv
+      shell: awk -F',' '$3 == "{{ inventory_hostname }}" { print $2 }' ../../provision_cobbler/files/new_host_mapping_file.csv
       delegate_to: localhost
       when: ('localhost' in hostname_check.stdout) and (mapping_file_present != "" ) and ( mapping_file | bool == true )
       register: host_name
@@ -87,36 +101,34 @@
 
     - name: Set the hostname from mapping file
       hostname:
-        name: "{{ host_name.stdout }}"
+        name: "{{ host_name.stdout + '.' + hostvars['localhost']['domain_name'] }}"
       when: ('localhost' in hostname_check.stdout) and (mapping_file_present != "" ) and  (mapping_file | bool == true )
       ignore_errors: true
-    
+
     - name: Set the hostname if hostname not present mapping file
       hostname:
-        name: "compute{{ inventory_hostname.split('.')[-2] + '-' + inventory_hostname.split('.')[-1] }}"
+        name: "compute{{ inventory_hostname.split('.')[-2] + '-' + inventory_hostname.split('.')[-1] + '.' + hostvars['localhost']['domain_name'] }}"
       when: ('localhost' in hostname_check.stdout) and (file_present.rc != 0) and (mapping_file | bool == true )
       ignore_errors: true
 
     - name: Set the system hostname
       hostname:
-        name: "compute{{ inventory_hostname.split('.')[-2] + '-' + inventory_hostname.split('.')[-1] }}"
+        name: "compute{{ inventory_hostname.split('.')[-2] + '-' + inventory_hostname.split('.')[-1]+'.'+ hostvars['localhost']['domain_name'] }}"
       when: ('localhost' in hostname_check.stdout) and (mapping_file | bool == false)
       ignore_errors: true
 
     - name: Add new hostname to /etc/hosts from mapping file
       lineinfile:
         dest: /etc/hosts
-        regexp: '^127\.0\.0\.1[ \t]+localhost'
-        line: "127.0.0.1 localhost {{ host_name.stdout }}"
+        line: "{{ inventory_hostname }} {{ host_name.stdout + '.' + hostvars['localhost']['domain_name'] }}"
         state: present
       when: ('localhost' in hostname_check.stdout) and ( mapping_file_present != "" ) and ( mapping_file | bool == true )
       ignore_errors: true
 
-    - name: Add new hostname to /etc/hosts if hostname not present mapping fil
+    - name: Add new hostname to /etc/hosts if hostname not present mapping file
       lineinfile:
         dest: /etc/hosts
-        regexp: '^127\.0\.0\.1[ \t]+localhost'
-        line: "127.0.0.1 localhost compute{{ inventory_hostname.split('.')[-2] + '-' + inventory_hostname.split('.')[-1] }}"
+        line: "{{ inventory_hostname }} compute{{ inventory_hostname.split('.')[-2] + '-' + inventory_hostname.split('.')[-1]+'.'+ hostvars['localhost']['domain_name'] }}"
         state: present
       when: ('localhost' in hostname_check.stdout) and ( file_present.rc != 0 ) and ( mapping_file | bool == true )
       ignore_errors: true
@@ -124,8 +136,7 @@
     - name: Add new hostname to /etc/hosts
       lineinfile:
         dest: /etc/hosts
-        regexp: '^127\.0\.0\.1[ \t]+localhost'
-        line: "127.0.0.1 localhost compute{{ inventory_hostname.split('.')[-2] + '-' + inventory_hostname.split('.')[-1] }}"
+        line: "{{ inventory_hostname }} compute{{ inventory_hostname.split('.')[-2] + '-' + inventory_hostname.split('.')[-1] +'.'+ hostvars['localhost']['domain_name'] }}"
         state: present
       when: ('localhost' in hostname_check.stdout) and (mapping_file | bool == false )
       ignore_errors: true
@@ -135,6 +146,72 @@
   connection: local
   gather_facts: false
   tasks:
+    - name: Encrypt omnia_config.yml file
+      command: >-
+        ansible-vault encrypt "{{ omnia_config_file }}"
+        --vault-password-file "{{ omnia_config_vault_file }}"
+      changed_when: false
+
+    - name: Update omnia_config.yml permissions
+      file:
+        path: "{{ omnia_config_file }}"
+        mode: "{{ file_perm }}"
+
+    - name: Check if tower_config_file file is encrypted
+      command: cat "{{ playbook_dir }}/../../webui_awx/files/.tower_cli.cfg"
+      changed_when: false
+      no_log: true
+      register: tower_config_content
+      run_once: true
+
+    - name: Decrypt tower_config_file
+      command: >-
+        ansible-vault decrypt "{{ playbook_dir }}/../../webui_awx/files/.tower_cli.cfg"
+        --vault-password-file "{{ playbook_dir }}/../../webui_awx/files/.tower_vault_key"
+      changed_when: false
+      when: "'$ANSIBLE_VAULT;' in tower_config_content.stdout"
+      run_once: true
+
+    - name: Change file permissions
+      file:
+        path: "{{ playbook_dir }}/../../webui_awx/files/.tower_cli.cfg"
+        mode: "{{ file_perm }}"
+
+    - name: Fetch awx host
+      command: grep "host:" "{{ playbook_dir }}/../../webui_awx/files/.tower_cli.cfg"
+      register: fetch_awx_host
+      changed_when: false
+      run_once: true
+
+    - name: Fetch awx username
+      command: grep "username:" "{{ playbook_dir }}/../../webui_awx/files/.tower_cli.cfg"
+      register: fetch_awx_username
+      changed_when: false
+      run_once: true
+      no_log: true
+
+    - name: Fetch awx password
+      command: grep "password:" "{{ playbook_dir }}/../../webui_awx/files/.tower_cli.cfg"
+      register: fetch_awx_password
+      changed_when: false
+      run_once: true
+      no_log: true
+
+    - name: Set awx variables
+      set_fact:
+        awx_host: "{{ fetch_awx_host.stdout | regex_replace('host: ','') }}"
+        awx_username: "{{ fetch_awx_username.stdout | regex_replace('username: ','') }}"
+        awx_password: "{{ fetch_awx_password.stdout | regex_replace('password: ','') }}"
+      no_log: true
+
+    - name: Encrypt tower_config_file
+      command: >-
+        ansible-vault encrypt "{{ playbook_dir }}/../../webui_awx/files/.tower_cli.cfg"
+        --vault-password-file "{{ playbook_dir }}/../../webui_awx/files/.tower_vault_key"
+      changed_when: false
+      when: "'$ANSIBLE_VAULT;' in tower_config_content.stdout"
+      run_once: true
+
     - name: Update inventory file
       block:
         - name: Fetch facts and add new hosts
