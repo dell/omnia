@@ -35,7 +35,21 @@
       host_network_nic | length < 1 or
       host_network_dhcp_start_range | length < 1 or
       host_network_dhcp_end_range | length < 1 or
-      provision_method | length < 1
+      provision_method | length < 1 or
+      default_lease_time | length < 1
+      
+- name: Validate default lease time
+  assert:
+    that:
+      - default_lease_time|int
+      - default_lease_time|int <= 31536000
+      - default_lease_time|int >= 21600
+    success_msg: "{{ success_msg_lease_time }}"
+    fail_msg: "{{ fail_msg_lease_time }}"
+
+- name: Calculate max lease time
+  set_fact:
+    max_lease_time: "{{ default_lease_time|int + 10000 }}"
 
 - name: Validate infiniband base_vars are not empty
   assert:

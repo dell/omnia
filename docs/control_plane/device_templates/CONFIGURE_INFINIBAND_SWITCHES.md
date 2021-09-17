@@ -3,10 +3,12 @@ In your HPC cluster, connect the Mellanox InfiniBand switches using the Fat-Tree
 
 Omnia uses the server-based Subnet Manager (SM). SM runs as a Kubernetes pod on the management station. To enable the SM, Omnia configures the required parameters in the `opensm.conf` file. Based on the requirement, the parameters can be edited.  
 
-**NOTE**: Install the InfiniBand hardware drivers by running the command: `yum groupinstall "Infiniband Support" -y`.   
+**NOTE**: Install the InfiniBand hardware drivers by running the command: `yum groupinstall "Infiniband Support" -y`.  
+
 ## Edit the "input_params" file 
-Under the `control_plane/input_params` directory, edit the following files:
-1. `base_vars.yml` file
+Under the `control_plane/input_params` directory, edit the following files:  
+
+1. `base_vars.yml` file    
 
 	File name	|	Variables	|	Default, choices	|	Description
 	-----------	|	-------	|	----------------	|	-----------------

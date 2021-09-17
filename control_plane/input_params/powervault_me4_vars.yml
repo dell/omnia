@@ -84,6 +84,7 @@ powervault_me4_disk_partition_size: "60"
 
 # Specify the volume size
 # Format: 100GB <SizeGB>
+# Default: 100GB
 # Compulsory
 powervault_me4_volume_size: "100GB"
 
@@ -93,6 +94,7 @@ powervault_me4_volume_size: "100GB"
 powervault_me4_pool: "a"
 
 # Specify the nic of the server with which Powervault is connected.
+# Make sure nfs server also has 3 nics (for internet, OS provision and powervault connection)
 # Default value is em1.
 # Compulsory
 powervault_me4_server_nic: "em1"

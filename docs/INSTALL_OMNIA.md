@@ -9,7 +9,7 @@ To install the Omnia control plane and manage workloads on your cluster using th
 * If you have configured the `omnia_config.yml` file to enable the login node, the login node must be part of the cluster. 
 * All nodes must be connected to the network and must have access to the Internet.
 * Set the hostnames of all the nodes in the cluster.
-	* If the login node is enabled, then set the hostnames in the format: __hostname.domainname__. For example, "manager.omnia.test" is a valid hostname.
+	* If the login node is enabled, then set the hostnames in the format: __hostname.domainname__. For example, "manager.omnia.test" is a valid hostname. **Do not** use underscores ( _ ) in the host names.
 	* Include the hostnames under /etc/hosts in the format: </br>*ipaddress hostname.domainname*. For example, "192.168.12.1 manager.example.com" is a valid entry.
 * SSH Keys for root are installed on all nodes to allow for password-less SSH.
 * The user should have root privileges to perform installations and configurations.
@@ -112,9 +112,8 @@ __Note:__
 * The default value of Kubernetes Pod Network CIDR is 10.244.0.0/16. If 10.244.0.0/16 is already in use within your network, select a different Pod Network CIDR. For more information, see __https://docs.projectcalico.org/getting-started/kubernetes/quickstart__.
 
 **NOTE**: If you want to view or edit the `omnia_config.yml` file, run the following command:  
-					
 - `ansible-vault view omnia_config.yml --vault-password-file .omnia_vault_key` -- To view the file. 
-- `ansible-vault edit omnia_config.yml --vault-password-file .omnia_vault_key` -- To edit the file.  
+- `ansible-vault edit omnia_config.yml --vault-password-file .omnia_vault_key` -- To edit the file.
 
 **NOTE**: It is suggested that you use the ansible-vault view or edit commands and that you do not use the ansible-vault decrypt or encrypt commands. If you have used the ansible-vault decrypt or encrypt commands, provide 644 permission to `omnia_config.yml`.  
 
@@ -151,11 +150,13 @@ The following __kubernetes__ roles are provided by Omnia when __omnia.yml__ file
 	- Kubernetes services are deployed such as Kubernetes Dashboard, Prometheus, MetalLB and NFS client provisioner
 
 __Note:__ 
+
+* Whenever k8s_version, k8s_cni or k8s_pod_network_cidr needs to be modified after the HPC cluster is setup, the OS in the manager and compute nodes in the cluster must be re-flashed before executing omnia.yml again.
 * After Kubernetes is installed and configured, few Kubernetes and calico/flannel related ports are opened in the manager and compute nodes. This is required for Kubernetes Pod-to-Pod and Pod-to-Service communications. Calico/flannel provides a full networking stack for Kubernetes pods.
 * If Kubernetes Pods are unable to communicate with the servers (i.e., unable to access the Internet) when the DNS servers are not responding, then the Kubernetes Pod Network CIDR may be overlapping with the host network which is DNS issue. To resolve this issue:
 	1. Disable firewalld.service.
 	2. If the issue persists, then perform the following actions:  
-		a. In your Kubernetes cluster, run `kubeadm reset -f` on the nodes.  
+		a. Format the OS on manager and compute nodes.  
 		b. In the management station, edit the *omnia_config.yml* file to change the Kubernetes Pod Network CIDR or CNI value. Suggested IP range is 192.168.0.0/16 and ensure you provide an IP which is not in use in your host network.  
 		c. Execute `omnia.yml` and skip slurm using `--skip-tags slurm`.
 
