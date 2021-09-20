@@ -35,7 +35,7 @@
     manager_attributes:
       RemoteHosts.1.SMTPServerIPAddress: "{{ smtp_server_ip }}"
       RemoteHosts.1.SMTPPort: 25
-      RemoteHosts.1.SMTPAuthentication: "Enabled"
+      RemoteHosts.1.SMTPAuthentication: "{{ smtp_authentication }}"
       RemoteHosts.1.SMTPUserName: "{{ smtp_username }}"
       RemoteHosts.1.SMTPPassword: "{{ smtp_password }}"
       EmailAlert.1.Address: "{{ use_email_address_2fa }}"

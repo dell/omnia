@@ -17,13 +17,13 @@
   command: kubectl get pods -n network-config
   changed_when: false
   register: infiniband_pod_status
-  ignore_errors: true
+  failed_when: false
 
 - name: Deploy infiniband pod
   command: "kubectl apply -f {{ role_path }}/files/k8s_infiniband.yml"
   changed_when: true
   tags: install
-  when: infiniband_container_status == true and  infiniband_container_config_status == false
+  when: infiniband_container_status and  (not infiniband_container_config_status)
 
 - name: Wait for infiniband pod to come to ready state
   command: kubectl wait --for=condition=ready -n network-config pod -l app=infiniband

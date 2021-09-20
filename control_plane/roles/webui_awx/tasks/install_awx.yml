@@ -62,13 +62,13 @@
   changed_when: false
   register: docker_images
 
-- name: Build the custom-awx-ee image from the docker file
+- name: Build the custom-awx-ee image from the docker file (It may take 5-10min)
   command: "buildah bud -t custom-awx-ee {{ awx_ee_docker_file }}"
   changed_when: false
   when: "'custom-awx-ee' not in docker_images.stdout"
 
 - name: Waiting for awx-operator deployment to be up and running
-  shell: "kubectl wait --for=condition=available deployment/awx-operator -n {{ awx_namespace }} --timeout=600s"
+  command: kubectl wait --for=condition=available deployment awx-operator -n {{ awx_namespace }} --timeout=600s
   changed_when: false
 
 - name: Deploy awx
@@ -91,6 +91,13 @@
     timeout: "{{ awx_wait_time }}"
   when: not k8s_pods.stdout | regex_search('awx-([A-Za-z0-9]{10})-([A-Za-z0-9]{5})')
 
-- name: Waiting for awx deployment to be up and running
-  shell: "kubectl wait --for=condition=available deployment/awx -n {{ awx_namespace }} --timeout=1200s"
-  changed_when: false
+- name: Fails if the pods go into ImagePullBackOff state
+  block:
+    - name: Waiting for awx deployment to be up and running
+      command: kubectl wait --for=condition=available deployment awx -n {{ awx_namespace }} --timeout=1200s
+      changed_when: false
+
+  rescue:
+    - name: Display failure message
+      debug:
+        msg: "{{ deployment_failure_msg }}"

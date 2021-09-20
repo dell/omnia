@@ -204,6 +204,124 @@
         fail_msg: "{{ user_validation_failure_msg }}"
       tags: VERIFY_OMNIA_01
 
+# Testcase OMNIA_1.1_PV_TC_018
+# Test case to validate linear storage with linear pools and disk groups
+
+- name: OMNIA_1.1_PV_TC_018
+  hosts: powervault
+  connection: local
+  tags: TC_018
+  gather_subset:
+    - 'min'
+  vars_files:
+    - test_vars/test_powervault_vars.yml
+    - ../input_params/powervault_me4_vars.yml
+    - ../input_params/base_vars.yml
+    - ../roles/webui_awx/vars/main.yml
+  tasks:
+
+    - name: Set powervault parameters
+      lineinfile:
+        path: "{{ powervault_me4_var_path }}"
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      loop:
+        - { regexp: '^powervault_me4_pool_type', line: 'powervault_me4_pool_type: "{{ linear_pool_type }}"' }
+        - { regexp: '^powervault_me4_disk_group_name', line: 'powervault_me4_disk_group_name: "{{ disk_group_name_omnia }}"' }
+        - { regexp: '^powervault_me4_raid_levels', line: 'powervault_me4_raid_levels: "{{ raid1_level }}"' }
+        - { regexp: '^powervault_me4_disk_range', line: 'powervault_me4_disk_range: "{{ disk_range_1_2 }}"' }
+        - { regexp: '^powervault_me4_k8s_volume_name', line: 'powervault_me4_k8s_volume_name: "{{ volume_name_k8s_v1 }}"' }
+        - { regexp: '^powervault_me4_slurm_volume_name', line: 'powervault_me4_slurm_volume_name: "{{ volume_name_slurm_v1 }}"' }
+        - { regexp: '^powervault_me4_volume_size', line: 'powervault_me4_volume_size: "{{ volume_size_input_100gb }}"' }
+
+    - name: Execute powervault playbook using AWX collections
+      vars:
+        inventory_name: "{{ powervault_inventory_name }}"
+        template_name: "{{ template_value }}"
+        job_template_name: "{{ job_name }}"
+        playbook_path: "{{ powervault_playbook_path }}"
+        delete_status: false
+      include_tasks: "{{ awx_script_path }}"  
+
+    - name: Validate powervault playbook execution output
+      assert:
+        that:
+          - success_job_status in job_status.status
+        success_msg: "{{ playbook_exec_success_msg }}"
+        fail_msg: "{{ playbook_exec_fail_msg }}"
+      changed_when: false
+
+    - name: Execute show disk groups command
+      uri:
+        url: https://{{ inventory_hostname }}/api/show/disk-groups/pool/{{ disk_group_name_omnia }}/{{ disk_group_name_omnia }}
+        method: GET
+        body_format: json
+        validate_certs: no
+        use_proxy: no
+        headers:
+          {'sessionKey': "{{ session_key.json.status[0].response }}", 'datatype':'json'}
+      register: pools_diskgroup_info
+      tags: VERIFY_OMNIA_01
+
+    - name: Verify the pool and disk group additions
+      assert:
+        that:
+          - linear_pool_type in pools_diskgroup_info.json['disk-groups'][0]['storage-type']
+          - disk_group_name_omnia in pools_diskgroup_info.json['disk-groups'][0].name
+          - disk_group_name_omnia in pools_diskgroup_info.json['disk-groups'][0].pool
+          - disk_type_ssdsas in pools_diskgroup_info.json['disk-groups'][0]['disk-description']
+          - raid1_level in pools_diskgroup_info.json['disk-groups'][0].raidtype
+        success_msg: "{{ pool_diskgroup_config_success_msg }}"
+        fail_msg: "{{ pool_diskgroup_config_failure_msg }}"
+      tags: VERIFY_OMNIA_01
+
+    - name: Execute show volumes command for k8s
+      uri:
+        url: https://{{ inventory_hostname }}/api/show/volumes/{{ volume_name_k8s_v1 }}
+        method: GET
+        body_format: json
+        validate_certs: no
+        use_proxy: no
+        headers:
+          {'sessionKey': "{{ session_key.json.status[0].response }}", 'datatype':'json'}
+      register: k8s_volumes_info
+      tags: VERIFY_OMNIA_01
+
+    - name: Execute show volumes command for slurm
+      uri:
+        url: https://{{ inventory_hostname }}/api/show/volumes/{{ volume_name_slurm_v1 }}
+        method: GET
+        body_format: json
+        validate_certs: no
+        use_proxy: no
+        headers:
+          {'sessionKey': "{{ session_key.json.status[0].response }}", 'datatype':'json'}
+      register: slurm_volumes_info
+      tags: VERIFY_OMNIA_01
+
+    - name: Verify the volumes creation
+      assert:
+        that:
+          - volume_name_k8s_v1 in k8s_volumes_info.json.volumes[0]['volume-name']
+          - volume_size_100gb in k8s_volumes_info.json.volumes[0].size
+          - volume_name_slurm_v1 in slurm_volumes_info.json.volumes[0]['volume-name']
+          - volume_size_100gb in slurm_volumes_info.json.volumes[0].size
+          - disk_group_name_omnia in k8s_volumes_info.json.volumes[0]['storage-pool-name']
+        success_msg: "{{ volumes_creation_success_msg }}"
+        fail_msg: "{{ volumes_creation_failure_msg }}"
+      tags: VERIFY_OMNIA_01
+   
+    - name: Delete the disk group created
+      uri:
+        url: https://{{ inventory_hostname }}/api/remove/disk-groups/{{ disk_group_name_omnia }}
+        method: GET
+        body_format: json
+        validate_certs: no
+        use_proxy: no
+        headers:
+          {'sessionKey': "{{ session_key.json.status[0].response }}", 'datatype':'json'}
+      register: delete_diskgroup
+
 # Testcase OMNIA_1.1_PV_TC_005
 # Test case to validate configuration of pools, disk group and storage volumes with SAS MDL disks, RAID 1 level, storage with rw access 
 
@@ -227,6 +345,7 @@
         line: "{{ item.line }}"
       loop:
         - { regexp: '^powervault_me4_pool', line: 'powervault_me4_pool: "{{ pool_a }}"' }
+        - { regexp: '^powervault_me4_pool_type', line: 'powervault_me4_pool_type: "{{ pool_type }}"' }
         - { regexp: '^powervault_me4_disk_group_name', line: 'powervault_me4_disk_group_name: "{{ disk_group_name_omnia_dgA01 }}"' }
         - { regexp: '^powervault_me4_raid_levels', line: 'powervault_me4_raid_levels: "{{ raid1_level }}"' }
         - { regexp: '^powervault_me4_disk_range', line: 'powervault_me4_disk_range: "{{ disk_range_5_6 }}"' }
@@ -240,7 +359,7 @@
         template_name: "{{ template_value }}"
         job_template_name: "{{ job_name }}"
         playbook_path: "{{ powervault_playbook_path }}"
-        delete_status: true
+        delete_status: false
       include_tasks: "{{ awx_script_path }}" 
 
     - name: Validate powervault playbook execution output
@@ -250,6 +369,15 @@
         success_msg: "{{ playbook_exec_success_msg }}"
         fail_msg: "{{ playbook_exec_fail_msg }}"
       changed_when: false
+
+    - name: Get session key
+      uri:
+        url: https://{{ inventory_hostname }}/api/login/{{ auth_string.stdout | replace(" -", "") }}
+        method: GET
+        headers:
+          {'datatype': 'json'}
+        validate_certs: no
+      register: session_key
 
     - name: Execute show disk groups command
       uri:
@@ -261,7 +389,6 @@
         headers:
           {'sessionKey': "{{ session_key.json.status[0].response }}", 'datatype':'json'}
       register: pools_diskgroup_info
-      tags: VERIFY_OMNIA_01
 
     - name: Verify the pool and disk group additions
       assert:
@@ -273,7 +400,6 @@
           - raid1_level in pools_diskgroup_info.json['disk-groups'][0].raidtype
         success_msg: "{{ pool_diskgroup_config_success_msg }}"
         fail_msg: "{{ pool_diskgroup_config_failure_msg }}"
-      tags: VERIFY_OMNIA_01
 
     - name: Execute show volumes command
       uri:
@@ -285,7 +411,6 @@
         headers:
           {'sessionKey': "{{ session_key.json.status[0].response }}", 'datatype':'json'}
       register: k8s_volumes_info
-      tags: VERIFY_OMNIA_01
 
     - name: Execute show volumes command
       uri:
@@ -297,7 +422,6 @@
         headers:
           {'sessionKey': "{{ session_key.json.status[0].response }}", 'datatype':'json'}
       register: slurm_volumes_info
-      tags: VERIFY_OMNIA_01
 
     - name: Verify the volumes creation
       assert:
@@ -309,7 +433,6 @@
           - pool_a in k8s_volumes_info.json.volumes[0]['storage-pool-name']
         success_msg: "{{ volumes_creation_success_msg }}"
         fail_msg: "{{ volumes_creation_failure_msg }}"
-      tags: VERIFY_OMNIA_01
 
 # Testcase OMNIA_1.1_PV_TC_004
 # Test case to validate the SNMP trap notification when level is set to none
@@ -368,6 +491,7 @@
         line: "{{ item.line }}"
       loop:
         - { regexp: '^powervault_me4_pool', line: 'powervault_me4_pool: "{{ pool_a }}"' }
+        - { regexp: '^powervault_me4_pool_type', line: 'powervault_me4_pool_type: "{{ pool_type }}"' }
         - { regexp: '^powervault_me4_disk_group_name', line: 'powervault_me4_disk_group_name: "{{ disk_group_name_omnia_dgA02 }}"' }
         - { regexp: '^powervault_me4_raid_levels', line: 'powervault_me4_raid_levels: "{{ raid1_level }}"' }
         - { regexp: '^powervault_me4_disk_range', line: 'powervault_me4_disk_range: "{{ disk_range_3_4 }}"' }
@@ -381,7 +505,7 @@
         template_name: "{{ template_value }}"
         job_template_name: "{{ job_name }}"
         playbook_path: "{{ powervault_playbook_path }}"
-        delete_status: true
+        delete_status: false
       include_tasks: "{{ awx_script_path }}" 
 
     - name: Validate powervault playbook execution output
@@ -415,6 +539,7 @@
         line: "{{ item.line }}"
       loop:
         - { regexp: '^powervault_me4_pool', line: 'powervault_me4_pool: "{{ pool_a }}"' }
+        - { regexp: '^powervault_me4_pool_type', line: 'powervault_me4_pool_type: "{{ pool_type }}"' }
         - { regexp: '^powervault_me4_disk_group_name', line: 'powervault_me4_disk_group_name: "{{ disk_group_name_omnia_dgA02 }}"' }
         - { regexp: '^powervault_me4_raid_levels', line: 'powervault_me4_raid_levels: "{{ raid1_level }}"' }
         - { regexp: '^powervault_me4_disk_range', line: 'powervault_me4_disk_range: "{{ disk_range_5_6 }}"' }
@@ -428,7 +553,7 @@
         template_name: "{{ template_value }}"
         job_template_name: "{{ job_name }}"
         playbook_path: "{{ powervault_playbook_path }}"
-        delete_status: true
+        delete_status: false
       include_tasks: "{{ awx_script_path }}" 
 
     - name: Validate powervault playbook execution output
@@ -462,6 +587,7 @@
         line: "{{ item.line }}"
       loop:
         - { regexp: '^powervault_me4_pool', line: 'powervault_me4_pool: "{{ pool_a }}"' }
+        - { regexp: '^powervault_me4_pool_type', line: 'powervault_me4_pool_type: "{{ pool_type }}"' }
         - { regexp: '^powervault_me4_disk_group_name', line: 'powervault_me4_disk_group_name: "{{ disk_group_name_omnia_dgA01 }}"' }
         - { regexp: '^powervault_me4_raid_levels', line: 'powervault_me4_raid_levels: "{{ raid1_level }}"' }
         - { regexp: '^powervault_me4_disk_range', line: 'powervault_me4_disk_range: "{{ disk_range_2_3 }}"' }
@@ -475,7 +601,7 @@
         template_name: "{{ template_value }}"
         job_template_name: "{{ job_name }}"
         playbook_path: "{{ powervault_playbook_path }}"
-        delete_status: true
+        delete_status: false
       include_tasks: "{{ awx_script_path }}" 
 
     - name: Validate powervault playbook execution output
@@ -509,6 +635,7 @@
         line: "{{ item.line }}"
       loop:
         - { regexp: '^powervault_me4_pool', line: 'powervault_me4_pool: "{{ pool_a }}"' }
+        - { regexp: '^powervault_me4_pool_type', line: 'powervault_me4_pool_type: "{{ pool_type }}"' }
         - { regexp: '^powervault_me4_disk_group_name', line: 'powervault_me4_disk_group_name: "{{ disk_group_name_omnia_dgA02 }}"' }
         - { regexp: '^powervault_me4_raid_levels', line: 'powervault_me4_raid_levels: "{{ raid1_level }}"' }
         - { regexp: '^powervault_me4_disk_range', line: 'powervault_me4_disk_range: "{{ disk_range_2_3 }}"' }
@@ -522,7 +649,7 @@
         template_name: "{{ template_value }}"
         job_template_name: "{{ job_name }}"
         playbook_path: "{{ powervault_playbook_path }}"
-        delete_status: true
+        delete_status: false
       include_tasks: "{{ awx_script_path }}" 
 
     - name: Validate powervault playbook execution output
@@ -587,6 +714,7 @@
         line: "{{ item.line }}"
       loop:
         - { regexp: '^powervault_me4_pool', line: 'powervault_me4_pool: "{{ pool_a }}"' }
+        - { regexp: '^powervault_me4_pool_type', line: 'powervault_me4_pool_type: "{{ pool_type }}"' }
         - { regexp: '^powervault_me4_disk_group_name', line: 'powervault_me4_disk_group_name: "{{ disk_group_name_omnia_dgA02 }}"' }
         - { regexp: '^powervault_me4_raid_levels', line: 'powervault_me4_raid_levels: "{{ raid1_level }}"' }
         - { regexp: '^powervault_me4_disk_range', line: 'powervault_me4_disk_range: "{{ disk_range_2_3 }}"' }
@@ -600,7 +728,7 @@
         template_name: "{{ template_value }}"
         job_template_name: "{{ job_name }}"
         playbook_path: "{{ powervault_playbook_path }}"
-        delete_status: true
+        delete_status: false
       include_tasks: "{{ awx_script_path }}" 
 
     - name: Validate powervault playbook execution output
@@ -665,6 +793,7 @@
         line: "{{ item.line }}"
       loop:
         - { regexp: '^powervault_me4_pool', line: 'powervault_me4_pool: "{{ pool_a }}"' }
+        - { regexp: '^powervault_me4_pool_type', line: 'powervault_me4_pool_type: "{{ pool_type }}"' }
         - { regexp: '^powervault_me4_disk_group_name', line: 'powervault_me4_disk_group_name: "{{ disk_group_name_omnia_dgA02 }}"' }
         - { regexp: '^powervault_me4_raid_levels', line: 'powervault_me4_raid_levels: "{{ raid5_level }}"' }
         - { regexp: '^powervault_me4_disk_range', line: 'powervault_me4_disk_range: "{{ disk_range_0_2 }}"' }
@@ -678,7 +807,7 @@
         template_name: "{{ template_value }}"
         job_template_name: "{{ job_name }}"
         playbook_path: "{{ powervault_playbook_path }}"
-        delete_status: true
+        delete_status: false
       include_tasks: "{{ awx_script_path }}" 
 
     - name: Validate powervault playbook execution output
@@ -765,6 +894,7 @@
         line: "{{ item.line }}"
       loop:
         - { regexp: '^powervault_me4_pool', line: 'powervault_me4_pool: "{{ pool_b }}"' }
+        - { regexp: '^powervault_me4_pool_type', line: 'powervault_me4_pool_type: "{{ pool_type }}"' }
         - { regexp: '^powervault_me4_disk_group_name', line: 'powervault_me4_disk_group_name: "{{ disk_group_name_omnia_dgB01 }}"' }
         - { regexp: '^powervault_me4_raid_levels', line: 'powervault_me4_raid_levels: "{{ raid6_level }}"' }
         - { regexp: '^powervault_me4_disk_range', line: 'powervault_me4_disk_range: "{{ disk_range_7_10 }}"' }
@@ -778,7 +908,7 @@
         template_name: "{{ template_value }}"
         job_template_name: "{{ job_name }}"
         playbook_path: "{{ powervault_playbook_path }}"
-        delete_status: true
+        delete_status: false
       include_tasks: "{{ awx_script_path }}" 
 
     - name: Validate powervault playbook execution output
@@ -865,6 +995,7 @@
         line: "{{ item.line }}"
       loop:
         - { regexp: '^powervault_me4_pool', line: 'powervault_me4_pool: "{{ pool_b }}"' }
+        - { regexp: '^powervault_me4_pool_type', line: 'powervault_me4_pool_type: "{{ pool_type }}"' }
         - { regexp: '^powervault_me4_disk_group_name', line: 'powervault_me4_disk_group_name: "{{ disk_group_name_omnia_dgB01 }}"' }
         - { regexp: '^powervault_me4_raid_levels', line: 'powervault_me4_raid_levels: "{{ raid10_level }}"' }
         - { regexp: '^powervault_me4_disk_range', line: 'powervault_me4_disk_range: "{{ disk_range_8_11 }}"' }
@@ -878,7 +1009,7 @@
         template_name: "{{ template_value }}"
         job_template_name: "{{ job_name }}"
         playbook_path: "{{ powervault_playbook_path }}"
-        delete_status: true
+        delete_status: false
       include_tasks: "{{ awx_script_path }}" 
 
     - name: Validate powervault playbook execution output
@@ -965,6 +1096,7 @@
         line: "{{ item.line }}"
       loop:
         - { regexp: '^powervault_me4_pool', line: 'powervault_me4_pool: "{{ pool_b }}"' }
+        - { regexp: '^powervault_me4_pool_type', line: 'powervault_me4_pool_type: "{{ pool_type }}"' }
         - { regexp: '^powervault_me4_disk_group_name', line: 'powervault_me4_disk_group_name: "{{ disk_group_name_omnia_dgB01 }}"' }
         - { regexp: '^powervault_me4_raid_levels', line: 'powervault_me4_raid_levels: "{{ raid_adapt_level }}"' }
         - { regexp: '^powervault_me4_disk_range', line: 'powervault_me4_disk_range: "{{ disk_range_0_11 }}"' }
@@ -978,7 +1110,7 @@
         template_name: "{{ template_value }}"
         job_template_name: "{{ job_name }}"
         playbook_path: "{{ powervault_playbook_path }}"
-        delete_status: true
+        delete_status: false
       include_tasks: "{{ awx_script_path }}" 
 
     - name: Validate powervault playbook execution output
@@ -1036,6 +1168,7 @@
         line: "{{ item.line }}"
       loop:
         - { regexp: '^powervault_me4_pool', line: 'powervault_me4_pool: "{{ pool_a }}"' }
+        - { regexp: '^powervault_me4_pool_type', line: 'powervault_me4_pool_type: "{{ pool_type }}"' }
         - { regexp: '^powervault_me4_disk_group_name', line: 'powervault_me4_disk_group_name: "{{ disk_group_name_omnia_dgA02 }}"' }
         - { regexp: '^powervault_me4_raid_levels', line: 'powervault_me4_raid_levels: "{{ raid1_level }}"' }
         - { regexp: '^powervault_me4_disk_range', line: 'powervault_me4_disk_range: "{{ disk_range_2_3 }}"' }
@@ -1049,7 +1182,7 @@
         template_name: "{{ template_value }}"
         job_template_name: "{{ job_name }}"
         playbook_path: "{{ powervault_playbook_path }}"
-        delete_status: true
+        delete_status: false
       include_tasks: "{{ awx_script_path }}" 
 
     - name: Validate powervault playbook execution output
@@ -1145,6 +1278,7 @@
       loop:
         - { regexp: '^powervault_me4_snmp_notify_level', line: 'powervault_me4_snmp_notify_level: "{{ snmp_notify_level_crit }}"' }
         - { regexp: '^powervault_me4_pool', line: 'powervault_me4_pool: "{{ pool_a }}"' }
+        - { regexp: '^powervault_me4_pool_type', line: 'powervault_me4_pool_type: "{{ pool_type }}"' }
         - { regexp: '^powervault_me4_disk_group_name', line: 'powervault_me4_disk_group_name: "{{ disk_group_name_omnia_dgA02 }}"' }
         - { regexp: '^powervault_me4_raid_levels', line: 'powervault_me4_raid_levels: "{{ raid1_level }}"' }
         - { regexp: '^powervault_me4_disk_range', line: 'powervault_me4_disk_range: "{{ disk_range_2_3 }}"' }
