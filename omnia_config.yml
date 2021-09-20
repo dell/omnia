@@ -1,4 +1,4 @@
-# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -57,11 +57,11 @@ login_node_required: true
 
 # This variable is used to accept the domain name the user intends to configure
 # Eg: ipa.test
-domain_name: ""
+domain_name: "omnia.test"
 
 # A Kerberos realm is the domain over which a Kerberos authentication server has the authority to authenticate a user, host or service. 
 # A realm name is often, but not always the upper case version of the name of the DNS domain over which it presides
-realm_name: ""
+realm_name: "OMNIA.TEST"
 
 # The directory server operations require an administrative user. 
 # This user is referred to as the Directory Manager and has full access to the Directory for system management tasks 
