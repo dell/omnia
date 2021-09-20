@@ -26,3 +26,4 @@
     - control_plane_sm
     - control_plane_customiso
     - control_plane_repo
+    - deploy_job_templates
