@@ -21,5 +21,6 @@
     - dellemc.os10
    vars:
      ansible_network_os: dellemc.os10.os10
+     ansible_command_timeout: 180
    roles:
     - network_ethernet

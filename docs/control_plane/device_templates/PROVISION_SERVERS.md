@@ -31,7 +31,7 @@ Based on the inputs provided in the `login_vars.yml` and `base_vars.yml` files, 
 2. Copy the Cluster-IP address of the awx-ui. 
 3. To retrieve the AWX UI password, run `kubectl get secret awx-admin-password -n awx -o jsonpath="{.data.password}" | base64 --decode`.
 4. Open the default web browser on the management station and enter `http://<IP>:8052`, where IP is the awx-ui IP address and 8052 is the awx-ui port number. Log in to the AWX UI using the username as `admin` and the retrieved password.  
-5. Under __RESOURCES__ -> __Templates__, launch the **idrac_template**.  
+5. Under __RESOURCES__ -> __Templates__, launch the **idrac_template**.
 
 Omnia role used to provision custom ISO on PowerEdge Servers using iDRAC: *provision_idrac*  
 
@@ -96,9 +96,10 @@ Omnia provides the following options to enhance security on the provisioned Powe
 	idrac_2fa.yml	|	dns_domain_name</br> [Required]	|		|	DNS domain name to be set for iDRAC. 
 	<br>	|	ipv4_static_dns1, ipv4_static_dns2</br> [Required] 	|		|	DNS1 and DNS2 static IPv4 addresses.
 	<br>	|	smtp_server_ip</br> [Required]	|		|	Server IP address used for SMTP.
-	<br>	|	smtp_username</br> [Required]	|		|	Username for SMTP.
-	<br>	|	smtp_password</br> [Required]	|		|	Password for SMTP.
 	<br>	|	use_email_address_2fa</br> [Required]	|		|	Email address used for enabling 2FA. After 2FA is enabled, an authentication code is sent to the provided email address. 
+	<br>	| smtp_authentication [Required]	| <ul> <li>__Disabled__</li> <li>Enabled </li> </ul> | Enable SMTP authentication 
+	<br>	|	smtp_username</br> [Optional]	|		|	Username for SMTP.
+	<br>	|	smtp_password</br> [Optional]	|		|	Password for SMTP.
 
 	**NOTE**: 2FA will be enabled on the iDRAC only if SMTP server details are valid and a test email notification is working using SMTP.  
 * **LDAP Directory Services**: To enable or disable the LDAP directory services, set the *ldap_directory_services* variable to "enabled" in the `idrac_vars.yml` file.  
