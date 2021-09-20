@@ -61,7 +61,7 @@
 
 - name: Validate login node parameters when login_node_reqd is set to true
   fail:
-    msg: "{{ input_config_failure_msg }} for login_node"
+    msg: "{{ omnia_input_config_failure_msg }}"
   when:
     - ( domain_name | length < 1 or
       realm_name | length < 1 or

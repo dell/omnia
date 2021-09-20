@@ -57,7 +57,7 @@ min_username_length: 4
 file_perm: '0755'
 vault_file_perm: '0644'
 nic_min_length: 3
-input_config_failure_msg: "Please provide all the required parameters in login_vars.yml"
+login_input_config_failure_msg: "Failed. Please provide all the required parameters in login_vars.yml"
 fail_msg_provision_password: "Failed. Incorrect provision_password format provided in login_vars.yml"
 fail_msg_cobbler_password: "Failed. Incorrect cobbler_password format provided in login_vars.yml file"
 fail_msg_idrac_credentials: "Failed. Incorrect idrac_username or idrac_password format provided in login_vars.yml"
@@ -83,7 +83,7 @@ success_msg_directory_manager_password: "directory_manager_password successfully
 fail_msg_directory_manager_password: "Failed. Incorrect format provided for directory_manager_password"
 success_msg_ipa_admin_password: "ipa_admin_password successfully validated"
 fail_msg_ipa_admin_password: "Failed. Incorrect format provided for ipa_admin_password"
-input_config_failure_msg: "Input parameters cannot be empty"
+omnia_input_config_failure_msg: "Failed. Please provide all the required parameters in omnia_config.yml for for login_node"
 login_node_required_success_msg: "Login_node_required successfully validated"
 login_node_required_fail_msg: "Failed. login_node_required can be either true or false"
 
