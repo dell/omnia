@@ -112,7 +112,7 @@ Resolution:
 It is recommended that the ansible-vault view or edit commands are used and not the ansible-vault decrypt or encrypt commands.
 
 ## What to do if the LC is not ready?
-* Verify the state of the LC in all servers by running `racadm getremoteservicesstatus`
+* Verify that the LC is in a ready state for all servers: `racadm getremoteservicesstatus`
 * Launch iDRAC template.
 
 ## What to do if the network CIDR entry of iDRAC IP in /etc/exports file is missing?
@@ -127,15 +127,52 @@ It is recommended that the ansible-vault view or edit commands are used and not 
 ## Is Disabling 2FA supported by Omnia?
 * Disabling 2FA is not supported by Omnia and must be manually disabled.
 
-## Is provisioning server using BOSS controller supported by Omnia?
-* Provisioning server using BOSS controller is not supported by Omnia. It will be supported in upcoming releases.
-
 ## The provisioning of PowerEdge servers failed. How do I clean up before starting over?
 1. Delete the respective iDRAC IP addresses from the *provisioned_idrac_inventory* on the AWX UI or delete the *provisioned_idrac_inventory* to delete the iDRAC IP addresses of all the servers in the cluster.
 2. Launch the iDRAC template from the AWX UI.
 
-## What to do when WARNING message regarding older firmware displayed during idrac_template execution and idrac_template task failed?
+## What to do if PowerVault throws the error: `Error: The specified disk is not available. - Unavailable disk (0.x) in disk range '0.x-x'`
+1. Verify that the disk in question is not part of any pool: `show disks`
+2. If the disk is part of a pool, remove it and try again.
+
+## Why does PowerVault throw the error: `You cannot create a linear disk group when a virtual disk group exists on the system.`?
+At any given time only one type of disk group can be created on the system. That is, all disk groups on the system have to exclusively be linear or virtual. To fix the issue, either delete the existing disk group or change the type of pool you are creating.
+
+## Is provisioning server using BOSS controller supported by Omnia?
+* Provisioning server using BOSS controller is not supported by Omnia. It will be supported in upcoming releases.
+
+
+## What to do when iDRAC template execution throws a warning regarding older firmware versions?
 Potential Cause: Older firmware version in PowerEdge servers. Omnia supports only iDRAC 8 based Dell EMC PowerEdge Servers with firmware versions 2.75.75.75 and above and iDRAC 9 based Dell EMC PowerEdge Servers with Firmware versions 4.40.40.00 and above.
 
-1. Update idrac firmware version in PowerEdge servers manually to the supported version.
+1. Update iDRAC firmware version in PowerEdge servers manually to the supported version.
 2. Re-run idrac_template.
+
+## What steps have to be taken to re-run control_plane.yml after a Kubernetes reset?
+1. Delete the folder: `/var/nfs_awx`
+2. Delete the file:  `/<project name>/control_plane/roles/webui_awx/files/.tower_cli.cfg`
+
+Once complete, it's safe to re-run control_plane.yml.
+
+## Why does the Initialize Kubeadm task fail with 'nnode.Registration.name: Invalid value: \"<Host name>\"'?
+
+Potential Cause: The control_plane playbook does not support hostnames with an underscore in it such as 'mgmt_station'.
+
+As defined in RFC 822, the only legal characters are the following:
+1. Alphanumeric (a-z and 0-9): Both uppercase and lowercase letters are acceptable, and the hostname is case insensitive. In other words, dvader.empire.gov is identical to DVADER.EMPIRE.GOV and Dvader.Empire.Gov.
+
+2. Hyphen (-): Neither the first nor the last character in a hostname field should be a hyphen.
+
+3. Period (.): The period should be used only to delimit fields in a hostname (e.g., dvader.empire.gov)
+
+## What to do when JupyterHub pods are in 'ImagePullBackOff' or 'ErrImagePull' status after executing jupyterhub.yml?
+Potential Cause: Your Docker pull limit has been exceeded. For more information, click [here](https://www.docker.com/increase-rate-limits)
+1. Delete Jupyterhub deployment by executing the following command in manager node: `helm delete jupyterhub -n jupyterhub`
+2. Re-execute jupyterhub.yml after 8-9 hours.
+
+## What to do when Kubeflow pods are in 'ImagePullBackOff' or 'ErrImagePull' status after executing kubeflow.yml?
+Potential Cause: Your Docker pull limit has been exceeded. For more information, click [here](https://www.docker.com/increase-rate-limits)
+1. Delete Kubeflow deployment by executing the following command in manager node: `kfctl delete -V -f /root/k8s/omnia-kubeflow/kfctl_k8s_istio.v1.0.2.yaml`
+2. Re-execute kubeflow.yml after 8-9 hours
+
+

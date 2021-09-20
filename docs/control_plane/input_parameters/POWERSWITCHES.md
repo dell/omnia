@@ -12,7 +12,7 @@ Under the `control_plane/input_params` directory, edit the following files:
 	a. `ethernet_switch_username`- username for Ethernet switches.  
 	**NOTE**: The username must not contain the following characters: -, \\, "", and \'  
 	b. `ethernet_switch_password`- password for Ethernet switches.   
-	**NOTE**: Minimum length of the password must be eight characters and the maximum limit is 30 characters. Do not use these characters while entering a password: -, \\, "", and \'    
+	**NOTE**: Minimum length of the password must be eight characters and the maximum limit is 30 characters. Do not use these characters while entering a password: -, \\, "", and \'  
 
 3. `ethernet_tor_vars.yml` or `ethernet_vars.yml` file: If **ethernet_switch_support** is set to "true" in the *base_vars.yml* file, then update the following variables.  
 

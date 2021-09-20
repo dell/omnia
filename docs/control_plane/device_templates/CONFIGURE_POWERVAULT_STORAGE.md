@@ -29,7 +29,8 @@ Under the `control_plane/input_params` directory, edit the following files:
 	powervault_me4_disk_partition_size [Required] |	<ul><li>**5**</li><li>Any value between 5-99</li></ul> |	Enter the partition size which would be used as an NFS share.  
 	powervault_me4_volume_size [Required] |	<ul><li>**100GB**</li><li>Custom value</li></ul> |	Enter the volume size in the format: *SizeTB*, *SizeGB*, *SizeMB*, or *SizeB*.  
 	powervault_me4_pool [Required] |	<ul><li>**a** (or A)</li><li>b (or B)</li></ul> |	Enter the pool for the volume.  
-	powervault_me4_server_nic [Required] |	<ul><li>**em1**</li></ul> |	Enter the NIC of the server to which the PowerVault Storage is connected.    
+	powervault_me4_server_nic [Required] |	<ul><li>**em1**</li></ul> |	Enter the NIC of the server to which the PowerVault Storage is connected.
+	powervault_me4_pool_type [Required] |	<ul><li>**Virtual**</li><li>Linear </li></ul> |	Select the type of pool to be deployed on PowerVault. Ensure that all pools on the device are exclusively virtual or linear.
 	
 ## Configuring PowerVault Storage
 

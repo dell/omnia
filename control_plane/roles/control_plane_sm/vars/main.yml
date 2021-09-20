@@ -25,4 +25,3 @@ sm_docker_image_tag: latest
 #Usage: create_pod.yml
 sm_container_name: opensm-container
 sm_kube_config_file: "{{ role_path }}/files/k8s_sm.yml"
-opensm_conf_file: "{{ role_path }}/../../input_params/opensm.conf"

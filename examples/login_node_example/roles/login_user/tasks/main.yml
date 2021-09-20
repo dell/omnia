@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,17 +13,18 @@
 #  limitations under the License.
 ---
 
-- name: Executing omnia roles
-  hosts: localhost
-  connection: local
-  roles:
-    - control_plane_common
-    - control_plane_k8s
-    - control_plane_device
-    - provision_cobbler
-    - webui_awx
-    - control_plane_ib
-    - control_plane_sm
-    - control_plane_customiso
-    - control_plane_repo
-    - deploy_job_templates
+- name: Create a user
+  command: >-
+    ipa user-add '{{ new_login_user }}' --first='{{ user_first_name }}'
+    --last='{{ user_last_name }}' --homedir='{{ user_home_dir }}' 
+    --random
+  register: output
+  changed_when: false
+
+- name: Debug
+  debug:
+    msg: "{{ output }}"
+
+- name: Add the user to slurm group
+  command: usermod -a -G slurm '{{ new_login_user }}'
+  changed_when: false
