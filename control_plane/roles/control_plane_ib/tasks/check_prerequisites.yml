@@ -32,7 +32,7 @@
   - name: Set status for backup file
     set_fact:
       infiniband_backup_map_status: true
-    when: infiniband_backup_map.stat.exists == true  
+    when: infiniband_backup_map.stat.exists 
   rescue:
   - name: Message
     debug:
@@ -42,14 +42,14 @@
 - name: Inspect the infiniband_container image
   command: "buildah images {{ infiniband_image_name }}"
   register: infiniband_container_image_result
-  ignore_errors: true
+  failed_when: false
   changed_when: false
   tags: install
 
 - name: Check infiniband_container status on the machine
   command: kubectl get pods -n network-config
   register: infiniband_container_result
-  ignore_errors: true
+  failed_when: false
   changed_when: false
   tags: install
 
@@ -64,9 +64,3 @@
     infiniband_container_status: true
   when: "'infiniband-container' in infiniband_container_result.stdout"
   tags: install
-
-- name: Update infiniband_container  status
-  set_fact:
-    infiniband_container_config_status: true
-  when:
-    - infiniband_container_status == true
