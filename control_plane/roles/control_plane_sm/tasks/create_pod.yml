@@ -43,7 +43,7 @@
       replace:
         path: "{{ sm_kube_config_file }}"
         regexp: "          image:.*"
-        replace: "          image: 'localhost/{{sm_docker_image_name}}:{{ sm_docker_image_tag }}'"
+        replace: "          image: 'localhost/{{ sm_docker_image_name }}:{{ sm_docker_image_tag }}'"
       tags: install
 
     - name: Replace cache directory in sm config file
