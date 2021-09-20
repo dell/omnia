@@ -5,7 +5,8 @@ Using Omnia 1.1, you can provision and monitor hardware devices such as servers,
 
 ![Typical layout of a HPC cluster](images/typical_layout_hpc_cluster.jpg)
 
-* Connecting a Pass-Through Switch: Provision and configure a 1GBE pass-through switch which will be used as a pass-through uplink switch. One of the NIC on the management station must be connected to a data port on the pass-through switch and a second connection must be established from a data port on the pass-through switch to the management port of the TOR network switch.  **Note**: Omnia is not responsible for provisioning and configuring the pass-through switch.
+* Connecting a Pass-Through Switch: Provision and configure a 1GBE pass-through switch which will be used as a pass-through uplink switch. One of the NIC on the management station must be connected to a data port on the pass-through switch and a second connection must be established from a data port on the pass-through switch to the management port of the TOR network switch.  
+>> **Note:**  Omnia is not responsible for provisioning and configuring the pass-through switch.
 * Establishing a management network: From the data ports on the pass-through switch, connect to the following ports:
 	* iDRAC ports on manager and compute nodes
 	* Management port on the network switches
@@ -24,13 +25,13 @@ Depending on the pass-through switch configured in your HPC environment, the num
 
 ## Prerequisites to install the Omnia Control Plane version 1.1
 * Ensure that a stable Internet connection is available on management station, manager node, login node, and compute nodes. 
-* CentOS 8.4 is installed on the management station.  
-* If the login node is enabled, then set the hostnames in the format: __hostname.domainname__. For example, "manager.omnia.test" is a valid hostname.		 
+* CentOS 8.4 is installed on the management station.  		 
 * To provision the bare metal servers, go to http://isoredirect.centos.org/centos/7/isos/x86_64/ and download the **CentOS-7-x86_64-Minimal-2009** ISO file.
 * For DHCP configuration, you can provide a host mapping file. If the mapping file is not provided and the variable is left blank, a default mapping file will be created. The provided details must be in the format: MAC address, Hostname, IP address, Component_role. For example, `10:11:12:13,server1,100.96.20.66,compute` and  `14:15:16:17,server2,100.96.22.199,manager` are valid entries.  
-__Note:__  
+>> __Note:__  
 	* In the *omnia/examples* folder, a **mapping_host_file.csv** template is provided which can be used for DHCP configuration. The header in the template file must not be deleted before saving the file.  
-	* The Hostname should not contain the following characters: , (comma), \. (period), and - (hyphen).
+	* The Hostname should not contain the following characters: , (comma), \. (period) or _ (underscore). However, the **domain name** is allowed commas and periods. 
+	* The Hostname cannot start or end with a hyphen (-).
 * Connect one of the Ethernet cards on the management station to the HPC switch and the other Ethernet card must be connected to the global network. 
 * If SELinux is not disabled on the management station, disable it from `/etc/sysconfig/selinux` and restart the management station.
 * You must have root privileges to perform installations and configurations using the Omnia control plane.
@@ -63,9 +64,9 @@ __Note:__
 	export PATH=$PATH:/usr/local/bin
 	```  
 	
-	__Note__: To deploy Omnia, Python 3.6 provides bindings to system tools such as RPM, DNF, and SELinux. As versions greater than 3.6 do not provide these bindings to system tools, ensure that you install Python 3.6 with dnf.  
+	>>__Note__: To deploy Omnia, Python 3.6 provides bindings to system tools such as RPM, DNF, and SELinux. As versions greater than 3.6 do not provide these bindings to system tools, ensure that you install Python 3.6 with dnf.  
 
-	__Note__: If Ansible version 2.9 or later is installed, ensure it is uninstalled before installing a newer version of Ansible. Run the following commands to uninstall Ansible before upgrading to newer version.
+	>>__Note__: If Ansible version 2.9 or later is installed, ensure it is uninstalled before installing a newer version of Ansible. Run the following commands to uninstall Ansible before upgrading to newer version.
 	1. `pip uninstall ansible`
 	2. `pip uninstall ansible-base (if ansible 2.9 is installed)`
 	3. `pip uninstall ansible-core (if ansible 2.10  > version is installed)`
@@ -76,9 +77,9 @@ __Note:__
 	dnf install git -y
 	``` 
 
-**Note**:
-* After the installation of the Omnia appliance, changing the management station is not supported. If you need to change the management station, you must redeploy the entire cluster.
-* If there are errors while executing any of the Ansible playbook commands, then re-run the commands.  
+>> **Note**:
+>> * After the installation of the Omnia appliance, changing the management station is not supported. If you need to change the management station, you must redeploy the entire cluster.
+>> * If there are errors while executing any of the Ansible playbook commands, then re-run the commands.  
 
 ## Steps to deploy the Omnia Control Plane
 
@@ -102,10 +103,10 @@ git clone -b release https://github.com/dellhpc/omnia.git
 	* **ipa_admin_password**: "admin" user password for the IPA server.
 * Provide passwords for mariaDB Database (for Slurm accounting), Kubernetes Pod Network CIDR, Kubernetes CNI under *mariadb_password* and *k8s_cni* respectively.  
 
-**Note**:
-* Supported values for Kubernetes CNI are calico and flannel. The default value of CNI considered by Omnia is calico.	
-* The default value of Kubernetes Pod Network CIDR is 10.244.0.0/16. If 10.244.0.0/16 is already in use within your network, select a different Pod Network CIDR. For more information, see __https://docs.projectcalico.org/getting-started/kubernetes/quickstart__.  
-* The default path of the Ansible configuration file is `/etc/ansible/`. If the file is not present in the default path, then edit the `ansible_config_file_path` variable to update the configuration path.
+>> **Note**:
+>> * Supported values for Kubernetes CNI are calico and flannel. The default value of CNI considered by Omnia is calico.	
+>> * The default value of Kubernetes Pod Network CIDR is 10.244.0.0/16. If 10.244.0.0/16 is already in use within your network, select a different Pod Network CIDR. For more information, see __https://docs.projectcalico.org/getting-started/kubernetes/quickstart__.  
+>> * The default path of the Ansible configuration file is `/etc/ansible/`. If the file is not present in the default path, then edit the `ansible_config_file_path` variable to update the configuration path.
 
 5. Change the directory to **control_plane/input_params** using the command: `cd omnia/control_plane/input_params`
 6. Edit the *base_vars.yml* file to update the following variables:  
@@ -127,14 +128,15 @@ git clone -b release https://github.com/dellhpc/omnia.git
 	host_network_nic</br>	[Required]	|	**eno3**	| NIC or Ethernet card that is connected to the Host Network to provision OS on bare metal servers. By default, it is set to "eno3".	|
 	host_network_dhcp_start_range, host_network_dhcp_end_range</br>	[Required]	|		| DHCP range for the Host Network to assign IPv4 addresses.	|
 	host_mapping_file_path	|		| Enter the file path containing a host mapping file with the MAC addresses, hostnames, IP addresses, and component role.	A *mapping_host_file.csv* template file is provided under `omnia/examples`. Enter the details in the order: **MAC address, Hostname, IP address, Component_role**. For example, `10:11:12:13,server1,100.96.20.66,compute`, `14:15:16:17,server2,100.96.22.199,manager`, `18.19.20.21,server3,100.96.23.67,nfs_node`, and `22.23.24.25,server4,100.96.23.75,login_node` are all valid entries. The Hostname should not contain the following characters: , (comma), \. (period), and - (hyphen). Ensure that you do not provide any duplicate entries in the file.	|  
-  
+  default_lease_time 	|	**86400**, 21600 (6 hours)- 31536000 (1 Year)
+  | Measures (in seconds) the time period an IP is reserved for an assigned NIC. |  
 7. Depending on the devices connected in the cluster, you must enable the support and provide other device-specific input parameters in the *base_vars.yml* file and *login_vars.yml* files. Click the link specific to the devices:  
 	* [PowerSwitches](control_plane/input_parameters/POWERSWITCHES.md)
 	* [PowerEdge Servers](control_plane/input_parameters/PROVISION_SERVERS.md#dell-emc-poweredge-servers)
 	* [InfiniBand Switches](control_plane/input_parameters/INFINIBAND_SWITCHES.md#mellanox-infiniband-switches)
 	* [PowerVault Storage](control_plane/input_parameters/POWERVAULT_STORAGE.md#dell-emc-powervault-storage)  
 	
-**NOTE: The IP address *192.168.25.x* is used for PowerVault Storage communications. Therefore, do not use this IP address for other configurations.**  
+>> **NOTE: The IP address *192.168.25.x* is used for PowerVault Storage communications. Therefore, do not use this IP address for other configurations.**  
 
 8. Change the directory to **control_plane** using the command: `cd ..`  
 9. Provided that the host_mapping_file_path is updated as per the provided template, Omnia deploys the control plane and assigns the component roles by executing the omnia.yml file.  To deploy the Omnia control plane, run the following command: 
@@ -145,11 +147,11 @@ ansible-playbook control_plane.yml
 
 Omnia creates a log file which is available at: `/var/log/omnia.log`.  
 
-**NOTE**: If you want to view or edit the *login_vars.yml* file, run the following commands:
+>> **NOTE**: If you want to view or edit the *login_vars.yml* file, run the following commands:
 1. `cd input_params`
 2. `ansible-vault view login_vars.yml --vault-password-file .login_vault_key` or `ansible-vault edit login_vars.yml --vault-password-file .login_vault_key`.   
 
-**NOTE**: It is suggested that you use the ansible-vault view or edit commands and that you do not use the ansible-vault decrypt or encrypt commands. If you have used the ansible-vault decrypt or encrypt commands, provide 644 permission to *login_vars.yml*.
+>> **NOTE**: It is suggested that you use the ansible-vault view or edit commands and that you do not use the ansible-vault decrypt or encrypt commands. If you have used the ansible-vault decrypt or encrypt commands, provide 644 permission to *login_vars.yml*.
 
 ## Configurations performed by Omnia control plane
 After you deploy the Omnia control plane, the devices such as Ethernet switches, InfiniBand Switches, and PowerVault storage devices are configured by Omnia according to the support enabled in the *base_vars.yml* file. The bare metal servers in the cluster are provisioned with custom CentOS based on the availability of iDRAC Enterprise or Datacenter License on the iDRAC.
@@ -169,7 +171,7 @@ Omnia performs the following configurations on AWX:
 * iDRAC, networking switches, InfiniBand switches, and PowerVault storage devices can be configured using the respective templates: **idrac_template**, **ethernet_template**, **infiniband_template**, and **powervault_me4_template**. **deploy_omnia_template** is used to deploy Kubernetes and Slurm on the compute nodes. 
 * Schedules are created for **node_inventory_job** and **device_inventory_job** templates. These schedules are set to run every 10 minutes to dynamically retrieve and update the node and device details to AWX.  
 
-**Note**: The AWX configurations are automatically performed by Omnia, and Dell Technologies recommends that you do not change the default configurations that are provided by Omnia as the functionality may be impacted.  
+>> **Note**: The AWX configurations are automatically performed by Omnia, and Dell Technologies recommends that you do not change the default configurations that are provided by Omnia as the functionality may be impacted.  
 
 # Configuring new devices added to the cluster
 For Omnia to configure the devices and to provision the bare metal servers which are introduced newly in the cluster, you must configure the corresponding input parameters and deploy the device-specific template from the AWX UI. Based on the devices added to the cluster, click the respective link to go to configuration section.  
@@ -188,16 +190,17 @@ For Omnia to configure the devices and to provision the bare metal servers which
 7. To add hosts to the groups, click **+**. 
 8. Select **Existing Host**, and then select the hosts from the list and add them to the groups--**compute**, **manager**, **login**, or **nfs**.  
 	If you have set the `login_node_required` variable in the `omnia_config` file to "false", then you can skip assigning host to the login node.
-9. Click __SAVE__.
-10. To deploy Kubernetes and Slurm containers on PowerEdge Servers, under __RESOURCES__ -> __Templates__, select **deploy_omnia**, and then click __LAUNCH__.
-11. By default, no skip tags are selected, and both Kubernetes and Slurm are deployed. 
-12. To install only Kubernetes, enter `slurm` and select **slurm**. 
-13. To install only Slurm, select and add `kubernetes` skip tag.  
+9.  If the login_node_required is true, make sure the hostnames of all the nodes in the cluster especially the manager and login node are in the format: hostname.domainname. For example, manager.omnia.test is a valid FQDN. If the Hostname is not set then freeipa server/client installation will fail.
+10. Click __SAVE__.
+11. To deploy Kubernetes and Slurm containers on PowerEdge Servers, under __RESOURCES__ -> __Templates__, select **deploy_omnia**, and then click __LAUNCH__.
+12. By default, no skip tags are selected, and both Kubernetes and Slurm are deployed. 
+13. To install only Kubernetes, enter `slurm` and select **slurm**. 
+14. To install only Slurm, select and add `kubernetes` skip tag.  
 
-**NOTE**: If you would like to skip the NFS client setup, enter `nfs_client` in the skip tag section to skip the **k8s_nfs_client_setup** role of Kubernetes.  
+>> **NOTE**: If you would like to skip the NFS client setup, enter `nfs_client` in the skip tag section to skip the **k8s_nfs_client_setup** role of Kubernetes.  
 
-14. Click **NEXT**.
-15. Review the details in the **PREVIEW** window and click **LAUNCH** to run the DeployOmnia template. 
+15. Click **NEXT**.
+16. Review the details in the **PREVIEW** window and click **LAUNCH** to run the DeployOmnia template. 
 
 The **deploy_omnia_template** may not run successfully if:
 - The **manager** group contains more than one host.
@@ -258,12 +261,13 @@ The following __kubernetes__ roles are provided by Omnia when __omnia.yml__ file
 - **k8s_start_services** role
 	- Kubernetes services are deployed such as Kubernetes Dashboard, Prometheus, MetalLB and NFS client provisioner
 
-__Note:__ 
+>> __Note:__ 
+* Whenever the k8s_version, k8s_cni or k8s_pod_network_cidr needs to be modified after the HPC cluster is setup, the OS in the manager and compute nodes in the cluster must be re-flashed before executing `omnia.yml` again.
 * After Kubernetes is installed and configured, few Kubernetes and calico/flannel related ports are opened in the manager and compute nodes. This is required for Kubernetes Pod-to-Pod and Pod-to-Service communications. Calico/flannel provides a full networking stack for Kubernetes pods.
 * If Kubernetes Pods are unable to communicate with the servers (i.e., unable to access the Internet) when the DNS servers are not responding, then the Kubernetes Pod Network CIDR may be overlapping with the host network which is DNS issue. To resolve this issue:
 	1. Disable firewalld.service.
 	2. If the issue persists, then perform the following actions:  
-		a. In your Kubernetes cluster, run `kubeadm reset -f` on the nodes.  
+		a. Format the OS on manager and compute nodes.  
 		b. In the management station, edit the *omnia_config.yml* file to change the Kubernetes Pod Network CIDR or CNI value. Suggested IP range is 192.168.0.0/16 and ensure you provide an IP which is not in use in your host network.  
 		c. Execute `omnia.yml` and skip slurm using `--skip-tags slurm`.
  
