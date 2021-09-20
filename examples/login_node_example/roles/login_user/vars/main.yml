@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,17 +13,16 @@
 #  limitations under the License.
 ---
 
-- name: Executing omnia roles
-  hosts: localhost
-  connection: local
-  roles:
-    - control_plane_common
-    - control_plane_k8s
-    - control_plane_device
-    - provision_cobbler
-    - webui_awx
-    - control_plane_ib
-    - control_plane_sm
-    - control_plane_customiso
-    - control_plane_repo
-    - deploy_job_templates
+# New User to be created on Login node
+# Make sure the username is in small case
+# For more details chech freeipa website
+new_login_user: "omniauser"
+
+# User home directory path
+user_home_dir: "/home/omniauser"
+
+# User's first name
+user_first_name: "omnia"
+
+# User's last name
+user_last_name: "user"

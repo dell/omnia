@@ -167,31 +167,33 @@
         idrac_password: "{{ idrac_password }}"
       register: idrac_info
 
-    - name: Set enterprise license status
-      set_fact:
-        enterprise_license: true
-        idrac_license_name: "{{ idrac_info.system_info.License[my_idx1].LicenseDescription }}"
-      with_items: "{{ idrac_info.system_info.License }}"
-      when:
-        - '"iDRAC" in idrac_info.system_info.License[my_idx1].LicenseDescription'
-        - '"Enterprise" in idrac_info.system_info.License[my_idx1].LicenseDescription'
-        - '"License" in idrac_info.system_info.License[my_idx1].LicenseDescription'
-        - '"Healthy" in idrac_info.system_info.License[my_idx1].PrimaryStatus'
-      loop_control:
-        index_var: my_idx1
+    - block:
+        - name: Set enterprise license status
+          set_fact:
+            enterprise_license: true
+            idrac_license_name: "{{ idrac_info.system_info.License[my_idx1].LicenseDescription }}"
+          with_items: "{{ idrac_info.system_info.License }}"
+          when:
+            - '"iDRAC" in idrac_info.system_info.License[my_idx1].LicenseDescription'
+            - '"Enterprise" in idrac_info.system_info.License[my_idx1].LicenseDescription'
+            - '"License" in idrac_info.system_info.License[my_idx1].LicenseDescription'
+            - '"Healthy" in idrac_info.system_info.License[my_idx1].PrimaryStatus'
+          loop_control:
+            index_var: my_idx1
 
-    - name: Set datacenter license status
-      set_fact:
-        datacenter_license: true
-        idrac_license_name: "{{ idrac_info.system_info.License[my_idx1].LicenseDescription }}"
-      with_items: "{{ idrac_info.system_info.License }}"
-      when:
-        - '"iDRAC" in idrac_info.system_info.License[my_idx2].LicenseDescription'
-        - '"Datacenter" in idrac_info.system_info.License[my_idx2].LicenseDescription'
-        - '"License" in idrac_info.system_info.License[my_idx2].LicenseDescription'
-        - '"Healthy" in idrac_info.system_info.License[my_idx2].PrimaryStatus'
-      loop_control:
-        index_var: my_idx2
+        - name: Set datacenter license status
+          set_fact:
+            datacenter_license: true
+            idrac_license_name: "{{ idrac_info.system_info.License[my_idx1].LicenseDescription }}"
+          with_items: "{{ idrac_info.system_info.License }}"
+          when:
+            - '"iDRAC" in idrac_info.system_info.License[my_idx2].LicenseDescription'
+            - '"Datacenter" in idrac_info.system_info.License[my_idx2].LicenseDescription'
+            - '"License" in idrac_info.system_info.License[my_idx2].LicenseDescription'
+            - '"Healthy" in idrac_info.system_info.License[my_idx2].PrimaryStatus'
+          loop_control:
+            index_var: my_idx2
+      when: idrac_info.system_info.License is defined
 
     - name: Change provision mode in absence of license
       set_fact:

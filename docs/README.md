@@ -51,7 +51,7 @@ Requirements  |   Version
 ----------------------------------  |   -------
 OS pre-installed on the management station  |  CentOS 8.4
 OS deployed by Omnia on bare-metal Dell EMC PowerEdge Servers | CentOS 7.9 2009 Minimal Edition
-Cobbler  |  2.8.5
+Cobbler  |  3.2.1
 Ansible AWX  |  19.1.0
 Slurm Workload Manager  |  20.11.2
 Kubernetes on the management station  |  1.21.0
@@ -64,7 +64,7 @@ The following table lists the supported devices managed by Omnia. Other devices 
 
 Device type	|	Supported models	
 -----------	|	-------	
-Dell EMC PowerEdge Servers	|	PowerEdge C4140, C6420, C6520, R240, R340, R440, R540, R640, R650, R740, R740xd, R740xd2, R750, R750xa, R840, R940, R940xa
+Dell EMC PowerEdge Servers	|	PowerEdge C4140, C6420, R240, R340, R440, R540, R640, R740, R740xd, R740xd2, R840, R940, R940xa
 Dell EMC PowerVault Storage	|	PowerVault ME4084, ME4024, and ME4012 Storage Arrays
 Dell EMC Networking Switches	|	PowerSwitch S3048-ON and PowerSwitch S5232F-ON
 Mellanox InfiniBand Switches	|	NVIDIA MQM8700-HS2F Quantum HDR InfiniBand Switch 40 QSFP56
@@ -153,16 +153,17 @@ stp_rpvst_default_behaviour	|	boolean: false, true	|	Configures RPVST default be
 # Known issues  
 * **Issue**: Hosts are not displayed on the AWX UI.  
 	**Resolution**:  
-	* Verify if the *provisioned_hosts.yml* file is present in the *omnia/appliance/roles/inventory/files* folder.
-	* Verify whether the hosts are listed in the *provisioned_hosts.yml* file.  
-		* If hosts are not listed, then servers are not PXE booted yet.
-		* If hosts are listed, then an IP address has been assigned to them by DHCP. However, hosts are not displayed on the AWX UI as the PXE boot is still in process or is not initiated.
-	* Check for the reachable and unreachable hosts using the **provisioned_report.yml** tool present in the *omnia/appliance/tools* folder. To run provisioned_report.yml, in the omnia/appliance directory, run `playbook -i roles/inventory/files/provisioned_hosts.yml tools/provisioned_report.yml`.
+	* Verify if the provisioned_hosts.yml file is present in the omnia/control_plane/roles/collect_node_info/files/ folder.
+	* Verify whether the hosts are listed in the provisioned_hosts.yml file.
+	* If hosts are not listed, then servers are not PXE booted yet.
+If hosts are listed, then an IP address has been assigned to them by DHCP. However, hosts are not displayed on the AWX UI as the PXE boot is still in process or is not initiated.
+	* Check for the reachable and unreachable hosts using the provision_report.yml tool present in the omnia/control_plane/tools folder. To run provision_report.yml, in the omnia/control_plane/ directory, run playbook -i roles/collect_node_info/files/provisioned_hosts.yml tools/provision_report.yml.
 
 * **Issue**: There are **ImagePullBack** or **ErrPullImage** errors in the status of Kubernetes pods.  
 	**Cause**: The errors occur when the Docker pull limit is exceeded.  
 	**Resolution**:
 	* For **omnia.yml** and **control_plane.yml**: Provide the docker username and password for the Docker Hub account in the *omnia_config.yml* file and execute the playbook. 
+	* For HPC cluster, during omnia.yml execution, a kubernetes secret 'dockerregcred' will be created in default namespace and patched to service account. User needs to patch this secret in their respective namespace while deploying custom applications and use the secret as imagePullSecrets in yaml file to avoid ErrImagePull. [Click here for more info](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/)
 	* **Note**: If the playbook is already executed and the pods are in __ImagePullBack__ error, then run `kubeadm reset -f` in all the nodes before re-executing the playbook with the docker credentials.
 
 * **Issue**: The `kubectl` command stops working after a reboot and displays the following error message: *The connection to the server head_node_ip:port was refused - did you specify the right host or port?*  
@@ -172,15 +173,26 @@ stp_rpvst_default_behaviour	|	boolean: false, true	|	Configures RPVST default be
 	* `systemctl restart kubelet`  
 	
 * **Issue**: If control_plane.yml fails at the webui_awx role, then the previous IP address and password are not cleared when control_plane.yml is re-run.   
-	**Resolution**: In the *webui_awx/files* directory, delete the *.tower_cli.cfg* and *.tower_vault_key* files, and then re-run `control_plane.yml`.  
+	**Resolution**: In the *webui_awx/files* directory, delete the *.tower_cli.cfg* and *.tower_vault_key* files, and then re-run `control_plane.yml`.
 
 * **Issue**: The FreeIPA server and client installation fails.  
 	**Cause**: The hostnames of the manager and login nodes are not set in the correct format.  
 	**Resolution**: If you have enabled the option to install the login node in the cluster, set the hostnames of the nodes in the format: *hostname.domainname*. For example, *manager.omnia.test* is a valid hostname for the login node. **Note**: To find the cause for the failure of the FreeIPA server and client installation, see *ipaserver-install.log* in the manager node or */var/log/ipaclient-install.log* in the login node.  
 	
-* **Issue**: The inventoy details are not updated in AWX when device or host credentials are invalid.  
-	**Resolution**: Provide valid credentials of the devices and hosts in the cluster.  
+* **Issue**: The inventory details are not updated in AWX when device or host credentials are invalid.  
+	**Resolution**: Provide valid credentials of the devices and hosts in the cluster. 
+
+* **Issue**: The Host list is empty after executing the control_plane playbook.  
+	**Resolution**: Ensure that all devices used are in DHCP enabled mode.
 	
+* **Issue**: The task 'Install Packages' fails on the NFS node with the message: `Failure in talking to yum: Cannot find a valid baseurl for repo: base/7/x86_64.`  
+	**Cause**: There are connections missing on the NFS node.  
+	**Resolution**: Ensure that there are 3 nics being used on the NFS node:
+	1. For provisioning the OS
+	2. For connecting to the internet (Management purposes)
+	3. For connecting to PowerVault (Data Connection)  
+	
+
 # [Frequently asked questions](FAQ.md)
 
 # Limitations

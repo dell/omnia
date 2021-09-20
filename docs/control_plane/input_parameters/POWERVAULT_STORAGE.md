@@ -28,8 +28,9 @@ Under the `control_plane/input_params` directory, edit the following files:
 	powervault_me4_disk_group_name |	<ul><li>**omnia**</li><li>User-defined name</li></ul> |	Enter the group name of the disk.
 	powervault_me4_disk_partition_size [Required] |	<ul><li>**5**</li><li>Any value between 5-99</li></ul> |	Enter the partition size which would be used as an NFS share.  
 	powervault_me4_volume_size [Required] |	<ul><li>**100GB**</li><li>Custom value</li></ul> |	Enter the volume size in the format: *SizeTB*, *SizeGB*, *SizeMB*, or *SizeB*.  
-	powervault_me4_pool [Required] |	<ul><li>**a** (or A)</li><li>b (or B)</li></ul> |	Enter the pool for the volume.  
-	powervault_me4_server_nic [Required] |	<ul><li>**em1**</li></ul> |	Enter the NIC of the server to which the PowerVault Storage is connected.   
+	powervault_me4_pool [Required] |	<ul><li>**a** (or A)</li><li>b (or B)</li></ul> |	Enter the pool for the volume.
+	powervault_me4_pool_type [Required] |	<ul><li>Virtual</li><li>**Linear** </li></ul> |	Select the type of pool to be deployed on PowerVault. Ensure that all pools on the device are exclusively virtual or linear.
+		
 	
 ## Deploy Omnia Control Plane
 Before you configure the PowerVault Storage devices, you must complete the deployment of Omnia control plane. Go to Step 8 in the [Steps to install the Omnia Control Plane](../../INSTALL_OMNIA_CONTROL_PLANE.md#steps-to-deploy-the-omnia-control-plane) file to run the `ansible-playbook control_plane.yml` file.  
