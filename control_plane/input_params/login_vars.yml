@@ -16,9 +16,9 @@
 ### Usage: provision_cobbler, provison_idrac ###
 
 # Password used while deploying OS on bare metal servers.
-# The Length of the password should be at least 8.
+# The Length of the password should be at least 8 characters.
 # The password must not contain -,\, ',"
-# Mandatory value required
+# Required field
 provision_password: ""
 
 ### Usage: provision_cobbler ###
@@ -26,19 +26,19 @@ provision_password: ""
 # Password used for cobbler
 # The Length of the password should be at least 8.
 # The password must not contain -,\, ',"
-# Mandatory value required
+# Required field
 cobbler_password: ""
 
 ### Usage: provision_idrac ###
 
 # The username for idrac
 # The username must not contain -,\, ',"
-# Mandatory value required
+# Required field
 idrac_username: ""
 
 # Password used for idrac
 # The password must not contain -,\, ',"
-# Mandatory value required
+# Required field
 idrac_password: ""
 
 ### Usage: webui_awx ###
@@ -46,7 +46,7 @@ idrac_password: ""
 # Password used for awx UI
 # The Length of the password should be at least 8.
 # The password must not contain -,\, ',"
-#awx_password: ""
+awx_password: ""
 
 ### Usage: network_ethernet ###
 
