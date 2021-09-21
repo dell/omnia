@@ -46,7 +46,7 @@ idrac_password: ""
 # Password used for awx UI
 # The Length of the password should be at least 8.
 # The password must not contain -,\, ',"
-awx_password: ""
+#awx_password: ""
 
 ### Usage: network_ethernet ###
 
