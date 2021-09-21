@@ -3,7 +3,15 @@ In your HPC cluster, connect the Mellanox InfiniBand switches using the Fat-Tree
 
 Omnia uses the server-based Subnet Manager (SM). SM runs as a Kubernetes pod on the management station. To enable the SM, Omnia configures the required parameters in the `opensm.conf` file. Based on the requirement, the parameters can be edited.  
 
-**NOTE**: Install the InfiniBand hardware drivers by running the command: `yum groupinstall "Infiniband Support" -y`.  
+>>**NOTE**: Install the InfiniBand hardware drivers by running the command: `yum groupinstall "Infiniband Support" -y`.  
+
+## Setting up a new or factory reset switch
+
+When connecting to a new or factory reset switch, the configuration wizard requests to execute an initial configuration:
+* **(Recommended)** If the user enters 'no', they still have to provide the admin and monitor passwords. 
+* If the user enters 'yes', they will also be prompted to enter the hostname for the switch, DHCP details, IPv6 details, etc.
+
+>> **Note:** When initializing a factory reset switch, the user needs to ensure DHCP is enabled and an IPv6 address is not assigned. Omnia will assign an IP address to the Infiniband switch using DHCP with all other configurations.
 
 ## Edit the "input_params" file 
 Under the `control_plane/input_params` directory, edit the following files:  
