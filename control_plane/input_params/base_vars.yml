@@ -21,13 +21,13 @@ ansible_conf_file_path: /etc/ansible
 
 # This variable is used to enable ethernet switch configuration
 # Accepted values:  "true" or "false". 
-# Default value: "false".
+# Default value: "true".
 # If ethernet switch support is needed set this to "true"
 ethernet_switch_support: true
 
 # This variable is used to enable infiniband switch configuration
 # Accepted values:  "true" or "false". 
-# Default value: "false".
+# Default value: "true".
 # If infiniband configuration is needed set this to "true"
 ib_switch_support: true
 
