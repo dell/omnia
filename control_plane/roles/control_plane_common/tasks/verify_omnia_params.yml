@@ -113,7 +113,7 @@
 - name: Validate the domain name
   assert:
     that:
-      - domain_name is regex("^(?!-)[A-Za-z0-9-]+([\\-\\.]{1}[a-z0-9]+)*\\.[A-Za-z]{2,6}$")
+      - domain_name is regex("^(?!-)[A-Za-z0-9-]+([\\-\\.]{1}[a-z0-9]+)*\\.[A-Za-z]{2,}$")
     success_msg: "{{ domain_name_success_msg }}"
     fail_msg: "{{ domain_name_fail_msg }}"
   when:
@@ -123,7 +123,7 @@
 - name: Validate the realm name
   assert:
     that:
-      - realm_name is regex("^(?!-)[A-Z0-9-]+([\\-\\.]{1}[a-z0-9]+)*\\.[A-Z]{2,6}$")
+      - realm_name is regex("^(?!-)[A-Z0-9-]+([\\-\\.]{1}[a-z0-9]+)*\\.[A-Z]{2,}$")
       - '"." in realm_name'
     success_msg: "{{ realm_name_success_msg }}"
     fail_msg: "{{ realm_name_fail_msg }}"
