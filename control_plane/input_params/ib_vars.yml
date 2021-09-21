@@ -14,7 +14,7 @@
 
 
 # Default configurations written for :
-  # ----Switch-IB(TM) 2 based EDR InfiniBand 1U Switch, 36 QSFP28 ports----
+  # ----Mellanox Quantum(TM) HDR InfiniBand Switch, 40 QSFP56 ports----
 # Change the configurations as per the switch model to avoid failures
 
 # Subnet Manager: centralized resource used by infiniband
@@ -190,6 +190,22 @@ mellanox_switch_interface_config:
       - "no shutdown"
   ib 1/36:
     description: port 36
+    config:
+      - "no shutdown"
+  ib 1/37:
+    description: port 37
+    config:
+      - "no shutdown"
+  ib 1/38:
+    description: port 38
+    config:
+      - "no shutdown"
+  ib 1/39:
+    description: port 39
+    config:
+      - "no shutdown"
+  ib 1/40:
+    description: port 40
     config:
       - "no shutdown"
 

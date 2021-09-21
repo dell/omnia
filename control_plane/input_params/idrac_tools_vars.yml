@@ -23,25 +23,25 @@
 # 2FA will be enabled only if email notification is working using SMTP.
 
 # DNS domain name to set to iDRAC
-# Mandatory value required
+# Required field
 dns_domain_name: ""
 
 # IPV4 static DNS1 and DNS2
-# Mandatory value required
+# Required field
 ipv4_static_dns1: ""
 ipv4_static_dns2: ""
 
 # Server IP used for SMTP
-# Mandatory value required
+# Required field
 smtp_server_ip: ""
 
 # Email address used for enabling 2FA
-# Mandatory value required
+# Required field
 use_email_address_2fa: ""
 
 # SMTP authentication disabled by default
-# If enabled provide smtp username and password
-# Mandatory value required
+# If enabled, provide smtp username and password
+# Required field
 smtp_authentication: "disabled"
 
 # Username used for SMTP
@@ -60,13 +60,13 @@ smtp_password: ""
 
 # CA certification validation value
 # cert_validation_enable supports only disabled
-# CA Certificate can't be upload using this playbook idrac_ldap.yml.
+# CA Certificate can't be uploaded using the playbook idrac_ldap.yml.
 # If required user has to manually upload CA certificate after idrac_ldap.yml execution.
 cert_validation_enable: "disabled"
 
 # Sever address used for LDAP
-# Mandatory value required
-# Recommended to provided LDAP server ip address instead of FQDN
+# Required field
+# It's recommended to provide the LDAP server ip address instead of FQDN
 ldap_server_address: ""
 
 # TCP port port at which the LDAP server is listening for connections
@@ -83,7 +83,7 @@ bind_password: ""
 
 # The distinguished name of the search base. 
 # For example: dc=mycompany,dc=com
-# Mandatory value required
+# Required field
 base_dn: ""
 
 # User attribute used for search in LDAP server
@@ -92,9 +92,9 @@ user_attribute: ""
 # Group attribute used for search in LDAP server
 group_attribute: ""
 
-# Specify group attribute type is DN or not
-# Supported options are "enabled" or "disabled"
-# By default group_attribute_is_dn will be disabled
+# Specify whether the group attribute type is DN or not
+# Accepted Values: "enabled" or "disabled"
+# Default value: disabled
 group_attribute_is_dn: "disabled"
 
 # Search scope is related to the Base DN. 
@@ -104,11 +104,11 @@ search_filter: ""
 # DN of LDAP group be to added
 # Supports adding only one role group
 # For example: cn=Admins,cn=Group,dc=mycompany,dc=com
-# Mandatory value required
+# Required field
 role_group1_dn: ""
 
 # Privielege to LDAP role group 1
-# Supported options are Administrator, Operator, ReadOnly
-# By default role_group1_privilege will be Administrator
-# Mandatory value required
+# Supported values: "Administrator", "Operator", "ReadOnly"
+# Default value: role_group1_privilege will be "Administrator"
+# Required field
 role_group1_privilege: "Administrator"
