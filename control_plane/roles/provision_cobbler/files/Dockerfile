@@ -11,7 +11,7 @@ RUN dnf update -y \
     && rm -rf /var/cache/dnf
 
 RUN dnf install -y git
-RUN git clone -b release32  https://github.com/cobbler/cobbler.git
+RUN git clone -b v3.2.1 https://github.com/cobbler/cobbler.git
 RUN cd cobbler/
 
 RUN mkdir /root/omnia
