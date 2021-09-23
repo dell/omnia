@@ -15,8 +15,6 @@ Omnia can build clusters which use Slurm or Kubernetes (or both!) for workload m
 
 Whenever possible, Omnia will leverage existing projects rather than reinvent the wheel.
 
-![Omnia draws from existing repositories](images/omnia-overview.png)
-
 ### Omnia stacks
 Omnia can install Kubernetes or Slurm (or both), along with additional drivers, services, libraries, and user applications.
 ![Omnia Kubernetes Stack](images/omnia-k8s.png)
