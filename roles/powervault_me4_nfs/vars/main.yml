@@ -35,4 +35,5 @@ pv_nic_ip: 192.168.25.3
 pv_nic_gateway: 192.168.25.1
 pv_port_ip: 192.168.25.5
 pv_nfs_file: "{{ role_path }}/../../control_plane/input_params/powervault_me4_vars.yml"
-nic_path: "/etc/sysconfig/network-scripts/ifcfg-{{ powervault_me4_server_nic }}"    
+nic_path: "/etc/sysconfig/network-scripts/ifcfg-{{ powervault_me4_server_nic }}"   
+pv_ports_file: "{{ playbook_dir }}/control_plane/roles/powervault_me4/tasks/ports.yml"
