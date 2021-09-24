@@ -20,7 +20,20 @@
   no_log: true
   register: hosts_list
 
-- name: Add the host to the group in node_inventory if present
+- name: Add the host to compute group in node_inventory if it exists
+  awx.awx.tower_group:
+    name: "{{ item.split(',')[3] }}"
+    inventory: "{{ node_inventory }}"
+    preserve_existing_hosts: true
+    hosts:
+      - "{{ item.split(',')[2] }}"
+    tower_config_file: "{{ tower_config_file }}"
+  when:
+    - item.split(',')[2] != "IP"
+    - item.split(',')[2] in hosts_list.stdout 
+    - item.split(',')[3] == "compute"
+
+- name: Add the host to other groups in node_inventory if it exists
   awx.awx.tower_group:
     name: "{{ item.split(',')[3] }}"
     inventory: "{{ node_inventory }}"
@@ -30,3 +43,4 @@
   when:
     - item.split(',')[2] != "IP"
     - item.split(',')[2] in hosts_list.stdout
+    - item.split(',')[3] != "compute"
