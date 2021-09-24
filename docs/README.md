@@ -192,6 +192,12 @@ If hosts are listed, then an IP address has been assigned to them by DHCP. Howev
 	2. For connecting to the internet (Management purposes)
 	3. For connecting to PowerVault (Data Connection)  
 	
+	
+* **Issue**: Hosts are not automatically deleted from awx UI when redeploying the cluster.  
+	**Resolution**: Before re-deploying the cluster, ensure that the user manually deletes all hosts from the awx UI.
+	
+* **Issue**: Decomissioned compute nodes do not get deleted automatically from the awx UI.
+	**Resolution**: Once a node is decommisioned, ensure that the user manually deletes decomissioned hosts from the awx UI.
 
 # [Frequently asked questions](FAQ.md)
 
