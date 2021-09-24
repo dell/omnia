@@ -65,6 +65,9 @@ Thanks goes to everyone who makes Omnia possible ([emoji key](https://allcontrib
     <td align="center"><a href="https://github.com/Bhagyashree-shetty"><img src="https://avatars.githubusercontent.com/u/90620926?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Bhagyashree-shetty</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=Bhagyashree-shetty" title="Tests">⚠️</a> <a href="https://github.com/dellhpc/omnia/commits?author=Bhagyashree-shetty" title="Code">💻</a></td>
     <td align="center"><a href="https://github.com/nihalranjan-hpc"><img src="https://avatars.githubusercontent.com/u/84398828?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Nihal Ranjan</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=nihalranjan-hpc" title="Tests">⚠️</a> <a href="https://github.com/dellhpc/omnia/commits?author=nihalranjan-hpc" title="Code">💻</a></td>
   </tr>
+  <tr>
+    <td align="center"><a href="https://github.com/ptrinesh"><img src="https://avatars.githubusercontent.com/u/73214211?v=4?s=100" width="100px;" alt=""/><br /><sub><b>ptrinesh</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=ptrinesh" title="Code">💻</a></td>
+  </tr>
 </table>
 
 <!-- markdownlint-restore -->
