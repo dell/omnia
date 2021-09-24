@@ -162,12 +162,12 @@
   - name: Validation to check number of login nodes defined
     fail:
       msg: "{{ fail_mapping_file_login_role }}"
-    when: not ( count_of_login|int == 1)
+    when: (not ( count_of_login|int == 1) and login_node_required) or ((count_of_login|int == 1) and not login_node_required)
 
   - name: Validation to check number of nfs nodes defined
     fail:
       msg: "{{ fail_mapping_file_nfs_role }}"
-    when: powervault_support and not (count_of_nfs_node|int == 1)
+    when: (not (count_of_nfs_node|int == 1) and powervault_support) or ((count_of_nfs_node|int == 1) and not powervault_support)
   tags: install
 
   rescue:
