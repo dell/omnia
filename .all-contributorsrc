@@ -2,7 +2,7 @@
   "files": [
     "README.md"
   ],
-  "imageSize": 100,
+  "imageSize": 75,
   "commit": false,
   "badgeTemplate": "<!-- DO NOT ADD A BADGE -->",
   "contributors": [
@@ -300,7 +300,7 @@
       ]
     }
   ],
-  "contributorsPerLine": 7,
+  "contributorsPerLine": 10,
   "projectName": "omnia",
   "projectOwner": "dellhpc",
   "repoType": "github",
