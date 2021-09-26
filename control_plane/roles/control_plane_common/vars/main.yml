@@ -170,8 +170,8 @@ fail_mapping_file_roles_error: "Failed. Define correct Component Roles for each 
                                  {{ group_name_login }}, {{ group_name_nfs }}"
 fail_mapping_file_manager_role: "Exactly 1 manager node must be defined"
 fail_mapping_file_compute_role: "Atleast 1 compute node must be defined"
-fail_mapping_file_login_role: "Exactly 1 login node must be defined"
-fail_mapping_file_nfs_role: "Exactly 1 nfs node must be defined"
+fail_mapping_file_login_role: "Exactly 1 login node must be defined or login_node_required must be true in omnia_config.yml"
+fail_mapping_file_nfs_role: "Exactly 1 nfs node must be defined or powervault_support must be true in base_vars.yml"
 count_of_roles_defined: "Component Roles defined: Manager Node: {{ count_of_manager }},
                         Compute Nodes: {{ count_of_compute }}, Login Node: {{ count_of_login }},
                         Nfs Node: {{ count_of_nfs_node }}, Total Nodes: {{ count_total_items }} "

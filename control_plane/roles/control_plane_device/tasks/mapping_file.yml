@@ -67,6 +67,7 @@
   copy:
     src: "{{ temp_mgmt_mapping_file }}"
     dest: "{{ role_path }}/files/backup_mngmnt_mapping_file.csv"
+    mode: 0644
 
 - name: Get mngmnt container pod name
   command: 'kubectl get pod -n network-config -l app=mngmnt-network -o jsonpath="{.items[0].metadata.name}"'

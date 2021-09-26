@@ -15,7 +15,7 @@
 ---
 
 - name: Include
-  include_tasks: "{{ playbook_dir }}/../../../control_plane/roles/powervault_me4/tasks/ports.yml"
+  include_tasks: "{{ pv_ports_file }}"
 
 - name: Refresh ssh keys
   command: ssh-keygen -R {{ groups['powervault_me4'][0] }}

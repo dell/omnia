@@ -2,7 +2,7 @@
   "files": [
     "README.md"
   ],
-  "imageSize": 100,
+  "imageSize": 75,
   "commit": false,
   "badgeTemplate": "<!-- DO NOT ADD A BADGE -->",
   "contributors": [
@@ -46,7 +46,8 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/73213880?v=4",
       "profile": "https://github.com/DeepikaKrishnaiah",
       "contributions": [
-        "code"
+        "code",
+        "test"
       ]
     },
     {
@@ -135,7 +136,8 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/72869337?v=4",
       "profile": "https://github.com/Shubhangi-dell",
       "contributions": [
-        "code"
+        "code",
+        "maintenance"
       ]
     },
     {
@@ -288,9 +290,18 @@
         "test",
         "code"
       ]
+    },
+    {
+      "login": "ptrinesh",
+      "name": "ptrinesh",
+      "avatar_url": "https://avatars.githubusercontent.com/u/73214211?v=4",
+      "profile": "https://github.com/ptrinesh",
+      "contributions": [
+        "code"
+      ]
     }
   ],
-  "contributorsPerLine": 7,
+  "contributorsPerLine": 10,
   "projectName": "omnia",
   "projectOwner": "dellhpc",
   "repoType": "github",
