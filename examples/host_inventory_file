@@ -4,14 +4,18 @@ all:
       children:
         manager:
           hosts:
-            compute000:
+            manager.omnia.local:
+        nfs_node:
+          hosts:
+            manager.omnia.local:
+        login_node:
+          hosts:
+            login1.omnia.local:
         workers:
           children:
             compute:
               hosts:
-                compute001:
-            gpus:
-              hosts:
-                compute002:
-                compute003:
-                compute004:
+                compute001.omnia.local;
+                compute002.omnia.local;
+                compute003.omnia.local;
+                compute004.omnia.local;

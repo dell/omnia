@@ -106,19 +106,19 @@ git clone -b release https://github.com/dellhpc/omnia.git
 >> **Note**:
 >> * Supported values for Kubernetes CNI are calico and flannel. The default value of CNI considered by Omnia is calico.	
 >> * The default value of Kubernetes Pod Network CIDR is 10.244.0.0/16. If 10.244.0.0/16 is already in use within your network, select a different Pod Network CIDR. For more information, see __https://docs.projectcalico.org/getting-started/kubernetes/quickstart__.  
->> * The default path of the Ansible configuration file is `/etc/ansible/`. If the file is not present in the default path, then edit the `ansible_config_file_path` variable to update the configuration path.
+>> * The default path of the Ansible configuration file is `/etc/ansible/`. If the file is not present in the default path, then edit the `ansible_conf_file_path` variable to update the configuration path.
 
 5. Change the directory to **control_plane/input_params** using the command: `cd omnia/control_plane/input_params`
 6. Edit the *base_vars.yml* file to update the following variables:  
 
 	| Variables</br> [Required/ Optional]	|	Default, choices	|	Description	|	
 	| -----------	|	-----------	|	-----------	|	
-	ansible_config_file_path	|	**/etc/ansible**	| Directory path with the Ansible configuration file (ansible.cfg). If Ansible is installed using pip, provide the directory path. If the path is not provided, it is set as /etc/ansible, by default.	|
+	ansible_conf_file_path	|	**/etc/ansible**	| Directory path with the Ansible configuration file (ansible.cfg). If Ansible is installed using pip, provide the directory path. If the path is not provided, it is set as /etc/ansible, by default.	|
 	public_nic</br>	[Required]|	**eno2**	| The NIC or Ethernet card connected to the public internet.  |
 	appliance_k8s_pod_net_cidr</br>	[Required]	|	**192.168.0.0/16**	| Kubernetes pod network CIDR for appliance k8s network. Ensure this value does not overlap with any of the host networks.	|
 	snmp_trap_destination	|		| Enter an SNMP server IP address to receive SNMP traps from devices in the cluster. If this variable is left blank, SNMP will be disabled.	|
 	snmp_community_name</br>	[Required] 	|	**public**	| SNMP community name. 	|
-	awx_configuration	|	**DellEMC**	| Organization name configured in AWX.	|
+	awx_organization	|	**DellEMC**	| Organization name configured in AWX.	|
 	timezone	|	**GMT**	| Enter a timezone that is set during the provisioning of OS. **GMT** is set as the default time zone. You can set the time zone to **EST**, **CET**, **MST**, **CST6CDT**, or **PST8PDT**. For a list of available time zones, see the `appliance/common/files/timezone.txt` file.	|
 	language	|	**en-US**	| Set the language used during the provisioning of OS. By default, it is set to **en-US**.	|
 	iso_file_path</br>	[Required]	|		| Provide the CentOS-7-x86_64-Minimal-2009 ISO file path. This ISO file is used by Cobbler to provision the OS on the compute nodes. **Note**: It is recommended that the ISO image file is not renamed. And, you **must not** change the path of this ISO image file as the provisioning of the OS on the compute nodes may be impacted.	|
