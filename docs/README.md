@@ -16,12 +16,9 @@ Omnia can build clusters that use Slurm or Kubernetes (or both!) for workload ma
 - Standard CentOS and [ELRepo](http://elrepo.org) repositories
 - Helm repositories
 - Source code compilation
-- [OpenHPC](https://openhpc.community) repositories (_coming soon!_)
-- [OperatorHub](https://operatorhub.io) (_coming soon!_)
+- [OperatorHub](https://operatorhub.io)
 
 Whenever possible, Omnia will leverage existing projects rather than reinvent the wheel.
-
-![Omnia draws from existing repositories](images/omnia-overview.png)
 
 ### Omnia stacks
 Omnia can install Kubernetes or Slurm (or both), along with additional drivers, services, libraries, and user applications.
