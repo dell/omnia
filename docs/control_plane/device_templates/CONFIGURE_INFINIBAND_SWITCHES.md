@@ -20,7 +20,7 @@ Under the `control_plane/input_params` directory, edit the following files:
 
 	File name	|	Variables	|	Default, choices	|	Description
 	-----------	|	-------	|	----------------	|	-----------------
-	base_vars.yml	|	ib_switch_support	|	<ul><li>**false**</li><li>true</li></ul>	|	To enable Mellanox InfiniBand switch configuration, set the variable to "true".
+	base_vars.yml	|	ib_switch_support	|	<ul><li>false</li><li>**true**</li></ul>	|	To enable Mellanox InfiniBand switch configuration, set the variable to "true".
 	<br>	|	ib_network_nic	|	<ul><li>**ib0**</li></ul>	|	NIC or Ethernet card that must be connected to configure Mellanox InfiniBand switches.  
 	<br>	|	ib_network_dhcp_start_range, ib_network_dhcp_end_range	|		|	DHCP range for the DHCP server to assign IPv4 addresses.
 	

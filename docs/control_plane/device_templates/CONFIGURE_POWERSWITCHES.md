@@ -6,7 +6,7 @@ Under the `control_plane/input_params` directory, edit the following files:
 
 	Variable	|	Default, choices	|	Description
 	-------	|	----------------	|	-----------------
-	ethernet_switch_support	|	<ul><li>**false**</li><li>true</li></ul>	|	Set the variable to "true" to enable Ethernet switch configurations.  
+	ethernet_switch_support	|	<ul><li>false</li><li>**true**</li></ul>	|	Set the variable to "true" to enable Ethernet switch configurations.  
 
 2. `login_vars.yml` file:  Enter the following details to configure Ethernet switches.  
 	a. `ethernet_switch_username`- username for Ethernet switches.  
