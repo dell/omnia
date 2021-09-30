@@ -157,9 +157,9 @@ Omnia creates a log file which is available at: `/var/log/omnia.log`.
 After you deploy the Omnia control plane, the devices such as Ethernet switches, InfiniBand Switches, and PowerVault storage devices are configured by Omnia according to the support enabled in the *base_vars.yml* file. The bare metal servers in the cluster are provisioned with custom CentOS based on the availability of iDRAC Enterprise or Datacenter License on the iDRAC.
 
 ## Default Ansible AWX configurations  
-The role used to deploy AWX within the *control_plane.yml* file: *webui_awx*.  
-All the pods are deployed in the specific namespace: *awx*.  
-The AWX reference source code repository: https://github.com/ansible/awx.git 
+* The role used to deploy AWX within the *control_plane.yml* file: *webui_awx*.  
+* All the pods are deployed in the specific namespace: *awx*.  
+* The AWX reference source code repository: https://github.com/ansible/awx.git 
 
 Omnia performs the following configurations on AWX:
 * The organization's name is set to **DellEMC**.
@@ -169,7 +169,7 @@ Omnia performs the following configurations on AWX:
 * The device credentials are stored in **idrac_credential**, **ethernet_credential**, **infiniband_credential**, and **powervault_me4_credential**. The **node_credential** stores the credentials of nodes in the cluster. 
 * Four groups are created under **node_inventory**-manager, compute, login, and nfs. All nodes in the inventory are added to these groups from the AWX UI.
 * iDRAC, networking switches, InfiniBand switches, and PowerVault storage devices can be configured using the respective templates: **idrac_template**, **ethernet_template**, **infiniband_template**, and **powervault_me4_template**. **deploy_omnia_template** is used to deploy Kubernetes and Slurm on the compute nodes. 
-* Schedules are created for **node_inventory_job** and **device_inventory_job** templates. These schedules are set to run every 10 minutes to dynamically retrieve and update the node and device details to AWX.  
+* Schedules are created for the **node_inventory_job** (every **10 minutes**) and the **device_inventory_job** (**once daily**) to dynamically retrieve and update node and device details to AWX.  
 
 >> **Note**: The AWX configurations are automatically performed by Omnia, and Dell Technologies recommends that you do not change the default configurations that are provided by Omnia as the functionality may be impacted.  
 
