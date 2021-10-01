@@ -39,7 +39,7 @@
       verbosity: 2
 
 - name: Inspect the mngmnt_network_container image
-  command: "buildah images {{ mngmnt_network_image_name }}"
+  command: "buildah images"
   register: mngmnt_network_container_image_result
   failed_when: false
   changed_when: false
@@ -55,7 +55,7 @@
 - name: Update mngmnt_network_container image status
   set_fact:
     mngmnt_network_container_image_status: true
-  when: "'No such image' not in mngmnt_network_container_image_result.stderr"
+  when: mngmnt_network_image_name in mngmnt_network_container_image_result.stdout
   tags: install
 
 - name: Update mngmnt_network_container container status
