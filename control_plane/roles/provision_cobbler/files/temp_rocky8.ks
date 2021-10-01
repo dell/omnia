@@ -1,13 +1,7 @@
-#version=CENTOS7
+#version=RHEL8
 
 # Use network installation
-url --url http://ip/cblr/links/centos-x86_64/
-
-# Install OS instead of upgrade
-install
-
-# Use text install
-text
+url --url http://ip/cblr/links/rocky-x86_64/
 
 # SELinux configuration
 selinux --disabled
@@ -15,18 +9,17 @@ selinux --disabled
 # Firewall configuration
 firewall --disabled
 
+# text install
+text
+
 # Do not configure the X Window System
 skipx
-
-# Run the Setup Agent on first boot
-#firstboot --enable
-ignoredisk --only-use=sda
 
 # Keyboard layouts
 keyboard us
 
 # System language
-lang en_US
+lang ks_language
 
 # Network information
 network  --bootproto=dhcp --device=link --onboot=on --activate
@@ -41,18 +34,16 @@ services --enabled="chronyd"
 timezone --utc ks_timezone
 
 # System bootloader configuration
-bootloader --location=mbr --boot-drive=sda
+bootloader --location=mbr
 
-# Partition clearing information
-clearpart --all --initlabel --drives=sda
-
-# Clear the Master Boot Record
+# Tell it to blow away the master boot record on the hard drive
 zerombr
 
-# Disk Partitioning
-partition /boot/efi --asprimary --fstype=vfat --label EFI  --size=200
-partition /boot     --asprimary --fstype=ext4 --label BOOT --size=500
-partition /         --asprimary --fstype=ext4 --label ROOT --size=4096 --grow
+# Tell it to do a dumb move and blow away all partitions
+clearpart --all --initlabel
+
+# Auto partitioning
+autopart
 
 # Reboot after installation
 reboot

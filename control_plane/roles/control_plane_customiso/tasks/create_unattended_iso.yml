@@ -13,39 +13,68 @@
 #  limitations under the License.
 ---
 
-- name: Create custom ISO
-  command: >-
-    mkisofs -o /tmp/{{ unattended_iso_filename }} -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4
-    -boot-info-table -eltorito-alt-boot -e images/efiboot.img -no-emul-boot -J -R -V "CentOS 7 x86_64"  {{ tmp_iso_dir }}
-  changed_when: true
-  register: custom_iso_status
-  tags: install
-  args:
-    chdir: "{{ tmp_iso_dir }}"
+- name: ISO creation - centos
+  block:
+    - name: Create custom ISO
+      command: >-
+        mkisofs -o /tmp/{{ centos_iso_filename }} -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4
+        -boot-info-table -eltorito-alt-boot -e images/efiboot.img -no-emul-boot -J -R -V "CentOS 7 x86_64"  {{ tmp_iso_dir }}
+      changed_when: true
+      register: centos_iso_status
+      tags: install
+      args:
+        chdir: "{{ tmp_iso_dir }}"
 
-- name: Custom ISO creation status check
-  assert:
-    that:
-      - "'Total directory bytes:' in custom_iso_status.stderr"
-      - "'Path table size(bytes):' in custom_iso_status.stderr"
-      - "'Max brk space used' in custom_iso_status.stderr"
-      - "'extents written' in custom_iso_status.stderr"
-    success_msg: "{{ custom_iso_success_msg }}"
-    fail_msg: "{{ custom_iso_fail_msg }}"
-  register: iso_success_check
+    - name: Custom ISO creation status check
+      assert:
+        that:
+          - "'Total directory bytes:' in centos_iso_status.stderr"
+          - "'Path table size(bytes):' in centos_iso_status.stderr"
+          - "'Max brk space used' in centos_iso_status.stderr"
+          - "'extents written' in centos_iso_status.stderr"
+        success_msg: "{{ custom_iso_success_msg }}"
+        fail_msg: "{{ custom_iso_fail_msg }}"
+
+    - name: Copy ISO file to nfs share
+      copy:
+        src: "/tmp/{{ centos_iso_filename }}"
+        dest: "{{ nfs_share_offline_repo }}/{{ centos_iso_filename }}"
+        mode: preserve
+      tags: install
+  when: provision_os == os_supported_centos
+
+- name: ISO creation - rocky
+  block:
+    - name: Create custom ISO
+      command: >-
+        mkisofs -o /tmp/{{ rocky_iso_filename }} -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4
+        -boot-info-table -eltorito-alt-boot -e images/efiboot.img -no-emul-boot -J -R -V "Rocky-8-4-x86_64-dvd"  {{ tmp_iso_dir }}
+      changed_when: true
+      register: rocky_iso_status
+      tags: install
+      args:
+        chdir: "{{ tmp_iso_dir }}"
+
+    - name: Custom ISO creation status check
+      assert:
+        that:
+          - "'Total directory bytes:' in rocky_iso_status.stderr"
+          - "'Path table size(bytes):' in rocky_iso_status.stderr"
+          - "'Max brk space used' in rocky_iso_status.stderr"
+          - "'extents written' in rocky_iso_status.stderr"
+        success_msg: "{{ custom_iso_success_msg }}"
+        fail_msg: "{{ custom_iso_fail_msg }}"
+
+    - name: Copy ISO file to nfs share
+      copy:
+        src: "/tmp/{{ rocky_iso_filename }}"
+        dest: "{{ nfs_share_offline_repo }}/{{ rocky_iso_filename }}"
+        mode: preserve
+      tags: install
+  when: provision_os == os_supported_rocky
 
 - name: Remove the kickstart file
   file:
-    path: "{{ role_path }}/files/{{ kickstart_file }}"
+    path: "{{ role_path }}/files/{{ idrac_kickstart_file }}"
     state: absent
-  tags: install
-
-- name: Include control_plane_common vars
-  include_vars: ../../control_plane_common/vars/main.yml
-
-- name: Copy ISO file to nfs share
-  copy:
-    src: "/tmp/{{ unattended_iso_filename }}"
-    dest: "{{ nfs_share_offline_repo }}/{{ unattended_iso_filename }}"
-    mode: preserve
   tags: install

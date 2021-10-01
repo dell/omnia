@@ -17,9 +17,6 @@
   hosts: localhost
   connection: local
   gather_facts: false
-  vars:
-    name_iso: CentOS7
-    distro_name: CentOS7-x86_64
   tasks:
   - name: Inside cobbler container
     debug:
@@ -32,7 +29,7 @@
     changed_when: false
 
   - name: Install cobbler and cobbler-web
-    command: dnf install -y cobbler-3.2.1-1.el8.noarch.rpm cobbler-web-3.2.1-1.el8.noarch.rpm
+    command: dnf install -y cobbler-3.2.2-1.el8.noarch.rpm cobbler-web-3.2.2-1.el8.noarch.rpm
     args:
       chdir: /cobbler/rpm-build
     changed_when: false
@@ -98,12 +95,21 @@
     command: cobbler import --arch=x86_64 --path=/mnt --name="{{ name_iso }}"
     changed_when: false
 
-  - name: Kickstart profile
+  - name: Kickstart profile - centos
     copy:
-      src: "/var/lib/cobbler/templates/centos7.ks"
+      src: "/root/centos7.ks"
       dest: "/var/lib/cobbler/templates/sample.ks"
       mode: 0775
     tags: install
+    when: name_iso == "centos"
+
+  - name: Kickstart profile - rocky
+    copy:
+      src: "/root/rocky8.ks"
+      dest: "/var/lib/cobbler/templates/sample.ks"
+      mode: 0775
+    tags: install
+    when: name_iso == "rocky"
 
   - name: Pxe menu
     copy:
@@ -130,25 +136,15 @@
     command: cobbler sync
     changed_when: false 
 
-  - name: Restart cobbler
+  - name: Restart cobblerd, http, xinetd and dhcpd
     service:
-      name: cobblerd
+      name: "{{ item }}"
       state: restarted
-
-  - name: Restart httpdd
-    service:
-      name: httpd
-      state: restarted
-
-  - name: Restart xinetd
-    service:
-      name: xinetd
-      state: restarted
-
-  - name: Restart dhcpd
-    service:
-      name: dhcpd
-      state: restarted
+    loop:
+      - cobblerd
+      - httpd
+      - xinetd
+      - dhcpd
 
   - name: Fetch ansible-playbook path
     command: whereis ansible-playbook

@@ -15,12 +15,11 @@
 
 # vars file for provision
 
-#Usage: mapping_file.yml
+# Usage: mapping_file.yml
 temp_host_mapping_file: "{{ role_path }}/files/new_host_mapping_file.csv"
 
-#Usage: check_prerequisite.yml
-iso_name: CentOS-7-x86_64-Minimal-2009.iso
-iso_fail: "Iso file not found. Download and copy the iso file to omnia/control_plane/roles/provision_cobbler/files"
+# Usage: check_prerequisite.yml
+cobbler_namespace: cobbler
 
 # Usage: provision_password.yml
 provision_encrypted_dest: ../files/
@@ -29,7 +28,9 @@ base_file: "{{ role_path }}/../../input_params/base_vars.yml"
 login_vault_file: "{{ role_path }}/../../input_params/.login_vault_key"
 username: cobbler
 user_mode: 0644
-host_nic:
+cobbler_centos_ks: centos7.ks
+cobbler_rocky_ks: rocky8.ks
+centos_host_nic:
  - em1
  - em2
  - em3
@@ -42,6 +43,19 @@ host_nic:
  - p2p2
  - p1p2
  - p1p1
+rocky_host_nic:
+ - eno1
+ - eno2
+ - eno3
+ - eno4
+ - ens4f0
+ - ens4f1
+ - ens3f0
+ - ens3f1
+ - ens2f0
+ - ens2f1
+ - ens1f0
+ - ens1f1
 
 # Usage: cobbler_image.yml
 cobbler_image_name: cobbler

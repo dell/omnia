@@ -33,9 +33,12 @@
   tags: install
 
 - name: Check OS support
-  fail:
-    msg: "{{ os_status }}"
-  when: not(ansible_distribution == os_name and ansible_distribution_version >= os_version)
+  assert:
+    that:
+      - ( ansible_distribution | lower == os_supported_centos ) and ( ansible_distribution_version >= os_supported_centos_version ) or
+        ( ansible_distribution | lower == os_supported_rocky ) and ( ansible_distribution_version >= os_supported_rocky_version )
+    fail_msg: "{{ fail_os_status }}"
+    success_msg: "{{ success_os_status }}"
   register: os_value
   tags: install
 

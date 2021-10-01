@@ -33,7 +33,9 @@
 
 - name: Create VD
   include_tasks: create_vd.yml
-  when: not provision_status
+  when: 
+     - not provision_status
+     - provision_state == "stateful"
 
 - name: Deploy OS
   include_tasks: deploy_os.yml

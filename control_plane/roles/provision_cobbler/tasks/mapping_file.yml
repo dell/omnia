@@ -71,21 +71,21 @@
     mode: 0644
 
 - name: Get cobbler pod name
-  command: 'kubectl get pod -n cobbler -l app=cobbler -o jsonpath="{.items[0].metadata.name}"'
+  command: 'kubectl get pod -n {{ cobbler_namespace }} -l app=cobbler -o jsonpath="{.items[0].metadata.name}"'
   changed_when: false
   register: cobbler_pod_name
   when: cobbler_container_status
   tags: install
 
 - name: Copy the dhcp.template inside container
-  command: 'kubectl exec --stdin --tty -n cobbler {{ cobbler_pod_name.stdout }} \
+  command: 'kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} \
     -- cp /root/omnia/control_plane/roles/provision_cobbler/files/dhcp.template /etc/cobbler/dhcp.template'
   when:  ( cobbler_container_status ) and ( new_node_status )
 
 - name: Cobbler sync for adding new nodes
-  command: 'kubectl exec --stdin --tty -n cobbler {{ cobbler_pod_name.stdout }} -- cobbler sync'
+  command: 'kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} -- cobbler sync'
   when:  ( cobbler_container_status ) and ( new_node_status )
 
 - name: Restart dhcpd
-  command: 'kubectl exec --stdin --tty -n cobbler {{ cobbler_pod_name.stdout }} -- systemctl restart dhcpd'
+  command: 'kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} -- systemctl restart dhcpd'
   when:  ( cobbler_container_status ) and ( new_node_status )

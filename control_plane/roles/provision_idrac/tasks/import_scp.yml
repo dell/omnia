@@ -53,7 +53,7 @@
     - '  <Attribute Name="HttpDev2EnDis">Disabled</Attribute>'
     - '  <Attribute Name="HttpDev3EnDis">Disabled</Attribute>'
     - '  <Attribute Name="HttpDev4EnDis">Disabled</Attribute>'
-  when: provision_method == "pxe"
+  when: provision_method == provision_method_pxe
   run_once: true
 
 - name: Disable PXE attributes to SCP file
@@ -66,7 +66,7 @@
     - '  <Attribute Name="PxeDev2EnDis">Disabled</Attribute>'
     - '  <Attribute Name="PxeDev3EnDis">Disabled</Attribute>'
     - '  <Attribute Name="PxeDev4EnDis">Disabled</Attribute>'
-  when: provision_method == "idrac"
+  when: provision_method == provision_method_idrac
   run_once: true
 
 - name: Add SNMP community name attribute to SCP file
@@ -87,21 +87,26 @@
   when: snmp_trap_status
   run_once: true
 
-- name: Import SCP from a local path and wait for this job to get completed
-  dellemc.openmanage.idrac_server_config_profile:
-    idrac_ip: "{{ inventory_hostname }}"
-    idrac_user: "{{ idrac_username }}"
-    idrac_password: "{{ idrac_password }}"
-    share_name: "{{ role_path }}/files/"
-    command: "import"
-    scp_file: "{{ scp_filename }}"
-    scp_components: "ALL"
-    shutdown_type: "Forced"
-    job_wait: "True"
-  register: import_scp_status
-  until: not import_scp_status.failed
-  retries: "{{ retries_count }}"
-  
+- block:
+    - name: Import SCP from a local path and wait for this job to get completed
+      dellemc.openmanage.idrac_server_config_profile:
+        idrac_ip: "{{ inventory_hostname }}"
+        idrac_user: "{{ idrac_username }}"
+        idrac_password: "{{ idrac_password }}"
+        share_name: "{{ role_path }}/files/"
+        command: "import"
+        scp_file: "{{ scp_filename }}"
+        scp_components: "ALL"
+        shutdown_type: "Forced"
+        job_wait: "True"
+      register: import_scp_status
+      until: not import_scp_status.failed
+      retries: "{{ retries_count }}"
+  rescue:
+    - name: Import SCP failed
+      fail:
+        msg: "{{ import_scp_fail_msg }}"
+        
 - name: Remove the SCP file
   file:
     path: "{{ role_path }}/files/{{ scp_filename }}"

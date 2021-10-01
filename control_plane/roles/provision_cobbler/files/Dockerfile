@@ -11,7 +11,7 @@ RUN dnf update -y \
     && rm -rf /var/cache/dnf
 
 RUN dnf install -y git
-RUN git clone -b v3.2.1 https://github.com/cobbler/cobbler.git
+RUN git clone -b v3.2.2 https://github.com/cobbler/cobbler.git
 RUN cd cobbler/
 
 RUN mkdir /root/omnia
@@ -59,7 +59,6 @@ COPY .users.digest /etc/cobbler/users.digest
 COPY cobbler_configurations.yml /root
 COPY tftp.yml /root
 COPY inventory_creation.yml /root
-COPY centos7.ks /var/lib/cobbler/templates/
 
 EXPOSE 69 80 443 25151
 
