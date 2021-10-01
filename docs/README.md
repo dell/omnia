@@ -100,7 +100,7 @@ AWX	|	Apache-2.0	|	19.1.0	|	Web-based User Interface
 AWX.AWX	|	Apache-2.0	|	19.1.0	|	Galaxy collection to perform awx configuration
 AWXkit	|	Apache-2.0	|	to be updated	|	To perform configuration through CLI commands
 Cri-o	|	Apache-2.0	|	1.21	|	Container Service
-Buildah	|	Apache-2.0	|	1.19.8	|	Tool to build and run container
+Buildah	|	Apache-2.0	|	1.21.4	|	Tool to build and run container
 PostgreSQL	|	Copyright (c) 1996-2020, PostgreSQL Global Development Group	|	10.15	|	Database Management System
 Redis	|	BSD-3-Clause License	|	6.0.10	|	In-memory database
 NGINX	|	BSD-2-Clause License	|	1.14	|	-
