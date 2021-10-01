@@ -40,7 +40,7 @@
       verbosity: 2
 
 - name: Inspect the infiniband_container image
-  command: "buildah images {{ infiniband_image_name }}"
+  command: "buildah images"
   register: infiniband_container_image_result
   failed_when: false
   changed_when: false
@@ -56,7 +56,7 @@
 - name: Update infiniband_container image status
   set_fact:
     infiniband_container_image_status: true
-  when: "'No such image' not in infiniband_container_image_result.stderr"
+  when: infiniband_image_name in infiniband_container_image_result.stdout
   tags: install
 
 - name: Update infiniband_container container status
