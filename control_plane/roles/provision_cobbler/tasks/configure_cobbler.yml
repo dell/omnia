@@ -35,7 +35,7 @@
     timeout: 30
 
 - name: Copy dhcpd.leases from cobbler
-  command: kubectl cp {{ role_path}}/files/{{ cobbler_kickstart_file }} {{ cobbler_pod_name.stdout }}:/root/{{ cobbler_kickstart_file }} -n {{ cobbler_namespace }}
+  command: kubectl cp {{ role_path }}/files/{{ cobbler_kickstart_file }} {{ cobbler_pod_name.stdout }}:/root/{{ cobbler_kickstart_file }} -n {{ cobbler_namespace }}
   changed_when: true
   when: not cobbler_config_status
 
