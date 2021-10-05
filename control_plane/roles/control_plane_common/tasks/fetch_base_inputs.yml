@@ -36,7 +36,9 @@
       host_network_dhcp_start_range | length < 1 or
       host_network_dhcp_end_range | length < 1 or
       provision_method | length < 1 or
-      default_lease_time | length < 1
+      default_lease_time | length < 1 or
+      provision_os | length < 1 or
+      provision_state | length < 1
 
 - name: Validate default lease time
   assert:
@@ -172,16 +174,9 @@
     success_msg: "{{ success_awx_organization }}"
     fail_msg: "{{ fail_awx_organization }}"
 
-- name: Assert provisioning method
-  assert:
-    that:
-      - provision_method == "pxe" or provision_method == "idrac"
-    success_msg: "{{ success_provision_method }}"
-    fail_msg: "{{ fail_provision_method }}"
-
 - name: Check timezone file
   command: grep -Fx "{{ timezone }}" {{ role_path }}/files/timezone.txt
-  ignore_errors: yes
+  failed_when: false
   register: timezone_out
   changed_when: false
 
@@ -197,22 +192,54 @@
     msg: "{{ fail_language }}"
   when: '"en-US" not in language'
 
+- name: Assert provisioning method
+  assert:
+    that:
+      - provision_method == "PXE" or provision_method == "idrac"
+    success_msg: "{{ success_provision_method }}"
+    fail_msg: "{{ fail_provision_method }}"
+
+- name: Assert provision_state
+  assert:
+    that: 
+      - provision_state == "stateful" or 
+        provision_state == "stateless"
+    fail_msg: "{{ provision_state_fail_msg }}"
+    success_msg: "{{ provision_state_success_msg }}"
+
+- name: Assert operating system
+  assert:
+    that:
+      - provision_os == os_supported_centos or 
+        provision_os == os_supported_rocky
+    fail_msg: "{{ provision_os_fail_msg }}"
+    success_msg: "{{ provision_os_success_msg }}"
+
+- name: Assert provision_method when provision_state == stateless
+  assert:
+    that: provision_method == "PXE"
+    fail_msg: "{{ stateless_provision_fail_msg }}"
+    success_msg: "{{ success_provision_method }}"
+  when: provision_state == "stateless"
+
 - name: Verify the iso_file_path
   stat:
     path: "{{ iso_file_path }}"
   register: result_path_iso_file
 
-- name : Assert iso_file_path
+- name : Assert iso_file_path location
   fail:
-    msg: "{{ invalid_iso_file_path }}"
+    msg: "{{ missing_iso_file_path }}"
   when: not result_path_iso_file.stat.exists
 
-- name: Fail when iso path valid but image not right
-  fail:
-    msg: "{{ invalid_iso_file_path }}"
-  when:
-    - result_path_iso_file.stat.exists
-    - '".iso" not in iso_file_path'
+- name: Validate iso_file_path name
+  assert:
+    that:
+      - result_path_iso_file.stat.exists
+      - '".iso" in iso_file_path'
+      - provision_os in iso_file_path | lower
+    fail_msg: "{{ invalid_iso_file_path }}"
+    success_msg:  "{{ valid_iso_file_path }}"
 
 #### management_net_dhcp_start_end_range
 - name: Assert management network nic
