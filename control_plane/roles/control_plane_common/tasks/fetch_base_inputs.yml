@@ -202,8 +202,7 @@
 - name: Assert provision_state
   assert:
     that: 
-      - provision_state == "stateful" or 
-        provision_state == "stateless"
+      - provision_state == "stateful"
     fail_msg: "{{ provision_state_fail_msg }}"
     success_msg: "{{ provision_state_success_msg }}"
 
@@ -214,13 +213,6 @@
         provision_os == os_supported_rocky
     fail_msg: "{{ provision_os_fail_msg }}"
     success_msg: "{{ provision_os_success_msg }}"
-
-- name: Assert provision_method when provision_state == stateless
-  assert:
-    that: provision_method == "PXE"
-    fail_msg: "{{ stateless_provision_fail_msg }}"
-    success_msg: "{{ success_provision_method }}"
-  when: provision_state == "stateless"
 
 - name: Verify the iso_file_path
   stat:
