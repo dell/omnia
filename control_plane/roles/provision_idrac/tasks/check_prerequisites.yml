@@ -193,11 +193,14 @@
             - '"Healthy" in idrac_info.system_info.License[my_idx2].PrimaryStatus'
           loop_control:
             index_var: my_idx2
-      when: idrac_info.system_info.License is defined
+      when: 
+        - provision_state == "stateful"
+        - provision_method == provision_method_idrac
+        - idrac_info.system_info.License is defined 
 
-    - name: Change provision mode in absence of license
+    - name: Change provision mode to PXE
       set_fact:
-        provision_method: "pxe"
+        provision_method: "{{ provision_method_pxe }}"
       when: not (enterprise_license or datacenter_license)
 
     - name: Firmware version of iDRAC9 not supported

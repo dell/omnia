@@ -22,6 +22,16 @@
     new_node_status: false
   tags: install
 
+- name: Set centos kickstart file name
+  set_fact:
+    cobbler_kickstart_file: "{{ cobbler_centos_ks }}"
+  when: provision_os == os_supported_centos
+
+- name: Set rocky kickstart file name
+  set_fact:
+    cobbler_kickstart_file: "{{ cobbler_rocky_ks }}"
+  when: provision_os == os_supported_rocky
+
 - name: Check if any backup file exists
   block:
   - name: Check status of backup file
@@ -47,17 +57,17 @@
 - name: Create namespace network-config
   command: kubectl create namespace cobbler
   changed_when: true
-  when: "'cobbler' not in k8s_namespaces.stdout"
+  when: cobbler_namespace not in k8s_namespaces.stdout
 
 - name: Inspect the cobbler image
-  command: "buildah images"
+  command: buildah images
   register: cobbler_image_result
   failed_when: false
   changed_when: false
   tags: install
 
 - name: Check cobbler pod status on the machine
-  command: kubectl get pods -n cobbler
+  command: kubectl get pods -n {{ cobbler_namespace }}
   register: cobbler_pod_result
   failed_when: false
   changed_when: false
@@ -76,21 +86,21 @@
   tags: install
 
 - name: Get cobbler pod name
-  command: 'kubectl get pod -n cobbler -l app=cobbler -o jsonpath="{.items[0].metadata.name}"'
+  command: 'kubectl get pod -n {{ cobbler_namespace }} -l app=cobbler -o jsonpath="{.items[0].metadata.name}"'
   changed_when: false
   register: cobbler_pod_name
   when: cobbler_container_status
   tags: install
 
 - name: Fetch cobbler profile list
-  command: "kubectl exec --stdin --tty -n cobbler {{ cobbler_pod_name.stdout }} -- cobbler profile list"
+  command: "kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} -- cobbler profile list"
   changed_when: false
   register: cobbler_profile_list
   failed_when: false
   when: cobbler_container_status
 
 - name: Check crontab list
-  command: "kubectl exec --stdin --tty -n cobbler {{ cobbler_pod_name.stdout }} -- crontab -l"
+  command: "kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} -- crontab -l"
   changed_when: false
   register: crontab_list
   failed_when: false
@@ -101,6 +111,6 @@
     cobbler_config_status: true
   when:
     - cobbler_container_status
-    - "'CentOS' in cobbler_profile_list.stdout"
+    - provision_os in cobbler_profile_list.stdout
     - "'* * * * * /usr/bin/ansible-playbook /root/tftp.yml' in crontab_list.stdout"
     - "'*/5 * * * * /usr/bin/ansible-playbook /root/inventory_creation.yml' in crontab_list.stdout"

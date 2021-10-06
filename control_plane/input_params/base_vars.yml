@@ -66,11 +66,30 @@ awx_organization: "DellEMC"
 ### Usage: provision_cobbler, provision_idrac ###
 
 # This variable is used to set node provisioning method
-# Accepted values: idrac, pxe
+# Accepted values: idrac, PXE
 # Default value: "idrac"
-# If provisioning needs to be done through cobbler, set it to "pxe"
-# If idrac license is not present, provisioning mode will be set to "pxe"
+# If provisioning needs to be done through cobbler, set it to "PXE"
+# If idrac license is not present, provisioning mode will be set to "PXE"
 provision_method: "idrac"
+
+# This variable is used to set provisioning type
+# Accepted values: stateful
+# Default value: "stateful"
+# If set it to "stateful", disk based provision via Cobbler
+# Currently stateless provisioning is not supported
+provision_state: "stateful"
+
+# This is the operating system image that will be used for provisioning compute nodes in the cluster.
+# Accepted values: rocky, centos
+# Default value: "rocky"
+# Required field
+provision_os: "rocky"
+
+# This is the path where the user has to place the iso image that needs to be provisioned in target nodes.
+# The iso file should be Rocky8-Minimal or CentOS7-2009-minimal edition.
+# Other iso files are not supported.
+# Required field
+iso_file_path: "/root/Rocky-8.4-x86_64-minimal.iso"
 
 # This is the timezone that will be set during provisioning of OS
 # Available timezones are provided in control_plane/common/files/timezone.txt
@@ -81,12 +100,6 @@ timezone: "GMT"
 # This is the language that will be set during provisioning of the OS
 # Default language supported is "en-US"
 language: "en-US"
-
-# This is the path where the user has to place the iso image that needs to be provisioned in target nodes.
-# The iso file should be CentOS7-2009-minimal edition.
-# Other iso files are not supported.
-# Required field
-iso_file_path: "/root/CentOS-7-x86_64-Minimal-2009.iso"
 
 # Default lease time that will be used by dhcp
 # Its unit is seconds

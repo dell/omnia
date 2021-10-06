@@ -20,18 +20,27 @@
   when: cobbler_container_status and not cobbler_config_status
 
 - name: Wait for cobbler pod to come to ready state
-  command: kubectl wait --for=condition=ready -n cobbler pod -l app=cobbler
+  command: kubectl wait --for=condition=ready -n {{ cobbler_namespace }} pod -l app=cobbler
   changed_when: false
   tags: install
 
 - name: Get cobbler pod name
-  command: 'kubectl get pod -n cobbler -l app=cobbler -o jsonpath="{.items[0].metadata.name}"'
+  command: 'kubectl get pod -n {{ cobbler_namespace }} -l app=cobbler -o jsonpath="{.items[0].metadata.name}"'
   changed_when: false
   register: cobbler_pod_name
   tags: install
 
+- name: Wait for 30 seconds to get cobbler pod ready
+  wait_for:
+    timeout: 30
+
+- name: Copy dhcpd.leases from cobbler
+  command: kubectl cp {{ role_path }}/files/{{ cobbler_kickstart_file }} {{ cobbler_pod_name.stdout }}:/root/{{ cobbler_kickstart_file }} -n {{ cobbler_namespace }}
+  changed_when: true
+  when: not cobbler_config_status
+
 - name: Configuring cobbler inside container (It may take 5-10 mins)
-  command: "kubectl exec --stdin --tty -n cobbler {{ cobbler_pod_name.stdout }} -- ansible-playbook /root/cobbler_configurations.yml"
+  command: "kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} -- ansible-playbook /root/cobbler_configurations.yml -e name_iso={{ provision_os }}"
   changed_when: true
   tags: install
   when: not cobbler_config_status
@@ -45,7 +54,7 @@
   when: not cobbler_config_status
 
 - name: Execute cobbler sync in cobbler container
-  command: 'kubectl exec --stdin --tty -n cobbler {{ cobbler_pod_name.stdout }} -- cobbler sync'
+  command: 'kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} -- cobbler sync'
   changed_when: true
   when: cobbler_config_status
 
@@ -57,5 +66,5 @@
     - "{{ role_path }}/files/.users.digest"
     - "{{ role_path }}/files/dhcp.template"
     - "{{ role_path }}/files/settings"
-    - "{{ role_path }}/files/centos7.ks"
+    - "{{ role_path }}/files/{{ cobbler_kickstart_file }}"
     - "{{ role_path }}/files/temp_host_mapping_file.csv.bak"

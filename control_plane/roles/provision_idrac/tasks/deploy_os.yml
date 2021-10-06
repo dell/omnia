@@ -13,49 +13,72 @@
 # limitations under the License.
 ---
 
-- name: Configure boot order for PXE booting
-  dellemc.openmanage.idrac_bios:
-    idrac_ip: "{{ inventory_hostname }}"
-    idrac_user: "{{ idrac_username }}"
-    idrac_password: "{{ idrac_password }}"
-    attributes:
-      SetBootOrderEn: NIC.PxeDevice.1-1,NIC.PxeDevice.2-1,NIC.PxeDevice.3-1,NIC.PxeDevice.4-1
-      UefiBootSeq: NIC.PxeDevice.1-1,NIC.PxeDevice.2-1,NIC.PxeDevice.3-1,NIC.PxeDevice.4-1
-  register: deploy_os_pxe
-  when: provision_method == "pxe"
+- block:
+    - name: Configure boot order for PXE booting
+      dellemc.openmanage.idrac_bios:
+        idrac_ip: "{{ inventory_hostname }}"
+        idrac_user: "{{ idrac_username }}"
+        idrac_password: "{{ idrac_password }}"
+        attributes:
+          SetBootOrderEn: NIC.PxeDevice.1-1,NIC.PxeDevice.2-1,NIC.PxeDevice.3-1,NIC.PxeDevice.4-1
+          UefiBootSeq: NIC.PxeDevice.1-1,NIC.PxeDevice.2-1,NIC.PxeDevice.3-1,NIC.PxeDevice.4-1
+      register: deploy_os_pxe
+  rescue:
+    - name: OS provisioning failed using PXE
+      fail:
+        msg: "{{ pxe_provisioning_fail_msg }}"
+  always:
+    - name: Set deploy_os_status when provision_method == PXE
+      set_fact:
+        deploy_os_status: "{{ not deploy_os_pxe.failed }}"
+  when: provision_method == provision_method_pxe
 
-- name: Set deploy_os_status when provision_method == pxe
-  set_fact:
-    deploy_os_status: "{{ not deploy_os_pxe.failed }}"
-  when: provision_method == "pxe"
+- block:
+    - name: Set unattended_iso_filename - centos
+      set_fact:
+        unattended_iso_filename: "{{ centos_iso_filename }}"
+      when: provision_os == os_supported_centos
 
-- name: Install OS using iDRAC
-  dellemc.openmanage.idrac_os_deployment:
-    idrac_ip: "{{ inventory_hostname }}"
-    idrac_user: "{{ idrac_username }}"
-    idrac_password: "{{ idrac_password }}"
-    share_name: "{{ management_station_ip }}:{{ nfs_share_offline_repo }}"
-    iso_image: "{{ unattended_iso_filename }}"
-    expose_duration: "{{ expose_duration }}"
-  register: deploy_os_idrac
-  when: provision_method == "idrac"
+    - name: Set unattended_iso_filename - rocky
+      set_fact:
+        unattended_iso_filename: "{{ rocky_iso_filename }}"
+      when: provision_os == os_supported_rocky
 
-- name: Set deploy_os_status when provision_method == idrac
-  set_fact:
-    deploy_os_status: "{{ not deploy_os_idrac.failed }}"
-  when: provision_method == "idrac"
+    - name: Install OS using iDRAC
+      dellemc.openmanage.idrac_os_deployment:
+        idrac_ip: "{{ inventory_hostname }}"
+        idrac_user: "{{ idrac_username }}"
+        idrac_password: "{{ idrac_password }}"
+        share_name: "{{ management_station_ip }}:{{ nfs_share_offline_repo }}"
+        iso_image: "{{ unattended_iso_filename }}"
+        expose_duration: "{{ expose_duration }}"
+      register: deploy_os_idrac
+  rescue:
+    - name: OS provisioning failed using iDRAC
+      fail:
+        msg: "{{ idrac_provisioning_fail_msg }}"
+  always:
+    - name: Set deploy_os_status when provision_method == idrac
+      set_fact:
+        deploy_os_status: "{{ not deploy_os_idrac.failed }}"
+  when: provision_method == provision_method_idrac
 
-- name: Add to provisioned_hosts to inventory
-  command: >-
-    awx --conf.host {{ awx_host }} --conf.username {{ awx_username }} --conf.password {{ awx_password }}
-    hosts create --name {{ inventory_hostname }} --inventory "{{ provisioned_idrac_inventory_name }}"
-  register: update_inventory
-  changed_when: true
-  no_log: true
-  when:
-    - awx_search_key in hostname.stdout
-    - inventory_hostname not in fetch_inventory.stdout
-    - deploy_os_status
+- block:
+    - name: Add to provisioned_hosts to inventory
+      command: >-
+        awx --conf.host {{ awx_host }} --conf.username {{ awx_username }} --conf.password {{ awx_password }}
+        hosts create --name {{ inventory_hostname }} --inventory "{{ provisioned_idrac_inventory_name }}"
+      register: update_inventory
+      changed_when: true
+      no_log: true
+      when:
+        - awx_search_key in hostname.stdout
+        - inventory_hostname not in fetch_inventory.stdout
+        - deploy_os_status
+  rescue:
+    - name: Unable to add host to provisioned_idrac_inventory
+      fail:
+        msg: "{{ add_inventory_fail_msg }}"
 
 - name: Provision OS status
   debug:
