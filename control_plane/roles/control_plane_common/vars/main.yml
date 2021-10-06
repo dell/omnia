@@ -105,7 +105,6 @@ fail_msg_k8s_pod_network_cidr: "Failed. Incorrect appliance k8s pod network cidr
 success_awx_organization: "awx organization validated"
 success_provision_method: "Provision method validated"
 fail_provision_method: "Failed. provision_method can either be set to idrac or PXE"
-stateless_provision_fail_msg: "Failed. provision_method should be PXE when provision_state is stateless"
 fail_awx_organization: "Failed. Incorrect format in awx organization"
 success_timezone_msg: "timezone validated"
 fail_timezone_msg: "Failed. Incorrect timezone provided. Please check the file timezone.txt in control_plane/roles/control_plane_common/files/ folder"
@@ -139,7 +138,7 @@ fail_msg_lease_time: "Failed. Please provide a valid default lease time"
 provision_os_success_msg: "provision_os validated"
 provision_os_fail_msg: "Failed. Incorrect provision_os selected. Supported OS are {{ os_supported_centos }} or {{ os_supported_rocky }}"
 provision_state_success_msg: "provision_state validated"
-provision_state_fail_msg: "Failed. Incorrect provision_state selected. Supported values are stateful or stateless"
+provision_state_fail_msg: "Failed. Incorrect provision_state selected. Supported only stateful"
 
 # Usage: fetch_sm_inputs.yml
 ib_config_file: "{{ role_path }}/../../input_params/ib_vars.yml"
