@@ -68,15 +68,15 @@ awx_organization: "DellEMC"
 # This variable is used to set node provisioning method
 # Accepted values: idrac, PXE
 # Default value: "idrac"
-# If provisioning needs to be done through cobbler or warewulf, set it to "PXE"
+# If provisioning needs to be done through cobbler, set it to "PXE"
 # If idrac license is not present, provisioning mode will be set to "PXE"
 provision_method: "idrac"
 
 # This variable is used to set provisioning type
-# Accepted values: stateful, stateless
+# Accepted values: stateful
 # Default value: "stateful"
 # If set it to "stateful", disk based provision via Cobbler
-# If set it to "stateless", diskless provision via Warewulf
+# Currently stateless provisioning is not supported
 provision_state: "stateful"
 
 # This is the operating system image that will be used for provisioning compute nodes in the cluster.
