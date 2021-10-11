@@ -7,14 +7,14 @@
    `kinit admin` (When prompted provide the password)
    
 
-##Adding the New User
+## Adding the New User
 1. ssh to manager node
 
-`ssh xxxxx@192.168.1.5`
+	`ssh xxxxx@192.168.1.5`
 
 2. Use the command below to create a user:
 
-`ipa user-add '<new username>' --first='<User's first name>'
+	`ipa user-add '<new username>' --first='<User's first name>'
     --last='<User's last name>' --homedir='Home Directory path (optional)' 
     --random`
 
@@ -47,7 +47,7 @@
 			
 4. The random password displayed can be used to login to the login node using the newly created user.
 
-` ssh omniauser@192.168.1.6`
+	` ssh omniauser@192.168.1.6`
 
 5. Change the password on first login and then login with the new password.
 
@@ -56,4 +56,4 @@
    `usermod -a -G slurm 'new_login_user'`
 7. The user has been assigned appropriate permissions to execute slurm jobs. Jobs can be executed
 
-` srun --nodes 1 --ntasks-per-node 1 --partition normal hostname`
+	` srun --nodes 1 --ntasks-per-node 1 --partition normal hostname`
