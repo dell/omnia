@@ -22,7 +22,7 @@ Edit the following files under the `control_plane/input_params` directory to pro
 
 ## Custom ISO file creation for Out-of-band server management
 Omnia role used to create the custom ISO: *control_plane_customiso*  
-Based on the inputs provided in the `login_vars.yml` and `base_vars.yml` files, the Kickstart file is configured and added to the custom ISO file. The *unattended_centos7.iso* file is copied to an NFS share on the management station to provision the PowerEdge servers using iDRAC.  
+Based on the inputs provided in the `login_vars.yml` and `base_vars.yml` files, the Kickstart file is configured and added to the custom ISO file. The *unattended_centos7.iso* or *unattended_rocky8.iso* file is copied to an NFS share on the management station to provision the PowerEdge servers using iDRAC. 
 
 ## Provisioning of PowerEdge Servers using iDRAC (Out-of-band server management)
 

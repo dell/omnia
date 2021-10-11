@@ -1,10 +1,10 @@
 **Omnia** (Latin: all or everything) is a deployment tool to configure Dell EMC PowerEdge servers running standard RPM-based Linux OS images into clusters capable of supporting HPC, AI, and data analytics workloads. It uses Slurm, Kubernetes, and other packages to manage jobs and run diverse workloads on the same converged solution. It is a collection of [Ansible](https://ansible.com) playbooks, is open source, and is constantly being extended to enable comprehensive workloads.
 
 #### Current release version
-1.1
+1.2
 
 #### Previous release version
-1.0  
+1.1  
 
 ## Blogs about Omnia
 - [Introduction to Omnia](https://infohub.delltechnologies.com/p/omnia-open-source-deployment-of-high-performance-clusters-to-run-simulation-ai-and-data-analytics-workloads/)
@@ -27,7 +27,7 @@ Omnia can install Kubernetes or Slurm (or both), along with additional drivers, 
 ![Omnia Slurm Stack](images/omnia-slurm.png)  
 
 ## What's new in this release
-* Provisioning of CentOS 7.9 custom ISO on supported PowerEdge servers using iDRAC.
+* Provisioning of Rocky custom ISO on supported PowerEdge servers using iDRAC.
 * Configuring Dell EMC networking switches, Mellanox InfiniBand switches, and PowerVault storage devices in the cluster. 
 * An option to configure a login node with the same configurations as the compute nodes in the cluster. With appropriate user privileges provided by the cluster administrator, users can log in to the login node and schedule Slurm jobs. The authentication mechanism in the login node uses the FreeIPA solution.
 * Options to enable the security settings on the iDRAC such as system lockdown mode, secure boot mode, 2-factor authentication (2FA), and LDAP directory services.
@@ -46,9 +46,9 @@ The following table lists the software and operating system requirements on the 
 
 Requirements  |   Version
 ----------------------------------  |   -------
-OS pre-installed on the management station  |  CentOS 8.4
-OS deployed by Omnia on bare-metal Dell EMC PowerEdge Servers | CentOS 7.9 2009 Minimal Edition
-Cobbler  |  3.2.1
+OS pre-installed on the management station  |  CentOS 8.4/ Rocky 8.4
+OS deployed by Omnia on bare-metal Dell EMC PowerEdge Servers | CentOS 7.9 2009 Minimal Edition/ Rocky 8.4 Minimal Edition
+Cobbler  |  3.2.2
 Ansible AWX  |  19.1.0
 Slurm Workload Manager  |  20.11.2
 Kubernetes on the management station  |  1.21.0
@@ -73,7 +73,9 @@ The following table lists the software and its compatible version managed by Omn
 Software	|	License	|	Compatible Version	|	Description
 -----------	|	-------	|	----------------	|	-----------------
 CentOS Linux release 7.9.2009 (Core)	|	-	|	7.9	|	Operating system on entire cluster except for management station
+Rocky 8.4	|	-	|	8.4	|	Operating system on entire cluster except for management station
 CentOS Linux release 8.4.2105	|	-	|	8.4	|	Operating system on the management station	
+Rocky 8.4	|	-	|	8.4	|	Operating system on the management station
 MariaDB	|	GPL 2.0	|	5.5.68	|	Relational database used by Slurm
 Slurm	|	GNU General Public	|	20.11.7	|	HPC Workload Manager
 Docker CE	|	Apache-2.0	|	20.10.2	|	Docker Service
