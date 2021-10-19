@@ -61,7 +61,7 @@ The following table lists the supported devices managed by Omnia. Other devices 
 
 Device type	|	Supported models	
 -----------	|	-------	
-Dell EMC PowerEdge Servers	|	PowerEdge C4140, C6420, R240, R340, R440, R540, R640, R740, R740xd, R740xd2, R840, R940, R940xa
+Dell EMC PowerEdge Servers	|	PowerEdge C4140, C6420, C6520, R240, R340, R440, R540, R640, R650, R740, R740xd, R740xd2, R750, R750xa, R840, R940, R940xa
 Dell EMC PowerVault Storage	|	PowerVault ME4084, ME4024, and ME4012 Storage Arrays
 Dell EMC Networking Switches	|	PowerSwitch S3048-ON and PowerSwitch S5232F-ON
 Mellanox InfiniBand Switches	|	NVIDIA MQM8700-HS2F Quantum HDR InfiniBand Switch 40 QSFP56
