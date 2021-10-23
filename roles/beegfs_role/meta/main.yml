@@ -1,0 +1,31 @@
+---
+galaxy_info:
+  role_name: beegfs
+  author: Dell Technologies
+  description: >
+    This role provisions an exisiting cluster to support Beegfs
+    management, metadata, object storage server and client roles.
+  company: Dell Technologies
+  license: Apache2
+  min_ansible_version: 2.5.2
+  platforms:
+    - name: EL
+      versions:
+        - 7
+        - 8
+    - name: Rocky
+      versions:
+        - 8
+    - name: Debian
+      versions:
+        - "stretch"
+    - name: Ubuntu
+      versions:
+        - "xenial"
+        - "bionic"
+  galaxy_tags:
+    - cloud
+    - storage
+    - beegfs
+
+dependencies: []

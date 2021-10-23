@@ -1,0 +1,30 @@
+---
+- name: Install packages for BeeGFS management server
+  package:
+    name: beegfs-mgmtd
+    state: "{{ beegfs_package_action }}"
+  become: true
+  notify: Restart BeeGFS mgmt service
+
+- name: Create directory for BeeGFS management service data
+  file:
+    path: "{{ beegfs_mgmt_path }}"
+    state: directory
+  become: true
+  notify: Restart BeeGFS mgmt service
+
+- name: Run management service setup script
+  command: "/opt/beegfs/sbin/beegfs-setup-mgmtd -p {{ beegfs_mgmt_path }} -f"
+  args:
+    creates: "{{ beegfs_mgmt_path }}/originalNodeID"
+  become: true
+  notify: Restart BeeGFS mgmt service
+
+- name: Specify connInterfacesFile
+  lineinfile:
+    path: /etc/beegfs/beegfs-mgmtd.conf
+    regexp: "^connInterfacesFile"
+    line: "connInterfacesFile           = /etc/beegfs/connInterfacesFile"
+  become: true
+  notify: Restart BeeGFS mgmt service
+...

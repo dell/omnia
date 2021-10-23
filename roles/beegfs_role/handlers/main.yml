@@ -1,0 +1,56 @@
+---
+- name: Restart BeeGFS mgmt service
+  systemd:
+    name: beegfs-mgmtd
+    daemon-reload: true
+    state: restarted
+  become: true
+  when: beegfs_enable.mgmt | bool
+
+- name: Restart BeeGFS meta service
+  systemd:
+    name: beegfs-meta
+    daemon-reload: true
+    state: restarted
+  become: true
+  when: beegfs_enable.meta | bool
+
+- name: Restart BeeGFS storage service
+  systemd:
+    name: "beegfs-storage@{{ item.port }}"
+    daemon-reload: true
+    state: restarted
+  become: true
+  with_items: "{{ beegfs_oss }}"
+  when: beegfs_enable.oss | bool
+
+- name: Restart BeeGFS admon service
+  systemd:
+    name: beegfs-admon
+    daemon-reload: true
+    state: restarted
+  become: true
+  when: beegfs_enable.admon | bool
+
+- name: Restart BeeGFS client service
+  systemd:
+    name: "{{ item }}"
+    daemon-reload: true
+    state: restarted
+  become: true
+  with_items:
+    - beegfs-helperd
+    - beegfs-client
+  when: beegfs_enable.client | bool
+  retries: 3
+  delay: 3
+  register: result
+  until: result is success
+
+- name: Restart BeeGFS tuning service
+  systemd:
+    name: beegfs-oss-tuning
+    daemon-reload: true
+    state: restarted
+  become: true
+...

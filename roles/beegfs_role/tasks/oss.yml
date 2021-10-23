@@ -1,0 +1,105 @@
+---
+- name: Install packages for BeeGFS object storage server
+  package:
+    name: beegfs-storage
+    state: "{{ beegfs_package_action }}"
+  become: true
+  notify: Restart BeeGFS storage service
+
+- name: Create a list of devices that are mounted
+  set_fact:
+    mounted_devs: "{{ ansible_mounts | map(attribute='device') | list }}"
+
+- name: Create storage config dirs
+  file:
+    path: "/etc/beegfs/{{ oss_port }}.d/"
+    state: directory
+  become: true
+  notify: Restart BeeGFS storage service
+
+- name: Add template beegfs-storage conf
+  copy:
+    src: "/etc/beegfs/beegfs-storage.conf"
+    dest: "/etc/beegfs/{{ oss_port }}.d/beegfs-storage.conf"
+    remote_src: true
+    force: false
+  become: true
+  notify: Restart BeeGFS storage service
+
+- name: Prepare storage devices
+  block:
+    - name: Stat the OSS device
+      stat:
+        path: "{{ oss_dev }}"
+      register: oss_dev_stat
+    - name: Fail if OSS device does not exist
+      fail:
+        msg: OSS device {{ oss_dev }} does not exist
+      when: not oss_dev_stat.exists
+    - name: Unmount storage device if beegfs_force_format is true
+      mount:
+        path: "{{ oss_path }}"
+        state: unmounted
+      when: beegfs_force_format | bool
+      notify: Restart BeeGFS storage service
+    - name: Attempt to format if the device is not mounted or if beegfs_force_format is true
+      vars:
+        oss_dev_real: "{{ oss_dev_stat.lnk_source if oss_dev_stat.islnk else oss_dev_stat.path }}"
+      filesystem:
+        dev: "{{ oss_dev }}"
+        fstype: "{{ beegfs_fstype }}"
+        force: "{{ beegfs_force_format | bool }}"
+        opts: "{{ beegfs_filesystem_opts }}"
+      when: (oss_dev_real not in mounted_devs) or (beegfs_force_format | bool)
+      notify: Restart BeeGFS storage service
+    - name: Ensure the mount point exists
+      file:
+        path: "{{ oss_path }}"
+        state: directory
+    - name: Mount filesystem, fail if the fstype doesn't match
+      mount:
+        src: "{{ oss_dev }}"
+        path: "{{ oss_path }}"
+        fstype: "{{ beegfs_fstype }}"
+        state: mounted
+        opts: "{{ beegfs_mount_opts }}"
+      notify: Restart BeeGFS storage service
+  become: true
+  when: oss_dev_is_defined
+
+- name: Run storage service setup script
+  command: |
+    /opt/beegfs/sbin/beegfs-setup-storage -f \
+    -p {{ oss_path }} {{ oss_replace }} \
+    -m {{ beegfs_mgmt_host }} \
+    -c /etc/beegfs/{{ oss_port }}.d/beegfs-storage.conf \
+    -S {{ inventory_hostname }}-{{ oss_port }} \
+  args:
+    creates: "{{ oss_path }}/originalNodeID"
+  become: true
+  notify: Restart BeeGFS storage service
+
+- name: set TCP storage port
+  lineinfile:
+    path: "/etc/beegfs/{{ oss_port }}.d/beegfs-storage.conf"
+    regexp: '^connStoragePortTCP'
+    line: "connStoragePortTCP = {{ oss_port }}"
+  become: true
+  notify: Restart BeeGFS storage service
+
+- name: set UDP storage port
+  lineinfile:
+    path: "/etc/beegfs/{{ oss_port }}.d/beegfs-storage.conf"
+    regexp: '^connStoragePortUDP'
+    line: "connStoragePortUDP = {{ oss_port }}"
+  become: true
+  notify: Restart BeeGFS storage service
+
+- name: Specify connInterfacesFile
+  lineinfile:
+    path: "/etc/beegfs/{{ oss_port }}.d/beegfs-storage.conf"
+    regexp: "^connInterfacesFile"
+    line: "connInterfacesFile           = /etc/beegfs/connInterfacesFile"
+  become: true
+  notify: Restart BeeGFS storage service
+...

@@ -1,0 +1,18 @@
+# BeeGFS tuning parameters from
+# https://www.beegfs.io/wiki/StorageServerTuning
+
+set -x
+
+echo always > /sys/kernel/mm/transparent_hugepage/enabled
+echo always > /sys/kernel/mm/transparent_hugepage/defrag
+{% if beegfs_oss_tunable | length > 0 %}
+for dev in {{ beegfs_oss_tunable | join(' ') }}
+do
+  if [ -d /sys/block/${dev} ]; then
+    echo mq-deadline > /sys/block/${dev}/queue/scheduler
+    echo 2048 > /sys/block/${dev}/queue/nr_requests
+    echo 4096 > /sys/block/${dev}/queue/read_ahead_kb
+    echo 256 > /sys/block/${dev}/queue/max_sectors_kb
+  fi
+done
+{% endif %}

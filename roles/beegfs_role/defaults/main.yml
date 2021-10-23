@@ -1,0 +1,113 @@
+---
+# Option to enable/disable services
+beegfs_enable:
+  mgmt: false
+  meta: false
+  oss: false
+  admon: false
+  client: false
+  tuning: false
+
+# Can be present or absent
+beegfs_state: present
+
+# Kernel modules to ensure are loaded prior to BeeGFS deploy/startup
+beegfs_kmod_preload: []
+
+# Network interfaces in order of preference
+# (leaving empty means InfiniBand & RDMA enabled devices are preferred)
+beegfs_interfaces: []
+
+# Distribution-specific parameters
+beegfs_distro_vars:
+  RedHat:
+    beegfs_repo_url: "https://www.beegfs.io/release/latest-stable/dists/beegfs-rhel8.repo"
+    beegfs_repo_key: "https://www.beegfs.io/release/latest-stable/gpg/RPM-GPG-KEY-beegfs"
+    beegfs_repo_file: "/etc/yum.repos.d/beegfs-rhel8.repo"
+    kernel_dev_pkg: "kernel-devel"
+    rdma_dev_pkgs:
+      - "librdmacm"
+      - "libibmad"
+      - "libibumad"
+      - "rdma-core"
+      - "libibverbs"
+      - "libibverbs-utils"
+      - "libbeegfs-ib"
+
+  Rocky:
+    beegfs_repo_url: "https://www.beegfs.io/release/latest-stable/dists/rocky"
+    beegfs_repo_key: "https://www.beegfs.io/release/latest-stable/gpg/RPM-GPG-KEY-beegfs"
+    beegfs_repo_file: "/etc/yum.repos.d/beegfs-rocky.repo"
+    kernel_dev_pkg: "kernel-devel"
+    rdma_dev_pkgs:
+      - "librdmacm"
+      - "libibmad"
+      - "libibumad"
+      - "rdma-core"
+      - "libibverbs"
+      - "libibverbs-utils"
+      - "libbeegfs-ib"
+
+  Debian:
+    beegfs_repo_url: "https://www.beegfs.io/release/latest-stable/dists/beegfs-deb9.list"
+    beegfs_repo_key: "https://www.beegfs.io/release/latest-stable/gpg/DEB-GPG-KEY-beegfs"
+    beegfs_repo_file: "/etc/apt/sources.list.d/beegfs_deb9.list"
+    kernel_dev_pkg: "linux-headers"
+    rdma_dev_pkgs:
+      - "librdmacm-dev"
+      - "libibmad-dev"
+      - "libibumad-dev"
+      - "libibverbs-dev"
+      - "libbeegfs-ib"
+
+# BeeGFS repo
+beegfs_add_repos: true
+beegfs_repo_url: "{{ beegfs_distro_vars[ansible_os_family]['beegfs_repo_url'] }}"
+beegfs_repo_key: "{{ beegfs_distro_vars[ansible_os_family]['beegfs_repo_key'] }}"
+beegfs_repo_file: "{{ beegfs_distro_vars[ansible_os_family]['beegfs_repo_file'] }}"
+
+# Define to enable support for BeeGFS data transport over RDMA (IB, OPA, RoCE)
+beegfs_rdma: true
+
+# Default filesystem options
+beegfs_filesystem_opts: "-K -d su=128k,sw=8 -l version=2,su=128k -isize=512"
+beegfs_mount_opts: "noatime,nodiratime,logbufs=8,logbsize=256k,largeio,inode64,swalloc,allocsize=131072k,nobarrier"
+beegfs_force_format: false
+beegfs_fstype: "xfs"
+
+# Storage server options
+beegfs_oss_path_prefix: "/data/beegfs/beegfs_oss"
+beegfs_oss:
+  - port: 8003
+    dev: "/dev/sdb"
+    path:  # specifying dev overrides path
+beegfs_oss_tunable: "{{ beegfs_oss | selectattr('dev', 'defined') | map(attribute='dev') | map('relpath', '/dev/' ) | list }}"
+# Whether to support multiple ports per OSS:
+# - if this is set to false, make sure that you configure the ports to the same
+#   value when passing beegfs_oss as an input.
+beegfs_oss_multi_port: true
+
+# Management options
+beegfs_mgmt_path: "/data/beegfs/beegfs_mgmtd"
+beegfs_mgmt_host:  # Example: "{{ groups['cluster_beegfs_mgmt'] | first }}"
+
+# Metadata storage options
+beegfs_meta_path: "/data/beegfs/beegfs_meta"
+beegfs_meta_dev:  # /dev/sdb
+beegfs_meta_fstype:  # Example: "ext4"
+
+# Client mount configs
+beegfs_client: []
+# Each item in the beegfs_client list should look like this:
+# - path: "/mnt/beegfs" # If there are multiple clients, use different path for each client.
+#   port: 8004 # If there are multiple clients, use different port for each client.
+#   mgmt_host: # Use this to override the default beegfs_mgmt_host in cases there are multiple clients.
+
+# Should the package manager use the `present` or `latest` flag for
+# BeeGFS? This is useful for upgrading.
+beegfs_update: false
+beegfs_package_action: "{{ 'latest' if beegfs_update | bool else 'present' }}"
+
+# Path to the kernel module
+beegfs_kernel_module: "/lib/modules/{{ ansible_kernel }}/updates/fs/beegfs_autobuild/beegfs.ko"
+...

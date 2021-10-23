@@ -1,0 +1,197 @@
+---
+- name: Add BeeGFS repos is beegfs_add_repos is true
+  block:
+
+  - name: Ensure the BeeGFS package repo is defined
+    get_url:
+      url: "{{ beegfs_repo_url }}"
+      dest: "{{ beegfs_repo_file }}"
+    become: true
+
+  - name: Load package repo key
+    block:
+      - name: add apt key for debian family machines
+        apt_key:
+          state: present
+          url: "{{ beegfs_repo_key }}"
+        when: ansible_os_family == "Debian"
+      - name: add rpm key for redhat family machines
+        rpm_key:
+          state: present
+          key: "{{ beegfs_repo_key }}"
+        when: ansible_os_family == "RedHat"
+    become: true
+
+  - name: Refresh apt repos and install https repo support for Debian
+    apt:
+      name:
+        - base-files
+        - apt-transport-https
+      state: present
+      update_cache: true
+    become: true
+    when: ansible_os_family == "Debian"
+
+  when: beegfs_add_repos | bool
+
+# Task flow inspired by MichaelRigart.interfaces role - thanks markgoddard
+# Some systems do not support /etc/modules-load.d, in which case we fall back
+# to /etc/modules.
+- name: Check whether /etc/modules-load.d exists
+  stat:
+    path: /etc/modules-load.d
+  register: modules_load_stat
+
+- name: Ensure any required kernel modules are loaded
+  modprobe:
+    name: "{{ item }}"
+    state: present
+  become: true
+  with_items: "{{ beegfs_kmod_preload }}"
+
+- name: Make sure required modules are loaded at boot via /etc/modules-load.d
+  lineinfile:
+    dest: /etc/modules-load.d/beegfs.conf
+    line: "{{ item }}"
+    create: true
+  become: true
+  when: modules_load_stat.stat.exists
+  with_items: "{{ beegfs_kmod_preload }}"
+
+- name: Make sure required modules are loaded at boot via /etc/modules
+  lineinfile:
+    dest: /etc/modules
+    line: "{{ item }}"
+  become: true
+  when: not modules_load_stat.stat.exists
+  with_items: "{{ beegfs_kmod_preload }}"
+
+- name: Stop and delete server and client service
+  block:
+    - name: Probe installed services
+      service_facts:
+    - name: Stop BeeGFS server and client services
+      service:
+        name: "{{ item.name }}"
+        state: stopped
+      when:
+        - item.name in ansible_facts.services
+        - item.enable | bool
+      with_items:
+        - { name: "beegfs-client.service", enable: "{{ beegfs_enable.client }}" }
+        - { name: "beegfs-helperd.service", enable: "{{ beegfs_enable.client }}" }
+        - { name: "beegfs-mgmtd.service", enable: "{{ beegfs_enable.mgmt }}" }
+        - { name: "beegfs-meta.service", enable: "{{ beegfs_enable.meta }}" }
+        - { name: "beegfs-admon.service", enable: "{{ beegfs_enable.admon }}" }
+    - name: Stop BeeGFS storage services
+      vars:
+        service_name: "beegfs-storage@{{ item.port }}.service"
+      service:
+        name: "{{ service_name }}"
+        state: stopped
+      with_items: "{{ beegfs_oss }}"
+      when: service_name in ansible_facts.services
+    - name: Remove other beegfs folders
+      file:
+        path: "{{ item.name }}"
+        state: absent
+      when: item.enable | bool
+      with_items:
+        - { name: "{{ beegfs_meta_path }}", enable: "{{ beegfs_enable.meta }}" }
+        - { name: "{{ beegfs_mgmt_path }}", enable: "{{ beegfs_enable.mgmt }}" }
+    - name: Unload kernel module
+      modprobe:
+        name: beegfs
+        state: absent
+    - name: Delete kernel module
+      file:
+        path: "{{ beegfs_kernel_module }}"
+        state: absent
+  when: (beegfs_force_format | bool) or
+        (beegfs_package_action | lower == "latest")
+  become: true
+
+- include: rdma.yml
+  when: beegfs_rdma | bool
+
+- include: mgmt.yml
+  when: beegfs_enable.mgmt | default(false) | bool
+
+- include: admon.yml
+  when: beegfs_enable.admon | default(false) | bool
+
+- include: meta.yml
+  when: beegfs_enable.meta | default(false) | bool
+
+- include: oss.yml
+  vars:
+    oss_dev: "{{ oss_item.dev | default('') }}"
+    oss_dev_is_defined: "{{ oss_item.dev is defined }}"
+    oss_path: "{{ oss_item.path | default(beegfs_oss_path_prefix + oss_dev) }}"
+    oss_port: "{{ oss_item.port }}"
+    oss_replace: "{{ '-r' if (oss_item == beegfs_oss|first or beegfs_oss_multi_port) else '' }}"
+  with_items: "{{ beegfs_oss }}"
+  loop_control:
+    loop_var: oss_item
+  failed_when: >
+    (oss_item.dev is not defined and oss_item.path is not defined)
+  when: beegfs_enable.oss | default(false) | bool
+
+- include: tuning.yml
+  when: beegfs_enable.tuning | default(false) | bool
+
+- meta: flush_handlers
+
+- include: client.yml
+  vars:
+    client_mgmt_host: "{{ client_item.mgmt_host | default(beegfs_mgmt_host) }}"
+    client_path: "{{ client_item.path }}"
+    client_port: "{{ client_item.port }}"
+  with_items: "{{ beegfs_client }}"
+  loop_control:
+    loop_var: client_item
+  when: beegfs_enable.client | default(false) | bool
+
+- name: Create connInterfacesFile
+  template:
+    src: connInterfacesFile.j2
+    dest: /etc/beegfs/connInterfacesFile
+  become: true
+
+- name: Start and enable BeeGFS server services
+  service:
+    name: "{{ item.name }}"
+    enabled: true
+    state: "{{ item.state | default(omit) }}"
+  become: true
+  when: item.enable | bool
+  with_items:
+    - { name: beegfs-mgmtd, enable: "{{ beegfs_enable.mgmt }}", state: started }
+    - { name: beegfs-meta, enable: "{{ beegfs_enable.meta }}", state: started }
+    - { name: beegfs-admon, enable: "{{ beegfs_enable.admon }}", state: started }
+    - { name: beegfs-oss-tuning, enable: "{{ beegfs_enable.tuning }}" }
+
+- name: Start and enable BeeGFS storage services
+  service:
+    name: "beegfs-storage@{{ item.port }}"
+    enabled: true
+    state: started
+  become: true
+  when: beegfs_enable.oss | bool
+  with_items: "{{ beegfs_oss }}"
+
+- name: Start and enable BeeGFS client services
+  service:
+    name: "{{ item.name }}"
+    enabled: true
+    state: started
+  become: true
+  when: item.enable | bool
+  with_items:
+    - { name: beegfs-helperd, enable: "{{ beegfs_enable.client }}" }
+    - { name: beegfs-client, enable: "{{ beegfs_enable.client }}" }
+  retries: 3
+  delay: 3
+  register: result
+  until: result is success
+...

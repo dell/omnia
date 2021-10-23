@@ -1,0 +1,9 @@
+---
+- name: If beegfs_state is present
+  include: create.yml
+  when: beegfs_state | lower == "present"
+
+- name: If beegfs_state is absent
+  include: destroy.yml
+  when: beegfs_state | lower == "absent"
+...
