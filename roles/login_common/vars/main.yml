@@ -30,3 +30,8 @@ dns_port1: "53/tcp"
 dns_port2: "53/udp"
 dt_port1: "7389/tcp"
 ntp_port1: "123/udp"
+
+# Usage: enable_dnf_module.yml
+os_centos: 'centos'
+os_rocky: 'rocky'
+os_version: '8.0'
