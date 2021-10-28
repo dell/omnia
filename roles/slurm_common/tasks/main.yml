@@ -26,6 +26,32 @@
     backup: yes
     mode: "{{ common_mode }}"
 
+- name: Enable powertools repo in Rocky 8.4
+  command: dnf config-manager --set-enabled powertools -y
+  when:
+    - ( ansible_distribution | lower == os_centos ) or
+      ( ansible_distribution | lower == os_rocky )
+    - ( ansible_distribution_version >= os_version )
+
+- name: Add python dependent packages for CentOS 7.9
+  package:
+    name: "{{ common_python2_packages }}"
+    state: present
+  tags: install
+  when:
+    - ( ansible_distribution | lower == os_centos )
+    - ( ansible_distribution_version < os_version )
+
+- name: Add python dependent packages for CentOS version > 8 and Rocky 8.4
+  package:
+    name: "{{ common_python3_packages }}"
+    state: present
+  tags: install
+  when:
+    - ( ansible_distribution | lower == os_centos ) or
+      ( ansible_distribution | lower == os_rocky )
+    - ( ansible_distribution_version >= os_version )
+
 - name: Install packages for slurm
   package:
     name: "{{ common_packages }}"
