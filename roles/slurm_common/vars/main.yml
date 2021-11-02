@@ -22,8 +22,14 @@ common_packages:
    - mariadb-server
    - mariadb-devel
    - man2html
+
+common_python2_packages:
    - MySQL-python
    - python-netaddr
+
+common_python3_packages:
+   - MySQL-python3
+   - python3-netaddr
 
 hostname_dest: "/etc/hostname"
 hosts_dest: "/etc/hosts"
@@ -50,3 +56,7 @@ slurmd_pid: "/var/run/slurmd.pid"
 cluster_name : "manager,compute"
 slurmctld_log: "/var/log/slurm/slurmctld.log"
 slurmd_log: "/var/log/slurm/slurmd.log"
+
+os_centos: 'centos'
+os_rocky: 'rocky'
+os_version: '8.0'
