@@ -119,6 +119,12 @@
       when: "'$ANSIBLE_VAULT;' in config_content.stdout"
       run_once: true
 
+    - name: Install paramiko
+      command: pip3 install paramiko -i http://pypi.douban.com/simple/ --trusted-host pypi.douban.com
+      delegate_to: localhost
+      run_once: true
+      changed_when: false
+
     - name: Initialize variables
       set_fact:
         idrac_inventory_status: false
