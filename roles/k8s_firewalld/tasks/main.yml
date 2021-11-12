@@ -28,7 +28,7 @@
 
 - name: Configure firewalld on master nodes
   firewalld:
-    port: "{{ item }}/tcp"
+    port: "{{ item }}"
     permanent: yes
     state: enabled
   with_items: '{{ k8s_master_ports }}'
@@ -69,6 +69,11 @@
     state: enabled
   with_items: "{{ calico_tcp_ports }}"
   when: hostvars['127.0.0.1']['k8s_cni'] == "calico"
+  tags: firewalld
+
+- name: Masquerade the firewall
+  command: firewall-cmd --add-masquerade --permanent
+  changed_when: true
   tags: firewalld
 
 - name: Reload firewalld
