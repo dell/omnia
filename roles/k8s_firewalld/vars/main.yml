@@ -15,11 +15,14 @@
 
 # Master nodes firewall ports
 k8s_master_ports:
-  - 6443
-  - 2379-2380
-  - 10250
-  - 10251
-  - 10252
+  - 6443/tcp
+  - 2379-2380/tcp
+  - 10250/tcp
+  - 10251/tcp
+  - 10252/tcp
+  - 10255/tcp
+  - 30000-32767/tcp
+  - 8472/udp
 
 # Worker nodes firewall ports
 k8s_compute_ports:
