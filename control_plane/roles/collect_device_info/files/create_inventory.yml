@@ -185,7 +185,6 @@
             --conf.insecure hosts list --inventory ethernet_inventory -f human --filter "name"
           changed_when: false
           no_log: true
-          run_once: true
           register: ethernet_switches
 
         - name: Assert ethernet switch
@@ -236,7 +235,6 @@
             --conf.insecure hosts list --inventory infiniband_inventory -f human --filter "name"
           changed_when: false
           no_log: true
-          run_once: true
           register: infiniband_switches
 
         - name: Authenticate infiniband Switch
@@ -311,7 +309,6 @@
             --conf.insecure hosts list --inventory powervault_me4_inventory -f human --filter "name"
           changed_when: false
           no_log: true
-          run_once: true
           register: me4_storage
 
         - name: Get auth string for powervault
