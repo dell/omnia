@@ -100,20 +100,17 @@
       ignore_errors: true
 
     - name: Set the hostname from mapping file
-      hostname:
-        name: "{{ host_name.stdout + '.' + hostvars['localhost']['domain_name'] }}"
+      command: hostnamectl set-hostname "{{ host_name.stdout + '.' + hostvars['localhost']['domain_name'] }}"
       when: ('localhost' in hostname_check.stdout) and (mapping_file_present != "" ) and  (mapping_file | bool == true )
       ignore_errors: true
 
     - name: Set the hostname if hostname not present mapping file
-      hostname:
-        name: "compute{{ inventory_hostname.split('.')[-2] + '-' + inventory_hostname.split('.')[-1] + '.' + hostvars['localhost']['domain_name'] }}"
+      command: hostnamectl set-hostname "compute{{ inventory_hostname.split('.')[-2] + '-' + inventory_hostname.split('.')[-1] + '.' + hostvars['localhost']['domain_name'] }}"
       when: ('localhost' in hostname_check.stdout) and (file_present.rc != 0) and (mapping_file | bool == true )
       ignore_errors: true
 
     - name: Set the system hostname
-      hostname:
-        name: "compute{{ inventory_hostname.split('.')[-2] + '-' + inventory_hostname.split('.')[-1]+'.'+ hostvars['localhost']['domain_name'] }}"
+      command: hostnamectl set-hostname "compute{{ inventory_hostname.split('.')[-2] + '-' + inventory_hostname.split('.')[-1]+'.'+ hostvars['localhost']['domain_name'] }}"
       when: ('localhost' in hostname_check.stdout) and (mapping_file | bool == false)
       ignore_errors: true
 
