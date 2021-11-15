@@ -68,6 +68,7 @@ Thanks goes to everyone who makes Omnia possible ([emoji key](https://allcontrib
   <tr>
     <td align="center"><a href="https://github.com/ptrinesh"><img src="https://avatars.githubusercontent.com/u/73214211?v=4?s=100" width="100px;" alt=""/><br /><sub><b>ptrinesh</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=ptrinesh" title="Code">💻</a></td>
     <td align="center"><a href="https://bandism.net/"><img src="https://avatars.githubusercontent.com/u/22633385?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Ikko Ashimine</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=eltociear" title="Code">💻</a></td>
+    <td align="center"><a href="https://github.com/abhishek-sa1"><img src="https://avatars.githubusercontent.com/u/94038029?v=4?s=100" width="100px;" alt=""/><br /><sub><b>abhishek-sa1</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=abhishek-sa1" title="Code">💻</a></td>
   </tr>
 </table>
 
