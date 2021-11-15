@@ -14,7 +14,7 @@ File name	|	Variables	|	Default, choices	|	Description
 -----------	|	-------	|	----------------	|	-----------------
 base_vars.yml	|	ib_switch_support	|	<ul><li>false</li><li>**true**</li></ul>	|	To enable Mellanox InfiniBand switch configuration, set the variable to "true".
 <br>	|	ib_network_nic	|	<ul><li>**ib0**</li></ul>	|	NIC or Ethernet card that must be connected to configure Mellanox InfiniBand switches.  
-<br>	|	ib_network_dhcp_start_range, ib_network_dhcp_end_range	|		|	DHCP range for the DHCP server to assign IPv4 addresses.
+<br>	|	ib_network_dhcp_start_range, ib_network_dhcp_end_range	| **172.25.0.100**, **172.25.0.200**		|	DHCP range for the DHCP server to assign IPv4 addresses.
 
 2. Edit the `login_vars.yml` file to enter the following details:  
 	a. `ib_username` and `ib_password`- username and password for InfiniBand Switches.   
