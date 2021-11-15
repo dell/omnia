@@ -9,18 +9,18 @@ Potential Causes:
 Resolution:  
 Wait for AWX UI to be accessible at http://\<management-station-IP>:8081, and then run the `control_plane.yml` file again, where __management-station-IP__ is the IP address of the management node.
 
-## What to do if the nodes in a Kubernetes cluster reboot?  
+## What to do if the nodes in a Kubernetes cluster reboot:
 Wait for 15 minutes after the Kubernetes cluster reboots. Next, verify the status of the cluster using the following commands:
 * `kubectl get nodes` on the manager node to get the real-time k8s cluster status.  
 * `kubectl get pods --all-namespaces` on the manager node to check which the pods are in the **Running** state.
 * `kubectl cluster-info` on the manager node to verify that both the k8s master and kubeDNS are in the **Running** state.
 
-## What to do when the Kubernetes services are not in the __Running__  state?  
+## What to do when the Kubernetes services are not in the __Running__  state:
 1. Run `kubectl get pods --all-namespaces` to verify that all pods are in the **Running** state.
 2. If the pods are not in the **Running** state, delete the pods using the command:`kubectl delete pods <name of pod>`
 3. Run the corresponding playbook that was used to install Kubernetes: `omnia.yml`, `jupyterhub.yml`, or `kubeflow.yml`.
 
-## What to do when the JupyterHub or Prometheus UI is not accessible?  
+## What to do when the JupyterHub or Prometheus UI is not accessible:
 Run the command `kubectl get pods --namespace default` to ensure **nfs-client** pod and all Prometheus server pods are in the **Running** state. 
 
 ## While configuring Cobbler, why does the `control_plane.yml` fail during the Run import command?  
@@ -42,7 +42,7 @@ Resolution:
 1. Create a Non-RAID or virtual disk on the server.  
 2. Check if other systems except for the management node have cobblerd running. If yes, then stop the Cobbler container using the following commands: `docker rm -f cobbler` and `docker image rm -f cobbler`.
 
-## What to do when the Slurm services do not start automatically after the cluster reboots?  
+## What to do when Slurm services do not start automatically after the cluster reboots:
 
 * Manually restart the slurmd services on the manager node by running the following commands:
 ```
@@ -103,6 +103,17 @@ Resolution:
 2. In the omnia_config.yml file, change the k8s_cni variable value from `calico` to `flannel`.
 3. Run the Kubernetes and Kubeflow playbooks.  
 
+## What to do if jobs hang in 'pending' state on the AWX UI:
+
+Run `kubectl rollout restart deployment awx -n awx` from the management station and try to re-run the job.
+
+If the above solution **doesn't work**,
+1. Delete all the inventories, groups and organization from AWX UI.
+2. Delete the folder: `/var/nfs_awx`.
+3. Delete the file: `omnia/control_plane/roles/webui_awx/files/.tower_cli.cfg`.
+4. Re-run *control_plane.yml*.
+  
+
 ## Why is permission denied when executing the `idrac.yml` file or other .yml files from AWX?
 Potential Cause: The "PermissionError: [Errno 13] Permission denied" error is displayed if you have used the ansible-vault decrypt or encrypt commands.  
 Resolution:
@@ -111,17 +122,17 @@ Resolution:
 
 It is recommended that the ansible-vault view or edit commands are used and not the ansible-vault decrypt or encrypt commands.
 
-## What to do if the LC is not ready?
+## What to do if the LC is not ready:
 * Verify that the LC is in a ready state for all servers: `racadm getremoteservicesstatus`
 * Launch iDRAC template.
 
-## What to do if the network CIDR entry of iDRAC IP in /etc/exports file is missing?
+## What to do if the network CIDR entry of iDRAC IP in /etc/exports file is missing:
 * Add an additional network CIDR range of idrac IPs in the */etc/exports* file if the iDRAC IP is not in the management network range provided in base_vars.yml.
 
-## What to do if a custom ISO file is not present on the device?
+## What to do if a custom ISO file is not present on the device:
 * Re-run the *control_plane.yml* file.
 
-## What to do if the *management_station_ip.txt* file under *provision_idrac/files* folder is missing?
+## What to do if the *management_station_ip.txt* file under *provision_idrac/files* folder is missing:
 * Re-run the *control_plane.yml* file.
 
 ## Is Disabling 2FA supported by Omnia?
@@ -131,7 +142,7 @@ It is recommended that the ansible-vault view or edit commands are used and not 
 1. Delete the respective iDRAC IP addresses from the *provisioned_idrac_inventory* on the AWX UI or delete the *provisioned_idrac_inventory* to delete the iDRAC IP addresses of all the servers in the cluster.
 2. Launch the iDRAC template from the AWX UI.
 
-## What to do if PowerVault throws the error: `Error: The specified disk is not available. - Unavailable disk (0.x) in disk range '0.x-x'`
+## What to do if PowerVault throws the error: `Error: The specified disk is not available. - Unavailable disk (0.x) in disk range '0.x-x'`:
 1. Verify that the disk in question is not part of any pool: `show disks`
 2. If the disk is part of a pool, remove it and try again.
 
@@ -142,7 +153,7 @@ At any given time only one type of disk group can be created on the system. That
 * Provisioning server using BOSS controller is not supported by Omnia. It will be supported in upcoming releases.
 
 
-## What to do when iDRAC template execution throws a warning regarding older firmware versions?
+## What to do when iDRAC template execution throws a warning regarding older firmware versions:
 Potential Cause: Older firmware version in PowerEdge servers. Omnia supports only iDRAC 8 based Dell EMC PowerEdge Servers with firmware versions 2.75.75.75 and above and iDRAC 9 based Dell EMC PowerEdge Servers with Firmware versions 4.40.40.00 and above.
 
 1. Update iDRAC firmware version in PowerEdge servers manually to the supported version.
@@ -165,12 +176,12 @@ As defined in RFC 822, the only legal characters are the following:
 
 3. Period (.): The period should be used only to delimit fields in a hostname (e.g., dvader.empire.gov)
 
-## What to do when JupyterHub pods are in 'ImagePullBackOff' or 'ErrImagePull' status after executing jupyterhub.yml?
+## What to do when JupyterHub pods are in 'ImagePullBackOff' or 'ErrImagePull' status after executing jupyterhub.yml:
 Potential Cause: Your Docker pull limit has been exceeded. For more information, click [here](https://www.docker.com/increase-rate-limits)
 1. Delete Jupyterhub deployment by executing the following command in manager node: `helm delete jupyterhub -n jupyterhub`
 2. Re-execute jupyterhub.yml after 8-9 hours.
 
-## What to do when Kubeflow pods are in 'ImagePullBackOff' or 'ErrImagePull' status after executing kubeflow.yml?
+## What to do when Kubeflow pods are in 'ImagePullBackOff' or 'ErrImagePull' status after executing kubeflow.yml:
 Potential Cause: Your Docker pull limit has been exceeded. For more information, click [here](https://www.docker.com/increase-rate-limits)
 1. Delete Kubeflow deployment by executing the following command in manager node: `kfctl delete -V -f /root/k8s/omnia-kubeflow/kfctl_k8s_istio.v1.0.2.yaml`
 2. Re-execute kubeflow.yml after 8-9 hours
