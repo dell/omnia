@@ -134,4 +134,5 @@
 - name: Login to the powervault
   command: iscsiadm -m node --login {{ pv_name }} -p {{ ip_port }}
   changed_when: true
+  failed_when: false
   tags: install
