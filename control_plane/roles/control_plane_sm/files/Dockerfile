@@ -6,7 +6,7 @@ RUN dnf install -y epel-release
 
 RUN dnf groupinstall "Infiniband Support" -y
 
-RUN dnf install -y opensm-3.3.23
+RUN dnf install -y opensm
 
 COPY opensm.conf /etc/rdma/opensm.conf
 
