@@ -19,6 +19,16 @@
   gather_facts: no
   roles:
     - cluster_validation
+    
+- name: Validate nfs_node config
+  hosts: nfs_node
+  gather_facts: false
+  tasks:
+    - name: Validate nfs_node config
+      include_role:
+        name: powervault_me4_nfs
+        tasks_from: validate_nfs_config.yml
+      when: hostvars['127.0.0.1']['powervault_status']
 
 - name: Gather facts from all the nodes
   hosts: manager, compute, login_node, nfs_node
