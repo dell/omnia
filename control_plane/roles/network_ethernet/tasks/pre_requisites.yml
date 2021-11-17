@@ -16,6 +16,7 @@
 - name: Install paramiko
   command: pip3 install paramiko -i http://pypi.douban.com/simple/ --trusted-host pypi.douban.com
   delegate_to: localhost
+  run_once: true
   changed_when: false
 
 - name: Check if ethernet_tor_vars.yml exists

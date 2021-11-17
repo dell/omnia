@@ -18,7 +18,7 @@ Under the `control_plane/input_params` directory, edit the following files:
 
 	Variables	|	Default, choices	|	Description
 	----------------	|	-----------------	|	-----------------
-	locale	|	<ul><li>English</li></ul>	|	Represents the selected language. In Omnia 1.1, only English is supported.
+	locale	|	<ul><li>English</li></ul>	|	Represents the selected language. Currently, only English is supported.
 	powervault_me4_system_name [Optional]	|	<ul><li>**Uninitialized_Name**</li><li>User-defined name</li></ul>	|	The system name used to identify the PowerVault Storage device. The name should be less than 30 characters and must not contain spaces.
 	powervault_me4_snmp_notify_level [Required]	|	<ul><li>**none**</li><li>crit</li><li>error</li><li>warn</li><li>resolved</li><li>info</li></ul>	|	Select the SNMP notification levels for PowerVault Storage devices. 
 	powervault_me4_raid_levels	[Required] |	<ul><li>**raid1**</li>Examples:<li>r5/raid5: 3-16</li><li>r6/raid6: 4-16</li><li>r10/raid10: 4-16</li><li>adapt: 12-128</li></ul> |	Enter the required RAID levels and the minimum and maximum number of disks for each RAID levels. 

@@ -51,8 +51,8 @@ RUN dnf install -y python3-sphinx
 RUN pip3 install wheel
 
 #Copy Configuration files
-COPY cobbler_settings /etc/cobbler/settings.yaml
-COPY temp_dhcp.template  /etc/cobbler/dhcp.template
+COPY settings.yaml /etc/cobbler/settings.yaml
+COPY dhcp.template  /etc/cobbler/dhcp.template
 COPY modules.conf  /etc/cobbler/modules.conf
 COPY tftp /etc/xinetd.d/tftp
 COPY .users.digest /etc/cobbler/users.digest
