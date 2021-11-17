@@ -80,7 +80,7 @@ MariaDB	|	GPL 2.0	|	5.5.68	|	Relational database used by Slurm
 Slurm	|	GNU General Public	|	20.11.7	|	HPC Workload Manager
 Docker CE	|	Apache-2.0	|	20.10.2	|	Docker Service
 FreeIPA	|	GNU General Public License v3	|	4.6.8	|	Authentication system used in the login node
-OpenSM	|	GNU General Public License 2	|	3.3.21	|	-
+OpenSM	|	GNU General Public License 2	|	3.3.24	|	-
 NVIDIA container runtime	|	Apache-2.0	|	3.4.2	|	Nvidia container runtime library
 Python PIP	|	MIT License	|	21.1.2	|	Python Package
 Python3	|	-	|	3.6.8	|	-
