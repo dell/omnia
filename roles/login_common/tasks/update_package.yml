@@ -13,14 +13,11 @@
 #  limitations under the License.
 ---
 
-- name: Add ports of manager and login node to firewall
-  include_tasks: firewall_settings.yml
-  when: hostvars['127.0.0.1']['login_node_required']
-
-- name: Enable module idm in Rocky or Centos >= 8.0
-  include_tasks: enable_dnf_module.yml
-  when: hostvars['127.0.0.1']['login_node_required']
-
-- name: Update Packages
-  include_tasks: update_package.yml
-  when: hostvars['127.0.0.1']['login_node_required']
+- name: Update nss package to install ipa server/client
+  command: yum update nss -y
+  changed_when: false
+  args:
+    warn: false
+  when:
+    - ( ansible_distribution | lower == os_centos )
+    - ( ansible_distribution_version < os_version )
