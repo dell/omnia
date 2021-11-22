@@ -65,7 +65,7 @@ nfs_server_manager_node: "{{ ansible_host }}"
 
 nfs_server_nfs_node: "{{ groups['nfs_node'][0] }}"
 
-mpi_operator_yaml_url: https://raw.githubusercontent.com/kubeflow/mpi-operator/master/deploy/v1alpha2/mpi-operator.yaml
+mpi_operator_yaml_url: https://raw.githubusercontent.com/kubeflow/mpi-operator/v0.3.0/deploy/v1alpha2/mpi-operator.yaml
 
 nvidia_k8s_device_plugin_repo_url: https://nvidia.github.io/k8s-device-plugin
 
@@ -79,7 +79,7 @@ gpu_feature_discovery_version: 0.2.0
 
 fpga_device_plugin_yaml_url: https://raw.githubusercontent.com/Xilinx/FPGA_as_a_Service/master/k8s-fpga-device-plugin/fpga-device-plugin.yml
 
-rocm_device_plugin_yaml_url: https://raw.githubusercontent.com/RadeonOpenCompute/k8s-device-plugin/master/k8s-ds-amdgpu-dp.yaml
+rocm_device_plugin_yaml_url: https://raw.githubusercontent.com/RadeonOpenCompute/k8s-device-plugin/v1.18.1/k8s-ds-amdgpu-dp.yaml
 
 slurm_exporter_config_file: extraScrapeConfigs.yaml
 

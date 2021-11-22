@@ -95,7 +95,7 @@ Helm	|	Apache-2.0	|	3.5.0	|	Kubernetes Package Manager
 Helm Chart	|	-	|	0.9.0	|	-
 TensorFlow	|	Apache-2.0	|	2.1.0	|	Machine Learning framework
 Horovod	|	Apache-2.0	|	0.21.1	|	Distributed deep learning training framework for Tensorflow
-MPI	|	Copyright (c) 2018-2019 Triad National Security,LLC. All rights reserved.	|	0.2.3	|	HPC library
+MPI	|	Copyright (c) 2018-2019 Triad National Security,LLC. All rights reserved.	|	0.3.0	|	HPC library
 CoreDNS	|	Apache-2.0	|	1.6.2	|	DNS server that chains plugins
 CNI	|	Apache-2.0	|	0.3.1	|	Networking for Linux containers
 AWX	|	Apache-2.0	|	19.1.0	|	Web-based User Interface
