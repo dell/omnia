@@ -52,7 +52,7 @@ The **provision_idrac** file configures and validates the following:
 
 After the configurations are validated, the **provision_idrac** file provisions the custom ISO on the PowerEdge Servers. After the OS is provisioned successfully, iDRAC IP addresses are updated in the *provisioned_idrac_inventory* in AWX.
 
-**NOTE**: The `idrac.yml` file initiates the provisioning of custom ISO on the PowerEdge servers. Wait for some time for the node inventory to be updated on the AWX UI. 
+>>**NOTE**: The `idrac.yml` file initiates the provisioning of custom ISO on the PowerEdge servers. Wait for some time for the node inventory to be updated on the AWX UI. 
 
 ### Provisioning newly added PowerEdge servers in the cluster
 To provision newly added servers, wait till the iDRAC IP addresses are automatically added to the *idrac_inventory*. After the iDRAC IP addresses are added, launch the iDRAC template on the AWX UI to provision CentOS custom OS on the servers.  
@@ -73,11 +73,13 @@ To create the Cobbler image, Omnia configures the following:
 To access the Cobbler dashboard, enter `https://<IP>/cobbler_web` where `<IP>` is the Global IP address of the management station. For example, enter
 `https://100.98.24.225/cobbler_web` to access the Cobbler dashboard.
 
-__Note__: After the Cobbler Server provisions the operating system on the servers, IP addresses and hostnames are assigned by the DHCP service.  
-* If a mapping file is not provided, the hostname to the server is provided based on the following format: **computexxx-xxx** where "xxx-xxx" is the last two octets of the Host IP address. For example, if the Host IP address is 172.17.0.11 then the assigned hostname by Omnia is compute0-11.  
-* If a mapping file is provided, the hostnames follow the format provided in the mapping file.  
+>>__Note__: After the Cobbler Server provisions the operating system on the servers, IP addresses and hostnames are assigned by the DHCP service.  
+>>* If a mapping file is not provided, the hostname to the server is provided based on the following format: **computexxx-xxx** where "xxx-xxx" is the last two octets of the Host IP address. For example, if the Host IP address is 172.17.0.11 then the assigned hostname by Omnia is compute0-11.  
+>>* If a mapping file is provided, the hostnames follow the format provided in the mapping file.  
 
-__Note__: If you want to add more nodes, append the new nodes in the existing mapping file. However, do not modify the previous nodes in the mapping file as it may impact the existing cluster.
+>>__Note__: If you want to add more nodes, append the new nodes in the existing mapping file. However, do not modify the previous nodes in the mapping file as it may impact the existing cluster.
+
+>> __Note__: During a Cobbler based deployment, only one OS is supported at a time. If the user would like to deploy both, please deploy one first, **unmount `/mnt/iso`** and then re-run Cobbler for the second OS.
 
 ## Security enhancements  
 Omnia provides the following options to enhance security on the provisioned PowerEdge servers:
@@ -101,7 +103,7 @@ Omnia provides the following options to enhance security on the provisioned Powe
 	<br>	|	smtp_username</br> [Optional]	|		|	Username for SMTP.
 	<br>	|	smtp_password</br> [Optional]	|		|	Password for SMTP.
 
-	**NOTE**: 2FA will be enabled on the iDRAC only if SMTP server details are valid and a test email notification is working using SMTP.  
+	>>**NOTE**: 2FA will be enabled on the iDRAC only if SMTP server details are valid and a test email notification is working using SMTP.  
 * **LDAP Directory Services**: To enable or disable the LDAP directory services, set the *ldap_directory_services* variable to "enabled" in the `idrac_vars.yml` file.  
 
 	Before executing the **idrac_ldap.yml** file, you must edit `idrac_tools_vars.yml` by running the following command: `ansible-vault edit idrac_tools_vars.yml --vault-password-file .idrac_vault_key`.  
@@ -125,7 +127,7 @@ Omnia provides the following options to enhance security on the provisioned Powe
 	
 	To view the `idrac_tools_vars.yml` file, run the following command: `ansible-vault view idrac_tools_vars.yml --vault-password-file .idrac_vault_key`  
 	
-	**NOTE**: It is suggested that you use the ansible-vault view or edit commands and that you do not use the ansible-vault decrypt or encrypt commands. If you have used the ansible-vault decrypt or encrypt commands, provide 644 permission to `idrac_tools_vars.yml`.  
+	>>**NOTE**: It is suggested that you use the ansible-vault view or edit commands and that you do not use the ansible-vault decrypt or encrypt commands. If you have used the ansible-vault decrypt or encrypt commands, provide 644 permission to `idrac_tools_vars.yml`.  
 
 On the AWX Dashboard, select the respective security requirement playbook and launch the iDRAC template by performing the following steps.
 1. On the AWX Dashboard, under __RESOURCES__ -> __Templates__, select the **idrac_template**.
