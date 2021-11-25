@@ -15,7 +15,7 @@
 
 ### Usage: powervault_me4 ###
 
-# This variable indicates the language selection
+# This variable indicates the language of installation
 # Currently, only "English" is supported
 locale: "English"
 
@@ -25,7 +25,7 @@ locale: "English"
 # Optional
 powervault_me4_system_name: "Unintialized_Name"
 
-# Specify the snmp notification level
+# Specifies the minimum snmp notification level used
 # crit: Sends notifications for Critical events only.
 # error: Sends notifications for Error and Critical events.
 # warn: Sends notifications for Warning, Error, and Critical events.
@@ -42,7 +42,7 @@ powervault_me4_snmp_notify_level: "none"
 # Default value: "linear"
 powervault_me4_pool_type: "linear"
 
-# Specify the required RAID Level
+# Specifies the required RAID Level
 # The different RAID levels and the min and max number of disks supported for each RAID are
 # r1/raid1: 2
 # r5/raid5: 3-16
@@ -53,7 +53,7 @@ powervault_me4_pool_type: "linear"
 # Required field
 powervault_me4_raid_levels: "raid1"
 
-# Specify the range of disks
+# Specifies the range of disks
 # Select a range of disks within an enclosure by entering a comma-separated list that contains 
 # the enclosure number and disk range in the Enter Range of Disks text box. 
 # Use the format enclosure-number.disk-range,enclosure-number.disk-range. 
@@ -65,37 +65,37 @@ powervault_me4_raid_levels: "raid1"
 # Required field
 powervault_me4_disk_range: "0.1-2"
 
-# Specify the volume names
+# Specifies the volume names
 # Default value "k8s_volume" and "slurm_volume"
 # Required field
 powervault_me4_k8s_volume_name: "k8s_volume"
 powervault_me4_slurm_volume_name: "slurm_volume"
 
-# Specify the disk group name
+# Specifies the disk group name
 # Required field
 powervault_me4_disk_group_name: "omnia"
 
-# Specify the percentage for partition in disk
+# Specifies the percentage for partition in disk
 # Default value is "60%"
 # Min: 5
 # Max: 90
 # Required field
 powervault_me4_disk_partition_size: "60"
 
-# Specify the volume size
+# Specifies the volume size
 # Format: 100GB <SizeGB>
 # Default: 100GB
 # Required field
 powervault_me4_volume_size: "100GB"
 
-# Specify the pool for disk and volumes
+# Specifies the pool for disk and volumes
 # Pool can either be  a/A or b/B.
-# Mandatory if powervault_me4_pool_type selected as "virtual".
+# Mandatory if powervault_me4_pool_type selected is "virtual".
 powervault_me4_pool: "a"
 
-# Specify the nic of the server with which Powervault is connected.
+# Specifies the nic of the server with which Powervault is connected.
 # Make sure nfs server also has 3 nics (for internet, OS provision and powervault connection)
-# The nic should be according to the provisioned OS on nfs server.
+# The nic should be specified based on the provisioned OS on nfs server.
 # Example: em1 for CentOS-7, eno1 for RockyOS etc.
 # Default value: "eno1"
 # Required field
