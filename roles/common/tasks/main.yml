@@ -104,12 +104,17 @@
 
 - name: Install Nvidia drivers and software components
   include_tasks: nvidia.yml
-  when: ansible_local.inventory.nvidia_gpu > 0
+  when:
+    - ansible_local.inventory.nvidia_gpu > 0
+    - ansible_facts['distribution'] == os_name
+    - ansible_facts['distribution_major_version'] == os_version
   tags: install
 
 - name: Install AMD GPU drivers and software components
   include_tasks: amd.yml
-  when: ansible_local.inventory.amd_gpu > 0
+  when:
+    - ansible_local.inventory.amd_gpu > 0
+    - ansible_facts['distribution'] == os_name
   tags: install
 
 - name: Get the hostname
