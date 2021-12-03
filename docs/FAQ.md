@@ -189,4 +189,7 @@ Potential Cause: Your Docker pull limit has been exceeded. For more information,
 ## Can Cobbler deploy both Rocky and CentOS at the same time?
 No. During Cobbler based deployment, only one OS is supported at a time. If the user would like to deploy both, please deploy one first, **unmount `/mnt/iso`** and then re-run cobbler for the second OS.
 
+## Why do Firmware Updates fail for some components with Omnia 1.1.1?
+Due to the latest `catalog.xml` file, Firmware updates fail for some components on server models R640 and R740. Omnia execution doesn't get interrupted but an error gets logged. For now, please download those individual updates manually.
+
 
