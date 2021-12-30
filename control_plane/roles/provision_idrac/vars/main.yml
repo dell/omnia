@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -55,7 +55,7 @@ provision_method_pxe: "PXE"
 # Usage: update_firmware.yml
 idrac_port: 443
 idrac_error_message: "Unable to complete the operation because the catalog name entered has either unsupported firmware packages or same version installed on the server"
-firmware_job_fail_msg: "Failed. Error occured while updating firmware"
+firmware_job_fail_msg: "Failed. Error occurred while updating firmware"
 firmware_job_success_msg: "Firmware update job compeleted successfully"
 
 # Usage: import_scp.yml
