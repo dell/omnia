@@ -27,10 +27,13 @@ spec:
         - name: infiniband-container
           image: 'localhost/infiniband-container:latest'
           imagePullPolicy: Never
-          command:
-            - /sbin/init
+          command: ["sh", "-c", "tail -f /dev/null"]
           volumeMounts:
             - name: omnia-storage
               mountPath: /root/omnia
           securityContext:
-            privileged: true
+            allowPrivilegeEscalation: true
+            capabilities:
+              add:
+                - NET_RAW
+            privileged: false

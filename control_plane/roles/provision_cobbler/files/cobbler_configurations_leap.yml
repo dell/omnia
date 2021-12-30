@@ -29,41 +29,26 @@
     changed_when: false
 
   - name: Install cobbler and cobbler-web
-    command: dnf install -y cobbler-3.2.2-1.el8.noarch.rpm cobbler-web-3.2.2-1.el8.noarch.rpm
+    command: zypper in -y --allow-unsigned-rpm cobbler-3.2.2-1.noarch.rpm cobbler-web-3.2.2-1.noarch.rpm
     args:
       chdir: /cobbler/rpm-build
     changed_when: false
-  
+    
   - name: Run script
     shell: sh ./mkgrub.sh
     args:
       chdir: /usr/share/cobbler/bin
     changed_when: false
-
-  - name: Add load_wsgi
-    blockinfile:
-      state: present
-      insertbefore: '# LoadModule foo_module modules/mod_foo.so'
-      dest: /etc/httpd/conf/httpd.conf
-      block: |
-        LoadModule wsgi_module modules/mod_wsgi_python3.so
-        LoadModule proxy_module modules/mod_proxy.so
-
-  - name: Cobbler web
-    blockinfile:
-      state: present
-      insertafter: '^<VirtualHost '
-      path: /etc/httpd/conf.d/cobbler_web.conf
-      block: |
-         ServerName localhost
-         SSLEngine on
-         SSLCipherSuite PROFILE=SYSTEM
-         SSLCertificateFile /etc/pki/tls/certs/localhost.crt
-         SSLCertificateKeyFile /etc/pki/tls/private/localhost.key
-
+  
   - name: Add settings to http
-    shell: echo "LoadModule wsgi_module modules/mod_wsgi_python3.so" >/etc/httpd/conf.d/wsgi.conf
+    shell: echo "LoadModule wsgi_module modules/mod_wsgi_python3.so" >/etc/apache2/conf.d/wsgi.conf
     changed_when: false
+
+  - name: Add interface to the /etc/sysconfig/dhcpd
+    replace:
+      path: "/etc/sysconfig/dhcpd"
+      regexp: "^DHCPD_INTERFACE=\"\""
+      replace: "DHCPD_INTERFACE={{ host_network_nic }}"
 
   - name: Enable cobbler
     command: systemctl enable {{ item }}
@@ -77,7 +62,7 @@
       name: "{{ item }}"
       state: restarted
     loop:
-      - httpd
+      - apache2
       - cobblerd
 
   - name: Start services
@@ -95,22 +80,13 @@
     command: cobbler import --arch=x86_64 --path=/mnt --name="{{ name_iso }}"
     changed_when: false
 
-  - name: Kickstart profile - centos
+  - name: Kickstart profile - leap
     copy:
-      src: "/root/centos7.ks"
-      dest: "/var/lib/cobbler/templates/sample.ks"
+      src: "/root/leap15.xml"
+      dest: "/var/lib/cobbler/templates/sample_autoyast.xml"
       mode: 0775
     tags: install
-    when: name_iso == "centos"
 
-  - name: Kickstart profile - rocky
-    copy:
-      src: "/root/rocky8.ks"
-      dest: "/var/lib/cobbler/templates/sample.ks"
-      mode: 0775
-    tags: install
-    when: name_iso == "rocky"
-    
   - name: Pxe menu
     copy:
       src: "/root/omnia/control_plane/roles/provision_cobbler/files/menu.yml"
@@ -142,7 +118,7 @@
       state: restarted
     loop:
       - cobblerd
-      - httpd
+      - apache2
       - xinetd
       - dhcpd
 
@@ -150,6 +126,18 @@
     command: whereis ansible-playbook
     changed_when: false
     register: ansible_playbook_path
+
+#  - name: Set dhcpd_lease_file variable for inventory creation
+#    cron:
+#      env: yes
+#      name: dhcpd_lease_file
+#      value: "/var/lib/dhcp/db/dhcpd.leases"
+
+#  - name: Set provision_os variable for inventory creation
+#    cron:
+#      env: yes
+#      name: provision_os
+#      value: "{{ name_iso }}"
 
   - name: Add tftp cron job
     cron:
@@ -161,4 +149,4 @@
     cron:
       name: Create inventory
       minute: "*/5"
-      job: "{{ ansible_playbook_path.stdout.split(' ')[1] }} /root/inventory_creation.yml -e dhcpd_lease_file=\"/var/lib/dhcpd/dhcpd.leases\""
+      job: "{{ ansible_playbook_path.stdout.split(' ')[1] }} /root/inventory_creation.yml -e dhcpd_lease_file=\"/var/lib/dhcp/db/dhcpd.leases\""

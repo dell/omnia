@@ -1,35 +1,16 @@
 # Dockerfile for creating the management network container
+FROM alpine:latest
 
-FROM centos:8
+#Installing packages
+RUN apk add dhcp
+RUN apk add ansible
+RUN apk add openrc
 
-# RPM REPOs
-RUN dnf install -y \
-    epel-release \
-    && dnf clean all \
-    && rm -rf /var/cache/dnf
-
-RUN dnf install -y dhcp-server
-RUN dnf install -y python3-netaddr
-
-RUN yum install -y \
-  ansible \
-  cronie \
-  tftp\
-  tftp-server\
-  xinetd \
-  net-tools \
-  && yum clean all \
-  &&  rm -rf /var/cache/yum
-
+#Creation of directories and files
 RUN mkdir /root/omnia
+RUN touch /var/lib/dhcp/dhcpd.leases
 
 #Copy Configuration files
 COPY dhcpd.conf  /etc/dhcp/dhcpd.conf
-COPY tftp /etc/xinetd.d/tftp
 COPY inventory_creation.yml /root/
 COPY mngmnt_container_configure.yml /root/
-
-RUN systemctl enable tftp
-RUN systemctl enable dhcpd
-
-CMD ["sbin/init"]
