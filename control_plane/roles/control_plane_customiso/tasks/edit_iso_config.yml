@@ -45,6 +45,8 @@
 - name: Copy files to tmp folder
   command:  rsync -AHPSXav {{ iso_mount_path }} {{ tmp_iso_dir }}
   changed_when: true
+  args:
+    warn: false
   tags: install
 
 - block:
