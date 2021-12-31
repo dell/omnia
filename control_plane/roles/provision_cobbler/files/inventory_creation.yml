@@ -4,8 +4,8 @@
   tasks:
     - name: Read dhcp file
       set_fact:
-        var: "{{ lookup('file', '/var/lib/dhcpd/dhcpd.leases').split()| unique | select| list }}"
-
+        var: "{{ lookup('file', '{{ dhcpd_lease_file }}').split()| unique | select| list }}"
+    
     - name: Filter the ip
       set_fact:
         vars_new: "{{ var| ipv4('address')| to_nice_yaml}}"

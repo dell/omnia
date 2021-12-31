@@ -34,7 +34,7 @@
   wait_for:
     timeout: 30
 
-- name: Copy dhcpd.leases from cobbler
+- name: Copy kickstart file inside cobbler container
   command: kubectl cp {{ role_path }}/files/{{ cobbler_kickstart_file }} {{ cobbler_pod_name.stdout }}:/root/{{ cobbler_kickstart_file }} -n {{ cobbler_namespace }}
   changed_when: true
   when: not cobbler_config_status
@@ -43,7 +43,17 @@
   command: "kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} -- ansible-playbook /root/cobbler_configurations.yml -e name_iso={{ provision_os }}"
   changed_when: true
   tags: install
-  when: not cobbler_config_status
+  when: 
+    - not cobbler_config_status
+    - provision_os != os_supported_leap
+      
+- name: Configuring cobbler inside container (It may take 5-10 mins)
+  command: "kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} -- ansible-playbook /root/cobbler_configurations_leap.yml -e name_iso={{ provision_os }} -e host_network_nic={{ host_network_nic }}"
+  changed_when: true
+  tags: install
+  when: 
+    - not cobbler_config_status
+    - provision_os == os_supported_leap
 
 - name: Schedule task
   cron:
