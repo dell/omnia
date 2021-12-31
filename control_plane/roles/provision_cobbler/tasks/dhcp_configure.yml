@@ -69,3 +69,32 @@
     path: "{{ role_path }}/files/settings.yaml"
     regexp: '^next_server: 127.0.0.1'
     replace: 'next_server: {{ hpc_ip }}'
+
+- name: Set the server_args for {{ provision_os }} in tftp file
+  replace:
+    path: "{{ role_path }}/files/tftp"
+    regexp: '^        server_args             = -s /srv/tftpboot'
+    replace: '        server_args             = -s /var/lib/tftpboot'
+  when:
+    - provision_os != os_supported_leap
+      
+- name: Set the parameters for {{ provision_os }}
+  block:
+    - name: Set the tftpboot_location for {{ provision_os }}
+      replace:
+        path: "{{ role_path }}/files/settings.yaml"
+        regexp: '^tftpboot_location: "/var/lib/tftpboot"'
+        replace: 'tftpboot_location: "/srv/tftpboot"'
+
+    - name: Set the webdir for {{ provision_os }}
+      replace:
+        path: "{{ role_path }}/files/settings.yaml"
+        regexp: '^webdir: "/var/www/cobbler"'
+        replace: 'webdir: "/srv/www/cobbler"'
+
+    - name: Set the server_args for {{ provision_os }} in tftp file
+      replace:
+        path: "{{ role_path }}/files/tftp"
+        regexp: '^        server_args             = -s /var/lib/tftpboot'
+        replace: '        server_args             = -s /srv/tftpboot'
+  when: provision_os == os_supported_leap

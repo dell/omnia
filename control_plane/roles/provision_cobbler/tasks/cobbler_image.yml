@@ -18,7 +18,19 @@
   changed_when: true
   args:
     chdir: "{{ role_path }}/files/"
-  when: not cobbler_image_status
+  when: 
+    - not cobbler_image_status
+    - provision_os != os_supported_leap
+  tags: install
+
+- name: Image creation (It may take 5-10 mins)
+  command: "buildah bud -f Dockerfile_leap -t {{ cobbler_image_name }}:{{ cobbler_image_tag }} --network host ."
+  changed_when: true
+  args:
+    chdir: "{{ role_path }}/files/"
+  when: 
+    - not cobbler_image_status
+    - provision_os == os_supported_leap
   tags: install
 
 - name: Update image name in k8s_cobbler.yml

@@ -30,6 +30,7 @@ username: cobbler
 user_mode: 0644
 cobbler_centos_ks: centos7.ks
 cobbler_rocky_ks: rocky8.ks
+cobbler_leap_ks: leap15.xml
 centos_host_nic:
  - em1
  - em2
