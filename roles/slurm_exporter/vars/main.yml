@@ -1,4 +1,4 @@
-# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,3 +39,13 @@ slurm_exporter_port: "8081"
 
 #Usage: configure_prometheus_pod.yml
 slurm_config_file: "slurm_exporter_config.yaml"
+
+#Usage: configure_grafana.yml
+prometheus_ip: http://localhost:9090
+nginx_conf_file_path: /etc/nginx/nginx.conf
+nginx_conf_file_mode: 2534
+grafana_svc_ip: "{{ lookup('ini', 'ip section=grafana_svc file=../../k8s_start_services/files/grafana_svc_details.ini') }}"
+grafana_svc_port: "{{ lookup('ini', 'port section=grafana_svc file=../../k8s_start_services/files/grafana_svc_details.ini') }}"
+slurm_dashboard_json_files:
+  - slurm-dashboard.json
+  - slurm-dashboard-node-exporter.json
