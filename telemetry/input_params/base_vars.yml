@@ -18,12 +18,12 @@
 mount_location: /mnt/omnia/
 
 # This variable is used to enable iDRAC telemetry support and visualizations
-# Accepted values:  "true" or "false"
+# Accepted values: "true" or "false"
 idrac_telemetry_support: true
 
 # This variable is used to enable slurm telemetry support and visualizations
 # Pre-requisite: idrac_telemetry_support should be set to true
-# Accepted values:  "true" or "false"
+# Accepted values: "true" or "false"
 slurm_telemetry_support: true
 
 # Postgres DB with timescale extension is used for storing iDRAC and slurm telemetry metrics
