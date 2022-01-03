@@ -14,26 +14,26 @@
 ---
 
 # Username used for connecting to timescale db
-# The Length of the username should be at least 2 characters.
+# The length of the username should be at least 2 characters.
 # Required field
 timescaledb_user: postgres
 
 # Password used for connecting to timescale db
-# The Length of the password should be at least 2 characters.
+# The length of the password should be at least 2 characters.
 # Required field
 timescaledb_password: postgres
 
 # Username used for connecting to mysql db
-# The Length of the username should be at least 2 characters.
+# The length of the username should be at least 2 characters.
 # Required field
 mysqldb_user: mysql
 
 # Password used for connecting to mysql db
-# The Length of the password should be at least 2 characters.
+# The length of the password should be at least 2 characters.
 # Required field
 mysqldb_password: mysql
 
 # Password used for connecting to timescale db for root user
-# The Length of the password should be at least 2 characters.
+# The length of the password should be at least 2 characters.
 # Required field
 mysqldb_root_password: mysql
