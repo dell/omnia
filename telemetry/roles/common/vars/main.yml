@@ -43,7 +43,7 @@ timescaledb_fail_msg: "Timescale DB name should have minimum length of 2"
 mysqldb_success_msg: "MySQL DB name validated successfully"
 mysqldb_fail_msg: "MySQL DB name should have minimum length of 2"
 
-login_vars_fail_msg: "usernames and passwords in input_params/login_vars.yml should have minimum length 2"
+login_vars_fail_msg: "Usernames and passwords in input_params/login_vars.yml should have minimum length 2"
 
 namespace: telemetry-and-visualizations
 
