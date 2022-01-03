@@ -13,7 +13,7 @@
 # limitations under the License.
 ---
 
-- name: Include telemetry base vars file
+- name: Include telemetry base_vars.yml file
   include_vars: "{{ base_vars_file }}"
   no_log: true
 
