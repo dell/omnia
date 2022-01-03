@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -15,68 +15,11 @@
 
 - name: Include control_plane_common vars
   include_vars: ../../control_plane_common/vars/main.yml
+  tags: install
 
 - name: Include provision_cobbler vars
   include_vars: ../../provision_cobbler/vars/main.yml
-
-- name: Copy files to tmp folder
-  command: cp -r {{ iso_mount_path }} /tmp/
-  changed_when: true
   tags: install
-
-- name: Set centos kickstart file name
-  set_fact:
-    idrac_kickstart_file: "{{ idrac_centos_ks }}"
-  when: provision_os == os_supported_centos
-
-- name: Set rocky kickstart file name
-  set_fact:
-    idrac_kickstart_file: "{{ idrac_rocky_ks }}"
-  when: provision_os == os_supported_rocky
-
-- name: Edit isolinux.cfg
-  replace:
-    path: "{{ tmp_iso_dir }}{{ isolinux_cfg_path }}"
-    regexp: "{{ item.regexp }}"
-    replace: "{{ item.replace }}"
-  with_items:
-    - { regexp: "append initrd=initrd.img", replace: "append initrd=initrd.img ks=cdrom:/{{ idrac_kickstart_file }}" }
-    - { regexp: "rd.live.check quiet", replace: "" }
-  tags: install
-
-- name: Edit grub.cfg
-  replace:
-    path: "{{ tmp_iso_dir }}{{ grub_cfg_path }}"
-    regexp: "{{ item.regexp }}"
-    replace: "{{ item.replace }}"
-  with_items:
-    - { regexp: "timeout=60", replace: "timeout=5" }
-    - { regexp: "kernel /images/pxeboot/vmlinuz", replace: "kernel /images/pxeboot/vmlinuz ks=cdrom:/{{ idrac_kickstart_file }}" }
-    - { regexp: "linuxefi /images/pxeboot/vmlinuz", replace: "linuxefi /images/pxeboot/vmlinuz ks=cdrom:/{{ idrac_kickstart_file }}" }
-    - { regexp: "rd.live.check quiet", replace: "" }
-  tags: install
-
-- name: Remove the kickstart file if exists
-  file:
-    path: "{{ role_path }}/files/{{ idrac_kickstart_file }}"
-    state: absent
-  tags: install
-
-- name: Create the centos kickstart file
-  copy:
-    src: "{{ role_path }}/files/temp_centos7.cfg"
-    dest: "{{ role_path }}/files/{{ idrac_kickstart_file }}"
-    mode: "{{ file_permission }}"
-  tags: install
-  when: provision_os == os_supported_centos
-  
-- name: Create the rocky kickstart file
-  copy:
-    src: "{{ role_path }}/files/temp_rocky8.cfg"
-    dest: "{{ role_path }}/files/{{ idrac_kickstart_file }}"
-    mode: "{{ file_permission }}"
-  tags: install
-  when: provision_os == os_supported_rocky
 
 - name: Random phrase generation
   command: openssl rand -base64 12
@@ -92,54 +35,177 @@
   register: encrypt_login_pass
   tags: install
 
-- name: Configure kickstart file - Password
-  replace:
-    path: "{{ role_path }}/files/{{ idrac_kickstart_file }}"
-    regexp: '^rootpw --iscrypted ks_password'
-    replace: 'rootpw --iscrypted {{ encrypt_login_pass.stdout }}'
-  no_log: true
+- name: Create a tmp iso directory
+  file:
+    path: "{{ tmp_iso_dir }}"
+    state: directory
+    mode: "{{ file_permission }}"
   tags: install
 
-- name: Configure kickstart file centos - nic
-  lineinfile:
-    path: "{{ role_path }}/files/{{ idrac_kickstart_file }}"
-    insertafter: '^network  --bootproto=dhcp --device=link --onboot=on --activate'
-    line: 'network  --bootproto=dhcp --device={{ item }} --onboot=on --activate'
-  tags: install
-  with_items: "{{ centos_host_nic }}"
-  when: provision_os == os_supported_centos
-
-- name: Configure kickstart file rocky - nic
-  lineinfile:
-    path: "{{ role_path }}/files/{{ idrac_kickstart_file }}"
-    insertafter: '^network  --bootproto=dhcp --device=link --onboot=on --activate'
-    line: 'network  --bootproto=dhcp --device={{ item }} --onboot=on --activate'
-  tags: install
-  with_items: "{{ rocky_host_nic }}"
-  when: provision_os == os_supported_rocky
-
-- name: Configure kickstart file - timezone
-  replace:
-    path: "{{ role_path }}/files/{{ idrac_kickstart_file }}"
-    regexp: '^timezone --utc ks_timezone'
-    replace: 'timezone --utc {{ timezone }}'
+- name: Copy files to tmp folder
+  command:  rsync -AHPSXav {{ iso_mount_path }} {{ tmp_iso_dir }}
+  changed_when: true
+  args:
+    warn: false
   tags: install
 
-- name: Configure kickstart file - language
-  replace:
-    path: "{{ role_path }}/files/{{ idrac_kickstart_file }}"
-    regexp: '^lang ks_language'
-    replace: 'lang {{ language }}'
-  tags: install
+- block:
+    - block:
+        - name: Set centos kickstart file name
+          set_fact:
+            idrac_kickstart_file: "{{ idrac_centos_ks }}"
+          tags: install
 
-- name: Copy kickstart file to iso mount path
-  copy:
-    src: "{{ role_path }}/files/{{ idrac_kickstart_file }}"
-    dest: "{{ tmp_iso_dir }}{{ idrac_kickstart_file }}"
-    mode: preserve
-  tags: install
+        - name: Remove the kickstart file if exists
+          file:
+            path: "{{ role_path }}/files/{{ idrac_kickstart_file }}"
+            state: absent
+          tags: install
 
-- name: Remove ^M characters
-  command: dos2unix {{ tmp_iso_dir }}{{ idrac_kickstart_file }}
-  changed_when: false
-  failed_when: false
+        - name: Create the centos kickstart file
+          copy:
+            src: "{{ role_path }}/files/temp_centos7.cfg"
+            dest: "{{ role_path }}/files/{{ idrac_kickstart_file }}"
+            mode: "{{ file_permission }}"
+          tags: install
+
+        - name: Configure kickstart file centos - nic
+          lineinfile:
+            path: "{{ role_path }}/files/{{ idrac_kickstart_file }}"
+            insertafter: '^network  --bootproto=dhcp --device=link --onboot=on --activate'
+            line: 'network  --bootproto=dhcp --device={{ item }} --onboot=on --activate'
+          tags: install
+          with_items: "{{ centos_host_nic }}"
+      when: provision_os == os_supported_centos
+
+    - block:
+        - name: Set rocky kickstart file name
+          set_fact:
+            idrac_kickstart_file: "{{ idrac_rocky_ks }}"
+          tags: install
+
+        - name: Remove the kickstart file if exists
+          file:
+            path: "{{ role_path }}/files/{{ idrac_kickstart_file }}"
+            state: absent
+          tags: install
+
+        - name: Create the rocky kickstart file
+          copy:
+            src: "{{ role_path }}/files/temp_rocky8.cfg"
+            dest: "{{ role_path }}/files/{{ idrac_kickstart_file }}"
+            mode: "{{ file_permission }}"
+          tags: install
+
+        - name: Configure kickstart file rocky - nic
+          lineinfile:
+            path: "{{ role_path }}/files/{{ idrac_kickstart_file }}"
+            insertafter: '^network  --bootproto=dhcp --device=link --onboot=on --activate'
+            line: 'network  --bootproto=dhcp --device={{ item }} --onboot=on --activate'
+          tags: install
+          with_items: "{{ rocky_host_nic }}"
+      when: provision_os == os_supported_rocky
+
+    - name: Configure kickstart file - Password
+      replace:
+        path: "{{ role_path }}/files/{{ idrac_kickstart_file }}"
+        regexp: '^rootpw --iscrypted ks_password'
+        replace: 'rootpw --iscrypted {{ encrypt_login_pass.stdout }}'
+      no_log: true
+      tags: install
+
+    - name: Configure kickstart file - timezone
+      replace:
+        path: "{{ role_path }}/files/{{ idrac_kickstart_file }}"
+        regexp: '^timezone --utc ks_timezone'
+        replace: 'timezone --utc {{ timezone }}'
+      tags: install
+
+    - name: Configure kickstart file - language
+      replace:
+        path: "{{ role_path }}/files/{{ idrac_kickstart_file }}"
+        regexp: '^lang ks_language'
+        replace: 'lang {{ language }}'
+      tags: install
+
+    - name: Copy kickstart file to iso mount path
+      copy:
+        src: "{{ role_path }}/files/{{ idrac_kickstart_file }}"
+        dest: "{{ tmp_iso_dir }}{{ idrac_kickstart_file }}"
+        mode: preserve
+      tags: install
+
+    - name: Remove ^M characters
+      command: dos2unix {{ tmp_iso_dir }}{{ idrac_kickstart_file }}
+      changed_when: false
+      failed_when: false
+
+    - name: Edit isolinux.cfg
+      replace:
+        path: "{{ tmp_iso_dir }}{{ isolinux_cfg_path }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      with_items:
+        - { regexp: "append initrd=initrd.img", replace: "append initrd=initrd.img ks=cdrom:/{{ idrac_kickstart_file }}" }
+        - { regexp: "rd.live.check quiet", replace: "" }
+      tags: install
+
+    - name: Edit grub.cfg
+      replace:
+        path: "{{ tmp_iso_dir }}{{ grub_cfg_path }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      with_items:
+        - { regexp: "timeout=60", replace: "timeout=5" }
+        - { regexp: "kernel /images/pxeboot/vmlinuz", replace: "kernel /images/pxeboot/vmlinuz ks=cdrom:/{{ idrac_kickstart_file }}" }
+        - { regexp: "linuxefi /images/pxeboot/vmlinuz", replace: "linuxefi /images/pxeboot/vmlinuz ks=cdrom:/{{ idrac_kickstart_file }}" }
+        - { regexp: "rd.live.check quiet", replace: "" }
+      tags: install
+  when:
+    - provision_os == os_supported_rocky or
+      provision_os == os_supported_centos
+
+- block:
+    - name: Set leap kickstart file name
+      set_fact:
+        idrac_kickstart_file: "{{ idrac_leap_ks }}"
+      tags: install
+  
+    - name: Create the leap kickstart file
+      copy:
+        src: "{{ role_path }}/files/temp_leap15.xml"
+        dest: "{{ role_path }}/files/{{ idrac_kickstart_file }}"
+        mode: "{{ file_permission }}"
+      tags: install
+
+    - name: Configure kickstart file - Password
+      replace:
+        path: "{{ role_path }}/files/{{ idrac_kickstart_file }}"
+        regexp: '      <user_password>ks_password</user_password>'
+        replace: '      <user_password>{{ encrypt_login_pass.stdout }}</user_password>'
+      no_log: true
+      tags: install
+
+    - name: Configure kickstart file - timezone
+      replace:
+        path: "{{ role_path }}/files/{{ idrac_kickstart_file }}"
+        regexp: '    <timezone>ks_timezone</timezone>'
+        replace: '    <timezone>{{ timezone }}</timezone>'
+      tags: install
+
+    - name: Copy kickstart file to iso mount path
+      copy:
+        src: "{{ role_path }}/files/{{ idrac_kickstart_file }}"
+        dest: "/tmp/leap/{{ idrac_kickstart_file }}"
+        mode: preserve
+      tags: install
+
+    - name: Edit grub.cfg
+      replace:
+        path: "{{ tmp_iso_dir }}{{ grub_cfg_path }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      with_items:
+        - { regexp: "  timeout=60", replace: "  timeout=5" }
+      tags: install
+  when: provision_os == os_supported_leap
