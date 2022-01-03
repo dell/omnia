@@ -1,0 +1,50 @@
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+k8s_installation_required: "Kubernetes installation is mandatory for telemetry.yml"
+
+base_vars_file: "{{ role_path }}/../../input_params/base_vars.yml"
+login_vars_file: "{{ role_path }}/../../input_params/login_vars.yml"
+vault_filename: "{{ role_path }}/../../input_params/.login_vault_key"
+
+fail_msg_base_vars: "telemetry/base_vars.yml file doesn't exist."
+fail_msg_login_vars: "telemetry/login_vars.yml file doesn't exist."
+
+folder_perm: 644
+vault_file_perm: '0644'
+
+idrac_telemetry_support_success_msg: "idrac_telemetry_support validated"
+idrac_telemetry_support_fail_msg: "Failed. idrac_telemetry_support only accepts boolean
+                                    values true or false"
+
+slurm_telemetry_support_success_msg: "slurm_telemetry_support validated"
+slurm_telemetry_support_fail_msg: "Failed. slurm_telemetry_support only accepts boolean
+                                    values true or false"
+
+slurm_telemetry_idrac_support_success_msg: "slurm and idrac telemetry are supported"
+slurm_telemetry_idrac_support_fail_msg: "slurm telemetry is supported only when
+                                      idrac_telemetry_support is true"
+
+timescaledb_success_msg: "Timescale DB name validated successfully"
+timescaledb_fail_msg: "Timescale DB name should have minimum length of 2"
+
+mysqldb_success_msg: "MySQL DB name validated successfully"
+mysqldb_fail_msg: "MySQL DB name should have minimum length of 2"
+
+login_vars_fail_msg: "usernames and passwords in input_params/login_vars.yml should have minimum length 2"
+
+namespace: telemetry-and-visualizations
+
+secrets_name: credentials
