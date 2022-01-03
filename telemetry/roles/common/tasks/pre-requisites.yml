@@ -35,7 +35,7 @@
     path: "{{ base_vars_file }}"
   register: stat_result
 
-- name: Fail if base vars file doesn't exist
+- name: Fail if base_vars.yml file doesn't exist
   fail:
     msg: "{{ fail_msg_base_vars }}"
   when: not stat_result.stat.exists
@@ -45,7 +45,7 @@
     path: "{{ login_vars_file }}"
   register: stat_result
 
-- name: Fail if login vars file doesn't exist
+- name: Fail if login_vars.yml file doesn't exist
   fail:
     msg: "{{ fail_msg_login_vars }}"
   when: not stat_result.stat.exists
