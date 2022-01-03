@@ -13,7 +13,7 @@
 # limitations under the License.
 ---
 
-- name: Service for timescale db
+- name: Service for timescaledb
   kubernetes.core.k8s:
     state: present
     definition:
