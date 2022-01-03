@@ -13,7 +13,7 @@
 # limitations under the License.
 ---
 
--  name: Telemetry and Visualization
+-  name: Telemetry and visualization
    hosts: localhost
    connection: local
    gather_facts: false
