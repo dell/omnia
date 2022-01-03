@@ -17,6 +17,27 @@
   hosts: localhost
   connection: local
   tasks:
+    - name: Configure tftp for leap
+      block:
+        - name: Stop the tftp.socket
+          command: systemctl stop tftp.socket
+
+        - name: Modify tftp.socket to listsen on IPv4
+          replace:
+            path: "/usr/lib/systemd/system/tftp.socket"
+            regexp: 'ListenDatagram=69'
+            replace: 'ListenDatagram=0.0.0.0:69'
+        
+        - name: Reload the configurations
+          command: systemctl daemon-reload
+          
+        - name: Enable tftp.socket
+          command: systemctl enable tftp.socket
+
+        - name: Start tftp.socket
+          command: systemctl start tftp.socket
+      when: provision_os == "leap"
+
     - name: Fetch tftp status
       command: systemctl is-active tftp
       args:

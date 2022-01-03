@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -20,4 +20,12 @@
 
 - name: Check K8s pods
   include_tasks: check_k8s_pods.yml
+  tags: install
+
+- name: Configure Nginx/Prometheus/Grafana
+  include_tasks: configure_nginx_prom_grafana.yml
+  when:
+    - "'manager' in group_names"
+    - grafana_svc_ip != ""
+    - grafana_svc_port != ""
   tags: install
