@@ -13,7 +13,7 @@
 # limitations under the License.
 ---
 
-- name: Timescale db pod definition
+- name: Timescaledb pod definition
   kubernetes.core.k8s:
     state: present
     definition:
