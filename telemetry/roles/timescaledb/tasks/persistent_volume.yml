@@ -13,7 +13,7 @@
 # limitations under the License.
 ---
 
-- name: Persistent volume for timescale db
+- name: Persistent volume for timescaledb
   kubernetes.core.k8s:
     state: present
     definition:
