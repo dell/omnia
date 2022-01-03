@@ -1,0 +1,32 @@
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Create persistent volume for timescaledb
+  include_tasks: persistent_volume.yml
+
+- name: Create persistent volume claim for timescaledb
+  include_tasks: persistent_volume_claim.yml
+
+- name: Checkout iDRAC telemetry github repo
+  ansible.builtin.git:
+    repo: "{{ idrac_telemetry_github }}"
+    dest: "{{ mount_location + idrac_telemetry_folder_name }}"
+    version: master
+
+- name: Create timescaledb pod
+  include_tasks: timescaledb_pod.yml
+
+- name: Create service for timescale db
+  include_tasks: service.yml
