@@ -12,35 +12,75 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+- name: Initializing variables
+  set_fact:
+    compute_list: []
+    non_compute_list: []
+    component_roles: []
+
 - name: Get the hosts in node_inventory
-  command: >-
-    awx --conf.host {{ awx_host }} --conf.username {{ awx_admin_user }} --conf.password {{ awx_password }}
-    --conf.insecure hosts list --inventory {{ node_inventory }} -f human --filter "name"
+  command: awx --conf.host {{ awx_host }} --conf.username {{ awx_admin_user }} --conf.password {{ awx_password }} --conf.insecure hosts list --inventory {{ node_inventory }} -f human --filter "name"
   changed_when: false
   no_log: true
   register: hosts_list
 
-- name: Add the host to compute group in node_inventory if it exists
-  awx.awx.tower_group:
-    name: "{{ item.split(',')[3] }}"
-    inventory: "{{ node_inventory }}"
-    preserve_existing_hosts: true
-    hosts:
-      - "{{ item.split(',')[2] }}"
-    tower_config_file: "{{ tower_config_file }}"
-  when:
-    - item.split(',')[2] != "IP"
-    - item.split(',')[2] in hosts_list.stdout 
-    - item.split(',')[3] == "compute"
+- name: Converting csv values to list
+  read_csv:
+    path: "{{ host_mapping_file_path }}"
+    delimiter: ','
+  register: mapping
 
-- name: Add the host to other groups in node_inventory if it exists
-  awx.awx.tower_group:
-    name: "{{ item.split(',')[3] }}"
-    inventory: "{{ node_inventory }}"
-    hosts:
-      - "{{ item.split(',')[2] }}"
-    tower_config_file: "{{ tower_config_file }}"
+- name: Collecting compute node ip's from host mapping file
+  set_fact:
+      compute_list: "{{ compute_list + [ item.IP ] }}"
   when:
-    - item.split(',')[2] != "IP"
-    - item.split(',')[2] in hosts_list.stdout
-    - item.split(',')[3] != "compute"
+    - item.Component_role ==  compute_node
+    - item.IP in hosts_list.stdout
+  no_log: true
+  with_items:
+      - "{{ mapping.list }}"
+
+- name: Collecting manager,nfs_node,login_nodes ip's from host mapping file
+  set_fact:
+      non_compute_list: "{{ non_compute_list + [ item.IP ] }}"
+      component_roles: "{{ component_roles + [item.Component_role] }}"
+  when:
+    - item.Component_role != compute_node
+  no_log: true
+  with_items:
+      - "{{ mapping.list }}"
+
+- name: Adding ips to compute node in awx ui
+  block:
+    - name: Add the host to compute group in node_inventory if it exists
+      awx.awx.tower_group:
+        name: "{{ compute_node }}"
+        inventory: "{{ node_inventory }}"
+        hosts: "{{ compute_list }}"
+        tower_config_file: "{{ tower_config_file }}"
+      register: compute_output
+      no_log: true
+  rescue:
+    - name: Failed to add ip's to compute node in awx ui
+      fail:
+        msg: "{{ compute_output.stdout }}"
+
+- name: Adding ips to manager,nfs_node,login_node in awx ui
+  block:
+    - name: Add the host to other groups in node_inventory if it exists
+      awx.awx.tower_group:
+        name: "{{ item.0 }}"
+        inventory: "{{ node_inventory }}"
+        hosts:
+          - "{{ item.1 }}"
+        tower_config_file: "{{ tower_config_file }}"
+      when: item.1 in hosts_list.stdout
+      with_together:
+          - "{{ component_roles }}"
+          - "{{ non_compute_list }}"
+      register: non_compute_output
+      no_log: true
+  rescue:
+    - name: Failed to add ip's to manager,nfs_node,login_node
+      fail:
+        msg: "{{ non_compute_output.stdout }}"
