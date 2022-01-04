@@ -110,7 +110,7 @@
       mode: 0775
     tags: install
     when: name_iso == "rocky"
-
+    
   - name: Pxe menu
     copy:
       src: "/root/omnia/control_plane/roles/provision_cobbler/files/menu.yml"
@@ -121,8 +121,8 @@
   - name: Assign default grub option
     replace:
       path: "/var/lib/cobbler/grub_config/grub/grub.cfg"
-      regexp: "^set default=\'local\'"
-      replace: "set default=\'1\'"
+      regexp: "^set default='local'"
+      replace: "set default='1'"
     tags: install
 
   - name: Assign default grub timeout
@@ -155,10 +155,10 @@
     cron:
       name: Start tftp service
       minute: "*"
-      job: "{{ ansible_playbook_path.stdout.split(' ')[1] }} /root/tftp.yml"
+      job: "{{ ansible_playbook_path.stdout.split(' ')[1] }} /root/tftp.yml -e provision_os={{ name_iso }}"
 
   - name: Add inventory cron job
     cron:
       name: Create inventory
       minute: "*/5"
-      job: "{{ ansible_playbook_path.stdout.split(' ')[1] }} /root/inventory_creation.yml"
+      job: "{{ ansible_playbook_path.stdout.split(' ')[1] }} /root/inventory_creation.yml -e dhcpd_lease_file=\"/var/lib/dhcpd/dhcpd.leases\""

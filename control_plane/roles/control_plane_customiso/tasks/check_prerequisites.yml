@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,15 +13,26 @@
 # limitations under the License.
 ---
 
-- name: Install genisoimage package
+- name: Install xorriso package - rocky
   package:
-    name: genisoimage
+    name: xorriso
     state: present
   tags: install
+  when:
+    - ansible_distribution | lower == os_supported_centos or
+      ansible_distribution | lower == os_supported_rocky
+
+- name: Install xorriso package - leap
+  zypper:
+    name: xorriso
+    state: present
+  tags: install
+  when: os_supported_leap in ansible_distribution | lower
 
 - name: Install ansible-galaxy modules
   command: ansible-galaxy collection install {{ item }}
   changed_when: true
+  tags: install
   with_items:
    - community.general
    - dellemc.openmanage
@@ -34,7 +45,7 @@
 
 - name: Check iso mount folder
   stat:
-    path: "{{ iso_mount_path }}{{ isolinux_cfg_path }}"
+    path: "{{ iso_mount_path }}{{ grub_cfg_path }}"
   register: check_mount_iso
   tags: install
 
@@ -51,3 +62,4 @@
     line: "{{ mngmnt_network_ip }}"
     mode: "{{ file_permission }}"
     create: yes
+  tags: install
