@@ -15,6 +15,13 @@
 
 - name: Install K8s packages
   import_tasks: k8s_installation.yml
+  when:
+    - ( mgmt_os == os_supported_centos ) and ( ansible_distribution_version >= os_supported_centos_version ) or
+      ( mgmt_os == os_supported_rocky ) and ( ansible_distribution_version >= os_supported_rocky_version )
+
+- name: Install K8s packages for leap
+  import_tasks: k8s_installation_leap.yml
+  when: ( os_supported_leap in mgmt_os ) and ( ansible_distribution_version >= os_supported_leap_version )
 
 - name: Configure firewalld
   import_tasks: k8s_firewalld.yml

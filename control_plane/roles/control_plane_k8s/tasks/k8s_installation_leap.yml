@@ -12,16 +12,11 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-
 - name: Permanently Disable swap
   mount:
     name: "swap"
     fstype: swap
     state: absent
-
-- name: Disable selinux
-  selinux:
-    state: disabled
 
 - name: Copy k8s.conf file
   copy:
@@ -59,56 +54,105 @@
   command: /sbin/sysctl --system
   changed_when: true
 
-- name: Add CRI-O repo (1/2)
-  get_url:
-    url: "{{ crio_repo1_url }}"
-    dest: "{{ crio_repo1_dest }}"
-  register: crio_repo1_result
-  until: crio_repo1_result is not failed
-  retries: 20
+- name: Installing cri-o
+  zypper:
+    name: cri-o
+    state: present
+  changed_when: true
 
-- name: Add CRI-O repo (2/2)
-  get_url:
-    url: "{{ crio_repo2_url }}"
-    dest: "{{ crio_repo2_dest }}"
-  register: crio_repo2_result
-  until: crio_repo2_result is not failed
-  retries: 20
+- name: Start and enable crio
+  service:
+    name: crio
+    state: restarted
+    daemon_reload: yes
+    enabled: yes
+  register: crio_repo_result
+  until: crio_repo_result is not failed
+  retries: "{{ min_retries }}"
 
 - name: Add kubernetes repo
-  yum_repository:
-    name: kubernetes
-    description: kubernetes
-    baseurl: https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
-    enabled: yes
-    gpgcheck: no
-    repo_gpgcheck: no
-    gpgkey:
-      - https://packages.cloud.google.com/yum/doc/yum-key.gpg
-      - https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+  zypper_repository:
+     name: google-k8s
+     repo: "{{ k8s_repo_leap }}"
+     state: present
+     autorefresh: yes
 
-- name: Install common packages
-  package:
-    name: "{{ common_packages }}"
+- name: Import rpm-package key for installing kubernetes
+  rpm_key:
+    key: "{{ rpm_pkg_leap }}"
     state: present
 
-- name: Install k8s packages
-  package:
-    name: "{{ k8s_packages }}"
+- name: Import yum key for installing kubernetes
+  rpm_key:
+    key: "{{ yum_key_leap }}"
     state: present
 
-- name: Versionlock kubernetes
-  command: "yum versionlock '{{ item }}'"
+- name: Import gpg-pubkey key for installing kubernetes
+  command: "{{ gpg_pubkey_leap }}"
   args:
     warn: false
-  with_items:
-    - "{{ k8s_packages }}"
-  changed_when: true
+  changed_when: false
+
+- name: Refresh repositories and installing conntrack-tools
+  zypper:
+    name: conntrack-tools
+    state: present
+    update_cache: yes
+
+- name: Expect-package installation
+  pip:
+   name: pexpect
+   state: present
+   executable: pip3
+
+- name: Install Kubeadm
+  ansible.builtin.expect:
+    command: zypper install --oldpackage "{{ kubeadm_version }}"
+    responses:
+        (.*) [1/2/c/d/?](.): '2'
+        (.*)(y): 'y'
+
+- name: Install Kubelet
+  ansible.builtin.expect:
+    command: zypper install --oldpackage "{{ kubelet_version }}"
+    responses:
+        (.*) [1/2/c/d/?](.): '2'
+        (.*)(y): 'y'
+
+- name: Install Kubectl
+  zypper:
+     name: "{{ kubectl_version }}"
+     state: present
+     oldpackage: yes
+     force: yes
+
+- name: Install common packages
+  zypper:
+    name: "{{ common_pkgs_leap }}"
+    state: present
+
+- name: Versionlocking kubeadm
+  command: zypper addlock "{{ kubeadm_version }}"
+  args:
+    warn: false
+  changed_when: false
+
+- name: Versionlocking kubectl
+  command: zypper addlock "{{ kubelet_version }}"
+  args:
+    warn: false
+  changed_when: false
+
+- name: Versionlocking kubelet
+  command: zypper addlock "{{ kubectl_version }}"
+  args:
+    warn: false
+  changed_when: false
 
 - name: Add docker community edition repository for docker-ce-cli
   get_url:
-    url: "{{ docker_repo_url }}"
-    dest: "{{ docker_repo_dest }}"
+    url: "{{ docker_repo_url_leap }}"
+    dest: "{{ docker_repo_dest_leap }}"
   when: docker_username and docker_password
   register: docker_repo
   until: docker_repo is not failed
@@ -116,9 +160,9 @@
   delay: "{{ min_delay }}"
   tags: install
 
-- name: Install docker-ce-cli
-  package:
-    name: docker-ce-cli
+- name: Install docker-compose
+  zypper:
+    name: docker-compose
     state: present
   when: docker_username and docker_password
 
@@ -128,6 +172,9 @@
     state: restarted
     daemon_reload: yes
     enabled: yes
+  register: crio_repo_result
+  until: crio_repo_result is not failed
+  retries: "{{ min_retries }}"
 
 - name: Start and enable kubernetes - kubelet
   service:
