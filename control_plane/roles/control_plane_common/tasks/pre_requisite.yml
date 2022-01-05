@@ -13,10 +13,22 @@
 #  limitations under the License.
 ---
 
+- name: Collecting ansible python version
+  shell:
+    cmd: ansible --version | grep "python version" | cut -d ' ' -f 6
+  register: ansible_python_version
+  changed_when: false
+
+- name: Saving management station os
+  set_fact:
+    mgmt_os: "{{ ansible_facts['distribution'] | lower }}"
+
 - name: Verify the ansible and python versions installed
   fail:
     msg: "{{ ansible_python_version_status }}"
-  when: ansible_python_version != python_version_support
+  when:
+    - ansible_python_version.stdout != python_version_leap
+    - ansible_python_version.stdout != python_version_support
   tags: install
 
 - name: Verify whether ansible configuration file exists
@@ -35,32 +47,37 @@
 - name: Check OS support
   assert:
     that:
-      - ( ansible_distribution | lower == os_supported_centos ) and ( ansible_distribution_version >= os_supported_centos_version ) or
-        ( ansible_distribution | lower == os_supported_rocky ) and ( ansible_distribution_version >= os_supported_rocky_version )
+      - ( mgmt_os == os_supported_centos ) and ( ansible_distribution_version >= os_supported_centos_version ) or
+        ( mgmt_os == os_supported_rocky ) and ( ansible_distribution_version >= os_supported_rocky_version ) or
+        ( os_supported_leap in mgmt_os ) and ( ansible_distribution_version >= os_supported_leap_version )
     fail_msg: "{{ fail_os_status }}"
     success_msg: "{{ success_os_status }}"
   register: os_value
   tags: install
 
-- name: Fetch SElinux mode
-  command: sestatus
-  register: sestatus_current
-  changed_when: false
+- block:
+    - name: Fetch SElinux mode
+      command: sestatus
+      register: sestatus_current
+      changed_when: false
 
-- name: Disable SElinux
-  replace:
-    path: /etc/sysconfig/selinux
-    regexp: 'SELINUX=[a-z]+'
-    replace: 'SELINUX=disabled'
-  when: '"SELinux status:                 enabled" in sestatus_current.stdout_lines'
-  tags: install
+    - name: Disable SElinux
+      replace:
+        path: /etc/sysconfig/selinux
+        regexp: 'SELINUX=[a-z]+'
+        replace: 'SELINUX=disabled'
+      when: '"SELinux status: enabled" in sestatus_current.stdout_lines'
+      tags: install
 
-- name: Status of SElinux
-  fail:
-    msg: "{{ selinux_status }}"
-  when: '"SELinux status:                 enabled" in sestatus_current.stdout_lines'
-  register: selinux_value
-  tags: install
+    - name: Status of SElinux
+      fail:
+        msg: "{{ selinux_status }}"
+      when: '"SELinux status: enabled" in sestatus_current.stdout_lines'
+      register: selinux_value
+      tags: install
+  when:
+    - ( mgmt_os == os_supported_centos ) and ( ansible_distribution_version >= os_supported_centos_version ) or
+      ( mgmt_os == os_supported_rocky ) and ( ansible_distribution_version >= os_supported_rocky_version )
 
 - name: State of firewall
   service:

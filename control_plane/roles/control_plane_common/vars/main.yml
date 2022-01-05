@@ -16,6 +16,25 @@
 # vars file for common
 
 # Usage: package_installation.yml
+common_packages_leap:
+  - git
+  - gcc
+  - gcc-c++
+  - nodejs
+  - bzip2
+  - python2-pip
+  - python3-pip
+  - nano
+  - lvm2
+  - gettext
+  - net-tools
+  - python3-netaddr
+  - dos2unix
+  - cri-o
+  - make
+os_supported_leap: "leap"
+os_supported_leap_version: "15.3"
+python_version_leap: '3.6.15'
 common_packages:
   - epel-release
   - yum-utils
@@ -34,6 +53,7 @@ common_packages:
   - python3-netaddr
   - yum-plugin-versionlock
   - dos2unix
+  - make
 
 # Usage: pre_requisite.yml
 internet_delay: 0

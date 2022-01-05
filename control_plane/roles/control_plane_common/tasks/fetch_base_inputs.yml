@@ -210,7 +210,8 @@
   assert:
     that:
       - provision_os == os_supported_centos or 
-        provision_os == os_supported_rocky
+        provision_os == os_supported_rocky or
+        provision_os == os_supported_leap
     fail_msg: "{{ provision_os_fail_msg }}"
     success_msg: "{{ provision_os_success_msg }}"
 
@@ -276,7 +277,7 @@
 - name: Assert management_net_dhcp_start_range
   assert:
     that:
-      - mngmnt_network_dhcp_start_range
+      - mngmnt_network_dhcp_start_range |  length > 1
       - mngmnt_network_dhcp_start_range | ipv4
       - mngmnt_network_dhcp_start_range != mngmnt_network_ip
       - mngmnt_network_dhcp_start_range != mngmnt_network_dhcp_end_range
@@ -288,7 +289,7 @@
 - name: Assert management_net_dhcp_end_range
   assert:
     that:
-      - mngmnt_network_dhcp_end_range
+      - mngmnt_network_dhcp_end_range |  length > 1
       - mngmnt_network_dhcp_end_range | ipv4
       - mngmnt_network_dhcp_end_range != mngmnt_network_ip
       - mngmnt_network_dhcp_start_range != mngmnt_network_dhcp_end_range
@@ -350,7 +351,7 @@
 - name: Assert host_network_dhcp_start_range
   assert:
     that:
-      - host_network_dhcp_start_range
+      - host_network_dhcp_start_range | length > 1
       - host_network_dhcp_start_range | ipv4
       - host_network_dhcp_start_range != hpc_ip
       - host_network_dhcp_start_range != host_network_dhcp_end_range
@@ -362,7 +363,7 @@
 - name: Assert host_network_dhcp_end_range
   assert:
     that:
-      - host_network_dhcp_end_range
+      - host_network_dhcp_end_range | length > 1
       - host_network_dhcp_end_range | ipv4
       - host_network_dhcp_end_range != hpc_ip
       - host_network_dhcp_start_range != host_network_dhcp_end_range
@@ -437,7 +438,7 @@
 - name: Assert infiniband_net_dhcp_start_range
   assert:
     that:
-      - ib_network_dhcp_start_range
+      - ib_network_dhcp_start_range | length > 1
       - ib_network_dhcp_start_range | ipv4
       - ib_network_dhcp_start_range != ib_ip
       - ib_network_dhcp_start_range != ib_network_dhcp_end_range
@@ -450,7 +451,7 @@
 - name: Assert infiniband_net_dhcp_end_range
   assert:
     that:
-      - ib_network_dhcp_end_range
+      - ib_network_dhcp_end_range | length > 1
       - ib_network_dhcp_end_range | ipv4
       - ib_network_dhcp_end_range != ib_ip
       - ib_network_dhcp_start_range != ib_network_dhcp_end_range
