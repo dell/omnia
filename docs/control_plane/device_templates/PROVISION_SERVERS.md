@@ -22,7 +22,7 @@ Edit the following files under the `control_plane/input_params` directory to pro
 
 ## Custom ISO file creation for Out-of-band server management
 Omnia role used to create the custom ISO: *control_plane_customiso*  
-Based on the inputs provided in the `login_vars.yml` and `base_vars.yml` files, the Kickstart file is configured and added to the custom ISO file. The *unattended_centos7.iso* or *unattended_rocky8.iso* file is copied to an NFS share on the management station to provision the PowerEdge servers using iDRAC. 
+Based on the inputs provided in the `login_vars.yml` and `base_vars.yml` files, the Kickstart file is configured and added to the custom ISO file. The *unattended_centos7.iso*, *unattended_rocky8.iso* or *unattended_leap15.iso* file is copied to an NFS share on the management station to provision the PowerEdge servers using iDRAC. 
 
 ## Provisioning of PowerEdge Servers using iDRAC (Out-of-band server management)
 
@@ -38,7 +38,7 @@ Omnia role used to provision custom ISO on PowerEdge Servers using iDRAC: *provi
 For the `idrac.yml` file to successfully provision the custom ISO on the PowerEdge Servers, ensure that the following prerequisites are met:
 * The **idrac_inventory** file is updated with the iDRAC IP addresses.
 * Required input parameters are updated in the **idrac_vars.yml** file under **omnia/control_plane/input_params** directory.
-* An *unattended_centos7.iso* file is available in an NFS path.
+* An *unattended_centos7.iso*, *unattended_rocky8.iso* or *unattended_leap15.iso* file is available in an NFS path.
 * The Lifecycle Controller Remote Services of PowerEdge Servers is in the 'ready' state.
 * The Redfish services are enabled in the iDRAC settings under **Services**.
 * The PowerEdge Servers have the iDRAC Enterprise or Datacenter license. If the license is not found, servers will be PXE booted and provisioned using Cobbler.  
