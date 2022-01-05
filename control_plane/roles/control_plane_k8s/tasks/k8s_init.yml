@@ -52,7 +52,7 @@
 - name: Initialize kubeadm (This process may take 5-10min)
   block:
     - name: Initialize kubeadm (This process may take 5-10min)
-      command: "/bin/kubeadm init --pod-network-cidr='{{ appliance_k8s_pod_net_cidr }}' \
+      command: "kubeadm init --pod-network-cidr='{{ appliance_k8s_pod_net_cidr }}' \
         --apiserver-advertise-address='{{ ansible_default_ipv4.address }}'"
       changed_when: true
       register: init_output
@@ -62,7 +62,7 @@
       changed_when: true
 
     - name: Initialize kubeadm (This process may take 5-10min)
-      command: "/bin/kubeadm init --pod-network-cidr='{{ appliance_k8s_pod_net_cidr }}' \
+      command: "kubeadm init --pod-network-cidr='{{ appliance_k8s_pod_net_cidr }}' \
           --apiserver-advertise-address='{{ ansible_default_ipv4.address }}'"
       changed_when: true
       register: init_output
