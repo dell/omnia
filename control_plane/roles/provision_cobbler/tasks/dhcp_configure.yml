@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -76,7 +76,7 @@
     regexp: '^        server_args             = -s /srv/tftpboot'
     replace: '        server_args             = -s /var/lib/tftpboot'
   when:
-    - provision_os != os_supported_leap
+    - mgmt_os == os_supported_rocky
       
 - name: Set the parameters for {{ provision_os }}
   block:
@@ -97,4 +97,4 @@
         path: "{{ role_path }}/files/tftp"
         regexp: '^        server_args             = -s /var/lib/tftpboot'
         replace: '        server_args             = -s /srv/tftpboot'
-  when: provision_os == os_supported_leap
+  when: mgmt_os == os_supported_leap
