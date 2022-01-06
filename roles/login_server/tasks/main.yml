@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -15,12 +15,18 @@
 
 - name: Include variables
   include_vars: ../../login_common/vars/main.yml
-  when: hostvars['127.0.0.1']['login_node_required']
+  when:
+    - hostvars['127.0.0.1']['login_node_required']
+    - not hostvars['127.0.0.1']['ipa_server_ms']
 
 - name: Install required packages
   include_tasks: install_packages.yml
-  when: hostvars['127.0.0.1']['login_node_required']
+  when:
+    - hostvars['127.0.0.1']['login_node_required']
+    - not hostvars['127.0.0.1']['ipa_server_ms']
 
 - name: Install free-ipa server
   include_tasks: install_ipa_server.yml
-  when: hostvars['127.0.0.1']['login_node_required']
+  when:
+    - hostvars['127.0.0.1']['login_node_required']
+    - not hostvars['127.0.0.1']['ipa_server_ms']
