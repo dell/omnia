@@ -40,12 +40,12 @@
   when: not cobbler_config_status
 
 - name: Configuring cobbler inside container (It may take 5-10 mins)
-  command: "kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} -- ansible-playbook /root/cobbler_configurations.yml -e name_iso={{ provision_os }}"
+  command: "kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} -- ansible-playbook /root/cobbler_configurations_rocky.yml -e name_iso={{ provision_os }}"
   changed_when: true
   tags: install
   when: 
     - not cobbler_config_status
-    - provision_os != os_supported_leap
+    - mgmt_os == os_supported_rocky
       
 - name: Configuring cobbler inside container (It may take 5-10 mins)
   command: "kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} -- ansible-playbook /root/cobbler_configurations_leap.yml -e name_iso={{ provision_os }} -e host_network_nic={{ host_network_nic }}"
@@ -53,7 +53,7 @@
   tags: install
   when: 
     - not cobbler_config_status
-    - provision_os == os_supported_leap
+    - mgmt_os == os_supported_leap
 
 - name: Schedule task
   cron:

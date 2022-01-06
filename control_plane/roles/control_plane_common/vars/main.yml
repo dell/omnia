@@ -62,6 +62,7 @@ hostname: github.com
 port_no: 22
 os_supported_centos: "centos"
 os_supported_rocky: "rocky"
+os_supported_leap: "leap"
 os_supported_centos_version: "8.3"
 os_supported_rocky_version: "8.4"
 fail_os_status: "Unsupported OS or OS version. OS should be {{ os_supported_centos }} {{ os_supported_centos_version }} or {{ os_supported_rocky }} {{ os_supported_rocky_version }}"
