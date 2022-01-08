@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -11,20 +11,13 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
----
 
-- name: Executing omnia roles
-  hosts: localhost
-  connection: local
-  roles:
-    - control_plane_common
-    - control_plane_k8s
-    - control_plane_device
-    - provision_cobbler
-    - webui_awx
-    - control_plane_ib
-    - control_plane_sm
-    - control_plane_customiso
-    - control_plane_repo
-    - control_plane_security
-    - deploy_job_templates
+# This variable is used to accept the domain name the user intends to configure
+# Eg: ipa.test
+domain_name: "omnia.test"
+
+# A Kerberos realm is the domain over which a Kerberos authentication server has
+# the authority to authenticate a user, host or service.
+# A realm name is often, but not always the upper case version of the name of the
+# DNS domain over which it presides
+realm_name: "OMNIA.TEST"

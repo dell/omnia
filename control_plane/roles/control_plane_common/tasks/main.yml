@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -51,3 +51,7 @@
 
 - name: NFS Server setup for offline repo and awx
   import_tasks: nfs_server_setup.yml
+
+- name: Security Inputs Validation
+  import_tasks: fetch_security_inputs.yml
+  when: enable_security_support

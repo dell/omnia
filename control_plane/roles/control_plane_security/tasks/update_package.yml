@@ -13,18 +13,11 @@
 #  limitations under the License.
 ---
 
-- name: Executing omnia roles
-  hosts: localhost
-  connection: local
-  roles:
-    - control_plane_common
-    - control_plane_k8s
-    - control_plane_device
-    - provision_cobbler
-    - webui_awx
-    - control_plane_ib
-    - control_plane_sm
-    - control_plane_customiso
-    - control_plane_repo
-    - control_plane_security
-    - deploy_job_templates
+- name: Update nss package to install ipa server/client
+  command: yum update nss -y
+  changed_when: false
+  args:
+    warn: false
+  when:
+    - ( ansible_distribution | lower == os_centos )
+    - ( ansible_distribution_version < os_version )

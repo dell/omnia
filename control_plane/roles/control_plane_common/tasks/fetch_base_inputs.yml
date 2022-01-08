@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -136,6 +136,13 @@
       - powervault_support == true or powervault_support == false
     success_msg: "{{ powervault_support_success_msg }}"
     fail_msg: "{{ powervault_support_fail_msg }}"
+
+- name: Assert enable_security_support
+  assert:
+    that:
+      - enable_security_support == true or enable_security_support == false
+    success_msg: "{{ enable_security_support_success_msg }}"
+    fail_msg: "{{ enable_security_support_fail_msg }}"
 
 - name: Fetch the network interfaces in UP state in the system
   shell: set -o pipefail && ip a | awk '/state UP/{print $2}'
