@@ -1,0 +1,41 @@
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Include security variable file security_vars.yml
+  include_vars: "{{ security_vars_filename }}"
+  no_log: true
+
+- name: Validate input parameters of base_vars are not empty
+  fail:
+    msg: "{{ input_security_failure_msg }}"
+  register: input_base_check
+  when:
+    - domain_name | length < 1 or
+      realm_name | length < 1
+
+- name: Validate the domain name
+  assert:
+    that:
+      - domain_name is regex("^(?!-)[A-Za-z0-9-]+([\\-\\.]{1}[a-z0-9]+)*\\.[A-Za-z]{2,}$")
+    success_msg: "{{ dom_name_success_msg }}"
+    fail_msg: "{{ dom_name_fail_msg }}"
+
+- name: Validate the realm name
+  assert:
+    that:
+      - realm_name is regex("^(?!-)[A-Z0-9-]+([\\-\\.]{1}[a-z0-9]+)*\\.[A-Z]{2,}$")
+      - '"." in realm_name'
+    success_msg: "{{ realm_success_msg }}"
+    fail_msg: "{{ realm_fail_msg }}"

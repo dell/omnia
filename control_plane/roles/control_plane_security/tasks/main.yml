@@ -13,18 +13,27 @@
 #  limitations under the License.
 ---
 
-- name: Executing omnia roles
-  hosts: localhost
-  connection: local
-  roles:
-    - control_plane_common
-    - control_plane_k8s
-    - control_plane_device
-    - provision_cobbler
-    - webui_awx
-    - control_plane_ib
-    - control_plane_sm
-    - control_plane_customiso
-    - control_plane_repo
-    - control_plane_security
-    - deploy_job_templates
+- name: Add ports of manager and login node to firewall
+  include_tasks: firewall_settings.yml
+  when:
+    - enable_security_support
+
+- name: Enable module idm in Rocky or Centos >= 8.0
+  include_tasks: enable_dnf_module.yml
+  when:
+    - enable_security_support
+
+- name: Update Packages
+  include_tasks: update_package.yml
+  when:
+    - enable_security_support
+
+- name: Install required packages
+  include_tasks: install_packages.yml
+  when:
+    - enable_security_support
+
+- name: Install free-ipa server
+  include_tasks: install_ipa_server.yml
+  when:
+    - enable_security_support

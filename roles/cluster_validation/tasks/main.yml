@@ -56,6 +56,10 @@
       include_tasks: fetch_powervault_status.yml
       when: nfs_node_status
 
+    - name: Initialize ipa server variables
+      include_tasks: fetch_ipa_password.yml
+      when: login_node_required
+
 - name: omnia.yml runing on host
   block:
     - name: Passwordless SSH status
