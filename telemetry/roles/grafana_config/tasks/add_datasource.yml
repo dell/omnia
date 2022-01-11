@@ -13,7 +13,6 @@
 # limitations under the License.
 ---
 
-
 - name: Get grafana service IP
   command: kubectl get svc "{{ grafana_k8s }}" -n "{{ grafana_namespace }}" -o=jsonpath='{.spec.clusterIP}'
   changed_when: false
