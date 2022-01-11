@@ -13,7 +13,6 @@
 # limitations under the License.
 ---
 
-
 - name: Persistent volume for grafana
   kubernetes.core.k8s:
     state: present
