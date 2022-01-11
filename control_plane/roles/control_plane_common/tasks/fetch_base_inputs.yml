@@ -38,7 +38,8 @@
       provision_method | length < 1 or
       default_lease_time | length < 1 or
       provision_os | length < 1 or
-      provision_state | length < 1
+      provision_state | length < 1 or
+      mount_location | length < 1
 
 - name: Validate default lease time
   assert:
@@ -180,6 +181,14 @@
       - " \"'\" not in awx_organization "
     success_msg: "{{ success_awx_organization }}"
     fail_msg: "{{ fail_awx_organization }}"
+
+- name: Make mount directory for grafana if it doesnt exist
+  file:
+    path: "{{ mount_location }}"
+    state: directory
+    mode: "{{ mount_dir_perm }}"
+    group: root
+    owner: root
 
 - name: Check timezone file
   command: grep -Fx "{{ timezone }}" {{ role_path }}/files/timezone.txt
