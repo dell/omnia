@@ -20,3 +20,4 @@
    roles:
     - common
     - timescaledb
+    - grafana_config
