@@ -48,6 +48,18 @@ idrac_password: ""
 # The password must not contain -,\, ',"
 #awx_password: ""
 
+### Usage: webui_grafana ###
+
+# The username for grafana UI
+# The length of username should be atleast 6
+# The username must not contain -,\, ',"
+grafana_username: ""
+
+# Password used for grafana UI
+# The length of the password should be at least 6
+# The password must not contain -,\, ',"
+grafana_password: ""
+
 ### Usage: network_ethernet ###
 
 # The username for ethernet switch
