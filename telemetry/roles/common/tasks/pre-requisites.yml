@@ -13,22 +13,21 @@
 # limitations under the License.
 ---
 
-- name: Check existence of k8s on management station
+- name: Check existence of awx and grafana on management station
   block:
-    - name: Verify that kubernetes is installed
-      command: kubectl cluster-info
-      register: k8s_cluster_info
-      failed_when: "'running' not in k8s_cluster_info.stdout"
+    - name: Check AWX instance
+      command: awx --version
       changed_when: false
-      no_log: true
-  rescue:
-    - name: Kubernetes needs to be installed
-      fail:
-        msg: "{{ k8s_installation_required }}"
 
-- name: Add kubernetes ansible-galaxy collection
-  command: ansible-galaxy collection install kubernetes.core
-  changed_when: false
+    - name: Check grafana service
+      command: kubectl get svc -n grafana
+      register: grafana_svc_register
+      failed_when: "'grafana' not in grafana_svc_register.stdout"
+      changed_when: false
+  rescue:
+    - name: AWX and grafana needs to be installed
+      fail:
+        msg: "{{ control_plane_installation_required }}"
 
 - name: Check that the base_vars.yml exists
   stat:
@@ -40,14 +39,24 @@
     msg: "{{ fail_msg_base_vars }}"
   when: not stat_result.stat.exists
 
-- name: Check that the login_vars.yml exists
+- name: Check that telemetry/login_vars.yml exists
   stat:
     path: "{{ login_vars_file }}"
   register: stat_result
 
-- name: Fail if login_vars.yml file doesn't exist
+- name: Fail if telemetry/login_vars.yml file doesn't exist
   fail:
     msg: "{{ fail_msg_login_vars }}"
+  when: not stat_result.stat.exists
+
+- name: Check that control_plane/login_vars.yml exists
+  stat:
+    path: "{{ ctrl_plane_login_vars_filename }}"
+  register: stat_result
+
+- name: Fail if control_plane/login_vars.yml file doesn't exist
+  fail:
+    msg: "{{ ctrl_plane_fail_msg_login_vars }}"
   when: not stat_result.stat.exists
 
 - name: Install openshift using pip3

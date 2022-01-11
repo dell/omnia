@@ -13,10 +13,10 @@
 # limitations under the License.
 ---
 
-- name: Create persistent volume for timescale db
+- name: Create persistent volume for timescaledb
   include_tasks: persistent_volume.yml
 
-- name: Create persistent volume claim for timescale db
+- name: Create persistent volume claim for timescaledb
   include_tasks: persistent_volume_claim.yml
 
 - name: Checkout iDRAC telemetry github repo
@@ -30,3 +30,6 @@
 
 - name: Create service for timescale db
   include_tasks: service.yml
+
+- name: Create service for timescale db
+  include_tasks: initialize_db.yml
