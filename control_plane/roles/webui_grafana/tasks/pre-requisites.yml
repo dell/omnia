@@ -13,7 +13,6 @@
 # limitations under the License.
 ---
 
-
 - name: Add kubernetes and grafana ansible-galaxy collection
   command: ansible-galaxy collection install "{{ item }}"
   with_items: "{{ collections_name }}"
