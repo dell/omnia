@@ -13,6 +13,5 @@
 # limitations under the License.
 ---
 
-
 grafana_k8s: grafana
 grafana_namespace: grafana
