@@ -1,0 +1,46 @@
+#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+
+# Usage: pre-requisites.yml
+collections_name:
+  - kubernetes.core
+  - community.grafana
+directory_mode: '0774'
+
+# Usage: secrets.yml
+grafana_secrets: grafana-secrets
+
+# Usage: volume.yml
+grafana_volume_memory: 1Gi
+
+# Usage: deployment.yml
+grafana_k8s: grafana
+grafana_namespace: grafana
+grafana_image: grafana/grafana-enterprise:8.3.2
+
+# Usage: deployment.yml
+grafana_port: "5000"
+grafana_http_port: 5000
+grafana_plugins_names: "hpcviz-idvl-hpcc-sankey,hpcviz-idvl-hpcc-parallel-coordinate,hpcviz-idvl-hpcc-spiral-layout,hpcviz-idvl-hpcc-stream-net"
+
+# Usage: plugins.yml
+plugins_name:
+  - parallel-coordinate.zip
+  - sankey.zip
+  - spiral-layout.zip
+  - stream-net.zip
+grafana_plugins_folder_name: github-grafana-plugins/
+grafana_plugins_github_repo: https://github.com/nsfcac/grafana-plugin.git
