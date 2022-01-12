@@ -27,7 +27,7 @@
   changed_when: false
   register: loki_svc_port
 
-- name: Create loki datasource
+- name: Create loki datasource in grafana
   community.grafana.grafana_datasource:
     name: control-plane-loki
     grafana_url: "http://{{ grafana_svc_ip.stdout }}:{{ grafana_svc_port.stdout }}"
@@ -37,7 +37,7 @@
     ds_url: "http://{{ loki_svc_ip.stdout }}:{{ loki_svc_port.stdout }}"
   no_log: true
 
-- name: Import loki dashboard
+- name: Import loki dashboard in grafana
   community.grafana.grafana_dashboard:
     grafana_url: "http://{{ grafana_svc_ip.stdout }}:{{ grafana_svc_port.stdout }}"
     grafana_user: "{{ grafana_username }}"
