@@ -1,0 +1,55 @@
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Get timescaledb service IP
+  command: kubectl get svc {{ timescaledb_k8s_name }} -n {{ namespace }} -o=jsonpath='{.spec.clusterIP}'
+  changed_when: false
+  register: timescaledb_svc_ip
+
+- name: Get timescaledb service port
+  command: kubectl get svc {{ timescaledb_k8s_name }} -n {{ namespace }} -o=jsonpath='{.spec.ports[0].port}'
+  changed_when: false
+  register: timescaledb_svc_port
+
+- name: Update timescaledb service IP
+  replace:
+    path: "{{ slurm_telemetry_code_dir }}/monster/config.yml"
+    regexp: "  host:.*"
+    replace: "  host: {{ timescaledb_svc_ip.stdout }}"
+
+- name: Update timescaledb service port
+  replace:
+    path: "{{ slurm_telemetry_code_dir }}/monster/config.yml"
+    regexp: "  port:.*"
+    replace: "  port: {{ timescaledb_svc_port.stdout }}"
+    before: "# Slurm REST API Configuration"
+
+- name: Update timescaledb username
+  replace:
+    path: "{{ slurm_telemetry_code_dir }}/monster/config.yml"
+    regexp: "  username:.*"
+    replace: "  username: {{ timescaledb_user }}"
+
+- name: Update timescaledb password
+  replace:
+    path: "{{ slurm_telemetry_code_dir }}/monster/config.yml"
+    regexp: "  password:.*"
+    replace: "  password: {{ timescaledb_password }}"
+
+- name: Update timescaledb database
+  replace:
+    path: "{{ slurm_telemetry_code_dir }}/monster/config.yml"
+    regexp: "  database:.*"
+    replace: "  database: {{ timescaledb_name }}"
