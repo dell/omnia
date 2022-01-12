@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,21 +13,17 @@
 #  limitations under the License.
 ---
 
-- name: Install kubernetes.core collection
-  command: ansible-galaxy collection install kubernetes.core
-  changed_when: True
-
 - name: Add prometheus-community chart
   kubernetes.core.helm_repository:
     name: prometheus-community
-    repo_url: "https://kubernetes.github.io/ingress-nginx"
+    repo_url: "{{ helm_repo_prometheus }}"
   failed_when: False
 
 - name: Install kube-prom-stack
   block:
     - name: Install kube-prom-stack
       kubernetes.core.helm:
-        name: monitoring
+        name: "{{ monitoring_app_name }}"
         chart_ref: prometheus-community/kube-prometheus-stack
         chart_version: "{{ k8s_prom_stack_chart_version }}"
         update_repo_cache: True
@@ -38,14 +34,20 @@
           grafana:
             enabled: False
   rescue:
+    - name: Delete helm kube-prom-stack deployments
+      command: helm delete {{ monitoring_app_name }} -n {{ monitoring_namespace }}
+      changed_when: True
+      failed_when: False
+
     - name: Delete existing kube-prom-stack crd
       command: "kubectl delete crd {{ item }}"
       changed_when: True
+      failed_when: False
       with_items: "{{ k8s_prom_stack_crd }}"
 
     - name: Install kube-prom-stack
       kubernetes.core.helm:
-        name: monitoring
+        name: "{{ monitoring_app_name }}"
         chart_ref: prometheus-community/kube-prometheus-stack
         chart_version: "{{ k8s_prom_stack_chart_version }}"
         update_repo_cache: True
@@ -55,3 +57,7 @@
         values:
           grafana:
             enabled: False
+
+- name: Wait for kube-prom-stack pod to come to ready state
+  command: kubectl wait --for=condition=ready --timeout=10m -n "{{ monitoring_namespace }}" pod -l app=kube-prometheus-stack-operator
+  changed_when: false
