@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,11 +13,10 @@
 #  limitations under the License.
 ---
 
-grafana_username: ""
-grafana_password: ""
-grafana_namespace: grafana
-
+# Usage: install_k8s_prom_stack.yml
+helm_repo_prometheus: https://prometheus-community.github.io/helm-charts
 monitoring_namespace: monitoring
+monitoring_app_name: monitoring
 k8s_prom_stack_chart_version: 25.0.0
 k8s_prom_stack_crd:
   - alertmanagerconfigs.monitoring.coreos.com
@@ -29,6 +28,8 @@ k8s_prom_stack_crd:
   - servicemonitors.monitoring.coreos.com
   - thanosrulers.monitoring.coreos.com
 
+# Usage: configure_k8s_prom_grafana.yml
+grafana_namespace: grafana
 grafana_dashboard_json_files:
   - CoreDNS.json
   - Kubernetes_API_server.json
@@ -45,3 +46,11 @@ grafana_dashboard_json_files:
   - Kubernetes_Networking_Workload.json
   - Kubernetes_Scheduler.json
   - Prometheus_Overview.json
+
+# Usage: promtail_image.yml
+promtail_image_name: "promtail"
+promtail_image_tag: "latest"
+
+# Usage: k8s_loki_pod.yml
+loki_k8s_name: loki
+loki_port: 3100
