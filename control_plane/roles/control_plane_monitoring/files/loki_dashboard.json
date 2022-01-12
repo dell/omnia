@@ -84,7 +84,7 @@
             "type": "loki",
             "uid": "control-plane-loki"
           },
-          "expr": "{filename=\"/var/log/messages\",job=\"messages\"}",
+          "expr": "{filename=\"/var/log/messages\",job=\"syslog\"}",
           "queryType": "randomWalk",
           "refId": "A"
         }
