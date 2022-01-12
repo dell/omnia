@@ -1,1 +1,138 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
 
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://localhost:3100/loki/api/v1/push
+
+scrape_configs:
+- job_name: System
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: System
+      __path__: /var/log/*log
+
+- job_name: Directory Server Utilization
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: Directory Server Utilization
+      __path__: /var/log/dirsrv/slapd-OMNIA-TEST/access
+
+- job_name: Directory Server Errors
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: Directory Server Errors
+      __path__: /var/log/dirsrv/slapd-OMNIA-TEST/errors
+
+- job_name: PKI Transactions
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: PKI Transactions
+      __path__: /var/log/pki/pki-tomcat/ca/transactions
+
+- job_name: KDC Utilization
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: KDC Utilization
+      __path__: /var/log/krb5kdc.log
+
+- job_name: FreeIPA API Call
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: FreeIPA API Call
+      __path__: /var/log/httpd/*
+
+- job_name: audit
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: audit
+      __path__: /var/log/audit/*log
+
+- job_name: SSSD
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: SSSD
+      __path__: /var/log/sssd/*log
+
+- job_name: secure
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: secure
+      __path__: /var/log/secure
+
+- job_name: Omnia
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: Omnia
+      __path__: /var/log/omnia.log
+
+- job_name: syslog
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: syslog
+      __path__: /var/log/messages
+
+- job_name: cron
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: cron
+      __path__: /var/log/cron
+
+- job_name: IPA Server and Client
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: IPA Server and Client
+      __path__: /var/log/ipa*log
+
+- job_name: Package Rocky
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: Package Rocky
+      __path__: /var/log/dnf.log
+
+- job_name: Package Leap
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: Package Leap
+      __path__: /var/log/zypper.log
+
+- job_name: k8s pods
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: k8s pods
+      __path__: /var/log/pods/*/*/*log
