@@ -21,3 +21,25 @@
     - common
     - timescaledb
     - grafana_config
+
+- name: Get node inventory
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Get node inventory
+      include_role:
+        name: slurm_telemetry
+        tasks_from: get_node_inventory.yml
+      tags: slurm_telemetry
+
+- name: Update slurm node IPs and service tags
+  import_playbook: "{{ playbook_dir }}/roles/slurm_telemetry/files/update_service_tags.yml"
+  tags: slurm_telemetry
+
+- name: Slurm Telemetry
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+   - slurm_telemetry
+  tags: slurm_telemetry
