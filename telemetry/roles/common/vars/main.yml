@@ -13,16 +13,19 @@
 # limitations under the License.
 ---
 
-k8s_installation_required: "Kubernetes installation is mandatory for telemetry.yml"
+# Usage: pre-requisites.yml
+control_plane_installation_required: "AWX and grafana installation through control_plane.yml is mandatory for telemetry.yml"
 
 base_vars_file: "{{ role_path }}/../../input_params/base_vars.yml"
 login_vars_file: "{{ role_path }}/../../input_params/login_vars.yml"
-vault_filename: "{{ role_path }}/../../input_params/.login_vault_key"
+ctrl_plane_login_vars_filename: "{{ role_path }}/../../../control_plane/input_params/login_vars.yml"
 
 fail_msg_base_vars: "telemetry/base_vars.yml file doesn't exist."
 fail_msg_login_vars: "telemetry/login_vars.yml file doesn't exist."
+ctrl_plane_fail_msg_login_vars: "control_plane/login_vars.yml file doesn't exist"
 
-folder_perm: 644
+#Usage: validate_base_vars.yml
+folder_perm: '644'
 vault_file_perm: '0644'
 
 idrac_telemetry_support_success_msg: "idrac_telemetry_support validated"
@@ -43,8 +46,17 @@ timescaledb_fail_msg: "Timescale DB name should have minimum length of 2"
 mysqldb_success_msg: "MySQL DB name validated successfully"
 mysqldb_fail_msg: "MySQL DB name should have minimum length of 2"
 
+# Usage: validate_login_vars.yml
+vault_filename: "{{ role_path }}/../../input_params/.login_vault_key"
 login_vars_fail_msg: "Usernames and passwords in input_params/login_vars.yml should have minimum length 2"
 
+ctrl_plane_login_vault_filename: "{{ role_path }}/../../../control_plane/input_params/.login_vault_key"
+min_length_grafana: 6
+max_length: 30
+ctrl_plane_login_vars_fail_msg: "Incorrect grafana_username or grafana_password format provided
+                                  in control_plane/login_vars.yml"
+
+# Usage: k8s_secrets.yml
 namespace: telemetry-and-visualizations
 
 secrets_name: credentials
