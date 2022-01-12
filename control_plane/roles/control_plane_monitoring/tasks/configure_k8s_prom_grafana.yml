@@ -23,7 +23,7 @@
   changed_when: false
   register: kube_prom_svc_port
 
-- name: Create prometheus datasource
+- name: Create prometheus datasource in grafana
   community.grafana.grafana_datasource:
     name: control-plane-prometheus
     grafana_url: "http://{{ grafana_svc_ip.stdout }}:{{ grafana_svc_port.stdout }}"
@@ -34,7 +34,7 @@
     access: proxy
   no_log: true
 
-- name: Import K8s Grafana dashboards
+- name: Import K8s grafana dashboards
   community.grafana.grafana_dashboard:
     grafana_url: "http://{{ grafana_svc_ip.stdout }}:{{ grafana_svc_port.stdout }}"
     grafana_user: "{{ grafana_username }}"
