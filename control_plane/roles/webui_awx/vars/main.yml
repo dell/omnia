@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -45,6 +45,9 @@ awx_ui_msg: "AWX Upgrading"
 return_status: 200
 max_retries: 20
 max_delay: 15
+
+# Usage: check_prerequisites_awx.yml
+min_retries: 2
 
 # Usage: awx_configuration.yml
 default_org: Default

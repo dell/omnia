@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,22 +19,21 @@
   include_tasks: ../../control_plane_common/tasks/internet_validation.yml
   tags: install
 
-- name: Install AWX
-  include_tasks: install_awx.yml
+- name: Check awx prequisites
+  include_tasks: check_prerequisites.yml
   tags: install
 
-- name: Internet validation
-  include_tasks: ../../control_plane_common/tasks/internet_validation.yml
+- name: Install AWX
+  include_tasks: install_awx.yml
+  when: not awx_pod_deployment_status
   tags: install
 
 - name: Configure settings
   include_tasks: configure_settings.yml
+  when: not awx_ui_status
   tags: install
-
-- name: Internet validation
-  include_tasks: ../../control_plane_common/tasks/internet_validation.yml
-  tags: install
-
+  
 - name: Configure AWX
   include_tasks: awx_configuration.yml
+  when: not awx_configuration_status
   tags: install
