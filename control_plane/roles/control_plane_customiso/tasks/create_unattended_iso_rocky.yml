@@ -14,7 +14,7 @@
 ---
 
 - name: Fetch rocky profile name
-  shell: set -o pipefail && grep 'Rocky-8' /mnt/rocky/EFI/BOOT/grub.cfg | head -1
+  shell: set -o pipefail && grep 'Rocky-8' {{ tmp_iso_dir }}{{ grub_cfg_path }} | head -1
   register: rocky_profile_name
   changed_when: false
 
