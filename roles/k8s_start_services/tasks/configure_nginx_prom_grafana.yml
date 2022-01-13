@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -12,9 +12,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-
-- name: Include control_plane_monitoring variables
-  include_vars: "{{ role_path }}/../../control_plane/roles/control_plane_monitoring/vars/main.yml"
 
 - name: Install Nginx
   package:
@@ -73,8 +70,8 @@
   community.grafana.grafana_datasource:
     name: "hpc-prometheus-{{ ansible_default_ipv4.address }}"
     grafana_url: "http://{{ grafana_svc_ip }}:{{ grafana_svc_port }}"
-    grafana_user: "{{ grafana_username }}"
-    grafana_password: "{{ grafana_password }}"
+    grafana_user: "{{ hostvars['127.0.0.1']['grafana_username'] }}"
+    grafana_password: "{{ hostvars['127.0.0.1']['grafana_password'] }}"
     ds_type: prometheus
     ds_url: "http://{{ ansible_default_ipv4.address }}"
     access: direct

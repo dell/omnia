@@ -13,27 +13,10 @@
 # limitations under the License.
 ---
 
-# Tasks for Deploying AWX on the system
-
-- name: Internet validation
-  include_tasks: ../../control_plane_common/tasks/internet_validation.yml
-  tags: install
-
-- name: Check awx prequisites
-  include_tasks: check_prerequisites_awx.yml
-  tags: install
-
-- name: Install AWX
-  include_tasks: install_awx.yml
-  when: not awx_pod_deployment_status
-  tags: install
-
-- name: Configure settings
-  include_tasks: configure_settings.yml
-  when: not awx_ui_status
-  tags: install
-  
-- name: Configure AWX
-  include_tasks: awx_configuration.yml
-  when: not awx_configuration_status
-  tags: install
+# usage: get_node_inventory.yml, update_timescaledb_details.yml
+slurm_telemetry_code_dir: "{{ mount_location }}slurm"
+slurm_telemetry_code_dir_mode: 0755
+awx_namespace: awx
+awx_username: admin
+awx_fail_msg: "AWX service not found. AWX needs to be installed"
+node_inventory_fail_msg: "AWX node inventory not found. Node inventory needs be created in AWX"
