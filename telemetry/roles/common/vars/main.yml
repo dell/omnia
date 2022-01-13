@@ -51,7 +51,7 @@ vault_filename: "{{ role_path }}/../../input_params/.login_vault_key"
 login_vars_fail_msg: "Usernames and passwords in input_params/login_vars.yml should have minimum length 2"
 
 ctrl_plane_login_vault_filename: "{{ role_path }}/../../../control_plane/input_params/.login_vault_key"
-min_length_grafana: 6
+min_length_grafana: 5
 max_length: 30
 ctrl_plane_login_vars_fail_msg: "Incorrect grafana_username or grafana_password format provided
                                   in control_plane/login_vars.yml"
