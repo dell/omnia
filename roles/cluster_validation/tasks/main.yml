@@ -94,3 +94,7 @@
         replace: 'log_path = /var/log/omnia.log'
       when: ansible_conf_exists.stat.exists
   when: not control_plane_status
+
+- name: Fetch grafana credentials
+  include_tasks: fetch_grafana_cred.yml
+  when: control_plane_status
