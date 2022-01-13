@@ -1,0 +1,82 @@
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Copy slurm telemetry code
+  copy:
+    src: "{{ role_path }}/files/monster"
+    dest: "{{ slurm_telemetry_code_dir }}"
+    mode: "{{ slurm_telemetry_code_dir_mode }}"
+
+- name: Get AWX service IP
+  command: kubectl get svc awx-ui -n {{ awx_namespace }} -o=jsonpath='{.spec.clusterIP}'
+  changed_when: false
+  failed_when: false
+  register: awx_svc_ip
+
+- name: AWX needs to be installed
+  fail:
+    msg: "{{ awx_fail_msg }}"
+  when: not awx_svc_ip.stdout
+
+- name: Get AWX service port
+  command: kubectl get svc awx-ui -n {{ awx_namespace }} -o=jsonpath='{.spec.ports[0].port}'
+  changed_when: false
+  register: awx_svc_port
+
+- name: Get AWX secret
+  shell: >
+    set -o pipefail && \
+    kubectl get secret awx-admin-password -n {{ awx_namespace }} -o jsonpath="{.data.password}" | base64 --decode
+  changed_when: false
+  register: awx_secret
+
+- name: Get node_inventory id
+  shell: >
+    set -o pipefail && \
+    awx --conf.host http://{{ awx_svc_ip.stdout }}:{{ awx_svc_port.stdout }} --conf.username {{ awx_username }} \
+    --conf.password {{ awx_secret.stdout }} --conf.insecure inventory list -f human | grep node_inventory
+  changed_when: false
+  register: inventory_id
+
+- name: Node inventory not found in AWX
+  fail:
+    msg: "{{ node_inventory_fail_msg }}"
+  when: not inventory_id.stdout
+
+- name: Get node_inventory
+  command: awx --conf.host http://{{ awx_svc_ip.stdout }}:{{ awx_svc_port.stdout }} --conf.username {{ awx_username }} \
+    --conf.password {{ awx_secret.stdout }} --conf.insecure hosts list --inventory {{ inventory_id.stdout[0] }}
+  changed_when: false
+  register: node_inventory_output
+
+- name: Save the json data
+  set_fact:
+    node_inventory_jsondata: "{{ node_inventory_output.stdout | from_json }}"
+
+- name: Add temporary hosts
+  add_host:
+    name: "{{ item.name }}"
+    groups: "{{ item.summary_fields.groups.results[0].name }}"
+  with_items: "{{ node_inventory_jsondata | json_query('results') }}"
+  no_log: true
+
+- name: Update slurm telemetry code path
+  replace:
+    path: "{{ role_path }}/files/update_service_tags.yml"
+    regexp: '{{ item }}.*'
+    replace: "{{ item }} {{ slurm_telemetry_code_dir }}/monster/config.yml"
+  with_items:
+    - "dest:"
+    - "path:"

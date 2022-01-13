@@ -13,27 +13,12 @@
 # limitations under the License.
 ---
 
-# Tasks for Deploying AWX on the system
+- name: Include common variables
+  include_vars: ../../common/vars/main.yml
 
-- name: Internet validation
-  include_tasks: ../../control_plane_common/tasks/internet_validation.yml
-  tags: install
+- name: Include timescaledb variables
+  include_vars: ../../timescaledb/vars/main.yml
 
-- name: Check awx prequisites
-  include_tasks: check_prerequisites.yml
-  tags: install
-
-- name: Install AWX
-  include_tasks: install_awx.yml
-  when: not awx_pod_deployment_status
-  tags: install
-
-- name: Configure settings
-  include_tasks: configure_settings.yml
-  when: not awx_ui_status
-  tags: install
-  
-- name: Configure AWX
-  include_tasks: awx_configuration.yml
-  when: not awx_configuration_status
-  tags: install
+- name: Prepare MonSter input file
+  include_tasks: update_timescaledb_details.yml
+  when: hostvars[groups['manager'][0]]['slurm_service']

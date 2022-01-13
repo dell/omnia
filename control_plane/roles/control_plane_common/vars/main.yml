@@ -79,7 +79,7 @@ vault_filename: input_params/.login_vault_key
 min_length: 8
 max_length: 30
 min_username_length: 4
-min_length_grafana: 6
+min_length_grafana: 5
 file_perm: '0755'
 vault_file_perm: '0644'
 mount_dir_perm: '0775'
