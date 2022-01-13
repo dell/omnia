@@ -140,6 +140,7 @@
           - " \"'\" not in grafana_username "
           - grafana_password | length >= min_length_grafana
           - grafana_password | length <= max_length
+          - not grafana_password == 'admin'
           - '"-" not in grafana_password '
           - '"\\" not in grafana_password '
           - '"\"" not in grafana_password '
