@@ -51,7 +51,7 @@ idrac_password: ""
 ### Usage: webui_grafana ###
 
 # The username for grafana UI
-# The length of username should be atleast 5
+# The length of username should be at least 5
 # The username must not contain -,\, ',"
 grafana_username: ""
 
