@@ -20,7 +20,7 @@
   tags: install
 
 - name: Check awx prequisites
-  include_tasks: check_prerequisites_awx.yml
+  include_tasks: check_prerequisites.yml
   tags: install
 
 - name: Install AWX
