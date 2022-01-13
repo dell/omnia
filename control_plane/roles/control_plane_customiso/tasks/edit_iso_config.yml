@@ -13,14 +13,6 @@
 #  limitations under the License.
 ---
 
-- name: Include control_plane_common vars
-  include_vars: ../../control_plane_common/vars/main.yml
-  tags: install
-
-- name: Include provision_cobbler vars
-  include_vars: ../../provision_cobbler/vars/main.yml
-  tags: install
-
 - name: Random phrase generation
   command: openssl rand -base64 12
   changed_when: false
@@ -49,8 +41,10 @@
     warn: false
   tags: install
 
-- block:
-    - block:
+- name: Kickstart file changes rocky and centos
+  block:
+    - name: Kickstart file changes centos
+      block:
         - name: Set centos kickstart file name
           set_fact:
             idrac_kickstart_file: "{{ idrac_centos_ks }}"
@@ -78,7 +72,8 @@
           with_items: "{{ centos_host_nic }}"
       when: provision_os == os_supported_centos
 
-    - block:
+    - name: Kickstart file changes rocky
+      block:
         - name: Set rocky kickstart file name
           set_fact:
             idrac_kickstart_file: "{{ idrac_rocky_ks }}"
@@ -165,7 +160,8 @@
     - provision_os == os_supported_rocky or
       provision_os == os_supported_centos
 
-- block:
+- name: Kickstart file changes leap
+  block:
     - name: Set leap kickstart file name
       set_fact:
         idrac_kickstart_file: "{{ idrac_leap_ks }}"
