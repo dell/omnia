@@ -17,7 +17,7 @@
 
 # Usage: check_prerequisites.yml
 iso_mount_path: /mnt/{{ provision_os }}/
-iso_mount_check_fail_msg: "ISO file not mounted. Ensure /mnt/{{ provision_os }} path is mounted with {{ provision_os }} ISO file."
+iso_mount_check_fail_msg: "ISO file not mounted successfully. Ensure /mnt/{{ provision_os }} path is mounted with {{ provision_os }} ISO file."
 management_station_ip_file: "management_station_ip.txt"
 idrac_collections:
   - community.general
@@ -36,7 +36,7 @@ grub_cfg_path: EFI/BOOT/grub.cfg
 # Usage: create_unattended_iso_rocky.yml
 rocky_iso_filename: unattended_rocky8.iso
 custom_iso_success_msg: "Unattended ISO file created successfully"
-custom_iso_fail_msg: "Unattended ISO file creation failed. Ensure /mnt/{{ provision_os }} path is mounted with valid centos minimal ISO file."
+custom_iso_fail_msg: "Unattended ISO file creation failed. Ensure /mnt/{{ provision_os }} path is mounted with valid {{ provision_os }} ISO file."
 custom_iso_success_keyword1: "ISO image produced:"
 custom_iso_success_keyword2: "completed successfully"
 
