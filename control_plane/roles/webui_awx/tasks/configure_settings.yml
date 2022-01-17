@@ -18,7 +18,7 @@
   command: "kubectl get svc -n {{ awx_namespace }}"
   changed_when: false
   register: awx_services
-  
+
 - name: Expose the service for awx deployment on 8052 port
   command: "kubectl expose deployment awx --type=NodePort --name={{ awx_service_name }} --port={{ awx_port }} -n {{ awx_namespace }}"
   changed_when: false
@@ -33,6 +33,7 @@
   shell: >
     set -o pipefail && \
     kubectl get secret awx-admin-password -n {{ awx_namespace }} -o jsonpath='{.data.password}' | base64 --decode
+  no_log: true
   register: awx_admin_password
   changed_when: false
 
@@ -113,6 +114,10 @@
   systemd:
     name: firewalld
     state: reloaded
+
+- name: Waiting for AWX UI
+  wait_for:
+    timeout: "{{ awx_ui_wait_time }}"
 
 - name: Waiting for the AWX UI to be up
   uri:

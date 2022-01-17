@@ -64,6 +64,10 @@
     description: "Name of organization using this product"
     state: present
     tower_config_file: "{{ tower_config_file }}"
+  register: add_organization
+  until: not add_organization.failed
+  retries: "{{ max_retries }}"
+  delay: "{{ max_delay }}"
 
 - name: Create awx inventories
   awx.awx.tower_inventory:
@@ -94,6 +98,11 @@
     default_environment: custom-awx-ee
     state: present
     tower_config_file: "{{ tower_config_file }}"
+    wait: yes
+  register: add_project
+  until: not add_project.failed
+  retries: "{{ max_retries }}"
+  delay: "{{ max_delay }}"
 
 - name: Add awx credentials
   awx.awx.tower_credential:
