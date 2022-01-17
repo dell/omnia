@@ -13,7 +13,7 @@
 #  limitations under the License.
 ---
 
-- name: Executing omnia roles
+- name: Executing control_plane roles
   hosts: localhost
   connection: local
   roles:
@@ -28,4 +28,5 @@
     - control_plane_customiso
     - control_plane_repo
     - control_plane_security
+    - control_plane_monitoring
     - deploy_job_templates

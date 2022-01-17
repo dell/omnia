@@ -3,3 +3,5 @@ collections:
   - community.general
   - dellemc.openmanage
   - dellemc.os10
+  - kubernetes.core
+  - community.grafana
