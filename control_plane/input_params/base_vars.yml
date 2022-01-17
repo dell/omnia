@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -37,6 +37,12 @@ ib_switch_support: true
 # If powervault configuration is needed, set this to "true"
 powervault_support: false
 
+# This variable is used to enable security features on MS
+# Accepted values: "true" or "false"
+# Default value: "true"
+# If security features are not needed, set this to "false"
+enable_security_support: true
+
 # The nic/ethernet card that will be connected to the public internet.
 # Default value: eno2
 public_nic: "eno2"
@@ -62,6 +68,10 @@ snmp_community_name: "public"
 # Organization name that is created in AWX.
 # Default value: “DellEMC”
 awx_organization: "DellEMC"
+
+### Usage: webui_grafana ###
+# At this location grafana persistent volume will be created.
+mount_location: /mnt/omnia/
 
 ### Usage: provision_cobbler, provision_idrac ###
 

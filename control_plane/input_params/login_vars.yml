@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -48,6 +48,19 @@ idrac_password: ""
 # The password must not contain -,\, ',"
 #awx_password: ""
 
+### Usage: webui_grafana ###
+
+# The username for grafana UI
+# The length of username should be at least 5
+# The username must not contain -,\, ',"
+grafana_username: ""
+
+# Password used for grafana UI
+# The length of the password should be at least 5
+# The password must not contain -,\, ',"
+# The password should not be kept 'admin'
+grafana_password: ""
+
 ### Usage: network_ethernet ###
 
 # The username for ethernet switch
@@ -79,3 +92,14 @@ powervault_me4_username: ""
 # one numeric character and one non-alphanumeric character.
 # The password must not contain -,\, ',", . , < , comma(,)
 powervault_me4_password: ""
+
+# The directory server operations require an administrative user.
+# This user is referred to as the Directory Manager and has full access to the Directory for system management tasks
+# and will be added to the instance of directory server created for IPA.
+# The password must be at least 8 characters long
+# The password must not contain -,\, ',"
+directory_manager_password: ""
+
+# The IPA server requires an administrative user, named 'admin'.
+# This user is a regular system account used for IPA server administration
+ipa_admin_password: ""

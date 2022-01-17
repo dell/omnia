@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -43,6 +43,11 @@
       set_fact:
         unattended_iso_filename: "{{ rocky_iso_filename }}"
       when: provision_os == os_supported_rocky
+
+    - name: Set unattended_iso_filename - leap
+      set_fact:
+        unattended_iso_filename: "{{ leap_iso_filename }}"
+      when: provision_os == os_supported_leap
 
     - name: Install OS using iDRAC
       dellemc.openmanage.idrac_os_deployment:

@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -38,7 +38,8 @@
       provision_method | length < 1 or
       default_lease_time | length < 1 or
       provision_os | length < 1 or
-      provision_state | length < 1
+      provision_state | length < 1 or
+      mount_location | length < 1
 
 - name: Validate default lease time
   assert:
@@ -137,6 +138,13 @@
     success_msg: "{{ powervault_support_success_msg }}"
     fail_msg: "{{ powervault_support_fail_msg }}"
 
+- name: Assert enable_security_support
+  assert:
+    that:
+      - enable_security_support == true or enable_security_support == false
+    success_msg: "{{ enable_security_support_success_msg }}"
+    fail_msg: "{{ enable_security_support_fail_msg }}"
+
 - name: Fetch the network interfaces in UP state in the system
   shell: set -o pipefail && ip a | awk '/state UP/{print $2}'
   register: nic_addr_up
@@ -174,6 +182,14 @@
     success_msg: "{{ success_awx_organization }}"
     fail_msg: "{{ fail_awx_organization }}"
 
+- name: Make mount directory for grafana if it doesnt exist
+  file:
+    path: "{{ mount_location }}"
+    state: directory
+    mode: "{{ mount_dir_perm }}"
+    group: root
+    owner: root
+
 - name: Check timezone file
   command: grep -Fx "{{ timezone }}" {{ role_path }}/files/timezone.txt
   failed_when: false
@@ -210,7 +226,8 @@
   assert:
     that:
       - provision_os == os_supported_centos or 
-        provision_os == os_supported_rocky
+        provision_os == os_supported_rocky or
+        provision_os == os_supported_leap
     fail_msg: "{{ provision_os_fail_msg }}"
     success_msg: "{{ provision_os_success_msg }}"
 
@@ -276,7 +293,7 @@
 - name: Assert management_net_dhcp_start_range
   assert:
     that:
-      - mngmnt_network_dhcp_start_range
+      - mngmnt_network_dhcp_start_range |  length > 1
       - mngmnt_network_dhcp_start_range | ipv4
       - mngmnt_network_dhcp_start_range != mngmnt_network_ip
       - mngmnt_network_dhcp_start_range != mngmnt_network_dhcp_end_range
@@ -288,7 +305,7 @@
 - name: Assert management_net_dhcp_end_range
   assert:
     that:
-      - mngmnt_network_dhcp_end_range
+      - mngmnt_network_dhcp_end_range |  length > 1
       - mngmnt_network_dhcp_end_range | ipv4
       - mngmnt_network_dhcp_end_range != mngmnt_network_ip
       - mngmnt_network_dhcp_start_range != mngmnt_network_dhcp_end_range
@@ -350,7 +367,7 @@
 - name: Assert host_network_dhcp_start_range
   assert:
     that:
-      - host_network_dhcp_start_range
+      - host_network_dhcp_start_range | length > 1
       - host_network_dhcp_start_range | ipv4
       - host_network_dhcp_start_range != hpc_ip
       - host_network_dhcp_start_range != host_network_dhcp_end_range
@@ -362,7 +379,7 @@
 - name: Assert host_network_dhcp_end_range
   assert:
     that:
-      - host_network_dhcp_end_range
+      - host_network_dhcp_end_range | length > 1
       - host_network_dhcp_end_range | ipv4
       - host_network_dhcp_end_range != hpc_ip
       - host_network_dhcp_start_range != host_network_dhcp_end_range
@@ -437,7 +454,7 @@
 - name: Assert infiniband_net_dhcp_start_range
   assert:
     that:
-      - ib_network_dhcp_start_range
+      - ib_network_dhcp_start_range | length > 1
       - ib_network_dhcp_start_range | ipv4
       - ib_network_dhcp_start_range != ib_ip
       - ib_network_dhcp_start_range != ib_network_dhcp_end_range
@@ -450,7 +467,7 @@
 - name: Assert infiniband_net_dhcp_end_range
   assert:
     that:
-      - ib_network_dhcp_end_range
+      - ib_network_dhcp_end_range | length > 1
       - ib_network_dhcp_end_range | ipv4
       - ib_network_dhcp_end_range != ib_ip
       - ib_network_dhcp_start_range != ib_network_dhcp_end_range

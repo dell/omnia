@@ -1,0 +1,187 @@
+#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+- name: Permanently Disable swap
+  mount:
+    name: "swap"
+    fstype: swap
+    state: absent
+
+- name: Copy k8s.conf file
+  copy:
+    src: k8s.conf
+    dest: "{{ k8s_conf_dest }}"
+    owner: root
+    group: root
+    mode: "{{ conf_file_mode }}"
+
+- name: Copy crio.conf file
+  copy:
+    src: crio.conf
+    dest: "{{ crio_conf_dest }}"
+    owner: root
+    group: root
+    mode: "{{ conf_file_mode }}"
+
+- name: Enable the kernel modules overlay and br_netfilter
+  modprobe:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - overlay
+    - br_netfilter
+
+- name: Update sysctl to handle incorrectly routed traffic when iptables is bypassed
+  copy:
+    src: k8s-crio.conf
+    dest: "{{ k8s_crio_conf_dest }}"
+    owner: root
+    group: root
+    mode: "{{ conf_file_mode }}"
+
+- name: Update sysctl
+  command: /sbin/sysctl --system
+  changed_when: true
+
+- name: Installing cri-o
+  zypper:
+    name: cri-o
+    state: present
+  changed_when: true
+
+- name: Start and enable crio
+  service:
+    name: crio
+    state: restarted
+    daemon_reload: yes
+    enabled: yes
+  register: crio_repo_result
+  until: crio_repo_result is not failed
+  retries: "{{ min_retries }}"
+
+- name: Add kubernetes repo
+  zypper_repository:
+     name: google-k8s
+     repo: "{{ k8s_repo_leap }}"
+     state: present
+     autorefresh: yes
+
+- name: Import rpm-package key for installing kubernetes
+  rpm_key:
+    key: "{{ rpm_pkg_leap }}"
+    state: present
+
+- name: Import yum key for installing kubernetes
+  rpm_key:
+    key: "{{ yum_key_leap }}"
+    state: present
+
+- name: Import gpg-pubkey key for installing kubernetes
+  command: "{{ gpg_pubkey_leap }}"
+  args:
+    warn: false
+  changed_when: false
+
+- name: Refresh repositories and installing conntrack-tools
+  zypper:
+    name: conntrack-tools
+    state: present
+    update_cache: yes
+
+- name: Expect-package installation
+  pip:
+   name: pexpect
+   state: present
+   executable: pip3
+
+- name: Install Kubeadm
+  ansible.builtin.expect:
+    command: zypper install --oldpackage "{{ kubeadm_version }}"
+    responses:
+        (.*) [1/2/c/d/?](.): '2'
+        (.*)(y): 'y'
+
+- name: Install Kubelet
+  ansible.builtin.expect:
+    command: zypper install --oldpackage "{{ kubelet_version }}"
+    responses:
+        (.*) [1/2/c/d/?](.): '2'
+        (.*)(y): 'y'
+
+- name: Install Kubectl
+  zypper:
+     name: "{{ kubectl_version }}"
+     state: present
+     oldpackage: yes
+     force: yes
+
+- name: Install common packages
+  zypper:
+    name: "{{ common_pkgs_leap }}"
+    state: present
+
+- name: Versionlocking kubeadm
+  command: zypper addlock "{{ kubeadm_version }}"
+  args:
+    warn: false
+  changed_when: false
+
+- name: Versionlocking kubectl
+  command: zypper addlock "{{ kubelet_version }}"
+  args:
+    warn: false
+  changed_when: false
+
+- name: Versionlocking kubelet
+  command: zypper addlock "{{ kubectl_version }}"
+  args:
+    warn: false
+  changed_when: false
+
+- name: Add docker community edition repository for docker-ce-cli
+  get_url:
+    url: "{{ docker_repo_url_leap }}"
+    dest: "{{ docker_repo_dest_leap }}"
+  when: docker_username and docker_password
+  register: docker_repo
+  until: docker_repo is not failed
+  retries: "{{ max_retries }}"
+  delay: "{{ min_delay }}"
+  tags: install
+
+- name: Install docker-compose
+  zypper:
+    name: docker-compose
+    state: present
+  when: docker_username and docker_password
+
+- name: Start and enable crio
+  service:
+    name: crio
+    state: restarted
+    daemon_reload: yes
+    enabled: yes
+  register: crio_repo_result
+  until: crio_repo_result is not failed
+  retries: "{{ min_retries }}"
+
+- name: Start and enable kubernetes - kubelet
+  service:
+    name: kubelet
+    state: restarted
+    enabled: yes
+
+- name: Wait for 30sec for kubelet to get things ready
+  pause:
+    seconds: "{{ wait_time }}"

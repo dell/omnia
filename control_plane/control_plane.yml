@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 #  limitations under the License.
 ---
 
-- name: Executing omnia roles
+- name: Executing control_plane roles
   hosts: localhost
   connection: local
   roles:
@@ -22,8 +22,11 @@
     - control_plane_device
     - provision_cobbler
     - webui_awx
+    - webui_grafana
     - control_plane_ib
     - control_plane_sm
     - control_plane_customiso
     - control_plane_repo
+    - control_plane_security
+    - control_plane_monitoring
     - deploy_job_templates

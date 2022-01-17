@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,21 +15,33 @@
 
 # vars file for control_plane_customiso
 
-#Usage: check_prerequisites.yml
-iso_mount_path: /mnt/iso/
-iso_mount_check_fail_msg: "ISO file not mounted. Ensure /mnt/iso path is mounted with {{ provision_os }} ISO file."
+# Usage: check_prerequisites.yml
+iso_mount_path: /mnt/{{ provision_os }}/
+iso_mount_check_fail_msg: "ISO file not mounted successfully. Ensure /mnt/{{ provision_os }} path is mounted with {{ provision_os }} ISO file."
+management_station_ip_file: "management_station_ip.txt"
+idrac_collections:
+  - community.general
+  - dellemc.openmanage
+iso_package: xorriso
 
-#Usage: edit_iso_config.yml
-tmp_iso_dir: /tmp/iso/
+# Usage: edit_iso_config.yml
+tmp_iso_dir: /tmp/{{ provision_os }}/
 idrac_centos_ks: centos7.cfg
 idrac_rocky_ks: rocky8.cfg
+idrac_leap_ks: autoinst.xml
 file_permission: 0744
 isolinux_cfg_path: isolinux/isolinux.cfg
 grub_cfg_path: EFI/BOOT/grub.cfg
 
-#Usage: create_unattended_iso.yml
-centos_iso_filename: unattended_centos7.iso
+# Usage: create_unattended_iso_rocky.yml
 rocky_iso_filename: unattended_rocky8.iso
 custom_iso_success_msg: "Unattended ISO file created successfully"
-custom_iso_fail_msg: "Unattended ISO file creation failed. Ensure /mnt/iso path is mounted with valid centos minimal ISO file."
-management_station_ip_file: "management_station_ip.txt"
+custom_iso_fail_msg: "Unattended ISO file creation failed. Ensure /mnt/{{ provision_os }} path is mounted with valid {{ provision_os }} ISO file."
+custom_iso_success_keyword1: "ISO image produced:"
+custom_iso_success_keyword2: "completed successfully"
+
+# Usage: create_unattended_iso_leap.yml
+leap_iso_filename: unattended_leap15.iso
+
+# Usage: create_unattended_iso_centos.yml
+centos_iso_filename: unattended_centos7.iso

@@ -15,6 +15,27 @@
 
 # vars file for kubernetes
 
+# Usage: k8s_installation_leap.yml
+k8s_repo_leap: https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+rpm_pkg_leap: https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+yum_key_leap:  https://packages.cloud.google.com/yum/doc/yum-key.gpg
+gpg_pubkey_leap: "rpm -q gpg-pubkey --qf '%{name}-%{version}-%{release} --> %{summary}'"
+docker_repo_url_leap: https://download.docker.com/linux/sles/docker-ce.repo
+docker_repo_dest_leap: /etc/YaST2/docker-ce.repo
+kubeadm_version: kubeadm-1.21.0-0.x86_64
+kubelet_version: kubelet-1.21.0-0.x86_64
+kubectl_version: kubectl-1.21.0-0.x86_64
+common_pkgs_leap:
+  - openssl
+  - bash-completion
+  - buildah
+os_supported_leap: "leap"
+os_supported_leap_version: "15.3"
+min_retries: 3
+max_retries: 3
+min_delay: 10
+wait_time: 30
+ 
 # Usage: k8s_installation.yml
 common_packages:
   - openssl
@@ -38,11 +59,14 @@ docker_repo_dest: /etc/yum.repos.d/docker-ce.repo
 
 # Usage: k8s_firewalld.yml
 k8s_master_ports:
-  - 6443
-  - 2379-2380
-  - 10250
-  - 10251
-  - 10252
+  - 6443/tcp
+  - 2379-2380/tcp
+  - 10250/tcp
+  - 10251/tcp
+  - 10252/tcp
+  - 10255/tcp
+  - 8472/udp
+  - 30000-32767/tcp
 calico_udp_ports:
   - 4789
 calico_tcp_ports:

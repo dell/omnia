@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -65,7 +65,7 @@ nfs_server_manager_node: "{{ ansible_host }}"
 
 nfs_server_nfs_node: "{{ groups['nfs_node'][0] }}"
 
-mpi_operator_yaml_url: https://raw.githubusercontent.com/kubeflow/mpi-operator/master/deploy/v1alpha2/mpi-operator.yaml
+mpi_operator_yaml_url: https://raw.githubusercontent.com/kubeflow/mpi-operator/v0.3.0/deploy/v1alpha2/mpi-operator.yaml
 
 nvidia_k8s_device_plugin_repo_url: https://nvidia.github.io/k8s-device-plugin
 
@@ -79,7 +79,7 @@ gpu_feature_discovery_version: 0.2.0
 
 fpga_device_plugin_yaml_url: https://raw.githubusercontent.com/Xilinx/FPGA_as_a_Service/master/k8s-fpga-device-plugin/fpga-device-plugin.yml
 
-rocm_device_plugin_yaml_url: https://raw.githubusercontent.com/RadeonOpenCompute/k8s-device-plugin/master/k8s-ds-amdgpu-dp.yaml
+rocm_device_plugin_yaml_url: https://raw.githubusercontent.com/RadeonOpenCompute/k8s-device-plugin/v1.18.1/k8s-ds-amdgpu-dp.yaml
 
 slurm_exporter_config_file: extraScrapeConfigs.yaml
 
@@ -94,3 +94,13 @@ spark_operator_repo: https://googlecloudplatform.github.io/spark-on-k8s-operator
 operator_image_tag: v1beta2-1.2.3-3.1.1
 
 volcano_scheduling_yaml_url: https://raw.githubusercontent.com/volcano-sh/volcano/v1.3.0/installer/volcano-development.yaml
+
+nginx_conf_file_path: /etc/nginx/nginx.conf
+
+nginx_conf_file_mode: 2534
+
+grafana_svc_ip: "{{ lookup('ini', 'ip section=grafana_svc file={{ role_path }}/files/grafana_svc_details.ini') }}"
+
+grafana_svc_port: "{{ lookup('ini', 'port section=grafana_svc file={{ role_path }}/files/grafana_svc_details.ini') }}"
+
+opensuse_os_name: "openSUSE Leap"

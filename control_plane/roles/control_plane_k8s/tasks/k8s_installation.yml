@@ -112,8 +112,8 @@
   when: docker_username and docker_password
   register: docker_repo
   until: docker_repo is not failed
-  retries: 20
-  delay: 10
+  retries: "{{ max_retries }}"
+  delay: "{{ min_delay }}"
   tags: install
 
 - name: Install docker-ce-cli
@@ -137,4 +137,4 @@
 
 - name: Wait for 30sec for kubelet to get things ready
   pause:
-    seconds: 30
+    seconds: "{{ wait_time }}"

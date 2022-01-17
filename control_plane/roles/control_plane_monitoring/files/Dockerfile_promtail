@@ -1,0 +1,3 @@
+FROM docker.io/grafana/promtail:2.4.1
+
+COPY promtail_config.yml /etc/promtail/config.yml

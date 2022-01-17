@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,9 +13,29 @@
 #  limitations under the License.
 ---
 
+
 # vars file for common
 
 # Usage: package_installation.yml
+common_packages_leap:
+  - git
+  - gcc
+  - gcc-c++
+  - nodejs
+  - bzip2
+  - python2-pip
+  - python3-pip
+  - nano
+  - lvm2
+  - gettext
+  - net-tools
+  - python3-netaddr
+  - dos2unix
+  - cri-o
+  - make
+os_supported_leap: "leap"
+os_supported_leap_version: "15.3"
+python_version_leap: '3.6.15'
 common_packages:
   - epel-release
   - yum-utils
@@ -34,6 +54,7 @@ common_packages:
   - python3-netaddr
   - yum-plugin-versionlock
   - dos2unix
+  - make
 
 # Usage: pre_requisite.yml
 internet_delay: 0
@@ -58,16 +79,24 @@ vault_filename: input_params/.login_vault_key
 min_length: 8
 max_length: 30
 min_username_length: 4
+min_length_grafana: 5
 file_perm: '0755'
 vault_file_perm: '0644'
+mount_dir_perm: '0775'
 nic_min_length: 3
 login_input_config_failure_msg: "Failed. Please provide all the required parameters in login_vars.yml"
 fail_msg_provision_password: "Failed. Incorrect provision_password format provided in login_vars.yml"
 fail_msg_cobbler_password: "Failed. Incorrect cobbler_password format provided in login_vars.yml file"
 fail_msg_idrac_credentials: "Failed. Incorrect idrac_username or idrac_password format provided in login_vars.yml"
+fail_msg_grafana_credentials: "Failed. Incorrect grafana_username or grafana_password format provided in login_vars.yml"
 fail_msg_ethernet_credentials: "Failed. Incorrect ethernet_switch_username or ethernet_switch_password format provided in login_vars.yml"
 fail_msg_ib_credentials: "Failed. Incorrect ib_username or ib_password format provided in login_vars.yml"
 fail_msg_me4_credentials: "Failed. Incorrect powervault_me4_username or powervault_me4_password format provided in login_vars.yml"
+login_security_config_failure_msg: "Failed. Please provide the required passwords in login_vars.yml for installing ipa"
+success_msg_dir_manager_password: "directory_manager_password successfully validated"
+fail_msg_dir_manager_password: "Failed. Incorrect format provided for directory_manager_password"
+success_msg_ipa_admin_pwd: "ipa_admin_password successfully validated"
+fail_msg_ipa_admin_pwd: "Failed. Incorrect format provided for ipa_admin_password"
 
 # Usage: verify_omnia_params.yml
 config_filename: "omnia_config.yml"
@@ -139,6 +168,8 @@ provision_os_success_msg: "provision_os validated"
 provision_os_fail_msg: "Failed. Incorrect provision_os selected. Supported OS are {{ os_supported_centos }} or {{ os_supported_rocky }}"
 provision_state_success_msg: "provision_state validated"
 provision_state_fail_msg: "Failed. Incorrect provision_state selected. Supported only stateful"
+enable_security_support_success_msg: "enable_security_support validated"
+enable_security_support_fail_msg: "Failed. enable_security_support only accepts boolean values true or false"
 
 # Usage: fetch_sm_inputs.yml
 ib_config_file: "{{ role_path }}/../../input_params/ib_vars.yml"
@@ -193,3 +224,12 @@ group_name_nfs: "nfs_node"
 # Usage: validate_device_mapping_file.yml
 fail_device_mapping_file_header: "Failed: Header (MAC,IP) should be present in the mapping file."
 device_mapping_header_format: "MAC,IP"
+
+# Usage: fetch_security_inputs.yml
+security_vars_filename: "input_params/security_vars.yml"
+input_security_failure_msg: "Please provide all the required parameters in security_vars.yml"
+dom_name_length: '63'
+dom_name_success_msg: "domain name successfully validated"
+dom_name_fail_msg: "Failed. Incorrect format provided for domain name in security_vars.yml"
+realm_success_msg: "realm_name successfully validated"
+realm_fail_msg: "Failed. Incorrect realm_name format in security_vars.yml"

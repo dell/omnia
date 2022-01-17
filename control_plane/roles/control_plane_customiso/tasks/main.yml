@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -21,5 +21,14 @@
 - name: Edit iso config files
   include_tasks: edit_iso_config.yml
 
-- name: Create unattended iso file
-  include_tasks: create_unattended_iso.yml
+- name: Create unattended iso file rocky
+  include_tasks: create_unattended_iso_rocky.yml
+  when: provision_os == os_supported_rocky
+
+- name: Create unattended iso file leap
+  include_tasks: create_unattended_iso_leap.yml
+  when: provision_os == os_supported_leap
+
+- name: Create unattended iso file centos
+  include_tasks: create_unattended_iso_centos.yml
+  when: provision_os == os_supported_centos

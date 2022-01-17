@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -22,18 +22,6 @@
     debug:
       msg: "Hiii! I am cobbler"
 
-  - name: Make
-    command: make rpms
-    args:
-      chdir: /cobbler
-    changed_when: false
-
-  - name: Install cobbler and cobbler-web
-    command: dnf install -y cobbler-3.2.2-1.el8.noarch.rpm cobbler-web-3.2.2-1.el8.noarch.rpm
-    args:
-      chdir: /cobbler/rpm-build
-    changed_when: false
-  
   - name: Run script
     shell: sh ./mkgrub.sh
     args:
@@ -48,18 +36,6 @@
       block: |
         LoadModule wsgi_module modules/mod_wsgi_python3.so
         LoadModule proxy_module modules/mod_proxy.so
-
-  - name: Cobbler web
-    blockinfile:
-      state: present
-      insertafter: '^<VirtualHost '
-      path: /etc/httpd/conf.d/cobbler_web.conf
-      block: |
-         ServerName localhost
-         SSLEngine on
-         SSLCipherSuite PROFILE=SYSTEM
-         SSLCertificateFile /etc/pki/tls/certs/localhost.crt
-         SSLCertificateKeyFile /etc/pki/tls/private/localhost.key
 
   - name: Add settings to http
     shell: echo "LoadModule wsgi_module modules/mod_wsgi_python3.so" >/etc/httpd/conf.d/wsgi.conf
@@ -134,7 +110,7 @@
 
   - name: Syncing of cobbler
     command: cobbler sync
-    changed_when: false 
+    changed_when: false
 
   - name: Restart cobblerd, http, xinetd and dhcpd
     service:
@@ -161,4 +137,4 @@
     cron:
       name: Create inventory
       minute: "*/5"
-      job: "{{ ansible_playbook_path.stdout.split(' ')[1] }} /root/inventory_creation.yml"
+      job: "{{ ansible_playbook_path.stdout.split(' ')[1] }} /root/inventory_creation.yml -e dhcpd_lease_file=\"/var/lib/dhcpd/dhcpd.leases\""

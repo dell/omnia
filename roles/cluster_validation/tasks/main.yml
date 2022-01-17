@@ -56,6 +56,10 @@
       include_tasks: fetch_powervault_status.yml
       when: nfs_node_status
 
+    - name: Initialize ipa server variables
+      include_tasks: fetch_ipa_password.yml
+      when: login_node_required
+
 - name: omnia.yml runing on host
   block:
     - name: Passwordless SSH status
@@ -90,3 +94,7 @@
         replace: 'log_path = /var/log/omnia.log'
       when: ansible_conf_exists.stat.exists
   when: not control_plane_status
+
+- name: Fetch grafana credentials
+  include_tasks: fetch_grafana_cred.yml
+  when: control_plane_status

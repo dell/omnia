@@ -11,6 +11,6 @@ all:
         login1.omnia.local:
     compute:
       hosts:
-        compute[001-004].omnia.local:
+        compute[001:004].omnia.local:
         compute010.omnia.local:
         compute011.omnia.local:

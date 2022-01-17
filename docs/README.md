@@ -4,7 +4,7 @@
 1.2
 
 #### Previous release version
-1.1  
+1.1.1
 
 ## Blogs about Omnia
 - [Introduction to Omnia](https://infohub.delltechnologies.com/p/omnia-open-source-deployment-of-high-performance-clusters-to-run-simulation-ai-and-data-analytics-workloads/)
@@ -27,6 +27,8 @@ Omnia can install Kubernetes or Slurm (or both), along with additional drivers, 
 ![Omnia Slurm Stack](images/omnia-slurm.png)  
 
 ## What's new in this release
+* Extended support of Leap OS on Management station, login, compute and NFS nodes.
+* Omnia now supports Powervault configurations with 2 network interfaces.
 * Provisioning of Rocky custom ISO on supported PowerEdge servers using iDRAC.
 * Configuring Dell EMC networking switches, Mellanox InfiniBand switches, and PowerVault storage devices in the cluster. 
 * An option to configure a login node with the same configurations as the compute nodes in the cluster. With appropriate user privileges provided by the cluster administrator, users can log in to the login node and schedule Slurm jobs. The authentication mechanism in the login node uses the FreeIPA solution.
@@ -46,8 +48,8 @@ The following table lists the software and operating system requirements on the 
 
 Requirements  |   Version
 ----------------------------------  |   -------
-OS pre-installed on the management station  |  CentOS 8.4/ Rocky 8.4
-OS deployed by Omnia on bare-metal Dell EMC PowerEdge Servers | CentOS 7.9 2009 Minimal Edition/ Rocky 8.4 Minimal Edition
+OS pre-installed on the management station  |  CentOS 8.4/ Rocky 8.5/ Leap 15.3
+OS deployed by Omnia on bare-metal Dell EMC PowerEdge Servers | Rocky 8.5 Minimal Edition/ Leap 15.3
 Cobbler  |  3.2.2
 Ansible AWX  |  19.1.0
 Slurm Workload Manager  |  20.11.2
@@ -55,6 +57,9 @@ Kubernetes on the management station  |  1.21.0
 Kubernetes on the manager and compute nodes	|	1.16.7 or 1.19.3
 Kubeflow  |  1
 Prometheus  |  2.23.0
+Ansible  |  2.9.21
+Python  |  3.6.15
+CRI-O  |  1.17.3
 
 ## Hardware managed by Omnia
 The following table lists the supported devices managed by Omnia. Other devices than those listed in the following table will be discovered by Omnia, but features offered by Omnia will not be applicable.
@@ -72,15 +77,16 @@ The following table lists the software and its compatible version managed by Omn
 
 Software	|	License	|	Compatible Version	|	Description
 -----------	|	-------	|	----------------	|	-----------------
+LeapOS 15.3	|	-	|	15.3|	Operating system on entire cluster
 CentOS Linux release 7.9.2009 (Core)	|	-	|	7.9	|	Operating system on entire cluster except for management station
-Rocky 8.4	|	-	|	8.4	|	Operating system on entire cluster except for management station
+Rocky 8.5	|	-	|	8.5	|	Operating system on entire cluster except for management station
 CentOS Linux release 8.4.2105	|	-	|	8.4	|	Operating system on the management station	
-Rocky 8.4	|	-	|	8.4	|	Operating system on the management station
+Rocky 8.5	|	-	|	8.5	|	Operating system on the management station
 MariaDB	|	GPL 2.0	|	5.5.68	|	Relational database used by Slurm
 Slurm	|	GNU General Public	|	20.11.7	|	HPC Workload Manager
 Docker CE	|	Apache-2.0	|	20.10.2	|	Docker Service
 FreeIPA	|	GNU General Public License v3	|	4.6.8	|	Authentication system used in the login node
-OpenSM	|	GNU General Public License 2	|	3.3.21	|	-
+OpenSM	|	GNU General Public License 2	|	3.3.24	|	-
 NVIDIA container runtime	|	Apache-2.0	|	3.4.2	|	Nvidia container runtime library
 Python PIP	|	MIT License	|	21.1.2	|	Python Package
 Python3	|	-	|	3.6.8	|	-
@@ -95,7 +101,7 @@ Helm	|	Apache-2.0	|	3.5.0	|	Kubernetes Package Manager
 Helm Chart	|	-	|	0.9.0	|	-
 TensorFlow	|	Apache-2.0	|	2.1.0	|	Machine Learning framework
 Horovod	|	Apache-2.0	|	0.21.1	|	Distributed deep learning training framework for Tensorflow
-MPI	|	Copyright (c) 2018-2019 Triad National Security,LLC. All rights reserved.	|	0.2.3	|	HPC library
+MPI	|	Copyright (c) 2018-2019 Triad National Security,LLC. All rights reserved.	|	0.3.0	|	HPC library
 CoreDNS	|	Apache-2.0	|	1.6.2	|	DNS server that chains plugins
 CNI	|	Apache-2.0	|	0.3.1	|	Networking for Linux containers
 AWX	|	Apache-2.0	|	19.1.0	|	Web-based User Interface
@@ -195,8 +201,6 @@ If hosts are listed, then an IP address has been assigned to them by DHCP. Howev
 * **Issue**: Hosts are not automatically deleted from awx UI when redeploying the cluster.  
 	**Resolution**: Before re-deploying the cluster, ensure that the user manually deletes all hosts from the awx UI.
 	
-* **Issue**: Decomissioned compute nodes do not get deleted automatically from the awx UI.
-	**Resolution**: Once a node is decommisioned, ensure that the user manually deletes decomissioned hosts from the awx UI.
 
 # [Frequently asked questions](FAQ.md)
 
@@ -208,6 +212,9 @@ If hosts are listed, then an IP address has been assigned to them by DHCP. Howev
 * In a single node cluster, the login node and Slurm functionalities are not applicable. However, Omnia installs FreeIPA Server and Slurm on the single node.  
 * To change the Kubernetes version from 1.16 to 1.19 or 1.19 to 1.16, you must redeploy the entire cluster.  
 * The Kubernetes pods will not be able to access the Internet or start when firewalld is enabled on the node. This is a limitation in Kubernetes. So, the firewalld daemon will be disabled on all the nodes as part of omnia.yml execution.
+* Only one storage instance (Powervault) is currently supported in the HPC cluster.
+* Cobbler web support has been discontinued from Omnia 1.2 onwards.
+
 
 # Contributing to Omnia
 The Omnia project was started to give members of the [Dell Technologies HPC Community](https://dellhpc.org) a way to easily set up clusters of Dell EMC servers, and to contribute useful tools, fixes, and functionality back to the HPC Community.

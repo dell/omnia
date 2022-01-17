@@ -119,6 +119,12 @@
       when: "'$ANSIBLE_VAULT;' in config_content.stdout"
       run_once: true
 
+    - name: Install paramiko
+      command: pip3 install paramiko -i http://pypi.douban.com/simple/ --trusted-host pypi.douban.com
+      delegate_to: localhost
+      run_once: true
+      changed_when: false
+
     - name: Initialize variables
       set_fact:
         idrac_inventory_status: false
@@ -179,7 +185,6 @@
             --conf.insecure hosts list --inventory ethernet_inventory -f human --filter "name"
           changed_when: false
           no_log: true
-          run_once: true
           register: ethernet_switches
 
         - name: Assert ethernet switch
@@ -230,7 +235,6 @@
             --conf.insecure hosts list --inventory infiniband_inventory -f human --filter "name"
           changed_when: false
           no_log: true
-          run_once: true
           register: infiniband_switches
 
         - name: Authenticate infiniband Switch
@@ -305,7 +309,6 @@
             --conf.insecure hosts list --inventory powervault_me4_inventory -f human --filter "name"
           changed_when: false
           no_log: true
-          run_once: true
           register: me4_storage
 
         - name: Get auth string for powervault
