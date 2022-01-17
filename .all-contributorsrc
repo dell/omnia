@@ -42,20 +42,8 @@
       ]
     },
     {
-      "login": "DeepikaKrishnaiah",
-      "name": "DeepikaKrishnaiah",
-      "avatar_url": "https://avatars.githubusercontent.com/u/73213880?v=4",
-      "profile": "https://github.com/DeepikaKrishnaiah",
-      "contributions": [
-        "code",
-        "test",
-        "bug",
-        "security"
-      ]
-    },
-    {
       "login": "sujit-jadhav",
-      "name": "sujit-jadhav",
+      "name": "Sujit Jadhav",
       "avatar_url": "https://avatars.githubusercontent.com/u/73123831?v=4",
       "profile": "https://github.com/sujit-jadhav",
       "contributions": [
@@ -66,6 +54,27 @@
         "maintenance",
         "projectManagement",
         "mentoring"
+      ]
+    },
+    {
+      "login": "DeepikaKrishnaiah",
+      "name": "Deepika K",
+      "avatar_url": "https://avatars.githubusercontent.com/u/73213880?v=4",
+      "profile": "https://github.com/DeepikaKrishnaiah",
+      "contributions": [
+        "code",
+        "test",
+        "bug",
+        "security"
+      ]
+    },
+    {
+      "login": "sakshiarora13",
+      "name": "Sakshi Arora",
+      "avatar_url": "https://avatars.githubusercontent.com/u/73195862?v=4",
+      "profile": "https://github.com/sakshiarora13",
+      "contributions": [
+        "code"
       ]
     },
     {
@@ -109,15 +118,6 @@
       ]
     },
     {
-      "login": "sakshiarora13",
-      "name": "sakshiarora13",
-      "avatar_url": "https://avatars.githubusercontent.com/u/73195862?v=4",
-      "profile": "https://github.com/sakshiarora13",
-      "contributions": [
-        "code"
-      ]
-    },
-    {
       "login": "avinashvishwanath",
       "name": "avinashvishwanath",
       "avatar_url": "https://avatars.githubusercontent.com/u/77823538?v=4",
@@ -146,6 +146,24 @@
         "code",
         "maintenance",
         "bug"
+      ]
+    },
+    {
+      "login": "cgoveas",
+      "name": "Cassey Goveas",
+      "avatar_url": "https://avatars.githubusercontent.com/u/88071888?v=4",
+      "profile": "https://github.com/cgoveas",
+      "contributions": [
+        "doc"
+      ]
+    },
+    {
+      "login": "abhishek-sa1",
+      "name": "Abhishek SA",
+      "avatar_url": "https://avatars.githubusercontent.com/u/94038029?v=4",
+      "profile": "https://github.com/abhishek-sa1",
+      "contributions": [
+        "code"
       ]
     },
     {
@@ -183,15 +201,6 @@
       "name": "Ishita Datta",
       "avatar_url": "https://avatars.githubusercontent.com/u/48859631?v=4",
       "profile": "https://rb.gy/ndlbhv",
-      "contributions": [
-        "doc"
-      ]
-    },
-    {
-      "login": "cgoveas",
-      "name": "Cassey Goveas",
-      "avatar_url": "https://avatars.githubusercontent.com/u/88071888?v=4",
-      "profile": "https://github.com/cgoveas",
       "contributions": [
         "doc"
       ]
@@ -313,15 +322,6 @@
       "name": "Ikko Ashimine",
       "avatar_url": "https://avatars.githubusercontent.com/u/22633385?v=4",
       "profile": "https://bandism.net/",
-      "contributions": [
-        "code"
-      ]
-    },
-    {
-      "login": "abhishek-sa1",
-      "name": "abhishek-sa1",
-      "avatar_url": "https://avatars.githubusercontent.com/u/94038029?v=4",
-      "profile": "https://github.com/abhishek-sa1",
       "contributions": [
         "code"
       ]
