@@ -18,6 +18,9 @@
   connection: local
   gather_facts: false
   tasks:
+  - name: Enable DHCP
+    command: dhcpd {{ mngmnt_nic }}
+    
   - name: Install python-netaddr
     package:
       name: py3-netaddr
