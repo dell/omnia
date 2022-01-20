@@ -13,6 +13,9 @@
 #  limitations under the License.
 ---
 
+# Usage: main.yml
+awx_search_key: "-job-"
+
 # Usage: fetch_password.yml
 config_filename: "omnia_config.yml"
 config_vaultname: .omnia_vault_key
