@@ -43,7 +43,7 @@
         control_plane_status: true
       when:
         - not awx_version_check.failed
-        - '"awx-" in awx_hostname.stdout'
+        - awx_search_key in awx_hostname.stdout
 
     - name: Set NFS node status
       set_fact:
