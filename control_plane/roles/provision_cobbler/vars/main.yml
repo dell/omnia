@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -66,5 +66,8 @@ cobbler_image_tag: latest
 message_skipped: "Installation Skipped: Cobbler instance is already running in your system"
 message_installed: "Installation Successful"
 
-# Usage: mount_iso.yml
-iso_dir_name: iso
+# Usage: multi_cluster_provisioning.yml
+file_perm: '0775'
+
+# Usage: multi_cluster_provisioning.yml
+temp_file_perm: '0644'
