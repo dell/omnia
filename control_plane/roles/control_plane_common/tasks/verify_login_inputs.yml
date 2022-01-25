@@ -18,6 +18,7 @@
   changed_when: false
   register: config_content
   no_log: true
+  tags: init
 
 - name: Decrpyt login_vars.yml
   command: >-
@@ -25,10 +26,12 @@
     --vault-password-file {{ vault_filename }}
   changed_when: false
   when: "'$ANSIBLE_VAULT;' in config_content.stdout"
+  tags: init
 
 - name: Include variable file login_vars.yml
   include_vars: "{{ login_vars_filename }}"
   no_log: true
+  tags: init
 
 - name: Validate input parameters are not empty
   fail:
@@ -39,10 +42,12 @@
       cobbler_password | length < 1 or      
       idrac_username | length < 1 or
       idrac_password | length < 1
+  tags: [ validate, pxe, idrac ]
 
 - name: Validate security parameters when enable_security_support is set to true
   fail:
     msg: "{{ login_input_config_failure_msg }} for ipa server installation"
+  tags: [ validate, security ]
   when:
     - ( directory_manager_password | length < 1 or
       ipa_admin_password | length < 1 ) and
@@ -64,6 +69,7 @@
     - name: Provision password validation check
       fail:
         msg: "{{ fail_msg_provision_password }}"
+  tags: [ validate, pxe, idrac ]
 
 - name: Assert cobbler credentials
   block:
@@ -81,6 +87,7 @@
     - name: Cobbler password validation check
       fail:
         msg: "{{ fail_msg_cobbler_password }}"
+  tags: [ validate, pxe ]
 
 - name: Assert idrac credentials
   block:
@@ -104,6 +111,7 @@
     - name: idrac credentials validation check
       fail:
         msg: "{{ fail_msg_idrac_credentials }}"
+  tags: [ validate, idrac ]
 
 - name: Assert grafana credentials
   block:
@@ -128,6 +136,7 @@
     - name: grafana credentials validation check
       fail:
         msg: "{{ fail_msg_grafana_credentials }}"
+  tags: [ validate, monitoring ]
 
 - name: Assert username and password for ethernet switches
   block:
@@ -152,6 +161,7 @@
       fail:
         msg: "{{ fail_msg_ethernet_credentials }}"
   when: ethernet_switch_support
+  tags: [ validate, network-device ]
 
 - name: Assert username and password for IB switches
   block:
@@ -176,6 +186,7 @@
       fail:
         msg: "{{ fail_msg_ib_credentials }}"
   when: ib_switch_support
+  tags: [ validate, network-ib ]
 
 - name: Assert username and password for powervault me4
   block:
@@ -207,6 +218,7 @@
       fail:
         msg: "{{ fail_msg_me4_credentials }}"
   when: powervault_support
+  tags: [ validate, network-device ]
 
 - name: Assert directory_manager_password
   assert:
@@ -220,6 +232,7 @@
     success_msg: "{{ success_msg_dir_manager_password }}"
     fail_msg: "{{ fail_msg_dir_manager_password }}"
   when: enable_security_support
+  tags: [ validate, security ]
 
 - name: Assert ipa_admin_password
   assert:
@@ -233,11 +246,13 @@
     success_msg: "{{ success_msg_ipa_admin_pwd }}"
     fail_msg: "{{ fail_msg_ipa_admin_pwd }}"
   when: enable_security_support
+  tags: [ validate, security ]
 
 - name: Create ansible vault key
   set_fact:
     vault_key: "{{ lookup('password', '/dev/null chars=ascii_letters') }}"
   when: "'$ANSIBLE_VAULT;' not in config_content.stdout"
+  tags: init
 
 - name: Save vault key
   copy:
@@ -248,14 +263,17 @@
     force: yes
     mode: "{{ vault_file_perm }}"
   when: "'$ANSIBLE_VAULT;' not in config_content.stdout"
+  tags: init
 
 - name: Encrypt input config file
   command: >-
     ansible-vault encrypt {{ login_vars_filename }}
     --vault-password-file {{ vault_filename }}
   changed_when: false
+  tags: init
 
 - name: Update login_vars.yml permission
   file:
     path: "{{ login_vars_filename }}"
     mode: "{{ file_perm }}"
+  tags: init
