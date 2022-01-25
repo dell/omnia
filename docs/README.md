@@ -51,7 +51,7 @@ Requirements  |   Version
 OS pre-installed on the management station  |  CentOS 8.4/ Rocky 8.5/ Leap 15.3
 OS deployed by Omnia on bare-metal Dell EMC PowerEdge Servers | Rocky 8.5 Minimal Edition/ Leap 15.3
 Cobbler  |  3.2.2
-Ansible AWX  |  19.1.0
+Ansible AWX  |  19.4.0
 Slurm Workload Manager  |  20.11.2
 Kubernetes on the management station  |  1.21.0
 Kubernetes on the manager and compute nodes	|	1.16.7 or 1.19.3
@@ -59,7 +59,7 @@ Kubeflow  |  1
 Prometheus  |  2.23.0
 Ansible  |  2.9.21
 Python  |  3.6.15
-CRI-O  |  1.17.3
+CRI-O  |  1.21.0
 
 ## Hardware managed by Omnia
 The following table lists the supported devices managed by Omnia. Other devices than those listed in the following table will be discovered by Omnia, but features offered by Omnia will not be applicable.
@@ -89,12 +89,12 @@ FreeIPA	|	GNU General Public License v3	|	4.6.8	|	Authentication system used in 
 OpenSM	|	GNU General Public License 2	|	3.3.24	|	-
 NVIDIA container runtime	|	Apache-2.0	|	3.4.2	|	Nvidia container runtime library
 Python PIP	|	MIT License	|	21.1.2	|	Python Package
-Python3	|	-	|	3.6.8	|	-
-Kubelet	|	Apache-2.0	|	1.16.7,1.19,1.21	|	Provides external, versioned ComponentConfig API types for configuring the kubelet
-Kubeadm	|	Apache-2.0	|	1.16.7,1.19,1.21	|	"fast paths" for creating Kubernetes clusters
-Kubectl	|	Apache-2.0	|	1.16.7,1.19,1.21	|	Command line tool for Kubernetes
+Python3	|	-	|	3.6.8 (3.6.15 if LeapOS is being used)	|	-
+Kubelet	|	Apache-2.0	|	1.16.7,1.19, 1.21 (LeapOS only supports 1.21) 	|	Provides external, versioned ComponentConfig API types for configuring the kubelet
+Kubeadm	|	Apache-2.0	|	1.16.7,1.19, 1.21 (LeapOS only supports 1.21)	|	"fast paths" for creating Kubernetes clusters
+Kubectl	|	Apache-2.0	|	1.16.7,1.19, 1.21 (LeapOS only supports 1.21)	|	Command line tool for Kubernetes
 JupyterHub	|	Modified BSD License	|	1.1.0	|	Multi-user hub
-kubernetes Controllers	|	Apache-2.0	|	1.16.7,1.19,1.21	|	Orchestration tool	
+kubernetes Controllers	|	Apache-2.0	|	1.16.7,1.19 (1.21 if LeapOS is being used)	|	Orchestration tool	
 Kfctl	|	Apache-2.0	|	1.0.2	|	CLI for deploying and managing Kubeflow
 Kubeflow	|	Apache-2.0	|	1	|	Cloud Native platform for machine learning
 Helm	|	Apache-2.0	|	3.5.0	|	Kubernetes Package Manager
@@ -104,8 +104,8 @@ Horovod	|	Apache-2.0	|	0.21.1	|	Distributed deep learning training framework for
 MPI	|	Copyright (c) 2018-2019 Triad National Security,LLC. All rights reserved.	|	0.3.0	|	HPC library
 CoreDNS	|	Apache-2.0	|	1.6.2	|	DNS server that chains plugins
 CNI	|	Apache-2.0	|	0.3.1	|	Networking for Linux containers
-AWX	|	Apache-2.0	|	19.1.0	|	Web-based User Interface
-AWX.AWX	|	Apache-2.0	|	19.1.0	|	Galaxy collection to perform awx configuration
+AWX	|	Apache-2.0	|	19.4.0	|	Web-based User Interface
+AWX.AWX	|	Apache-2.0	|	19.4.0	|	Galaxy collection to perform awx configuration
 AWXkit	|	Apache-2.0	|	to be updated	|	To perform configuration through CLI commands
 Cri-o	|	Apache-2.0	|	1.21	|	Container Service
 Buildah	|	Apache-2.0	|	1.21.4	|	Tool to build and run container
