@@ -122,6 +122,7 @@
   file:
     path: "{{ role_path }}/files/.provisioned_os"
     state: touch
+    mode: "{{ temp_file_perm }}"
   when: not provisioned_os_file.stat.exists
 
 - name: Check status of .provisioned_os file
