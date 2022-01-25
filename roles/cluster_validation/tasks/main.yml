@@ -97,4 +97,3 @@
 
 - name: Fetch grafana credentials
   include_tasks: fetch_grafana_cred.yml
-  when: control_plane_status

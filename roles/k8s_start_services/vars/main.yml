@@ -104,3 +104,5 @@ grafana_svc_ip: "{{ lookup('ini', 'ip section=grafana_svc file={{ role_path }}/f
 grafana_svc_port: "{{ lookup('ini', 'port section=grafana_svc file={{ role_path }}/files/grafana_svc_details.ini') }}"
 
 opensuse_os_name: "openSUSE Leap"
+
+nginx_listen_port: 3200
