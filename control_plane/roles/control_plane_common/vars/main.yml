@@ -13,8 +13,7 @@
 #  limitations under the License.
 ---
 
-
-# vars file for common
+# vars file for control_plane_common
 
 # Usage: package_installation.yml
 common_packages_leap:
@@ -72,8 +71,9 @@ selinux_status: "SElinux is not disabled. Disable it in /etc/sysconfig/selinux a
 ansible_python_version_status: "For CentOS 8.3, python bindings of firewalld, dnf, selinux are not available if python is installed from source and not from dnf. So please make sure python3.6 is installed using dnf. And ansible uses the python version 3.6 installed using dnf"
 python_version_support: '3.6.8'
 default_ansible_config_file_path: /etc/ansible/ansible.cfg
+invalid_tag_msg: "Failed. init tag can't be skipped"
 
-# Usage: password_config.yml
+# Usage: verify_login_inputs.yml
 login_vars_filename: "input_params/login_vars.yml"
 vault_filename: input_params/.login_vault_key
 min_length: 8
@@ -233,3 +233,10 @@ dom_name_success_msg: "domain name successfully validated"
 dom_name_fail_msg: "Failed. Incorrect format provided for domain name in security_vars.yml"
 realm_success_msg: "realm_name successfully validated"
 realm_fail_msg: "Failed. Incorrect realm_name format in security_vars.yml"
+
+# Usage: validate_idrac_vars.yml
+idrac_input_filename: input_params/idrac_vars.yml
+firmware_update_success_msg: "firmware_update_required validated"
+firmware_update_fail_msg: "Failed. firmware_update_required accepts only true or false in idrac_vars.yml"
+poweredge_model_success_msg: "poweredge_model validated"
+poweredge_model_fail_msg: "Failed. poweredge_model is incorrect or unsupported. Please update the list with the supported models in the correct format"
