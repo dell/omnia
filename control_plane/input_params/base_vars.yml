@@ -90,16 +90,16 @@ provision_method: "idrac"
 provision_state: "stateful"
 
 # This is the operating system image that will be used for provisioning compute nodes in the cluster.
-# Accepted values: rocky, centos
+# Accepted values: rocky, centos, leap
 # Default value: "rocky"
 # Required field
 provision_os: "rocky"
 
 # This is the path where the user has to place the iso image that needs to be provisioned in target nodes.
-# The iso file should be Rocky8-Minimal or CentOS7-2009-minimal edition.
+# The iso file should be Rocky8-Minimal or CentOS7-2009-minimal or openSUSE-Leap-15.3-DVD edition.
 # Other iso files are not supported.
 # Required field
-iso_file_path: "/root/Rocky-8.4-x86_64-minimal.iso"
+iso_file_path: "/root/Rocky-8.5-x86_64-minimal.iso"
 
 # This is the timezone that will be set during provisioning of OS
 # Available timezones are provided in control_plane/common/files/timezone.txt

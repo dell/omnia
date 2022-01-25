@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -68,7 +68,7 @@
   copy:
     src: "{{ temp_host_mapping_file }}"
     dest: "{{ role_path }}/files/backup_host_mapping_file.csv"
-    mode: 0644
+    mode: "{{ temp_file_perm }}"
 
 - name: Get cobbler pod name
   command: 'kubectl get pod -n {{ cobbler_namespace }} -l app=cobbler -o jsonpath="{.items[0].metadata.name}"'
