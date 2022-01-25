@@ -58,6 +58,7 @@ COPY .users.digest /etc/cobbler/users.digest
 COPY cobbler_configurations_rocky.yml /root
 COPY tftp.yml /root
 COPY inventory_creation.yml /root
+COPY multi_cluster_provisioning.yml /root
 
 EXPOSE 69 80 443 25151
 
