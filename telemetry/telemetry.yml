@@ -20,6 +20,7 @@
    roles:
     - common
     - timescaledb
+    - idrac_telemetry
     - grafana_config
 
 - name: Get node inventory
