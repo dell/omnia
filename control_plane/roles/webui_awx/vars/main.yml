@@ -54,8 +54,8 @@ min_retries: 2
 
 # Usage: awx_logo.yml
 awx_login_info: "An open-source toolkit for deploying and managing high performance clusters for HPC, AI, and data analytics workloads."
-logo_path: "/root/omnia/control_plane/roles/webui_awx/files/omnia.png"
-logo_file_path: "/root/output.txt"
+omnia_logo_path: "{{ role_path }}/files/omnia.png"
+logo_txt_path: "{{ role_path }}/files/.logo_base64.txt"
 
 # Usage: awx_configuration.yml
 default_org: Default
