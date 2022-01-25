@@ -16,11 +16,13 @@
 - name: Include security variable file security_vars.yml
   include_vars: "{{ security_vars_filename }}"
   no_log: true
+  tags: init
 
 - name: Validate input parameters of base_vars are not empty
   fail:
     msg: "{{ input_security_failure_msg }}"
   register: input_base_check
+  tags: [ validate, security ]
   when:
     - domain_name | length < 1 or
       realm_name | length < 1
@@ -31,6 +33,7 @@
       - domain_name is regex("^(?!-)[A-Za-z0-9-]+([\\-\\.]{1}[a-z0-9]+)*\\.[A-Za-z]{2,}$")
     success_msg: "{{ dom_name_success_msg }}"
     fail_msg: "{{ dom_name_fail_msg }}"
+  tags: [ validate, security ]
 
 - name: Validate the realm name
   assert:
@@ -39,3 +42,4 @@
       - '"." in realm_name'
     success_msg: "{{ realm_success_msg }}"
     fail_msg: "{{ realm_fail_msg }}"
+  tags: [ validate, security ]
