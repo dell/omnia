@@ -47,6 +47,8 @@
 
 - name: Mount the iso file
   command: mount -o loop {{ iso_file_path }} /mnt/tmp
+  args:
+    warn: no
   when: not profile_exists
 
 - name: Copy the iso file inside /mnt
