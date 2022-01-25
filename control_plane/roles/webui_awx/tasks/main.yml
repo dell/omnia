@@ -31,6 +31,7 @@
   
 - name: Changing login logo of AWX UI
   include_tasks: awx_logo.yml
+  when: not awx_configuration_status
 
 - name: Configure AWX
   include_tasks: awx_configuration.yml
