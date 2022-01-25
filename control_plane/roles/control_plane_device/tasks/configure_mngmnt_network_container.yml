@@ -32,7 +32,7 @@
 
 - name: Configuring mngmnt_network container
   command: 'kubectl exec --stdin --tty -n network-config {{ mngmnt_network_pod_name.stdout }} \
-    -- ansible-playbook /root/mngmnt_container_configure.yml'
+    -- ansible-playbook /root/mngmnt_container_configure.yml -e mngmnt_nic="{{ mngmnt_network_nic }}"'
   changed_when: false
   tags: install
   when: not mngmnt_network_container_status

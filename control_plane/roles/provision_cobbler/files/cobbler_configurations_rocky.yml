@@ -68,37 +68,37 @@
     shell: export PATH="/usr/bin/curl:$PATH"
 
   - name: Run import command
-    command: cobbler import --arch=x86_64 --path=/mnt --name="{{ name_iso }}"
+    command: cobbler import --arch=x86_64 --path=/mnt/{{ provision_os }} --name="{{ provision_os }}"
     changed_when: false
 
   - name: Kickstart profile - centos
     copy:
       src: "/root/centos7.ks"
       dest: "/var/lib/cobbler/templates/sample.ks"
-      mode: 0775
+      mode: "{{ file_perm }}"
     tags: install
-    when: name_iso == "centos"
+    when: provision_os == "centos"
 
   - name: Kickstart profile - rocky
     copy:
       src: "/root/rocky8.ks"
       dest: "/var/lib/cobbler/templates/sample.ks"
-      mode: 0775
+      mode: "{{ file_perm }}"
     tags: install
-    when: name_iso == "rocky"
+    when: provision_os == "rocky"
 
   - name: Pxe menu
     copy:
       src: "/root/omnia/control_plane/roles/provision_cobbler/files/menu.yml"
       dest: "/etc/cobbler/boot_loader_conf/pxedefault.template"
-      mode: 0775
+      mode: "{{ file_perm }}"
     tags: install
 
   - name: Assign default grub option
     replace:
       path: "/var/lib/cobbler/grub_config/grub/grub.cfg"
-      regexp: "^set default=\'local\'"
-      replace: "set default=\'1\'"
+      regexp: "^set default='local'"
+      replace: "set default='1'"
     tags: install
 
   - name: Assign default grub timeout
@@ -137,4 +137,4 @@
     cron:
       name: Create inventory
       minute: "*/5"
-      job: "{{ ansible_playbook_path.stdout.split(' ')[1] }} /root/inventory_creation.yml -e dhcpd_lease_file=\"/var/lib/dhcpd/dhcpd.leases\""
+      job: "{{ ansible_playbook_path.stdout.split(' ')[1] }} /root/inventory_creation.yml"

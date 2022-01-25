@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -77,21 +77,21 @@
     shell: export PATH="/usr/bin/curl:$PATH"
 
   - name: Run import command
-    command: cobbler import --arch=x86_64 --path=/mnt --name="{{ name_iso }}"
+    command: cobbler import --arch=x86_64 --path=/mnt/{{ provision_os }} --name="{{ provision_os }}"
     changed_when: false
 
   - name: Kickstart profile - leap
     copy:
       src: "/root/leap15.xml"
       dest: "/var/lib/cobbler/templates/sample_autoyast.xml"
-      mode: 0775
+      mode: "{{ file_perm }}"
     tags: install
 
   - name: Pxe menu
     copy:
       src: "/root/omnia/control_plane/roles/provision_cobbler/files/menu.yml"
       dest: "/etc/cobbler/boot_loader_conf/pxedefault.template"
-      mode: 0775
+      mode: "{{ file_perm }}"
     tags: install
 
   - name: Assign default grub option
@@ -127,26 +127,14 @@
     changed_when: false
     register: ansible_playbook_path
 
-#  - name: Set dhcpd_lease_file variable for inventory creation
-#    cron:
-#      env: yes
-#      name: dhcpd_lease_file
-#      value: "/var/lib/dhcp/db/dhcpd.leases"
-
-#  - name: Set provision_os variable for inventory creation
-#    cron:
-#      env: yes
-#      name: provision_os
-#      value: "{{ name_iso }}"
-
   - name: Add tftp cron job
     cron:
       name: Start tftp service
       minute: "*"
-      job: "{{ ansible_playbook_path.stdout.split(' ')[1] }} /root/tftp.yml -e provision_os={{ name_iso }}"
+      job: "{{ ansible_playbook_path.stdout.split(' ')[1] }} /root/tftp.yml"
 
   - name: Add inventory cron job
     cron:
       name: Create inventory
       minute: "*/5"
-      job: "{{ ansible_playbook_path.stdout.split(' ')[1] }} /root/inventory_creation.yml -e dhcpd_lease_file=\"/var/lib/dhcp/db/dhcpd.leases\""
+      job: "{{ ansible_playbook_path.stdout.split(' ')[1] }} /root/inventory_creation.yml"

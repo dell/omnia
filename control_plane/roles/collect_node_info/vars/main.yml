@@ -22,4 +22,4 @@ file_perm: '0644'
 host_username: root
 host_added_msg: "Added host to awx inventory: "
 host_unreachable_msg: "Following hosts are unreachable: "
-awx_search_key: awx
+awx_search_key: "-job-"

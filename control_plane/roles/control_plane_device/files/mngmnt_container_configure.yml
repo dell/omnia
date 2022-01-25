@@ -18,13 +18,27 @@
   connection: local
   gather_facts: false
   tasks:
+  - name: Enable DHCP
+    command: dhcpd {{ mngmnt_nic }}
+    changed_when: false
+
+  - name: Start cron
+    command: crond
+    changed_when: false
+
+  - name: Add log file for cron jobs
+    command: crond -L /var/log/cron_jobs
+    changed_when: false
+
+  - name: Add cron job for 5 min
+    shell: echo "*/5    *       *       *       *       run-parts /etc/periodic/5min" >> /var/spool/cron/crontabs/root
+    changed_when: false
+
   - name: Install python-netaddr
     package:
       name: py3-netaddr
       state: present
 
-  - name: Add inventory cron job
-    cron:
-      name: Create inventory
-      minute: "*/5"
-      job: /root/inventory_creation.yml"
+  - name: Change permissions
+    command: chmod a+x /etc/periodic/5min/cron_inv
+    changed_when: false
