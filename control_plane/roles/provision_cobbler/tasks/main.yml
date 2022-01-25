@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -18,52 +18,59 @@
 - name: Check cobbler status on machine
   include_tasks: check_prerequisites.yml
 
-- name: Mount iso image
-  import_tasks: mount_iso.yml
-  when: not cobbler_image_status
+- name: Multi profile creation
+  import_tasks: multi_profile_creation.yml
+  when: provision_os_change
 
-- name: Modify firewall settings for Cobbler
-  import_tasks: firewall_settings.yml
-  when: not cobbler_container_status
-
-- name: Include common variables
-  include_vars: ../../control_plane_common/vars/main.yml
-  when: not cobbler_container_status
-
-- name: Internet validation
-  include_tasks: ../../control_plane_common/tasks/internet_validation.yml
-  when: not cobbler_container_status
-
-- name: Dhcp Configuration
-  import_tasks: dhcp_configure.yml
-  when: (not cobbler_image_status) or ( backup_map_status )
-
-- name: Provision password validation
-  import_tasks: provision_password.yml
-  when: not cobbler_image_status
-
-- name: Mapping file validation
-  import_tasks: mapping_file.yml
-  when: (not cobbler_image_status) and (host_mapping_file) or ( backup_map_status)
-
-- name: Cobbler image creation
-  import_tasks: cobbler_image.yml
-  when: not cobbler_container_status
-
-- name: Cobbler configuration
-  import_tasks: configure_cobbler.yml
-  when: not cobbler_config_status
-
-- name: Cobbler container status message
+- name: Cobbler pod creation
   block:
-    - name: cobbler container running
-      debug:
-        msg: "{{ message_skipped }}"
-        verbosity: 2
-      when: cobbler_container_status
-    - name: cobbler container not running
-      debug:
-        msg: "{{ message_installed }}"
-        verbosity: 2
+    - name: Mount iso image
+      import_tasks: mount_iso.yml
+      when: not cobbler_image_status
+
+    - name: Modify firewall settings for Cobbler
+      import_tasks: firewall_settings.yml
       when: not cobbler_container_status
-  tags: install
+
+    - name: Include common variables
+      include_vars: ../../control_plane_common/vars/main.yml
+      when: not cobbler_container_status
+
+    - name: Internet validation
+      include_tasks: ../../control_plane_common/tasks/internet_validation.yml
+      when: not cobbler_container_status
+
+    - name: Dhcp Configuration
+      import_tasks: dhcp_configure.yml
+      when: (not cobbler_image_status) or ( backup_map_status )
+
+    - name: Provision password validation
+      import_tasks: provision_password.yml
+      when: not cobbler_image_status
+
+    - name: Mapping file validation
+      import_tasks: mapping_file.yml
+      when: (not cobbler_image_status) and (host_mapping_file) or ( backup_map_status)
+
+    - name: Cobbler image creation
+      import_tasks: cobbler_image.yml
+      when: not cobbler_container_status
+
+    - name: Cobbler configuration
+      import_tasks: configure_cobbler.yml
+      when: not cobbler_config_status
+
+    - name: Cobbler container status message
+      block:
+        - name: cobbler container running
+          debug:
+            msg: "{{ message_skipped }}"
+            verbosity: 2
+          when: cobbler_container_status
+        - name: cobbler container not running
+          debug:
+            msg: "{{ message_installed }}"
+            verbosity: 2
+          when: not cobbler_container_status
+      tags: install
+  when: not provision_os_change

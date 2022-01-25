@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,19 +20,19 @@
 
 - name: Check iso directory status
   stat:
-    path: "/mnt/{{ iso_dir_name }}"
+    path: "/mnt/{{ provision_os }}"
   register: check_iso_dir
 
 - name: Create iso directory
   file:
-    path: "/mnt/{{ iso_dir_name }}"
+    path: "/mnt/{{ provision_os }}"
     state: directory
-    mode: 0644
+    mode: "{{ temp_file_perm }}"
   tags: install
   when: not check_iso_dir.stat.exists
 
 - name: Check mountpoint
-  command: mountpoint /mnt/{{ iso_dir_name }}
+  command: mountpoint /mnt/
   changed_when: false
   register: result
   failed_when: false
@@ -44,7 +44,7 @@
   tags: install
 
 - name: Mount the iso file
-  command: mount -o loop {{ iso_file_path }} /mnt/{{ iso_dir_name }}
+  command: mount -o loop {{ iso_file_path }} /mnt/{{ provision_os }}
   changed_when: false
   args:
     warn: no

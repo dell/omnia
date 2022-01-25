@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 - name: Start tftp and dhcp
   hosts: localhost
   connection: local
+  gather_facts: true
   tasks:
     - name: Configure tftp for leap
       block:
@@ -36,7 +37,7 @@
 
         - name: Start tftp.socket
           command: systemctl start tftp.socket
-      when: provision_os == "leap"
+      when: ansible_facts['distribution'] | lower == "leap"
 
     - name: Fetch tftp status
       command: systemctl is-active tftp

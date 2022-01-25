@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,7 +17,10 @@
   command: "kubectl apply -f {{ role_path }}/files/k8s_cobbler.yml"
   changed_when: true
   tags: install
-  when: cobbler_container_status and not cobbler_config_status
+  when:
+    - cobbler_container_status
+    - not cobbler_config_status
+    - not provision_os_change
 
 - name: Wait for cobbler pod to come to ready state
   command: kubectl wait --for=condition=ready -n {{ cobbler_namespace }} pod -l app=cobbler
@@ -40,20 +43,28 @@
   when: not cobbler_config_status
 
 - name: Configuring cobbler inside container (It may take 5-10 mins)
-  command: "kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} -- ansible-playbook /root/cobbler_configurations_rocky.yml -e name_iso={{ provision_os }}"
+  command: "kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} -- ansible-playbook /root/cobbler_configurations_rocky.yml -e provision_os={{ provision_os }} -e file_perm={{ file_perm }}"
   changed_when: true
   tags: install
-  when: 
+  when:
     - not cobbler_config_status
     - mgmt_os == os_supported_rocky
-      
+    - not provision_os_change
+
 - name: Configuring cobbler inside container (It may take 5-10 mins)
-  command: "kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} -- ansible-playbook /root/cobbler_configurations_leap.yml -e name_iso={{ provision_os }} -e host_network_nic={{ host_network_nic }}"
+  command: "kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} -- ansible-playbook /root/cobbler_configurations_leap.yml -e provision_os={{ provision_os }} -e host_network_nic={{ host_network_nic }}  -e file_perm={{ file_perm }}"
   changed_when: true
   tags: install
-  when: 
+  when:
     - not cobbler_config_status
     - mgmt_os == os_supported_leap
+    - not provision_os_change
+
+- name: Configuring cobbler for multiple profile support
+  command: "kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} -- ansible-playbook /root/multi_cluster_provisioning.yml -e provision_os={{ provision_os }} -e provision_os_change={{ provision_os_change }} -e file_perm={{ file_perm }}"
+  changed_when: true
+  tags: install
+  when: provision_os_change
 
 - name: Schedule task
   cron:
@@ -68,6 +79,10 @@
   changed_when: true
   when: cobbler_config_status
 
+- name: Store the provisioned os in .provisioned_os.txt file
+  shell: echo "{{ provision_os }}">> {{ role_path }}/files/.provisioned_os
+  changed_when: false
+
 - name: Remove the files
   file:
     path: "{{ item }}"
@@ -78,3 +93,4 @@
     - "{{ role_path }}/files/settings"
     - "{{ role_path }}/files/{{ cobbler_kickstart_file }}"
     - "{{ role_path }}/files/temp_host_mapping_file.csv.bak"
+    - "/mnt/tmp"
