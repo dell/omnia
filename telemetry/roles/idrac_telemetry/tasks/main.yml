@@ -13,4 +13,11 @@
 # limitations under the License.
 ---
 
-#To be updated
+- name: Deploy idrac-telemetry
+  block:
+  - name: Deploy mysqldb pod for idrac credentials
+    include_tasks: mysqldb_deployment.yml
+
+  - name: Deploy idrac_telemetry pods
+    include_tasks: idrac_telemetry_deployment.yml
+  when: idrac_telemetry_support is true
