@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,6 +13,16 @@
 #  limitations under the License.
 ---
 
+- name: Validate run tags
+  fail:
+    msg: "{{ invalid_tag_msg }}"
+  when: '"init" not in ansible_run_tags'
+  tags: [ init, network-device, pxe, awx, network-ib, idrac, monitoring, security, firmware-repo, templates ]
+
+- name: Mount Path
+  set_fact:
+    mount_path: "{{ role_path + '/../../..'  }}"
+    
 - name: Collecting ansible python version
   shell:
     cmd: ansible --version | grep "python version" | cut -d ' ' -f 6
@@ -29,7 +39,6 @@
   when:
     - ansible_python_version.stdout != python_version_leap
     - ansible_python_version.stdout != python_version_support
-  tags: install
 
 - name: Verify whether ansible configuration file exists
   stat:
@@ -42,7 +51,6 @@
     regexp: '#log_path = /var/log/ansible.log'
     replace: 'log_path = /var/log/omnia.log'
   when: file_exists.stat.exists
-  tags: install
 
 - name: Check OS support
   assert:
@@ -53,7 +61,6 @@
     fail_msg: "{{ fail_os_status }}"
     success_msg: "{{ success_os_status }}"
   register: os_value
-  tags: install
 
 - block:
     - name: Fetch SElinux mode
@@ -67,14 +74,12 @@
         regexp: 'SELINUX=[a-z]+'
         replace: 'SELINUX=disabled'
       when: '"SELinux status: enabled" in sestatus_current.stdout_lines'
-      tags: install
 
     - name: Status of SElinux
       fail:
         msg: "{{ selinux_status }}"
       when: '"SELinux status: enabled" in sestatus_current.stdout_lines'
       register: selinux_value
-      tags: install
   when:
     - ( mgmt_os == os_supported_centos ) and ( ansible_distribution_version >= os_supported_centos_version ) or
       ( mgmt_os == os_supported_rocky ) and ( ansible_distribution_version >= os_supported_rocky_version )
