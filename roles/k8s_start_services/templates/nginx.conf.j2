@@ -36,8 +36,8 @@ http {
     include /etc/nginx/conf.d/*.conf;
 
     server {
-        listen       80 default_server;
-        listen       [::]:80 default_server;
+        listen       3200 default_server;
+        listen       [::]:3200 default_server;
         server_name  server_ip;
         root         /usr/share/nginx/html;
 
