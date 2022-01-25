@@ -73,7 +73,7 @@
     grafana_user: "{{ hostvars['127.0.0.1']['grafana_username'] }}"
     grafana_password: "{{ hostvars['127.0.0.1']['grafana_password'] }}"
     ds_type: prometheus
-    ds_url: "http://{{ ansible_default_ipv4.address }}"
+    ds_url: "http://{{ ansible_default_ipv4.address }}:{{ nginx_listen_port }}"
     access: direct
   delegate_to: localhost
   no_log: true
