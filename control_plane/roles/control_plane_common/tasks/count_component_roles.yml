@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,22 +16,18 @@
   set_fact:
     count_of_manager: "{{ count_of_manager| int + 1 }}"
   when: item == group_name_manager
-  tags: install
 
 - name: Count of compute nodes defined
   set_fact:
     count_of_compute: "{{ count_of_compute| int + 1 }}"
   when: item == group_name_compute
-  tags: install
 
 - name: Count of login nodes defined
   set_fact:
     count_of_login: "{{ count_of_login| int + 1 }}"
   when: item == group_name_login
-  tags: install
 
 - name: Count of NFS nodes defined
   set_fact:
     count_of_nfs_node: "{{ count_of_nfs_node| int + 1 }}"
   when: item == group_name_nfs
-  tags: install

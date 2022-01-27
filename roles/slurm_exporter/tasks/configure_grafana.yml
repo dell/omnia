@@ -13,6 +13,9 @@
 #  limitations under the License.
 ---
 
+- name: Include k8s_start_services variables
+  include_vars: ../../k8s_start_services/vars/main.yml
+
 - name: Create prometheus datasource in grafana
   community.grafana.grafana_datasource:
     name: "hpc-prometheus-{{ ansible_default_ipv4.address }}"
@@ -20,7 +23,7 @@
     grafana_user: "{{ hostvars['127.0.0.1']['grafana_username'] }}"
     grafana_password: "{{ hostvars['127.0.0.1']['grafana_password'] }}"
     ds_type: prometheus
-    ds_url: "http://{{ ansible_default_ipv4.address }}"
+    ds_url: "http://{{ ansible_default_ipv4.address }}:{{ nginx_listen_port }}"
     access: direct
   delegate_to: localhost
   no_log: true

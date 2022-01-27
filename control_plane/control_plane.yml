@@ -17,16 +17,40 @@
   hosts: localhost
   connection: local
   roles:
-    - control_plane_common
-    - control_plane_k8s
-    - control_plane_device
-    - provision_cobbler
-    - webui_awx
-    - webui_grafana
-    - control_plane_ib
-    - control_plane_sm
-    - control_plane_customiso
-    - control_plane_repo
-    - control_plane_security
-    - control_plane_monitoring
-    - deploy_job_templates
+    - role: control_plane_common
+
+    - role: control_plane_k8s
+      tags: init
+
+    - role: control_plane_device
+      tags: network-device
+
+    - role: provision_cobbler
+      tags: pxe
+
+    - role: webui_awx
+      tags: awx
+
+    - role: webui_grafana
+      tags: monitoring
+
+    - role: control_plane_ib
+      tags: network-ib
+
+    - role: control_plane_sm
+      tags: network-ib
+
+    - role: control_plane_customiso
+      tags: idrac
+
+    - role: control_plane_repo
+      tags: firmware-repo
+
+    - role: control_plane_security
+      tags: security
+
+    - role: control_plane_monitoring
+      tags: monitoring
+
+    - role: deploy_job_templates
+      tags: templates
