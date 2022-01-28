@@ -13,29 +13,42 @@
 #  limitations under the License.
 ---
 
+- name: Validate skip tags
+  fail:
+    msg: "{{ invalid_skip_tag_msg }}"
+  tags: [ network-device, pxe, awx, network-ib, idrac, monitoring, security, firmware-repo, templates ]
+  when:
+    - '"init" in ansible_skip_tags'
+
 - name: Validate run tags
   fail:
-    msg: "{{ invalid_tag_msg }}"
-  when: '"init" not in ansible_run_tags'
+    msg: "{{ invalid_run_tag_msg }}"
+  when:
+    - '"init" not in ansible_run_tags'
+    - '"all" not in ansible_run_tags'
   tags: [ init, network-device, pxe, awx, network-ib, idrac, monitoring, security, firmware-repo, templates ]
 
 - name: Mount Path
   set_fact:
     mount_path: "{{ role_path + '/../../..'  }}"
+  tags: init
     
 - name: Collecting ansible python version
   shell:
     cmd: ansible --version | grep "python version" | cut -d ' ' -f 6
   register: ansible_python_version
   changed_when: false
+  tags: init
 
 - name: Saving management station os
   set_fact:
     mgmt_os: "{{ ansible_facts['distribution'] | lower }}"
+  tags: init
 
 - name: Verify the ansible and python versions installed
   fail:
     msg: "{{ ansible_python_version_status }}"
+  tags: init
   when:
     - ansible_python_version.stdout != python_version_leap
     - ansible_python_version.stdout != python_version_support
@@ -44,6 +57,7 @@
   stat:
     path: "{{ default_ansible_config_file_path }}"
   register: file_exists
+  tags: init
 
 - name: Set omnia.log file
   replace:
@@ -51,6 +65,7 @@
     regexp: '#log_path = /var/log/ansible.log'
     replace: 'log_path = /var/log/omnia.log'
   when: file_exists.stat.exists
+  tags: init
 
 - name: Check OS support
   assert:
@@ -61,6 +76,7 @@
     fail_msg: "{{ fail_os_status }}"
     success_msg: "{{ success_os_status }}"
   register: os_value
+  tags: init
 
 - block:
     - name: Fetch SElinux mode
@@ -80,6 +96,7 @@
         msg: "{{ selinux_status }}"
       when: '"SELinux status: enabled" in sestatus_current.stdout_lines'
       register: selinux_value
+  tags: init
   when:
     - ( mgmt_os == os_supported_centos ) and ( ansible_distribution_version >= os_supported_centos_version ) or
       ( mgmt_os == os_supported_rocky ) and ( ansible_distribution_version >= os_supported_rocky_version )
@@ -89,3 +106,4 @@
     name: firewalld
     state: started
     enabled: yes
+  tags: init
