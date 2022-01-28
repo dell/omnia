@@ -37,7 +37,7 @@
 
         - name: Start tftp.socket
           command: systemctl start tftp.socket
-      when: ansible_facts['distribution'] | lower == "leap"
+      when: ("leap" in ansible_facts['distribution'] | lower)
 
     - name: Fetch tftp status
       command: systemctl is-active tftp

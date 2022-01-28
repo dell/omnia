@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -100,9 +100,11 @@
     - "{{ tcp_port2 }}"
     - "{{ tcp_port3 }}"
     - "{{ tcp_port4 }}"
+    - "{{ tcp_port5 }}"
     - "{{ udp_port3 }}"
     - "{{ udp_port1 }}"
     - "{{ udp_port2 }}"
+    - "{{ udp_port4 }}"
   when: "'manager' in group_names"
   tags: firewalld
 
