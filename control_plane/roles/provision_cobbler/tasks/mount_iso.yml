@@ -32,7 +32,7 @@
   when: not check_iso_dir.stat.exists
 
 - name: Check mountpoint
-  command: mountpoint /mnt/
+  command: mountpoint /mnt/{{ provision_os }}
   changed_when: false
   register: result
   failed_when: false
