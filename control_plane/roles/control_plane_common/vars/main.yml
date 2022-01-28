@@ -71,7 +71,8 @@ selinux_status: "SElinux is not disabled. Disable it in /etc/sysconfig/selinux a
 ansible_python_version_status: "For CentOS 8.3, python bindings of firewalld, dnf, selinux are not available if python is installed from source and not from dnf. So please make sure python3.6 is installed using dnf. And ansible uses the python version 3.6 installed using dnf"
 python_version_support: '3.6.8'
 default_ansible_config_file_path: /etc/ansible/ansible.cfg
-invalid_tag_msg: "Failed. init tag can't be skipped"
+invalid_run_tag_msg: "Failed. init tag should be used with run tags"
+invalid_skip_tag_msg: "Failed. init tag can't be used with skip tags"
 
 # Usage: verify_login_inputs.yml
 login_vars_filename: "input_params/login_vars.yml"
