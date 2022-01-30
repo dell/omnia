@@ -5,33 +5,32 @@ metadata:
   name: awx
   namespace: awx
 spec:
+  service_type: nodeport
   deployment_type: awx
 
   #tower_hostname:
   #tower_secret_key_secret:
-
   #tower_extra_volumes:
-
   #tower_admin_user: admin
   #tower_admin_email:
   #tower_admin_password_secret:
 
-  tower_ingress_type: Ingress
+  ingress_type: Ingress
   #tower_ingress_type:
   #tower_loadbalancer_protocol:
   #tower_loadbalancer_port:
-
   #tower_image_pull_secret:
 
-  tower_postgres_storage_class: nfs-client
+  postgres_storage_class: nfs-client
 
-  tower_projects_persistence: true
-  tower_projects_use_existing_claim: "_Yes_"
-  tower_projects_existing_claim: awx-pv-claim
-  tower_projects_storage_class: manual
-  tower_projects_storage_size: 10Gi
-  tower_projects_storage_access_mode: RWO
+  projects_persistence: true
+  projects_use_existing_claim: "_Yes_"
 
-  tower_ee_images:
+  projects_storage_class: manual
+  projects_storage_size: 10Gi
+  projects_storage_access_mode: RWO
+  projects_existing_claim: awx-pv-claim
+
+  ee_images:
     - name: custom-awx-ee
       image: localhost/custom-awx-ee

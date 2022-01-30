@@ -186,7 +186,6 @@
 
 - name: Group the hosts in node_inventory when mapping file is present
   include_tasks: "{{ role_path }}/tasks/group_inventory.yml"
-  with_items: "{{ mapping_file.stdout_lines }}"
   when: host_mapping_file and component_role_support
 
 - name: Launch deploy_omnia job template

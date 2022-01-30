@@ -43,7 +43,7 @@
         control_plane_status: true
       when:
         - not awx_version_check.failed
-        - '"awx-" in awx_hostname.stdout'
+        - awx_search_key in awx_hostname.stdout
 
     - name: Set NFS node status
       set_fact:
@@ -55,6 +55,10 @@
     - name: Fetch powervault status
       include_tasks: fetch_powervault_status.yml
       when: nfs_node_status
+
+    - name: Initialize ipa server variables
+      include_tasks: fetch_ipa_password.yml
+      when: login_node_required
 
 - name: omnia.yml runing on host
   block:
@@ -90,3 +94,6 @@
         replace: 'log_path = /var/log/omnia.log'
       when: ansible_conf_exists.stat.exists
   when: not control_plane_status
+
+- name: Fetch grafana credentials
+  include_tasks: fetch_grafana_cred.yml

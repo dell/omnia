@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -112,9 +112,8 @@
   when: docker_username and docker_password
   register: docker_repo
   until: docker_repo is not failed
-  retries: 20
-  delay: 10
-  tags: install
+  retries: "{{ max_retries }}"
+  delay: "{{ min_delay }}"
 
 - name: Install docker-ce-cli
   package:
@@ -137,4 +136,4 @@
 
 - name: Wait for 30sec for kubelet to get things ready
   pause:
-    seconds: 30
+    seconds: "{{ wait_time }}"

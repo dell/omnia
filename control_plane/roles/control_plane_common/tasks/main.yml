@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -12,42 +12,52 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-- name: Mount Path
-  set_fact:
-    mount_path: "{{ role_path + '/../../..'  }}"
 
 - name: Pre-requisite validation
   import_tasks: pre_requisite.yml
 
 - name: Internet validation
   import_tasks: internet_validation.yml
+  tags: init
 
 - name: Common packages installation
   import_tasks: package_installation.yml
+  tags: init
 
-- name: Basic Configuration
+- name: Basic configuration
   import_tasks: fetch_base_inputs.yml
 
-- name: Credentials Configuration
-  import_tasks: password_config.yml
-
-- name: omnia inputs validation
+- name: Omnia inputs validation
   import_tasks: verify_omnia_params.yml
+
+- name: Credentials inputs validation
+  import_tasks: verify_login_inputs.yml
+
+- name: iDRAC inputs validation
+  import_tasks: validate_idrac_vars.yml
 
 - name: Subnet manager inputs validation
   import_tasks: fetch_sm_inputs.yml
   when: ib_switch_support
 
+- name: Security inputs validation
+  import_tasks: fetch_security_inputs.yml
+  when: enable_security_support
+
 - name: Host mapping file validation
   import_tasks: validate_host_mapping_file.yml
-  when: host_mapping_file_path |length >0
+  when: host_mapping_file_path | length > 0
+  tags: [ validate, pxe ]
 
 - name: Device mapping file validation
   import_tasks: validate_device_mapping_file.yml
-  when: mngmnt_mapping_file_path |length >0
+  when: mngmnt_mapping_file_path | length > 0
+  tags: [ validate, network-device ]
 
 - name: Encrypt idrac_tools_vars.yml
   import_tasks: encrypt_idrac_tools_vars.yml
+  tags: init
 
 - name: NFS Server setup for offline repo and awx
   import_tasks: nfs_server_setup.yml
+  tags: init

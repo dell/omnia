@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -37,6 +37,12 @@ ib_switch_support: true
 # If powervault configuration is needed, set this to "true"
 powervault_support: false
 
+# This variable is used to enable security features on MS
+# Accepted values: "true" or "false"
+# Default value: "true"
+# If security features are not needed, set this to "false"
+enable_security_support: true
+
 # The nic/ethernet card that will be connected to the public internet.
 # Default value: eno2
 public_nic: "eno2"
@@ -63,6 +69,10 @@ snmp_community_name: "public"
 # Default value: “DellEMC”
 awx_organization: "DellEMC"
 
+### Usage: webui_grafana ###
+# At this location grafana persistent volume will be created.
+mount_location: /mnt/omnia/
+
 ### Usage: provision_cobbler, provision_idrac ###
 
 # This variable is used to set node provisioning method
@@ -80,16 +90,16 @@ provision_method: "idrac"
 provision_state: "stateful"
 
 # This is the operating system image that will be used for provisioning compute nodes in the cluster.
-# Accepted values: rocky, centos
+# Accepted values: rocky, centos, leap
 # Default value: "rocky"
 # Required field
 provision_os: "rocky"
 
 # This is the path where the user has to place the iso image that needs to be provisioned in target nodes.
-# The iso file should be Rocky8-Minimal or CentOS7-2009-minimal edition.
+# The iso file should be Rocky8-Minimal or CentOS7-2009-minimal or openSUSE-Leap-15.3-DVD edition.
 # Other iso files are not supported.
 # Required field
-iso_file_path: "/root/Rocky-8.4-x86_64-minimal.iso"
+iso_file_path: "/root/Rocky-8.5-x86_64-minimal.iso"
 
 # This is the timezone that will be set during provisioning of OS
 # Available timezones are provided in control_plane/common/files/timezone.txt

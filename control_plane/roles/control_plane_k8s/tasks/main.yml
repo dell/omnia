@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,7 +14,14 @@
 ---
 
 - name: Install K8s packages
-  import_tasks: k8s_installation.yml
+  include_tasks: k8s_installation.yml
+  when:
+    - ( mgmt_os == os_supported_centos ) and ( ansible_distribution_version >= os_supported_centos_version ) or
+      ( mgmt_os == os_supported_rocky ) and ( ansible_distribution_version >= os_supported_rocky_version )
+
+- name: Install K8s packages for leap
+  include_tasks: k8s_installation_leap.yml
+  when: ( os_supported_leap in mgmt_os ) and ( ansible_distribution_version >= os_supported_leap_version )
 
 - name: Configure firewalld
   import_tasks: k8s_firewalld.yml

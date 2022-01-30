@@ -186,4 +186,23 @@ Potential Cause: Your Docker pull limit has been exceeded. For more information,
 1. Delete Kubeflow deployment by executing the following command in manager node: `kfctl delete -V -f /root/k8s/omnia-kubeflow/kfctl_k8s_istio.v1.0.2.yaml`
 2. Re-execute kubeflow.yml after 8-9 hours
 
+## Can Cobbler deploy both Rocky and CentOS at the same time?
+No. During Cobbler based deployment, only one OS is supported at a time. If the user would like to deploy both, please deploy one first, **unmount `/mnt/iso`** and then re-run cobbler for the second OS.
+
+## Why do Firmware Updates fail for some components with Omnia 1.1.1?
+Due to the latest `catalog.xml` file, Firmware updates fail for some components on server models R640 and R740. Omnia execution doesn't get interrupted but an error gets logged. For now, please download those individual updates manually.
+
+## Why does the Task [network_ib : Authentication failure response] fail with the message 'Status code was -1 and not [302]: Request failed: <urlopen error [Errno 111] Connection refused>' on Infiniband Switches when running `infiniband.yml`?
+To configure a new Infiniband Switch, it is required that HTTP and JSON gateway be enabled. To verify that they are enabled, run:
+
+`show web` (To check if HTTP is enabled)
+
+`show json-gw` (To check if JSON Gateway is enabled)
+
+To correct the issue, run:
+
+`web http enable` (To enable the HTTP gateway)
+
+`json-gw enable` (To enable the JSON gateway)
+
 

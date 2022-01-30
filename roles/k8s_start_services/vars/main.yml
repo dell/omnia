@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -94,3 +94,15 @@ spark_operator_repo: https://googlecloudplatform.github.io/spark-on-k8s-operator
 operator_image_tag: v1beta2-1.2.3-3.1.1
 
 volcano_scheduling_yaml_url: https://raw.githubusercontent.com/volcano-sh/volcano/v1.3.0/installer/volcano-development.yaml
+
+nginx_conf_file_path: /etc/nginx/nginx.conf
+
+nginx_conf_file_mode: 2534
+
+grafana_svc_ip: "{{ lookup('ini', 'ip section=grafana_svc file={{ role_path }}/files/grafana_svc_details.ini') }}"
+
+grafana_svc_port: "{{ lookup('ini', 'port section=grafana_svc file={{ role_path }}/files/grafana_svc_details.ini') }}"
+
+opensuse_os_name: "openSUSE Leap"
+
+nginx_listen_port: 3200

@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -16,7 +16,29 @@
 - name: Start tftp and dhcp
   hosts: localhost
   connection: local
+  gather_facts: true
   tasks:
+    - name: Configure tftp for leap
+      block:
+        - name: Stop the tftp.socket
+          command: systemctl stop tftp.socket
+
+        - name: Modify tftp.socket to listsen on IPv4
+          replace:
+            path: "/usr/lib/systemd/system/tftp.socket"
+            regexp: 'ListenDatagram=69'
+            replace: 'ListenDatagram=0.0.0.0:69'
+        
+        - name: Reload the configurations
+          command: systemctl daemon-reload
+          
+        - name: Enable tftp.socket
+          command: systemctl enable tftp.socket
+
+        - name: Start tftp.socket
+          command: systemctl start tftp.socket
+      when: ("leap" in ansible_facts['distribution'] | lower)
+
     - name: Fetch tftp status
       command: systemctl is-active tftp
       args:

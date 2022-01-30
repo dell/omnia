@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 - name: Disable SWAP (1/2)
   command: /usr/sbin/swapoff -a
   changed_when: true
-  tags: init
 
 - name: Disable SWAP in fstab (2/2)
   replace:
@@ -52,7 +51,7 @@
 - name: Initialize kubeadm (This process may take 5-10min)
   block:
     - name: Initialize kubeadm (This process may take 5-10min)
-      command: "/bin/kubeadm init --pod-network-cidr='{{ appliance_k8s_pod_net_cidr }}' \
+      command: "kubeadm init --pod-network-cidr='{{ appliance_k8s_pod_net_cidr }}' \
         --apiserver-advertise-address='{{ ansible_default_ipv4.address }}'"
       changed_when: true
       register: init_output
@@ -62,7 +61,7 @@
       changed_when: true
 
     - name: Initialize kubeadm (This process may take 5-10min)
-      command: "/bin/kubeadm init --pod-network-cidr='{{ appliance_k8s_pod_net_cidr }}' \
+      command: "kubeadm init --pod-network-cidr='{{ appliance_k8s_pod_net_cidr }}' \
           --apiserver-advertise-address='{{ ansible_default_ipv4.address }}'"
       changed_when: true
       register: init_output

@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -12,6 +12,9 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+
+# Usage: main.yml
+awx_search_key: "-job-"
 
 # Usage: fetch_password.yml
 config_filename: "omnia_config.yml"
@@ -58,3 +61,9 @@ tower_config_path: "{{ playbook_dir }}/control_plane/roles/webui_awx/files/.towe
 tower_vault_path: "{{ playbook_dir }}/control_plane/roles/webui_awx/files/.tower_vault_key"
 powervault_inventory_name: "powervault_me4_inventory"
 powervault_group: "powervault_me4"
+
+# Usage: fetch_ipa_password.yml
+login_vars_filename: input_params/login_vars.yml
+vault_filename: input_params/.login_vault_key
+vault_file_perm: '0644'
+ipa_secret_file: "{{ playbook_dir }}/control_plane/roles/control_plane_security/files/.ipavars.yml"

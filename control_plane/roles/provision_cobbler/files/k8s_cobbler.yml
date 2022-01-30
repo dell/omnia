@@ -25,7 +25,7 @@ spec:
             type: Directory
         - name: mnt-iso
           hostPath:
-            path: /mnt/iso/
+            path: /mnt/
             type: Directory
       containers:
         - name: cobbler

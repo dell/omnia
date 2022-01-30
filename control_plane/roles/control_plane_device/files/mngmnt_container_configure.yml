@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -18,64 +18,27 @@
   connection: local
   gather_facts: false
   tasks:
-  - name: Change mode of tftpboot
-    file:
-      path: /var/lib/tftpboot
-      mode: 0777
-
-  - name: Link for tftp services
-    shell: cp -v /usr/lib/systemd/system/tftp.service /etc/systemd/system/tftp-server.service
-
-  - name: Link for tftp services
-    shell: cp -v /usr/lib/systemd/system/tftp.socket /etc/systemd/system/tftp-server.socket
-
-  - name: Edit the tftp-server service file
-    replace:
-      path: /etc/systemd/system/tftp-server.service
-      regexp: ^Requires=tftp.socket
-      replace: Requires=tftp-server.socket
-
-  - name: Edit the tftp-server service file
-    replace:
-      path: /etc/systemd/system/tftp-server.service
-      regexp: ^ExecStart=/usr/sbin/in.tftpd -s /var/lib/tftpboot
-      replace: ExecStart=/usr/sbin/in.tftpd -c -p -s /var/lib/tftpboot
-
-  - name: Edit the tftp-server service file
-    replace:
-      path: /etc/systemd/system/tftp-server.service
-      regexp: ^Also=tftp.socket
-      replace: Also=tftp.socket
-
-  - name: Edit the tftp-server service file
-    lineinfile:
-      path: /etc/systemd/system/tftp-server.service
-      insertafter: '^[Install]'
-      line: 'WantedBy=multi-user.target'
-
-  - name: Edit the tftp-server socket file
-    lineinfile:
-      path: /etc/systemd/system/tftp-server.socket
-      line: "BindIPv6Only=both"
-      insertafter: [Socket]
-
-  - name: Start tftp services
-    service:
-      name: tftp-server
-      state: started
-
-  - name: Start dhcpd services
-    service:
-      name: dhcpd
-      state: started
-
-  - name: Fetch ansible-playbook location
-    command: whereis ansible-playbook
+  - name: Enable DHCP
+    command: dhcpd {{ mngmnt_nic }}
     changed_when: false
-    register: ansible_playbook_location
 
-  - name: Add inventory cron job
-    cron:
-      name: Create inventory
-      minute: "*/5"
-      job: "{{ ansible_playbook_location.stdout.split(' ')[1] }} /root/inventory_creation.yml"
+  - name: Start cron
+    command: crond
+    changed_when: false
+
+  - name: Add log file for cron jobs
+    command: crond -L /var/log/cron_jobs
+    changed_when: false
+
+  - name: Add cron job for 5 min
+    shell: echo "*/5    *       *       *       *       run-parts /etc/periodic/5min" >> /var/spool/cron/crontabs/root
+    changed_when: false
+
+  - name: Install python-netaddr
+    package:
+      name: py3-netaddr
+      state: present
+
+  - name: Change permissions
+    command: chmod a+x /etc/periodic/5min/cron_inv
+    changed_when: false

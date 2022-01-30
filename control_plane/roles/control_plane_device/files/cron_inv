@@ -1,0 +1,2 @@
+#!/bin/sh
+ansible-playbook /root/inventory_creation.yml

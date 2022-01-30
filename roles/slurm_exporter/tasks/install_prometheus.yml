@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -38,3 +38,50 @@
           scrape_timeout:   30s
           static_configs:
             - targets: ['localhost:{{ slurm_exporter_port }}']
+
+- name: Install & configure nginx
+  block:
+    - name: Install nginx
+      package:
+        name: nginx
+        state: present
+      when: ansible_facts['distribution'] != opensuse_os_name
+
+    - name: Install nginx
+      zypper:
+        name: nginx
+        state: present
+      when: ansible_facts['distribution'] == opensuse_os_name
+
+    - name: Configure nginx.conf (1/2)
+      replace:
+        path: "../../k8s_start_services/templates/nginx.conf.j2"
+        regexp: '        server_name  .*'
+        replace: "        server_name  {{ ansible_default_ipv4.address }};"
+      delegate_to: localhost
+
+    - name: Configure nginx.conf (2/2)
+      replace:
+        path: "../../k8s_start_services/templates/nginx.conf.j2"
+        regexp: '          proxy_pass http://.*'
+        replace: "          proxy_pass {{ prometheus_ip }};"
+      delegate_to: localhost
+
+    - name: Load nginx conf
+      template:
+        src: "../../k8s_start_services/templates/nginx.conf.j2"
+        dest: "{{ nginx_conf_file_path }}"
+        mode: "{{ nginx_conf_file_mode }}"
+
+    - name: Validate nginx conf file
+      command: nginx -t
+      changed_when: false
+
+    - name: Start and enable nginx service
+      service:
+        name: nginx
+        state: restarted
+        enabled: yes
+  when:
+    - grafana_svc_ip != ""
+    - grafana_svc_port != ""

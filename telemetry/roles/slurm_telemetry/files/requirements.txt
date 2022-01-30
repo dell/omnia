@@ -1,0 +1,15 @@
+sphinx
+pytest
+PyYAML
+tqdm
+requests
+psycopg2
+pgcopy
+aiohttp
+schedule
+async_retrying
+python-hostlist
+python-dateutil
+flask
+flask_cors
+sqlalchemy

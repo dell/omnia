@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@
   tasks:
     - name: Read dhcp file
       set_fact:
-        var: "{{ lookup('file', '/var/lib/dhcpd/dhcpd.leases').split()| unique | select| list }}"
+        var: "{{ lookup('file', '/var/lib/dhcp/dhcpd.leases').split()| unique | select| list }}"
 
     - name: Filter the ip
       set_fact:
@@ -43,6 +43,7 @@
 
     - name: Temp result
       shell: cat /root/omnia/control_plane/roles/collect_device_info/files/mgmt_provisioned_hosts.yml |sort|uniq
+      changed_when: false
       register: inventory
 
     - name: Final Inventory
@@ -51,3 +52,11 @@
     - name: New line at end of file
       shell: echo "">> omnia/control_plane/roles/collect_device_info/files/mgmt_provisioned_hosts.yml
       changed_when: false
+
+    - name: Delete files
+      file:
+        path: "{{ item }}"
+        state: absent
+      with_items:
+        - "/root/temp.txt"
+        -  "/root/dynamic_hosts.yml"

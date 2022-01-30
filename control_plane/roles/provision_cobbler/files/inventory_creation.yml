@@ -1,11 +1,17 @@
 - hosts: localhost
   connection: local
-  gather_facts: false
+  gather_facts: true
   tasks:
-    - name: Read dhcp file
+    - name: Read dhcp file for rocky
       set_fact:
         var: "{{ lookup('file', '/var/lib/dhcpd/dhcpd.leases').split()| unique | select| list }}"
+      when: ansible_facts['distribution'] | lower == "rocky"
 
+    - name: Read dhcp file for leap
+      set_fact:
+        var: "{{ lookup('file', '/var/lib/dhcp/db/dhcpd.leases').split()| unique | select| list }}"
+      when: ("leap" in ansible_facts['distribution'] | lower)
+    
     - name: Filter the ip
       set_fact:
         vars_new: "{{ var| ipv4('address')| to_nice_yaml}}"

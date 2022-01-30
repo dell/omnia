@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -17,11 +17,13 @@
   stat:
     path: "{{ role_path }}/../../../{{ config_vaultname }}"
   register: vault_key_result
+  tags: init
 
 - name: Create ansible vault key if it does not exist
   set_fact:
     vault_key: "{{ lookup('password', '/dev/null chars=ascii_letters') }}"
   when: not vault_key_result.stat.exists
+  tags: init
 
 - name: Save vault key
   copy:
@@ -32,27 +34,32 @@
     force: yes
     mode: "{{ vault_file_perm }}"
   when: not vault_key_result.stat.exists
+  tags: init
 
 - name: Check if omnia config file is encrypted
   command: cat {{ role_path }}/../../../{{ config_filename }}
   changed_when: false
   register: config_content
   no_log: True
+  tags: init
 
 - name: Decrpyt omnia_config.yml
   command: >-
     ansible-vault decrypt {{ role_path }}/../../../{{ config_filename }}
     --vault-password-file {{ role_path }}/../../../{{ config_vaultname }}
   when: "'$ANSIBLE_VAULT;' in config_content.stdout"
+  tags: init
 
 - name: Include variable file omnia_config.yml
   include_vars: "{{ role_path }}/../../../{{ config_filename }}"
   no_log: True
+  tags: init
 
 - name: Validate input parameters are not empty
   fail:
     msg: "{{ input_omnia_failure_msg }}"
   register: input_config_check
+  tags: [ validate, templates ]
   when:
     - mariadb_password | length < 1 or
       k8s_version | length < 1 or
@@ -62,13 +69,15 @@
 - name: Validate login node parameters when login_node_reqd is set to true
   fail:
     msg: "{{ omnia_input_config_failure_msg }}"
+  tags: [ validate, templates ]
   when:
     - ( domain_name | length < 1 or
       realm_name | length < 1 or
       directory_manager_password | length < 1 or
       ipa_admin_password | length < 1 ) and
       ( login_node_required and
-      host_mapping_file )
+      host_mapping_file  and
+      not enable_security_support)
 
 - name: Assert mariadb_password
   assert:
@@ -81,18 +90,21 @@
         - " \"'\" not in mariadb_password "
     success_msg: "{{ success_msg_mariadb_password }}"
     fail_msg: "{{ fail_msg_mariadb_password }}"
+  tags: [ validate, templates ]
 
 - name: Assert kubernetes version
   assert:
     that: "('1.16.7' in k8s_version) or ('1.19.3' in k8s_version)"
     success_msg: "{{ success_msg_k8s_version }}"
     fail_msg: "{{ fail_msg_k8s_version }}"
+  tags: [ validate, templates ]
 
 - name: Assert kubernetes cni
   assert:
     that: "('calico' in k8s_cni) or ('flannel' in k8s_cni)"
     success_msg: "{{ success_msg_k8s_cni }}"
     fail_msg: "{{ fail_msg_k8s_cni }}"
+  tags: [ validate, templates ]
 
 - name: Save input variables from file
   set_fact:
@@ -102,6 +114,7 @@
     docker_username: "{{ docker_username }}"
     docker_password: "{{ docker_password }}"
   no_log: True
+  tags: init
 
 - name: Verify the value of login_node_required
   assert:
@@ -109,6 +122,7 @@
       - login_node_required == true or login_node_required == false
     success_msg: "{{ login_node_required_success_msg }}"
     fail_msg: "{{ login_node_required_fail_msg }}"
+  tags: [ validate, templates ]
 
 - name: Validate the domain name
   assert:
@@ -116,9 +130,11 @@
       - domain_name is regex("^(?!-)[A-Za-z0-9-]+([\\-\\.]{1}[a-z0-9]+)*\\.[A-Za-z]{2,}$")
     success_msg: "{{ domain_name_success_msg }}"
     fail_msg: "{{ domain_name_fail_msg }}"
+  tags: [ validate, templates ]
   when:
     - host_mapping_file
     - login_node_required
+    - not enable_security_support
 
 - name: Validate the realm name
   assert:
@@ -127,9 +143,11 @@
       - '"." in realm_name'
     success_msg: "{{ realm_name_success_msg }}"
     fail_msg: "{{ realm_name_fail_msg }}"
+  tags: [ validate, templates ]
   when:
     - host_mapping_file
     - login_node_required
+    - not enable_security_support
 
 - name: Assert directory_manager_password
   assert:
@@ -142,9 +160,11 @@
       - " \"'\" not in directory_manager_password "
     success_msg: "{{ success_msg_directory_manager_password }}"
     fail_msg: "{{ fail_msg_directory_manager_password }}"
+  tags: [ validate, templates ]
   when:
     - host_mapping_file
-     - login_node_required
+    - login_node_required
+    - not enable_security_support
 
 - name: Assert ipa_admin_password
   assert:
@@ -157,17 +177,21 @@
       - " \"'\" not in ipa_admin_password "
     success_msg: "{{ success_msg_ipa_admin_password }}"
     fail_msg: "{{ fail_msg_ipa_admin_password }}"
+  tags: [ validate, templates ]
   when:
     - host_mapping_file
     - login_node_required
+    - not enable_security_support
 
 - name: Encrypt input config file
   command: >-
     ansible-vault encrypt {{ role_path }}/../../../{{ config_filename }}
     --vault-password-file {{ role_path }}/../../../{{ config_vaultname }}
   changed_when: false
+  tags: init
 
 - name: Update omnia_config.yml permission
   file:
     path: "{{ role_path }}/../../../{{ config_filename }}"
     mode: "{{ vault_file_perm }}"
+  tags: init

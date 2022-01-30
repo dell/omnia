@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,17 +16,19 @@
 
 # Usage: install_awx.yml
 awx_namespace: awx
+awx_operator_folder: "/root/awx-operator"
 awx_pv_yml_file_path: "{{ role_path }}/files/awx_projects_pv.yml"
 awx_postgres_pv_file_path: "{{ role_path }}/files/awx_postgres_pv.yml"
-awx_operator_yml_file_path: "{{ role_path }}/files/awx_operator.yml"
 awx_ee_docker_file: "{{ role_path }}/files/awx_ee.yml"
 awx_yml_file_path: "{{ role_path }}/files/awx.yml"
 postgres_storage_class: nfs-client
 projects_existing_claim: awx-pv-claim
-awx_version: 19.1.0
+awx_version: 19.4.0
+awx_tag: 0.14.0
 file_perm: '0644'
 awx_wait_time: 90
 deployment_failure_msg: "Deployment failed due to docker pull rate limit"
+awx_operator_link: "https://github.com/ansible/awx-operator.git"
 
 # Usage: configure_settings.yml
 awx_port: 8052
@@ -45,6 +47,15 @@ awx_ui_msg: "AWX Upgrading"
 return_status: 200
 max_retries: 20
 max_delay: 15
+awx_ui_wait_time: 30
+
+# Usage: check_prerequisites.yml
+min_retries: 2
+
+# Usage: awx_logo.yml
+awx_login_info: "An open-source toolkit for deploying and managing high performance clusters for HPC, AI, and data analytics workloads."
+omnia_logo_path: "{{ role_path }}/files/omnia.png"
+logo_txt_path: "{{ role_path }}/files/.logo_base64.txt"
 
 # Usage: awx_configuration.yml
 default_org: Default
@@ -71,7 +82,7 @@ credential_details:
   - { name: ethernet_credential, type: Machine, username: "{{ ethernet_switch_username }}", password: "{{ ethernet_switch_password }}", flag: "{{ ethernet_switch_support }}" }
   - { name: infiniband_credential, type: Network, username: "{{ ib_username }}", password: "{{ ib_password }}", flag: "{{ ib_switch_support }}" }
   - { name: powervault_me4_credential, type: Network, username: "{{ powervault_me4_username }}", password: "{{ powervault_me4_password }}", flag: "{{ powervault_support }}" }
-  - { name: node_credential, type: Machine, username: root, password: omnia@123, flag: true }
+  - { name: node_credential, type: Machine, username: root, password: "{{ provision_password }}", flag: true }
 job_template_details:
   - { name: idrac_template, inventory: idrac_inventory, playbook: control_plane/idrac.yml, credential: idrac_credential, flag: true }
   - { name: ethernet_template, inventory: ethernet_inventory, playbook: control_plane/ethernet.yml, credential: ethernet_credential, flag: "{{ ethernet_switch_support }}" }

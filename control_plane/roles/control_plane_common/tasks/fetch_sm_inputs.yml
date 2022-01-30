@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,41 +17,41 @@
   stat:
     path: "{{ ib_config_file }}"
   register: stat_result
-  tags: install
+  tags: init
 
 - name: Fail if config file doesn't exist
   fail:
     msg: "{{ fail_msg_config_file }}"
   when: not stat_result.stat.exists
-  tags: install
+  tags: init
 
 - name: Check that the opensm.conf exists
   stat:
     path: "{{ opensm_conf_file }}"
   register: stat_result
-  tags: install
+  tags: init
 
 - name: Fail if opensm.conf file doesn't exist
   fail:
     msg: "{{ fail_msg_opensm_config_file }}"
   when: not stat_result.stat.exists
-  tags: install
+  tags: init
 
 - name: Include infiniband variable file
   include_vars: "{{ ib_config_file }}"
-  tags: install
+  tags: init
 
 - name: Validate directory input definition
   fail:
     msg: "{{ fail_msg_ib_input_definition }}"
+  tags: [ validate, network-ib ]
   when:
     - subnet_manager.cache_directory is not defined or subnet_manager.log_directory is not defined
-  tags: install
 
 - name: Validate directory input
   fail:
     msg: "{{ fail_msg_ib_input }}"
+  tags: [ validate, network-ib ]
   when:
-    - subnet_manager.cache_directory |length < 1
-    - subnet_manager.log_directory |length < 1
-  tags: install
+    - subnet_manager.cache_directory | length < 1
+    - subnet_manager.log_directory | length < 1

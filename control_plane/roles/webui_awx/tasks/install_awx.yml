@@ -20,20 +20,37 @@
   changed_when: false
   register: namespaces
 
+- name: Creating directory for deploying awx-operator
+  file:
+    path: "{{ awx_operator_folder }}"
+    state: directory
+    mode: "{{ file_perm }}"
+
+- name: Cloning awx-operator from github
+  git:
+    repo: "{{ awx_operator_link }}"
+    dest: "{{ awx_operator_folder }}"
+    version: "{{ awx_tag }}"
+
 - name: Create namespace
   command: "kubectl create namespace {{ awx_namespace }}"
   changed_when: true
   when: "'awx' not in namespaces.stdout"
 
+- name: Setting the current namespace for kubectl
+  command: "kubectl config set-context --current --namespace={{ awx_namespace }}"
+  changed_when: false
+
+- name: Deploying awx-operator
+  command: make deploy
+  changed_when: false
+  args:
+    chdir: "{{ awx_operator_folder }}"
+
 - name: Get K8s pods
   command: "kubectl get pods -n {{ awx_namespace }}"
   changed_when: false
   register: k8s_pods
-
-- name: Deploy awx-operator
-  command: "kubectl apply -f {{ awx_operator_yml_file_path }}"
-  changed_when: true
-  when: '"awx-operator" not in k8s_pods.stdout'
 
 - name: Get K8s persistent volumes
   command: "kubectl get pv -n {{ awx_namespace }}"
@@ -66,9 +83,10 @@
   command: "buildah bud -t custom-awx-ee {{ awx_ee_docker_file }}"
   changed_when: false
   when: "'custom-awx-ee' not in docker_images.stdout"
+  retries: "{{ min_retries }}"
 
 - name: Waiting for awx-operator deployment to be up and running
-  command: kubectl wait --for=condition=available deployment awx-operator -n {{ awx_namespace }} --timeout=600s
+  command: kubectl wait --for=condition=available deployment awx-operator-controller-manager -n {{ awx_namespace }} --timeout=600s
   changed_when: false
 
 - name: Deploy awx

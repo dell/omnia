@@ -11,17 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # limitations under the License.
 ---
+
 - name: Check that host mapping file exists at mentioned path
   stat:
     path: "{{ host_mapping_file_path }}"
   register: stat_result
-  tags: install
 
 - name: Fail if config file doesn't exist
   fail:
     msg: "{{ fail_msg_mapping_file + host_mapping_file_path }}"
   when: not stat_result.stat.exists
-  tags: install
 
 - name: Read host mapping file from CSV file and return a dictionary
   read_csv:
@@ -29,50 +28,42 @@
     key: "{{ mapping_file_key }}"
   register: mapping_file
   delegate_to: localhost
-  tags: install
 
 - name: Initialize variable for role support in mapping file
   set_fact:
     component_role_support: false
-  tags: install
 
 - name: Check if header is present in mapping file
   shell:  set -o pipefail && awk 'NR==1 { print $1}' "{{ host_mapping_file_path }}"
   register: mngmnt_header
   changed_when: false
-  tags: install
 
 - name: Fail if header not in correct format
   assert:
     that: (mngmnt_header.stdout ==  host_mapping_header_format) or (mngmnt_header.stdout == host_mapping_header_with_role_format)
     fail_msg: "{{ fail_mapping_file_header }}"
-  tags: install
 
 - name: Check if mapping file is comma seperated
   shell: awk -F\, '{print NF-1}' "{{ host_mapping_file_path }}"
   register: mngmnt_comma_seperated
   changed_when: false
-  tags: install
 
 - name: Set variable if component roles given in mapping file
   set_fact:
     component_role_support: true
   when: mngmnt_header.stdout == host_mapping_header_with_role_format
-  tags: install
 
 - name: Fail if not comma seperated or if all fields are not given for MAC,Hostname,IP,Component_role
   fail:
     msg: "{{ fail_mapping_file_field_seperation }}"
   when: not(item =="3") and not (item == "-1") and component_role_support
   with_items: "{{ mngmnt_comma_seperated.stdout_lines }}"
-  tags: install
 
 - name: Fail if not comma seperated or if all fields are not given for MAC,Hostname,IP
   fail:
     msg: "{{ fail_mapping_file_field_seperation }}"
   when: not(item =="2") and not (item == "-1") and not(component_role_support)
   with_items: "{{ mngmnt_comma_seperated.stdout_lines }}"
-  tags: install
 
 - name: Initialize count variables
   set_fact:
@@ -84,7 +75,6 @@
     count_of_nfs_node: 0
     count_of_login: 0
     count_total_items: "{{ mapping_file.dict |length }}"
-  tags: install
 
 - name: Create list of IPs and component roles and hostnames defined in mapping file
   set_fact:
@@ -93,7 +83,6 @@
   loop: "{{ mapping_file.dict | dict2items }}"
   loop_control:
     label: "{{ item.value.MAC }}"
-  tags: install
 
 - name: Create list of component roles defined in mapping file
   set_fact:
@@ -102,7 +91,6 @@
   loop_control:
     label: "{{ item.value.MAC }}"
   when: component_role_support
-  tags: install
 
 - name: Assert hostnames
   assert:
@@ -113,35 +101,29 @@
     quiet: yes
     fail_msg: "{{ fail_mapping_file_hostname_chars + item }}"
   with_items: "{{ list_of_hostnames }}"
-  tags: install
 
 - name: Find count of unique IPs
   set_fact:
     count_of_unique_ip : "{{ list_of_ips| unique| length }}"
-  tags: install
 
 - name: Validation to check if unique IPs are provided for each node
   fail:
     msg: "{{ fail_mapping_file_duplicate_ip + host_mapping_file_path }}"
   when: not(count_of_unique_ip|int == count_total_items|int)
-  tags: install
 
 - name: Find count of unique hostnames
   set_fact:
     count_of_unique_hostnames : "{{ list_of_hostnames | unique | length }}"
-  tags: install
 
 - name: Validation to check if unique hostnames are provided for each node
   fail:
     msg: "{{ fail_mapping_file_duplicate_hostname }}"
   when: not(count_of_unique_hostnames|int == count_total_items| int)
-  tags: install
 
 - name: Find count of each component role defined in mapping file
   include_tasks: count_component_roles.yml
   loop: "{{ list_of_roles }}"
   when: component_role_support
-  tags: install
 
 - block:
   - name: Validation to check if component roles for each node is defined
@@ -168,12 +150,10 @@
     fail:
       msg: "{{ fail_mapping_file_nfs_role }}"
     when: (not (count_of_nfs_node|int == 1) and powervault_support) or ((count_of_nfs_node|int == 1) and not powervault_support)
-  tags: install
 
   rescue:
   - name: Count of roles defined
     fail:
       msg: "{{ count_of_roles_defined }}"
-    tags: install
 
   when: component_role_support

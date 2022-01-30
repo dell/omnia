@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,14 +13,7 @@
 #  limitations under the License.
 ---
 
-# vars file for offline_repo
-
-# Usage: validate_idrac_vars.yml
-idrac_input_filename: input_params/idrac_vars.yml
-firmware_update_success_msg: "firmware_update_required validated"
-firmware_update_fail_msg: "Failed. firmware_update_required accepts only true or false in idrac_vars.yml"
-poweredge_model_success_msg: "poweredge_model validated"
-poweredge_model_fail_msg: "Failed. poweredge_model is incorrect or unsupported. Please update the list with the supported models in the correct format"
+# vars file for control_plane_repo
 
 # Usage: install_dsu.yml
 dsu_folder_dest: /root/dsu

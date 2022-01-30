@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,18 +13,35 @@
 # limitations under the License.
 ---
 
-- name: Install genisoimage package
+- name: Include control_plane_common vars
+  include_vars: ../../control_plane_common/vars/main.yml
+  tags: install
+
+- name: Include provision_cobbler vars
+  include_vars: ../../provision_cobbler/vars/main.yml
+  tags: install
+
+- name: Install xorriso package - rocky
   package:
-    name: genisoimage
+    name: "{{ iso_package }}"
     state: present
   tags: install
+  when:
+    - ansible_distribution | lower == os_supported_centos or
+      ansible_distribution | lower == os_supported_rocky
+
+- name: Install xorriso package - leap
+  zypper:
+    name: "{{ iso_package }}"
+    state: present
+  tags: install
+  when: os_supported_leap in ansible_distribution | lower
 
 - name: Install ansible-galaxy modules
   command: ansible-galaxy collection install {{ item }}
   changed_when: true
-  with_items:
-   - community.general
-   - dellemc.openmanage
+  tags: install
+  with_items: "{{ idrac_collections }}"
 
 - name: Install omsdk using pip
   pip:
@@ -34,14 +51,27 @@
 
 - name: Check iso mount folder
   stat:
-    path: "{{ iso_mount_path }}{{ isolinux_cfg_path }}"
+    path: "{{ iso_mount_path }}{{ grub_cfg_path }}"
   register: check_mount_iso
+  tags: install
+
+- name: Include provision_cobbler vars
+  include_tasks: ../../provision_cobbler/tasks/mount_iso.yml
+  when: not check_mount_iso.stat.exists
+
+- name: Recheck iso mount folder
+  stat:
+    path: "{{ iso_mount_path }}{{ grub_cfg_path }}"
+  register: recheck_mount_iso
+  when: not check_mount_iso.stat.exists
   tags: install
 
 - name: Incorrect iso mount
   fail:
     msg: "{{ iso_mount_check_fail_msg }}"
-  when: not check_mount_iso.stat.exists
+  when:
+    - not check_mount_iso.stat.exists
+    - not recheck_mount_iso.stat.exists
   register: iso_mount_fail
   tags: install
 
@@ -51,3 +81,4 @@
     line: "{{ mngmnt_network_ip }}"
     mode: "{{ file_permission }}"
     create: yes
+  tags: install

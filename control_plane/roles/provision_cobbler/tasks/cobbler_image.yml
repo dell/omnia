@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,11 +14,23 @@
 ---
 
 - name: Image creation (It may take 5-10 mins)
-  command: "buildah bud -t {{ cobbler_image_name }}:{{ cobbler_image_tag }} --network host ."
+  command: "buildah bud -f Dockerfile_rocky -t {{ cobbler_image_name }}:{{ cobbler_image_tag }} --network host ."
   changed_when: true
   args:
     chdir: "{{ role_path }}/files/"
-  when: not cobbler_image_status
+  when: 
+    - not cobbler_image_status
+    - mgmt_os == os_supported_rocky
+  tags: install
+
+- name: Image creation (It may take 5-10 mins)
+  command: "buildah bud -f Dockerfile_leap -t {{ cobbler_image_name }}:{{ cobbler_image_tag }} --network host ."
+  changed_when: true
+  args:
+    chdir: "{{ role_path }}/files/"
+  when: 
+    - not cobbler_image_status
+    - os_supported_leap in mgmt_os 
   tags: install
 
 - name: Update image name in k8s_cobbler.yml
