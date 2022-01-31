@@ -29,6 +29,7 @@ file_perm: '0644'
 awx_wait_time: 90
 deployment_failure_msg: "Deployment failed due to docker pull rate limit"
 awx_operator_link: "https://github.com/ansible/awx-operator.git"
+awx_manager_file: '/root/awx-operator/config/manager/manager.yaml'
 
 # Usage: configure_settings.yml
 awx_port: 8052

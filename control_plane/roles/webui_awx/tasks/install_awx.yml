@@ -32,6 +32,18 @@
     dest: "{{ awx_operator_folder }}"
     version: "{{ awx_tag }}"
 
+- name: Modifying livenessprobe value
+  replace:
+    path: "{{ awx_manager_file }}"
+    regexp: 'initialDelaySeconds: 15'
+    replace: 'initialDelaySeconds: 600'
+
+- name: Modifying readinessprobe value
+  replace:
+    path: "{{ awx_manager_file }}"
+    regexp: 'initialDelaySeconds: 5'
+    replace: 'initialDelaySeconds: 300'
+
 - name: Create namespace
   command: "kubectl create namespace {{ awx_namespace }}"
   changed_when: true
@@ -86,7 +98,7 @@
   retries: "{{ min_retries }}"
 
 - name: Waiting for awx-operator deployment to be up and running
-  command: kubectl wait --for=condition=available deployment awx-operator-controller-manager -n {{ awx_namespace }} --timeout=600s
+  command: kubectl wait --for=condition=available deployment awx-operator-controller-manager -n {{ awx_namespace }} --timeout=900s
   changed_when: false
 
 - name: Deploy awx
@@ -112,7 +124,7 @@
 - name: Fails if the pods go into ImagePullBackOff state
   block:
     - name: Waiting for awx deployment to be up and running
-      command: kubectl wait --for=condition=available deployment awx -n {{ awx_namespace }} --timeout=1200s
+      command: kubectl wait --for=condition=available deployment awx -n {{ awx_namespace }} --timeout=1500s
       changed_when: false
 
   rescue:
