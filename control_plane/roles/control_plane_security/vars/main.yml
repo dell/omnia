@@ -13,8 +13,9 @@
 #  limitations under the License.
 ---
 
-# Usage: set_fqdn.yml
-etc_hosts_file_dest: /etc/hosts
+# Usage: check_prerequisites.yml
+return_status: 200
+server_file: "{{ role_path }}/files/.ipavars.yml"
 file_mode: '0644'
 
 # Usage: firewall_settings.yml
@@ -32,9 +33,8 @@ dt_port1: "7389/tcp"
 ntp_port1: "123/udp"
 
 # Usage: enable_dnf_module.yml
-os_centos: 'centos'
-os_rocky: 'rocky'
-os_version: '8.0'
+os_supported_centos: "centos"
+os_supported_rocky: "rocky"
 
 # Usage: install_packages.yml
 ipa_server_packages:
@@ -46,5 +46,13 @@ ipa_server_packages:
 # Usage: install_ipa_server.yml
 resolv_conf_path: /etc/resolv.conf
 temp_resolv_conf_path: /tmp/resolv.conf
-resolv_file_mode: '0644'
-server_file: "{{ playbook_dir }}/roles/control_plane_security/files/.ipavars.yml"
+ipa_admin_username: admin
+
+# Usage: ipa_configuration.yml
+sysadmin_sudo_rule: sysadmin_sudo
+sysadmin_sudo_rule_description: "Allow users to run sudo commands"
+sysadmin_user_group: sysadmin
+sysadmin_group_description: "User group with sudo permission"
+
+# Usage: session_timeout.yml
+sshd_conf_file: /etc/ssh/sshd_config
