@@ -39,7 +39,6 @@
       ipaddress: "{{ public_ip }}"
       server_hostname: "{{ server_hostname_ms }}"
       server_domain: "{{ domain_name }}"
-    owner: root
     mode: "{{ file_mode }}"
     
 - name: Check freeipa ui accessible or not
