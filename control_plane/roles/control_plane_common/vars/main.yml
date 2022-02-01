@@ -234,6 +234,15 @@ dom_name_success_msg: "domain name successfully validated"
 dom_name_fail_msg: "Failed. Incorrect format provided for domain name in security_vars.yml"
 realm_success_msg: "realm_name successfully validated"
 realm_fail_msg: "Failed. Incorrect realm_name format in security_vars.yml"
+max_failures_success_msg: "max_failures successfully validated"
+max_failures_fail_msg: "Failed. Incorrect max_failures value in security_vars.yml"
+failure_reset_interval_success_msg: "failure_reset_interval successfully validated"
+failure_reset_interval_fail_msg: "Failed. Incorrect failure_reset_interval value in security_vars.yml"
+lockout_duration_success_msg: "lockout_duration successfully validated"
+lockout_duration_fail_msg: "Failed. Incorrect lockout_duration value in security_vars.yml"
+session_timeout_success_msg: "session_timeout successfully validated"
+session_timeout_fail_msg: "Failed. Incorrect session_timeout value in security_vars.yml"
+
 
 # Usage: validate_idrac_vars.yml
 idrac_input_filename: input_params/idrac_vars.yml
