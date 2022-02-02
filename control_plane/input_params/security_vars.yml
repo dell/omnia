@@ -21,3 +21,26 @@ domain_name: "omnia.test"
 # A realm name is often, but not always the upper case version of the name of the
 # DNS domain over which it presides
 realm_name: "OMNIA.TEST"
+
+# Maximum number of consecutive failures before lockout
+# The default value of this variable can't be changed
+# Default: 3
+max_failures: 3
+
+# Period (in seconds) after which the number of failed login attempts is reset
+# Default: 60
+# Min: 30
+# Max: 60
+failure_reset_interval: 60
+
+# Period (in seconds) for which users are locked out 
+# Default: 10
+# Min: 5
+# Max: 10
+lockout_duration: 10
+
+# User sessions that have been idle for a specific period can be ended automatically
+# This variable sets session timeout to 3 minutes (180 seconds) by default
+# Min: 90
+# Max: 180
+session_timeout: 180

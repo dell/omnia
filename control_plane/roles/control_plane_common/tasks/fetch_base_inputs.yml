@@ -56,7 +56,7 @@
 - name: Calculate max lease time
   set_fact:
     max_lease_time: "{{ default_lease_time|int + 10000 }}"
-  tags: [ init, pxe, network-device, network-ib ]
+  tags: init
 
 - name: Validate infiniband base_vars are not empty
   assert:
