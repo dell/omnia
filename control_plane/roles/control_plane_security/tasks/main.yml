@@ -13,27 +13,30 @@
 #  limitations under the License.
 ---
 
-- name: Add ports of manager and login node to firewall
-  include_tasks: firewall_settings.yml
-  when:
-    - enable_security_support
+- block:
+    - name: Check freeipa installed or not
+      include_tasks: check_prerequisites.yml
 
-- name: Enable module idm in Rocky or Centos >= 8.0
-  include_tasks: enable_dnf_module.yml
-  when:
-    - enable_security_support
+    - block:
+        - name: Add ports of manager and login node to firewall
+          include_tasks: firewall_settings.yml
 
-- name: Update Packages
-  include_tasks: update_package.yml
-  when:
-    - enable_security_support
+        - name: Enable module idm in Rocky or Centos >= 8.0
+          include_tasks: enable_dnf_module.yml
 
-- name: Install required packages
-  include_tasks: install_packages.yml
-  when:
-    - enable_security_support
+        - name: Install required packages
+          include_tasks: install_packages.yml
 
-- name: Install free-ipa server
-  include_tasks: install_ipa_server.yml
-  when:
+        - name: Install FreeIPA server
+          include_tasks: install_ipa_server.yml
+      when: not freeipa_status
+    
+    - name: FreeIPA configuration
+      include_tasks: ipa_configuration.yml
+
+    - name: Session timeout configuration
+      include_tasks: session_timeout.yml
+  when: 
     - enable_security_support
+    - ( os_supported_centos in mgmt_os ) or
+      ( os_supported_rocky in mgmt_os )

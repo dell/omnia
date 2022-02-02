@@ -18,7 +18,7 @@
   no_log: true
   tags: init
 
-- name: Validate input parameters of base_vars are not empty
+- name: Validate input parameters of security vars are not empty
   fail:
     msg: "{{ input_security_failure_msg }}"
   register: input_base_check
@@ -42,4 +42,42 @@
       - '"." in realm_name'
     success_msg: "{{ realm_success_msg }}"
     fail_msg: "{{ realm_fail_msg }}"
+  tags: [ validate, security ]
+
+- name: Validate max_failures
+  assert:
+    that:
+      - max_failures | int == max_failures_default_value
+    success_msg: "{{ max_failures_success_msg }}"
+    fail_msg: "{{ max_failures_fail_msg }}"
+  tags: [ validate, security ]
+
+- name: Validate failure_reset_interval
+  assert:
+    that:
+      - failure_reset_interval | int
+      - failure_reset_interval | int <= failure_reset_interval_max_value
+      - failure_reset_interval | int >= failure_reset_interval_min_value
+    success_msg: "{{ failure_reset_interval_success_msg }}"
+    fail_msg: "{{ failure_reset_interval_fail_msg }}"
+  tags: [ validate, security ]
+
+- name: Validate lockout_duration
+  assert:
+    that:
+      - lockout_duration | int
+      - lockout_duration | int <= lockout_duration_max_value
+      - lockout_duration | int >= lockout_duration_min_value
+    success_msg: "{{ lockout_duration_success_msg }}"
+    fail_msg: "{{ lockout_duration_fail_msg }}"
+  tags: [ validate, security ]
+
+- name: Validate session_timeout
+  assert:
+    that:
+      - session_timeout | int
+      - session_timeout | int <= session_timeout_max_value
+      - session_timeout | int >= session_timeout_min_value
+    success_msg: "{{ session_timeout_success_msg }}"
+    fail_msg: "{{ session_timeout_fail_msg }}"
   tags: [ validate, security ]

@@ -13,11 +13,14 @@
 #  limitations under the License.
 ---
 
-- name: Update nss package to install ipa server/client
-  command: yum update nss -y
-  changed_when: false
-  args:
-    warn: false
-  when:
-    - ( ansible_distribution | lower == os_centos )
-    - ( ansible_distribution_version < os_version )
+- name: Modify sshd_config for session timeout
+  ansible.builtin.lineinfile:
+    path: "{{ sshd_conf_file }}"
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  register: session_timeout
+  notify:
+    - Restart sshd
+  with_items:
+    - { regexp: "^.*ClientAliveInterval*", line: "ClientAliveInterval {{ session_timeout }}" }
+    - { regexp: "^.*ClientAliveCountMax*", line: "ClientAliveCountMax 0" }

@@ -13,30 +13,6 @@
 #  limitations under the License.
 ---
 
-- name: Fetch hostname
-  command: hostname
-  register: new_serv_hostname
-  changed_when: false
-
-- name: Set fact for server hostname
-  set_fact:
-    server_hostname_ms: "{{ new_serv_hostname.stdout }}"
-
-- name: Save the hostname
-  copy:
-    dest: "{{ server_file }}"
-    content: |
-      ipaddress: "{{ hostvars['localhost']['ansible_default_ipv4']['address'] }}"
-      server_hostname: "{{ server_hostname_ms }}"
-      server_domain: "{{ domain_name }}"
-    owner: root
-    mode: "{{ file_mode }}"
-
-- name: Uninstall server if it is already installed
-  command: ipa-server-install --uninstall -U
-  changed_when: false
-  failed_when: false
-
 - name: Install ipa server in CentOS > 8 or Rocky 8.4
   command: >-
     ipa-server-install -n '{{ domain_name }}' --hostname='{{ server_hostname_ms }}' -a '{{ ipa_admin_password }}'
@@ -44,12 +20,11 @@
   changed_when: true
   no_log: true
   when:
-    - ( ansible_distribution | lower == os_centos ) or
-      ( ansible_distribution | lower == os_rocky )
-    - ( ansible_distribution_version >= os_version )
+    - ( os_supported_centos in mgmt_os ) or
+      ( os_supported_rocky in mgmt_os )
 
 - name: Authenticate as admin
-  shell: set -o pipefail && echo $'{{ ipa_admin_password }}' | kinit admin
+  shell: set -o pipefail && echo $'{{ ipa_admin_password }}' | kinit {{ ipa_admin_username }}
   no_log: true
   changed_when: false
 

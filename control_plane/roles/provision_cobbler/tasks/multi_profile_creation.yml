@@ -52,8 +52,11 @@
   when: not profile_exists
 
 - name: Copy the iso file inside /mnt
-  command: cp -rf /mnt/tmp/. /mnt/{{ provision_os }}
+  command: rsync -AHPSXav /mnt/tmp/ /mnt/{{ provision_os }}/
   changed_when: false
+  failed_when: false
+  args:
+    warn: false
   when: not profile_exists
 
 - name: Unmount /mnt/tmp for further mounts
