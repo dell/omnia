@@ -242,7 +242,13 @@ lockout_duration_success_msg: "lockout_duration successfully validated"
 lockout_duration_fail_msg: "Failed. Incorrect lockout_duration value in security_vars.yml"
 session_timeout_success_msg: "session_timeout successfully validated"
 session_timeout_fail_msg: "Failed. Incorrect session_timeout value in security_vars.yml"
-
+max_failures_default_value: 3
+failure_reset_interval_min_value: 30
+failure_reset_interval_max_value: 60
+lockout_duration_min_value: 5
+lockout_duration_max_value: 10
+session_timeout_min_value: 90
+session_timeout_max_value: 180
 
 # Usage: validate_idrac_vars.yml
 idrac_input_filename: input_params/idrac_vars.yml
