@@ -47,7 +47,7 @@
 - name: Validate max_failures
   assert:
     that:
-      - max_failures | int == 3
+      - max_failures | int == max_failures_default_value
     success_msg: "{{ max_failures_success_msg }}"
     fail_msg: "{{ max_failures_fail_msg }}"
   tags: [ validate, security ]
@@ -56,8 +56,8 @@
   assert:
     that:
       - failure_reset_interval | int
-      - failure_reset_interval | int <= 60
-      - failure_reset_interval | int >= 30
+      - failure_reset_interval | int <= failure_reset_interval_max_value
+      - failure_reset_interval | int >= failure_reset_interval_min_value
     success_msg: "{{ failure_reset_interval_success_msg }}"
     fail_msg: "{{ failure_reset_interval_fail_msg }}"
   tags: [ validate, security ]
@@ -66,8 +66,8 @@
   assert:
     that:
       - lockout_duration | int
-      - lockout_duration | int <= 10
-      - lockout_duration | int >= 5
+      - lockout_duration | int <= lockout_duration_max_value
+      - lockout_duration | int >= lockout_duration_min_value
     success_msg: "{{ lockout_duration_success_msg }}"
     fail_msg: "{{ lockout_duration_fail_msg }}"
   tags: [ validate, security ]
@@ -76,8 +76,8 @@
   assert:
     that:
       - session_timeout | int
-      - session_timeout | int <= 180
-      - session_timeout | int >= 90
+      - session_timeout | int <= session_timeout_max_value
+      - session_timeout | int >= session_timeout_min_value
     success_msg: "{{ session_timeout_success_msg }}"
     fail_msg: "{{ session_timeout_fail_msg }}"
   tags: [ validate, security ]
