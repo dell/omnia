@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -23,23 +23,30 @@
 - name: Include variable file base_vars.yml
   include_vars: "{{ base_pv_file }}"
   no_log: true
+  run_once: true
 
 - name: Include variable file for powervault
   include_vars: "{{ pv_file }}"
   no_log: true
+  run_once: true
 
 - name: Include common variables
   include_vars: ../../control_plane_common/vars/main.yml
+  run_once: true
 
 - name: Validation of powervault vars
   include: pv_validation.yml
+  run_once: true
 
 - name: Check powervault pre-requisite
   include_tasks: pv_me4_prereq.yml
+  run_once: true
 
 - name: Create volume
   include_tasks: volume.yml
+  run_once: true
 
 - name: Set snmp parameters
   include_tasks: set_snmp.yml
   when: snmp_trap_destination != ""
+  run_once: true
