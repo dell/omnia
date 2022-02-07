@@ -1,0 +1,186 @@
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Path to directory hosting ansible config file (ansible.cfg file)
+# Default value: /etc/ansible
+# This directory is on the host running ansible, if ansible is installed using dnf
+# If ansible is installed using pip, this path should be set
+ansible_conf_file_path: /etc/ansible
+
+# This variable is used to enable device configuration
+# If this variable is false, make sure ethernet_switch_support,
+# ib_switch_support and powervault_support variable is false
+# Accepted values:  "true" or "false". 
+# Default value: "true".
+# If device configuration support is needed set this to "true"
+device_config_suppprt: true
+
+# This variable is used to enable ethernet switch configuration
+# Accepted values:  "true" or "false". 
+# Default value: "true".
+# If ethernet switch support is needed set this to "true"
+ethernet_switch_support: true
+
+# This variable is used to enable infiniband switch configuration
+# Accepted values:  "true" or "false". 
+# Default value: "true".
+# If infiniband configuration is needed set this to "true"
+ib_switch_support: true
+
+# This variable is used to enable powervault configuration
+# Accepted values:  "true" or "false". 
+# Default value: "false".
+# If powervault configuration is needed, set this to "true"
+powervault_support: false
+
+# This variable is used to enable security features on MS
+# Accepted values: "true" or "false"
+# Default value: "true"
+# If security features are not needed, set this to "false"
+enable_security_support: true
+
+# The nic/ethernet card that will be connected to the public internet.
+# Default value: eno2
+public_nic: "eno2"
+
+# Kubernetes pod network CIDR for appliance k8s network
+# Make sure this value does not overlap with any of the host networks.
+# Default value: "192.168.0.0/16"
+appliance_k8s_pod_net_cidr: "192.168.0.0/16"
+
+### Usage: provision_idrac, network_ib, network_ethernet, powervault_me4 ###
+
+# The trap destination IP address is the IP address of the SNMP Server where the trap will be sent
+# If this variable is left blank, SNMP will be disabled.
+# Provide a valid SNMP server IP
+snmp_trap_destination: ""
+
+# Provide the snmp community name needed
+# Default value:"public"
+snmp_community_name: "public"
+
+### Usage: webui_awx ###
+
+# Organization name that is created in AWX.
+# Default value: “DellEMC”
+awx_organization: "DellEMC"
+
+### Usage: webui_grafana ###
+# At this location grafana persistent volume will be created.
+mount_location: /mnt/omnia/
+
+### Usage: provision_cobbler, provision_idrac ###
+
+# This variable is used to set node provisioning method
+# Accepted values: idrac, PXE
+# Default value: "idrac"
+# If provisioning needs to be done through cobbler, set it to "PXE"
+# If idrac license is not present, provisioning mode will be set to "PXE"
+provision_method: "idrac"
+
+# This variable is used to set provisioning type
+# Accepted values: stateful
+# Default value: "stateful"
+# If set it to "stateful", disk based provision via Cobbler
+# Currently stateless provisioning is not supported
+provision_state: "stateful"
+
+# This is the operating system image that will be used for provisioning compute nodes in the cluster.
+# Accepted values: rocky, centos, leap
+# Default value: "rocky"
+# Required field
+provision_os: "rocky"
+
+# This is the path where the user has to place the iso image that needs to be provisioned in target nodes.
+# The iso file should be Rocky8-Minimal or CentOS7-2009-minimal or openSUSE-Leap-15.3-DVD edition.
+# Other iso files are not supported.
+# Required field
+iso_file_path: "/root/Rocky-8.5-x86_64-minimal.iso"
+
+# This is the timezone that will be set during provisioning of OS
+# Available timezones are provided in control_plane/common/files/timezone.txt
+# Default timezone will be "GMT"
+# Some of the other available timezones are EST,CET,MST,CST6CDT,PST8PDT
+timezone: "GMT"
+
+# This is the language that will be set during provisioning of the OS
+# Default language supported is "en-US"
+language: "en-US"
+
+# Default lease time that will be used by dhcp
+# Its unit is seconds
+# Min: 21600 seconds
+# Default: 86400 seconds
+# Max: 31536000 seconds
+# Required field
+default_lease_time: "86400"
+
+### Usage: control_plane_device ###
+
+# The nic/ethernet card that needs to be connected to provision 
+# the fabric, idrac and powervault.
+# This nic will be configured by Omnia for the DHCP server.
+# Default value: "eno1"
+mngmnt_network_nic: "eno1"
+
+# The dhcp range for assigning the IPv4 address
+# Example: 172.17.0.1
+# Required field
+mngmnt_network_dhcp_start_range: "172.19.0.100"
+mngmnt_network_dhcp_end_range: "172.19.0.200"
+
+# The mapping file consists of the MAC address and its respective IP address.
+# The format of mapping file should be MAC,IP and must be a CSV file.
+# Eg: xx:yy:zz:aa:bb,172.17.0.5
+# A template for mapping file exists in omnia/examples and is named as mapping_device_file.csv.
+# This depicts the path where user has kept the mapping file for DHCP configurations.
+mngmnt_mapping_file_path: ""
+
+### Usage: provision_cobbler ###
+
+# The nic/ethernet card that needs to be connected to provision the OS of bare metal servers
+# This nic will be configured by Omnia for the DHCP server.
+# Default value: "eno3"
+host_network_nic: "eno3"
+
+# The dhcp range for assigning the IPv4 address
+# Example: 172.17.0.1
+# Required field
+host_network_dhcp_start_range: "172.17.0.100"
+host_network_dhcp_end_range: "172.17.0.200"
+
+# The mapping file consists of the MAC address and its respective IP address and Hostname and Component_role(if any)
+# 2 Formats are supported for host mapping files:
+# If user wants one-touch provisioning of omnia cluster, format of csv: MAC,Hostname,IP,Component_role
+# Component_role can take values: manager, compute, login_node, nfs_node
+# Ex. xx:yy:zz:aa:bb,server,172.17.0.5,manager.
+# A templates for mapping file exists in omnia/examples and is named as host_mapping_file_one_touch.csv
+# If user wants to skip one touch deployment and only static IP assignment is required, format of csv: MAC,Hostname,IP
+# Ex. xx:yy:zz:aa:bb,server,172.17.0.5
+# A templates for mapping file exists in omnia/examples and is named as host_mapping_file_os_provisioning.csv
+# This depicts the path where user has kept the mapping file for DHCP configurations.
+host_mapping_file_path: ""
+
+### Usage: control_plane_ib ###
+
+# The nic/ethernet card that needs to be connected to configure infiniband switch
+# This nic will be configured by Omnia for the DHCP server.
+# Default value: ib0
+ib_network_nic: "ib0"
+
+# The dhcp range for assigning the IPv4 address
+# Example: 172.17.0.1
+ib_network_dhcp_start_range: "172.25.0.100"
+ib_network_dhcp_end_range: "172.25.0.200"
