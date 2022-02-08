@@ -77,7 +77,8 @@ Prometheus is installed:
 * Access Prometheus with a private IP address:
     1. Run `kubectl get services --all-namespaces`.
     2. From the list of services, find  the **prometheus-xxxx-server** service under the **Name** column, and copy the **EXTERNAL-IP** address.  
-   For example, in the below list of services, `192.168.2.150` is the external IP address for the service `prometheus-1619158141-server`.  
+   For example, in the below list of services, `192.168.2.150` is the external IP address for the service `prometheus-1619158141-server`.
+   
 		NAMESPACE	|	NAME	|	TYPE	|	CLUSTER-IP	|	EXTERNAL-IP	|	PORT(S)	|	AGE  
 		---------	|	----	|	----	|	----------	|	-----------	|	-------	|	----  
 		default	|	kubernetes	|	ClusterIP	|	10.96.0.1	|	none	|	443/TCP	|	107m  
@@ -93,3 +94,53 @@ Prometheus is installed:
 __Note:__ 
 * If Prometheus is installed through Slurm without installing Kubernetes, then it will be removed when Kubernetes is installed because Prometheus would be running as a pod. 
 * Only a single instance of Prometheus is installed when both Kubernetes and Slurm are installed.
+
+## Accessing Cluster metrics (fetched by Prometheus) on Grafana 
+
+* Once `control_plane.yml` is run, Prometheus is added to Grafana as a datasource (hpc-prometheus). This allows Grafana to display statistics from the Compute Nodes that have been polled using Prometheus on the Management Station.
+
+* Select the dashboard (![Dashboard Icon](Telemetry_Visualization/Images/DashBoardIcon.PNG)) tab to view the list of Prometheus based dashboards. Some default dashboards include CoreDNS, Prometheus Overview, Kuberenetes Networking etc.
+
+>> __Note:__ Both the control plane and HPC clusters can be monitored on these dashboards by toggling the datasource at the top of each dashboard. 
+
+## Accessing Control Plane metrics (fetched by Prometheus) on Grafana
+
+* Once `control_plane.yml` is run, Prometheus is added to Grafana as a datasource. This allows Grafana to display statistics from the Control Plane that have been polled using Prometheus.
+
+![Prometheus DataSource](Telemetry_Visualization/Images/Prometheus_DataSource.jpg)
+
+* Select the dashboard (![Dashboard Icon](Telemetry_Visualization/Images/DashBoardIcon.PNG)) tab to view the list of Prometheus based dashboards. Some default dashboards include CoreDNS, Prometheus Overview, Kuberenetes Networking etc.
+
+>> __Note:__ Both the control plane and HPC clusters can be monitored on these dashboards by toggling the datasource at the top of each dashboard:
+
+| Data Source | Description | Source |
+|-------------|-------------|--------|
+|  hpc-prometheus-manager-nodeIP            | Manages the Kuberenetes and Slurm Cluster on the Manager and Compute nodes.            |  This datasource is set up when `Omnia.yml` is run.      |
+| control_plane_prometheus            | Monitors the Single Node cluster running on the Management Station            | This datasource is set up when `control_plane.yml` is run.        |
+
+
+![Prometheus DataSource](Telemetry_Visualization/Images/Prometheus_Dashboard.jpg)
+
+
+
+
+| Type        | Subtype           | Dashboard Name                    | Available DataSources                               |
+|-------------|-------------------|-----------------------------------|-----------------------------------------------------|
+|             |                   | CoreDNS                           | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
+| Kuberenetes |                   | API Types                         | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
+| Kuberenetes | Compute Resources | Cluster                           | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
+| Kuberenetes | Compute Resources | Namespace (Pods)                  | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
+| Kuberenetes | Compute Resources | Node (Pods)                       | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
+| Kuberenetes | Compute Resources | Pod                               | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
+| Kuberenetes | Compute Resources | Workload                          | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
+| Kuberenetes |                   | Kubelet                           | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
+| Kuberenetes | Networking        | Cluster                           | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
+| Kuberenetes | Networking        | Namespace (Pods)                  | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
+| Kuberenetes | Networking        | Namespace (Workload)              | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
+| Kuberenetes | Networking        | Pod                               | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
+| Kuberenetes | Networking        | Workload                          | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
+| Kuberenetes |                   | Scheduler                         | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
+| Kuberenetes |                   | Stateful Sets                     | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
+|             |                   | Prometheus Overview               | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
+| Slurm       |                   | CPUs/GPUs, Jobs, Nodes, Scheduler | hpc-prometheus-manager-nodeIP                           |
+| Slurm       |                   | Node Exporter Server Metrics      | hpc-prometheus-manager-nodeIP                           |

@@ -27,11 +27,11 @@ Depending on the pass-through switch configured in your HPC environment, the num
 
 ## Prerequisites to install the Omnia Control Plane version 1.2
 * Ensure that a stable Internet connection is available on management station, manager node, login node, and compute nodes. 
-* CentOS 8.4/ Rocky 8.4 /Leap 15.3 is installed on the management station. 		 
+* CentOS 8/ Rocky 8 /Leap 15 is installed on the management station. 		 
 * To provision the bare metal servers, download one of the following ISOs for deployment:
-	1. [Leap 15.3](https://get.opensuse.org/leap/)
-	2. [Rocky 8.4](https://rockylinux.org/)
-	3. [CentOS 8.4](http://isoredirect.centos.org/centos/8/isos/x86_64/)
+	1. [Leap 15](https://get.opensuse.org/leap/)
+	2. [Rocky 8](https://rockylinux.org/)
+	3. [CentOS 8](http://isoredirect.centos.org/centos/8/isos/x86_64/)
 >>__Note:__ CentOS has merely been maintained for backward compatibility. It's recommended to use Rocky or Leap going forward.
 * For DHCP configuration, you can provide a host mapping file. If the mapping file is not provided and the variable is left blank, a default mapping file will be created. The provided details must be in the format: MAC address, Hostname, IP address, Component_role. For example, `10:11:12:13,server1,100.96.20.66,compute` and  `14:15:16:17,server2,100.96.22.199,manager` are valid entries.  
 >> __Note:__  
@@ -41,12 +41,13 @@ Depending on the pass-through switch configured in your HPC environment, the num
 * Connect one of the Ethernet cards on the management station to the HPC switch and the other Ethernet card must be connected to the global network. 
 * If SELinux is not disabled on the management station, disable it from `/etc/sysconfig/selinux` and restart the management station.
 * You must have root privileges to perform installations and configurations using the Omnia control plane.
-* On the management station, ensure that Python 3.6 and Ansible are installed.  
+* On the management station, ensure that Python 3.6 and Ansible are installed (The following commands are compatible with all 3 OS's unless marked otherwise).  
 	* Run the following commands to install Python 3.6:  
-		```
-		dnf install epel-release -y
-		dnf install python3 -y
-		```
+
+		| Leap OS                     	| CentOS, Rocky                                             	|
+		|-----------------------------	|-----------------------------------------------------------	|
+		| Verify the version of Python running:<br>`python3 --version`<br> If the version is below 3.6.13, use the below command:<br>`zypper install -y  python3`  	| `dnf install epel-release -y` <br><br> `dnf install python3 -y` 	|
+		
 	* Run the following commands to install Ansible:
 		 ```
 		 pip3.6 install --upgrade pip
@@ -78,10 +79,10 @@ Depending on the pass-through switch configured in your HPC environment, the num
 	3. `pip uninstall ansible-core (if ansible 2.10  > version is installed)`
 
 	* On the management station, run the following commands to install Git:
-	```
-	dnf install epel-release -y
-	dnf install git -y
-	``` 
+	
+		| Leap OS                     	| CentOS, Rocky                                             	|
+		|-----------------------------	|-----------------------------------------------------------	|
+		| `zypper install -y  git`  	| `dnf install epel-release -y` <br><br> `dnf install git -y` 			|
 
 >> **Note**:
 >> * After the installation of the Omnia appliance, changing the management station is not supported. If you need to change the management station, you must redeploy the entire cluster.
@@ -112,13 +113,15 @@ To configure the login node, edit the following variables:
 	* **directory_manager_password**: Password of the Directory Manager with full access to the directory for system management tasks.
 	* **ipa_admin_password**: "admin" user password for the IPA server.
 * Provide passwords for mariaDB Database (for Slurm accounting), Kubernetes Pod Network CIDR, Kubernetes CNI under *mariadb_password* and *k8s_cni* respectively.  
-* To deploy FreeIPA on the Management Station, use the steps provided [here](docs\Install_FreeIPA_Mgmt_Station.md).
+* To deploy FreeIPA on the Management Station, use the steps provided [here](docs\Security\Enable_Security_ManagementStation.md).
+* To deploy Grafana on the Management Station, use the steps provided [here](docs\Telemetry_Visualization\Visualization.md).
 
 >> **Note**:
 >> * Supported values for Kubernetes CNI are calico and flannel. The default value of CNI considered by Omnia is calico.	
 >> * The default value of Kubernetes Pod Network CIDR is 10.244.0.0/16. If 10.244.0.0/16 is already in use within your network, select a different Pod Network CIDR. For more information, see __https://docs.projectcalico.org/getting-started/kubernetes/quickstart__.  
 >> * The default path of the Ansible configuration file is `/etc/ansible/`. If the file is not present in the default path, then edit the `ansible_conf_file_path` variable to update the configuration path.
->> * If you choose to use FreeIPA on both the Management Station and the login_node, simply follow the steps mentioned [here](docs\Install_FreeIPA_Mgmt_Station.md) and set login_node to true. However, if you would only like to use FreeIPA on the login_node, be sure to fill out all the relevant variables in `omnia_config.yml`.
+>> * If you choose to use FreeIPA on both the Management Station and the login_node, simply follow the steps mentioned [here](docs\Security\Enable_Security_ManagementStation.md) and set login_node to true. However, if you would only like to use FreeIPA on the login_node, be sure to fill out all the relevant variables in `omnia_config.yml`.
+
 
 5. Change the directory to **control_plane/input_params** using the command: `cd omnia/control_plane/input_params`
 6. Edit the *base_vars.yml* file to update the following variables:  
@@ -143,8 +146,8 @@ To configure the login node, edit the following variables:
 |  default_lease_time 	                                                             | 	**86400**,   21600 (6 hours)- 31536000 (1 Year).  |  Measures (in seconds) the time period an IP   is reserved for an assigned NIC.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | provision_method                                                                 | **idrac**, pxe                                    | This variable is used to set node   provisioning method                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | provision_state [Required]                                                       | **stateful**                         | If   stateful is set, cobbler is used to provision disks. Stateless is currently   not supported.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| provision_os   [Required]                                                        | **rocky**, centos , leap                                 | This is the operating system image that   will be used for provisioning compute nodes in the cluster.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| enable_security_support                                                           | **true**, false                                 | This variable decides whether FreeIPA will be deployed and used on the Management Station to control access and authorization. For more information, [click here](docs\Install_FreeIPA_Mgmt_Station.md)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| provision_os   [Required]                                                        | **rocky**, centos , leap                                 | This is the operating system image that will be used for provisioning compute nodes in the cluster.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| enable_security_support                                                           | **true**, false                                 | This variable decides whether FreeIPA will be deployed and used on the Management Station to control access and authorization. For more information, [click here](docs\Security\Enable_Security_ManagementStation.md)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 	
 >> **NOTE: The IP address *192.168.25.x* is used for PowerVault Storage communications. Therefore, do not use this IP address for other configurations.**  
@@ -310,3 +313,17 @@ To enable the login node, the *login_node_required* variable must be set to "tru
 ## Add a new compute node to the cluster
 
 If a new node is provisioned through Cobbler, the node address is automatically displayed on the AWX dashboard. The node is not assigned to any group. You can add the node to the compute group along with the existing nodes and run `omnia.yml` to add the new node to the cluster and update the configurations in the manager node.
+
+## Creating a new cluster 
+From Omnia 1.2, the cobbler container OS will follow the OS on the management station but will deploy multiple OS's based on the `provision_os` value in `base_vars.yml`.
+
+ * When creating a new cluster, ensure that the iDRAC state is not PXE.
+ * On adding the cluster, run the iDRAC template before running `control_plane.yml`
+ * If the new cluster is to run on a different OS than the previous cluster, update the parameters `provision_os` and `iso_file_path` in `base_vars.yml`. Then run `control_plane.yml` 
+ 
+>> Example: In a scenario where the user wishes to deploy LEAP and Rocky on their multiple servers, below are the steps they would use:
+>> 1. Set `provision_os` to leap and `iso_file_path` to `/root/openSUSE-Leap-15.3-DVD-x86_64-Current.iso`.
+>> 2. Run `control_plane.yml` to provision leap and create a profile called `leap-x86_64` in the cobbler container.
+>> 3. Set `provision_os` to rocky and `iso_file_path` to `/root/Rocky-8.5-x86_64-minimal.iso`.
+>> 4. Run `control_plane.yml` to provision rocky and create a profile called `rocky-x86_64` in the cobbler container.
+ 

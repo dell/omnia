@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -15,8 +15,8 @@
 
 # Usage: pre-requisites.yml
 collections_name:
-  - kubernetes.core
-  - community.grafana
+  - kubernetes.core:2.2.3
+  - community.grafana:1.3.0
 directory_mode: '0774'
 
 # Usage: secrets.yml
