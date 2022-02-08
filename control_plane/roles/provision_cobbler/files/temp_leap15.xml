@@ -35,6 +35,13 @@
       <hostname>localhost.localdomain</hostname>
       <resolv_conf_policy>auto</resolv_conf_policy>
     </dns>
+    <interfaces config:type="list">
+      <interface>
+        <bootproto>dhcp</bootproto>
+        <name>link</name>
+        <startmode>auto</startmode>
+      </interface>
+    </interfaces>
   </networking>
   <services-manager t="map">
     <default_target>multi-user</default_target>
