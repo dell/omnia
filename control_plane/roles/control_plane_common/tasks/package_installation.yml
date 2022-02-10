@@ -12,19 +12,17 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-- name: Install packages - leap
-  zypper:
-    name: "{{ common_packages_leap }}"
-    state: present
-  when: ( os_supported_leap in mgmt_os ) and ( ansible_distribution_version >= os_supported_leap_version )
-
-- name: Install packages - rocky
+- name: Install packages
   package:
     name: "{{ common_packages }}"
     state: present
+
+- name: Install packages - rocky
+  package:
+    name: "{{ common_packages_rocky }}"
+    state: present
   when:
-    - ( mgmt_os == os_supported_centos ) and ( ansible_distribution_version >= os_supported_centos_version ) or
-      ( mgmt_os == os_supported_rocky ) and ( ansible_distribution_version >= os_supported_rocky_version )
+    - os_supported_leap not in mgmt_os
 
 - name: Install netaddr
   command: pip3 install netaddr
