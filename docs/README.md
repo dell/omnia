@@ -29,6 +29,7 @@ Omnia can install Kubernetes or Slurm (or both), along with additional drivers, 
 ## What's new in this release
 * Extended support of Leap OS on Management station, login, compute and NFS nodes.
 * Omnia now supports Powervault configurations with 2 network interfaces.
+* Omnia now supports multi profile creation and multi cluster provisioning using Cobbler.
 * Provisioning of Rocky custom ISO on supported PowerEdge servers using iDRAC.
 * Configuring Dell EMC networking switches, Mellanox InfiniBand switches, and PowerVault storage devices in the cluster. 
 * An option to configure a login node with the same configurations as the compute nodes in the cluster. With appropriate user privileges provided by the cluster administrator, users can log in to the login node and schedule Slurm jobs. The authentication mechanism in the login node uses the FreeIPA solution.
@@ -39,7 +40,7 @@ The Omnia Control Plane will automate the entire cluster deployment process, sta
 For detailed instructions, see [Install the Omnia Control Plane](INSTALL_OMNIA_CONTROL_PLANE.md).  
 
 ## Installing Omnia to servers with a pre-provisioned OS
-Omnia can be deployed on clusters that already have an RPM-based Linux OS running on them and are all connected to the Internet. Currently, all Omnia testing is done on [CentOS](https://centos.org). Please see [Example system designs](EXAMPLE_SYSTEM_DESIGNS.md) for instructions on the network setup.
+Omnia can be deployed on clusters that already have an RPM-based Linux OS running on them and are all connected to the Internet. Currently, all Omnia testing is done using the software versions mentioned [here](README.md#System-requirements ). Please see [Example system designs](EXAMPLE_SYSTEM_DESIGNS.md) for instructions on the network setup.
 
 Once servers have functioning OS and networking, you can use Omnia to install and start Slurm and/or Kubernetes. For detailed instructions, see [Install Omnia using CLI](INSTALL_OMNIA.md). 
 
@@ -117,43 +118,6 @@ dellemc.os10	|	GNU-General Public License v3.1	|	1.1.1	|	It provides networking 
 Genisoimage-dnf	|	GPL v3	|	1.1.11	|	Genisoimage is a pre-mastering program for creating ISO-9660 CD-ROM  filesystem images
 OMSDK	|	Apache-2.0	|	1.2.456	|	Dell EMC OpenManage Python SDK (OMSDK) is a python library that helps developers and customers to automate the lifecycle management of PowerEdge Servers
 
-# Supported interface keys of PowerSwitch S3048-ON (ToR Switch)
-The following table provides details about the interface keys supported by the S3048-ON ToR Switch. Dell EMC Networking OS10 Enterprise Edition is the supported operating system.
-
-Interface key name	|	Type	|	Description
----------	|   ----	|	-----------
-desc	|	string	|	Configures a single line interface description
-portmode	|	string	|	Configures port mode according to the device type
-switchport	|	boolean: true, false*	|	Configures an interface in L2 mode
-admin	|	string: up, down*	|	Configures the administrative state for the interface; configuring the value as administratively "up" enables the interface; configuring the value as administratively "down" disables the interface
-mtu	|	integer	|	Configures the MTU size for L2 and L3 interfaces (1280 to 65535)
-speed	|	string: auto, 1000, 10000, 25000, ...	|	Configures the speed of the interface
-fanout	|	string: dual, single; string:10g-4x, 40g-1x, 25g-4x, 100g-1x, 50g-2x (os10)	|	Configures fanout to the appropriate value
-suppress_ra	|	string: present, absent	|	Configures IPv6 router advertisements if set to present
-ip_type_dynamic	|	boolean: true, false	|	Configures IP address DHCP if set to true (ip_and_mask is ignored if set to true)
-ipv6_type_dynamic	|	boolean: true, false	|	Configures an IPv6 address for DHCP if set to true (ipv6_and_mask is ignored if set to true)
-ipv6_autoconfig	|	boolean: true, false	|	Configures stateless configuration of IPv6 addresses if set to true (ipv6_and_mask is ignored if set to true)
-vrf	|	string	|	Configures the specified VRF to be associated to the interface
-min_ra	|	string	|	Configures RA minimum interval time period
-max_ra	|	string	|	Configures RA maximum interval time period
-ip_and_mask	|	string	|	Configures the specified IP address to the interface
-ipv6_and_mask	|	string	|	Configures a specified IPv6 address to the interface
-virtual_gateway_ip	|	string	|	Configures an anycast gateway IP address for a VXLAN virtual network as well as VLAN interfaces
-virtual_gateway_ipv6	|	string	|	Configures an anycast gateway IPv6 address for VLAN interfaces
-state_ipv6	|	string: absent, present*	|	Deletes the IPV6 address if set to absent
-ip_helper	|	list	|	Configures DHCP server address objects (see ip_helper.*)
-ip_helper.ip	|	string (required)	|	Configures the IPv4 address of the DHCP server (A.B.C.D format)
-ip_helper.state	|	string: absent, present*	|	Deletes the IP helper address if set to absent
-flowcontrol	|	dictionary	|	Configures the flowcontrol attribute (see flowcontrol.*)
-flowcontrol.mode	|	string: receive, transmit	|	Configures the flowcontrol mode
-flowcontrol.enable	|	string: on, off	|	Configures the flowcontrol mode on
-flowcontrol.state	|	string: absent, present	|	Deletes the flowcontrol if set to absent
-ipv6_bgp_unnum	|	dictionary	|	Configures the IPv6 BGP unnum attributes (see ipv6_bgp_unnum.*) below
-ipv6_bgp_unnum.state	|	string: absent, present*	|	Disables auto discovery of BGP unnumbered peer if set to absent
-ipv6_bgp_unnum.peergroup_type	|	string: ebgp, ibgp	|	Specifies the type of template to inherit from
-stp_rpvst_default_behaviour	|	boolean: false, true	|	Configures RPVST default behavior of BPDU's when set to True, which is default
-
-* *(Asterisk) denotes the default value.
 
 # Known issues  
 * **Issue**: Hosts are not displayed on the AWX UI.  
