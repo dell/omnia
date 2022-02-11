@@ -1,13 +1,11 @@
 # Dockerfile for creating the management network container
-
-FROM centos:8
+FROM rockylinux/rockylinux:8.5
 
 # RPM REPOs
 RUN dnf install -y \
     epel-release \
     && dnf clean all \
     && rm -rf /var/cache/dnf
-
 RUN dnf install dhcp-server -y
 RUN yum install -y \
   ansible \
