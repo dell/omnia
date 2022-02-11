@@ -113,8 +113,8 @@ To configure the login node, edit the following variables:
 	* **directory_manager_password**: Password of the Directory Manager with full access to the directory for system management tasks.
 	* **ipa_admin_password**: "admin" user password for the IPA server.
 * Provide passwords for mariaDB Database (for Slurm accounting), Kubernetes Pod Network CIDR, Kubernetes CNI under *mariadb_password* and *k8s_cni* respectively.  
-* To deploy FreeIPA on the Management Station, use the steps provided [here](docs\Security\Enable_Security_ManagementStation.md).
-* To deploy Grafana on the Management Station, use the steps provided [here](docs\Telemetry_Visualization\Visualization.md).
+* To deploy FreeIPA on the Management Station, use the steps provided [here](..\docs\Security\Enable_Security_ManagementStation.md).
+* To deploy Grafana on the Management Station, use the steps provided [here](..\docs\Telemetry_Visualization\Visualization.md).
 
 >> **Note**:
 >> * Supported values for Kubernetes CNI are calico and flannel. The default value of CNI considered by Omnia is calico.	
