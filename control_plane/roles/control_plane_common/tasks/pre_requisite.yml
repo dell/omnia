@@ -32,13 +32,6 @@
   set_fact:
     mount_path: "{{ role_path + '/../../..'  }}"
   tags: init
-    
-- name: Collecting ansible python version
-  shell:
-    cmd: ansible --version | grep "python version" | cut -d ' ' -f 6
-  register: ansible_python_version
-  changed_when: false
-  tags: init
 
 - name: Saving management station os
   set_fact:
@@ -49,9 +42,18 @@
   fail:
     msg: "{{ ansible_python_version_status }}"
   tags: init
-  when:
-    - ansible_python_version.stdout != python_version_leap
-    - ansible_python_version.stdout != python_version_support
+  when: 
+    - ansible_python_version < python_version_support 
+    - os_supported_leap not in mgmt_os
+
+- name: Verify the ansible and python versions installed
+  fail:
+    msg: "{{ ansible_python_version_status }}"
+  tags: init
+  when: 
+    - ansible_python_version < python_version_leap
+    - os_supported_leap in mgmt_os
+    - ansible_distribution_version >= os_supported_leap_version
 
 - name: Verify whether ansible configuration file exists
   stat:
@@ -70,13 +72,13 @@
 - name: Check OS support
   assert:
     that:
-      - ( mgmt_os == os_supported_centos ) and ( ansible_distribution_version >= os_supported_centos_version ) or
-        ( mgmt_os == os_supported_rocky ) and ( ansible_distribution_version >= os_supported_rocky_version ) or
+      - ( os_supported_centos in mgmt_os ) and ( ansible_distribution_version >= os_supported_centos_version ) or
+        ( os_supported_rocky in mgmt_os ) and ( ansible_distribution_version >= os_supported_rocky_version ) or
         ( os_supported_leap in mgmt_os ) and ( ansible_distribution_version >= os_supported_leap_version )
     fail_msg: "{{ fail_os_status }}"
     success_msg: "{{ success_os_status }}"
   register: os_value
-  tags: init
+  tags: [ init, validate ]
 
 - block:
     - name: Fetch SElinux mode
@@ -98,8 +100,7 @@
       register: selinux_value
   tags: init
   when:
-    - ( mgmt_os == os_supported_centos ) and ( ansible_distribution_version >= os_supported_centos_version ) or
-      ( mgmt_os == os_supported_rocky ) and ( ansible_distribution_version >= os_supported_rocky_version )
+    - os_supported_leap not in mgmt_os
 
 - name: State of firewall
   service:
