@@ -23,8 +23,8 @@
   command: ansible-galaxy collection install {{ item }}
   changed_when: true
   with_items:
-   - community.general
-   - dellemc.openmanage
+   - community.general:4.4.0
+   - dellemc.openmanage:4.4.0
 
 - name: Install omsdk using pip
   pip:

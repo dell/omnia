@@ -1,6 +1,5 @@
 # Dockerfile for creating the management network container
-
-FROM centos:8
+FROM rockylinux/rockylinux:8.5
 
 # RPM REPOs
 RUN dnf install -y \
@@ -10,7 +9,6 @@ RUN dnf install -y \
 
 RUN dnf install -y dhcp-server
 RUN dnf install -y python3-netaddr
-
 RUN yum install -y \
   ansible \
   cronie \
