@@ -1,21 +1,11 @@
-FROM centos:8.3.2011
+FROM rockylinux/rockylinux:8.5
 
-# RPM REPOs
 RUN dnf install -y \
     epel-release \
     && dnf clean all \
     && rm -rf /var/cache/dnf
 
-RUN dnf update -y \
-    && dnf clean all \
-    && rm -rf /var/cache/dnf
-
-RUN dnf install -y git
-RUN git clone -b v3.2.2 https://github.com/cobbler/cobbler.git
-RUN cd cobbler/
-
 RUN mkdir /root/omnia
-
 RUN dnf install -y mod_ssl \
         python3-librepo \
         python3-schema \
@@ -44,11 +34,14 @@ RUN dnf install -y mod_ssl \
         && dnf clean all \
         &&  rm -rf /var/cache/dnf
 
-RUN yum install -y  grub2-efi-x64 shim-x64 
+RUN yum install -y  grub2-efi-x64 shim-x64
 RUN yum install -y yum-utils
 RUN dnf config-manager --set-enabled powertools
 RUN dnf install -y python3-sphinx
 RUN pip3 install wheel
+RUN dnf module enable -y cobbler
+RUN dnf install -y cobbler
+RUN dnf install -y cobbler-web
 
 #Copy Configuration files
 COPY settings.yaml /etc/cobbler/settings.yaml
