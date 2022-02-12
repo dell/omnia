@@ -30,7 +30,7 @@
     chdir: "{{ role_path }}/files/"
   when: 
     - not cobbler_image_status
-    - mgmt_os == os_supported_leap
+    - os_supported_leap in mgmt_os 
   tags: install
 
 - name: Update image name in k8s_cobbler.yml

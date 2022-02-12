@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -54,9 +54,11 @@ tcp_port1: "6817/tcp"
 tcp_port2: "6818/tcp"
 tcp_port3: "6819/tcp"
 tcp_port4: "60001-63000/tcp"
+tcp_port5: "6820/tcp"
 udp_port1: "6817/udp"
 udp_port2: "6818/udp"
 udp_port3: "6819/udp"
+udp_port4: "6820/udp"
 family: "ipv4"
 db_user: "slurm"
 db_host: "localhost"

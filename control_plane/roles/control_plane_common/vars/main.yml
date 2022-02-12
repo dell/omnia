@@ -16,7 +16,7 @@
 # vars file for control_plane_common
 
 # Usage: package_installation.yml
-common_packages_leap:
+common_packages:
   - git
   - gcc
   - gcc-c++
@@ -30,30 +30,15 @@ common_packages_leap:
   - net-tools
   - python3-netaddr
   - dos2unix
-  - cri-o
   - make
 os_supported_leap: "leap"
 os_supported_leap_version: "15.3"
-python_version_leap: '3.6.15'
-common_packages:
+python_version_leap: '3.6.13'
+common_packages_rocky:
   - epel-release
   - yum-utils
-  - git
-  - gcc
-  - gcc-c++
-  - nodejs
   - device-mapper-persistent-data
-  - bzip2
-  - python2-pip
-  - python3-pip
-  - nano
-  - lvm2
-  - gettext
-  - net-tools
-  - python3-netaddr
   - yum-plugin-versionlock
-  - dos2unix
-  - make
 
 # Usage: pre_requisite.yml
 internet_delay: 0
@@ -64,14 +49,15 @@ os_supported_centos: "centos"
 os_supported_rocky: "rocky"
 os_supported_centos_version: "8.3"
 os_supported_rocky_version: "8.4"
-fail_os_status: "Unsupported OS or OS version. OS should be {{ os_supported_centos }} {{ os_supported_centos_version }} or {{ os_supported_rocky }} {{ os_supported_rocky_version }}"
+fail_os_status: "Unsupported OS or OS version. OS should be {{ os_supported_centos }} {{ os_supported_centos_version }} or {{ os_supported_rocky }} {{ os_supported_rocky_version }} or {{ os_supported_leap }} {{ os_supported_leap_version }}"
 success_os_status: "Management Station OS validated"
 internet_status: "Failed. No Internet connection. Make sure network is up."
 selinux_status: "SElinux is not disabled. Disable it in /etc/sysconfig/selinux and reboot the system"
-ansible_python_version_status: "For CentOS 8.3, python bindings of firewalld, dnf, selinux are not available if python is installed from source and not from dnf. So please make sure python3.6 is installed using dnf. And ansible uses the python version 3.6 installed using dnf"
+ansible_python_version_status: "For {{ mgmt_os }} {{ ansible_distribution_version }}, python bindings of firewalld, dnf, selinux are not available if python is installed from source and not from dnf or zypper. So please make sure python3.6 is installed using dnf or zypper. And ansible uses the python version 3.6 installed using dnf or zypper"
 python_version_support: '3.6.8'
 default_ansible_config_file_path: /etc/ansible/ansible.cfg
-invalid_tag_msg: "Failed. init tag can't be skipped"
+invalid_run_tag_msg: "Failed. init tag should be used with run tags"
+invalid_skip_tag_msg: "Failed. init tag can't be used with skip tags"
 
 # Usage: verify_login_inputs.yml
 login_vars_filename: "input_params/login_vars.yml"
@@ -233,6 +219,21 @@ dom_name_success_msg: "domain name successfully validated"
 dom_name_fail_msg: "Failed. Incorrect format provided for domain name in security_vars.yml"
 realm_success_msg: "realm_name successfully validated"
 realm_fail_msg: "Failed. Incorrect realm_name format in security_vars.yml"
+max_failures_success_msg: "max_failures successfully validated"
+max_failures_fail_msg: "Failed. Incorrect max_failures value in security_vars.yml"
+failure_reset_interval_success_msg: "failure_reset_interval successfully validated"
+failure_reset_interval_fail_msg: "Failed. Incorrect failure_reset_interval value in security_vars.yml"
+lockout_duration_success_msg: "lockout_duration successfully validated"
+lockout_duration_fail_msg: "Failed. Incorrect lockout_duration value in security_vars.yml"
+session_timeout_success_msg: "session_timeout successfully validated"
+session_timeout_fail_msg: "Failed. Incorrect session_timeout value in security_vars.yml"
+max_failures_default_value: 3
+failure_reset_interval_min_value: 30
+failure_reset_interval_max_value: 60
+lockout_duration_min_value: 5
+lockout_duration_max_value: 10
+session_timeout_min_value: 90
+session_timeout_max_value: 180
 
 # Usage: validate_idrac_vars.yml
 idrac_input_filename: input_params/idrac_vars.yml

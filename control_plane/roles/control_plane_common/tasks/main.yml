@@ -15,7 +15,6 @@
 
 - name: Pre-requisite validation
   import_tasks: pre_requisite.yml
-  tags: init
 
 - name: Internet validation
   import_tasks: internet_validation.yml

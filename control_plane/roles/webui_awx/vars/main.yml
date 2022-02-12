@@ -29,6 +29,14 @@ file_perm: '0644'
 awx_wait_time: 90
 deployment_failure_msg: "Deployment failed due to docker pull rate limit"
 awx_operator_link: "https://github.com/ansible/awx-operator.git"
+awx_manager_file: '/root/awx-operator/config/manager/manager.yaml'
+liveness_probe_initial: "initialDelaySeconds: 15"
+liveness_probe_final: "initialDelaySeconds: 600"
+readiness_probe_initial: "initialDelaySeconds: 5"
+readiness_probe_final: "initialDelaySeconds: 300"
+awx_operator_time: 900s
+awx_deployment_time: 1500s
+operator_deployment_failure: "AWX Operator deployment failed due to awx operator pod is in crashloopbackoff state"
 
 # Usage: configure_settings.yml
 awx_port: 8052
@@ -47,7 +55,7 @@ awx_ui_msg: "AWX Upgrading"
 return_status: 200
 max_retries: 20
 max_delay: 15
-awx_ui_wait_time: 30
+awx_ui_wait_time: 200
 
 # Usage: check_prerequisites.yml
 min_retries: 2

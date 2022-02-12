@@ -79,7 +79,7 @@ To access the Cobbler dashboard, enter `https://<IP>/cobbler_web` where `<IP>` i
 
 >>__Note__: If you want to add more nodes, append the new nodes in the existing mapping file. However, do not modify the previous nodes in the mapping file as it may impact the existing cluster.
 
->> __Note__: During a Cobbler based deployment, only one OS is supported at a time. If the user would like to deploy both, please deploy one first, **unmount `/mnt/iso`** and then re-run Cobbler for the second OS.
+>> __Note__: With the addition of Multiple profiles, the cobbler container dynamically updates the mount point based on the value of `provision_os` in `base_vars.yml`.
 
 ## Security enhancements  
 Omnia provides the following options to enhance security on the provisioned PowerEdge servers:

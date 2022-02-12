@@ -35,6 +35,13 @@
       <hostname>localhost.localdomain</hostname>
       <resolv_conf_policy>auto</resolv_conf_policy>
     </dns>
+    <interfaces config:type="list">
+      <interface>
+        <bootproto>dhcp</bootproto>
+        <name>link</name>
+        <startmode>auto</startmode>
+      </interface>
+    </interfaces>
   </networking>
   <services-manager t="map">
     <default_target>multi-user</default_target>
@@ -59,7 +66,7 @@
     <import t="boolean">false</import>
   </ssh_import>
   <timezone t="map">
-    <timezone>yast_timezone</timezone>
+    <timezone>ks_timezone</timezone>
   </timezone>
   <users t="list">
     <user t="map">
@@ -79,7 +86,7 @@
       </password_settings>
       <shell>/bin/bash</shell>
       <uid>0</uid>
-      <user_password>yast_password</user_password>
+      <user_password>ks_password</user_password>
       <username>root</username>
     </user>
   </users>

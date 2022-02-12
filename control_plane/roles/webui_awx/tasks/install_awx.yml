@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,11 +26,29 @@
     state: directory
     mode: "{{ file_perm }}"
 
+- name: Check for awx-operator status
+  stat:
+    path: "{{ awx_manager_file }}"
+  register: awx_operator_repo
+
 - name: Cloning awx-operator from github
   git:
     repo: "{{ awx_operator_link }}"
     dest: "{{ awx_operator_folder }}"
     version: "{{ awx_tag }}"
+  when: not awx_operator_repo.stat.exists
+
+- name: Modifying livenessprobe value
+  replace:
+    path: "{{ awx_manager_file }}"
+    regexp: "{{ liveness_probe_initial }}"
+    replace: "{{ liveness_probe_final }}"
+
+- name: Modifying readinessprobe value
+  replace:
+    path: "{{ awx_manager_file }}"
+    regexp: "{{ readiness_probe_initial }}"
+    replace: "{{ readiness_probe_final }}"
 
 - name: Create namespace
   command: "kubectl create namespace {{ awx_namespace }}"
@@ -41,11 +59,28 @@
   command: "kubectl config set-context --current --namespace={{ awx_namespace }}"
   changed_when: false
 
+- name: Installing jq package
+  package:
+    name: jq
+    state: present
+
 - name: Deploying awx-operator
   command: make deploy
   changed_when: false
   args:
     chdir: "{{ awx_operator_folder }}"
+  environment:
+    NAMESPACE: "{{ awx_namespace }}"
+
+- name: Waiting for awx operator deployment {This might take 10-15 minutes}
+  block:
+    - name: Waiting for awx-operator deployment to be up and running
+      command: kubectl wait --for=condition=available deployment awx-operator-controller-manager -n {{ awx_namespace }} --timeout={{ awx_operator_time }}
+      changed_when: false 
+  rescue:
+    - name: Display failure message
+      debug:
+        msg: "{{ operator_deployment_failure }}"
 
 - name: Get K8s pods
   command: "kubectl get pods -n {{ awx_namespace }}"
@@ -85,13 +120,14 @@
   when: "'custom-awx-ee' not in docker_images.stdout"
   retries: "{{ min_retries }}"
 
-- name: Waiting for awx-operator deployment to be up and running
-  command: kubectl wait --for=condition=available deployment awx-operator-controller-manager -n {{ awx_namespace }} --timeout=600s
-  changed_when: false
-
 - name: Deploy awx
   command: "kubectl apply -f {{ awx_yml_file_path }}"
   changed_when: true
+  when: not k8s_pods.stdout | regex_search('awx-([A-Za-z0-9]{10})-([A-Za-z0-9]{5})')
+
+- name: Wait for awx pods to get created
+  wait_for:
+    timeout: "{{ awx_wait_time }}"
   when: not k8s_pods.stdout | regex_search('awx-([A-Za-z0-9]{10})-([A-Za-z0-9]{5})')
 
 - name: Install awxkit using pip3
@@ -104,17 +140,11 @@
   changed_when: true
   register: installation_status
 
-- name: Wait for awx pods to get created
-  wait_for:
-    timeout: "{{ awx_wait_time }}"
-  when: not k8s_pods.stdout | regex_search('awx-([A-Za-z0-9]{10})-([A-Za-z0-9]{5})')
-
 - name: Fails if the pods go into ImagePullBackOff state
   block:
     - name: Waiting for awx deployment to be up and running
-      command: kubectl wait --for=condition=available deployment awx -n {{ awx_namespace }} --timeout=1200s
+      command: kubectl wait --for=condition=available deployment awx -n {{ awx_namespace }} --timeout={{ awx_deployment_time }}
       changed_when: false
-
   rescue:
     - name: Display failure message
       debug:

@@ -87,6 +87,14 @@
     tags: install
     when: provision_os == "rocky"
 
+  - name: Kickstart profile - leap
+    copy:
+      src: "/root/leap15.xml"
+      dest: "/var/lib/cobbler/templates/sample_autoyast.xml"
+      mode: "{{ file_perm }}"
+    tags: install
+    when: provision_os == "leap"
+
   - name: Pxe menu
     copy:
       src: "/root/omnia/control_plane/roles/provision_cobbler/files/menu.yml"

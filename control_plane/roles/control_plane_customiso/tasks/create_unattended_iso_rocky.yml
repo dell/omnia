@@ -24,7 +24,6 @@
     -boot-info-table -eltorito-alt-boot -e images/efiboot.img -no-emul-boot -J -R -V {{ rocky_profile_name.stdout.split(' ')[4] | replace("'","") }}  {{ tmp_iso_dir }}
   changed_when: true
   register: rocky_iso_status
-  tags: install
   args:
     chdir: "{{ tmp_iso_dir }}"
 
@@ -35,10 +34,8 @@
       - custom_iso_success_keyword2 in rocky_iso_status.stderr
     success_msg: "{{ custom_iso_success_msg }}"
     fail_msg: "{{ custom_iso_fail_msg }}"
-  tags: install
 
 - name: Remove the kickstart file
   file:
     path: "{{ role_path }}/files/{{ idrac_kickstart_file }}"
     state: absent
-  tags: install

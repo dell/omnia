@@ -57,7 +57,7 @@
   tags: install
   when:
     - not cobbler_config_status
-    - mgmt_os == os_supported_leap
+    - os_supported_leap in mgmt_os 
     - not provision_os_change
 
 - name: Configuring cobbler for multiple profile support
