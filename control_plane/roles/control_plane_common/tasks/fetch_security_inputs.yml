@@ -43,6 +43,67 @@
     success_msg: "{{ realm_success_msg }}"
     fail_msg: "{{ realm_fail_msg }}"
   tags: [ validate, security ]
+  
+- name: Fetch the short hostname
+  command: hostname -s
+  register: short_hostname
+  changed_when: false
+  tags: [ validate, security ]
+
+- name: Verify the hostname is not blank in hostname
+  fail:
+    msg: " {{ hostname_blank_msg }}"
+  when: short_hostname.stdout | length < 1
+  tags: [ validate, security ]
+
+- name: Validate the host name
+  assert:
+    that:
+      - short_hostname.stdout is regex(("^(([a-z]|[a-z][a-z0-9\-]*[a-z0-9])\.)*([a-z]|[a-z][a-z0-9\-]*[a-z0-9])$"))
+      - short_hostname.stdout != "localhost"
+    success_msg: "{{ server_hostname_success }}"
+    fail_msg: "{{ server_hostname_fail }}"
+  tags: [ validate, security ]
+
+- name: Fetch the domain name
+  command: hostname -d
+  register: domain_name_set
+  changed_when: false
+  tags: [ validate, security ]
+
+- name: Verify the domain name is not blank in hostname
+  fail:
+    msg: " {{ domain_name_blank_msg }}"
+  when: domain_name_set.stdout | length < 1
+  tags: [ validate, security ]
+
+- name: Set fact for the domain name in hostname
+  set_fact:
+    ms_domain_name: "{{ domain_name_set.stdout }}"
+  tags: [ validate, security ]
+
+- name: Validate the domain name set on the host
+  assert:
+    that:
+      - domain_name == ms_domain_name
+    success_msg: "{{ server_domain_name_success }}"
+    fail_msg: "{{ server_domain_name_fail }}"
+  tags: [ validate, security ]
+
+- name: Get the hostname
+  command: hostname
+  register: machine_hostname
+  changed_when: false
+  tags: [ validate, security ]
+
+- name: Add host name in hosts file
+  lineinfile:
+    dest: "{{ hosts_file_path }}"
+    line: "{{ public_ip }} {{ machine_hostname.stdout }}"
+    state: present
+    create: yes
+    mode: "{{ hosts_file_mode }}"
+  tags: [ validate, security ]
 
 - name: Validate max_failures
   assert:
