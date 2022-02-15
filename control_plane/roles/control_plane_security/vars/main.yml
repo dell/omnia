@@ -61,3 +61,20 @@ sshd_conf_file: /etc/ssh/sshd_config
 mail_packages:
   - mailx
   - postfix
+  
+# Usage: install_snoopy.yml
+snoopy_packages:
+  - gcc
+  - gzip
+  - make
+  - procps
+  - socat
+  - tar
+  - wget
+snoopy_mode: 0755
+snoopy_url: https://github.com/a2o/snoopy/raw/install/install/install-snoopy.sh
+snoopy_path: /var/lib
+
+# Usage: user_monitor.yml
+psacct: psacct
+acct: acct
