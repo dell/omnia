@@ -1,0 +1,77 @@
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: iDRAC count incrementer
+  set_fact:
+    idrac_awx_count: "{{ idrac_awx_count | int + 1 }}"
+    awx_idrac: "{{ awx_idrac + [ idrac_inventory_jsondata['results'][idrac_index].name ] }}"
+
+- name: Filter iDRAC
+  block:
+  - name: Get system inventory
+    dellemc.openmanage.idrac_system_info:
+      idrac_ip: "{{ idrac_inventory_jsondata['results'][idrac_index].name }}"
+      idrac_user: "{{ idrac_username }}"
+      idrac_password: "{{ idrac_password }}"
+      validate_certs: false
+    register: idrac_system_info
+
+  - name: Check datacenter license status
+    set_fact:
+      datacenter_license: true
+    with_items: "{{ idrac_system_info.system_info.License }}"
+    loop_control:
+      index_var: index
+      label: "{{ idrac_system_info.system_info.License[index].LicenseDescription }}"
+    when:
+      - '"iDRAC9" in idrac_system_info.system_info.License[index].LicenseDescription'
+      - '"Data" in idrac_system_info.system_info.License[index].LicenseDescription'
+      - '"License" in idrac_system_info.system_info.License[index].LicenseDescription'
+      - '"Healthy" in idrac_system_info.system_info.License[index].PrimaryStatus'
+
+  - name: Filter iDRAC with supported firmware version
+    block:
+    - name: Get firmware version
+      dellemc.openmanage.idrac_firmware_info:
+        idrac_ip:   "{{ idrac_inventory_jsondata['results'][idrac_index].name }}"
+        idrac_user: "{{ idrac_username }}"
+        idrac_password:  "{{ idrac_password }}"
+        validate_certs: false
+      register: idrac_firmware_info
+
+    - name: Set firmware version status
+      set_fact:
+        firmware_version: true
+      with_items: "{{ idrac_firmware_info.firmware_info.Firmware }}"
+      loop_control:
+        index_var: index
+        label: "{{ idrac_firmware_info.firmware_info.Firmware[index].FQDD }}"
+      when:
+          - '"iDRAC" in idrac_firmware_info.firmware_info.Firmware[index].FQDD'
+          - (idrac_firmware_info.firmware_info.Firmware[index].MajorVersion | int) > 4
+    when: datacenter_license is true
+
+  rescue:
+    - name: iDRAC check list
+      set_fact:
+        failed_idrac: "{{ failed_idrac + [ idrac_inventory_jsondata['results'][idrac_index].name ] }}"
+
+- name: Filtered iDRAC list
+  set_fact:
+    telemetry_idrac: "{{ telemetry_idrac + [ idrac_inventory_jsondata['results'][idrac_index].name ] }}"
+    filtered_idrac_count: "{{ filtered_idrac_count | int + 1 }}"
+  when:
+    - datacenter_license is true
+    - firmware_version is true
