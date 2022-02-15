@@ -26,20 +26,6 @@
   set_fact:
     server_hostname_ms: "{{ new_serv_hostname.stdout }}"
 
-- name: Create files directory
-  file:
-    path: "{{ role_path }}/files"
-    state: directory
-    mode: "{{ file_mode }}"
-    
-- name: Save the hostname
-  copy:
-    dest: "{{ server_file }}"
-    content: |
-      ipaddress: "{{ public_ip }}"
-      server_hostname: "{{ server_hostname_ms }}"
-      server_domain: "{{ domain_name }}"
-    mode: "{{ file_mode }}"
     
 - name: Check freeipa ui accessible or not
   uri:
@@ -50,7 +36,7 @@
   failed_when: false
 
 - name: Check freeipa admin authentication
-  shell: set -o pipefail && echo $'{{ ipa_admin_password }}' | kinit {{ ipa_admin_username }}
+  shell: set -o pipefail && echo $'{{ ms_ipa_admin_password }}' | kinit {{ ms_ipa_admin_username }}
   register: freeipa_authentication
   no_log: true
   changed_when: false

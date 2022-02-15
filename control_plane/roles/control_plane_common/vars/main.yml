@@ -219,6 +219,14 @@ dom_name_success_msg: "domain name successfully validated"
 dom_name_fail_msg: "Failed. Incorrect format provided for domain name in security_vars.yml"
 realm_success_msg: "realm_name successfully validated"
 realm_fail_msg: "Failed. Incorrect realm_name format in security_vars.yml"
+domain_name_blank_msg: "Failed. Domain name is not set in hostname It should have hostname.domain_name format"
+server_domain_name_success: "Domain name in server hostname validated"
+server_domain_name_fail: "Failed. Domain name set is not same as domain name in security_vars.yml"
+hosts_file_path: /etc/hosts
+hosts_file_mode: "0644"
+hostname_blank_msg: "Failed. Domain name is not set in hostname It should have hostname.domain_name format"
+server_hostname_success: "Hostname in server hostname validated"
+server_hostname_fail: "Failed. Hostname set is not valid"
 max_failures_success_msg: "max_failures successfully validated"
 max_failures_fail_msg: "Failed. Incorrect max_failures value in security_vars.yml"
 failure_reset_interval_success_msg: "failure_reset_interval successfully validated"
@@ -234,6 +242,11 @@ lockout_duration_min_value: 5
 lockout_duration_max_value: 10
 session_timeout_min_value: 90
 session_timeout_max_value: 180
+alert_email_success_msg: "alert_email_address successfully validated"
+alert_email_fail_msg: "Failed. Incorrect alert_email_address value in security_vars.yml"
+alert_email_warning_msg: "[WARNING] alert_email_address is empty. Authentication failure alerts won't be configured."
+email_max_length: 320
+email_search_key: "@"
 
 # Usage: validate_idrac_vars.yml
 idrac_input_filename: input_params/idrac_vars.yml

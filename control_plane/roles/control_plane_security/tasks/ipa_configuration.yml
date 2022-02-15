@@ -19,8 +19,8 @@
     failinterval: "{{ failure_reset_interval }}"
     lockouttime: "{{ lockout_duration }}"
     ipa_host: "{{ server_hostname_ms }}"
-    ipa_user: "{{ ipa_admin_username }}"
-    ipa_pass: "{{ ipa_admin_password }}"
+    ipa_user: "{{ ms_ipa_admin_username }}"
+    ipa_pass: "{{ ms_ipa_admin_password }}"
 
 - name: Create sysadmin group
   community.general.ipa_group:
@@ -28,8 +28,8 @@
     description: "{{ sysadmin_group_description }}"
     state: present
     ipa_host: "{{ server_hostname_ms }}"
-    ipa_user: "{{ ipa_admin_username }}"
-    ipa_pass: "{{ ipa_admin_password }}"
+    ipa_user: "{{ ms_ipa_admin_username }}"
+    ipa_pass: "{{ ms_ipa_admin_password }}"
     
 - name: Create sysadmin_sudo rule
   community.general.ipa_sudorule:
@@ -42,5 +42,5 @@
     usergroup:
       - "{{ sysadmin_user_group }}"
     ipa_host: "{{ server_hostname_ms }}"
-    ipa_user: "{{ ipa_admin_username }}"
-    ipa_pass: "{{ ipa_admin_password }}"
+    ipa_user: "{{ ms_ipa_admin_username }}"
+    ipa_pass: "{{ ms_ipa_admin_password }}"

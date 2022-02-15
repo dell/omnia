@@ -13,18 +13,15 @@
 #  limitations under the License.
 ---
 
-- name: Install ipa server in CentOS > 8 or Rocky 8.4
+- name: Install ipa server in CentOS or Rocky
   command: >-
-    ipa-server-install -n '{{ domain_name }}' --hostname='{{ server_hostname_ms }}' -a '{{ ipa_admin_password }}'
-    -p '{{ directory_manager_password }}' -r '{{ realm_name }}' --setup-dns --no-forwarders --no-reverse --no-ntp -U
+    ipa-server-install -n '{{ domain_name }}' --hostname='{{ server_hostname_ms }}' -a '{{ ms_ipa_admin_password }}'
+    -p '{{ ms_directory_manager_password }}' -r '{{ realm_name }}' --setup-dns --no-forwarders --no-reverse --no-ntp -U
   changed_when: true
   no_log: true
-  when:
-    - ( os_supported_centos in mgmt_os ) or
-      ( os_supported_rocky in mgmt_os )
-
+  
 - name: Authenticate as admin
-  shell: set -o pipefail && echo $'{{ ipa_admin_password }}' | kinit {{ ipa_admin_username }}
+  shell: set -o pipefail && echo $'{{ ms_ipa_admin_password }}' | kinit {{ ms_ipa_admin_username }}
   no_log: true
   changed_when: false
 
@@ -34,3 +31,12 @@
     dest: "{{ resolv_conf_path }}"
     mode: "{{ file_mode }}"
     remote_src: yes
+
+- name: Save the hostname
+  copy:
+    dest: "{{ server_file }}"
+    content: |
+      ipaddress: "{{ hpc_ip }}"
+      server_hostname: "{{ server_hostname_ms }}"
+      server_domain: "{{ domain_name }}"
+    mode: "{{ file_mode }}"

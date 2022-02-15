@@ -11,6 +11,7 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
+---
 
 # This variable is used to accept the domain name the user intends to configure
 # Eg: ipa.test
@@ -44,3 +45,8 @@ lockout_duration: 10
 # Min: 90
 # Max: 180
 session_timeout: 180
+
+# Email address used for sending alerts in case of authentication failure
+# If this variable is left blank, authentication failure alerts will be disabled.
+# Required value
+alert_email_address: ""
