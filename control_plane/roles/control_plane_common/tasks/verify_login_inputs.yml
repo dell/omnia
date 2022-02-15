@@ -49,8 +49,8 @@
     msg: "{{ login_input_config_failure_msg }} for ipa server installation"
   tags: [ validate, security ]
   when:
-    - ( directory_manager_password | length < 1 or
-      ipa_admin_password | length < 1 ) and
+    - ( ms_directory_manager_password | length < 1 or
+      ms_ipa_admin_password | length < 1 ) and
       enable_security_support
 
 - name: Assert provision credentials
@@ -220,29 +220,29 @@
   when: powervault_support
   tags: [ validate, network-device ]
 
-- name: Assert directory_manager_password
+- name: Assert ms_directory_manager_password
   assert:
     that:
-      - directory_manager_password | length > min_length | int - 1
-      - directory_manager_password | length < max_length | int + 1
-      - '"-" not in directory_manager_password '
-      - '"\\" not in directory_manager_password '
-      - '"\"" not in directory_manager_password '
-      - " \"'\" not in directory_manager_password "
+      - ms_directory_manager_password | length > min_length | int - 1
+      - ms_directory_manager_password | length < max_length | int + 1
+      - '"-" not in ms_directory_manager_password '
+      - '"\\" not in ms_directory_manager_password '
+      - '"\"" not in ms_directory_manager_password '
+      - " \"'\" not in ms_directory_manager_password "
     success_msg: "{{ success_msg_dir_manager_password }}"
     fail_msg: "{{ fail_msg_dir_manager_password }}"
   when: enable_security_support
   tags: [ validate, security ]
 
-- name: Assert ipa_admin_password
+- name: Assert ms_ipa_admin_password
   assert:
     that:
-      - ipa_admin_password | length > min_length | int - 1
-      - ipa_admin_password | length < max_length | int + 1
-      - '"-" not in ipa_admin_password '
-      - '"\\" not in ipa_admin_password '
-      - '"\"" not in ipa_admin_password '
-      - " \"'\" not in ipa_admin_password "
+      - ms_ipa_admin_password | length > min_length | int - 1
+      - ms_ipa_admin_password | length < max_length | int + 1
+      - '"-" not in ms_ipa_admin_password '
+      - '"\\" not in ms_ipa_admin_password '
+      - '"\"" not in ms_ipa_admin_password '
+      - " \"'\" not in ms_ipa_admin_password "
     success_msg: "{{ success_msg_ipa_admin_pwd }}"
     fail_msg: "{{ fail_msg_ipa_admin_pwd }}"
   when: enable_security_support
