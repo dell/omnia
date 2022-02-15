@@ -13,9 +13,6 @@
 #  limitations under the License.
 ---
 
-- name: Enable module idm in Rocky or CentOS
+- name: Enable module idm
   command: dnf module enable idm:DL1 -y
   changed_when: false
-  when:
-    - ( os_supported_centos in mgmt_os ) or
-      ( os_supported_rocky in mgmt_os )
