@@ -81,3 +81,19 @@
     success_msg: "{{ session_timeout_success_msg }}"
     fail_msg: "{{ session_timeout_fail_msg }}"
   tags: [ validate, security ]
+
+- name: Validate alert_email_address
+  assert:
+    that:
+      - email_search_key in alert_email_address
+      - alert_email_address | length < email_max_length
+    success_msg: "{{ alert_email_success_msg }}"
+    fail_msg: "{{ alert_email_fail_msg }}"
+  tags: [ validate, security ]
+  when: alert_email_address | length > 1
+
+- name: Warning - alert_email_address is empty
+  debug:
+    msg: "{{ alert_email_warning_msg }}"
+  tags: security
+  when: alert_email_address | length < 1
