@@ -343,6 +343,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "githubyongchen",
+      "name": "Yong Chen",
+      "avatar_url": "https://avatars.githubusercontent.com/u/5414112?v=4",
+      "profile": "https://github.com/githubyongchen",
+      "contributions": [
+        "design"
+      ]
     }
   ],
   "contributorsPerLine": 7,

@@ -73,6 +73,7 @@ Thanks goes to everyone who makes Omnia possible ([emoji key](https://allcontrib
     <td align="center"><a href="https://bandism.net/"><img src="https://avatars.githubusercontent.com/u/22633385?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Ikko Ashimine</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=eltociear" title="Code">💻</a></td>
     <td align="center"><a href="https://github.com/Lakshmi-Patneedi"><img src="https://avatars.githubusercontent.com/u/94051091?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Lakshmi-Patneedi</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=Lakshmi-Patneedi" title="Code">💻</a></td>
     <td align="center"><a href="https://github.com/Artlands"><img src="https://avatars.githubusercontent.com/u/31781106?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Jie Li</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=Artlands" title="Code">💻</a></td>
+    <td align="center"><a href="https://github.com/githubyongchen"><img src="https://avatars.githubusercontent.com/u/5414112?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Yong Chen</b></sub></a><br /><a href="#design-githubyongchen" title="Design">🎨</a></td>
   </tr>
 </table>
 
