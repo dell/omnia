@@ -92,7 +92,7 @@
                 workingDir: /go/src/github.com/telemetry-reference-tools
                 env:
                   - name: MYSQL_DATABASE
-                    value: timescale
+                    value: "{{ mysqldb_name }}"
                   - name: MYSQL_USER
                     valueFrom:
                       secretKeyRef:

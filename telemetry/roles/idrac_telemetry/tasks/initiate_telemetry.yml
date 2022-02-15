@@ -1,0 +1,297 @@
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Include and initialize variables
+
+- name: Include telemetry base_vars.yml
+  include_vars: "{{ playbook_dir }}/input_params/base_vars.yml"
+  no_log: true
+
+- name: Initiate telemetry process if idrac_support is enabled
+  block:
+  - name: Include telemetry common vars
+    include_vars: "{{ playbook_dir }}/roles/common/vars/main.yml"
+    no_log: true
+
+  - name: Include idrac-telemetry vars
+    include_vars: "{{ playbook_dir }}/roles/idrac_telemetry/vars/main.yml"
+    no_log: true
+
+  - name: Include timescaledb vars
+    include_vars: "{{ playbook_dir }}/roles/timescaledb/vars/main.yml"
+    no_log: true
+
+  - name: Initialize variables
+    set_fact:
+      tower_config_file: "{{ playbook_dir }}/../control_plane/roles/webui_awx/files/.tower_cli.cfg"
+      tower_vault_file: "{{ playbook_dir }}/../control_plane/roles/webui_awx/files/.tower_vault_key"
+      idrac_telemetry_scripting_repo: "https://github.com/dell/iDRAC-Telemetry-Scripting.git"
+      idrac_telemetry_scripting_branch: master
+      idrac_telemetry_scripting_folder: iDRAC-Telemetry-Scripting
+      idrac_login_input_filename: "{{ playbook_dir }}/../control_plane/input_params/login_vars.yml"
+      idrac_login_vault_filename: "{{ playbook_dir }}/../control_plane/input_params/.login_vault_key"
+      login_vars_file: "{{ playbook_dir }}/input_params/login_vars.yml"
+      vault_filename: "{{ playbook_dir }}/input_params/.login_vault_key"
+      min_firmware_version_reqd: 4
+      datacenter_license: false
+      firmware_version: false
+      file_perm: '0644'
+      telemetry_idrac: []
+      service_type: 3
+      auth_type: 1
+      idrac_awx_count: 0
+      filtered_idrac_count: 0
+      failed_idrac: []
+      awx_idrac: []
+
+# Get AWX Credentials from tower_config file
+
+  - name: Check if tower_config file is encrypted
+    command: cat {{ tower_config_file }}
+    changed_when: false
+    no_log: true
+    register: config_content
+
+  - name: Decrpyt tower_config
+    command: >-
+      ansible-vault decrypt {{ tower_config_file }}
+      --vault-password-file {{ tower_vault_file }}
+    when: "'$ANSIBLE_VAULT;' in config_content.stdout"
+    changed_when: false
+
+  - name: Change file permissions
+    file:
+      path: "{{ tower_config_file }}"
+      mode: "{{ file_perm }}"
+
+  - name: Fetch awx host
+    command: grep "host:" "{{ tower_config_file }}"
+    changed_when: false
+    register: fetch_awx_host
+
+  - name: Fetch awx username
+    command: grep "username:" "{{ tower_config_file }}"
+    register: fetch_awx_username
+    changed_when: false
+    no_log: true
+
+  - name: Fetch awx password
+    command: grep "password:" "{{ tower_config_file }}"
+    changed_when: false
+    no_log: true
+    register: fetch_awx_password
+
+  - name: Set awx variables
+    set_fact:
+      awx_host: "{{ fetch_awx_host.stdout | regex_replace('host: ','') }}"
+      awx_username: "{{ fetch_awx_username.stdout | regex_replace('username: ','') }}"
+      awx_password: "{{ fetch_awx_password.stdout | regex_replace('password: ','') }}"
+    no_log: true
+
+  - name: Encrypt tower_config_file
+    command: >-
+      ansible-vault encrypt {{ tower_config_file }}
+      --vault-password-file {{ tower_vault_file }}
+    changed_when: false
+
+  - name: Change file permissions
+    file:
+      path: "{{ tower_config_file }}"
+      mode: "{{ file_perm }}"
+
+# Get iDRAC inventory from AWX
+  - name: Get idrac-inventory id
+    shell: >-
+      awx --conf.host "{{ awx_host }}" --conf.username "{{ awx_username }}" --conf.password "{{ awx_password }}" --conf.insecure
+      inventory list -f human | grep idrac_inventory
+    register: inventory_id
+    changed_when: false
+
+  - name: Get idrac host list
+    command: >-
+      awx --conf.host "{{ awx_host }}" --conf.username "{{ awx_username }}" --conf.password "{{ awx_password }}" --conf.insecure
+      hosts list --inventory "{{ inventory_id.stdout[0] }}"
+    register: idrac_inventory_output
+    changed_when: false
+
+  - name: Save the json data
+    set_fact:
+      idrac_inventory_jsondata: "{{ idrac_inventory_output.stdout | from_json }}"
+
+# Get iDRAC Credentials
+  - name: Get iDRAC credentials
+    block:
+    - name: Check if {{ idrac_login_input_filename }} file is encrypted
+      command: cat {{ idrac_login_input_filename }}
+      changed_when: false
+      no_log: true
+      register: config_content
+
+    - name: Decrpyt login_vars.yml
+      command: >-
+        ansible-vault decrypt {{ idrac_login_input_filename }}
+        --vault-password-file {{ idrac_login_vault_filename }}
+      when: "'$ANSIBLE_VAULT;' in config_content.stdout"
+      changed_when: false
+
+    - name: Include variable file {{ idrac_login_input_filename }}
+      include_vars: "{{ idrac_login_input_filename }}"
+      no_log: true
+
+    - name: Encrypt login_vars.yml
+      command: >-
+        ansible-vault encrypt {{ idrac_login_input_filename }}
+        --vault-password-file {{ idrac_login_vault_filename }}
+      changed_when: false
+      when: "'$ANSIBLE_VAULT;' in config_content.stdout"
+
+    - name: Update login_vars.yml permission
+      file:
+        path: "{{ idrac_login_input_filename }}"
+        mode: "{{ file_perm }}"
+
+    when: idrac_inventory_jsondata['results'] is defined and (idrac_inventory_jsondata['results'] |length>0)
+
+# Get mysqldb credentials
+  - name: Get mysqldb credentials
+    block:
+    - name: Check login_vars file is encrypted
+      command: cat {{ login_vars_file }}
+      changed_when: false
+      register: config_content
+      # no_log: true
+
+    - name: Decrpyt login_vars.yml
+      command: >-
+        ansible-vault decrypt {{ login_vars_file }}
+        --vault-password-file {{ vault_filename }}
+      changed_when: false
+      when: "'$ANSIBLE_VAULT;' in config_content.stdout"
+
+    - name: Include variable file telemetry/login_vars.yml
+      include_vars: "{{ login_vars_file }}"
+      no_log: true
+
+    - name: Encrypt input config file
+      command: >-
+        ansible-vault encrypt {{ login_vars_file }}
+        --vault-password-file {{ vault_filename }}
+      changed_when: false
+
+    - name: Update login_vars.yml permission
+      file:
+        path: "{{ login_vars_file }}"
+        mode: "{{ file_perm }}"
+
+    when: idrac_inventory_jsondata['results'] is defined and (idrac_inventory_jsondata['results'] |length>0)
+
+# Filter iDRACs matching telemtry pre-requisites
+
+  - include_tasks: filter_idrac.yml
+    with_items: "{{ idrac_inventory_jsondata['results'] }}"
+    loop_control:
+      index_var: idrac_index
+    no_log: true
+
+# Add iDRAC Credentials in DB and enable telemetry fetching
+
+  - name: Enable telemetry collection on iDRAC
+    block:
+    - name: Git clone grafana plugin repo
+      ansible.builtin.git:
+        repo: "{{ idrac_telemetry_scripting_repo }}"
+        dest: "{{ mount_location + idrac_telemetry_scripting_folder }}"
+        version: "{{ idrac_telemetry_scripting_branch }}"
+      register: telemetry_collection
+
+    - name: Enable telemetry collection on iDRACs
+      command: python3 ./ConfigurationScripts/EnableOrDisableAllTelemetryReports.py -ip "{{ item }}" -u "{{ idrac_username }}" -p "{{ idrac_password }}" -s Enabled
+      args:
+        chdir: "{{ mount_location + idrac_telemetry_scripting_folder }}"
+      with_items: "{{ telemetry_idrac }}"
+      no_log: true
+    when: telemetry_idrac is defined and (telemetry_idrac |length>0)
+    rescue:
+      - name: Show failure msg
+        fail:
+          msg: "Enabling telemetry on iDRAC failed"
+
+  - name: Add iDRAC details in mysqldb
+    block:
+    - name: Wait for mysqldb pod to come to ready state
+      command: kubectl wait --for=condition=ready --timeout=10m -n "{{ namespace }}" pod -l app="{{ mysqldb_k8s_name }}"
+      changed_when: false
+
+    - name: Get mysqlDB svc IP
+      command: kubectl get svc "{{ mysqldb_k8s_name }}" -n "{{ namespace }}" -o=jsonpath='{.spec.clusterIP}'
+      changed_when: false
+      register: mysql_svc_ip
+
+    - name: Get mysqlDB svc port
+      command: kubectl get svc "{{ mysqldb_k8s_name }}" -n "{{ namespace }}" -o=jsonpath='{.spec.ports[0].port}'
+      changed_when: false
+      register: mysql_svc_port
+
+    - name: Add iDRAC host in mysqlDB
+      community.mysql.mysql_query:
+        login_host: "{{ mysql_svc_ip.stdout }}"
+        login_port: "{{ mysql_svc_port.stdout }}"
+        login_user: "{{ mysqldb_user }}"
+        login_password: "{{ mysqldb_password }}"
+        login_db: "{{ mysqldb_name }}"
+        query: INSERT IGNORE INTO {{ mysqldb_name + '.services' }} (ip, serviceType, authType, auth) VALUES (%s, %s, %s ,'{"password":"{{ idrac_password | quote }}","username":"{{ idrac_username | quote }}"}')
+        positional_args:
+          - "{{ item }}"
+          - "{{ service_type }}"
+          - "{{ auth_type }}"
+      with_items: "{{ telemetry_idrac }}"
+      no_log: true
+    when: telemetry_idrac is defined and (telemetry_idrac |length>0)
+    rescue:
+      - name: Show failure msg
+        fail:
+          msg: "Adding iDRAC credential details to mysqldb failed."
+
+# Initiate iDRAC collection
+  - name: Initiate telemetry collection
+    block:
+    - name: Wait for idrac-telemetry pod to come to ready state
+      command: kubectl wait --for=condition=ready --timeout=10m -n "{{ namespace }}" pod -l app="{{ idrac_telemetry_k8s_name }}"
+      changed_when: false
+
+    - name: Get idrac-telemetry pod name
+      command: kubectl get pods -n "{{ namespace }}" -l app="{{ idrac_telemetry_k8s_name }}" -o jsonpath="{.items[0].metadata.name}"
+      changed_when: false
+      register: idrac_telemetry_pod
+
+    - name: Wait for 15 sec for mysqldb to be ready with updated values
+      pause:
+        seconds: 15
+
+    - name: Initiate telemetry-collector
+      shell: kubectl exec --stdin --tty "{{ idrac_telemetry_pod.stdout }}" -n "{{ namespace }}" -c telemetry-receiver -- nohup go run cmd/redfishread/redfishread.go &
+      changed_when: false
+
+    when: telemetry_idrac is defined and (telemetry_idrac |length>0)
+
+  - name: Telemetry report
+    debug:
+      msg:
+        - "Count of iDRAC IPs found on AWX: {{ idrac_awx_count }}"
+        - "List of iDRAC IPs found on AWX: {{ awx_idrac }}"
+        - "Count of iDRAC IPs where telemetry is initiated: {{ filtered_idrac_count }}"
+        - "List of iDRAC IPs where telemetry is initiated: {{ telemetry_idrac }}"
+
+  when: idrac_telemetry_support is true
