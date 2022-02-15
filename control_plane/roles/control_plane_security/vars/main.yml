@@ -46,7 +46,7 @@ ipa_server_packages:
 # Usage: install_ipa_server.yml
 resolv_conf_path: /etc/resolv.conf
 temp_resolv_conf_path: /tmp/resolv.conf
-ipa_admin_username: admin
+ms_ipa_admin_username: admin
 
 # Usage: ipa_configuration.yml
 sysadmin_sudo_rule: sysadmin_sudo
@@ -56,3 +56,8 @@ sysadmin_group_description: "User group with sudo permission"
 
 # Usage: session_timeout.yml
 sshd_conf_file: /etc/ssh/sshd_config
+
+# Usage: configure_alerting.yml
+mail_packages:
+  - mailx
+  - postfix
