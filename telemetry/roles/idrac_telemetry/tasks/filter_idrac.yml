@@ -25,7 +25,6 @@
       idrac_ip: "{{ idrac_inventory_jsondata['results'][idrac_index].name }}"
       idrac_user: "{{ idrac_username }}"
       idrac_password: "{{ idrac_password }}"
-      validate_certs: false
     register: idrac_system_info
 
   - name: Check datacenter license status
@@ -48,7 +47,6 @@
         idrac_ip:   "{{ idrac_inventory_jsondata['results'][idrac_index].name }}"
         idrac_user: "{{ idrac_username }}"
         idrac_password:  "{{ idrac_password }}"
-        validate_certs: false
       register: idrac_firmware_info
 
     - name: Set firmware version status
