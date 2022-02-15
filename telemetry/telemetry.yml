@@ -13,15 +13,15 @@
 # limitations under the License.
 ---
 
--  name: Telemetry and visualization
-   hosts: localhost
-   connection: local
-   gather_facts: false
-   roles:
-    - common
-    - timescaledb
-    - idrac_telemetry
-    - grafana_config
+- name: Telemetry and visualization
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+  - common
+  - timescaledb
+  - idrac_telemetry
+  - grafana_config
 
 - name: Get node inventory
   hosts: localhost
