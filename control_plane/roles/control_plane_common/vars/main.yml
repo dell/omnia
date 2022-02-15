@@ -234,6 +234,11 @@ lockout_duration_min_value: 5
 lockout_duration_max_value: 10
 session_timeout_min_value: 90
 session_timeout_max_value: 180
+alert_email_success_msg: "alert_email_address successfully validated"
+alert_email_fail_msg: "Failed. Incorrect alert_email_address value in security_vars.yml"
+alert_email_warning_msg: "[WARNING] alert_email_address is empty. Authentication failure alerts won't be configured."
+email_max_length: 320
+email_search_key: "@"
 
 # Usage: validate_idrac_vars.yml
 idrac_input_filename: input_params/idrac_vars.yml
