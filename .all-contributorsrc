@@ -20,7 +20,8 @@
         "mentoring",
         "design",
         "review",
-        "talk"
+        "talk",
+        "bug"
       ]
     },
     {
@@ -74,7 +75,8 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/73195862?v=4",
       "profile": "https://github.com/sakshiarora13",
       "contributions": [
-        "code"
+        "code",
+        "bug"
       ]
     },
     {
