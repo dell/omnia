@@ -36,6 +36,7 @@ grafana_http_port: 5000
 grafana_plugins_names: "hpcviz-idvl-hpcc-sankey,hpcviz-idvl-hpcc-parallel-coordinate,hpcviz-idvl-hpcc-spiral-layout,hpcviz-idvl-hpcc-stream-net"
 
 # Usage: plugins.yml
+grafana_pod_timeout: 30m
 plugins_name:
   - parallel-coordinate.zip
   - sankey.zip
