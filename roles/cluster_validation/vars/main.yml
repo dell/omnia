@@ -40,8 +40,10 @@ fail_msg_directory_manager_password: "Failed. Incorrect format provided for dire
 success_msg_ipa_admin_password: "ipa_admin_password successfully validated"
 fail_msg_ipa_admin_password: "Failed. Incorrect format provided for ipa_admin_password"
 input_config_failure_msg: "Input parameters cannot be empty"
-login_node_required_success_msg: "Login_node_required successfully validated"
-login_node_required_fail_msg: "Failed. login_node_required can be either true or false"
+login_node_required_success_msg: "login_node_required successfully validated"
+login_node_required_fail_msg: "Failed. login_node_required should be either true or false"
+secure_login_node_success_msg: "enable_secure_login_node successfully validated"
+secure_login_node_fail_msg: "Failed. enable_secure_login_node should be either true or false"
 
 # Usage: validations.yml
 skip_tag_fail_msg: "Can't skip both slurm and kubernetes"
@@ -67,3 +69,26 @@ login_vars_filename: input_params/login_vars.yml
 vault_filename: input_params/.login_vault_key
 vault_file_perm: '0644'
 ipa_secret_file: "{{ playbook_dir }}/control_plane/roles/control_plane_security/files/.ipavars.yml"
+
+# Usage: fetch_security_inputs.yml
+security_vars_filename: "{{ playbook_dir }}/omnia_security_config.yml"
+max_failures_success_msg: "max_failures successfully validated"
+max_failures_fail_msg: "Failed. Incorrect max_failures value in security_vars.yml"
+failure_reset_interval_success_msg: "failure_reset_interval successfully validated"
+failure_reset_interval_fail_msg: "Failed. Incorrect failure_reset_interval value in security_vars.yml"
+lockout_duration_success_msg: "lockout_duration successfully validated"
+lockout_duration_fail_msg: "Failed. Incorrect lockout_duration value in security_vars.yml"
+session_timeout_success_msg: "session_timeout successfully validated"
+session_timeout_fail_msg: "Failed. Incorrect session_timeout value in security_vars.yml"
+max_failures_default_value: 3
+failure_reset_interval_min_value: 30
+failure_reset_interval_max_value: 60
+lockout_duration_min_value: 5
+lockout_duration_max_value: 10
+session_timeout_min_value: 90
+session_timeout_max_value: 180
+alert_email_success_msg: "alert_email_address successfully validated"
+alert_email_fail_msg: "Failed. Incorrect alert_email_address value in security_vars.yml"
+alert_email_warning_msg: "[WARNING] alert_email_address is empty. Authentication failure alerts won't be configured."
+email_max_length: 320
+email_search_key: "@"
