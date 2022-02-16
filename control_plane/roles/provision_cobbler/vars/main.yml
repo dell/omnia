@@ -57,6 +57,7 @@ rocky_host_nic:
  - ens2f1
  - ens1f0
  - ens1f1
+http_port: 8000
 
 # Usage: cobbler_image.yml
 cobbler_image_name: cobbler

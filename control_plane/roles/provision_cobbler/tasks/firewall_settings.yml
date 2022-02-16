@@ -15,16 +15,16 @@
 
 #Tasks for modifying firewall configurations for Cobbler
 
-- name: Permit traffic in default zone on port 80/tcp
+- name: Permit traffic in default zone on port 8000/tcp
   firewalld:
-    port: 80/tcp
+    port: 8000/tcp
     permanent: yes
     state: enabled
   tags: install
 
-- name:  Permit traffic in default zone on port 443/tcp
+- name:  Permit traffic in default zone on port 8008/tcp
   firewalld:
-    port: 443/tcp
+    port: 8008/tcp
     permanent: yes
     state: enabled
   tags: install
