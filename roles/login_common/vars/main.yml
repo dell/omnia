@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -12,6 +12,9 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+
+# Usage: main.yml
+login_node_group: login_node
 
 # Usage: set_fqdn.yml
 etc_hosts_file_dest: /etc/hosts
@@ -34,4 +37,5 @@ ntp_port1: "123/udp"
 # Usage: enable_dnf_module.yml
 os_centos: 'centos'
 os_rocky: 'rocky'
+os_leap: 'leap'
 os_version: '8.0'
