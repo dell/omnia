@@ -19,8 +19,29 @@ ipa_client_package:
   - freeipa-client
   - ipa-admintools
 
+# Usage: firewall_settings.yml
 slurmctld_tcp_port: "6817/tcp"
 slurmd_tcp_port: "6818/tcp"
 srun_tcp_port: "60001-63000/tcp"
 slurmctld_udp_port: "6817/udp"
 slurmd_udp_port: "6818/udp"
+
+# Usage: install_ipa_client.yml
+hosts_file_dest: "/etc/hosts"
+hosts_file_mode: "0644"
+
+# Usage: ipa_configuration.yml
+sysadmin_sudo_rule: sysadmin_sudo
+sysadmin_sudo_rule_description: "Allow users to run sudo commands"
+sysadmin_user_group: sysadmin
+sysadmin_group_description: "User group with sudo permission"
+ipa_admin_username: admin
+
+# Usage: session_timeout.yml
+sshd_conf_file: /etc/ssh/sshd_config
+
+# Usage: configure_alerting.yml
+community_general_collection: "community.general:4.4.0"
+mail_packages:
+  - mailx
+  - postfix
