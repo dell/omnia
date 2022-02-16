@@ -20,7 +20,7 @@
     version: main
 
 - name: Wait for grafana pod to come to ready state
-  command: kubectl wait --for=condition=ready --timeout=10m -n "{{ grafana_namespace }}" pod -l app="{{ grafana_k8s }}"
+  command: kubectl wait --for=condition=ready --timeout="{{ grafana_pod_timeout }}" -n "{{ grafana_namespace }}" pod -l app="{{ grafana_k8s }}"
   changed_when: false
   
 - name: Unzip plugins at grafana-plugins folder
