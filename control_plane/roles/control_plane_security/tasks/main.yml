@@ -35,6 +35,12 @@
         - name: FreeIPA configuration
           include_tasks: ipa_configuration.yml
       when: os_supported_leap not in mgmt_os
+      
+    - name: Install snoopy
+      include_tasks: install_snoopy.yml
+
+    - name: Install psacct/acct
+      include_tasks: user_monitor.yml
 
     - name: Session timeout configuration
       include_tasks: session_timeout.yml
