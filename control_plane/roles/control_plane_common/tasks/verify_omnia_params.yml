@@ -124,6 +124,14 @@
     fail_msg: "{{ login_node_required_fail_msg }}"
   tags: [ validate, templates ]
 
+- name: Verify the value of enable_secure_login_node
+  assert:
+    that:
+      - enable_secure_login_node == true or enable_secure_login_node == false
+    success_msg: "{{ secure_login_node_success_msg }}"
+    fail_msg: "{{ secure_login_node_fail_msg }}"
+  tags: [ validate, templates ]
+
 - name: Validate the domain name
   assert:
     that:
