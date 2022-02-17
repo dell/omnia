@@ -65,4 +65,4 @@
   cron:
     name: Auth failure alerting
     special_time: hourly
-    job: "{{ ansible_playbook_path.stdout.split(' ')[1] }} /root/auth_failure_check.yml -e 'alert_email_address={{ alert_email_address }}'"
+    job: "{{ ansible_playbook_path.stdout.split(' ')[1] }} {{ alerting_file_path }} -e 'alert_email_address={{ alert_email_address }}'"
