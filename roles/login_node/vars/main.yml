@@ -45,3 +45,4 @@ community_general_collection: "community.general:4.4.0"
 mail_packages:
   - mailx
   - postfix
+alerting_file_path: /root/auth_failure_check.yml
