@@ -40,12 +40,3 @@ session_timeout: 180
 # If this variable is left blank, authentication failure alerts will be disabled.
 # Required value
 alert_email_address: ""
-
-# This variable provides the type of access
-# Accepted values 'Allow' or 'Deny' by default 'Allow'
-allow_deny: 'Allow'
-
-# This variable mentions the users to whom the access will be provided
-# format of user shall be username@ip or username
-# Ex1- root@1.2.3.4 Ex2- root Ex3- root@1.2.3.4 root (if multiple user, provide space seperated values) by default empty
-user: ''
