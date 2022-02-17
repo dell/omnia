@@ -55,6 +55,7 @@
   copy:
     src: "{{ role_path }}/files/auth_failure_check.yml"
     dest: "{{ alerting_file_path }}"
+    mode: "{{ hosts_file_mode }}"
 
 - name: Fetch ansible-playbook path
   command: whereis ansible-playbook
