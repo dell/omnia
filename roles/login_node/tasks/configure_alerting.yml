@@ -54,7 +54,7 @@
 - name: Copy auth_failure_check.yml to login_node
   copy:
     src: "{{ role_path }}/files/auth_failure_check.yml"
-    dest: "/root/auth_failure_check.yml"
+    dest: "{{ alerting_file_path }}"
 
 - name: Fetch ansible-playbook path
   command: whereis ansible-playbook
