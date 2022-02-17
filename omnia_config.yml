@@ -76,5 +76,5 @@ ipa_admin_password: ""
 
 # Boolean indicating whether login node is requires security features or not
 # It can be set to true or false
-# By default it is set to true indicating security features will be configured
+# By default it is set to false indicating security features will not be configured
 enable_secure_login_node: false
