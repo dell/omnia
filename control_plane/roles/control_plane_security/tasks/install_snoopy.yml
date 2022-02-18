@@ -13,6 +13,27 @@
 #  limitations under the License.
 ---
 
-- name: Enable module idm
-  command: dnf module enable idm:DL1 -y
+- name: Install required packages
+  package:
+    name: "{{ snoopy_packages }}"
+    state: present
+
+- name: Download snoopy package
+  get_url:
+    url: "{{ snoopy_url }}"
+    dest: "{{ snoopy_path }}"
+
+- name: Change permissions
+  file:
+   path: "{{ snoopy_path }}"
+   mode: "{{ snoopy_mode }}"
+
+- name: Run the script
+  shell: sh ./install-snoopy.sh stable
+  args:
+   chdir: "{{ snoopy_path }}"
+  changed_when: false
+
+- name: Enable snoopy
+  command: snoopy-enable
   changed_when: false

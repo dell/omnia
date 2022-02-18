@@ -13,6 +13,23 @@
 #  limitations under the License.
 ---
 
-- name: Enable module idm
-  command: dnf module enable idm:DL1 -y
+- name: Install mailx and postfix
+  package:
+    name: "{{ mail_packages }}"
+    state: present
+
+- name: Start postfix service
+  systemd:
+    name: postfix
+    state: started
+
+- name: Fetch ansible-playbook path
+  command: whereis ansible-playbook
   changed_when: false
+  register: ansible_playbook_path
+
+- name: Schedule cron job for alerting
+  cron:
+    name: Auth failure alerting
+    special_time: hourly
+    job: "{{ ansible_playbook_path.stdout.split(' ')[1] }} {{ role_path }}/files/auth_failure_check.yml -e 'alert_email_address={{ alert_email_address }}'"

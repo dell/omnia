@@ -98,8 +98,8 @@ powervault_me4_password: ""
 # and will be added to the instance of directory server created for IPA.
 # The password must be at least 8 characters long
 # The password must not contain -,\, ',"
-directory_manager_password: ""
+ms_directory_manager_password: ""
 
 # The IPA server requires an administrative user, named 'admin'.
 # This user is a regular system account used for IPA server administration
-ipa_admin_password: ""
+ms_ipa_admin_password: ""

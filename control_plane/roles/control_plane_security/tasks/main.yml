@@ -14,29 +14,38 @@
 ---
 
 - block:
-    - name: Check freeipa installed or not
-      include_tasks: check_prerequisites.yml
-
     - block:
-        - name: Add ports of manager and login node to firewall
-          include_tasks: firewall_settings.yml
+        - name: Check freeipa installed or not
+          include_tasks: check_prerequisites.yml
 
-        - name: Enable module idm in Rocky or Centos >= 8.0
-          include_tasks: enable_dnf_module.yml
+        - block:
+            - name: Add ports of manager and login node to firewall
+              include_tasks: firewall_settings.yml
 
-        - name: Install required packages
-          include_tasks: install_packages.yml
+            - name: Enable module idm
+              include_tasks: enable_dnf_module.yml
 
-        - name: Install FreeIPA server
-          include_tasks: install_ipa_server.yml
-      when: not freeipa_status
-    
-    - name: FreeIPA configuration
-      include_tasks: ipa_configuration.yml
+            - name: Install required packages
+              include_tasks: install_packages.yml
+
+            - name: Install FreeIPA server
+              include_tasks: install_ipa_server.yml
+          when: not freeipa_status
+        
+        - name: FreeIPA configuration
+          include_tasks: ipa_configuration.yml
+      when: os_supported_leap not in mgmt_os
+      
+    - name: Install snoopy
+      include_tasks: install_snoopy.yml
+
+    - name: Install psacct/acct
+      include_tasks: user_monitor.yml
 
     - name: Session timeout configuration
       include_tasks: session_timeout.yml
-  when: 
-    - enable_security_support
-    - ( os_supported_centos in mgmt_os ) or
-      ( os_supported_rocky in mgmt_os )
+
+    - name: Alert configuration
+      include_tasks: configure_alerting.yml
+      when: alert_email_address | length > 1
+  when: enable_security_support

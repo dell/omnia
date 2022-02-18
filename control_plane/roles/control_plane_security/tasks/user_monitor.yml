@@ -13,6 +13,14 @@
 #  limitations under the License.
 ---
 
-- name: Enable module idm
-  command: dnf module enable idm:DL1 -y
-  changed_when: false
+- name: Install psacct on rocky
+  package:
+    name: "{{ psacct }}"
+    state: present
+  when: os_supported_rocky in mgmt_os
+
+- name: Install acct on leap
+  package:
+    name: "{{ acct }}"
+    state: present
+  when: os_supported_leap in mgmt_os

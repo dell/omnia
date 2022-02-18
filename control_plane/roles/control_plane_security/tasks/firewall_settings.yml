@@ -17,14 +17,12 @@
   package:
     name: firewalld
     state: present
-  tags: firewalld
 
 - name: Start and enable firewalld
   service:
     name: firewalld
     state: started
     enabled: yes
-  tags: firewalld
 
 - name: Firewall ports addition - tcp/udp ports
   firewalld:
@@ -45,16 +43,13 @@
     - "{{ dns_port2 }}"
     - "{{ ntp_port1 }}"
     - "{{ dt_port1 }}"
-  tags: firewalld
 
 - name: Reload firewalld
   command: firewall-cmd --reload
   changed_when: true
-  tags: firewalld
 
 - name: Stop and disable firewalld
   service:
     name: firewalld
     state: stopped
     enabled: no
-  tags: firewalld

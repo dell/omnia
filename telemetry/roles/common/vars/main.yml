@@ -23,6 +23,11 @@ ctrl_plane_login_vars_filename: "{{ role_path }}/../../../control_plane/input_pa
 fail_msg_base_vars: "telemetry/base_vars.yml file doesn't exist."
 fail_msg_login_vars: "telemetry/login_vars.yml file doesn't exist."
 ctrl_plane_fail_msg_login_vars: "control_plane/login_vars.yml file doesn't exist"
+pip_packages:
+  - openshift
+  - omsdk
+  - PyMySQL
+mysqldb_collection_name: community.mysql:3.1.0
 
 #Usage: validate_base_vars.yml
 folder_perm: '644'
