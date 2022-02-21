@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -16,50 +16,47 @@
 - name: Perform validations
   include_tasks: validations.yml
 
-- name: Fetch passwords
-  include_tasks: fetch_password.yml
+- name: Fetch omnia_config.yml inputs
+  include_tasks: fetch_omnia_inputs.yml
 
-- name: Check if omnia is running from AWX
-  block:
-    - name: Initialize variables
-      set_fact:
-        control_plane_status: false
-        powervault_status: false
-        nfs_node_status: false
+- name: Fetch control_plane credentials
+  include_tasks: fetch_control_plane_credentials.yml
+  
+- name: Initialize variables
+  set_fact:
+    control_plane_status: false
+    powervault_status: false
+    nfs_node_status: false
 
-    - name: Check AWX instance
-      command: awx --version
-      changed_when: false
-      failed_when: false
-      register: awx_version_check
+- name: Check AWX instance
+  command: awx --version
+  changed_when: false
+  failed_when: false
+  register: awx_version_check
 
-    - name: Check AWX hostname
-      command: hostname
-      changed_when: false
-      register: awx_hostname
+- name: Check AWX hostname
+  command: hostname
+  changed_when: false
+  register: awx_hostname
 
-    - name: Set control_plane_status
-      set_fact:
-        control_plane_status: true
-      when:
-        - not awx_version_check.failed
-        - awx_search_key in awx_hostname.stdout
+- name: Set control_plane_status
+  set_fact:
+    control_plane_status: true
+  when:
+    - not awx_version_check.failed
+    - awx_search_key in awx_hostname.stdout
 
-    - name: Set NFS node status
-      set_fact:
-        nfs_node_status: true
-      when:
-        - control_plane_status
-        - groups['nfs_node'] | length == 1
+- name: Set NFS node status
+  set_fact:
+    nfs_node_status: true
+  when:
+    - control_plane_status
+    - groups['nfs_node'] | length == 1
 
-    - name: Fetch powervault status
-      include_tasks: fetch_powervault_status.yml
-      when: nfs_node_status
-
-    - name: Initialize ipa server variables
-      include_tasks: fetch_ipa_password.yml
-      when: login_node_required
-
+- name: Fetch powervault status
+  include_tasks: fetch_powervault_status.yml
+  when: nfs_node_status
+  
 - name: omnia.yml runing on host
   block:
     - name: Passwordless SSH status
@@ -94,6 +91,3 @@
         replace: 'log_path = /var/log/omnia.log'
       when: ansible_conf_exists.stat.exists
   when: not control_plane_status
-
-- name: Fetch grafana credentials
-  include_tasks: fetch_grafana_cred.yml

@@ -19,7 +19,15 @@
   gather_facts: no
   roles:
     - cluster_validation
-    
+
+- name: Validate hostname
+  hosts: manager, login_node
+  gather_facts: false
+  any_errors_fatal: true
+  roles:
+    - hostname_validation
+  tags: freeipa
+
 - name: Validate nfs_node config
   hosts: nfs_node
   gather_facts: false

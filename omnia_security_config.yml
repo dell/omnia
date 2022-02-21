@@ -1,0 +1,42 @@
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Maximum number of consecutive failures before lockout
+# The default value of this variable can't be changed
+# Default: 3
+max_failures: 3
+
+# Period (in seconds) after which the number of failed login attempts is reset
+# Default: 60
+# Min: 30
+# Max: 60
+failure_reset_interval: 60
+
+# Period (in seconds) for which users are locked out 
+# Default: 10
+# Min: 5
+# Max: 10
+lockout_duration: 10
+
+# User sessions that have been idle for a specific period can be ended automatically
+# This variable sets session timeout to 3 minutes (180 seconds) by default
+# Min: 90
+# Max: 180
+session_timeout: 180
+
+# Email address used for sending alerts in case of authentication failure
+# If this variable is left blank, authentication failure alerts will be disabled.
+# Required value
+alert_email_address: ""

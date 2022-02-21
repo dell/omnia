@@ -63,17 +63,6 @@
       k8s_pod_network_cidr | length < 1 or
       ansible_config_file_path | length < 1
 
-- name: Validate login node parameters when login_node_reqd is set to true
-  fail:
-    msg: "{{ input_config_failure_msg }} for login_node"
-  when:
-    - ( domain_name | length < 1 or
-      realm_name | length < 1 or
-      directory_manager_password | length < 1 or
-      ipa_admin_password | length < 1 ) and
-      login_node_required and
-      not enable_security_support
-
 - name: Assert mariadb_password
   assert:
     that:
@@ -125,6 +114,41 @@
     success_msg: "{{ login_node_required_success_msg }}"
     fail_msg: "{{ login_node_required_fail_msg }}"
 
+- name: Initialize ipa_server_ms
+  set_fact:
+    ipa_server_ms: false
+
+- name: Check if ipa server file of MS exists
+  stat:
+    path: "{{ ipa_secret_file }}"
+  register: ms_file_exists
+
+- name: Set ipa server status on MS
+  set_fact:
+    ipa_server_ms: true
+  when:
+    - enable_security_support
+    - ms_file_exists.stat.exists
+
+- name: Validate login node parameters when login_node_reqd is set to true
+  fail:
+    msg: "{{ input_config_failure_msg }} for login_node"
+  when:
+    - ( domain_name | length < 1 or
+      realm_name | length < 1 or
+      directory_manager_password | length < 1 or
+      ipa_admin_password | length < 1 ) 
+    - login_node_required
+    - not ipa_server_ms
+
+- name: Verify the value of enable_secure_login_node
+  assert:
+    that:
+      - enable_secure_login_node == true or enable_secure_login_node == false
+    success_msg: "{{ secure_login_node_success_msg }}"
+    fail_msg: "{{ secure_login_node_fail_msg }}"
+  when: login_node_required
+
 - name: Login node to contain exactly 1 node
   assert:
     that:
@@ -141,7 +165,7 @@
     fail_msg: "{{ domain_name_fail_msg }}"
   when:
     - login_node_required
-    - not enable_security_support
+    - not ipa_server_ms
 
 - name: Validate the realm name
   assert:
@@ -152,7 +176,7 @@
     fail_msg: "{{ realm_name_fail_msg }}"
   when:
     - login_node_required
-    - not enable_security_support
+    - not ipa_server_ms
 
 - name: Assert directory_manager_password
   assert:
@@ -167,7 +191,7 @@
     fail_msg: "{{ fail_msg_directory_manager_password }}"
   when:
     - login_node_required
-    - not enable_security_support
+    - not ipa_server_ms
 
 - name: Assert ipa_admin_password
   assert:
@@ -182,10 +206,14 @@
     fail_msg: "{{ fail_msg_ipa_admin_password }}"
   when:
     - login_node_required
-    - not enable_security_support
+    - not ipa_server_ms
 
 - name: Encrypt input config file
   command: >-
     ansible-vault encrypt {{ role_path }}/../../{{ config_filename }}
     --vault-password-file {{ role_path }}/../../{{ config_vaultname }}
   changed_when: false
+
+- name: Fetch security inputs
+  include_tasks: fetch_security_inputs.yml
+  when: enable_secure_login_node

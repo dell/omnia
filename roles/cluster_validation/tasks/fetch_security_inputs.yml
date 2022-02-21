@@ -1,0 +1,65 @@
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Include security variable file security_vars.yml
+  include_vars: "{{ security_vars_filename }}"
+
+- name: Validate max_failures
+  assert:
+    that:
+      - max_failures | int == max_failures_default_value
+    success_msg: "{{ max_failures_success_msg }}"
+    fail_msg: "{{ max_failures_fail_msg }}"
+
+- name: Validate failure_reset_interval
+  assert:
+    that:
+      - failure_reset_interval | int
+      - failure_reset_interval | int <= failure_reset_interval_max_value
+      - failure_reset_interval | int >= failure_reset_interval_min_value
+    success_msg: "{{ failure_reset_interval_success_msg }}"
+    fail_msg: "{{ failure_reset_interval_fail_msg }}"
+
+- name: Validate lockout_duration
+  assert:
+    that:
+      - lockout_duration | int
+      - lockout_duration | int <= lockout_duration_max_value
+      - lockout_duration | int >= lockout_duration_min_value
+    success_msg: "{{ lockout_duration_success_msg }}"
+    fail_msg: "{{ lockout_duration_fail_msg }}"
+
+- name: Validate session_timeout
+  assert:
+    that:
+      - session_timeout | int
+      - session_timeout | int <= session_timeout_max_value
+      - session_timeout | int >= session_timeout_min_value
+    success_msg: "{{ session_timeout_success_msg }}"
+    fail_msg: "{{ session_timeout_fail_msg }}"
+
+- name: Validate alert_email_address
+  assert:
+    that:
+      - email_search_key in alert_email_address
+      - alert_email_address | length < email_max_length
+    success_msg: "{{ alert_email_success_msg }}"
+    fail_msg: "{{ alert_email_fail_msg }}"
+  when: alert_email_address | length > 1
+
+- name: Warning - alert_email_address is empty
+  debug:
+    msg: "{{ alert_email_warning_msg }}"
+  when: alert_email_address | length < 1
