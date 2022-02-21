@@ -64,7 +64,6 @@ EXPOSE 69 80 443 25151
 
 VOLUME [ "/var/www/cobbler", "/var/lib/cobbler/backup", "/mnt" ]
 
-RUN systemctl enable httpd
 RUN systemctl enable dhcpd
 
 CMD ["sbin/init"]

@@ -70,6 +70,12 @@
     regexp: '^next_server: 127.0.0.1'
     replace: 'next_server: {{ hpc_ip }}'
 
+- name: Assign proxy_url_ext url
+  replace:
+    path: "{{ role_path }}/files/settings.yaml"
+    regexp: '^proxy_url_ext: "http://ip:port"'
+    replace: 'proxy_url_ext: "http://{{ hpc_ip }}:{{ http_port }}"'
+
 - name: Set the server_args for {{ provision_os }} in tftp file
   replace:
     path: "{{ role_path }}/files/tftp"

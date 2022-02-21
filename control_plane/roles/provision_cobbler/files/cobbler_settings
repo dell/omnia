@@ -149,7 +149,7 @@ enable_menu: true
 
 # change this port if Apache is not running plaintext on port
 # 80.  Most people can leave this alone.
-http_port: 80
+http_port: 8000
 
 # kernel options that should be present in every Cobbler installation.
 # kernel options can also be applied at the distro/profile/system
@@ -428,7 +428,7 @@ always_write_dhcp_entries: false
 
 # External proxy - used by: "get-loaders", "reposync", "signature update"
 # Eg: "http://192.168.1.1:8080" (HTTP), "https://192.168.1.1:8443" (HTTPS)
-proxy_url_ext: ""
+proxy_url_ext: "http://ip:port"
 
 # Internal proxy - used by systems to reach Cobbler for templates
 # Eg: proxy_url_int: "http://10.0.0.1:8080"
