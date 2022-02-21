@@ -1,18 +1,14 @@
 """
 MIT License
-
 Copyright (c) 2022 Texas Tech University
-
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
-
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
-
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -24,7 +20,6 @@ SOFTWARE.
 
 """
 This file is part of MonSter.
-
 Author:
     Jie Li, jie.li@ttu.edu
 """
@@ -152,53 +147,3 @@ def dump_node_metrics(timestamp: object,
         curs.execute("ROLLBACK")
         conn.commit()
         log.error(f"Fail to dump node metrics : {err}")
-
-
-def dump_idrac(ip: str, 
-               idrac_metrics: dict,
-               metric_dtype_mapping: dict, 
-               ip_id_mapping: dict,
-               conn: object, ):
-    """dump_idrac Dump iDRAC Metrics
-
-    Dump node metrics to TimeScaleDB
-
-    Args:
-        ip (str): ip address of iDRAC
-        idrac_metrics (dict): iDRAC Metrics
-        metric_dtype_mapping (dict): Metric-Datatype mapping
-        ip_id_mapping (dict): ip-id mapping
-        conn (object): TimeScaleDB connection object
-    """
-    try:
-        schema_name = 'idrac'
-        nodeid = ip_id_mapping[ip]
-
-        for table_name, table_metrics in idrac_metrics.items():
-            all_records = []
-            dtype = metric_dtype_mapping[table_name]
-
-            table_name = table_name.lower()
-            target_table = f"{schema_name}.{table_name}"
-
-            cols = ('timestamp', 'nodeid', 'source', 'fqdd', 'value')
-            for metric in table_metrics:
-                # We have to offset timestamp by -6/-5 hours. For some unknow
-                # reasons, the timestamp reported in iDRAC is not configured
-                # correctly.
-                timestamp = parse_time(metric['Timestamp'])
-                timestamp = timestamp.astimezone(tz.tzlocal())
-                timestamp = timestamp.replace(tzinfo=tz.tzutc())
-                timestamp = timestamp.astimezone(tz.tzlocal())
-
-                source = metric['Source']
-                fqdd = metric['FQDD']
-                if metric['Value']:
-                    value = utils.cast_value_type(metric['Value'], dtype)
-                    all_records.append((timestamp, nodeid, source, fqdd, value))
-
-            mgr = CopyManager(conn, target_table, cols)
-            mgr.copy(all_records)
-        conn.commit()
-    except Exception as err:
-        log.error(f"Fail to dump idrac metrics ({ip}): {err}")
