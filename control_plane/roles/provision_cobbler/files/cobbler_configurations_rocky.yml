@@ -41,11 +41,40 @@
     shell: echo "LoadModule wsgi_module modules/mod_wsgi_python3.so" >/etc/httpd/conf.d/wsgi.conf
     changed_when: false
 
+  - name: Change http port to 8000 in httpd.conf
+    replace:
+      path: "/etc/httpd/conf/httpd.conf"
+      regexp: '^Listen 80'
+      replace: 'Listen 8000'
+    changed_when: false
+
+  - name: Change http port to 8000 in cobbler.conf
+    replace:
+      path: "/etc/httpd/conf.d/cobbler.conf"
+      regexp: '^<VirtualHost.*'
+      replace: '<VirtualHost *:8000>'
+    changed_when: false
+
+  - name: Make https to listen on port 8008
+    replace:
+      path: "/etc/httpd/conf.d/ssl.conf"
+      regexp: '^Listen 443 https'
+      replace: 'Listen 8008 https'
+    changed_when: false
+
+  - name: Change https port to 8008
+    replace:
+      path: "/etc/httpd/conf.d/ssl.conf"
+      regexp: '^<VirtualHost _default_:443>'
+      replace: '<VirtualHost _default_:8008>'
+    changed_when: false
+
   - name: Enable cobbler
     command: systemctl enable {{ item }}
     with_items:
       - cobblerd
       - tftp
+      - httpd
     changed_when: false
 
   - name: Restart httpd

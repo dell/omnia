@@ -1,7 +1,7 @@
 #version=RHEL8
 
 # Use network installation
-url --url http://ip/cblr/links/rocky-x86_64/
+url --url http://ip:port/cblr/links/rocky-x86_64/
 
 # SELinux configuration
 selinux --disabled
