@@ -27,18 +27,30 @@
     state: present
   tags: install
 
-- name: Set hostname of ipa server when MS has ipa server installed
+- name: Set hostname of ipa server when manager node has ipa server installed
   set_fact:
     required_ipa_admin_pwd: "{{ hostvars['127.0.0.1']['ipa_admin_password'] }}"
     required_server_hostname: "{{ hostvars[groups['manager'][0]]['server_hostname'] }}"
     required_domain_name: "{{ hostvars['127.0.0.1']['domain_name'] }}"
   when: not hostvars['127.0.0.1']['ipa_server_ms']
+  no_log: true
 
-- name: Set hostname of ipa server when manager node has ipa server installed
+- name: Set hostname of ipa server when MS has ipa server installed
   set_fact:
     required_ipa_admin_pwd: "{{ hostvars['127.0.0.1']['ms_ipa_admin_password'] }}"
     required_server_hostname: "{{ hostvars['127.0.0.1']['server_hostname'] }}"
     required_domain_name: "{{ hostvars['127.0.0.1']['server_domain'] }}"
+    ms_ip_address: "{{ hostvars['127.0.0.1']['ipaddress'] }}"
+  when: hostvars['127.0.0.1']['ipa_server_ms']
+  no_log: true
+
+- name: Add host name in hosts file
+  lineinfile:
+    dest: "{{ hosts_file_dest }}"
+    line: "{{ ms_ip_address  }} {{ required_server_hostname }}"
+    state: present
+    create: yes
+    mode: "{{ hosts_file_mode }}"
   when: hostvars['127.0.0.1']['ipa_server_ms']
 
 - name: Uninstall client if already installed

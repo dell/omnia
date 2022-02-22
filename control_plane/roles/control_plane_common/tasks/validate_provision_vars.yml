@@ -79,3 +79,61 @@
       - provision_os in iso_file_path | lower
     fail_msg: "{{ invalid_iso_file_path }}"
     success_msg:  "{{ valid_iso_file_path }}"
+
+- name: Warning - waiting for 30 seconds
+  pause:
+    seconds: 30
+    prompt: "{{ dns_empty_warning_msg }}"
+  when: 
+     - primary_dns | length < 1
+     - secondary_dns | length < 1  
+
+- name: Validate primary_dns is not empty when secondary_dns provided
+  fail:
+    msg: "{{ primary_dns_empty_msg }}"
+  when: 
+    - primary_dns | length < 1
+    - secondary_dns | length >1
+
+- name: Validate dns inputs
+  block:
+    - name: Assert primary_dns when not empty
+      assert:
+        that:
+          - primary_dns | ipv4
+        success_msg: "{{ primary_dns_success_msg }}"
+        fail_msg: "{{ primary_dns_fail_msg }}"
+
+    - name: Test reachability of primary_dns
+      command: ping -c3 {{ primary_dns }}
+      failed_when: false
+      changed_when: false
+      register: primary_dns_check
+
+    - name: Verify primary_dns is reachable
+      fail:
+        msg: "{{ primary_dns_not_reachable_msg }}"
+      when: ping_search_key in primary_dns_check.stdout
+
+    - name: Validate secondary_dns inputs
+      block:
+        - name: Assert secondary_dns when not empty
+          assert:
+            that:
+              - secondary_dns | ipv4
+              - secondary_dns != primary_dns
+            success_msg: "{{ secondary_dns_success_msg }}"
+            fail_msg: "{{ secondary_dns_fail_msg }}"
+
+        - name: Test reachability of secondary_dns
+          command: ping -c3 {{ secondary_dns }}
+          failed_when: false
+          changed_when: false
+          register: secondary_dns_check
+
+        - name: Verify secondary_dns is reachable
+          debug:
+            msg: "{{ secondary_dns_not_reachable_msg }}"
+          when: ping_search_key in secondary_dns_check.stdout    
+      when: secondary_dns | length > 1
+  when: primary_dns | length > 1

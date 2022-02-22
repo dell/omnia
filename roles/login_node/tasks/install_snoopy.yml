@@ -13,29 +13,27 @@
 #  limitations under the License.
 ---
 
-# Usage: main.yml
-login_node_group: login_node
+- name: Install required packages
+  package:
+    name: "{{ snoopy_packages }}"
+    state: present
 
-# Usage: set_fqdn.yml
-etc_hosts_file_dest: /etc/hosts
-file_mode: '0644'
+- name: Download snoopy package
+  get_url:
+    url: "{{ snoopy_url }}"
+    dest: "{{ snoopy_path }}"
 
-# Usage: firewall_settings.yml
-https_port1: "80/tcp"
-https_port2: "443/tcp"
-ldap_port1: "389/tcp"
-ldap_port2: "636/tcp"
-kerberos_port1: "88/tcp"
-kerberos_port2: "464/tcp"
-kerberos_port3: "88/udp"
-kerberos_port4: "464/udp"
-dns_port1: "53/tcp"
-dns_port2: "53/udp"
-dt_port1: "7389/tcp"
-ntp_port1: "123/udp"
+- name: Change permissions
+  file:
+   path: "{{ snoopy_path }}"
+   mode: "{{ snoopy_mode }}"
 
-# Usage: enable_dnf_module.yml
-os_centos: 'centos'
-os_rocky: 'rocky'
-os_leap: 'leap'
-os_version: '8.0'
+- name: Run the script
+  shell: sh ./install-snoopy.sh stable
+  args:
+   chdir: "{{ snoopy_path }}"
+  changed_when: false
+
+- name: Enable snoopy
+  command: snoopy-enable
+  changed_when: false

@@ -20,6 +20,29 @@
     mode: 0775
   tags: install
 
+- name: Configure DHCP routing settings
+  block:
+    - name: Add option routers when dns provided
+      lineinfile:
+        path: "{{ role_path }}/files/dhcp.template"
+        insertafter: "^(.*)range dynamic-bootp"
+        line: "option routers {{ hpc_ip }};"
+
+    - name: Add domain name servers when primary dns only provided
+      lineinfile:
+        path: "{{ role_path }}/files/dhcp.template"
+        insertafter: "^(.*)range dynamic-bootp"
+        line: "option domain-name-servers {{ primary_dns }};"
+      when: secondary_dns | length < 1
+
+    - name: Add domain name servers when primary and secondary dns provided
+      lineinfile:
+        path: "{{ role_path }}/files/dhcp.template"
+        insertafter: "^(.*)range dynamic-bootp"
+        line: "option domain-name-servers {{ primary_dns }}, {{ secondary_dns }};"
+      when: secondary_dns | length > 1
+  when: primary_dns | length > 1
+  
 - name: Assign subnet and netmask
   replace:
     path: "{{ role_path }}/files/dhcp.template"
@@ -70,6 +93,12 @@
     regexp: '^next_server: 127.0.0.1'
     replace: 'next_server: {{ hpc_ip }}'
 
+- name: Assign proxy_url_ext url
+  replace:
+    path: "{{ role_path }}/files/settings.yaml"
+    regexp: '^proxy_url_ext: "http://ip:port"'
+    replace: 'proxy_url_ext: "http://{{ hpc_ip }}:{{ http_port }}"'
+
 - name: Set the server_args for {{ provision_os }} in tftp file
   replace:
     path: "{{ role_path }}/files/tftp"
@@ -97,4 +126,4 @@
         path: "{{ role_path }}/files/tftp"
         regexp: '^        server_args             = -s /var/lib/tftpboot'
         replace: '        server_args             = -s /srv/tftpboot'
-  when: os_supported_leap in mgmt_os 
+  when: os_supported_leap in mgmt_os

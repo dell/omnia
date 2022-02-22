@@ -13,14 +13,30 @@
 #  limitations under the License.
 ---
 
-- name: Add ports to firewall to run slurm jobs
-  include_tasks: firewall_settings.yml
-  when:
-    - hostvars['127.0.0.1']['login_node_required']
-    - hostvars[groups['manager'][0]] != hostvars[groups['login_node'][0]]
+- block:
+    - name: Add ports to firewall to run slurm jobs
+      include_tasks: firewall_settings.yml
+    
+    - name: Install ipa client
+      include_tasks: install_ipa_client.yml
 
-- name: Install ipa client
-  include_tasks: install_ipa_client.yml
+    - block:
+        - name: FreeIPA configuration
+          include_tasks: ipa_configuration.yml
+          
+        - name: Install snoopy
+          include_tasks: install_snoopy.yml
+
+        - name: Install psacct/acct
+          include_tasks: user_monitor.yml
+
+        - name: Alert configuration
+          include_tasks: configure_alerting.yml
+          when: hostvars['127.0.0.1']['alert_email_address'] | length > 1
+        
+        - name: Session timeout configuration
+          include_tasks: session_timeout.yml
+      when: hostvars['127.0.0.1']['enable_secure_login_node']
   when:
     - hostvars['127.0.0.1']['login_node_required']
     - hostvars[groups['manager'][0]] != hostvars[groups['login_node'][0]]

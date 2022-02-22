@@ -1,7 +1,7 @@
 #version=CENTOS7
 
 # Use network installation
-url --url http://ip/cblr/links/centos-x86_64/
+url --url http://ip:port/cblr/links/centos-x86_64/
 
 # Install OS instead of upgrade
 install
