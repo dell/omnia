@@ -1,14 +1,24 @@
-# Dockerfile for creating the management network container
-FROM alpine:latest
+FROM rockylinux/rockylinux:8.5
 
-#Installation of packages
-RUN apk add dhcp
-RUN apk add ansible
-RUN apk add openrc
+RUN dnf install -y epel-release
+RUN dnf install dhcp-server -y \
+  ansible \
+  cronie \
+  net-tools
+RUN dnf groupinstall "Infiniband Support" -y
+RUN dnf install -y opensm
+RUN dnf clean all  && \
+    rm -rf /var/cache/yum
 
 #Creation of directories and files
 RUN mkdir /root/omnia
-RUN touch /var/lib/dhcp/dhcpd.leases
+RUN touch /var/lib/dhcpd/dhcpd.leases
 
 #Copy Configuration files
 COPY dhcpd.conf  /etc/dhcp/dhcpd.conf
+COPY opensm.conf /etc/rdma/opensm.conf
+COPY start.sh /
+
+RUN systemctl enable dhcpd
+
+CMD ["sbin/init"]
