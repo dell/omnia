@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,21 +18,43 @@
   changed_when: true
   args:
     chdir: "{{ role_path }}/files/"
-  tags: install
 
 - name: Update image name in k8s_infiniband.yml
   replace:
-    path: "{{ role_path }}/files/k8s_infiniband.yml"
+    path: "{{ ib_kube_config_file }}"
     regexp: 'localhost/infiniband-container:latest'
     replace: "localhost/{{ infiniband_image_name }}:{{ infiniband_image_tag }}"
 
 - name: Update omnia project path in k8s_infiniband.yml
   replace:
-    path: "{{ role_path }}/files/k8s_infiniband.yml"
+    path: "{{ ib_kube_config_file }}"
     regexp: '        - name: omnia-storage\n          hostPath:\n            path:.*'
     replace: "        - name: omnia-storage\n          hostPath:\n            path: {{ role_path.split('control_plane')[0] }}"
 
+- name: Replace container name in sm config file
+  replace:
+    path: "{{ ib_kube_config_file }}"
+    regexp: "      containers:\n        - name:.*"
+    replace: "      containers:\n        - name: {{ ib_container_name }}"
+
+- name: Replace image name in sm config file
+  replace:
+    path: "{{ ib_kube_config_file }}"
+    regexp: "          image:.*"
+    replace: "          image: 'localhost/{{ infiniband_image_name }}:{{ infiniband_image_tag}}'"
+
+- name: Replace cache directory in sm config file
+  replace:
+    path: "{{ ib_kube_config_file }}"
+    regexp: "        - name: opensm-cache\n          hostPath:\n            path:.*"
+    replace: "        - name: opensm-cache\n          hostPath:\n            path: {{ subnet_manager.cache_directory }} "
+
+- name: Replace cache directory in sm config file
+  replace:
+    path: "{{ ib_kube_config_file }}"
+    regexp: "        - name: opensm-logs\n          hostPath:\n            path:.*"
+    replace: "        - name: opensm-logs\n          hostPath:\n            path: {{ subnet_manager.log_directory }} "
+
 - name: Deploy infiniband pod
-  command: "kubectl apply -f {{ role_path }}/files/k8s_infiniband.yml"
+  command: "kubectl apply -f {{ ib_kube_config_file }}"
   changed_when: true
-  tags: install
