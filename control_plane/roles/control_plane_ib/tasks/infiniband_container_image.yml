@@ -41,7 +41,7 @@
   replace:
     path: "{{ ib_kube_config_file }}"
     regexp: "          image:.*"
-    replace: "          image: 'localhost/{{ infiniband_image_name }}:{{ infiniband_image_tag}}'"
+    replace: "          image: 'localhost/{{ infiniband_image_name }}:{{ infiniband_image_tag }}'"
 
 - name: Replace cache directory in sm config file
   replace:
