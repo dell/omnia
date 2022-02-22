@@ -153,6 +153,12 @@ host_network_nic: "eno3"
 host_network_dhcp_start_range: "172.17.0.100"
 host_network_dhcp_end_range: "172.17.0.200"
 
+# The DNS servers IP address for the internet access of compute nodes(through DHCP routing using cobbler)
+# If this variable is empty, a separate public internet nic should be present in compute nodes for internet access.
+# Optional field
+primary_dns: ""
+secondary_dns: ""
+
 # The mapping file consists of the MAC address and its respective IP address and Hostname and Component_role(if any)
 # 2 Formats are supported for host mapping files:
 # If user wants one-touch provisioning of omnia cluster, format of csv: MAC,Hostname,IP,Component_role
