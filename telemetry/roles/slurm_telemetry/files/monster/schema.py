@@ -1,18 +1,14 @@
 """
 MIT License
-
 Copyright (c) 2022 Texas Tech University
-
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
-
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
-
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -24,7 +20,6 @@ SOFTWARE.
 
 """
 This file is part of MonSter.
-
 Author:
     Jie Li, jie.li@ttu.edu
 """
@@ -33,46 +28,6 @@ import utils
 import logger
 
 log = logger.get_logger(__name__)
-
-
-def build_idrac_table_schemas(metric_definitions: list):
-    """build_table_schemas Build iDRAC Table Schemas
-
-    Build table schemas based on the idrac telemetry metric definitions
-
-    Args:
-        metric_definitions (list): idrac telemetry metric definitions
-    
-    Returns:
-        dict: iDRAC table schemas
-    """
-    table_schemas = {}
-
-    try:
-        for metric in metric_definitions:
-            table_name = metric['Id']
-            metric_type = metric['MetricDataType']
-            metric_unit = metric.get('Units', None)
-
-            # For network metrics, use BIG INT for storing the metric readings
-            if metric_unit == 'By' or metric_unit == 'Pkt':
-                value_type = 'BIGINT'
-            else:
-                value_type = utils.data_type_mapping.get(metric_type, 'TEXT')
-            
-            column_names = ['Timestamp', 'NodeID', 'Source', 'FQDD', 'Value']
-            column_types = ['TIMESTAMPTZ NOT NULL', 'INT NOT NULL', 'TEXT', \
-                            'TEXT', value_type]
-            
-            table_schemas.update({
-                table_name: {
-                    'column_names': column_names,
-                    'column_types': column_types,
-                }
-            })
-    except Exception as err:
-        log.error(f"Cannot build idrac table schemas: {err}")
-    return table_schemas
 
 
 def build_slurm_table_schemas():
