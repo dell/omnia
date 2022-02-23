@@ -23,14 +23,30 @@ spec:
           hostPath:
             path: /root/omnia
             type: Directory
+        - name: opensm-cache
+          hostPath:
+            path: /var/cache/opensm
+            type: Directory
+        - name: opensm-logs
+          hostPath:
+            path: /var/log
+            type: Directory
       containers:
         - name: infiniband-container
           image: 'localhost/infiniband-container:latest'
           imagePullPolicy: Never
-          command: ["sh", "-c", "tail -f /dev/null"]
+          command:
+            - /sbin/init
           volumeMounts:
             - name: omnia-storage
               mountPath: /root/omnia
+            - mountPath: /var/cache/opensm
+              name: opensm-cache
+            - mountPath: /var/log
+              name: opensm-logs
+          resources:
+            limits:
+              memory: "10Gi"
           securityContext:
             allowPrivilegeEscalation: true
             capabilities:

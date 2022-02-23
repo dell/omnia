@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,11 +13,17 @@
 # limitations under the License.
 ---
 
-# vars file for infiniband
+# Usage: check_prerequisites.yml
+folder_perm: 644
+opensm_conf_file: "{{ role_path }}/../../input_params/opensm.conf"
+opensm_conf_file_dest: "{{ role_path }}/files/opensm.conf"
 
 # Usage: infiniband_container_image.yml
 infiniband_image_name: infiniband_container
 infiniband_image_tag: latest
 mount_path: /root/omnia
 infiniband_message_skipped: "The container is already present"
+infiniband_message_installed: "The container is installed"
+ib_kube_config_file: "{{ role_path }}/files/k8s_infiniband.yml"
+ib_container_name: inifiniband-container"
 infiniband_message_installed: "The container is installed"
