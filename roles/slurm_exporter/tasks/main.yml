@@ -38,13 +38,6 @@
     - "'kubernetes' in ansible_skip_tags"
     - "'No such file' in k8s_installation_status.stderr"
 
-- name: Install community.grafana collection
-  command: ansible-galaxy collection install community.grafana
-  changed_when: True
-  tags: install
-  delegate_to: localhost
-  when: hostvars['127.0.0.1']['control_plane_status']
-
 - name: Configure grafana dashboard
   include_tasks: configure_grafana.yml
   when:
