@@ -18,6 +18,12 @@
     src: "{{ role_path }}/files/monster"
     dest: "{{ slurm_telemetry_code_dir }}"
     mode: "{{ slurm_telemetry_code_dir_mode }}"
+    
+- name: Install jmepath
+  pip:
+    name: jmespath
+    state: present
+    executable: pip3
 
 - name: Get AWX service IP
   command: kubectl get svc awx-ui -n {{ awx_namespace }} -o=jsonpath='{.spec.clusterIP}'
