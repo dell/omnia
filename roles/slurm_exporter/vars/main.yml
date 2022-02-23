@@ -31,6 +31,7 @@ prometheus_inst_path: "/var/lib/prometheus-2.23.0.linux-amd64/"
 prometheus_exec_path: "{{ prometheus_inst_path }}/prometheus"
 system_local_path: "/usr/local/bin"
 prometheus_config_file: "{{ prometheus_inst_path }}/prometheus.yml"
+opensuse_os_name: "openSUSE Leap"
 
 #Usage: start_service.yml
 file_permission: "0755"
