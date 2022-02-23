@@ -4,12 +4,14 @@
 1.2
 
 #### Previous release version
-1.1.1
+1.1.2
 
 ## Blogs about Omnia
 - [Introduction to Omnia](https://infohub.delltechnologies.com/p/omnia-open-source-deployment-of-high-performance-clusters-to-run-simulation-ai-and-data-analytics-workloads/)
 - [Taming the Accelerator Cambrian Explosion with Omnia](https://infohub.delltechnologies.com/p/taming-the-accelerator-cambrian-explosion-with-omnia/)
 - [Containerized HPC Workloads Made Easy with Omnia and Singularity](https://infohub.delltechnologies.com/p/containerized-hpc-workloads-made-easy-with-omnia-and-singularity/)
+- [Solution Overview: Dell EMC Omnia Software](https://infohub.delltechnologies.com/section-assets/omnia-solution-overview)
+- [Solution Brief: Omnia Software](https://infohub.delltechnologies.com/section-assets/omnia-solution-brief)
 
 ## What Omnia does
 Omnia can build clusters that use Slurm or Kubernetes (or both!) for workload management. Omnia will install software from a variety of sources, including:
@@ -49,7 +51,7 @@ The following table lists the software and operating system requirements on the 
 
 Requirements  |   Version
 ----------------------------------  |   -------
-OS pre-installed on the management station  |  CentOS 8.4/ Rocky 8.5/ Leap 15.3
+OS pre-installed on the management station  |  Rocky 8.5/ Leap 15.3
 OS deployed by Omnia on bare-metal Dell EMC PowerEdge Servers | Rocky 8.5 Minimal Edition/ Leap 15.3
 Cobbler  |  3.2.2
 Ansible AWX  |  19.4.0
@@ -81,7 +83,6 @@ Software	|	License	|	Compatible Version	|	Description
 LeapOS 15.3	|	-	|	15.3|	Operating system on entire cluster
 CentOS Linux release 7.9.2009 (Core)	|	-	|	7.9	|	Operating system on entire cluster except for management station
 Rocky 8.5	|	-	|	8.5	|	Operating system on entire cluster except for management station
-CentOS Linux release 8.4.2105	|	-	|	8.4	|	Operating system on the management station	
 Rocky 8.5	|	-	|	8.5	|	Operating system on the management station
 MariaDB	|	GPL 2.0	|	5.5.68	|	Relational database used by Slurm
 Slurm	|	GNU General Public	|	20.11.7	|	HPC Workload Manager
@@ -113,11 +114,15 @@ Buildah	|	Apache-2.0	|	1.21.4	|	Tool to build and run container
 PostgreSQL	|	Copyright (c) 1996-2020, PostgreSQL Global Development Group	|	10.15	|	Database Management System
 Redis	|	BSD-3-Clause License	|	6.0.10	|	In-memory database
 NGINX	|	BSD-2-Clause License	|	1.14	|	-
-dellemc.openmanage	|	GNU-General Public License v3.0	|	3.5.0	|	It is a systems management and monitoring application that provides a comprehensive view of the Dell EMC servers, chassis, storage, and network switches on the enterprise network
 dellemc.os10	|	GNU-General Public License v3.1	|	1.1.1	|	It provides networking hardware abstraction through a common set of APIs
-Genisoimage-dnf	|	GPL v3	|	1.1.11	|	Genisoimage is a pre-mastering program for creating ISO-9660 CD-ROM  filesystem images
-OMSDK	|	Apache-2.0	|	1.2.456	|	Dell EMC OpenManage Python SDK (OMSDK) is a python library that helps developers and customers to automate the lifecycle management of PowerEdge Servers
-
+OMSDK	|	Apache-2.0	|	1.2.488	|	Dell EMC OpenManage Python SDK (OMSDK) is a python library that helps developers and customers to automate the lifecycle management of PowerEdge Servers
+| Loki                                  | Apache License 2.0               | 2.4.1  | Loki is a log aggregation system   designed to store and query logs from all your applications and   infrastructure                            |
+| Promtail                              | Apache License 2.1               | 2.4.1  | Promtail is an agent which ships the contents of local logs to   a private Grafana Loki instance or Grafana Cloud.                             |
+| kube-prometheus-stack                 | Apache License 2.2               | 25.0.0 | Kube Prometheus Stack is a collection of Kubernetes manifests,   Grafana dashboards, and Prometheus rules.                                     |
+| mailx                                 | MIT License                      | 12.5   | mailx is a Unix utility program for sending and receiving   mail.                                                                              |
+| postfix                               | IBM Public License               | 3.5.8  | Mail Transfer Agent (MTA) designed to determine routes and   send emails                                                                       |
+| xorriso                               | GPL version 3                    | 1.4.8  | xorriso copies file objects from POSIX compliant filesystems   into Rock Ridge enhanced ISO 9660 filesystems.                                  |
+| Dell EMC   OpenManage Ansible Modules | GNU- General Public License v3.0 | 5.0.0  | OpenManage Ansible Modules simplifies and automates   provisioning, deployment, and updates of PowerEdge servers and modular   infrastructure. |
 
 # Known issues  
 * **Issue**: Hosts are not displayed on the AWX UI.  

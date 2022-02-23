@@ -1,6 +1,4 @@
-# Enabling Security on the Login Node
-
-## Prerequisites to enabling security
+# Enabling Security on the Login Node (RockyOS)
 
 * Ensure that `enable_secure_login_node` is set to **true** in `omnia_config.yml`
 * Set the following parameters in `omnia_security_config.yml`

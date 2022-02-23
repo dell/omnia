@@ -91,9 +91,10 @@ __Note:__ After the Omnia repository is cloned, a folder named __omnia__ is crea
 | realm_name                 | OMNIA.TEST    | Sets the intended realm name                                                                                                                                                                                                                         |
 | directory_manager_password |               | Password authenticating admin level access to the Directory for system   management tasks. It will be added to the instance of directory server   created for IPA. <br> Required Length: 8 characters. <br> The   password must not contain -,\, '," |
 | ipa_admin_password         |               | IPA server admin password                                                                                                                                                                                                                            |
+| enable_secure_login_node   |  **false**, true             | Boolean value deciding whether security features are enabled on the Login Node. For more information, see [here](docs/Security/Enable_Security_LoginNode.md).                                                                                                                                                                                                                           |
 	
 	
-__NOTE:__  Without the login node, Slurm jobs can be scheduled only through the manager node.
+>> __NOTE:__  Without the login node, Slurm jobs can be scheduled only through the manager node.
 
 4. Create an inventory file in the *omnia* folder. Add login node IP address under the *[login_node]* group, manager node IP address under the *[manager]* group, compute node IP addresses under the *[compute]* group, and NFS node IP address under the *[nfs_node]* group. A template file named INVENTORY is provided in the *omnia\docs* folder.  
 	**NOTE**: Ensure that all the four groups (login_node, manager, compute, nfs_node) are present in the template, even if the IP addresses are not updated under login_node and nfs_node groups. 

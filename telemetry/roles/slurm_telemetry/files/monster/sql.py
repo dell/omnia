@@ -1,18 +1,14 @@
 """
 MIT License
-
 Copyright (c) 2022 Texas Tech University
-
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
-
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
-
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -24,7 +20,6 @@ SOFTWARE.
 
 """
 This file is part of MonSter.
-
 Author:
     Jie Li, jie.li@ttu.edu
 """
@@ -181,18 +176,18 @@ def update_nodes_metadata(conn: object, nodes_metadata: list, table_name: str):
         conn (object): database connection
         nodes_metadata (list): nodes metadata list
         table_name (str): table name
-    """
+    """    
     cur = conn.cursor()
     for record in nodes_metadata:
         col_sql = ""
-        bmc_ip_addr = record['Bmc_Ip_Addr']
+        os_ip_addr = record['Os_Ip_Addr']
         for col, value in record.items():
-            if col != 'Bmc_Ip_Addr' and col != 'HostName':
+            if col != 'Os_Ip_Addr' and col != 'servicetag':
                 col_value = col.lower() + " = '" + str(value) + "', "
                 col_sql += col_value
         col_sql = col_sql[:-2]
         sql =  "UPDATE " + table_name + " SET " + col_sql \
-            + " WHERE bmc_ip_addr = '" + bmc_ip_addr + "';"
+            + " WHERE os_ip_addr = '" + os_ip_addr + "';"
         cur.execute(sql)
     
     conn.commit()
@@ -326,39 +321,6 @@ def generate_slurm_sql(metric: str,
             AND timestamp <= '{end}' \
             GROUP BY time, nodeid \
             ORDER BY time;"
-    return sql
-
-
-def generate_idrac_sql(metric: str, 
-                       fqdd: str,
-                       start: str, 
-                       end: str, 
-                       interval: str, 
-                       aggregate: str):
-    """generate_idrac_sql Generate iDRAC Sql
-
-    Generate sql for querying idrac metrics
-
-    Args:
-        metric (str): metric name
-        fqdd (str): Fully Qualified Device Descriptor
-        start (str): start of time range
-        end (str): end of time range
-        interval (str): aggregation interval
-        aggregate (str): aggregation function
-    
-    Returns:
-        string: sql string
-    """
-    schema = 'idrac'
-    sql = f"SELECT time_bucket_gapfill('{interval}', timestamp) AS time, \
-        nodeid, fqdd AS label, {aggregate}(value) AS value \
-        FROM {schema}.{metric} \
-        WHERE timestamp >= '{start}' \
-        AND timestamp < '{end}' \
-        AND fqdd = '{fqdd}' \
-        GROUP BY time, nodeid, label \
-        ORDER BY time;"
     return sql
 
 

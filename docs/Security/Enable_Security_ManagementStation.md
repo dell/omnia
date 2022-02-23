@@ -1,13 +1,25 @@
-# Enabling Security on the Management Station and Login Node
+# Enabling Security on the Management Station
 
-Omnia uses FreeIPA to enable security features like authorisation and access control.
+Omnia uses FreeIPA on RockyOS to enable security features like authorisation and access control.
 
 ## Enabling Authentication on the Management Station:
 
 Set the parameter 'enable_security_support' to true in `base_vars.yml`
 
 ## Prerequisites Before Enabling Security:
-* Enter the relevant values in `security_vars.yml`:
+
+* Enter the relevant values in `login_vars.yml`:
+
+| Parameter Name             | Default Value | Additional Information                                                                           |
+|----------------------------|---------------|--------------------------------------------------------------------------------------------------|
+| ms_directory_manager_password |               | Password of the Directory Manager with full access to the directory for system management tasks. |
+| ms_kerberos_admin_password         |               | "admin" user password for the IPA server on RockyOS. If LeapOS is in use, it is used as the "kerberos admin" user password for 389-ds <br> This field is not relevant to Management Stations running `LeapOS`                                                         |
+
+
+
+* Enter the relevant values in `security_vars.yml:
+
+If `RockyOS` is in use on the Management Station:
 
 |  Parameter Name        |  Default Value  |  Additional Information                                                                                                                                                                                                                                                                                                                                      |
 |------------------------|-----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -17,16 +29,9 @@ Set the parameter 'enable_security_support' to true in `base_vars.yml`
 | failure_reset_interval | 60              | Period (in seconds) after which the number of failed login attempts is   reset <br> Accepted Values: 30-60                                                                                                                                                                                                                                                   |
 | lockout_duration       | 10              | Period (in seconds) for which users are locked out. <br> Accepted   Values: 5-10                                                                                                                                                                                                                                                                             |
 | session_timeout        | 180             | Period (in seconds) after which idle users get logged out automatically   <br> Accepted Values: 30-90                                                                                                                                                                                                                                                        |
-| alert_email_address    |                 | Email address used for sending alerts in case of authentication failure   <br> If this variable is left blank, authentication failure alerts will   be disabled.                                                                                                                                                                                             |
+| alert_email_address    |                 | Email address used for sending alerts in case of authentication failure. Currently, only one email address is supported in this field.   <br> If this variable is left blank, authentication failure alerts will   be disabled.                                                                                                                                                                                             |
 | allow_deny             | Allow           | This variable sets whether the user list is Allowed or Denied. <br>   Accepted Values: Allow, Deny                                                                                                                                                                                                                                                           |
 | user                   |                 | Array of users that are allowed or denied based on the `allow_deny`   value. Multiple users must be separated by a space.                                                                                                                                                                                                                                    |
-
-* Enter the relevant values in `login_vars.yml`:
-
-| Parameter Name             | Default Value | Additional Information                                                                           |
-|----------------------------|---------------|--------------------------------------------------------------------------------------------------|
-| ms_directory_manager_password |               | Password of the Directory Manager with full access to the directory for system management tasks. |
-| ms_ipa_admin_password         |               | "admin" user password for the IPA server                                                         |
 
 
 ## Log Aggregation via Grafana
