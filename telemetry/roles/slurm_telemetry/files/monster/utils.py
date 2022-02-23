@@ -1,18 +1,14 @@
 """
 MIT License
-
 Copyright (c) 2022 Texas Tech University
-
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
-
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
-
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -24,7 +20,6 @@ SOFTWARE.
 
 """
 This file is part of MonSter.
-
 Author:
     Jie Li, jie.li@ttu.edu
 """
@@ -87,17 +82,6 @@ def parse_config():
         log.error(f"Parsing Configuration Error: {err}")
 
 
-def get_idrac_auth():
-    """get_idrac_auth Get iDRAC Authentication
-
-    Get username and password for accessing idrac reports
-    """
-    idrac_config = parse_config()['idrac']
-    username = idrac_config['username']
-    password = idrac_config['password']
-    return(username, password)
-
-
 def get_config(target: str):
     """get_config Get Config
 
@@ -113,7 +97,7 @@ def get_config(target: str):
         dict: configurations of specified target
     """
     
-    targets = ['timescaledb', 'idrac', 'slurm_rest_api']
+    targets = ['timescaledb', 'slurm_rest_api']
     if target not in targets:
         raise ValueError(f"Invalid configuration target. Expected one of: {targets}")
 
@@ -137,22 +121,13 @@ def init_tsdb_connection():
     return connection
 
 
-def get_nodelist():
-    """get_nodelist Get Nodelist
+def get_clusternodes():
+    """get_clusternodes Get ClusterNodes
 
-    Generate the nodelist according to the configuration
+    Generate the nodes list in the cluster
     """
-    idrac_config = parse_config()['idrac']['nodelist']
-    nodelist = []
-
-    try:
-        for i in idrac_config:
-            nodes = hostlist.expand_hostlist(i)
-            nodelist.extend(nodes)
-        
-        return nodelist
-    except Exception as err:
-        log.error(f"Cannot generate nodelist: {err}")
+    nodes_config = parse_config()['clusternodes']
+    return nodes_config
 
 
 def sort_tuple_list(tuple_list:list):
@@ -193,39 +168,16 @@ def get_node_id_mapping(connection: str):
     try:
         with psycopg2.connect(connection) as conn:
             cur = conn.cursor()
-            query = "SELECT nodeid, hostname FROM nodes"
+            query = "SELECT nodeid, os_ip_addr from nodes"
             cur.execute(query)
-            for (nodeid, hostname) in cur.fetchall():
+            for (nodeid, os_ip_addr) in cur.fetchall():
                 mapping.update({
-                    hostname: nodeid
+                    os_ip_addr: nodeid
                 })
             cur.close()
             return mapping
     except Exception as err:
         log.error(f"Cannot generate node-id mapping: {err}")
-
-
-def get_metric_dtype_mapping(conn: object):
-    """get_table_dtype_mapping Get Metric-datatype mapping
-
-    Get Metric-datatype mapping from the metric definition
-
-    Args:
-        conn (object): TimeScaleDB connection object
-
-    Returns:
-        dict: Metric-datatype mapping
-    """
-    mapping = {}
-    cur = conn.cursor()
-    query = "SELECT metric_id, data_type FROM metrics_definition;"
-    cur.execute(query)
-    for (metric, data_type) in cur.fetchall():
-        mapping.update({
-            metric: data_type
-        })
-    cur.close()
-    return mapping
 
 
 def get_ip_id_mapping(conn: object):
@@ -241,11 +193,11 @@ def get_ip_id_mapping(conn: object):
     """
     mapping = {}
     cur = conn.cursor()
-    query = "SELECT nodeid, bmc_ip_addr FROM nodes"
+    query = "SELECT nodeid, os_ip_addr FROM nodes"
     cur.execute(query)
-    for (nodeid, bmc_ip_addr) in cur.fetchall():
+    for (nodeid, os_ip_addr) in cur.fetchall():
         mapping.update({
-            bmc_ip_addr: nodeid
+            os_ip_addr: nodeid
         })
     cur.close()
     return mapping
@@ -272,25 +224,3 @@ def cast_value_type(value, dtype):
             return value
     except ValueError:
         return value
-
-
-def partition(arr:list, cores: int):
-    """
-    Partition urls/nodes into several groups based on # of cores
-    """
-    groups = []
-    try:
-        arr_len = len(arr)
-        arr_per_core = arr_len // cores
-        arr_surplus = arr_len % cores
-
-        increment = 1
-        for i in range(cores):
-            if(arr_surplus != 0 and i == (cores-1)):
-                groups.append(arr[i * arr_per_core:])
-            else:
-                groups.append(arr[i * arr_per_core : increment * arr_per_core])
-                increment += 1
-    except Exception as err:
-        log.error(f"Cannot Partition List : {err}")
-    return groups

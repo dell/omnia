@@ -1,18 +1,14 @@
 """
 MIT License
-
 Copyright (c) 2022 Texas Tech University
-
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
-
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
-
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -24,7 +20,6 @@ SOFTWARE.
 
 """
 This file is part of MonSter.
-
 Author:
     Jie Li, jie.li@ttu.edu
 """
@@ -121,7 +116,7 @@ def parse_node_metrics(nodes_data: dict,
             try:
                 hostname = os_idrac_hostname_mapping[hostname]
             except Exception as err:
-                log.error(f"Cannot mapping OS-iDRAC hostname: {err}")
+                log.error(f"Cannot map OS-hostname and IP: {err}")
 
         # Only process those nodes that are in node_id_mapping dict. 
         if hostname in node_id_mapping:
