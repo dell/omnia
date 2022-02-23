@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 ---
 
 # Tasks file for infiniband
--
+
 - name: Check if IB switch is supported
   block:
     - name: Check infiniband_container status on machine
@@ -52,5 +52,6 @@
             msg: "{{ infiniband_message_installed }}"
             verbosity: 2
           when: not infiniband_container_status
-      tags: install
-  when: ib_switch_support
+  when:
+    - ib_switch_support
+    - mgmt_os in os_supported_rocky
