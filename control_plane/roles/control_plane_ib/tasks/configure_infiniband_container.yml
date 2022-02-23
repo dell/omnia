@@ -38,7 +38,6 @@
 
 - name: Configuring infiniband container
   command: 'kubectl exec --stdin --tty -n network-config {{ infiniband_pod_name.stdout }} \
-    -- ansible-playbook /root/omnia/control_plane/roles/control_plane_ib/files/infiniband_container_configure.yml'
+    -- ansible-playbook /root/omnia/control_plane/roles/control_plane_ib/files/infiniband_container_configure.yml -e ib_nic= "{{ ib_network_nic }}"'
   changed_when: false
   tags: install
-#  when: infiniband_container_config_status == false

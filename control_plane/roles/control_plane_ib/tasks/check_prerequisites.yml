@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,47 +20,56 @@
     infiniband_container_config_status: false
     infiniband_backup_map_status: false
     infiniband_new_node_status: false
-  tags: install
-
-- name: Check if any backup file exists
-  block:
-  - name: Check status of backup file
-    stat:
-      path: "{{ role_path }}/files/backup_mapping_file.csv"
-    register: infiniband_backup_map
-
-  - name: Set status for backup file
-    set_fact:
-      infiniband_backup_map_status: true
-    when: infiniband_backup_map.stat.exists 
-  rescue:
-  - name: Message
-    debug:
-      msg: "All nodes are new"
-      verbosity: 2
 
 - name: Inspect the infiniband_container image
   command: "buildah images"
   register: infiniband_container_image_result
   failed_when: false
   changed_when: false
-  tags: install
+
+- name: Create directories if they don't exist
+  block:
+    - name: Checking directory
+      stat:
+        path: "{{ item }}"
+      register: stat_result
+      with_items:
+        - "{{ subnet_manager.cache_directory }}"
+        - "{{ subnet_manager.log_directory }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Creating directories
+      file:
+        path: "{{ item.item }}"
+        state: directory
+        mode: "{{ folder_perm }}"
+        group: root
+        owner: root
+      when: not item.stat.exists
+      loop: "{{ stat_result.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+- name: Copy opensm configuration file
+  copy:
+    src: "{{ opensm_conf_file }}"
+    dest: "{{ opensm_conf_file_dest }}"
+    mode: preserve
+    force: yes
 
 - name: Check infiniband_container status on the machine
   command: kubectl get pods -n network-config
   register: infiniband_container_result
   failed_when: false
   changed_when: false
-  tags: install
 
 - name: Update infiniband_container image status
   set_fact:
     infiniband_container_image_status: true
   when: infiniband_image_name in infiniband_container_image_result.stdout
-  tags: install
 
 - name: Update infiniband_container container status
   set_fact:
     infiniband_container_status: true
   when: "'infiniband-container' in infiniband_container_result.stdout"
-  tags: install
