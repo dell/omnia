@@ -1,0 +1,321 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 21,
+  "iteration": 1644431955119,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "telemetry-postgres"
+      },
+      "gridPos": {
+        "h": 17,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "axisDisplay": "left",
+        "axisTitleAngle": 0,
+        "colorBy": "node",
+        "colorContinous": "RdYlBu",
+        "colorLegend": [
+          "#1f77b4",
+          "#ff7f0e",
+          "#2ca02c",
+          "#d62728",
+          "#9467bd",
+          "#8c564b",
+          "#e377c2",
+          "#7f7f7f",
+          "#bcbd22",
+          "#17becf"
+        ],
+        "lineOpacity": 0.5,
+        "violinEnable": true,
+        "violinResolution": 20,
+        "violinWidth": 20
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "telemetry-postgres"
+          },
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(\"time\",$__interval),\navg(CAST(value AS decimal)) as \"memory_power\",\nCONCAT('| ',system) AS name\nFROM timeseries_metrics\nWHERE  \n$__timeFilter(time) AND \nlabel= 'PowerMetrics TotalMemoryPower' AND \nsystem IN ($ServiceTag)\nGROUP BY\ntime, name\nORDER BY time;",
+          "refId": "memory_power",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "telemetry-postgres"
+          },
+          "format": "time_series",
+          "group": [],
+          "hide": false,
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(\"time\",$__interval),\navg(CAST(value AS decimal)) as \"power_consumption\",\nCONCAT('| ',system) AS name\nFROM timeseries_metrics\nWHERE  \n$__timeFilter(time) AND \nlabel= 'PowerMetrics SystemPowerConsumption' AND \nsystem IN ($ServiceTag)\nGROUP BY\ntime, name\nORDER BY time;",
+          "refId": "power_consumption",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "telemetry-postgres"
+          },
+          "format": "time_series",
+          "group": [],
+          "hide": false,
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(\"time\",$__interval),\navg(CAST(value AS decimal)) as \"cpu_power\",\nCONCAT('| ',system) AS name\nFROM timeseries_metrics\nWHERE  \n$__timeFilter(time) AND \nlabel= 'PowerMetrics TotalCPUPower' AND \nsystem IN ($ServiceTag)\nGROUP BY\ntime, name\nORDER BY time;",
+          "refId": "cpu_power",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "telemetry-postgres"
+          },
+          "format": "time_series",
+          "group": [],
+          "hide": false,
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(\"time\",$__interval),\navg(CAST(value AS decimal)) as \"cpu1_temp\",\nCONCAT('| ',system) AS name\nFROM timeseries_metrics\nWHERE  \n$__timeFilter(time) AND \nlabel= 'CPU1 Temp TemperatureReading' AND \nsystem IN ($ServiceTag)\nGROUP BY\ntime, name\nORDER BY time;",
+          "refId": "cpu1_temp",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "telemetry-postgres"
+          },
+          "format": "time_series",
+          "group": [],
+          "hide": false,
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(\"time\",$__interval),\navg(CAST(value AS decimal)) as \"cpu2_temp\",\nCONCAT('| ',system) AS name\nFROM timeseries_metrics\nWHERE  \n$__timeFilter(time) AND \nlabel= 'CPU2 Temp TemperatureReading' AND \nsystem IN ($ServiceTag)\nGROUP BY\ntime, name\nORDER BY time;",
+          "refId": "cpu2_temp",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "telemetry-postgres"
+          },
+          "format": "time_series",
+          "group": [],
+          "hide": false,
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(\"time\",$__interval),\navg(CAST(value AS decimal)) as \"NIC1_temp\",\nCONCAT('| ',system) AS name\nFROM timeseries_metrics\nWHERE  \n$__timeFilter(time) AND \nlabel= 'Embedded NIC 1 Port 1 Partition 1 TemperatureReading' AND \nsystem IN ($ServiceTag)\nGROUP BY\ntime, name\nORDER BY time;",
+          "refId": "nic1_temp",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        },
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "telemetry-postgres"
+          },
+          "format": "time_series",
+          "group": [],
+          "hide": false,
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(\"time\",$__interval),\navg(CAST(value AS decimal)) as \"Fan1_speed\",\nCONCAT('| ',system) AS name\nFROM timeseries_metrics\nWHERE  \n$__timeFilter(time) AND \nlabel= 'Fan 1A RPMReading' AND \nsystem IN ($ServiceTag)\nGROUP BY\ntime, name\nORDER BY time;",
+          "refId": "fan1_speed",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Parallel-Coordinate",
+      "type": "hpcviz-idvl-hpcc-parallel-coordinate"
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 33,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "datasource": {
+          "type": "postgres",
+          "uid": "telemetry-postgres"
+        },
+        "definition": "SELECT DISTINCT system as __value from timeseries_metrics",
+        "hide": 0,
+        "includeAll": false,
+        "multi": true,
+        "name": "ServiceTag",
+        "options": [],
+        "query": "SELECT DISTINCT system as __value from timeseries_metrics",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "iDRAC-and-Slurm-Telemetry",
+  "uid": "pArBHUtnk",
+  "version": 6,
+  "weekStart": ""
+}
