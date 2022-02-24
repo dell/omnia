@@ -142,7 +142,7 @@
     cobbler_config_status: true
   when:
     - cobbler_container_status
-    - (provision_os in cobbler_profile_list.stdout) or (previous_os in cobbler_profile_list.stdout)
+    - (provision_os in cobbler_profile_list.stdout) or (previous_os in cobbler_profile_list.stdout) or ( "" in cobbler_profile_list.stdout)
     - "'* * * * * /usr/bin/ansible-playbook /root/tftp.yml' in crontab_list.stdout"
     - "'*/5 * * * * /usr/bin/ansible-playbook /root/inventory_creation.yml' in crontab_list.stdout"
 
