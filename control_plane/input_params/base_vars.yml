@@ -19,17 +19,38 @@
 # If ansible is installed using pip, this path should be set
 ansible_conf_file_path: /etc/ansible
 
+# This variable is used to support the management network container.
+# Accepted value: "true" or "false"
+# Default value: "true"
+# If this is set to true everything will be configured by omnia only.
+device_config_support: false
+
+# This variable is used to enable idrac support
+# Accepted values:  "true" or "false".
+# Default value: "false".
+# If idrac support is needed set this to "true"
+idrac_support: false
+
+# List of all the IPs for different types of supported devices.
+# Accepted values: "File path for the list of IPs of different devices."
+# Give this value if idrac_support is true.
+# Format: Set of IPs in new line
+# e.g:
+# 172.19.0.1
+# 172.19.0.5
+device_ip_list_path: ""
+
 # This variable is used to enable ethernet switch configuration
 # Accepted values:  "true" or "false". 
 # Default value: "true".
 # If ethernet switch support is needed set this to "true"
-ethernet_switch_support: true
+ethernet_switch_support: false
 
 # This variable is used to enable infiniband switch configuration
 # Accepted values:  "true" or "false". 
 # Default value: "true".
 # If infiniband configuration is needed set this to "true"
-ib_switch_support: true
+ib_switch_support: false
 
 # This variable is used to enable powervault configuration
 # Accepted values:  "true" or "false". 
