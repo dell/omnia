@@ -39,9 +39,7 @@
   register: input_config_check
   when:
     - provision_password | length < 1 or
-      cobbler_password | length < 1 or      
-      idrac_username | length < 1 or
-      idrac_password | length < 1
+      cobbler_password | length < 1
   tags: [ validate, pxe, idrac ]
 
 - name: Validate security parameters when enable_security_support is set to true
@@ -111,6 +109,7 @@
     - name: idrac credentials validation check
       fail:
         msg: "{{ fail_msg_idrac_credentials }}"
+  when: device_support_status
   tags: [ validate, idrac ]
 
 - name: Assert grafana credentials
@@ -160,7 +159,9 @@
     - name: ethernet switch credentials validation check
       fail:
         msg: "{{ fail_msg_ethernet_credentials }}"
-  when: ethernet_switch_support
+  when:
+    - device_support_status
+    - ethernet_switch_support
   tags: [ validate, network-device ]
 
 - name: Assert username and password for IB switches
@@ -185,7 +186,9 @@
     - name: IB switch credentials validation check
       fail:
         msg: "{{ fail_msg_ib_credentials }}"
-  when: ib_switch_support
+  when:
+    - device_support_status
+    - ib_switch_support
   tags: [ validate, network-ib ]
 
 - name: Assert username and password for powervault me4
@@ -217,7 +220,9 @@
     - name: Powervault me4 credentials validation check
       fail:
         msg: "{{ fail_msg_me4_credentials }}"
-  when: powervault_support
+  when:
+    - device_support_status
+    - powervault_support
   tags: [ validate, network-device ]
 
 - name: Assert ms_directory_manager_password
