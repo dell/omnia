@@ -148,7 +148,7 @@ default_lease_time: "86400"
 # the fabric, idrac and powervault.
 # This nic will be configured by Omnia for the DHCP server.
 # Default value: "eno1"
-mngmnt_network_nic: "eno3"
+mngmnt_network_nic: "eno1"
 
 # The dhcp range for assigning the IPv4 address
 # Example: 172.17.0.1
@@ -168,7 +168,7 @@ mngmnt_mapping_file_path: ""
 # The nic/ethernet card that needs to be connected to provision the OS of bare metal servers
 # This nic will be configured by Omnia for the DHCP server.
 # Default value: "eno3"
-host_network_nic: "eno1"
+host_network_nic: "eno3"
 
 # The dhcp range for assigning the IPv4 address
 # Example: 172.17.0.1
