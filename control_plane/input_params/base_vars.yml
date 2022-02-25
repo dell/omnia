@@ -39,7 +39,7 @@ idrac_support: false
 # e.g:
 # 172.19.0.1
 # 172.19.0.5
-# A template for this file exists in omnia/examples and is named as device_ip_list.yml 
+# A template for this file exists in omnia/examples and is named as device_ip_list.yml
 device_ip_list_path: ""
 
 # This variable is used to enable ethernet switch configuration
