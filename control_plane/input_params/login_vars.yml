@@ -33,12 +33,12 @@ cobbler_password: ""
 
 # The username for idrac
 # The username must not contain -,\, ',"
-# Required field
+# Required only if idrac_support: true
 idrac_username: ""
 
 # Password used for idrac
 # The password must not contain -,\, ',"
-# Required field
+# Required only if idrac_support: true
 idrac_password: ""
 
 ### Usage: webui_awx ###
