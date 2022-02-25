@@ -15,9 +15,7 @@
 
 - name: Install K8s packages
   include_tasks: k8s_installation.yml
-  when:
-    - ( mgmt_os == os_supported_centos ) and ( ansible_distribution_version >= os_supported_centos_version ) or
-      ( mgmt_os == os_supported_rocky ) and ( ansible_distribution_version >= os_supported_rocky_version )
+  when: os_supported_leap not in mgmt_os
 
 - name: Install K8s packages for leap
   include_tasks: k8s_installation_leap.yml

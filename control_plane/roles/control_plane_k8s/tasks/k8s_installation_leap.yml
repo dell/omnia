@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -55,10 +55,22 @@
   changed_when: true
 
 - name: Installing cri-o
-  zypper:
+  package:
     name: cri-o
     state: present
   changed_when: true
+
+- name: Installing cri-o tools
+  package:
+    name: cri-tools
+    state: present
+  changed_when: true
+
+- name: Reloading deamon
+  command: systemctl daemon-reload
+  changed_when: true
+  args:
+    warn: false
 
 - name: Start and enable crio
   service:
@@ -68,13 +80,14 @@
     enabled: yes
   register: crio_repo_result
   until: crio_repo_result is not failed
-  retries: "{{ min_retries }}"
+  retries: "{{ max_retries }}"
 
 - name: Add kubernetes repo
   zypper_repository:
      name: google-k8s
      repo: "{{ k8s_repo_leap }}"
      state: present
+     disable_gpg_check: yes
      autorefresh: yes
 
 - name: Import rpm-package key for installing kubernetes
@@ -94,7 +107,7 @@
   changed_when: false
 
 - name: Refresh repositories and installing conntrack-tools
-  zypper:
+  package:
     name: conntrack-tools
     state: present
     update_cache: yes
@@ -111,6 +124,9 @@
     responses:
         (.*) [1/2/c/d/?](.): '2'
         (.*)(y): 'y'
+  register: kubeadm_status
+  until: kubeadm_status is not failed
+  retries: "{{ max_retries }}"
 
 - name: Install Kubelet
   ansible.builtin.expect:
@@ -118,6 +134,9 @@
     responses:
         (.*) [1/2/c/d/?](.): '2'
         (.*)(y): 'y'
+  register: kubelet_status
+  until: kubelet_status is not failed
+  retries: "{{ max_retries }}"
 
 - name: Install Kubectl
   zypper:
@@ -125,10 +144,13 @@
      state: present
      oldpackage: yes
      force: yes
+  register: kubectl_status
+  until: kubectl_status is not failed
+  retries: "{{ max_retries }}"
 
 - name: Install common packages
   zypper:
-    name: "{{ common_pkgs_leap }}"
+    name: "{{ common_packages }}"
     state: present
 
 - name: Versionlocking kubeadm
@@ -161,7 +183,7 @@
   tags: install
 
 - name: Install docker-compose
-  zypper:
+  package:
     name: docker-compose
     state: present
   when: docker_username and docker_password
@@ -174,7 +196,7 @@
     enabled: yes
   register: crio_repo_result
   until: crio_repo_result is not failed
-  retries: "{{ min_retries }}"
+  retries: "{{ max_retries }}"
 
 - name: Start and enable kubernetes - kubelet
   service:
