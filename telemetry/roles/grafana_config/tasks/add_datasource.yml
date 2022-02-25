@@ -24,12 +24,12 @@
   register: grafana_svc_port
 
 - name: Get timescaleDB svc IP
-  command: kubectl get svc -n "{{ namespace }}" -o=jsonpath='{.items[0].spec.clusterIP}'
+  command: kubectl get svc "{{ timescaledb_k8s_name }}" -n "{{ namespace }}" -o=jsonpath='{.spec.clusterIP}'
   changed_when: false
   register: timescale_svc_ip
 
 - name: Get timescaleDB svc port
-  command: kubectl get svc -n "{{ namespace }}" -o=jsonpath='{.items[0].spec.ports[0].port}'
+  command: kubectl get svc "{{ timescaledb_k8s_name }}" -n "{{ namespace }}" -o=jsonpath='{.spec.ports[0].port}'
   changed_when: false
   register: timescale_svc_port
 
@@ -44,11 +44,12 @@
     grafana_user: "{{ grafana_username }}"
     grafana_password: "{{ grafana_password }}"
     ds_type: "postgres"
-    ds_url: "http://{{ timescale_svc_ip.stdout }}:{{ timescale_svc_port.stdout }}"
+    database: "{{ timescaledb_name }}"
+    ds_url: "{{ timescale_svc_ip.stdout }}:{{ timescale_svc_port.stdout }}"
     user: "{{ timescaledb_user }}"
     sslmode: "disable"
     additional_json_data:
-      postgresVersion: 12
+      postgresVersion: 12+
       timescaledb: true
     additional_secure_json_data:
       password: "{{ timescaledb_password }}"
