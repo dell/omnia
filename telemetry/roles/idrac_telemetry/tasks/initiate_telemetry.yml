@@ -221,6 +221,7 @@
       args:
         chdir: "{{ mount_location + idrac_telemetry_scripting_folder }}"
       with_items: "{{ telemetry_idrac }}"
+      changed_when: false
       no_log: true
     when: telemetry_idrac is defined and (telemetry_idrac |length>0)
     rescue:
