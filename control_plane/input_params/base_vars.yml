@@ -22,7 +22,7 @@ ansible_conf_file_path: /etc/ansible
 # This variable is used to support the management network container.
 # This container configures IP for all the different devices like idrac, switches and powervaults.
 # Accepted value: "true" or "false"
-# Default value: "true"
+# Default value: "false"
 device_config_support: false
 
 # This variable is used to enable idrac support

@@ -48,7 +48,7 @@
   tags: [ validate, security ]
   when:
     - ( ms_directory_manager_password | length < 1 or
-      ms_ipa_admin_password | length < 1 ) and
+      ms_kerberos_admin_password | length < 1 ) and
       enable_security_support
 
 - name: Assert provision credentials
@@ -239,15 +239,15 @@
   when: enable_security_support
   tags: [ validate, security ]
 
-- name: Assert ms_ipa_admin_password
+- name: Assert ms_kerberos_admin_password
   assert:
     that:
-      - ms_ipa_admin_password | length > min_length | int - 1
-      - ms_ipa_admin_password | length < max_length | int + 1
-      - '"-" not in ms_ipa_admin_password '
-      - '"\\" not in ms_ipa_admin_password '
-      - '"\"" not in ms_ipa_admin_password '
-      - " \"'\" not in ms_ipa_admin_password "
+      - ms_kerberos_admin_password | length > min_length | int - 1
+      - ms_kerberos_admin_password | length < max_length | int + 1
+      - '"-" not in ms_kerberos_admin_password '
+      - '"\\" not in ms_kerberos_admin_password '
+      - '"\"" not in ms_kerberos_admin_password '
+      - " \"'\" not in ms_kerberos_admin_password "
     success_msg: "{{ success_msg_ipa_admin_pwd }}"
     fail_msg: "{{ fail_msg_ipa_admin_pwd }}"
   when: enable_security_support

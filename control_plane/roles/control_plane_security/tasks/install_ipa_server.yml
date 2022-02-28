@@ -13,15 +13,21 @@
 #  limitations under the License.
 ---
 
-- name: Install ipa server in CentOS or Rocky
-  command: >-
-    ipa-server-install -n '{{ domain_name }}' --hostname='{{ server_hostname_ms }}' -a '{{ ms_ipa_admin_password }}'
-    -p '{{ ms_directory_manager_password }}' -r '{{ realm_name }}' --setup-dns --no-forwarders --no-reverse --no-ntp -U
-  changed_when: true
-  no_log: true
-  
+- block:
+    - name: Install ipa server in CentOS or Rocky
+      command: >-
+        ipa-server-install -n '{{ domain_name }}' --hostname='{{ server_hostname_ms }}' -a '{{ ms_kerberos_admin_password }}'
+        -p '{{ ms_directory_manager_password }}' -r '{{ realm_name }}' --setup-dns --no-forwarders --no-reverse --no-ntp -U
+      changed_when: true
+      no_log: true
+      register: install_ipa_server
+  rescue:
+    - name: Install ipa server failed
+      fail:
+        msg: "Error: {{ install_ipa_server.stderr_lines }}"
+
 - name: Authenticate as admin
-  shell: set -o pipefail && echo $'{{ ms_ipa_admin_password }}' | kinit {{ ms_ipa_admin_username }}
+  shell: set -o pipefail && echo $'{{ ms_kerberos_admin_password }}' | kinit {{ ms_ipa_admin_username }}
   no_log: true
   changed_when: false
 

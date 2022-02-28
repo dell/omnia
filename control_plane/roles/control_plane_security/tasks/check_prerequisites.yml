@@ -26,7 +26,6 @@
   set_fact:
     server_hostname_ms: "{{ new_serv_hostname.stdout }}"
 
-    
 - name: Check freeipa ui accessible or not
   uri:
     url: "https://{{ server_hostname_ms }}"
@@ -36,7 +35,7 @@
   failed_when: false
 
 - name: Check freeipa admin authentication
-  shell: set -o pipefail && echo $'{{ ms_ipa_admin_password }}' | kinit {{ ms_ipa_admin_username }}
+  shell: set -o pipefail && echo $'{{ ms_kerberos_admin_password }}' | kinit {{ ms_ipa_admin_username }}
   register: freeipa_authentication
   no_log: true
   changed_when: false

@@ -20,7 +20,7 @@
     lockouttime: "{{ lockout_duration }}"
     ipa_host: "{{ server_hostname_ms }}"
     ipa_user: "{{ ms_ipa_admin_username }}"
-    ipa_pass: "{{ ms_ipa_admin_password }}"
+    ipa_pass: "{{ ms_kerberos_admin_password }}"
 
 - name: Create sysadmin group
   community.general.ipa_group:
@@ -29,7 +29,7 @@
     state: present
     ipa_host: "{{ server_hostname_ms }}"
     ipa_user: "{{ ms_ipa_admin_username }}"
-    ipa_pass: "{{ ms_ipa_admin_password }}"
+    ipa_pass: "{{ ms_kerberos_admin_password }}"
     
 - name: Create sysadmin_sudo rule
   community.general.ipa_sudorule:
@@ -43,4 +43,4 @@
       - "{{ sysadmin_user_group }}"
     ipa_host: "{{ server_hostname_ms }}"
     ipa_user: "{{ ms_ipa_admin_username }}"
-    ipa_pass: "{{ ms_ipa_admin_password }}"
+    ipa_pass: "{{ ms_kerberos_admin_password }}"
