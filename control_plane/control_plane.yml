@@ -37,9 +37,6 @@
     - role: control_plane_ib
       tags: network-ib
 
-    - role: control_plane_sm
-      tags: network-ib
-
     - role: control_plane_customiso
       tags: idrac
 
