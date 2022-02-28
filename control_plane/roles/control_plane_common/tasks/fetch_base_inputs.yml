@@ -42,7 +42,7 @@
 
 - name: Validate management network nic
   assert:
-    that: mngmnt_network_nic | length < 1
+    that: mngmnt_network_nic | length > 1
     fail_msg: "{{ input_base_failure_msg }}"
   when: device_config_support
   

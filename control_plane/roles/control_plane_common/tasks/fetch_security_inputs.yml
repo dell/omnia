@@ -69,6 +69,7 @@
   command: hostname -d
   register: domain_name_set
   changed_when: false
+  failed_when: false
   tags: [ validate, security ]
 
 - name: Verify the domain name is not blank in hostname

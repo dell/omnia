@@ -100,6 +100,7 @@ powervault_me4_password: ""
 # The password must not contain -,\, ',"
 ms_directory_manager_password: ""
 
+# ms_kerberos_admin_password used by IPA admin user in Rocky OS and used by 389-ds for kerberos admin password in leap OS
 # The IPA server requires an administrative user, named 'admin'.
 # This user is a regular system account used for IPA server administration
-ms_ipa_admin_password: ""
+ms_kerberos_admin_password: ""
