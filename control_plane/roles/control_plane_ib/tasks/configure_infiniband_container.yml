@@ -22,22 +22,18 @@
 - name: Deploy infiniband pod
   command: "kubectl apply -f {{ role_path }}/files/k8s_infiniband.yml"
   changed_when: true
-  tags: install
   when: infiniband_container_status and  (not infiniband_container_config_status)
 
 - name: Wait for infiniband pod to come to ready state
   command: kubectl wait --for=condition=ready -n network-config pod -l app=infiniband
   changed_when: false
-  tags: install
 
 - name: Get infiniband pod name
   command: 'kubectl get pod -n network-config -l app=infiniband -o jsonpath="{.items[0].metadata.name}"'
   changed_when: false
   register: infiniband_pod_name
-  tags: install
 
 - name: Configuring infiniband container
   command: 'kubectl exec --stdin --tty -n network-config {{ infiniband_pod_name.stdout }} \
-    -- ansible-playbook /root/omnia/control_plane/roles/control_plane_ib/files/infiniband_container_configure.yml -e ib_nic= "{{ ib_network_nic }}"'
+    -- ansible-playbook /root/omnia/control_plane/roles/control_plane_ib/files/infiniband_container_configure.yml -e ib_nic="{{ ib_network_nic }}"'
   changed_when: false
-  tags: install

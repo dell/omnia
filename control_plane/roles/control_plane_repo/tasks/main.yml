@@ -22,4 +22,6 @@
 
     - name: Download iDRAC firmware updates
       include_tasks: download_fmw_updates.yml
-  when: firmware_update_required
+  when:
+    - device_support_status
+    - firmware_update_required

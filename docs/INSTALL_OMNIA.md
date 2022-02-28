@@ -75,15 +75,26 @@ __Note:__ After the Omnia repository is cloned, a folder named __omnia__ is crea
 
 2. Change the directory to __omnia__: `cd omnia`
 
-3. In the `omnia_config.yml` file, provide the following details.  
-	a. The **k8s_version** variable specifies the Kubernetes version which will be installed on the manager and compute nodes. By default, it is set to **1.16.7**. Edit this variable to change the version. Supported versions are 1.16.7 and 1.19.3.  
-	b. The variable `login_node_required` is set to "true" by default to configure the login node. To configure the login node, edit the following variables:
-	* domain_name: Domain name you intend to configure.
-	* realm_name: A realm name is often, but not always, the upper case version of the name of the DNS domain over which it presides.
-	* directory_manager_password: Password of the Directory Manager with full access to the directory for system management tasks.
-	* ipa_admin_password: "admin" user password for the IPA server.  
+3. In the `omnia_config.yml` file, provide the following details:  
+
+| Parameter Name             | Default Value | Additional Information                                                                                                                                                                                                                               |
+|----------------------------|---------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| mariadb_password           | password      | Password used to access the Slurm database. <br> Required Length: 8   characters <br> The password must not contain -,\, ',"                                                                                                                         |
+| k8s_version                | 1.16.7        | Kuberenetes Version <br> Accepted Values: "1.16.7" or   "1.19.3"                                                                                                                                                                                     |
+| k8s_cni                    | calico        | CNI type used by Kuberenetes. <br> Accepted values: calico, flannel                                                                                                                                                                                  |
+| k8s_pod_network_cidr       | 10.244.0.0/16 | Kubernetes pod network CIDR                                                                                                                                                                                                                          |
+| docker_username            |               | Username to login to Docker. A kubernetes secret will be created and   patched to the service account in default namespace. <br> This value is   optional but suggested to avoid docker pull limit issues                                            |
+| docker_password            |               | Password to login to Docker <br> This value is mandatory if a   docker_username is provided                                                                                                                                                          |
+| ansible_config_file_path   | /etc/ansible  | Path where the ansible.cfg file can be found. <br> If `dnf` is   used, the default value is valid. If `pip` is used, the variable must be set   manually                                                                                             |
+| login_node_required        | TRUE          | Boolean indicating whether the login node is required or not                                                                                                                                                                                         |
+| domain_name                | omnia.test    | Sets the intended domain name                                                                                                                                                                                                                        |
+| realm_name                 | OMNIA.TEST    | Sets the intended realm name                                                                                                                                                                                                                         |
+| directory_manager_password |               | Password authenticating admin level access to the Directory for system   management tasks. It will be added to the instance of directory server   created for IPA. <br> Required Length: 8 characters. <br> The   password must not contain -,\, '," |
+| ipa_admin_password         |               | IPA server admin password                                                                                                                                                                                                                            |
+| enable_secure_login_node   |  **false**, true             | Boolean value deciding whether security features are enabled on the Login Node. For more information, see [here](docs/Security/Enable_Security_LoginNode.md).                                                                                                                                                                                                                           |
 	
-	If you do not want to configure the login node, then you can set the `login_node_required` variable to "false". Without the login node, Slurm jobs can be scheduled only through the manager node.
+	
+>> __NOTE:__  Without the login node, Slurm jobs can be scheduled only through the manager node.
 
 4. Create an inventory file in the *omnia* folder. Add login node IP address under the *[login_node]* group, manager node IP address under the *[manager]* group, compute node IP addresses under the *[compute]* group, and NFS node IP address under the *[nfs_node]* group. A template file named INVENTORY is provided in the *omnia\docs* folder.  
 	**NOTE**: Ensure that all the four groups (login_node, manager, compute, nfs_node) are present in the template, even if the IP addresses are not updated under login_node and nfs_node groups. 
