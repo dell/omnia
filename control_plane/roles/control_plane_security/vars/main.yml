@@ -78,3 +78,25 @@ snoopy_path: /var/lib
 # Usage: user_monitor.yml
 psacct: psacct
 acct: acct
+
+# Usage: install_389ds.yml
+ds389_packages:
+  - 389-ds
+  - db48-utils
+  - python3-argcomplete
+ldap1_search_key: "No such instance"
+ds389_pwpolicy_search_key: "passwordlockoutduration: {{ lockout_duration }}"
+ldap1_config_path: "{{ role_path }}/files/ldap1.inf"
+ldap_instance: ldap1
+ldap1_output_path: /var/log/ldap1_output.txt
+ldap_services:
+  - ldap
+  - ldaps
+dsrc_path: /root/.dsrc
+kerberos_packages:
+  - krb5
+  - krb5-server
+  - krb5-client
+kerberos_principal_path: /var/lib/kerberos/krb5kdc/principal
+kerberos_conf_path: /etc/krb5.conf
+kerberos_env_path: /usr/lib/mit/sbin/
