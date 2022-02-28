@@ -80,28 +80,6 @@
   register: os_value
   tags: [ init, validate ]
 
-- block:
-    - name: Fetch SElinux mode
-      command: sestatus
-      register: sestatus_current
-      changed_when: false
-
-    - name: Disable SElinux
-      replace:
-        path: /etc/sysconfig/selinux
-        regexp: 'SELINUX=[a-z]+'
-        replace: 'SELINUX=disabled'
-      when: '"SELinux status: enabled" in sestatus_current.stdout_lines'
-
-    - name: Status of SElinux
-      fail:
-        msg: "{{ selinux_status }}"
-      when: '"SELinux status: enabled" in sestatus_current.stdout_lines'
-      register: selinux_value
-  tags: init
-  when:
-    - os_supported_leap not in mgmt_os
-
 - name: State of firewall
   service:
     name: firewalld
