@@ -53,6 +53,9 @@
     - name: Alert configuration
       include_tasks: configure_alerting.yml
       when: alert_email_address | length > 1
+
+    - name: Configure ssh access to login node
+      include_tasks: configure_sshd.yml
      
     - name: Session timeout configuration
       include_tasks: session_timeout.yml
