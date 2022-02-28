@@ -73,11 +73,6 @@
         fstype: swap
         state: absent
 
-    - name: Disable selinux
-      selinux:
-        state: disabled
-      tags: install
-
     - name: Install common packages
       package:
         name: "{{ common_packages }}"
