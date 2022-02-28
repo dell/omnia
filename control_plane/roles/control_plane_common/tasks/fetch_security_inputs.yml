@@ -159,3 +159,26 @@
     msg: "{{ alert_email_warning_msg }}"
   tags: security
   when: alert_email_address | length < 1
+
+- name: Prepare user list
+  set_fact:
+      user_list: "{{ lookup('vars', 'user').split()| unique | select| list }}"
+  when: user | length > 1
+
+- name: validate user
+  assert:
+    that:
+      - item is regex("^(?!-)[a-zA-Z]+[0-9-]*[@]((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$") or
+        item is regex("(?!-)[a-zA-Z]+[0-9-]*$")
+    success_msg: "{{ user_success_msg }}"
+    fail_msg: "{{ user_fail_msg }}"
+  with_items: "{{ user_list }}"
+  when:
+    - user | length > 1
+
+- name: Validate allow_deny
+  assert:
+    that:
+      - allow_deny == 'Allow' or allow_deny == 'Deny'
+    success_msg: "{{ allow_deny_success_msg }}"
+    fail_msg: "{{ allow_deny_fail_msg }}"

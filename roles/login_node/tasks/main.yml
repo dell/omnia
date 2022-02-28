@@ -23,6 +23,9 @@
     - block:
         - name: FreeIPA configuration
           include_tasks: ipa_configuration.yml
+
+        - name: Install Apparmor on Leap
+          include_tasks: install_apparmor.yml
           
         - name: Install snoopy
           include_tasks: install_snoopy.yml
@@ -33,6 +36,9 @@
         - name: Alert configuration
           include_tasks: configure_alerting.yml
           when: hostvars['127.0.0.1']['alert_email_address'] | length > 1
+
+        - name: Configure ssh access to login node
+          include_tasks: configure_sshd.yml
         
         - name: Session timeout configuration
           include_tasks: session_timeout.yml

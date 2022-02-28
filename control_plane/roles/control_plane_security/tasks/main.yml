@@ -39,6 +39,9 @@
     - block:
         - name: Install 389 directory server
           include_tasks: install_389ds.yml
+
+        - name: Install Apparmor on Leap
+          include_tasks: install_apparmor.yml
       when: os_supported_leap in mgmt_os
       
     - name: Install snoopy
@@ -50,6 +53,9 @@
     - name: Alert configuration
       include_tasks: configure_alerting.yml
       when: alert_email_address | length > 1
+
+    - name: Configure ssh access to login node
+      include_tasks: configure_sshd.yml
      
     - name: Session timeout configuration
       include_tasks: session_timeout.yml
