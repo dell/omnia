@@ -25,5 +25,5 @@ mount_path: /root/omnia
 infiniband_message_skipped: "The container is already present"
 infiniband_message_installed: "The container is installed"
 ib_kube_config_file: "{{ role_path }}/files/k8s_infiniband.yml"
-ib_container_name: inifiniband-container"
+ib_container_name: infiniband-container
 infiniband_message_installed: "The container is installed"

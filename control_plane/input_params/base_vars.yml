@@ -19,20 +19,43 @@
 # If ansible is installed using pip, this path should be set
 ansible_conf_file_path: /etc/ansible
 
+# This variable is used to support the management network container.
+# This container configures IP for all the different devices like idrac, switches and powervaults.
+# Accepted value: "true" or "false"
+# Default value: "true"
+device_config_support: false
+
+# This variable is used to enable idrac support
+# Enable this support
+# Accepted values:  "true" or "false".
+# Default value: "false".
+# If idrac support is needed set this to "true"
+idrac_support: false
+
+# List of all the configured IPs for different types of supported devices.
+# Accepted values: " File path for the list of IPs of different devices."
+# Give this value if minimum idrac_support is true.
+# Format: Set of IPs in new line
+# e.g:
+# 172.19.0.1
+# 172.19.0.5
+# A template for this file exists in omnia/examples and is named as device_ip_list.yml
+device_ip_list_path: ""
+
 # This variable is used to enable ethernet switch configuration
-# Accepted values:  "true" or "false". 
-# Default value: "true".
+# Accepted values:  "true" or "false".
+# Default value: "false".
 # If ethernet switch support is needed set this to "true"
-ethernet_switch_support: true
+ethernet_switch_support: false
 
 # This variable is used to enable infiniband switch configuration
-# Accepted values:  "true" or "false". 
-# Default value: "true".
+# Accepted values:  "true" or "false".
+# Default value: "false".
 # If infiniband configuration is needed set this to "true"
-ib_switch_support: true
+ib_switch_support: false
 
 # This variable is used to enable powervault configuration
-# Accepted values:  "true" or "false". 
+# Accepted values:  "true" or "false".
 # Default value: "false".
 # If powervault configuration is needed, set this to "true"
 powervault_support: false
@@ -77,10 +100,10 @@ mount_location: /opt/omnia/
 
 # This variable is used to set node provisioning method
 # Accepted values: idrac, PXE
-# Default value: "idrac"
+# Default value: "PXE"
 # If provisioning needs to be done through cobbler, set it to "PXE"
 # If idrac license is not present, provisioning mode will be set to "PXE"
-provision_method: "idrac"
+provision_method: "PXE"
 
 # This variable is used to set provisioning type
 # Accepted values: stateful
@@ -121,7 +144,7 @@ default_lease_time: "86400"
 
 ### Usage: control_plane_device ###
 
-# The nic/ethernet card that needs to be connected to provision 
+# The nic/ethernet card that needs to be connected to provision
 # the fabric, idrac and powervault.
 # This nic will be configured by Omnia for the DHCP server.
 # Default value: "eno1"

@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -53,4 +53,5 @@
         notify:
           - Restart chrony
           - Sync chrony sources
-    when:  ( ansible_distribution == "CentOS" or   ansible_distribution == "RedHat" ) and ansible_distribution_major_version  > os_version
+    when:  (( ansible_distribution == "CentOS" or   ansible_distribution == "RedHat" ) and ansible_distribution_major_version  > os_version) or
+           ( os_supported_leap in compute_os ) and ( ansible_distribution_version >= os_supported_leap_version )
