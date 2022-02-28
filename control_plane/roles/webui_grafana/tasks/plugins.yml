@@ -17,7 +17,7 @@
   ansible.builtin.git:
     repo: "{{ grafana_plugins_github_repo }}"
     dest: "{{ mount_location + grafana_plugins_folder_name }}"
-    version: main
+    version: "{{ grafana_plugins_stable_commit }}"
 
 - name: Wait for grafana pod to come to ready state
   command: kubectl wait --for=condition=ready --timeout="{{ grafana_pod_timeout }}" -n "{{ grafana_namespace }}" pod -l app="{{ grafana_k8s }}"

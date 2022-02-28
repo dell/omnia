@@ -13,6 +13,12 @@
 # limitations under the License.
 ---
 
-grafana_k8s: grafana
-grafana_namespace: grafana
-dashboards: parallel-coordinate.json
+- name: Import dashboards for visualizations
+  community.grafana.grafana_dashboard:
+    grafana_url: "http://{{ grafana_svc_ip.stdout }}:{{ grafana_svc_port.stdout }}"
+    grafana_user: "{{ grafana_username }}"
+    grafana_password: "{{ grafana_password }}"
+    state: present
+    overwrite: yes
+    path: "{{ playbook_dir }}/roles/grafana_config/files/{{ dashboards }}"
+  no_log: true

@@ -38,7 +38,7 @@
       tower_config_file: "{{ playbook_dir }}/../control_plane/roles/webui_awx/files/.tower_cli.cfg"
       tower_vault_file: "{{ playbook_dir }}/../control_plane/roles/webui_awx/files/.tower_vault_key"
       idrac_telemetry_scripting_repo: "https://github.com/dell/iDRAC-Telemetry-Scripting.git"
-      idrac_telemetry_scripting_branch: master
+      idrac_telemetry_scripting_stable_commit: "1f4bb26"
       idrac_telemetry_scripting_folder: iDRAC-Telemetry-Scripting
       idrac_login_input_filename: "{{ playbook_dir }}/../control_plane/input_params/login_vars.yml"
       idrac_login_vault_filename: "{{ playbook_dir }}/../control_plane/input_params/.login_vault_key"
@@ -213,7 +213,7 @@
       ansible.builtin.git:
         repo: "{{ idrac_telemetry_scripting_repo }}"
         dest: "{{ mount_location + idrac_telemetry_scripting_folder }}"
-        version: "{{ idrac_telemetry_scripting_branch }}"
+        version: "{{ idrac_telemetry_scripting_stable_commit }}"
       register: telemetry_collection
 
     - name: Enable telemetry collection on iDRACs
@@ -221,12 +221,13 @@
       args:
         chdir: "{{ mount_location + idrac_telemetry_scripting_folder }}"
       with_items: "{{ telemetry_idrac }}"
+      changed_when: false
       no_log: true
     when: telemetry_idrac is defined and (telemetry_idrac |length>0)
     rescue:
       - name: Show failure msg
-        fail:
-          msg: "Enabling telemetry on iDRAC failed"
+        debug:
+          msg: "Enabling telemetry on an iDRAC failed"
 
   - name: Add iDRAC details in mysqldb
     block:

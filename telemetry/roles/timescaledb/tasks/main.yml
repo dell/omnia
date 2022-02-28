@@ -23,7 +23,7 @@
   ansible.builtin.git:
     repo: "{{ idrac_telemetry_github }}"
     dest: "{{ mount_location + idrac_telemetry_folder_name }}"
-    version: master
+    version: "{{ reference_tools_stable_commit }}"
 
 - name: Create timescaledb pod
   include_tasks: timescaledb_pod.yml

@@ -44,3 +44,4 @@ plugins_name:
   - stream-net.zip
 grafana_plugins_folder_name: github-grafana-plugins/
 grafana_plugins_github_repo: https://github.com/nsfcac/grafana-plugin.git
+grafana_plugins_stable_commit: "947da4f"
