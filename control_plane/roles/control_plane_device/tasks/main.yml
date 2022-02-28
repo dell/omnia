@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,50 +14,50 @@
 ---
 
 # Tasks file for mngmnt_network
+- block:
+  - name: Check mngmnt_network_container status on machine
+    include_tasks: check_prerequisites.yml
 
-- name: Check mngmnt_network_container status on machine
-  include_tasks: check_prerequisites.yml
+  - name: Modify firewall settings for mngmnt_network_container
+    include_tasks: firewall_settings.yml
+    when: not mngmnt_network_container_status
 
-- name: Modify firewall settings for mngmnt_network_container
-  import_tasks: firewall_settings.yml
-  when: not mngmnt_network_container_status
+  - name: Include common variables
+    include_vars:  ../../control_plane_common/vars/main.yml
+    when: not mngmnt_network_container_status
 
-- name: Include common variables
-  include_vars:  ../../control_plane_common/vars/main.yml
-  when: not mngmnt_network_container_status
+  - name: Internet validation
+    include_tasks: ../../control_plane_common/tasks/internet_validation.yml
+    when: not mngmnt_network_container_status
 
-- name: Internet validation
-  include_tasks: ../../control_plane_common/tasks/internet_validation.yml
-  when: not mngmnt_network_container_status
+  - name: Include variable file base_vars.yml
+    include_vars: "{{ base_mngmnt_file }}"
 
-- name: Include variable file base_vars.yml
-  include_vars: "{{ base_mngmnt_file }}"
+  - name: Dhcp Configuration
+    include_tasks: dhcp_configure.yml
+    when: (not mngmnt_network_container_image_status) or ( backup_mngmnt_map_status)
 
-- name: Dhcp Configuration
-  import_tasks: dhcp_configure.yml
-  when: (not mngmnt_network_container_image_status) or ( backup_mngmnt_map_status)
+  - name: Mapping file validation
+    include_tasks: mapping_file.yml
+    when: (not mngmnt_network_container_image_status) and (mngmnt_mapping_file_path) or ( backup_mngmnt_map_status)
 
-- name: Mapping file validation
-  import_tasks: mapping_file.yml
-  when: (not mngmnt_network_container_image_status) and (mngmnt_mapping_file_path) or ( backup_mngmnt_map_status)
+  - name: mngmnt_network_container image creation
+    include_tasks: mngmnt_network_container_image.yml
+    when: not mngmnt_network_container_status
 
-- name: mngmnt_network_container image creation
-  import_tasks: mngmnt_network_container_image.yml
-  when: not mngmnt_network_container_status
+  - name: mngmnt_network_container configuration
+    include_tasks: configure_mngmnt_network_container.yml
 
-- name: mngmnt_network_container configuration
-  import_tasks: configure_mngmnt_network_container.yml
-
-- name: mngmnt_network_container container status message
-  block:
-    - name: management network container running
-      debug:
-        msg: "{{ message_skipped }}"
-        verbosity: 2
-      when: mngmnt_network_container_status
-    - name: management network container not running
-      debug:
-        msg: "{{ message_installed }}"
-        verbosity: 2
-      when: not mngmnt_network_container_status
-  tags: install
+  - name: mngmnt_network_container container status message
+    block:
+      - name: management network container running
+        debug:
+          msg: "{{ message_skipped }}"
+          verbosity: 2
+        when: mngmnt_network_container_status
+      - name: management network container not running
+        debug:
+          msg: "{{ message_installed }}"
+          verbosity: 2
+        when: not mngmnt_network_container_status
+  when: device_config_support

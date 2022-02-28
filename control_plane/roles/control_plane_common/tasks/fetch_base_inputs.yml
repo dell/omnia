@@ -31,9 +31,6 @@
       timezone | length < 1 or
       language | length < 1 or
       iso_file_path | length < 1 or
-      mngmnt_network_nic | length < 1 or
-      mngmnt_network_dhcp_start_range | length < 1 or
-      mngmnt_network_dhcp_end_range | length < 1 or
       host_network_nic | length < 1 or
       host_network_dhcp_start_range | length < 1 or
       host_network_dhcp_end_range | length < 1 or
@@ -42,6 +39,66 @@
       provision_os | length < 1 or
       provision_state | length < 1 or
       mount_location | length < 1
+
+- name: Validate management network nic
+  assert:
+    that: mngmnt_network_nic | length < 1
+    fail_msg: "{{ input_base_failure_msg }}"
+  when: device_config_support
+  
+- name: Validate the value of device config support
+  assert:
+    that:
+      - device_config_support | lower == "true" or device_config_support | lower == "false"
+    success_msg: "{{ success_device_config }}"
+    fail_msg: "{{ fail_device_config }}"
+  tags: init
+
+- name: Set fact for device_ip_list_path
+  set_fact:
+    device_config_ip_file: false
+  tags: init
+
+- name: Set the mapping file value for device network
+  set_fact:
+    device_config_ip_file: true
+  when:
+    - device_ip_list_path | length > 0
+    - '"/" in device_ip_list_path'
+    - idrac_support
+  tags: init
+
+- name: Warning msg if idrac_support is false and device_ip_list is given
+  assert:
+    that:
+      - '"/"  in device_ip_list_path'
+    success_msg: "{{ device_ip_list_not_supported  }}"
+  when: not idrac_support
+  failed_when: false
+
+- name: Set status for device_config_support
+  set_fact:
+     device_support_status: false
+  tags: init
+
+- name: Validate contents of device_ip_list
+  set_fact:
+    device_support_status: true
+  when: (device_config_support) or (idrac_support and device_config_ip_file)
+  tags: init
+
+- name: Assert valid mngmnt_mapping_file_path
+  stat:
+    path: "{{ device_ip_list_path }}"
+  when: device_config_ip_file
+  register: result_device_ip_file
+  tags: init
+
+- name : Valid device_ip_list
+  fail:
+    msg: "{{ invalid_mapping_file_path }} for configurations"
+  when: device_config_ip_file and not result_device_ip_file.stat.exists
+  tags: init
 
 - name: Validate default lease time
   assert:
@@ -58,21 +115,9 @@
     max_lease_time: "{{ default_lease_time|int + 10000 }}"
   tags: init
 
-- name: Validate infiniband base_vars are not empty
-  assert:
-    that:
-      - ib_network_nic | length > 2
-      - ib_network_dhcp_start_range | length > 6
-      - ib_network_dhcp_end_range | length > 6
-    success_msg: "{{ success_msg_ib }}"
-    fail_msg: "{{ fail_msg_ib }}"
-  register: ib_check
-  when: ib_switch_support
-  tags: [ validate, network-ib ]
-
 - name: Set facts to validate snmp support
   set_fact:
-    snmp_enabled: false   
+    snmp_enabled: false
     mngmnt_mapping_file: false
     host_mapping_file: false
   tags: init
@@ -80,9 +125,11 @@
 - name: Verify snmp_trap_destination IP address
   set_fact:
     snmp_enabled: true
-  when: snmp_trap_destination | length > 1
+  when:
+    - device_support_status
+    - snmp_trap_destination | length > 1
   tags: init
-  
+
 - name: Assert snmp trap destination address
   assert:
     that:
@@ -129,29 +176,17 @@
   when: not ansible_conf_exists.stat.exists
   tags: init
 
-- name: Assert ethernet_switch_support
+- name: Validate infiniband base_vars are not empty
   assert:
     that:
-      - ethernet_switch_support == true or ethernet_switch_support == false
-    success_msg: "{{ ethernet_switch_support_success_msg }}"
-    fail_msg: "{{ ethernet_switch_support_fail_msg }}"
-  tags: [ validate, init ]
-
-- name: Assert ib_switch_support
-  assert:
-    that:
-      - ib_switch_support == true or ib_switch_support == false
-    success_msg: "{{ ib_switch_support_success_msg }}"
-    fail_msg: "{{ ib_switch_support_fail_msg }}"
-  tags: [ validate, init ]
-
-- name: Assert powervault_support
-  assert:
-    that:
-      - powervault_support == true or powervault_support == false
-    success_msg: "{{ powervault_support_success_msg }}"
-    fail_msg: "{{ powervault_support_fail_msg }}"
-  tags: [ validate, init ]
+        - ib_network_nic | length > 2
+        - ib_network_dhcp_start_range | length > 6
+        - ib_network_dhcp_end_range | length > 6
+    success_msg: "{{ success_msg_ib }}"
+    fail_msg: "{{ fail_msg_ib }}"
+    register: ib_check
+  when: ib_switch_support
+  tags: [ validate, network-ib ]
 
 - name: Assert enable_security_support
   assert:
@@ -160,7 +195,7 @@
     success_msg: "{{ enable_security_support_success_msg }}"
     fail_msg: "{{ enable_security_support_fail_msg }}"
   tags: [ validate, init ]
-  
+
 - name: Assert kubernetes pod network CIDR
   assert:
     that:
@@ -196,6 +231,15 @@
 - name: Validate provision paramters
   import_tasks: validate_provision_vars.yml
   tags: [ validate, idrac, pxe ]
+
+- name: Validate device_config_support
+  import_tasks: device_config_validations.yml
+  tags: [ validate, init ]
+
+- name: Validate device_config_support
+  import_tasks: validate_device_ip_file.yml
+  when: device_config_ip_file
+  tags: [ validate, init ]
 
 - name: Validate NIC parameters
   import_tasks: validate_nic_vars.yml

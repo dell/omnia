@@ -44,14 +44,17 @@
 
     - name: infiniband_container container status message
       block:
-        - debug:
+        - name: Infiniband container skipped
+          debug:
             msg: "{{ infiniband_message_skipped }}"
             verbosity: 2
           when: infiniband_container_status
-        - debug:
+        - name: Infiniband container installed
+          debug:
             msg: "{{ infiniband_message_installed }}"
             verbosity: 2
           when: not infiniband_container_status
   when:
+    - device_support_status
     - ib_switch_support
     - mgmt_os in os_supported_rocky
