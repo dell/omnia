@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -52,11 +52,27 @@
     path: "{{ exports_file_path }}"
     line: "{{ item.path }} {{ item.ip }}(rw,sync,no_root_squash)"
   with_items:
-    - { path: "{{ nfs_share_offline_repo }}", ip: "{{ mngmnt_network_ip }}" }
     - { path: "{{ nfs_share_offline_repo }}", ip: "{{ public_ip }}" }
-    - { path: "{{ nfs_share_awx }}", ip: "{{ mngmnt_network_ip }}" }
     - { path: "{{ nfs_share_awx }}", ip: "{{ public_ip }}" }
+
+- name: Adding NFS share entries in /etc/exports when device_config_support
+  lineinfile:
+    path: "{{ exports_file_path }}"
+    line: "{{ item.path }} {{ item.ip }}(rw,sync,no_root_squash)"
+  with_items:
+    - { path: "{{ nfs_share_offline_repo }}", ip: "{{ mngmnt_network_ip }}" }
+    - { path: "{{ nfs_share_awx }}", ip: "{{ mngmnt_network_ip }}" }
     - { path: "{{ nfs_share_offline_repo }}", ip: "{{ mngmnt_network_subnet }}/{{ mngmnt_network_netmask }}" }
+  when: device_config_support
+
+- name: Adding NFS share entries in /etc/exports when device_config_support
+  lineinfile:
+    path: "{{ exports_file_path }}"
+    line: "{{ nfs_share_offline_repo  }} {{ item }}(rw,sync,no_root_squash)"
+  with_items: "{{ device_ip }}"
+  when:
+    - idrac_support
+    - device_config_ip_file
 
 - name: Exporting the shared directories
   command: exportfs -r

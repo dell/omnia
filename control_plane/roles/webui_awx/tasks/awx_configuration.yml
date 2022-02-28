@@ -149,7 +149,7 @@
     tower_config_file: "{{ tower_config_file }}"
   loop: "{{ omnia_job_template_details }}"
 
-- name: Build a schedule for idrac job template
+- name: Build a schedule for node inventory and device inventory
   awx.awx.tower_schedule:
     name: "{{ item.name }}"
     unified_job_template: "{{ item.template }}"
@@ -158,6 +158,7 @@
     tower_config_file: "{{ tower_config_file }}"
   register: result
   loop: "{{ scheduled_templates }}"
+  when: item.flag
 
 - name: Encrypt {{ tower_config_file }}
   command: >-

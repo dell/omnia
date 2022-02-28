@@ -12,34 +12,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+- block:
+  - name: Include variable file idrac_vars.yml
+    include_vars: "{{ idrac_input_filename }}"
+    run_once: true
+    tags: init
 
-- name: Include variable file idrac_vars.yml
-  include_vars: "{{ idrac_input_filename }}"
-  run_once: true
-  tags: init
+  - name: Assert firmware_update_required value
+    assert:
+      that:
+        - firmware_update_required == true or firmware_update_required == false
+      success_msg: "{{ firmware_update_success_msg }}"
+      fail_msg: "{{ firmware_update_fail_msg }}"
+    tags: [ validate, firmware-repo ]
 
-- name: Assert firmware_update_required value
-  assert:
-    that:
-      - firmware_update_required == true or firmware_update_required == false
-    success_msg: "{{ firmware_update_success_msg }}"
-    fail_msg: "{{ firmware_update_fail_msg }}"
-  tags: [ validate, firmware-repo ]
+  - name: Read poweredge_model file
+    command: cat {{ role_path }}/files/poweredge_models.txt
+    failed_when: false
+    register: poweredge_models_file_output
+    changed_when: false
+    tags: [ validate, firmware-repo ]
 
-- name: Read poweredge_model file
-  command: cat {{ role_path }}/files/poweredge_models.txt
-  failed_when: false
-  register: poweredge_models_file_output
-  changed_when: false
-  tags: [ validate, firmware-repo ]
-
-- name: Assert poweredge_model value
-  assert:
-    that:
-      - item | length > 1
-      - item in poweredge_models_file_output.stdout
-    success_msg: "{{ poweredge_model_success_msg }}"
-    fail_msg: "{{ poweredge_model_fail_msg }}"
-  when: firmware_update_required
-  with_items: "{{ poweredge_model.split(',') | map('trim') }}"
-  tags: [ validate, firmware-repo ]
+  - name: Assert poweredge_model value
+    assert:
+      that:
+        - item | length > 1
+        - item in poweredge_models_file_output.stdout
+      success_msg: "{{ poweredge_model_success_msg }}"
+      fail_msg: "{{ poweredge_model_fail_msg }}"
+    when: firmware_update_required
+    with_items: "{{ poweredge_model.split(',') | map('trim') }}"
+    tags: [ validate, firmware-repo ]
+  when: idrac_support
