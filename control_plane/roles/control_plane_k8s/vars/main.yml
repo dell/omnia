@@ -25,14 +25,10 @@ docker_repo_dest_leap: /etc/YaST2/docker-ce.repo
 kubeadm_version: kubeadm-1.21.0-0.x86_64
 kubelet_version: kubelet-1.21.0-0.x86_64
 kubectl_version: kubectl-1.21.0-0.x86_64
-common_pkgs_leap:
-  - openssl
-  - bash-completion
-  - buildah
 os_supported_leap: "leap"
 os_supported_leap_version: "15.3"
 min_retries: 3
-max_retries: 3
+max_retries: 10
 min_delay: 10
 wait_time: 30
  
