@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -12,6 +12,18 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+k8s_repo_leap: https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+rpm_pkg_leap: https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+yum_key_leap:  https://packages.cloud.google.com/yum/doc/yum-key.gpg
+gpg_pubkey_leap: "rpm -q gpg-pubkey --qf '%{name}-%{version}-%{release} --> %{summary}'"
+docker_repo_url_leap: https://download.docker.com/linux/sles/docker-ce.repo
+docker_repo_dest_leap: /etc/YaST2/docker-ce.repo
+os_supported_leap: "leap"
+os_supported_leap_version: "15.3"
+kubeadm_version: "kubeadm-{{ hostvars['127.0.0.1']['k8s_version'] }}"
+kubelet_version: "kubelet-{{ hostvars['127.0.0.1']['k8s_version'] }}"
+kubectl_version: "kubectl-{{ hostvars['127.0.0.1']['k8s_version'] }}"
+max_retries: 20
 
 k8s_packages:
   - "kubelet-{{ hostvars['127.0.0.1']['k8s_version'] }}"
