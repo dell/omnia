@@ -16,6 +16,7 @@
 - name: Check if AllowUsers entry exixts
   shell: cat "{{ sshd_conf_file }}"
   register: file_content
+  changed_when: false
 
 - name: Check if user is specified
   debug:
