@@ -1,4 +1,4 @@
-theme: jekyll-theme-minimal
+theme: jekyll-theme-architect
 title: Omnia
 description: Ansible playbook-based tools for deploying Slurm and Kubernetes clusters for High Performance Computing, Machine Learning, Deep Learning, and High-Performance Data Analytics
 logo: images/omnia-logo.png
