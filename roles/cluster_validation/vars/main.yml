@@ -92,3 +92,9 @@ alert_email_fail_msg: "Failed. Incorrect alert_email_address value in security_v
 alert_email_warning_msg: "[WARNING] alert_email_address is empty. Authentication failure alerts won't be configured."
 email_max_length: 320
 email_search_key: "@"
+login_node_security_success_msg: "Login node security successfully validated"
+login_node_security_fail_msg: "Failed. Incorrect Login node security format in security_vars.yml"
+user_success_msg: "user successfully validated"
+user_fail_msg: "Failed. Incorrect user format in security_vars.yml"
+allow_deny_success_msg: "Access successfully validated"
+allow_deny_fail_msg: "Failed. Incorrect Access format in security_vars.yml"

@@ -5,7 +5,7 @@
     <init>
       <info_file>
         <![CDATA[
-          install: http://ip/cblr/links/leap-x86_64/
+          install: http://ip:port/cblr/links/leap-x86_64/
           textmode: 1]]>
       </info_file>
     </init>
