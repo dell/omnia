@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -269,3 +269,230 @@
           - cluster_ip_conn.status == 200
         success_msg: "{{ svc_conn_success_msg }} : {{ cluster_ip_info.stdout[1:-1] }}"
         fail_msg: "{{ svc_conn_fail_msg }} : {{ cluster_ip_info.stdout[1:-1] }}"
+
+# OMNIA_1.2_Grafana_TC_001
+# Validate Grafana k8s Loki pod and namespaces is running or not
+
+    - name: Get Pod info for Grafana k8s Loki
+      shell: |
+         crictl ps -o json | jq '.containers[] | select(.labels."io.kubernetes.pod.namespace" == "grafana") | "\(.id) \(.metadata.name) \(.state)"'
+      register: grafana_config_pod_info
+
+    - name: Get Pod Status for Grafana k8s Loki
+      assert:
+        that:
+          - grafana_config_pod_info.stdout_lines[{{ item }}] | regex_search( "{{ container_info }}")
+        success_msg: "{{ grafana_pod_success_msg }}"
+        fail_msg: "{{ grafana_pod_fail_msg }}"
+      ignore_errors: yes
+      with_sequence: start=0 end={{ grafana_config_pod_info.stdout_lines |length - 1 }}
+
+# OMNIA_1.2_Grafana_TC_002
+# Validate Grafana k8s Loki  pvc , svc and cluster IP
+
+    - name: Get grafana pvc stats
+      shell: |
+          kubectl get pvc -n grafana -o json |jq '.items[] | "\(.status.phase)"'
+      register: grafana_pvc_stats_info
+
+    - name: Verify if grafana pvc stats is running
+      assert:
+        that:
+          - "'Bound' in grafana_pvc_stats_info.stdout"
+        fail_msg: "{{ grafana_pvc_stat_fail_msg }}"
+        success_msg: "{{ grafana_pvc_stat_success_msg }}"
+      with_sequence: start=0 end={{ grafana_pvc_stats_info.stdout_lines |length|int - 1 }}
+
+    - name: Get grafana svc stats
+      shell: kubectl get svc -n grafana grafana -o json
+      register: grafana_svc_stats_info
+
+    - name: Verify if grafana svc is up and running
+      assert:
+        that:
+          - "'Error from server (NotFound):' not in grafana_svc_stats_info.stdout"
+        success_msg: "{{ grafana_svc_stat_success_msg }}"
+        fail_msg: "{{ grafana_svc_stat_fail_msg }}"
+
+    - name: Get grafana loki svc stats
+      shell: kubectl get svc -n grafana loki -o json
+      register: grafana_loki_svc_stats_info
+
+    - name: Verify if grafana loki svc is up and running
+      assert:
+        that:
+          - "'Error from server (NotFound):' not in grafana_loki_svc_stats_info.stdout"
+        success_msg: "{{ grafana_loki_svc_stat_success_msg }}"
+        fail_msg: "{{ grafana_loki_svc_stat_fail_msg }}"
+
+# OMNIA_1.2_Grafana_TC_003
+# Validate Grafana Loki Host IP connection
+
+    - name: Fetch Grafana Loki Cluster IP from svc
+      shell: |
+          kubectl get svc -n grafana -o json | jq '.items[] | select(.metadata.name == "loki") | "\(.spec.clusterIP)"'
+      register: grafana_loki_cluster_ip_info
+
+    - name: Check if connection to Grafana Loki svc Cluster IP is enabled
+      command: ping -c1 {{ grafana_loki_cluster_ip_info.stdout[1:-1] }}
+      register: validate_grafana_loki
+      changed_when: false
+      failed_when: false
+
+    - name: Verify connection to Grafana Loki svc cluster is working
+      assert:
+        that:
+          - "'ping' in validate_grafana_loki.stdout"
+        success_msg: "{{ grafana_svc_conn_success_msg }} : {{ grafana_loki_cluster_ip_info.stdout[1:-1] }}"
+        fail_msg: "{{ grafana_svc_conn_fail_msg }} : {{ grafana_loki_cluster_ip_info.stdout[1:-1] }}"
+
+    - name: Fetch Grafana Cluster IP from svc
+      shell: |
+        kubectl get svc -n grafana -o json | jq '.items[] | select(.metadata.name == "grafana") | "\(.spec.clusterIP)"'
+      register: grafana_cluster_ip_info
+
+    - name: Ping the grafana to validate connectivity
+      command: ping -c1 {{ grafana_cluster_ip_info.stdout[1:-1] }}
+      register: validate_grafana
+      changed_when: false
+      failed_when: false
+
+    - name: Verify connection to Grafana svc cluster is working
+      assert:
+        that:
+          - "'ping' in validate_grafana.stdout"
+        success_msg: "{{ grafana_svc_conn_success_msg }} : {{ grafana_cluster_ip_info.stdout[1:-1] }}"
+        fail_msg: "{{ grafana_svc_conn_fail_msg }} : {{ grafana_cluster_ip_info.stdout[1:-1] }}"
+
+
+# OMNIA_1.2_Grafana_TC_017
+# Validate Prometheus pod , pvc , svc and cluster IP
+
+    - name: Get monitoring Pod info for Prometheus alertmanager
+      shell: |
+         crictl ps -o json | jq '.containers[] | select(.labels."io.kubernetes.pod.namespace" == "monitoring" and .labels."io.kubernetes.container.name" == "alertmanager") | "\(.id) \(.metadata.name) \(.state)"'
+      register: monitoring_alertmanager_pod_info
+
+    - name: Get monitoring Pod Status for Prometheus alertmanager
+      assert:
+        that:
+          - monitoring_alertmanager_pod_info.stdout_lines | regex_search( "{{ container_info }}")
+        success_msg: "{{ prometheus_alertmanager_pod_success_msg }}"
+        fail_msg: "{{ prometheus_alertmanager_pod_fail_msg }}"
+
+    - name: Get monitoring Pod info for Prometheus node-exporter
+      shell: |
+         crictl ps -o json | jq '.containers[] | select(.labels."io.kubernetes.pod.namespace" == "monitoring" and .labels."io.kubernetes.container.name" == "node-exporter") | "\(.id) \(.metadata.name) \(.state)"'
+      register: monitoring_node_exporter_pod_info
+
+    - name: Get monitoring Pod Status for Prometheus node-exporter
+      assert:
+        that:
+          - monitoring_node_exporter_pod_info.stdout_lines | regex_search( "{{ container_info }}")
+        success_msg: "{{ prometheus_node_exporter_pod_success_msg }}"
+        fail_msg: "{{ prometheus_node_exporter_pod_fail_msg }}"
+
+    - name: Get Prometheus alertmanager svc stats
+      shell: kubectl get svc -n monitoring monitoring-kube-prometheus-alertmanager -o json
+      register: prometheus_alertmanager_svc_stats_info
+
+    - name: Verify if Prometheus alertmanager is up and running
+      assert:
+        that:
+          - "'Error from server (NotFound):' not in prometheus_alertmanager_svc_stats_info.stdout"
+        success_msg: "{{ prometheus_alertmanager_svc_stat_success_msg }}"
+        fail_msg: "{{ prometheus_alertmanager_svc_stat_fail_msg }}"
+
+    - name: Get Prometheus node-exporter svc stats
+      shell: kubectl get svc -n monitoring monitoring-prometheus-node-exporter -o json
+      register: prometheus_node_exporter_svc_stats_info
+
+    - name: Verify if Prometheus node-exporter svc is up and running
+      assert:
+        that:
+          - "'Error from server (NotFound):' not in prometheus_node_exporter_svc_stats_info.stdout"
+        success_msg: "{{ prometheus_node_exporter_svc_stat_success_msg }}"
+        fail_msg: "{{ prometheus_node_exporter_svc_stat_fail_msg }}"
+
+    - name: Get Prometheus monitoring svc stats
+      shell: kubectl get svc -n monitoring {{ item }} -o json
+      changed_when: false
+      ignore_errors: yes
+      register: monitoring_pod_svc_check
+      with_items:
+        - monitoring-prometheus-node-exporter
+        - monitoring-kube-prometheus-alertmanager
+        - monitoring-kube-prometheus-operator
+        - monitoring-kube-state-metrics
+        - monitoring-kube-prometheus-prometheus
+
+# Testcase OMNIA_1.2_AppArmor_TC_001
+# Test case to  Find out if AppArmor is enabled (returns Y if true)
+
+    - name: AppArmor is enabled Validation
+      shell: cat /sys/module/apparmor/parameters/enabled
+      register: apparmor_enabled
+
+    - name: Find out if AppArmor is enabled (returns Y if true)
+      assert:
+        that:
+          - apparmor_enabled.stdout | regex_search( "{{ apparmor_true }}" )
+        success_msg: "{{ apparmor_enabled_success_msg }}"
+        fail_msg: "{{ apparmor_enabled_fail_msg }}"
+
+# Testcase OMNIA_1.2_AppArmor_TC_002
+# Test case to List all loaded AppArmor profiles for applications and processes and detail their status (enforced, complain, unconfined):
+
+    - name: AppArmor is List all loaded AppArmor profiles status
+      shell: aa-status
+      register: apparmor_status
+
+    - name: Verify the apparmor module shoule be return which all the profiles
+      assert:
+        that:
+          - apparmor_status.stdout | regex_search( "{{ apparmor_module }}" )
+        success_msg: "{{ apparmor_status_success_msg }}"
+        fail_msg: "{{ apparmor_status_fail_msg }}"
+
+# Testcase OMNIA_1.2_AppArmor_TC_003
+# Test case to validate available profiles in /extra-profiles/ path
+
+    - name: AppArmor is available profiles in /extra-profiles/ path
+      shell: ls /usr/share/apparmor/extra-profiles/ | grep 'usr.bin.passwd'
+      register: apparmor_profile
+
+    - name: Verify the usr.bin.passwd profiles in /extra-profiles/ path
+      assert:
+        that:
+          - apparmor_profile.stdout | regex_search( "{{ apparmor_passwd_profile }}" )
+        success_msg: "{{ apparmor_profile_success_msg }}"
+        fail_msg: "{{ apparmor_profile_fail_msg }}"
+
+# Testcase OMNIA_1.2_AppArmor_TC_004
+# Test case to running executables which are currently confined by an AppArmor profile
+
+    - name: AppArmor is running executables which are currently confined by an AppArmor profile
+      shell: ps auxZ | grep -v '^unconfined' | grep 'nscd'
+      register: apparmor_not_unconfined
+
+    - name: Verify the not unconfined AppArmor profiles with nscd
+      assert:
+        that:
+          - apparmor_not_unconfined.stdout | regex_search( "{{ apparmor_nscd }}" )
+        success_msg: "{{ apparmor_not_unconfined_success_msg }}"
+        fail_msg: "{{ apparmor_not_unconfined_fail_msg }}"
+
+# Testcase OMNIA_1.2_AppArmor_TC_005
+# Test case to processes with tcp or udp ports that do not have AppArmor profiles loaded
+
+    - name: A Processes with tcp or udp ports that do not have AppArmor profiles loaded
+      shell: aa-unconfined --paranoid | grep '/usr/sbin/auditd'
+      register: apparmor_unconfined
+
+    - name: Verify the unconfined AppArmor profiles with auditd
+      assert:
+        that:
+          - apparmor_unconfined.stdout | regex_search( "{{ apparmor_auditd }}" )
+        success_msg: "{{ apparmor_unconfined_success_msg }}"
+        fail_msg: "{{ apparmor_unconfined_fail_msg }}"
+

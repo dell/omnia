@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@
 
 port_no: 22
 os_name: CentOS
+os_name_rocky: rocky
+os_name_leap: leap
 os_version: '8.4'
 internet_status: "Failed. No Internet connection. Make sure network is up."
 check_os_success_msg: "OS and Version are supported"
@@ -92,3 +94,51 @@ docker_user: "User"
 docker_password: "Password"
 valid_docker_creds: "Credentials are valid"
 invalid_docker_creds: "Please input valid docker username and password in test_control_plane_vars.yml"
+#Usage: Grafana Test Cases
+grafana_pod_success_msg: "grafana pod is up and running."
+grafana_pod_fail_msg: "grafana pod is not running"
+grafana_pvc_stat_success_msg: "grafana pvc stat is running"
+grafana_pvc_stat_fail_msg: "grafana pvc stat is not running"
+grafana_svc_stat_success_msg: "grafana svc stat is running"
+grafana_svc_stat_fail_msg: "grafana svc stat is not running"
+grafana_loki_svc_stat_success_msg: "grafana loki svc stat is running"
+grafana_loki_svc_stat_fail_msg: "grafana loki svc stat is not running"
+grafana_loki_svc_conn_success_msg: "Connection to grafana loki svc is successful at"
+grafana_loki_svc_conn_fail_msg: "Connection to grafana loki svc failed at: "
+grafana_svc_conn_success_msg: "Connection to grafana svc is successful at"
+grafana_svc_conn_fail_msg: "Connection to grafana svc failed at: "
+prometheus_alertmanager_pod_success_msg: "Prometheus alertmanager Pod is running"
+prometheus_alertmanager_pod_fail_msg: "Prometheus alertmanager Pod is not running"
+prometheus_node_exporter_pod_success_msg: "Prometheus node-exporter Pod is running"
+prometheus_node_exporter_pod_fail_msg: "Prometheus node-exporter Pod is not running"
+prometheus_alertmanager_svc_stat_success_msg: "prometheus alertmanager svc stat is running"
+prometheus_alertmanager_svc_stat_fail_msg: "prometheus alertmanager svc stat is not running"
+prometheus_node_exporter_svc_stat_success_msg: "prometheus node-exporter svc stat is running"
+prometheus_node_exporter_svc_stat_fail_msg: "prometheus node-exporter svc stat is not running"
+monitoring_pod_svc_success_msg: "monitoring pod svc stat is running"
+monitoring_pod_svc_fail_msg: "monitoring pod svc stat is not running"
+grafana_loki_port: 3100
+grafana_port: 5000
+#Usage: AppArmor Test Cases
+apparmor_true: "Y"
+apparmor_enabled_success_msg: "apparmor is enabled"
+apparmor_enabled_fail_msg: "apparmor is not enabled"
+apparmor_module: "apparmor module is loaded."
+apparmor_status_success_msg: "apparmor profiles are loaded."
+apparmor_status_fail_msg: "apparmor profiles are not loaded."
+apparmor_passwd_profile: "usr.bin.passwd"
+apparmor_profile_success_msg: "usr.bin.passwd profiles is available in /extra-profiles/"
+apparmor_profile_fail_msg: "usr.bin.passwd profiles is not available in /extra-profiles/"
+apparmor_nscd: "nscd"
+apparmor_not_unconfined_success_msg: "nscd running executables which are currently confined by an AppArmor profile"
+apparmor_not_unconfined_fail_msg: "nscd profile currently unconfined by an AppArmor profile"
+apparmor_auditd: "/usr/sbin/auditd (/sbin/auditd) not confined"
+apparmor_unconfined_success_msg: "auditd currently unconfined by an AppArmor profile"
+apparmor_unconfined_fail_msg: "(/sbin/auditd) currently not unconfined by an AppArmor profile"
+
+
+
+
+
+
+
