@@ -374,6 +374,15 @@
         "test",
         "code"
       ]
+    },
+    {
+      "login": "shemasr",
+      "name": "shemasr",
+      "avatar_url": "https://avatars.githubusercontent.com/u/100141664?v=4",
+      "profile": "https://github.com/shemasr",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
