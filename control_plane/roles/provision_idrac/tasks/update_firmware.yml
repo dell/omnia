@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@
         catalog_file_name: "Catalog.xml"
       register: update_firmware
       when: model_status
-
+    
     - name: Wait for one minute to complete firmware update
       wait_for:
         timeout: 60
@@ -43,6 +43,8 @@
       wait_for:
         host: "{{ inventory_hostname }}"
         port: "{{ idrac_port }}"
+        delay: "{{ max_delay }}"
+        timeout: "{{ max_timeout }}"
         state: started
 
     - name: Firmware update status

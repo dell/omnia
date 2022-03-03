@@ -44,10 +44,10 @@ nfs_check_file: "nfs_check.xml"
 provisioned_idrac_inventory_name: "provisioned_idrac_inventory"
 awx_vars_filename: ".tower_cli.cfg"
 awx_vaultname: ".tower_vault_key"
-idrac9_supported_version: "4.40.40.00"
-idrac9_firmware_not_supported_msg: "[WARNING]Firmware version of iDRAC9 less than 4.40.40.00 is not supported for provisioning. Following tasks can be failed due to older firmware version. In case of failure, update firmware manually and re-run the idrac_template"
-idrac8_supported_version: "2.75.75.75"
-idrac8_firmware_not_supported_msg: "[WARNING]Firmware version of iDRAC8 less than 2.75.75.75 is not supported for provisioning. Following tasks can be failed due to older firmware version. In case of failure, update firmware manually and re-run the idrac_template"
+idrac9_supported_version: "5.00.10.20"
+idrac9_firmware_not_supported_msg: "[WARNING]Firmware version of iDRAC9 less than 5.00.10.20 is not supported for provisioning. Following tasks can be failed due to older firmware version. In case of failure, update firmware manually and re-run the idrac_template"
+idrac8_supported_version: "2.81.81.81"
+idrac8_firmware_not_supported_msg: "[WARNING]Firmware version of iDRAC8 less than 2.81.81.81 is not supported for provisioning. Following tasks can be failed due to older firmware version. In case of failure, update firmware manually and re-run the idrac_template"
 retries_count: 5
 provision_method_idrac: "idrac"
 provision_method_pxe: "PXE"
@@ -72,3 +72,7 @@ provision_os_msg: "OS provisioning is initiated. Wait for installation to comple
 idrac_provisioning_fail_msg: "OS provisioning using iDRAC is failed. This could be due to older firmware or some internal issues with server. Re-run idrac_template after fixing the issue"
 pxe_provisioning_fail_msg: "OS provisioning using PXE is failed. This could be due some internal issues with server. Re-run idrac_template after fixing the issue"
 add_inventory_fail_msg: "Failed. Unable to add provisioned host to provisioned_idrac_inventory."
+max_delay: 40
+max_retries: 30
+max_timeout: 500
+idrac_reset_time: 30
