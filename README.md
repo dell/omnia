@@ -78,6 +78,7 @@ Thanks goes to everyone who makes Omnia possible ([emoji key](https://allcontrib
   </tr>
   <tr>
     <td align="center"><a href="https://github.com/tamilarasansubrama1"><img src="https://avatars.githubusercontent.com/u/100588942?v=4?s=100" width="100px;" alt=""/><br /><sub><b>tamilarasansubrama1</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=tamilarasansubrama1" title="Tests">⚠️</a> <a href="https://github.com/dellhpc/omnia/commits?author=tamilarasansubrama1" title="Code">💻</a></td>
+    <td align="center"><a href="https://github.com/shemasr"><img src="https://avatars.githubusercontent.com/u/100141664?v=4?s=100" width="100px;" alt=""/><br /><sub><b>shemasr</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/issues?q=author%3Ashemasr" title="Bug reports">🐛</a></td>
   </tr>
 </table>
 
