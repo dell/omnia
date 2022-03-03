@@ -33,7 +33,8 @@
         deploy_os_status: "{{ not deploy_os_pxe.failed }}"
   when: provision_method == provision_method_pxe
 
-- block:
+- name: Deploy OS using iDRAC
+  block:
     - name: Set unattended_iso_filename - centos
       set_fact:
         unattended_iso_filename: "{{ centos_iso_filename }}"
@@ -59,9 +60,47 @@
         expose_duration: "{{ expose_duration }}"
       register: deploy_os_idrac
   rescue:
-    - name: OS provisioning failed using iDRAC
-      fail:
-        msg: "{{ idrac_provisioning_fail_msg }}"
+    - name: Retry deploy OS using iDRAC after reset
+      block:
+        - name: Reset iDRAC
+          dellemc.openmanage.idrac_reset:
+            idrac_ip: "{{ inventory_hostname }}"
+            idrac_user: "{{ idrac_username }}"
+            idrac_password: "{{ idrac_password }}"
+
+        - name: Wait for iDRAC Port to become active
+          wait_for:
+            host: "{{ inventory_hostname }}"
+            port: "{{ idrac_port }}"
+            delay: "{{ max_delay }}"
+            timeout: "{{ max_timeout }}"
+            state: started
+          register: wait_for_idrac
+          failed_when: wait_for_idrac.elapsed < idrac_reset_time
+
+        - name: Get LC status
+          dellemc.openmanage.idrac_lifecycle_controller_status_info:
+            idrac_ip: "{{ inventory_hostname }}"
+            idrac_user: "{{ idrac_username }}"
+            idrac_password: "{{ idrac_password }}"
+          register: lc_status
+          until: lc_status.lc_status_info.LCReady
+          retries: "{{ max_retries }}"
+          delay: "{{ max_delay }}"
+
+        - name: Retry installing OS using iDRAC
+          dellemc.openmanage.idrac_os_deployment:
+            idrac_ip: "{{ inventory_hostname }}"
+            idrac_user: "{{ idrac_username }}"
+            idrac_password: "{{ idrac_password }}"
+            share_name: "{{ management_station_ip }}:{{ nfs_share_offline_repo }}"
+            iso_image: "{{ unattended_iso_filename }}"
+            expose_duration: "{{ expose_duration }}"
+          register: deploy_os_idrac
+      rescue:
+        - name: OS provisioning failed using iDRAC
+          fail:
+            msg: "{{ idrac_provisioning_fail_msg }}"
   always:
     - name: Set deploy_os_status when provision_method == idrac
       set_fact:
