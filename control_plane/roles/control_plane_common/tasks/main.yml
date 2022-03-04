@@ -35,6 +35,7 @@
 
 - name: iDRAC inputs validation
   import_tasks: validate_idrac_vars.yml
+  when: idrac_support
 
 - name: Subnet manager inputs validation
   import_tasks: fetch_sm_inputs.yml
@@ -56,6 +57,7 @@
 
 - name: Encrypt idrac_tools_vars.yml
   import_tasks: encrypt_idrac_tools_vars.yml
+  when: idrac_support
   tags: init
 
 - name: NFS Server setup for offline repo and awx
