@@ -65,7 +65,7 @@
     - { path: "{{ nfs_share_offline_repo }}", ip: "{{ mngmnt_network_subnet }}/{{ mngmnt_network_netmask }}" }
   when: device_config_support
 
-- name: Adding NFS share entries in /etc/exports when device_config_support
+- name: Adding NFS share entries in /etc/exports when idrac_support
   lineinfile:
     path: "{{ exports_file_path }}"
     line: "{{ nfs_share_offline_repo  }} {{ item }}(rw,sync,no_root_squash)"
@@ -89,9 +89,3 @@
 - name: Reload firewalld
   command: firewall-cmd --reload
   changed_when: true
-
-- name: Stop and disable firewalld
-  service:
-    name: firewalld
-    state: stopped
-    enabled: no
