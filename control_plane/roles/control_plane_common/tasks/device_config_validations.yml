@@ -16,17 +16,20 @@
 - name: Initialize variables
   set_fact:
     mngmnt_network_container_status: false
+  tags: init
 
 - name: Check mngmnt_network_container status on the machine
   command: kubectl get pods -n network-config
   register: mngmnt_network_container_result
   failed_when: false
   changed_when: false
+  tags: init
 
 - name: Validate if mngmnt_network is present if device_config is false
   set_fact:
     mngmnt_network_container_status: true
   when: "'mngmnt-network-container' in mngmnt_network_container_result.stdout"
+  tags: init
 
 - name: Validate if mngmnt_network is present if device_config is false
   assert:
@@ -34,6 +37,7 @@
     success_msg: "{{ mgmnt_device_fail }}"
     fail_msg: "{{ mgmnt_device_fail }}"
   when: mngmnt_network_container_status
+  tags: validate
 
 - name: Assert value of idrac_support if mngmnt_network container needed
   assert:
@@ -41,6 +45,7 @@
     success_msg: "{{ idrac_support_valid }}"
     fail_msg: " {{ failed_idrac_support }}"
   when: device_config_support
+  tags: validate
 
 - block:
     - name: Assert ethernet_switch_support
@@ -48,19 +53,21 @@
         that: ethernet_switch_support == true or ethernet_switch_support == false
         success_msg: "{{ ethernet_switch_support_success_msg }}"
         fail_msg: "{{ ethernet_switch_support_fail_msg }}"
+      tags: validate
 
     - name: Assert ib_switch_support
       assert:
         that:  ib_switch_support == true or ib_switch_support == false
         success_msg: "{{ ib_switch_support_success_msg }}"
         fail_msg: "{{ ib_switch_support_fail_msg }}"
+      tags: validate
 
     - name: Assert powervault_support
       assert:
         that: powervault_support == true or powervault_support == false
         success_msg: "{{ powervault_support_success_msg }}"
         fail_msg: "{{ powervault_support_fail_msg }}"
-
+      tags: validate
   when: device_support_status
 
 - block:
@@ -69,28 +76,34 @@
       that: ethernet_switch_support == true
       success_msg: "{{ ethernet_device_config }}"
     failed_when: false
+    tags: validate
 
   - name: Set ethernet_switch_support when not device_config_support
     set_fact:
       ethernet_switch_support: false
+    tags: init
 
   - name: Check value of ib_switch_support when not device_config_support
     assert:
       that: ib_switch_support == true
       success_msg: "{{ ib_device_config }}"
     failed_when: false
+    tags: validate
 
   - name: Set ib_switch_support when not device_config_support
     set_fact:
       ib_switch_support: false
+    tags: init
 
   - name: Check value of powervault_support when not device_config_support
     assert:
       that: powervault_support == true
       success_msg: "{{ pv_device_config }}"
     failed_when: false
+    tags: validate
 
   - name: Set powervault_support when not device_config_support
     set_fact:
       powervault_support: false
+    tags: init
   when: not device_support_status
