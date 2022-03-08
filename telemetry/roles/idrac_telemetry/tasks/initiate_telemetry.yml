@@ -209,7 +209,7 @@
 
   - name: Enable telemetry collection on iDRAC
     block:
-    - name: Git clone grafana plugin repo
+    - name: Git clone telemetry initialization repo
       ansible.builtin.git:
         repo: "{{ idrac_telemetry_scripting_repo }}"
         dest: "{{ mount_location + idrac_telemetry_scripting_folder }}"
