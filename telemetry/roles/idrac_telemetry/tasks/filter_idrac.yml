@@ -17,6 +17,8 @@
   set_fact:
     idrac_awx_count: "{{ idrac_awx_count | int + 1 }}"
     awx_idrac: "{{ awx_idrac + [ idrac_inventory_jsondata['results'][idrac_index].name ] }}"
+    datacenter_license: false
+    firmware_version: false
 
 - name: Filter iDRAC
   block:
