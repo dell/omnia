@@ -24,9 +24,9 @@ awx_yml_file_path: "{{ role_path }}/files/awx.yml"
 postgres_storage_class: nfs-client
 projects_existing_claim: awx-pv-claim
 awx_version: 19.4.0
-awx_tag: 0.14.0
+awx_operator_version: 0.17.0
 file_perm: '0644'
-awx_wait_time: 90
+awx_wait_time: 600
 deployment_failure_msg: "Deployment failed due to docker pull rate limit"
 awx_operator_link: "https://github.com/ansible/awx-operator.git"
 awx_manager_file: '/root/awx-operator/config/manager/manager.yaml'
@@ -53,9 +53,9 @@ awx_tcp_ports:
   - 30000-32767
 awx_ui_msg: "AWX Upgrading"
 return_status: 200
-max_retries: 20
+max_retries: 25
 max_delay: 15
-awx_ui_wait_time: 200
+awx_ui_wait_time: 900
 
 # Usage: check_prerequisites.yml
 min_retries: 2

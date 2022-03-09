@@ -44,6 +44,7 @@
   assert:
     that: mngmnt_network_nic | length > 1
     fail_msg: "{{ input_base_failure_msg }}"
+  tags: validate
   when: device_config_support
   
 - name: Validate the value of device config support
@@ -74,6 +75,7 @@
       - '"/"  in device_ip_list_path'
     success_msg: "{{ device_ip_list_not_supported  }}"
   when: not idrac_support
+  tags: validate
   failed_when: false
 
 - name: Set status for device_config_support
@@ -184,7 +186,7 @@
         - ib_network_dhcp_end_range | length > 6
     success_msg: "{{ success_msg_ib }}"
     fail_msg: "{{ fail_msg_ib }}"
-    register: ib_check
+  register: ib_check
   when: ib_switch_support
   tags: [ validate, network-ib ]
 
@@ -234,12 +236,10 @@
 
 - name: Validate device_config_support
   import_tasks: device_config_validations.yml
-  tags: [ validate, init ]
 
 - name: Validate device_config_support
   import_tasks: validate_device_ip_file.yml
   when: device_config_ip_file
-  tags: [ validate, init ]
 
 - name: Validate NIC parameters
   import_tasks: validate_nic_vars.yml

@@ -35,6 +35,7 @@
   tags: init
 
 ### management network
+
 - block:
   - name: Assert management network nic
     assert:
@@ -126,6 +127,7 @@
     when: mngmnt_mapping_file and not result_mngmnt_mapping_file.stat.exists
     tags: init
   when: device_config_support
+
 ### host network
 
 - name: Fetch the host network ip, netmask and subnet
@@ -227,9 +229,10 @@
       - public_nic != host_network_nic
     success_msg: "{{ success_msg_different_nics }}"
     fail_msg: "{{ fail_msg_different_nics }}"
-  tags: [ validate, pxe, network-device ]
+  tags: [ validate, pxe ]
 
 ### ib network
+
 - block:
     - name: Fetch the infiniband network ip, netmask and subnet
       set_fact:

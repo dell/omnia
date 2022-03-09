@@ -13,18 +13,21 @@
 #  limitations under the License.
 ---
 
-- name: Check IP
+- name: Set IP list with device_ip_list
   set_fact:
     device_ip: "{{ lookup('file', '{{ device_ip_list_path }}').splitlines() |list }}"
+  tags: init
 
 - name: Filter all the IP present
   set_fact:
     len1: "{{ device_ip | length }}"
     device_ip_temp: "{{ device_ip | ipv4('address') | list }}"
+  tags: init
 
-- name: size
+- name: Set total number of IP present
   set_fact:
     len2: "{{ device_ip_temp | length }}"
+  tags: init
 
 - name: Assert if valid device_ip_file
   assert:
@@ -32,9 +35,11 @@
       - len1 == len2
     fail_msg: "{{ fail_device_ip_format }}"
     success_msg: "{{ success_device_ip_format }}"
+  tags: validate
 
-- name: Copy the Ips to file
+- name: Copy the IP list to provisioned hosts file
   copy:
     src: "{{ device_ip_list_path }}"
     dest: "{{ mgmnt_ip_path }}"
     mode: "{{ file_perm }}"
+  tags: init

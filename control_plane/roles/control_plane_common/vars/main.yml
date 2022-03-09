@@ -58,6 +58,7 @@ python_version_support: '3.6.8'
 default_ansible_config_file_path: /etc/ansible/ansible.cfg
 invalid_run_tag_msg: "Failed. init tag should be used with run tags"
 invalid_skip_tag_msg: "Failed. init tag can't be used with skip tags"
+selinux_config_path: /etc/sysconfig/selinux
 
 # Usage: verify_login_inputs.yml
 login_vars_filename: "input_params/login_vars.yml"
