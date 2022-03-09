@@ -32,7 +32,7 @@
 
 - name: Install ipa server in CentOS 7.9
   command: >-
-    ipa-server-install -n '{{ hostvars['127.0.0.1']['domain_name'] }}' --hostname='{{ server_hostname }}' -a '{{ hostvars['127.0.0.1']['ipa_admin_password'] }}'
+    ipa-server-install -n '{{ hostvars['127.0.0.1']['domain_name'] }}' --hostname='{{ server_hostname }}' -a '{{ hostvars['127.0.0.1']['kerberos_admin_password'] }}'
     -p '{{ hostvars['127.0.0.1']['directory_manager_password'] }}' -r '{{ hostvars['127.0.0.1']['realm_name'] }}' --setup-dns --auto-forwarders --auto-reverse -U
   changed_when: true
   no_log: true
@@ -42,7 +42,7 @@
 
 - name: Install ipa server in CentOS > 8 or Rocky 8.4
   command: >-
-    ipa-server-install -n '{{ hostvars['127.0.0.1']['domain_name'] }}' --hostname='{{ server_hostname }}' -a '{{ hostvars['127.0.0.1']['ipa_admin_password'] }}'
+    ipa-server-install -n '{{ hostvars['127.0.0.1']['domain_name'] }}' --hostname='{{ server_hostname }}' -a '{{ hostvars['127.0.0.1']['kerberos_admin_password'] }}'
     -p '{{ hostvars['127.0.0.1']['directory_manager_password'] }}' -r '{{ hostvars['127.0.0.1']['realm_name'] }}' --setup-dns --no-forwarders --no-reverse --no-ntp -U
   changed_when: true
   no_log: true
@@ -52,7 +52,7 @@
     - ( ansible_distribution_version >= os_version )
 
 - name: Authenticate as admin
-  shell: set -o pipefail && echo $'{{ hostvars['127.0.0.1']['ipa_admin_password'] }}' | kinit admin
+  shell: set -o pipefail && echo $'{{ hostvars['127.0.0.1']['kerberos_admin_password'] }}' | kinit admin
   no_log: true
   changed_when: false
 
