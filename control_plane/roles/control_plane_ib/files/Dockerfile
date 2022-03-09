@@ -1,4 +1,4 @@
-FROM rockylinux/rockylinux:8.5
+FROM rockylinux/rockylinux:docker_os
 
 RUN dnf install -y epel-release
 RUN dnf install dhcp-server -y \
