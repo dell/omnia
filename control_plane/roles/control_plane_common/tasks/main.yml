@@ -24,6 +24,10 @@
   import_tasks: package_installation.yml
   tags: init
 
+- name: Set the docker os version
+  import_tasks: set_docker_os.yml
+  tags: init
+  
 - name: Basic configuration
   import_tasks: fetch_base_inputs.yml
 

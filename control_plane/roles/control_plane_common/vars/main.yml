@@ -40,6 +40,15 @@ common_packages_rocky:
   - device-mapper-persistent-data
   - yum-plugin-versionlock
 
+# Usage: set_docker_os.yml
+docker_rocky_os_version: "8"
+docker_leap_os_version: "15.3"
+docker_alpine_os_version: "3.15"
+cobbler_rocky_dockerfile_path: "{{ playbook_dir }}/roles/provision_cobbler/files/Dockerfile_rocky"
+cobbler_leap_dockerfile_path: "{{ playbook_dir }}/roles/provision_cobbler/files/Dockerfile_leap"
+ib_dockerfile_path: "{{ playbook_dir }}/roles/control_plane_ib/files/Dockerfile"
+mgmnt_dockerfile_path: "{{ playbook_dir }}/roles/control_plane_device/files/Dockerfile"
+
 # Usage: pre_requisite.yml
 internet_delay: 0
 internet_timeout: 10

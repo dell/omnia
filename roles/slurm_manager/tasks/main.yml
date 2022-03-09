@@ -52,12 +52,21 @@
     name: "{{ slurm_packages }}"
     state: present
   tags: install
+  when: os_supported_leap not in compute_os
+
+- name: Install packages for slurm
+  package:
+    name: "{{ leap_slurm_packages }}"
+    state: present
+  tags: install
+  when: os_supported_leap in compute_os
 
 - name: Install development tools
   package:
     name: "{{ dev_tools }}"
     state: present
   tags: install
+  when: os_supported_leap not in compute_os
 
 - name: Get the hostname
   command: hostname

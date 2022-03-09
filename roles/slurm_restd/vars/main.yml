@@ -21,11 +21,23 @@ slurm_restd_packages:
    - libtool
    - make
 
+slurm_restd_packages_leap:
+   - slurm-rest
+   - libjson-c-devel
+   - http-parser-devel
+   - libtool
+   - make
+   - libopenssl-devel
+
+slurm_gcc_leap:
+  - devel_basis
+
 fil_mode: "0755"
 jansson_download_dir: /var/lib/
 jansson_src_url: https://github.com/akheron/jansson/archive/refs/tags/v2.14.tar.gz
 jansson_path: /usr/local/lib/pkgconfig
 jansson_dir_path: /var/lib/jansson-2.14/
+os_supported_leap: "leap"
 
 # Usage: install_libjwt.yml
 libjwt_repo: https://github.com/benmcollins/libjwt.git
