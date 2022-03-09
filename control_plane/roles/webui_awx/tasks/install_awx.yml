@@ -20,36 +20,6 @@
   changed_when: false
   register: namespaces
 
-- name: Creating directory for deploying awx-operator
-  file:
-    path: "{{ awx_operator_folder }}"
-    state: directory
-    mode: "{{ file_perm }}"
-
-- name: Check for awx-operator status
-  stat:
-    path: "{{ awx_manager_file }}"
-  register: awx_operator_repo
-
-- name: Cloning awx-operator from github
-  git:
-    repo: "{{ awx_operator_link }}"
-    dest: "{{ awx_operator_folder }}"
-    version: "{{ awx_tag }}"
-  when: not awx_operator_repo.stat.exists
-
-- name: Modifying livenessprobe value
-  replace:
-    path: "{{ awx_manager_file }}"
-    regexp: "{{ liveness_probe_initial }}"
-    replace: "{{ liveness_probe_final }}"
-
-- name: Modifying readinessprobe value
-  replace:
-    path: "{{ awx_manager_file }}"
-    regexp: "{{ readiness_probe_initial }}"
-    replace: "{{ readiness_probe_final }}"
-
 - name: Create namespace
   command: "kubectl create namespace {{ awx_namespace }}"
   changed_when: true
@@ -64,17 +34,86 @@
     name: jq
     state: present
 
-- name: Deploying awx-operator
-  command: make deploy
-  changed_when: false
-  args:
-    chdir: "{{ awx_operator_folder }}"
-  environment:
-    NAMESPACE: "{{ awx_namespace }}"
-
-- name: Waiting for awx operator deployment {This might take 10-15 minutes}
+- name: Creating and deploying AWX operator
   block:
-    - name: Waiting for awx-operator deployment to be up and running
+    - name: Creating directory for deploying awx-operator
+      file:
+        path: "{{ awx_operator_folder }}"
+        state: directory
+        mode: "{{ file_perm }}"
+
+    - name: Check for awx-operator status
+      stat:
+        path: "{{ awx_manager_file }}"
+      register: awx_operator_repo
+
+    - name: Cloning awx-operator from github
+      git:
+        repo: "{{ awx_operator_link }}"
+        dest: "{{ awx_operator_folder }}"
+        version: "{{ awx_operator_version }}"
+      when: not awx_operator_repo.stat.exists
+
+    - name: Modifying livenessprobe value
+      replace:
+        path: "{{ awx_manager_file }}"
+        regexp: "{{ liveness_probe_initial }}"
+        replace: "{{ liveness_probe_final }}"
+
+    - name: Modifying readinessprobe value
+      replace:
+        path: "{{ awx_manager_file }}"
+        regexp: "{{ readiness_probe_initial }}"
+        replace: "{{ readiness_probe_final }}"
+
+    - name: Deploying awx-operator
+      command: make deploy
+      changed_when: false
+      args:
+        chdir: "{{ awx_operator_folder }}"
+      environment:
+        NAMESPACE: "{{ awx_namespace }}"
+  rescue:
+    - name: Cleaning awx-operator folder
+      file:
+        path: "{{ awx_operator_folder }}"
+        state: absent
+    
+    - name: Creating directory for deploying awx-operator
+      file:
+        path: "{{ awx_operator_folder }}"
+        state: directory
+        mode: "{{ file_perm }}"
+
+    - name: Cloning awx-operator from github
+      git:
+        repo: "{{ awx_operator_link }}"
+        dest: "{{ awx_operator_folder }}"
+        version: "{{ awx_operator_version }}"
+
+    - name: Modifying livenessprobe value
+      replace:
+        path: "{{ awx_manager_file }}"
+        regexp: "{{ liveness_probe_initial }}"
+        replace: "{{ liveness_probe_final }}"
+
+    - name: Modifying readinessprobe value
+      replace:
+        path: "{{ awx_manager_file }}"
+        regexp: "{{ readiness_probe_initial }}"
+        replace: "{{ readiness_probe_final }}"
+
+    - name: Deploying awx-operator
+      command: make deploy
+      changed_when: false
+      args:
+        chdir: "{{ awx_operator_folder }}"
+      environment:
+        NAMESPACE: "{{ awx_namespace }}"
+
+- name: Waiting for awx operator deployment
+  block:
+    - name: Waiting for awx-operator deployment to be up and running (This might take 10-15 minutes)
       command: kubectl wait --for=condition=available deployment awx-operator-controller-manager -n {{ awx_namespace }} --timeout={{ awx_operator_time }}
       changed_when: false 
   rescue:
@@ -125,7 +164,7 @@
   changed_when: true
   when: not k8s_pods.stdout | regex_search('awx-([A-Za-z0-9]{10})-([A-Za-z0-9]{5})')
 
-- name: Wait for awx pods to get created
+- name: Wait for awx pods to get created (This will take 10min)
   wait_for:
     timeout: "{{ awx_wait_time }}"
   when: not k8s_pods.stdout | regex_search('awx-([A-Za-z0-9]{10})-([A-Za-z0-9]{5})')

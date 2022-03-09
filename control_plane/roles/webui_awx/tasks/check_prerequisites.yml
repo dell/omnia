@@ -55,6 +55,7 @@
 - block:
     - name: Get awx-service cluster-ip
       command: "kubectl get svc {{ awx_service_name }} -n {{ awx_namespace }} -o jsonpath='{.spec.clusterIP}'"
+      changed_when: false
       register: awx_cluster_ip
 
     - name: Get AWX admin password
@@ -62,6 +63,7 @@
         set -o pipefail && \
         kubectl get secret awx-admin-password -n {{ awx_namespace }} -o jsonpath='{.data.password}' | base64 --decode
       no_log: true
+      changed_when: false
       register: awx_admin_password
 
     - name: Waiting for the AWX UI to be up
@@ -93,10 +95,12 @@
     - block:
          - name: Fetching Schedule from AWX UI
            command: awx schedules list --all --conf.host http://{{ awx_cluster_ip.stdout }}:{{ awx_port }} --conf.username admin --conf.password {{ awx_admin_password.stdout }} -f human --filter "name"
+           changed_when: false
            register: awx_schedule_list
 
          - name: Fetching job_templates from AWX UI
            command: awx job_templates list --all --conf.host http://{{ awx_cluster_ip.stdout }}:{{ awx_port }} --conf.username admin --conf.password {{ awx_admin_password.stdout }} -f human --filter "name"
+           changed_when: false
            register: awx_job_templates_list
 
          - name: Updating awx_configuration_status
