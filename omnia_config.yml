@@ -70,9 +70,10 @@ realm_name: "OMNIA.TEST"
 # The password must not contain -,\, ',"
 directory_manager_password: ""
 
-# The IPA server requires an administrative user, named 'admin'. 
+# kerberos_admin_password used by IPA admin user in Rocky OS and used by 389-ds for kerberos admin password in leap OS
+# The IPA server requires an administrative user, named 'admin'.
 # This user is a regular system account used for IPA server administration
-ipa_admin_password: ""
+kerberos_admin_password: ""
 
 # Boolean indicating whether login node is requires security features or not
 # It can be set to true or false
