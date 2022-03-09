@@ -57,7 +57,7 @@
     name: "{{ common_packages }}"
     state: present
   tags: install
-    when: os_supported_leap not in compute_os
+  when: os_supported_leap not in compute_os
 
 - name: Install packages for slurm
   package:
