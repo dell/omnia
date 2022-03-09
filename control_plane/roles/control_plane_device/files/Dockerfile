@@ -1,5 +1,5 @@
 # Dockerfile for creating the management network container
-FROM alpine:latest
+FROM alpine:docker_os
 
 #Installing packages
 RUN apk add dhcp

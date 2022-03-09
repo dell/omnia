@@ -1,4 +1,4 @@
-FROM rockylinux/rockylinux:8.5
+FROM rockylinux/rockylinux:docker_os
 
 # RPM REPOs
 RUN dnf install -y \
