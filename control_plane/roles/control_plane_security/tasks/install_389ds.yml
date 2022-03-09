@@ -112,10 +112,9 @@
         state: enabled
       with_items: "{{ ldap_services }}"
 
-    - name: Reload firewalld service
-      systemd:
-        name: firewalld
-        state: reloaded
+    - name: Reload firewalld
+      command: firewall-cmd --reload
+      changed_when: true
 
     - name: Install kerberos packages
       zypper:
