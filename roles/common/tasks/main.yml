@@ -124,7 +124,7 @@
         autorefresh: yes
       tags: install
 
-    - name: Install nvidia
+    - name: Install nvidia(This might take 10-15 minutes)
       command: zypper --gpg-auto-import-keys install -l -y x11-video-nvidiaG06
       changed_when: true
       tags: install
