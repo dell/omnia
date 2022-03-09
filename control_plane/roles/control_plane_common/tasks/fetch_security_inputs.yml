@@ -185,3 +185,57 @@
     success_msg: "{{ allow_deny_success_msg }}"
     fail_msg: "{{ allow_deny_fail_msg }}"
   tags: [ validate, security ]
+
+- name: Assert restrict_program_support
+  assert:
+    that:
+      - restrict_program_support == true or restrict_program_support == false
+    success_msg: "{{ restrict_program_support_success_msg }}"
+    fail_msg: "{{ restrict_program_support_failure_msg }}"
+  tags: [ validate, security ]
+
+- name: Initialize variables for restrict_softwares
+  set_fact:
+    restrict_program_status: false
+    disable_services: []
+  tags: security
+
+- block:
+    - name: The services needs to be disabled are appending to list
+      set_fact:
+          services_list: "{{ lookup('vars', 'restrict_softwares').split(',')| map('trim') | unique | select| list }}"
+      tags: security
+
+    - name: Assert restrict_softwares variable
+      assert:
+        that:
+          - item == 'telnet' or
+            item == 'lpd' or
+            item == 'bluetooth' or
+            item == 'rlogin' or
+            item == 'rexec'
+        success_msg: "{{ restrict_softwares_success_msg }}"
+        fail_msg: "{{ restrict_softwares_failure_msg }}"
+      failed_when: false
+      with_items: "{{ services_list }}"
+      tags: [ validate, security ]
+
+    - name: Creating a list for disabling services
+      set_fact:
+          disable_services: "{{ disable_services + [ item ] }}"
+      when:
+        - item == 'telnet' or
+          item == 'lpd' or
+          item == 'bluetooth' or
+          item == 'rlogin' or
+          item == 'rexec'
+      with_items: "{{ services_list }}"
+      tags: security
+
+    - name: Setting restrict_program_status
+      set_fact:
+        restrict_program_status: true
+      when:
+        - disable_services | length > 0
+      tags: security
+  when: restrict_program_support

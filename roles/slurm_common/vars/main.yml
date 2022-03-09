@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -22,6 +22,12 @@ common_packages:
    - mariadb-server
    - mariadb-devel
    - man2html
+
+leap_common_packages:
+   - slurm
+   - munge
+   - mariadb
+   - slurm-munge
 
 common_python2_packages:
    - MySQL-python
@@ -60,3 +66,4 @@ slurmd_log: "/var/log/slurm/slurmd.log"
 os_centos: 'centos'
 os_rocky: 'rocky'
 os_version: '8.0'
+os_supported_leap: "leap"

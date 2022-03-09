@@ -2,6 +2,7 @@
 Description = Start slurm restd
 
 [Service]
+Environment = SLURM_JWT=bvijavojviqjkenilejvkejfvvjfjv
 ExecStart = slurmrestd -a rest_auth/jwt -s openapi/v0.0.36 "0.0.0.0:6820"
 Restart = always
 RestartSec = 15

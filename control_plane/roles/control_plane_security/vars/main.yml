@@ -100,3 +100,6 @@ kerberos_packages:
 kerberos_principal_path: /var/lib/kerberos/krb5kdc/principal
 kerberos_conf_path: /etc/krb5.conf
 kerberos_env_path: /usr/lib/mit/sbin/
+
+# Usage: restrict_nonessentials.yml
+service_status: ['enabled','alias','static','indirect','enabled-runtime','active','inactive']

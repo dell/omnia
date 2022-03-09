@@ -59,4 +59,8 @@
      
     - name: Session timeout configuration
       include_tasks: session_timeout.yml
+
+    - name: Restrict nonessential programs
+      include_tasks: restrict_nonessentials.yml
+      when: restrict_program_status
   when: enable_security_support

@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -57,10 +57,23 @@
     name: "{{ common_packages }}"
     state: present
   tags: install
+  when: os_supported_leap not in compute_os
+
+- name: Install packages for slurm
+  package:
+    name: "{{ leap_common_packages }}"
+    state: present
+  when: os_supported_leap in compute_os
 
 - name: Create munge key
   command: "{{ munge_cmd }}"
   changed_when: true
+  when: os_supported_leap not in compute_os
+
+- name: Create munge key
+  shell: dd if=/dev/random bs=1 count=1024 >/etc/munge/munge.key
+  changed_when: true
+  when: os_supported_leap in compute_os
 
 - name: Copy munge key
   copy:

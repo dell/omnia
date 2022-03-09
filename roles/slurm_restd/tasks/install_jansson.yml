@@ -18,6 +18,14 @@
     name: "{{ slurm_restd_packages }}"
     state: present
   tags: install
+  when: os_supported_leap not in compute_os
+
+- name: Install packages for slurm restd on leap
+  package:
+    name: "{{ slurm_restd_packages_leap }}"
+    state: present
+  tags: install
+  when: os_supported_leap in compute_os
 
 - name: Download and untar jansson package
   unarchive:
@@ -25,9 +33,12 @@
     dest: "{{ jansson_download_dir }}"
     remote_src: yes
 
-- name: Go to jansson directory
-  command: cd "{{ jansson_dir_path }}"
-  changed_when: false
+- name: Install required C packages
+  zypper:
+    name: "{{ slurm_gcc_leap }}"
+    state: present
+    type: pattern
+  when: os_supported_leap in compute_os
 
 - name: Execute autoreconf
   shell:  set -o pipefail && cd "{{ jansson_dir_path }}" && autoreconf -i

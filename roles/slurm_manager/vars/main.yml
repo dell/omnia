@@ -45,6 +45,10 @@ log_files_manager:
    - slurm_jobacct.log
    - slurm_jobcomp.log
 
+leap_slurm_packages:
+   - slurm-slurmdbd
+   - git
+
 tmp_mode: "0755"
 cluster_state_path: "/var/spool/slurm/cluster_state"
 spool_slurmctld_pth: "/var/spool/slurmctld"
@@ -72,3 +76,7 @@ logfile: "/var/log/slurm/slurmdbd.log"
 pidfile: "/var/run/slurmdbd.pid"
 buffer_path: "/tmp/slurm.conf"
 slurm_mode: "0644"
+
+os_centos: 'centos'
+os_rocky: 'rocky'
+os_supported_leap: "leap"
