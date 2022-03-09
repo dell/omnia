@@ -19,6 +19,10 @@
     fstype: swap
     state: absent
 
+- name: Disable selinux
+  selinux:
+    state: disabled
+
 - name: Copy k8s.conf file
   copy:
     src: k8s.conf

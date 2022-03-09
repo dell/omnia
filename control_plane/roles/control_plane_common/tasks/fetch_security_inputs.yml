@@ -48,7 +48,7 @@
   command: hostname -s
   register: short_hostname
   changed_when: false
-  tags: [ validate, security ]
+  tags: security
 
 - name: Verify the hostname is not blank in hostname
   fail:
@@ -70,7 +70,7 @@
   register: domain_name_set
   changed_when: false
   failed_when: false
-  tags: [ validate, security ]
+  tags: security
 
 - name: Verify the domain name is not blank in hostname
   fail:
@@ -81,7 +81,7 @@
 - name: Set fact for the domain name in hostname
   set_fact:
     ms_domain_name: "{{ domain_name_set.stdout }}"
-  tags: [ validate, security ]
+  tags: security
 
 - name: Validate the domain name set on the host
   assert:
@@ -95,7 +95,7 @@
   command: hostname
   register: machine_hostname
   changed_when: false
-  tags: [ validate, security ]
+  tags: security
 
 - name: Add host name in hosts file
   lineinfile:
@@ -162,8 +162,9 @@
 
 - name: Prepare user list
   set_fact:
-      user_list: "{{ lookup('vars', 'user').split()| unique | select| list }}"
+    user_list: "{{ lookup('vars', 'user').split()| unique | select| list }}"
   when: user | length > 1
+  tags: security
 
 - name: validate user
   assert:
@@ -173,6 +174,7 @@
     success_msg: "{{ user_success_msg }}"
     fail_msg: "{{ user_fail_msg }}"
   with_items: "{{ user_list }}"
+  tags: [ validate, security ]
   when:
     - user | length > 1
 
@@ -182,3 +184,4 @@
       - allow_deny == 'Allow' or allow_deny == 'Deny'
     success_msg: "{{ allow_deny_success_msg }}"
     fail_msg: "{{ allow_deny_fail_msg }}"
+  tags: [ validate, security ]

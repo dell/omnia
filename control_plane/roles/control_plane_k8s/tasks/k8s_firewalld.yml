@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -12,17 +12,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-
-- name: Install firewalld
-  package:
-    name: firewalld
-    state: present
-
-- name: Start and enable firewalld
-  service:
-    name: firewalld
-    state: started
-    enabled: yes
 
 - name: Configure firewalld on master nodes
   firewalld:
@@ -53,9 +42,3 @@
 - name: Reload firewalld
   command: firewall-cmd --reload
   changed_when: true
-
-- name: Stop and disable firewalld
-  service:
-    name: firewalld
-    state: stopped
-    enabled: no
