@@ -35,6 +35,7 @@
     kerberos_admin_password: "{{ hostvars['127.0.0.1']['kerberos_admin_password'] }}"
     domain_name: "{{ hostvars['127.0.0.1']['domain_name'] }}"
     realm_name: "{{ hostvars['127.0.0.1']['realm_name'] }}"
+  no_log: true
 
 - name: Check ldap instance is running or not
   command: dsctl {{ ldap_instance }} status
@@ -78,7 +79,8 @@
       lineinfile:
         path: "{{ ldap1_config_path }}"
         regexp: "^root_password = password"
-        line: "root_password = {{ directory_manager_password }}"  
+        line: "root_password = {{ directory_manager_password }}"
+      no_log: true
 
     - name: Check ldap instance is running or not
       command: dsctl {{ ldap_instance }} status
@@ -216,4 +218,5 @@
 - name: Configure password policy in 389-ds
   command: dsconf -w {{ directory_manager_password }} -D "cn=Directory Manager" ldap://{{ server_hostname_fqdn }} pwpolicy set --pwdlockoutduration {{ hostvars['127.0.0.1']['lockout_duration'] }} --pwdmaxfailures {{ hostvars['127.0.0.1']['max_failures'] }} --pwdresetfailcount {{ hostvars['127.0.0.1']['failure_reset_interval'] }}
   changed_when: true
+  no_log: true
   when: hostvars['127.0.0.1']['enable_secure_login_node']
