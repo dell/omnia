@@ -13,6 +13,15 @@
 #  limitations under the License.
 ---
 
+- name: Creating NFS share directory
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: "{{ nfs_share_dir_mode }}"
+  with_items:
+    - "{{ nfs_share_offline_repo }}"
+    - "{{ nfs_share_awx }}"
+
 - name: Install nfs-utils
   package:
     name: nfs-utils
@@ -37,15 +46,6 @@
   with_items:
     - rpcbind
     - nfs-server
-
-- name: Creating NFS share directory
-  file:
-    path: "{{ item }}"
-    state: directory
-    mode: "{{ nfs_share_dir_mode }}"
-  with_items:
-    - "{{ nfs_share_offline_repo }}"
-    - "{{ nfs_share_awx }}"
 
 - name: Adding NFS share entries in /etc/exports
   lineinfile:
