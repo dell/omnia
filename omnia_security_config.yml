@@ -15,17 +15,17 @@
 
 # Maximum number of consecutive failures before lockout
 # The default value of this variable can't be changed
-# Default: 3
+# Default value: 3
 max_failures: 3
 
 # Period (in seconds) after which the number of failed login attempts is reset
-# Default: 60
+# Default value: 60
 # Min: 30
 # Max: 60
 failure_reset_interval: 60
 
 # Period (in seconds) for which users are locked out 
-# Default: 10
+# Default value: 10
 # Min: 5
 # Max: 10
 lockout_duration: 10
@@ -38,7 +38,7 @@ session_timeout: 180
 
 # Email address used for sending alerts in case of authentication failure
 # If this variable is left blank, authentication failure alerts will be disabled.
-# Required value
+# Currently, only one email ID is accepted in this field
 alert_email_address: ""
 
 # This variable mentions the users to whom the access will be provided
@@ -47,5 +47,6 @@ alert_email_address: ""
 user: ''
 
 # This variable provides the type of access
-# Accepted values 'Allow' or 'Deny' by default 'Allow'
-allow_deny: 'Allow'
+# Accepted values: "Allow" or "Deny"
+# Default value: "Allow"
+allow_deny: "Allow"
