@@ -13,9 +13,6 @@
 #  limitations under the License.
 ---
 
-- name: Include ipa server variables
-  include_vars: ../../login_common/vars/main.yml
-
 - name: Fetch hostname
   command: hostname
   register: loginnode_hostname
@@ -29,7 +26,7 @@
 
 - name: Set hostname of ipa server when manager node has ipa server installed
   set_fact:
-    required_ipa_admin_pwd: "{{ hostvars['127.0.0.1']['ipa_admin_password'] }}"
+    required_ipa_admin_pwd: "{{ hostvars['127.0.0.1']['kerberos_admin_password'] }}"
     required_server_hostname: "{{ hostvars[groups['manager'][0]]['server_hostname'] }}"
     required_domain_name: "{{ hostvars['127.0.0.1']['domain_name'] }}"
   when: not hostvars['127.0.0.1']['ipa_server_ms']
