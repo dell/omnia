@@ -72,7 +72,7 @@
         name: "swap"
         fstype: swap
         state: absent
-        
+
     - name: Disable selinux
       selinux:
         state: disabled
@@ -126,7 +126,7 @@
 
     - name: Install nvidia
       command: zypper --gpg-auto-import-keys install -l -y x11-video-nvidiaG06
-      changed_when: false
+      changed_when: true
       tags: install
 
     - name: Add docker community edition repository
