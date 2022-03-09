@@ -69,7 +69,8 @@
       lineinfile:
         path: "{{ ldap1_config_path }}"
         regexp: "^root_password = password"
-        line: "root_password = {{ ms_directory_manager_password }}"  
+        line: "root_password = {{ ms_directory_manager_password }}"
+      no_log: true
 
     - name: Check ldap instance is running or not
       command: dsctl {{ ldap_instance }} status
@@ -193,5 +194,6 @@
     
     - name: Configure password policy in 389-ds
       command: dsconf -w {{ ms_directory_manager_password }} -D "cn=Directory Manager" ldap://{{ server_hostname_ms }} pwpolicy set --pwdlockoutduration {{ lockout_duration }} --pwdmaxfailures {{ max_failures }} --pwdresetfailcount {{ failure_reset_interval }}
+      no_log: true
       changed_when: true
   when: not ds389_status
