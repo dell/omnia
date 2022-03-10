@@ -53,7 +53,7 @@ allow_deny: "Allow"
 
 # This variable is used to disable services.
 # Accepted values: "true" or "false". 
-# Default values are: true  
+# Default value: false  
 # Root access is needed.
 restrict_program_support: false
 

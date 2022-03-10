@@ -27,6 +27,8 @@ k8s_prom_stack_crd:
   - prometheusrules.monitoring.coreos.com
   - servicemonitors.monitoring.coreos.com
   - thanosrulers.monitoring.coreos.com
+kube_prom_stack_image_name: k8s.gcr.io/ingress-nginx/kube-webhook-certgen
+kube_prom_stack_image_tag: v1.0
 
 # Usage: configure_k8s_prom_grafana.yml
 grafana_namespace: grafana
@@ -50,7 +52,10 @@ grafana_dashboard_json_files:
 # Usage: promtail_image.yml
 promtail_image_name: "promtail"
 promtail_image_tag: "latest"
+image_creation_retries: 20
 
 # Usage: k8s_loki_pod.yml
 loki_k8s_name: loki
 loki_port: 3100
+loki_image_name: docker.io/grafana/loki
+loki_image_tag: 2.4.1

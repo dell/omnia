@@ -13,6 +13,13 @@
 #  limitations under the License.
 ---
 
+- name: Pull image for kube-webhook-certgen
+  command: buildah pull "{{ kube_prom_stack_image_name }}:{{ kube_prom_stack_image_tag }}"
+  changed_when: true
+  register: pull_prom_stack_image
+  until: pull_prom_stack_image is not failed
+  retries: "{{ image_creation_retries }}"
+
 - name: Add prometheus-community chart
   kubernetes.core.helm_repository:
     name: prometheus-community
