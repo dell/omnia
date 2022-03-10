@@ -23,5 +23,8 @@
 - name: Promtail image creation
   command: "buildah bud -f Dockerfile_promtail -t {{ promtail_image_name }}:{{ promtail_image_tag }} ."
   changed_when: true
+  register: create_promtail_image
+  until: create_promtail_image is not failed
+  retries: "{{ image_creation_retries }}"
   args:
     chdir: "{{ role_path }}/files/"

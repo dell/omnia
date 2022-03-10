@@ -13,6 +13,13 @@
 #  limitations under the License.
 ---
 
+- name: Pull image for loki
+  command: buildah pull "{{ loki_image_name }}:{{ loki_image_tag }}"
+  changed_when: true
+  register: pull_loki_image
+  until: pull_loki_image is not failed
+  retries: "{{ image_creation_retries }}"
+
 - name: Deploy loki pod
   kubernetes.core.k8s:
     state: present
@@ -50,7 +57,7 @@
 
                   containers:
                     - name: loki
-                      image: docker.io/grafana/loki:2.4.1
+                      image: "{{ loki_image_name }}:{{ loki_image_tag }}"
                       imagePullPolicy: "Always"
                       ports:
                         - containerPort: "{{ loki_port }}"

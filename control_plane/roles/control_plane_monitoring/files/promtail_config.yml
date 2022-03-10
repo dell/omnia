@@ -33,6 +33,22 @@ scrape_configs:
       job: Directory Server Errors
       __path__: /var/log/dirsrv/slapd-OMNIA-TEST/errors
 
+- job_name: Directory Server Utilization for Leap
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: Directory Server Utilization
+      __path__: /var/log/dirsrv/slapd-ldap1/access
+
+- job_name: Directory Server Errors for Leap
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: Directory Server Errors
+      __path__: /var/log/dirsrv/slapd-ldap1/errors
+
 - job_name: PKI Transactions
   static_configs:
   - targets:
