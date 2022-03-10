@@ -63,7 +63,7 @@ If you want to reprovision all the servers in the cluster or any of the faulty s
 
 Omnia role used: *provision_cobbler*  
 Ports used by Cobbler:  
-* TCP ports: 80,443,69
+* TCP ports: 69,8000, 8008
 * UDP ports: 69,4011
 
 To create the Cobbler image, Omnia configures the following:
@@ -80,6 +80,9 @@ To access the Cobbler dashboard, enter `https://<IP>/cobbler_web` where `<IP>` i
 >>__Note__: If you want to add more nodes, append the new nodes in the existing mapping file. However, do not modify the previous nodes in the mapping file as it may impact the existing cluster.
 
 >> __Note__: With the addition of Multiple profiles, the cobbler container dynamically updates the mount point based on the value of `provision_os` in `base_vars.yml`.
+
+### DHCP routing using Cobbler
+Omnia now supports DHCP routing via Cobbler. To enable routing, update the `primary_dns` and `secondary_dns` in `base_vars` with the appropriate IPs (hostnames are currently not supported). For compute nodes that are not directly connected to the internet (ie only host network is configured), this configuration allows for internet connectivity.
 
 ## Security enhancements  
 Omnia provides the following options to enhance security on the provisioned PowerEdge servers:
