@@ -13,12 +13,23 @@
 # limitations under the License.
 ---
 
+- name: Create a telemetry folder on grafana
+  community.grafana.grafana_folder:
+    url: "http://{{ grafana_svc_ip.stdout }}:{{ grafana_svc_port.stdout }}"
+    grafana_user: "{{ grafana_username }}"
+    grafana_password: "{{ grafana_password }}"
+    title: "{{ telemetry_folder_name }}"
+    state: present
+  no_log: true
+
 - name: Import dashboards for visualizations
   community.grafana.grafana_dashboard:
     grafana_url: "http://{{ grafana_svc_ip.stdout }}:{{ grafana_svc_port.stdout }}"
     grafana_user: "{{ grafana_username }}"
     grafana_password: "{{ grafana_password }}"
     state: present
+    folder: "{{ telemetry_folder_name }}"
     overwrite: yes
-    path: "{{ playbook_dir }}/roles/grafana_config/files/{{ dashboards }}"
+    path: "{{ playbook_dir }}/roles/grafana_config/files/{{ item }}"
+  with_items: "{{ dashboards }}"
   no_log: true

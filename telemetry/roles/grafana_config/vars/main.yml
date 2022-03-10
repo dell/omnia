@@ -15,4 +15,7 @@
 
 grafana_k8s: grafana
 grafana_namespace: grafana
-dashboards: parallel-coordinate.json
+telemetry_folder_name: telemetry
+dashboards:
+  - parallel-coordinate.json
+  - SpiralLayout.json
