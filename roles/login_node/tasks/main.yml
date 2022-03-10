@@ -13,16 +13,25 @@
 #  limitations under the License.
 ---
 
+- name: Include ipa server variables
+  include_vars: ../../login_common/vars/main.yml
+
 - block:
     - name: Add ports to firewall to run slurm jobs
       include_tasks: firewall_settings.yml
     
     - name: Install ipa client
       include_tasks: install_ipa_client.yml
+      when: os_leap not in ansible_distribution | lower
+
+    - name: Install 389 directory server
+      include_tasks: install_389ds.yml
+      when: os_leap in ansible_distribution | lower
 
     - block:
         - name: FreeIPA configuration
           include_tasks: ipa_configuration.yml
+          when: os_leap not in ansible_distribution | lower
 
         - name: Install Apparmor on Leap
           include_tasks: install_apparmor.yml

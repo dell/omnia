@@ -20,3 +20,4 @@ hostname_blank_msg: "Failed. Domain name is not set in hostname It should have h
 server_hostname_success: "Hostname in server hostname validated"
 server_hostname_fail: "Failed. Hostname set is not valid"
 login_node_group: login_node
+os_leap: leap

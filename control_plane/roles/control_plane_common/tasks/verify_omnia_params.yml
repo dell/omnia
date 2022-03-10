@@ -74,7 +74,7 @@
     - ( domain_name | length < 1 or
       realm_name | length < 1 or
       directory_manager_password | length < 1 or
-      ipa_admin_password | length < 1 ) and
+      kerberos_admin_password | length < 1 ) and
       ( login_node_required and
       host_mapping_file  and
       not enable_security_support)
@@ -174,17 +174,17 @@
     - login_node_required
     - not enable_security_support
 
-- name: Assert ipa_admin_password
+- name: Assert kerberos_admin_password
   assert:
     that:
-      - ipa_admin_password | length > min_length | int - 1
-      - ipa_admin_password | length < max_length | int + 1
-      - '"-" not in ipa_admin_password '
-      - '"\\" not in ipa_admin_password '
-      - '"\"" not in ipa_admin_password '
-      - " \"'\" not in ipa_admin_password "
-    success_msg: "{{ success_msg_ipa_admin_password }}"
-    fail_msg: "{{ fail_msg_ipa_admin_password }}"
+      - kerberos_admin_password | length > min_length | int - 1
+      - kerberos_admin_password | length < max_length | int + 1
+      - '"-" not in kerberos_admin_password '
+      - '"\\" not in kerberos_admin_password '
+      - '"\"" not in kerberos_admin_password '
+      - " \"'\" not in kerberos_admin_password "
+    success_msg: "{{ success_msg_kerberos_admin_password }}"
+    fail_msg: "{{ fail_msg_kerberos_admin_password }}"
   tags: [ validate, templates ]
   when:
     - host_mapping_file
