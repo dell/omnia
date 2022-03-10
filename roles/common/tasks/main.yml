@@ -110,6 +110,16 @@
   when: ( os_supported_leap not in compute_os )
 
 - block:
+    - name: Add leap repos
+      zypper_repository:
+        name: "{{ item.name }}"
+        repo: "{{ item.repo }}"
+        state: present
+        autorefresh: yes
+      with_items:
+        - "{{ leap_repo }}"
+      tags: install
+      
     - name: Installing python-xml
       package:
         name: python-xml

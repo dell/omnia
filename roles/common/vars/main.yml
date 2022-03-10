@@ -13,6 +13,12 @@
 #  limitations under the License.
 ---
 
+leap_repo:
+  - { name: repo-non-oss, repo: http://download.opensuse.org/distribution/leap/15.3/repo/non-oss/ }
+  - { name: repo-oss, repo: http://download.opensuse.org/distribution/leap/15.3/repo/oss/ }
+  - { name: repo-update-oss, repo: http://download.opensuse.org/update/leap/15.3/oss/ }
+  - { name: repo-update-non-oss, repo: http://download.opensuse.org/update/leap/15.3/non-oss/ }
+
 nvidia_repo: https://download.nvidia.com/opensuse/leap/15.3/
 docker_repo_url_leap: https://download.docker.com/linux/sles/docker-ce.repo
 docker_repo_dest_leap: /etc/YaST2/docker-ce.repo

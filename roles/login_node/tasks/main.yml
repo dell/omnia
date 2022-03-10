@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -51,6 +51,10 @@
         
         - name: Session timeout configuration
           include_tasks: session_timeout.yml
+
+        - name: Restrict nonessential programs
+          include_tasks: restrict_nonessentials.yml
+          when: hostvars['127.0.0.1']['restrict_program_status']
       when: hostvars['127.0.0.1']['enable_secure_login_node']
   when:
     - hostvars['127.0.0.1']['login_node_required']

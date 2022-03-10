@@ -50,3 +50,14 @@ user: ''
 # Accepted values: "Allow" or "Deny"
 # Default value: "Allow"
 allow_deny: "Allow"
+
+# This variable is used to disable services.
+# Accepted values: "true" or "false". 
+# Default values are: true  
+# Root access is needed.
+restrict_program_support: false
+
+# The below mentioned services can be disabled, by adding values in comma separated values format for restrict_softwares variable
+# Services: telnet,lpd,bluetooth,rlogin,rexec
+# Ex: restrict_softwares: 'telnet,lpd,bluetooth' ( This disables 3 services, to disable more services, add services with comma separation. )
+restrict_softwares: ''
