@@ -52,7 +52,7 @@
   block:
     - name: Initialize kubeadm (This process may take 5-10min)
       command: "kubeadm init --pod-network-cidr='{{ appliance_k8s_pod_net_cidr }}' \
-        --apiserver-advertise-address='{{ ansible_default_ipv4.address }}'"
+        --apiserver-advertise-address='{{ public_ip }}'"
       changed_when: true
       register: init_output
   rescue:
@@ -62,7 +62,7 @@
 
     - name: Initialize kubeadm (This process may take 5-10min)
       command: "kubeadm init --pod-network-cidr='{{ appliance_k8s_pod_net_cidr }}' \
-          --apiserver-advertise-address='{{ ansible_default_ipv4.address }}'"
+          --apiserver-advertise-address='{{ public_ip }}'"
       changed_when: true
       register: init_output
 
@@ -113,7 +113,7 @@
     name:   "K8S_TOKEN_HOLDER"
     token:  "{{ k8s_token.stdout }}"
     hash:   "{{ k8s_manager_ca_hash.stdout }}"
-    ip:     "{{ ansible_default_ipv4.address }}"
+    ip:     "{{ public_ip }}"
 
 - name: Create yaml repo for setup
   file:

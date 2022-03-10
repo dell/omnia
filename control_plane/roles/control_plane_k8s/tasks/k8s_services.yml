@@ -108,7 +108,7 @@
   changed_when: true
 
 - name: Start NFS Client Provisioner
-  command: "helm install stable/nfs-client-provisioner --set nfs.server='{{ ansible_default_ipv4.address }}' --set nfs.path='{{ nfs_path }}' --generate-name"
+  command: "helm install nfs-control-plane stable/nfs-client-provisioner --set nfs.server='{{ public_ip }}' --set nfs.path='{{ nfs_path }}'"
   changed_when: true
   when: "'nfs-client-provisioner' not in k8s_pods.stdout"
 

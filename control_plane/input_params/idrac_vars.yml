@@ -22,8 +22,8 @@ idrac_system_profile: "Performance"
 
 # Boolean value indicating whether OMNIA should perform firmware update or not
 # Accepted values: true, false
-# Default value: true
-firmware_update_required: true
+# Default value: false
+firmware_update_required: false
 
 # This is the list of poweredge server models
 # The firmware updates will be downloaded only for the below list of models

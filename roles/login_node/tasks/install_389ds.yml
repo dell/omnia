@@ -22,19 +22,29 @@
   register: new_serv_hostname
   changed_when: false
 
+- name: Fetch the short hostname
+  command: hostname -s
+  register: short_hostname
+  changed_when: false
+
 - name: Set fact for server hostname
   set_fact:
-    server_hostname_ms: "{{ new_serv_hostname.stdout }}"
-
-- name: Check password policy in 389-ds
-  command: dsconf -w {{ ms_directory_manager_password }} -D "cn=Directory Manager" ldap://{{ server_hostname_ms }} pwpolicy get
-  changed_when: true
-  failed_when: false
+    server_hostname_fqdn: "{{ new_serv_hostname.stdout }}"
+    server_hostname_short: "{{ short_hostname.stdout }}"
+    directory_manager_password: "{{ hostvars['127.0.0.1']['directory_manager_password'] }}"
+    kerberos_admin_password: "{{ hostvars['127.0.0.1']['kerberos_admin_password'] }}"
+    domain_name: "{{ hostvars['127.0.0.1']['domain_name'] }}"
+    realm_name: "{{ hostvars['127.0.0.1']['realm_name'] }}"
   no_log: true
-  register: ds389_pwpolicy_check
+
+- name: Check ldap instance is running or not
+  command: dsctl {{ ldap_instance }} status
+  changed_when: false
+  failed_when: false
+  register: ldap1_status
 
 - name: Check ds389_status admin authentication
-  shell: set -o pipefail && echo {{ ms_kerberos_admin_password }} | kinit {{ ms_ipa_admin_username }}
+  shell: set -o pipefail && echo {{ kerberos_admin_password }} | kinit {{ ipa_admin_username }}
   changed_when: false
   failed_when: false
   no_log: true
@@ -45,7 +55,7 @@
     ds389_status: true
   when: 
     - ds389_status_authentication.rc == 0
-    - ds389_pwpolicy_search_key in ds389_pwpolicy_check.stdout
+    - ldap1_install_search_key in ldap1_status.stdout.split(' ')[3]
 
 - block:
     - name: Install 389-ds
@@ -69,7 +79,7 @@
       lineinfile:
         path: "{{ ldap1_config_path }}"
         regexp: "^root_password = password"
-        line: "root_password = {{ ms_directory_manager_password }}"
+        line: "root_password = {{ directory_manager_password }}"
       no_log: true
 
     - name: Check ldap instance is running or not
@@ -106,6 +116,12 @@
         regexp: "^basedn = dc=omnia,dc=test"
         line: "basedn = dc={{ domain_name.split('.')[0] }},dc={{ domain_name.split('.')[1] }}"
 
+    - name: Start and enable firewalld
+      service:
+        name: firewalld
+        state: started
+        enabled: yes
+
     - name: Permit traffic in default zone for ldap and ldaps service
       firewalld:
         service: "{{ item }}"
@@ -116,6 +132,12 @@
     - name: Reload firewalld
       command: firewall-cmd --reload
       changed_when: true
+
+    - name: Stop and disable firewalld
+      service:
+        name: firewalld
+        state: stopped
+        enabled: no
 
     - name: Install kerberos packages
       zypper:
@@ -149,11 +171,11 @@
       replace:
         path: "{{ kerberos_conf_path }}"
         regexp: "hostname"
-        replace: "{{ short_hostname.stdout }}"
+        replace: "{{ server_hostname_short }}"
 
     - block:
         - name: Setting up the kerberos database
-          command: "kdb5_util -r {{ realm_name }} -P {{ ms_directory_manager_password }} create -s"
+          command: "kdb5_util -r {{ realm_name }} -P {{ directory_manager_password }} create -s"
           no_log: true
           changed_when: true
           register: setting_database
@@ -176,7 +198,7 @@
 
     - block:
         - name: Create admin principal
-          command: kadmin.local -q "ank -pw {{ ms_kerberos_admin_password }} admin"
+          command: kadmin.local -q "ank -pw {{ kerberos_admin_password }} {{ ipa_admin_username }}"
           no_log: true
           changed_when: true
           register: create_admin_principal
@@ -188,12 +210,13 @@
             msg: "Error: {{ create_admin_principal.stderr }}"
 
     - name: Authenticate as admin
-      shell: set -o pipefail && echo {{ ms_kerberos_admin_password }} | kinit admin
+      shell: set -o pipefail && echo {{ kerberos_admin_password }} | kinit {{ ipa_admin_username }}
       no_log: true
       changed_when: false
-    
-    - name: Configure password policy in 389-ds
-      command: dsconf -w {{ ms_directory_manager_password }} -D "cn=Directory Manager" ldap://{{ server_hostname_ms }} pwpolicy set --pwdlockoutduration {{ lockout_duration }} --pwdmaxfailures {{ max_failures }} --pwdresetfailcount {{ failure_reset_interval }}
-      no_log: true
-      changed_when: true
   when: not ds389_status
+
+- name: Configure password policy in 389-ds
+  command: dsconf -w {{ directory_manager_password }} -D "cn=Directory Manager" ldap://{{ server_hostname_fqdn }} pwpolicy set --pwdlockoutduration {{ hostvars['127.0.0.1']['lockout_duration'] }} --pwdmaxfailures {{ hostvars['127.0.0.1']['max_failures'] }} --pwdresetfailcount {{ hostvars['127.0.0.1']['failure_reset_interval'] }}
+  changed_when: true
+  no_log: true
+  when: hostvars['127.0.0.1']['enable_secure_login_node']

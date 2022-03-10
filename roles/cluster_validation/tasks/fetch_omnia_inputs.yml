@@ -137,7 +137,7 @@
     - ( domain_name | length < 1 or
       realm_name | length < 1 or
       directory_manager_password | length < 1 or
-      ipa_admin_password | length < 1 ) 
+      kerberos_admin_password | length < 1 ) 
     - login_node_required
     - not ipa_server_ms
 
@@ -193,17 +193,17 @@
     - login_node_required
     - not ipa_server_ms
 
-- name: Assert ipa_admin_password
+- name: Assert kerberos_admin_password
   assert:
     that:
-      - ipa_admin_password | length > min_length | int - 1
-      - ipa_admin_password | length < max_length | int + 1
-      - '"-" not in ipa_admin_password '
-      - '"\\" not in ipa_admin_password '
-      - '"\"" not in ipa_admin_password '
-      - " \"'\" not in ipa_admin_password "
-    success_msg: "{{ success_msg_ipa_admin_password }}"
-    fail_msg: "{{ fail_msg_ipa_admin_password }}"
+      - kerberos_admin_password | length > min_length | int - 1
+      - kerberos_admin_password | length < max_length | int + 1
+      - '"-" not in kerberos_admin_password '
+      - '"\\" not in kerberos_admin_password '
+      - '"\"" not in kerberos_admin_password '
+      - " \"'\" not in kerberos_admin_password "
+    success_msg: "{{ success_msg_kerberos_admin_password }}"
+    fail_msg: "{{ fail_msg_kerberos_admin_password }}"
   when:
     - login_node_required
     - not ipa_server_ms
@@ -216,4 +216,6 @@
 
 - name: Fetch security inputs
   include_tasks: fetch_security_inputs.yml
-  when: enable_secure_login_node
+  when: 
+    - login_node_required
+    - enable_secure_login_node
