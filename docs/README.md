@@ -51,8 +51,8 @@ The following table lists the software and operating system requirements on the 
 
 Requirements  |   Version
 ----------------------------------  |   -------
-OS pre-installed on the management station  |  Rocky 8.5/ Leap 15.3
-OS deployed by Omnia on bare-metal Dell EMC PowerEdge Servers | Rocky 8.5 Minimal Edition/ Leap 15.3
+OS pre-installed on the management station  |  Rocky 8.x/ Leap 15.x
+OS deployed by Omnia on bare-metal Dell EMC PowerEdge Servers | Rocky 8.x Minimal Edition/ Leap 15.x
 Cobbler  |  3.2.2
 Ansible AWX  |  19.4.0
 Slurm Workload Manager  |  20.11.2
@@ -80,10 +80,10 @@ The following table lists the software and its compatible version managed by Omn
 
 Software	|	License	|	Compatible Version	|	Description
 -----------	|	-------	|	----------------	|	-----------------
-LeapOS 15.3	|	-	|	15.3|	Operating system on entire cluster
+LeapOS 15.3	|	-	|	15.x|	Operating system on entire cluster
 CentOS Linux release 7.9.2009 (Core)	|	-	|	7.9	|	Operating system on entire cluster except for management station
-Rocky 8.5	|	-	|	8.5	|	Operating system on entire cluster except for management station
-Rocky 8.5	|	-	|	8.5	|	Operating system on the management station
+Rocky 8.x	|	-	|	8.x	|	Operating system on entire cluster except for management station
+Rocky 8.x	|	-	|	8.x	|	Operating system on the management station
 MariaDB	|	GPL 2.0	|	5.5.68	|	Relational database used by Slurm
 Slurm	|	GNU General Public	|	20.11.7	|	HPC Workload Manager
 Docker CE	|	Apache-2.0	|	20.10.2	|	Docker Service
@@ -110,7 +110,7 @@ AWX	|	Apache-2.0	|	19.4.0	|	Web-based User Interface
 AWX.AWX	|	Apache-2.0	|	19.4.0	|	Galaxy collection to perform awx configuration
 AWXkit	|	Apache-2.0	|	to be updated	|	To perform configuration through CLI commands
 Cri-o	|	Apache-2.0	|	1.21	|	Container Service
-Buildah	|	Apache-2.0	|	1.21.4	|	Tool to build and run container
+Buildah	|	Apache-2.0	|	1.22.4	|	Tool to build and run containers
 PostgreSQL	|	Copyright (c) 1996-2020, PostgreSQL Global Development Group	|	10.15	|	Database Management System
 Redis	|	BSD-3-Clause License	|	6.0.10	|	In-memory database
 NGINX	|	BSD-2-Clause License	|	1.14	|	-
