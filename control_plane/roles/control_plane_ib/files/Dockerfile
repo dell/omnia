@@ -1,5 +1,6 @@
 FROM rockylinux/rockylinux:docker_os
 
+RUN dnf -y update && dnf clean all
 RUN dnf install -y epel-release
 RUN dnf install dhcp-server -y \
   ansible \
@@ -20,5 +21,7 @@ COPY opensm.conf /etc/rdma/opensm.conf
 COPY start.sh /
 
 RUN systemctl enable dhcpd
+RUN chmod +x /start.sh
 
+ENTRYPOINT ["/start.sh"]
 CMD ["sbin/init"]

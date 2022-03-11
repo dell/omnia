@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 /usr/libexec/rdma-init-kernel
 
