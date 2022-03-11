@@ -27,6 +27,7 @@
     control_plane_status: false
     powervault_status: false
     nfs_node_status: false
+    ansible_collection_used: false
 
 - name: Check AWX instance
   command: awx --version
@@ -45,6 +46,10 @@
   when:
     - not awx_version_check.failed
     - awx_search_key in awx_hostname.stdout
+
+- name: Install Packages
+  include_tasks: install_packages.yml
+  when: not control_plane_status
 
 - name: Set NFS node status
   set_fact:
