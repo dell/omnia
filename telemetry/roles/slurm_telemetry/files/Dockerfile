@@ -8,13 +8,20 @@ RUN dnf -y install https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x
 RUN dnf module disable postgresql -y
 RUN dnf install postgresql13-devel -y
 RUN yum install python38-devel libpq-devel -y
+RUN dnf install sshpass -y
 
 COPY requirements.txt requirements.txt
 RUN ln -s /usr/pgsql-13/bin/pg_config /usr/bin/pg_config
 
 RUN pip3 install psycopg2-binary
 RUN pip3 install -r requirements.txt
+RUN mkdir /MonSter/
+COPY init_k8s_pod.sh /MonSter/
+RUN chmod 777 /MonSter/init_k8s_pod.sh
+
 RUN mkdir /log/
 RUN touch /log/monster.log
+
+COPY monster /MonSter/
 
 WORKDIR /MonSter/
