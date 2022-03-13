@@ -100,3 +100,7 @@ restrict_program_support_success_msg: "restrict_program_support successfully val
 restrict_program_support_failure_msg: "Failed. Accepted values are true or false."
 restrict_softwares_success_msg: "restrict_softwares successfully validated"
 restrict_softwares_failure_msg: "Warning. Values should be comma separated. The supported services are telnet, lpd, bluetooth, rlogin, rexec. Please check restrict_softwares variable"
+
+# Usage: install_packages.yml
+ansible_base_version: '2.9'
+ipaddr_collection: ansible.utils:2.5.2
