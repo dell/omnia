@@ -11,17 +11,17 @@ A lot of these metrics are collected using iDRAC telemetry. iDRAC telemetry allo
 
 | Parameter Name        | Default Value | Information |
 |-----------------------|---------------|-------------|
-| timescaledb_user      | 		        |  Username used for connecting to timescale db. Minimum Legth: 2 characters.          |
-| timescaledb_password  | 		        |  Password used for connecting to timescale db. Minimum Legth: 2 characters.           |
-| mysqldb_user          | 		        |  Username used for connecting to mysql db. Minimum Legth: 2 characters.         |
-| mysqldb_password      | 		        |  Password used for connecting to mysql db. Minimum Legth: 2 characters.            |
+| timescaledb_user      | 		        |  Username used for connecting to timescale db. Minimum Length: 2 characters.          |
+| timescaledb_password  | 		        |  Password used for connecting to timescale db. Minimum Length: 2 characters.           |
+| mysqldb_user          | 		        |  Username used for connecting to mysql db. Minimum Length: 2 characters.         |
+| mysqldb_password      | 		        |  Password used for connecting to mysql db. Minimum Length: 2 characters.            |
 | mysqldb_root_password | 		        |  Password used for connecting to mysql db for root user. Minimum Legth: 2 characters.         |
 
 3. All parameters in `telemetry/input_params/base_vars.yml` need to be filled in:
 
 | Parameter Name          | Default Value     | Information |
 |-------------------------|-------------------|-------------|
-| mount_location          | idrac_telemetrysource_services_db | Sets the location all telemetry related files will be stored and both timescale and mysql databases will be mounted.            |
+| mount_location          | /opt/omnia| Sets the location all telemetry related files will be stored and both timescale and mysql databases will be mounted.            |
 | idrac_telemetry_support | true              | This variable is used to enable iDRAC telemetry support and visualizations. Accepted Values: true/false            |
 | slurm_telemetry_support | true              | This variable is used to enable slurm telemetry support and visualizations. Slurm Telemetry support can only be activated when idrac_telemetry_support is set to true. Accepted Values: True/False.        |
 | timescaledb_name        | telemetry_metrics | Postgres DB with timescale extension is used for storing iDRAC and slurm telemetry metrics.            |
@@ -50,7 +50,7 @@ Use any one of the following browsers to access the Grafana UI (https://< Grafan
 
 ## Initiating Telemetry
 
-1. Once `control_plane.yml` and `telemetry.yml` are executed, run the following commands from `omnia/telemetry`:
+1. Once `control_plane.yml` and `omnia.yml` are executed, run the following commands from `omnia/telemetry`:
 
 `ansible-playbook telemetry.yml`
 
@@ -60,7 +60,8 @@ Use any one of the following browsers to access the Grafana UI (https://< Grafan
 After initiation, new nodes can be added to telemetry by running the following commands from `omnia/telemetry`:
 		
 ` ansible-playbook add_idrac_node.yml `
-		
+
+	
 
 
 

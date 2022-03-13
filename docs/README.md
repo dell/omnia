@@ -54,7 +54,7 @@ Requirements  |   Version
 OS pre-installed on the management station  |  Rocky 8.x/ Leap 15.x
 OS deployed by Omnia on bare-metal Dell EMC PowerEdge Servers | Rocky 8.x Minimal Edition/ Leap 15.x
 Cobbler  |  3.2.2
-Ansible AWX  |  19.4.0
+Ansible AWX  |  20.0.0
 Slurm Workload Manager  |  20.11.2
 Kubernetes on the management station  |  1.21.0
 Kubernetes on the manager and compute nodes	|	1.16.7 or 1.19.3
@@ -92,9 +92,9 @@ OpenSM	|	GNU General Public License 2	|	3.3.24	|	-
 NVIDIA container runtime	|	Apache-2.0	|	3.4.2	|	Nvidia container runtime library
 Python PIP	|	MIT License	|	21.1.2	|	Python Package
 Python3	|	-	|	3.6.8 (3.6.15 if LeapOS is being used)	|	-
-Kubelet	|	Apache-2.0	|	1.16.7,1.19, 1.21 (LeapOS only supports 1.21) 	|	Provides external, versioned ComponentConfig API types for configuring the kubelet
-Kubeadm	|	Apache-2.0	|	1.16.7,1.19, 1.21 (LeapOS only supports 1.21)	|	"fast paths" for creating Kubernetes clusters
-Kubectl	|	Apache-2.0	|	1.16.7,1.19, 1.21 (LeapOS only supports 1.21)	|	Command line tool for Kubernetes
+Kubelet	|	Apache-2.0	|	1.16.7,1.19, 1.21  	|	Provides external, versioned ComponentConfig API types for configuring the kubelet
+Kubeadm	|	Apache-2.0	|	1.16.7,1.19, 1.21 	|	"fast paths" for creating Kubernetes clusters
+Kubectl	|	Apache-2.0	|	1.16.7,1.19, 1.21 	|	Command line tool for Kubernetes
 JupyterHub	|	Modified BSD License	|	1.1.0	|	Multi-user hub
 kubernetes Controllers	|	Apache-2.0	|	1.16.7,1.19 (1.21 if LeapOS is being used)	|	Orchestration tool	
 Kfctl	|	Apache-2.0	|	1.0.2	|	CLI for deploying and managing Kubeflow
@@ -106,10 +106,10 @@ Horovod	|	Apache-2.0	|	0.21.1	|	Distributed deep learning training framework for
 MPI	|	Copyright (c) 2018-2019 Triad National Security,LLC. All rights reserved.	|	0.3.0	|	HPC library
 CoreDNS	|	Apache-2.0	|	1.6.2	|	DNS server that chains plugins
 CNI	|	Apache-2.0	|	0.3.1	|	Networking for Linux containers
-AWX	|	Apache-2.0	|	19.4.0	|	Web-based User Interface
+AWX	|	Apache-2.0	|	20.0.0	|	Web-based User Interface
 AWX.AWX	|	Apache-2.0	|	19.4.0	|	Galaxy collection to perform awx configuration
-AWXkit	|	Apache-2.0	|	to be updated	|	To perform configuration through CLI commands
-Cri-o	|	Apache-2.0	|	1.21	|	Container Service
+AWXkit	|	Apache-2.0	|	18.0.0	|	To perform configuration through CLI commands
+Cri-o	|	Apache-2.0	|	1.21, 1.17.3  (LeapOS only supports  1.17.3) |	Container Service
 Buildah	|	Apache-2.0	|	1.22.4	|	Tool to build and run containers
 PostgreSQL	|	Copyright (c) 1996-2020, PostgreSQL Global Development Group	|	10.15	|	Database Management System
 Redis	|	BSD-3-Clause License	|	6.0.10	|	In-memory database
@@ -123,6 +123,9 @@ OMSDK	|	Apache-2.0	|	1.2.488	|	Dell EMC OpenManage Python SDK (OMSDK) is a pytho
 | postfix                               | IBM Public License               | 3.5.8  | Mail Transfer Agent (MTA) designed to determine routes and   send emails                                                                       |
 | xorriso                               | GPL version 3                    | 1.4.8  | xorriso copies file objects from POSIX compliant filesystems   into Rock Ridge enhanced ISO 9660 filesystems.                                  |
 | Dell EMC   OpenManage Ansible Modules | GNU- General Public License v3.0 | 5.0.0  | OpenManage Ansible Modules simplifies and automates   provisioning, deployment, and updates of PowerEdge servers and modular   infrastructure. |
+| 389-ds                               | GPL version 3               | 1.4.4  |  LDAP server used for authentication, access control.                                                                       |
+| sssd                               | GPL version 3                    | 1.16.1  | A set of daemons used to manage access to remote directory services and authentication mechanisms.                                   |
+| krb5 | MIT License | 1.19.2  | Authentication protocol providing strong authentication for client/server applications by using secret-key cryptography |
 
 # Known issues  
 * **Issue**: Hosts are not displayed on the AWX UI.  

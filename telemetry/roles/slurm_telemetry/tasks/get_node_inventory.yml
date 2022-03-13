@@ -39,7 +39,7 @@
     register: awx_svc_ip
 
   - name: AWX needs to be installed
-   fail:
+    fail:
       msg: "{{ awx_fail_msg }}"
     when: not awx_svc_ip.stdout
 

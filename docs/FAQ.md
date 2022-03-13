@@ -9,6 +9,9 @@ Potential Causes:
 Resolution:  
 Wait for AWX UI to be accessible at http://\<management-station-IP>:8081, and then run the `control_plane.yml` file again, where __management-station-IP__ is the IP address of the management node.
 
+## Why does Omnia Control Plane fail at Task: `control_plane_common: Assert Value of idrac_support if mngmt_network container needed`?
+When `device_config_support` is set to true, `idrac_support` also needs to be set to true. 
+
 ## What to do if the nodes in a Kubernetes cluster reboot:
 Wait for 15 minutes after the Kubernetes cluster reboots. Next, verify the status of the cluster using the following commands:
 * `kubectl get nodes` on the manager node to get the real-time k8s cluster status.  

@@ -120,6 +120,12 @@
 - name: Get network address/subnet mask
   set_fact:
     network_address: "{{ (ansible_default_ipv4.network + '/' + ansible_default_ipv4.netmask) | ipaddr('network/prefix') }}"
+  when: not hostvars['127.0.0.1']['ansible_collection_used']
+
+- name: Get network address/subnet mask
+  set_fact:
+    network_address: "{{ (ansible_default_ipv4.network + '/' + ansible_default_ipv4.netmask) | ansible.utils.ipaddr('network/prefix') }}"
+  when: hostvars['127.0.0.1']['ansible_collection_used']
 
 - name: Firewall rule slurm - allow all incoming traffic on internal network
   firewalld:
