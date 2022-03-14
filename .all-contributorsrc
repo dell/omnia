@@ -167,7 +167,9 @@
       "profile": "https://github.com/abhishek-sa1",
       "contributions": [
         "code",
-        "bug"
+        "bug",
+        "doc",
+        "test"
       ]
     },
     {
