@@ -55,21 +55,21 @@
 
     - name: Configure nginx.conf (1/2)
       replace:
-        path: "../../k8s_start_services/templates/nginx.conf.j2"
+        path: "{{ playbook_dir }}/roles/k8s_start_services/templates/nginx.conf.j2"
         regexp: '        server_name  .*'
         replace: "        server_name  {{ ansible_default_ipv4.address }};"
       delegate_to: localhost
 
     - name: Configure nginx.conf (2/2)
       replace:
-        path: "../../k8s_start_services/templates/nginx.conf.j2"
+        path: "{{ playbook_dir }}/roles/k8s_start_services/templates/nginx.conf.j2"
         regexp: '          proxy_pass http://.*'
         replace: "          proxy_pass {{ prometheus_ip }};"
       delegate_to: localhost
 
     - name: Load nginx conf
       template:
-        src: "../../k8s_start_services/templates/nginx.conf.j2"
+        src: "{{ playbook_dir }}/roles/k8s_start_services/templates/nginx.conf.j2"
         dest: "{{ nginx_conf_file_path }}"
         mode: "{{ nginx_conf_file_mode }}"
 
