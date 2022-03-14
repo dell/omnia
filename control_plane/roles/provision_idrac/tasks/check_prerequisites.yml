@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -174,9 +174,9 @@
             idrac_license_name: "{{ idrac_info.system_info.License[my_idx1].LicenseDescription }}"
           with_items: "{{ idrac_info.system_info.License }}"
           when:
-            - '"iDRAC" in idrac_info.system_info.License[my_idx1].LicenseDescription'
-            - '"Enterprise" in idrac_info.system_info.License[my_idx1].LicenseDescription'
-            - '"License" in idrac_info.system_info.License[my_idx1].LicenseDescription'
+            - '"idrac" in idrac_info.system_info.License[my_idx1].LicenseDescription | lower'
+            - '"enterprise" in idrac_info.system_info.License[my_idx1].LicenseDescription | lower'
+            - '"license" in idrac_info.system_info.License[my_idx1].LicenseDescription | lower'
             - '"Healthy" in idrac_info.system_info.License[my_idx1].PrimaryStatus'
           loop_control:
             index_var: my_idx1
@@ -184,12 +184,12 @@
         - name: Set datacenter license status
           set_fact:
             datacenter_license: true
-            idrac_license_name: "{{ idrac_info.system_info.License[my_idx1].LicenseDescription }}"
+            idrac_license_name: "{{ idrac_info.system_info.License[my_idx2].LicenseDescription }}"
           with_items: "{{ idrac_info.system_info.License }}"
           when:
-            - '"iDRAC" in idrac_info.system_info.License[my_idx2].LicenseDescription'
-            - '"Datacenter" in idrac_info.system_info.License[my_idx2].LicenseDescription'
-            - '"License" in idrac_info.system_info.License[my_idx2].LicenseDescription'
+            - '"idrac" in idrac_info.system_info.License[my_idx2].LicenseDescription | lower'
+            - '"data" in idrac_info.system_info.License[my_idx2].LicenseDescription | lower'
+            - '"license" in idrac_info.system_info.License[my_idx2].LicenseDescription | lower'
             - '"Healthy" in idrac_info.system_info.License[my_idx2].PrimaryStatus'
           loop_control:
             index_var: my_idx2

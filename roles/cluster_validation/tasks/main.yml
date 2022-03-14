@@ -51,6 +51,11 @@
   include_tasks: install_packages.yml
   when: not control_plane_status
 
+- name: Set ansible_collection_used to true in awx
+  set_fact:
+    ansible_collection_used: true
+  when: control_plane_status
+
 - name: Set NFS node status
   set_fact:
     nfs_node_status: true
