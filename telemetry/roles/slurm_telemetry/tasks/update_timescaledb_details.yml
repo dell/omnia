@@ -25,31 +25,31 @@
 
 - name: Update timescaledb service IP
   replace:
-    path: "{{ slurm_telemetry_code_dir }}/monster/config.yml"
+    path: "{{ role_path }}{{ monster_input_file_path }}"
     regexp: "  host:.*"
     replace: "  host: {{ timescaledb_svc_ip.stdout }}"
 
 - name: Update timescaledb service port
   replace:
-    path: "{{ slurm_telemetry_code_dir }}/monster/config.yml"
+    path: "{{ role_path }}{{ monster_input_file_path }}"
     regexp: "  port:.*"
     replace: "  port: {{ timescaledb_svc_port.stdout }}"
     before: "# Slurm REST API Configuration"
 
 - name: Update timescaledb username
   replace:
-    path: "{{ slurm_telemetry_code_dir }}/monster/config.yml"
+    path: "{{ role_path }}{{ monster_input_file_path }}"
     regexp: "  username:.*"
     replace: "  username: {{ timescaledb_user }}"
 
 - name: Update timescaledb password
   replace:
-    path: "{{ slurm_telemetry_code_dir }}/monster/config.yml"
+    path: "{{ role_path }}{{ monster_input_file_path }}"
     regexp: "  password:.*"
     replace: "  password: {{ timescaledb_password }}"
 
 - name: Update timescaledb database
   replace:
-    path: "{{ slurm_telemetry_code_dir }}/monster/config.yml"
+    path: "{{ role_path }}{{ monster_input_file_path }}"
     regexp: "  database:.*"
     replace: "  database: {{ timescaledb_name }}"

@@ -72,6 +72,7 @@ ds389_packages:
 ldap1_search_key: "No such instance"
 ds389_pwpolicy_search_key: "passwordlockoutduration: {{ lockout_duration }}"
 ldap1_install_search_key: running
+sssd_install_search_key: running
 ldap1_config_path: "/root/ldap1.inf"
 ldap_instance: ldap1
 ldap1_output_path: /var/log/ldap1_output.txt
@@ -86,6 +87,12 @@ kerberos_packages:
 kerberos_principal_path: /var/lib/kerberos/krb5kdc/principal
 kerberos_conf_path: /etc/krb5.conf
 kerberos_env_path: /usr/lib/mit/sbin/
+sssd_packages:
+  - sssd
+  - sssd-ldap
+admin_group_name: server_admins
+sssd_file_mode: 0600
+sssd_config_path: /etc/sssd/sssd.conf
 
 # Usage: restrict_nonessentials.yml
 service_status: ['enabled','alias','static','indirect','enabled-runtime','active','inactive']

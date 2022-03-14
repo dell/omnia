@@ -20,3 +20,17 @@ awx_namespace: awx
 awx_username: admin
 awx_fail_msg: "AWX service not found. AWX needs to be installed"
 node_inventory_fail_msg: "AWX node inventory not found. Node inventory needs be created in AWX"
+os_username: root
+
+# usage: deploy_slurm_telemetry
+slurm_telemetry_image: slurm_telemetry
+slurm_telemetry_image_tag: latest
+monster_config_file_mode: 0644
+
+manager_group: manager
+compute_group: compute
+input_config_file_path: /mnt/omnia/slurm/monster/config.yml
+monster_input_file_path: /files/monster/config.yml
+
+slurmctld_status_success_msg: "slurmctld is running on manager node"
+slurmctld_status_fail_msg: "slurmctld is inactive. Please check manager node for slurm status"
