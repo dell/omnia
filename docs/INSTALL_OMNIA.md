@@ -194,11 +194,13 @@ The following __Slurm__ roles are provided by Omnia when __omnia.yml__ file is r
 To enable the login node, the *login_node_required* variable must be set to "true" in the *omnia_config.yml* file.  
 - **login_common** role: The firewall ports are opened on the manager and login nodes.  
 - **login_server** role: FreeIPA server is installed and configured on the manager node to provide authentication using LDAP and Kerberos principles.  
-- **login_node** role: FreeIPA client is installed and configured on the login node and is integrated with the server running on the manager node.  
+- **login_node** role: For Rocky, FreeIPA client is installed and configured on the login node and is integrated with the server running on the manager node. For LeapOS, 389ds will be installed instead.
 
-**NOTE**: To skip the installation of:
-* The login node-In the `omnia_config.yml` file, set the *login_node_required* variable to "false".  
-* The FreeIPA server and client: Use `--skip-tags freeipa` while executing the *omnia.yml* file. 
+>>__Note:__ If LeapOS is being deployed, login_common and login_server roles will be skipped.  
+
+>> **NOTE**: To skip the installation of:
+>> * The login node-In the `omnia_config.yml` file, set the *login_node_required* variable to "false".  
+>> * The FreeIPA server and client: Use `--skip-tags freeipa` while executing the *omnia.yml* file. 
 
 ### Installing JupyterHub and Kubeflow playbooks  
 If you want to install JupyterHub and Kubeflow playbooks, you have to first install the JupyterHub playbook and then install the Kubeflow playbook.
