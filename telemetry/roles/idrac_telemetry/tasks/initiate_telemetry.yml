@@ -44,7 +44,7 @@
       idrac_login_vault_filename: "{{ playbook_dir }}/../control_plane/input_params/.login_vault_key"
       login_vars_file: "{{ playbook_dir }}/input_params/login_vars.yml"
       vault_filename: "{{ playbook_dir }}/input_params/.login_vault_key"
-      min_firmware_version_reqd: 4
+      min_firmware_version_reqd: 3
       datacenter_license: false
       firmware_version: false
       file_perm: '0644'
