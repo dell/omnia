@@ -60,7 +60,7 @@
         label: "{{ idrac_firmware_info.firmware_info.Firmware[index].FQDD }}"
       when:
           - '"iDRAC" in idrac_firmware_info.firmware_info.Firmware[index].FQDD'
-          - (idrac_firmware_info.firmware_info.Firmware[index].MajorVersion | int) > 4
+          - (idrac_firmware_info.firmware_info.Firmware[index].MajorVersion | int) > min_firmware_version_reqd
     when: datacenter_license is true
 
   rescue:
