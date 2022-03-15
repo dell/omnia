@@ -5,7 +5,10 @@ The following sections provide details on installing Omnia using CLI.
 To install the Omnia control plane and manage workloads on your cluster using the Omnia control plane, see [Install the Omnia Control Plane](INSTALL_OMNIA_CONTROL_PLANE.md) and [Monitor Kubernetes and Slurm](MONITOR_CLUSTERS.md) for more information.
 
 ## Prerequisites
-* The login, manager, and compute nodes must be running CentOS 7.9 2009 OS.
+* The login, manager, and compute nodes must be running CentOS 7.9 2009 OS/ Rocky 8.x/ LeapOS 15.3.
+>> __Note:__ If you are using LeapOS, the following repositories will be enabled when running `omnia.yml`:
+>> * OSS ([Repository](http://download.opensuse.org/distribution/leap/15.3/repo/oss/) + [Update](http://download.opensuse.org/update/leap/15.3/oss/))
+>> * Non-OSS ([Repository](http://download.opensuse.org/distribution/leap/15.3/repo/non-oss/) + [Update](http://download.opensuse.org/update/leap/15.3/non-oss/))
 * If you have configured the `omnia_config.yml` file to enable the login node, the login node must be part of the cluster. 
 * All nodes must be connected to the network and must have access to the Internet.
 * Set the hostnames of all the nodes in the cluster.

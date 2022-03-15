@@ -1,6 +1,20 @@
 # Enabling Security on the Login Node 
 
-* Ensure that `enable_secure_login_node` is set to **true** in `omnia_config.yml`
+>> __Note:__ For 389ds/SSSD to work, an external LDAP server has to be set up in your environment as Omnia does not configure LDAP.
+
+## Prerequisites Before Enabling Security:
+
+* Verify that the login node host name has been set. If not, use the following steps to set it.
+	* Set hostname of the login node to hostname.domainname format using the below command:
+	`hostnamectl set-hostname <hostname>.<domainname>`
+	>>Eg: `hostnamectl set-hostname login-node.omnia.test`
+	* Add the set hostname in `/etc/hosts` using vi editor.
+
+	`vi /etc/hosts`
+
+	* Add the IP of the login node with the above hostname using `hostnamectl` command in last line of the file.
+	>> Eg: xx.xx.xx.xx <hostname>
+
 * Set the following parameters in `omnia_security_config.yml`
 
 |  Variables    [Required/ Optional]	                                                   |  **Default**,   Accepted values                       |  Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
@@ -17,7 +31,8 @@
 | restrict_program_support                                                             | **false**                                             | This variable sets whether the network   services/protocols listed in `restrict_softwares` are to be blocked.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | restrict_softwares                                                                   |                                                       | Array of services/protocols to be   blocked by Omnia. Values are to be separated by commas. <br> Accepted   values: telnet,lpd,bluetooth,rlogin,rexec <br> Non Accepted values:   ftp,smbd,nmbd,automount,portmap                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
->> __Note:__ For 389ds/SSSD to work, an external LDAP server has to be set up in your environment as Omnia does not configure LDAP.
+* Ensure that `enable_secure_login_node` is set to **true** in `omnia_config.yml`
+
 
 ## Kernel Lockdown
 

@@ -37,7 +37,7 @@ Depending on the pass-through switch configured in your HPC environment, the num
 	* In the *omnia/examples* folder, a **mapping_host_file.csv** template is provided which can be used for DHCP configuration. The header in the template file must not be deleted before saving the file.  
 	* The Hostname should not contain the following characters: , (comma), \. (period) or _ (underscore). However, the **domain name** is allowed commas and periods. 
 	* The Hostname cannot start or end with a hyphen (-).
-* Connect one of the Ethernet cards on the management station to the HPC switch and the other Ethernet card must be connected to the global network. 
+* Connect one of the Ethernet cards on the management station connected to the HPC switch and the other Ethernet card must be connected to the internet network. 
 * You must have root privileges to perform installations and configurations using the Omnia control plane.
 * On the management station, ensure that Python 3.6 and Ansible are installed (The following commands are compatible with all 3 OS's unless marked otherwise).  
 	* Run the following commands to install Python 3.6:  

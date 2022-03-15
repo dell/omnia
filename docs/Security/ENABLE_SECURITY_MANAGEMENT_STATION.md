@@ -12,6 +12,16 @@ Set the parameter 'enable_security_support' to true in `base_vars.yml`
 
 ## Prerequisites Before Enabling Security:
 
+* Set hostname of management station to hostname.domainname format using the below command:
+`hostnamectl set-hostname <hostname>.<domainname>`
+>>Eg: `hostnamectl set-hostname valdiationms.omnia.test`
+* Add the set hostname in `/etc/hosts` using vi editor.
+
+`vi /etc/hosts`
+
+* Add the IP of the management station with the above hostname using `hostnamectl` command in last line of the file.
+>> Eg: xx.xx.xx.xx <hostname>
+
 * Enter the relevant values in `login_vars.yml`:
 
 | Parameter Name             | Default Value | Additional Information                                                                           |
