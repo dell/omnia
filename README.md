@@ -15,8 +15,8 @@
 Omnia (Latin: all or everything) is a deployment tool to turn servers with RPM-based Linux images into functioning Slurm/Kubernetes clusters.
 
 ## Pre Requisites before installing Omnia
-- Python3
-- Ansible 2.11.9
+- [Python3](https://www.python.org/)
+- [Ansible 2.11.9](https://www.ansible.com/)
 
 
 ## Installing Omnia
