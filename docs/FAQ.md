@@ -36,6 +36,10 @@ Resolution:
 3. Verify that the downloaded .iso file is valid and correct.
 4. Delete the Cobbler container using `docker rm -f cobbler` and rerun `control_plane.yml`.
 
+## How to enable DHCP routing on Compute Nodes:
+
+To enable routing, update the `primary_dns` and `secondary_dns` in `base_vars` with the appropriate IPs (hostnames are currently not supported). For compute nodes that are not directly connected to the internet (ie only host network is configured), this configuration allows for internet connectivity.
+
 ## Why does PXE boot fail with tftp timeout or service timeout errors?  
 Potential Causes:
 * RAID is configured on the server.
