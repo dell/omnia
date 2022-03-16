@@ -86,17 +86,14 @@
       register: sestatus_current
       changed_when: false
 
-    - name: Disable SElinux
-      replace:
-        path: "{{ selinux_config_path }}"
-        regexp: 'SELINUX=[a-z]+'
-        replace: 'SELINUX=disabled'
+    - name: Check SELinux status
+      debug:
+        msg: "{{ selinux_warning }}"
+      when: '"SELinux status:                 disabled" in sestatus_current.stdout_lines'
+
+    - name: Set SElinux to permissive mode
+      command: setenforce 0
       when: '"SELinux status:                 enabled" in sestatus_current.stdout_lines'
 
-    - name: Status of SElinux
-      fail:
-        msg: "{{ selinux_status }}"
-      when: '"SELinux status:                 enabled" in sestatus_current.stdout_lines'
-      register: selinux_value
   tags: init
   when: os_supported_leap not in mgmt_os
