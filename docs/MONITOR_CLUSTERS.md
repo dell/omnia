@@ -20,7 +20,7 @@ To access any of the dashboards, ensure that a compatible web browser is install
 	5. `logout and login back`
 	6. To launch Firefox from terminal, run `firefox&`
 
-**NOTE**: When the PuTTY or MobaXterm session ends, you must run **export DISPLAY=:10.0** command each time, else Firefox cannot be launched again.  
+>> **NOTE**: When the PuTTY or MobaXterm session ends, you must run **export DISPLAY=:10.0** command each time, else Firefox cannot be launched again.  
 
 ## Access FreeIPA Dashboard  
 The FreeIPA Dashboard can be accessed from the management station, manager, and login nodes. To access the dashboard:

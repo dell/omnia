@@ -62,7 +62,6 @@ Kubeflow  |  1
 Prometheus  |  2.23.0
 Ansible  |  2.9.21
 Python  |  3.6.15
-CRI-O  |  1.21.0
 
 ## Hardware managed by Omnia
 The following table lists the supported devices managed by Omnia. Other devices than those listed in the following table will be discovered by Omnia, but features offered by Omnia will not be applicable.
@@ -110,7 +109,7 @@ The following table lists the software and its compatible version managed by Omn
 | AWX	                                       	| 	Apache-2.0	                                                                | 	20.0.0	                                        | 	Web-based User Interface                                                                                                                                    |
 | AWX.AWX	                                   	| 	Apache-2.0	                                                                | 	19.4.0	                                        | 	Galaxy collection to perform awx configuration                                                                                                              |
 | AWXkit	                                    | 	Apache-2.0	                                                                | 	18.0.0	                                        | 	To perform configuration through CLI commands                                                                                                               |
-| Cri-o	                                     	| 	Apache-2.0	                                                                | 	1.21, 1.17.3  (LeapOS only   supports  1.17.3)  | 	Container Service                                                                                                                                           |
+| CRI-O	                                     	| 	Apache-2.0	                                                                | 	1.21, 1.22.0  									| 	Container Service                                                                                                                                           |
 | Buildah	                                   	| 	Apache-2.0	                                                                | 	1.22.4	                                        | 	Tool to build and run containers                                                                                                                            |
 | PostgreSQL	                                | 	Copyright (c) 1996-2020, PostgreSQL Global Development Group	            | 	10.15	                                        | 	Database Management System                                                                                                                                  |
 | Redis	                                     	| 	BSD-3-Clause License	                                                    | 	6.0.10	                                        | 	In-memory database                                                                                                                                          |

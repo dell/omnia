@@ -15,6 +15,12 @@
     * Add the IP of the login node with the above hostname using `hostnamectl` command in last line of the file.
   
 	__Eg:__  xx.xx.xx.xx <hostname>
+	
+>> __Note:__ 
+>>	* The Hostname should not contain the following characters: , (comma), \. (period) or _ (underscore). However, the **domain name** is allowed commas and periods. 
+>>	* The Hostname cannot start or end with a hyphen (-).
+>>	* No upper case characters are allowed in the hostname.
+>>	* The hostname cannot start with a number.
 
 * Set the following parameters in `omnia_security_config.yml`
 
@@ -33,6 +39,20 @@
 | restrict_softwares                                                                   |                                                       | Array of services/protocols to be   blocked by Omnia. Values are to be separated by commas. <br> Accepted   values: telnet,lpd,bluetooth,rlogin,rexec <br> Non Accepted values:   ftp,smbd,nmbd,automount,portmap                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 * Ensure that `enable_secure_login_node` is set to **true** in `omnia_config.yml`
+
+## Limiting User Authentication over sshd
+
+Users logging into this host will can be __optionally__ allowed or denied using an access control list. All users to be allowed or denied are to be listed in the variable `user` in `security_vars.yml`. 
+
+>> __Note:__ All users on the server will have to be defined manually. Omnia does not create any users by default.
+
+## Session Timeout
+
+To encourage security, users who have been idle over 3 minutes will be logged out automatically. To adjust this value, update the `session_timeout` variable in `security_vars.yml`. This variable is mandatory. 
+
+## Restricting Program Support
+
+Optionally, different communication protocols can be disabled on the management station using the `restrict_program_support` and `restrict_softwares` variables. These protocols include: telnet,lpd,bluetooth,rlogin and rexec. Features that cannot be disabled include: ftp,smbd,nmbd,automount and portmap. 
 
 
 ## Kernel Lockdown
