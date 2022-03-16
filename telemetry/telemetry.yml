@@ -16,7 +16,7 @@
 - name: Telemetry and visualization
   hosts: localhost
   connection: local
-  gather_facts: false
+  gather_facts: true
   roles:
   - common
   - timescaledb
