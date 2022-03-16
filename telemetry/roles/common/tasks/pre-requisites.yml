@@ -29,6 +29,27 @@
       fail:
         msg: "{{ control_plane_installation_required }}"
 
+- name: Saving management station os
+  set_fact:
+    mgmt_os: "{{ ansible_facts['distribution'] | lower }}"
+
+- block:
+    - name: Fetch SElinux mode
+      command: sestatus
+      register: sestatus_current
+      changed_when: false
+
+    - name: Check SELinux status
+      debug:
+        msg: "{{ selinux_warning }}"
+      when: '"SELinux status:                 disabled" in sestatus_current.stdout_lines'
+
+    - name: Set SElinux to permissive mode
+      command: setenforce 0
+      when: '"SELinux status:                 enabled" in sestatus_current.stdout_lines'
+
+  when: os_supported_leap not in mgmt_os
+
 - name: Check that the base_vars.yml exists
   stat:
     path: "{{ base_vars_file }}"
