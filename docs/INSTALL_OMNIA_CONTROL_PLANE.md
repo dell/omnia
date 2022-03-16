@@ -34,10 +34,12 @@ Depending on the pass-through switch configured in your HPC environment, the num
   
 * For DHCP configuration, you can provide a host mapping file. If the mapping file is not provided and the variable is left blank, a default mapping file will be created. The provided details must be in the format: MAC address, Hostname, IP address, Component_role. For example, `10:11:12:13,server1,100.96.20.66,compute` and  `14:15:16:17,server2,100.96.22.199,manager` are valid entries.  
 >> __Note:__  
-	* In the *omnia/examples* folder, a **mapping_host_file.csv** template is provided which can be used for DHCP configuration. The header in the template file must not be deleted before saving the file.  
-	* The Hostname should not contain the following characters: , (comma), \. (period) or _ (underscore). However, the **domain name** is allowed commas and periods. 
-	* The Hostname cannot start or end with a hyphen (-).
-* Connect one of the Ethernet cards on the management station to the HPC switch and the other Ethernet card must be connected to the global network. 
+>>	* In the *omnia/examples* folder, a **mapping_host_file.csv** template is provided which can be used for DHCP configuration. The header in the template file must not be deleted before saving the file.  
+>>	* The Hostname should not contain the following characters: , (comma), \. (period) or _ (underscore). However, the **domain name** is allowed commas and periods. 
+>>	* The Hostname cannot start or end with a hyphen (-).
+>>	* No upper case characters are allowed in the hostname.
+>>	* The hostname cannot start with a number.
+* Connect one of the Ethernet cards on the management station connected to the HPC switch and the other Ethernet card must be connected to the internet network. 
 * You must have root privileges to perform installations and configurations using the Omnia control plane.
 * On the management station, ensure that Python 3.6 and Ansible are installed (The following commands are compatible with all 3 OS's unless marked otherwise).  
 	* Run the following commands to install Python 3.6:  
@@ -113,7 +115,7 @@ To configure the login node, refer to [Install_Omnia](INSTALL_OMNIA.md).
 >> * Supported values for Kubernetes CNI are calico and flannel. The default value of CNI considered by Omnia is calico.	
 >> * The default value of Kubernetes Pod Network CIDR is 10.244.0.0/16. If 10.244.0.0/16 is already in use within your network, select a different Pod Network CIDR. For more information, see __https://docs.projectcalico.org/getting-started/kubernetes/quickstart__.  
 >> * The default path of the Ansible configuration file is `/etc/ansible/`. If the file is not present in the default path, then edit the `ansible_conf_file_path` variable to update the configuration path.
->> * If you choose to use FreeIPA on both the Management Station and the login_node, simply follow the steps mentioned [here](docs/Security/Enable_Security_ManagementStation.md) and set login_node to true. However, if you would only like to use FreeIPA on the login_node, be sure to fill out all the relevant variables in `omnia_config.yml`.
+>> * If you choose to enable security on both the Management Station, simply follow the steps mentioned [here](docs/Security/Enable_Security_ManagementStation.md).
 
 
 5. Change the directory to **control_plane/input_params** using the command: `cd omnia/control_plane/input_params`
@@ -210,6 +212,8 @@ Below are all the parameters in `login_vars.yml`
 | ms_kerberos_admin_password      |                          | Password authenticating the 'admin' account on the IPA server. If 389ds   is in use, this field authenticates the Kerberos Admin.                                                                                                             |
 
 
+
+
 ## Default Ansible AWX configurations  
 * The role used to deploy AWX within the *control_plane.yml* file: *webui_awx*.  
 * All the pods are deployed in the specific namespace: *awx*.  
@@ -221,7 +225,7 @@ Omnia performs the following configurations on AWX:
 * For networking switches, InfiniBand switches, iDRAC, and PowerVault Storage, four inventories are available- **ethernet_inventory**, **infiniband_inventory**, **idrac_inventory**, **provisioned_idrac_inventory**, and **powervault_me4_inventory**.
 * IP addresses of the hosts are stored in **node_inventory**.
 * The device credentials are stored in **idrac_credential**, **ethernet_credential**, **infiniband_credential**, and **powervault_me4_credential**. The **node_credential** stores the credentials of nodes in the cluster. 
-* Four groups are created under **node_inventory**-manager, compute, login, and nfs. All nodes in the inventory are added to these groups from the AWX UI.
+* Four groups are created under **node_inventory**-manager, compute, login, and nfs. All nodes in the inventory are to be added to these groups from the AWX UI by the user.
 * iDRAC, networking switches, InfiniBand switches, and PowerVault storage devices can be configured using the respective templates: **idrac_template**, **ethernet_template**, **infiniband_template**, and **powervault_me4_template**. **deploy_omnia_template** is used to deploy Kubernetes and Slurm on the compute nodes. 
 * Schedules are created for the **node_inventory_job** (every **10 minutes**) and the **device_inventory_job** (**once daily**) to dynamically retrieve and update node and device details to AWX.  
 
