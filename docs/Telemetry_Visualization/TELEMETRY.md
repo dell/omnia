@@ -31,7 +31,7 @@ Sankey Viewers are perfect for viewing utilization by nodes/users/jobs. It provi
 <br>
 
 4. [Power Map](https://idatavisualizationlab.github.io/HPCC/#PowerMap) <br>
-Power Maps are an excellent way to see utilization along the axis of time for different nodes/users/jobs. Hovering over the graph allows the user narrow down information by Job/User or Node.
+Power Maps are an excellent way to see utilization along the axis of time for different nodes/users/jobs. Hovering over the graph allows the user to narrow down information by Job/User or Node.
 
 ![Power Map](Images/PowerMap.png)
 
