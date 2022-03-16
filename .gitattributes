@@ -1,1 +1,2 @@
 *.py linguist-detectable=false
+*.yml linguist-language=YAML
