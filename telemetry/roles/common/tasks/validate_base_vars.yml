@@ -13,25 +13,13 @@
 # limitations under the License.
 ---
 
-- name: Include telemetry base_vars.yml file
+- name: Include telemetry_base_vars.yml file
   include_vars: "{{ base_vars_file }}"
   no_log: true
 
-- name: Create mount directory if it doesn't exist
-  block:
-    - name: Checking directory
-      stat:
-        path: "{{ mount_location }}"
-      register: stat_result
-
-    - name: Creating directory
-      file:
-        path: "{{ mount_location }}"
-        state: directory
-        mode: "{{ folder_perm }}"
-        group: root
-        owner: root
-      when: not stat_result.stat.exists
+- name: Include control_plane base_vars.yml file
+  include_vars: "{{ control_plane_base_vars_file }}"
+  no_log: true
 
 - name: Assert idrac telemetry support
   assert:
