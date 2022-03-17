@@ -294,7 +294,7 @@
       "type": "hpcviz-idvl-hpcc-parallel-coordinate"
     }
   ],
-  "refresh": 5s,
+  "refresh": "5s",
   "schemaVersion": 33,
   "style": "dark",
   "tags": [],
