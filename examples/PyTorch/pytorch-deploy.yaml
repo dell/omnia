@@ -17,4 +17,4 @@ spec:
       volumes:
       - name: torch-job-volume
         hostPath:
-          path: /home/k8s/torch-example
+          path: /home/k8snfs/torch-example
