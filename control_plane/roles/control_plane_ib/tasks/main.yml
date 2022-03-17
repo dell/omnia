@@ -57,4 +57,3 @@
   when:
     - device_support_status
     - ib_switch_support
-    - mgmt_os in os_supported_rocky
