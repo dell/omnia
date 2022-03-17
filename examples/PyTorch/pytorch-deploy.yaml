@@ -12,7 +12,7 @@ spec:
         volumeMounts:
         - mountPath: /pyscript
           name: torch-job-volume
-        command: ["bash","-c","python /pyscript/pytorchcpu-example.py"]
+        command: ["bash","-c","python /pyscript/pytorch-example.py"]
       restartPolicy: Never
       volumes:
       - name: torch-job-volume
