@@ -52,7 +52,9 @@ To install the Omnia control plane and manage workloads on your cluster using th
 >> 2. `pip uninstall ansible-base (if ansible 2.9 is installed)`
 >> 3. `pip uninstall ansible-core (if ansible 2.10  > version is installed)`
 
-	 
+>> __Note:__ If you are using LeapOS, zypper may need to be updated before installing Omnia using the command: `zypper update -y`
+
+
 * On the management station, run the following commands to install Git:
 	```
 	dnf install epel-release -y
