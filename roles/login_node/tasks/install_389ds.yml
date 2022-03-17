@@ -96,8 +96,6 @@
       no_log: true
       when: ldap1_search_key in ldap1_status.stdout
 
-    
-
     - name: Creating 389 directory server instance
       shell: dscreate -v from-file {{ ldap1_config_path }} | tee {{ ldap1_output_path }}
       changed_when: true
@@ -223,10 +221,16 @@
           fail:
             msg: "Error: {{ create_admin_principal.stderr }}"
 
-    - name: Authenticate as admin
-      shell: set -o pipefail && echo {{ kerberos_admin_password }} | kinit {{ ipa_admin_username }}
-      no_log: true
-      changed_when: false
+    - block:
+        - name: Authenticate as admin
+          shell: set -o pipefail && echo {{ kerberos_admin_password }} | kinit {{ ipa_admin_username }}
+          no_log: true
+          changed_when: false
+          register: authenticate_admin
+      rescue:
+        - name: Authenticate as admin failed
+          fail:
+            msg: "Error: {{ authenticate_admin.stderr }}"
 
     - name: Install sssd packages
       zypper:
@@ -269,8 +273,14 @@
         enabled: yes
   when: not ds389_status
 
-- name: Configure password policy in 389-ds
-  command: dsconf -w {{ directory_manager_password }} -D "cn=Directory Manager" ldap://{{ server_hostname_fqdn }} pwpolicy set --pwdlockoutduration {{ hostvars['127.0.0.1']['lockout_duration'] }} --pwdmaxfailures {{ hostvars['127.0.0.1']['max_failures'] }} --pwdresetfailcount {{ hostvars['127.0.0.1']['failure_reset_interval'] }}
-  changed_when: true
-  no_log: true
-  when: hostvars['127.0.0.1']['enable_secure_login_node']
+- block:
+    - name: Configure password policy in 389-ds
+      command: dsconf -w {{ directory_manager_password }} -D "cn=Directory Manager" ldap://{{ server_hostname_fqdn }} pwpolicy set --pwdlockoutduration {{ hostvars['127.0.0.1']['lockout_duration'] }} --pwdmaxfailures {{ hostvars['127.0.0.1']['max_failures'] }} --pwdresetfailcount {{ hostvars['127.0.0.1']['failure_reset_interval'] }}
+      changed_when: true
+      no_log: true
+      when: hostvars['127.0.0.1']['enable_secure_login_node']
+      register: configure_pwpolicy
+  rescue:
+    - name: Configure password policy in 389-ds failed
+      fail:
+        msg: "Error: {{ configure_pwpolicy.stderr }}"

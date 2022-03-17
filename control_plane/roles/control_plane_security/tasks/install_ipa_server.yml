@@ -26,11 +26,17 @@
       fail:
         msg: "Error: {{ install_ipa_server.stderr_lines }}"
 
-- name: Authenticate as admin
-  shell: set -o pipefail && echo $'{{ ms_kerberos_admin_password }}' | kinit {{ ms_ipa_admin_username }}
-  no_log: true
-  changed_when: false
-
+- block:
+    - name: Authenticate as admin
+      shell: set -o pipefail && echo $'{{ ms_kerberos_admin_password }}' | kinit {{ ms_ipa_admin_username }}
+      no_log: true
+      changed_when: false
+      register: authenticate_admin
+  rescue:
+    - name: Authenticate as admin failed
+      fail:
+        msg: "Error: {{ authenticate_admin.stderr }}"
+  
 - name: Replace the /etc/resolv.conf file
   copy:
     src: "{{ temp_resolv_conf_path }}"
