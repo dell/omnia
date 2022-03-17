@@ -35,13 +35,17 @@
   failed_when: false
   register: k8s_pods
 
-- name: Docker login
-  command: docker login -u {{ docker_username }} -p {{ docker_password }}
-  changed_when: true
-  register: docker_login_output
-  failed_when: false
-  when: docker_username or docker_password
-  no_log: true
+- block:
+    - name: Docker login
+      command: docker login -u {{ docker_username }} -p {{ docker_password }}
+      changed_when: true
+      register: docker_login_output
+      when: docker_username or docker_password
+      no_log: true
+  rescue:
+    - name: Warning - docker login failed
+      debug:
+        msg: "Warning: {{ docker_login_output.stderr }}" 
 
 - name: Docker login check
   fail:

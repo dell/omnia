@@ -16,17 +16,24 @@
 - name: Include k8s_start_services variables
   include_vars: ../../k8s_start_services/vars/main.yml
 
-- name: Create prometheus datasource in grafana
   community.grafana.grafana_datasource:
-    name: "hpc-prometheus-{{ ansible_default_ipv4.address }}"
-    grafana_url: "http://{{ grafana_svc_ip }}:{{ grafana_svc_port }}"
-    grafana_user: "{{ hostvars['127.0.0.1']['grafana_username'] }}"
-    grafana_password: "{{ hostvars['127.0.0.1']['grafana_password'] }}"
-    ds_type: prometheus
-    ds_url: "http://{{ ansible_default_ipv4.address }}:{{ nginx_listen_port }}"
-    access: direct
-  delegate_to: localhost
-  no_log: true
+- block:
+    - name: Create prometheus datasource in grafana
+      community.grafana.grafana_datasource:
+        name: "hpc-prometheus-{{ ansible_default_ipv4.address }}"
+        grafana_url: "http://{{ grafana_svc_ip }}:{{ grafana_svc_port }}"
+        grafana_user: "{{ hostvars['127.0.0.1']['grafana_username'] }}"
+        grafana_password: "{{ hostvars['127.0.0.1']['grafana_password'] }}"
+        ds_type: prometheus
+        ds_url: "http://{{ ansible_default_ipv4.address }}:{{ nginx_listen_port }}"
+        access: direct
+      delegate_to: localhost
+      no_log: true
+      register: create_slurm_prom_datasource
+  rescue:
+    - name: Create prometheus datasource in grafana failed
+      fail:
+        msg: "Error: {{ create_slurm_prom_datasource.msg }}"
 
 - name: Replace data source in slurm dashboard
   replace:
@@ -50,15 +57,21 @@
     replace: '"title": "SLURM - CPUs/GPUs, Nodes, Jobs, Scheduler ({{ ansible_default_ipv4.address }})",'
   delegate_to: localhost
 
-- name: Import Slurm Grafana dashboards
-  community.grafana.grafana_dashboard:
-    grafana_url: "http://{{ grafana_svc_ip }}:{{ grafana_svc_port }}"
-    grafana_user: "{{ hostvars['127.0.0.1']['grafana_username'] }}"
-    grafana_password: "{{ hostvars['127.0.0.1']['grafana_password'] }}"
-    state: present
-    commit_message: Updated by ansible
-    overwrite: yes
-    path: "{{ role_path }}/files/{{ item }}"
-  with_items: "{{ slurm_dashboard_json_files }}"
-  delegate_to: localhost
-  no_log: true
+- block:
+    - name: Import Slurm Grafana dashboards
+      community.grafana.grafana_dashboard:
+        grafana_url: "http://{{ grafana_svc_ip }}:{{ grafana_svc_port }}"
+        grafana_user: "{{ hostvars['127.0.0.1']['grafana_username'] }}"
+        grafana_password: "{{ hostvars['127.0.0.1']['grafana_password'] }}"
+        state: present
+        commit_message: Updated by ansible
+        overwrite: yes
+        path: "{{ role_path }}/files/{{ item }}"
+      with_items: "{{ slurm_dashboard_json_files }}"
+      delegate_to: localhost
+      no_log: true
+      register: import_prom_dashboards
+  rescue:
+    - name: Import K8s grafana dashboards failed
+      fail:
+        msg: "Error: {{ import_prom_dashboards.msg }}"

@@ -23,28 +23,40 @@
   changed_when: false
   register: kube_prom_svc_port
 
-- name: Create prometheus datasource in grafana
-  community.grafana.grafana_datasource:
-    name: control-plane-prometheus
-    grafana_url: "http://{{ grafana_svc_ip.stdout }}:{{ grafana_svc_port.stdout }}"
-    grafana_user: "{{ grafana_username }}"
-    grafana_password: "{{ grafana_password }}"
-    ds_type: prometheus
-    ds_url: "http://{{ kube_prom_svc_ip.stdout }}:{{ kube_prom_svc_port.stdout }}"
-    access: proxy
-  no_log: true
+- block:
+    - name: Create prometheus datasource in grafana
+      community.grafana.grafana_datasource:
+        name: control-plane-prometheus
+        grafana_url: "http://{{ grafana_svc_ip.stdout }}:{{ grafana_svc_port.stdout }}"
+        grafana_user: "{{ grafana_username }}"
+        grafana_password: "{{ grafana_password }}"
+        ds_type: prometheus
+        ds_url: "http://{{ kube_prom_svc_ip.stdout }}:{{ kube_prom_svc_port.stdout }}"
+        access: proxy
+      no_log: true
+      register: create_prom_datasource
+  rescue:
+    - name: Create prometheus datasource in grafana failed
+      fail:
+        msg: "Error: {{ create_prom_datasource.msg }}"
 
-- name: Import K8s grafana dashboards
-  community.grafana.grafana_dashboard:
-    grafana_url: "http://{{ grafana_svc_ip.stdout }}:{{ grafana_svc_port.stdout }}"
-    grafana_user: "{{ grafana_username }}"
-    grafana_password: "{{ grafana_password }}"
-    state: present
-    commit_message: Updated by ansible
-    overwrite: yes
-    path: "{{ role_path }}/files/{{ item }}"
-  with_items: "{{ grafana_dashboard_json_files }}"
-  no_log: true
+- block:
+    - name: Import K8s grafana dashboards
+      community.grafana.grafana_dashboard:
+        grafana_url: "http://{{ grafana_svc_ip.stdout }}:{{ grafana_svc_port.stdout }}"
+        grafana_user: "{{ grafana_username }}"
+        grafana_password: "{{ grafana_password }}"
+        state: present
+        commit_message: Updated by ansible
+        overwrite: yes
+        path: "{{ role_path }}/files/{{ item }}"
+      with_items: "{{ grafana_dashboard_json_files }}"
+      no_log: true
+      register: import_prom_dashboards
+  rescue:
+    - name: Import K8s grafana dashboards failed
+      fail:
+        msg: "Error: {{ import_prom_dashboards.msg }}"
 
 - name: Save grafana svc ip
   replace:
