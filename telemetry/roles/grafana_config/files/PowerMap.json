@@ -245,7 +245,7 @@
       "type": "hpcviz-idvl-hpcc-stream-net"
     }
   ],
-  "refresh": "",
+  "refresh": "5s",
   "schemaVersion": 33,
   "style": "dark",
   "tags": [],
