@@ -91,7 +91,7 @@ prometheus_path_on_host: /var/lib/prometheus-2.23.0.linux-amd64/
 
 spark_operator_repo: https://googlecloudplatform.github.io/spark-on-k8s-operator
 
-operator_image_tag: v1beta2-1.2.3-3.1.1
+operator_image_tag: latest
 
 volcano_scheduling_yaml_url: https://raw.githubusercontent.com/volcano-sh/volcano/v1.3.0/installer/volcano-development.yaml
 
