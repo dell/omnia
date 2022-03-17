@@ -16,10 +16,10 @@
 - name: Check pre-requisites for telemetry and visualizations
   include_tasks: pre-requisites.yml
 
-- name: Validate base_vars.yml
+- name: Validate telemetry_base_vars.yml
   include_tasks: validate_base_vars.yml
 
-- name: Validate login_vars.yml
+- name: Validate telemetry_login_vars.yml
   include_tasks: validate_login_vars.yml
 
 - name: Create k8s secrets for database credentials
