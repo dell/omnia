@@ -247,7 +247,7 @@
       "type": "hpcviz-idvl-hpcc-spiral-layout"
     }
   ],
-  "refresh": "",
+  "refresh": "5s",
   "schemaVersion": 33,
   "style": "dark",
   "tags": [],
