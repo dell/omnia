@@ -43,6 +43,11 @@
                 persistentVolumeClaim:
                   claimName: "{{ pvc_name }}"
 
+              - name: timezone
+                hostPath:
+                  path: "{{ zoneinfo_dir + timezone }}"
+                  type: File
+
             containers:
               - name: timescale
                 image: timescale/timescaledb:latest-pg12
@@ -52,6 +57,8 @@
                     name: telemetry-reference-tools
                   - mountPath: /var/lib/postgresql/
                     name: timescaledb-pvc
+                  - mountPath: /etc/localtime
+                    name: timezone
                 workingDir: /go/src/github.com/telemetry-reference-tools
                 env:
                   - name: node.name

@@ -30,31 +30,44 @@
   changed_when: false
   failed_when: false
 
-- name: Install ipa server in CentOS 7.9
-  command: >-
-    ipa-server-install -n '{{ hostvars['127.0.0.1']['domain_name'] }}' --hostname='{{ server_hostname }}' -a '{{ hostvars['127.0.0.1']['kerberos_admin_password'] }}'
-    -p '{{ hostvars['127.0.0.1']['directory_manager_password'] }}' -r '{{ hostvars['127.0.0.1']['realm_name'] }}' --setup-dns --auto-forwarders --auto-reverse -U
-  changed_when: true
-  no_log: true
-  when:
-    - ( ansible_distribution | lower == os_centos )
-    - ( ansible_distribution_version < os_version )
+- block:
+    - name: Install ipa server in CentOS 7.9
+      command: >-
+        ipa-server-install -n '{{ hostvars['127.0.0.1']['domain_name'] }}' --hostname='{{ server_hostname }}' -a '{{ hostvars['127.0.0.1']['kerberos_admin_password'] }}'
+        -p '{{ hostvars['127.0.0.1']['directory_manager_password'] }}' -r '{{ hostvars['127.0.0.1']['realm_name'] }}' --setup-dns --auto-forwarders --auto-reverse -U
+      changed_when: true
+      no_log: true
+      register: install_ipa_server
+      when:
+        - ( ansible_distribution | lower == os_centos )
+        - ( ansible_distribution_version < os_version )
 
-- name: Install ipa server in CentOS > 8 or Rocky 8.4
-  command: >-
-    ipa-server-install -n '{{ hostvars['127.0.0.1']['domain_name'] }}' --hostname='{{ server_hostname }}' -a '{{ hostvars['127.0.0.1']['kerberos_admin_password'] }}'
-    -p '{{ hostvars['127.0.0.1']['directory_manager_password'] }}' -r '{{ hostvars['127.0.0.1']['realm_name'] }}' --setup-dns --no-forwarders --no-reverse --no-ntp -U
-  changed_when: true
-  no_log: true
-  when:
-    - ( ansible_distribution | lower == os_centos ) or
-      ( ansible_distribution | lower == os_rocky )
-    - ( ansible_distribution_version >= os_version )
+    - name: Install ipa server in CentOS > 8 or Rocky 8
+      command: >-
+        ipa-server-install -n '{{ hostvars['127.0.0.1']['domain_name'] }}' --hostname='{{ server_hostname }}' -a '{{ hostvars['127.0.0.1']['kerberos_admin_password'] }}'
+        -p '{{ hostvars['127.0.0.1']['directory_manager_password'] }}' -r '{{ hostvars['127.0.0.1']['realm_name'] }}' --setup-dns --no-forwarders --no-reverse --no-ntp -U
+      changed_when: true
+      no_log: true
+      register: install_ipa_server
+      when:
+        - ( ansible_distribution | lower == os_centos ) or
+          ( ansible_distribution | lower == os_rocky )
+        - ( ansible_distribution_version >= os_version )
+  rescue:
+    - name: Install ipa server failed
+      fail:
+        msg: "Error: {{ install_ipa_server.stderr_lines }}"
 
-- name: Authenticate as admin
-  shell: set -o pipefail && echo $'{{ hostvars['127.0.0.1']['kerberos_admin_password'] }}' | kinit admin
-  no_log: true
-  changed_when: false
+- block:
+    - name: Authenticate as admin
+      shell: set -o pipefail && echo $'{{ hostvars['127.0.0.1']['kerberos_admin_password'] }}' | kinit admin
+      no_log: true
+      changed_when: false
+      register: authenticate_admin
+  rescue:
+    - name: Authenticate as admin failed
+      fail:
+        msg: "Error: {{ authenticate_admin.stderr }}"
 
 - name: Replace the /etc/resolv.conf file
   copy:

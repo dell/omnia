@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -74,17 +74,20 @@
       when: "'$ANSIBLE_VAULT;' in config_content.stdout"
       run_once: true
 
-    - name: Add inventory playbook
-      block:
-        - name: add hosts with description to inventory file
-          command: >-
-            ansible-playbook -i {{ provisioned_hosts_file }}
-            {{ role_path }}/files/create_inventory.yml
-            --extra-vars "host_username={{ host_username }} host_password={{ provision_password }} mapping_file={{ mapping_file | bool }}"
-          no_log: True
-          register: register_error
-      rescue:
-        - name: Fail if host addition was not successful
-          fail:
-            msg: "{{ register_error.stderr + register_error.stdout | regex_replace(host_username) | regex_replace(provision_password) }}"
+    - name: Change file permissions
+      file:
+        path: "{{ login_vars_file }}"
+        mode: "{{ file_perm }}"
+
+    - name: Check the provisioned_hosts_file output
+      command: cat {{ provisioned_hosts_file }}
+      changed_when: false
+      register: os_hosts
+      
+    - name: Create device_inventory
+      add_host:
+        name: "{{ item }}"
+        groups: "node_inventory"
+      with_items: "{{ os_hosts.stdout_lines }}"
+      when: item | trim | length > 1
   when: provisioned_file.stat.exists

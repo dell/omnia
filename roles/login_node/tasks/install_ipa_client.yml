@@ -55,23 +55,30 @@
   changed_when: false
   failed_when: false
 
-- name: Install ipa client in CentOS 7.9
-  command: >-
-    ipa-client-install --domain '{{ required_domain_name }}' --server '{{ required_server_hostname }}'
-    --principal admin --password '{{ required_ipa_admin_pwd }}' --force-join --enable-dns-updates --force-ntpd -U
-  changed_when: true
-  no_log: true
-  when:
-    - ( ansible_distribution | lower == os_centos )
-    - ( ansible_distribution_version < os_version )
+- block:
+    - name: Install ipa client in CentOS 7.9
+      command: >-
+        ipa-client-install --domain '{{ required_domain_name }}' --server '{{ required_server_hostname }}'
+        --principal admin --password '{{ required_ipa_admin_pwd }}' --force-join --enable-dns-updates --force-ntpd -U
+      changed_when: true
+      no_log: true
+      register: install_ipa_client
+      when:
+        - ( ansible_distribution | lower == os_centos )
+        - ( ansible_distribution_version < os_version )
 
-- name: Install ipa client in Rocky 8.4
-  command: >-
-    ipa-client-install --domain '{{ required_domain_name }}' --server '{{ required_server_hostname }}'
-    --principal admin --password '{{ required_ipa_admin_pwd }}' --force-join --enable-dns-updates --no-ntp -U
-  changed_when: true
-  no_log: true
-  when:
-    - ( ansible_distribution | lower == os_centos ) or
-      ( ansible_distribution | lower == os_rocky )
-    - ( ansible_distribution_version >= os_version )
+    - name: Install ipa client in Rocky 8
+      command: >-
+        ipa-client-install --domain '{{ required_domain_name }}' --server '{{ required_server_hostname }}'
+        --principal admin --password '{{ required_ipa_admin_pwd }}' --force-join --enable-dns-updates --no-ntp -U
+      changed_when: true
+      no_log: true
+      register: install_ipa_client
+      when:
+        - ( ansible_distribution | lower == os_centos ) or
+          ( ansible_distribution | lower == os_rocky )
+        - ( ansible_distribution_version >= os_version )
+  rescue:
+    - name: Install ipa client failed
+      fail:
+        msg: "Error: {{ install_ipa_client.stderr_lines }}"
