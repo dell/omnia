@@ -17,9 +17,6 @@
   set_fact:
     infiniband_container_status: false
     infiniband_container_image_status: false
-    infiniband_container_config_status: false
-    infiniband_backup_map_status: false
-    infiniband_new_node_status: false
 
 - name: Inspect the infiniband_container image
   command: "buildah images"

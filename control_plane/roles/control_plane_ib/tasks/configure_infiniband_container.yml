@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,17 +13,6 @@
 # limitations under the License.
 ---
 
-- name: Check infiniband pod status
-  command: kubectl get pods -n network-config
-  changed_when: false
-  register: infiniband_pod_status
-  failed_when: false
-
-- name: Deploy infiniband pod
-  command: "kubectl apply -f {{ role_path }}/files/k8s_infiniband.yml"
-  changed_when: true
-  when: infiniband_container_status and  (not infiniband_container_config_status)
-
 - name: Wait for infiniband pod to come to ready state
   command: kubectl wait --for=condition=ready -n network-config pod -l app=infiniband
   changed_when: false
@@ -35,5 +24,5 @@
 
 - name: Configuring infiniband container
   command: 'kubectl exec --stdin --tty -n network-config {{ infiniband_pod_name.stdout }} \
-    -- ansible-playbook /root/omnia/control_plane/roles/control_plane_ib/files/infiniband_container_configure.yml -e ib_nic="{{ ib_network_nic }}"'
+    -- ansible-playbook /root/omnia/control_plane/roles/control_plane_ib/files/infiniband_container_configure.yml'
   changed_when: false
