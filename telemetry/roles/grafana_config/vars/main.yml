@@ -18,4 +18,6 @@ grafana_namespace: grafana
 telemetry_folder_name: telemetry
 dashboards:
   - parallel-coordinate.json
+  - Sankey.json
   - SpiralLayout.json
+  - PowerMap.json
