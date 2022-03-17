@@ -34,7 +34,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1646754961002,
+  "iteration": 1647434054378,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -97,7 +97,7 @@
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(\"time\",'10m'),\n  avg(CAST(value AS decimal)) AS \"memory_power\",\n  CONCAT('| ',system) AS name\nFROM timeseries_metrics\nINNER JOIN nodes\nON nodes.servicetag = timeseries_metrics.system\nWHERE\n  $__timeFilter(\"time\") AND\n  label= 'PowerMetrics TotalMemoryPower' AND\n  system IN (CAST($servicetag AS text))\nGROUP BY time,name\nORDER BY time",
+          "rawSql": "SELECT\n  $__timeGroupAlias(\"time\",$__interval),\n  avg(CAST(value AS decimal)) AS \"memory_power\",\n  CONCAT('| ',nodes.os_ip_addr) AS name\nFROM timeseries_metrics\nINNER JOIN nodes\nON nodes.servicetag = timeseries_metrics.system\nWHERE\n  $__timeFilter(\"time\") AND\n  label= 'PowerMetrics TotalMemoryPower'AND\n  system IN ($servicetag)\nGROUP BY time,name\nORDER BY time",
           "refId": "memory_power",
           "select": [
             [
@@ -128,7 +128,7 @@
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(\"time\",'10m'),\n  avg(CAST(value AS decimal)) AS \"cpu_power\",\n  CONCAT('| ',system) AS name\nFROM timeseries_metrics\nINNER JOIN nodes\nON nodes.servicetag = timeseries_metrics.system\nWHERE\n  $__timeFilter(\"time\") AND\n  label= 'PowerMetrics TotalCPUPower'AND\n  system IN ($servicetag)\nGROUP BY time,name\nORDER BY time",
+          "rawSql": "SELECT\n  $__timeGroupAlias(\"time\",$__interval),\n  avg(CAST(value AS decimal)) AS \"cpu_power\",\n  CONCAT('| ',nodes.os_ip_addr) AS name\nFROM timeseries_metrics\nINNER JOIN nodes\nON nodes.servicetag = timeseries_metrics.system\nWHERE\n  $__timeFilter(\"time\") AND\n  label= 'PowerMetrics TotalCPUPower'AND\n  system IN ($servicetag)\nGROUP BY time,name\nORDER BY time",
           "refId": "cpu_power",
           "select": [
             [
@@ -159,7 +159,7 @@
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(\"time\",'10m'),\n  avg(CAST(value AS decimal)) AS \"cpu1_temp\",\n  CONCAT('| ',system) AS name\nFROM timeseries_metrics\nINNER JOIN nodes\nON nodes.servicetag = timeseries_metrics.system\nWHERE\n  $__timeFilter(\"time\") AND\n  label= 'CPU1 Temp TemperatureReading'AND\n  system IN ($servicetag)\nGROUP BY time,name\nORDER BY time",
+          "rawSql": "SELECT\n  $__timeGroupAlias(\"time\",$__interval),\n  avg(CAST(value AS decimal)) AS \"cpu1_temp\",\n  CONCAT('| ',nodes.os_ip_addr) AS name\nFROM timeseries_metrics\nINNER JOIN nodes\nON nodes.servicetag = timeseries_metrics.system\nWHERE\n  $__timeFilter(\"time\") AND\n  label= 'CPU1 Temp TemperatureReading'AND\n  system IN ($servicetag)\nGROUP BY time,name\nORDER BY time",
           "refId": "cpu1_temp",
           "select": [
             [
@@ -190,7 +190,7 @@
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(\"time\",'10m'),\n  avg(CAST(value AS decimal)) AS \"CPU2_Temp\",\n  CONCAT('| ',system) AS name\nFROM timeseries_metrics\nINNER JOIN nodes\nON nodes.servicetag = timeseries_metrics.system\nWHERE\n  $__timeFilter(\"time\") AND\n  label= 'CPU2 Temp TemperatureReading' AND\n  system IN ($servicetag)\nGROUP BY time,name\nORDER BY time\n",
+          "rawSql": "SELECT\n  $__timeGroupAlias(\"time\",$__interval),\n  avg(CAST(value AS decimal)) AS \"CPU2_Temp\",\n  CONCAT('| ',nodes.os_ip_addr) AS name\nFROM timeseries_metrics\nINNER JOIN nodes\nON nodes.servicetag = timeseries_metrics.system\nWHERE\n  $__timeFilter(\"time\") AND\n  label= 'CPU2 Temp TemperatureReading' AND\n  system IN ($servicetag)\nGROUP BY time,name\nORDER BY time",
           "refId": "cpu2_temp",
           "select": [
             [
@@ -221,7 +221,7 @@
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(\"time\",'10m'),\n  avg(CAST(value AS decimal)) AS \"NIC1_Temp\",\n  CONCAT('| ',system) AS name\nFROM timeseries_metrics\nINNER JOIN nodes\nON nodes.servicetag = timeseries_metrics.system\nWHERE\n  $__timeFilter(\"time\") AND\n  label= 'Embedded NIC 1 Port 1 Partition 1 TemperatureReading' AND\n  system IN ($servicetag)\nGROUP BY time,name\nORDER BY time",
+          "rawSql": "SELECT\n  $__timeGroupAlias(\"time\",$__interval),\n  avg(CAST(value AS decimal)) AS \"NIC1_Temp\",\n  CONCAT('| ',nodes.os_ip_addr) AS name\nFROM timeseries_metrics\nINNER JOIN nodes\nON nodes.servicetag = timeseries_metrics.system\nWHERE\n  $__timeFilter(\"time\") AND\n  label SIMILAR TO '% NIC 1 Port 1 Partition 1 TemperatureReading' AND\n  system IN ($servicetag)\nGROUP BY time,name\nORDER BY time",
           "refId": "nic1_temp",
           "select": [
             [
@@ -243,10 +243,11 @@
           ]
         }
       ],
-      "title": "SpiralLayout",
+      "title": "Spiral-Layout",
       "type": "hpcviz-idvl-hpcc-spiral-layout"
     }
   ],
+  "refresh": "5s",
   "schemaVersion": 33,
   "style": "dark",
   "tags": [],
@@ -260,7 +261,7 @@
         },
         "definition": "SELECT DISTINCT servicetag as __value from nodes\n",
         "hide": 0,
-        "includeAll": false,
+        "includeAll": true,
         "multi": true,
         "name": "servicetag",
         "options": [],
@@ -277,13 +278,13 @@
           "type": "postgres",
           "uid": "telemetry-postgres"
         },
-        "definition": "SELECT\n user_id as __value, user_name as __text\nFROM\n  slurm.jobs\nWHERE\n start_time < ${__to:date:seconds} AND end_time > ${__from:date:seconds}",
+        "definition": "SELECT\n user_id as __value, user_name as __text, nodes as IP, nodes.os_ip_addr, nodes.servicetag\nFROM\n  slurm.jobs\nINNER JOIN nodes\nON nodes.os_ip_addr = ANY(nodes)\nWHERE nodes.servicetag in ($servicetag) AND\n start_time < ${__to:date:seconds} AND end_time > ${__from:date:seconds}",
         "hide": 0,
         "includeAll": true,
         "multi": true,
         "name": "users",
         "options": [],
-        "query": "SELECT\n user_id as __value, user_name as __text\nFROM\n  slurm.jobs\nWHERE\n start_time < ${__to:date:seconds} AND end_time > ${__from:date:seconds}",
+        "query": "SELECT\n user_id as __value, user_name as __text, nodes as IP, nodes.os_ip_addr, nodes.servicetag\nFROM\n  slurm.jobs\nINNER JOIN nodes\nON nodes.os_ip_addr = ANY(nodes)\nWHERE nodes.servicetag in ($servicetag) AND\n start_time < ${__to:date:seconds} AND end_time > ${__from:date:seconds}",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -293,13 +294,13 @@
     ]
   },
   "time": {
-    "from": "now-6M",
+    "from": "now-2d",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "SpiralLayout",
-  "uid": "ou27WHLnt",
-  "version": 4,
+  "uid": "ou27WHLni",
+  "version": 7,
   "weekStart": ""
 }
