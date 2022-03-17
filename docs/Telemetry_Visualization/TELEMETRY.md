@@ -21,7 +21,6 @@ A lot of these metrics are collected using iDRAC telemetry. iDRAC telemetry allo
 
 | Parameter Name          | Default Value     | Information |
 |-------------------------|-------------------|-------------|
-| mount_location          | /opt/omnia 		  | Sets the location all telemetry related files will be stored and both timescale and mysql databases will be mounted.            |
 | idrac_telemetry_support | true              | This variable is used to enable iDRAC telemetry support and visualizations. Accepted Values: true/false            |
 | slurm_telemetry_support | true              | This variable is used to enable slurm telemetry support and visualizations. Slurm Telemetry support can only be activated when idrac_telemetry_support is set to true. Accepted Values: True/False.        |
 | timescaledb_name        | telemetry_metrics | Postgres DB with timescale extension is used for storing iDRAC and slurm telemetry metrics.            |
