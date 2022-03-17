@@ -7,7 +7,7 @@ A lot of these metrics are collected using iDRAC telemetry. iDRAC telemetry allo
 ## Prerequisites
 
 1. To set up Grafana, ensure that `control_plane/input_params/login_vars.yml` is updated with the Grafana Username and Password.
-2. All parameters in `telemetry/input_params/telemetry_login_vars.yml` need to be filled in:
+2. All parameters in `telemetry/input_params/login_vars.yml` need to be filled in:
 
 | Parameter Name        | Default Value | Information |
 |-----------------------|---------------|-------------|
@@ -17,10 +17,11 @@ A lot of these metrics are collected using iDRAC telemetry. iDRAC telemetry allo
 | mysqldb_password      | 		        |  Password used for connecting to mysql db. Minimum Length: 2 characters.            |
 | mysqldb_root_password | 		        |  Password used for connecting to mysql db for root user. Minimum Legth: 2 characters.         |
 
-3. All parameters in `telemetry/input_params/telemetry_base_vars.yml` need to be filled in:
+3. All parameters in `telemetry/input_params/base_vars.yml` need to be filled in:
 
 | Parameter Name          | Default Value     | Information |
 |-------------------------|-------------------|-------------|
+| mount_location          | /opt/omnia 		  | Sets the location all telemetry related files will be stored and both timescale and mysql databases will be mounted.            |
 | idrac_telemetry_support | true              | This variable is used to enable iDRAC telemetry support and visualizations. Accepted Values: true/false            |
 | slurm_telemetry_support | true              | This variable is used to enable slurm telemetry support and visualizations. Slurm Telemetry support can only be activated when idrac_telemetry_support is set to true. Accepted Values: True/False.        |
 | timescaledb_name        | telemetry_metrics | Postgres DB with timescale extension is used for storing iDRAC and slurm telemetry metrics.            |
@@ -61,9 +62,3 @@ After initiation, new nodes can be added to telemetry by running the following c
 ` ansible-playbook add_idrac_node.yml `
 
 	
-
-
-
-
-
-
