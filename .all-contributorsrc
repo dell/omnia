@@ -169,7 +169,8 @@
         "code",
         "bug",
         "doc",
-        "test"
+        "test",
+        "maintenance"
       ]
     },
     {
