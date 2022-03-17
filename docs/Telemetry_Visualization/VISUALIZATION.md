@@ -29,6 +29,8 @@ Spiral Layouts are best for viewing the change in a single metric over time. It 
 3. [Sankey Viewer](https://idatavisualizationlab.github.io/HPCC/#SankeyViewer) <br>
 Sankey Viewers are perfect for viewing utilization by nodes/users/jobs. It provides point in time information for quick troubleshooting.
 
+>> __Note:__ Due to the tremendous data processing undertaken by SankeyViewer, the graph does not auto-refresh. It can be manually refreshed by refreshing the internet tab or by clicking the refresh button on the top-right corner of the page.
+
 ![Sankey Viewer](Images/SankeyViewer.png)
 
 <br>
