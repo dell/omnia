@@ -35,8 +35,8 @@ spec:
         - name: infiniband-container
           image: 'localhost/infiniband-container:latest'
           imagePullPolicy: Never
-          command: [ "/start.sh" ]
-          args: [ "/sbin/init" ]
+          command:
+            - /sbin/init
           volumeMounts:
             - name: omnia-storage
               mountPath: /root/omnia

@@ -18,7 +18,8 @@
   changed_when: true
   args:
     chdir: "{{ role_path }}/files/"
-
+  when: not infiniband_container_image_status
+  
 - name: Update image name in k8s_infiniband.yml
   replace:
     path: "{{ ib_kube_config_file }}"
@@ -55,6 +56,13 @@
     regexp: "        - name: opensm-logs\n          hostPath:\n            path:.*"
     replace: "        - name: opensm-logs\n          hostPath:\n            path: {{ subnet_manager.log_directory }} "
 
+- name: Check infiniband pod status
+  command: kubectl get pods -n network-config
+  changed_when: false
+  register: infiniband_pod_status
+  failed_when: false
+
 - name: Deploy infiniband pod
   command: "kubectl apply -f {{ ib_kube_config_file }}"
   changed_when: true
+  when: not infiniband_container_status

@@ -19,5 +19,12 @@
   gather_facts: false
   tasks:
   - name: Start dhcpd services
-    command: dhcpd {{ ib_nic }}
-    changed_when: false
+    service:
+      name: dhcpd
+      state: started
+      enabled: yes
+
+  - name: Run opensm
+    shell: nohup /usr/sbin/opensm -F /etc/rdma/opensm.conf &
+    changed_when: true
+    failed_when: false
