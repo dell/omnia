@@ -15,8 +15,8 @@
 
 # Include and initialize variables
 
-- name: Include telemetry base_vars.yml
-  include_vars: "{{ playbook_dir }}/input_params/base_vars.yml"
+- name: Include telemetry_base_vars.yml
+  include_vars: "{{ playbook_dir }}/input_params/telemetry_base_vars.yml"
   no_log: true
 
 - name: Initiate telemetry process if idrac_support is enabled
@@ -42,9 +42,9 @@
       idrac_telemetry_scripting_folder: iDRAC-Telemetry-Scripting
       idrac_login_input_filename: "{{ playbook_dir }}/../control_plane/input_params/login_vars.yml"
       idrac_login_vault_filename: "{{ playbook_dir }}/../control_plane/input_params/.login_vault_key"
-      login_vars_file: "{{ playbook_dir }}/input_params/login_vars.yml"
+      login_vars_file: "{{ playbook_dir }}/input_params/telemetry_login_vars.yml"
       vault_filename: "{{ playbook_dir }}/input_params/.login_vault_key"
-      min_firmware_version_reqd: 4
+      min_firmware_version_reqd: 3
       datacenter_license: false
       firmware_version: false
       file_perm: '0644'
@@ -167,20 +167,20 @@
 # Get mysqldb credentials
   - name: Get mysqldb credentials
     block:
-    - name: Check login_vars file is encrypted
+    - name: Check telemetry_login_vars file is encrypted
       command: cat {{ login_vars_file }}
       changed_when: false
       register: config_content
       # no_log: true
 
-    - name: Decrpyt login_vars.yml
+    - name: Decrpyt telemetry_login_vars.yml
       command: >-
         ansible-vault decrypt {{ login_vars_file }}
         --vault-password-file {{ vault_filename }}
       changed_when: false
       when: "'$ANSIBLE_VAULT;' in config_content.stdout"
 
-    - name: Include variable file telemetry/login_vars.yml
+    - name: Include variable file telemetry_login_vars.yml
       include_vars: "{{ login_vars_file }}"
       no_log: true
 
@@ -190,7 +190,7 @@
         --vault-password-file {{ vault_filename }}
       changed_when: false
 
-    - name: Update login_vars.yml permission
+    - name: Update telemetry_login_vars.yml permission
       file:
         path: "{{ login_vars_file }}"
         mode: "{{ file_perm }}"

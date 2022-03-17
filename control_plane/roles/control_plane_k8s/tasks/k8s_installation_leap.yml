@@ -54,6 +54,13 @@
   command: /sbin/sysctl --system
   changed_when: true
 
+- name: Add crio repo
+  zypper_repository:
+    repo: "{{ crio_repo_leap }}"
+    state: present
+    disable_gpg_check: yes
+    autorefresh: yes
+
 - name: Installing cri-o
   package:
     name: cri-o
@@ -120,7 +127,7 @@
 
 - name: Install Kubeadm
   ansible.builtin.expect:
-    command: zypper install --oldpackage "{{ kubeadm_version }}"
+    command: zypper install --replacefiles --force --oldpackage "{{ kubeadm_version }}"
     responses:
         (.*) [1/2/c/d/?](.): '2'
         (.*)(y): 'y'
@@ -130,7 +137,7 @@
 
 - name: Install Kubelet
   ansible.builtin.expect:
-    command: zypper install --oldpackage "{{ kubelet_version }}"
+    command: zypper install --replacefiles --force --oldpackage "{{ kubelet_version }}"
     responses:
         (.*) [1/2/c/d/?](.): '2'
         (.*)(y): 'y'
@@ -142,6 +149,7 @@
   zypper:
      name: "{{ kubectl_version }}"
      state: present
+     replacefiles: true
      oldpackage: yes
      force: yes
   register: kubectl_status

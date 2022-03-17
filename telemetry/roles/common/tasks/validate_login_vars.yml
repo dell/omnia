@@ -13,25 +13,25 @@
 # limitations under the License.
 ---
 
-# Include telemetry/login_vars.yml
-- name: Check login_vars file is encrypted
+# Include telemetry_login_vars.yml
+- name: Check telemetry_login_vars file is encrypted
   command: cat {{ login_vars_file }}
   changed_when: false
   register: config_content
   no_log: true
 
-- name: Decrpyt login_vars.yml
+- name: Decrpyt telemetry_login_vars.yml
   command: >-
     ansible-vault decrypt {{ login_vars_file }}
     --vault-password-file {{ vault_filename }}
   changed_when: false
   when: "'$ANSIBLE_VAULT;' in config_content.stdout"
 
-- name: Include variable file telemetry/login_vars.yml
+- name: Include variable file telemetry_login_vars.yml
   include_vars: "{{ login_vars_file }}"
   no_log: true
 
-- name: Assert usernames and passwords in login_vars.yml
+- name: Assert usernames and passwords in telemetry_login_vars.yml
   block:
   - name: Assert timescaledb user name
     assert:
@@ -84,7 +84,7 @@
     no_log: true
 
   rescue:
-    - name: Validation issue in login/vars.yml
+    - name: Validation issue in telemetry_login_vars.yml
       fail:
         msg: "{{ login_vars_fail_msg }}"
 

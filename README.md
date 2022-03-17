@@ -14,8 +14,22 @@
 
 Omnia (Latin: all or everything) is a deployment tool to turn servers with RPM-based Linux images into functioning Slurm/Kubernetes clusters.
 
+## Pre Requisites before installing Omnia
+- [Python3](https://www.python.org/)
+- [Ansible 2.11.9](https://www.ansible.com/)
+
+
+## Installing Omnia
+
+Omnia can be used in two ways:
+
+1. To [set up clusters on existing deployed hardware](docs/INSTALL_OMNIA.md) and then [monitor the clusters](docs/MONITOR_CLUSTERS.md)
+
+2. To [deploy OS's, packages and other open source software](docs/INSTALL_OMNIA_CONTROL_PLANE.md)
+
+
 ## Omnia Documentation
-For Omnia documentation, including installation and contribution instructions, please see the [website](https://dellhpc.github.io/omnia).
+For Omnia documentation, please see the [website](https://dellhpc.github.io/omnia).
 
 ## Omnia Community Members:
 <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Dell_Technologies_logo.svg/512px-Dell_Technologies_logo.svg.png" height="50px" alt="Dell Technologies">
@@ -46,7 +60,7 @@ Thanks goes to everyone who makes Omnia possible ([emoji key](https://allcontrib
     <td align="center"><a href="https://github.com/avinashvishwanath"><img src="https://avatars.githubusercontent.com/u/77823538?v=4?s=100" width="100px;" alt=""/><br /><sub><b>avinashvishwanath</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=avinashvishwanath" title="Documentation">📖</a></td>
     <td align="center"><a href="https://github.com/abhishek-s-a"><img src="https://avatars.githubusercontent.com/u/73212230?v=4?s=100" width="100px;" alt=""/><br /><sub><b>abhishek-s-a</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=abhishek-s-a" title="Code">💻</a> <a href="https://github.com/dellhpc/omnia/commits?author=abhishek-s-a" title="Documentation">📖</a> <a href="https://github.com/dellhpc/omnia/commits?author=abhishek-s-a" title="Tests">⚠️</a></td>
     <td align="center"><a href="https://github.com/Shubhangi-dell"><img src="https://avatars.githubusercontent.com/u/72869337?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Shubhangi Srivastava</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=Shubhangi-dell" title="Code">💻</a> <a href="#maintenance-Shubhangi-dell" title="Maintenance">🚧</a> <a href="https://github.com/dellhpc/omnia/issues?q=author%3AShubhangi-dell" title="Bug reports">🐛</a></td>
-    <td align="center"><a href="https://github.com/cgoveas"><img src="https://avatars.githubusercontent.com/u/88071888?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Cassey Goveas</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=cgoveas" title="Documentation">📖</a> <a href="https://github.com/dellhpc/omnia/issues?q=author%3Acgoveas" title="Bug reports">🐛</a></td>
+    <td align="center"><a href="https://github.com/cgoveas"><img src="https://avatars.githubusercontent.com/u/88071888?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Cassey Goveas</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=cgoveas" title="Documentation">📖</a> <a href="https://github.com/dellhpc/omnia/issues?q=author%3Acgoveas" title="Bug reports">🐛</a> <a href="#maintenance-cgoveas" title="Maintenance">🚧</a></td>
     <td align="center"><a href="https://github.com/abhishek-sa1"><img src="https://avatars.githubusercontent.com/u/94038029?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Abhishek SA</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=abhishek-sa1" title="Code">💻</a> <a href="https://github.com/dellhpc/omnia/issues?q=author%3Aabhishek-sa1" title="Bug reports">🐛</a> <a href="https://github.com/dellhpc/omnia/commits?author=abhishek-sa1" title="Documentation">📖</a> <a href="https://github.com/dellhpc/omnia/commits?author=abhishek-sa1" title="Tests">⚠️</a></td>
   </tr>
   <tr>
@@ -74,7 +88,7 @@ Thanks goes to everyone who makes Omnia possible ([emoji key](https://allcontrib
     <td align="center"><a href="https://github.com/Lakshmi-Patneedi"><img src="https://avatars.githubusercontent.com/u/94051091?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Lakshmi-Patneedi</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=Lakshmi-Patneedi" title="Code">💻</a></td>
     <td align="center"><a href="https://github.com/Artlands"><img src="https://avatars.githubusercontent.com/u/31781106?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Jie Li</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=Artlands" title="Code">💻</a></td>
     <td align="center"><a href="https://github.com/githubyongchen"><img src="https://avatars.githubusercontent.com/u/5414112?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Yong Chen</b></sub></a><br /><a href="#design-githubyongchen" title="Design">🎨</a></td>
-    <td align="center"><a href="http://www.myweb.ttu.edu/ngu00336/"><img src="https://avatars.githubusercontent.com/u/18387748?v=4?s=100" width="100px;" alt=""/><br /><sub><b>nvtngan</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=Zipexpo" title="Code">💻</a></td>
+    <td align="center"><a href="http://www.myweb.ttu.edu/ngu00336/"><img src="https://avatars.githubusercontent.com/u/18387748?v=4?s=100" width="100px;" alt=""/><br /><sub><b>nvtngan</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=Zipexpo" title="Code">💻</a> <a href="#plugin-Zipexpo" title="Plugin/utility libraries">🔌</a></td>
   </tr>
   <tr>
     <td align="center"><a href="https://github.com/tamilarasansubrama1"><img src="https://avatars.githubusercontent.com/u/100588942?v=4?s=100" width="100px;" alt=""/><br /><sub><b>tamilarasansubrama1</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=tamilarasansubrama1" title="Tests">⚠️</a> <a href="https://github.com/dellhpc/omnia/commits?author=tamilarasansubrama1" title="Code">💻</a></td>
