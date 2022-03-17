@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,3 +19,9 @@
   gather_facts: false
   roles:
     - collect_node_info
+
+- import_playbook: "{{ playbook_dir }}/roles/collect_node_info/files/create_inventory.yml"
+  vars:
+    host_username: "{{ hostvars['127.0.0.1']['host_username'] }}"
+    host_password: "{{ hostvars['127.0.0.1']['provision_password'] }}"
+    mapping_file: "{{ hostvars['127.0.0.1']['mapping_file'] | bool }}"
