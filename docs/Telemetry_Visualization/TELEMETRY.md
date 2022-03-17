@@ -7,7 +7,7 @@ A lot of these metrics are collected using iDRAC telemetry. iDRAC telemetry allo
 ## Prerequisites
 
 1. To set up Grafana, ensure that `control_plane/input_params/login_vars.yml` is updated with the Grafana Username and Password.
-2. All parameters in `telemetry/input_params/login_vars.yml` need to be filled in:
+2. All parameters in `telemetry/input_params/telemetry_login_vars.yml` need to be filled in:
 
 | Parameter Name        | Default Value | Information |
 |-----------------------|---------------|-------------|
@@ -17,7 +17,7 @@ A lot of these metrics are collected using iDRAC telemetry. iDRAC telemetry allo
 | mysqldb_password      | 		        |  Password used for connecting to mysql db. Minimum Length: 2 characters.            |
 | mysqldb_root_password | 		        |  Password used for connecting to mysql db for root user. Minimum Legth: 2 characters.         |
 
-3. All parameters in `telemetry/input_params/base_vars.yml` need to be filled in:
+3. All parameters in `telemetry/input_params/telemetry_base_vars.yml` need to be filled in:
 
 | Parameter Name          | Default Value     | Information |
 |-------------------------|-------------------|-------------|
