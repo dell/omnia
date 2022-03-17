@@ -27,23 +27,35 @@
   changed_when: false
   register: loki_svc_port
 
-- name: Create loki datasource in grafana
-  community.grafana.grafana_datasource:
-    name: control-plane-loki
-    grafana_url: "http://{{ grafana_svc_ip.stdout }}:{{ grafana_svc_port.stdout }}"
-    grafana_user: "{{ grafana_username }}"
-    grafana_password: "{{ grafana_password }}"
-    ds_type: loki
-    ds_url: "http://{{ loki_svc_ip.stdout }}:{{ loki_svc_port.stdout }}"
-  no_log: true
+- block:
+    - name: Create loki datasource in grafana
+      community.grafana.grafana_datasource:
+        name: control-plane-loki
+        grafana_url: "http://{{ grafana_svc_ip.stdout }}:{{ grafana_svc_port.stdout }}"
+        grafana_user: "{{ grafana_username }}"
+        grafana_password: "{{ grafana_password }}"
+        ds_type: loki
+        ds_url: "http://{{ loki_svc_ip.stdout }}:{{ loki_svc_port.stdout }}"
+      no_log: true
+      register: create_loki_datasource
+  rescue:
+    - name: Create loki datasource in grafana failed
+      fail:
+        msg: "Error: {{ create_loki_datasource.msg }}"
 
-- name: Import loki dashboard in grafana
-  community.grafana.grafana_dashboard:
-    grafana_url: "http://{{ grafana_svc_ip.stdout }}:{{ grafana_svc_port.stdout }}"
-    grafana_user: "{{ grafana_username }}"
-    grafana_password: "{{ grafana_password }}"
-    state: present
-    commit_message: Updated by ansible
-    overwrite: yes
-    path: "{{ role_path }}/files/loki_dashboard.json"
-  no_log: true
+- block:
+    - name: Import loki dashboard in grafana
+      community.grafana.grafana_dashboard:
+        grafana_url: "http://{{ grafana_svc_ip.stdout }}:{{ grafana_svc_port.stdout }}"
+        grafana_user: "{{ grafana_username }}"
+        grafana_password: "{{ grafana_password }}"
+        state: present
+        commit_message: Updated by ansible
+        overwrite: yes
+        path: "{{ role_path }}/files/loki_dashboard.json"
+      no_log: true
+      register: import_loki_dashboard
+  rescue:
+    - name: Import loki datasource in grafana failed
+      fail:
+        msg: "Error: {{ import_loki_dashboard.msg }}"
