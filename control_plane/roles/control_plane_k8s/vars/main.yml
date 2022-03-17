@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -31,7 +31,8 @@ min_retries: 3
 max_retries: 10
 min_delay: 10
 wait_time: 30
- 
+crio_repo_leap: "https://download.opensuse.org/repositories/devel:kubic/15.3/devel:kubic.repo"
+
 # Usage: k8s_installation.yml
 common_packages:
   - openssl
