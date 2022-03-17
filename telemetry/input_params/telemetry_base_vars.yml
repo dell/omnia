@@ -13,10 +13,6 @@
 # limitations under the License.
 ---
 
-# At this location all telemetry related files will be stored and
-# both timescale and mysql databases will be mounted.
-mount_location: /opt/omnia/
-
 # This variable is used to enable iDRAC telemetry support and visualizations
 # Accepted values:  "true" or "false"
 idrac_telemetry_support: true
