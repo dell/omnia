@@ -16,7 +16,6 @@
 - name: Include k8s_start_services variables
   include_vars: ../../k8s_start_services/vars/main.yml
 
-  community.grafana.grafana_datasource:
 - block:
     - name: Create prometheus datasource in grafana
       community.grafana.grafana_datasource:
