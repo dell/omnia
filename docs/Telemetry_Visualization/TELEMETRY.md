@@ -1,40 +1,63 @@
-# Viewing Performance Stats on Grafana
+# Setting Up Grafana
 
-Using [Texas Technical University data visualization lab](https://idatavisualizationlab.github.io/HPCC), data polled from iDRAC and Slurm can be processed to generate live graphs. These Graphs can be accessed on the Grafana UI.
+Using Grafana, users can poll multiple devices and create graphs/visualizations of key system metrics such as temperature, System power consumption, Memory Usage, IO Usage, CPU Usage, Total Memory Power, System Output Power, Total Fan Power, Total Storage Power, System Input Power, Total CPU Power, RPM Readings, Total Heat Dissipation, Power to Cool ratio, System Air Flow Efficiency etc.
 
-Once `control_plane.yml` is executed and Grafana is set up, use `telemetry.yml` to initiate the Graphs. Data polled via Slurm and iDRAC is streamed into internal databases. This data is processed to create the 4 graphs listed below.
+A lot of these metrics are collected using iDRAC telemetry. iDRAC telemetry allows you to stream telemetry data from your servers to a centralized log/metrics servers. For more information on iDRAC telemetry, click [here]( https://github.com/dell/iDRAC-Telemetry-Reference-Tools).
 
->> __Note__: This feature only works on Nodes using iDRACs with a datacenter license running a minimum firmware of 4.0.
+## Prerequisites
 
-## All your data in a glance
+1. To set up Grafana, ensure that `control_plane/input_params/login_vars.yml` is updated with the Grafana Username and Password.
+2. All parameters in `telemetry/input_params/telemetry_login_vars.yml` need to be filled in:
 
-Using the following graphs, data can be visualized to gather correlational information.
-1. [Parallel Coordinates](https://idatavisualizationlab.github.io/HPCC/#ParallelCoordinates) <br>
-Parallel coordinates are a great way to capture a systems status. It shows all ranges of individual metrics like CPU temp, Fan Speed, Memory Usage etc. The graph can be narrowed by time or metric ranges to get specific correlations such as CPU Temp vs Fan Speed etc.
+| Parameter Name        | Default Value | Information |
+|-----------------------|---------------|-------------|
+| timescaledb_user      | 		        |  Username used for connecting to timescale db. Minimum Length: 2 characters.          |
+| timescaledb_password  | 		        |  Password used for connecting to timescale db. Minimum Length: 2 characters.           |
+| mysqldb_user          | 		        |  Username used for connecting to mysql db. Minimum Length: 2 characters.         |
+| mysqldb_password      | 		        |  Password used for connecting to mysql db. Minimum Length: 2 characters.            |
+| mysqldb_root_password | 		        |  Password used for connecting to mysql db for root user. Minimum Legth: 2 characters.         |
 
-![Parallel Coordinates](Images/ParallelCoordinates.png)
+3. All parameters in `telemetry/input_params/telemetry_base_vars.yml` need to be filled in:
 
-<br>
+| Parameter Name          | Default Value     | Information |
+|-------------------------|-------------------|-------------|
+| idrac_telemetry_support | true              | This variable is used to enable iDRAC telemetry support and visualizations. Accepted Values: true/false            |
+| slurm_telemetry_support | true              | This variable is used to enable slurm telemetry support and visualizations. Slurm Telemetry support can only be activated when idrac_telemetry_support is set to true. Accepted Values: True/False.        |
+| timescaledb_name        | telemetry_metrics | Postgres DB with timescale extension is used for storing iDRAC and slurm telemetry metrics.            |
+| mysqldb_name			  | idrac_telemetrysource_services_db | MySQL DB is used to store IPs and credentials of iDRACs having datacenter license           |
 
-2. [Spiral Layout](https://idatavisualizationlab.github.io/HPCC/#Spiral_Layout) <br>
-Spiral Layouts are best for viewing the change in a single metric over time. It is often used to check trends in metrics over a business day. Data visualized in this graph can be sorted using other metrics like Job IDs etc to understand the pattern of utilization on your devices.
+3. Find the IP of the Grafana UI using:
+ 
+`kubectl get svc -n grafana`
 
-![Spiral Layout](Images/Spirallayout.gif)
+## Logging into Grafana
 
-<br>
+Use any one of the following browsers to access the Grafana UI (https://< Grafana UI IP >:5000):
+* Chrome/Chromium
+* Firefox
+* Safari
+* Microsoft Edge
 
-3. [Sankey Viewer](https://idatavisualizationlab.github.io/HPCC/#SankeyViewer) <br>
-Sankey Viewers are perfect for viewing utilization by nodes/users/jobs. It provides point in time information for quick troubleshooting.
+>> __Note:__ Always enable JavaScript in your browser. Running Grafana without JavaScript enabled in the browser is not supported.
 
-![Sankey Viewer](Images/SankeyViewer.png)
+## Prerequisites to Enabling Slurm Telemetry
 
-<br>
+* Slurm Telemetry cannot be executed without iDRAC support
+* Omnia control plane should be executed and node_inventory should be created in awx.
+* The slurm manager and compute nodes are fetched at run time from node_inventory.
+* Slurm should be installed on the nodes, if not there is no point in executing slurm telemetry.
 
-4. [Power Map](https://idatavisualizationlab.github.io/HPCC/#PowerMap) <br>
-Power Maps are an excellent way to see utilization along the axis of time for different nodes/users/jobs. Hovering over the graph allows the user to narrow down information by Job/User or Node.
+## Initiating Telemetry
 
-![Power Map](Images/PowerMap.png)
+1. Once `control_plane.yml` and `omnia.yml` are executed, run the following commands from `omnia/telemetry`:
 
-<br>
+`ansible-playbook telemetry.yml`
 
+>> __Note:__ Telemetry Collection is only initiated on iDRACs on AWX that have a datacenter license and are running a firmware version of 4 or higher.
 
+## Adding a New Node to Telemetry
+After initiation, new nodes can be added to telemetry by running the following commands from `omnia/telemetry`:
+		
+` ansible-playbook add_idrac_node.yml `
+
+	

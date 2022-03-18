@@ -52,7 +52,9 @@ To install the Omnia control plane and manage workloads on your cluster using th
 >> 2. `pip uninstall ansible-base (if ansible 2.9 is installed)`
 >> 3. `pip uninstall ansible-core (if ansible 2.10  > version is installed)`
 
-	 
+>> __Note:__ If you are using LeapOS, zypper may need to be updated before installing Omnia using the command: `zypper update -y`
+
+
 * On the management station, run the following commands to install Git:
 	```
 	dnf install epel-release -y
@@ -93,7 +95,7 @@ git clone -b release https://github.com/dellhpc/omnia.git
 | domain_name                | omnia.test    | Sets the intended domain name                                                                                                                                                                                                                        |
 | realm_name                 | OMNIA.TEST    | Sets the intended realm name                                                                                                                                                                                                                         |
 | directory_manager_password |               | Password authenticating admin level access to the Directory for system   management tasks. It will be added to the instance of directory server   created for IPA. <br> Required Length: 8 characters. <br> The   password must not contain -,\, '," |
-| kerberos_admin_password         |               | "admin" user password for the IPA server on RockyOS. If LeapOS is in use, it is used as the "kerberos admin" user password for 389-ds <br> This field is not relevant to Management Stations running `LeapOS`                                                                                                                                                                                                                            |
+| kerberos_admin_password    |               | "admin" user password for the IPA server on RockyOS. If LeapOS is in use, it is used as the "kerberos admin" user password for 389-ds <br> This field is not relevant to Management Stations running `LeapOS`                                                                                                                                                                                                                            |
 | enable_secure_login_node   |  **false**, true             | Boolean value deciding whether security features are enabled on the Login Node. For more information, see [here](docs/Security/Enable_Security_LoginNode.md).                                                                                                                                                                                                                           |
 	
 	
