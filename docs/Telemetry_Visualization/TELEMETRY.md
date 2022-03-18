@@ -46,6 +46,8 @@ Use any one of the following browsers to access the Grafana UI (https://< Grafan
 * Omnia control plane should be executed and node_inventory should be created in awx.
 * The slurm manager and compute nodes are fetched at run time from node_inventory.
 * Slurm should be installed on the nodes, if not there is no point in executing slurm telemetry.
+* A minimum of one cluster is required for Slurm Telemetry to work.
+* Once telemetry is running, delete the pods and images on control plane if a cluster change is intended.
 
 ## Initiating Telemetry
 
