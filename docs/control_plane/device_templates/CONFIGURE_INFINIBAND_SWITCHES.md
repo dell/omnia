@@ -3,7 +3,12 @@ In your HPC cluster, connect the Mellanox InfiniBand switches using the Fat-Tree
 
 Omnia uses the server-based Subnet Manager (SM). SM runs as a Kubernetes pod on the management station. To enable the SM, Omnia configures the required parameters in the `opensm.conf` file. Based on the requirement, the parameters can be edited.  
 
->>**NOTE**: Install the InfiniBand hardware drivers by running the command: `yum groupinstall "Infiniband Support" -y`.  
+>>**NOTE**: Install the InfiniBand hardware drivers by running the below command (depending on the OS):  
+>> * `yum groupinstall "Infiniband Support" -y` (For Rocky)
+>> * `zypper install rdma-core librdmacm1 libibmad5 libibumad3` (For LeapOS)
+
+>> **NOTE:** When using LeapOS, infiniband commands such as sminfo, ibhosts etc only run correctly within the infiniband container.
+
 
 ## Setting up a new or factory reset switch
 
