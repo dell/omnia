@@ -78,6 +78,8 @@ Depending on the pass-through switch configured in your HPC environment, the num
 	2. `pip uninstall ansible-base (if ansible 2.9 is installed)`
 	3. `pip uninstall ansible-core (if ansible 2.10  > version is installed)`
 
+>>__Note__: If you are using LeapOS, zypper may need to be updated using this command before running Omnia: `zypper update -y`
+
 	* On the management station, run the following commands to install Git:
 	
 		| Leap OS                     	| CentOS, Rocky                                             	|
