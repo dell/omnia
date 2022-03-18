@@ -8,7 +8,9 @@ Once `control_plane.yml` is executed and Grafana is set up, use `telemetry.yml` 
 
 ## All your data in a glance
 
-Using the following graphs, data can be visualized to gather correlational information.
+Using the following graphs, data can be visualized to gather correlational information. These graphs refresh every 5 seconds (Except SankeyViewer). 
+
+>> __Note:__ The timestamps used for the time metric are based on the `timezone` set in `control_plane/input_params/base_vars.yml`. 
 1. [Parallel Coordinates](https://idatavisualizationlab.github.io/HPCC/#ParallelCoordinates) <br>
 Parallel coordinates are a great way to capture a systems status. It shows all ranges of individual metrics like CPU temp, Fan Speed, Memory Usage etc. The graph can be narrowed by time or metric ranges to get specific correlations such as CPU Temp vs Fan Speed etc.
 
@@ -25,6 +27,8 @@ Spiral Layouts are best for viewing the change in a single metric over time. It 
 
 3. [Sankey Viewer](https://idatavisualizationlab.github.io/HPCC/#SankeyViewer) <br>
 Sankey Viewers are perfect for viewing utilization by nodes/users/jobs. It provides point in time information for quick troubleshooting.
+
+>> __Note:__ Due to the tremendous data processing undertaken by SankeyViewer, the graph does not auto-refresh. It can be manually refreshed by refreshing the internet tab or by clicking the refresh button on the top-right corner of the page.
 
 ![Sankey Viewer](Images/SankeyViewer.png)
 
