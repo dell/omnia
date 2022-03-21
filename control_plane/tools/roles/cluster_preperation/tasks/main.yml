@@ -22,6 +22,17 @@
     regexp: '#   StrictHostKeyChecking ask'
     replace: 'StrictHostKeyChecking no'
 
+- name: Disable strict mode checking
+  replace:
+    path: /etc/ssh/ssh_config
+    regexp: '^StrictModes\ '
+    replace: 'StrictModes no'
+
+- name: Restart sshd
+  service:
+    name: sshd
+    state: restarted
+
 - name: Install sshpass
   package:
     name: sshpass
