@@ -42,17 +42,17 @@
 
 ## Limiting User Authentication over sshd
 
-Users logging into this host will can be __optionally__ allowed or denied using an access control list. All users to be allowed or denied are to be listed in the variable `user` in `security_vars.yml`. 
+Users logging into this host will can be __optionally__ allowed or denied using an access control list. All users to be allowed or denied are to be listed in the variable `user` in `omnia_security_vars.yml`. 
 
 >> __Note:__ All users on the server will have to be defined manually. Omnia does not create any users by default.
 
 ## Session Timeout
 
-To encourage security, users who have been idle over 3 minutes will be logged out automatically. To adjust this value, update the `session_timeout` variable in `security_vars.yml`. This variable is mandatory. 
+To encourage security, users who have been idle over 3 minutes will be logged out automatically. To adjust this value, update the `session_timeout` variable in `omnia_security_vars.yml`. This variable is mandatory. 
 
 ## Restricting Program Support
 
-Optionally, different communication protocols can be disabled on the management station using the `restrict_program_support` and `restrict_softwares` variables. These protocols include: telnet,lpd,bluetooth,rlogin and rexec. Features that cannot be disabled include: ftp,smbd,nmbd,automount and portmap. 
+Optionally, different communication protocols can be disabled on the management station using the `restrict_program_support` and `restrict_softwares` variables in `omnia_security_vars.yml. These protocols include: telnet,lpd,bluetooth,rlogin and rexec. Features that cannot be disabled include: ftp,smbd,nmbd,automount and portmap. 
 
 
 ## Kernel Lockdown
