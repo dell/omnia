@@ -20,7 +20,7 @@
     - role: control_plane_common
 
     - role: control_plane_k8s
-      tags: init
+      tags: [ init, k8s ]
 
     - role: control_plane_device
       tags: network-device
