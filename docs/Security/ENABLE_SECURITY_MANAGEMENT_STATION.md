@@ -63,7 +63,7 @@ Users logging into this host will can be __optionally__ allowed or denied using 
 
 ## Session Timeout
 
-To encourage security, users who have been idle over 3 minutes will be logged out automatically. To adjust this value, update the `session_timeout` variable in `security_vars.yml`. This variable is mandatory. 
+To encourage security, users who have been idle over 3 minutes will be logged out automatically. To adjust this value, update the `session_timeout` variable in `omnia_security_vars.yml`. This variable is mandatory. 
 
 ## Restricting Program Support
 
