@@ -17,3 +17,5 @@
 rsa_id_file: "/root/.ssh/id_rsa"
 passphrase: ""
 auth_key_path: "/root/.ssh/authorized_keys"
+config_file: "/root/.ssh/config"
+file_mode: "0600"
