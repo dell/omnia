@@ -96,11 +96,13 @@
 - name: Helm - add Nvidia k8s-device-plugin (nvdp) repo
   command: "helm repo add nvdp '{{ nvidia_k8s_device_plugin_repo_url }}'"
   changed_when: true
+  when: ansible_local.inventory.nvidia_gpu > 0
   tags: init
 
 - name: Helm - add Nvidia GPU discovery (nvgfd) repo
   command: "helm repo add nvgfd '{{ nvidia_gpu_discovery_repo_url }}'"
   changed_when: true
+  when: ansible_local.inventory.nvidia_gpu > 0
   tags: init
 
 - name: Helm - update repo
@@ -189,13 +191,17 @@
 - name: Install nvidia-device-plugin
   command: "helm install --version='{{ nvidia_device_plugin_version }}' --generate-name --set migStrategy='{{ mig_strategy }}' nvdp/nvidia-device-plugin"
   changed_when: true
-  when: "'nvidia-device-plugin' not in k8s_pods.stdout"
+  when:
+    - "'nvidia-device-plugin' not in k8s_pods.stdout"
+    - ansible_local.inventory.nvidia_gpu > 0
   tags: init
 
 - name: Install GPU Feature Discovery
   command: "helm install --version='{{ gpu_feature_discovery_version }}' --generate-name --set migStrategy='{{ mig_strategy }}' nvgfd/gpu-feature-discovery"
   changed_when: true
-  when: "'node-feature-discovery' not in k8s_pods.stdout"
+  when:
+    - "'node-feature-discovery' not in k8s_pods.stdout"
+    - ansible_local.inventory.nvidia_gpu > 0
   tags: init
 
 - name: Deploy Xilinx Device plugin
