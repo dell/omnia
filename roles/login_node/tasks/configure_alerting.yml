@@ -62,6 +62,12 @@
   changed_when: false
   register: ansible_playbook_path
 
+- name: Start cron service
+  systemd:
+    name: cron
+    state: started
+    enabled: yes
+ 
 - name: Schedule cron job for alerting
   cron:
     name: Auth failure alerting
