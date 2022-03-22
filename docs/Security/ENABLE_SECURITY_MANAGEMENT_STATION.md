@@ -57,7 +57,7 @@ Set the parameter 'enable_security_support' to true in `base_vars.yml`
 
 ## Limiting User Authentication over sshd
 
-Users logging into this host will can be __optionally__ allowed or denied using an access control list. All users to be allowed or denied are to be listed in the variable `user` in `security_vars.yml`. 
+Users logging into this host can be __optionally__ allowed or denied using an access control list. All users to be allowed or denied are to be listed in the variable `user` in `security_vars.yml`. 
 
 >> __Note:__ All users on the server will have to be defined manually. Omnia does not create any users by default.
 
