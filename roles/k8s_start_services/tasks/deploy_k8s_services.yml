@@ -36,6 +36,8 @@
 
 - name: Get metallb repo
   command: "helm repo add metallb '{{ metallb_helm_url }}'"
+  changed_when: false
+  tags: init
  
 
 - name: Create MetalLB Setup Config Files
@@ -58,7 +60,8 @@
 
 - name: Deploy Metallb
   command: "helm install metallb metallb/metallb  -f '{{ metallb_config_file_dest }}'"
-
+  changed_when: false
+  tags: init
 
 - name: Start k8s dashboard
   command: "kubectl create -f '{{ k8s_dashboard_yaml_url }}'"
