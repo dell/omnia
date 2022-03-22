@@ -55,6 +55,12 @@ To encourage security, users who have been idle over 3 minutes will be logged ou
 Optionally, different communication protocols can be disabled on the management station using the `restrict_program_support` and `restrict_softwares` variables in `omnia_security_vars.yml. These protocols include: telnet,lpd,bluetooth,rlogin and rexec. Features that cannot be disabled include: ftp,smbd,nmbd,automount and portmap. 
 
 
+## Configuring Email Alerts for Authentication Failures
+
+If the `alert_email_address` variable in `omnia_security_config.yml` is populated with a single, valid email ID, all authentication failures will trigger an email notification. A cron job is set up to verify failures and send emails every hour.
+
+>> __Note:__ The `alert_email_address` variable is __optional__. If it is not populated, authentication failure email alerts will be disabled.
+
 ## Kernel Lockdown
 
 * RockyOS has Kernel Lockdown mode (Integrity) enabled by default
