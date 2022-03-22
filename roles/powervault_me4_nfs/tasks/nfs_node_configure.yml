@@ -1,5 +1,4 @@
-
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -29,59 +28,97 @@
   changed_when: false
   failed_when: false
 
-- name: Install packages
-  package:
-    name: iscsi-initiator-utils
-    state: present
-  tags: install
+- name: NFS node configuration on leap
+  block:
+    - name: Install open-iscsi
+      zypper:
+        name: open-iscsi
+        state: present
+      tags: install
 
-- name: Install packages
-  package:
-    name: sg3_utils
-    state: present
-  tags: install
+    - name: Install sg3_utils
+      zypper:
+        name: sg3_utils
+        state: present
+      tags: install
 
-- name: Set bootproto value
-  lineinfile:
-    path: "{{ nic_path }}"
-    regexp: '^BOOTPROTO='
-    line: 'BOOTPROTO=none'
-  register: result
+    - name: Start the iSCSI deamon
+      systemd:
+        name: iscsid
+        state: started
 
-- name: Set onboot value
-  lineinfile:
-    path: "{{ nic_path }}"
-    regexp: '^ONBOOT='
-    line: 'ONBOOT=yes'
+    - block:
+      - name: Configure nic
+        command: ip a add {{ pv_nic_ip }}/255.255.255.0 dev {{ pv_nic }}
+        register: nic_status
+        changed_when: false
+      rescue:
+      - name: Check if nic configured or not
+        fail:
+          msg: "{{ nic_conf_failed_msg }}"
+        when: nic_status_search not in nic_status.stderr
 
-- name: Add ip address
-  lineinfile:
-    path: "{{ nic_path }}"
-    insertafter: '^ONBOOT=yes'
-    line: 'IPADDR={{ pv_nic_ip }}'
+    - name: Up the nic
+      command: ip link set dev {{ pv_nic }} up
+      changed_when: false
+  when: os_supported_leap in ansible_distribution | lower
 
-- name: Add netmask address
-  lineinfile:
-    path: "{{ nic_path }}"
-    insertafter: '^IPADDR={{ pv_nic_ip }}'
-    line: NETMASK=255.255.255.0
+- name: NFS node configuration on rocky
+  block:
+    - name: Install packages
+      package:
+        name: iscsi-initiator-utils
+        state: present
+      tags: install
 
-- name: Down the nic
-  command: ifdown {{ pv_nic }}
-  changed_when: true
-  failed_when: false
-  tags: install
+    - name: Install packages
+      package:
+        name: sg3_utils
+        state: present
+      tags: install
 
-- name: Up the nic
-  command: ifup {{ pv_nic }}
-  changed_when: true
-  tags: install
+    - name: Set bootproto value
+      lineinfile:
+        path: "{{ nic_path }}"
+        regexp: '^BOOTPROTO='
+        line: 'BOOTPROTO=none'
+      register: result
 
-- name: Show ip
-  shell: >
-    set -o pipefail && \
-    ifconfig {{ pv_nic }} | grep 'inet' |cut -d: -f2 |  awk '{ print $2}'
-  changed_when: false
+    - name: Set onboot value
+      lineinfile:
+        path: "{{ nic_path }}"
+        regexp: '^ONBOOT='
+        line: 'ONBOOT=yes'
+
+    - name: Add ip address
+      lineinfile:
+        path: "{{ nic_path }}"
+        insertafter: '^ONBOOT=yes'
+        line: 'IPADDR={{ pv_nic_ip }}'
+
+    - name: Add netmask address
+      lineinfile:
+        path: "{{ nic_path }}"
+        insertafter: '^IPADDR={{ pv_nic_ip }}'
+        line: NETMASK=255.255.255.0
+
+    - name: Down the nic
+      command: ifdown {{ pv_nic }}
+      changed_when: true
+      failed_when: false
+      tags: install
+
+    - name: Up the nic
+      command: ifup {{ pv_nic }}
+      changed_when: true
+      tags: install
+
+    - name: Show ip
+      shell: >
+        set -o pipefail && \
+        ifconfig {{ pv_nic }} | grep 'inet' |cut -d: -f2 |  awk '{ print $2}'
+      changed_when: false
+  when: os_supported_leap not in ansible_distribution | lower
 
 - name: Discover nodes
   command: iscsiadm -m discovery -t sendtargets -p {{ item }}
@@ -121,7 +158,7 @@
 - name: IQDN id
   shell: >
     set -o pipefail && \
-    cat /etc/iscsi/initiatorname.iscsi | cut -f2 -d"="
+    grep "InitiatorName=" /etc/iscsi/initiatorname.iscsi | cut -f2 -d"="
   register: iqdn_id
   changed_when: false
   tags: install
