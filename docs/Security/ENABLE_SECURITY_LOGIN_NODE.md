@@ -54,6 +54,13 @@ To encourage security, users who have been idle over 3 minutes will be logged ou
 
 Optionally, different communication protocols can be disabled on the management station using the `restrict_program_support` and `restrict_softwares` variables in `omnia_security_vars.yml. These protocols include: telnet,lpd,bluetooth,rlogin and rexec. Features that cannot be disabled include: ftp,smbd,nmbd,automount and portmap. 
 
+## Logging Program Executions using Snoopy
+
+Omnia installs Snoopy to log all program executions on Linux/BSD systems. For more information on Snoopy, click [here](https://github.com/a2o/snoopy).
+
+## Logging User activity using PSACCT/ACCT
+
+Using PSACCT on Rocky and Acct on LeapOS, admins can monitor activity. For more information, click [here](https://www.redhat.com/sysadmin/linux-system-monitoring-acct).
 
 ## Configuring Email Alerts for Authentication Failures
 

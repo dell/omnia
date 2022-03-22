@@ -25,7 +25,7 @@ Set the parameter 'enable_security_support' to true in `base_vars.yml`
 
 `vi /etc/hosts`
 
-* Add the IP of the management station with the above hostname using `hostnamectl` command in last line of the file.
+* Add the IP of the management station with the above hostname using `hostnamectl` command in the last line of the file.
 >> Eg: xx.xx.xx.xx <hostname>
 
 * Enter the relevant values in `login_vars.yml`:
@@ -39,7 +39,7 @@ Set the parameter 'enable_security_support' to true in `base_vars.yml`
 
 * Enter the relevant values in `security_vars.yml`:
 
-|  Variables    [Required/ Optional]	                                               |  **Default**,   Accepted values                       |  Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+|  Variables    						                                               |  **Default**,   Accepted values                       |  Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 |--------------------------------------------------------------------------------------|-------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | domain_name                                                                          | **omnia.test**                                        | The domain name should not contain   an underscore ( _ )                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | realm_name                                                                           | **OMNIA.TEST**                                        | The realm name should follow the   following rules per   https://www.freeipa.org/page/Deployment_Recommendations   <br> * The realm name must not   conflict with any other existing     Kerberos realm name (e.g. name used by Active Directory). <br> *   The   realm name should be upper-case   (EXAMPLE.COM) version of primary DNS domain name (example.com).                                                                                                                                                                                                                                                                                                                                                |
@@ -68,6 +68,14 @@ To encourage security, users who have been idle over 3 minutes will be logged ou
 ## Restricting Program Support
 
 Optionally, different communication protocols can be disabled on the management station using the `restrict_program_support` and `restrict_softwares` variables. These protocols include: telnet,lpd,bluetooth,rlogin and rexec. Features that cannot be disabled include: ftp,smbd,nmbd,automount and portmap. 
+
+## Logging Program Executions using Snoopy
+
+Omnia installs Snoopy to log all program executions on Linux/BSD systems. For more information on Snoopy, click [here](https://github.com/a2o/snoopy).
+
+## Logging User activity using PSACCT/ACCT
+
+Using PSACCT on Rocky and Acct on LeapOS, admins can monitor activity. For more information, click [here](https://www.redhat.com/sysadmin/linux-system-monitoring-acct).
 
 ## Configuring Email Alerts for Authentication Failures
 

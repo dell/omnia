@@ -1,5 +1,4 @@
 # Custom ISO provisioning on Dell EMC PowerEdge Servers
-# Custom ISO provisioning on Dell EMC PowerEdge Servers
 
 ## Update the input parameters
 
@@ -43,6 +42,7 @@ For the `idrac.yml` file to successfully provision the custom ISO on the PowerEd
 * The Lifecycle Controller Remote Services of PowerEdge Servers is in the 'ready' state.
 * The Redfish services are enabled in the iDRAC settings under **Services**.
 * The PowerEdge Servers have the iDRAC Enterprise or Datacenter license. If the license is not found, servers will be PXE booted and provisioned using Cobbler.  
+* If `provision_method` is set to PXE in `base_vars.yml`, ensure that all PXE devices have a configured, active NIC.
 
 The **provision_idrac** file configures and validates the following:
 * Required input parameters and prerequisites.
