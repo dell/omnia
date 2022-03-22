@@ -37,6 +37,9 @@ pv_port_ip: 192.168.25.5
 pv_nfs_file: "{{ role_path }}/../../control_plane/input_params/powervault_me4_vars.yml"
 nic_path: "/etc/sysconfig/network-scripts/ifcfg-{{ powervault_me4_server_nic }}"   
 pv_ports_file: "{{ playbook_dir }}/control_plane/roles/powervault_me4/tasks/ports.yml"
+os_supported_leap: "leap"
+nic_status_search: "File exists"
+nic_conf_failed_msg: "NIC configuration failed"
 
 # Usage: validate_nfs_config.yml
 nic_error: "Failed. The nic given is wrong. Give nic according to the provisioned OS"
