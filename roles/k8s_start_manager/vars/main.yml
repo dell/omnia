@@ -23,7 +23,7 @@ k8s_config_src: /etc/kubernetes/admin.conf
 
 k8s_config_dest: /root/.kube/config
 
-k8s_config_file_mode: 0644
+k8s_config_file_mode: 0600
 
 k8s_cert_path: /etc/kubernetes/pki/ca.crt
 
