@@ -53,6 +53,8 @@ metallb_deployment_file_mode: 0655
 
 metallb_yaml_url: https://raw.githubusercontent.com/google/metallb/v0.8.1/manifests/metallb.yaml
 
+metallb_helm_url: https://metallb.github.io/metallb
+
 k8s_dashboard_admin_file_dest: /root/k8s/k8s_dashboard_admin.yaml
 
 k8s_dashboard_admin_file_mode: 0655

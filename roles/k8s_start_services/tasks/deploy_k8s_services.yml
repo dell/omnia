@@ -34,11 +34,11 @@
   register: k8s_pods
   tags: init
 
-- name: Deploy MetalLB
-  command: "kubectl apply -f '{{ metallb_yaml_url }}'"
-  changed_when: true
-  when: "'metallb' not in k8s_pods.stdout"
+- name: Get metallb repo
+  command: "helm repo add metallb '{{ metallb_helm_url }}'"
+  changed_when: false
   tags: init
+ 
 
 - name: Create MetalLB Setup Config Files
   copy:
@@ -58,16 +58,9 @@
     mode: "{{ metallb_deployment_file_mode }}"
   tags: init
 
-- name: Deploy MetalLB
-  command: "kubectl apply -f '{{ metallb_deployment_file_dest }}'"
-  changed_when: true
-  when: "'metallb' not in k8s_pods.stdout"
-  tags: init
-
-- name: Create default setup for MetalLB
-  command: "kubectl apply -f '{{ metallb_config_file_dest }}'"
-  changed_when: true
-  when: "'metallb' not in k8s_pods.stdout"
+- name: Deploy Metallb
+  command: "helm install metallb metallb/metallb  -f '{{ metallb_config_file_dest }}'"
+  changed_when: false
   tags: init
 
 - name: Start k8s dashboard
