@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -17,3 +17,5 @@
 rsa_id_file: "/root/.ssh/id_rsa"
 passphrase: ""
 auth_key_path: "/root/.ssh/authorized_keys"
+config_file: "/root/.ssh/config"
+file_mode: "0600"

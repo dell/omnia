@@ -44,10 +44,13 @@ To enable routing, update the `primary_dns` and `secondary_dns` in `base_vars` w
 Potential Causes:
 * RAID is configured on the server.
 * Two or more servers in the same network have Cobbler services running.  
+* The target compute node does not have a configured PXE device with an active NIC.
 
 Resolution:  
 1. Create a Non-RAID or virtual disk on the server.  
 2. Check if other systems except for the management node have cobblerd running. If yes, then stop the Cobbler container using the following commands: `docker rm -f cobbler` and `docker image rm -f cobbler`.
+3. On the server, go to `BIOS Setup -> Network Settings -> PXE Device`. For each listed device (typically 4), configure an active NIC under `PXE device settings`
+
 
 ## What to do when Slurm services do not start automatically after the cluster reboots:
 

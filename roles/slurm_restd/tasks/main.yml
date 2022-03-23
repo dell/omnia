@@ -13,11 +13,14 @@
 #  limitations under the License.
 ---
 
-- name: Install jansson
-  include_tasks: install_jansson.yml
+- name: Execute slurm restd on rocky
+  block:
+    - name: Install jansson
+      include_tasks: install_jansson.yml
 
-- name: Install libjwt
-  include_tasks: install_libjwt.yml
+    - name: Install libjwt
+      include_tasks: install_libjwt.yml
 
-- name: Generate Token
-  include_tasks: generate_token.yml
+    - name: Generate Token
+      include_tasks: generate_token.yml
+  when: os_supported_leap not in compute_os
