@@ -101,5 +101,5 @@ job_template_details:
 omnia_job_template_details:
   - { name: deploy_omnia_template, inventory: node_inventory, playbook: omnia.yml, credential: node_credential }
 scheduled_templates:
-  - { name: NodeInventorySchedule, template: node_inventory_job, schedule_rule: "DTSTART:20210815T120000Z RRULE:FREQ=MINUTELY;INTERVAL=10", flag: true }
+  - { name: NodeInventorySchedule, template: node_inventory_job, schedule_rule: "DTSTART:20210815T120000Z RRULE:FREQ=HOURLY;INTERVAL=1", flag: true }
   - { name: DeviceInventorySchedule, template: device_inventory_job, schedule_rule: "DTSTART:20210815T060000Z RRULE:FREQ=DAILY;INTERVAL=1", flag: "{{ device_support_status }}"}
