@@ -19,6 +19,10 @@
   include_vars: "{{ playbook_dir }}/input_params/telemetry_base_vars.yml"
   no_log: true
 
+- name: Include control_plane base_vars.yml file
+  include_vars: "{{ playbook_dir }}/../control_plane/input_params/base_vars.yml"
+  no_log: true
+
 - name: Initiate telemetry process if idrac_support is enabled
   block:
   - name: Include telemetry common vars
