@@ -99,7 +99,7 @@ job_template_details:
   - { name: infiniband_template, inventory: infiniband_inventory, playbook: control_plane/infiniband.yml, credential: infiniband_credential, flag: "{{ ib_switch_support }}" }
   - { name: powervault_me4_template, inventory: powervault_me4_inventory, playbook: control_plane/powervault_me4.yml, credential: powervault_me4_credential, flag: "{{ powervault_support }}" }
 omnia_job_template_details:
-  - { name: deploy_omnia_template, inventory: node_inventory, playbook: omnia.yml, credential: node_credential }
+  - { name: deploy_omnia_template, inventory: node_inventory, playbook: omnia.yml, credential: node_credential, extra_vars: "ansible_python_interpreter=/usr/bin/python3" }
 scheduled_templates:
   - { name: NodeInventorySchedule, template: node_inventory_job, schedule_rule: "DTSTART:20210815T120000Z RRULE:FREQ=HOURLY;INTERVAL=1", flag: true }
   - { name: DeviceInventorySchedule, template: device_inventory_job, schedule_rule: "DTSTART:20210815T060000Z RRULE:FREQ=DAILY;INTERVAL=1", flag: "{{ device_support_status }}"}
