@@ -19,7 +19,7 @@
     
 - name: Fetch description
   set_fact:
-    host_description: "Service Tag: {{ service_tag }}"
+    host_description: "Service Tag: {{ service_tag }}, Operating System: {{ ansible_distribution }}"
   failed_when: false
   when: hostname_check.stdout is defined
 
