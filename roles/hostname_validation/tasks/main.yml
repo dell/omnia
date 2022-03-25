@@ -27,3 +27,14 @@
     - os_leap in ansible_distribution | lower
     - hostvars['127.0.0.1']['login_node_required']
     - login_node_group in group_names
+
+- name: Include cluster_validation vars file
+  include_vars: "{{ role_path }}/../cluster_validation/vars/main.yml"
+  
+- name: Validate login node variables if rocky MS and leap login node
+  include_tasks: validate_login_node_vars.yml
+  run_once: true
+  when: 
+    - os_leap in ansible_distribution | lower
+    - hostvars['127.0.0.1']['login_node_required']
+    - hostvars['127.0.0.1']['ipa_server_ms']
