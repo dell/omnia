@@ -2,7 +2,7 @@
 
 Using Grafana, users can poll multiple devices and create graphs/visualizations of key system metrics such as temperature, System power consumption, Memory Usage, IO Usage, CPU Usage, Total Memory Power, System Output Power, Total Fan Power, Total Storage Power, System Input Power, Total CPU Power, RPM Readings, Total Heat Dissipation, Power to Cool ratio, System Air Flow Efficiency etc.
 
-A lot of these metrics are collected using iDRAC telemetry. iDRAC telemetry allows you to stream telemetry data from your servers to a centralized log/metrics servers. For more information on iDRAC telemetry, click [here]( https://github.com/dell/iDRAC-Telemetry-Reference-Tools).
+A lot of these metrics are collected using iDRAC telemetry. iDRAC telemetry allows you to stream telemetry data from your servers to a centralized log/metrics servers. For more information on iDRAC telemetry, click [here]( https://github.com/dell/iDRAC-Telemetry-Reference-Tools)..
 
 ## Prerequisites
 
