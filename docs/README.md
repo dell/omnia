@@ -15,7 +15,6 @@
 
 ## What Omnia does
 Omnia can build clusters that use Slurm or Kubernetes (or both!) for workload management. Omnia will install software from a variety of sources, including:
-- Standard CentOS and [ELRepo](http://elrepo.org) repositories
 - Helm repositories
 - Source code compilation
 - [OperatorHub](https://operatorhub.io)
@@ -23,19 +22,21 @@ Omnia can build clusters that use Slurm or Kubernetes (or both!) for workload ma
 Whenever possible, Omnia will leverage existing projects rather than reinvent the wheel.
 
 ### Omnia stacks
-Omnia can install Kubernetes or Slurm (or both), along with additional drivers, services, libraries, and user applications.
+Omnia can deploy firmware, install Kubernetes or Slurm (or both), along with additional drivers, services, libraries, and user applications.
 ![Omnia Kubernetes Stack](images/omnia-k8s.png)
 
 ![Omnia Slurm Stack](images/omnia-slurm.png)  
 
 ## What's new in this release
-* Extended support of Leap OS on Management station, login, compute and NFS nodes.
-* Omnia now supports Powervault configurations with 2 network interfaces.
-* Omnia now supports multi profile creation and multi cluster provisioning using Cobbler.
-* Provisioning of Rocky custom ISO on supported PowerEdge servers using iDRAC.
-* Configuring Dell EMC networking switches, Mellanox InfiniBand switches, and PowerVault storage devices in the cluster. 
-* An option to configure a login node with the same configurations as the compute nodes in the cluster. With appropriate user privileges provided by the cluster administrator, users can log in to the login node and schedule Slurm jobs. The authentication mechanism in the login node uses the FreeIPA solution.
-* Options to enable the security settings on the iDRAC such as system lockdown mode, secure boot mode, 2-factor authentication (2FA), and LDAP directory services.
+- Support for Rocky 8.x with latest python/ansible on the Management Station
+- Support for Leap 15.3 on the cluster
+- Support for Rocky 8.x on the cluster
+- Added Grafana integration for better monitoring capability
+- Added Loki Log aggregation of Var Logs
+- Added Slurm/K8s Monitoring capability
+- Added security features to comply with NIST 800-53 Revision 5 and 800-171 Revision 5
+- Added the ability to collect telemetry information from SLURM and iDRAC
+- Added Grafana plugins to view real time graphs of cluster/node statistics
 
 ## Deploying clusters using the Omnia control plane
 The Omnia Control Plane will automate the entire cluster deployment process, starting with provisioning the operating system on the supported devices and updating the firmware versions of PowerEdge Servers. 
@@ -51,15 +52,8 @@ The following table lists the software and operating system requirements on the 
 
 Requirements  |   Version
 ----------------------------------  |   -------
-OS pre-installed on the management station  |  Rocky 8.x/ Leap 15.x
+OS pre-installed on the management station  |  Rocky 8.x
 OS deployed by Omnia on bare-metal Dell EMC PowerEdge Servers | Rocky 8.x Minimal Edition/ Leap 15.x
-Cobbler  |  3.2.2
-Ansible AWX  |  20.0.0
-Slurm Workload Manager  |  20.11.2
-Kubernetes on the management station  |  1.21.0
-Kubernetes on the manager and compute nodes	|	1.16.7 or 1.19.3
-Kubeflow  |  1
-Prometheus  |  2.23.0
 Ansible  |  2.9.21
 Python  |  3.6.15
 

@@ -17,6 +17,7 @@ Omnia (Latin: all or everything) is a deployment tool to turn servers with RPM-b
 ## Pre Requisites before installing Omnia
 - [Python3](https://www.python.org/)
 - [Ansible 2.11.9](https://www.ansible.com/)
+- [RockyOS](https://rockylinux.org/)
 
 
 ## Installing Omnia
@@ -25,7 +26,9 @@ Omnia can be used in two ways:
 
 1. To [set up clusters on existing deployed hardware](docs/INSTALL_OMNIA.md) and then [monitor the clusters](docs/MONITOR_CLUSTERS.md)
 
-2. To [deploy OS's, packages and other open source software](docs/INSTALL_OMNIA_CONTROL_PLANE.md)
+2. To [deploy OS's, packages, open source software and set up security features](docs/INSTALL_OMNIA_CONTROL_PLANE.md)
+
+![Omnia Slurm Stack](docs/images/Omnia_Flow.png)
 
 
 ## Omnia Documentation
