@@ -29,25 +29,6 @@ provision_password: ""
 # Required field
 cobbler_password: ""
 
-### Usage: provision_idrac ###
-
-# The username for idrac
-# The username must not contain -,\, ',"
-# Required only if idrac_support: true
-idrac_username: ""
-
-# Password used for idrac
-# The password must not contain -,\, ',"
-# Required only if idrac_support: true
-idrac_password: ""
-
-### Usage: webui_awx ###
-
-# Password used for awx UI
-# The Length of the password should be at least 8.
-# The password must not contain -,\, ',"
-#awx_password: ""
-
 ### Usage: webui_grafana ###
 
 # The username for grafana UI
@@ -60,6 +41,30 @@ grafana_username: ""
 # The password must not contain -,\, ',"
 # The password should not be kept 'admin'
 grafana_password: ""
+
+# The directory server operations require an administrative user.
+# This user is referred to as the Directory Manager and has full access to the Directory for system management tasks
+# and will be added to the instance of directory server created for IPA.
+# The password must be at least 8 characters long
+# The password must not contain -,\, ',"
+ms_directory_manager_password: ""
+
+# ms_kerberos_admin_password used by IPA admin user in Rocky OS and used by 389-ds for kerberos admin password in leap OS
+# The IPA server requires an administrative user, named 'admin'.
+# This user is a regular system account used for IPA server administration
+ms_kerberos_admin_password: ""
+
+### Usage: provision_idrac ###
+
+# The username for idrac
+# The username must not contain -,\, ',"
+# Required only if idrac_support: true
+idrac_username: ""
+
+# Password used for idrac
+# The password must not contain -,\, ',"
+# Required only if idrac_support: true
+idrac_password: ""
 
 ### Usage: network_ethernet ###
 
@@ -92,15 +97,3 @@ powervault_me4_username: ""
 # one numeric character and one non-alphanumeric character.
 # The password must not contain -,\, ',", . , < , comma(,)
 powervault_me4_password: ""
-
-# The directory server operations require an administrative user.
-# This user is referred to as the Directory Manager and has full access to the Directory for system management tasks
-# and will be added to the instance of directory server created for IPA.
-# The password must be at least 8 characters long
-# The password must not contain -,\, ',"
-ms_directory_manager_password: ""
-
-# ms_kerberos_admin_password used by IPA admin user in Rocky OS and used by 389-ds for kerberos admin password in leap OS
-# The IPA server requires an administrative user, named 'admin'.
-# This user is a regular system account used for IPA server administration
-ms_kerberos_admin_password: ""

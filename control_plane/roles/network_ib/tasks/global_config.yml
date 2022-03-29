@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -32,4 +32,6 @@
 - name: Status check for - "{{ inventory_hostname }}" - "{{ item }}"
   fail:
     msg: "{{ global_conf.json }}"
-  when: global_conf.json.status != "OK"
+  when: 
+    - ( global_conf.json.status is defined and global_conf.json.status != "OK" ) or 
+      ( global_conf.json.results is defined and global_conf.json.results[0].status != "OK" )
