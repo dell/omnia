@@ -34,6 +34,7 @@ Depending on the pass-through switch configured in your HPC environment, the num
   
 * For DHCP configuration, you can provide a host mapping file. If the mapping file is not provided and the variable is left blank, a default mapping file will be created. The provided details must be in the format: MAC address, Hostname, IP address, Component_role. For example, `10:11:12:13,server1,100.96.20.66,compute` and  `14:15:16:17,server2,100.96.22.199,manager` are valid entries.  
 * iDRAC 9 based Dell EMC PowerEdge Servers with firmware versions 5.00.10.20 and above. (With the latest BIOS available)
+* As a best practice, ensure that PowerCap policy is disabled and the BIOS system profile is set to Performance on the Management Station.
 >> __Note:__  
 >>	* In the *omnia/examples* folder, a **mapping_host_file.csv** template is provided which can be used for DHCP configuration. The header in the template file must not be deleted before saving the file.  
 >>	* The Hostname should not contain the following characters: , (comma), \. (period) or _ (underscore). However, the **domain name** is allowed commas and periods. 
