@@ -1,9 +1,9 @@
 # Install the Omnia Control Plane
 
-## Typical layout of a HPC cluster supported by Omnia 1.2
+## Typical layout of an HPC cluster supported by Omnia 1.2
 Using Omnia 1.2, you can provision and monitor hardware devices such as servers, storage devices, network switches, and InfiniBand switches in an HPC cluster. To enable Omnia to provision or configure the supported hardware devices, Omnia requires the following connections to be made available in your HPC cluster environment. 
 
-![Typical layout of a HPC cluster](images/typical_layout_hpc_cluster.jpg)
+![Typical layout of a HPC cluster](images/Omnia_Architecture.png)
 
 * Connecting a Pass-Through Switch: Provision and configure a 1GBE pass-through switch which will be used as a pass-through uplink switch. One of the NIC on the management station must be connected to a data port on the pass-through switch and a second connection must be established from a data port on the pass-through switch to the management port of the TOR network switch.  
 >> **Note:**  Omnia is not responsible for provisioning and configuring the pass-through switch.
@@ -23,11 +23,11 @@ Using Omnia 1.2, you can provision and monitor hardware devices such as servers,
 
 Depending on the pass-through switch configured in your HPC environment, the number of racks will be limited based on the number of ports available on the pass-through switch. To support additional racks, you can form an L1-L2 topology and configure a network of Passthrough Switches. A typical layout of an HPC cluster with a network of pass-through switches is as per the following illustration:  
 
-![Typical layout of a HPC cluster with a network of pass-through switches](images/typical_layout_hpc_clsuter_passthrough_network.jpg)
+![Typical layout of an HPC cluster with a network of pass-through switches](images/Omnia_NetworkConfig_Inet.png)
 
 ## Prerequisites to install the Omnia Control Plane version 1.2
 * Ensure that a stable Internet connection is available on management station, manager node, login node, and compute nodes. 
-* Rocky 8 /Leap 15.3 is installed on the management station. 		 
+* Rocky 8 is installed on the management station. 		 
 * To provision the bare metal servers, download one of the following ISOs for deployment:
     1. [Leap 15.3](https://get.opensuse.org/leap/)
     2. [Rocky 8](https://rockylinux.org/)
@@ -78,7 +78,7 @@ Depending on the pass-through switch configured in your HPC environment, the num
 	2. `pip uninstall ansible-base (if ansible 2.9 is installed)`
 	3. `pip uninstall ansible-core (if ansible 2.10  > version is installed)`
 	
-	>>__Note__: If you are using LeapOS, zypper may need to be updated using this command before running Omnia: `zypper update -y`
+	>>__Note__: If you are using LeapOS, zypper will need to be updated using this command before running Omnia: `zypper update -y`
 
 
 	* On the management station, run the following commands to install Git:
@@ -375,4 +375,6 @@ From Omnia 1.2, the cobbler container OS will follow the OS on the management st
 >> 2. Run `control_plane.yml` to provision leap and create a profile called `leap-x86_64` in the cobbler container.
 >> 3. Set `provision_os` to rocky and `iso_file_path` to `/root/Rocky-8.x-x86_64-minimal.iso`.
 >> 4. Run `control_plane.yml` to provision rocky and create a profile called `rocky-x86_64` in the cobbler container.
- 
+
+
+>> __Note:__ All compute nodes in a cluster must run the same OS. 

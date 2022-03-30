@@ -6,7 +6,12 @@ Omnia can configure systems which use Ethernet or Infiniband-based fabric to con
 ![Example system configuration with Infiniband fabric](images/example-system-infiniband.png)
 
 ## Network Setup
-Omnia assumes that servers are already connected to the network and have access to the internet.
+With Omnia 1.2, only the management station requires internet access. In such a situation, the network topology would follow the below diagram:
+![Network Connections when only the Management Station is connected to Internet](images/Omnia_NetworkConfig_NoInet.png)
+
+If the user would like to have all compute nodes connect to the internet, the following network diagram can be followed.
+![Network Connections when all servers are connected to the internet](images/Omnia_NetworkConfig_Inet.png)
+
 ### Network Topology
 Possible network configurations include:
 * A flat topology where all nodes are connected to a switch which includes an uplink to the internet. This requires multiple externally-facing IP addresses

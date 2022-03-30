@@ -7,7 +7,7 @@ Edit the following files under the `control_plane/input_params` directory to pro
 	a. `provision_password`- password used while provisioning OS on bare metal servers.  
 	b. `cobbler_password`- password for Cobbler.    
 	c. `idrac_username` and `idrac_password`- iDRAC username and password.   
-	**NOTE**: Minimum length of the password must be at least eight characters and a maximum of 30 characters. Do not use these characters while entering a password: -, \\, "", and \'
+>>	**NOTE**: Minimum length of the password must be at least eight characters and a maximum of 30 characters. Do not use these characters while entering a password: -, \\, "", and \'
 2. Edit the following variables in the `idrac_vars.yml` file.  
 
 	File name	|	Variables</br> [Required/ Optional]	|	Default, choices	|	Description
