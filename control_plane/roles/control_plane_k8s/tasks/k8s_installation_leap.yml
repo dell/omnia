@@ -59,6 +59,7 @@
     repo: "{{ crio_repo_leap }}"
     state: present
     disable_gpg_check: yes
+    auto_import_keys: yes
     autorefresh: yes
 
 - name: Installing cri-o
@@ -145,6 +146,12 @@
   until: kubelet_status is not failed
   retries: "{{ max_retries }}"
 
+- name: Fetch status of kubectl
+  command: kubectl version
+  failed_when: false
+  changed_when: false
+  register: kubectl_status
+
 - name: Install Kubectl
   zypper:
      name: "{{ kubectl_version }}"
@@ -155,29 +162,19 @@
   register: kubectl_status
   until: kubectl_status is not failed
   retries: "{{ max_retries }}"
+  when: version_kubectl not in kubectl_status.stdout
 
 - name: Install common packages
   zypper:
     name: "{{ common_packages }}"
     state: present
 
-- name: Versionlocking kubeadm
-  command: zypper addlock "{{ kubeadm_version }}"
+- name: Versionlock k8s packages
+  command: zypper addlock {{ item }}
   args:
     warn: false
   changed_when: false
-
-- name: Versionlocking kubectl
-  command: zypper addlock "{{ kubelet_version }}"
-  args:
-    warn: false
-  changed_when: false
-
-- name: Versionlocking kubelet
-  command: zypper addlock "{{ kubectl_version }}"
-  args:
-    warn: false
-  changed_when: false
+  with_items: "{{ k8s_package_names }}"
 
 - name: Add docker community edition repository for docker-ce-cli
   get_url:

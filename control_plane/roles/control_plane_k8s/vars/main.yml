@@ -32,7 +32,11 @@ max_retries: 10
 min_delay: 10
 wait_time: 30
 crio_repo_leap: "https://download.opensuse.org/repositories/devel:kubic/15.3/devel:kubic.repo"
-
+k8s_package_names:
+  - kubeadm
+  - kubelet
+  - kubectl
+version_kubectl: "v1.21.0"
 # Usage: k8s_installation.yml
 common_packages:
   - openssl
