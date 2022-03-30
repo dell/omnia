@@ -43,6 +43,21 @@ os_supported_leap: "leap"
 libjwt_repo: https://github.com/benmcollins/libjwt.git
 libjwt_dir: /var/lib/libjwt
 
+# Usage: configure_restd_leap.yml
+src_repo_name: "src-repo"
+src_repo_path: "http://download.opensuse.org/source/distribution/leap/15.3/repo/oss/"
+slurm_src_package_path: /usr/src/packages/SOURCES/
+slurm_lib_path: /var/lib/
+slurm_lib64_auth_jwt_src: /var/lib/lib64/slurm
+slurm_lib_auth_jwt_src: /var/lib/lib/slurm
+slurm_lib64_auth_jwt_dest: /usr/lib64/slurm/
+slurm_lib64_libjwt_src: /usr/local/lib64
+slurm_lib_libjwt_src: /usr/local/lib
+slurm_lib64_libjwt_dest: /usr/lib64/
+auth_jwt_file_name: auth_jwt.so
+libjwt_file_name: libjwt.so
+make_command_retries: 3
+
 # Usage: generate_token.yml
 token_dir: /var/spool/slurm/jwt_hs256.key
 slurm_dir: /etc/slurm/
