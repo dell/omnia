@@ -245,7 +245,7 @@
       "type": "hpcviz-idvl-hpcc-stream-net"
     }
   ],
-  "refresh": "5s",
+  "refresh": "",
   "schemaVersion": 33,
   "style": "dark",
   "tags": [],
@@ -292,7 +292,7 @@
     ]
   },
   "time": {
-    "from": "now-2d",
+    "from": "now-24h",
     "to": "now"
   },
   "timepicker": {},
