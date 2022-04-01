@@ -470,7 +470,7 @@
     ]
   },
   "time": {
-    "from": "now-2d",
+    "from": "now-24h",
     "to": "now"
   },
   "timepicker": {},
