@@ -20,7 +20,7 @@
 timescaledb_user: ""
 
 # Password used for connecting to timescale db
-# The password must not contain -,\, ',"
+# The password must not contain -,\, ',",@
 # The Length of the password should be at least 2 characters.
 # Mandatory field
 timescaledb_password: ""
