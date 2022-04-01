@@ -57,7 +57,7 @@ mysqldb_fail_msg: "MySQL DB name should have minimum length of 2"
 
 # Usage: validate_login_vars.yml
 vault_filename: "{{ role_path }}/../../input_params/.login_vault_key"
-login_vars_fail_msg: "Usernames and passwords in input_params/telemetry_login_vars.yml should have minimum length 2"
+login_vars_fail_msg: "Username/password validation in telemetry_login_vars.yml failed. Please check the requirements."
 
 ctrl_plane_login_vault_filename: "{{ role_path }}/../../../control_plane/input_params/.login_vault_key"
 min_length_grafana: 5
