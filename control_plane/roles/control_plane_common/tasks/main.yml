@@ -30,6 +30,10 @@
   
 - name: Basic configuration
   import_tasks: fetch_base_inputs.yml
+  
+- name: Routing configurations
+  import_tasks: ip_metric.yml
+  tags: init
 
 - name: Omnia inputs validation
   import_tasks: verify_omnia_params.yml
