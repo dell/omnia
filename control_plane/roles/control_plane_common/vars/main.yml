@@ -180,6 +180,12 @@ fail_device_config: "Failed. Give a valid value in device_config_support"
 device_ip_list_not_supported: "[Warning] Device_ip_list is invalid as minimum idrac_support should be true"
 mgmnt_device_fail: "Failed. Container already present. Either delete the container or make device_config_support as true"
 
+# Usage: ip_metric.yml
+public_metric: 101
+mngmnt_metric: 102
+host_metric: 103
+ib_metric: 150
+
 # Usage: device_config_validations
 success_msg_ib: "Infiniband variables validated"
 fail_msg_ib: "Failed. Please provide all the InfiniBand related parameters in base_vars.yml"
