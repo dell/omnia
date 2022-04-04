@@ -1,9 +1,14 @@
 # Configuring Mellanox InfiniBand Switches  
 In your HPC cluster, connect the Mellanox InfiniBand switches using the Fat-Tree topology. In the fat-tree topology, switches in layer 1 are connected through the switches in the upper layer, i.e., layer 2. And, all the compute nodes in the cluster, such as PowerEdge servers and PowerVault storage devices, are connected to switches in layer 1. With this topology in place, we ensure that a 1x1 communication path is established between the compute nodes. For more information on the fat-tree topology, see [Designing an HPC cluster with Mellanox infiniband-solutions](https://community.mellanox.com/s/article/designing-an-hpc-cluster-with-mellanox-infiniband-solutions).
 
-Omnia uses the server-based Subnet Manager (SM). SM runs as a Kubernetes pod on the management station. To enable the SM, Omnia configures the required parameters in the `opensm.conf` file. Based on the requirement, the parameters can be edited.  
+Omnia uses the server-based Subnet Manager (SM). SM runs in a Kubernetes namespace on the management station. To enable the SM, Omnia configures the required parameters in the `opensm.conf` file. Based on the requirement, the parameters can be edited.  
 
->>**NOTE**: Install the InfiniBand hardware drivers by running the command: `yum groupinstall "Infiniband Support" -y`.  
+>>**NOTE**: Install the InfiniBand hardware drivers by running the below command (depending on the OS):  
+>> * `yum groupinstall "Infiniband Support" -y` (For Rocky)
+>> * `zypper install rdma-core librdmacm1 libibmad5 libibumad3` (For LeapOS)
+
+>> **NOTE:** When using LeapOS, infiniband commands such as sminfo, ibhosts etc only run correctly within the infiniband container.
+
 
 ## Setting up a new or factory reset switch
 
@@ -25,7 +30,7 @@ When connecting to a new or factory reset switch, the configuration wizard reque
 * **(Recommended)** If the user enters 'no', they still have to provide the admin and monitor passwords. 
 * If the user enters 'yes', they will also be prompted to enter the hostname for the switch, DHCP details, IPv6 details, etc.
 
->> **Note:** When initializing a factory reset switch, the user needs to ensure DHCP is enabled and an IPv6 address is not assigned. Omnia will assign an IP address to the Infiniband switch using DHCP with all other configurations.
+>> **NOTE:** When initializing a factory reset switch, the user needs to ensure DHCP is enabled and an IPv6 address is not assigned. Omnia will assign an IP address to the Infiniband switch using DHCP with all other configurations.
 
 ## Edit the "input_params" file 
 Under the `control_plane/input_params` directory, edit the following files:  

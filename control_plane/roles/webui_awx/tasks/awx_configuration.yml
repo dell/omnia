@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+
 - name: Check if {{ tower_config_file }} file is encrypted
   command: cat {{ tower_config_file }}
   changed_when: false
@@ -143,6 +144,7 @@
     project: "{{ project_name }}"
     playbook: "{{ item.playbook }}"
     ask_skip_tags_on_launch: true
+    extra_vars: "{{ item.extra_vars }}"
     credentials:
       - "{{ item.credential }}"
     state: present

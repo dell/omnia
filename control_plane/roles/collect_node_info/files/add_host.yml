@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,40 +12,55 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+
 - name: Initialise host description
   set_fact:
     host_description: "Description Unavailable"
     
 - name: Fetch description
   set_fact:
-    host_description: "CPU:{{ hostvars[item]['ansible_processor_count'] }}
-    Cores:{{ hostvars[item]['ansible_processor_cores'] }}
-    Memory:{{ hostvars[item]['ansible_memtotal_mb'] }}MB
-    BIOS:{{ hostvars[item]['ansible_bios_version'] }}"
-  ignore_errors: yes
+    host_description: "Service Tag: {{ service_tag }}, Operating System: {{ ansible_distribution }}"
+  failed_when: false
+  when: hostname_check.stdout is defined
 
-- name: Fetch the hosts in awx node inventory
-  command: >-
-    awx --conf.host {{ awx_host }} --conf.username {{ awx_username }} --conf.password {{ awx_password }}
-    --conf.insecure hosts list --inventory node_inventory
-  changed_when: false
-  no_log: true
-  when:
-     - host_description != "Description Unavailable"
-  register: hosts
-  ignore_errors: yes
+- block:
+    - name: Fetch the hosts in awx node inventory
+      command: >-
+        awx --conf.host {{ awx_host }} --conf.username {{ awx_username }} --conf.password {{ awx_password }}
+        --conf.insecure hosts list --inventory node_inventory
+      changed_when: false
+      delegate_to: localhost
+      no_log: true
+      run_once: true
+      register: fetch_hosts
+  rescue:
+    - name: Failed to fetch hosts in AWX
+      fail:
+        msg: "{{ fetch_hosts.stderr }}"
   
-- name: Add the host to awx node inventory if not present
-  command: >-
-    awx --conf.host {{ awx_host }} --conf.username {{ awx_username }} --conf.password {{ awx_password }}
-    --conf.insecure hosts create --name {{ item }} --inventory node_inventory
-  changed_when: true
-  when: item not in hosts.stdout
-  no_log: true
-  ignore_errors: yes
+- block:
+    - name: Add the host to awx node inventory if not present
+      command: >-
+        awx --conf.host {{ awx_host }} --conf.username {{ awx_username }} --conf.password {{ awx_password }}
+        --conf.insecure hosts create --name {{ inventory_hostname }} --description "{{ host_description }}" --inventory node_inventory
+      changed_when: true
+      register: add_host_awx
+      delegate_to: localhost
+      no_log: true
+      when:
+        - hostname_check.stdout is defined
+        - fetch_hosts.stdout is defined
+        - inventory_hostname not in fetch_hosts.stdout
+  rescue:
+    - name: Failed to add host to AWX
+      fail:
+        msg: "{{ add_host_awx.stderr }}"
+      when: add_host_awx is defined
 
 - name: Host added msg
   debug:
-    msg: "{{ host_added_msg + item }}"
+    msg: "{{ hostvars['localhost']['host_added_msg'] + inventory_hostname }}"
   when:
     - host_description != "Description Unavailable"
+    - add_host_awx is defined
+    - add_host_awx is not failed

@@ -62,6 +62,20 @@
   changed_when: false
   register: ansible_playbook_path
 
+- name: Start cron service in leap
+  systemd:
+    name: cron
+    state: started
+    enabled: yes
+  when: os_leap in ansible_distribution | lower
+
+- name: Start crond service in rocky
+  systemd:
+    name: crond
+    state: started
+    enabled: yes
+  when: os_leap not in ansible_distribution | lower
+
 - name: Schedule cron job for alerting
   cron:
     name: Auth failure alerting

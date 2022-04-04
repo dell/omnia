@@ -15,7 +15,6 @@
 
 ## What Omnia does
 Omnia can build clusters that use Slurm or Kubernetes (or both!) for workload management. Omnia will install software from a variety of sources, including:
-- Standard CentOS and [ELRepo](http://elrepo.org) repositories
 - Helm repositories
 - Source code compilation
 - [OperatorHub](https://operatorhub.io)
@@ -23,19 +22,21 @@ Omnia can build clusters that use Slurm or Kubernetes (or both!) for workload ma
 Whenever possible, Omnia will leverage existing projects rather than reinvent the wheel.
 
 ### Omnia stacks
-Omnia can install Kubernetes or Slurm (or both), along with additional drivers, services, libraries, and user applications.
+Omnia can deploy firmware, install Kubernetes or Slurm (or both), along with additional drivers, services, libraries, and user applications.
 ![Omnia Kubernetes Stack](images/omnia-k8s.png)
 
 ![Omnia Slurm Stack](images/omnia-slurm.png)  
 
 ## What's new in this release
-* Extended support of Leap OS on Management station, login, compute and NFS nodes.
-* Omnia now supports Powervault configurations with 2 network interfaces.
-* Omnia now supports multi profile creation and multi cluster provisioning using Cobbler.
-* Provisioning of Rocky custom ISO on supported PowerEdge servers using iDRAC.
-* Configuring Dell EMC networking switches, Mellanox InfiniBand switches, and PowerVault storage devices in the cluster. 
-* An option to configure a login node with the same configurations as the compute nodes in the cluster. With appropriate user privileges provided by the cluster administrator, users can log in to the login node and schedule Slurm jobs. The authentication mechanism in the login node uses the FreeIPA solution.
-* Options to enable the security settings on the iDRAC such as system lockdown mode, secure boot mode, 2-factor authentication (2FA), and LDAP directory services.
+- Support for Rocky 8.x with latest python/ansible on the Management Station
+- Support for Leap 15.3 on the cluster
+- Support for Rocky 8.x on the cluster
+- Added Grafana integration for better monitoring capability
+- Added Loki Log aggregation of Var Logs
+- Added Slurm/K8s Monitoring capability
+- Added security features to comply with NIST 800-53 Revision 5 and 800-171 Revision 5
+- Added the ability to collect telemetry information from SLURM and iDRAC
+- Added Grafana plugins to view real time graphs of cluster/node statistics
 
 ## Deploying clusters using the Omnia control plane
 The Omnia Control Plane will automate the entire cluster deployment process, starting with provisioning the operating system on the supported devices and updating the firmware versions of PowerEdge Servers. 
@@ -51,18 +52,10 @@ The following table lists the software and operating system requirements on the 
 
 Requirements  |   Version
 ----------------------------------  |   -------
-OS pre-installed on the management station  |  Rocky 8.x/ Leap 15.x
+OS pre-installed on the management station  |  Rocky 8.x
 OS deployed by Omnia on bare-metal Dell EMC PowerEdge Servers | Rocky 8.x Minimal Edition/ Leap 15.x
-Cobbler  |  3.2.2
-Ansible AWX  |  19.4.0
-Slurm Workload Manager  |  20.11.2
-Kubernetes on the management station  |  1.21.0
-Kubernetes on the manager and compute nodes	|	1.16.7 or 1.19.3
-Kubeflow  |  1
-Prometheus  |  2.23.0
 Ansible  |  2.9.21
 Python  |  3.6.15
-CRI-O  |  1.21.0
 
 ## Hardware managed by Omnia
 The following table lists the supported devices managed by Omnia. Other devices than those listed in the following table will be discovered by Omnia, but features offered by Omnia will not be applicable.
@@ -78,51 +71,70 @@ Mellanox InfiniBand Switches	|	NVIDIA MQM8700-HS2F Quantum HDR InfiniBand Switch
 ## Software deployed by Omnia
 The following table lists the software and its compatible version managed by Omnia. To avoid any impact on the proper functioning of Omnia, other versions than those listed are not supported.
 
-Software	|	License	|	Compatible Version	|	Description
------------	|	-------	|	----------------	|	-----------------
-LeapOS 15.3	|	-	|	15.x|	Operating system on entire cluster
-CentOS Linux release 7.9.2009 (Core)	|	-	|	7.9	|	Operating system on entire cluster except for management station
-Rocky 8.x	|	-	|	8.x	|	Operating system on entire cluster except for management station
-Rocky 8.x	|	-	|	8.x	|	Operating system on the management station
-MariaDB	|	GPL 2.0	|	5.5.68	|	Relational database used by Slurm
-Slurm	|	GNU General Public	|	20.11.7	|	HPC Workload Manager
-Docker CE	|	Apache-2.0	|	20.10.2	|	Docker Service
-FreeIPA	|	GNU General Public License v3	|	4.6.8	|	Authentication system used in the login node
-OpenSM	|	GNU General Public License 2	|	3.3.24	|	-
-NVIDIA container runtime	|	Apache-2.0	|	3.4.2	|	Nvidia container runtime library
-Python PIP	|	MIT License	|	21.1.2	|	Python Package
-Python3	|	-	|	3.6.8 (3.6.15 if LeapOS is being used)	|	-
-Kubelet	|	Apache-2.0	|	1.16.7,1.19, 1.21 (LeapOS only supports 1.21) 	|	Provides external, versioned ComponentConfig API types for configuring the kubelet
-Kubeadm	|	Apache-2.0	|	1.16.7,1.19, 1.21 (LeapOS only supports 1.21)	|	"fast paths" for creating Kubernetes clusters
-Kubectl	|	Apache-2.0	|	1.16.7,1.19, 1.21 (LeapOS only supports 1.21)	|	Command line tool for Kubernetes
-JupyterHub	|	Modified BSD License	|	1.1.0	|	Multi-user hub
-kubernetes Controllers	|	Apache-2.0	|	1.16.7,1.19 (1.21 if LeapOS is being used)	|	Orchestration tool	
-Kfctl	|	Apache-2.0	|	1.0.2	|	CLI for deploying and managing Kubeflow
-Kubeflow	|	Apache-2.0	|	1	|	Cloud Native platform for machine learning
-Helm	|	Apache-2.0	|	3.5.0	|	Kubernetes Package Manager
-Helm Chart	|	-	|	0.9.0	|	-
-TensorFlow	|	Apache-2.0	|	2.1.0	|	Machine Learning framework
-Horovod	|	Apache-2.0	|	0.21.1	|	Distributed deep learning training framework for Tensorflow
-MPI	|	Copyright (c) 2018-2019 Triad National Security,LLC. All rights reserved.	|	0.3.0	|	HPC library
-CoreDNS	|	Apache-2.0	|	1.6.2	|	DNS server that chains plugins
-CNI	|	Apache-2.0	|	0.3.1	|	Networking for Linux containers
-AWX	|	Apache-2.0	|	19.4.0	|	Web-based User Interface
-AWX.AWX	|	Apache-2.0	|	19.4.0	|	Galaxy collection to perform awx configuration
-AWXkit	|	Apache-2.0	|	to be updated	|	To perform configuration through CLI commands
-Cri-o	|	Apache-2.0	|	1.21	|	Container Service
-Buildah	|	Apache-2.0	|	1.22.4	|	Tool to build and run containers
-PostgreSQL	|	Copyright (c) 1996-2020, PostgreSQL Global Development Group	|	10.15	|	Database Management System
-Redis	|	BSD-3-Clause License	|	6.0.10	|	In-memory database
-NGINX	|	BSD-2-Clause License	|	1.14	|	-
-dellemc.os10	|	GNU-General Public License v3.1	|	1.1.1	|	It provides networking hardware abstraction through a common set of APIs
-OMSDK	|	Apache-2.0	|	1.2.488	|	Dell EMC OpenManage Python SDK (OMSDK) is a python library that helps developers and customers to automate the lifecycle management of PowerEdge Servers
-| Loki                                  | Apache License 2.0               | 2.4.1  | Loki is a log aggregation system   designed to store and query logs from all your applications and   infrastructure                            |
-| Promtail                              | Apache License 2.1               | 2.4.1  | Promtail is an agent which ships the contents of local logs to   a private Grafana Loki instance or Grafana Cloud.                             |
-| kube-prometheus-stack                 | Apache License 2.2               | 25.0.0 | Kube Prometheus Stack is a collection of Kubernetes manifests,   Grafana dashboards, and Prometheus rules.                                     |
-| mailx                                 | MIT License                      | 12.5   | mailx is a Unix utility program for sending and receiving   mail.                                                                              |
-| postfix                               | IBM Public License               | 3.5.8  | Mail Transfer Agent (MTA) designed to determine routes and   send emails                                                                       |
-| xorriso                               | GPL version 3                    | 1.4.8  | xorriso copies file objects from POSIX compliant filesystems   into Rock Ridge enhanced ISO 9660 filesystems.                                  |
-| Dell EMC   OpenManage Ansible Modules | GNU- General Public License v3.0 | 5.0.0  | OpenManage Ansible Modules simplifies and automates   provisioning, deployment, and updates of PowerEdge servers and modular   infrastructure. |
+| Software	                                  	| 	License	                                                                    | 	Compatible Version	                            | 	Description                                                                                                                                                 |
+|-------------------------------------------	|-----------------------------------------------------------------------------	|-------------------------------------------------	|--------------------------------------------------------------------------------------------------------------------------------------------------------------	|
+| LeapOS 15.3	                               	| 	-	                                                                        | 	15.x                                            | 	Operating system on entire cluster                                                                                                                          |
+| CentOS Linux release 7.9.2009 (Core)	      	| 	-	                                                                        | 	7.9	                                            | 	Operating system on entire cluster except for management station                                                                                            |
+| Rocky 8.x	                                 	| 	-	                                                                        | 	8.x	                                            | 	Operating system on entire cluster except for management station                                                                                            |
+| Rocky 8.x	                                 	| 	-	                                                                        | 	8.x	                                            | 	Operating system on the management station                                                                                                                  |
+| MariaDB	                                   	| 	GPL 2.0	                                                                    | 	5.5.68	                                        | 	Relational database used by Slurm                                                                                                                           |
+| Slurm	                                     	| 	GNU General Public	                                                        | 	20.11.7	                                        | 	HPC Workload Manager                                                                                                                                        |
+| Docker CE	                                 	| 	Apache-2.0	                                                                | 	20.10.2	                                        | 	Docker Service                                                                                                                                              |
+| FreeIPA	                                   	| 	GNU General Public License v3	                                            | 	4.6.8	                                        | 	Authentication system used in the login node                                                                                                                |
+| OpenSM	                                    | 	GNU General Public License 2	                                            | 	3.3.24	                                        | 	-                                                                                                                                                           |
+| NVIDIA container runtime	                  	| 	Apache-2.0	                                                                | 	3.4.2	                                        | 	Nvidia container runtime library                                                                                                                            |
+| Python PIP	                                | 	MIT License	                                                                | 	21.1.2	                                        | 	Python Package                                                                                                                                              |
+| Python3	                                   	| 	-	                                                                        | 	3.6.8 (3.6.15 if LeapOS is being used)	        | 	-                                                                                                                                                           |
+| Kubelet	                                   	| 	Apache-2.0	                                                                | 	1.16.7,1.19, 1.21  	                            | 	Provides external, versioned ComponentConfig API types for configuring   the kubelet                                                                        |
+| Kubeadm	                                   	| 	Apache-2.0	                                                                | 	1.16.7,1.19, 1.21 	                            | 	"fast paths" for creating Kubernetes clusters                                                                                                               |
+| Kubectl	                                   	| 	Apache-2.0	                                                                | 	1.16.7,1.19, 1.21 	                            | 	Command line tool for Kubernetes                                                                                                                            |
+| kubernetes.core	                           	| 	GPL 3.0	                                                                    | 	2.2.3 	                                        | 	Performs CRUD operations on K8s onjects                                                                                                                     |
+| JupyterHub	                                | 	Modified BSD License	                                                    | 	1.1.0	                                        | 	Multi-user hub                                                                                                                                              |
+| kubernetes Controllers	                    | 	Apache-2.0	                                                                | 	1.16.7,1.19 (1.21 if LeapOS is being used)	    | 	Orchestration tool	                                                                                                                                        |
+| Kfctl	                                     	| 	Apache-2.0	                                                                | 	1.0.2	                                        | 	CLI for deploying and managing Kubeflow                                                                                                                     |
+| Kubeflow	                                  	| 	Apache-2.0	                                                                | 	1	                                            | 	Cloud Native platform for machine learning                                                                                                                  |
+| Helm	                                      	| 	Apache-2.0	                                                                | 	3.5.0	                                        | 	Kubernetes Package Manager                                                                                                                                  |
+| Helm Chart	                                | 	-	                                                                        | 	0.9.0	                                        | 	-                                                                                                                                                           |
+| TensorFlow	                                | 	Apache-2.0	                                                                | 	2.1.0	                                        | 	Machine Learning framework                                                                                                                                  |
+| Horovod	                                   	| 	Apache-2.0	                                                                | 	0.21.1	                                        | 	Distributed deep learning training framework for Tensorflow                                                                                                 |
+| MPI	                                       	| 	Copyright (c) 2018-2019 Triad National Security,LLC. All rights   reserved.	| 	0.3.0	                                        | 	HPC library                                                                                                                                                 |
+| CoreDNS	                                   	| 	Apache-2.0	                                                                | 	1.6.2	                                        | 	DNS server that chains plugins                                                                                                                              |
+| CNI	                                       	| 	Apache-2.0	                                                                | 	0.3.1	                                        | 	Networking for Linux containers                                                                                                                             |
+| AWX	                                       	| 	Apache-2.0	                                                                | 	20.0.0	                                        | 	Web-based User Interface                                                                                                                                    |
+| AWX.AWX	                                   	| 	Apache-2.0	                                                                | 	19.4.0	                                        | 	Galaxy collection to perform awx configuration                                                                                                              |
+| AWXkit	                                    | 	Apache-2.0	                                                                | 	18.0.0	                                        | 	To perform configuration through CLI commands                                                                                                               |
+| CRI-O	                                     	| 	Apache-2.0	                                                                | 	1.21, 1.22.0  									| 	Container Service                                                                                                                                           |
+| Buildah	                                   	| 	Apache-2.0	                                                                | 	1.22.4	                                        | 	Tool to build and run containers                                                                                                                            |
+| PostgreSQL	                                | 	Copyright (c) 1996-2020, PostgreSQL Global Development Group	            | 	10.15	                                        | 	Database Management System                                                                                                                                  |
+| Redis	                                     	| 	BSD-3-Clause License	                                                    | 	6.0.10	                                        | 	In-memory database                                                                                                                                          |
+| NGINX	                                     	| 	BSD-2-Clause License	                                                    | 	1.14	                                        | 	-                                                                                                                                                           |
+| dellemc.os10	                              	| 	GNU-General Public License v3.1	                                            | 	1.1.1	                                        | 	It provides networking hardware abstraction through a common set of APIs                                                                                    |
+| grafana	                                   	| 	Apache-2.0	                                                                | 	8.3.2	                                        | 	Grafana is the open source analytics & monitoring solution for every   database.                                                                            |
+| community.grafana	                         	| 	GPL 3.0	                                                                    | 	1.3.0	                                        | 	Technical Support for open source grafana                                                                                                                   |
+| OMSDK	                                     	| 	Apache-2.0	                                                                | 	1.2.488	                                        | 	Dell EMC OpenManage Python SDK (OMSDK) is a python library that helps   developers and customers to automate the lifecycle management of PowerEdge   Servers|
+| activemq	                                  	| 	Apache-2.0	                                                                | 	5.10.0	                                        | 	Most popular multi protocol, message broker                                                                                                                 |
+|  Loki                                     	|  Apache License 2.0                                                         	|  2.4.1                                          	|  Loki is a log aggregation   system   designed to store and query   logs from all your applications and     infrastructure                                   	|
+|  Promtail                                 	|  Apache License 2.1                                                         	|  2.4.1                                          	|  Promtail is an agent which ships   the contents of local logs to   a   private Grafana Loki instance or Grafana Cloud.                                      	|
+|  kube-prometheus-stack                    	|  Apache License 2.2                                                         	|  25.0.0                                         	|  Kube Prometheus Stack is a   collection of Kubernetes manifests,     Grafana dashboards, and Prometheus rules.                                              	|
+|  mailx                                    	|  MIT License                                                                	|  12.5                                           	|  mailx is a Unix utility program   for sending and receiving   mail.                                                                                         	|
+|  postfix                                  	|  IBM Public License                                                         	|  3.5.8                                          	|  Mail Transfer Agent (MTA) designed   to determine routes and   send   emails                                                                                	|
+|  xorriso                                  	|  GPL version 3                                                              	|  1.4.8                                          	|  xorriso copies file objects from   POSIX compliant filesystems   into Rock   Ridge enhanced ISO 9660 filesystems.                                           	|
+|  Dell EMC     OpenManage Ansible Modules  	|  GNU- General Public License   v3.0                                         	|  5.0.0                                          	|  OpenManage Ansible Modules   simplifies and automates     provisioning, deployment, and updates of PowerEdge servers and   modular   infrastructure.        	|
+|  389-ds                                   	|  GPL version 3                                                              	|  1.4.4                                          	|   LDAP server used for   authentication, access control.                                                                                                     	|
+|  sssd                                     	|  GPL version 3                                                              	|  1.16.1                                         	|  A set of daemons used to manage   access to remote directory services and authentication mechanisms.                                                        	|
+|  krb5                                     	|  MIT License                                                                	|  1.19.2                                         	|  Authentication protocol providing   strong authentication for client/server applications by using secret-key   cryptography                                 	|
+|  openshift                                	|  Apache 2.0                                                                 	|  0.12.1                                         	|  an on-premises  platform as a   service built around Linux containers orchestrated and managed   by Kubernetes                                              	|
+| golang                                    	| BSD-3-Clause License                                                        	| 1.17                                            	| Go is a statically typed, compiled programming language designed at   Google                                                                                 	|
+| mysql                                     	| GPL 2.0                                                                     	| 8                                               	| MySQL is an open-source relational database management system.                                                                                               	|
+| postgresSQL                               	| PostgresSQL License                                                         	| 12                                              	| PostgreSQL, also known as Postgres, is a free and open-source relational   database management system emphasizing extensibility and SQL compliance.          	|
+| idrac-telemetry-reference tools           	| Apache-2.0                                                                  	| 0.1                                             	| Reference toolset for PowerEdge telemetry metric collection and   integration with analytics and visualization solutions.                                    	|
+| jansson                                   	| MIT License                                                                 	| 2.14                                            	| C library for encoding, decoding and manipulating JSON data                                                                                                  	|
+| libjwt                                    	| MPL-2.0 License                                                             	| 1.13.0                                          	| JWT C Library                                                                                                                                                	|
+| apparmor                                  	| GNU General Public License                                                  	| 3.0.3                                           	| Controls access based on paths of the program files                                                                                                          	|
+| nsfcac/grafana-plugin                     	| Apache-2.0                                                                  	| 2.1.0                                           	| Machine Learning Framework                                                                                                                                   	|
+| apparmor                                  	| GNU General Public License                                                  	| 3.0.3                                           	| Controls access based on paths of the program files                                                                                                          	|
+| snoopy                                    	| GPL 2.0                                                                     	| 2.4.15                                          	| Snoopy is a small library that logs all program executions on your   Linux/BSD system                                                                        	|
+
 
 # Known issues  
 * **Issue**: Hosts are not displayed on the AWX UI.  

@@ -24,3 +24,4 @@ timescaledb_container_port: 5432
 retries: 10
 delay: 10
 reference_tools_stable_commit: "0016fcb"
+zoneinfo_dir: "/usr/share/zoneinfo/"

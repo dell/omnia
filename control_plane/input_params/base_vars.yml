@@ -94,6 +94,8 @@ awx_organization: "DellEMC"
 
 ### Usage: webui_grafana ###
 # At this location grafana persistent volume will be created.
+# If using telemetry, all telemetry related files will also be stored and
+# both timescale and mysql databases will be mounted to this location.
 mount_location: /opt/omnia/
 
 ### Usage: provision_cobbler, provision_idrac ###

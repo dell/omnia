@@ -131,6 +131,8 @@
         name: NVIDIA
         repo: "{{ nvidia_repo }}"
         state: present
+        disable_gpg_check: yes
+        auto_import_keys: yes
         autorefresh: yes
       tags: install
 

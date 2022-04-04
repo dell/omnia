@@ -19,5 +19,9 @@
 - name: Install libjwt
   include_tasks: install_libjwt.yml
 
+- name: Configure slurm restd in leap
+  include_tasks: configure_restd_leap.yml
+  when: os_supported_leap in compute_os
+
 - name: Generate Token
   include_tasks: generate_token.yml

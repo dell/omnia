@@ -13,7 +13,7 @@ Edit the following files under the `control_plane/input_params` directory to pro
 	File name	|	Variables</br> [Required/ Optional]	|	Default, choices	|	Description
 	-------	|	----------------	|	-----------------	|	-----------------
 	idrac_vars.yml	|	idrac_system_profile</br> [Required]	|	<ul><li>**Performance**</li> <li>PerformancePerWatt(DAPC)</li> <li>PerformancePerWatt(OS)</li> <li>WorkstationPerformance</li></ul>	|	The system profile used for BIOS configuration. 
-	<br>	|	firmware_update_required</br> [Required]	|	<ul><li>**true**</li> <li>false</li></ul>	|	By default, Omnia updates the firmware on the servers. To disable the firmware update, set the variable to "false".
+	<br>	|	firmware_update_required</br> [Required]	|	<ul><li>**false**</li> <li>true</li></ul>	|	By default, Omnia updates the firmware on the servers. To disable the firmware update, set the variable to "false".
 	<br>	|	poweredge_model</br> [Required if "firmware_update_required" is set to "true"]	|	<ul><li>**C6420**</li> <li>R640</li><li>R740</li><li>C4140</li> <li>And other supported PowerEdge servers</li></ul>	|	Enter the required PowerEdge server models to update the firmware. For example, enter `R640,R740,C4140` to update firmware on these models of PowerEdge servers. For a complete list of supported PowerEdge servers, see the *Hardware managed by Omnia* section in the Readme file.
 	<br>	|	uefi_secure_boot</br> [Optional]	|	<ul><li>**disabled**</li> <li>enabled</li></ul>	|	Option to enable or disable the secure boot mode.
 	<br>	|	system_lockdown</br> [Optional]	|	<ul><li>**disabled**</li> <li>enabled</li></ul>	|	Option to enable or disable system lockdown.
@@ -42,6 +42,8 @@ For the `idrac.yml` file to successfully provision the custom ISO on the PowerEd
 * The Lifecycle Controller Remote Services of PowerEdge Servers is in the 'ready' state.
 * The Redfish services are enabled in the iDRAC settings under **Services**.
 * The PowerEdge Servers have the iDRAC Enterprise or Datacenter license. If the license is not found, servers will be PXE booted and provisioned using Cobbler.  
+* If `provision_method` is set to PXE in `base_vars.yml`, ensure that all PXE devices have a configured, active NIC. To verify/ configure NIC availability: On the server, go to `BIOS Setup -> Network Settings -> PXE Device`. For each listed device (typically 4), configure/ check for an active NIC under `PXE device settings`
+* iDRAC 9 based Dell EMC PowerEdge Servers with firmware versions 5.00.10.20 and above. (With the latest BIOS available)
 
 The **provision_idrac** file configures and validates the following:
 * Required input parameters and prerequisites.

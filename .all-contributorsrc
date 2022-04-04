@@ -39,7 +39,8 @@
         "mentoring",
         "projectManagement",
         "review",
-        "talk"
+        "talk",
+        "bug"
       ]
     },
     {
@@ -66,7 +67,8 @@
         "code",
         "test",
         "bug",
-        "security"
+        "security",
+        "talk"
       ]
     },
     {
@@ -76,7 +78,44 @@
       "profile": "https://github.com/sakshiarora13",
       "contributions": [
         "code",
+        "bug",
+        "talk"
+      ]
+    },
+    {
+      "login": "abhishek-sa1",
+      "name": "Abhishek SA",
+      "avatar_url": "https://avatars.githubusercontent.com/u/94038029?v=4",
+      "profile": "https://github.com/abhishek-sa1",
+      "contributions": [
+        "code",
+        "bug",
+        "doc",
+        "test",
+        "maintenance"
+      ]
+    },
+    {
+      "login": "Shubhangi-dell",
+      "name": "Shubhangi Srivastava",
+      "avatar_url": "https://avatars.githubusercontent.com/u/72869337?v=4",
+      "profile": "https://github.com/Shubhangi-dell",
+      "contributions": [
+        "code",
+        "maintenance",
         "bug"
+      ]
+    },
+    {
+      "login": "cgoveas",
+      "name": "Cassey Goveas",
+      "avatar_url": "https://avatars.githubusercontent.com/u/88071888?v=4",
+      "profile": "https://github.com/cgoveas",
+      "contributions": [
+        "doc",
+        "bug",
+        "maintenance",
+        "talk"
       ]
     },
     {
@@ -137,37 +176,6 @@
         "code",
         "doc",
         "test"
-      ]
-    },
-    {
-      "login": "Shubhangi-dell",
-      "name": "Shubhangi Srivastava",
-      "avatar_url": "https://avatars.githubusercontent.com/u/72869337?v=4",
-      "profile": "https://github.com/Shubhangi-dell",
-      "contributions": [
-        "code",
-        "maintenance",
-        "bug"
-      ]
-    },
-    {
-      "login": "cgoveas",
-      "name": "Cassey Goveas",
-      "avatar_url": "https://avatars.githubusercontent.com/u/88071888?v=4",
-      "profile": "https://github.com/cgoveas",
-      "contributions": [
-        "doc",
-        "bug"
-      ]
-    },
-    {
-      "login": "abhishek-sa1",
-      "name": "Abhishek SA",
-      "avatar_url": "https://avatars.githubusercontent.com/u/94038029?v=4",
-      "profile": "https://github.com/abhishek-sa1",
-      "contributions": [
-        "code",
-        "bug"
       ]
     },
     {
@@ -363,7 +371,8 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/18387748?v=4",
       "profile": "http://www.myweb.ttu.edu/ngu00336/",
       "contributions": [
-        "code"
+        "code",
+        "plugin"
       ]
     },
     {
@@ -382,7 +391,18 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/100141664?v=4",
       "profile": "https://github.com/shemasr",
       "contributions": [
-        "bug"
+        "bug",
+        "code",
+        "test"
+      ]
+    },
+    {
+      "login": "Khushboodholi",
+      "name": "Khushboodholi",
+      "avatar_url": "https://avatars.githubusercontent.com/u/12014935?v=4",
+      "profile": "https://github.com/Khushboodholi",
+      "contributions": [
+        "code"
       ]
     }
   ],

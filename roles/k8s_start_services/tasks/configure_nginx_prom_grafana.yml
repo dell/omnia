@@ -60,14 +60,20 @@
     state: restarted
     enabled: yes
 
-- name: Create prometheus datasource in grafana
-  community.grafana.grafana_datasource:
-    name: "hpc-prometheus-{{ ansible_default_ipv4.address }}"
-    grafana_url: "http://{{ grafana_svc_ip }}:{{ grafana_svc_port }}"
-    grafana_user: "{{ hostvars['127.0.0.1']['grafana_username'] }}"
-    grafana_password: "{{ hostvars['127.0.0.1']['grafana_password'] }}"
-    ds_type: prometheus
-    ds_url: "http://{{ ansible_default_ipv4.address }}:{{ nginx_listen_port }}"
-    access: direct
-  delegate_to: localhost
-  no_log: true
+- block:
+    - name: Create prometheus datasource in grafana
+      community.grafana.grafana_datasource:
+        name: "hpc-prometheus-{{ ansible_default_ipv4.address }}"
+        grafana_url: "http://{{ grafana_svc_ip }}:{{ grafana_svc_port }}"
+        grafana_user: "{{ hostvars['127.0.0.1']['grafana_username'] }}"
+        grafana_password: "{{ hostvars['127.0.0.1']['grafana_password'] }}"
+        ds_type: prometheus
+        ds_url: "http://{{ ansible_default_ipv4.address }}:{{ nginx_listen_port }}"
+        access: direct
+      delegate_to: localhost
+      no_log: true
+      register: create_k8s_prom_datasource
+  rescue:
+    - name: Create prometheus datasource in grafana failed
+      fail:
+        msg: "Error: {{ create_k8s_prom_datasource.msg }}"

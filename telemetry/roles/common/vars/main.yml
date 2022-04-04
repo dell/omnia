@@ -16,12 +16,16 @@
 # Usage: pre-requisites.yml
 control_plane_installation_required: "AWX and grafana installation through control_plane.yml is mandatory for telemetry.yml"
 
-base_vars_file: "{{ role_path }}/../../input_params/base_vars.yml"
-login_vars_file: "{{ role_path }}/../../input_params/login_vars.yml"
+os_supported_leap: "leap"
+selinux_warning: "Warning! SELinux status is disabled by user. No SELinux policy is loaded"
+
+base_vars_file: "{{ role_path }}/../../input_params/telemetry_base_vars.yml"
+login_vars_file: "{{ role_path }}/../../input_params/telemetry_login_vars.yml"
+control_plane_base_vars_file: "{{ role_path }}/../../../control_plane/input_params/base_vars.yml"
 ctrl_plane_login_vars_filename: "{{ role_path }}/../../../control_plane/input_params/login_vars.yml"
 
-fail_msg_base_vars: "telemetry/base_vars.yml file doesn't exist."
-fail_msg_login_vars: "telemetry/login_vars.yml file doesn't exist."
+fail_msg_base_vars: "telemetry_base_vars.yml file doesn't exist."
+fail_msg_login_vars: "telemetry_login_vars.yml file doesn't exist."
 ctrl_plane_fail_msg_login_vars: "control_plane/login_vars.yml file doesn't exist"
 pip_packages:
   - openshift
@@ -53,7 +57,7 @@ mysqldb_fail_msg: "MySQL DB name should have minimum length of 2"
 
 # Usage: validate_login_vars.yml
 vault_filename: "{{ role_path }}/../../input_params/.login_vault_key"
-login_vars_fail_msg: "Usernames and passwords in input_params/login_vars.yml should have minimum length 2"
+login_vars_fail_msg: "Username/password validation in telemetry_login_vars.yml failed. Please check the requirements."
 
 ctrl_plane_login_vault_filename: "{{ role_path }}/../../../control_plane/input_params/.login_vault_key"
 min_length_grafana: 5

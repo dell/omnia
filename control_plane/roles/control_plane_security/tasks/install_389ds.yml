@@ -198,11 +198,17 @@
         - name: Create admin principal failed
           fail:
             msg: "Error: {{ create_admin_principal.stderr }}"
-
-    - name: Authenticate as admin
-      shell: set -o pipefail && echo {{ ms_kerberos_admin_password }} | kinit admin
-      no_log: true
-      changed_when: false
+    
+    - block:
+        - name: Authenticate as admin
+          shell: set -o pipefail && echo {{ ms_kerberos_admin_password }} | kinit admin
+          no_log: true
+          changed_when: false
+          register: authenticate_admin
+      rescue:
+        - name: Authenticate as admin failed
+          fail:
+            msg: "Error: {{ authenticate_admin.stderr }}"
 
     - name: Install sssd packages
       zypper:
@@ -244,8 +250,14 @@
         state: started
         enabled: yes
 
-    - name: Configure password policy in 389-ds
-      command: dsconf -w {{ ms_directory_manager_password }} -D "cn=Directory Manager" ldap://{{ server_hostname_ms }} pwpolicy set --pwdlockoutduration {{ lockout_duration }} --pwdmaxfailures {{ max_failures }} --pwdresetfailcount {{ failure_reset_interval }}
-      no_log: true
-      changed_when: true
+    - block:
+        - name: Configure password policy in 389-ds
+          command: dsconf -w {{ ms_directory_manager_password }} -D "cn=Directory Manager" ldap://{{ server_hostname_ms }} pwpolicy set --pwdlockoutduration {{ lockout_duration }} --pwdmaxfailures {{ max_failures }} --pwdresetfailcount {{ failure_reset_interval }}
+          no_log: true
+          changed_when: true
+          register: configure_pwpolicy
+      rescue:
+        - name: Configure password policy in 389-ds failed
+          fail:
+            msg: "Error: {{ configure_pwpolicy.stderr }}"
   when: not ds389_status

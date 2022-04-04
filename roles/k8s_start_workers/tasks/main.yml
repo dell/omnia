@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -34,13 +34,18 @@
     - node_hostname.stdout in hostvars['K8S_TOKEN_HOLDER']['k8s_nodes_not_ready']
   tags: init
 
-- name: Execute kubeadm join command
-  shell: >
-    kubeadm join --token={{ hostvars['K8S_TOKEN_HOLDER']['token'] }}
-    --discovery-token-ca-cert-hash sha256:{{ hostvars['K8S_TOKEN_HOLDER']['hash'] }}
-    {{ hostvars['K8S_TOKEN_HOLDER']['ip'] }}:{{ apiserver_bind_port }}
-  when:
-    - groups['manager'][0] != groups['compute'][0]
-    - groups['compute']|length >= 1
-    - node_hostname.stdout not in hostvars['K8S_TOKEN_HOLDER']['k8s_nodes_ready']
-  tags: init
+- block:
+    - name: Execute kubeadm join command
+      shell: >
+        kubeadm join --token={{ hostvars['K8S_TOKEN_HOLDER']['token'] }}
+        --discovery-token-ca-cert-hash sha256:{{ hostvars['K8S_TOKEN_HOLDER']['hash'] }}
+        {{ hostvars['K8S_TOKEN_HOLDER']['ip'] }}:{{ apiserver_bind_port }}
+      when:
+        - groups['manager'][0] != groups['compute'][0]
+        - groups['compute']|length >= 1
+        - node_hostname.stdout not in hostvars['K8S_TOKEN_HOLDER']['k8s_nodes_ready']
+      tags: init
+  rescue:
+    - name: Execute kubeadm join command failed
+      fail:
+        msg: "{{ kubeadm_join_fail_msg }}"

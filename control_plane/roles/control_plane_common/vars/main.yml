@@ -61,13 +61,12 @@ os_supported_rocky_version: "8.4"
 fail_os_status: "Unsupported OS or OS version. OS should be {{ os_supported_centos }} {{ os_supported_centos_version }} or {{ os_supported_rocky }} {{ os_supported_rocky_version }} or {{ os_supported_leap }} {{ os_supported_leap_version }}"
 success_os_status: "Management Station OS validated"
 internet_status: "Failed. No Internet connection. Make sure network is up."
-selinux_status: "SElinux is not disabled. Disable it in /etc/sysconfig/selinux and reboot the system"
+selinux_warning: "Warning! SELinux status is disabled by user. No SELinux policy is loaded"
 ansible_python_version_status: "For {{ mgmt_os }} {{ ansible_distribution_version }}, python bindings of firewalld, dnf, selinux are not available if python is installed from source and not from dnf or zypper. So please make sure python3.6 is installed using dnf or zypper. And ansible uses the python version 3.6 installed using dnf or zypper"
 python_version_support: '3.6.8'
 default_ansible_config_file_path: /etc/ansible/ansible.cfg
 invalid_run_tag_msg: "Failed. init tag should be used with run tags"
 invalid_skip_tag_msg: "Failed. init tag can't be used with skip tags"
-selinux_config_path: /etc/sysconfig/selinux
 
 # Usage: verify_login_inputs.yml
 login_vars_filename: "input_params/login_vars.yml"

@@ -57,6 +57,8 @@
       <package>openssh</package>
       <package>firewalld</package>
       <package>chrony</package>
+      <package>dmidecode</package>
+      <package>vim</package>
     </packages>
   </software>
   <ssh_import t="map">

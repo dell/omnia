@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -34,10 +34,9 @@
   register: k8s_pods
   tags: init
 
-- name: Deploy MetalLB
-  command: "kubectl apply -f '{{ metallb_yaml_url }}'"
-  changed_when: true
-  when: "'metallb' not in k8s_pods.stdout"
+- name: Get metallb repo
+  command: "helm repo add metallb '{{ metallb_helm_url }}'"
+  changed_when: false
   tags: init
 
 - name: Create MetalLB Setup Config Files
@@ -58,14 +57,8 @@
     mode: "{{ metallb_deployment_file_mode }}"
   tags: init
 
-- name: Deploy MetalLB
-  command: "kubectl apply -f '{{ metallb_deployment_file_dest }}'"
-  changed_when: true
-  when: "'metallb' not in k8s_pods.stdout"
-  tags: init
-
-- name: Create default setup for MetalLB
-  command: "kubectl apply -f '{{ metallb_config_file_dest }}'"
+- name: Deploy Metallb
+  command: "helm install metallb metallb/metallb  -f '{{ metallb_config_file_dest }}'"
   changed_when: true
   when: "'metallb' not in k8s_pods.stdout"
   tags: init
@@ -96,11 +89,13 @@
 - name: Helm - add Nvidia k8s-device-plugin (nvdp) repo
   command: "helm repo add nvdp '{{ nvidia_k8s_device_plugin_repo_url }}'"
   changed_when: true
+  when: ansible_local.inventory.nvidia_gpu > 0
   tags: init
 
 - name: Helm - add Nvidia GPU discovery (nvgfd) repo
   command: "helm repo add nvgfd '{{ nvidia_gpu_discovery_repo_url }}'"
   changed_when: true
+  when: ansible_local.inventory.nvidia_gpu > 0
   tags: init
 
 - name: Helm - update repo
@@ -109,7 +104,7 @@
   tags: init
 
 - name: Start NFS Client Provisioner using NFS on manager node
-  command: "helm install stable/nfs-client-provisioner --set nfs.server='{{ nfs_server_manager_node }}' --set nfs.path='{{ nfs_share_dir }}' --generate-name"
+  command: "helm install nfs-omnia stable/nfs-client-provisioner --set nfs.server='{{ nfs_server_manager_node }}' --set nfs.path='{{ nfs_share_dir }}'"
   changed_when: true
   when:
     - "'nfs-client-provisioner' not in k8s_pods.stdout"
@@ -117,7 +112,7 @@
   tags: init
 
 - name: Start NFS Client Provisioner using NFS on NFS Node
-  command: "helm install stable/nfs-client-provisioner --set nfs.server='{{ nfs_server_nfs_node }}' --set nfs.path='{{ me4_nfs_share_k8s }}' --generate-name"
+  command: "helm install nfs-omnia stable/nfs-client-provisioner --set nfs.server='{{ nfs_server_nfs_node }}' --set nfs.path='{{ me4_nfs_share_k8s }}'"
   changed_when: true
   when:
     - "'nfs-client-provisioner' not in k8s_pods.stdout"
@@ -189,13 +184,17 @@
 - name: Install nvidia-device-plugin
   command: "helm install --version='{{ nvidia_device_plugin_version }}' --generate-name --set migStrategy='{{ mig_strategy }}' nvdp/nvidia-device-plugin"
   changed_when: true
-  when: "'nvidia-device-plugin' not in k8s_pods.stdout"
+  when:
+    - "'nvidia-device-plugin' not in k8s_pods.stdout"
+    - ansible_local.inventory.nvidia_gpu > 0
   tags: init
 
 - name: Install GPU Feature Discovery
   command: "helm install --version='{{ gpu_feature_discovery_version }}' --generate-name --set migStrategy='{{ mig_strategy }}' nvgfd/gpu-feature-discovery"
   changed_when: true
-  when: "'node-feature-discovery' not in k8s_pods.stdout"
+  when:
+    - "'node-feature-discovery' not in k8s_pods.stdout"
+    - ansible_local.inventory.nvidia_gpu > 0
   tags: init
 
 - name: Deploy Xilinx Device plugin

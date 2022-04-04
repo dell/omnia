@@ -1,28 +1,40 @@
 {
-  "annotations": {
-    "list": [
-      {
-        "builtIn": 1,
-        "datasource": "-- Grafana --",
-        "enable": true,
-        "hide": true,
-        "iconColor": "rgba(0, 211, 255, 1)",
-        "name": "Annotations & Alerts",
-        "target": {
-          "limit": 100,
-          "matchAny": false,
-          "tags": [],
-          "type": "dashboard"
-        },
-        "type": "dashboard"
-      }
-    ]
-  },
-  "editable": true,
+  "__inputs": [
+    {
+      "name": "DS_TELEMETRY-POSTGRES",
+      "label": "telemetry-postgres",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "postgres",
+      "pluginName": "PostgreSQL"
+    }
+  ],
+  "__elements": [],
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "8.3.2"
+    },
+    {
+      "type": "panel",
+      "id": "hpcviz-idvl-hpcc-parallel-coordinate",
+      "name": "parallel-coordinate",
+      "version": "2.0.0"
+    },
+    {
+      "type": "datasource",
+      "id": "postgres",
+      "name": "PostgreSQL",
+      "version": "1.0.0"
+    }
+  ],
+  "editable": false,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 21,
-  "iteration": 1644431955119,
+  "id": null,
+  "iteration": 1647449602865,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -225,7 +237,7 @@
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT $__timeGroupAlias(\"time\",$__interval),\navg(CAST(value AS decimal)) as \"NIC1_temp\",\nCONCAT('| ',system) AS name\nFROM timeseries_metrics\nWHERE  \n$__timeFilter(time) AND \nlabel= 'Embedded NIC 1 Port 1 Partition 1 TemperatureReading' AND \nsystem IN ($ServiceTag)\nGROUP BY\ntime, name\nORDER BY time;",
+          "rawSql": "SELECT $__timeGroupAlias(\"time\",$__interval),\navg(CAST(value AS decimal)) as \"NIC1_temp\",\nCONCAT('| ',system) AS name\nFROM timeseries_metrics\nWHERE  \n$__timeFilter(time) AND \nlabel SIMILAR TO '% NIC 1 Port 1 Partition 1 TemperatureReading' AND \nsystem IN ($ServiceTag)\nGROUP BY\ntime, name\nORDER BY time;",
           "refId": "nic1_temp",
           "select": [
             [
@@ -282,20 +294,21 @@
       "type": "hpcviz-idvl-hpcc-parallel-coordinate"
     }
   ],
-  "refresh": "5s",
+  "refresh": "",
   "schemaVersion": 33,
   "style": "dark",
   "tags": [],
   "templating": {
     "list": [
       {
+        "current": {},
         "datasource": {
           "type": "postgres",
           "uid": "telemetry-postgres"
         },
         "definition": "SELECT DISTINCT system as __value from timeseries_metrics",
         "hide": 0,
-        "includeAll": false,
+        "includeAll": true,
         "multi": true,
         "name": "ServiceTag",
         "options": [],
@@ -309,13 +322,13 @@
     ]
   },
   "time": {
-    "from": "now-7d",
+    "from": "now-24h",
     "to": "now"
   },
   "timepicker": {},
-  "timezone": "",
+  "timezone": "browser",
   "title": "Parallel-Coordinate",
-  "uid": "pArBHUtnk",
-  "version": 6,
+  "uid": "pArBHUtvm",
+  "version": 10,
   "weekStart": ""
 }
