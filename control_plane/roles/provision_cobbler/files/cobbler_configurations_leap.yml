@@ -104,7 +104,7 @@
 
   - name: Kickstart profile - centos
     copy:
-      src: "/root/centos7.ks"
+      src: "/root/omnia/control_plane/roles/provision_cobbler/files/centos7.ks"
       dest: "/var/lib/cobbler/templates/sample.ks"
       mode: "{{ file_perm }}"
     tags: install
@@ -112,7 +112,7 @@
 
   - name: Kickstart profile - rocky
     copy:
-      src: "/root/rocky8.ks"
+      src: "/root/omnia/control_plane/roles/provision_cobbler/files/rocky8.ks"
       dest: "/var/lib/cobbler/templates/sample.ks"
       mode: "{{ file_perm }}"
     tags: install
@@ -120,7 +120,7 @@
 
   - name: Kickstart profile - leap
     copy:
-      src: "/root/leap15.xml"
+      src: "/root/omnia/control_plane/roles/provision_cobbler/files/leap15.xml"
       dest: "/var/lib/cobbler/templates/sample_autoyast.xml"
       mode: "{{ file_perm }}"
     tags: install

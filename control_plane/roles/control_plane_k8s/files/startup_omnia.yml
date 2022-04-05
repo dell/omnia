@@ -69,18 +69,22 @@
         warn: false
       when: not mount_iso_check.stat.exists
 
-    - name: Copy files to tmp folder
+    - name: Copy files to mnt folder
       command:  "rsync -AHPSXav {{ mount_dir }} /mnt/{{ provision_os }}"
       changed_when: true
       args:
         warn: false
       when: not mount_iso_check.stat.exists 
+    
+    - name: Unmount tmp directory
+      command: "umount {{ mount_dir }}"
+      changed_when: true
+      failed_when: false
 
     - name: Delete tmp directory
       file:
         path: "{{ mount_dir }}"
         state: absent
-      when: not mount_iso_check.stat.exists
 
     - block:
         - name: Fetch SElinux mode
