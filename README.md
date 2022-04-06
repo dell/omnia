@@ -98,6 +98,7 @@ Thanks goes to everyone who makes Omnia possible ([emoji key](https://allcontrib
     <td align="center"><a href="https://github.com/shemasr"><img src="https://avatars.githubusercontent.com/u/100141664?v=4?s=100" width="100px;" alt=""/><br /><sub><b>shemasr</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/issues?q=author%3Ashemasr" title="Bug reports">🐛</a> <a href="https://github.com/dellhpc/omnia/commits?author=shemasr" title="Code">💻</a> <a href="https://github.com/dellhpc/omnia/commits?author=shemasr" title="Tests">⚠️</a></td>
     <td align="center"><a href="https://github.com/Khushboodholi"><img src="https://avatars.githubusercontent.com/u/12014935?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Khushboodholi</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=Khushboodholi" title="Code">💻</a></td>
     <td align="center"><a href="https://github.com/naresh3774"><img src="https://avatars.githubusercontent.com/u/101410892?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Naresh Sharma</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/issues?q=author%3Anaresh3774" title="Bug reports">🐛</a></td>
+    <td align="center"><a href="https://github.com/JonHass"><img src="https://avatars.githubusercontent.com/u/6976486?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Jon Hass</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=JonHass" title="Documentation">📖</a> <a href="#design-JonHass" title="Design">🎨</a></td>
   </tr>
 </table>
 
