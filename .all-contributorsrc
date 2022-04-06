@@ -413,6 +413,16 @@
       "contributions": [
         "bug"
       ]
+    },
+    {
+      "login": "JonHass",
+      "name": "Jon Hass",
+      "avatar_url": "https://avatars.githubusercontent.com/u/6976486?v=4",
+      "profile": "https://github.com/JonHass",
+      "contributions": [
+        "doc",
+        "design"
+      ]
     }
   ],
   "contributorsPerLine": 7,
