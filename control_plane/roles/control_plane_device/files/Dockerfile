@@ -5,6 +5,7 @@ FROM alpine:docker_os
 RUN apk add dhcp
 RUN apk add ansible
 RUN apk add openrc
+RUN apk add py3-netaddr
 
 #Creation of directories and files
 RUN mkdir /root/omnia
