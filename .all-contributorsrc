@@ -404,6 +404,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "naresh3774",
+      "name": "Naresh Sharma",
+      "avatar_url": "https://avatars.githubusercontent.com/u/101410892?v=4",
+      "profile": "https://github.com/naresh3774",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
