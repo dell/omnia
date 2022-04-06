@@ -16,12 +16,7 @@
 - hosts: localhost
   connection: local
   gather_facts: false
-  tasks:
-    - name: Install python-netaddr
-      package:
-        name: py3-netaddr
-        state: present  
-  
+  tasks:  
     - name: Read dhcp file
       set_fact:
         var: "{{ lookup('file', '/var/lib/dhcp/dhcpd.leases').split()| unique | select| list }}"
