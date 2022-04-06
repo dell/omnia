@@ -7,26 +7,9 @@ A lot of these metrics are collected using iDRAC telemetry. iDRAC telemetry allo
 ## Prerequisites
 
 1. To set up Grafana, ensure that `control_plane/input_params/login_vars.yml` is updated with the Grafana Username and Password.
-2. All parameters in `telemetry/input_params/telemetry_login_vars.yml` need to be filled in:
-
-| Parameter Name        | Default Value | Information |
-|-----------------------|---------------|-------------|
-| timescaledb_user      | 		        |  Username used for connecting to timescale db. Minimum Length: 2 characters.          |
-| timescaledb_password  | 		        |  Password used for connecting to timescale db. Minimum Length: 2 characters.           |
-| mysqldb_user          | 		        |  Username used for connecting to mysql db. Minimum Length: 2 characters.         |
-| mysqldb_password      | 		        |  Password used for connecting to mysql db. Minimum Length: 2 characters.            |
-| mysqldb_root_password | 		        |  Password used for connecting to mysql db for root user. Minimum Legth: 2 characters.         |
-
-3. All parameters in `telemetry/input_params/telemetry_base_vars.yml` need to be filled in:
-
-| Parameter Name          | Default Value     | Information |
-|-------------------------|-------------------|-------------|
-| idrac_telemetry_support | true              | This variable is used to enable iDRAC telemetry support and visualizations. Accepted Values: true/false            |
-| slurm_telemetry_support | true              | This variable is used to enable slurm telemetry support and visualizations. Slurm Telemetry support can only be activated when idrac_telemetry_support is set to true. Accepted Values: True/False.        |
-| timescaledb_name        | telemetry_metrics | Postgres DB with timescale extension is used for storing iDRAC and slurm telemetry metrics.            |
-| mysqldb_name			  | idrac_telemetrysource_services_db | MySQL DB is used to store IPs and credentials of iDRACs having datacenter license           |
-
-3. Find the IP of the Grafana UI using:
+2. All [parameters](../Input_Parameter_Guide/Telemetry_Visualization_Parameters/telemetry_login_vars.md) in `telemetry/input_params/telemetry_login_vars.yml` need to be filled in.
+3. All [parameters](../Input_Parameter_Guide/Telemetry_Visualization_Parameters/telemetry_base_vars.md) in `telemetry/input_params/telemetry_base_vars.yml` need to be filled in.
+4. Find the IP of the Grafana UI using:
  
 `kubectl get svc -n grafana`
 
@@ -60,4 +43,4 @@ Use any one of the following browsers to access the Grafana UI (https://< Grafan
 ## Adding a New Node to Telemetry
 After initiation, new nodes can be added to telemetry by running the following commands from `omnia/telemetry`:
 		
-` ansible-playbook add_idrac_node.yml`
+`ansible-playbook add_idrac_node.yml`
