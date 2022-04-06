@@ -14,6 +14,10 @@
 ---
 
 - block:
+    - name: Update resolv.conf to edit mode
+      command: chattr -i "{{ resolv_conf_path }}"
+      changed_when: true
+
     - block:
         - name: Check freeipa installed or not
           include_tasks: check_prerequisites.yml
@@ -63,4 +67,8 @@
     - name: Restrict nonessential programs
       include_tasks: restrict_nonessentials.yml
       when: restrict_program_status
+    
+    - name: Update resolv.conf to read mode
+      command: chattr +i "{{ resolv_conf_path }}"
+      changed_when: true
   when: enable_security_support
