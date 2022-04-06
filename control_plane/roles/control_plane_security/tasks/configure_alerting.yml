@@ -22,6 +22,7 @@
   systemd:
     name: postfix
     state: started
+    enabled: yes
 
 - name: Fetch ansible-playbook path
   command: whereis ansible-playbook

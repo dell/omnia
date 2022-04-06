@@ -22,6 +22,7 @@
   systemd:
     name: postfix
     state: started
+    enabled: yes
 
 - block:
     - name: Install python3

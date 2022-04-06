@@ -127,3 +127,14 @@
   command: kubectl create namespace network-config
   changed_when: true
   when: "'network-config' not in k8s_namespaces.stdout"
+
+- name: Fetch ansible-playbook path
+  command: whereis ansible-playbook
+  changed_when: false
+  register: ansible_playbook_path
+
+- name: Schedule startup script omia
+  cron:
+    name: "Start omnia services on reboot"
+    special_time: reboot
+    job: "{{ ansible_playbook_path.stdout.split(' ')[1] }} {{ role_path }}/files/startup_omnia.yml"
