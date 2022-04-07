@@ -20,16 +20,19 @@ Omnia (Latin: all or everything) is a deployment tool to turn servers with RPM-b
 - [RockyOS](https://rockylinux.org/)
 
 
-## Installing Omnia
+# Using Omnia
 
-Omnia can be used in two ways:
+1. Verify that your system meets Omnia's [hardware](docs/Support_Matrix/Hardware) and [software requirements](docs/Support_Matrix/Software/Operating_Systems)
+2. Ensure that all [pre-requisites](docs/PreRequisites) are met.
+3. Fill out all the required [input parameters](docs/Input_Parameter_Guide).
+4. [Run Control_Plane](docs/Installation_Guides/INSTALL_OMNIA_CONTROL_PLANE.md) to provision OS's, [configure devices](docs/Device_Configuration) and set up [security measures](docs/Security):
+5. [Run Omnia](docs/Installation_Guides/INSTALL_OMNIA_CLI.md) to set up Kubernetes and Slurm.
+6. Run the telemetry playbook to [set up](docs/Installation_Guides/INSTALL_TELEMETRY.md) and use [Telemetry and Visualization Services](docs/Telemetry_Visualization)
+   ![Omnia Flow](docs/images/Omnia_Flow.png)
 
-1. To [set up clusters on existing deployed hardware](docs/INSTALL_OMNIA.md) and then [monitor the clusters](docs/MONITOR_CLUSTERS.md)
-
-2. To [deploy OS's, packages, open source software and set up security features](docs/INSTALL_OMNIA_CONTROL_PLANE.md)
-
-![Omnia Slurm Stack](docs/images/Omnia_Flow.png)
-
+## Troubleshooting Omnia
+* For a list of commonly encountered issues, check out our [FAQs](docs/Troubleshooting/FAQ.md).
+* To troubleshoot Omnia, use our [Troubleshooting Guide](docs/Troubleshooting/Troubleshooting_Guide.md).
 
 ## Omnia Documentation
 For Omnia documentation, please see the [website](https://dellhpc.github.io/omnia).
@@ -43,7 +46,7 @@ For Omnia documentation, please see the [website](https://dellhpc.github.io/omni
 <img src="https://user-images.githubusercontent.com/5414112/153955170-0a4b199a-54f0-42af-939c-03eac76881c0.png" height="100px" alt="Texas Tech University">
 
 ## Contributors
-Thanks goes to everyone who makes Omnia possible ([emoji key](https://allcontributors.org/docs/en/emoji-key)):
+Our thanks go to everyone who makes Omnia possible ([emoji key](https://allcontributors.org/docs/en/emoji-key)):
 <!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
 <!-- prettier-ignore-start -->
 <!-- markdownlint-disable -->

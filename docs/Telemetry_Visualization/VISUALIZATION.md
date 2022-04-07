@@ -16,14 +16,3 @@ Using the following graphs, data can be visualized to gather correlational infor
 
 >> __Note:__ The timestamps used for the time metric are based on the `timezone` set in `control_plane/input_params/base_vars.yml`.  In the event of a mismatch between the timezone on the browser being used to access Grafana UI and the timezone in `base_vars.yml`, the time range being used to filter information on the Grafana UI will have to be adjusted per the timezone in `base_vars.yml`.
 
-### The Multi-factor Visualization Dashboard
-The Multi-factor Visualization Dashboard has 4 interactive visualization panels that allow you to see all the graphs mentioned above in a single view.
-![Multi Factor Visualization Dashboard](Images/MultiFactorVisualizationDashboard.png)
-
-Using the Node and User dropdowns on the left, nodes and users can be filtered to collect data within a given time-frame (Select the time frame on the top-right of the view).
-![Multi Factor Visualization ](Images/MultiFactorVisualizationDashboard_Filter.png)
-
-To interact with a specific panel, click on the __Panel Name__ and then select the __View__ option from the dropdown menu.
-![img.png](Images/MultiFactorVisualizationDashboard_Interact.png)
-
-
