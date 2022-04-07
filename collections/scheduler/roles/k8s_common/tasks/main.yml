@@ -1,0 +1,161 @@
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Update sysctl to handle incorrectly routed traffic when iptables is bypassed
+  copy:
+    src: k8s.conf
+    dest: "{{ k8s_conf_dest }}"
+    owner: root
+    group: root
+    mode: "{{ k8s_conf_file_mode }}"
+  tags: install
+
+- name: Update sysctl
+  command: /sbin/sysctl --system
+  changed_when: true
+  tags: install
+
+- block:
+    - name: Add kubernetes repo
+      yum_repository:
+        name: kubernetes
+        description: kubernetes
+        baseurl: https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+        enabled: yes
+        gpgcheck: no
+        repo_gpgcheck: no
+        gpgkey:
+          - https://packages.cloud.google.com/yum/doc/yum-key.gpg
+          - https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+      tags: install
+
+    - name: Install k8s packages
+      package:
+        name: "{{ k8s_packages }}"
+        state: present
+      tags: install
+
+    - name: Versionlock kubernetes
+      command: "yum versionlock '{{ item }}'"
+      args:
+        warn: false
+      with_items:
+        - "{{ k8s_packages }}"
+      changed_when: true
+      tags: install
+  when: os_supported_leap not in compute_os
+
+- block:
+    - name: Add kubernetes repo
+      zypper_repository:
+        name: google-k8s
+        repo: "{{ k8s_repo_leap }}"
+        state: present
+        autorefresh: yes
+        disable_gpg_check: yes
+      tags: install
+
+    - name: Import rpm-package key for installing kubernetes
+      rpm_key:
+        key: "{{ rpm_pkg_leap }}"
+        state: present
+      tags: install
+
+    - name: Import yum key for installing kubernetes
+      rpm_key:
+        key: "{{ yum_key_leap }}"
+        state: present
+      tags: install
+
+    - name: Import gpg-pubkey key for installing kubernetes
+      command: "{{ gpg_pubkey_leap }}"
+      args:
+        warn: false
+      changed_when: false
+      tags: install
+
+    - name: Refresh repositories and installing conntrack-tools
+      package:
+        name: conntrack-tools
+        state: present
+      tags: install
+
+    - name: Install Kubeadm
+      ansible.builtin.expect:
+        command: zypper install --oldpackage "{{ kubeadm_version }}"
+        responses:
+            (.*) [1/2/c/d/?](.): '2'
+            (.*)(y): 'y'
+      register: kubeadm_status
+      until: kubeadm_status is not failed
+      retries: "{{ max_retries }}"
+      tags: install
+
+    - name: Install Kubelet
+      ansible.builtin.expect:
+        command: zypper install --oldpackage "{{ kubelet_version }}"
+        responses:
+            (.*) [1/2/c/d/?](.): '2'
+            (.*)(y): 'y'
+      register: kubelet_status
+      until: kubelet_status is not failed
+      retries: "{{ max_retries }}"
+      tags: install
+
+    - name: Install Kubectl
+      zypper:
+        name: "{{ kubectl_version }}"
+        state: present
+        oldpackage: yes
+        force: yes
+      register: kubectl_status
+      until: kubectl_status is not failed
+      retries: "{{ max_retries }}"
+      tags: install
+
+    - name: Versionlocking kubeadm
+      command: zypper addlock "{{ kubeadm_version }}"
+      args:
+        warn: false
+      changed_when: false
+      tags: install
+
+    - name: Versionlocking kubectl
+      command: zypper addlock "{{ kubelet_version }}"
+      args:
+        warn: false
+      changed_when: false
+      tags: install
+
+    - name: Versionlocking kubelet
+      command: zypper addlock "{{ kubectl_version }}"
+      args:
+        warn: false
+      changed_when: false
+      tags: install
+  when: ( os_supported_leap in compute_os ) and ( ansible_distribution_version >= os_supported_leap_version )
+
+- name: Start and enable docker service
+  service:
+    name: docker
+    state: restarted
+    enabled: yes
+  tags: install
+
+- name: Start and enable kubernetes - kubelet
+  service:
+    name: kubelet
+    state: restarted
+    enabled: yes
