@@ -1,5 +1,73 @@
 # Frequently Asked Questions
 
+## What to do when hosts do not show on the AWX UI?  
+Resolution: 
+* Verify if the provisioned_hosts.yml file is present in the omnia/control_plane/roles/collect_node_info/files/ folder.
+* Verify whether the hosts are listed in the provisioned_hosts.yml file.
+* If hosts are not listed, then servers are not PXE booted yet.
+If hosts are listed, then an IP address has been assigned to them by DHCP. However, hosts are not displayed on the AWX UI as the PXE boot is still in process or is not initiated.
+* Check for the reachable and unreachable hosts using the provision_report.yml tool present in the omnia/control_plane/tools folder. To run provision_report.yml, in the omnia/control_plane/ directory, run playbook -i roles/collect_node_info/files/provisioned_hosts.yml tools/provision_report.yml.
+
+## Why do Kubernetes Pods show `ImagePullBack` or `ErrPullImage` errors in their status?
+Potential Cause:
+    * The errors occur when the Docker pull limit is exceeded.
+Resolution:
+    * For `omnia.yml` and `control_plane.yml` : Provide the docker username and password for the Docker Hub account in the *omnia_config.yml* file and execute the playbook.
+    * For HPC cluster, during `omnia.yml execution`, a kubernetes secret 'dockerregcred' will be created in default namespace and patched to service account. User needs to patch this secret in their respective namespace while deploying custom applications and use the secret as imagePullSecrets in yaml file to avoid ErrImagePull. [Click here for more info](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/)
+> __Note:__ If the playbook is already executed and the pods are in __ImagePullBack__ state, then run `kubeadm reset -f` in all the nodes before re-executing the playbook with the docker credentials.
+
+## What to do after a reboot if kubectl commands return: `The connection to the server head_node_ip:port was refused - did you specify the right host or port?`
+  On the control plane or the manager node, run the following commands:
+    * `swapoff -a`
+    * `systemctl restart kubelet`
+
+## How to clear up the configuration if `control_plane.yml` fails at the webui_awx stage?
+  In the `webui_awx/files` directory, delete the `.tower_cli.cfg` and `.tower_vault_key` files, and then re-run `control_plane.yml`.
+
+## Why would FreeIPA server/client installation fail?  
+Potential Cause:
+    The hostnames of the manager and login nodes are not set in the correct format.  
+Resolution:
+    If you have enabled the option to install the login node in the cluster, set the hostnames of the nodes in the format: *hostname.domainname*. For example, *manager.omnia.test* is a valid hostname for the login node. **Note**: To find the cause for the failure of the FreeIPA server and client installation, see *ipaserver-install.log* in the manager node or */var/log/ipaclient-install.log* in the login node.
+
+## Why are inventory details not updated in AWX?
+Potential Cause:
+    The provided device credentials may be invalid.
+Resolution:
+    Manually validate/update the relevant login information on the AWX settings screen and re-run `device_inventory_job`. Optionally, wait 24 hours for the scheduled inventory job to run.
+
+## Why is the host list empty when executing `control_plane.yml`?
+Hosts that are not in DHCP mode do not get populated in the host list when `control_plane.yml` is run.
+
+## Why does the task 'Install Packages' fails on the NFS node with the message: `Failure in talking to yum: Cannot find a valid baseurl for repo: base/7/x86_64.`  
+Potential Cause:
+    There are connections missing on the NFS node.  
+Resolution:
+        Ensure that there are 3 nics being used on the NFS node:
+                1. For provisioning the OS
+                2. For connecting to the internet (Management purposes)
+                3. For connecting to PowerVault (Data Connection)
+
+## What to do if AWX jobs fail with `Error creating pod: container failed to start, ImagePullBackOff`?
+Potential Cause:<br>
+ After running `control_plane.yml`, the AWX image got deleted.<br>
+Resolution:<br>
+    Run the following commands:<br>
+    1. `cd omnia/control_plane/roles/webui_awx/files`
+    2. `buildah bud -t custom-awx-ee awx_ee.yml`
+
+## Why does the task 'control_plane_common: Setting Metric' fail?
+Potential Cause:
+    The device name and connection name listed by the network manager in `/etc/sysconfig/network-scripts/ifcfg-<nic name>` do not match.
+
+Resolution:
+1. Use `nmcli connection` to list all available connections and their attributes.<br>
+    _Expected Output:_<br>
+    ![NMCLI Expected Output](../images/nmcli_output.jpg)
+2. For any connections that have mismatched names and device names, edit the file `/etc/sysconfig/network-scripts/ifcfg-<nic name>` using vi editor.
+
+## Are hosts automatically cleaned up from the AWX UI when re-deploying the cluster? 
+No. Before re-deploying the cluster, users have to manually delete all hosts from the awx UI.
 
 ## Why is the error "Wait for AWX UI to be up" displayed when `control_plane.yml` fails?  
 Potential Causes: 
@@ -115,7 +183,7 @@ Resolution:
 
 ## What to do if jobs hang in 'pending' state on the AWX UI:
 
-Run `kubectl rollout restart deployment awx -n awx` from the management station and try to re-run the job.
+Run `kubectl rollout restart deployment awx -n awx` from the control plane and try to re-run the job.
 
 If the above solution **doesn't work**,
 1. Delete all the inventories, groups and organization from AWX UI.
@@ -123,6 +191,18 @@ If the above solution **doesn't work**,
 3. Delete the file: `omnia/control_plane/roles/webui_awx/files/.tower_cli.cfg`.
 4. Re-run *control_plane.yml*.
   
+## What to do after a control plane reboot?
+1. Once the control plane reboots, wait for 10-15 minutes to allow all k8s pods and services to come up. This can be verified using:
+* `kubectl get pods --all-namespaces`
+2. If the pods do not come up, check `/var/log/omnia.log` for more information.
+3. Cobbler profiles are not persistent across reboots. The latest profile will be available post-reboot based on the values of `provision_os` and `iso_file_path` in `base_vars.yml`. Re-run `control_plane.yml` with different values for `provision_os` and `iso_file_path` to restore the profiles.
+4. Devices that have had their IP assigned dynamically via DHCP may get assigned new IPs. This in turn can cause duplicate entries for the same device on AWX. Clusters may also show inconsistency and ambiguity.
+
+## How to clear existing DHCP leases after a management NIC IP change?
+If `device_config_support` is set to TRUE,
+1. Reboot the ethernet TOR (Top of the Rack) switches in your environment.
+2. If the leases aren't cleared, reboot the devices that have not registered the new IP.
+If `device_config_support` is set to FALSE, no reboots are required.
 
 ## Why is permission denied when executing the `idrac.yml` file or other .yml files from AWX?
 Potential Cause: The "PermissionError: [Errno 13] Permission denied" error is displayed if you have used the ansible-vault decrypt or encrypt commands.  
@@ -137,7 +217,7 @@ It is recommended that the ansible-vault view or edit commands are used and not 
 * Launch iDRAC template.
 
 ## What to do if the network CIDR entry of iDRAC IP in /etc/exports file is missing:
-* Add an additional network CIDR range of idrac IPs in the */etc/exports* file if the iDRAC IP is not in the management network range provided in base_vars.yml.
+* Add an additional network CIDR range of iDRAC IPs in the */etc/exports* file if the iDRAC IP is not in the management network range provided in base_vars.yml.
 
 ## What to do if a custom ISO file is not present on the device:
 * Re-run the *control_plane.yml* file.
@@ -199,8 +279,8 @@ Potential Cause: Your Docker pull limit has been exceeded. For more information,
 ## Can Cobbler deploy both Rocky and CentOS at the same time?
 No. During Cobbler based deployment, only one OS is supported at a time. If the user would like to deploy both, please deploy one first, **unmount `/mnt/iso`** and then re-run cobbler for the second OS.
 
-## Why do Firmware Updates fail for some components with Omnia 1.1.1?
-Due to the latest `catalog.xml` file, Firmware updates fail for some components on server models R640 and R740. Omnia execution doesn't get interrupted but an error gets logged. For now, please download those individual updates manually.
+## Why do Firmware Updates fail for some components with Omnia?
+Due to the latest `catalog.xml` file, Firmware updates may fail for certain components. Omnia execution doesn't get interrupted but an error gets logged on AWX. For now, please download those individual updates manually.
 
 ## Why does the Task [network_ib : Authentication failure response] fail with the message 'Status code was -1 and not [302]: Request failed: <urlopen error [Errno 111] Connection refused>' on Infiniband Switches when running `infiniband.yml`?
 To configure a new Infiniband Switch, it is required that HTTP and JSON gateway be enabled. To verify that they are enabled, run:

@@ -1,10 +1,10 @@
 # Monitor Kubernetes and Slurm
-Omnia provides playbooks to configure additional software components for Kubernetes such as JupyterHub and Kubeflow. For workload management (submitting, conrolling, and managing jobs) of HPC, AI, and Data Analytics clusters, you can access Kubernetes and Slurm dashboards and other supported applications. 
+Omnia provides playbooks to configure additional software components for Kubernetes such as JupyterHub and Kubeflow. For workload management (submitting, controlling, and managing jobs) of HPC, AI, and Data Analytics clusters, you can access Kubernetes and Slurm dashboards and other supported applications. 
 
 ## Before accessing the dashboards
-To access any of the dashboards, ensure that a compatible web browser is installed. If you are connecting remotely to your Linux server by using MobaXterm version later than 8 or other X11 Clients though *ssh*, follow the below mentioned steps to launch the Firefox Browser:  
-* On the management station:
-	1. Connect using *ssh*. Run `ssh <user>@<IP-address>`, where *IP-address* is the private IP of the management station.
+To access any of the dashboards, ensure that a compatible web browser is installed. If you are connecting remotely to your Linux server by using MobaXterm version later than 8 or other X11 Clients though *ssh*, follow the below-mentioned steps to launch the Firefox Browser:  
+* On the control plane:
+	1. Connect using *ssh*. Run `ssh <user>@<IP-address>`, where *IP-address* is the private IP of the control plane.
 	2. `dnf install mesa-libGL-devel -y`
 	3. `dnf install firefox -y`
 	4. `dnf install xorg-x11-xauth`
@@ -20,10 +20,10 @@ To access any of the dashboards, ensure that a compatible web browser is install
 	5. `logout and login back`
 	6. To launch Firefox from terminal, run `firefox&`
 
->> **NOTE**: When the PuTTY or MobaXterm session ends, you must run **export DISPLAY=:10.0** command each time, else Firefox cannot be launched again.  
+>> **Note**: When the PuTTY or MobaXterm session ends, you must run **export DISPLAY=:10.0** command each time, else Firefox cannot be launched again.  
 
 ## Access FreeIPA Dashboard  
-The FreeIPA Dashboard can be accessed from the management station, manager, and login nodes. To access the dashboard:
+The FreeIPA Dashboard can be accessed from the control plane, manager, and login nodes. To access the dashboard:
 1.	Install the Firefox Browser.
 2.	Open the Firefox Browser and enter the url: `https://<hostname>`. For example, enter `https://manager.example.com`.
 3.	Enter the username and password. If the admin or user has obtained a Kerberos ticket, then the credentials need not be provided.  
@@ -34,14 +34,14 @@ The FreeIPA Dashboard can be accessed from the management station, manager, and 
 
 An administrator can create users on the login node using FreeIPA. The users will be prompted to change the passwords upon first login.
 
-## Access Kuberentes Dashboard
+## Access Kubernetes Dashboard
 1. To verify if the **Kubernetes-dashboard** service is in the Running state, run `kubectl get pods --namespace kubernetes-dashboard`.
 2. To start the Kubernetes dashboard, run `kubectl proxy`.
 3. To retrieve the encrypted token, run `kubectl get secret -n kubernetes-dashboard $(kubectl get serviceaccount admin-user -n kubernetes-dashboard -o jsonpath="{.secrets[0].name}") -o jsonpath="{.data.token}" | base64 --decode`.
 4. Copy the encrypted token value.
-5. On a web browser on the management station (for control_plane.yml) or manager node (for omnia.yml) enter http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/.
+5. On a web browser on the control plane (for control_plane.yml) or manager node (for omnia.yml) enter http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/.
 6. Select the authentication method as __Token__.
-7. On the Kuberenetes Dashboard, paste the copied encrypted token and click **Sign in** to access the Kubernetes Dashboard.
+7. On the Kubernetes Dashboard, paste the copied encrypted token and click **Sign in** to access the Kubernetes Dashboard.
 
 ## Access Kubeflow Dashboard
 1. Before accessing the Kubeflow Dashboard, run `kubectl -n kubeflow get applications -o yaml profiles`. Wait till **profiles-deployment** enters the Ready state.
@@ -97,9 +97,9 @@ __Note:__
 
 ## Accessing Cluster metrics (fetched by Prometheus) on Grafana 
 
-* Once `control_plane.yml` is run, Prometheus is added to Grafana as a datasource (hpc-prometheus). This allows Grafana to display statistics from the Compute Nodes that have been polled using Prometheus on the Management Station.
+* Once `control_plane.yml` is run, Prometheus is added to Grafana as a datasource (hpc-prometheus). This allows Grafana to display statistics from the Compute Nodes that have been polled using Prometheus on the Control Plane.
 
-* Select the dashboard (![Dashboard Icon](Telemetry_Visualization/Images/DashBoardIcon.PNG)) tab to view the list of Prometheus based dashboards. Some default dashboards include CoreDNS, Prometheus Overview, Kuberenetes Networking etc.
+* Select the dashboard (![Dashboard Icon](../Telemetry_Visualization/Images/DashBoardIcon.PNG)) tab to view the list of Prometheus based dashboards. Some default dashboards include CoreDNS, Prometheus Overview, Kubernetes Networking etc.
 
 >> __Note:__ Both the control plane and HPC clusters can be monitored on these dashboards by toggling the datasource at the top of each dashboard. 
 
@@ -107,19 +107,19 @@ __Note:__
 
 * Once `control_plane.yml` is run, Prometheus is added to Grafana as a datasource. This allows Grafana to display statistics from the Control Plane that have been polled using Prometheus.
 
-![Prometheus DataSource](Telemetry_Visualization/Images/Prometheus_DataSource.jpg)
+![Prometheus DataSource](../Telemetry_Visualization/Images/Prometheus_DataSource.jpg)
 
-* Select the dashboard (![Dashboard Icon](Telemetry_Visualization/Images/DashBoardIcon.PNG)) tab to view the list of Prometheus based dashboards. Some default dashboards include CoreDNS, Prometheus Overview, Kuberenetes Networking etc.
+* Select the dashboard (![Dashboard Icon](../Telemetry_Visualization/Images/DashBoardIcon.PNG)) tab to view the list of Prometheus based dashboards. Some default dashboards include CoreDNS, Prometheus Overview, Kubernetes Networking etc.
 
 >> __Note:__ Both the control plane and HPC clusters can be monitored on these dashboards by toggling the datasource at the top of each dashboard:
 
 | Data Source | Description | Source |
 |-------------|-------------|--------|
-|  hpc-prometheus-manager-nodeIP            | Manages the Kuberenetes and Slurm Cluster on the Manager and Compute nodes.            |  This datasource is set up when `Omnia.yml` is run.      |
-| control_plane_prometheus            | Monitors the Single Node cluster running on the Management Station            | This datasource is set up when `control_plane.yml` is run.        |
+|  hpc-prometheus-manager-nodeIP            | Manages the Kubernetes and Slurm Cluster on the Manager and Compute nodes.            |  This datasource is set up when `Omnia.yml` is run.      |
+| control_plane_prometheus            | Monitors the Single Node cluster running on the Control Plane            | This datasource is set up when `control_plane.yml` is run.        |
 
 
-![Prometheus DataSource](Telemetry_Visualization/Images/Prometheus_Dashboard.jpg)
+![Prometheus DataSource](../Telemetry_Visualization/Images/Prometheus_Dashboard.jpg)
 
 
 
@@ -127,20 +127,20 @@ __Note:__
 | Type        | Subtype           | Dashboard Name                    | Available DataSources                               |
 |-------------|-------------------|-----------------------------------|-----------------------------------------------------|
 |             |                   | CoreDNS                           | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
-| Kuberenetes |                   | API Types                         | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
-| Kuberenetes | Compute Resources | Cluster                           | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
-| Kuberenetes | Compute Resources | Namespace (Pods)                  | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
-| Kuberenetes | Compute Resources | Node (Pods)                       | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
-| Kuberenetes | Compute Resources | Pod                               | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
-| Kuberenetes | Compute Resources | Workload                          | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
-| Kuberenetes |                   | Kubelet                           | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
-| Kuberenetes | Networking        | Cluster                           | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
-| Kuberenetes | Networking        | Namespace (Pods)                  | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
-| Kuberenetes | Networking        | Namespace (Workload)              | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
-| Kuberenetes | Networking        | Pod                               | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
-| Kuberenetes | Networking        | Workload                          | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
-| Kuberenetes |                   | Scheduler                         | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
-| Kuberenetes |                   | Stateful Sets                     | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
+| Kubernetes |                   | API Types                         | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
+| Kubernetes | Compute Resources | Cluster                           | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
+| Kubernetes | Compute Resources | Namespace (Pods)                  | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
+| Kubernetes | Compute Resources | Node (Pods)                       | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
+| Kubernetes | Compute Resources | Pod                               | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
+| Kubernetes | Compute Resources | Workload                          | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
+| Kubernetes |                   | Kubelet                           | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
+| Kubernetes | Networking        | Cluster                           | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
+| Kubernetes | Networking        | Namespace (Pods)                  | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
+| Kubernetes | Networking        | Namespace (Workload)              | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
+| Kubernetes | Networking        | Pod                               | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
+| Kubernetes | Networking        | Workload                          | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
+| Kubernetes |                   | Scheduler                         | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
+| Kubernetes |                   | Stateful Sets                     | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
 |             |                   | Prometheus Overview               | control-plane-prometheus, hpc-prometheus-manager-nodeIP |
 | Slurm       |                   | CPUs/GPUs, Jobs, Nodes, Scheduler | hpc-prometheus-manager-nodeIP                           |
 | Slurm       |                   | Node Exporter Server Metrics      | hpc-prometheus-manager-nodeIP                           |
