@@ -48,13 +48,25 @@ Resolution:
                 2. For connecting to the internet (Management purposes)
                 3. For connecting to PowerVault (Data Connection)
 
+## Why is the Infiniband NIC down after provisioning the server? <br>
+Omnia does not activate Infiniband NICs. To enable the device manually, use `ifup <IB NIC name>`. 
+>> __Note:__ If your server is running LeapOS, run `omnia.yml` to install IB drivers then manually enable devices. Alternatively, if the [Leap OSS](http://download.opensuse.org/distribution/leap/15.3/repo/oss/) and [Leap Non OSS](http://download.opensuse.org/distribution/leap/15.3/repo/non-oss/) are installed, use `zypper install -n rdma-core librdmacm1 libibmad5 libibumad3` to install IB NIC drivers before manually bringing up the interface using the command above.
+
 ## What to do if AWX jobs fail with `Error creating pod: container failed to start, ImagePullBackOff`?
 Potential Cause:<br>
- After running `control_plane.yml`, the AWX image got deleted.<br>
+ After running `control_plane.yml`, the AWX image got deleted due to space considerations (use `df -h` to diagnose the issue.).<br>
 Resolution:<br>
-    Run the following commands:<br>
+    Delete unnecessary files from the partition`` and then run the following commands:<br>
     1. `cd omnia/control_plane/roles/webui_awx/files`
     2. `buildah bud -t custom-awx-ee awx_ee.yml`
+
+## Why do pods and images appear to get deleted automatically?
+Potential Cause: <br>
+Lack of space in the root partition (/) causes Linux to clear files automatically (Use `df -h` to diagnose the issue).<br>
+Resolution:
+* Delete large, unused files to clear the root partition (Use the command `find / -xdev -size +5M | xargs ls -lh | sort -n -k5` to identify these files). Before running Omnia Control Plane, it is recommended to have a minimum of 50% free space in the root partition.
+* Once the partition is cleared, run `kubeadm reset -f`
+* Re-run `control_plane.yml`
 
 ## Why does the task 'control_plane_common: Setting Metric' fail?
 Potential Cause:

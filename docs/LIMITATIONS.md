@@ -17,3 +17,5 @@
 * All iDRACs must have the same username and password.
 * OpenSUSE Leap 15.3 is not supported on the Control Plane.
 * Slurm Telemetry is supported only on a single cluster.
+* Omnia does not Infiniband drivers on compute nodes running LeapOS.
+* Omnia does not activate Infiniband NICs on compute nodes automatically. Steps to enable them manually are provided [here](Device_Configuration/Servers.md)
