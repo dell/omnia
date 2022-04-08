@@ -23,7 +23,7 @@ In case any of these services are not in the state required, run:
 
 `json-gw enable` (To enable the JSON gateway)
 
->> __Note:__ If a server is connected to an Infiniband Switch via an Infiniband NIC, Omnia will not activate this NIC. Manually update the NIC using `ifup <IB NIC name>`
+>> __Note:__ If a server is connected to an Infiniband Switch via an Infiniband NIC, Omnia will not activate this NIC. Manually update the NIC using `ifup <IB NIC name>`. If your server is running LeapOS, run `omnia.yml` to install IB drivers then manually enable devices. Alternatively, if the [Leap OSS](http://download.opensuse.org/distribution/leap/15.3/repo/oss/) and [Leap Non OSS](http://download.opensuse.org/distribution/leap/15.3/repo/non-oss/) are installed, use `zypper install -n rdma-core librdmacm1 libibmad5 libibumad3` to install IB NIC drivers before manually bringing up the interface using the command above.
 
 
 When connecting to a new or factory reset switch, the configuration wizard requests to execute an initial configuration:
