@@ -50,6 +50,7 @@ Resolution:
 
 ## Why is the Infiniband NIC down after provisioning the server? <br>
 Omnia does not activate Infiniband NICs. To enable the device manually, use `ifup <IB NIC name>`. 
+>> __Note:__ If your server is running LeapOS, run `omnia.yml` to install IB drivers then manually enable devices. Alternatively, if the [Leap OSS](http://download.opensuse.org/distribution/leap/15.3/repo/oss/) and [Leap Non OSS](http://download.opensuse.org/distribution/leap/15.3/repo/non-oss/) are installed, use `zypper install -n rdma-core librdmacm1 libibmad5 libibumad3` to install IB NIC drivers before manually bringing up the interface using the command above.
 
 ## What to do if AWX jobs fail with `Error creating pod: container failed to start, ImagePullBackOff`?
 Potential Cause:<br>
