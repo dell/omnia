@@ -1,6 +1,7 @@
 # Pre-requisites Before Running Control Plane
 * Ensure that a stable Internet connection is available on control plane.
-* Rocky 8 is installed on the control plane. 		 
+* Rocky 8 is installed on the control plane.
+* Ensure that the root partition (/) has a minimum of 50% (~35G) free space. 
 * To provision the bare metal servers, download one of the following ISOs for deployment:
     1. [Leap 15.3](https://get.opensuse.org/leap/)
     2. [Rocky 8](https://rockylinux.org/)

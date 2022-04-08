@@ -50,11 +50,19 @@ Resolution:
 
 ## What to do if AWX jobs fail with `Error creating pod: container failed to start, ImagePullBackOff`?
 Potential Cause:<br>
- After running `control_plane.yml`, the AWX image got deleted.<br>
+ After running `control_plane.yml`, the AWX image got deleted due to space considerations (use `df -h` to diagnose the issue.).<br>
 Resolution:<br>
-    Run the following commands:<br>
+    Delete unnecessary files from the partition`` and then run the following commands:<br>
     1. `cd omnia/control_plane/roles/webui_awx/files`
     2. `buildah bud -t custom-awx-ee awx_ee.yml`
+
+## Why do pods and images appear to get deleted automatically?
+Potential Cause: <br>
+Lack of space in the root partition (/) causes Linux to clear files automatically (Use `df -h` to diagnose the issue).<br>
+Resolution:
+* Delete large, unused files to clear the root partition. Before running Omnia Control Plane, it is recommended to have a minimum of 50% free space in the root partition.
+* Once the partition is cleared, run `kubeadm reset -f`
+* Re-run `control_plane.yml`
 
 ## Why does the task 'control_plane_common: Setting Metric' fail?
 Potential Cause:

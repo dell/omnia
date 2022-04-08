@@ -1,6 +1,6 @@
 # Logs Used for Troubleshooting
 
-1. /var/log (Control Plane)
+## 1. /var/log (Control Plane)
 
 All log files can be viewed via the Dashboard tab (![Dashboard Icon](../Telemetry_Visualization/Images/DashBoardIcon.PNG)). The Default Dashboard displays `omnia.log` and `syslog`. Custom dashboards can be created per user requirements.
 
@@ -23,7 +23,7 @@ Below is a list of all logs available to Loki and can be accessed on the dashboa
 | Zypper Logs        | /var/log/zypper.log                       | Installation Logs            | This log is configured on Leap OS                                                                  |
 
 
-2. Checking logs of individual containers:
+## 2. Checking logs of individual containers:
    1. A list of namespaces and their corresponding pods can be obtained using:
       `kubectl get pods -A`
    2. Get a list of containers for the pod in question using:
@@ -32,7 +32,7 @@ Below is a list of all logs available to Loki and can be accessed on the dashboa
       `kubectl logs pod <pod_name> -n <namespace> -c <container_name>`
 
 
-3. Connecting to internal databases:
+## 3. Connecting to internal databases:
 * TimescaleDB
 	* Go inside the pod: `kubectl exec -it pod/timescaledb-0 -n telemetry-and-visualizations -- /bin/bash`
 	* Connect to psql: `psql -U <postgres_username>`
@@ -42,14 +42,14 @@ Below is a list of all logs available to Loki and can be accessed on the dashboa
 	* Connect to psql: `psql -U <mysqldb_username> -p <mysqldb_password>`
 	* Connect to database: `USE <mysqldb_name>`
 
-4. Checking and updating encrypted parameters:
+## 4. Checking and updating encrypted parameters:
    1. Move to the filepath where the parameters are saved (as an example, we will be using `login_vars.yml`):
       `cd control_plane/input_params`
    2. To view the encrypted parameters:
    `ansible-vault view login_vars.yml --vault-password-file .login_vault_key`
    3. To edit the encrypted parameters:
     `ansible-vault edit login_vars.yml --vault-password-file .login_vault_key`
-5. Checking pod status on the control plane
+## 5. Checking pod status on the control plane
     * Select the pod you need to troubleshoot from the output of `kubectl get pods -A`
     * Check the status of the pod by running `kubectl describe pod <pod name> -n <namespace name>`
 
