@@ -60,7 +60,7 @@ Resolution:<br>
 Potential Cause: <br>
 Lack of space in the root partition (/) causes Linux to clear files automatically (Use `df -h` to diagnose the issue).<br>
 Resolution:
-* Delete large, unused files to clear the root partition. Before running Omnia Control Plane, it is recommended to have a minimum of 50% free space in the root partition.
+* Delete large, unused files to clear the root partition (Use the command `find / -xdev -size +5M | xargs ls -lh | sort -n -k5` to identify these files). Before running Omnia Control Plane, it is recommended to have a minimum of 50% free space in the root partition.
 * Once the partition is cleared, run `kubeadm reset -f`
 * Re-run `control_plane.yml`
 
