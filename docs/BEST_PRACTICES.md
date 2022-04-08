@@ -4,5 +4,5 @@
 * Disable SElinux on the Control Plane.
 * Use a [host mapping file](examples/host_mapping_file_os_provisioning.csv) and [device mapping file](examples/mapping_device_file.csv) even when using DHCP configuration to ensure that IP assignments remain persistent across Control Plane reboots.
 * Avoid rebooting the Control Plane as much as possible to ensure that all network configuration does not get disturbed.
-* Review the [PreRequisites](docs/PreRequisites) before running Omnia Scripts.
+* Review the [PreRequisites](PreRequisites) before running Omnia Scripts.
 * If telemetry is to be enabled using Omnia, use AWX to deploy Slurm/Kubernetes.
