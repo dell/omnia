@@ -48,6 +48,9 @@ Resolution:
                 2. For connecting to the internet (Management purposes)
                 3. For connecting to PowerVault (Data Connection)
 
+## Why is the Infiniband NIC down after provisioning the server? <br>
+Omnia does not activate Infiniband NICs. To enable the device manually, use `ifup <IB NIC name>`. 
+
 ## What to do if AWX jobs fail with `Error creating pod: container failed to start, ImagePullBackOff`?
 Potential Cause:<br>
  After running `control_plane.yml`, the AWX image got deleted due to space considerations (use `df -h` to diagnose the issue.).<br>

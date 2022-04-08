@@ -38,6 +38,7 @@ After the configurations are validated, the **provision_idrac** file provisions 
 >>**Note**:
 >> * The `idrac.yml` file initiates the provisioning of custom ISO on the PowerEdge servers. Wait for some time for the node inventory to be updated on the AWX UI. 
 >> * Due to the latest `catalog.xml` file, Firmware updates may fail for certain components. Omnia execution doesn't get interrupted but an error gets logged on AWX. For now, please download those individual updates manually.
+>> * If a server is connected to an Infiniband Switch via an Infiniband NIC, Omnia will not activate this NIC. Manually update the NIC using `ifup <IB NIC name>`
 
 ### Provisioning newly added PowerEdge servers in the cluster
 To provision newly added servers, wait till the iDRAC IP addresses are automatically added to the *idrac_inventory*. After the iDRAC IP addresses are added, launch the iDRAC template on the AWX UI to provision CentOS custom OS on the servers.  

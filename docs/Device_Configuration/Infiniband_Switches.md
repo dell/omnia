@@ -9,18 +9,21 @@ Omnia uses the server-based Subnet Manager (SM). SM runs in a Kubernetes namespa
 
 ## Setting up a new or factory reset switch
 
-Before running `infiniband.yml`, ensure that HTTP and JSON Gateway are enabled on your switch. This can be verifed by running:
+Before running `infiniband.yml`, ensure that SSL Secure Cookies are disabled also HTTP and JSON Gateway need to be enabled on your switch.  This can be verifed by running:
 
-`show web` (To check if HTTP is enabled)
+`show web`  (To check if SSL Secure Cookies is disabled and HTTP is enabled)
 
 `show json-gw` (To check if JSON Gateway is enabled)
 
-In case either service has been disabled, run:
+In case any of these services are not in the state required, run:
+
+`no web https ssl secure-cookie enable` (To disable SSL Secure Cookies)
 
 `web http enable` (To enable the HTTP gateway)
 
 `json-gw enable` (To enable the JSON gateway)
 
+>> __Note:__ If a server is connected to an Infiniband Switch via an Infiniband NIC, Omnia will not activate this NIC. Manually update the NIC using `ifup <IB NIC name>`
 
 
 When connecting to a new or factory reset switch, the configuration wizard requests to execute an initial configuration:
