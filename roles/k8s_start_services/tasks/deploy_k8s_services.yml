@@ -34,10 +34,10 @@
   register: k8s_pods
   tags: init
 
-- name: Get metallb repo
-  command: "helm repo add metallb '{{ metallb_helm_url }}'"
-  changed_when: false
-  tags: init
+#- name: Get metallb repo
+  #command: "helm repo add metallb '{{ metallb_helm_url }}'"
+  #changed_when: false
+  #tags: init
 
 - name: Create MetalLB Setup Config Files
   copy:
@@ -48,17 +48,30 @@
     mode: "{{ metallb_config_file_mode }}"
   tags: init
 
-- name: Create MetalLB Setup Deployment Files
-  copy:
-    src: metallb.yaml
-    dest: "{{ metallb_deployment_file_dest }}"
-    owner: root
-    group: root
-    mode: "{{ metallb_deployment_file_mode }}"
+#- name: Create MetalLB Setup Deployment Files
+  #copy:
+    #src: metallb.yaml
+    #dest: "{{ metallb_deployment_file_dest }}"
+    #owner: root
+    #group: root
+    #mode: "{{ metallb_deployment_file_mode }}"
+  #tags: init
+
+- name: Create Metallb namespace
+  command: "kubectl create -f https://raw.githubusercontent.com/metallb/metallb/v0.10.3/manifests/namespace.yaml"
+  changed_when: true
+  when: "'metallb' not in k8s_pods.stdout"
+  tags: init
+
+- name: Generate Metallb secret
+  command: "kubectl create secret generic -n metallb-system metallb-memberlist --from-literal=secretkey='$(openssl rand -base64 128)'"
+  changed_when: true
+  when: "'metallb' not in k8s_pods.stdout"
   tags: init
 
 - name: Deploy Metallb
-  command: "helm install metallb metallb/metallb  -f '{{ metallb_config_file_dest }}'"
+  #command: "helm install metallb metallb/metallb  -f '{{ metallb_config_file_dest }}'"
+  command: "kubectl create -f  https://raw.githubusercontent.com/metallb/metallb/v0.10.3/manifests/metallb.yaml"
   changed_when: true
   when: "'metallb' not in k8s_pods.stdout"
   tags: init
@@ -211,11 +224,11 @@
   when: "'amdgpu-device-plugin' not in k8s_pods.stdout"
   tags: init
 
-- name: Deploy Volcano Scheduling
-  command: "kubectl apply -f '{{ volcano_scheduling_yaml_url }}'"
-  changed_when: true
-  when: "'volcano-system' not in k8s_pods.stdout"
-  tags: init
+#- name: Deploy Volcano Scheduling
+  #command: "kubectl apply -f '{{ volcano_scheduling_yaml_url }}'"
+  #changed_when: true
+  #when: "'volcano-system' not in k8s_pods.stdout"
+  #tags: init
 
 - name: Install Spark Operator
   command: "helm repo add spark-operator '{{ spark_operator_repo }}'"
