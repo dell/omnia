@@ -83,7 +83,7 @@
   tags: init
 
 - name: Apply Metallb config
-  command: "kubectl create -f  '{{metallb_config_file_dest }}'"
+  command: "kubectl create -f  '{{ metallb_config_file_dest }}'"
   changed_when: true
   when: "'metallb' not in k8s_pods.stdout"
   tags: init
