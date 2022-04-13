@@ -18,6 +18,8 @@ To encourage security, users who have been idle over 3 minutes will be logged ou
 
 Optionally, different communication protocols can be disabled on the control plane using the `restrict_program_support` and `restrict_softwares` variables in `omnia_security_vars.yml. These protocols include: telnet,lpd,bluetooth,rlogin and rexec. Features that cannot be disabled include: ftp,smbd,nmbd,automount and portmap. 
 
+>> __Note:__ The parameter `restrict_softwares` is __case-sensitive__
+
 ## Logging Program Executions using Snoopy
 
 Omnia installs Snoopy to log all program executions on Linux/BSD systems. For more information on Snoopy, click [here](https://github.com/a2o/snoopy).
