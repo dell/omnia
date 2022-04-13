@@ -38,8 +38,17 @@ After the configurations are validated, the **provision_idrac** file provisions 
 >>**Note**:
 >> * The `idrac.yml` file initiates the provisioning of custom ISO on the PowerEdge servers. Wait for some time for the node inventory to be updated on the AWX UI. 
 >> * Due to the latest `catalog.xml` file, Firmware updates may fail for certain components. Omnia execution doesn't get interrupted but an error gets logged on AWX. For now, please download those individual updates manually.
->> * If a server is connected to an Infiniband Switch via an Infiniband NIC, Omnia will not activate this NIC. Manually update the NIC using `ifup <IB NIC name>`
->> * For servers running LeapOS, run `omnia.yml` to install Infiniband drivers and then activate the IB NIC using `ifup <IB NIC name>`. Alternatively, if the [Leap OSS](http://download.opensuse.org/distribution/leap/15.3/repo/oss/) and [Leap Non OSS](http://download.opensuse.org/distribution/leap/15.3/repo/non-oss/) are installed, use `zypper install -n rdma-core librdmacm1 libibmad5 libibumad3` to install IB NIC drivers before manually bringing up the interface using the command above.
+>> * If a server is connected to an Infiniband Switch via an Infiniband NIC, Omnia will not activate this NIC. Use the below instructions depending on the OS.
+>> * For servers running Rocky,Infiniband NICs can be manually enabled using `ifup <InfiniBand NIC>`.
+>> * If your server is running LeapOS, ensure the following pre-requisites are met before manually bringing up the interface:
+>> 	1. The following repositories have to be installed:
+>> 		* [Leap OSS](http://download.opensuse.org/distribution/leap/15.3/repo/oss/)
+>> 		* [Leap Non OSS](http://download.opensuse.org/distribution/leap/15.3/repo/non-oss/)
+>> 	2. Run: `zypper install -n rdma-core librdmacm1 libibmad5 libibumad3 infiniband-diags` to install IB NIC drivers.  (If the drivers do not install smoothly, reboot the server to apply the required changes)
+>> 	3. Run: `service network status` to verify that `wicked.service` is running.
+>> 	4. Verify that the ifcfg-<InfiniBand NIC> file is present in `/etc/sysconfig/network`
+>> 	5. Once all the pre-requisites are met, bring up the interface manually using `ifup <InfiniBand NIC>`
+
 
 
 ### Provisioning newly added PowerEdge servers in the cluster

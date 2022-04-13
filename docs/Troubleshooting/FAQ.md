@@ -49,8 +49,17 @@ Resolution:
                 3. For connecting to PowerVault (Data Connection)
 
 ## Why is the Infiniband NIC down after provisioning the server? <br>
-Omnia does not activate Infiniband NICs. To enable the device manually, use `ifup <IB NIC name>`. 
->> __Note:__ If your server is running LeapOS, run `omnia.yml` to install IB drivers then manually enable devices. Alternatively, if the [Leap OSS](http://download.opensuse.org/distribution/leap/15.3/repo/oss/) and [Leap Non OSS](http://download.opensuse.org/distribution/leap/15.3/repo/non-oss/) are installed, use `zypper install -n rdma-core librdmacm1 libibmad5 libibumad3` to install IB NIC drivers before manually bringing up the interface using the command above.
+Omnia does not activate Infiniband NICs. 
+1. For servers running Rocky, enable the Infiniband NIC manually, use `ifup <InfiniBand NIC>`. 
+2. If your server is running LeapOS, ensure the following pre-requisites are met before manually bringing up the interface:
+   1. The following repositories have to be installed:
+      * [Leap OSS](http://download.opensuse.org/distribution/leap/15.3/repo/oss/)
+      * [Leap Non OSS](http://download.opensuse.org/distribution/leap/15.3/repo/non-oss/)
+   2. Run: `zypper install -n rdma-core librdmacm1 libibmad5 libibumad3 infiniband-diags` to install IB NIC drivers.  (If the drivers do not install smoothly, reboot the server to apply the required changes)
+   3. Run: `service network status` to verify that `wicked.service` is running.
+   4. Verify that the ifcfg-< InfiniBand NIC > file is present in `/etc/sysconfig/network`.
+   5. Once all the above pre-requisites are met, bring up the interface manually using `ifup <InfiniBand NIC>`.
+
 
 ## What to do if AWX jobs fail with `Error creating pod: container failed to start, ImagePullBackOff`?
 Potential Cause:<br>
