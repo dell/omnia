@@ -38,6 +38,102 @@
     chdir: "{{ omnia_kubeflow_dir_path }}"
   changed_when: true
 
+- name: Modify CPU limits for istio-pilot
+  replace:
+    path: "{{ istio_noauth_yaml_file_path }}"
+    after: 'envoy_pilot.yaml.tmpl'
+    before: '---'
+    regexp: 'cpu: 2000m'
+    replace: 'cpu: 2'
+
+- name: Modify Memory limits for istio-pilot
+  replace:
+    path: "{{ istio_noauth_yaml_file_path }}"
+    after: 'envoy_pilot.yaml.tmpl'
+    before: '---'
+    regexp: 'memory: 128Mi'
+    replace: 'memory: 256Mi'
+
+- name: Modify CPU request for istio-pilot
+  replace:
+    path: "{{ istio_noauth_yaml_file_path }}"
+    after: 'envoy_pilot.yaml.tmpl'
+    before: '---'
+    regexp: 'cpu: 10m'
+    replace: 'cpu: 1'
+
+- name: Modify Memory request for istio-pilot
+  replace:
+    path: "{{ istio_noauth_yaml_file_path }}"
+    after: 'envoy_pilot.yaml.tmpl'
+    before: '---'
+    regexp: 'memory: 40Mi'
+    replace: 'memory: 256Mi'
+
+- name: Modify CPU limits for istio-policy
+  replace:
+    path: "{{ istio_noauth_yaml_file_path }}"
+    after: 'envoy_policy.yaml.tmpl'
+    before: '---'
+    regexp: 'cpu: 2000m'
+    replace: 'cpu: 2'
+
+- name: Modify Memory limits for istio-policy
+  replace:
+    path: "{{ istio_noauth_yaml_file_path }}"
+    after: 'envoy_policy.yaml.tmpl'
+    before: '---'
+    regexp: 'memory: 128Mi'
+    replace: 'memory: 256Mi'
+
+- name: Modify CPU request for istio-policy
+  replace:
+    path: "{{ istio_noauth_yaml_file_path }}"
+    after: 'envoy_policy.yaml.tmpl'
+    before: '---'
+    regexp: 'cpu: 10m'
+    replace: 'cpu: 1'
+
+- name: Modify Memory request for istio-policy
+  replace:
+    path: "{{ istio_noauth_yaml_file_path }}"
+    after: 'envoy_policy.yaml.tmpl'
+    before: '---'
+    regexp: 'memory: 40Mi'
+    replace: 'memory: 256Mi'
+
+- name: Modify CPU limits for istio-telemetry
+  replace:
+    path: "{{ istio_noauth_yaml_file_path }}"
+    after: 'envoy_telemetry.yaml.tmpl'
+    before: '---'
+    regexp: 'cpu: 2000m'
+    replace: 'cpu: 2'
+
+- name: Modify Memory limits for istio-telemetry
+  replace:
+    path: "{{ istio_noauth_yaml_file_path }}"
+    after: 'envoy_telemetry.yaml.tmpl'
+    before: '---'
+    regexp: 'memory: 128Mi'
+    replace: 'memory: 256Mi'
+
+- name: Modify CPU request for istio-telemetry
+  replace:
+    path: "{{ istio_noauth_yaml_file_path }}"
+    after: 'envoy_telemetry.yaml.tmpl'
+    before: '---'
+    regexp: 'cpu: 10m'
+    replace: 'cpu: 1'
+
+- name: Modify Memory request for istio-telemetry
+  replace:
+    path: "{{ istio_noauth_yaml_file_path }}"
+    after: 'envoy_telemetry.yaml.tmpl'
+    before: '---'
+    regexp: 'memory: 40Mi'
+    replace: 'memory: 256Mi'
+
 - name: Modify CPU limit for istio-ingressgateway-service-account
   replace:
     path: "{{ istio_noauth_yaml_file_path }}"
