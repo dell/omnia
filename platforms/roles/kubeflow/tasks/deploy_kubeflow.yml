@@ -180,7 +180,7 @@
     after: 'serviceAccountName: istio-egressgateway-service-account'
     before: '---'
     regexp: 'memory: 40Mi'
-    replace: 'memory: 128Mi'
+    replace: 'memory: 256Mi'
 
 - name: Modify CPU limit for kfserving-gateway
   replace:
