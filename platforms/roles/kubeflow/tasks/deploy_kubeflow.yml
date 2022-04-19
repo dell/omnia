@@ -38,6 +38,30 @@
     chdir: "{{ omnia_kubeflow_dir_path }}"
   changed_when: true
 
+- name: Add service account API
+  lineinfile:
+    path: /etc/kubernetes/manifests/kube-apiserver.yaml
+    insertafter: "    - --tls-private-key-file=/etc/kubernetes/pki/apiserver.key" 
+    line: "    - --service-account-issuer=kubernetes.default.svc"
+    firstmatch: yes
+    state: present
+
+- name: Add sa key
+  lineinfile:
+    path: /etc/kubernetes/manifests/kube-apiserver.yaml
+    insertafter: "    - --service-account-issuer=kubernetes.default.svc"
+    line: "    - --service-account-signing-key-file=/etc/kubernetes/pki/sa.key"
+    firstmatch: yes
+    state: present
+
+- name: Change istio-install base istio-noauth service from NodePort to LoadBalancer
+  replace:
+    path: "{{ istio_ingress_yaml_file_path }}"
+    after: 'name: istio-ingressgateway'
+    before: 'selector:'
+    regexp: 'NodePort'
+    replace: 'LoadBalancer'
+
 - name: Apply kubeflow configuration
   command:
     cmd: "/usr/bin/kfctl apply -V -f '{{ kubeflow_config_file }}'"

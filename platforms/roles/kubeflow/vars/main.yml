@@ -41,6 +41,8 @@ kubeflow_config_yaml_url: https://raw.githubusercontent.com/kubeflow/manifests/v
 
 istio_noauth_yaml_file_path: "{{ omnia_kubeflow_dir_path }}/kustomize/istio-install/base/deployment.yaml"
 
+istio_ingress_yaml_file_path: "{{ omnia_kubeflow_dir_path }}/kustomize/istio-install/base/service.yaml"
+
 kfserving_gateway_yaml_file_path: "{{ omnia_kubeflow_dir_path }}/kustomize/kfserving-gateway/base/deployment.yaml"
 
 argo_yaml_file_path: "{{ omnia_kubeflow_dir_path }}/kustomize/argo/base/service.yaml"
