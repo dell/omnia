@@ -1,0 +1,11 @@
+all:
+  children:
+    manager:
+      hosts:
+        compute102.omnia.local:
+    nfs_node:
+      hosts:
+        compute102.omnia.local:
+    compute: 
+      hosts:
+        compute103.omnia.local:
