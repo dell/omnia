@@ -166,13 +166,29 @@
     regexp: 'memory: 40Mi'
     replace: 'memory: 256Mi'
 
+- name: Modify CPU limits for istio-engressgateway-service-account
+  replace:
+    path: "{{ istio_noauth_yaml_file_path }}"
+    after: 'serviceAccountName: istio-egressgateway-service-account'
+    before: '---'
+    regexp: 'cpu: 100m'
+    replace: 'cpu: 2'
+
+- name: Modify CPU request for istio-engressgateway-service-account
+  replace:
+    path: "{{ istio_noauth_yaml_file_path }}"
+    after: 'serviceAccountName: istio-egressgateway-service-account'
+    before: '---'
+    regexp: 'cpu: 10m'
+    replace: 'cpu: 1'
+
 - name: Modify memory request for istio-engressgateway-service-account
   replace:
     path: "{{ istio_noauth_yaml_file_path }}"
     after: 'serviceAccountName: istio-egressgateway-service-account'
     before: '---'
     regexp: 'memory: 128Mi'
-    replace: 'memory: 256Mi'
+    replace: 'memory: 512Mi'
 
 - name: Modify memory request for istio-engressgateway-service-account
   replace:
@@ -180,7 +196,7 @@
     after: 'serviceAccountName: istio-egressgateway-service-account'
     before: '---'
     regexp: 'memory: 40Mi'
-    replace: 'memory: 256Mi'
+    replace: 'memory: 512Mi'
 
 - name: Modify CPU limit for kfserving-gateway
   replace:
