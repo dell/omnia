@@ -62,6 +62,12 @@
     regexp: 'NodePort'
     replace: 'LoadBalancer'
 
+- name: Change argo base service from NodePort to LoadBalancer
+  replace:
+    path: "{{ argo_yaml_file_path }}"
+    regexp: 'NodePort'
+    replace: 'LoadBalancer'
+
 - name: Apply kubeflow configuration
   command:
     cmd: "/usr/bin/kfctl apply -V -f '{{ kubeflow_config_file }}'"
