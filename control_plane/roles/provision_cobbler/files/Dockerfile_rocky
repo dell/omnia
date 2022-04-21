@@ -45,7 +45,7 @@ RUN yum install -y yum-utils
 RUN dnf config-manager --set-enabled powertools
 RUN dnf install -y python3-sphinx
 RUN pip3 install wheel
-RUN dnf module enable -y cobbler
+RUN dnf module enable -y cobbler:3
 RUN dnf install -y cobbler
 RUN dnf install -y cobbler-web
 
