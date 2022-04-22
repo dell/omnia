@@ -28,6 +28,7 @@ iso_package: xorriso
 tmp_iso_dir: /tmp/{{ provision_os }}/
 idrac_centos_ks: centos7.cfg
 idrac_rocky_ks: rocky8.cfg
+idrac_rhel_ks: rhel8.cfg
 idrac_leap_ks: autoinst.xml
 file_permission: 0744
 isolinux_cfg_path: isolinux/isolinux.cfg
@@ -45,3 +46,6 @@ leap_iso_filename: unattended_leap15.iso
 
 # Usage: create_unattended_iso_centos.yml
 centos_iso_filename: unattended_centos7.iso
+
+# Usage: create_unattended_iso_rhel.yml
+rhel_iso_filename: unattended_rhel8.iso

@@ -14,10 +14,10 @@
 ---
 
 - name: Include control_plane_common vars
-  include_vars: ../../control_plane_common/vars/main.yml  
+  include_vars: "{{ playbook_dir }}/roles/control_plane_common/vars/main.yml"
 
 - name: Include provision_cobbler vars
-  include_vars: ../../provision_cobbler/vars/main.yml
+  include_vars: "{{ playbook_dir }}/roles/provision_cobbler/vars/main.yml"
 
 - name: Install xorriso package - rocky
   package:
@@ -47,7 +47,7 @@
   register: check_mount_iso
 
 - name: Include provision_cobbler vars
-  include_tasks: ../../provision_cobbler/tasks/mount_iso.yml
+  include_tasks: "{{ playbook_dir }}/roles/provision_cobbler/tasks/mount_iso.yml"
   when: not check_mount_iso.stat.exists
 
 - name: Recheck iso mount folder
@@ -64,9 +64,14 @@
     - not recheck_mount_iso.stat.exists
   register: iso_mount_fail 
 
+- name: Remove the management_station_ip_file
+  file:
+    path: "{{ playbook_dir }}/roles/provision_idrac/files/{{ management_station_ip_file }}"
+    state: absent
+
 - name: Copy management station ip to {{ management_station_ip_file }}
   lineinfile:
-    path: "{{ role_path }}/../provision_idrac/files/{{ management_station_ip_file }}"
+    path: "{{ playbook_dir }}/roles/provision_idrac/files/{{ management_station_ip_file }}"
     line: "{{ mngmnt_network_ip }}"
     mode: "{{ file_permission }}"
     create: yes
@@ -74,7 +79,7 @@
 
 - name: Copy management station ip to {{ management_station_ip_file }}
   lineinfile:
-    path: "{{ role_path }}/../provision_idrac/files/{{ management_station_ip_file }}"
+    path: "{{ playbook_dir }}/roles/provision_idrac/files/{{ management_station_ip_file }}"
     line: "{{ public_ip }}"
     mode: "{{ file_permission }}"
     create: yes
