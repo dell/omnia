@@ -115,7 +115,7 @@ provision_method: "PXE"
 provision_state: "stateful"
 
 # This is the operating system image that will be used for provisioning compute nodes in the cluster.
-# Accepted values: rocky, centos, leap, rhel
+# Accepted values: rocky, centos, leap, redhat
 # Default value: "rocky"
 # Required field
 provision_os: "rocky"
