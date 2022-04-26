@@ -74,7 +74,8 @@
     that:
       - ( os_supported_centos in mgmt_os ) and ( ansible_distribution_version >= os_supported_centos_version ) or
         ( os_supported_rocky in mgmt_os ) and ( ansible_distribution_version >= os_supported_rocky_version ) or
-        ( os_supported_leap in mgmt_os ) and ( ansible_distribution_version >= os_supported_leap_version )
+        ( os_supported_leap in mgmt_os ) and ( ansible_distribution_version >= os_supported_leap_version ) or
+        ( os_supported_rhel in mgmt_os ) and ( ansible_distribution_version >= os_supported_rhel_version )
     fail_msg: "{{ fail_os_status }}"
     success_msg: "{{ success_os_status }}"
   register: os_value

@@ -20,7 +20,7 @@
     chdir: "{{ role_path }}/files/"
   when: 
     - not cobbler_image_status
-    - mgmt_os == os_supported_rocky
+    - mgmt_os == os_supported_rocky or mgmt_os == os_supported_rhel
   tags: install
 
 - name: Image creation (It may take 5-10 mins)
