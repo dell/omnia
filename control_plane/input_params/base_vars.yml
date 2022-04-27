@@ -126,6 +126,13 @@ provision_os: "rocky"
 # Required field
 iso_file_path: "/home/Rocky-8.5-x86_64-minimal.iso"
 
+# This variable is used to enable red hat subscription management when provision_os is set to "rhel".
+# Accepted values: "true" or "false"
+# Default value: "false"
+# If user doesn't want omnia to handle redhat subscription management, set this to "false"
+# If set to true, please update variable values in rhsm_vars.yml
+rhsm_support: false
+
 # This is the timezone that will be set during provisioning of OS
 # Available timezones are provided in control_plane/common/files/timezone.txt
 # Default timezone will be "GMT"
