@@ -64,11 +64,17 @@
           with_items: "{{ centos_host_nic }}"
       when: provision_os == os_supported_centos
 
-    - name: Kickstart file changes rocky
+    - name: Kickstart file changes rocky and rhel
       block:
         - name: Set rocky kickstart file name
           set_fact:
-            idrac_kickstart_file: "{{ idrac_rocky_ks }}"      
+            idrac_kickstart_file: "{{ idrac_rocky_ks }}"
+          when: provision_os == os_supported_rocky
+
+        - name: Set rhel kickstart file name
+          set_fact:
+            idrac_kickstart_file: "{{ idrac_rhel_ks }}"
+          when: provision_os == os_supported_rhel
 
         - name: Remove the kickstart file if exists
           file:
@@ -79,7 +85,15 @@
           copy:
             src: "{{ role_path }}/files/temp_rocky8.cfg"
             dest: "{{ role_path }}/files/{{ idrac_kickstart_file }}"
-            mode: "{{ file_permission }}"       
+            mode: "{{ file_permission }}"
+          when: provision_os == os_supported_rocky
+
+        - name: Create the rhel kickstart file
+          copy:
+            src: "{{ role_path }}/files/temp_rhel8.cfg"
+            dest: "{{ role_path }}/files/{{ idrac_kickstart_file }}"
+            mode: "{{ file_permission }}"
+          when: provision_os == os_supported_rhel
 
         - name: Configure kickstart file - nic
           lineinfile:
@@ -87,7 +101,9 @@
             insertafter: '^network  --bootproto=dhcp --device=link --onboot=on --activate'
             line: 'network  --bootproto=dhcp --device={{ item }} --onboot=on --activate'         
           with_items: "{{ rocky_host_nic }}"
-      when: provision_os == os_supported_rocky
+      when:
+        - provision_os == os_supported_rocky or
+          provision_os == os_supported_rhel
 
     - name: Configure kickstart file - Password
       replace:
@@ -140,7 +156,8 @@
         - { regexp: "rd.live.check quiet", replace: "" } 
   when:
     - provision_os == os_supported_rocky or
-      provision_os == os_supported_centos
+      provision_os == os_supported_centos or
+      provision_os == os_supported_rhel
 
 - name: Kickstart file changes leap
   block:
