@@ -40,6 +40,11 @@ common_packages_rocky:
   - device-mapper-persistent-data
   - yum-plugin-versionlock
 
+common_packages_rhel:
+  - yum-utils
+  - device-mapper-persistent-data
+  - yum-plugin-versionlock
+
 # Usage: set_docker_os.yml
 docker_rocky_os_version: "8"
 docker_leap_os_version: "15.3"
@@ -58,7 +63,9 @@ os_supported_centos: "centos"
 os_supported_rocky: "rocky"
 os_supported_centos_version: "8.3"
 os_supported_rocky_version: "8.4"
-fail_os_status: "Unsupported OS or OS version. OS should be {{ os_supported_centos }} {{ os_supported_centos_version }} or {{ os_supported_rocky }} {{ os_supported_rocky_version }} or {{ os_supported_leap }} {{ os_supported_leap_version }}"
+os_supported_rhel: "redhat"
+os_supported_rhel_version: "8.0"
+fail_os_status: "Unsupported OS or OS version. OS should be {{ os_supported_centos }} {{ os_supported_centos_version }} or {{ os_supported_rocky }} {{ os_supported_rocky_version }} or {{ os_supported_leap }} {{ os_supported_leap_version }} or {{ os_supported_rhel }} greater than or equal to {{ os_supported_rhel_version }}"
 success_os_status: "Management Station OS validated"
 internet_status: "Failed. No Internet connection. Make sure network is up."
 selinux_warning: "Warning! SELinux status is disabled by user. No SELinux policy is loaded"
@@ -160,7 +167,7 @@ fail_msg_different_nics_ib: "Failed. Infiniband nic cannot be the same as other 
 success_msg_lease_time: "Default lease time validated"
 fail_msg_lease_time: "Failed. Please provide a valid default lease time"
 provision_os_success_msg: "provision_os validated"
-provision_os_fail_msg: "Failed. Incorrect provision_os selected. Supported OS are {{ os_supported_centos }} or {{ os_supported_rocky }}"
+provision_os_fail_msg: "Failed. Incorrect provision_os selected. Supported OS are {{ os_supported_centos }} or {{ os_supported_rocky }} or {{ os_supported_rhel }}"
 provision_state_success_msg: "provision_state validated"
 provision_state_fail_msg: "Failed. Incorrect provision_state selected. Supported only stateful"
 enable_security_support_success_msg: "enable_security_support validated"
