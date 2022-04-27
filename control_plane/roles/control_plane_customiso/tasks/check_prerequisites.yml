@@ -47,7 +47,7 @@
   register: check_mount_iso
 
 - name: Include provision_cobbler vars
-  include_tasks: "{{ playbook_dir }}/roles/provision_cobbler/tasks/mount_iso.yml"
+  include_tasks: ../../provision_cobbler/tasks/mount_iso.yml
   when: not check_mount_iso.stat.exists
 
 - name: Recheck iso mount folder
