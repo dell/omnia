@@ -18,6 +18,16 @@
     name: "{{ ipa_server_packages }}"
     state: present
   tags: install
+  when:
+    - os_supported_rhel not in mgmt_os
+
+- name: Install packages for RHEL
+  package:
+    name: "{{ ipa_server_packages_rhel }}"
+    state: present
+  tags: install
+  when:
+    - os_supported_rhel in mgmt_os
 
 - name: Take a backup of /etc/resolv.conf
   copy:

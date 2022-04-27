@@ -57,7 +57,8 @@
     that:
       - provision_os == os_supported_centos or 
         provision_os == os_supported_rocky or
-        provision_os == os_supported_leap
+        provision_os == os_supported_leap or
+        provision_os == os_supported_rhel
     fail_msg: "{{ provision_os_fail_msg }}"
     success_msg: "{{ provision_os_success_msg }}"
 
