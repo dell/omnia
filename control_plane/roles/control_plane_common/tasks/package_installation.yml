@@ -23,6 +23,14 @@
     state: present
   when:
     - os_supported_leap not in mgmt_os
+    - os_supported_rhel not in mgmt_os
+
+- name: Install packages - rhel
+  package:
+    name: "{{ common_packages_rhel }}"
+    state: present
+  when:
+    - os_supported_rhel in mgmt_os
 
 - name: Install netaddr
   command: pip3 install netaddr

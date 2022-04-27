@@ -33,4 +33,8 @@
   - name: Create unattended iso file centos
     include_tasks: create_unattended_iso_centos.yml
     when: provision_os == os_supported_centos
+
+  - name: Create unattended iso file rhel
+    include_tasks: create_unattended_iso_rhel.yml
+    when: provision_os == os_supported_rhel
   when: device_support_status

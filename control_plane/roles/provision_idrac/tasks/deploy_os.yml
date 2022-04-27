@@ -50,6 +50,11 @@
         unattended_iso_filename: "{{ leap_iso_filename }}"
       when: provision_os == os_supported_leap
 
+    - name: Set unattended_iso_filename - rhel
+      set_fact:
+        unattended_iso_filename: "{{ rhel_iso_filename }}"
+      when: provision_os == os_supported_rhel
+
     - name: Install OS using iDRAC
       dellemc.openmanage.idrac_os_deployment:
         idrac_ip: "{{ inventory_hostname }}"
