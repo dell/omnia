@@ -105,6 +105,9 @@ Our thanks go to everyone who makes Omnia possible ([emoji key](https://allcontr
     <td align="center"><a href="https://github.com/KalyanKonatham"><img src="https://avatars.githubusercontent.com/u/101596828?v=4?s=100" width="100px;" alt=""/><br /><sub><b>KalyanKonatham</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/issues?q=author%3AKalyanKonatham" title="Bug reports">🐛</a></td>
     <td align="center"><a href="https://github.com/rahulakolkar"><img src="https://avatars.githubusercontent.com/u/22768133?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Rahul Akolkar</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/issues?q=author%3Arahulakolkar" title="Bug reports">🐛</a></td>
   </tr>
+  <tr>
+    <td align="center"><a href="https://github.com/srinandini-karumuri"><img src="https://avatars.githubusercontent.com/u/104345504?v=4?s=100" width="100px;" alt=""/><br /><sub><b>srinandini-karumuri</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=srinandini-karumuri" title="Code">💻</a></td>
+  </tr>
 </table>
 
 <!-- markdownlint-restore -->
