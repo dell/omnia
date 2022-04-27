@@ -16,6 +16,10 @@
   set_fact:
     compute_os: "{{ ansible_facts['distribution'] | lower }}"
 
+- name: Check for redhat subscription if compute os is redhat
+  include_tasks: validate_rhsm.yml
+  when: compute_os == os_supported_redhat
+
 - name: Create a custom fact directory on each host
   file:
     path: "{{ custom_fact_dir }}"
