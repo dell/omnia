@@ -71,3 +71,8 @@
 - name: NFS Server setup for offline repo and awx
   import_tasks: nfs_server_setup.yml
   tags: init
+  
+- name: Redhat subscription management file validation
+  import_tasks: fetch_rhsm_inputs.yml
+  when: provision_os | lower == "redhat"
+  tags: [ validate, rhsm ]
