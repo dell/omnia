@@ -310,3 +310,23 @@ poweredge_model_fail_msg: "Failed. poweredge_model is incorrect or unsupported. 
 fail_device_ip_format: "Failed.Incorrect file format. File should only contain IPs"
 success_device_ip_format: "File is correct"
 mgmnt_ip_path: "{{ role_path}}/../collect_device_info/files/mgmt_provisioned_hosts.yml"
+
+# Usage: fetch_rhsm_inputs.yml
+rhsm_vars_vaultname: "{{ playbook_dir }}/input_params/.rhsm_vars_vault_key"
+rhsm_vars_filename: "{{ playbook_dir }}/input_params/rhsm_vars.yml"
+rhsm_vault_file_perm: '0640'
+rhsm_method_fail_msg: "rhsm_method can either be set to portal or satellite"
+rhsm_credentials_fail_msg: "rhsm_username and rhsm_password are mandatory fields if rhsm_method is set to portal"
+rhsm_autosubscribe_fail_msg: "rhsm_autosubscribe needs to be set to yes or no when rhsm_method is set to portal"
+rhsm_portal_vars_me: "rhsm_username and rhsm_password will not be used when rhsm_method is set to satellite"
+rhsm_satellite_vars_me: "rhsm_activation_key and rhsm_org_id will not be used when rhsm_method is set to portal"
+rhsm_activation_key_fail_msg: "rhsm_activation_key is mandatory field if rhsm_method is set to satellite"
+rhsm_org_id_fail_msg: "rhsm_org_id must be used along with rhsm_activation_key"
+rhsm_force_register_fail_msg: "rhsm_force_register can take values yes or no"
+rhsm_repos_state_fail_msg: "rhsm_repos_state can be set as enabled/disabled when rhsm_repos is defined"
+rhsm_repos_purge_fail_msg: "rhsm_repos_purge can be set as yes/no when rhsm_repos is defined"
+rhsm_rhsm_port_fail_msg: "rhsm_rhsm_port can have values 443 or 8443 only"
+rhsm_insecure_fail_msg: "Accepted values for rhsm_insecure are true, false"
+rhsm_rhsm_proxy_proto_fail_msg: "Accepted values for rhsm_rhsm_proxy_proto are http, https"
+rhsm_rhsm_options_fail_msg: "Accepted values for rhsm_manage_repos, rhsm_full_refresh_on_yum,
+                              rhsm_report_package_profile are true and false"

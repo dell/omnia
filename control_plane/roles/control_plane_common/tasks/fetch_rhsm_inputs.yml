@@ -1,0 +1,204 @@
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Check if rhsm_vars.yml file is encrypted
+  command: cat {{ rhsm_vars_filename }}
+  changed_when: false
+  register: rhsm_vars_content
+  no_log: true
+
+- name: Decrpyt rhsm_vars.yml
+  command: >-
+    ansible-vault decrypt {{ rhsm_vars_filename }}
+    --vault-password-file {{ rhsm_vars_vaultname }}
+  changed_when: false
+  when: "'$ANSIBLE_VAULT;' in rhsm_vars_content.stdout"
+
+- name: Include rhsm_vars.yml file
+  include_vars: "{{ rhsm_vars_filename }}"
+
+- name: Validate rhsm_support
+  assert:
+    that: (rhsm_support | lower == "true") or (rhsm_support | lower  == "false")
+  register: failure_msg
+  no_log: true
+
+- block:
+  - name: Validate rhsm_method
+    assert:
+      that: (rhsm_method | lower == "portal") or (rhsm_method | lower  == "satellite")
+      fail_msg: "{{ rhsm_method_fail_msg }}"
+    register: failure_msg
+    no_log: true
+
+  - name: Inform the user if any mutually exclusive variables are set together
+    block:
+    - name: Info message
+      debug:
+        msg: "{{ rhsm_portal_vars_me }}"
+      when:
+        - rhsm_method | lower == "satellite"
+        - ( rhsm_username | default("", true) | length > 1 )
+          or ( rhsm_password | default("", true) | length > 1 )
+
+    - name: Info message
+      debug:
+        msg: "{{ rhsm_satellite_vars_me }}"
+      when:
+        - rhsm_method | lower == "portal"
+        - (rhsm_activation_key | default("", true) | length > 1 ) or
+           ( rhsm_org_id | default("", true) | length > 1 )
+
+  - name: Validate rhsm_username and rhsm_password
+    assert:
+      that:
+        - rhsm_username is defined
+        - rhsm_password is defined
+        - rhsm_username | default("", true) | length >1
+        - rhsm_password | default("", true) | length >1
+      fail_msg: "{{ rhsm_credentials_fail_msg }}"
+    register: failure_msg
+    no_log: true
+    when: rhsm_method| lower == "portal"
+
+  - name: Validate rhsm_autosubscribe
+    assert:
+      that:
+        - (rhsm_autosubscribe | lower == "true") or (rhsm_autosubscribe | lower == "false")
+      fail_msg: "{{ rhsm_autosubscribe_fail_msg }}"
+    register: failure_msg
+    no_log: true
+    when: rhsm_method| lower == "portal"
+
+  - name: Validate rhsm_activation_key
+    assert:
+      that:
+        - rhsm_activation_key is defined
+        - rhsm_activation_key | default("", true) | length >1
+      fail_msg: "{{ rhsm_activation_key_fail_msg }}"
+    register: failure_msg
+    no_log: true
+    when: rhsm_method| lower == "satellite"
+
+  - name: Validate rhsm_org_id
+    assert:
+      that:
+        - rhsm_org_id | default("", true) | length >1
+      fail_msg: "{{ rhsm_org_id_fail_msg }}"
+    register: failure_msg
+    no_log: true
+    when: rhsm_method| lower == "satellite"
+
+  - name: Validate rhsm_force_register
+    assert:
+      that:
+        - (rhsm_force_register | lower == "true") or (rhsm_force_register | lower == "false")
+      fail_msg: "{{ rhsm_force_register_fail_msg }}"
+    register: failure_msg
+    no_log: true
+
+  - name: Validate rhsm_repos_state
+    assert:
+      that:
+        - (rhsm_repos_state | lower == "enabled") or (rhsm_repos_state | lower == "disabled")
+      fail_msg: "{{ rhsm_repos_state_fail_msg }}"
+    register: failure_msg
+    no_log: true
+    when: rhsm_repos | default("", true) | length >1
+
+  - name: Validate rhsm_repos_purge
+    assert:
+      that:
+        - (rhsm_repos_purge | lower == "true") or (rhsm_repos_purge | lower == "false")
+      fail_msg: "{{ rhsm_repos_purge_fail_msg }}"
+    register: failure_msg
+    no_log: true
+    when: rhsm_repos | default("", true) | length >1
+
+  - name: Validate rhsm_rhsm_port
+    assert:
+      that:
+        - (rhsm_rhsm_port == 443) or (rhsm_rhsm_port == 8443)
+      fail_msg: "{{ rhsm_rhsm_port_fail_msg }}"
+    register: failure_msg
+    no_log: true
+
+  - name: Validate rhsm_insecure
+    assert:
+      that:
+        - (rhsm_insecure | lower == "true") or (rhsm_insecure | lower == "false")
+      fail_msg: "{{ rhsm_insecure_fail_msg }}"
+    register: failure_msg
+    no_log: true
+
+  - name: Validate rhsm_rhsm_proxy_proto
+    assert:
+      that:
+        - (rhsm_rhsm_proxy_proto | lower == "http") or (rhsm_rhsm_proxy_proto | lower == "https")
+      fail_msg: "{{ rhsm_rhsm_proxy_proto_fail_msg }}"
+    register: failure_msg
+    no_log: true
+
+  - name: Validate rhsm_manage_repos, rhsm_full_refresh_on_yum, rhsm_report_package_profile
+    assert:
+      that:
+        - (rhsm_manage_repos | lower == "true") or (rhsm_manage_repos | lower == "false")
+        - (rhsm_full_refresh_on_yum | lower == "true") or (rhsm_full_refresh_on_yum | lower == "false")
+        - (rhsm_report_package_profile | lower == "true") or (rhsm_report_package_profile | lower == "false")
+      fail_msg: "{{ rhsm_rhsm_options_fail_msg }}"
+    register: failure_msg
+    no_log: true
+
+  when:
+    - rhsm_support | lower == "true"
+
+  rescue:
+    - name: Show failure msg
+      fail:
+        msg: "{{ failure_msg.msg }}"
+
+- block:
+  - name: Check if rhsm_vars_vault key exists
+    stat:
+      path: "{{ rhsm_vars_vaultname }}"
+    register: rhsm_vars_key_result
+
+  - name: Create ansible vault key if it does not exist
+    set_fact:
+      rhsm_vault_key: "{{ lookup('password', '/dev/null chars=ascii_letters') }}"
+    when: not rhsm_vars_key_result.stat.exists
+
+  - name: Save vault key
+    copy:
+      dest: "{{ rhsm_vars_vaultname }}"
+      content: |
+        {{ rhsm_vault_key }}
+      owner: root
+      force: yes
+      mode: "{{ rhsm_vault_file_perm }}"
+    when: not rhsm_vars_key_result.stat.exists
+
+  - name: Encrpyt rhsm_vars.yml
+    command: >-
+      ansible-vault encrypt {{ rhsm_vars_filename }} --vault-password-file {{ rhsm_vars_vaultname }}
+    changed_when: true
+
+  - name: Update rhsm_vars.yml permission
+    file:
+      path: "{{ rhsm_vars_filename }}"
+      mode: "{{ rhsm_vault_file_perm }}"
+
+  when:
+    - rhsm_support | lower == "true"
