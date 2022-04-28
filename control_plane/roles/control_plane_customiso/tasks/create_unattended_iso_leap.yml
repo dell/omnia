@@ -34,3 +34,8 @@
   file:
     path: "{{ role_path }}/files/{{ idrac_kickstart_file }}"
     state: absent
+
+- name: Delete the tmp_iso_dir
+  file:
+    path: "{{ tmp_iso_dir }}"
+    state: absent
