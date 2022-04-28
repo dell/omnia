@@ -15,31 +15,31 @@
 
 - name: Initialize variables
   set_fact:
-    mngmnt_network_container_status: false
+    mgmt_network_container_status: false
   tags: init
 
-- name: Check mngmnt_network_container status on the machine
+- name: Check mgmt_network_container status on the machine
   command: kubectl get pods -n network-config
-  register: mngmnt_network_container_result
+  register: mgmt_network_container_result
   failed_when: false
   changed_when: false
   tags: init
 
-- name: Validate if mngmnt_network is present if device_config is false
+- name: Validate if mgmt_network is present if device_config is false
   set_fact:
-    mngmnt_network_container_status: true
-  when: "'mngmnt-network-container' in mngmnt_network_container_result.stdout"
+    mgmt_network_container_status: true
+  when: "'mgmt-network-container' in mgmt_network_container_result.stdout"
   tags: init
 
-- name: Validate if mngmnt_network is present if device_config is false
+- name: Validate if mgmt_network is present if device_config is false
   assert:
     that: device_config_support != false
     success_msg: "{{ mgmnt_device_fail }}"
     fail_msg: "{{ mgmnt_device_fail }}"
-  when: mngmnt_network_container_status
+  when: mgmt_network_container_status
   tags: validate
 
-- name: Assert value of idrac_support if mngmnt_network container needed
+- name: Assert value of idrac_support if mgmt_network container needed
   assert:
     that: idrac_support == true
     success_msg: "{{ idrac_support_valid }}"
