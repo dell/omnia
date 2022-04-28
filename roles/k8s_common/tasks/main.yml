@@ -114,36 +114,31 @@
       retries: "{{ max_retries }}"
       tags: install
 
+    - name: Fetch status of kubectl
+      command: kubectl version
+      failed_when: false
+      changed_when: false
+      register: status_kubectl
+      tags: install
+
     - name: Install Kubectl
       zypper:
         name: "{{ kubectl_version }}"
         state: present
         oldpackage: yes
         force: yes
-      register: kubectl_status
-      until: kubectl_status is not failed
+      register: state_kubectl
+      until: state_kubectl is not failed
       retries: "{{ max_retries }}"
       tags: install
+      when: hostvars['127.0.0.1']['k8s_version'] not in status_kubectl.stdout
 
-    - name: Versionlocking kubeadm
-      command: zypper addlock "{{ kubeadm_version }}"
+    - name: Versionlock k8s packages
+      command: zypper addlock {{ item }}
       args:
         warn: false
       changed_when: false
-      tags: install
-
-    - name: Versionlocking kubectl
-      command: zypper addlock "{{ kubelet_version }}"
-      args:
-        warn: false
-      changed_when: false
-      tags: install
-
-    - name: Versionlocking kubelet
-      command: zypper addlock "{{ kubectl_version }}"
-      args:
-        warn: false
-      changed_when: false
+      with_items: "{{ k8s_package_names }}"
       tags: install
   when: ( os_supported_leap in compute_os ) and ( ansible_distribution_version >= os_supported_leap_version )
 
@@ -159,3 +154,4 @@
     name: kubelet
     state: restarted
     enabled: yes
+  tags: install
