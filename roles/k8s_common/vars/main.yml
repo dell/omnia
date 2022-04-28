@@ -24,7 +24,10 @@ kubeadm_version: "kubeadm-{{ hostvars['127.0.0.1']['k8s_version'] }}"
 kubelet_version: "kubelet-{{ hostvars['127.0.0.1']['k8s_version'] }}"
 kubectl_version: "kubectl-{{ hostvars['127.0.0.1']['k8s_version'] }}"
 max_retries: 20
-
+k8s_package_names:
+  - kubeadm
+  - kubelet
+  - kubectl
 k8s_packages:
   - "kubelet-{{ hostvars['127.0.0.1']['k8s_version'] }}"
   - "kubeadm-{{ hostvars['127.0.0.1']['k8s_version'] }}"
