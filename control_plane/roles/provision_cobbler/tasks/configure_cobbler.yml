@@ -16,7 +16,6 @@
 - name: Deploy cobbler pod
   command: "kubectl apply -f {{ role_path }}/files/k8s_cobbler.yml"
   changed_when: true
-  tags: install
   when:
     - cobbler_container_status
     - not cobbler_config_status
@@ -25,13 +24,11 @@
 - name: Wait for cobbler pod to come to ready state
   command: kubectl wait --for=condition=ready -n {{ cobbler_namespace }} pod -l app=cobbler
   changed_when: false
-  tags: install
 
 - name: Get cobbler pod name
   command: 'kubectl get pod -n {{ cobbler_namespace }} -l app=cobbler -o jsonpath="{.items[0].metadata.name}"'
   changed_when: false
   register: cobbler_pod_name
-  tags: install
 
 - name: Wait for 30 seconds to get cobbler pod ready
   wait_for:
@@ -40,16 +37,14 @@
 - name: Configuring cobbler inside container (It may take 5-10 mins)
   command: "kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} -- ansible-playbook /root/cobbler_configurations_rocky.yml -e provision_os={{ provision_os }} -e file_perm={{ file_perm }}"
   changed_when: true
-  tags: install
   when:
     - not cobbler_config_status
-    - mgmt_os == os_supported_rocky
+    - mgmt_os == os_supported_rocky or mgmt_os == os_supported_rhel
     - not provision_os_change
 
 - name: Configuring cobbler inside container (It may take 5-10 mins)
   command: "kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} -- ansible-playbook /root/cobbler_configurations_leap.yml -e provision_os={{ provision_os }} -e host_network_nic={{ host_network_nic }}  -e file_perm={{ file_perm }}"
   changed_when: true
-  tags: install
   when:
     - not cobbler_config_status
     - os_supported_leap in mgmt_os 
@@ -58,7 +53,6 @@
 - name: Configuring cobbler for multiple profile support
   command: "kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} -- ansible-playbook /root/multi_cluster_provisioning.yml -e provision_os={{ provision_os }} -e provision_os_change={{ provision_os_change }} -e file_perm={{ file_perm }}"
   changed_when: true
-  tags: install
   when: provision_os_change
 
 - name: Execute cobbler sync in cobbler container

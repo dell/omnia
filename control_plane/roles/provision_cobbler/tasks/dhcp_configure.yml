@@ -17,8 +17,7 @@
   copy:
     src: "{{ role_path }}/files/temp_dhcp.template"
     dest: "{{ role_path }}/files/dhcp.template"
-    mode: 0775
-  tags: install
+    mode: "{{ ks_mode }}"
 
 - name: Configure DHCP routing settings
   block:
@@ -48,7 +47,6 @@
     path: "{{ role_path }}/files/dhcp.template"
     regexp: '^subnet subnet_mask netmask net_mask {'
     replace: 'subnet {{ subnet }} netmask {{ netmask }} {'
-  tags: install
 
 - name: Assign netmask
   replace:
@@ -78,8 +76,7 @@
   copy:
     src: "{{ role_path }}/files/cobbler_settings"
     dest: "{{ role_path }}/files/settings.yaml"
-    mode: 0775
-  tags: install
+    mode: "{{ ks_mode }}"
 
 - name: Assign server ip
   replace:
@@ -105,7 +102,7 @@
     regexp: '^        server_args             = -s /srv/tftpboot'
     replace: '        server_args             = -s /var/lib/tftpboot'
   when:
-    - mgmt_os == os_supported_rocky
+    - mgmt_os == os_supported_rocky or mgmt_os == os_supported_rhel
       
 - name: Set the parameters for {{ provision_os }}
   block:
