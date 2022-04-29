@@ -114,6 +114,5 @@ prev_beegfs_mount: ""
 
 # Beegfs client version needs to be installed on compute nodes
 # Default value is 7.2.6
-# Make sure BeeGFS management server version and BeeGFS client version is same
-# Supported versions are greater than 7.2.6
+# Supported versions are greater than 7.2
 beegfs_client_version: "7.2.6"
