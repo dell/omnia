@@ -40,22 +40,22 @@
   - name: Assert management network nic
     assert:
       that:
-        - mngmnt_network_nic in nic_addr_up.stdout
-      success_msg: "{{ success_msg_mngmnt_network_nic }}"
-      fail_msg: "{{ fail_msg_mngmnt_network_nic }}"
+        - mgmt_network_nic in nic_addr_up.stdout
+      success_msg: "{{ success_msg_mgmt_network_nic }}"
+      fail_msg: "{{ fail_msg_mgmt_network_nic }}"
     tags: [ validate, network-device ]
 
   - name: Fetch the management network ip, netmask and subnet
     set_fact:
-      mngmnt_network_ip: "{{ lookup('vars','ansible_'+mngmnt_network_nic).ipv4.address }}"
-      mngmnt_network_netmask: "{{ lookup('vars','ansible_'+mngmnt_network_nic).ipv4.netmask }}"
-      mngmnt_network_subnet: "{{ lookup('vars','ansible_'+mngmnt_network_nic).ipv4.network }}"
+      mgmt_network_ip: "{{ lookup('vars','ansible_'+mgmt_network_nic).ipv4.address }}"
+      mgmt_network_netmask: "{{ lookup('vars','ansible_'+mgmt_network_nic).ipv4.netmask }}"
+      mgmt_network_subnet: "{{ lookup('vars','ansible_'+mgmt_network_nic).ipv4.network }}"
     tags: init
 
   - name: Check the subnet of management network dhcp start range
     shell: |
-      IFS=. read -r i1 i2 i3 i4 <<< "{{ mngmnt_network_dhcp_start_range }}"
-      IFS=. read -r m1 m2 m3 m4 <<< "{{ mngmnt_network_netmask }}"
+      IFS=. read -r i1 i2 i3 i4 <<< "{{ mgmt_network_dhcp_start_range }}"
+      IFS=. read -r m1 m2 m3 m4 <<< "{{ mgmt_network_netmask }}"
       printf "%d.%d.%d.%d\n" "$((i1 & m1))" "$((i2 & m2))" "$((i3 & m3))" "$((i4 & m4))"
     args:
       warn: no
@@ -70,8 +70,8 @@
 
   - name: Check the subnet of dhcp end range for management network
     shell: |
-      IFS=. read -r i1 i2 i3 i4 <<< "{{ mngmnt_network_dhcp_end_range }}"
-      IFS=. read -r m1 m2 m3 m4 <<< "{{ mngmnt_network_netmask }}"
+      IFS=. read -r i1 i2 i3 i4 <<< "{{ mgmt_network_dhcp_end_range }}"
+      IFS=. read -r m1 m2 m3 m4 <<< "{{ mgmt_network_netmask }}"
       printf "%d.%d.%d.%d\n" "$((i1 & m1))" "$((i2 & m2))" "$((i3 & m3))" "$((i4 & m4))"
     register: dhcp_end_mgmnt_result
     changed_when: false
@@ -85,11 +85,11 @@
   - name: Assert management_net_dhcp_start_range
     assert:
       that:
-        - mngmnt_network_dhcp_start_range |  length > 1
-        - mngmnt_network_dhcp_start_range | ipv4
-        - mngmnt_network_dhcp_start_range != mngmnt_network_ip
-        - mngmnt_network_dhcp_start_range != mngmnt_network_dhcp_end_range
-        - dhcp_start_mgmnt == mngmnt_network_subnet
+        - mgmt_network_dhcp_start_range |  length > 1
+        - mgmt_network_dhcp_start_range | ipv4
+        - mgmt_network_dhcp_start_range != mgmt_network_ip
+        - mgmt_network_dhcp_start_range != mgmt_network_dhcp_end_range
+        - dhcp_start_mgmnt == mgmt_network_subnet
         - dhcp_start_mgmnt == dhcp_end_mgmnt
       success_msg: "{{ success_dhcp_range }} for management network"
       fail_msg: "{{ fail_dhcp_range }} for management network"
@@ -98,11 +98,11 @@
   - name: Assert management_net_dhcp_end_range
     assert:
       that:
-        - mngmnt_network_dhcp_end_range |  length > 1
-        - mngmnt_network_dhcp_end_range | ipv4
-        - mngmnt_network_dhcp_end_range != mngmnt_network_ip
-        - mngmnt_network_dhcp_start_range != mngmnt_network_dhcp_end_range
-        - dhcp_end_mgmnt == mngmnt_network_subnet
+        - mgmt_network_dhcp_end_range |  length > 1
+        - mgmt_network_dhcp_end_range | ipv4
+        - mgmt_network_dhcp_end_range != mgmt_network_ip
+        - mgmt_network_dhcp_start_range != mgmt_network_dhcp_end_range
+        - dhcp_end_mgmnt == mgmt_network_subnet
         - dhcp_start_mgmnt == dhcp_end_mgmnt
       success_msg: "{{ success_dhcp_range }} for management network"
       fail_msg: "{{ fail_dhcp_range }} for management network"
@@ -110,21 +110,21 @@
 
   - name: Set the mapping file value for management network
     set_fact:
-      mngmnt_mapping_file: true
-    when: mngmnt_mapping_file_path | length > 0
+      mgmt_mapping_file: true
+    when: mgmt_mapping_file_path | length > 0
     tags: init
 
-  - name: Assert valid mngmnt_mapping_file_path
+  - name: Assert valid mgmt_mapping_file_path
     stat:
-      path: "{{ mngmnt_mapping_file_path }}"
-    when: mngmnt_mapping_file
-    register: result_mngmnt_mapping_file
+      path: "{{ mgmt_mapping_file_path }}"
+    when: mgmt_mapping_file
+    register: result_mgmt_mapping_file
     tags: init
 
-  - name : Valid mngmnt_mapping_file_path
+  - name : Valid mgmt_mapping_file_path
     fail:
       msg: "{{ invalid_mapping_file_path }} for management network"
-    when: mngmnt_mapping_file and not result_mngmnt_mapping_file.stat.exists
+    when: mgmt_mapping_file and not result_mgmt_mapping_file.stat.exists
     tags: init
   when: device_config_support
 
@@ -215,8 +215,8 @@
 - name: Verify different nics
   assert:
     that:
-      - public_nic != mngmnt_network_nic
-      - mngmnt_network_nic != host_network_nic
+      - public_nic != mgmt_network_nic
+      - mgmt_network_nic != host_network_nic
       - public_nic != host_network_nic
     success_msg: "{{ success_msg_different_nics }}"
     fail_msg: "{{ fail_msg_different_nics }}"
@@ -301,7 +301,7 @@
       assert:
         that:
           - public_nic != ib_network_nic
-          - mngmnt_network_nic != ib_network_nic
+          - mgmt_network_nic != ib_network_nic
           - ib_network_nic != host_network_nic
         success_msg: "{{ success_msg_different_nics_ib }}"
         fail_msg: "{{ fail_msg_different_nics_ib }}"

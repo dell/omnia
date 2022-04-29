@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,17 +13,17 @@
 # limitations under the License.
 ---
 
-#Tasks for modifying firewall configurations for mgmt_network_container
-
-- name: Permit traffic in default zone for tftp service
-  firewalld:
-    service: tftp
-    permanent: yes
-    state: enabled
-  tags: install
-
-- name: Reboot firewalld
-  systemd:
-    name: firewalld
-    state: reloaded
-  tags: install
+- name: Create node inventory file
+  hosts: localhost
+  connection: local
+  vars_file:
+    - test_nodes_vars.yml
+  
+  tasks:
+	- name: Create an inventory file
+    shell: echo "{{ lookup('file','{{ provisioned_path }}') }}" >> inventory
+    changed_when: false
+      
+  - name: Run test_nodes 
+    command: ansible-playbook nodes_validation.yml -i inventory
+    changed_when: false

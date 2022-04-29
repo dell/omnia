@@ -21,19 +21,19 @@
     chdir: "{{ role_path }}/files/"
   tags: install
 
-- name: Update image name in k8s_mngmnt_network.yml
+- name: Update image name in k8s_mgmt_network.yml
   replace:
-    path: "{{ role_path }}/files/k8s_mngmnt_network.yml"
+    path: "{{ role_path }}/files/k8s_mgmt_network.yml"
     regexp: 'localhost/mngmnt_network_container:latest'
     replace: "localhost/{{ mngmnt_network_image_name }}:{{ mngmnt_network_image_tag }}"
 
-- name: Update omnia project path in k8s_mngmnt_network.yml
+- name: Update omnia project path in k8s_mgmt_network.yml
   replace:
-    path: "{{ role_path }}/files/k8s_mngmnt_network.yml"
+    path: "{{ role_path }}/files/k8s_mgmt_network.yml"
     regexp: '        - name: omnia-storage\n          hostPath:\n            path:.*'
     replace: "        - name: omnia-storage\n          hostPath:\n            path: {{ role_path.split('control_plane')[0] }}"
 
 - name: Deploy mngmnt_network pod
-  command: "kubectl apply -f {{ role_path }}/files/k8s_mngmnt_network.yml"
+  command: "kubectl apply -f {{ role_path }}/files/k8s_mgmt_network.yml"
   changed_when: true
   tags: install
