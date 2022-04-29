@@ -38,7 +38,7 @@
 
 - name: Install omsdk using pip
   pip:
-    name: omsdk
+    name: omsdk==1.2.488
     state: present
 
 - name: Check iso mount folder

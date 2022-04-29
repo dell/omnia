@@ -46,19 +46,6 @@ centos_host_nic:
  - p2p2
  - p1p2
  - p1p1
-rocky_host_nic:
- - eno1
- - eno2
- - eno3
- - eno4
- - ens4f0
- - ens4f1
- - ens3f0
- - ens3f1
- - ens2f0
- - ens2f1
- - ens1f0
- - ens1f1
 http_port: 8000
 
 # Usage: firewall_settings.yml
