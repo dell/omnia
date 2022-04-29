@@ -229,6 +229,13 @@
     - slurm_restd
   tags: slurm
 
+- name: Apply BeeGFS client installation and config
+  hosts: manager, compute
+  gather_facts: false
+  roles:
+    - beegfs_client
+  tags: beegfs
+
 - name: Passwordless SSH between manager and compute nodes
   include: control_plane/tools/passwordless_ssh.yml
   when: hostvars['127.0.0.1']['control_plane_status']
