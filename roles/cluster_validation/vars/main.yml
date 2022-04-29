@@ -45,6 +45,23 @@ login_node_required_fail_msg: "Failed. login_node_required should be either true
 secure_login_node_success_msg: "enable_secure_login_node successfully validated"
 secure_login_node_fail_msg: "Failed. enable_secure_login_node should be either true or false"
 ipa_secret_file: "{{ playbook_dir }}/control_plane/roles/control_plane_security/files/.ipavars.yml"
+beegfs_support_success_msg: "beegfs_support validated successfully"
+beegfs_support_failure_msg: "Failed. beegfs_support should be either true or false"
+
+# Usage: fetch_beegfs_inputs.yml
+rdma_support_success_msg: "rdma_support validated successfully"
+rdma_support_failure_msg: "Failed. rdma_support should be either true or false"
+beegfs_mgmt_server_success_msg: "beegfs_mgmt_server, validated successfully"
+beegfs_mgmt_server_fail_msg: "Failed. Please enter IP of management server in IPV4 format"
+beegfs_mgmt_server_not_reachable_msg: "Failure, IP provided for beegfs_mgmt_server is not rechable. Please provide rechable IP of beegfs management server"
+ping_msg: "100% packet loss"
+beegfs_mounts_fail_msg: "Failed. Please provide a path for mounting beegfs file system"
+beegfs_client_version_success_msg: "beegfs_client_version, validated successfully "
+beegfs_client_version_fail_msg: "Failed, Please provide beegfs_client_version grater than 7.2"
+ofed_kernel_fail_msg: "Failed. rdma_support must be true for configuring separate drivers"
+beegfs_non_leap_repo: "https://www.beegfs.io/release/beegfs_{{ hostvars['127.0.0.1']['beegfs_client_version'] }}/dists/beegfs-rhel8.repo"
+status_msg: "200"
+beegfs_repo_status_msg: "Failed. Value entered for beegfs_client_version is not valid beegfs client version. Please enter valid beegfs client version by checking beegfs release page"
 
 # Usage: validations.yml
 skip_tag_fail_msg: "Can't skip both slurm and kubernetes"
