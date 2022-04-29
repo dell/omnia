@@ -17,48 +17,18 @@
 
 - name: Permit traffic in default zone on port 8000/tcp
   firewalld:
-    port: 8000/tcp
+    port: "{{ item }}"
     permanent: yes
     state: enabled
-  tags: install
-
-- name:  Permit traffic in default zone on port 8008/tcp
-  firewalld:
-    port: 8008/tcp
-    permanent: yes
-    state: enabled
-  tags: install
+  with_items: "{{ cobbler_ports }}"
 
 - name: Permit traffic in default zone for dhcp service
   firewalld:
     service: dhcp
     permanent: yes
     state: enabled
-  tags: install
-
-- name:  Permit traffic in default zone on port 69/tcp
-  firewalld:
-    port: 69/tcp
-    permanent: yes
-    state: enabled
-  tags: install
-
-- name:  Permit traffic in default zone on port 69/udp
-  firewalld:
-    port: 69/udp
-    permanent: yes
-    state: enabled
-  tags: install
-
-- name:  Permit traffic in default zone on port 4011/udp
-  firewalld:
-    port: 4011/udp
-    permanent: yes
-    state: enabled
-  tags: install
 
 - name: Reboot firewalld
   systemd:
     name: firewalld
     state: reloaded
-  tags: install

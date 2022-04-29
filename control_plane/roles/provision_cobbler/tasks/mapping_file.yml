@@ -15,14 +15,12 @@
 - name: Remove blank lines
   shell:  set -o pipefail && awk -F, 'length>NF+1' {{ host_mapping_file_path }} > {{ temp_host_mapping_file }}
   changed_when: false
-  tags: install
 
 - name: Remove blank spaces
   shell:  set -o pipefail && sed -i.bak -E 's/(^|,)[[:blank:]]+/\1/g; s/[[:blank:]]+(,|$)/\1/g'  {{ temp_host_mapping_file }}
   args:
     warn: no
   changed_when: false
-  tags: install
 
 - name: Compare the file for new nodes
   block:
@@ -62,7 +60,6 @@
   when: (not cobbler_image_status) or (new_node_status)
   failed_when: false
   with_items: "{{ fetch_mapping_file.stdout_lines }}"
-  tags: install
 
 - name: Create a backup file
   copy:
@@ -75,7 +72,6 @@
   changed_when: false
   register: cobbler_pod_name
   when: cobbler_container_status
-  tags: install
 
 - name: Copy the dhcp.template inside container
   command: 'kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} \

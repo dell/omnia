@@ -60,7 +60,7 @@
 
 - name: Device mapping file validation
   import_tasks: validate_device_mapping_file.yml
-  when: mngmnt_mapping_file_path | length > 0
+  when: mgmt_mapping_file_path | length > 0
   tags: [ validate, network-device ]
 
 - name: Encrypt idrac_tools_vars.yml
@@ -71,3 +71,8 @@
 - name: NFS Server setup for offline repo and awx
   import_tasks: nfs_server_setup.yml
   tags: init
+  
+- name: Redhat subscription management file validation
+  import_tasks: fetch_rhsm_inputs.yml
+  when: provision_os | lower == "redhat"
+  tags: [ validate, rhsm ]

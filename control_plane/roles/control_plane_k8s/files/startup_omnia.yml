@@ -26,7 +26,7 @@
     cobbler_pod: cobbler
     cobbler_kickstart_file: rocky8.ks
     management_network_namespace: network-config
-    management_network_pod: mngmnt-network-container
+    management_network_pod: mgmt-network-container
     infiniband_pod: infiniband-container
     file_perm: '0775'
     mount_dir: /mnt/temp/
@@ -125,54 +125,54 @@
       changed_when: true
 
     - block:
-        - name: Check mngmnt_network pod status
+        - name: Check mgmt_network pod status
           command: kubectl get pods -n {{ management_network_namespace }}
           changed_when: false
-          register: mngmnt_network_pod_status
+          register: mgmt_network_pod_status
           failed_when: false
 
-        - name: Wait for mngmnt_network pod to come to ready state
-          command: kubectl wait --for=condition=ready -n {{ management_network_namespace }} pod -l app=mngmnt-network
+        - name: Wait for mgmt_network pod to come to ready state
+          command: kubectl wait --for=condition=ready -n {{ management_network_namespace }} pod -l app=mgmt-network
           changed_when: false
-          when: management_network_pod in mngmnt_network_pod_status.stdout
+          when: management_network_pod in mgmt_network_pod_status.stdout
 
-        - name: Get mngmnt_network pod name
-          command: 'kubectl get pod -n {{ management_network_namespace }} -l app=mngmnt-network -o jsonpath="{.items[0].metadata.name}"'
+        - name: Get mgmt_network pod name
+          command: 'kubectl get pod -n {{ management_network_namespace }} -l app=mgmt-network -o jsonpath="{.items[0].metadata.name}"'
           changed_when: false
-          register: mngmnt_network_pod_name
-          when: management_network_pod in mngmnt_network_pod_status.stdout
+          register: mgmt_network_pod_name
+          when: management_network_pod in mgmt_network_pod_status.stdout
 
-        - name: Configuring mngmnt_network container
-          command: 'kubectl exec --stdin --tty -n {{ management_network_namespace }} {{ mngmnt_network_pod_name.stdout }} \
-            -- ansible-playbook /root/mngmnt_container_configure.yml -e mngmnt_nic="{{ mngmnt_network_nic }}"'
+        - name: Configuring mgmt_network container
+          command: 'kubectl exec --stdin --tty -n {{ management_network_namespace }} {{ mgmt_network_pod_name.stdout }} \
+            -- ansible-playbook /root/mgmt_container_configure.yml -e mgmt_nic="{{ mgmt_network_nic }}"'
           changed_when: false
           failed_when: false
-          when: management_network_pod in mngmnt_network_pod_status.stdout
+          when: management_network_pod in mgmt_network_pod_status.stdout
       when: device_config_support
 
     - block:
-        - name: Check mngmnt_network pod status
+        - name: Check mgmt_network pod status
           command: kubectl get pods -n {{ management_network_namespace }}
           changed_when: false
-          register: mngmnt_network_pod_status
+          register: mgmt_network_pod_status
           failed_when: false
 
         - name: Wait for infiniband pod to come to ready state
           command: kubectl wait --for=condition=ready -n {{ management_network_namespace }} pod -l app=infiniband
           changed_when: false
-          when: infiniband_pod in mngmnt_network_pod_status.stdout
+          when: infiniband_pod in mgmt_network_pod_status.stdout
 
         - name: Get infiniband pod name
           command: 'kubectl get pod -n {{ management_network_namespace }} -l app=infiniband -o jsonpath="{.items[0].metadata.name}"'
           changed_when: false
           register: infiniband_pod_name
-          when: infiniband_pod in mngmnt_network_pod_status.stdout
+          when: infiniband_pod in mgmt_network_pod_status.stdout
 
         - name: Configuring infiniband container
           command: 'kubectl exec --stdin --tty -n {{ management_network_namespace }} {{ infiniband_pod_name.stdout }} \
             -- ansible-playbook /root/omnia/control_plane/roles/control_plane_ib/files/infiniband_container_configure.yml'
           changed_when: false
-          when: infiniband_pod in mngmnt_network_pod_status.stdout
+          when: infiniband_pod in mgmt_network_pod_status.stdout
       when: ib_switch_support
 
     - name: Check cobbler pod status
