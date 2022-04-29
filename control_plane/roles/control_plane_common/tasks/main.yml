@@ -60,7 +60,7 @@
 
 - name: Device mapping file validation
   import_tasks: validate_device_mapping_file.yml
-  when: mngmnt_mapping_file_path | length > 0
+  when: mgmt_mapping_file_path | length > 0
   tags: [ validate, network-device ]
 
 - name: Encrypt idrac_tools_vars.yml

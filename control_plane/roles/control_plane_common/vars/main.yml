@@ -152,8 +152,8 @@ ib_switch_support_success_msg: "ib_switch_support validated"
 ib_switch_support_fail_msg: "Failed. ib_switch_support only accepts boolean values true or false"
 powervault_support_success_msg: "powervault_support validated"
 powervault_support_fail_msg: "Failed. power_vault_support only accepts boolean values true or false"
-success_msg_mngmnt_network_nic: "Management network nic successfully validated"
-fail_msg_mngmnt_network_nic: "Failed. Incorrect Management network nic provided in base_vars.yml"
+success_msg_mgmt_network_nic: "Management network nic successfully validated"
+fail_msg_mgmt_network_nic: "Failed. Incorrect Management network nic provided in base_vars.yml"
 success_msg_host_network_nic: "Host network nic successfully validated"
 fail_msg_host_network_nic: "Failed. Incorrect host network nic provided in base_vars.yml"
 success_msg_ib_network_nic: "Infiniband network nic successfully validated"
@@ -189,7 +189,7 @@ mgmnt_device_fail: "Failed. Container already present. Either delete the contain
 
 # Usage: ip_metric.yml
 public_metric: 101
-mngmnt_metric: 102
+mgmt_metric: 102
 host_metric: 103
 ib_metric: 150
 

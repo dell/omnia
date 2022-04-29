@@ -35,35 +35,35 @@
 
 - name: Check if header is present in mapping file
   shell:  set -o pipefail && awk 'NR==1 { print $1}' "{{ host_mapping_file_path }}"
-  register: mngmnt_header
+  register: mgmt_header
   changed_when: false
 
 - name: Fail if header not in correct format
   assert:
-    that: (mngmnt_header.stdout ==  host_mapping_header_format) or (mngmnt_header.stdout == host_mapping_header_with_role_format)
+    that: (mgmt_header.stdout ==  host_mapping_header_format) or (mgmt_header.stdout == host_mapping_header_with_role_format)
     fail_msg: "{{ fail_mapping_file_header }}"
 
 - name: Check if mapping file is comma seperated
   shell: awk -F\, '{print NF-1}' "{{ host_mapping_file_path }}"
-  register: mngmnt_comma_seperated
+  register: mgmt_comma_seperated
   changed_when: false
 
 - name: Set variable if component roles given in mapping file
   set_fact:
     component_role_support: true
-  when: mngmnt_header.stdout == host_mapping_header_with_role_format
+  when: mgmt_header.stdout == host_mapping_header_with_role_format
 
 - name: Fail if not comma seperated or if all fields are not given for MAC,Hostname,IP,Component_role
   fail:
     msg: "{{ fail_mapping_file_field_seperation }}"
   when: not(item =="3") and not (item == "-1") and component_role_support
-  with_items: "{{ mngmnt_comma_seperated.stdout_lines }}"
+  with_items: "{{ mgmt_comma_seperated.stdout_lines }}"
 
 - name: Fail if not comma seperated or if all fields are not given for MAC,Hostname,IP
   fail:
     msg: "{{ fail_mapping_file_field_seperation }}"
   when: not(item =="2") and not (item == "-1") and not(component_role_support)
-  with_items: "{{ mngmnt_comma_seperated.stdout_lines }}"
+  with_items: "{{ mgmt_comma_seperated.stdout_lines }}"
 
 - name: Initialize count variables
   set_fact:
