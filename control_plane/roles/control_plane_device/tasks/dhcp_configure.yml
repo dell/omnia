@@ -24,20 +24,20 @@
   replace:
     path: "{{ role_path }}/files/dhcpd.conf"
     regexp: '^subnet subnet_mask netmask net_mask {'
-    replace: 'subnet {{ mngmnt_network_subnet }} netmask {{ mngmnt_network_netmask }} {'
+    replace: 'subnet {{ mgmt_network_subnet }} netmask {{ mgmt_network_netmask }} {'
   tags: install
 
 - name: Assign netmask
   replace:
     path: "{{ role_path }}/files/dhcpd.conf"
     regexp: '^option subnet-mask net_mask;'
-    replace: 'option subnet-mask {{ mngmnt_network_netmask }};'
+    replace: 'option subnet-mask {{ mgmt_network_netmask }};'
 
 - name: Assign DHCP range
   replace:
     path: "{{ role_path }}/files/dhcpd.conf"
     regexp: '^range dynamic-bootp start end;'
-    replace: 'range dynamic-bootp {{ mngmnt_network_dhcp_start_range }} {{ mngmnt_network_dhcp_end_range }};'
+    replace: 'range dynamic-bootp {{ mgmt_network_dhcp_start_range }} {{ mgmt_network_dhcp_end_range }};'
 
 - name: Assign default lease time
   replace:
@@ -55,4 +55,4 @@
   replace:
     path: "{{ role_path }}/files/dhcpd.conf"
     regexp: '^next-server next_server;'
-    replace: 'next-server {{ mngmnt_network_ip }};'
+    replace: 'next-server {{ mgmt_network_ip }};'

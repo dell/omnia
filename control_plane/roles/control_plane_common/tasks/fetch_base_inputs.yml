@@ -42,7 +42,7 @@
 
 - name: Validate management network nic
   assert:
-    that: mngmnt_network_nic | length > 1
+    that: mgmt_network_nic | length > 1
     fail_msg: "{{ input_base_failure_msg }}"
   tags: validate
   when: device_config_support
@@ -89,7 +89,7 @@
   when: (device_config_support) or (idrac_support and device_config_ip_file)
   tags: init
 
-- name: Assert valid mngmnt_mapping_file_path
+- name: Assert valid mgmt_mapping_file_path
   stat:
     path: "{{ device_ip_list_path }}"
   when: device_config_ip_file
@@ -120,7 +120,7 @@
 - name: Set facts to validate snmp support
   set_fact:
     snmp_enabled: false
-    mngmnt_mapping_file: false
+    mgmt_mapping_file: false
     host_mapping_file: false
   tags: init
 
