@@ -12,122 +12,88 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
-- name: Get K8s pods
-  command: "kubectl get pods --all-namespaces"
-  changed_when: false
-  register: k8s_pods
-
-- name: Get the image list
-  command: "buildah images"
-  changed_when: false
-  register: image_list
-
-- name: Get the infiniband pod name
-  command: 'kubectl get pod -n network-config -l app=infiniband -o jsonpath="{.items[0].metadata.name}"'
-  changed_when: false
-  failed_when: false
-  register: infiniband_pod_name
-
-- name: Delete infiniband container
-  command: "kubectl delete -f {{ k8s_infiniband }}"
-  when: "infiniband_pod_name.stdout in k8s_pods.stdout"
-  failed_when: false
-
-- name: Delete infiniband image
-  command: "buildah rmi -f {{ infiniband_container }}:latest"
-  when: infiniband_container in image_list.stdout
-
 - name: Check if awx.yml file exists
   stat:
      path: "{{ awx_file }}"
   register: awx_exists
+  tags: clean_awx
 
 - name: Delete awx.yml
   command: "kubectl delete -f {{ awx_file }}"
   when: awx_exists.stat.exists
   failed_when: false
+  tags: clean_awx
 
 - name: Getting pods
   command: kubectl get pods -n awx
   changed_when: false
   register: awx_pods
+  tags: clean_awx
 
 - name: UnDeploying awx-operator
   command: make undeploy
   args:
     chdir: "{{ awx_operator }}"
   when: awx_pods.stdout | regex_search('awx-operator-controller-manager-([A-Za-z0-9]{10})-([A-Za-z0-9]{5})')
+  tags: clean_awx
 
 - name: Get the postgres volume claim name
   command: "kubectl get pvc -n awx"
   changed_when: false
   register: postgresclaimname
+  tags: clean_awx
 
 - name: Delete the postgres volume claim
   command: "kubectl delete pvc {{ postgresclaimname.stdout }} -n awx"
   when: postgresclaimname.stdout
   failed_when: false
+  tags: clean_awx
 
 - name: Check if awx_postgres_pv.yml file exists
   stat:
       path: "{{ awx_postgres_pv }}"
   register: awx_postgres_pv_exists
+  tags: clean_awx
 
 - name: Delete awx_postgres_pv.yml
   command: "kubectl delete -f {{ awx_postgres_pv }}"
   when: awx_postgres_pv_exists.stat.exists
   failed_when: false
+  tags: clean_awx
 
 - name: Check if awx_projects_pv.yml file exists
   stat:
     path: "{{ awx_projects_pv }}"
   register: awx_projects_pv_exists
+  tags: clean_awx
 
 - name: Delete awx_projects_pv.yml
   command: "kubectl delete -f {{ awx_projects_pv }}"
   when: awx_projects_pv_exists.stat.exists
   failed_when: false
+  tags: clean_awx
 
 - name: Delete awx image
   command: "buildah rmi -f {{ awx_image }}"
   when: awx_image in image_list.stdout
+  tags: clean_awx
 
 - name: Check for awx namespace
   command: kubectl get namespace -n awx
   changed_when: false
   register: awx_namespace
+  tags: clean_awx
 
 - name: Delete Namespace awx
   command: kubectl delete namespace awx -n awx
   when: "'awx' in awx_namespace.stdout"
+  tags: clean_awx
 
-- name: Get cobbler pod name
-  command: 'kubectl get pod -n cobbler -l app=cobbler -o jsonpath="{.items[0].metadata.name}"'
-  changed_when: false
+- name: Delete folders and files
+  file:
+    path: "{{ item }}"
+    state: absent
   failed_when: false
-  register: cobbler_pod_name
-
-- name: Delete cobbler container
-  command: "kubectl delete -f {{ k8s_cobbler }}"
-  when: "cobbler_pod_name.stdout in k8s_pods.stdout"
-  failed_when: false
-
-- name: Delete cobbler image
-  command: "buildah rmi -f {{ cobbler_image }}:latest"
-  when: cobbler_image in image_list.stdout
-
-- name: Get mngmnt_network pod name
-  command: 'kubectl get pod -n network-config -l app=mngmnt-network -o jsonpath="{.items[0].metadata.name}"'
-  changed_when: false
-  failed_when: false
-  register: mngmnt_network_pod_name
-
-- name: Delete management network container
-  command: "kubectl delete -f {{ k8s_mngmnt_network }}"
-  when: "mngmnt_network_pod_name.stdout in k8s_pods.stdout"
-  failed_when: false
-
-- name: Delete management network image
-  command: "buildah rmi -f {{ mngmnt_network_container }}:latest"
-  when: mngmnt_network_container in image_list.stdout
+  with_items:
+    - "{{ del_awx_files }}"
+  tags: clean_awx

@@ -12,31 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-- name: Delete other files
-  file:
-    path: "{{ item }}"
-    state: absent
-  failed_when: false
-  with_items:
-    - "{{ del_repo_files }}"
-  tags: reset_cluster
-
-- name: Reset kubeadm cluster
-  command: "kubeadm reset -f"
+- name: Get the infiniband pod name
+  command: 'kubectl get pod -n network-config -l app=infiniband -o jsonpath="{.items[0].metadata.name}"'
   changed_when: false
-  tags: reset_cluster
-
-- name: Remove CNI and kubeconfig files
-  file:
-    path: "{{ item }}"
-    state: absent
   failed_when: false
-  with_items:
-    - "{{ k8_files }}"
-  tags: reset_cluster
+  register: infiniband_pod_name
+  tags: clean_ib
 
-- name: Reset iptables
-  command: "iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X"
-  changed_when: true
+- name: Delete infiniband container
+  command: "kubectl delete -f {{ k8s_infiniband }}"
+  when: "infiniband_pod_name.stdout in k8s_pods.stdout"
   failed_when: false
-  tags: reset_cluster
+  tags: clean_ib
+
+- name: Delete infiniband image
+  command: "buildah rmi -f {{ infiniband_container }}:latest"
+  when: infiniband_container in image_list.stdout
+  tags: clean_ib

@@ -12,29 +12,41 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+- name: Get cobbler pod name
+  command: 'kubectl get pod -n cobbler -l app=cobbler -o jsonpath="{.items[0].metadata.name}"'
+  changed_when: false
+  failed_when: false
+  register: cobbler_pod_name
+  tags: clean_cobbler
+
+- name: Delete cobbler container
+  command: "kubectl delete -f {{ k8s_cobbler }}"
+  when: "cobbler_pod_name.stdout in k8s_pods.stdout"
+  failed_when: false
+  tags: clean_cobbler
+
+- name: Delete cobbler image
+  command: "buildah rmi -f {{ cobbler_image }}:latest"
+  when: cobbler_image in image_list.stdout
+  tags: clean_cobbler
 
 - name: Unmount /mnt/leap
   command: "umount /mnt/leap"
   changed_when: true
   failed_when: false
+  tags: clean_cobbler
 
 - name: Unmount /mnt/rocky
   command: "umount /mnt/rocky"
   changed_when: true
   failed_when: false
+  tags: clean_cobbler
 
-- name: Delete folders and files
+- name: Delete cobbler folders and files
   file:
     path: "{{ item }}"
     state: absent
   failed_when: false
   with_items:
-    - "{{ del_files }}"
-
-- name: Delete all vault keys
-  file:
-    path: "{{ item }}"
-    state: absent
-  failed_when: false
-  with_items:
-    - "{{ vault_keys }}"
+    - "{{ del_cobbler_files }}"
+  tags: clean_cobbler
