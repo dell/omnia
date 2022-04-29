@@ -15,45 +15,45 @@
 
 - name: Initialize variables
   set_fact:
-    mngmnt_network_container_image_status: false
-    backup_mngmnt_map_status: false
-    new_mngmnt_node_status: false
+    mgmt_network_container_image_status: false
+    backup_mgmt_map_status: false
+    new_mgmt_node_status: false
 
 - name: Check if any backup file exists
   block:
   - name: Check status of backup file
     stat:
-      path: "{{ role_path }}/files/backup_mngmnt_mapping_file.csv"
-    register: backup_mngmnt_map
+      path: "{{ role_path }}/files/backup_mgmt_mapping_file.csv"
+    register: backup_mgmt_map
 
   - name: Set status for backup file
     set_fact:
-      backup_mngmnt_map_status: true
-    when: backup_mngmnt_map.stat.exists
+      backup_mgmt_map_status: true
+    when: backup_mgmt_map.stat.exists
   rescue:
   - name: Message
     debug:
       msg: "All nodes are new"
       verbosity: 2
 
-- name: Inspect the mngmnt_network_container image
+- name: Inspect the mgmt_network_container image
   command: "buildah images"
-  register: mngmnt_network_container_image_result
+  register: mgmt_network_container_image_result
   failed_when: false
   changed_when: false
 
-- name: Check mngmnt_network_container status on the machine
+- name: Check mgmt_network_container status on the machine
   command: kubectl get pods -n network-config
-  register: mngmnt_network_container_result
+  register: mgmt_network_container_result
   failed_when: false
   changed_when: false
 
-- name: Update mngmnt_network_container image status
+- name: Update mgmt_network_container image status
   set_fact:
-    mngmnt_network_container_image_status: true
-  when: mngmnt_network_image_name in mngmnt_network_container_image_result.stdout
+    mgmt_network_container_image_status: true
+  when: mgmt_network_image_name in mgmt_network_container_image_result.stdout
 
-- name: Update mngmnt_network_container container status
+- name: Update mgmt_network_container container status
   set_fact:
-    mngmnt_network_container_status: true
-  when: "'mngmnt-network-container' in mngmnt_network_container_result.stdout"
+    mgmt_network_container_status: true
+  when: "'mgmt-network-container' in mgmt_network_container_result.stdout"

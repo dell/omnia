@@ -28,12 +28,12 @@
   changed_when: false
 
 - name: Set metric for device container
-  command: nmcli connection modify {{ mngmnt_network_nic }} ipv4.route-metric {{ mngmnt_metric }}
+  command: nmcli connection modify {{ mgmt_network_nic }} ipv4.route-metric {{ mgmt_metric }}
   changed_when: false
   when: device_config_support
 
 - name: Reactivate the device nic
-  command: nmcli connection up {{ mngmnt_network_nic }}
+  command: nmcli connection up {{ mgmt_network_nic }}
   changed_when: false
   when: device_config_support
 
