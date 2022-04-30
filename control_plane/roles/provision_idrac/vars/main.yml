@@ -64,6 +64,15 @@ import_scp_fail_msg: "Import scp failed. This could be due to older bios, idrac 
 
 # Usage: create_vd.yml
 raid_level: "RAID 0"
+raid_search_key: "RAID"
+raid_vd_name: "omnia_raid_vd"
+boss_raid_level: "RAID 1"
+boss_search_key: "BOSS"
+boss_vd_name: "omnia_boss_vd"
+boss_vd_fail_msg: "Failed. Unable to create virtual disk from BOSS controller. Verify 2 SSD disk are attached to BOSS controller and try again."
+raid_vd_fail_msg: "Failed. Unable to create virtual disk from RAID controller. Verify HDD disk attached to RAID controller and try again."
+boss_drives_count: 2
+boss_drives_count_fail_msg: "Failed. Omnia supports only creating RAID 1 virtual disk using 2 SSD disk. Only 2 SSD disk should be present in BOSS controller."
 
 # Usage: deploy_os.yml
 expose_duration: 60
