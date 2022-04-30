@@ -164,10 +164,19 @@
 
     - name: Add host to awx idrac_inventory
       block:
+        - name: Initialise idrac_description
+          set_fact:
+            idrac_description: "Description Unavailable"
+
+        - name: Set idrac_description
+          set_fact:
+            idrac_description: "Service Tag: {{ idrac_info.system_info.System[0].ServiceTag }}, Model: {{ idrac_info.system_info.System[0].Model }}"
+          when: idrac_info.system_info.System[0].ServiceTag is defined
+
         - name: Add the host to awx idrac_inventory if not present
           command: >-
             awx --conf.host {{ awx_host }} --conf.username {{ awx_username }} --conf.password {{ awx_password }}
-            --conf.insecure hosts create --name {{ inventory_hostname }} --inventory idrac_inventory
+            --conf.insecure hosts create --name {{ inventory_hostname }} --description "{{ idrac_description }}" --inventory idrac_inventory
           changed_when: true
           no_log: true
       rescue:

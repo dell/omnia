@@ -126,6 +126,13 @@ provision_os: "rocky"
 # Required field
 iso_file_path: "/home/Rocky-8.5-x86_64-minimal.iso"
 
+# This variable is used to enable red hat subscription management when provision_os is set to "redhat".
+# Accepted values: "true" or "false"
+# Default value: "false"
+# If user doesn't want omnia to handle redhat subscription management, set this to "false"
+# If set to true, please update variable values in rhsm_vars.yml
+rhsm_support: false
+
 # This is the timezone that will be set during provisioning of OS
 # Available timezones are provided in control_plane/common/files/timezone.txt
 # Default timezone will be "GMT"
@@ -181,20 +188,20 @@ host_mapping_file_path: ""
 # the fabric, idrac and powervault.
 # This nic will be configured by Omnia for the DHCP server.
 # Default value: "eno1"
-mngmnt_network_nic: "eno1"
+mgmt_network_nic: "eno1"
 
 # The dhcp range for assigning the IPv4 address
 # Example: 172.17.0.1
 # Required field
-mngmnt_network_dhcp_start_range: "172.19.0.100"
-mngmnt_network_dhcp_end_range: "172.19.0.200"
+mgmt_network_dhcp_start_range: "172.19.0.100"
+mgmt_network_dhcp_end_range: "172.19.0.200"
 
 # The mapping file consists of the MAC address and its respective IP address.
 # The format of mapping file should be MAC,IP and must be a CSV file.
 # Eg: xx:yy:zz:aa:bb,172.17.0.5
 # A template for mapping file exists in omnia/examples and is named as mapping_device_file.csv.
 # This depicts the path where user has kept the mapping file for DHCP configurations.
-mngmnt_mapping_file_path: ""
+mgmt_mapping_file_path: ""
 
 ### Usage: control_plane_ib ###
 

@@ -27,32 +27,9 @@
       command: cobbler import --arch=x86_64 --path=/mnt/{{ provision_os }} --name="{{ provision_os }}"
       changed_when: false
 
-    - name: Kickstart profile - centos
-      copy:
-        src: "/root/omnia/control_plane/roles/provision_cobbler/files/centos7.ks"
-        dest: "/var/lib/cobbler/templates/sample.ks"
-        mode: "{{ file_perm }}"
-      tags: install
-      when: provision_os == "centos"
-
-    - name: Kickstart profile - rocky
-      copy:
-        src: "/root/omnia/control_plane/roles/provision_cobbler/files/rocky8.ks"
-        dest: "/var/lib/cobbler/templates/sample.ks"
-        mode: "{{ file_perm }}"
-      tags: install
-      when: provision_os == "rocky"
-
-    - name: Kickstart profile - leap
-      copy:
-        src: "/root/omnia/control_plane/roles/provision_cobbler/files/leap15.xml"
-        dest: "/var/lib/cobbler/templates/sample_autoyast.xml"
-        mode: "{{ file_perm }}"
-      tags: install
-      when: provision_os == "leap"
-
+    
     - name: Get the cobbler profile list
-      command: cobbler profile list
+      shell: cobbler profile list | sed 's/ //g'
       changed_when: false
       register: cobbler_profile_list
       failed_when: false
@@ -62,6 +39,60 @@
         multi_profile: true
       when:
         - cobbler_profile_list.stdout_lines| length > 1
+
+    - name: Extracting profile name
+      set_fact:
+        profile_name: "{{ item }}"
+      with_items: "{{ cobbler_profile_list.stdout_lines }}"
+      when: provision_os in item
+
+    - name: Kickstart profile - centos
+      copy:
+        src: "/root/omnia/control_plane/roles/provision_cobbler/files/centos7.ks"
+        dest: "/var/lib/cobbler/templates/centos7.ks"
+        mode: "{{ file_perm }}"
+      when: provision_os == "centos"
+
+    - name: Kickstart profile - rocky
+      copy:
+        src: "/root/omnia/control_plane/roles/provision_cobbler/files/rocky8.ks"
+        dest: "/var/lib/cobbler/templates/rocky8.ks"
+        mode: "{{ file_perm }}"
+      when: provision_os == "rocky"
+
+    - name: Kickstart profile - leap
+      copy:
+        src: "/root/omnia/control_plane/roles/provision_cobbler/files/leap15.xml"
+        dest: "/var/lib/cobbler/templates/leap15.xml"
+        mode: "{{ file_perm }}"
+      when: provision_os == "leap"
+
+    - name: Kickstart profile - redhat
+      copy:
+        src: "/root/omnia/control_plane/roles/provision_cobbler/files/rhel8.ks"
+        dest: "/var/lib/cobbler/templates/rhel8.ks"
+        mode: "{{ file_perm }}"
+      when: provision_os == "redhat"
+
+    - name: Edit profile - redhat
+      command: cobbler profile edit --name="{{ profile_name }}" --autoinstall=rhel8.ks
+      when: provision_os == "redhat"
+      changed_when: false
+
+    - name: Edit profile - centos
+      command: cobbler profile edit --name="{{ profile_name }}" --autoinstall=centos7.ks
+      when: provision_os == "centos"
+      changed_when: false
+
+    - name: Edit profile - rocky
+      command: cobbler profile edit --name="{{ profile_name }}" --autoinstall=rocky8.ks
+      when: provision_os == "rocky"
+      changed_when: false
+
+    - name: Edit profile - leap
+      command: cobbler profile edit --name="{{ profile_name }}" --autoinstall=leap15.xml
+      when: provision_os == "leap"
+      changed_when: false
 
     - name: Check if the provision os is in cobbler_profile_list
       set_fact:
@@ -78,7 +109,6 @@
         path: "/var/lib/cobbler/grub_config/grub/grub.cfg"
         regexp: "^set default=.*"
         replace: "set default='{{ grub_option }}'"
-      tags: install
 
     - name: Syncing of cobbler
       command: cobbler sync

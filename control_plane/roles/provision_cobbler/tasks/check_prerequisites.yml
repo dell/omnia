@@ -22,7 +22,6 @@
     new_node_status: false
     provision_os_change: false
     previous_os: None
-  tags: install
 
 - name: Set centos kickstart file name
   set_fact:
@@ -34,10 +33,15 @@
     cobbler_kickstart_file: "{{ cobbler_rocky_ks }}"
   when: provision_os == os_supported_rocky
 
-- name: Set rocky kickstart file name
+- name: Set leap kickstart file name
   set_fact:
     cobbler_kickstart_file: "{{ cobbler_leap_ks }}"
   when: provision_os == os_supported_leap
+
+- name: Set rhel kickstart file name
+  set_fact:
+    cobbler_kickstart_file: "{{ cobbler_rhel_ks }}"
+  when: provision_os == os_supported_rhel
 
 - name: Check if any backup file exists
   block:
@@ -71,33 +75,28 @@
   register: cobbler_image_result
   failed_when: false
   changed_when: false
-  tags: install
 
 - name: Check cobbler pod status on the machine
   command: kubectl get pods -n {{ cobbler_namespace }}
   register: cobbler_pod_result
   failed_when: false
   changed_when: false
-  tags: install
 
 - name: Update cobbler image status
   set_fact:
     cobbler_image_status: true
   when: cobbler_image_name in cobbler_image_result.stdout
-  tags: install
 
 - name: Update cobbler container status
   set_fact:
     cobbler_container_status: true
   when: "'cobbler' in cobbler_pod_result.stdout"
-  tags: install
 
 - name: Get cobbler pod name
   command: 'kubectl get pod -n {{ cobbler_namespace }} -l app=cobbler -o jsonpath="{.items[0].metadata.name}"'
   changed_when: false
   register: cobbler_pod_name
   when: cobbler_container_status
-  tags: install
 
 - name: Fetch cobbler profile list
   command: "kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} -- cobbler profile list"

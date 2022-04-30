@@ -1,7 +1,7 @@
 #version=RHEL8
 
-# instllation method
-cdrom
+# Use network installation
+url --url http://ip:port/cblr/links/redhat-x86_64/
 
 # SELinux configuration
 selinux --disabled

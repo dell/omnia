@@ -16,7 +16,6 @@
 - name: Initialize vars
   set_fact:
     mount_check: "0"
-  tags: install
 
 - name: Check iso directory status
   stat:
@@ -28,7 +27,6 @@
     path: "/mnt/{{ provision_os }}"
     state: directory
     mode: "{{ temp_file_perm }}"
-  tags: install
   when: not check_iso_dir.stat.exists
 
 - name: Check mountpoint
@@ -36,12 +34,10 @@
   changed_when: false
   register: result
   failed_when: false
-  tags: install
 
 - name: Update mount status
   set_fact:
     mount_check: "{{ result.rc }}"
-  tags: install
 
 - name: Mount the iso file
   command: mount -o loop {{ iso_file_path }} /mnt/{{ provision_os }}
@@ -49,4 +45,3 @@
   args:
     warn: no
   when: "'1' in mount_check"
-  tags: install

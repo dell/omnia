@@ -14,11 +14,11 @@
 ---
 
 - name: Include control_plane_common vars
-  include_vars: ../../control_plane_common/vars/main.yml
+  include_vars: "{{ playbook_dir }}/roles/control_plane_common/vars/main.yml"
   run_once: true
 
 - name: Include custom_iso vars
-  include_vars: ../../control_plane_customiso/vars/main.yml
+  include_vars: "{{ playbook_dir }}/roles/control_plane_customiso/vars/main.yml"
   run_once: true
 
 - name: Check {{ management_station_ip_file }} file is present
@@ -46,8 +46,12 @@
 - name: Initialize variables
   set_fact:
     raid_type: false
+    raid_vd_status: false
     raid_controller_sensor: ""
     raid_enclosure_name: ""
+    boss_type: false
+    boss_vd_status: false
+    boss_controller_sensor: ""
     drives_id: ""
     enterprise_license: false
     datacenter_license: false
@@ -233,11 +237,13 @@
       ignore_errors: true
       until: not nfs_check.failed
       retries: "{{ retries_count }}"
+      when: provision_method == provision_method_idrac
 
     - name: Missing entries in nfs exports
       fail:
         msg: "{{ missing_exports_fail_msg }}"
       when:
+        - provision_method == provision_method_idrac
         - nfs_check_key in nfs_check.msg or
           nfs_check_key in nfs_check.scp_status.Status
   when: not provision_status

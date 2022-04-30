@@ -159,8 +159,8 @@
      replacefiles: true
      oldpackage: yes
      force: yes
-  register: kubectl_status
-  until: kubectl_status is not failed
+  register: kubectl_state
+  until: kubectl_state is not failed
   retries: "{{ max_retries }}"
   when: version_kubectl not in kubectl_status.stdout
 

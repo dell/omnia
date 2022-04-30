@@ -13,7 +13,7 @@
 ---
 
 - name: Remove blank lines
-  shell:  set -o pipefail && awk -F, 'length>NF+1' {{ mngmnt_mapping_file_path }} > {{ temp_mgmt_mapping_file }}
+  shell:  set -o pipefail && awk -F, 'length>NF+1' {{ mgmt_mapping_file_path }} > {{ temp_mgmt_mapping_file }}
   changed_when: false
   tags: install
 
@@ -27,21 +27,21 @@
 - name: Compare the file for new nodes
   block:
     - name: Check difference
-      shell: set -o pipefail && diff {{ temp_mgmt_mapping_file }} {{ role_path }}/files/backup_mngmnt_mapping_file.csv| tr -d \>|tr -d \<| grep -E -- ', & :| '
-      register: diff_mngmnt_output
+      shell: set -o pipefail && diff {{ temp_mgmt_mapping_file }} {{ role_path }}/files/backup_mgmt_mapping_file.csv| tr -d \>|tr -d \<| grep -E -- ', & :| '
+      register: diff_mgmt_output
       changed_when: false
       failed_when: false
 
     - name: Status of new nodes
       set_fact:
-        new_mngmnt_node_status: true
-      when: diff_mngmnt_output.stdout
+        new_mgmt_node_status: true
+      when: diff_mgmt_output.stdout
   rescue:
     - name: No new nodes
       debug:
         msg: "No new nodes to add"
         verbosity: 2
-  when: backup_mngmnt_map_status
+  when: backup_mgmt_map_status
 
 - name: Fetch inputs from mapping file
   command: awk 'NR > 1 { print }' {{ temp_mgmt_mapping_file }}
@@ -58,7 +58,7 @@
         fixed-address {{ item.split(',')[1] }};
       }
     marker: "# {mark} DHCP BLOCK OF {{ item.split(',')[0] }}"
-  when: (not mngmnt_network_container_image_status) or (new_mngmnt_node_status)
+  when: (not mgmt_network_container_image_status) or (new_mgmt_node_status)
   failed_when: false
   with_items: "{{ fetch_mgmt_mapping_file.stdout_lines }}"
   tags: install
@@ -66,21 +66,21 @@
 - name: Create a backup file
   copy:
     src: "{{ temp_mgmt_mapping_file }}"
-    dest: "{{ role_path }}/files/backup_mngmnt_mapping_file.csv"
+    dest: "{{ role_path }}/files/backup_mgmt_mapping_file.csv"
     mode: 0644
 
-- name: Get mngmnt container pod name
-  command: 'kubectl get pod -n network-config -l app=mngmnt-network -o jsonpath="{.items[0].metadata.name}"'
+- name: Get mgmt container pod name
+  command: 'kubectl get pod -n network-config -l app=mgmt-network -o jsonpath="{.items[0].metadata.name}"'
   changed_when: false
-  register: mngmnt_pod_name
-  when:  mngmnt_network_container_status
+  register: mgmt_pod_name
+  when:  mgmt_network_container_status
   tags: install
 
 - name: Copy the dhcp.template inside container
-  command: 'kubectl exec --stdin --tty -n network-config {{ mngmnt_pod_name.stdout }} \
+  command: 'kubectl exec --stdin --tty -n network-config {{ mgmt_pod_name.stdout }} \
     -- cp /root/omnia/control_plane/roles/control_plane_device/files/dhcp.template /etc/dhcpd/dhcpd.conf'
-  when:  (  mngmnt_network_container_status ) and ( new_mngmnt_node_status  )
+  when:  (  mgmt_network_container_status ) and ( new_mgmt_node_status  )
 
 - name: Restart dhcpd
-  command: 'kubectl exec --stdin --tty -n network-config {{ mngmnt_pod_name.stdout }} -- systemctl restart dhcpd'
-  when:  (  mngmnt_network_container_status ) and ( new_mngmnt_node_status )
+  command: 'kubectl exec --stdin --tty -n network-config {{ mgmt_pod_name.stdout }} -- systemctl restart dhcpd'
+  when:  (  mgmt_network_container_status ) and ( new_mgmt_node_status )

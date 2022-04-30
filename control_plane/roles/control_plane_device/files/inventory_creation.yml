@@ -26,7 +26,7 @@
         vars_new: "{{ var| ipv4('address')| to_nice_yaml}}"
 
     - name: Create the static ip
-      shell: awk -F',' 'NR >1{print $2}' /root/omnia/control_plane/roles/control_plane_device/files/new_mngmnt_mapping_file.csv > static_hosts.yml
+      shell: awk -F',' 'NR >1{print $2}' /root/omnia/control_plane/roles/control_plane_device/files/new_mgmt_mapping_file.csv > static_hosts.yml
       changed_when: false
       failed_when: false
 

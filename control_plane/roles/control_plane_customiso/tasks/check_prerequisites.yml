@@ -38,7 +38,7 @@
 
 - name: Install omsdk using pip
   pip:
-    name: omsdk
+    name: omsdk==1.2.488
     state: present
 
 - name: Check iso mount folder
@@ -72,7 +72,7 @@
 - name: Copy management station ip to {{ management_station_ip_file }}
   lineinfile:
     path: "{{ playbook_dir }}/roles/provision_idrac/files/{{ management_station_ip_file }}"
-    line: "{{ mngmnt_network_ip }}"
+    line: "{{ mgmt_network_ip }}"
     mode: "{{ file_permission }}"
     create: yes
   when: device_config_support

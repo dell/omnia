@@ -21,7 +21,6 @@
   when: 
     - not cobbler_image_status
     - mgmt_os == os_supported_rocky or mgmt_os == os_supported_rhel
-  tags: install
 
 - name: Image creation (It may take 5-10 mins)
   command: "buildah bud -f Dockerfile_leap -t {{ cobbler_image_name }}:{{ cobbler_image_tag }} --network host ."
@@ -30,8 +29,7 @@
     chdir: "{{ role_path }}/files/"
   when: 
     - not cobbler_image_status
-    - os_supported_leap in mgmt_os 
-  tags: install
+    - os_supported_leap in mgmt_os
 
 - name: Update image name in k8s_cobbler.yml
   replace:
@@ -48,4 +46,3 @@
 - name: Deploy cobbler pod
   command: "kubectl apply -f {{ role_path }}/files/k8s_cobbler.yml"
   changed_when: true
-  tags: install

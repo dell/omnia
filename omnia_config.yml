@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -79,3 +79,40 @@ kerberos_admin_password: ""
 # It can be set to true or false
 # By default it is set to false indicating security features will not be configured
 enable_secure_login_node: false
+
+# This variable is used to install beegfs-client on compute nodes
+# Accepted values: "true" or "false"
+# Default value: "false"
+# To install BeeGFS client on compute and manager nodes, set this value to true
+beegfs_support: false
+
+# This variable is used if user has RDMA-capable network hardware (e.g., InfiniBand)
+# Accepted values: "true" or "false"
+# Default value: "false"
+# To enable support for remote direct memory access (RDMA), set this value to true
+rdma_support: false
+
+# This variable if there are separate OFED kernel modules installed
+# Add path for kernel module
+# Default value is ""
+ofed_kernel_modules_path: ""
+
+# This variable is used for taking BeeGFS management server IP
+# Provide IP of beegfs management server
+# Required field
+beegfs_mgmt_server: ""
+
+# Beegfs-client file system mount location
+# Default value is "/mnt/beegfs"
+beegfs_mounts: "/mnt/beegfs"
+
+# Please enter BeeGFS client mount location that you want to unmount
+# This variable needs to be filled with value of running BeeGFS client file system mount location.
+# From that location we should be able to read and write to beegfs-client file system
+# This is needed when there is a need for changing beegfs_mounts value in the next run or version change for beegfs_client_version
+prev_beegfs_mount: ""
+
+# Beegfs client version needs to be installed on compute nodes
+# Default value is 7.2.6
+# Supported versions are greater than 7.2
+beegfs_client_version: "7.2.6"
