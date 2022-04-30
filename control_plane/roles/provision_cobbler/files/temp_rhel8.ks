@@ -52,3 +52,25 @@ reboot
 @^minimal-environment
 net-tools
 %end
+
+%include /tmp/bootdisk.cfg
+
+%pre --log=/root/ks-pre.log
+
+# Fetching NIC information
+for nic in `cut -f 1 -d : /proc/net/dev | awk 'NR>2'`; do
+  echo "network  --bootproto=dhcp --device=${nic} --onboot=on --activate" >> /tmp/bootdisk.cfg
+done
+
+# Fetching BOSS card information
+find /dev -name "*DELLBOSS*" -printf %P"\n" | egrep -v -e part -e scsi | head -1 > /tmp/bossdisk.txt
+
+if [ -s /tmp/bossdisk.txt ]
+then
+        echo "#BOSS controller present" >> /tmp/bootdisk.cfg
+        echo "ignoredisk --only-use=`find /dev -name '*DELLBOSS*' -printf %P'\n' | egrep -v -e part -e scsi | head -1`" >> /tmp/bootdisk.cfg
+else
+        echo "#BOSS controller not present" >> /tmp/bootdisk.cfg
+fi
+
+%end
