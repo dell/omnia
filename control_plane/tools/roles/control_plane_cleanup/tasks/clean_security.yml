@@ -12,31 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-- name: Delete other files
+- name: Identify presence of IPA
+  shell: 'ipa help topics | wc -l'
+  register: help_topics_count
+  tags: clean_security
+
+- name: Unlock resolv.conf
+  command: chattr -i /etc/resolv.conf 
+  tags: clean_security
+
+- name: Validate IPA is installed or not
+  shell: 'ipa-server-install --uninstall -U'
+  when: 'help_topics_count.stdout | int > 1'
+  tags: clean_security
+
+- name: Delete IPA folders and files
   file:
     path: "{{ item }}"
     state: absent
   failed_when: false
   with_items:
-    - "{{ del_repo_files }}"
-  tags: reset_cluster
-
-- name: Reset kubeadm cluster
-  command: "kubeadm reset -f"
-  changed_when: false
-  tags: reset_cluster
-
-- name: Remove CNI and kubeconfig files
-  file:
-    path: "{{ item }}"
-    state: absent
-  failed_when: false
-  with_items:
-    - "{{ k8_files }}"
-  tags: reset_cluster
-
-- name: Reset iptables
-  command: "iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X"
-  changed_when: true
-  failed_when: false
-  tags: reset_cluster
+    - "{{ del_security_files }}"
+  tags: clean_security
+  

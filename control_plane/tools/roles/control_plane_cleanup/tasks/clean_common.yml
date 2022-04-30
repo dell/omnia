@@ -12,31 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-- name: Delete other files
-  file:
-    path: "{{ item }}"
-    state: absent
-  failed_when: false
-  with_items:
-    - "{{ del_repo_files }}"
-  tags: reset_cluster
-
-- name: Reset kubeadm cluster
-  command: "kubeadm reset -f"
+- name: Get K8s pods
+  command: "kubectl get pods --all-namespaces"
   changed_when: false
-  tags: reset_cluster
+  register: k8s_pods
+  tags: common
 
-- name: Remove CNI and kubeconfig files
-  file:
-    path: "{{ item }}"
-    state: absent
-  failed_when: false
-  with_items:
-    - "{{ k8_files }}"
-  tags: reset_cluster
-
-- name: Reset iptables
-  command: "iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X"
-  changed_when: true
-  failed_when: false
-  tags: reset_cluster
+- name: Get the image list
+  command: "buildah images"
+  changed_when: false
+  register: image_list
+  tags: common
