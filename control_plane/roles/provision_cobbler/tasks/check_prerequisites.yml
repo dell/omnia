@@ -22,6 +22,7 @@
     new_node_status: false
     provision_os_change: false
     previous_os: None
+    dhcp_lom_file: false
 
 - name: Set centos kickstart file name
   set_fact:
