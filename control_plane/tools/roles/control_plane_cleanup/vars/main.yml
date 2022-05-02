@@ -14,14 +14,14 @@
 ---
 
 # Usage: remove_container_images.yml
-k8s_mngmnt_network: "{{ playbook_dir }}/../roles/control_plane_device/files/k8s_mgmt_network.yml"
+k8s_mngmnt_network: "{{ playbook_dir }}/../roles/control_plane_device/files/k8s_mngmnt_network.yml"
 k8s_cobbler: "{{ playbook_dir }}/../roles/provision_cobbler/files/k8s_cobbler.yml"
 awx_projects_pv: "{{ playbook_dir }}/../roles/webui_awx/files/awx_projects_pv.yml"
 awx_postgres_pv:  "{{ playbook_dir }}/../roles/webui_awx/files/awx_postgres_pv.yml"
 awx_operator: "{{ playbook_dir }}/../../../awx-operator/"
 awx_file: "{{ playbook_dir }}/../roles/webui_awx/files/awx.yml"
 k8s_infiniband: "{{ playbook_dir }}/../roles/control_plane_ib/files/k8s_infiniband.yml"
-infiniband_container: infiniband-container
+infiniband_container: infiniband_container
 mngmnt_network_container: mngmnt_network_container
 cobbler_image: cobbler
 awx_image: custom-awx-ee
@@ -40,16 +40,18 @@ k8_files:
    - /etc/cni/net.d
 
 # Usage: delete_files_vault_keys.yml
-del_files:
+del_awx_files:
     - /var/nfs_repo
     - /var/nfs_awx
-    - /root/dsu
-    - /tmp/unattended_centos8.iso
-    - /tmp/iso
-    - /mnt/leap
-    - /mnt/rocky
-    - "{{ playbook_dir }}/..roles/control_plane_security/files/.ipavars.yml"
-    - "{{ playbook_dir }}/../roles/provision_idrac/files/management_station_ip.txt"
-vault_keys:
     - "{{ playbook_dir }}/../roles/webui_awx/files/.tower_cli.cfg"
     - "{{ playbook_dir }}/../roles/webui_awx/files/.tower_vault_key"
+del_cobbler_files:
+    - /mnt/leap
+    - /mnt/rocky
+del_security_files:
+    - "{{ playbook_dir }}/..roles/control_plane_security/files/.ipavars.yml"
+    - "{{ playbook_dir }}/../roles/provision_idrac/files/management_station_ip.txt"
+del_repo_files:
+    - /root/dsu
+    - /tmp/rocky
+    - /tmp/leap

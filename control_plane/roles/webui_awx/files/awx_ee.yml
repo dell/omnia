@@ -6,8 +6,7 @@ USER root
 ADD requirements.yml /tmp/requirements.yml
 
 # install packages
-RUN pip install --upgrade \
-omsdk \
+RUN pip install omsdk==1.2.488 \
 netaddr
 
 # install Ansible Galaxy collections

@@ -27,7 +27,15 @@
 - name: Configure AWX logo to Omnia
   command: awx --conf.host http://{{ awx_cluster_ip.stdout }}:{{ awx_port }} --conf.username admin --conf.password {{ awx_admin_password.stdout }} settings modify CUSTOM_LOGO "{{ logo_base64.stdout }}"
   changed_when: false
+  register: configure_logo
+  until: configure_logo is not failed
+  retries: "{{ max_retries }}"
+  delay: "{{ max_delay }}"
 
 - name: Configure AWX login info
   command: awx --conf.host http://{{ awx_cluster_ip.stdout }}:{{ awx_port }} --conf.username admin --conf.password {{ awx_admin_password.stdout }} settings modify CUSTOM_LOGIN_INFO "{{ awx_login_info }}"
   changed_when: false
+  register: configure_login_info
+  until: configure_login_info is not failed
+  retries: "{{ max_retries }}"
+  delay: "{{ max_delay }}"

@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,54 +13,144 @@
 # limitations under the License.
 ---
 
-- name: Set RAID status
+- name: Set BOSS status
   set_fact:
-    raid_type: true
-    raid_controller_sensor: "{{ idrac_info.system_info.ControllerSensor[my_idx3].FQDD }}"
-    raid_enclosure_name: "Enclosure.Internal.0-1:{{ idrac_info.system_info.ControllerSensor[my_idx3].FQDD }}"
-    raid_vd_status: "{{ idrac_info.system_info.VirtualDisk is defined and idrac_info.system_info.VirtualDisk[0].Name == \"omnia_vd\" }}"
+    boss_type: true
+    boss_controller_sensor: "{{ idrac_info.system_info.Controller[my_idx4].FQDD }}"
   with_items: "{{ idrac_info.system_info.Controller }}"
   loop_control:
-    index_var: my_idx3
-  when: '"RAID" in idrac_info.system_info.ControllerSensor[my_idx3].FQDD'
+    index_var: my_idx4
+  when: boss_search_key in idrac_info.system_info.Controller[my_idx4].ProductName
 
-- name: View existing storage details
-  dellemc.openmanage.dellemc_idrac_storage_volume:
-    idrac_ip: "{{ inventory_hostname }}"
-    idrac_user: "{{ idrac_username }}"
-    idrac_password: "{{ idrac_password }}"
-    state: "view"
-  register: idrac_volume_list
-  when: 
-    - raid_type
-    - not raid_vd_status
+- name: Configure BOSS controller
+  block:
+    - name: Set boss_vd_status
+      set_fact:
+        boss_vd_status: true
+      with_items: "{{ idrac_info.system_info.VirtualDisk }}"
+      loop_control:
+        index_var: my_idx5
+      when:
+        - idrac_info.system_info.VirtualDisk is defined
+        - idrac_info.system_info.VirtualDisk[my_idx5].Name == boss_vd_name
 
-- name: Set drives details
-  set_fact:
-    drives_id: "{{ idrac_volume_list.storage_status.Message.Controller[raid_controller_sensor].Enclosure[raid_enclosure_name].PhysicalDisk }}"
-    drives_count: "{{ idrac_volume_list.storage_status.Message.Controller[raid_controller_sensor].Enclosure[raid_enclosure_name].PhysicalDisk | length }}"
-  when: 
-    - raid_type
-    - not raid_vd_status
-    - idrac_volume_list.storage_status.Message.Controller[raid_controller_sensor].Enclosure[raid_enclosure_name].PhysicalDisk is defined
+    - name: View existing storage details
+      dellemc.openmanage.dellemc_idrac_storage_volume:
+        idrac_ip: "{{ inventory_hostname }}"
+        idrac_user: "{{ idrac_username }}"
+        idrac_password: "{{ idrac_password }}"
+        state: "view"
+      register: idrac_volume_list
+      when: not boss_vd_status
 
-- name: Create VD
-  dellemc.openmanage.dellemc_idrac_storage_volume:
-    idrac_ip: "{{ inventory_hostname }}"
-    idrac_user: "{{ idrac_username }}"
-    idrac_password: "{{ idrac_password }}"
-    state: "create"
-    controller_id: "{{ raid_controller_sensor }}"
-    raid_reset_config: "True"
-    volume_type: "{{ raid_level }}"
-    raid_init_operation: "Fast"
-    volumes:
-      - name: "omnia_vd"
-        span_length: "{{ drives_count }}"
-        drives:
-          id: "{{ drives_id }}"
-  register: create_vd_status
-  when: 
-    - raid_type
-    - not raid_vd_status
-    - idrac_volume_list.storage_status.Message.Controller[raid_controller_sensor].Enclosure[raid_enclosure_name].PhysicalDisk is defined
+    - name: Set drives details - BOSS
+      set_fact:
+        drives_id: "{{ idrac_volume_list.storage_status.Message.Controller[boss_controller_sensor].PhysicalDisk }}"
+        drives_count: "{{ idrac_volume_list.storage_status.Message.Controller[boss_controller_sensor].PhysicalDisk | length }}"
+      when: 
+        - not boss_vd_status
+        - idrac_volume_list.storage_status.Message.Controller[boss_controller_sensor].PhysicalDisk is defined
+
+    - name: Fail if BOSS drives count is not 2
+      fail:
+        msg: "{{ boss_drives_count_fail_msg }}"
+      when:
+        - not boss_vd_status
+        - idrac_volume_list.storage_status.Message.Controller[boss_controller_sensor].PhysicalDisk is defined
+        - drives_count | int != boss_drives_count
+
+    - block:
+        - name: Create VD - BOSS
+          dellemc.openmanage.dellemc_idrac_storage_volume:
+            idrac_ip: "{{ inventory_hostname }}"
+            idrac_user: "{{ idrac_username }}"
+            idrac_password: "{{ idrac_password }}"
+            state: "create"
+            controller_id: "{{ boss_controller_sensor }}"
+            raid_reset_config: "True"
+            volume_type: "{{ boss_raid_level }}"
+            raid_init_operation: "Fast"
+            volumes:
+              - name: "{{ boss_vd_name }}"
+                span_length: "{{ drives_count }}"
+                drives:
+                  id: "{{ drives_id }}"
+          register: create_boss_vd_status
+          when:
+            - not boss_vd_status
+            - idrac_volume_list.storage_status.Message.Controller[boss_controller_sensor].PhysicalDisk is defined
+      rescue:
+        - name: Creating BOSS VD failed
+          fail:
+            msg: "{{ boss_vd_fail_msg }}"
+  when: boss_type
+
+- name: Configure RAID controller if BOSS controller not present
+  block:
+    - name: Set RAID status
+      set_fact:
+        raid_type: true
+        raid_controller_sensor: "{{ idrac_info.system_info.ControllerSensor[my_idx3].FQDD }}"
+        raid_enclosure_name: "Enclosure.Internal.0-1:{{ idrac_info.system_info.ControllerSensor[my_idx3].FQDD }}"
+      with_items: "{{ idrac_info.system_info.Controller }}"
+      loop_control:
+        index_var: my_idx3
+      when: raid_search_key in idrac_info.system_info.ControllerSensor[my_idx3].FQDD
+
+    - name: Set raid_vd_status
+      set_fact:
+        raid_vd_status: true
+      with_items: "{{ idrac_info.system_info.VirtualDisk }}"
+      loop_control:
+        index_var: my_idx6
+      when:
+        - idrac_info.system_info.VirtualDisk is defined
+        - raid_type
+        - idrac_info.system_info.VirtualDisk[my_idx6].Name == raid_vd_name
+
+    - name: View existing storage details
+      dellemc.openmanage.dellemc_idrac_storage_volume:
+        idrac_ip: "{{ inventory_hostname }}"
+        idrac_user: "{{ idrac_username }}"
+        idrac_password: "{{ idrac_password }}"
+        state: "view"
+      register: idrac_volume_list
+      when: 
+        - raid_type
+        - not raid_vd_status
+
+    - name: Set drives details - RAID
+      set_fact:
+        drives_id: "{{ idrac_volume_list.storage_status.Message.Controller[raid_controller_sensor].Enclosure[raid_enclosure_name].PhysicalDisk }}"
+        drives_count: "{{ idrac_volume_list.storage_status.Message.Controller[raid_controller_sensor].Enclosure[raid_enclosure_name].PhysicalDisk | length }}"
+      when: 
+        - raid_type
+        - not raid_vd_status
+        - idrac_volume_list.storage_status.Message.Controller[raid_controller_sensor].Enclosure[raid_enclosure_name].PhysicalDisk is defined
+
+    - block:
+        - name: Create VD - RAID
+          dellemc.openmanage.dellemc_idrac_storage_volume:
+            idrac_ip: "{{ inventory_hostname }}"
+            idrac_user: "{{ idrac_username }}"
+            idrac_password: "{{ idrac_password }}"
+            state: "create"
+            controller_id: "{{ raid_controller_sensor }}"
+            raid_reset_config: "True"
+            volume_type: "{{ raid_level }}"
+            raid_init_operation: "Fast"
+            volumes:
+              - name: "{{ raid_vd_name }}"
+                span_length: "{{ drives_count }}"
+                drives:
+                  id: "{{ drives_id }}"
+          register: create_raid_vd_status
+          when: 
+            - raid_type
+            - not raid_vd_status
+            - idrac_volume_list.storage_status.Message.Controller[raid_controller_sensor].Enclosure[raid_enclosure_name].PhysicalDisk is defined
+      rescue:
+        - name: Creating RAID VD failed
+          fail:
+            msg: "{{ raid_vd_fail_msg }}"
+  when: not boss_type
