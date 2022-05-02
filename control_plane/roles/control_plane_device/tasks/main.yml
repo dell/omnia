@@ -60,4 +60,4 @@
           msg: "{{ message_installed }}"
           verbosity: 2
         when: not mgmt_network_container_status
-  when: device_config_support
+  when: device_support_status  #here an or mgmt_lom condition is needed for scenario-2
