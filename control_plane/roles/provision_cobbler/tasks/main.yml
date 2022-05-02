@@ -48,6 +48,13 @@
       include_tasks: dhcp_configure.yml
       when:
         - ( not cobbler_image_status ) or ( backup_map_status ) or ( not cobbler_container_status )
+        - network_interface_type == "dedicated"
+
+    - name: Dhcp Configuration for shared lom
+      include_tasks: lom_dhcp_configure.yml
+      when:
+        - ( not cobbler_image_status ) or ( backup_map_status ) or ( not cobbler_container_status )
+        - network_interface_type == "lom"
 
     - name: Provision password validation
       include_tasks: provision_password.yml
