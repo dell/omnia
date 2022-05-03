@@ -19,7 +19,7 @@
   gather_facts: false
   tasks:
   - name: Enable DHCP
-    command: dhcpd {{ mngmnt_nic }}
+    command: dhcpd {{ mgmt_nic }}
     changed_when: false
 
   - name: Start cron
