@@ -201,4 +201,4 @@
     cron:
       name: Create inventory
       minute: "*/5"
-      job: "{{ ansible_playbook_path.stdout.split(' ')[1] }} /root/inventory_creation.yml"
+      job: "{{ ansible_playbook_path.stdout.split(' ')[1] }} /root/inventory_creation.yml -e network_interface_type="{{ network_interface_type }}" -e subnet="{{ subnet }}" netmask="{{ netmask }}" -e mgmt_network_subnet="{{ mgmt_network_subnet }}" -e mgmt_network_netmask="{{ mgmt_network_subnet }}""

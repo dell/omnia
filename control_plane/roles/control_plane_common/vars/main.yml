@@ -184,8 +184,10 @@ secondary_dns_not_reachable_msg: "[WARNING] secondary_dns is not reachable"
 ping_search_key: "100% packet loss"
 success_device_config: " Success. Device_config_support has valid values"
 fail_device_config: "Failed. Give a valid value in device_config_support"
-device_ip_list_not_supported: "[Warning] Device_ip_list is invalid as minimum idrac_support should be true"
+device_ip_list_not_supported: "[Warning] Device_ip_list is invalid as minimum idrac_support should be true.Change the parameters or these changes will be discarded."
 mgmnt_device_fail: "Failed. Container already present. Either delete the container or make device_config_support as true"
+success_network_type: " Success. Network_interface_type has valid values"
+fail_network_type: " Failed. Give valid value in network_interface_type "
 
 # Usage: ip_metric.yml
 public_metric: 101
@@ -330,3 +332,6 @@ rhsm_insecure_fail_msg: "Accepted values for rhsm_insecure are true, false"
 rhsm_rhsm_proxy_proto_fail_msg: "Accepted values for rhsm_rhsm_proxy_proto are http, https"
 rhsm_rhsm_options_fail_msg: "Accepted values for rhsm_manage_repos, rhsm_full_refresh_on_yum,
                               rhsm_report_package_profile are true and false"
+# Usage: validate_lom.yml
+success_cobbler_lom: "Success. Shared lom setup is validated"
+fail_cobbler_lom: " Failed. Give correct nic values."

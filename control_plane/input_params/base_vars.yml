@@ -19,6 +19,11 @@
 # If ansible is installed using pip, this path should be set
 ansible_conf_file_path: /etc/ansible
 
+# This variable is used to depict the network type of the omnia setup
+# Accepted values: lom, dedicated
+# Default value: dedicated
+network_interface_type: "dedicated"
+
 # This variable is used to support the management network container.
 # This container configures IP for all the different devices like idrac, switches and powervaults.
 # Accepted value: "true" or "false"
@@ -202,6 +207,19 @@ mgmt_network_dhcp_end_range: "172.19.0.200"
 # A template for mapping file exists in omnia/examples and is named as mapping_device_file.csv.
 # This depicts the path where user has kept the mapping file for DHCP configurations.
 mgmt_mapping_file_path: ""
+
+### Usage: Cobbler on high speed nic ###
+
+# The nic/ethernet card that needs to be connected to configure high speed pxe provisioning.
+# This nic will be configured by Omnia's cobbler for the DHCP server.
+# ROCE stands for RDMA over converged ethernet.
+# Optional
+roce_network_nic: ""
+
+# The dhcp range for assigning the IPv4 address
+# Example: 172.17.0.1
+roce_network_dhcp_start_range: ""
+roce_network_dhcp_end_range: ""
 
 ### Usage: control_plane_ib ###
 
