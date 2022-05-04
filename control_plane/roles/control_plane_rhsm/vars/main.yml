@@ -1,0 +1,30 @@
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Usage: include_vars.yml
+base_vars_filepath: "{{ playbook_dir }}/input_params/base_vars.yml"
+rhsm_support_fail_msg: "Omnia support redhat subscription management only when rhsm_support is set to true in base_vars.yml"
+rhsm_vars_vaultname: "{{ playbook_dir }}/input_params/.rhsm_vars_vault_key"
+rhsm_vars_filename: "{{ playbook_dir }}/input_params/rhsm_vars.yml"
+rhsm_vault_file_perm: '0640'
+
+# Usage: setup_rhsm_role.yml
+rhsm_git_repo: "https://github.com/openstack/ansible-role-redhat-subscription.git"
+rhsm_git_stable_commit: "0f7ac2a"
+rhsm_git_dest: "{{ playbook_dir }}/roles/control_plane_rhsm/files/openstack-rhsm"
+portal_file_path: "{{ playbook_dir }}/roles/control_plane_rhsm/files/openstack-rhsm/tasks/portal.yml"
+
+# Usage: redhat_subscription.yml
+hosts_file: /etc/hosts

@@ -36,9 +36,9 @@
   no_log: true
 
 - block:
-  - name: Validate rhsm_method
+  - name: Validate redhat_subscription_method
     assert:
-      that: (rhsm_method | lower == "portal") or (rhsm_method | lower  == "satellite")
+      that: (redhat_subscription_method | lower == "portal") or (redhat_subscription_method | lower  == "satellite")
       fail_msg: "{{ rhsm_method_fail_msg }}"
     register: failure_msg
     no_log: true
@@ -49,114 +49,114 @@
       debug:
         msg: "{{ rhsm_portal_vars_me }}"
       when:
-        - rhsm_method | lower == "satellite"
-        - ( rhsm_username | default("", true) | length > 1 )
-          or ( rhsm_password | default("", true) | length > 1 )
+        - redhat_subscription_method | lower == "satellite"
+        - ( redhat_subscription_username | default("", true) | length > 1 )
+          or ( redhat_subscription_password | default("", true) | length > 1 )
 
     - name: Info message
       debug:
         msg: "{{ rhsm_satellite_vars_me }}"
       when:
-        - rhsm_method | lower == "portal"
-        - (rhsm_activation_key | default("", true) | length > 1 ) or
-           ( rhsm_org_id | default("", true) | length > 1 )
+        - redhat_subscription_method | lower == "portal"
+        - (redhat_subscription_activation_key | default("", true) | length > 1 ) or
+           ( redhat_subscription_org_id | default("", true) | length > 1 )
 
-  - name: Validate rhsm_username and rhsm_password
+  - name: Validate username and password
     assert:
       that:
-        - rhsm_username is defined
-        - rhsm_password is defined
-        - rhsm_username | default("", true) | length >1
-        - rhsm_password | default("", true) | length >1
+        - redhat_subscription_username is defined
+        - redhat_subscription_password is defined
+        - redhat_subscription_username | default("", true) | length > 1
+        - redhat_subscription_password | default("", true) | length > 1
       fail_msg: "{{ rhsm_credentials_fail_msg }}"
     register: failure_msg
     no_log: true
-    when: rhsm_method| lower == "portal"
+    when: redhat_subscription_method | lower == "portal"
 
-  - name: Validate rhsm_autosubscribe
+  - name: Validate redhat_subscription_autosubscribe
     assert:
       that:
-        - (rhsm_autosubscribe | lower == "true") or (rhsm_autosubscribe | lower == "false")
+        - (redhat_subscription_autosubscribe | lower == "true") or (redhat_subscription_autosubscribe | lower == "false")
       fail_msg: "{{ rhsm_autosubscribe_fail_msg }}"
     register: failure_msg
     no_log: true
-    when: rhsm_method| lower == "portal"
+    when: redhat_subscription_method | lower == "portal"
 
-  - name: Validate rhsm_activation_key
+  - name: Validate redhat_subscription_activation_key
     assert:
       that:
-        - rhsm_activation_key is defined
-        - rhsm_activation_key | default("", true) | length >1
+        - redhat_subscription_activation_key is defined
+        - redhat_subscription_activation_key | default("", true) | length > 1
       fail_msg: "{{ rhsm_activation_key_fail_msg }}"
     register: failure_msg
     no_log: true
-    when: rhsm_method| lower == "satellite"
+    when: redhat_subscription_method | lower == "satellite"
 
-  - name: Validate rhsm_org_id
+  - name: Validate redhat_subscription_org_id
     assert:
       that:
-        - rhsm_org_id | default("", true) | length >1
+        - redhat_subscription_org_id | default("", true) | length > 1
       fail_msg: "{{ rhsm_org_id_fail_msg }}"
     register: failure_msg
     no_log: true
-    when: rhsm_method| lower == "satellite"
+    when: redhat_subscription_method | lower == "satellite"
 
-  - name: Validate rhsm_force_register
+  - name: Validate redhat_subscription_force_register
     assert:
       that:
-        - (rhsm_force_register | lower == "true") or (rhsm_force_register | lower == "false")
+        - (redhat_subscription_force_register | lower == "true") or (redhat_subscription_force_register | lower == "false")
       fail_msg: "{{ rhsm_force_register_fail_msg }}"
     register: failure_msg
     no_log: true
 
-  - name: Validate rhsm_repos_state
+  - name: Validate redhat_subscription_repos_state
     assert:
       that:
-        - (rhsm_repos_state | lower == "enabled") or (rhsm_repos_state | lower == "disabled")
+        - (redhat_subscription_repos_state | lower == "enabled") or (redhat_subscription_repos_state | lower == "disabled")
       fail_msg: "{{ rhsm_repos_state_fail_msg }}"
     register: failure_msg
     no_log: true
-    when: rhsm_repos | default("", true) | length >1
+    when: redhat_subscription_repos | default("", true) | length > 1
 
-  - name: Validate rhsm_repos_purge
+  - name: Validate redhat_subscription_repos_purge
     assert:
       that:
-        - (rhsm_repos_purge | lower == "true") or (rhsm_repos_purge | lower == "false")
+        - (redhat_subscription_repos_purge | lower == "true") or (redhat_subscription_repos_purge | lower == "false")
       fail_msg: "{{ rhsm_repos_purge_fail_msg }}"
     register: failure_msg
     no_log: true
-    when: rhsm_repos | default("", true) | length >1
+    when: redhat_subscription_repos | default("", true) | length > 1
 
-  - name: Validate rhsm_rhsm_port
+  - name: Validate redhat_subscription_port
     assert:
       that:
-        - (rhsm_rhsm_port == 443) or (rhsm_rhsm_port == 8443)
+        - (redhat_subscription_port == 443) or (redhat_subscription_port == 8443)
       fail_msg: "{{ rhsm_rhsm_port_fail_msg }}"
     register: failure_msg
     no_log: true
 
-  - name: Validate rhsm_insecure
+  - name: Validate redhat_subscription_insecure
     assert:
       that:
-        - (rhsm_insecure | lower == "true") or (rhsm_insecure | lower == "false")
+        - (redhat_subscription_insecure | lower == "true") or (redhat_subscription_insecure | lower == "false")
       fail_msg: "{{ rhsm_insecure_fail_msg }}"
     register: failure_msg
     no_log: true
 
-  - name: Validate rhsm_rhsm_proxy_proto
+  - name: Validate redhat_subscription_proxy_proto
     assert:
       that:
-        - (rhsm_rhsm_proxy_proto | lower == "http") or (rhsm_rhsm_proxy_proto | lower == "https")
+        - (redhat_subscription_proxy_proto | lower == "http") or (redhat_subscription_proxy_proto | lower == "https")
       fail_msg: "{{ rhsm_rhsm_proxy_proto_fail_msg }}"
     register: failure_msg
     no_log: true
 
-  - name: Validate rhsm_manage_repos, rhsm_full_refresh_on_yum, rhsm_report_package_profile
+  - name: Validate redhat_subscription_manage_repos, redhat_subscription_full_refresh_on_yum, redhat_subscription_report_package_profile
     assert:
       that:
-        - (rhsm_manage_repos | lower == "true") or (rhsm_manage_repos | lower == "false")
-        - (rhsm_full_refresh_on_yum | lower == "true") or (rhsm_full_refresh_on_yum | lower == "false")
-        - (rhsm_report_package_profile | lower == "true") or (rhsm_report_package_profile | lower == "false")
+        - (redhat_subscription_manage_repos | lower == "true") or (redhat_subscription_manage_repos | lower == "false")
+        - (redhat_subscription_full_refresh_on_yum | lower == "true") or (redhat_subscription_full_refresh_on_yum | lower == "false")
+        - (redhat_subscription_report_package_profile | lower == "true") or (redhat_subscription_report_package_profile | lower == "false")
       fail_msg: "{{ rhsm_rhsm_options_fail_msg }}"
     register: failure_msg
     no_log: true
