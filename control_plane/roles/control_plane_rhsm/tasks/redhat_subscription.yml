@@ -13,7 +13,7 @@
 # limitations under the License.
 ---
 - block:
-  - name: Add hostname entry to /etc/hosts 
+  - name: Add hostname entry to /etc/hosts file
     lineinfile:
       dest: "{{ hosts_file }}"
       line: "{{ inventory_hostname }} {{ server_hostname.stdout }}"
