@@ -12,17 +12,5 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-- block:
-    - name: Check prerequisites
-      include_tasks: prerequisites.yml
-
-    - name: Clean the existing beegfs version
-      include_tasks: remove_client.yml
-      when: hostvars["127.0.0.1"]["beegfs_version_change"]
-
-    - name: Configure firewalld
-      include_tasks: beegfs_firewalld.yml
-
-    - name: Install BeeGFS client
-      include_tasks: beegfs_client.yml
-  when: hostvars["127.0.0.1"]["beegfs_support"]
+selinux_fail_msg: "SELinux should be in disabled mode, for installing beegfs client"
+os_supported_leap: "leap"
