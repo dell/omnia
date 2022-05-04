@@ -13,7 +13,7 @@
 # limitations under the License.
 ---
 
-- name: Include variable files
+- name: Include all variables
   include_tasks: include_vars.yml
 
 - name: Setup rhsm role
