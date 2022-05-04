@@ -39,5 +39,5 @@
 
 - name: Status message
   debug:
-    msg: "Host {{ ansible_ssh_host }} doesn't have redhat OS."
+    msg: "Host: {{ ansible_ssh_host }} doesn't have redhat OS."
   when: not ansible_facts['distribution'] | lower == "redhat"
