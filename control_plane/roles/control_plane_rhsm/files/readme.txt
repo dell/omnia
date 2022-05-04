@@ -1,1 +1,1 @@
-This folder is used for openstack-rhsm role.
+This folder is used to clone openstack-rhsm role.
