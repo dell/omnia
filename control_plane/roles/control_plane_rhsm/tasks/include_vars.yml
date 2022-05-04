@@ -76,7 +76,7 @@
     delegate_to: localhost
     run_once: true
 
-  - name: Encrpyt rhsm_vars.yml
+  - name: Encrpyt rhsm_vars.yml file
     command: >-
       ansible-vault encrypt {{ rhsm_vars_filename }} --vault-password-file {{ rhsm_vars_vaultname }}
     changed_when: true
