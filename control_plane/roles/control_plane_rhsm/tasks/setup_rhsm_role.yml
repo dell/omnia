@@ -13,7 +13,7 @@
 # limitations under the License.
 ---
 
-- name: Git clone openstack rhsm role
+- name: Git clone openstack-rhsm role
   ansible.builtin.git:
     repo: "{{ rhsm_git_repo }}"
     dest: "{{ rhsm_git_dest }}"
