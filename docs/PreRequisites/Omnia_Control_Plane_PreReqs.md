@@ -55,14 +55,16 @@
 * Users should also ensure that all repos are available on Red Hat control planes.
 * On the control plane, run the following commands to install Git: <br>
   `dnf install epel-release -y` (Only if Rocky is in use on the control plane) <br><br> `dnf install git -y`
-* If the user intends to use BeeGFS, ensure that a BeeGFS cluster has been set up with beegfs-mgmtd, beegfs-meta, beegfs-storage services running on the control plane.
-* Ensure that the following ports are open for TCP and UDP connectivity:
-  | Port | Service                           |
-  |------|-----------------------------------|
-  | 8008 | Management service (beegfs-mgmtd) |
-  | 8003 | Metadata service (beegfs-meta)    |
-  | 8004 | Storage service (beegfs-storage)  |
-  | 8005 | Client service (beegfs-client)    |
+  * If the user intends to use BeeGFS, ensure that a BeeGFS cluster has been set up with beegfs-mgmtd, beegfs-meta, beegfs-storage services running.
+   Ensure that the following ports are open for TCP and UDP connectivity:
+  
+    | Port | Service                           |
+    |------|-----------------------------------|
+    | 8008 | Management service (beegfs-mgmtd) |
+    | 8003 | Storage service (beegfs-storage)  |
+    | 8004 | Client service (beegfs-client)    |
+    | 8005 | Metadata service (beegfs-meta)    |
+    | 8006 | Helper service (beegfs-helperd)   |
 
 To open the ports required, use the following steps:
 1. `firewall-cmd --permanent --zone=public --add-port=<port number>/tcp`
