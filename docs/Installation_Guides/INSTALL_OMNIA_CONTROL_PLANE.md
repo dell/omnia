@@ -259,3 +259,4 @@ From Omnia 1.2, the cobbler container OS will follow the OS on the control plane
 
 
 >> __Note:__ All compute nodes in a cluster must run the same OS. 
+
