@@ -25,7 +25,7 @@ git clone -b release https://github.com/dellhpc/omnia.git
 >> __Note:__  Without the login node, Slurm jobs can be scheduled only through the manager node.
 
 4. Create an inventory file in the *omnia* folder. Add login node IP address under the *[login_node]* group, manager node IP address under the *[manager]* group, compute node IP addresses under the *[compute]* group, and NFS node IP address under the *[nfs_node]* group. A template file named INVENTORY is provided in the *omnia\docs* folder.  
->>	**Note**: Ensure that all the four groups (login_node, manager, compute, nfs_node) are present in the template, even if the IP addresses are not updated under login_node and nfs_node groups. 
+>>	**Note**: Omnia checks for red hat subscription being enabled on red hat nodes as a pre-requisite. Ensure that all the four groups (login_node, manager, compute, nfs_node) are present in the template, even if the IP addresses are not updated under login_node and nfs_node groups. 
 
 5. To install Omnia:
 

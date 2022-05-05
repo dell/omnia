@@ -19,7 +19,9 @@ Using Omnia 1.2, you can provision and monitor hardware devices such as servers,
 	* For InfiniBand DHCP, connect NIC on the control plane to one of the data ports of the InfiniBand Switch. Next, connect one of the data ports of the InfiniBand switch to the NIC on the compute node. 
 * Establishing a host network: For Cobbler DHCP to assign an IP address to the compute node NIC, connect NIC of the control plane to the data port on the network switch. Connect another data port on the network switch to the NIC on the compute node. Omnia will provision OS on the compute nodes using PXE when the iDRAC Enterprise license is missing on any of the compute nodes in the HPC cluster.
 
->> __Note__: Cobbler web support has been discontinued from Omnia 1.2 onwards.
+>> __Note__:
+	* Cobbler web support has been discontinued from Omnia 1.2 onwards.
+	* Note that the PowerVault NFS server should have separate NICs configured for management, data (Connecting to other compute nodes) and a dedicated data connection to the storage array.
 
 Depending on the pass-through switch configured in your HPC environment, the number of racks will be limited based on the number of ports available on the pass-through switch. To support additional racks, you can form an L1-L2 topology and configure a network of Passthrough Switches. A typical layout of an HPC cluster with a network of pass-through switches is as per the following illustration:  
 
@@ -135,7 +137,9 @@ For Omnia to configure the devices and to provision the bare metal servers which
 13. To install only Kubernetes, enter `slurm` and select **slurm**. 
 14. To install only Slurm, select and add `kubernetes` skip tag.  
 
->> **Note**: If you would like to skip the NFS client setup, enter `nfs_client` in the skip tag section to skip the **k8s_nfs_client_setup** role of Kubernetes.  
+>> **Note**:
+* If you would like to skip the NFS client setup, enter `nfs_client` in the skip tag section to skip the **k8s_nfs_client_setup** role of Kubernetes.
+* For Red Hat Nodes, use AWX to run `redhat_subscription_template` after running `control_plane.yml` to activate red hat subscription. Ensure that the subscription is enabled before assigning component roles (manager, compute, login_node, nfs_node) to the nodes.
 
 15. Click **NEXT**.
 16. Review the details in the **PREVIEW** window and click **LAUNCH** to run the DeployOmnia template. 
