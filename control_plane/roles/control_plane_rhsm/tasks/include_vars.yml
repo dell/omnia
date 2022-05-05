@@ -1,0 +1,275 @@
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Include base_vars.yml file
+  include_vars: "{{ base_vars_filepath }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: Status msg
+  fail:
+    msg: "{{ rhsm_support_fail_msg }}"
+  when: not rhsm_support
+  delegate_to: localhost
+  run_once: true
+
+- name: Include rhsm_vars.yml
+  block:
+  - name: Check if rhsm_vars.yml file is encrypted
+    command: cat {{ rhsm_vars_filename }}
+    changed_when: false
+    register: rhsm_vars_content
+    no_log: true
+    delegate_to: localhost
+    run_once: true
+
+  - name: Decrpyt rhsm_vars.yml
+    command: >-
+      ansible-vault decrypt {{ rhsm_vars_filename }}
+      --vault-password-file {{ rhsm_vars_vaultname }}
+    changed_when: false
+    when: "'$ANSIBLE_VAULT;' in rhsm_vars_content.stdout"
+    delegate_to: localhost
+    run_once: true
+
+  - name: Include rhsm_vars.yml file
+    include_vars: "{{ rhsm_vars_filename }}"
+    delegate_to: localhost
+    run_once: true
+    no_log: true
+
+  - name: Check if rhsm_vars_vault key exists
+    stat:
+      path: "{{ rhsm_vars_vaultname }}"
+    register: rhsm_vars_key_result
+    delegate_to: localhost
+    run_once: true
+
+  - name: Create ansible vault key if it does not exist
+    set_fact:
+      rhsm_vault_key: "{{ lookup('password', '/dev/null chars=ascii_letters') }}"
+    when: not rhsm_vars_key_result.stat.exists
+    delegate_to: localhost
+    run_once: true
+
+  - name: Save vault key
+    copy:
+      dest: "{{ rhsm_vars_vaultname }}"
+      content: |
+        {{ rhsm_vault_key }}
+      owner: root
+      force: yes
+      mode: "{{ rhsm_vault_file_perm }}"
+    when: not rhsm_vars_key_result.stat.exists
+    delegate_to: localhost
+    run_once: true
+
+  - name: Encrpyt rhsm_vars.yml file
+    command: >-
+      ansible-vault encrypt {{ rhsm_vars_filename }} --vault-password-file {{ rhsm_vars_vaultname }}
+    changed_when: true
+    delegate_to: localhost
+    run_once: true
+
+  - name: Update rhsm_vars.yml permission
+    file:
+      path: "{{ rhsm_vars_filename }}"
+      mode: "{{ rhsm_vault_file_perm }}"
+    delegate_to: localhost
+    run_once: true
+  when: rhsm_support
+
+- name: Check hostname of server
+  command: hostname
+  changed_when: false
+  register: server_hostname
+
+- name: Assign rhsm_consumer_hostname
+  set_fact:
+    rhsm_consumer_hostname: "{{ server_hostname.stdout }}"
+
+- name: Assign rhsm_method
+  set_fact:
+    rhsm_method: "{{ redhat_subscription_method | default(omit) }}"
+  when: redhat_subscription_method | default("", true) | length > 1
+  run_once: true
+
+- name: Assign rhsm_username
+  set_fact:
+    rhsm_username: "{{ redhat_subscription_username | default(omit) }}"
+  when: 
+    - redhat_subscription_method | lower == "portal"
+    - redhat_subscription_username | default("", true) | length > 1
+  run_once: true
+  no_log: true
+
+- name: Assign rhsm_password
+  set_fact:
+    rhsm_password: "{{ redhat_subscription_password | default(omit) }}"
+  when: 
+    - redhat_subscription_method | lower == "portal"
+    - redhat_subscription_password | default("", true) | length > 1
+  run_once: true
+  no_log: true
+
+- name: Assign rhsm_autosubscribe
+  set_fact:
+    rhsm_autosubscribe: "{{ redhat_subscription_autosubscribe | default(omit) }}"
+  when: redhat_subscription_method| lower == "portal"
+  run_once: true
+
+- name: Assign rhsm_activation_key
+  set_fact:
+    rhsm_activation_key: "{{ redhat_subscription_activation_key | default(omit) }}"
+  when: 
+    - redhat_subscription_method | lower == "satellite"
+    - redhat_subscription_activation_key | default("", true) | length > 1
+  run_once: true
+  no_log: true
+
+- name: Assign rhsm_org_id
+  set_fact:
+    rhsm_org_id: "{{ redhat_subscription_org_id | default(omit) }}"
+  when: 
+    - redhat_subscription_method | lower == "satellite"
+    - redhat_subscription_org_id | default("", true) | length > 1
+  run_once: true
+
+- name: Assign rhsm_release
+  set_fact:
+    rhsm_release: "{{ redhat_subscription_release | default(omit) }}"
+  when: redhat_subscription_release | default("", true) | length > 1
+  run_once: true
+
+- name: Assign rhsm_force_register
+  set_fact:
+    rhsm_force_register: "{{ redhat_subscription_force_register | default(omit) }}"
+  run_once: true
+
+- name: Assign rhsm_pool_ids
+  set_fact:
+    rhsm_pool_ids: "{{ redhat_subscription_pool_ids | default(omit) }}"
+  when: redhat_subscription_pool_ids | default("", true) | length > 1 
+  run_once: true
+
+- name: Assign rhsm_repos
+  set_fact:
+    rhsm_repos: "{{ redhat_subscription_repos | default(omit) }}"
+  when: redhat_subscription_repos | default("", true) | length > 1
+  run_once: true
+
+- name: Assign rhsm_repos_state
+  set_fact:
+    rhsm_repos_state: "{{ redhat_subscription_repos_state | default(omit) }}"
+  when: redhat_subscription_repos_state | default("", true) | length > 1
+  run_once: true
+
+- name: Assign rhsm_repos_purge
+  set_fact:
+    rhsm_repos_purge: "{{ redhat_subscription_repos_purge | default(omit) }}"
+  when: redhat_subscription_repos_purge | default("", true) | length > 1
+  run_once: true
+
+- name: Assign rhsm_state
+  set_fact:
+    rhsm_state: "present"
+  run_once: true
+
+- name: Assign rhsm_baseurl
+  set_fact:
+    rhsm_baseurl: "{{ redhat_subscription_baseurl | default(omit) }}"
+  when: redhat_subscription_baseurl | default("", true) | length > 1
+  run_once: true
+
+- name: Assign rhsm_manage_repos
+  set_fact:
+    rhsm_manage_repos: "{{ redhat_subscription_manage_repos | default(omit) }}"
+  run_once: true
+
+- name: Assign rhsm_full_refresh_on_yum
+  set_fact:
+    rhsm_full_refresh_on_yum: "{{ redhat_subscription_full_refresh_on_yum | default(omit) }}"
+  run_once: true
+
+- name: Assign rhsm_report_package_profile
+  set_fact:
+    rhsm_report_package_profile: "{{ redhat_subscription_report_package_profile | default(omit) }}"
+  run_once: true
+
+- name: Assign rhsm_cert_check_interval
+  set_fact:
+    rhsm_cert_check_interval: "{{ redhat_subscription_cert_check_interval | default(omit) }}"
+  when: redhat_subscription_cert_check_interval| bool
+  run_once: true
+
+- name: Assign rhsm_auto_attach_interval
+  set_fact:
+    rhsm_auto_attach_interval: "{{ redhat_subscription_auto_attach_interval | default(omit) }}"
+  when: redhat_subscription_auto_attach_interval | bool
+  run_once: true
+
+- name: Assign rhsm_server_hostname
+  set_fact:
+    rhsm_server_hostname: "{{ redhat_subscription_server_hostname | default(omit) }}"
+  when: redhat_subscription_server_hostname | default("", true) | length > 1
+  run_once: true
+
+- name: Assign rhsm_rhsm_port
+  set_fact:
+    rhsm_rhsm_port: "{{ redhat_subscription_port | default(omit) }}"
+  when: (redhat_subscription_port == 443) or (redhat_subscription_port == 8443)
+  run_once: true
+
+- name: Assign rhsm_insecure
+  set_fact:
+    rhsm_insecure: "{{ redhat_subscription_insecure | default(omit) }}"
+  run_once: true
+
+- name: Assign rhsm_ssl_verify_depth
+  set_fact:
+    rhsm_ssl_verify_depth: "{{ redhat_subscription_ssl_verify_depth | default(omit) }}"
+  when: redhat_subscription_ssl_verify_depth | bool
+  run_once: true
+
+- name: Assign rhsm_rhsm_proxy_proto
+  set_fact:
+    rhsm_rhsm_proxy_proto: "{{ redhat_subscription_proxy_proto | default(omit) }}"
+  when: redhat_subscription_proxy_proto | default("", true) | length > 1
+  run_once: true
+
+- name: Assign rhsm_rhsm_proxy_hostname
+  set_fact:
+    rhsm_rhsm_proxy_hostname: "{{ redhat_subscription_proxy_hostname | default(omit) }}"
+  when: redhat_subscription_proxy_hostname | default("", true) | length > 1
+  run_once: true
+
+- name: Assign rhsm_rhsm_proxy_port
+  set_fact:
+    rhsm_rhsm_proxy_port: "{{ redhat_subscription_proxy_port | default(omit) }}"
+  when: redhat_subscription_proxy_port | default("", true) | length > 1
+  run_once: true
+
+- name: Assign rhsm_rhsm_proxy_user
+  set_fact:
+    rhsm_rhsm_proxy_user: "{{ redhat_subscription_proxy_user | default(omit) }}"
+  when: redhat_subscription_proxy_user | default("", true) | length > 1
+  run_once: true
+
+- name: Assign rhsm_rhsm_proxy_password
+  set_fact:
+    rhsm_rhsm_proxy_password: "{{ redhat_subscription_proxy_password | default(omit) }}"
+  when: redhat_subscription_proxy_password | default("", true) | length > 1
+  run_once: true
+  no_log: true
