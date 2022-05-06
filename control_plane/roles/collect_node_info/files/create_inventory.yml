@@ -18,22 +18,29 @@
   ignore_unreachable: true
   ignore_errors: true
   tasks:
-    - name: Check for reachable nodes
-      command: ping -c1 {{ inventory_hostname }}
-      delegate_to: localhost
-      register: ping_result
-      ignore_errors: yes
-      changed_when: false
-
     - name: Refresh ssh keys
       command: ssh-keygen -R {{ inventory_hostname }}
       delegate_to: localhost
       changed_when: false
+      failed_when: false
+    
+    - name: Check for reachable nodes
+      ping:
+      register: ping_check
 
     - name: Group reachable hosts
       group_by:
         key: "reachable"
-      when: "'100% packet loss' not in ping_result.stdout"
+      when:
+        - ping_check.ping is defined
+        - '"pong" in ping_check.ping'
+
+    - name: Group unreachable hosts
+      group_by:
+        key: "unreachable"
+      when:
+        - ping_check.unreachable is defined
+        - ping_check.unreachable
 
 - name: Get provision password
   hosts: localhost
@@ -57,6 +64,9 @@
 
     - name: Include vars file of inventory role
       include_vars: "{{ omnia_config_file }}"
+
+    - name: Fetch AWX credentials
+      include_tasks: fetch_awx_credentials.yml
 
 - name: Set hostname for reachable nodes and gather facts
   hosts: reachable
@@ -209,76 +219,13 @@
       delegate_to: localhost
       run_once: true
 
-    - name: Check if tower_config_file file is encrypted
-      command: cat "{{ playbook_dir }}/../../webui_awx/files/.tower_cli.cfg"
-      changed_when: false
-      no_log: true
-      register: tower_config_content
-      delegate_to: localhost
-      run_once: true
-
-    - name: Decrypt tower_config_file
-      command: >-
-        ansible-vault decrypt "{{ playbook_dir }}/../../webui_awx/files/.tower_cli.cfg"
-        --vault-password-file "{{ playbook_dir }}/../../webui_awx/files/.tower_vault_key"
-      changed_when: false
-      when: "'$ANSIBLE_VAULT;' in tower_config_content.stdout"
-      delegate_to: localhost
-      run_once: true
-
-    - name: Change file permissions - tower_config_file
-      file:
-        path: "{{ playbook_dir }}/../../webui_awx/files/.tower_cli.cfg"
-        mode: "{{ hostvars['localhost']['file_perm'] }}"
-      delegate_to: localhost
-      run_once: true
-
-    - name: Fetch awx host
-      command: grep "host:" "{{ playbook_dir }}/../../webui_awx/files/.tower_cli.cfg"
-      register: fetch_awx_host
-      changed_when: false
-      delegate_to: localhost
-      run_once: true
-
-    - name: Fetch awx username
-      command: grep "username:" "{{ playbook_dir }}/../../webui_awx/files/.tower_cli.cfg"
-      register: fetch_awx_username
-      changed_when: false
-      run_once: true
-      delegate_to: localhost
-      run_once: true
-
-    - name: Fetch awx password
-      command: grep "password:" "{{ playbook_dir }}/../../webui_awx/files/.tower_cli.cfg"
-      register: fetch_awx_password
-      changed_when: false
-      run_once: true
-      delegate_to: localhost
-      run_once: true
-
-    - name: Set awx variables
-      set_fact:
-        awx_host: "{{ fetch_awx_host.stdout | regex_replace('host: ','') }}"
-        awx_username: "{{ fetch_awx_username.stdout | regex_replace('username: ','') }}"
-        awx_password: "{{ fetch_awx_password.stdout | regex_replace('password: ','') }}"
-      no_log: true
-
-    - name: Encrypt tower_config_file
-      command: >-
-        ansible-vault encrypt "{{ playbook_dir }}/../../webui_awx/files/.tower_cli.cfg"
-        --vault-password-file "{{ playbook_dir }}/../../webui_awx/files/.tower_vault_key"
-      changed_when: false
-      when: "'$ANSIBLE_VAULT;' in tower_config_content.stdout"
-      run_once: true
-      delegate_to: localhost
-      run_once: true
-
-    - name: Change file permissions - tower_config_file
-      file:
-        path: "{{ playbook_dir }}/../../webui_awx/files/.tower_cli.cfg"
-        mode: "{{ hostvars['localhost']['file_perm'] }}"
-      delegate_to: localhost
-      run_once: true
-
     - name: Fetch facts and add new hosts
       include_tasks: add_host.yml
+
+- name: Cleanup inventory
+  hosts: unreachable
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Remove unreachable hosts
+      include_tasks: remove_host.yml
