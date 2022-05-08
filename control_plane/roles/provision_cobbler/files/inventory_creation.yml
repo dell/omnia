@@ -36,6 +36,12 @@
       changed_when: false
       failed_when: false
 
+    - name: Create the static ip for mgmt hosts for shared lom
+      shell: awk -F',' 'NR >1{print $2}' omnia/control_plane/roles/provision_cobbler/files/new_mgmt_mapping_file.csv > static_mgmt.yml
+      changed_when: false
+      when: network_interface_type == "lom"
+      failed_when: false
+
     - name: Create the dynamic inventory
       shell: |
         echo "{{ vars_new }}" > temp.txt
@@ -91,7 +97,7 @@
 
         - name: Final inventory for devices
           shell: |
-            cat devices.yml static_hosts.yml| sort -ur  >> omnia/control_plane/roles/collect_device_info/files/mgmt_provisioned_hosts.yml
+            cat devices.yml static_mgmt.yml| sort -ur  >> omnia/control_plane/roles/collect_device_info/files/mgmt_provisioned_hosts.yml
           changed_when: false
 
         - name: Temp result for device
@@ -110,7 +116,7 @@
       when: network_interface_type == "lom"
 
     - name: Final inventory
-      shell: cat dynamic_hosts.yml static_hosts.yml| sort -ur  >> omnia/control_plane/roles/collect_node_info/files/provisioned_hosts.yml
+      shell: cat dynamic_hosts.yml static_hosts.yml| sort -ur >> omnia/control_plane/roles/collect_node_info/files/provisioned_hosts.yml
       changed_when: false
       when: network_interface_type == "dedicated"
 

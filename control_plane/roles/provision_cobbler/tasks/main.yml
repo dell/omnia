@@ -56,6 +56,10 @@
         - ( not cobbler_image_status ) or ( backup_map_status ) or ( not cobbler_container_status )
         - network_interface_type == "lom"
 
+    - name: Management n/w container mapping file
+      include_tasks: mgmt_lom_status.yml
+      when: network_interface_type == "lom"
+
     - name: Provision password validation
       include_tasks: provision_password.yml
       when:
