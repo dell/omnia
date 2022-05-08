@@ -15,11 +15,15 @@
 
 # Usage: prerequisites.yml
 beegfs_common_pkgs_non_leap:
-    - wget
-    - elfutils-libelf-devel
-selinux_fail_msg: "SElinux should be in disabled mode, for installing beegfs client"
+   - wget
+   - elfutils-libelf-devel
 os_supported_leap: "leap"
-prev_beegfs_mount_status_msg: "Failed, Please check prev_beegfs_mount. This location should be already mounted beegfs client location"
+max_retries: 20
+unmount_client_success_msg: "Success, unmounting existing BeeGFS client as requested"
+unmount_client_fail_msg: "Failed, updating unmount_client to true is needed when there is a change in beegfs mount location or in version. Else, it should be false"
+beegfs_mount_status_msg: "Failed, Make sure there is an active beegfs file system running, which is not in busy state"
+# Usage: remove_client.yml
+beegfs_folder_location: "/etc/beegfs"
 
 # Usage: beegfs_firewalld.yml
 beegfs_ports:
@@ -31,12 +35,14 @@ beegfs_ports:
    - 8003/udp
    - 8004/tcp
    - 8004/udp
+   - 8006/tcp
 
 # Usage: beegfs_client.yml
 beegfs_pkgs:
    - beegfs-client
    - beegfs-helperd
    - beegfs-utils
+   - libbeegfs-ib
 beegfs_client_non_leap_repo: "https://www.beegfs.io/release/beegfs_{{ hostvars['127.0.0.1']['beegfs_client_version'] }}/dists/beegfs-rhel8.repo"
 beegfs_repo_dest_non_leap: "/etc/yum.repos.d/beegfs_rhel8.repo"
 min_retries: 10

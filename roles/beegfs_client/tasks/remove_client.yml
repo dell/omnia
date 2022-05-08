@@ -12,17 +12,26 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-- block:
-    - name: Check prerequisites
-      include_tasks: prerequisites.yml
+    
+- name: Stop all BeeGFS services
+  systemd:
+    name: "{{ item }}"
+    state: stopped
+    enabled: no
+  with_items: "{{ beegfs_client_pkg }}"
 
-    - name: Clean the existing beegfs version
-      include_tasks: remove_client.yml
-      when: hostvars["127.0.0.1"]["beegfs_version_change"]
+- name: Removing files related to BeeGFS client
+  file:
+    path: "{{ beegfs_folder_location }}"
+    state: absent
 
-    - name: Configure firewalld
-      include_tasks: beegfs_firewalld.yml
+- name: Removing packages for BeeGFS client
+  package:
+    name: "{{ item }}"
+    state: absent
+  with_items: "{{ beegfs_pkgs }}"
 
-    - name: Install BeeGFS client
-      include_tasks: beegfs_client.yml
-  when: hostvars["127.0.0.1"]["beegfs_support"]
+- name: Remove repo of BeeGFS client
+  file:
+    path: "{{ beegfs_repo_dest_non_leap }}"
+    state: absent
