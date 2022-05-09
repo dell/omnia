@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+
 - name: Find reachable hosts
   hosts: node_inventory
   gather_facts: false
@@ -87,20 +88,20 @@
       command: hostname
       register: hostname_check
       changed_when: false
-      ignore_errors: true
+      failed_when: false
       
     - name: Check if IP is present in mapping file
       command: grep "{{ inventory_hostname }}" ../../provision_cobbler/files/new_host_mapping_file.csv
       delegate_to: localhost
       register: file_present
-      when: mapping_file | bool == true
-      ignore_errors: true
+      when: mapping_file | bool
+      failed_when: false
 
     - name: Set fact if mapping file is present
       set_fact:
         mapping_file_present: "{{ file_present.stdout }}"
-      when: mapping_file | bool == true
-      ignore_errors: true
+      when: mapping_file | bool
+      failed_when: false
 
     - name: Get the static hostname from mapping file
       shell: awk -F',' '$3 == "{{ inventory_hostname }}" { print $2 }' ../../provision_cobbler/files/new_host_mapping_file.csv
@@ -108,19 +109,19 @@
       when: 
         - ( hostname_check.stdout is defined )
         - ( 'localhost' in hostname_check.stdout ) 
-        - ( mapping_file_present != "" ) 
-        - ( mapping_file | bool == true )
+        - ( mapping_file_present | length > 1  ) 
+        - ( mapping_file | bool )
       register: host_name
-      ignore_errors: true
+      failed_when: false
 
     - name: Set the hostname from mapping file
       command: hostnamectl set-hostname "{{ host_name.stdout + '.' + hostvars['localhost']['domain_name'] }}"
       when: 
         - ( hostname_check.stdout is defined )
         - ( 'localhost' in hostname_check.stdout ) 
-        - ( mapping_file_present != "" ) 
-        - ( mapping_file | bool == true )
-      ignore_errors: true
+        - ( mapping_file_present | length > 1 ) 
+        - ( mapping_file | bool )
+      failed_when: false
 
     - name: Set the hostname if hostname not present mapping file
       command: hostnamectl set-hostname "compute{{ inventory_hostname.split('.')[-2] + '-' + inventory_hostname.split('.')[-1] + '.' + hostvars['localhost']['domain_name'] }}"
@@ -129,16 +130,16 @@
         - ( 'localhost' in hostname_check.stdout )
         - ( file_present.rc is defined ) 
         - ( file_present.rc != 0 ) 
-        - ( mapping_file | bool == true )
-      ignore_errors: true
+        - ( mapping_file | bool )
+      failed_when: false
 
     - name: Set the system hostname if mapping file not present
       command: hostnamectl set-hostname "compute{{ inventory_hostname.split('.')[-2] + '-' + inventory_hostname.split('.')[-1]+'.'+ hostvars['localhost']['domain_name'] }}"
       when: 
         - ( hostname_check.stdout is defined )
         - ( 'localhost' in hostname_check.stdout ) 
-        - ( mapping_file | bool == false )
-      ignore_errors: true
+        - ( not mapping_file | bool )
+      failed_when: false
 
     - name: Add new hostname to /etc/hosts from mapping file
       lineinfile:
@@ -148,9 +149,9 @@
       when: 
         - ( hostname_check.stdout is defined )
         - ( 'localhost' in hostname_check.stdout ) 
-        - ( mapping_file_present != "" ) 
-        - ( mapping_file | bool == true )
-      ignore_errors: true
+        - ( mapping_file_present | length > 1 ) 
+        - ( mapping_file | bool )
+      failed_when: false
 
     - name: Add new hostname to /etc/hosts if hostname not present mapping file
       lineinfile:
@@ -162,8 +163,8 @@
         - ( 'localhost' in hostname_check.stdout )
         - ( file_present.rc is defined ) 
         - ( file_present.rc != 0 ) 
-        - ( mapping_file | bool == true )
-      ignore_errors: true
+        - ( mapping_file | bool )
+      failed_when: false
 
     - name: Add new hostname to /etc/hosts if mapping file not present
       lineinfile:
@@ -173,8 +174,8 @@
       when: 
         - ( hostname_check.stdout is defined )
         - ( 'localhost' in hostname_check.stdout ) 
-        - ( mapping_file | bool == false )
-      ignore_errors: true
+        - ( not mapping_file | bool )
+      failed_when: false
 
     - name: Initialize service tag
       set_fact:
