@@ -16,14 +16,12 @@
     - name: Remove blank lines
       shell: set -o pipefail && awk -F, 'length>NF+1' {{ mgmt_mapping_file_path }} > {{ temp_mgmt_mapping_file }}
       changed_when: false
-      tags: install
 
     - name: Remove blank spaces
       shell: set -o pipefail && sed -i.bak -E 's/(^|,)[[:blank:]]+/\1/g; s/[[:blank:]]+(,|$)/\1/g'  {{ temp_mgmt_mapping_file }}
       args:
         warn: no
       changed_when: false
-      tags: install
 
     - name: Compare the file for new nodes
       block:
@@ -52,7 +50,7 @@
     - name: Fetch input
       blockinfile:
         path: "{{ role_path }}/files/dhcp.template"
-        insertafter: '^#insert the static DHCP leases for mgmt configuration here'
+        insertafter: '^#insert the static DHCP leases for mgmt configurations here'
         block: |
           host {{ item.split(',')[1] }} {
             hardware ethernet {{ item.split(',')[0] }};
@@ -65,6 +63,7 @@
   when:
     - network_interface_type == "lom"
     - dhcp_lom_file
+    - mgmt_mapping_file_path | length > 1
 
 - name: Remove blank lines
   shell:  set -o pipefail && awk -F, 'length>NF+1' {{ host_mapping_file_path }} > {{ temp_host_mapping_file }}
