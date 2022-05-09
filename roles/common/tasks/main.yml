@@ -16,6 +16,11 @@
   set_fact:
     compute_os: "{{ ansible_facts['distribution'] | lower }}"
 
+- name: Initialize variables for ib
+  set_fact:
+    ib_nics: []
+    nic_with_ib: []
+
 - name: Check for redhat subscription if compute os is redhat
   include_tasks: validate_rhsm.yml
   when: compute_os == os_supported_redhat
@@ -106,11 +111,40 @@
     - name: Collect host facts (including acclerator information)
       setup: ~
 
-    - name: Install infiniBand support
+    - name: Install infiniband drivers
       package:
-        name: "@Infiniband Support"
+        name: "{{ item }}"
         state: present
+      with_items: "{{ infiniband_non_leap }}"
       tags: install
+    
+    - name: Reboot after installing ib drivers
+      reboot:
+      tags: install
+
+    - name: Fetching infiniband nic names
+      shell: "ip a | grep -o ' ib.'"
+      register: nics_available
+      failed_when: false
+      changed_when: false
+
+    - name: Creating list with ib nics available
+      set_fact:
+        nic_with_ib: "{{ nic_with_ib + [ item ] }}"
+      with_items: "{{ nics_available.stdout }}"
+    
+    - name: Converting list to string
+      set_fact:
+        nic_list: "{{ nic_with_ib[0] }}"
+  
+    - name: Final list of ib nics available
+      set_fact:
+        ib_nics: "{{ lookup('vars', 'nic_list').split('\n')| map('trim') | unique | select| list }}"
+
+    - name: Activating ib nics
+      command: "ifup {{ item }}"
+      changed_when: true
+      with_items: "{{ ib_nics }}"
   when: ( os_supported_leap not in compute_os )
 
 - block:
@@ -178,11 +212,40 @@
       setup: ~
       tags: install
 
-    - name: Install infiniBand support
+    - name: Install infiniband drivers
       package:
-        name: infiniband-diags
+        name: "{{ item }}"
         state: present
+      with_items: "{{ infiniband_leap }}"
       tags: install
+    
+    - name: Reboot after installing ib drivers
+      reboot:
+      tags: install
+
+    - name: Fetching infiniband nic names
+      shell: "ip a | grep -o ' ib.'"
+      register: nics_available
+      failed_when: false
+      changed_when: false
+
+    - name: Creating list with ib nics available
+      set_fact:
+        nic_with_ib: "{{ nic_with_ib + [ item ] }}"
+      with_items: "{{ nics_available.stdout }}"
+    
+    - name: Converting list to string
+      set_fact:
+        nic_list: "{{ nic_with_ib[0] }}"
+    
+    - name: Final list of ib nics available
+      set_fact:
+        ib_nics: "{{ lookup('vars', 'nic_list').split('\n')| map('trim') | unique | select| list }}"
+
+    - name: Activating ib nics
+      command: "ip link set dev {{ item }} up"
+      changed_when: true
+      with_items: "{{ ib_nics }}"
   when: ( os_supported_leap in compute_os ) and ( ansible_distribution_version >= os_supported_leap_version )
 
 - name: Deploy time ntp/chrony
