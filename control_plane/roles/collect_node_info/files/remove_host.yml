@@ -13,54 +13,33 @@
 # limitations under the License.
 ---
 
-- name: Initialise host description
-  set_fact:
-    host_description: "Description Unavailable"
-    
-- name: Fetch description
-  set_fact:
-    host_description: "Service Tag: {{ service_tag }}, Operating System: {{ ansible_distribution }}"
-  failed_when: false
-  when: hostname_check.stdout is defined
-
 - block:
     - name: Fetch the hosts in awx node inventory
       command: >-
         awx --conf.host {{ hostvars['localhost']['awx_host'] }} --conf.username {{ hostvars['localhost']['awx_username'] }} --conf.password {{ hostvars['localhost']['awx_password'] }}
         --conf.insecure hosts list --inventory node_inventory
       changed_when: false
+      register: fetch_hosts
       delegate_to: localhost
       no_log: true
       run_once: true
-      register: fetch_hosts
   rescue:
     - name: Failed to fetch hosts in AWX
       fail:
         msg: "{{ fetch_hosts.stderr }}"
-  
+
 - block:
-    - name: Add the host to awx node inventory if not present
+    - name: Delete the unreachable host in awx node inventory
       command: >-
         awx --conf.host {{ hostvars['localhost']['awx_host'] }} --conf.username {{ hostvars['localhost']['awx_username'] }} --conf.password {{ hostvars['localhost']['awx_password'] }}
-        --conf.insecure hosts create --name {{ inventory_hostname }} --description "{{ host_description }}" --inventory node_inventory
+        --conf.insecure hosts delete {{ inventory_hostname }} --inventory node_inventory
       changed_when: true
-      register: add_host_awx
+      register: delete_host_awx
       delegate_to: localhost
       no_log: true
-      when:
-        - hostname_check.stdout is defined
-        - fetch_hosts.stdout is defined
-        - inventory_hostname not in fetch_hosts.stdout
+      when: inventory_hostname in fetch_hosts.stdout
   rescue:
-    - name: Failed to add host to AWX
+    - name: Failed to delete unreachable host in AWX
       fail:
-        msg: "{{ add_host_awx.stderr }}"
-      when: add_host_awx is defined
-
-- name: Host added msg
-  debug:
-    msg: "{{ hostvars['localhost']['host_added_msg'] + inventory_hostname }}"
-  when:
-    - host_description != "Description Unavailable"
-    - add_host_awx is defined
-    - add_host_awx is not failed
+        msg: "{{ delete_host_awx.stderr }}"
+      when: delete_host_awx is defined
