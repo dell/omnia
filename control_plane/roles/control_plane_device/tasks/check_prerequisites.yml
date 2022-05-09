@@ -16,7 +16,6 @@
 - name: Initialize variables
   set_fact:
     mgmt_network_container_image_status: false
-    backup_mgmt_map_status: false
     new_mgmt_node_status: false
 
 - name: Check if any backup file exists
