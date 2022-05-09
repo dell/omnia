@@ -76,6 +76,7 @@ project_name: 'omnia'
 project_description: "Directory which contains configuration playbooks"
 inventory_names:
   - { name: node_inventory, description: "Inventory to store host IPs of servers", flag: true }
+  - { name: localhost, description: "Default inventory for omnia", flag: true }
   - { name: idrac_inventory, description: "Inventory to store IPs of idrac servers", flag: "{{ idrac_support }}" }
   - { name: ethernet_inventory, description: "Inventory to store IPs of ethernet switches", flag: "{{ ethernet_switch_support }}" }
   - { name: infiniband_inventory, description: "Inventory to store IPs of infiniband switches", flag: "{{ ib_switch_support }}" }
@@ -92,7 +93,7 @@ credential_details:
   - { name: infiniband_credential, type: Network, username: "{{ ib_username }}", password: "{{ ib_password }}", flag: "{{ ib_switch_support }}" }
   - { name: powervault_me4_credential, type: Network, username: "{{ powervault_me4_username }}", password: "{{ powervault_me4_password }}", flag: "{{ powervault_support }}" }
 job_template_details:
-  - { name: node_inventory_job, inventory: node_inventory, playbook: control_plane/collect_node_info.yml, credential: node_credential, flag: true }
+  - { name: node_inventory_job, inventory: localhost, playbook: control_plane/collect_node_info.yml, credential: node_credential, flag: true }
   - { name: device_inventory_job, inventory: node_inventory, playbook: control_plane/collect_device_info.yml, credential: node_credential, flag: "{{ device_support_status }}" }
   - { name: idrac_template, inventory: idrac_inventory, playbook: control_plane/idrac.yml, credential: idrac_credential, flag: "{{ idrac_support }}" }
   - { name: ethernet_template, inventory: ethernet_inventory, playbook: control_plane/ethernet.yml, credential: ethernet_credential, flag: "{{ ethernet_switch_support }}" }
