@@ -53,6 +53,13 @@
     msg: " {{ beegfs_mounts_fail_msg }}"
   when: beegfs_mounts | length < 1
 
+- name: Assert unmount_client
+  assert:
+    that:
+      - unmount_client == true or unmount_client == false
+    success_msg: "{{ unmount_client_success_msg }}"
+    fail_msg: "{{ unmount_client_failure_msg }}"
+
 - name: Validate beegfs_client_version
   assert:
     that:
@@ -60,14 +67,34 @@
     success_msg: "{{ beegfs_client_version_success_msg }}"
     fail_msg: "{{ beegfs_client_version_fail_msg }}"
 
-- name: Validating beegfs_client version
-  uri:
-    url: "{{ beegfs_non_leap_repo }}"
-    return_content: yes
-  failed_when: false
-  register: status_beegfs_repo
-     
-- name: beegfs_client_version rechability status
+- block:
+    - name: Validating beegfs_client version
+      uri:
+        url: "{{ beegfs_non_leap_repo }}"
+        return_content: yes
+  rescue:     
+    - name: beegfs_client_version rechability status
+      fail:
+        msg: "{{ beegfs_repo_status_msg }}"
+
+- name: Assert beegfs_version_change
+  assert:
+    that:
+      - beegfs_version_change == true or beegfs_version_change == false
+    success_msg: "{{ beegfs_version_change_success_msg }}"
+    fail_msg: "{{ beegfs_version_change_failure_msg }}"
+
+- name: Assert unmount_client when beegfs_version_change
+  assert:
+    that:
+      - unmount_client == true
+    success_msg: "{{ unmount_success_msg }}"
+    fail_msg: "{{ unmount_failure_msg }}"
+  when: beegfs_version_change
+
+- name: Check for compatability of BeeGFs version
   fail:
-    msg: "{{ beegfs_repo_status_msg }}"
-  when: status_msg == status_beegfs_repo.status
+    msg: "{{ compatability_msg }}"
+  when:
+    - beegfs_client_version == latest_version
+    - beegfs_version_change
