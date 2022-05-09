@@ -34,6 +34,25 @@
     public_ip: "{{ lookup('vars','ansible_'+public_nic).ipv4.address }}"
   tags: init
 
+- name: Verify different nics
+  assert:
+    that:
+      - public_nic != host_network_nic
+    success_msg: "{{ success_msg_different_nics }}"
+    fail_msg: "{{ fail_msg_different_nics }}"
+  tags: [ validate, pxe ]
+
+- name: Verify different nics
+  assert:
+    that:
+      - public_nic != mgmt_network_nic
+      - mgmt_network_nic != host_network_nic
+      - public_nic != host_network_nic
+    success_msg: "{{ success_msg_different_nics }}"
+    fail_msg: "{{ fail_msg_different_nics }}"
+  when: device_support_status
+  tags: [ validate, pxe, network-device ]
+
 ### management network
 
 - block:
@@ -211,25 +230,6 @@
     msg: "{{ invalid_mapping_file_path }} for host_network"
   when: host_mapping_file and not result_host_mapping_file.stat.exists
   tags: init
-
-- name: Verify different nics
-  assert:
-    that:
-      - public_nic != mgmt_network_nic
-      - mgmt_network_nic != host_network_nic
-      - public_nic != host_network_nic
-    success_msg: "{{ success_msg_different_nics }}"
-    fail_msg: "{{ fail_msg_different_nics }}"
-  when: device_config_support
-  tags: [ validate, pxe, network-device ]
-
-- name: Verify different nics
-  assert:
-    that:
-      - public_nic != host_network_nic
-    success_msg: "{{ success_msg_different_nics }}"
-    fail_msg: "{{ fail_msg_different_nics }}"
-  tags: [ validate, pxe ]
 
 ### ib network
 
