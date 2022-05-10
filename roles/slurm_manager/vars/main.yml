@@ -41,6 +41,17 @@ dev_tools:
    - ncurses-devel
    - gtk2-devel
 
+rhel_dev_tools:
+   - rrdtool-devel
+   - lua-devel
+   - hwloc-devel
+   - pam-devel
+   - readline-devel
+   - openssl-devel
+   - numactl-devel
+   - ncurses-devel
+   - gtk2-devel
+
 log_files_manager:
    - slurm_jobacct.log
    - slurm_jobcomp.log
@@ -80,3 +91,4 @@ slurm_mode: "0644"
 os_centos: 'centos'
 os_rocky: 'rocky'
 os_supported_leap: "leap"
+os_supported_redhat: "redhat"
