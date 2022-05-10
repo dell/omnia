@@ -25,6 +25,16 @@
   include_tasks: validate_rhsm.yml
   when: compute_os == os_supported_redhat
 
+- name: Subscrbe for code ready builder repo in RHEL
+  command: subscription-manager repos --enable "{{ rhel_code_ready_repo }}"
+  changed_when: false
+  when: os_supported_redhat in compute_os
+
+- name: Install epel repo 8
+  command: dnf install "{{ rhel_epel_repo8 }}" -y
+  changed_when: false
+  when: os_supported_redhat in compute_os
+
 - name: Create a custom fact directory on each host
   file:
     path: "{{ custom_fact_dir }}"
@@ -45,6 +55,7 @@
         name: epel-release
         state: present
       tags: install
+      when: os_supported_redhat not in compute_os
     
     - name: Add elrepo GPG key
       rpm_key:
@@ -55,6 +66,7 @@
       retries: "{{ max_retries }}"
       delay: "{{ max_delay }}"
       tags: install
+      when: os_supported_redhat not in compute_os
 
     - name: Add elrepo (nvidia kmod drivers)
       package:
@@ -65,6 +77,7 @@
       retries: "{{ max_retries }}"
       delay: "{{ max_delay }}"
       tags: install
+      when: os_supported_redhat not in compute_os
     
     - name: Add docker community edition repository
       get_url:
