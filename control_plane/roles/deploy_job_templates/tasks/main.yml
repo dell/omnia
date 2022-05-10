@@ -102,12 +102,14 @@
       - name: Warning message for ethernet template
         debug:
           msg: "{{ ethernet_template_warn_msg }}"
-    when: ethernet_switch_support
+    when:
+      - ethernet_switch_support
+      - device_support_status
 
   - name: Wait for 15 mins for DHCP to assign IP to devices
     wait_for:
       timeout: "{{ dhcp_wait_time }}"
-    when: device_config_support
+    when: ( device_support_status ) or ( network_interface_type == "lom" )
 
   - name: Launch device inventory job template
     awx.awx.tower_job_launch:
@@ -130,7 +132,9 @@
       - name: Warning message for ethernet template
         debug:
           msg: "{{ ethernet_template_warn_msg }}"
-    when: ethernet_switch_support
+    when:
+      - ethernet_switch_support
+      - device_support_status
 
   - name: Execute infiniband template
     block:
@@ -145,7 +149,10 @@
       - name: Warning message for infiniband template
         debug:
           msg: "{{ infiniband_template_warn_msg }}"
-    when: ib_switch_support
+    when:
+      - ib_switch_support
+      - device_support_status
+
 
   - name: Execute powervault_me4 template
     block:
@@ -160,7 +167,9 @@
       - name: Warning message for powervault_me4 template
         debug:
           msg: "{{ powervault_template_warn_msg }}"
-    when: powervault_support
+    when:
+      - powervault_support
+      - device_support_status
 
   - name: Execute idrac template
     block:
@@ -231,4 +240,4 @@
     file:
       path: "{{ tower_config_file }}"
       mode: "{{ file_perm }}"
-  when : device_support_status
+  when : ( device_config_support ) or ( network_interface_type == "lom" )
