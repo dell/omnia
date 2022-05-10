@@ -16,9 +16,7 @@
 # Usage: include_vars.yml
 base_vars_filepath: "{{ playbook_dir }}/input_params/base_vars.yml"
 rhsm_support_fail_msg: "Omnia supports redhat subscription management only when rhsm_support is set to true in base_vars.yml"
-rhsm_vars_vaultname: "{{ playbook_dir }}/input_params/.rhsm_vars_vault_key"
 rhsm_vars_filename: "{{ playbook_dir }}/input_params/rhsm_vars.yml"
-rhsm_vault_file_perm: '0640'
 rhsm_credentials_fail_msg: "redhat_subscription_username and redhat_subscription_password are mandatory 
                             fields if redhat_subscription_method is set to portal"
 rhsm_portal_vars_me: "redhat_subscription_username and redhat_subscription_password will not be used 
