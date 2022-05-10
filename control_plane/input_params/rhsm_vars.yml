@@ -21,27 +21,10 @@
 # and take the appropriate registration actions.
 redhat_subscription_method: portal
 
-# Red Hat Portal username
-# Mandatory field if redhat_subscription_method is set to portal
-redhat_subscription_username:
-
-# Red Hat Portal password
-# Mandatory field if redhat_subscription_method is set to portal
-redhat_subscription_password:
-
 # Whether or not to autosubscribe to available repositories on successful subscription.
 # Accepted values: true, false
 # This field is mutually exclusive with redhat_subscription_activation_key
 redhat_subscription_autosubscribe:
-
-# Red Hat Activation key
-# Mandatory field if redhat_subscription_method is set to satellite
-# This field is mutually exclusive with redhat_subscription_username and redhat_subscription_password
-redhat_subscription_activation_key:
-
-# Red Hat Portal Organization Identifier.
-# Organization ID to use in conjunction with redhat_subscription_activationkey
-redhat_subscription_org_id:
 
 # RHEL release version (e.g. 8.1).
 redhat_subscription_release:

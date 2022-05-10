@@ -13,19 +13,6 @@
 #  limitations under the License.
 ---
 
-- name: Check if rhsm_vars.yml file is encrypted
-  command: cat {{ rhsm_vars_filename }}
-  changed_when: false
-  register: rhsm_vars_content
-  no_log: true
-
-- name: Decrpyt rhsm_vars.yml
-  command: >-
-    ansible-vault decrypt {{ rhsm_vars_filename }}
-    --vault-password-file {{ rhsm_vars_vaultname }}
-  changed_when: false
-  when: "'$ANSIBLE_VAULT;' in rhsm_vars_content.stdout"
-
 - name: Include rhsm_vars.yml file
   include_vars: "{{ rhsm_vars_filename }}"
 
@@ -43,36 +30,6 @@
     register: failure_msg
     no_log: true
 
-  - name: Inform the user if any mutually exclusive variables are set together
-    block:
-    - name: Info message
-      debug:
-        msg: "{{ rhsm_portal_vars_me }}"
-      when:
-        - redhat_subscription_method | lower == "satellite"
-        - ( redhat_subscription_username | default("", true) | length > 1 )
-          or ( redhat_subscription_password | default("", true) | length > 1 )
-
-    - name: Info message
-      debug:
-        msg: "{{ rhsm_satellite_vars_me }}"
-      when:
-        - redhat_subscription_method | lower == "portal"
-        - (redhat_subscription_activation_key | default("", true) | length > 1 ) or
-           ( redhat_subscription_org_id | default("", true) | length > 1 )
-
-  - name: Validate username and password
-    assert:
-      that:
-        - redhat_subscription_username is defined
-        - redhat_subscription_password is defined
-        - redhat_subscription_username | default("", true) | length > 1
-        - redhat_subscription_password | default("", true) | length > 1
-      fail_msg: "{{ rhsm_credentials_fail_msg }}"
-    register: failure_msg
-    no_log: true
-    when: redhat_subscription_method | lower == "portal"
-
   - name: Validate redhat_subscription_autosubscribe
     assert:
       that:
@@ -81,25 +38,6 @@
     register: failure_msg
     no_log: true
     when: redhat_subscription_method | lower == "portal"
-
-  - name: Validate redhat_subscription_activation_key
-    assert:
-      that:
-        - redhat_subscription_activation_key is defined
-        - redhat_subscription_activation_key | default("", true) | length > 1
-      fail_msg: "{{ rhsm_activation_key_fail_msg }}"
-    register: failure_msg
-    no_log: true
-    when: redhat_subscription_method | lower == "satellite"
-
-  - name: Validate redhat_subscription_org_id
-    assert:
-      that:
-        - redhat_subscription_org_id | default("", true) | length > 1
-      fail_msg: "{{ rhsm_org_id_fail_msg }}"
-    register: failure_msg
-    no_log: true
-    when: redhat_subscription_method | lower == "satellite"
 
   - name: Validate redhat_subscription_force_register
     assert:
@@ -168,37 +106,6 @@
     - name: Show failure msg
       fail:
         msg: "{{ failure_msg.msg }}"
-
-- block:
-  - name: Check if rhsm_vars_vault key exists
-    stat:
-      path: "{{ rhsm_vars_vaultname }}"
-    register: rhsm_vars_key_result
-
-  - name: Create ansible vault key if it does not exist
-    set_fact:
-      rhsm_vault_key: "{{ lookup('password', '/dev/null chars=ascii_letters') }}"
-    when: not rhsm_vars_key_result.stat.exists
-
-  - name: Save vault key
-    copy:
-      dest: "{{ rhsm_vars_vaultname }}"
-      content: |
-        {{ rhsm_vault_key }}
-      owner: root
-      force: yes
-      mode: "{{ rhsm_vault_file_perm }}"
-    when: not rhsm_vars_key_result.stat.exists
-
-  - name: Encrpyt rhsm_vars.yml
-    command: >-
-      ansible-vault encrypt {{ rhsm_vars_filename }} --vault-password-file {{ rhsm_vars_vaultname }}
-    changed_when: true
-
-  - name: Update rhsm_vars.yml permission
-    file:
-      path: "{{ rhsm_vars_filename }}"
-      mode: "{{ rhsm_vault_file_perm }}"
 
   when:
     - rhsm_support | lower == "true"
