@@ -83,12 +83,21 @@
   tags: install
   when: os_supported_leap not in compute_os
 
-- name: Install development tools
+ name: Install development tools
   package:
     name: "{{ dev_tools }}"
     state: present
   tags: install
-  when: os_supported_leap not in compute_os
+  when:
+    - os_supported_leap not in compute_os
+    - os_supported_redhat not in compute_os
+
+- name: Install development tools
+  package:
+    name: "{{ rhel_dev_tools }}"
+    state: present
+  tags: install
+  when: os_supported_redhat in compute_os
 
 - name: Get the hostname
   command: hostname

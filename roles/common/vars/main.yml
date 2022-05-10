@@ -121,3 +121,6 @@ infiniband_non_leap:
     - infiniband-diags
     - perftest
     - qperf
+
+rhel_code_ready_repo: codeready-builder-for-rhel-8-x86_64-rpms
+rhel_epel_repo8: https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm

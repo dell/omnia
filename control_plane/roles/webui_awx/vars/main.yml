@@ -102,6 +102,8 @@ job_template_details:
   - { name: redhat_unregister_template, inventory: node_inventory, playbook: control_plane/rhsm_unregister.yml, credential: node_credential, flag: "{{ rhsm_support }}" }
 rhsm_job_template_details:
   - { name: redhat_subscription_template, inventory: node_inventory, playbook: control_plane/rhsm_subscription.yml, credential: node_credential, flag: "{{ rhsm_support }}" }
+kernel_upgrade_job_template_details:
+  - { name: kernel_upgrade_template, inventory: node_inventory,playbook: control_plane/kernel_upgrade.yml, credential: node_credential }
 omnia_job_template_details:
   - { name: deploy_omnia_template, inventory: node_inventory, playbook: omnia.yml, credential: node_credential, extra_vars: "ansible_python_interpreter=/usr/bin/python3" }
 scheduled_templates:
