@@ -106,6 +106,3 @@
     - name: Show failure msg
       fail:
         msg: "{{ failure_msg.msg }}"
-
-  when:
-    - rhsm_support | lower == "true"

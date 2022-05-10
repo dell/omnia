@@ -30,5 +30,24 @@
 - name: Initialize K8s
   import_tasks: k8s_init.yml
 
+- name: Waiting for 15 seconds for nodes to be ready
+  pause:
+    seconds: 15
+
+- name: Get K8s nodes status
+  command: kubectl get nodes
+  changed_when: false
+  failed_when: false
+  register: k8s_nodes
+
+- block:
+  - name: Reset kubeadm
+    command: kubeadm reset -f
+    changed_when: false
+
+  - name: Initialise k8s
+    import_tasks: k8s_init.yml
+  when: "' Ready' not in k8s_nodes.stdout"
+
 - name: Deploy K8s dashboard
   import_tasks: k8s_services.yml
