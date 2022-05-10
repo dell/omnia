@@ -165,7 +165,7 @@
     warn: no
   register: host_dhcp_end
   changed_when: false
-  tags: validate
+  tags: [ validate, pxe ]
 
 - name: Validate the dhcp end range of mgmt
   shell: |
@@ -176,7 +176,7 @@
     warn: no
   register: mgmt_dhcp_end
   changed_when: false
-  tags: validate
+  tags: [ validate, network-device ]
 
 - name: Assert host and mgmt end dhcp ranges
   assert:
@@ -189,7 +189,7 @@
       - mgmt_dhcp_end.stdout == mgmt_network_subnet
     success_msg: "{{ success_dhcp_range }} "
     fail_msg: "{{ fail_dhcp_range }} "
-  tags: [ validate, pxe ]
+  tags: [ validate, pxe, network-device ]
 
 ### roce network
 - block:
