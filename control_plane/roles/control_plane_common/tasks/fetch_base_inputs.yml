@@ -248,6 +248,12 @@
     owner: root
   tags: [ init, monitoring ]
 
+- name: Check status of idrac_support
+  set_fact:
+    idrac_support: true
+  when: network_interface_type == "lom"
+  tags: init
+ 
 - name: Validate provision paramters
   import_tasks: validate_provision_vars.yml
   tags: [ validate, idrac, pxe ]
