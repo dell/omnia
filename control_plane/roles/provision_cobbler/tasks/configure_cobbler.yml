@@ -37,7 +37,7 @@
 - name: Configuring cobbler inside container (It may take 5-10 mins) when mgmt container or lom is needed
   command: 'kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} \
   -- ansible-playbook /root/cobbler_configurations_rocky.yml -e provision_os="{{ provision_os }}" -e file_perm="{{ file_perm }}" \ -e network_interface_type="{{ network_interface_type }}" -e mgmt_network_subnet="{{ mgmt_network_subnet }}" \
-    -e mgmt_network_netmask="{{ mgmt_network_netmask }}"\ -e subnet="{{ subnet }}" -e  netmask="{{ netmask }}" -e device_support_status="{{ device_support_status }}"'
+    -e mgmt_network_netmask="{{ mgmt_network_netmask }}" \ -e subnet="{{ subnet }}" -e  netmask="{{ netmask }}" -e device_support_status="{{ device_support_status }}"'
   changed_when: true
   when:
     - not cobbler_config_status
