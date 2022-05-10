@@ -83,7 +83,7 @@
   tags: install
   when: os_supported_leap not in compute_os
 
- name: Install development tools
+- name: Install development tools
   package:
     name: "{{ dev_tools }}"
     state: present
