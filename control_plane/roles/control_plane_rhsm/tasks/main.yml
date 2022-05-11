@@ -12,12 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+- name: Redhat subscription management file validation
+  include_tasks: fetch_rhsm_inputs.yml
 
-- name: Include all variables
+- name: Assign variable values
   include_tasks: include_vars.yml
-
-- name: Setup rhsm role
-  include_tasks: setup_rhsm_role.yml
 
 - name: Subscribe to redhat
   include_tasks: redhat_subscription.yml
