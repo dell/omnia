@@ -131,33 +131,35 @@
       with_items: "{{ infiniband_non_leap }}"
       tags: install
     
-    - name: Reboot after installing ib drivers
-      reboot:
-      tags: install
+    - block:
+        - name: Reboot after installing ib drivers
+          reboot:
+          tags: install
 
-    - name: Fetching infiniband nic names
-      shell: "ip a | grep -o ' ib.'"
-      register: nics_available
-      failed_when: false
-      changed_when: false
+        - name: Fetching infiniband nic names
+          shell: "ip a | grep -o ' ib.'"
+          register: nics_available
+          failed_when: false
+          changed_when: false
 
-    - name: Creating list with ib nics available
-      set_fact:
-        nic_with_ib: "{{ nic_with_ib + [ item ] }}"
-      with_items: "{{ nics_available.stdout }}"
-    
-    - name: Converting list to string
-      set_fact:
-        nic_list: "{{ nic_with_ib[0] }}"
-  
-    - name: Final list of ib nics available
-      set_fact:
-        ib_nics: "{{ lookup('vars', 'nic_list').split('\n')| map('trim') | unique | select| list }}"
+        - name: Creating list with ib nics available
+          set_fact:
+            nic_with_ib: "{{ nic_with_ib + [ item ] }}"
+          with_items: "{{ nics_available.stdout }}"
+        
+        - name: Converting list to string
+          set_fact:
+            nic_list: "{{ nic_with_ib[0] }}"
+      
+        - name: Final list of ib nics available
+          set_fact:
+            ib_nics: "{{ lookup('vars', 'nic_list').split('\n')| map('trim') | unique | select| list }}"
 
-    - name: Activating ib nics
-      command: "ifup {{ item }}"
-      changed_when: true
-      with_items: "{{ ib_nics }}"
+        - name: Activating ib nics
+          command: "ifup {{ item }}"
+          changed_when: true
+          with_items: "{{ ib_nics }}"
+      when: hostvars['127.0.0.1']['control_plane_status']
   when: ( os_supported_leap not in compute_os )
 
 - block:
@@ -232,33 +234,35 @@
       with_items: "{{ infiniband_leap }}"
       tags: install
     
-    - name: Reboot after installing ib drivers
-      reboot:
-      tags: install
+    - block:
+        - name: Reboot after installing ib drivers
+          reboot:
+          tags: install
 
-    - name: Fetching infiniband nic names
-      shell: "ip a | grep -o ' ib.'"
-      register: nics_available
-      failed_when: false
-      changed_when: false
+        - name: Fetching infiniband nic names
+          shell: "ip a | grep -o ' ib.'"
+          register: nics_available
+          failed_when: false
+          changed_when: false
 
-    - name: Creating list with ib nics available
-      set_fact:
-        nic_with_ib: "{{ nic_with_ib + [ item ] }}"
-      with_items: "{{ nics_available.stdout }}"
-    
-    - name: Converting list to string
-      set_fact:
-        nic_list: "{{ nic_with_ib[0] }}"
-    
-    - name: Final list of ib nics available
-      set_fact:
-        ib_nics: "{{ lookup('vars', 'nic_list').split('\n')| map('trim') | unique | select| list }}"
+        - name: Creating list with ib nics available
+          set_fact:
+            nic_with_ib: "{{ nic_with_ib + [ item ] }}"
+          with_items: "{{ nics_available.stdout }}"
+        
+        - name: Converting list to string
+          set_fact:
+            nic_list: "{{ nic_with_ib[0] }}"
+        
+        - name: Final list of ib nics available
+          set_fact:
+            ib_nics: "{{ lookup('vars', 'nic_list').split('\n')| map('trim') | unique | select| list }}"
 
-    - name: Activating ib nics
-      command: "ip link set dev {{ item }} up"
-      changed_when: true
-      with_items: "{{ ib_nics }}"
+        - name: Activating ib nics
+          command: "ip link set dev {{ item }} up"
+          changed_when: true
+          with_items: "{{ ib_nics }}"
+      when: hostvars['127.0.0.1']['control_plane_status']
   when: ( os_supported_leap in compute_os ) and ( ansible_distribution_version >= os_supported_leap_version )
 
 - name: Deploy time ntp/chrony
