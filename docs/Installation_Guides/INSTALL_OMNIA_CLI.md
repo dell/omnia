@@ -151,3 +151,5 @@ To update the INVENTORY file present in `omnia` directory with the new node IP a
 ## Using BeeGFS on Clusters
 BeeGFS is a hardware-independent POSIX parallel file system (a.k.a Software-defined Parallel Storage) developed with a strong focus on performance and designed for ease of use, simple installation, and management. BeeGFS is created on an Available Source development model (source code is publicly available), offering a self-supported Community Edition and a fully supported Enterprise Edition with additional features and functionalities. BeeGFS is designed for all performance-oriented environments including HPC, AI and Deep Learning, Media & Entertainment, Life Sciences, and Oil & Gas (to name a few).
 ![BeeGFS Structure](../images/BeeGFS_Structure.jpg)
+
+Once all the [pre-requisites](../PreRequisites/Omnia_Control_Plane_PreReqs.md#installing-beegfs) are met, run `omnia.yml` to set up BeeGFS. 

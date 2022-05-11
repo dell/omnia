@@ -28,15 +28,10 @@ Omnia can deploy firmware, install Kubernetes or Slurm (or both), along with add
 ![Omnia Slurm Stack](images/omnia-slurm.png)  
 
 ## What's new in this release
-- Support for Rocky 8.5 with the latest python/ansible on the Control Plane.
-- Support for Leap 15.3 on the cluster.
-- Support for Rocky 8.5 on the cluster.
-- Added Grafana integration for better monitoring capability.
-- Added Loki Log aggregation of Var Logs.
-- Added Slurm/K8s Monitoring capability.
-- Added security features to comply with NIST 800-53 Revision 5 and 800-171 Revision 5.
-- Added the ability to collect telemetry information from SLURM and iDRAC.
-- Added Grafana plugins to view real time graphs of cluster/node statistics.
+- Added support for Red Hat on both control plane and compute nodes
+- Added support for BOSS controllers
+- Added support for bolt-on BeeGFS configuration
+- Added ability to upgrade kernel on Red Hat devices
 
 # Using Omnia
 1. Verify that your system meets Omnia's [hardware](Support_Matrix/Hardware/README.md) and [software requirements](Support_Matrix/Software/README.md)

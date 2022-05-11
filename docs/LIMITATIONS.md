@@ -10,7 +10,6 @@
 * The Kubernetes pods will not be able to access the Internet or start when firewalld is enabled on the node. This is a limitation in Kubernetes. So, the firewalld daemon will be disabled on all the nodes as part of omnia.yml execution.
 * Only one storage instance (Powervault) is currently supported in the HPC cluster.
 * Cobbler web support has been discontinued from Omnia 1.2 onwards.
-* Configuration of storage devices with boss cards is not supported.
 * Shared LOM (LAN on Motherboard) architecture is not supported.
 * Omnia supports only basic telemetry configurations. Changing data fetching time intervals for telemetry is not supported.
 * Slurm cluster metrics will only be fetched from clusters configured by Omnia via AWX.
