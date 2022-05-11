@@ -27,7 +27,7 @@ Depending on the pass-through switch configured in your HPC environment, the num
 
 ![Typical layout of an HPC cluster with a network of pass-through switches](../images/Omnia_NetworkConfig_Inet.png)
 
->>__Note__: Refer to the Omnia_Control_Plane_PreReqs.md file to ensure smooth running of the control_plane.
+>>__Note__: Refer to the [Control Plane Pre-Requisites](../PreRequisites/Omnia_Control_Plane_PreReqs.md) file to ensure smooth running of the control_plane.
 
 ## Steps to deploy the Omnia Control Plane
 
@@ -67,22 +67,30 @@ To configure the login node, refer to [Install_Omnia](INSTALL_OMNIA_CLI.md).
 ```
 ansible-playbook control_plane.yml
 ```  
-8. If the host_mapping_file_path is not provided, then you must manually assign the component roles through the AWX UI. Go to [Assign component roles using AWX UI](INSTALL_OMNIA_CONTROL_PLANE.md#assign-component-roles-using-awx-ui).
+8. If the host_mapping_file_path is not provided, then you must manually assign the component roles through the AWX UI. Go to [Assign component roles using AWX UI](USING_AWX_PLAYBOOKS.md#assign-component-roles-using-awx-ui).
 
 Omnia creates a log file which is available at: `/var/log/omnia.log`.  
 
 
 ## Configurations Performed by Omnia Control Plane
 The installation of omnia control plane depends largely on the variables entered in `base_vars.yml`. These variables decide how many functionalities of Omnia are actually required in your environment.
+The network configuration performed by Omnia depends on the value of `network_interface_type` in `base_vars.yml`. Omnia Control plane then provides the user with the choice of assigning management/communication IPs (`device_config_support`) to all available servers, switches and powervault devices per the chosen network architecture. When true, all applicable devices are given new IPs. It is recommended that when `device_config_support` is true, __a device mapping file (Example [here](../../examples/mapping_device_file.csv)) is used__ to keep assigned IPs persistent between control plane reboots. If `idrac_support` true, the devices are expected to have their own IPs furnished in the filepath mentioned under `device_ip_list_path`. Having the IPs allows omnia to reach and configure switches, servers and powervaults without disturbing the existing network set up. Users can choose which devices require configuration using the variables `ethernet_switch_support`, `ib_switch_support` and `powervault_support`.
+ When `network_interface_type`=dedicated
+  
+  | device_config_support 	| idrac_support 	| Output                                                                                                                                                                                                                                                                                                    	|
+  |-----------------------	|---------------	|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------	|
+  | TRUE                  	| TRUE          	| Omnia will assign IPs to all the management ports   of the different devices. iDRAC and PXE provisioning is supported. Here,   ethernet, InfiniBand and powervault configurations are supported. One touch   configuration is also supported.                                             	|
+  | TRUE                    | FALSE      		| An assert failure on control_plane_common will manifest and Omnia Control Plane will fail.                                                                  |
+  | FALSE                 	| TRUE          	| Assuming the `device_ip_list` is populated, mgmt_container will not be   used to assign the IPs to all the mgmt ports as a `device_ip_list` indicates   that IP assignment is already done. However, ethernet, InfiniBand, powervault   configurations are supported. One touch configuration is also supported.  	|
+  | FALSE                 	| FALSE         	| No IPs will be assigned by Omnia. Provisioning will only be through PXE.                                                                                                                                                                                                                                  	|
 
-Omnia Control plane starts with the choice of assigning management/communication IPs (`device_config_support`) to all available servers, switches and powervault devices. When true, all applicable devices are given new IPs. It is recommended that when `device_config_support` is true, __a device mapping file (Example [here](../../examples/mapping_device_file.csv)) is used__ to keep assigned IPs persistent between control plane reboots. If `idrac_support` true, the devices are expected to have their own IPs furnished in the filepath mentioned under `device_ip_list_path`. Having the IPs allows omnia to reach and configure switches, servers and powervaults without disturbing the existing network set up. Users can choose which devices require configuration using the variables `ethernet_switch_support`, `ib_switch_support` and `powervault_support`.
+* When `network_interface_type`=lom <br>
+  Despite the value of `mgmt_network_nic`=`host_network_nic` in lom environments, the IPs assigned for management and data should not be in the same range. The start and end values of the management IP range and the host IP range cannot be the same. 
+   - If `roce_network_nic` is blank, the cobbler container will be used to assign IPs to both the iDRAC management port and the data ports. Both iDRAC and pxe mode of provisioning are supported. Here, ethernet, InfiniBand and powervault configurations are **not** supported. One touch configuration is also supported.
+   - If `roce_network_nic` is populated, Omnia will assign IPs to both the management and data ports. Cobbler/pxe provisioning will be done via the `roce_network_nic`.
 
-| device_config_support | idrac_support | Outcome                                                                                                         |
-|-----------------------|---------------|-----------------------------------------------------------------------------------------------------------------|
-| true                  | true          | New Management IPs will be assigned and servers will be provisioned based on the value of `provision_method`                                                                     |
-| true                  | false         | An assert failure on control_plane_common will manifest and Omnia Control Plane will fail.                                                                  |
-| false                 | true          | Omnia will not assign IPs to the devices/iDRAC. Deployment will take place via the IPs provided in `device_ip_list_path` based on the `provision_method`.                                           |
-| false                 | false         | No IPs will be assigned by Omnia. Provisioning will only be through PXE. Slurm and Kubernetes can be deployed in the cluster.  |
+
+
 
 Once all network configuration is complete, Omnia uses AWX to integrate a centralized log system, receive live updates of running jobs, scheduled jobs, etc. AWX can also be used to assign component roles, install kuberenetes, JupyterHub, Kubeflow, Slurm, Prometheus and Grafana.
 
@@ -113,7 +121,7 @@ Omnia performs the following configurations on AWX:
 
 >> **Note**: The AWX configurations are automatically performed by Omnia, and Dell Technologies recommends that you do not change the default configurations that are provided by Omnia as the functionality may be impacted.  
 
-The AWX UI can be used to run playbooks such as `omnia.yml`. To set up red hat subscription, Slurm, Kubernetes, JupyterHub , configure devices etc, check out [Using AWX Playbooks](Using_AWX_Playbooks.md).
+The AWX UI can be used to run playbooks such as `omnia.yml`. To set up red hat subscription, Slurm, Kubernetes, JupyterHub , configure devices etc, check out [Using AWX Playbooks](USING_AWX_PLAYBOOKS.md).
 
 
 ## Creating a new cluster 

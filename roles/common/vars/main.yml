@@ -44,9 +44,14 @@ amd_repo: 'https://repo.radeon.com/rocm/zyp/zypper/'
 nvidia_docker_repo: 'https://nvidia.github.io/nvidia-docker/opensuse-leap15.1/nvidia-docker.repo'
 conf_file_mode: 0644
 
-common_packages_for_non_leap:
+common_packages_non_leap:
   - yum-plugin-versionlock
   - nvidia-detect
+  - docker-ce-cli-20.10.2
+  - docker-ce-20.10.2
+
+common_packages_rhel:
+  - yum-plugin-versionlock
   - docker-ce-cli-20.10.2
   - docker-ce-20.10.2
 
