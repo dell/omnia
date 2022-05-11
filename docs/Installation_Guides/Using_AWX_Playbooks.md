@@ -1,20 +1,29 @@
 # AWX/Ansible Playbooks And How To Use Them
 
 Once `control_plane.yml` is run, AWX UI or Ansible CLI can be used to run different scripts on your control_plane. Some of these functionalities include:
-1. [Using `omnia.yml` to set up clusters, BeeGFS etc](INSTALL_OMNIA_CLI.md)
-2. [Configure new devices added to the cluster](#configuring-new-devices-added-to-the-cluster)
-3. [Assigning Component Roles](#assign-component-roles-using-awx-ui)
-4. [Installing JupyterHub And Kubeflow](#install-jupyterhub-and-kubeflow-playbooks)
-5. [Assigning Roles to Compute Nodes](#assign-component-roles-using-awx-ui)
-6. [Add a new compute node to the cluster](#add-a-new-compute-node-to-the-cluster)
-7. [Creating a new cluster](#creating-a-new-cluster)
-8. [Updating Kernel on Red Hat](#kernel-updates-on-red-hat)
+1. [Setting up Red Hat Subscription](#)
+2. [Using `omnia.yml` to set up clusters, BeeGFS etc](INSTALL_OMNIA_CLI.md)
+3. [Configure new devices added to the cluster](#configuring-new-devices-added-to-the-cluster)
+4. [Assigning Component Roles](#assign-component-roles-using-awx-ui)
+5. [Installing JupyterHub And Kubeflow](#install-jupyterhub-and-kubeflow-playbooks)
+6. [Assigning Roles to Compute Nodes](#assign-component-roles-using-awx-ui)
+7. [Add a new compute node to the cluster](#add-a-new-compute-node-to-the-cluster)
+8. [Creating a new cluster](#creating-a-new-cluster)
+9. [Updating Kernel on Red Hat](#kernel-updates-on-red-hat)
 
 ## Accessing the AWX UI
 1. Run `kubectl get svc -n awx`.
 2. Copy the Cluster-IP address of the awx-ui.
 3. To retrieve the AWX UI password, run `kubectl get secret awx-admin-password -n awx -o jsonpath="{.data.password}" | base64 --decode`.
 4. Open the default web browser on the control plane and enter `http://<IP>:8052`, where IP is the awx-ui IP address and 8052 is the awx-ui port number. Log in to the AWX UI using the username as `admin` and the retrieved password.
+
+## Red Hat Subscription
+Before running `omnia.yml`, it is mandatory that red hat subscription be set up.
+* To set up Red hat subscription, fill in the [rhsm_vars.yml file](../Input_Parameter_Guide/Control_Plane_Parameters/Device_Parameters/rhsm_vars.md). Once it's filled in, run the template using AWX or Ansible. <br>
+* The flow of the playbook will be determined by the value of `redhat_subscription_method` in `rhsm_vars.yml`.
+    - If `redhat_subscription_method` is set to `portal`, pass the values `username` and `password` on the AWX screen. For CLI, run the command: <br> `ansible-playbook rhsm_subscription.yml -i inventory -e redhat_subscription_username= "<username>" -e redhat_subscription_password="<password>"`
+    - If `redhat_subscription_method` is set to `satellite`, pass the values `organizational identifier` and `activation key` on the AWX screen. For CLI, run the command: <br> `ansible-playbook rhsm_subscription.yml -i inventory -e redhat_subscription_activation_key= "<activation-key>" -e redhat_subscription_org_id ="<org-id>"`
+
 
 ## Configuring new devices added to the cluster
 For Omnia to configure the devices and to provision the bare metal servers which are introduced newly in the cluster, you must configure the corresponding input parameters and deploy the device-specific template from the AWX UI. Based on the devices added to the cluster, click the respective link to go to configuration section.
@@ -39,7 +48,7 @@ For Omnia to configure the devices and to provision the bare metal servers which
 
 >> **Note**:
 >> * If you would like to skip the NFS client setup, enter `nfs_client` in the skip tag section to skip the **k8s_nfs_client_setup** role of Kubernetes.
->> * For Red Hat Nodes, use AWX to run `redhat_subscription_template` after running `control_plane.yml` to activate red hat subscription. Ensure that the subscription is enabled before assigning component roles (manager, compute, login_node, nfs_node) to the nodes.
+>> * For Red Hat Nodes, use AWX to run [`redhat_subscription_template`](#red-hat-subscription) after running `control_plane.yml` to activate red hat subscription. Ensure that the subscription is enabled before assigning component roles (manager, compute, login_node, nfs_node) to the nodes.
 
 15. Click **NEXT**.
 16. Review the details in the **PREVIEW** window and click **LAUNCH** to run the DeployOmnia template.

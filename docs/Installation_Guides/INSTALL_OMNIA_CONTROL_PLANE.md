@@ -113,7 +113,7 @@ Omnia performs the following configurations on AWX:
 
 >> **Note**: The AWX configurations are automatically performed by Omnia, and Dell Technologies recommends that you do not change the default configurations that are provided by Omnia as the functionality may be impacted.  
 
-The AWX UI can be used to run playbooks such as `omnia.yml`. To set up Slurm, Kubernetes, JupyterHub , configure devices etc, check out [Using AWX Playbooks](Using_AWX_Playbooks.md).
+The AWX UI can be used to run playbooks such as `omnia.yml`. To set up red hat subscription, Slurm, Kubernetes, JupyterHub , configure devices etc, check out [Using AWX Playbooks](Using_AWX_Playbooks.md).
 
 
 ## Creating a new cluster 
