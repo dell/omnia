@@ -106,11 +106,19 @@
         state: present
       tags: install
 
-    - name: Install common packages
+    - name: Install common packages for non leap and non RHEL OS
       package:
-        name: "{{ common_packages_for_non_leap }}"
+        name: "{{ common_packages_non_leap }}"
         state: present
       tags: install
+      when: os_supported_redhat not in compute_os
+
+    - name: Install common packages for RHEL
+      package:
+        name: "{{ common_packages_rhel }}"
+        state: present
+      tags: install
+      when: os_supported_redhat in compute_os
 
     - name: Versionlock docker
       command: "yum versionlock '{{ item }}'"
