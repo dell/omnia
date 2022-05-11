@@ -12,20 +12,40 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+- name: Initialize variables
+  set_fact:
+    control_plane_status: false
 
-- name: Git clone openstack-rhsm role
-  ansible.builtin.git:
-    repo: "{{ rhsm_git_repo }}"
-    dest: "{{ rhsm_git_dest }}"
-    version: "{{ rhsm_git_stable_commit }}"
-    force: yes
-  delegate_to: localhost
-  run_once: true
+- name: Check AWX instance
+  command: awx --version
+  changed_when: false
+  failed_when: false
+  register: awx_version_check
 
-- name: Remove line from portal.yml file
-  lineinfile:
-    path: "{{ portal_file_path }}"
-    line: "    - rhsm_activation_key is not defined or rhsm_method == 'portal' or rhsm_simplified_content_access"
-    state: absent
-  delegate_to: localhost
-  run_once: true
+- name: Check AWX hostname
+  command: hostname
+  changed_when: false
+  register: awx_hostname
+
+- name: Set control_plane_status
+  set_fact:
+    control_plane_status: true
+  when:
+    - not awx_version_check.failed
+    - awx_search_key in awx_hostname.stdout
+
+- block:
+  - name: Git clone openstack-rhsm role
+    ansible.builtin.git:
+      repo: "{{ rhsm_git_repo }}"
+      dest: "{{ rhsm_git_dest }}"
+      version: "{{ rhsm_git_stable_commit }}"
+      force: yes
+
+  - name: Remove line from portal.yml file
+    lineinfile:
+      path: "{{ portal_file_path }}"
+      line: "    - rhsm_activation_key is not defined or rhsm_method == 'portal' or rhsm_simplified_content_access"
+      state: absent
+
+  when: not control_plane_status
