@@ -30,9 +30,9 @@ The **provision_idrac** file configures and validates the following:
 * Required input parameters and prerequisites.
 * BIOS and SNMP settings.
 * The latest available version of the iDRAC firmware is updated.
-* If bare metal servers have a RAID controller installed, Virtual disks are created for RAID configuration.
-* Availability of iDRAC Enterprise or Datacenter License on iDRAC.  
-
+* If bare metal servers have BOSS controllers installed, virtual disks (Data will be stored in a RAID 1 configuration by default) will be created on the BOSS controller (ie, RAID controllers will be ignored/unmanaged). Ensure that exactly 2 SSD disks are available on the server.
+* If bare metal servers have a RAID controller installed, Virtual disks are created for RAID configuration (Data will be saved in a RAID 0 configuration by default).
+* Availability of iDRAC Enterprise or Datacenter License on iDRAC.
 After the configurations are validated, the **provision_idrac** file provisions the custom ISO on the PowerEdge Servers. After the OS is provisioned successfully, iDRAC IP addresses are updated in the *provisioned_idrac_inventory* in AWX.
 
 >>**Note**:
