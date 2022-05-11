@@ -46,7 +46,7 @@
     changed_when: false
 
   - name: Initialise k8s
-    import_tasks: k8s_init.yml
+    include_tasks: k8s_init.yml
   when: "' Ready' not in k8s_nodes.stdout"
 
 - name: Deploy K8s dashboard
