@@ -75,7 +75,7 @@
     line: "{{ mgmt_network_ip }}"
     mode: "{{ file_permission }}"
     create: yes
-  when: device_config_support
+  when: ( device_config_support ) or ( network_interface_type == "lom" )
 
 - name: Copy management station ip to {{ management_station_ip_file }}
   lineinfile:
