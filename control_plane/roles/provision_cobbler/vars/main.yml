@@ -17,6 +17,7 @@
 
 # Usage: mapping_file.yml
 temp_host_mapping_file: "{{ role_path }}/files/new_host_mapping_file.csv"
+temp_mgmt_mapping_file: "{{ role_path }}/files/new_mgmt_mapping_file.csv"
 
 # Usage: check_prerequisite.yml
 cobbler_namespace: cobbler
