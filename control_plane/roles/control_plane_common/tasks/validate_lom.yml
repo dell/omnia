@@ -44,8 +44,9 @@
   set_fact:
     cobbler_lom: true
   when:
-    - mgmt_network_nic == host_network_nic or
+    - ( mgmt_network_nic == host_network_nic ) or
       ( mgmt_network_nic == host_network_nic ) and ( mgmt_network_nic == roce_network_nic )
+    - roce_network_nic | length == 0
   tags: init
 
 - name: Create mgmt shared lom variable
@@ -55,5 +56,5 @@
     - mgmt_network_nic == host_network_nic
     - host_network_nic != roce_network_nic
     - roce_network_nic | length > 1
-    - roce_network_nic | ipv4
+    - roce_network_dhcp_start_range | ipv4
   tags: init
