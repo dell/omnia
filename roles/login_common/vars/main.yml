@@ -38,4 +38,5 @@ ntp_port1: "123/udp"
 os_centos: 'centos'
 os_rocky: 'rocky'
 os_leap: 'leap'
+os_redhat: 'redhat'
 os_version: '8.0'
