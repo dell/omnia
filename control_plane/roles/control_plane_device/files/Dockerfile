@@ -6,6 +6,8 @@ RUN apk add dhcp
 RUN apk add ansible
 RUN apk add openrc
 RUN apk add py3-netaddr
+RUN apk add bash
+RUN apk add ipcalc
 
 #Creation of directories and files
 RUN mkdir /root/omnia
