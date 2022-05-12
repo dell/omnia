@@ -18,12 +18,16 @@ Once `control_plane.yml` is run, AWX UI or Ansible CLI can be used to run differ
 4. Open the default web browser on the control plane and enter `http://<IP>:8052`, where IP is the awx-ui IP address and 8052 is the awx-ui port number. Log in to the AWX UI using the username as `admin` and the retrieved password.
 
 ## Red Hat Subscription
-Before running `omnia.yml`, it is mandatory that red hat subscription be set up.
+Before running `omnia.yml`, it is mandatory that red hat subscription be set up on compute nodes running Red Hat.
 * To set up Red hat subscription, fill in the [rhsm_vars.yml file](../Input_Parameter_Guide/Control_Plane_Parameters/Device_Parameters/rhsm_vars.md). Once it's filled in, run the template using AWX or Ansible. <br>
 * The flow of the playbook will be determined by the value of `redhat_subscription_method` in `rhsm_vars.yml`.
     - If `redhat_subscription_method` is set to `portal`, pass the values `username` and `password` on the AWX screen. For CLI, run the command: <br> `ansible-playbook rhsm_subscription.yml -i inventory -e redhat_subscription_username= "<username>" -e redhat_subscription_password="<password>"`
     - If `redhat_subscription_method` is set to `satellite`, pass the values `organizational identifier` and `activation key` on the AWX screen. For CLI, run the command: <br> `ansible-playbook rhsm_subscription.yml -i inventory -e redhat_subscription_activation_key= "<activation-key>" -e redhat_subscription_org_id ="<org-id>"`
 
+## Red Hat Unsubscription
+To disable subscription on Red Hat nodes, the `red_hat_unregister_template` has to be called in one of two ways:
+1. On AWX, run the template `redhat_unregister_template`. On launching the template, the nodes present in the node inventory will be unregistered from red hat.
+2. Using Ansible, run the command: `ansible_playbook omnia/control_plane/rhsm_unregister.yml -i inventory`
 
 ## Configuring new devices added to the cluster
 For Omnia to configure the devices and to provision the bare metal servers which are introduced newly in the cluster, you must configure the corresponding input parameters and deploy the device-specific template from the AWX UI. Based on the devices added to the cluster, click the respective link to go to configuration section.
