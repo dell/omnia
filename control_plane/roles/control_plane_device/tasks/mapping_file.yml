@@ -66,9 +66,9 @@
         src: "{{ temp_host_mapping_file }}"
         dest: "{{ role_path }}/files/backup_host_mapping_file.csv"
         mode: "{{ temp_file_perm }}"
-    when:
-      - network_interface_type == "lom"
-      - dhcp_lom_file
+  when:
+    - network_interface_type == "lom"
+    - dhcp_lom_file
       - host_mapping_file_path | length > 1
 
 - name: Remove blank lines
