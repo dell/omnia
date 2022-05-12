@@ -45,6 +45,8 @@
   set_fact:
     mgmt_network_container_status: false
     backup_mgmt_map_status: false
+    backup_map_status: false
+    roce_enabled: true
   tags: init
 
 - name: Validate network interface type
