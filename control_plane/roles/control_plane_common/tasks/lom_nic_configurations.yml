@@ -257,8 +257,8 @@
     tags: [ validate, pxe ]
   
   - name: Set fact for roce
-      set_fact:
-        roce_enabled: true
+    set_fact:
+      roce_enabled: true
   when:
     - roce_network_nic | length > 1
     - roce_network_dhcp_start_range | ipv4
