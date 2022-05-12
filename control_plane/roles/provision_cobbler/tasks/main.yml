@@ -54,8 +54,15 @@
       include_tasks: lom_dhcp_configure.yml
       when:
         - ( not cobbler_image_status ) or ( backup_map_status ) or ( not cobbler_container_status )
-        - network_interface_type == "lom"
+        - cobbler_lom
 
+    - name: Dhcp Configuration for shared lom
+      include_tasks: roce_dhcp_configure.yml
+      when:
+        - ( not cobbler_image_status ) or ( backup_map_status ) or ( not cobbler_container_status )
+        - network_interface_type == "lom"
+        - mgmt_lom
+  
     - name: Management n/w container mapping file
       include_tasks: mgmt_lom_status.yml
       when: network_interface_type == "lom"
