@@ -12,11 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-- name: Redhat subscription management file validation
-  include_tasks: fetch_rhsm_inputs.yml
+- name: Git clone openstack-rhsm role
+  ansible.builtin.git:
+    repo: "{{ rhsm_git_repo }}"
+    dest: "{{ rhsm_git_dest }}"
+    version: "{{ rhsm_git_stable_commit }}"
+    force: yes
 
-- name: Assign variable values
-  include_tasks: include_vars.yml
-
-- name: Subscribe to redhat
-  include_tasks: redhat_subscription.yml
+- name: Remove line from portal.yml file
+  lineinfile:
+    path: "{{ portal_file_path }}"
+    line: "    - rhsm_activation_key is not defined or rhsm_method == 'portal' or rhsm_simplified_content_access"
+    state: absent

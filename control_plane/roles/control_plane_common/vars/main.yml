@@ -317,16 +317,8 @@ mgmnt_ip_path: "{{ role_path}}/../collect_device_info/files/mgmt_provisioned_hos
 success_cobbler_lom: "Success. Shared lom setup is validated"
 fail_cobbler_lom: " Failed. Give correct nic values."
 
-# Usage: fetch_rhsm_inputs.yml
-rhsm_vars_filename: "{{ playbook_dir }}/input_params/rhsm_vars.yml"
-rhsm_method_fail_msg: "redhat_subscription_method can either be set to portal or satellite"
-rhsm_autosubscribe_fail_msg: "redhat_subscription_autosubscribe needs to be set to true or false when 
-                              redhat_subscription_method is set to portal"
-rhsm_force_register_fail_msg: "rhsm_force_register can take values true or false"
-rhsm_repos_state_fail_msg: "redhat_subscription_repos_state can be set as enabled/disabled when redhat_subscription_repos is defined"
-rhsm_repos_purge_fail_msg: "redhat_subscription_repos_purge can be set as true/false when redhat_subscription_repos is defined"
-rhsm_rhsm_port_fail_msg: "redhat_subscription_port can have values 443 or 8443 only"
-rhsm_insecure_fail_msg: "Accepted values for redhat_subscription_insecure are true, false"
-rhsm_rhsm_proxy_proto_fail_msg: "Accepted values for redhat_subscription_proxy_proto are http, https"
-rhsm_rhsm_options_fail_msg: "Accepted values for redhat_subscription_manage_repos, redhat_subscription_full_refresh_on_yum,
-                              redhat_subscription_report_package_profile are true and false"
+# Usage: setup_rhsm_role.yml
+rhsm_git_repo: "https://github.com/openstack/ansible-role-redhat-subscription.git"
+rhsm_git_stable_commit: "0f7ac2a"
+rhsm_git_dest: "{{ playbook_dir }}/roles/control_plane_rhsm/files/openstack-rhsm"
+portal_file_path: "{{ playbook_dir }}/roles/control_plane_rhsm/files/openstack-rhsm/tasks/portal.yml"

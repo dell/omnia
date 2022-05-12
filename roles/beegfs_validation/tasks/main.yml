@@ -26,4 +26,6 @@
       fail:
         msg: "{{ selinux_fail_msg }}"
       when: '"SELinux status:                 disabled" not in selinux_status.stdout_lines'
-  when: os_supported_leap not in compute_os
+  when:
+   - os_supported_leap not in compute_os
+   - hostvars['127.0.0.1']['beegfs_support']
