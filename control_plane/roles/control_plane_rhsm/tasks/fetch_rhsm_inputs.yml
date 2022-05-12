@@ -41,38 +41,37 @@
       - (redhat_subscription_activation_key | default("", true) | length > 1 ) or
           ( redhat_subscription_org_id | default("", true) | length > 1 )
 
-- name: Validate username and password
-  assert:
-    that:
-      - redhat_subscription_username is defined
-      - redhat_subscription_password is defined
-      - redhat_subscription_username | default("", true) | length > 1
-      - redhat_subscription_password | default("", true) | length > 1
-    fail_msg: "{{ rhsm_credentials_fail_msg }}"
-  register: failure_msg
-  no_log: true
-  when: redhat_subscription_method | lower == "portal"
+  - name: Validate username and password
+    assert:
+      that:
+        - redhat_subscription_username is defined
+        - redhat_subscription_password is defined
+        - redhat_subscription_username | default("", true) | length > 1
+        - redhat_subscription_password | default("", true) | length > 1
+      fail_msg: "{{ rhsm_credentials_fail_msg }}"
+    register: failure_msg
+    no_log: true
+    when: redhat_subscription_method | lower == "portal"
 
-- name: Validate redhat_subscription_activation_key
-  assert:
-    that:
-      - redhat_subscription_activation_key is defined
-      - redhat_subscription_activation_key | default("", true) | length > 1
-    fail_msg: "{{ rhsm_activation_key_fail_msg }}"
-  register: failure_msg
-  no_log: true
-  when: redhat_subscription_method | lower == "satellite"
+  - name: Validate redhat_subscription_activation_key
+    assert:
+      that:
+        - redhat_subscription_activation_key is defined
+        - redhat_subscription_activation_key | default("", true) | length > 1
+      fail_msg: "{{ rhsm_activation_key_fail_msg }}"
+    register: failure_msg
+    no_log: true
+    when: redhat_subscription_method | lower == "satellite"
 
-- name: Validate redhat_subscription_org_id
-  assert:
-    that:
-      - redhat_subscription_org_id | default("", true) | length > 1
-    fail_msg: "{{ rhsm_org_id_fail_msg }}"
-  register: failure_msg
-  no_log: true
-  when: redhat_subscription_method | lower == "satellite"
+  - name: Validate redhat_subscription_org_id
+    assert:
+      that:
+        - redhat_subscription_org_id | default("", true) | length > 1
+      fail_msg: "{{ rhsm_org_id_fail_msg }}"
+    register: failure_msg
+    no_log: true
+    when: redhat_subscription_method | lower == "satellite"
 
-- block:
   - name: Validate redhat_subscription_autosubscribe
     assert:
       that:
