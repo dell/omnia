@@ -48,8 +48,9 @@
 
   - name: Mapping file validation
     include_tasks: mapping_file.yml
-    when: (not mgmt_network_container_image_status) and (mgmt_mapping_file_path) or ( backup_mgmt_map_status)
-
+    when: ( not mgmt_network_container_image_status ) and ( mgmt_mapping_file_path ) or ( backup_mgmt_map_status )
+     or ( mgmt_lom and (host_mapping_file or backup_map_status ))
+   
   - name: Cron job creation
     include_tasks: cron_job_lom.yml
     when: not mgmt_network_container_image_status
