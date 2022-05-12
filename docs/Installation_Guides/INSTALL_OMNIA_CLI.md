@@ -28,6 +28,26 @@ git clone -b release https://github.com/dellhpc/omnia.git
 >>	**Note**: 
 >> * Omnia checks for red hat subscription being enabled on red hat nodes as a pre-requisite. Check out [how to enable Red Hat subscription here](USING_AWX_PLAYBOOKS.md#red-hat-subscription). Not having Red Hat subscription enabled on the manager node will cause `omnia.yml` to fail. If compute nodes do not have Red Hat subscription enabled, `omnia.yml` will skip the node entirely.
 >> * Ensure that all the four groups (login_node, manager, compute, nfs_node) are present in the template, even if the IP addresses are not updated under login_node and nfs_node groups.
+
+## Installing BeeGFS Client
+* If the user intends to use BeeGFS, ensure that a BeeGFS cluster has been set up with beegfs-mgmtd, beegfs-meta, beegfs-storage services running.
+  Ensure that the following ports are open for TCP and UDP connectivity:
+
+  | Port | Service                           |
+    |------|-----------------------------------|
+  | 8008 | Management service (beegfs-mgmtd) |
+  | 8003 | Storage service (beegfs-storage)  |
+  | 8004 | Client service (beegfs-client)    |
+  | 8005 | Metadata service (beegfs-meta)    |
+  | 8006 | Helper service (beegfs-helperd)   |
+
+To open the ports required, use the following steps:
+1. `firewall-cmd --permanent --zone=public --add-port=<port number>/tcp`
+2. `firewall-cmd --permanent --zone=public --add-port=<port number>/udp`
+3. `firewall-cmd --reload`
+4. `systemctl status firewalld`
+
+
 5. To install Omnia:
 
 | Leap OS                     	| CentOS, Rocky, Red Hat                                       	|
@@ -153,4 +173,4 @@ To update the INVENTORY file present in `omnia` directory with the new node IP a
 BeeGFS is a hardware-independent POSIX parallel file system (a.k.a Software-defined Parallel Storage) developed with a strong focus on performance and designed for ease of use, simple installation, and management. BeeGFS is created on an Available Source development model (source code is publicly available), offering a self-supported Community Edition and a fully supported Enterprise Edition with additional features and functionalities. BeeGFS is designed for all performance-oriented environments including HPC, AI and Deep Learning, Media & Entertainment, Life Sciences, and Oil & Gas (to name a few).
 ![BeeGFS Structure](../images/BeeGFS_Structure.jpg)
 
-Once all the [pre-requisites](../PreRequisites/Omnia_Control_Plane_PreReqs.md#installing-beegfs) are met, run `omnia.yml` to set up BeeGFS. 
+Once all the [pre-requisites](#installing-beegfs-client) are met, run `omnia.yml` to set up BeeGFS. 

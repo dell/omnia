@@ -27,7 +27,7 @@ Depending on the pass-through switch configured in your HPC environment, the num
 
 ![Typical layout of an HPC cluster with a network of pass-through switches](../images/Omnia_NetworkConfig_Inet.png)
 
->>__Note__: Refer to the [Control Plane Pre-Requisites](../PreRequisites/Omnia_Control_Plane_PreReqs.md) file to ensure smooth running of the control_plane.
+>>__Note__: Refer to the [Control Plane Pre-Requisites](../PreRequisites/Control_Plane_PreReqs.md) file to ensure smooth running of the control_plane.
 
 ## Steps to deploy the Omnia Control Plane
 

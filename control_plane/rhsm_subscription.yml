@@ -12,6 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+- name: Setup role for redhat subscription management
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks: 
+    - name: Setup role
+      include_role: 
+        name: "{{ playbook_dir }}/roles/control_plane_rhsm"
+        tasks_from: setup_rhsm_role.yml
 
 - name: Redhat subscription management
   hosts: all
