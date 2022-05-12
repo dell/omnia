@@ -75,7 +75,8 @@
     - name: Mapping file validation
       include_tasks: mapping_file.yml
       when:
-        - ( not cobbler_image_status ) and ( host_mapping_file ) or ( backup_map_status )
+        - ( not cobbler_image_status and  host_mapping_file ) or ( backup_map_status )
+          or ( cobbler_lom and mgmt_mapping_file ) or ( backup_mgmt_map_status )
 
     - name: Cobbler image creation
       include_tasks: cobbler_image.yml
