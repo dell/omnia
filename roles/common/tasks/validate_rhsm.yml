@@ -29,7 +29,9 @@
         msg: "{{ manager_inactive_msg }}"
 
     - name: End playbook execution
-      meta: end_play
+      shell: /bin/false
+      run_once: true
+
   when: "'manager' in group_names"
 
 - name: Validate rhsm status on all remaining nodes
