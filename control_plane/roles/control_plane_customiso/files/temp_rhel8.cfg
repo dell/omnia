@@ -51,6 +51,7 @@ reboot
 %packages
 @^minimal-environment
 net-tools
+python3
 %end
 
 %include /tmp/bootdisk.cfg

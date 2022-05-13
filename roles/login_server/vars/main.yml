@@ -23,3 +23,8 @@ ipa_server_packages:
 resolv_conf_path: /etc/resolv.conf
 temp_resolv_conf_path: /tmp/resolv.conf
 resolv_file_mode: '0644'
+
+ipa_server_packages_rhel:
+  - bind
+  - ipa-server-dns
+  - freeipa-server
