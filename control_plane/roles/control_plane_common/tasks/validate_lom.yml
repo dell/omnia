@@ -13,12 +13,6 @@
 #  limitations under the License.
 ---
 
-- name: Set basic value for lom variables
-  set_fact:
-    cobbler_lom: false
-    mgmt_lom: false
-  tags: init
-
 - name: Check if lom is applicable
   assert:
     that:
