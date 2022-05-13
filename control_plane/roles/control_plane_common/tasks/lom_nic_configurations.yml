@@ -165,7 +165,7 @@
     warn: no
   register: host_dhcp_end
   changed_when: false
-  tags: [ validate, pxe , network-device ]
+  tags: [ validate, pxe, network-device ]
 
 - name: Validate the dhcp end range of mgmt
   shell: |
@@ -176,7 +176,7 @@
     warn: no
   register: mgmt_dhcp_end
   changed_when: false
-  tags: [ validate, network-device ]
+  tags: [ validate, pxe, network-device ]
 
 - name: Assert host and mgmt end dhcp ranges
   assert:
@@ -259,6 +259,8 @@
   - name: Set fact for roce
     set_fact:
       roce_enabled: true
+    tags: init
+
   when:
     - roce_network_nic | length > 1
     - roce_network_dhcp_start_range | ipv4
