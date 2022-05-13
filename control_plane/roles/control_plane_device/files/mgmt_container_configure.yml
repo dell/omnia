@@ -21,6 +21,7 @@
   - name: Enable DHCP
     command: dhcpd {{ mgmt_nic }}
     changed_when: false
+    failed_when: false
 
   - name: Start cron
     command: crond
@@ -41,4 +42,10 @@
 
   - name: Change permissions
     command: chmod a+x /etc/periodic/5min/cron_inv
+    when: network_interface_type == "dedicated"
+    changed_when: false
+
+  - name: Change permissions
+    command: chmod a+x /etc/periodic/5min/cron_lom_inv
+    when: network_interface_type == "lom"
     changed_when: false

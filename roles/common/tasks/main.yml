@@ -167,7 +167,9 @@
           command: "ifup {{ item }}"
           changed_when: true
           with_items: "{{ ib_nics }}"
-      when: hostvars['127.0.0.1']['control_plane_status']
+      when: 
+       - hostvars['127.0.0.1']['control_plane_status']
+       - hostvars['127.0.0.1']['ib_switch_support']
   when: ( os_supported_leap not in compute_os )
 
 - block:
@@ -270,7 +272,9 @@
           command: "ip link set dev {{ item }} up"
           changed_when: true
           with_items: "{{ ib_nics }}"
-      when: hostvars['127.0.0.1']['control_plane_status']
+      when:
+       - hostvars['127.0.0.1']['control_plane_status']
+       - hostvars['127.0.0.1']['ib_switch_support']
   when: ( os_supported_leap in compute_os ) and ( ansible_distribution_version >= os_supported_leap_version )
 
 - name: Deploy time ntp/chrony

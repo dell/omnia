@@ -34,12 +34,15 @@
     - name: Create the static ip
       shell: awk -F',' 'NR >1{print $3}' omnia/control_plane/roles/provision_cobbler/files/new_host_mapping_file.csv > static_hosts.yml
       changed_when: false
+      when: not roce_enabled | bool
       failed_when: false
 
     - name: Create the static ip for mgmt hosts for shared lom
       shell: awk -F',' 'NR >1{print $2}' omnia/control_plane/roles/provision_cobbler/files/new_mgmt_mapping_file.csv > static_mgmt.yml
       changed_when: false
-      when: network_interface_type == "lom"
+      when:
+        - network_interface_type == "lom"
+        - not roce_enabled | bool
       failed_when: false
 
     - name: Create the dynamic inventory
@@ -113,12 +116,36 @@
         - name: New line at end of file
           shell: echo "">> omnia/control_plane/roles/collect_device_info/files/mgmt_provisioned_hosts.yml
           changed_when: false
-      when: network_interface_type == "lom"
+      when:
+        - network_interface_type == "lom"
+        - not roce_enabled | bool
 
     - name: Final inventory
       shell: cat dynamic_hosts.yml static_hosts.yml| sort -ur >> omnia/control_plane/roles/collect_node_info/files/provisioned_hosts.yml
       changed_when: false
       when: network_interface_type == "dedicated"
+
+    - block:
+      - name: Final inventory
+        shell: cat dynamic_hosts.yml | sort -ur >> omnia/control_plane/roles/collect_node_info/files/roce_provisioned_hosts.yml
+        changed_when: false
+
+      - name: Temp result
+          shell: cat /root/omnia/control_plane/roles/collect_node_info/files/roce_provisioned_hosts.yml |sort|uniq
+          register: inventory
+          changed_when: false
+
+      - name: Final Inventory
+        copy:
+          content: "{{ inventory.stdout }}"
+          dest: omnia/control_plane/roles/collect_node_info/files/roce_provisioned_hosts.yml
+
+      - name: New line at end of file
+        shell: echo "">> omnia/control_plane/roles/collect_node_info/files/roce_provisioned_hosts.yml
+        changed_when: false
+      when:
+        - network_interface_type == "lom"
+        - roce_enabled | bool
 
     - name: Temp result
       shell: cat /root/omnia/control_plane/roles/collect_node_info/files/provisioned_hosts.yml |sort|uniq
@@ -133,3 +160,11 @@
     - name: New line at end of file
       shell: echo "">> omnia/control_plane/roles/collect_node_info/files/provisioned_hosts.yml
       changed_when: false
+
+    - name: Delete the files
+      file:
+        path: "{{ item }}"
+        state: absent
+      with_items:
+        - "/root/temp.txt"
+        - "/root/dynamic_hosts.yml"
