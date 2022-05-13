@@ -30,7 +30,6 @@ RUN dnf install -y mod_ssl \
         python3-future \
         python3-mod_wsgi \
         gcc \
-        xinetd \
         epel-rpm-macros \
         rpm-build \
         ansible \

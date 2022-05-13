@@ -18,7 +18,7 @@
     src: "{{ role_path }}/files/temp_dhcp.template"
     dest: "{{ role_path }}/files/dhcpd.conf"
     mode: 0775
-  tags: install
+  when: not dhcp_lom_file
 
 - name: Assign subnet and netmask
   replace:
@@ -36,8 +36,8 @@
 - name: Assign DHCP range
   replace:
     path: "{{ role_path }}/files/dhcpd.conf"
-    regexp: '^range dynamic-bootp start end;'
-    replace: 'range dynamic-bootp {{ mgmt_network_dhcp_start_range }} {{ mgmt_network_dhcp_end_range }};'
+    regexp: '^range start end;'
+    replace: 'range {{ mgmt_network_dhcp_start_range }} {{ mgmt_network_dhcp_end_range }};'
 
 - name: Assign default lease time
   replace:

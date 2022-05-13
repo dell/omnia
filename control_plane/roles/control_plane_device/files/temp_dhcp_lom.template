@@ -23,23 +23,22 @@ class "vendor-class" {
 }
 
 shared-network lom {
-subnet mgmt_subnet_mask netmask mgmt_net_mask {
-option subnet-mask mgmt_net_mask;
+subnet subnet_mask netmask net_mask {
+option subnet-mask net_mask;
 default-lease-time default;
 max-lease-time max;
 pool
 {
-range mgmt_start mgmt_end;
+range start end;
 allow members of "vendor-class";
 }
 #insert the static DHCP leases for mgmt configurations here
 }
-subnet subnet_mask netmask net_mask {
-option subnet-mask net_mask;
-range dynamic-bootp start end;
+subnet host_subnet_mask netmask host_net_mask {
+option subnet-mask host_net_mask;
+range dynamic-bootp host_start host_end;
 default-lease-time default;
 max-lease-time max;
-next-server next_server;
 #insert the static DHCP leases for configuration here
 
 

@@ -27,3 +27,7 @@ message_installed: "The container is installed"
 
 # Usage: mapping_file.yml
 temp_mgmt_mapping_file: "{{ role_path }}/files/new_mgmt_mapping_file.csv"
+temp_host_mapping_file: "{{ role_path }}/files/new_host_mapping_file.csv"
+
+# Usage: lom_dhcp_configure.yml
+dhcp_perm: 0755

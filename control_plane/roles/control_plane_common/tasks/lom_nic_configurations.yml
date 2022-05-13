@@ -165,7 +165,7 @@
     warn: no
   register: host_dhcp_end
   changed_when: false
-  tags: [ validate, pxe ]
+  tags: [ validate, pxe , network-device ]
 
 - name: Validate the dhcp end range of mgmt
   shell: |
@@ -255,8 +255,13 @@
       success_msg: "{{ success_dhcp_range }} for roce network"
       fail_msg: "{{ fail_dhcp_range }} for roce network"
     tags: [ validate, pxe ]
-  when: roce_network_nic | length > 1
-
+  
+  - name: Set fact for roce
+    set_fact:
+      roce_enabled: true
+  when:
+    - roce_network_nic | length > 1
+    - roce_network_dhcp_start_range | ipv4
 ### ib network
 
 - block:
