@@ -131,9 +131,9 @@
         changed_when: false
 
       - name: Temp result
-          shell: cat /root/omnia/control_plane/roles/collect_node_info/files/roce_provisioned_hosts.yml |sort|uniq
-          register: inventory
-          changed_when: false
+        shell: cat /root/omnia/control_plane/roles/collect_node_info/files/roce_provisioned_hosts.yml | sort | uniq
+        register: inventory
+        changed_when: false
 
       - name: Final Inventory
         copy:
@@ -148,7 +148,7 @@
         - roce_enabled | bool
 
     - name: Temp result
-      shell: cat /root/omnia/control_plane/roles/collect_node_info/files/provisioned_hosts.yml |sort|uniq
+      shell: cat /root/omnia/control_plane/roles/collect_node_info/files/provisioned_hosts.yml | sort | uniq
       register: inventory
       changed_when: false
 
