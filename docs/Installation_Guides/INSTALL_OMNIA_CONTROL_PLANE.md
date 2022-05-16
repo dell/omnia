@@ -135,8 +135,8 @@ The network configuration performed by Omnia depends on the value of `network_in
 </table>
 
 >> __Note:__
-* When `network interface` type is `lom`, `idrac_support` is assumed to be true irrespective of user input.
-* Despite the value of `mgmt_network_nic` and `host_network_nic` being the same in LOM environments, the IPs assigned for management and data should not be in the same range. The start and end values of the management IP range and the host IP range cannot be the same.
+>> * When `network interface` type is `lom`, `idrac_support` is assumed to be true irrespective of user input.
+>> * Despite the value of `mgmt_network_nic` and `host_network_nic` being the same in LOM environments, the IPs assigned for management and data should not be in the same range. The start and end values of the management IP range and the host IP range cannot be the same.
 
 Once all network configuration is complete, Omnia uses AWX to integrate a centralized log system, receive live updates of running jobs, scheduled jobs, etc. AWX can also be used to assign component roles, install kuberenetes, JupyterHub, Kubeflow, Slurm, Prometheus and Grafana.
 
@@ -181,9 +181,9 @@ From Omnia 1.2, the cobbler container OS will follow the OS on the control plane
  * On adding the cluster, run the iDRAC template before running `control_plane.yml`
  * If the new cluster is to run on a different OS than the previous cluster, update the parameters `provision_os` and `iso_file_path` in `base_vars.yml`. Then run `control_plane.yml` 
  
->> Example: In a scenario where the user wishes to deploy LEAP and Rocky on their multiple servers, below are the steps they would use:
->> 1. Set `provision_os` to leap and `iso_file_path` to `/root/openSUSE-Leap-15.3-DVD-x86_64-Current.iso`.
->> 2. Run `control_plane.yml` to provision leap and create a profile called `leap-x86_64` in the cobbler container.
+>> Example: In a scenario where the user wishes to deploy Red Hat and Rocky on their multiple servers, below are the steps they would use:
+>> 1. Set `provision_os` to redhat and `iso_file_path` to `/root/RedHat-8.5-DVD-x86_64-Current.iso`.
+>> 2. Run `control_plane.yml` to provision leap and create a profile called `RedHat-x86_64` in the cobbler container.
 >> 3. Set `provision_os` to rocky and `iso_file_path` to `/root/Rocky-8.x-x86_64-minimal.iso`.
 >> 4. Run `control_plane.yml` to provision rocky and create a profile called `rocky-x86_64` in the cobbler container.
 
