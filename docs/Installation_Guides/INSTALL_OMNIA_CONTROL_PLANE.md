@@ -135,9 +135,9 @@ The network configuration performed by Omnia depends on the value of `network_in
 </table>
 
 >> __Note:__
-* When `network interface` type is `lom`, `idrac_support` is assumed to be true irrespective of user input.
-* Omnia will not automatically assign IPs to all devices (powervault or ethernet/Infiniband switches) when `network_interface_type` is lom. However, if required, users can follow the [linked steps](USING_AWX_PLAYBOOKS.md#setting-up-static-ips-on-devices-when-the-network-interface-type-is-shared-lom).
-* Despite the value of `mgmt_network_nic` and `host_network_nic` being the same in LOM environments, the IPs assigned for management and data should not be in the same range. The start and end values of the management IP range and the host IP range cannot be the same.
+>> * When `network interface` type is `lom`, `idrac_support` is assumed to be true irrespective of user input.
+>> * Omnia will not automatically assign IPs to all devices (powervault or ethernet/Infiniband switches) when `network_interface_type` is lom. However, if required, users can follow the [linked steps](USING_AWX_PLAYBOOKS.md#setting-up-static-ips-on-devices-when-the-network-interface-type-is-shared-lom).
+>> * Despite the value of `mgmt_network_nic` and `host_network_nic` being the same in LOM environments, the IPs assigned for management and data should not be in the same range. The start and end values of the management IP range and the host IP range cannot be the same.
 
 Once all network configuration is complete, Omnia uses AWX to integrate a centralized log system, receive live updates of running jobs, scheduled jobs, etc. AWX can also be used to assign component roles, install kuberenetes, JupyterHub, Kubeflow, Slurm, Prometheus and Grafana.
 
