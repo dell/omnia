@@ -48,4 +48,10 @@
       line: "    - rhsm_activation_key is not defined or rhsm_method == 'portal' or rhsm_simplified_content_access"
       state: absent
 
+  - name: Modify satellite file
+    replace:
+      path: "{{ satellite_file_path }}"
+      regexp: "  when: rhsm_satellite_version == '6'"
+      replace: "  when: rhsm_satellite_version == '6'\n  ignore_errors: true"
+
   when: not control_plane_status
