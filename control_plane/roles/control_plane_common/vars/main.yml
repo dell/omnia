@@ -322,3 +322,4 @@ rhsm_git_repo: "https://github.com/openstack/ansible-role-redhat-subscription.gi
 rhsm_git_stable_commit: "0f7ac2a"
 rhsm_git_dest: "{{ playbook_dir }}/roles/control_plane_rhsm/files/openstack-rhsm"
 portal_file_path: "{{ playbook_dir }}/roles/control_plane_rhsm/files/openstack-rhsm/tasks/portal.yml"
+satellite_file_path: "{{ playbook_dir }}/roles/control_plane_rhsm/files/openstack-rhsm/tasks/satellite.yml"
