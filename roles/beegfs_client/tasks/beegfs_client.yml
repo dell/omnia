@@ -65,6 +65,7 @@
     regexp: "{{ client_mount_location }}"
     insertbefore: "{{ client_mount_location }}"
     line: "{{ hostvars['127.0.0.1']['beegfs_mounts'] }} {{ client_mount_location }}"
+  when: hostvars['127.0.0.1']['unmount_client']
 
 - name: Rebuilding BeeGFS client module
   command: "{{ rebuild_path }}"

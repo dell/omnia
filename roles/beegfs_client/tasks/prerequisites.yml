@@ -18,11 +18,11 @@
       command: cat "{{ beegfs_mount_file }}"
       failed_when: false
       changed_when: false
-      register: client_mount_location
+      register: client_mount_status
 
     - name: Fetch already mounted location 
       set_fact:
-        mounted_path: "{{ client_mount_location.stdout.split(' ')[0] }}"
+        mounted_path: "{{ client_mount_status.stdout.split(' ')[0] }}"
 
     - name: unmount already mounted BeeGFS file system
       command: "umount {{ mounted_path }}"

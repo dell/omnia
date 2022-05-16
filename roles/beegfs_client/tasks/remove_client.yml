@@ -19,6 +19,7 @@
     state: stopped
     enabled: no
   with_items: "{{ beegfs_client_pkg }}"
+  failed_when: false
 
 - name: Removing files related to BeeGFS client
   file:
