@@ -4,12 +4,12 @@ Once `control_plane.yml` is run, AWX UI or Ansible CLI can be used to run differ
 1. [Setting up Red Hat Subscription](#red-hat-subscription)
 2. [Using `omnia.yml` to set up clusters, BeeGFS etc](INSTALL_OMNIA_CLI.md)
 3. [Configure new devices added to the cluster](#configuring-new-devices-added-to-the-cluster)
-4. [Assigning Component Roles](#assign-component-roles-using-awx-ui)
-5. [Installing JupyterHub And Kubeflow](#install-jupyterhub-and-kubeflow-playbooks)
-6. [Assigning Roles to Compute Nodes](#assign-component-roles-using-awx-ui)
-7. [Add a new compute node to the cluster](#add-a-new-compute-node-to-the-cluster)
-8. [Creating a new cluster](#creating-a-new-cluster)
-9. [Updating Kernel on Red Hat](#kernel-updates-on-red-hat)
+4. [Installing JupyterHub And Kubeflow](#install-jupyterhub-and-kubeflow-playbooks)
+5. [Assigning Roles to Compute Nodes](#assign-component-roles-using-awx-ui)
+6. [Add a new compute node to the cluster](#add-a-new-compute-node-to-the-cluster)
+7. [Creating a new cluster](#creating-a-new-cluster)
+8. [Updating Kernel on Red Hat](#kernel-updates-on-red-hat)
+9. [Setting up Static IPs on Devices when the network interface type is shared LOM](#setting-up-static-ips-on-devices-when-the-network-interface-type-is-shared-lom)
 
 ## Accessing the AWX UI
 1. Run `kubectl get svc -n awx`.
@@ -95,14 +95,32 @@ From Omnia 1.2, the cobbler container OS will follow the OS on the control plane
 * On adding the cluster, run the iDRAC template before running `control_plane.yml`
 * If the new cluster is to run on a different OS than the previous cluster, update the parameters `provision_os` and `iso_file_path` in `base_vars.yml`. Then run `control_plane.yml`
 
->> Example: In a scenario where the user wishes to deploy LEAP and Rocky on their multiple servers, below are the steps they would use:
->> 1. Set `provision_os` to leap and `iso_file_path` to `/root/openSUSE-Leap-15.3-DVD-x86_64-Current.iso`.
->> 2. Run `control_plane.yml` to provision leap and create a profile called `leap-x86_64` in the cobbler container.
+>> Example: In a scenario where the user wishes to deploy Red Hat and Rocky on their multiple servers, below are the steps they would use:
+>> 1. Set `provision_os` to redhat and `iso_file_path` to `/root/rhel-8.5-DVD-x86_64-Current.iso`.
+>> 2. Run `control_plane.yml` to provision leap and create a profile called `rhel-x86_64` in the cobbler container.
 >> 3. Set `provision_os` to rocky and `iso_file_path` to `/root/Rocky-8.x-x86_64-minimal.iso`.
 >> 4. Run `control_plane.yml` to provision rocky and create a profile called `rocky-x86_64` in the cobbler container.
 
 
 >> __Note:__ All compute nodes in a cluster must run the same OS. 
+
+## Setting up Static IPs on Devices when the network interface type is shared LOM
+>> __Note:__ All steps listed below are to be administered on the control plane. The DHCP provided IPs for these devices will be within the `host_network_range` irrespective of whether `roce_network_nic` is provided.
+
+When the network interface type is set to shared LOM, users can manually assign static IPs to their networking (ethernet or Infiniband) or storage (powervault). Depending on whether `roce_network_nic` is provided, there are two ways users can achieve this:
+
+### When `roce_network_nic` is provided:
+1. Get the pod name of the network-config pod: `Kubectl get pods -n network-config`
+2. Start a bash shell session with the pod: `kubectl exec -it {{ pod_name }} -n network-config -- /bin/bash `
+3. Get the DHCP assigned IP of the device to be configured: `cat /var/lib/dhcp/dhcpd.leases` 
+4. Go to AWX > Inventory > <device type> inventory >hosts and add the IP to the inventory.
+
+### When `roce_network_nic` is not provided:
+1. Get the pod name of the cobbler pod: `Kubectl get pods -n cobbler`
+2. Start a bash shell session with the pod: `kubectl exec -it {{ pod_name }} -n cobbler -- /bin/bash `
+3. Get the DHCP assigned IP of the device to be configured: `cat /var/lib/dhcpd/dhcpd.leases` 
+4. Go to AWX > Inventory > <device type> inventory >hosts and add the IP to the inventory.
+
 
 ## Kernel Updates on Red Hat
 ### Pre-requisites
