@@ -30,6 +30,12 @@ Resolution:
 Resolution:
     If you have enabled the option to install the login node in the cluster, set the hostnames of the nodes in the format: *hostname.domainname*. For example, *manager.omnia.test* is a valid hostname for the login node. **Note**: To find the cause for the failure of the FreeIPA server and client installation, see *ipaserver-install.log* in the manager node or */var/log/ipaclient-install.log* in the login node.
 
+## Why does the task 'Control Plane Common: Fetch the available subnets and netmasks' fail with `no ipv4_secondaries present`? <br>
+![img.png](../images/SharedLomError.png) <br>
+**Potential Cause**: If a shared LOM environment is in use, the management network/host network NIC may only have one IP assigned to it. <br>
+**Resolution**: Ensure that the NIC used for host and data connections has 2 IPs assigned to it.
+    
+
 ## Why are inventory details not updated in AWX?
 **Potential Cause**:
     The provided device credentials may be invalid.
@@ -39,7 +45,7 @@ Resolution:
 ## Why is the host list empty when executing `control_plane.yml`?
 Hosts that are not in DHCP mode do not get populated in the host list when `control_plane.yml` is run.
 
-## Why does the task 'Install Packages' fails on the NFS node with the message: `Failure in talking to yum: Cannot find a valid baseurl for repo: base/7/x86_64.`  
+## Why does the task 'Install Packages' fail on the NFS node with the message: `Failure in talking to yum: Cannot find a valid baseurl for repo: base/7/x86_64.`  
 **Potential Cause**:
     There are connections missing on the NFS node.  
 Resolution:

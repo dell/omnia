@@ -1,7 +1,7 @@
 # AWX/Ansible Playbooks And How To Use Them
 
 Once `control_plane.yml` is run, AWX UI or Ansible CLI can be used to run different scripts on your control_plane. Some of these functionalities include:
-1. [Setting up Red Hat Subscription](#)
+1. [Setting up Red Hat Subscription](#red-hat-subscription)
 2. [Using `omnia.yml` to set up clusters, BeeGFS etc](INSTALL_OMNIA_CLI.md)
 3. [Configure new devices added to the cluster](#configuring-new-devices-added-to-the-cluster)
 4. [Assigning Component Roles](#assign-component-roles-using-awx-ui)
@@ -18,12 +18,16 @@ Once `control_plane.yml` is run, AWX UI or Ansible CLI can be used to run differ
 4. Open the default web browser on the control plane and enter `http://<IP>:8052`, where IP is the awx-ui IP address and 8052 is the awx-ui port number. Log in to the AWX UI using the username as `admin` and the retrieved password.
 
 ## Red Hat Subscription
-Before running `omnia.yml`, it is mandatory that red hat subscription be set up.
+Before running `omnia.yml`, it is mandatory that red hat subscription be set up on compute nodes running Red Hat.
 * To set up Red hat subscription, fill in the [rhsm_vars.yml file](../Input_Parameter_Guide/Control_Plane_Parameters/Device_Parameters/rhsm_vars.md). Once it's filled in, run the template using AWX or Ansible. <br>
 * The flow of the playbook will be determined by the value of `redhat_subscription_method` in `rhsm_vars.yml`.
     - If `redhat_subscription_method` is set to `portal`, pass the values `username` and `password` on the AWX screen. For CLI, run the command: <br> `ansible-playbook rhsm_subscription.yml -i inventory -e redhat_subscription_username= "<username>" -e redhat_subscription_password="<password>"`
     - If `redhat_subscription_method` is set to `satellite`, pass the values `organizational identifier` and `activation key` on the AWX screen. For CLI, run the command: <br> `ansible-playbook rhsm_subscription.yml -i inventory -e redhat_subscription_activation_key= "<activation-key>" -e redhat_subscription_org_id ="<org-id>"`
 
+## Red Hat Unsubscription
+To disable subscription on Red Hat nodes, the `red_hat_unregister_template` has to be called in one of two ways:
+1. On AWX, run the template `redhat_unregister_template`. On launching the template, the nodes present in the node inventory will be unregistered from red hat.
+2. Using Ansible, run the command: `ansible_playbook omnia/control_plane/rhsm_unregister.yml -i inventory`
 
 ## Configuring new devices added to the cluster
 For Omnia to configure the devices and to provision the bare metal servers which are introduced newly in the cluster, you must configure the corresponding input parameters and deploy the device-specific template from the AWX UI. Based on the devices added to the cluster, click the respective link to go to configuration section.
@@ -34,21 +38,21 @@ For Omnia to configure the devices and to provision the bare metal servers which
 
 
 ## Assign component roles using AWX UI
-1. On the AWX dashboard, under __RESOURCES__ __->__ __Inventories__, select **node_inventory**.
-2. Select the **Hosts** tab.
-3. To add hosts to the groups, click **+**.
-4. Select **Existing Host**, and then select the hosts from the list and add them to the groups--**compute**, **manager**, **login**, or **nfs**.  
+1. If Red Hat is used, ensure that red hat subscription is enabled on the nodes. If it isn't, se AWX to run [`redhat_subscription_template`](#red-hat-subscription) after running `control_plane.yml` to activate red hat subscription.
+2. On the AWX dashboard, under __RESOURCES__ __->__ __Inventories__, select **node_inventory**.
+3. Select the **Hosts** tab.
+4. To add hosts to the groups, click **+**.
+5. Select **Existing Host**, and then select the hosts from the list and add them to the groups--**compute**, **manager**, **login**, or **nfs**.  
    If you have set the `login_node_required` variable in the `omnia_config` file to "false", then you can skip assigning host to the login node.
-5. If the login_node_required is true, make sure the hostnames of all the nodes in the cluster especially the manager and login node are in the format: hostname.domainname. For example, manager.omnia.test is a valid FQDN. If the Hostname is not set then freeipa server/client installation will fail.
-6. Click __SAVE__.
-7. To deploy Kubernetes and Slurm containers on PowerEdge Servers, under __RESOURCES__ -> __Templates__, select **deploy_omnia**, and then click __LAUNCH__.
-8. By default, no skip tags are selected, and both Kubernetes and Slurm are deployed.
-9. To install only Kubernetes, enter `slurm` and select **slurm**.
-10. To install only Slurm, select and add `kubernetes` skip tag.
+6. If the login_node_required is true, make sure the hostnames of all the nodes in the cluster especially the manager and login node are in the format: hostname.domainname. For example, manager.omnia.test is a valid FQDN. If the Hostname is not set then freeipa server/client installation will fail.
+7. Click __SAVE__.
+8. To deploy Kubernetes and Slurm containers on PowerEdge Servers, under __RESOURCES__ -> __Templates__, select **deploy_omnia**, and then click __LAUNCH__.
+9. By default, no skip tags are selected, and both Kubernetes and Slurm are deployed.
+10. To install only Kubernetes, enter `slurm` and select **slurm**.
+11. To install only Slurm, select and add `kubernetes` skip tag.
 
 >> **Note**:
 >> * If you would like to skip the NFS client setup, enter `nfs_client` in the skip tag section to skip the **k8s_nfs_client_setup** role of Kubernetes.
->> * For Red Hat Nodes, use AWX to run [`redhat_subscription_template`](#red-hat-subscription) after running `control_plane.yml` to activate red hat subscription. Ensure that the subscription is enabled before assigning component roles (manager, compute, login_node, nfs_node) to the nodes.
 
 15. Click **NEXT**.
 16. Review the details in the **PREVIEW** window and click **LAUNCH** to run the DeployOmnia template.
@@ -111,7 +115,7 @@ From Omnia 1.2, the cobbler container OS will follow the OS on the control plane
 
 Via CLI:
 `cd omnia/control_plane` <br>
-`ansible-playbook kernel_upgrade.yml -i inventory -e rhsm_kernel_version=x.xx.x-xxxx`
+`ansible-playbook kernel_upgrade.yml -i inventory -e rhsm_kernel_version=x.xx.x-xxxx` <br>
 Through AWX UI
 ![img.png](../images/Execute_Kernel_Upgrade_UI.png)
 

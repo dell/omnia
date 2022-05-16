@@ -32,6 +32,7 @@ Omnia can deploy firmware, install Kubernetes or Slurm (or both), along with add
 - Added support for BOSS controllers
 - Added support for bolt-on BeeGFS configuration
 - Added ability to upgrade kernel on Red Hat devices
+- Added support for shared LOM (LAN on Motherboard) configuration
 
 # Using Omnia
 1. Verify that your system meets Omnia's [hardware](Support_Matrix/Hardware/README.md) and [software requirements](Support_Matrix/Software/README.md)

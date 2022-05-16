@@ -137,6 +137,7 @@
         name: "{{ item }}"
         state: present
       with_items: "{{ infiniband_non_leap }}"
+      register: ib_package_status
       tags: install
     
     - block:
@@ -166,8 +167,10 @@
         - name: Activating ib nics
           command: "ifup {{ item }}"
           changed_when: true
+          failed_when: false
           with_items: "{{ ib_nics }}"
-      when: 
+      when:
+       - ib_package_status.changed
        - hostvars['127.0.0.1']['control_plane_status']
        - hostvars['127.0.0.1']['ib_switch_support']
   when: ( os_supported_leap not in compute_os )
@@ -242,6 +245,7 @@
         name: "{{ item }}"
         state: present
       with_items: "{{ infiniband_leap }}"
+      register: ib_package_status
       tags: install
     
     - block:
@@ -271,8 +275,10 @@
         - name: Activating ib nics
           command: "ip link set dev {{ item }} up"
           changed_when: true
+          failed_when: false
           with_items: "{{ ib_nics }}"
       when:
+       - ib_package_status.changed
        - hostvars['127.0.0.1']['control_plane_status']
        - hostvars['127.0.0.1']['ib_switch_support']
   when: ( os_supported_leap in compute_os ) and ( ansible_distribution_version >= os_supported_leap_version )

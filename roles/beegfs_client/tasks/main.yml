@@ -25,4 +25,6 @@
 
     - name: Install BeeGFS client
       include_tasks: beegfs_client.yml
-  when: hostvars["127.0.0.1"]["beegfs_support"]
+  when:
+    - hostvars["127.0.0.1"]["beegfs_support"]
+    - os_supported_leap not in compute_os
