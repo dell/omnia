@@ -56,24 +56,6 @@
 * On the control plane, run the following commands to install Git: <br>
   `dnf install epel-release -y` (Only if Rocky is in use on the control plane) <br><br> `dnf install git -y`
 
-## Installing BeeGFS
-* If the user intends to use BeeGFS, ensure that a BeeGFS cluster has been set up with beegfs-mgmtd, beegfs-meta, beegfs-storage services running.
- Ensure that the following ports are open for TCP and UDP connectivity:
-  
-  | Port | Service                           |
-  |------|-----------------------------------|
-  | 8008 | Management service (beegfs-mgmtd) |
-  | 8003 | Storage service (beegfs-storage)  |
-  | 8004 | Client service (beegfs-client)    |
-  | 8005 | Metadata service (beegfs-meta)    |
-  | 8006 | Helper service (beegfs-helperd)   |
-
-To open the ports required, use the following steps:
-1. `firewall-cmd --permanent --zone=public --add-port=<port number>/tcp`
-2. `firewall-cmd --permanent --zone=public --add-port=<port number>/udp`
-3. `firewall-cmd --reload`
-4. `systemctl status firewalld`
-
 >> **Note**:
 >> * After the installation of the Omnia appliance, changing the control plane is not supported. If you need to change the control plane, you must redeploy the entire cluster.
 >> * If there are errors while executing any of the Ansible playbook commands, then re-run the commands.  
