@@ -137,4 +137,4 @@
   cron:
     name: "Start omnia services on reboot"
     special_time: reboot
-    job: "{{ ansible_playbook_path.stdout.split(' ')[1] }} {{ role_path }}/files/startup_omnia.yml"
+    job: "{{ ansible_playbook_path.stdout.split(' ')[1] }} {{ playbook_dir }}/startup_omnia.yml"
