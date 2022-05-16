@@ -55,5 +55,5 @@
             verbosity: 2
           when: not infiniband_container_status
   when:
-    - device_support_status or network_interface_type = "lom"
+    - device_support_status or network_interface_type == "lom"
     - ib_switch_support
