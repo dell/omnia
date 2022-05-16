@@ -30,13 +30,16 @@
     infiniband_pod: infiniband-container
     file_perm: '0775'
     mount_dir: /mnt/temp/
+  roles:
+    - role: control_plane_common
+
   tasks:
     - name: Wait for 3 minutes
       pause:
         minutes: "{{ wait_time_minutes }}"
-    
+
     - name: Include base_vars.yml
-      include_vars: ../../../input_params/base_vars.yml
+      include_vars: input_params/base_vars.yml
 
     - name: Check resolv.conf file is present
       stat:
@@ -75,8 +78,8 @@
       changed_when: true
       args:
         warn: false
-      when: not mount_iso_check.stat.exists 
-    
+      when: not mount_iso_check.stat.exists
+
     - name: Unmount tmp directory
       command: "umount {{ mount_dir }}"
       changed_when: true
@@ -143,15 +146,27 @@
           when: management_network_pod in mgmt_network_pod_status.stdout
 
         - name: Configuring mgmt_network container
-          command: 'kubectl exec --stdin --tty -n {{ management_network_namespace }} {{ mgmt_network_pod_name.stdout }} \
-            -- ansible-playbook /root/mgmt_container_configure.yml -e mgmt_nic="{{ mgmt_network_nic }}"'
+          command: 'kubectl exec --stdin --tty -n network-config {{ mgmt_network_pod_name.stdout }} \
+            -- ansible-playbook /root/mgmt_container_configure.yml -e mgmt_nic="{{ mgmt_network_nic }}" -e network_interface_type="{{ network_interface_type }}"'
           changed_when: false
-          failed_when: false
-          when: management_network_pod in mgmt_network_pod_status.stdout
-      when: device_config_support
+          tags: install
+          when:
+            - management_network_pod in mgmt_network_pod_status.stdout
+            - device_support_status
+
+        - name: Configuring mgmt_network container when shared lom
+          command: 'kubectl exec --stdin --tty -n network-config {{ mgmt_network_pod_name.stdout }} \
+            -- ansible-playbook /root/mgmt_container_configure.yml -e mgmt_nic="{{ mgmt_network_nic }}" \
+            -e network_interface_type="{{ network_interface_type }}" -e mgmt_network_netmask="{{ mgmt_network_netmask }}"
+        -e mgmt_network_subnet="{{ mgmt_network_subnet }}" \ -e subnet="{{ subnet }}" -e netmask="{{ netmask }}"'
+          changed_when: false
+          when:
+            - management_network_pod in mgmt_network_pod_status.stdout
+            - mgmt_lom
+      when: device_support_status or network_interface_type == "lom"
 
     - block:
-        - name: Check mgmt_network pod status
+        - name: Check ib_network pod status
           command: kubectl get pods -n {{ management_network_namespace }}
           changed_when: false
           register: mgmt_network_pod_status
@@ -173,7 +188,9 @@
             -- ansible-playbook /root/omnia/control_plane/roles/control_plane_ib/files/infiniband_container_configure.yml'
           changed_when: false
           when: infiniband_pod in mgmt_network_pod_status.stdout
-      when: ib_switch_support
+      when:
+        - device_support_status or network_interface_type == "lom"
+        - ib_switch_support
 
     - name: Check cobbler pod status
       command: kubectl get pods -n {{ cobbler_namespace }}
@@ -192,7 +209,32 @@
       register: cobbler_pod_name
       when: cobbler_pod in cobbler_pod_status.stdout
 
-    - name: Configuring cobbler inside container (It may take 5-10 mins)
-      command: "kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} -- ansible-playbook /root/cobbler_configurations_rocky.yml -e provision_os={{ provision_os }} -e file_perm={{ file_perm }}"
+    - name: Configuring cobbler inside container (It may take 5-10 mins) when mgmt container or lom is needed
+      command: 'kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} \
+      -- ansible-playbook /root/cobbler_configurations_rocky.yml -e provision_os="{{ provision_os }}" -e file_perm="{{ file_perm }}" \ -e network_interface_type="{{ network_interface_type }}" -e mgmt_network_subnet="{{ mgmt_network_subnet }}" \
+        -e mgmt_network_netmask="{{ mgmt_network_netmask }}" \ -e subnet="{{ subnet }}" -e  netmask="{{ netmask }}" -e device_support_status="{{ device_support_status }}" -e roce_enabled="{{ roce_enabled }}"'
       changed_when: true
-      when: cobbler_pod in cobbler_pod_status.stdout
+      when:
+        - cobbler_pod in cobbler_pod_status.stdout
+        - mgmt_os == os_supported_rocky or mgmt_os == os_supported_rhel
+        - (device_support_status) or cobbler_lom
+
+    - name: Configuring cobbler inside container (It may take 5-10 mins) when roce and lom is needed
+      command: 'kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} \
+       -- ansible-playbook /root/cobbler_configurations_rocky.yml -e provision_os="{{ provision_os }}" -e file_perm="{{ file_perm }}" \ -e network_interface_type="{{ network_interface_type }}" -e mgmt_network_subnet="{{ mgmt_network_subnet }}" \
+         -e mgmt_network_netmask="{{ mgmt_network_netmask }}" \ -e subnet="{{ roce_subnet }}" -e netmask="{{ roce_netmask }}" -e device_support_status="{{ device_support_status }}" -e roce_enabled="{{ roce_enabled }}"'
+      changed_when: true
+      when:
+        - cobbler_pod in cobbler_pod_status.stdout
+        - mgmt_os == os_supported_rocky or mgmt_os == os_supported_rhel
+        - not device_support_status
+        - mgmt_lom
+    - name: Configuring cobbler inside container (It may take 5-10 mins) when no  mgmt container present or lom is not chosen
+      command: 'kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} \
+    -- ansible-playbook /root/cobbler_configurations_rocky.yml -e provision_os="{{ provision_os }}" -e file_perm="{{ file_perm }}" \ -e network_interface_type="{{ network_interface_type }}" -e device_support_status="{{ device_support_status }}" -e roce_enabled="{{ roce_enabled }}"'
+      changed_when: true
+      when:
+        - cobbler_pod in cobbler_pod_status.stdout
+        - mgmt_os == os_supported_rocky or mgmt_os == os_supported_rhel
+        - not device_support_status
+        - network_interface_type == "dedicated"
