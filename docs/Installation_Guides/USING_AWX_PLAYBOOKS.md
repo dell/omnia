@@ -134,7 +134,7 @@ When the network interface type is set to shared LOM, users can manually assign 
 Via CLI:
 `cd omnia/control_plane` <br>
 `ansible-playbook kernel_upgrade.yml -i inventory -e rhsm_kernel_version=x.xx.x-xxxx` <br>
-Through AWX UI
+Through AWX UI <br>
 ![img.png](../images/Execute_Kernel_Upgrade_UI.png)
 
 >> **Note:** Omnia does not support roll-backs/downgrades of the Kernel.
