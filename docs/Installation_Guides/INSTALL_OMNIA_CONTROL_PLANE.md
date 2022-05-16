@@ -78,58 +78,58 @@ The network configuration performed by Omnia depends on the value of `network_in
 <table>
 <thead>
   <tr>
-    <th>&nbsp;&nbsp;&nbsp;<br>network_interface_type&nbsp;&nbsp;&nbsp;</th>
-    <th>&nbsp;&nbsp;&nbsp;<br>device_config_support&nbsp;&nbsp;&nbsp;</th>
-    <th>&nbsp;&nbsp;&nbsp;<br>idrac_support&nbsp;&nbsp;&nbsp;</th>
-    <th>&nbsp;&nbsp;&nbsp;<br>Outcome&nbsp;&nbsp;&nbsp;</th>
-    <th>&nbsp;&nbsp;&nbsp;<br>One Touch Config Support&nbsp;&nbsp;&nbsp;</th>
+    <th> ; ; ;<br>network_interface_type ; ; ;</th>
+    <th> ; ; ;<br>device_config_support ; ; ;</th>
+    <th> ; ; ;<br>idrac_support ; ; ;</th>
+    <th> ; ; ;<br>Outcome ; ; ;</th>
+    <th> ; ; ;<br>One Touch Config Support ; ; ;</th>
   </tr>
 </thead>
 <tbody>
   <tr>
-    <td rowspan="4">&nbsp;&nbsp;&nbsp;<br>Dedicated&nbsp;&nbsp;&nbsp;</td>
-    <td>&nbsp;&nbsp;&nbsp;<br>TRUE&nbsp;&nbsp;&nbsp;</td>
-    <td>&nbsp;&nbsp;&nbsp;<br>TRUE&nbsp;&nbsp;&nbsp;</td>
-    <td>&nbsp;&nbsp;&nbsp;<br>Omnia will assign IPs to all the&nbsp;&nbsp;&nbsp;management ports of the different devices. iDRAC and PXE provisioning is&nbsp;&nbsp;&nbsp;supported. Here, ethernet, InfiniBand and powervault configurations are&nbsp;&nbsp;&nbsp;supported.&nbsp;&nbsp;&nbsp;</td>
-    <td>&nbsp;&nbsp;&nbsp;<br>Yes&nbsp;&nbsp;&nbsp;</td>
+    <td rowspan="4"> ; ; ;<br>Dedicated ; ; ;</td>
+    <td> ; ; ;<br>TRUE ; ; ;</td>
+    <td> ; ; ;<br>TRUE ; ; ;</td>
+    <td> ; ; ;<br>Omnia will assign IPs to all the ; ; ;management ports of the different devices. iDRAC and PXE provisioning is ; ; ;supported. Here, ethernet, InfiniBand and powervault configurations are ; ; ;supported. ; ; ;</td>
+    <td> ; ; ;<br>Yes ; ; ;</td>
   </tr>
   <tr>
-    <td>&nbsp;&nbsp;&nbsp;<br>TRUE&nbsp;&nbsp;&nbsp;</td>
-    <td>&nbsp;&nbsp;&nbsp;<br>FALSE&nbsp;&nbsp;&nbsp;</td>
-    <td>&nbsp;&nbsp;&nbsp;<br>An assert failure on&nbsp;&nbsp;&nbsp;control_plane_common will manifest and Omnia Control Plane will fail.&nbsp;&nbsp;&nbsp;</td>
-    <td>&nbsp;&nbsp;&nbsp;<br>No&nbsp;&nbsp;&nbsp;</td>
+    <td> ; ; ;<br>TRUE ; ; ;</td>
+    <td> ; ; ;<br>FALSE ; ; ;</td>
+    <td> ; ; ;<br>An assert failure on ; ; ;control_plane_common will manifest and Omnia Control Plane will fail. ; ; ;</td>
+    <td> ; ; ;<br>No ; ; ;</td>
   </tr>
   <tr>
-    <td>&nbsp;&nbsp;&nbsp;<br>FALSE&nbsp;&nbsp;&nbsp;</td>
-    <td>&nbsp;&nbsp;&nbsp;<br>TRUE&nbsp;&nbsp;&nbsp;</td>
-    <td>&nbsp;&nbsp;&nbsp;<br>Assuming the device_ip_list is&nbsp;&nbsp;&nbsp;populated, mgmt_container will not be used to assign the IPs to all the mgmt&nbsp;&nbsp;&nbsp;ports as a device_ip_list indicates that IP assignment is&nbsp;&nbsp;&nbsp;already done. However, ethernet, InfiniBand, powervault configurations are&nbsp;&nbsp;&nbsp;supported.&nbsp;&nbsp;&nbsp;</td>
-    <td>&nbsp;&nbsp;&nbsp;<br>Yes&nbsp;&nbsp;&nbsp;</td>
+    <td> ; ; ;<br>FALSE ; ; ;</td>
+    <td> ; ; ;<br>TRUE ; ; ;</td>
+    <td> ; ; ;<br>Assuming the device_ip_list is ; ; ;populated, mgmt_container will not be used to assign the IPs to all the mgmt ; ; ;ports as a device_ip_list indicates that IP assignment is ; ; ;already done. However, ethernet, InfiniBand, powervault configurations are ; ; ;supported. ; ; ;</td>
+    <td> ; ; ;<br>Yes ; ; ;</td>
   </tr>
   <tr>
-    <td>&nbsp;&nbsp;&nbsp;<br>FALSE&nbsp;&nbsp;&nbsp;</td>
-    <td>&nbsp;&nbsp;&nbsp;<br>FALSE&nbsp;&nbsp;&nbsp;</td>
-    <td>&nbsp;&nbsp;&nbsp;<br>No IPs will be assigned by&nbsp;&nbsp;&nbsp;Omnia. Provisioning will only be through PXE.&nbsp;&nbsp;&nbsp;</td>
-    <td>&nbsp;&nbsp;&nbsp;<br>No&nbsp;&nbsp;&nbsp;</td>
+    <td> ; ; ;<br>FALSE ; ; ;</td>
+    <td> ; ; ;<br>FALSE ; ; ;</td>
+    <td> ; ; ;<br>No IPs will be assigned by ; ; ;Omnia. Provisioning will only be through PXE. ; ; ;</td>
+    <td> ; ; ;<br>No ; ; ;</td>
   </tr>
   <tr>
-    <td rowspan="4">&nbsp;&nbsp;&nbsp;<br>lom&nbsp;&nbsp;&nbsp;</td>
-    <td rowspan="2">&nbsp;&nbsp;&nbsp;<br>TRUE&nbsp;&nbsp;&nbsp;</td>
-    <td rowspan="4">&nbsp;&nbsp;&nbsp;<br>TRUE&nbsp;&nbsp;&nbsp;</td>
-    <td>&nbsp;&nbsp;&nbsp;<br>When roce_nic_ip is populated,&nbsp;&nbsp;&nbsp;Omnia will assign IPs to both the management and data ports. Cobbler/pxe&nbsp;&nbsp;&nbsp;provisioning will be done via the `roce_network_nic`.&nbsp;&nbsp;&nbsp;</td>
-    <td>&nbsp;&nbsp;&nbsp;<br>Yes&nbsp;&nbsp;&nbsp;</td>
+    <td rowspan="4"> ; ; ;<br>lom ; ; ;</td>
+    <td rowspan="2"> ; ; ;<br>TRUE ; ; ;</td>
+    <td rowspan="4"> ; ; ;<br>TRUE ; ; ;</td>
+    <td> ; ; ;<br>When roce_nic_ip is populated, ; ; ;Omnia will assign IPs to both the management and data ports. Cobbler/pxe ; ; ;provisioning will be done via the roce_network_nic. ; ; ;</td>
+    <td> ; ; ;<br>Yes ; ; ;</td>
   </tr>
   <tr>
-    <td>&nbsp;&nbsp;&nbsp;<br>When roce_nic_ip is not&nbsp;&nbsp;&nbsp;populated,  the cobbler container will be used to assign IPs to both the&nbsp;&nbsp;&nbsp;iDRAC management port and the data ports. Both iDRAC and pxe mode of&nbsp;&nbsp;&nbsp;provisioning are supported. Here, ethernet, InfiniBand and powervault&nbsp;&nbsp;&nbsp;configurations are not supported.&nbsp;&nbsp;&nbsp;</td>
-    <td>&nbsp;&nbsp;&nbsp;<br>No&nbsp;&nbsp;&nbsp;</td>
+    <td> ; ; ;<br>When roce_nic_ip is not ; ; ;populated,  the cobbler container will be used to assign IPs to both the ; ; ;iDRAC management port and the data ports. Both iDRAC and pxe mode of ; ; ;provisioning are supported. Here, ethernet, InfiniBand and powervault ; ; ;configurations are not supported. ; ; ;</td>
+    <td> ; ; ;<br>No ; ; ;</td>
   </tr>
   <tr>
-    <td rowspan="2">&nbsp;&nbsp;&nbsp;<br>FALSE&nbsp;&nbsp;&nbsp;</td>
-    <td>&nbsp;&nbsp;&nbsp;<br>When roce_nic_ip is populated,&nbsp;&nbsp;&nbsp;management network container will come up, and it will be used to assign the&nbsp;&nbsp;&nbsp;management and data port IPs. This only will provide internet connection, if&nbsp;&nbsp;&nbsp;DNS settings are filled in base_vars.yml. <br>&nbsp;&nbsp;&nbsp;<br>Along with this , Cobbler PXE provisioning will be done&nbsp;&nbsp;&nbsp;over the high speed  data path or roce.&nbsp;&nbsp;&nbsp;</td>
-    <td>&nbsp;&nbsp;&nbsp;<br>No&nbsp;&nbsp;&nbsp;</td>
+    <td rowspan="2"> ; ; ;<br>FALSE ; ; ;</td>
+    <td> ; ; ;<br>When roce_nic_ip is populated, ; ; ;management network container will come up, and it will be used to assign the ; ; ;management and data port IPs. This only will provide internet connection, if ; ; ;DNS settings are filled in base_vars.yml. <br> ; ; ;<br>Along with this , Cobbler PXE provisioning will be done ; ; ;over the high speed  data path or roce. ; ; ;</td>
+    <td> ; ; ;<br>No ; ; ;</td>
   </tr>
   <tr>
-    <td>&nbsp;&nbsp;&nbsp;<br>When roce_nic_ip is not&nbsp;&nbsp;&nbsp;populated, cobbler container will come up and will be responsible for&nbsp;&nbsp;&nbsp;mgmt. and data IP assignment as well as for providing the DNS configurations(&nbsp;&nbsp;&nbsp;if the parameters are given)&nbsp;&nbsp;&nbsp;</td>
-    <td>&nbsp;&nbsp;&nbsp;<br>No&nbsp;&nbsp;&nbsp;</td>
+    <td> ; ; ;<br>When roce_nic_ip is not ; ; ;populated, cobbler container will come up and will be responsible for ; ; ;mgmt. and data IP assignment as well as for providing the DNS configurations( ; ; ;if the parameters are given) ; ; ;</td>
+    <td> ; ; ;<br>No ; ; ;</td>
   </tr>
 </tbody>
 </table>
