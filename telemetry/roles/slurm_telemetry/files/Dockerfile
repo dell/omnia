@@ -1,4 +1,4 @@
-FROM rockylinux:8.5
+FROM rockylinux:docker_os
 
 RUN yum install epel-release git gcc -y
 RUN yum -y install openssl-devel bzip2-devel libffi-devel xz-devel
