@@ -90,16 +90,3 @@
 - name: Install sqldb collection
   command: ansible-galaxy collection install "{{ mysqldb_collection_name }}"
   changed_when: false
-
-- name: Subscrbe for code ready builder repo in RHEL
-  command: subscription-manager repos --enable "{{ rhel_code_ready_repo }}"
-  changed_when: false
-  when: os_supported_redhat in mgmt_os
-
-- name: Install epel repo 8
-  command: dnf install "{{ rhel_epel_repo8 }}" -y
-  changed_when: false
-  register: install_epel_repo
-  until: install_epel_repo is not failed
-  retries: "{{ max_retries }}"
-  when: os_supported_redhat in mgmt_os
