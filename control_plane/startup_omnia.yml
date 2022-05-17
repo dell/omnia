@@ -17,7 +17,7 @@
   hosts: localhost
   connection: local
   vars:
-    wait_time_minutes: 3
+    wait_time_minutes: 1
     os_supported_leap: "leap"
     src_resolv_conf: /tmp/resolv.conf
     dest_resolv_conf: /etc/resolv.conf
