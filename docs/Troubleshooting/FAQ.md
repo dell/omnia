@@ -61,7 +61,7 @@ Hosts that are not in DHCP mode do not get populated in the host list when `cont
 **Potential Cause**:
     There are connections missing on the NFS node.  
 **Resolution**:
-        Ensure that there are 3 nics being used on the NFS node:
+        Ensure that there are 3 NICs being used on the NFS node:
                 1. For provisioning the OS
                 2. For connecting to the internet (Management purposes)
                 3. For connecting to PowerVault (Data Connection)

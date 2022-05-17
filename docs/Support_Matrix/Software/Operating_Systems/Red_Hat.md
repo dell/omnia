@@ -2,9 +2,12 @@
 
 | OS Version     	| Control Plane 	    | Compute Nodes 	|
 |----------------	|--------------------	|---------------	|
-| 8.x            	| Yes                 	| Yes           	|
+| 8.x            	| No                 	| Yes           	|
+| 8.6            	| Yes                 	| Yes           	|
 
->> __Note:__ Always deploy the Minimal Edition of the OS on Compute Nodes.
+>> __Note:__ 
+>> * Always deploy the Minimal Edition of the OS on Compute Nodes.
+>> * Omnia currently only supports 8.6 on the control plane. All minor versions of Red Hat 8 are supported on the compute nodes.
 
 ## Using BeeGFS on Red Hat
 | OS version   	| BeeGFS   Version           	| Status        	|
