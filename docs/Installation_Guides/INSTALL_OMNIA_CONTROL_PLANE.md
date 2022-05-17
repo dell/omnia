@@ -28,6 +28,8 @@ Using Omnia 1.2, you can provision and monitor hardware devices such as servers,
 
 ## Omnia Supported Network Topology:
 Depending on the pass-through switch configured in your HPC environment, the number of racks will be limited based on the number of ports available on the pass-through switch. To support additional racks, you can form an L1-L2 topology and configure a network of Passthrough Switches. A typical layout of an HPC cluster with a network of pass-through switches is as per the following illustration:
+![Typical layout of an HPC cluster with a network of pass-through switches](../images/Omnia_NetworkConfig_Inet.png)
+
 
 ## Steps to deploy the Omnia Control Plane
 
