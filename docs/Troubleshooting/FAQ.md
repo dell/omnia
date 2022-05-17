@@ -1,7 +1,7 @@
 # Frequently Asked Questions
 
 ## What to do when hosts do not show on the AWX UI?  
-Resolution: 
+  **Resolution**: 
 * Verify if the provisioned_hosts.yml file is present in the omnia/control_plane/roles/collect_node_info/files/ folder.
 * Verify whether the hosts are listed in the provisioned_hosts.yml file.
 * If hosts are not listed, then servers are not PXE booted yet.
@@ -11,7 +11,7 @@ If hosts are listed, then an IP address has been assigned to them by DHCP. Howev
 ## Why do Kubernetes Pods show `ImagePullBack` or `ErrPullImage` errors in their status?
 **Potential Cause**:
     * The errors occur when the Docker pull limit is exceeded.
-Resolution:
+  **Resolution**:
     * For `omnia.yml` and `control_plane.yml` : Provide the docker username and password for the Docker Hub account in the *omnia_config.yml* file and execute the playbook.
     * For HPC cluster, during `omnia.yml execution`, a kubernetes secret 'dockerregcred' will be created in default namespace and patched to service account. User needs to patch this secret in their respective namespace while deploying custom applications and use the secret as imagePullSecrets in yaml file to avoid ErrImagePull. [Click here for more info](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/)
 > __Note:__ If the playbook is already executed and the pods are in __ImagePullBack__ state, then run `kubeadm reset -f` in all the nodes before re-executing the playbook with the docker credentials.
@@ -27,20 +27,32 @@ Resolution:
 ## Why would FreeIPA server/client installation fail?  
 **Potential Cause**:
     The hostnames of the manager and login nodes are not set in the correct format.  
-Resolution:
+  **Resolution**:
     If you have enabled the option to install the login node in the cluster, set the hostnames of the nodes in the format: *hostname.domainname*. For example, *manager.omnia.test* is a valid hostname for the login node. **Note**: To find the cause for the failure of the FreeIPA server and client installation, see *ipaserver-install.log* in the manager node or */var/log/ipaclient-install.log* in the login node.
 
 ## Why does the task 'Control Plane Common: Fetch the available subnets and netmasks' fail with `no ipv4_secondaries present`? <br>
 ![img.png](../images/SharedLomError.png) <br>
 **Potential Cause**: If a shared LOM environment is in use, the management network/host network NIC may only have one IP assigned to it. <br>
 **Resolution**: Ensure that the NIC used for host and data connections has 2 IPs assigned to it.
-    
+
+## Why does the task 'Deploy Job Templates: Launch Device Inventory Job Template' fail with `Monitoring of Job- device_inventory_job aborted due to timeout` happen? <br>
+![img.png](../images/DeployJobTemplateTimeoutError.png) <br>
+**Potential Cause**: <br>
+This error is caused by design. There is a mismatch between the AWX version (20.0.0) and the AWX galaxy collection (19.4.0) version used by control plane. At the time of design (Omnia 1.2.1), these were the latest available versions of AWX/AWX galaxy collection. This will be fixed in later code releases.
+
+>> __Note:__ This failure does not stop the execution of other tasks. Check the AWX log to verify that the script has run successfully.
 
 ## Why are inventory details not updated in AWX?
 **Potential Cause**:
-    The provided device credentials may be invalid.
-Resolution:
-    Manually validate/update the relevant login information on the AWX settings screen and re-run `device_inventory_job`. Optionally, wait 24 hours for the scheduled inventory job to run.
+    The provided device credentials may be invalid. <br>
+**Resolution** :
+    Manually validate/update the relevant login information on the AWX settings screen
+
+## Why aren't all IPs that are available in `dhcp.leases` and `mgmt_provisioned_hosts.yml` updated in the Device Inventory Job/ iDRAC inventory during `control_plane.yml` execution?
+**Potential Cause**:
+    Certain IPs may not update in AWX immediately because the device may be assigned an IP previously and the DHCP lease has not expired. <br>
+**Resolution:**
+    Wait for the DHCP lease for the relevant device to expire or restart the switch/device to clear the lease.
 
 ## Why is the host list empty when executing `control_plane.yml`?
 Hosts that are not in DHCP mode do not get populated in the host list when `control_plane.yml` is run.
@@ -48,8 +60,8 @@ Hosts that are not in DHCP mode do not get populated in the host list when `cont
 ## Why does the task 'Install Packages' fail on the NFS node with the message: `Failure in talking to yum: Cannot find a valid baseurl for repo: base/7/x86_64.`  
 **Potential Cause**:
     There are connections missing on the NFS node.  
-Resolution:
-        Ensure that there are 3 nics being used on the NFS node:
+**Resolution**:
+        Ensure that there are 3 NICs being used on the NFS node:
                 1. For provisioning the OS
                 2. For connecting to the internet (Management purposes)
                 3. For connecting to PowerVault (Data Connection)
@@ -70,7 +82,7 @@ Omnia does not activate Infiniband NICs.
 ## What to do if AWX jobs fail with `Error creating pod: container failed to start, ImagePullBackOff`?
 **Potential Cause**:<br>
  After running `control_plane.yml`, the AWX image got deleted due to space considerations (use `df -h` to diagnose the issue.).<br>
-Resolution:<br>
+**Resolution**:<br>
     Delete unnecessary files from the partition`` and then run the following commands:<br>
     1. `cd omnia/control_plane/roles/webui_awx/files`
     2. `buildah bud -t custom-awx-ee awx_ee.yml`
@@ -78,7 +90,7 @@ Resolution:<br>
 ## Why do pods and images appear to get deleted automatically?
 **Potential Cause**: <br>
 Lack of space in the root partition (/) causes Linux to clear files automatically (Use `df -h` to diagnose the issue).<br>
-Resolution:
+  **Resolution**:
 * Delete large, unused files to clear the root partition (Use the command `find / -xdev -size +5M | xargs ls -lh | sort -n -k5` to identify these files). Before running Omnia Control Plane, it is recommended to have a minimum of 50% free space in the root partition.
 * Once the partition is cleared, run `kubeadm reset -f`
 * Re-run `control_plane.yml`
@@ -87,7 +99,7 @@ Resolution:
 **Potential Cause**:
     The device name and connection name listed by the network manager in `/etc/sysconfig/network-scripts/ifcfg-<nic name>` do not match.
 
-Resolution:
+  **Resolution**:
 1. Use `nmcli connection` to list all available connections and their attributes.<br>
     _Expected Output:_<br>
     ![NMCLI Expected Output](../images/nmcli_output.jpg)
@@ -101,7 +113,7 @@ No. Before re-deploying the cluster, users have to manually delete all hosts fro
 1. AWX is not accessible even after five minutes of wait time. 
 2. __isMigrating__ or __isInstalling__ is seen in the failure message.
 	
-Resolution:  
+  **Resolution**:  
 Wait for AWX UI to be accessible at http://\<management-station-IP>:8081, and then run the `control_plane.yml` file again, where __management-station-IP__ is the IP address of the management node.
 
 ## Why does Omnia Control Plane fail at Task: `control_plane_common: Assert Value of idrac_support if mngmt_network container needed`?
@@ -125,7 +137,7 @@ Run the command `kubectl get pods --namespace default` to ensure **nfs-client** 
 Cause:
 * The mounted .iso file is corrupt.
 	
-Resolution:
+  **Resolution**:
 1. Go to __var__->__log__->__cobbler__->__cobbler.log__ to view the error.
 2. If the error message is **repo verification failed**, the .iso file is not mounted properly.
 3. Verify that the downloaded .iso file is valid and correct.
@@ -141,7 +153,7 @@ To enable routing, update the `primary_dns` and `secondary_dns` in `base_vars` w
 * Two or more servers in the same network have Cobbler services running.  
 * The target compute node does not have a configured PXE device with an active NIC.
 
-Resolution:  
+  **Resolution**:  
 1. Create a Non-RAID or virtual disk on the server.  
 2. Check if other systems except for the management node have cobblerd running. If yes, then stop the Cobbler container using the following commands: `docker rm -f cobbler` and `docker image rm -f cobbler`.
 3. On the server, go to `BIOS Setup -> Network Settings -> PXE Device`. For each listed device (typically 4), configure an active NIC under `PXE device settings`
@@ -195,7 +207,7 @@ slurmctld -Dvvv
 
 **Potential Cause**: The host network is faulty causing DNS to be unresponsive
  
-Resolution:
+  **Resolution**:
 1. In your Kubernetes cluster, run `kubeadm reset -f` on all the nodes.
 2. On the management node, edit the `omnia_config.yml` file to change the Kubernetes Pod Network CIDR. The suggested IP range is 192.168.0.0/16. Ensure that the IP provided is not in use on your host network.
 3. Execute omnia.yml and skip slurm `ansible-playbook omnia.yml --skip-tags slurm`
@@ -203,7 +215,7 @@ Resolution:
 ## Why does pulling images to create the Kubeflow timeout causing the 'Apply Kubeflow Configuration' task to fail?
   
 **Potential Cause**: Unstable or slow Internet connectivity.  
-Resolution:
+  **Resolution**:
 1. Complete the PXE booting/format the OS on the manager and compute nodes.
 2. In the omnia_config.yml file, change the k8s_cni variable value from `calico` to `flannel`.
 3. Run the Kubernetes and Kubeflow playbooks.  
@@ -228,12 +240,12 @@ If the above solution **doesn't work**,
 ## How to clear existing DHCP leases after a management NIC IP change?
 If `device_config_support` is set to TRUE,
 1. Reboot the ethernet TOR (Top of the Rack) switches in your environment.
-2. If the leases aren't cleared, reboot the devices that have not registered the new IP.
+2. If the leases aren't cleared, reboot the devices that have not registered the new IP. <br>
 If `device_config_support` is set to FALSE, no reboots are required.
 
 ## Why is permission denied when executing the `idrac.yml` file or other .yml files from AWX?
 **Potential Cause**: The "PermissionError: [Errno 13] Permission denied" error is displayed if you have used the ansible-vault decrypt or encrypt commands.  
-Resolution:
+  **Resolution**:
 
 * Update permissions on the relevant .yml using `chmod 664 <filename>.yml`
 
