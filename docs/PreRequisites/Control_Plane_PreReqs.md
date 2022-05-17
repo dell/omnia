@@ -1,6 +1,6 @@
 # Pre-requisites Before Running Control Plane
 * Ensure that a stable Internet connection is available on control plane.
-* Rocky 8 or Red Hat 8.x is installed on the control plane.
+* Rocky 8 or Red Hat 8.6 is installed on the control plane.
 * Ensure that the root partition (/) has a minimum of 50% (~35G) free space. 
 * To provision the bare metal servers, download one of the following ISOs for deployment:
     1. [Leap 15.3](https://get.opensuse.org/leap/)
@@ -16,6 +16,7 @@
 >>	* The hostname cannot start with a number.
 * Connect one of the Ethernet cards on the control plane to the HPC switch. The other Ethernet card must be connected to the internet network. 
 * Ensure that all connection names under the network manager match their corresponding device names. This can be verified using the command `nmcli connection`. In the event of a mismatch, edit the file `/etc/sysconfig/network-scripts/ifcfg-<nic name>` using vi editor. 
+* From Red Hat 8.6 onwards, the network-scripts package is not enabled by default. To manipulate the NIC status using ifup etc, install the package manually on the control plane.
   * You must have root privileges to perform installations and configurations using the Omnia control plane.
     * On the control plane, ensure that Python 3.6 and Ansible are installed (The following commands are compatible with all 3 OS's unless marked otherwise).  
         * Run the following commands to install Python 3.6:  
@@ -52,7 +53,7 @@
     >> 3. `pip uninstall ansible-core` (if ansible 2.10 > version is installed)
 
 * If Red Hat is in use on the control plane, ensure that RHEL subscription is enabled **before** running `control_plane.yml`. Not only does Omnia not enable RHEL subscription on the control plane, package installation may fail if RHEL subscription is disabled.
-* Users should also ensure that all repos are available on Red Hat control planes.
+* Users should also ensure that all repos are available on the Red Hat control plane. 
 * On the control plane, run the following commands to install Git: <br>
   `dnf install epel-release -y` (Only if Rocky is in use on the control plane) <br><br> `dnf install git -y`
 
