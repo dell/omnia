@@ -83,7 +83,7 @@
 
 - block:
     - name: Fetch SElinux mode
-      command: sestatus
+      command: /usr/sbin/sestatus
       register: sestatus_current
       changed_when: false
 
@@ -93,7 +93,7 @@
       when: '"SELinux status:                 disabled" in sestatus_current.stdout_lines'
 
     - name: Set SElinux to permissive mode
-      command: setenforce 0
+      command: /usr/sbin/setenforce 0
       when: '"SELinux status:                 enabled" in sestatus_current.stdout_lines'
 
   tags: init
