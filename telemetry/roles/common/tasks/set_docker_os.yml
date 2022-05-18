@@ -16,7 +16,7 @@
 - name: Replace the rocky os version in dockerfile
   replace:
     path: "{{ item.path }}"
-    regexp: '^FROM rockylinux:docker_os'
-    replace: 'FROM rockylinux:{{ docker_rocky_os }}'
+    regexp: '^FROM docker.io/rockylinux/rockylinux:docker_os'
+    replace: 'FROM docker.io/rockylinux/rockylinux:{{ docker_rocky_os }}'
   with_items:
     - { path: "{{ slurm_telemetry_dockerfile_path }}"}
