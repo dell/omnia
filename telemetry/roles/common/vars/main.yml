@@ -75,5 +75,5 @@ namespace: telemetry-and-visualizations
 secrets_name: credentials
 
 # Usage: set_docker_os.yml
-docker_rocky_os: 8
+docker_rocky_os: "8.5"
 slurm_telemetry_dockerfile_path: "{{ playbook_dir }}/roles/slurm_telemetry/files/Dockerfile"
