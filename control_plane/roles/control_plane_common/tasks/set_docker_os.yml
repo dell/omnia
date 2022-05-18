@@ -16,8 +16,8 @@
 - name: Replace the rocky os version in dockerfile
   replace:
     path: "{{ item.path }}"
-    regexp: '^FROM rockylinux/rockylinux:docker_os'
-    replace: 'FROM rockylinux/rockylinux:{{ docker_rocky_os_version }}'
+    regexp: '^FROM docker.io/rockylinux/rockylinux:docker_os'
+    replace: 'FROM docker.io/rockylinux/rockylinux:{{ docker_rocky_os_version }}'
   with_items:
     - { path: "{{ cobbler_rocky_dockerfile_path }}"}
     - { path: "{{ ib_dockerfile_path }}"}

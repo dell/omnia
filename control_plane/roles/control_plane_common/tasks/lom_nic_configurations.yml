@@ -14,7 +14,7 @@
 ---
 
 - name: Fetch the network interfaces in UP state in the system
-  shell: set -o pipefail && usr/sbin/ip a | awk '/state UP/{print $2}'
+  shell: set -o pipefail && /usr/sbin/ip a | awk '/state UP/{print $2}'
   register: nic_addr_up
   changed_when: false
   tags: init
