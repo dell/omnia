@@ -20,16 +20,12 @@ Using Omnia 1.2, you can provision and monitor hardware devices such as servers,
 * Establishing a host network: For Cobbler DHCP to assign an IP address to the compute node NIC, connect NIC of the control plane to the data port on the network switch. Connect another data port on the network switch to the NIC on the compute node. Omnia will provision OS on the compute nodes using PXE when the iDRAC Enterprise license is missing on any of the compute nodes in the HPC cluster.
 
 >> __Note__:
-	* Cobbler web support has been discontinued from Omnia 1.2 onwards.
-	* Note that the PowerVault NFS server should have separate NICs configured for management, data (Connecting to other compute nodes) and a dedicated data connection to the storage array.
+>>
+>> 	* Cobbler web support has been discontinued from Omnia 1.2 onwards.
+>> 	* Note that the PowerVault NFS server should have separate NICs configured for management, data (Connecting to other compute nodes) and a dedicated data connection to the storage array.
+>> 	* Refer to the [Control Plane Pre-Requisites](../PreRequisites/Control_Plane_PreReqs.md) file to ensure smooth running of the control_plane.
 
-
->>__Note__: Refer to the [Control Plane Pre-Requisites](../PreRequisites/Control_Plane_PreReqs.md) file to ensure smooth running of the control_plane.
-
-## Omnia Supported Network Topology:
-Depending on the pass-through switch configured in your HPC environment, the number of racks will be limited based on the number of ports available on the pass-through switch. To support additional racks, you can form an L1-L2 topology and configure a network of Passthrough Switches. A typical layout of an HPC cluster with a network of pass-through switches is as per the following illustration:
-![Typical layout of an HPC cluster with a network of pass-through switches](../images/Omnia_NetworkConfig_Inet.png)
-
+## [List of all supported Omnia Network Topologies](../SUPPORTED_NETWORK_TOPOLOGY.md)
 
 ## Steps to deploy the Omnia Control Plane
 
@@ -121,7 +117,7 @@ The network configuration performed by Omnia depends on the value of `network_in
     <td>   <br>Yes   </td>
   </tr>
   <tr>
-    <td>   <br>When roce_nic_ip is not   populated,  the cobbler container will be used to assign IPs to both the   iDRAC management port and the data ports. Both iDRAC and pxe mode of   provisioning are supported. Here, ethernet, InfiniBand and powervault   configurations are not supported.   </td>
+    <td>   <br>When roce_nic_ip is not   populated,  the cobbler container will be used to assign IPs to both the   iDRAC management port and the data ports. Both iDRAC and pxe mode of   provisioning are supported.   </td>
     <td>   <br>No   </td>
   </tr>
   <tr>
