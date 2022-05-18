@@ -54,7 +54,7 @@ Possible network configurations include:
 >> __Note:__ Currently, auto configuration of devices like ethernet and IB switches, PowerVault ME4 are not supported in a lom setup.
 
 #### Dedicated NICs
-![img.png](../docs/images/Dediated_NIC_NetworkTopology.png) <br>
+![img.png](../docs/images/Dedicated_NIC_NetworkTopology.png) <br>
 When the control plane has a separate NIC connected to ToR for Device Management to control various devices like iDRAC, switches and PowerVault, separate switches for management and host network are used. Omnia will run the management network POD for this network. An additional unmanaged switch is needed as a pass through switch.
 <div class="tg-wrap"><table>
 <thead>
