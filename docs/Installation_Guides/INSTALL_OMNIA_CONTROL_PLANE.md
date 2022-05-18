@@ -25,7 +25,7 @@ Using Omnia 1.2, you can provision and monitor hardware devices such as servers,
 >> 	* Note that the PowerVault NFS server should have separate NICs configured for management, data (Connecting to other compute nodes) and a dedicated data connection to the storage array.
 >> 	* Refer to the [Control Plane Pre-Requisites](../PreRequisites/Control_Plane_PreReqs.md) file to ensure smooth running of the control_plane.
 
-## [List of all support Omnia Network Topologies](../SUPPORTED_NETWORK_TOPOLOGY.md)
+## [List of all supported Omnia Network Topologies](../SUPPORTED_NETWORK_TOPOLOGY.md)
 
 ## Steps to deploy the Omnia Control Plane
 
