@@ -157,7 +157,9 @@
   command: "buildah bud -t custom-awx-ee {{ awx_ee_docker_file }}"
   changed_when: false
   when: "'custom-awx-ee' not in docker_images.stdout"
-  retries: "{{ min_retries }}"
+  register: awx_image_status
+  until: awx_image_status is not failed
+  retries: "{{ image_retries }}"
 
 - name: Deploy awx
   command: "kubectl apply -f {{ awx_yml_file_path }}"
@@ -178,6 +180,8 @@
   command: "ansible-galaxy collection install awx.awx:{{ awx_version }}"
   changed_when: true
   register: installation_status
+  until: installation_status is not failed
+  retries: "{{ image_retries }}"
 
 - name: Fails if the pods go into ImagePullBackOff state
   block:

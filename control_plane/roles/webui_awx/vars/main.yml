@@ -37,6 +37,7 @@ readiness_probe_final: "initialDelaySeconds: 300"
 awx_operator_time: 900s
 awx_deployment_time: 1500s
 operator_deployment_failure: "AWX Operator deployment failed due to awx operator pod is in crashloopbackoff state"
+image_retries: 6
 
 # Usage: configure_settings.yml
 awx_port: 8052
