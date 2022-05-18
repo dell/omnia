@@ -67,5 +67,8 @@ ctrl_plane_login_vars_fail_msg: "Incorrect grafana_username or grafana_password 
 
 # Usage: k8s_secrets.yml
 namespace: telemetry-and-visualizations
-
 secrets_name: credentials
+
+# Usage: set_docker_os.yml
+docker_rocky_os: "8.5"
+slurm_telemetry_dockerfile_path: "{{ playbook_dir }}/roles/slurm_telemetry/files/Dockerfile"

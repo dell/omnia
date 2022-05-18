@@ -24,3 +24,6 @@
 
 - name: Create k8s secrets for database credentials
   include_tasks: k8s_secrets.yml
+  
+- name: Set the docker version for slurm telemetry
+  include_tasks: set_docker_os.yml
