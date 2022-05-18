@@ -35,13 +35,14 @@ Omnia can deploy firmware, install Kubernetes or Slurm (or both), along with add
 - Added support for shared LOM (LAN on Motherboard) configuration
 
 # Using Omnia
-1. Verify that your system meets Omnia's [hardware](Support_Matrix/Hardware/README.md) and [software requirements](Support_Matrix/Software/README.md)
-2. Ensure that all [pre-requisites](PreRequisites/README.md) are met.
-3. Fill out all the required [input parameters](Input_Parameter_Guide/README.md).
-4. [Run Control_Plane](Installation_Guides/INSTALL_OMNIA_CONTROL_PLANE.md) to provision OS's, [configure devices](Device_Configuration/README.md) and set up [security measures](Security/README.md).
-5. [Run Omnia](Installation_Guides/INSTALL_OMNIA_CLI.md) to set up Kubernetes and Slurm.
-6. Run the telemetry playbook to [set up](Installation_Guides/INSTALL_TELEMETRY.md) and use [Telemetry and Visualization Services](Telemetry_Visualization/README.md)
-![Omnia Flow](images/Omnia_Flow.png)
+1. Set up your network based on the sample topologies provided [here](SUPPORTED_NETWORK_TOPOLOGY.md)
+2. Verify that your system meets Omnia's [hardware](Support_Matrix/Hardware) and [software requirements](Support_Matrix/Software/Operating_Systems)
+3. Ensure that all [pre-requisites](PreRequisites) are met.
+4. Fill out all the required [input parameters](Input_Parameter_Guide).
+5. [Run Control_Plane](Installation_Guides/INSTALL_OMNIA_CONTROL_PLANE.md) to provision OS's, [configure devices](Device_Configuration) and set up [security measures](Security).
+6. [Run Omnia](Installation_Guides/INSTALL_OMNIA_CLI.md) to set up Kubernetes and Slurm.
+7. Run the telemetry playbook to [set up](Installation_Guides/INSTALL_TELEMETRY.md) and use [Telemetry and Visualization Services](Telemetry_Visualization)
+   ![Omnia Flow](images/Omnia_Flow.png)
 
 ## Troubleshooting Omnia
 * For a list of commonly encountered issues, check out our [FAQs](Troubleshooting/FAQ.md).

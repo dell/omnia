@@ -14,7 +14,7 @@
 >>	* The Hostname cannot start or end with a hyphen (-).
 >>	* No upper case characters are allowed in the hostname.
 >>	* The hostname cannot start with a number.
-* Connect one of the Ethernet cards on the control plane to the HPC switch. The other Ethernet card must be connected to the internet network. Acceptable network topologies are provided in the [Supported Network Topology file.](../SUPPORTED_NETWORK_TOPOLOGIES.md)
+* Connect one of the Ethernet cards on the control plane to the HPC switch. The other Ethernet card must be connected to the internet network. Acceptable network topologies are provided in the [Supported Network Topology file.](../EXAMPLE_SYSTEM_DESIGNS.md)
 * Ensure that all connection names under the network manager match their corresponding device names. This can be verified using the command `nmcli connection`. In the event of a mismatch, edit the file `/etc/sysconfig/network-scripts/ifcfg-<nic name>` using vi editor.
   * You must have root privileges to perform installations and configurations using the Omnia control plane.
     * On the control plane, ensure that Python 3.6 and Ansible are installed (The following commands are compatible with all 3 OS's unless marked otherwise).  

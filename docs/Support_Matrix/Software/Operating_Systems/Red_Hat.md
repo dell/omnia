@@ -5,9 +5,9 @@
 | 8.1            	| No                 	| Yes           	|
 | 8.2            	| No                 	| Yes           	|
 | 8.3               | __Yes__               | Yes           	|
-| 8.4            	| No                 	| Yes           	|
-| 8.5            	| No                 	| Yes           	|
-| 8.6               | No                    | Yes           	|
+| 8.4            	| Yes *                 | Yes           	|
+| 8.5            	| Yes *                	| Yes           	|
+| 8.6               | Yes *                 | Yes           	|
 
 >> __Note:__ 
 >> * Always deploy the Minimal Edition of the OS on compute nodes.
