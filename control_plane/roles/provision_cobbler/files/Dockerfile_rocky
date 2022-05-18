@@ -1,12 +1,8 @@
-FROM rockylinux/rockylinux:docker_os
+FROM docker.io/rockylinux/rockylinux:docker_os
 
 # RPM REPOs
 RUN dnf install -y \
     epel-release \
-    && dnf clean all \
-    && rm -rf /var/cache/dnf
-
-RUN dnf update -y \
     && dnf clean all \
     && rm -rf /var/cache/dnf
 
