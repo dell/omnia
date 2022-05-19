@@ -345,5 +345,11 @@ To correct the issue, run:
 3. Check the [support matrix for Red Hat or Rocky](../Support_Matrix/Software/Operating_Systems) to verify your set-up.
 4. For further insight into the issue, check out `/var/log/beegfs-client.log`
 
+## What to do when `control_plane.yml` fail with 'Error: kinit: Connection refused while getting default ccache' while completing the control plane security role?
+1. Start the sssd-kcm.socket: `systemcl start sssd-kcm.socket`
+2. Re-run `control_plane.yml`
 
+## Why does installing FreeIPA fail on Red Hat servers?
+**Potential Causes**: Required repositories may not be enabled by your red hat subscription.
+**Resolution**: Enable all required repositories via your red hat subscription.
 
