@@ -39,7 +39,7 @@
     - name: Create the dynamic inventory
       shell: |
         echo "{{ vars_new }}" > temp.txt
-        egrep -o '[1-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' temp.txt >>dynamic_hosts.yml
+        egrep -o '[1-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' temp.txt >> dynamic_hosts.yml
       changed_when: false
       failed_when: false
 
@@ -88,37 +88,37 @@
           changed_when: false
 
         - name: Temp result for device
-          shell: cat /root/omnia/control_plane/roles/collect_device_info/files/mgmt_provisioned_hosts.yml | sort | uniq
+          shell: cat /root/omnia/control_plane/roles/collect_node_info/files/provisioned_hosts.yml | sort | uniq
           register: inventory
           changed_when: false
 
         - name: Final Inventory
           copy:
             content: "{{ inventory.stdout}}"
-            dest: omnia/control_plane/roles/collect_device_info/files/mgmt_provisioned_hosts.yml
+            dest: omnia/control_plane/roles/collect_node_info/files/provisioned_hosts.yml
 
         - name: New line at end of file
-          shell: echo "">> omnia/control_plane/roles/collect_device_info/files/mgmt_provisioned_hosts.yml
+          shell: echo "">> omnia/control_plane/roles/collect_node_info/files/provisioned_hosts.yml
           changed_when: false
       when: network_interface_type == "lom"
 
     - name: Final inventory
-      shell: cat dynamic_hosts.yml static_hosts.yml| sort -ur >> omnia/control_plane/roles/collect_node_info/files/provisioned_hosts.yml
+      shell: cat dynamic_hosts.yml static_hosts.yml| sort -ur >> omnia/control_plane/roles/collect_device_info/files/mgmt_provisioned_hosts.yml
       changed_when: false
       when: network_interface_type == "dedicated"
 
     - name: Temp result
-      shell: cat /root/omnia/control_plane/roles/collect_node_info/files/provisioned_hosts.yml | sort | uniq
+      shell: cat /root/omnia/control_plane/roles/collect_device_info/files/mgmt_provisioned_hosts.yml | sort | uniq
       register: inventory
       changed_when: false
 
     - name: Final Inventory
       copy:
         content: "{{ inventory.stdout }}"
-        dest: omnia/control_plane/roles/collect_node_info/files/provisioned_hosts.yml
+        dest: omnia/control_plane/roles/collect_device_info/files/mgmt_provisioned_hosts.yml
 
     - name: New line at end of file
-      shell: echo "">> omnia/control_plane/roles/collect_node_info/files/provisioned_hosts.yml
+      shell: echo "">> omnia/control_plane/roles/collect_device_info/files/mgmt_provisioned_hosts.yml
       changed_when: false
 
     - name: Delete files
