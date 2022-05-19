@@ -350,6 +350,7 @@ To correct the issue, run:
 2. Re-run `control_plane.yml`
 
 ## Why does installing FreeIPA fail on Red Hat servers?
-**Potential Causes**: Required repositories may not be enabled by your red hat subscription.
+![](../images/FreeIPA_RHEL_Error.png)
+**Potential Causes**: Required repositories may not be enabled by your red hat subscription. <br>
 **Resolution**: Enable all required repositories via your red hat subscription.
 
