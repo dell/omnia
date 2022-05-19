@@ -342,7 +342,8 @@ To correct the issue, run:
 **Resolution**:
 1. If SeLinux is enabled, update the file `/etc/sysconfig/selinux` and reboot the server.
 2. Open all ports required by BeeGFS: 8008, 8003, 8004, 8005 and 8006
-3. Check the [support matrix for Red Hat](../Support_Matrix/Software/Operating_Systems/Red_Hat.md) to verify your set-up.
+3. Check the [support matrix for Red Hat or Rocky](../Support_Matrix/Software/Operating_Systems) to verify your set-up.
+4. For further insight into the issue, check out `/var/log/beegfs-client.log`
 
 
 
