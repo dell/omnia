@@ -342,7 +342,15 @@ To correct the issue, run:
 **Resolution**:
 1. If SeLinux is enabled, update the file `/etc/sysconfig/selinux` and reboot the server.
 2. Open all ports required by BeeGFS: 8008, 8003, 8004, 8005 and 8006
-3. Check the [support matrix for Red Hat](../Support_Matrix/Software/Operating_Systems/Red_Hat.md) to verify your set-up.
+3. Check the [support matrix for Red Hat or Rocky](../Support_Matrix/Software/Operating_Systems) to verify your set-up.
+4. For further insight into the issue, check out `/var/log/beegfs-client.log`
 
+## What to do when `control_plane.yml` fail with 'Error: kinit: Connection refused while getting default ccache' while completing the control plane security role?
+1. Start the sssd-kcm.socket: `systemcl start sssd-kcm.socket`
+2. Re-run `control_plane.yml`
 
+## Why does installing FreeIPA fail on Red Hat servers?
+![](../images/FreeIPA_RHEL_Error.png)
+**Potential Causes**: Required repositories may not be enabled by your red hat subscription. <br>
+**Resolution**: Enable all required repositories via your red hat subscription.
 
