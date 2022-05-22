@@ -1,4 +1,4 @@
-## Example system designs
+## Example System Designs
 Omnia can configure systems which use Ethernet or Infiniband-based fabric to connect the compute servers.
 
 ![Example system configuration with Ethernet fabric](images/example-system-ethernet.png)
