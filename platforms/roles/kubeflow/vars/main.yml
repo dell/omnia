@@ -37,12 +37,18 @@ omnia_kubeflow_dir_path: /root/k8s/omnia-kubeflow
 
 omnia_kubeflow_dir_mode: 0755
 
-kubeflow_config_yaml_url: https://raw.githubusercontent.com/kubeflow/manifests/v1.0-branch/kfdef/kfctl_k8s_istio.v1.0.2.yaml
+kubeflow_config_yaml_url: https://raw.githubusercontent.com/kubeflow/manifests/v1.0-branch/kfdef/kfctl_istio_dex.v1.0.2.yaml
 
-istio_noauth_yaml_file_path: "{{ omnia_kubeflow_dir_path }}/kustomize/istio-install/base/istio-noauth.yaml"
+istio_noauth_yaml_file_path: "{{ omnia_kubeflow_dir_path }}/kustomize/istio-install/base/deployment.yaml"
+
+istio_ingress_yaml_file_path: "{{ omnia_kubeflow_dir_path }}/kustomize/istio-install/base/service.yaml"
+
+seldon_controller_manager_file_path: "{{ omnia_kubeflow_dir_path }}/kustomize/seldon-core-operator/base/resources.yaml"
+
+knative_deployment_yaml_file_path: "{{ omnia_kubeflow_dir_path }}/kustomize/knative-install/base/deployment.yaml"
 
 kfserving_gateway_yaml_file_path: "{{ omnia_kubeflow_dir_path }}/kustomize/kfserving-gateway/base/deployment.yaml"
 
 argo_yaml_file_path: "{{ omnia_kubeflow_dir_path }}/kustomize/argo/base/service.yaml"
 
-kubeflow_config_file: "{{ omnia_kubeflow_dir_path }}/kfctl_k8s_istio.v1.0.2.yaml"
+kubeflow_config_file: "{{ omnia_kubeflow_dir_path }}/kfctl_istio_dex.v1.0.2.yaml"

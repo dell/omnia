@@ -38,207 +38,79 @@
     chdir: "{{ omnia_kubeflow_dir_path }}"
   changed_when: true
 
-- name: Modify CPU limits for istio-pilot
-  replace:
-    path: "{{ istio_noauth_yaml_file_path }}"
-    after: 'envoy_pilot.yaml.tmpl'
-    before: '---'
-    regexp: 'cpu: 2000m'
-    replace: 'cpu: 2'
+- name: Add service account API
+  lineinfile:
+    path: /etc/kubernetes/manifests/kube-apiserver.yaml
+    insertafter: "    - --tls-private-key-file=/etc/kubernetes/pki/apiserver.key"
+    line: "    - --service-account-issuer=kubernetes.default.svc"
+    firstmatch: yes
+    state: present
 
-- name: Modify Memory limits for istio-pilot
-  replace:
-    path: "{{ istio_noauth_yaml_file_path }}"
-    after: 'envoy_pilot.yaml.tmpl'
-    before: '---'
-    regexp: 'memory: 128Mi'
-    replace: 'memory: 256Mi'
+- name: Add sa key
+  lineinfile:
+    path: /etc/kubernetes/manifests/kube-apiserver.yaml
+    insertafter: "    - --service-account-issuer=kubernetes.default.svc"
+    line: "    - --service-account-signing-key-file=/etc/kubernetes/pki/sa.key"
+    firstmatch: yes
+    state: present
 
-- name: Modify CPU request for istio-pilot
-  replace:
-    path: "{{ istio_noauth_yaml_file_path }}"
-    after: 'envoy_pilot.yaml.tmpl'
-    before: '---'
-    regexp: 'cpu: 10m'
-    replace: 'cpu: 1'
+- name: Add Token Request
+  lineinfile:
+    path: /etc/kubernetes/manifests/kube-apiserver.yaml
+    insertafter: "    - --service-account-signing-key-file=/etc/kubernetes/pki/sa.key"
+    line: "    - --feature-gates=TokenRequest=true"
+    firstmatch: yes
+    state: present
 
-- name: Modify Memory request for istio-pilot
-  replace:
-    path: "{{ istio_noauth_yaml_file_path }}"
-    after: 'envoy_pilot.yaml.tmpl'
-    before: '---'
-    regexp: 'memory: 40Mi'
-    replace: 'memory: 256Mi'
+- name: Add Token Request Projection
+  lineinfile:
+    path: /etc/kubernetes/manifests/kube-apiserver.yaml
+    insertafter: "    - --feature-gates=TokenRequest=true"
+    line: "    - --feature-gates=TokenRequestProjection=true"
+    firstmatch: yes
+    state: present
 
-- name: Modify CPU limits for istio-policy
+- name: Un-enject istio from activator & autoscaler deployment
   replace:
-    path: "{{ istio_noauth_yaml_file_path }}"
-    after: 'envoy_policy.yaml.tmpl'
-    before: '---'
-    regexp: 'cpu: 2000m'
-    replace: 'cpu: 2'
+    path: "{{ knative_deployment_yaml_file_path }}"
+    regexp: 'sidecar.istio.io/inject: "true"'
+    replace: 'sidecar.istio.io/inject: "false"'
 
-- name: Modify Memory limits for istio-policy
+- name: Change istio-install base istio-noauth service from NodePort to LoadBalancer
   replace:
-    path: "{{ istio_noauth_yaml_file_path }}"
-    after: 'envoy_policy.yaml.tmpl'
-    before: '---'
-    regexp: 'memory: 128Mi'
-    replace: 'memory: 256Mi'
+    path: "{{ istio_ingress_yaml_file_path }}"
+    after: 'name: istio-ingressgateway'
+    before: 'selector:'
+    regexp: 'NodePort'
+    replace: 'LoadBalancer'
 
-- name: Modify CPU request for istio-policy
+- name: Modify CPU limits for seldon-controller-manager
   replace:
-    path: "{{ istio_noauth_yaml_file_path }}"
-    after: 'envoy_policy.yaml.tmpl'
-    before: '---'
-    regexp: 'cpu: 10m'
-    replace: 'cpu: 1'
-
-- name: Modify Memory request for istio-policy
-  replace:
-    path: "{{ istio_noauth_yaml_file_path }}"
-    after: 'envoy_policy.yaml.tmpl'
-    before: '---'
-    regexp: 'memory: 40Mi'
-    replace: 'memory: 256Mi'
-
-- name: Modify CPU limits for istio-telemetry
-  replace:
-    path: "{{ istio_noauth_yaml_file_path }}"
-    after: 'envoy_telemetry.yaml.tmpl'
-    before: '---'
-    regexp: 'cpu: 2000m'
-    replace: 'cpu: 2'
-
-- name: Modify Memory limits for istio-telemetry
-  replace:
-    path: "{{ istio_noauth_yaml_file_path }}"
-    after: 'envoy_telemetry.yaml.tmpl'
-    before: '---'
-    regexp: 'memory: 128Mi'
-    replace: 'memory: 256Mi'
-
-- name: Modify CPU request for istio-telemetry
-  replace:
-    path: "{{ istio_noauth_yaml_file_path }}"
-    after: 'envoy_telemetry.yaml.tmpl'
-    before: '---'
-    regexp: 'cpu: 10m'
-    replace: 'cpu: 1'
-
-- name: Modify Memory request for istio-telemetry
-  replace:
-    path: "{{ istio_noauth_yaml_file_path }}"
-    after: 'envoy_telemetry.yaml.tmpl'
-    before: '---'
-    regexp: 'memory: 40Mi'
-    replace: 'memory: 256Mi'
-
-- name: Modify CPU limit for istio-ingressgateway-service-account
-  replace:
-    path: "{{ istio_noauth_yaml_file_path }}"
-    after: 'serviceAccountName: istio-ingressgateway-service-account'
+    path: "{{ seldon_controller_manager_file_path }}"
+    after: 'name: manager'
     before: '---'
     regexp: 'cpu: 100m'
-    replace: 'cpu: 2'
+    replace: 'cpu: 500m'
 
-- name: Modify memory limit for istio-ingressgateway-service-account
+- name: Modify Memory limits for seldon-controller-manager
   replace:
-    path: "{{ istio_noauth_yaml_file_path }}"
-    after: 'serviceAccountName: istio-ingressgateway-service-account'
+    path: "{{ seldon_controller_manager_file_path }}"
+    after: 'name: manager'
+    before: 'requests:'
+    regexp: 'memory: 30Mi'
+    replace: 'memory: 300Mi'
+
+- name: Modify Memory request for seldon-controller-manager
+  replace:
+    path: "{{ seldon_controller_manager_file_path }}"
+    after: 'requests:'
     before: '---'
-    regexp: 'memory: 128Mi'
-    replace: 'memory: 512Mi'
-
-- name: Modify CPU request for istio-ingressgateway-service-account
-  replace:
-    path: "{{ istio_noauth_yaml_file_path }}"
-    after: 'serviceAccountName: istio-ingressgateway-service-account'
-    before: '---'
-    regexp: 'cpu: 10m'
-    replace: 'cpu: 1'
-
-- name: Modify memory request for istio-ingressgateway-service-account
-  replace:
-    path: "{{ istio_noauth_yaml_file_path }}"
-    after: 'serviceAccountName: istio-ingressgateway-service-account'
-    before: '---'
-    regexp: 'memory: 40Mi'
-    replace: 'memory: 256Mi'
-
-- name: Modify CPU limits for istio-engressgateway-service-account
-  replace:
-    path: "{{ istio_noauth_yaml_file_path }}"
-    after: 'serviceAccountName: istio-egressgateway-service-account'
-    before: '---'
-    regexp: 'cpu: 100m'
-    replace: 'cpu: 2'
-
-- name: Modify CPU request for istio-engressgateway-service-account
-  replace:
-    path: "{{ istio_noauth_yaml_file_path }}"
-    after: 'serviceAccountName: istio-egressgateway-service-account'
-    before: '---'
-    regexp: 'cpu: 10m'
-    replace: 'cpu: 1'
-
-- name: Modify memory request for istio-engressgateway-service-account
-  replace:
-    path: "{{ istio_noauth_yaml_file_path }}"
-    after: 'serviceAccountName: istio-egressgateway-service-account'
-    before: '---'
-    regexp: 'memory: 128Mi'
-    replace: 'memory: 512Mi'
-
-- name: Modify memory request for istio-engressgateway-service-account
-  replace:
-    path: "{{ istio_noauth_yaml_file_path }}"
-    after: 'serviceAccountName: istio-egressgateway-service-account'
-    before: '---'
-    regexp: 'memory: 40Mi'
-    replace: 'memory: 512Mi'
-
-- name: Modify CPU limit for kfserving-gateway
-  replace:
-    path: "{{ kfserving_gateway_yaml_file_path }}"
-    after: 'serviceAccountName: istio-ingressgateway-service-account'
-    before: 'env:'
-    regexp: 'cpu: 100m'
-    replace: 'cpu: 2'
-
-- name: Modify memory limit for kfserving-gateway
-  replace:
-    path: "{{ kfserving_gateway_yaml_file_path }}"
-    after: 'serviceAccountName: istio-ingressgateway-service-account'
-    before: 'env:'
-    regexp: 'memory: 128Mi'
-    replace: 'memory: 512Mi'
-
-- name: Modify CPU request for kfserving-gateway
-  replace:
-    path: "{{ kfserving_gateway_yaml_file_path }}"
-    after: 'serviceAccountName: istio-ingressgateway-service-account'
-    before: 'env:'
-    regexp: 'cpu: 10m'
-    replace: 'cpu: 1'
-
-- name: Modify memory request for kfserving-gateway
-  replace:
-    path: "{{ kfserving_gateway_yaml_file_path }}"
-    after: 'serviceAccountName: istio-ingressgateway-service-account'
-    before: 'env:'
-    regexp: 'memory: 40Mi'
-    replace: 'memory: 256Mi'
+    regexp: 'memory: 20Mi'
+    replace: 'memory: 200Mi'
 
 - name: Change argo base service from NodePort to LoadBalancer
   replace:
     path: "{{ argo_yaml_file_path }}"
-    regexp: 'NodePort'
-    replace: 'LoadBalancer'
-
-- name: Change istio-install base istio-noauth service from NodePort to LoadBalancer
-  replace:
-    path: "{{ istio_noauth_yaml_file_path }}"
     regexp: 'NodePort'
     replace: 'LoadBalancer'
 
