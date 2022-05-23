@@ -1,6 +1,5 @@
-FROM rockylinux/rockylinux:docker_os
+FROM docker.io/rockylinux/rockylinux:docker_os
 
-RUN dnf -y update && dnf clean all
 RUN dnf install -y epel-release
 RUN dnf install dhcp-server -y \
   ansible \
