@@ -31,7 +31,7 @@
     dest: "{{ role_path }}/../../{{ config_vaultname }}"
     content: |
       {{ vault_key }}
-    owner: root
+    #owner: root
     force: yes
     mode: '0600'
   when: not vault_key_result.stat.exists
