@@ -16,78 +16,78 @@
   stat:
      path: "{{ awx_file }}"
   register: awx_exists
-  tags: clean_awx
+  tags: awx
 
 - name: Delete awx.yml
   command: "kubectl delete -f {{ awx_file }}"
   when: awx_exists.stat.exists
   failed_when: false
-  tags: clean_awx
+  tags: awx
 
 - name: Getting pods
   command: kubectl get pods -n awx
   changed_when: false
   register: awx_pods
-  tags: clean_awx
+  tags: awx
 
 - name: UnDeploying awx-operator
   command: make undeploy
   args:
     chdir: "{{ awx_operator }}"
   when: awx_pods.stdout | regex_search('awx-operator-controller-manager-([A-Za-z0-9]{10})-([A-Za-z0-9]{5})')
-  tags: clean_awx
+  tags: awx
 
 - name: Get the postgres volume claim name
   command: "kubectl get pvc -n awx"
   changed_when: false
   register: postgresclaimname
-  tags: clean_awx
+  tags: awx
 
 - name: Delete the postgres volume claim
   command: "kubectl delete pvc {{ postgresclaimname.stdout }} -n awx"
   when: postgresclaimname.stdout
   failed_when: false
-  tags: clean_awx
+  tags: awx
 
 - name: Check if awx_postgres_pv.yml file exists
   stat:
       path: "{{ awx_postgres_pv }}"
   register: awx_postgres_pv_exists
-  tags: clean_awx
+  tags: awx
 
 - name: Delete awx_postgres_pv.yml
   command: "kubectl delete -f {{ awx_postgres_pv }}"
   when: awx_postgres_pv_exists.stat.exists
   failed_when: false
-  tags: clean_awx
+  tags: awx
 
 - name: Check if awx_projects_pv.yml file exists
   stat:
     path: "{{ awx_projects_pv }}"
   register: awx_projects_pv_exists
-  tags: clean_awx
+  tags: awx
 
 - name: Delete awx_projects_pv.yml
   command: "kubectl delete -f {{ awx_projects_pv }}"
   when: awx_projects_pv_exists.stat.exists
   failed_when: false
-  tags: clean_awx
+  tags: awx
 
 - name: Delete awx image
   command: "buildah rmi -f {{ awx_image }}"
   when: awx_image in image_list.stdout
-  tags: clean_awx
+  tags: awx
 
 - name: Check for awx namespace
   command: kubectl get namespace -n awx
   changed_when: false
   register: awx_namespace
-  tags: clean_awx
+  tags: awx
 
 - name: Delete Namespace awx
   command: kubectl delete namespace awx -n awx
   when: "'awx' in awx_namespace.stdout"
-  tags: clean_awx
+  tags: awx
 
 - name: Delete folders and files
   file:
@@ -96,4 +96,4 @@
   failed_when: false
   with_items:
     - "{{ del_awx_files }}"
-  tags: clean_awx
+  tags: awx

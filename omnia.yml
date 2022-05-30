@@ -247,4 +247,3 @@
 
 - name: Passwordless SSH between manager and compute nodes
   include: control_plane/tools/passwordless_ssh.yml
-  when: hostvars['127.0.0.1']['control_plane_status']
