@@ -65,7 +65,7 @@ To configure the login node, refer to [Install_Omnia](INSTALL_OMNIA_CLI.md).
 ```
 ansible-playbook control_plane.yml
 ```  
-8. If the host_mapping_file_path is not provided, then you must manually assign the component roles through the AWX UI. Go to [Assign component roles using AWX UI](USING_AWX_PLAYBOOKS.md#assign-component-roles-using-awx-ui).
+8. If the host_mapping_file_path is not provided, then you must manually assign the component roles through the AWX UI. Go to [Assign component roles using AWX UI](USING_PLAYBOOKS.md#assign-component-roles-using-awx-ui).
 
 Omnia creates a log file which is available at: `/var/log/omnia.log`.  
 
@@ -134,7 +134,7 @@ The network configuration performed by Omnia depends on the value of `network_in
 
 >> __Note:__
 * When `network interface` type is `lom`, `idrac_support` is assumed to be true irrespective of user input.
-* Omnia will not automatically assign IPs to all devices (powervault or ethernet/Infiniband switches) when `network_interface_type` is lom. However, if required, users can follow the [linked steps](USING_AWX_PLAYBOOKS.md#setting-up-static-ips-on-devices-when-the-network-interface-type-is-shared-lom).
+* Omnia will not automatically assign IPs to all devices (powervault or ethernet/Infiniband switches) when `network_interface_type` is lom. However, if required, users can follow the [linked steps](USING_PLAYBOOKS.md#setting-up-static-ips-on-devices-when-the-network-interface-type-is-shared-lom).
 * Despite the value of `mgmt_network_nic` and `host_network_nic` being the same in LOM environments, the IPs assigned for management and data should not be in the same range. The start and end values of the management IP range and the host IP range cannot be the same.
 * When `roce_network_nic` is provided, the `host_mapping_file_path` is disregarded. This means that static IP assignment is not supported when high speed data paths are used for provisioning.
 
@@ -159,7 +159,7 @@ If you want to view or edit the *login_vars.yml* file, run the following command
 * All the pods are deployed in the specific namespace: *awx*.  
 * The AWX reference source code repository: https://github.com/ansible/awx.git 
 
-Omnia performs the following configurations on AWX:
+If AWX is set up by the control plane, the following configurations take place::
 * The organization's name is set to **DellEMC**.
 * The project name is set to **omnia** which is the playbook's directory for the templates.
 * For networking switches, InfiniBand switches, iDRAC, and PowerVault Storage, four inventories are available- **ethernet_inventory**, **infiniband_inventory**, **idrac_inventory**, **provisioned_idrac_inventory**, and **powervault_me4_inventory**.
@@ -171,7 +171,7 @@ Omnia performs the following configurations on AWX:
 
 >> **Note**: The AWX configurations are automatically performed by Omnia, and Dell Technologies recommends that you do not change the default configurations that are provided by Omnia as the functionality may be impacted.  
 
-The AWX UI can be used to run playbooks such as `omnia.yml`. To set up red hat subscription, Slurm, Kubernetes, JupyterHub , configure devices etc, check out [Using AWX Playbooks](USING_AWX_PLAYBOOKS.md).
+The AWX UI/ Ansible CLI can be used to run playbooks such as `omnia.yml`. To set up red hat subscription, Slurm, Kubernetes, JupyterHub , configure devices etc, check out [Using Playbooks](USING_PLAYBOOKS.md).
 
 
 ## Creating a new cluster 

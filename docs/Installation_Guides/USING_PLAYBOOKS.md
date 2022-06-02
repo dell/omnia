@@ -27,7 +27,7 @@ Before running `omnia.yml`, it is mandatory that red hat subscription be set up 
 ## Red Hat Unsubscription
 To disable subscription on Red Hat nodes, the `red_hat_unregister_template` has to be called in one of two ways:
 1. On AWX, run the template `redhat_unregister_template`. On launching the template, the nodes present in the node inventory will be unregistered from red hat.
-2. Using Ansible, run the command: `ansible_playbook omnia/control_plane/rhsm_unregister.yml -i inventory`
+2. Using CLI, run the command: `ansible_playbook omnia/control_plane/rhsm_unregister.yml -i inventory`
 
 ## Configuring new devices added to the cluster
 For Omnia to configure the devices and to provision the bare metal servers which are introduced newly in the cluster, you must configure the corresponding input parameters and deploy the device-specific template from the AWX UI. Based on the devices added to the cluster, click the respective link to go to configuration section.
