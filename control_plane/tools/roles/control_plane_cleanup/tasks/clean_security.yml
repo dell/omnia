@@ -15,16 +15,18 @@
 - name: Identify presence of IPA
   shell: 'ipa help topics | wc -l'
   register: help_topics_count
-  tags: clean_security
+  tags: security
+  changed_when: false
 
 - name: Unlock resolv.conf
   command: chattr -i /etc/resolv.conf 
-  tags: clean_security
+  tags: security
+  changed_when: false
 
 - name: Validate IPA is installed or not
   shell: 'ipa-server-install --uninstall -U'
   when: 'help_topics_count.stdout | int > 1'
-  tags: clean_security
+  tags: security
 
 - name: Delete IPA folders and files
   file:
@@ -33,5 +35,5 @@
   failed_when: false
   with_items:
     - "{{ del_security_files }}"
-  tags: clean_security
+  tags: security
   
