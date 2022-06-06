@@ -9,7 +9,7 @@ Using Omnia 1.2, you can provision and monitor hardware devices such as servers,
 1. [Dedicated Network](../SUPPORTED_NETWORK_TOPOLOGY.md#dedicated-nics)
    This connection option uses the server’s dedicated iDRAC connection for management, while the production data traffic flows through the NICs on the server. This configuration separates the two flows of traffic. For more information on the topology, click on the hyperlinked heading.
 	* Connecting a Pass-Through Switch: Provision and configure a 1GBE pass-through switch which will be used as a pass-through uplink switch. One of the NIC on the control plane must be connected to a data port on the pass-through switch and a second connection must be established from a data port on the pass-through switch to the management port of the TOR network switch.  
-    >> **Note:**  Omnia is not responsible for provisioning and configuring the pass-through switch.
+    >>**Note**:  Omnia is not responsible for provisioning and configuring the pass-through switch.
      * Establishing a management network: From the data ports on the pass-through switch, connect to the following ports:
          * iDRAC ports on manager and compute nodes
          * Management port on the network switches
@@ -62,7 +62,7 @@ To configure the login node, refer to [Install_Omnia](INSTALL_OMNIA_CLI.md).
 
 5. Change the directory to **control_plane/input_params** using the command: `cd omnia/control_plane/input_params`
 6. Edit the *base_vars.yml* file to update the required variables.
->> **Note:** The IP address *192.168.25.x* is used for PowerVault Storage communications. Therefore, do not use this IP address for other configurations.**  
+>>**Note**: The IP address *192.168.25.x* is used for PowerVault Storage communications. Therefore, do not use this IP address for other configurations.**  
  
 7. Provided that the host_mapping_file_path is updated as per the provided template, Omnia deploys the control plane and assigns the component roles by executing the omnia.yml file.  To deploy the Omnia control plane, run the following command: 
 ```

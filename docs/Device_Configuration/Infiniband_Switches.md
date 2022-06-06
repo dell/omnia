@@ -39,7 +39,7 @@ When connecting to a new or factory reset switch, the configuration wizard reque
 * **(Recommended)** If the user enters 'no', they still have to provide the admin and monitor passwords. 
 * If the user enters 'yes', they will also be prompted to enter the hostname for the switch, DHCP details, IPv6 details, etc.
 
->> **Note:** When initializing a factory reset switch, the user needs to ensure DHCP is enabled and an IPv6 address is not assigned. Omnia will assign an IP address to the Infiniband switch using DHCP with all other configurations.
+>>**Note**: When initializing a factory reset switch, the user needs to ensure DHCP is enabled and an IPv6 address is not assigned. Omnia will assign an IP address to the Infiniband switch using DHCP with all other configurations.
 
 ## Configuring Mellanox InfiniBand Switches
 

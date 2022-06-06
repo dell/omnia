@@ -137,4 +137,4 @@ Via CLI:
 Through AWX UI <br>
 ![img.png](../images/Execute_Kernel_Upgrade_UI.png)
 
->> **Note:** Omnia does not support roll-backs/downgrades of the Kernel.
+>>**Note**: Omnia does not support roll-backs/downgrades of the Kernel.
