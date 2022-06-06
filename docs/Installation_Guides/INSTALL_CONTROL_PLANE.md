@@ -27,7 +27,7 @@ Using Omnia 1.2, you can provision and monitor hardware devices such as servers,
     >> 	* Note that the PowerVault NFS server should have separate NICs configured for management, data (Connecting to other compute nodes) and a dedicated data connection to the storage array.
     >> 	* Refer to the [Control Plane Pre-Requisites](../PreRequisites/Control_Plane_PreReqs.md) file to ensure smooth running of the control_plane.
 
-2. [Shared LOM](../NETWORK_TOPOLOGY_LOM.md#shared-lom)
+2. [Shared LOM](../NETWORK_TOPOLOGY_LOM.md)
    A LOM port could be shared with the host operating system production traffic. Also, LOM ports can be dedicated to server management. For example, with a four-port LOM adapter, LOM ports one and two could be used for production data while three and four could be used for iDRAC, VNC, RDP, or other operating system-based management data. For more information on the topology, click on the hyperlinked heading.
 
 ## Steps to deploy the Omnia Control Plane
