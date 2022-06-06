@@ -5,8 +5,8 @@ Using Omnia 1.2, you can provision and monitor hardware devices such as servers,
 
 ![Typical layout of a HPC cluster](../images/Omnia_Architecture.png)
 
-## [List of all supported Omnia Network Topologies](../SUPPORTED_NETWORK_TOPOLOGY.md)
-1. [Dedicated Network](../SUPPORTED_NETWORK_TOPOLOGY.md#dedicated-nics)
+## List of all supported Omnia Network Topologies
+1. [Dedicated Network](../NETWORK_TOPOLOGY_DEDICATED.md)
    This connection option uses the server’s dedicated iDRAC connection for management, while the production data traffic flows through the NICs on the server. This configuration separates the two flows of traffic. For more information on the topology, click on the hyperlinked heading.
 	* Connecting a Pass-Through Switch: Provision and configure a 1GBE pass-through switch which will be used as a pass-through uplink switch. One of the NIC on the control plane must be connected to a data port on the pass-through switch and a second connection must be established from a data port on the pass-through switch to the management port of the TOR network switch.  
     >>**Note**:  Omnia is not responsible for provisioning and configuring the pass-through switch.
@@ -27,7 +27,7 @@ Using Omnia 1.2, you can provision and monitor hardware devices such as servers,
     >> 	* Note that the PowerVault NFS server should have separate NICs configured for management, data (Connecting to other compute nodes) and a dedicated data connection to the storage array.
     >> 	* Refer to the [Control Plane Pre-Requisites](../PreRequisites/Control_Plane_PreReqs.md) file to ensure smooth running of the control_plane.
 
-2. [Shared LOM](../SUPPORTED_NETWORK_TOPOLOGY.md#shared-lom)
+2. [Shared LOM](../NETWORK_TOPOLOGY_LOM.md#shared-lom)
    A LOM port could be shared with the host operating system production traffic. Also, LOM ports can be dedicated to server management. For example, with a four-port LOM adapter, LOM ports one and two could be used for production data while three and four could be used for iDRAC, VNC, RDP, or other operating system-based management data. For more information on the topology, click on the hyperlinked heading.
 
 ## Steps to deploy the Omnia Control Plane
