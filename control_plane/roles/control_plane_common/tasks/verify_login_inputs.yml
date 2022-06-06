@@ -280,5 +280,5 @@
 - name: Update login_vars.yml permission
   file:
     path: "{{ login_vars_filename }}"
-    mode: "{{ file_perm }}"
+    mode: "{{ vault_file_perm }}"
   tags: init

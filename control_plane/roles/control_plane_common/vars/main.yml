@@ -31,6 +31,8 @@ common_packages:
   - python3-netaddr
   - dos2unix
   - make
+  - sshpass
+
 os_supported_leap: "leap"
 os_supported_leap_version: "15.3"
 python_version_leap: '3.6.13'
@@ -44,6 +46,15 @@ common_packages_rhel:
   - yum-utils
   - device-mapper-persistent-data
   - yum-plugin-versionlock
+
+omsdk_package: "omsdk==1.2.488"
+ansible_collections_cli:
+  - community.general:4.4.0
+  - dellemc.openmanage:4.4.0
+  - dellemc.os10:1.1.1
+  - kubernetes.core:2.2.3
+  - community.grafana:1.3.0
+  - ansible.utils:2.5.2
 
 # Usage: set_docker_os.yml
 docker_rocky_os_version: "8.5"
@@ -188,6 +199,9 @@ device_ip_list_not_supported: "[Warning] Device_ip_list is invalid as minimum id
 mgmnt_device_fail: "Failed. Container already present. Either delete the container or make device_config_support as true"
 success_network_type: " Success. Network_interface_type has valid values"
 fail_network_type: " Failed. Give valid value in network_interface_type "
+success_awx_web_support: "awx_web_support validated"
+fail_awx_web_support: "Failed. awx_web_support only accepts boolean values true or false"
+omnia_default_path: /opt/omnia
 
 # Usage: ip_metric.yml
 public_metric: 101

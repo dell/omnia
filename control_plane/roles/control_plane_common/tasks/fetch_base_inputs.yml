@@ -74,6 +74,26 @@
     fail_msg: "{{ fail_device_config }}"
   tags: init
 
+- name: Validate the value of awx_web_support
+  assert:
+    that:
+      - awx_web_support | lower == "true" or awx_web_support | lower == "false"
+    success_msg: "{{ success_awx_web_support }}"
+    fail_msg: "{{ fail_awx_web_support }}"
+  tags: init
+
+- name: Install ansible galaxy collection when awx_web_support is false
+  command: ansible-galaxy collection install {{ item }}
+  changed_when: true
+  with_items: "{{ ansible_collections_cli }}"
+  when: not awx_web_support
+
+- name: Install omsdk using pip when awx_web_support is false
+  pip:
+    name: "{{ omsdk_package }}"
+    state: present
+  when: not awx_web_support
+
 - name: Set fact for device_ip_list_path
   set_fact:
     device_config_ip_file: false
@@ -197,6 +217,7 @@
     content: |
       [defaults]
       log_path = /var/log/omnia.log
+      host_key_checking = false
   when: not ansible_conf_exists.stat.exists
   tags: init
 
@@ -242,6 +263,13 @@
     success_msg: "{{ success_awx_organization }}"
     fail_msg: "{{ fail_awx_organization }}"
   tags: [ validate, awx ]
+
+- name: Create default directory to store omnia files
+  file:
+    path: "{{ omnia_default_path }}"
+    state: directory
+    mode: "{{ mount_dir_perm }}"
+  tags: init
 
 - name: Make mount directory for grafana if it doesnt exist
   file:
