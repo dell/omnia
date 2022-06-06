@@ -63,7 +63,7 @@ The **deploy_omnia_template** may not run successfully if:
   If you have set the `login_node_required` variable in the `omnia_config` file to "false", then you can skip assigning host to the login node.
 - Under Skip Tags, when both kubernetes and slurm tags are selected.
 
->> __Note__: On the AWX UI, hosts will be listed only after few nodes have been provisioned by Omnia. It takes approximately 10 to 15 minutes to display the host details after the provisioning is complete. If a device is provisioned, but you are unable to view the host details on the AWX UI, then you can run the following command from **omnia** -> **control_plane** -> **tools** folder to view the hosts which are reachable. <br> `ansible-playbook -i ../roles/collect_node_info/provisioned_hosts.yml provision_report.yml`
+>> **Note**: On the AWX UI, hosts will be listed only after few nodes have been provisioned by Omnia. It takes approximately 10 to 15 minutes to display the host details after the provisioning is complete. If a device is provisioned, but you are unable to view the host details on the AWX UI, then you can run the following command from **omnia** -> **control_plane** -> **tools** folder to view the hosts which are reachable. <br> `ansible-playbook -i ../roles/collect_node_info/provisioned_hosts.yml provision_report.yml`
 
 
 ## Install JupyterHub and Kubeflow playbooks
@@ -73,7 +73,7 @@ To install __JupyterHub__ and __Kubeflow__ playbooks:
 2.	From __PLAYBOOK__ dropdown menu, select __platforms/jupyterhub.yml__ and launch the template to install JupyterHub playbook.
 3.	From __PLAYBOOK__ dropdown menu, select __platforms/kubeflow.yml__ and launch the template to install Kubeflow playbook.
 
->> __Note:__ When the Internet connectivity is unstable or slow, it may take more time to pull the images to create the Kubeflow containers. If the time limit is exceeded, the **Apply Kubeflow configurations** task may fail. To resolve this issue, you must redeploy Kubernetes cluster and reinstall Kubeflow by completing the following steps:
+>> **Note**: When the Internet connectivity is unstable or slow, it may take more time to pull the images to create the Kubeflow containers. If the time limit is exceeded, the **Apply Kubeflow configurations** task may fail. To resolve this issue, you must redeploy Kubernetes cluster and reinstall Kubeflow by completing the following steps:
 >> 1. Complete the PXE booting of the head and compute nodes.
 >> 2. In the `omnia_config.yml` file, change the k8s_cni variable value from calico to flannel.
 >> 3. Run the Kubernetes and Kubeflow playbooks.
@@ -102,10 +102,10 @@ From Omnia 1.2, the cobbler container OS will follow the OS on the control plane
 >> 4. Run `control_plane.yml` to provision rocky and create a profile called `rocky-x86_64` in the cobbler container.
 
 
->> __Note:__ All compute nodes in a cluster must run the same OS. 
+>> **Note**: All compute nodes in a cluster must run the same OS. 
 
 ## Setting up Static IPs on Devices when the network interface type is shared LOM
->> __Note:__ All steps listed below are to be administered on the control plane. The DHCP provided IPs for these devices will be within the `host_network_range` irrespective of whether `roce_network_nic` is provided.
+>> **Note**: All steps listed below are to be administered on the control plane. The DHCP provided IPs for these devices will be within the `host_network_range` irrespective of whether `roce_network_nic` is provided.
 
 When the network interface type is set to shared LOM, users can manually assign static IPs to their networking (ethernet or Infiniband) or storage (powervault). Depending on whether the user set up a RoCe network and provided a `roce_network_nic` in `base_vars.yml`, there are two ways users can achieve this:
 

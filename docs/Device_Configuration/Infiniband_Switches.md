@@ -23,7 +23,7 @@ In case any of these services are not in the state required, run:
 
 `json-gw enable` (To enable the JSON gateway)
 
->> __Note:__ If a server is connected to an Infiniband Switch via an Infiniband NIC, Omnia will not activate this NIC:
+>> **Note**: If a server is connected to an Infiniband Switch via an Infiniband NIC, Omnia will not activate this NIC:
 >> * For servers running Rocky,Infiniband NICs can be manually enabled using `ifup <InfiniBand NIC>`.
 >> * For servers running LeapOS, ensure the following pre-requisites are met before manually bringing up the interface:
 >> 	1. The following repositories have to be installed:

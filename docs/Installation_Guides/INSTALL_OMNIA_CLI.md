@@ -17,12 +17,12 @@ From release branch:
 git clone -b release https://github.com/dellhpc/omnia.git 
 ```-->  
 
->> __Note:__ After the Omnia repository is cloned, a folder named __omnia__ is created. Ensure that you do not rename this folder.
+>> **Note**: After the Omnia repository is cloned, a folder named __omnia__ is created. Ensure that you do not rename this folder.
 
 2. Change the directory to __omnia__: `cd omnia`
 
 3. In the `omnia_config.yml` file, provide the required details (Check the [parameter guide](../Input_Parameter_Guide/omnia_config.md) for more information).
->> __Note:__  Without the login node, Slurm jobs can be scheduled only through the manager node.
+>> **Note**:  Without the login node, Slurm jobs can be scheduled only through the manager node.
 
 4. Create an inventory file in the *omnia* folder. Add login node IP address under the *[login_node]* group, manager node IP address under the *[manager]* group, compute node IP addresses under the *[compute]* group, and NFS node IP address under the *[nfs_node]* group. A template file named INVENTORY is provided in the *omnia\docs* folder.  
 >>	**Note**: 
@@ -52,7 +52,7 @@ git clone -b release https://github.com/dellhpc/omnia.git
 	The default path of the Ansible configuration file is `/etc/ansible/`. If the file is not present in the default path, then edit the `ansible_config_file_path` variable to update the configuration path.
 
 7. To provide passwords for mariaDB Database (for Slurm accounting), Kubernetes Pod Network CIDR, and Kubernetes CNI, edit the `omnia_config.yml` file.  
->> __Note:__ 
+>> **Note**: 
 * Supported values for Kubernetes CNI are calico and flannel. The default value of CNI considered by Omnia is calico. 
 * The default value of Kubernetes Pod Network CIDR is 10.244.0.0/16. If 10.244.0.0/16 is already in use within your network, select a different Pod Network CIDR. For more information, see __https://docs.projectcalico.org/getting-started/kubernetes/quickstart__.
 
@@ -129,7 +129,7 @@ To enable the login node, the *login_node_required* variable must be set to "tru
 - **login_server** role: FreeIPA server is installed and configured on the manager node to provide authentication using LDAP and Kerberos principles.  
 - **login_node** role: For Rocky, FreeIPA client is installed and configured on the login node and is integrated with the server running on the manager node. For LeapOS, 389ds will be installed instead.
 
->>__Note:__ If LeapOS is being deployed, login_common and login_server roles will be skipped. <br>
+>>**Note**: If LeapOS is being deployed, login_common and login_server roles will be skipped. <br>
 >>To skip the installation of:
 >> * The login node: In the `omnia_config.yml` file, set the *login_node_required* variable to "false".  
 >> * The FreeIPA server and client: Use `--skip-tags freeipa` while executing the *omnia.yml* file. 
@@ -141,7 +141,7 @@ Commands to install JupyterHub and Kubeflow:
 * `ansible-playbook platforms/jupyterhub.yml -i inventory`
 * `ansible-playbook platforms/kubeflow.yml -i inventory`
 
->> __Note:__ When the Internet connectivity is unstable or slow, it may take more time to pull the images to create the Kubeflow containers. If the time limit is exceeded, the **Apply Kubeflow configurations** task may fail. To resolve this issue, you must redeploy Kubernetes cluster and reinstall Kubeflow by completing the following steps:
+>> **Note**: When the Internet connectivity is unstable or slow, it may take more time to pull the images to create the Kubeflow containers. If the time limit is exceeded, the **Apply Kubeflow configurations** task may fail. To resolve this issue, you must redeploy Kubernetes cluster and reinstall Kubeflow by completing the following steps:
 * Format the OS on manager and compute nodes.
 * In the `omnia_config.yml` file, change the k8s_cni variable value from calico to flannel.
 * Run the Kubernetes and Kubeflow playbooks. 

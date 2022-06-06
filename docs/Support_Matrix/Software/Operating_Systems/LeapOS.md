@@ -5,4 +5,4 @@
 
 As the licensed version of Leap, we also support SUSE Linux version 15.3 and above.
 
->> __Note:__ Always deploy the Minimal Edition of the OS on Compute Nodes
+>> **Note**: Always deploy the Minimal Edition of the OS on Compute Nodes

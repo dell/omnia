@@ -22,7 +22,7 @@ Using Omnia 1.2, you can provision and monitor hardware devices such as servers,
          * For InfiniBand DHCP, connect NIC on the control plane to one of the data ports of the InfiniBand Switch. Next, connect one of the data ports of the InfiniBand switch to the NIC on the compute node. 
          * Establishing a host network: For Cobbler DHCP to assign an IP address to the compute node NIC, connect NIC of the control plane to the data port on the network switch. Connect another data port on the network switch to the NIC on the compute node. Omnia will provision OS on the compute nodes using PXE when the iDRAC Enterprise license is missing on any of the compute nodes in the HPC cluster.
 			
-    >> __Note__:
+    >> **Note**:
     >> 	* Cobbler web support has been discontinued from Omnia 1.2 onwards.
     >> 	* Note that the PowerVault NFS server should have separate NICs configured for management, data (Connecting to other compute nodes) and a dedicated data connection to the storage array.
     >> 	* Refer to the [Control Plane Pre-Requisites](../PreRequisites/Control_Plane_PreReqs.md) file to ensure smooth running of the control_plane.
@@ -47,7 +47,7 @@ git clone -b release https://github.com/dellhpc/omnia.git
 * Specify the Kubernetes version which will be installed on the manager and compute nodes in the **k8s_version** variable. By default, it is set to **1.16.7**. Edit this variable to change the version. Supported versions are 1.16.7 and 1.19.3.
 * To configure a login node in the cluster. By default, the *login_node_required* variable is set to "true". Using the login node, cluster administrators can provide access to users to log in to the login node to schedule Slurm jobs. However, if you do not want to configure the login node, then you can set the variable to "false". Without the login node, Slurm jobs can be scheduled only through the manager node.
 
->> __Note__: Ensure that the parameter `enable_security_support` in `telemetry\input_params\base_vars.yml` is set to 'false' before editing the following variables.
+>> **Note**: Ensure that the parameter `enable_security_support` in `telemetry\input_params\base_vars.yml` is set to 'false' before editing the following variables.
 
 To configure the login node, refer to [Install_Omnia](INSTALL_OMNIA_CLI.md).
 * To enable security features on the Control Plane, use the steps provided [here](../Security/ENABLE_SECURITY_CONTROL_PLANE.md).
@@ -135,7 +135,7 @@ The network configuration performed by Omnia depends on the value of `network_in
 </tbody>
 </table>
 
->> __Note:__
+>> **Note**:
 * When `network interface` type is `lom`, `idrac_support` is assumed to be true irrespective of user input.
 * Omnia will not automatically assign IPs to all devices (powervault or ethernet/Infiniband switches) when `network_interface_type` is lom. However, if required, users can follow the [linked steps](USING_PLAYBOOKS.md#setting-up-static-ips-on-devices-when-the-network-interface-type-is-shared-lom).
 * Despite the value of `mgmt_network_nic` and `host_network_nic` being the same in LOM environments, the IPs assigned for management and data should not be in the same range. The start and end values of the management IP range and the host IP range cannot be the same.
@@ -191,5 +191,5 @@ From Omnia 1.2, the cobbler container OS will follow the OS on the control plane
 >> 4. Run `control_plane.yml` to provision rocky and create a profile called `rocky-x86_64` in the cobbler container.
 
 
->> __Note:__ All compute nodes in a cluster must run the same OS. 
+>> **Note**: All compute nodes in a cluster must run the same OS. 
 

@@ -35,7 +35,7 @@ To open the ports required, use the following steps:
 
   __Eg:__  xx.xx.xx.xx <hostname>
 
->> __Note:__
+>> **Note**:
 >>	* The Hostname should not contain the following characters: , (comma), \. (period) or _ (underscore). However, the **domain name** is allowed commas and periods.
 >>	* The Hostname cannot start or end with a hyphen (-).
 >>	* No upper case characters are allowed in the hostname.

@@ -28,7 +28,7 @@ Possible network configurations include:
 </tbody>
 </table></div>
 
->> __Note:__
+>> **Note**:
 >> * When `network interface` type is `lom`, `idrac_support` is assumed to be true irrespective of user input.
 >> * Omnia will not automatically assign IPs to all devices (powervault or ethernet/Infiniband switches) when `network_interface_type` is lom. However, if required, users can follow the [linked steps](Installation_Guides/USING_PLAYBOOKS.md#setting-up-static-ips-on-devices-when-the-network-interface-type-is-shared-lom).
 >> * Despite the value of `mgmt_network_nic` and `host_network_nic` being the same in LOM environments, the IPs assigned for management and data should not be in the same range. The start and end values of the management IP range and the host IP range cannot be the same.
@@ -76,4 +76,4 @@ When the control plane has a separate NIC connected to ToR for Device Management
 </tbody>
 </table></div>
 
->> __Note:__ If `device_config_support` is false (ie, no management container is set up), no IPs will be assigned by Omnia. If a device IP list is provided, provisioning will only be through PXE. 
+>> **Note**: If `device_config_support` is false (ie, no management container is set up), no IPs will be assigned by Omnia. If a device IP list is provided, provisioning will only be through PXE. 

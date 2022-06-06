@@ -8,7 +8,7 @@
     3. [Red Hat 8.x](https://www.redhat.com/en/enterprise-linux-8)
 * As a best practice, ensure that PowerCap policy is disabled and the BIOS system profile is set to Performance on the Control Plane.
 * For DHCP configuration, you can provide a host mapping file (Example available [here](../../examples/host_mapping_file_os_provisioning.csv)). If the mapping file is not provided and the variable is left blank, a default mapping file will be created. The provided details must be in the format: MAC address, Hostname, IP address, Component_role. For example, `10:11:12:13,server1,100.96.20.66,compute` and  `14:15:16:17,server2,100.96.22.199,manager` are valid entries.  
->> __Note:__  
+>> **Note**:  
 >>  * In the `omnia/examples` folder, a **mapping_host_file.csv** template is provided which can be used for DHCP configuration. The header in the template file must not be deleted before saving the file. It is recommended to provide this optional file as it allows IP assignments provided by Omnia to be persistent across control plane reboots.  
 >>	* The Hostname should not contain the following characters: , (comma), \. (period) or _ (underscore). However, the **domain name** is allowed commas and periods. 
 >>	* The Hostname cannot start or end with a hyphen (-).
@@ -43,7 +43,7 @@
         export PATH=$PATH:/usr/local/bin
         ```  
 	
-    >>__Note__:
+    >>**Note**:
      >> * To deploy Omnia, Python 3.6 provides bindings to system tools such as RPM, DNF, and SELinux. As versions greater than 3.6 do not provide these bindings to system tools, ensure that you install Python 3.6 with dnf.  
      >> * SELinux will not be disabled and will be in permissive mode when control plane is executing.
      >> * If Ansible version 2.9 or later is installed, ensure it is uninstalled before installing a newer version of Ansible. Run the following commands to uninstall Ansible before upgrading to newer version.
