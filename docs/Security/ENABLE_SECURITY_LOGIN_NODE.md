@@ -2,7 +2,7 @@
 
 >> __Note:__ For 389ds/SSSD to work, an external LDAP server has to be set up in your environment as Omnia does not configure LDAP.
 
-* Once all [pre-requisites](../PreRequisites/Login_Node_Security_PreReqs.md) are met, ensure that `enable_secure_login_node` is set to **true** in `omnia_config.yml`
+* Once all [pre-requisites](../PreRequisites/OMNIA_PreReqs.md) are met, ensure that `enable_secure_login_node` is set to **true** in `omnia_config.yml`
 
 ## Limiting User Authentication over sshd
 

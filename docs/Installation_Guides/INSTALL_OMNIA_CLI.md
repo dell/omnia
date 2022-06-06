@@ -2,7 +2,7 @@
 
 The following sections provide details on installing `omnia.yml` using CLI.  
 
-To install the Omnia control plane and manage workloads on your cluster using the Omnia control plane, see [Install the Omnia Control Plane](INSTALL_OMNIA_CONTROL_PLANE.md) and [Monitor Kubernetes and Slurm](../Monitoring/MONITOR_CLUSTERS.md) for more information.
+To install the Omnia control plane and manage workloads on your cluster using the Omnia control plane, see [Install the Omnia Control Plane](INSTALL_CONTROL_PLANE.md) and [Monitor Kubernetes and Slurm](../Monitoring/MONITOR_CLUSTERS.md) for more information.
 
 ## Steps to install Omnia using CLI
 
@@ -28,24 +28,6 @@ git clone -b release https://github.com/dellhpc/omnia.git
 >>	**Note**: 
 >> * Omnia checks for red hat subscription being enabled on red hat nodes as a pre-requisite. Check out [how to enable Red Hat subscription here](USING_PLAYBOOKS.md#red-hat-subscription). Not having Red Hat subscription enabled on the manager node will cause `omnia.yml` to fail. If compute nodes do not have Red Hat subscription enabled, `omnia.yml` will skip the node entirely.
 >> * Ensure that all the four groups (login_node, manager, compute, nfs_node) are present in the template, even if the IP addresses are not updated under login_node and nfs_node groups.
-
-## Installing BeeGFS Client
-* If the user intends to use BeeGFS, ensure that a BeeGFS cluster has been set up with beegfs-mgmtd, beegfs-meta, beegfs-storage services running.
-  Ensure that the following ports are open for TCP and UDP connectivity:
-
-  | Port | Service                           |
-    |------|-----------------------------------|
-  | 8008 | Management service (beegfs-mgmtd) |
-  | 8003 | Storage service (beegfs-storage)  |
-  | 8004 | Client service (beegfs-client)    |
-  | 8005 | Metadata service (beegfs-meta)    |
-  | 8006 | Helper service (beegfs-helperd)   |
-
-To open the ports required, use the following steps:
-1. `firewall-cmd --permanent --zone=public --add-port=<port number>/tcp`
-2. `firewall-cmd --permanent --zone=public --add-port=<port number>/udp`
-3. `firewall-cmd --reload`
-4. `systemctl status firewalld`
 
 
 5. To install Omnia:

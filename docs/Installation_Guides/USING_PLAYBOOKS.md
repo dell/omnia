@@ -1,4 +1,4 @@
-# AWX/Ansible Playbooks And How To Use Them
+# Ansible Playbooks And How To Use Them
 
 Once `control_plane.yml` is run, AWX UI or Ansible CLI can be used to run different scripts on your control_plane. Some of these functionalities include:
 1. [Setting up Red Hat Subscription](#red-hat-subscription)
@@ -38,7 +38,7 @@ For Omnia to configure the devices and to provision the bare metal servers which
 
 
 ## Assign component roles using AWX UI
-1. If Red Hat is used, ensure that red hat subscription is enabled on the nodes. If it isn't, se AWX to run [`redhat_subscription_template`](#red-hat-subscription) after running `control_plane.yml` to activate red hat subscription.
+1. If Red Hat is used, ensure that red hat subscription is enabled on the nodes. If it isn't, use AWX to run [`redhat_subscription_template`](#red-hat-subscription) after running `control_plane.yml` to activate red hat subscription.
 2. On the AWX dashboard, under __RESOURCES__ __->__ __Inventories__, select **node_inventory**.
 3. Select the **Hosts** tab.
 4. To add hosts to the groups, click **+**.
@@ -73,16 +73,16 @@ To install __JupyterHub__ and __Kubeflow__ playbooks:
 2.	From __PLAYBOOK__ dropdown menu, select __platforms/jupyterhub.yml__ and launch the template to install JupyterHub playbook.
 3.	From __PLAYBOOK__ dropdown menu, select __platforms/kubeflow.yml__ and launch the template to install Kubeflow playbook.
 
-__Note:__ When the Internet connectivity is unstable or slow, it may take more time to pull the images to create the Kubeflow containers. If the time limit is exceeded, the **Apply Kubeflow configurations** task may fail. To resolve this issue, you must redeploy Kubernetes cluster and reinstall Kubeflow by completing the following steps:
-1. Complete the PXE booting of the head and compute nodes.
-2. In the `omnia_config.yml` file, change the k8s_cni variable value from calico to flannel.
-3. Run the Kubernetes and Kubeflow playbooks.
+>> __Note:__ When the Internet connectivity is unstable or slow, it may take more time to pull the images to create the Kubeflow containers. If the time limit is exceeded, the **Apply Kubeflow configurations** task may fail. To resolve this issue, you must redeploy Kubernetes cluster and reinstall Kubeflow by completing the following steps:
+>> 1. Complete the PXE booting of the head and compute nodes.
+>> 2. In the `omnia_config.yml` file, change the k8s_cni variable value from calico to flannel.
+>> 3. Run the Kubernetes and Kubeflow playbooks.
 
-**Note**: If you want to view or edit the `omnia_config.yml` file, run the following command:
-- `ansible-vault view omnia_config.yml --vault-password-file .omnia_vault_key` -- To view the file.
-- `ansible-vault edit omnia_config.yml --vault-password-file .omnia_vault_key` -- To edit the file.
+>> If you want to view or edit the `omnia_config.yml` file, run the following command:
+>> - `ansible-vault view omnia_config.yml --vault-password-file .omnia_vault_key` -- To view the file.
+>> - `ansible-vault edit omnia_config.yml --vault-password-file .omnia_vault_key` -- To edit the file.
 
-## Roles assigned to the compute and manager groups
+### Roles assigned to the compute and manager groups
 After **DeployOmnia** template is run from the AWX UI, the **omnia.yml** file installs Kubernetes and Slurm, or either Kubernetes or Slurm, as per the selection in the template on the control plane. Additionally, appropriate roles are assigned to the compute and manager groups.
 
 ## Add a new compute node to the cluster
@@ -107,7 +107,7 @@ From Omnia 1.2, the cobbler container OS will follow the OS on the control plane
 ## Setting up Static IPs on Devices when the network interface type is shared LOM
 >> __Note:__ All steps listed below are to be administered on the control plane. The DHCP provided IPs for these devices will be within the `host_network_range` irrespective of whether `roce_network_nic` is provided.
 
-When the network interface type is set to shared LOM, users can manually assign static IPs to their networking (ethernet or Infiniband) or storage (powervault). Depending on whether `roce_network_nic` is provided, there are two ways users can achieve this:
+When the network interface type is set to shared LOM, users can manually assign static IPs to their networking (ethernet or Infiniband) or storage (powervault). Depending on whether the user set up a RoCe network and provided a `roce_network_nic` in `base_vars.yml`, there are two ways users can achieve this:
 
 ### When `roce_network_nic` is provided:
 1. Get the pod name of the network-config pod: `Kubectl get pods -n network-config`

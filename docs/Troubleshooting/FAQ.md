@@ -21,6 +21,9 @@ If hosts are listed, then an IP address has been assigned to them by DHCP. Howev
     * `swapoff -a`
     * `systemctl restart kubelet`
 
+## What to do if AWX auto aborts jobs (Omnia template typically) when executed on a cluster larger than 6 nodes?
+Use CLI to execute Omnia by default by disabling AWX (set `awx_web_variable` in `base_vars.yml` to `false`).
+
 ## How to clear up the configuration if `control_plane.yml` fails at the webui_awx stage?
   In the `webui_awx/files` directory, delete the `.tower_cli.cfg` and `.tower_vault_key` files, and then re-run `control_plane.yml`.
 

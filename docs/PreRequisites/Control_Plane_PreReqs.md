@@ -45,7 +45,7 @@
 	
     >>__Note__:
      >> * To deploy Omnia, Python 3.6 provides bindings to system tools such as RPM, DNF, and SELinux. As versions greater than 3.6 do not provide these bindings to system tools, ensure that you install Python 3.6 with dnf.  
-     >> * If SELinux is not disabled on the control plane, disable it from `/etc/sysconfig/selinux` and restart the control plane.
+     >> * SELinux will not be disabled and will be in permissive mode when control plane is executing.
      >> * If Ansible version 2.9 or later is installed, ensure it is uninstalled before installing a newer version of Ansible. Run the following commands to uninstall Ansible before upgrading to newer version.
     >> 1. `pip uninstall ansible`
     >> 2. `pip uninstall ansible-base (if ansible 2.9 is installed)`

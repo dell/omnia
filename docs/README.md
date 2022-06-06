@@ -33,14 +33,15 @@ Omnia can deploy firmware, install Kubernetes or Slurm (or both), along with add
 - Added support for bolt-on BeeGFS configuration
 - Added ability to upgrade kernel on Red Hat devices
 - Added support for shared LOM (LAN on Motherboard) configuration
+- Due to known limitations with AWX, installation of AWX is now optional using the parameters `awx_web_support`.
 
 # Using Omnia
 1. Set up your network based on the sample topologies provided [here](SUPPORTED_NETWORK_TOPOLOGY.md)
 2. Verify that your system meets Omnia's [hardware](Support_Matrix/Hardware) and [software requirements](Support_Matrix/Software/Operating_Systems)
 3. Ensure that all [pre-requisites](PreRequisites) are met.
 4. Fill out all the required [input parameters](Input_Parameter_Guide).
-5. [Run Control_Plane](Installation_Guides/INSTALL_OMNIA_CONTROL_PLANE.md) to provision OS's, [configure devices](Device_Configuration) and set up [security measures](Security).
-6. [Run Omnia](Installation_Guides/INSTALL_OMNIA_CLI.md) to set up Kubernetes and Slurm.
+5. [Run Control_Plane](Installation_Guides/INSTALL_CONTROL_PLANE.md) to provision OS's, [configure devices](Device_Configuration) and set up [security measures](Security).
+6. [Run Omnia on target cluster nodes](Installation_Guides/INSTALL_OMNIA_CLI.md) to set up Kubernetes and Slurm.
 7. Run the telemetry playbook to [set up](Installation_Guides/INSTALL_TELEMETRY.md) and use [Telemetry and Visualization Services](Telemetry_Visualization)
    ![Omnia Flow](images/Omnia_Flow.png)
 
