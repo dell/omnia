@@ -14,25 +14,26 @@
 ---
 
 # Tasks for deploying AWX on the system
+- block:
+    - name: Internet validation
+      include_tasks: ../../control_plane_common/tasks/internet_validation.yml
 
-- name: Internet validation
-  include_tasks: ../../control_plane_common/tasks/internet_validation.yml
+    - name: Check awx prequisites
+      include_tasks: check_prerequisites.yml
 
-- name: Check awx prequisites
-  include_tasks: check_prerequisites.yml
+    - name: Install AWX
+      include_tasks: install_awx.yml
+      when: not awx_pod_deployment_status
 
-- name: Install AWX
-  include_tasks: install_awx.yml
-  when: not awx_pod_deployment_status
+    - name: Configure settings
+      include_tasks: configure_settings.yml
+      when: not awx_ui_status
+      
+    - name: Changing login logo of AWX UI
+      include_tasks: awx_logo.yml
+      when: not awx_configuration_status
 
-- name: Configure settings
-  include_tasks: configure_settings.yml
-  when: not awx_ui_status
-  
-- name: Changing login logo of AWX UI
-  include_tasks: awx_logo.yml
-  when: not awx_configuration_status
-
-- name: Configure AWX
-  include_tasks: awx_configuration.yml
-  when: not awx_configuration_status
+    - name: Configure AWX
+      include_tasks: awx_configuration.yml
+      when: not awx_configuration_status
+  when: awx_web_support

@@ -29,7 +29,7 @@
 
     - name: Filter the ip
       set_fact:
-        vars_new: "{{ var | ipv4('address') | to_nice_yaml}}"
+        vars_new: "{{ var | ansible.utils.ipv4('address') | to_nice_yaml}}"
 
     - name: Create the static ip
       shell: awk -F',' 'NR >1{print $3}' omnia/control_plane/roles/provision_cobbler/files/new_host_mapping_file.csv > static_hosts.yml
