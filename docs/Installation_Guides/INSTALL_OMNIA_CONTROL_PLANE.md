@@ -19,13 +19,13 @@ Using Omnia 1.2, you can provision and monitor hardware devices such as servers,
 	* For InfiniBand DHCP, connect NIC on the control plane to one of the data ports of the InfiniBand Switch. Next, connect one of the data ports of the InfiniBand switch to the NIC on the compute node. 
 * Establishing a host network: For Cobbler DHCP to assign an IP address to the compute node NIC, connect NIC of the control plane to the data port on the network switch. Connect another data port on the network switch to the NIC on the compute node. Omnia will provision OS on the compute nodes using PXE when the iDRAC Enterprise license is missing on any of the compute nodes in the HPC cluster.
 
->> __Note__: Cobbler web support has been discontinued from Omnia 1.2 onwards.
+>> __Note__:
+>>
+>> 	* Cobbler web support has been discontinued from Omnia 1.2 onwards.
+>> 	* Note that the PowerVault NFS server should have separate NICs configured for management, data (Connecting to other compute nodes) and a dedicated data connection to the storage array.
+>> 	* Refer to the [Control Plane Pre-Requisites](../PreRequisites/Control_Plane_PreReqs.md) file to ensure smooth running of the control_plane.
 
-Depending on the pass-through switch configured in your HPC environment, the number of racks will be limited based on the number of ports available on the pass-through switch. To support additional racks, you can form an L1-L2 topology and configure a network of Passthrough Switches. A typical layout of an HPC cluster with a network of pass-through switches is as per the following illustration:  
-
-![Typical layout of an HPC cluster with a network of pass-through switches](../images/Omnia_NetworkConfig_Inet.png)
-
->>__Note__: Refer to the Omnia_Control_Plane_PreReqs.md file to ensure smooth running of the control_plane.
+## [List of all supported Omnia Network Topologies](../SUPPORTED_NETWORK_TOPOLOGY.md)
 
 ## Steps to deploy the Omnia Control Plane
 
@@ -65,22 +65,82 @@ To configure the login node, refer to [Install_Omnia](INSTALL_OMNIA_CLI.md).
 ```
 ansible-playbook control_plane.yml
 ```  
-8. If the host_mapping_file_path is not provided, then you must manually assign the component roles through the AWX UI. Go to [Assign component roles using AWX UI](INSTALL_OMNIA_CONTROL_PLANE.md#assign-component-roles-using-awx-ui).
+8. If the host_mapping_file_path is not provided, then you must manually assign the component roles through the AWX UI. Go to [Assign component roles using AWX UI](USING_AWX_PLAYBOOKS.md#assign-component-roles-using-awx-ui).
 
 Omnia creates a log file which is available at: `/var/log/omnia.log`.  
 
 
 ## Configurations Performed by Omnia Control Plane
 The installation of omnia control plane depends largely on the variables entered in `base_vars.yml`. These variables decide how many functionalities of Omnia are actually required in your environment.
+The network configuration performed by Omnia depends on the value of `network_interface_type` in `base_vars.yml`. Omnia Control plane then provides the user with the choice of assigning management/communication IPs (`device_config_support`) to all available servers, switches and powervault devices per the chosen network architecture. When true, all applicable devices are given new IPs. It is recommended that when `device_config_support` is true, __a device mapping file (Example [here](../../examples/mapping_device_file.csv)) is used__ to keep assigned IPs persistent between control plane reboots. If `idrac_support` true, the devices are expected to have their own IPs furnished in the filepath mentioned under `device_ip_list_path`. Having the IPs allows omnia to reach and configure switches, servers and powervaults without disturbing the existing network set up. Users can choose which devices require configuration using the variables `ethernet_switch_support`, `ib_switch_support` and `powervault_support`. Table of all supported parameter combinations and the expected outcome is provided below:
+<table>
+<thead>
+  <tr>
+    <th>   <br>network_interface_type   </th>
+    <th>   <br>device_config_support   </th>
+    <th>   <br>idrac_support   </th>
+    <th>   <br>Outcome   </th>
+    <th>   <br>One Touch Config Support   </th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td rowspan="4">   <br>Dedicated   </td>
+    <td>   <br>TRUE   </td>
+    <td>   <br>TRUE   </td>
+    <td>   <br>Omnia will assign IPs to all the   management ports of the different devices. iDRAC and PXE provisioning is   supported. Here, ethernet, InfiniBand and powervault configurations are   supported.   </td>
+    <td>   <br>Yes   </td>
+  </tr>
+  <tr>
+    <td>   <br>TRUE   </td>
+    <td>   <br>FALSE   </td>
+    <td>   <br>An assert failure on   control_plane_common will manifest and Omnia Control Plane will fail.   </td>
+    <td>   <br>No   </td>
+  </tr>
+  <tr>
+    <td>   <br>FALSE   </td>
+    <td>   <br>TRUE   </td>
+    <td>   <br>Assuming the device_ip_list is   populated, mgmt_container will not be used to assign the IPs to all the mgmt   ports as a device_ip_list indicates that IP assignment is   already done. However, ethernet, InfiniBand, powervault configurations are   supported.   </td>
+    <td>   <br>Yes   </td>
+  </tr>
+  <tr>
+    <td>   <br>FALSE   </td>
+    <td>   <br>FALSE   </td>
+    <td>   <br>No IPs will be assigned by   Omnia. Provisioning will only be through PXE.   </td>
+    <td>   <br>No   </td>
+  </tr>
+  <tr>
+    <td rowspan="4">   <br>lom   </td>
+    <td rowspan="2">   <br>TRUE   </td>
+    <td rowspan="4">   <br>TRUE   </td>
+    <td>   <br>When roce_nic_ip is populated,   Omnia will assign IPs to both the management and data ports. Cobbler/pxe   provisioning will be done via the roce_network_nic.   </td>
+    <td>   <br>Yes   </td>
+  </tr>
+  <tr>
+    <td>   <br>When roce_nic_ip is not   populated,  the cobbler container will be used to assign IPs to both the   iDRAC management port and the data ports. Both iDRAC and pxe mode of   provisioning are supported.   </td>
+    <td>   <br>No   </td>
+  </tr>
+  <tr>
+    <td rowspan="2">   <br>FALSE   </td>
+    <td>   <br>When roce_nic_ip is populated,   management network container will come up, and it will be used to assign the   management and data port IPs. This only will provide internet connection, if   DNS settings are filled in base_vars.yml. <br>   <br>Along with this , Cobbler PXE provisioning will be done   over the high speed  data path or roce.   </td>
+    <td>   <br>No   </td>
+  </tr>
+  <tr>
+    <td>   <br>When roce_nic_ip is not   populated, cobbler container will come up and will be responsible for   mgmt. and data IP assignment as well as for providing the DNS configurations(   if the parameters are given)   </td>
+    <td>   <br>No   </td>
+  </tr>
+</tbody>
+</table>
 
-Omnia Control plane starts with the choice of assigning management/communication IPs (`device_config_support`) to all available servers, switches and powervault devices. When true, all applicable devices are given new IPs. It is recommended that when `device_config_support` is true, __a device mapping file (Example [here](../../examples/mapping_device_file.csv)) is used__ to keep assigned IPs persistent between control plane reboots. If `idrac_support` true, the devices are expected to have their own IPs furnished in the filepath mentioned under `device_ip_list_path`. Having the IPs allows omnia to reach and configure switches, servers and powervaults without disturbing the existing network set up. Users can choose which devices require configuration using the variables `ethernet_switch_support`, `ib_switch_support` and `powervault_support`.
+>> __Note:__
+* When `network interface` type is `lom`, `idrac_support` is assumed to be true irrespective of user input.
+* Omnia will not automatically assign IPs to all devices (powervault or ethernet/Infiniband switches) when `network_interface_type` is lom. However, if required, users can follow the [linked steps](USING_AWX_PLAYBOOKS.md#setting-up-static-ips-on-devices-when-the-network-interface-type-is-shared-lom).
+* Despite the value of `mgmt_network_nic` and `host_network_nic` being the same in LOM environments, the IPs assigned for management and data should not be in the same range. The start and end values of the management IP range and the host IP range cannot be the same.
+* When `roce_network_nic` is provided, the `host_mapping_file_path` is disregarded. This means that static IP assignment is not supported when high speed data paths are used for provisioning.
 
-| device_config_support | idrac_support | Outcome                                                                                                         |
-|-----------------------|---------------|-----------------------------------------------------------------------------------------------------------------|
-| true                  | true          | New Management IPs will be assigned and servers will be provisioned based on the value of `provision_method`                                                                     |
-| true                  | false         | An assert failure on control_plane_common will manifest and Omnia Control Plane will fail.                                                                  |
-| false                 | true          | Omnia will not assign IPs to the devices/iDRAC. Deployment will take place via the IPs provided in `device_ip_list_path` based on the `provision_method`.                                           |
-| false                 | false         | No IPs will be assigned by Omnia. Provisioning will only be through PXE. Slurm and Kubernetes can be deployed in the cluster.  |
+Once all network configuration is complete, Omnia uses AWX to integrate a centralized log system, receive live updates of running jobs, scheduled jobs, etc. AWX can also be used to assign component roles, install kuberenetes, JupyterHub, Kubeflow, Slurm, Prometheus and Grafana.
+
+
 
 Once all network configuration is complete, Omnia uses AWX to integrate a centralized log system, receive live updates of running jobs, scheduled jobs, etc. AWX can also be used to assign component roles, install kuberenetes, JupyterHub, Kubeflow, Slurm, Prometheus and Grafana.
 
@@ -111,134 +171,8 @@ Omnia performs the following configurations on AWX:
 
 >> **Note**: The AWX configurations are automatically performed by Omnia, and Dell Technologies recommends that you do not change the default configurations that are provided by Omnia as the functionality may be impacted.  
 
-# Configuring new devices added to the cluster
-For Omnia to configure the devices and to provision the bare metal servers which are introduced newly in the cluster, you must configure the corresponding input parameters and deploy the device-specific template from the AWX UI. Based on the devices added to the cluster, click the respective link to go to configuration section.  
-* [Configure Dell EMC PowerSwitches](../Device_Configuration/Ethernet_Switches.md)
-* [Provision OS on PowerEdge Servers](../Device_Configuration/Servers.md)
-* [Configure Mellanox InfiniBand Switches](../Device_Configuration/Infiniband_Switches.md)
-* [Configure PowerVault Storage](../Device_Configuration/PowerVault.md)  
+The AWX UI can be used to run playbooks such as `omnia.yml`. To set up red hat subscription, Slurm, Kubernetes, JupyterHub , configure devices etc, check out [Using AWX Playbooks](USING_AWX_PLAYBOOKS.md).
 
-# Assign component roles using AWX UI
-1. Run `kubectl get svc -n awx`.
-2. Copy the Cluster-IP address of the awx-ui.  
-3. To retrieve the AWX UI password, run `kubectl get secret awx-admin-password -n awx -o jsonpath="{.data.password}" | base64 --decode`.
-4. Open the default web browser on the control plane and enter `http://<IP>:8052`, where IP is the awx-ui IP address and 8052 is the awx-ui port number. Log in to the AWX UI using the username as `admin` and the retrieved password.  
-5. On the AWX dashboard, under __RESOURCES__ __->__ __Inventories__, select **node_inventory**.
-6. Select the **Hosts** tab.
-7. To add hosts to the groups, click **+**. 
-8. Select **Existing Host**, and then select the hosts from the list and add them to the groups--**compute**, **manager**, **login**, or **nfs**.  
-	If you have set the `login_node_required` variable in the `omnia_config` file to "false", then you can skip assigning host to the login node.
-9.  If the login_node_required is true, make sure the hostnames of all the nodes in the cluster especially the manager and login node are in the format: hostname.domainname. For example, manager.omnia.test is a valid FQDN. If the Hostname is not set then freeipa server/client installation will fail.
-10. Click __SAVE__.
-11. To deploy Kubernetes and Slurm containers on PowerEdge Servers, under __RESOURCES__ -> __Templates__, select **deploy_omnia**, and then click __LAUNCH__.
-12. By default, no skip tags are selected, and both Kubernetes and Slurm are deployed. 
-13. To install only Kubernetes, enter `slurm` and select **slurm**. 
-14. To install only Slurm, select and add `kubernetes` skip tag.  
-
->> **Note**: If you would like to skip the NFS client setup, enter `nfs_client` in the skip tag section to skip the **k8s_nfs_client_setup** role of Kubernetes.  
-
-15. Click **NEXT**.
-16. Review the details in the **PREVIEW** window and click **LAUNCH** to run the DeployOmnia template. 
-
-The **deploy_omnia_template** may not run successfully if:
-- The **manager** group contains more than one host.
-- The **manager**, **compute**, **login**, and **nfs** groups do not contain a host. Ensure that you assign at least one host node to these groups.  
-	If you have set the `login_node_required` variable in the `omnia_config` file to "false", then you can skip assigning host to the login node.
-- Under Skip Tags, when both kubernetes and slurm tags are selected.  
-
-__Note__: On the AWX UI, hosts will be listed only after few nodes have been provisioned by Omnia. It takes approximately 10 to 15 minutes to display the host details after the provisioning is complete. If a device is provisioned, but you are unable to view the host details on the AWX UI, then you can run the following command from **omnia** -> **control_plane** -> **tools** folder to view the hosts which are reachable.
-```
-ansible-playbook -i ../roles/collect_node_info/provisioned_hosts.yml provision_report.yml
-```
-
-## Install JupyterHub and Kubeflow playbooks  
-If you want to install __JupyterHub__ and __Kubeflow__ playbooks, you have to first install the __JupyterHub__ playbook and then install the __Kubeflow__ playbook.  
-To install __JupyterHub__ and __Kubeflow__ playbooks:
-1.	From AWX UI, under __RESOURCES__ -> __Templates__, select __DeployOmnia__ template.
-2.	From __PLAYBOOK__ dropdown menu, select __platforms/jupyterhub.yml__ and launch the template to install JupyterHub playbook.
-3.	From __PLAYBOOK__ dropdown menu, select __platforms/kubeflow.yml__ and launch the template to install Kubeflow playbook.
-
-__Note:__ When the Internet connectivity is unstable or slow, it may take more time to pull the images to create the Kubeflow containers. If the time limit is exceeded, the **Apply Kubeflow configurations** task may fail. To resolve this issue, you must redeploy Kubernetes cluster and reinstall Kubeflow by completing the following steps:
-1. Complete the PXE booting of the head and compute nodes.
-2. In the `omnia_config.yml` file, change the k8s_cni variable value from calico to flannel.
-3. Run the Kubernetes and Kubeflow playbooks.  
-
-**Note**: If you want to view or edit the `omnia_config.yml` file, run the following command:  
-- `ansible-vault view omnia_config.yml --vault-password-file .omnia_vault_key` -- To view the file. 
-- `ansible-vault edit omnia_config.yml --vault-password-file .omnia_vault_key` -- To edit the file.  
-## Roles assigned to the compute and manager groups
-After **DeployOmnia** template is run from the AWX UI, the **omnia.yml** file installs Kubernetes and Slurm, or either Kubernetes or Slurm, as per the selection in the template on the control plane. Additionally, appropriate roles are assigned to the compute and manager groups.
-
-### Kubernetes roles
-
-The following __kubernetes__ roles are provided by Omnia when __omnia.yml__ file is run:
-- __common__ role:
-	- Install common packages on manager and compute nodes
-	- Docker is installed
-	- Deploy time ntp/chrony
-	- Install Nvidia drivers and software components
-- **k8s_common** role: 
-	- Required Kubernetes packages are installed
-	- Starts the docker and Kubernetes services.
-- **k8s_manager** role: 
-	- __helm__ package for Kubernetes is installed.
-- **k8s_firewalld** role: This role is used to enable the required ports to be used by Kubernetes. 
-	- For __head-node-ports__: 6443, 2379-2380,10251,10250,10252
-	- For __compute-node-ports__: 10250,30000-32767
-	- For __calico-udp-ports__: 4789
-	- For __calico-tcp-ports__: 5473,179
-	- For __flannel-udp-ports__: 8285,8472
-- **k8s_nfs_server_setup** role: 
-	- A __nfs-share__ directory, `/home/k8snfs`, is created. Using this directory, compute nodes share the common files.
-- **k8s_nfs_client_setup** role
-- **k8s_start_manager** role: 
-	- Runs the __/bin/kubeadm init__ command to initialize the Kubernetes services on manager node.
-	- Initialize the Kubernetes services in the manager node and create service account for Kubernetes Dashboard
-- **k8s_start_workers** role: 
-	- The compute nodes are initialized and joined to the Kubernetes cluster with the manager node. 
-- **k8s_start_services** role
-	- Kubernetes services are deployed such as Kubernetes Dashboard, Prometheus, MetalLB and NFS client provisioner
-	
-
-* Whenever the k8s_version, k8s_cni or k8s_pod_network_cidr needs to be modified after the HPC cluster is set up, the OS in the manager and compute nodes in the cluster must be re-flashed before executing `omnia.yml` again.
-* After Kubernetes is installed and configured, few Kubernetes and calico/flannel related ports are opened in the manager and compute nodes. This is required for Kubernetes Pod-to-Pod and Pod-to-Service communications. Calico/flannel provides a full networking stack for Kubernetes pods.
-* If Kubernetes Pods are unable to communicate with the servers (i.e., unable to access the Internet) when the DNS servers are not responding, then the Kubernetes Pod Network CIDR may be overlapping with the host network which is DNS issue. To resolve this issue:
-	1. Disable firewalld.service.
-	2. If the issue persists, then perform the following actions:  
-		a. Format the OS on manager and compute nodes.  
-		b. In the control plane, edit the *omnia_config.yml* file to change the Kubernetes Pod Network CIDR or CNI value. Suggested IP range is 192.168.0.0/16 and ensure you provide an IP which is not in use in your host network.  
-		c. Execute `omnia.yml` and skip slurm using `--skip-tags slurm`.
- 
-### Slurm roles
-
-The following __Slurm__ roles are provided by Omnia when __omnia.yml__ file is run:
-- **slurm_common** role:
-	- Installs the common packages on manager node and compute node.
-- **slurm_manager** role:
-	- Installs the packages only related to manager node
-	- This role also enables the required ports to be used by Slurm.  
-	    **tcp_ports**: 6817,6818,6819  
-		**udp_ports**: 6817,6818,6819
-	- Creating and updating the Slurm configuration files based on the manager node requirements.
-- **slurm_workers** role:
-	- Installs the Slurm packages into all compute nodes as per the compute node requirements.
-- **slurm_start_services** role: 
-	- Starting the Slurm services so that communicates with manager node.
-- **slurm_exporter** role: 
-	- Slurm exporter is a package for exporting metrics collected from Slurm resource scheduling system to Prometheus.
-	- Slurm exporter is installed on the host like Slurm, and Slurm exporter will be successfully installed only if Slurm is installed.  
-
-## Login node roles
-To enable the login node, the *login_node_required* variable must be set to "true" in the *omnia_config.yml* file.  
-- **login_common** role: The firewall ports are opened on the manager and login nodes.  
-- **login_server** role: FreeIPA server is installed and configured on the manager node to provide authentication using LDAP and Kerberos principles.  
-- **login_node** role: For Rocky, FreeIPA client is installed and configured on the login node and is integrated with the server running on the manager node. For LeapOS, 389ds will be installed instead.
-
->>__Note:__ If LeapOS is being deployed, login_common and login_server roles will be skipped. 
-
-## Add a new compute node to the cluster
-
-If a new node is provisioned through Cobbler, the node address is automatically displayed on the AWX dashboard. The node is not assigned to any group. You can add the node to the compute group along with the existing nodes and run `omnia.yml` to add the new node to the cluster and update the configurations in the manager node.
 
 ## Creating a new cluster 
 From Omnia 1.2, the cobbler container OS will follow the OS on the control plane but will deploy multiple OS's based on the `provision_os` value in `base_vars.yml`.
@@ -247,11 +181,12 @@ From Omnia 1.2, the cobbler container OS will follow the OS on the control plane
  * On adding the cluster, run the iDRAC template before running `control_plane.yml`
  * If the new cluster is to run on a different OS than the previous cluster, update the parameters `provision_os` and `iso_file_path` in `base_vars.yml`. Then run `control_plane.yml` 
  
->> Example: In a scenario where the user wishes to deploy LEAP and Rocky on their multiple servers, below are the steps they would use:
->> 1. Set `provision_os` to leap and `iso_file_path` to `/root/openSUSE-Leap-15.3-DVD-x86_64-Current.iso`.
->> 2. Run `control_plane.yml` to provision leap and create a profile called `leap-x86_64` in the cobbler container.
+>> Example: In a scenario where the user wishes to deploy Red Hat and Rocky on their multiple servers, below are the steps they would use:
+>> 1. Set `provision_os` to redhat and `iso_file_path` to `/root/RedHat-8.5-DVD-x86_64-Current.iso`.
+>> 2. Run `control_plane.yml` to provision leap and create a profile called `RedHat-x86_64` in the cobbler container.
 >> 3. Set `provision_os` to rocky and `iso_file_path` to `/root/Rocky-8.x-x86_64-minimal.iso`.
 >> 4. Run `control_plane.yml` to provision rocky and create a profile called `rocky-x86_64` in the cobbler container.
 
 
 >> __Note:__ All compute nodes in a cluster must run the same OS. 
+

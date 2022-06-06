@@ -1,3 +1,18 @@
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
 - hosts: localhost
   connection: local
   gather_facts: true
@@ -11,14 +26,23 @@
       set_fact:
         var: "{{ lookup('file', '/var/lib/dhcp/db/dhcpd.leases').split()| unique | select| list }}"
       when: ("leap" in ansible_facts['distribution'] | lower)
-    
+
     - name: Filter the ip
       set_fact:
-        vars_new: "{{ var| ipv4('address')| to_nice_yaml}}"
+        vars_new: "{{ var | ansible.utils.ipv4('address') | to_nice_yaml}}"
 
     - name: Create the static ip
       shell: awk -F',' 'NR >1{print $3}' omnia/control_plane/roles/provision_cobbler/files/new_host_mapping_file.csv > static_hosts.yml
       changed_when: false
+      when: not roce_enabled | bool
+      failed_when: false
+
+    - name: Create the static ip for mgmt hosts for shared lom
+      shell: awk -F',' 'NR >1{print $2}' omnia/control_plane/roles/provision_cobbler/files/new_mgmt_mapping_file.csv > static_mgmt.yml
+      changed_when: false
+      when:
+        - network_interface_type == "lom"
+        - not roce_enabled | bool
       failed_when: false
 
     - name: Create the dynamic inventory
@@ -28,17 +52,119 @@
       changed_when: false
       failed_when: false
 
+    - block:
+        - name: Read dhcp file for rocky
+          set_fact:
+            dynamic_ip: "{{ lookup('file', 'dynamic_hosts.yml').split()| unique | select| list }}"
+
+        - name: Divide the IPs into seperate files
+          shell: |
+            IFS=. read -r i1 i2 i3 i4 <<< "{{ item }}"
+            IFS=. read -r m1 m2 m3 m4 <<< "{{ netmask }}"
+            printf "%d.%d.%d.%d\n" "$((i1 & m1))" "$((i2 & m2))" "$((i3 & m3))" "$((i4 & m4))"
+          args:
+            warn: no
+          register: provisioned_ips
+          with_items: "{{ dynamic_ip }}"
+          changed_when: false
+
+        - name: Divide the IPs into seperate files
+          shell: |
+            IFS=. read -r i1 i2 i3 i4 <<< "{{ item }}"
+            IFS=. read -r m1 m2 m3 m4 <<< "{{ mgmt_network_netmask }}"
+            printf "%d.%d.%d.%d\n" "$((i1 & m1))" "$((i2 & m2))" "$((i3 & m3))" "$((i4 & m4))"
+          args:
+            warn: no
+          register: device_ips
+          with_items: "{{ dynamic_ip }}"
+          changed_when: false
+
+        - name: Add the ips in host files
+          shell: echo "{{ item.item }}"| sort|uniq >> /root/hosts.yml
+          when:  item.stdout == subnet
+          loop: "{{ provisioned_ips.results }}"
+          loop_control:
+            label: "{{ item.stdout }}"
+
+        - name: Add the ips in device files
+          shell: echo "{{ item.item }}"| sort|uniq >> /root/devices.yml
+          when:  item.stdout == mgmt_network_subnet
+          loop: "{{ device_ips.results }}"
+          loop_control:
+            label: "{{ item.stdout }}"
+
+        - name: Final inventory for hosts
+          shell: |
+            cat hosts.yml static_hosts.yml| sort -ur  >> omnia/control_plane/roles/collect_node_info/files/provisioned_hosts.yml
+          changed_when: false
+
+        - name: Final inventory for devices
+          shell: |
+            cat devices.yml static_mgmt.yml| sort -ur  >> omnia/control_plane/roles/collect_device_info/files/mgmt_provisioned_hosts.yml
+          changed_when: false
+
+        - name: Temp result for device
+          shell: cat /root/omnia/control_plane/roles/collect_device_info/files/mgmt_provisioned_hosts.yml |sort|uniq
+          register: inventory
+          changed_when: false
+
+        - name: Final Inventory
+          copy:
+            content: "{{ inventory.stdout}}"
+            dest: omnia/control_plane/roles/collect_device_info/files/mgmt_provisioned_hosts.yml
+
+        - name: New line at end of file
+          shell: echo "">> omnia/control_plane/roles/collect_device_info/files/mgmt_provisioned_hosts.yml
+          changed_when: false
+      when:
+        - network_interface_type == "lom"
+        - not roce_enabled | bool
+
     - name: Final inventory
-      shell: cat dynamic_hosts.yml static_hosts.yml| sort -ur  >> omnia/control_plane/roles/collect_node_info/files/provisioned_hosts.yml
+      shell: cat dynamic_hosts.yml static_hosts.yml| sort -ur >> omnia/control_plane/roles/collect_node_info/files/provisioned_hosts.yml
       changed_when: false
+      when: network_interface_type == "dedicated"
+
+    - block:
+      - name: Final inventory
+        shell: cat dynamic_hosts.yml | sort -ur >> omnia/control_plane/roles/collect_node_info/files/roce_provisioned_hosts.yml
+        changed_when: false
+
+      - name: Temp result
+        shell: cat /root/omnia/control_plane/roles/collect_node_info/files/roce_provisioned_hosts.yml | sort | uniq
+        register: inventory
+        changed_when: false
+
+      - name: Final Inventory
+        copy:
+          content: "{{ inventory.stdout }}"
+          dest: omnia/control_plane/roles/collect_node_info/files/roce_provisioned_hosts.yml
+
+      - name: New line at end of file
+        shell: echo "">> omnia/control_plane/roles/collect_node_info/files/roce_provisioned_hosts.yml
+        changed_when: false
+      when:
+        - network_interface_type == "lom"
+        - roce_enabled | bool
 
     - name: Temp result
-      shell: cat /root/omnia/control_plane/roles/collect_node_info/files/provisioned_hosts.yml |sort|uniq
+      shell: cat /root/omnia/control_plane/roles/collect_node_info/files/provisioned_hosts.yml | sort | uniq
       register: inventory
+      changed_when: false
 
     - name: Final Inventory
-      local_action: copy content="{{ inventory.stdout }}" dest=omnia/control_plane/roles/collect_node_info/files/provisioned_hosts.yml
+      copy:
+        content: "{{ inventory.stdout }}"
+        dest: omnia/control_plane/roles/collect_node_info/files/provisioned_hosts.yml
 
     - name: New line at end of file
       shell: echo "">> omnia/control_plane/roles/collect_node_info/files/provisioned_hosts.yml
       changed_when: false
+
+    - name: Delete the files
+      file:
+        path: "{{ item }}"
+        state: absent
+      with_items:
+        - "/root/temp.txt"
+        - "/root/dynamic_hosts.yml"

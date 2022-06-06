@@ -2,7 +2,7 @@
 
 The following sections provide details on installing `omnia.yml` using CLI.  
 
-To install the Omnia control plane and manage workloads on your cluster using the Omnia control plane, see [Install the Omnia Control Plane](INSTALL_OMNIA_CONTROL_PLANE.md) and [Monitor Kubernetes and Slurm](MONITOR_CLUSTERS.md) for more information.
+To install the Omnia control plane and manage workloads on your cluster using the Omnia control plane, see [Install the Omnia Control Plane](INSTALL_OMNIA_CONTROL_PLANE.md) and [Monitor Kubernetes and Slurm](../Monitoring/MONITOR_CLUSTERS.md) for more information.
 
 ## Steps to install Omnia using CLI
 
@@ -25,11 +25,32 @@ git clone -b release https://github.com/dellhpc/omnia.git
 >> __Note:__  Without the login node, Slurm jobs can be scheduled only through the manager node.
 
 4. Create an inventory file in the *omnia* folder. Add login node IP address under the *[login_node]* group, manager node IP address under the *[manager]* group, compute node IP addresses under the *[compute]* group, and NFS node IP address under the *[nfs_node]* group. A template file named INVENTORY is provided in the *omnia\docs* folder.  
->>	**Note**: Ensure that all the four groups (login_node, manager, compute, nfs_node) are present in the template, even if the IP addresses are not updated under login_node and nfs_node groups. 
+>>	**Note**: 
+>> * Omnia checks for red hat subscription being enabled on red hat nodes as a pre-requisite. Check out [how to enable Red Hat subscription here](USING_AWX_PLAYBOOKS.md#red-hat-subscription). Not having Red Hat subscription enabled on the manager node will cause `omnia.yml` to fail. If compute nodes do not have Red Hat subscription enabled, `omnia.yml` will skip the node entirely.
+>> * Ensure that all the four groups (login_node, manager, compute, nfs_node) are present in the template, even if the IP addresses are not updated under login_node and nfs_node groups.
+
+## Installing BeeGFS Client
+* If the user intends to use BeeGFS, ensure that a BeeGFS cluster has been set up with beegfs-mgmtd, beegfs-meta, beegfs-storage services running.
+  Ensure that the following ports are open for TCP and UDP connectivity:
+
+  | Port | Service                           |
+    |------|-----------------------------------|
+  | 8008 | Management service (beegfs-mgmtd) |
+  | 8003 | Storage service (beegfs-storage)  |
+  | 8004 | Client service (beegfs-client)    |
+  | 8005 | Metadata service (beegfs-meta)    |
+  | 8006 | Helper service (beegfs-helperd)   |
+
+To open the ports required, use the following steps:
+1. `firewall-cmd --permanent --zone=public --add-port=<port number>/tcp`
+2. `firewall-cmd --permanent --zone=public --add-port=<port number>/udp`
+3. `firewall-cmd --reload`
+4. `systemctl status firewalld`
+
 
 5. To install Omnia:
 
-| Leap OS                     	| CentOS, Rocky                                             	|
+| Leap OS                     	| CentOS, Rocky, Red Hat                                       	|
 |-----------------------------	|-----------------------------------------------------------	|
 | `ansible-playbook omnia.yml -i inventory -e 'ansible_python_interpreter=/usr/bin/python3'`   	| `ansible-playbook omnia.yml -i inventory`	|
 		
@@ -126,10 +147,9 @@ To enable the login node, the *login_node_required* variable must be set to "tru
 - **login_server** role: FreeIPA server is installed and configured on the manager node to provide authentication using LDAP and Kerberos principles.  
 - **login_node** role: For Rocky, FreeIPA client is installed and configured on the login node and is integrated with the server running on the manager node. For LeapOS, 389ds will be installed instead.
 
->>__Note:__ If LeapOS is being deployed, login_common and login_server roles will be skipped.  
-
->> **Note**: To skip the installation of:
->> * The login node-In the `omnia_config.yml` file, set the *login_node_required* variable to "false".  
+>>__Note:__ If LeapOS is being deployed, login_common and login_server roles will be skipped. <br>
+>>To skip the installation of:
+>> * The login node: In the `omnia_config.yml` file, set the *login_node_required* variable to "false".  
 >> * The FreeIPA server and client: Use `--skip-tags freeipa` while executing the *omnia.yml* file. 
 
 ### Installing JupyterHub and Kubeflow playbooks  
@@ -149,3 +169,8 @@ Commands to install JupyterHub and Kubeflow:
 
 To update the INVENTORY file present in `omnia` directory with the new node IP address under the compute group. Ensure the other nodes which are already a part of the cluster are also present in the compute group along with the new node. Then, run `omnia.yml` to add the new node to the cluster and update the configurations of the manager node.
 
+## Using BeeGFS on Clusters
+BeeGFS is a hardware-independent POSIX parallel file system (a.k.a Software-defined Parallel Storage) developed with a strong focus on performance and designed for ease of use, simple installation, and management. BeeGFS is created on an Available Source development model (source code is publicly available), offering a self-supported Community Edition and a fully supported Enterprise Edition with additional features and functionalities. BeeGFS is designed for all performance-oriented environments including HPC, AI and Deep Learning, Media & Entertainment, Life Sciences, and Oil & Gas (to name a few).
+![BeeGFS Structure](../images/BeeGFS_Structure.jpg)
+
+Once all the [pre-requisites](#installing-beegfs-client) are met, run `omnia.yml` to set up BeeGFS. 

@@ -37,4 +37,4 @@
   - name: Create unattended iso file rhel
     include_tasks: create_unattended_iso_rhel.yml
     when: provision_os == os_supported_rhel
-  when: device_support_status
+  when: ( device_config_support ) or ( network_interface_type == "lom" )

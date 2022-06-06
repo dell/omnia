@@ -19,104 +19,92 @@
 # Default value: portal
 # If satellite, the role will determine the Satellite Server version (5 or 6)
 # and take the appropriate registration actions.
-rhsm_method: portal
-
-# Red Hat Portal username
-# Mandatory field if rhsm_method is set to portal
-rhsm_username:
-
-# Red Hat Portal password
-# Mandatory field if rhsm_method is set to portal
-rhsm_password:
+redhat_subscription_method: portal
 
 # Whether or not to autosubscribe to available repositories on successful subscription.
 # Accepted values: true, false
-# This field is mutually exclusive with rhsm_activation_key
-rhsm_autosubscribe:
-
-# Red Hat Activation key
-# Mandatory field if rhsm_method is set to satellite
-# This field is mutually exclusive with rhsm_username and rhsm_password
-rhsm_activation_key:
-
-# Red Hat Portal Organization Identifier.
-# Organization ID to use in conjunction with activationkey
-rhsm_org_id:
+# This field is mutually exclusive with redhat_subscription_activation_key
+redhat_subscription_autosubscribe:
 
 # RHEL release version (e.g. 8.1).
-rhsm_release:
+redhat_subscription_release:
 
 # Register the system even if it is already registered.
 # Accepted values: true, false
-rhsm_force_register: false
+redhat_subscription_force_register: false
 
 # Specify subscription pool IDs to consume.
 # A pool ID may be specified as a string - just the pool ID (ex. 0123456789abcdef0123456789abcdef)
 # or as a dict with the pool ID as the key, and a quantity as the value
 # (ex. 0123456789abcdef0123456789abcdef: 2).
 # If the quantity is provided, it is used to consume multiple entitlements from a pool (the pool must support this).
-rhsm_pool_ids:
+redhat_subscription_pool_ids:
 
 # ---------REPOSITORY SUBSCRIPTION OPTIONS-----------
 
 # The list of repositories to enable or disable.
 # To operate on several repositories this can accept a comma separated list or a YAML list.
-rhsm_repos:
+# example:
+# redhat_subscription_repos:
+#   - rhel-8-for-x86_64-baseos-rpms
+#   - rhel-8-for-x86_64-appstream-rpms
+# or redhat_subscription_repos: rhel-8-for-x86_64-baseos-rpms,rhel-8-for-x86_64-appstream-rpms
+redhat_subscription_repos: 
 
-# The state of all repos in rhsm_repos.
+# The state of all repos in redhat_subscription_repos.
 # Accepted values: enabled, disabled
 # Default value: enabled
-rhsm_repos_state: enabled
+redhat_subscription_repos_state: enabled
 
-# Disable all currently enabled repositories that are not not specified in rhsm_repos.
-# Only set this to true if passing in a list of repositories to the rhsm_repo field.
+# Disable all currently enabled repositories that are not specified in redhat_subscription_repos.
+# Only set this to true if passing in a list of repositories to the redhat_subscription_repo field.
 # Accepted values: true, false
 # Default value: false
-rhsm_repos_purge: false
+redhat_subscription_repos_purge: false
 
 # ---------SUBSCRIPTION SERVER OPTIONS-----------
 
 # FQDN of subscription server
 # Default value: subscription.rhn.redhat.com
-rhsm_server_hostname: subscription.rhn.redhat.com
+redhat_subscription_server_hostname: subscription.rhn.redhat.com
 
 # Port to use when connecting to subscription server.
 # Must be 8443 if a capsule is used otherwise 443 for Satellite or RHN.
 # Accepted values: 8443, 443
 # Default value: 443
-rhsm_rhsm_port: 443
+redhat_subscription_port: 443
 
 # Disable certificate validation.
 # Accepted values: true, false
 # Default value: false
-rhsm_insecure: false
+redhat_subscription_insecure: false
 
 # Sets the number of certificates which should be used to verify the servers identity.
 # This is an advanced control which can be used to secure on premise installations.
 # Default value: 3
-rhsm_ssl_verify_depth: 3
+redhat_subscription_ssl_verify_depth: 3
 
 # Set this to a non-blank value if subscription-manager should use a reverse proxy
 # to access the subscription service. This sets the protocol for the reverse proxy.
 # Accepted values: http, https
 # Default value: http
-rhsm_rhsm_proxy_proto: http
+redhat_subscription_proxy_proto: http
 
 # Set this to a non-blank value if subscription-manager should use a reverse proxy
 # to access the subscription service. This sets the host for the reverse proxy.
-rhsm_rhsm_proxy_hostname:
+redhat_subscription_proxy_hostname:
 
 # Set this to a non-blank value if subscription-manager should use a reverse proxy
 # to access the subscription service. This sets the port for the reverse proxy.
-rhsm_rhsm_proxy_port:
+redhat_subscription_proxy_port:
 
 # Set this to a non-blank value if subscription-manager should use an authenticated
 # reverse proxy to access the subscription service. This sets the username for the reverse proxy.
-rhsm_rhsm_proxy_user:
+redhat_subscription_proxy_user:
 
 # Set this to a non-blank value if subscription-manager should use an authenticated
 # reverse proxy to access the subscription service. This sets the password for the reverse proxy.
-rhsm_rhsm_proxy_password:
+redhat_subscription_proxy_password:
 
 # ---------RHSM OPTIONS-----------
 
@@ -124,23 +112,7 @@ rhsm_rhsm_proxy_password:
 # This should be the hostname for the Red Hat CDN, the local Satellite or Capsule
 # depending on your deployment.
 # Default value: https://cdn.redhat.com
-rhsm_baseurl: https://cdn.redhat.com
-
-# The location for the certificates which are used to communicate with the server and to pull down content.
-# Default value: /etc/rhsm/ca/
-rhsm_ca_cert_dir: /etc/rhsm/ca/
-
-# The directory where product certificates should be stored.
-# Default value: /etc/pki/product
-rhsm_product_cert_dir: /etc/pki/product
-
-# The directory where entitlement certificates should be stored.
-# Default value: /etc/pki/entitlement
-rhsm_entitlement_cert_dir: /etc/pki/entitlement
-
-# The directory where the consumers identity certificate is stored.
-# Default value: /etc/pki/consumer
-rhsm_consumer_cert_dir: /etc/pki/consumer
+redhat_subscription_baseurl: https://cdn.redhat.com
 
 # Set this to true if subscription manager should manage a yum repos file.
 # If set, it will manage the file /etc/yum.repos.d/redhat.repo.
@@ -148,33 +120,25 @@ rhsm_consumer_cert_dir: /etc/pki/consumer
 # The /etc/yum.repos.d/redhat.repo file will either be purged or deleted.
 # Accepted values: true, false
 # Default value: true
-rhsm_manage_repos: true
+redhat_subscription_manage_repos: true
 
 # Set to true if the /etc/yum.repos.d/redhat.repo should be updated with every server command.
 # This will make yum less efficient, but can ensure that the most recent data is brought down
 # from the subscription service.
 # Accepted values: true, false
 # Default value: false
-rhsm_full_refresh_on_yum: false
+redhat_subscription_full_refresh_on_yum: false
 
 # Set to true if rhsmcertd should report the system's current package profile to the subscription
 # service. This report helps the subscription service provide better errata notifications.
 # Accepted values: true, false
 # Default value: true
-rhsm_report_package_profile: True
-
-# The directory to search for subscription manager plug-ins
-# Default value: /usr/share/rhsm-plugins
-rhsm_plugin_dir: /usr/share/rhsm-plugins
-
-# The directory to search for plug-in configuration files
-# Default value: /etc/rhsm/pluginconf.d
-rhsm_plugin_conf_dir: /etc/rhsm/pluginconf.d
+redhat_subscription_report_package_profile: true
 
 # ---------RHSMCERTD OPTIONS-----------
 
 # The number of minutes between runs of the rhsmcertd daemon.
-rhsm_cert_check_interval: 240
+redhat_subscription_cert_check_interval: 240
 
 # The number of minutes between attempts to run auto-attach on this consumer.
-rhsm_auto_attach_interval: 1440
+redhat_subscription_auto_attach_interval: 1440

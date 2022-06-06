@@ -16,9 +16,15 @@
     - name: Check prerequisites
       include_tasks: prerequisites.yml
 
+    - name: Clean the existing beegfs version
+      include_tasks: remove_client.yml
+      when: hostvars["127.0.0.1"]["beegfs_version_change"]
+
     - name: Configure firewalld
       include_tasks: beegfs_firewalld.yml
 
     - name: Install BeeGFS client
       include_tasks: beegfs_client.yml
-  when: hostvars["127.0.0.1"]["beegfs_support"]
+  when:
+    - hostvars["127.0.0.1"]["beegfs_support"]
+    - os_supported_leap not in compute_os

@@ -17,17 +17,18 @@ Omnia (Latin: all or everything) is a deployment tool to turn servers with RPM-b
 ## Pre Requisites before installing Omnia
 - [Python3](https://www.python.org/)
 - [Ansible 2.11.9](https://www.ansible.com/)
-- [RockyOS](https://rockylinux.org/)
+- [RockyOS](https://rockylinux.org/) / [Red Hat](https://www.redhat.com/en/enterprise-linux-8)
 
 
 # Using Omnia
 
-1. Verify that your system meets Omnia's [hardware](docs/Support_Matrix/Hardware) and [software requirements](docs/Support_Matrix/Software/Operating_Systems)
-2. Ensure that all [pre-requisites](docs/PreRequisites) are met.
-3. Fill out all the required [input parameters](docs/Input_Parameter_Guide).
-4. [Run Control_Plane](docs/Installation_Guides/INSTALL_OMNIA_CONTROL_PLANE.md) to provision OS's, [configure devices](docs/Device_Configuration) and set up [security measures](docs/Security):
-5. [Run Omnia](docs/Installation_Guides/INSTALL_OMNIA_CLI.md) to set up Kubernetes and Slurm.
-6. Run the telemetry playbook to [set up](docs/Installation_Guides/INSTALL_TELEMETRY.md) and use [Telemetry and Visualization Services](docs/Telemetry_Visualization)
+1. Set up your network based on the sample topologies provided [here](docs/SUPPORTED_NETWORK_TOPOLOGY.md)
+2. Verify that your system meets Omnia's [hardware](docs/Support_Matrix/Hardware) and [software requirements](docs/Support_Matrix/Software/Operating_Systems)
+3. Ensure that all [pre-requisites](docs/PreRequisites) are met.
+4. Fill out all the required [input parameters](docs/Input_Parameter_Guide).
+5. [Run Control_Plane](docs/Installation_Guides/INSTALL_OMNIA_CONTROL_PLANE.md) to provision OS's, [configure devices](docs/Device_Configuration) and set up [security measures](docs/Security).
+6. [Run Omnia](docs/Installation_Guides/INSTALL_OMNIA_CLI.md) to set up Kubernetes and Slurm.
+7. Run the telemetry playbook to [set up](docs/Installation_Guides/INSTALL_TELEMETRY.md) and use [Telemetry and Visualization Services](docs/Telemetry_Visualization)
    ![Omnia Flow](docs/images/Omnia_Flow.png)
 
 ## Troubleshooting Omnia
@@ -57,7 +58,7 @@ Our thanks go to everyone who makes Omnia possible ([emoji key](https://allcontr
     <td align="center"><a href="https://github.com/sujit-jadhav"><img src="https://avatars.githubusercontent.com/u/73123831?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Sujit Jadhav</b></sub></a><br /><a href="#ideas-sujit-jadhav" title="Ideas, Planning, & Feedback">🤔</a> <a href="https://github.com/dellhpc/omnia/commits?author=sujit-jadhav" title="Documentation">📖</a> <a href="https://github.com/dellhpc/omnia/commits?author=sujit-jadhav" title="Code">💻</a> <a href="https://github.com/dellhpc/omnia/pulls?q=is%3Apr+reviewed-by%3Asujit-jadhav" title="Reviewed Pull Requests">👀</a> <a href="#maintenance-sujit-jadhav" title="Maintenance">🚧</a> <a href="#projectManagement-sujit-jadhav" title="Project Management">📆</a> <a href="#mentoring-sujit-jadhav" title="Mentoring">🧑‍🏫</a></td>
     <td align="center"><a href="https://github.com/DeepikaKrishnaiah"><img src="https://avatars.githubusercontent.com/u/73213880?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Deepika K</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=DeepikaKrishnaiah" title="Code">💻</a> <a href="https://github.com/dellhpc/omnia/commits?author=DeepikaKrishnaiah" title="Tests">⚠️</a> <a href="https://github.com/dellhpc/omnia/issues?q=author%3ADeepikaKrishnaiah" title="Bug reports">🐛</a> <a href="#security-DeepikaKrishnaiah" title="Security">🛡️</a> <a href="#talk-DeepikaKrishnaiah" title="Talks">📢</a></td>
     <td align="center"><a href="https://github.com/sakshiarora13"><img src="https://avatars.githubusercontent.com/u/73195862?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Sakshi Arora</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=sakshiarora13" title="Code">💻</a> <a href="https://github.com/dellhpc/omnia/issues?q=author%3Asakshiarora13" title="Bug reports">🐛</a> <a href="#talk-sakshiarora13" title="Talks">📢</a></td>
-    <td align="center"><a href="https://github.com/abhishek-sa1"><img src="https://avatars.githubusercontent.com/u/94038029?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Abhishek SA</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=abhishek-sa1" title="Code">💻</a> <a href="https://github.com/dellhpc/omnia/issues?q=author%3Aabhishek-sa1" title="Bug reports">🐛</a> <a href="https://github.com/dellhpc/omnia/commits?author=abhishek-sa1" title="Documentation">📖</a> <a href="https://github.com/dellhpc/omnia/commits?author=abhishek-sa1" title="Tests">⚠️</a> <a href="#maintenance-abhishek-sa1" title="Maintenance">🚧</a></td>
+    <td align="center"><a href="https://github.com/abhishek-sa1"><img src="https://avatars.githubusercontent.com/u/94038029?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Abhishek SA</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=abhishek-sa1" title="Code">💻</a> <a href="https://github.com/dellhpc/omnia/issues?q=author%3Aabhishek-sa1" title="Bug reports">🐛</a> <a href="https://github.com/dellhpc/omnia/commits?author=abhishek-sa1" title="Documentation">📖</a> <a href="https://github.com/dellhpc/omnia/commits?author=abhishek-sa1" title="Tests">⚠️</a> <a href="#maintenance-abhishek-sa1" title="Maintenance">🚧</a> <a href="#talk-abhishek-sa1" title="Talks">📢</a></td>
     <td align="center"><a href="https://github.com/Shubhangi-dell"><img src="https://avatars.githubusercontent.com/u/72869337?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Shubhangi Srivastava</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=Shubhangi-dell" title="Code">💻</a> <a href="#maintenance-Shubhangi-dell" title="Maintenance">🚧</a> <a href="https://github.com/dellhpc/omnia/issues?q=author%3AShubhangi-dell" title="Bug reports">🐛</a></td>
   </tr>
   <tr>

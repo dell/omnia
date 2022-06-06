@@ -23,5 +23,5 @@
     - name: Download iDRAC firmware updates
       include_tasks: download_fmw_updates.yml
   when:
-    - device_support_status
+    - ( device_config_support ) or ( network_interface_type == "lom" )
     - firmware_update_required

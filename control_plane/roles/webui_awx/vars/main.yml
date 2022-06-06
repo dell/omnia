@@ -37,6 +37,7 @@ readiness_probe_final: "initialDelaySeconds: 300"
 awx_operator_time: 900s
 awx_deployment_time: 1500s
 operator_deployment_failure: "AWX Operator deployment failed due to awx operator pod is in crashloopbackoff state"
+image_retries: 6
 
 # Usage: configure_settings.yml
 awx_port: 8052
@@ -76,6 +77,7 @@ project_name: 'omnia'
 project_description: "Directory which contains configuration playbooks"
 inventory_names:
   - { name: node_inventory, description: "Inventory to store host IPs of servers", flag: true }
+  - { name: localhost, description: "Default inventory for omnia", flag: true }
   - { name: idrac_inventory, description: "Inventory to store IPs of idrac servers", flag: "{{ idrac_support }}" }
   - { name: ethernet_inventory, description: "Inventory to store IPs of ethernet switches", flag: "{{ ethernet_switch_support }}" }
   - { name: infiniband_inventory, description: "Inventory to store IPs of infiniband switches", flag: "{{ ib_switch_support }}" }
@@ -92,14 +94,19 @@ credential_details:
   - { name: infiniband_credential, type: Network, username: "{{ ib_username }}", password: "{{ ib_password }}", flag: "{{ ib_switch_support }}" }
   - { name: powervault_me4_credential, type: Network, username: "{{ powervault_me4_username }}", password: "{{ powervault_me4_password }}", flag: "{{ powervault_support }}" }
 job_template_details:
-  - { name: node_inventory_job, inventory: node_inventory, playbook: control_plane/collect_node_info.yml, credential: node_credential, flag: true }
-  - { name: device_inventory_job, inventory: node_inventory, playbook: control_plane/collect_device_info.yml, credential: node_credential, flag: "{{ device_support_status }}" }
+  - { name: node_inventory_job, inventory: localhost, playbook: control_plane/collect_node_info.yml, credential: node_credential, flag: true }
+  - { name: device_inventory_job, inventory: node_inventory, playbook: control_plane/collect_device_info.yml, credential: node_credential, flag: "{{ device_support_status or network_interface_type == 'lom' }}" }
   - { name: idrac_template, inventory: idrac_inventory, playbook: control_plane/idrac.yml, credential: idrac_credential, flag: "{{ idrac_support }}" }
   - { name: ethernet_template, inventory: ethernet_inventory, playbook: control_plane/ethernet.yml, credential: ethernet_credential, flag: "{{ ethernet_switch_support }}" }
   - { name: infiniband_template, inventory: infiniband_inventory, playbook: control_plane/infiniband.yml, credential: infiniband_credential, flag: "{{ ib_switch_support }}" }
   - { name: powervault_me4_template, inventory: powervault_me4_inventory, playbook: control_plane/powervault_me4.yml, credential: powervault_me4_credential, flag: "{{ powervault_support }}" }
+  - { name: redhat_unregister_template, inventory: node_inventory, playbook: control_plane/rhsm_unregister.yml, credential: node_credential, flag: true }
+rhsm_job_template_details:
+  - { name: redhat_subscription_template, inventory: node_inventory, playbook: control_plane/rhsm_subscription.yml, credential: node_credential, flag: true }
+kernel_upgrade_job_template_details:
+  - { name: kernel_upgrade_template, inventory: node_inventory,playbook: control_plane/kernel_upgrade.yml, credential: node_credential }
 omnia_job_template_details:
   - { name: deploy_omnia_template, inventory: node_inventory, playbook: omnia.yml, credential: node_credential, extra_vars: "ansible_python_interpreter=/usr/bin/python3" }
 scheduled_templates:
   - { name: NodeInventorySchedule, template: node_inventory_job, schedule_rule: "DTSTART:20210815T120000Z RRULE:FREQ=HOURLY;INTERVAL=1", flag: true }
-  - { name: DeviceInventorySchedule, template: device_inventory_job, schedule_rule: "DTSTART:20210815T060000Z RRULE:FREQ=DAILY;INTERVAL=1", flag: "{{ device_support_status }}"}
+  - { name: DeviceInventorySchedule, template: device_inventory_job, schedule_rule: "DTSTART:20210815T060000Z RRULE:FREQ=DAILY;INTERVAL=1", flag: "{{ device_support_status or network_interface_type == 'lom' }}" }

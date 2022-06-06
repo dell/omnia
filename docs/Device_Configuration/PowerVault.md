@@ -1,6 +1,7 @@
 # Configuring Dell EMC PowerVault Storage  
 
 * Enter the information required in `input_params/base_vars.yml`, `input_params/login_vars.yml` and `input_params/powervault_me4_vars` per the provided [Input Parameter Guides](../Input_Parameter_Guide/Control_Plane_Parameters).
+* Ensure that there's a dedicated data connection between the Storage array and the PowerVault NFS node.
 
 ## Run `ME4_template` on the AWX UI.
 1. Run `kubectl get svc -n awx`.

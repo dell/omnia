@@ -34,21 +34,50 @@
   wait_for:
     timeout: 30
 
-- name: Configuring cobbler inside container (It may take 5-10 mins)
-  command: "kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} -- ansible-playbook /root/cobbler_configurations_rocky.yml -e provision_os={{ provision_os }} -e file_perm={{ file_perm }}"
+- name: Configuring cobbler inside container (It may take 5-10 mins) when mgmt container or lom is needed
+  command: 'kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} \
+  -- ansible-playbook /root/cobbler_configurations_rocky.yml -e provision_os="{{ provision_os }}" -e file_perm="{{ file_perm }}" \ -e network_interface_type="{{ network_interface_type }}" -e mgmt_network_subnet="{{ mgmt_network_subnet }}" \
+    -e mgmt_network_netmask="{{ mgmt_network_netmask }}" \ -e subnet="{{ subnet }}" -e  netmask="{{ netmask }}" -e device_support_status="{{ device_support_status }}" -e roce_enabled="{{ roce_enabled }}"'
   changed_when: true
   when:
     - not cobbler_config_status
     - mgmt_os == os_supported_rocky or mgmt_os == os_supported_rhel
     - not provision_os_change
+    - (device_support_status) or cobbler_lom
 
-- name: Configuring cobbler inside container (It may take 5-10 mins)
-  command: "kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} -- ansible-playbook /root/cobbler_configurations_leap.yml -e provision_os={{ provision_os }} -e host_network_nic={{ host_network_nic }}  -e file_perm={{ file_perm }}"
+- name: Configuring cobbler inside container (It may take 5-10 mins) when roce and lom is needed
+  command: 'kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} \
+   -- ansible-playbook /root/cobbler_configurations_rocky.yml -e provision_os="{{ provision_os }}" -e file_perm="{{ file_perm }}" \ -e network_interface_type="{{ network_interface_type }}" -e mgmt_network_subnet="{{ mgmt_network_subnet }}" \
+     -e mgmt_network_netmask="{{ mgmt_network_netmask }}" \ -e subnet="{{ roce_subnet }}" -e netmask="{{ roce_netmask }}" -e device_support_status="{{ device_support_status }}" -e roce_enabled="{{ roce_enabled }}"'
   changed_when: true
   when:
     - not cobbler_config_status
-    - os_supported_leap in mgmt_os 
+    - mgmt_os == os_supported_rocky or mgmt_os == os_supported_rhel
     - not provision_os_change
+    - not device_support_status
+    - mgmt_lom
+
+- name: Configuring cobbler inside container (It may take 5-10 mins) when no  mgmt container present or lom is not chosen
+  command: 'kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} \
+-- ansible-playbook /root/cobbler_configurations_rocky.yml -e provision_os="{{ provision_os }}" -e file_perm="{{ file_perm }}" \ -e network_interface_type="{{ network_interface_type }}" -e device_support_status="{{ device_support_status }}" -e roce_enabled="{{ roce_enabled }}"'
+  changed_when: true
+  when:
+    - not cobbler_config_status
+    - mgmt_os == os_supported_rocky or mgmt_os == os_supported_rhel
+    - not provision_os_change
+    - not device_support_status
+    - network_interface_type == "dedicated"
+
+- name: Configuring cobbler inside container (It may take 5-10 mins)
+  command: 'kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} \
+  -- ansible-playbook /root/cobbler_configurations_leap.yml -e provision_os="{{ provision_os }}" -e file_perm="{{ file_perm }}" \
+  -e device_support_status="{{ device_support_status }}" -e network_interface_type ="{{ network_interface_type }}" -e mgmt_network_subnet="{{ mgmt_network_subnet }}" \  -e subnet="{{ subnet }}" -e  netmask="{{ netmask }}"'
+  changed_when: true
+  when:
+    - not cobbler_config_status
+    - os_supported_leap in mgmt_os
+    - not provision_os_change
+    - (device_support_status) or cobbler_lom
 
 - name: Configuring cobbler for multiple profile support
   command: "kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} -- ansible-playbook /root/multi_cluster_provisioning.yml -e provision_os={{ provision_os }} -e provision_os_change={{ provision_os_change }} -e file_perm={{ file_perm }}"

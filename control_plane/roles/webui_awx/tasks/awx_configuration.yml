@@ -120,7 +120,7 @@
   changed_when: true
   when: item.flag
 
-- name: Create awx job templates for network devices, inventories, storage and idrac
+- name: Create awx job templates for network devices, inventories, storage, idrac and rhsm
   awx.awx.tower_job_template:
     name: "{{ item.name }}"
     job_type: "run"
@@ -133,6 +133,23 @@
     state: present
     tower_config_file: "{{ tower_config_file }}"
   loop: "{{ job_template_details }}"
+  when: item.flag
+
+- name: Create awx job template for redhat subscription enablement
+  awx.awx.tower_job_template:
+    name: "{{ item.name }}"
+    job_type: "run"
+    organization: "{{ awx_organization }}"
+    inventory: "{{ item.inventory }}"
+    project: "{{ project_name }}"
+    playbook: "{{ item.playbook }}"
+    survey_enabled: yes
+    survey_spec: "{{ lookup('file', '{{ playbook_dir }}/roles/control_plane_rhsm/files/rhsm_survey_lookup.json') }}"
+    credentials:
+      - "{{ item.credential }}"
+    state: present
+    tower_config_file: "{{ tower_config_file }}"
+  loop: "{{ rhsm_job_template_details }}"
   when: item.flag
 
 - name: Create awx job template for deploying omnia
@@ -150,6 +167,22 @@
     state: present
     tower_config_file: "{{ tower_config_file }}"
   loop: "{{ omnia_job_template_details }}"
+
+- name: Create awx job template for kernel upgrade
+  awx.awx.tower_job_template:
+    name: "{{ item.name }}"
+    job_type: "run"
+    organization: "{{ awx_organization }}"
+    inventory: "{{ item.inventory }}"
+    project: "{{ project_name }}"
+    playbook: "{{ item.playbook }}"
+    survey_enabled: yes
+    survey_spec: "{{ lookup('file', '{{ playbook_dir }}/roles/kernel_upgrade/files/kernel_survey_json.json') }}"
+    credentials:
+      - "{{ item.credential }}"
+    state: present
+    tower_config_file: "{{ tower_config_file }}"
+  loop: "{{ kernel_upgrade_job_template_details }}"
 
 - name: Build a schedule for node inventory and device inventory
   awx.awx.tower_schedule:

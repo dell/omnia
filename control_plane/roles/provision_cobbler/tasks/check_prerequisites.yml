@@ -18,10 +18,10 @@
     cobbler_container_status: false
     cobbler_image_status: false
     cobbler_config_status: false
-    backup_map_status: false
     new_node_status: false
     provision_os_change: false
     previous_os: None
+    dhcp_lom_file: false
 
 - name: Set centos kickstart file name
   set_fact:

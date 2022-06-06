@@ -1,12 +1,8 @@
-FROM rockylinux/rockylinux:docker_os
+FROM docker.io/rockylinux/rockylinux:docker_os
 
 # RPM REPOs
 RUN dnf install -y \
     epel-release \
-    && dnf clean all \
-    && rm -rf /var/cache/dnf
-
-RUN dnf update -y \
     && dnf clean all \
     && rm -rf /var/cache/dnf
 
@@ -30,7 +26,6 @@ RUN dnf install -y mod_ssl \
         python3-future \
         python3-mod_wsgi \
         gcc \
-        xinetd \
         epel-rpm-macros \
         rpm-build \
         ansible \
@@ -40,6 +35,8 @@ RUN dnf install -y mod_ssl \
         && dnf clean all \
         &&  rm -rf /var/cache/dnf
 
+RUN pip3.8 install netaddr
+RUN ansible-galaxy collection install ansible.utils:2.5.2
 RUN yum install -y  grub2-efi-x64 shim-x64
 RUN yum install -y yum-utils
 RUN dnf config-manager --set-enabled powertools

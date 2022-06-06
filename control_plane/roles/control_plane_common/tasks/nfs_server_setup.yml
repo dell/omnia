@@ -63,7 +63,7 @@
     - { path: "{{ nfs_share_offline_repo }}", ip: "{{ mgmt_network_ip }}" }
     - { path: "{{ nfs_share_awx }}", ip: "{{ mgmt_network_ip }}" }
     - { path: "{{ nfs_share_offline_repo }}", ip: "{{ mgmt_network_subnet }}/{{ mgmt_network_netmask }}" }
-  when: device_config_support
+  when: ( device_config_support ) or ( network_interface_type == "lom" )
 
 - name: Adding NFS share entries in /etc/exports when idrac_support
   lineinfile:
@@ -75,7 +75,7 @@
     - device_config_ip_file
 
 - name: Exporting the shared directories
-  command: exportfs -r
+  command: /usr/sbin/exportfs -r
   changed_when: true
 
 - name: Configuring firewall

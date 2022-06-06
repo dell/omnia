@@ -31,9 +31,18 @@
     - hostname_validation
   tags: freeipa
 
+- name: BeeGFS validation
+  hosts: manager, compute
+  gather_facts: false
+  any_errors_fatal: true
+  roles:
+    - beegfs_validation
+  tags: beegfs
+
 - name: Apply common installation and config
   hosts: manager, compute, login_node, nfs_node
   gather_facts: false
+  any_errors_fatal: true
   roles:
     - common
   tags: common
@@ -229,7 +238,7 @@
     - slurm_restd
   tags: slurm
 
-- name: Apply BeeGFS client installation and config
+- name: Apply BeeGFS client installation and config on manager and compute nodes
   hosts: manager, compute
   gather_facts: false
   roles:
@@ -238,4 +247,3 @@
 
 - name: Passwordless SSH between manager and compute nodes
   include: control_plane/tools/passwordless_ssh.yml
-  when: hostvars['127.0.0.1']['control_plane_status']

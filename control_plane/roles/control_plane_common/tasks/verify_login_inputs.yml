@@ -22,7 +22,7 @@
 
 - name: Decrpyt login_vars.yml
   command: >-
-    ansible-vault decrypt {{ login_vars_filename }}
+    /usr/local/bin/ansible-vault decrypt {{ login_vars_filename }}
     --vault-password-file {{ vault_filename }}
   changed_when: false
   when: "'$ANSIBLE_VAULT;' in config_content.stdout"
@@ -272,7 +272,7 @@
 
 - name: Encrypt input config file
   command: >-
-    ansible-vault encrypt {{ login_vars_filename }}
+    /usr/local/bin/ansible-vault encrypt {{ login_vars_filename }}
     --vault-password-file {{ vault_filename }}
   changed_when: false
   tags: init
@@ -280,5 +280,5 @@
 - name: Update login_vars.yml permission
   file:
     path: "{{ login_vars_filename }}"
-    mode: "{{ file_perm }}"
+    mode: "{{ vault_file_perm }}"
   tags: init

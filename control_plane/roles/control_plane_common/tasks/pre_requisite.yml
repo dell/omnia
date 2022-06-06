@@ -61,11 +61,19 @@
   register: file_exists
   tags: init
 
-- name: Set omnia.log file
+- name: Set log_path to omnia.log in ansible.cfg
   replace:
     path: "{{ default_ansible_config_file_path }}"
     regexp: '#log_path = /var/log/ansible.log'
     replace: 'log_path = /var/log/omnia.log'
+  when: file_exists.stat.exists
+  tags: init
+
+- name: Set host_key_checking to false in ansible.cfg
+  replace:
+    path: "{{ default_ansible_config_file_path }}"
+    regexp: '^(.*)host_key_checking(.*)'
+    replace: 'host_key_checking = false'
   when: file_exists.stat.exists
   tags: init
 
@@ -83,7 +91,7 @@
 
 - block:
     - name: Fetch SElinux mode
-      command: sestatus
+      command: /usr/sbin/sestatus
       register: sestatus_current
       changed_when: false
 
@@ -93,7 +101,7 @@
       when: '"SELinux status:                 disabled" in sestatus_current.stdout_lines'
 
     - name: Set SElinux to permissive mode
-      command: setenforce 0
+      command: /usr/sbin/setenforce 0
       when: '"SELinux status:                 enabled" in sestatus_current.stdout_lines'
 
   tags: init

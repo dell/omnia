@@ -33,6 +33,11 @@ pip_packages:
   - PyMySQL
 mysqldb_collection_name: community.mysql:3.1.0
 
+rhel_epel_repo8: https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+max_retries: 20
+os_supported_redhat: "redhat"
+rhel_code_ready_repo: codeready-builder-for-rhel-8-x86_64-rpms
+
 #Usage: validate_base_vars.yml
 folder_perm: '644'
 vault_file_perm: '0644'
@@ -67,5 +72,8 @@ ctrl_plane_login_vars_fail_msg: "Incorrect grafana_username or grafana_password 
 
 # Usage: k8s_secrets.yml
 namespace: telemetry-and-visualizations
-
 secrets_name: credentials
+
+# Usage: set_docker_os.yml
+docker_rocky_os: "8.5"
+slurm_telemetry_dockerfile_path: "{{ playbook_dir }}/roles/slurm_telemetry/files/Dockerfile"

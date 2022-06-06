@@ -14,26 +14,39 @@
 ---
 
 - block:
-    - name: unmount prev_beegfs_mount
-      command: " umount {{ hostvars['127.0.0.1']['prev_beegfs_mount'] }}"
+    - name: BeeGFS client mount config file
+      command: cat "{{ beegfs_mount_file }}"
+      failed_when: false
       changed_when: false
+      register: client_mount_status
+
+    - name: Fetch already mounted location 
+      set_fact:
+        mounted_path: "{{ client_mount_status.stdout.split(' ')[0] }}"
+
+    - name: unmount already mounted BeeGFS file system
+      command: "umount {{ mounted_path }}"
+      register: umount_status
+      until: umount_status is not failed
+      retries: "{{ max_retries }}"
+      changed_when: false
+      failed_when: false
+
+    - name: Remove beegfs mount location
+      file:
+        path: "{{ mounted_path }}"
+        state: absent
+      register: umount_file
+      until: umount_file is not failed
+      retries: "{{ max_retries }}"
+      failed_when: false
   rescue:
-    - name: prev_beegfs_mount status
+    - name: Status of unmounting
       fail:
-        msg: "{{ prev_beegfs_mount_status_msg }}"
-  when: hostvars['127.0.0.1']['prev_beegfs_mount'] | length > 1
+        msg: "{{ beegfs_mount_status_msg }}"
+  when: hostvars['127.0.0.1']['unmount_client']
 
 - block:
-    - name: Fetch SElinux mode
-      command: sestatus
-      register: selinux_status
-      changed_when: false
-
-    - name: Check SELinux status
-      fail:
-        msg: "{{ selinux_fail_msg }}"
-      when: '"SELinux status:                 disabled" not in selinux_status.stdout_lines'
-
     - name: Fetch kernel version
       command: uname -r
       register: kernel_version

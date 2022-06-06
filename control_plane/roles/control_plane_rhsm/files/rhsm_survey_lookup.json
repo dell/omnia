@@ -1,0 +1,34 @@
+{
+    "name": "Redhat subscription management",
+    "description": "Credentials for redhat subscription",
+    "spec": [
+        {
+        "type": "text",
+        "question_name": "Enter redhat portal username",
+        "question_description": "Mandatory field if redhat_subscription_method is set to portal",
+        "variable": "redhat_subscription_username",
+        "required": false
+        },
+        {
+        "type": "password",
+        "question_name": "Enter redhat portal password",
+        "question_description": "Mandatory field if redhat_subscription_method is set to portal",
+        "variable": "redhat_subscription_password",
+        "required": false
+        },
+        {
+        "type": "text",
+        "question_name": "Enter redhat portal organization identifier",
+        "question_description": "Mandatory field if redhat_subscription_method is set to satellite",
+        "variable": "redhat_subscription_org_id",
+        "required": false
+        },
+        {
+        "type": "password",
+        "question_name": "Enter redhat activation key",
+        "question_description": "Mandatory field if redhat_subscription_method is set to satellite",
+        "variable": "redhat_subscription_activation_key",
+        "required": false
+        }
+    ]
+}

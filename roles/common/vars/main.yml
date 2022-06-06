@@ -44,9 +44,14 @@ amd_repo: 'https://repo.radeon.com/rocm/zyp/zypper/'
 nvidia_docker_repo: 'https://nvidia.github.io/nvidia-docker/opensuse-leap15.1/nvidia-docker.repo'
 conf_file_mode: 0644
 
-common_packages_for_non_leap:
+common_packages_non_leap:
   - yum-plugin-versionlock
   - nvidia-detect
+  - docker-ce-cli-20.10.2
+  - docker-ce-20.10.2
+
+common_packages_rhel:
+  - yum-plugin-versionlock
   - docker-ce-cli-20.10.2
   - docker-ce-20.10.2
 
@@ -105,6 +110,23 @@ hosts_file_mode: "0644"
 
 # Usage: validate_rhsm.yml
 os_supported_redhat: "redhat"
-manager_inactive_msg: "It is mandatory for manager node to be subscribed to redhat"
-compute_inactive_msg: "Skipping omnia execution for host {{ ansible_ssh_host }} in group {{ group_names }}
-                        as it is not subscribed to redhat"
+manager_inactive_msg1: "1. Manager node didnt have active subscription."
+manager_inactive_msg2: "2. Manager node didnt have baseos and appstream repos enabled."
+compute_inactive_msg1: "1. Host {{ ansible_ssh_host }} in group {{ group_names }} is not subscribed to redhat"
+compute_inactive_msg2: "2. Host {{ ansible_ssh_host }} didnt have baseos and appstream repos enabled."
+
+infiniband_leap:
+    - rdma-core
+    - librdmacm1
+    - libibmad5
+    - libibumad3
+    - infiniband-diags
+
+infiniband_non_leap:
+    - "@Infiniband Support"
+    - infiniband-diags
+    - perftest
+    - qperf
+
+rhel_code_ready_repo: codeready-builder-for-rhel-8-x86_64-rpms
+rhel_epel_repo8: https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
