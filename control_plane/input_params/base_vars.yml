@@ -65,11 +65,17 @@ ib_switch_support: false
 # If powervault configuration is needed, set this to "true"
 powervault_support: false
 
-# This variable is used to enable security features on MS
+# This variable is used to enable security features on control plane
 # Accepted values: "true" or "false"
 # Default value: "true"
 # If security features are not needed, set this to "false"
 enable_security_support: true
+
+# This variable is used to enable AWX UI features on control plane
+# Accepted values: "true" or "false"
+# Default value: "true"
+# If AWX UI features are not needed or user has more than 5 nodes cluster, set this to "false"
+awx_web_support: true
 
 # The nic/ethernet card that will be connected to the public internet.
 # Default value: eno2
@@ -101,7 +107,7 @@ awx_organization: "DellEMC"
 # At this location grafana persistent volume will be created.
 # If using telemetry, all telemetry related files will also be stored and
 # both timescale and mysql databases will be mounted to this location.
-mount_location: /opt/omnia/
+mount_location: /opt/omnia/telemetry
 
 ### Usage: provision_cobbler, provision_idrac ###
 
