@@ -11,21 +11,24 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 ---
-- name: Get the infiniband pod name
-  command: 'kubectl get pod -n network-config -l app=infiniband -o jsonpath="{.items[0].metadata.name}"'
-  changed_when: false
-  failed_when: false
-  register: infiniband_pod_name
-  tags: ib
 
-- name: Delete infiniband container
-  command: "kubectl delete -f {{ k8s_infiniband }}"
-  when: "infiniband_pod_name.stdout in k8s_pods.stdout"
-  failed_when: false
-  tags: ib
+- name: Include base vars
+  include_vars: "{{ base_vars_file_path }}"
+  tags: common_config
 
-- name: Delete infiniband image
-  command: "buildah rmi -f {{ infiniband_container }}:latest"
-  when: infiniband_container in image_list.stdout
-  tags: ib
+- name: Deleting Omnia mount location
+  command: "rm -rf {{ mount_location }}"
+  tags: common_config
+
+- name: Deleting omnia log files
+  command: "rm -rf {{ omnia_log_dir }}"
+  tags: common_config
+
+- name: Deleting all extra buildah images
+  command: "buildah rmi --all --force"
+  changed_when: true
+  ignore_errors: true
+  tags: common_config
+
