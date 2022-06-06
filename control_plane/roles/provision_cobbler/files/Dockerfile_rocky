@@ -35,6 +35,8 @@ RUN dnf install -y mod_ssl \
         && dnf clean all \
         &&  rm -rf /var/cache/dnf
 
+RUN pip3.8 install netaddr
+RUN ansible-galaxy collection install ansible.utils:2.5.2
 RUN yum install -y  grub2-efi-x64 shim-x64
 RUN yum install -y yum-utils
 RUN dnf config-manager --set-enabled powertools

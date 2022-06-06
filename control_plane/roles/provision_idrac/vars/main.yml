@@ -65,6 +65,7 @@ import_scp_fail_msg: "Import scp failed. This could be due to older bios, idrac 
 # Usage: create_vd.yml
 raid_level: "RAID 0"
 raid_search_key: "RAID"
+non_raid_search_key: "NonRAID"
 raid_vd_name: "omnia_raid_vd"
 boss_raid_level: "RAID 1"
 boss_search_key: "BOSS"
