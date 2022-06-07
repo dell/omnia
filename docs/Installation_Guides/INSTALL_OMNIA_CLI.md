@@ -40,27 +40,26 @@ git clone -b release https://github.com/dellhpc/omnia.git
 
 6. By default, no skip tags are selected, and both Kubernetes and Slurm will be deployed.  
 
-	To skip the installation of Kubernetes, enter:  
-	`ansible-playbook omnia.yml -i inventory --skip-tags "kubernetes"` 
+To skip the installation of Kubernetes, enter:  
+    `ansible-playbook omnia.yml -i inventory --skip-tags "kubernetes"` 
 	
-	To skip the installation of Slurm, enter:  
-	`ansible-playbook omnia.yml -i inventory --skip-tags "slurm"`  
+To skip the installation of Slurm, enter:  
+    `ansible-playbook omnia.yml -i inventory --skip-tags "slurm"`  
+>> **Caution**: LMOD and LUA are installed with Slurm when running `omnia.yml`. If LMOD and LUA are required, do not use the skip Slurm tag.
 
-	To skip the NFS client setup, enter the following command to skip the k8s_nfs_client_setup role of Kubernetes:  
-	`ansible-playbook omnia.yml -i inventory --skip-tags "nfs_client"`
+To skip the NFS client setup, enter the following command to skip the k8s_nfs_client_setup role of Kubernetes:  
+    `ansible-playbook omnia.yml -i inventory --skip-tags "nfs_client"`
 
-	The default path of the Ansible configuration file is `/etc/ansible/`. If the file is not present in the default path, then edit the `ansible_config_file_path` variable to update the configuration path.
+    The default path of the Ansible configuration file is `/etc/ansible/`. If the file is not present in the default path, then edit the `ansible_config_file_path` variable to update the configuration path.
 
-7. To provide passwords for mariaDB Database (for Slurm accounting), Kubernetes Pod Network CIDR, and Kubernetes CNI, edit the `omnia_config.yml` file.  
+8. To provide passwords for mariaDB Database (for Slurm accounting), Kubernetes Pod Network CIDR, and Kubernetes CNI, edit the `omnia_config.yml` file.  
 >> **Note**: 
-* Supported values for Kubernetes CNI are calico and flannel. The default value of CNI considered by Omnia is calico. 
-* The default value of Kubernetes Pod Network CIDR is 10.244.0.0/16. If 10.244.0.0/16 is already in use within your network, select a different Pod Network CIDR. For more information, see __https://docs.projectcalico.org/getting-started/kubernetes/quickstart__.
-
->> **Note**: If you want to view or edit the `omnia_config.yml` file, run the following command:  
-- `ansible-vault view omnia_config.yml --vault-password-file .omnia_vault_key` -- To view the file. 
-- `ansible-vault edit omnia_config.yml --vault-password-file .omnia_vault_key` -- To edit the file.
-
->> **Note**: It is suggested that you use the ansible-vault view or edit commands and that you do not use the ansible-vault decrypt or encrypt commands. If you have used the ansible-vault decrypt or encrypt commands, provide 644 permission to `omnia_config.yml`.  
+>> * Supported values for Kubernetes CNI are calico and flannel. The default value of CNI considered by Omnia is calico. 
+>> * The default value of Kubernetes Pod Network CIDR is 10.244.0.0/16. If 10.244.0.0/16 is already in use within your network, select a different Pod Network CIDR. For more information, see __https://docs.projectcalico.org/getting-started/kubernetes/quickstart__.
+>> * If you want to view or edit the `omnia_config.yml` file, run the following command:  
+>>    - `ansible-vault view omnia_config.yml --vault-password-file .omnia_vault_key` -- To view the file. 
+>>    - `ansible-vault edit omnia_config.yml --vault-password-file .omnia_vault_key` -- To edit the file.
+>> * It is suggested that you use the ansible-vault view or edit commands and that you do not use the ansible-vault decrypt or encrypt commands. If you have used the ansible-vault decrypt or encrypt commands, provide 644 permission to `omnia_config.yml`.  
 
 Omnia considers `slurm` as the default username for MariaDB.  
 
@@ -155,4 +154,4 @@ To update the INVENTORY file present in `omnia` directory with the new node IP a
 BeeGFS is a hardware-independent POSIX parallel file system (a.k.a Software-defined Parallel Storage) developed with a strong focus on performance and designed for ease of use, simple installation, and management. BeeGFS is created on an Available Source development model (source code is publicly available), offering a self-supported Community Edition and a fully supported Enterprise Edition with additional features and functionalities. BeeGFS is designed for all performance-oriented environments including HPC, AI and Deep Learning, Media & Entertainment, Life Sciences, and Oil & Gas (to name a few).
 ![BeeGFS Structure](../images/BeeGFS_Structure.jpg)
 
-Once all the [pre-requisites](#installing-beegfs-client) are met, run `omnia.yml` to set up BeeGFS. 
+Once all the [pre-requisites](../PreRequisites/OMNIA_PreReqs.md#installing-beegfs-client) are met, run `omnia.yml` to set up BeeGFS. 

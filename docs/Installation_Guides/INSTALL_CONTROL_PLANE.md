@@ -9,7 +9,7 @@ Using Omnia 1.2, you can provision and monitor hardware devices such as servers,
 1. [Dedicated Network](../NETWORK_TOPOLOGY_DEDICATED.md)
    This connection option uses the server’s dedicated iDRAC connection for management, while the production data traffic flows through the NICs on the server. This configuration separates the two flows of traffic. For more information on the topology, click on the hyperlinked heading.
 	* Connecting a Pass-Through Switch: Provision and configure a 1GBE pass-through switch which will be used as a pass-through uplink switch. One of the NIC on the control plane must be connected to a data port on the pass-through switch and a second connection must be established from a data port on the pass-through switch to the management port of the TOR network switch.  
-    >>**Note**:  Omnia is not responsible for provisioning and configuring the pass-through switch.
+    >> **Note**:  Omnia is not responsible for provisioning and configuring the pass-through switch.
      * Establishing a management network: From the data ports on the pass-through switch, connect to the following ports:
          * iDRAC ports on manager and compute nodes
          * Management port on the network switches

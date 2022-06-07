@@ -40,3 +40,12 @@ To open the ports required, use the following steps:
 >>	* The Hostname cannot start or end with a hyphen (-).
 >>	* No upper case characters are allowed in the hostname.
 >>	* The hostname cannot start with a number.
+
+## NFS bolt-on
+* Ensure that an existing NFS server is running. NFS clients are mounted using the existing NFS server's IP.
+* Fill out the `nfs_bolt_on` variable in the `omnia_config.yml` file in JSON list format using the samples provided [here](../Input_Parameter_Guide/omnia_config.md)
+* This role runs on manager, compute and login nodes.
+* There are 3 ways to configure the feature:
+  1. **Single NFS node** : A single NFS filesystem is mounted from a single NFS server. The value of `nfs_bolt_on` would be `- { server_ip: xx.xx.xx.xx, server_shared_path: "/mnt/share", client_shared_path: "/mnt/client" }`
+  2. **Multiple Mount NFS Filesystem**: Multiple filesystems are mounted from a single NFS server. The value of `nfs_bolt_on` would be ` - { server_ip: xx.xx.xx.xx, server_shared_path: "/mnt/server1", client_shared_path: "/mnt/client" }\ - { server_ip: xx.xx.xx.xx, server_shared_path: "/mnt/server2", client_shared_path: "/mnt/client2" }`
+  3. **Multiple NFS Filesystems**: Multiple filesystems are mounted from multiple NFS servers. The value of `nfs_bolt_on` would be ` - { server_ip: xx.xx.xx.xx, server_shared_path: "/mnt/server1", client_shared_path: "/mnt/client" }\ - { server_ip: yy.yy.yy.yy, server_shared_path: "/mnt/server2", client_shared_path: "/mnt/client2" }\ - { server_ip: zz.zz.zz.zz, server_shared_path: "/mnt/server2", client_shared_path: "/mnt/client2" } `
