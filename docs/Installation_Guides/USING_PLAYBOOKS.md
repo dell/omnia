@@ -1,4 +1,4 @@
-# AWX/Ansible Playbooks And How To Use Them
+# Ansible Playbooks And How To Use Them
 
 Once `control_plane.yml` is run, AWX UI or Ansible CLI can be used to run different scripts on your control_plane. Some of these functionalities include:
 1. [Setting up Red Hat Subscription](#red-hat-subscription)
@@ -27,7 +27,7 @@ Before running `omnia.yml`, it is mandatory that red hat subscription be set up 
 ## Red Hat Unsubscription
 To disable subscription on Red Hat nodes, the `red_hat_unregister_template` has to be called in one of two ways:
 1. On AWX, run the template `redhat_unregister_template`. On launching the template, the nodes present in the node inventory will be unregistered from red hat.
-2. Using Ansible, run the command: `ansible_playbook omnia/control_plane/rhsm_unregister.yml -i inventory`
+2. Using CLI, run the command: `ansible_playbook omnia/control_plane/rhsm_unregister.yml -i inventory`
 
 ## Configuring new devices added to the cluster
 For Omnia to configure the devices and to provision the bare metal servers which are introduced newly in the cluster, you must configure the corresponding input parameters and deploy the device-specific template from the AWX UI. Based on the devices added to the cluster, click the respective link to go to configuration section.
@@ -37,8 +37,8 @@ For Omnia to configure the devices and to provision the bare metal servers which
 * [Configure PowerVault Storage](../Device_Configuration/PowerVault.md)
 
 
-## Assign component roles using AWX UI
-1. If Red Hat is used, ensure that red hat subscription is enabled on the nodes. If it isn't, se AWX to run [`redhat_subscription_template`](#red-hat-subscription) after running `control_plane.yml` to activate red hat subscription.
+## Assign component roles via AWX UI
+1. If Red Hat is used, ensure that red hat subscription is enabled on the nodes. If it isn't, use AWX to run [`redhat_subscription_template`](#red-hat-subscription) after running `control_plane.yml` to activate red hat subscription.
 2. On the AWX dashboard, under __RESOURCES__ __->__ __Inventories__, select **node_inventory**.
 3. Select the **Hosts** tab.
 4. To add hosts to the groups, click **+**.
@@ -63,26 +63,31 @@ The **deploy_omnia_template** may not run successfully if:
   If you have set the `login_node_required` variable in the `omnia_config` file to "false", then you can skip assigning host to the login node.
 - Under Skip Tags, when both kubernetes and slurm tags are selected.
 
->> __Note__: On the AWX UI, hosts will be listed only after few nodes have been provisioned by Omnia. It takes approximately 10 to 15 minutes to display the host details after the provisioning is complete. If a device is provisioned, but you are unable to view the host details on the AWX UI, then you can run the following command from **omnia** -> **control_plane** -> **tools** folder to view the hosts which are reachable. <br> `ansible-playbook -i ../roles/collect_node_info/provisioned_hosts.yml provision_report.yml`
-
+>> **Note**:
+>> On the AWX UI, hosts will be listed only after few nodes have been provisioned by Omnia. It takes approximately 10 to 15 minutes to display the host details after the provisioning is complete. If a device is provisioned, but you are unable to view the host details on the AWX UI, then you can run the following command from **omnia** -> **control_plane** -> **tools** folder to view the hosts which are reachable. <br> `ansible-playbook -i ../roles/collect_node_info/provisioned_hosts.yml provision_report.yml`
+>> To set component roles via CLI, refer to [Omnia CLI Installation guide](INSTALL_OMNIA_CLI.md).
 
 ## Install JupyterHub and Kubeflow playbooks
 If you want to install __JupyterHub__ and __Kubeflow__ playbooks, you have to first install the __JupyterHub__ playbook and then install the __Kubeflow__ playbook.  
 To install __JupyterHub__ and __Kubeflow__ playbooks:
-1.	From AWX UI, under __RESOURCES__ -> __Templates__, select __DeployOmnia__ template.
-2.	From __PLAYBOOK__ dropdown menu, select __platforms/jupyterhub.yml__ and launch the template to install JupyterHub playbook.
-3.	From __PLAYBOOK__ dropdown menu, select __platforms/kubeflow.yml__ and launch the template to install Kubeflow playbook.
+1. From AWX UI, under __RESOURCES__ -> __Templates__, select __DeployOmnia__ template.
+2. From __PLAYBOOK__ dropdown menu, select __platforms/jupyterhub.yml__ and launch the template to install JupyterHub playbook.
+3. From __PLAYBOOK__ dropdown menu, select __platforms/kubeflow.yml__ and launch the template to install Kubeflow playbook.
 
-__Note:__ When the Internet connectivity is unstable or slow, it may take more time to pull the images to create the Kubeflow containers. If the time limit is exceeded, the **Apply Kubeflow configurations** task may fail. To resolve this issue, you must redeploy Kubernetes cluster and reinstall Kubeflow by completing the following steps:
-1. Complete the PXE booting of the head and compute nodes.
-2. In the `omnia_config.yml` file, change the k8s_cni variable value from calico to flannel.
-3. Run the Kubernetes and Kubeflow playbooks.
+The same playbooks can also be installed via CLI using:
+1. `ansible-playbook platforms/jupyterhub.yml -i inventory`
+2. `ansible-playbook platforms/kubeflow.yml -i inventory`
 
-**Note**: If you want to view or edit the `omnia_config.yml` file, run the following command:
-- `ansible-vault view omnia_config.yml --vault-password-file .omnia_vault_key` -- To view the file.
-- `ansible-vault edit omnia_config.yml --vault-password-file .omnia_vault_key` -- To edit the file.
+>> **Note**: When the Internet connectivity is unstable or slow, it may take more time to pull the images to create the Kubeflow containers. If the time limit is exceeded, the **Apply Kubeflow configurations** task may fail. To resolve this issue, you must redeploy Kubernetes cluster and reinstall Kubeflow by completing the following steps:
+>> 1. Complete the PXE booting of the head and compute nodes.
+>> 2. In the `omnia_config.yml` file, change the k8s_cni variable value from calico to flannel.
+>> 3. Run the Kubernetes and Kubeflow playbooks.
 
-## Roles assigned to the compute and manager groups
+>> If you want to view or edit the `omnia_config.yml` file, run the following command:
+>> - `ansible-vault view omnia_config.yml --vault-password-file .omnia_vault_key` -- To view the file.
+>> - `ansible-vault edit omnia_config.yml --vault-password-file .omnia_vault_key` -- To edit the file.
+
+### Roles assigned to the compute and manager groups
 After **DeployOmnia** template is run from the AWX UI, the **omnia.yml** file installs Kubernetes and Slurm, or either Kubernetes or Slurm, as per the selection in the template on the control plane. Additionally, appropriate roles are assigned to the compute and manager groups.
 
 ## Add a new compute node to the cluster
@@ -102,12 +107,12 @@ From Omnia 1.2, the cobbler container OS will follow the OS on the control plane
 >> 4. Run `control_plane.yml` to provision rocky and create a profile called `rocky-x86_64` in the cobbler container.
 
 
->> __Note:__ All compute nodes in a cluster must run the same OS. 
+>> **Note**: All compute nodes in a cluster must run the same OS. 
 
 ## Setting up Static IPs on Devices when the network interface type is shared LOM
->> __Note:__ All steps listed below are to be administered on the control plane. The DHCP provided IPs for these devices will be within the `host_network_range` irrespective of whether `roce_network_nic` is provided.
+>> **Note**: All steps listed below are to be administered on the control plane. The DHCP provided IPs for these devices will be within the `host_network_range` irrespective of whether `roce_network_nic` is provided.
 
-When the network interface type is set to shared LOM, users can manually assign static IPs to their networking (ethernet or Infiniband) or storage (powervault). Depending on whether `roce_network_nic` is provided, there are two ways users can achieve this:
+When the network interface type is set to shared LOM, users can manually assign static IPs to their networking (ethernet or Infiniband) or storage (powervault). Depending on whether the user set up a RoCe network and provided a `roce_network_nic` in `base_vars.yml`, there are two ways users can achieve this:
 
 ### When `roce_network_nic` is provided:
 1. Get the pod name of the network-config pod: `Kubectl get pods -n network-config`
@@ -137,4 +142,4 @@ Via CLI:
 Through AWX UI <br>
 ![img.png](../images/Execute_Kernel_Upgrade_UI.png)
 
->> **Note:** Omnia does not support roll-backs/downgrades of the Kernel.
+>>**Note**: Omnia does not support roll-backs/downgrades of the Kernel.
