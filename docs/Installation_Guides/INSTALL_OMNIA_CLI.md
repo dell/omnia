@@ -129,7 +129,7 @@ To enable the login node, the *login_node_required* variable must be set to "tru
 - **login_node** role: For Rocky, FreeIPA client is installed and configured on the login node and is integrated with the server running on the manager node. For LeapOS, 389ds will be installed instead.
 
 >>**Note**: If LeapOS is being deployed, login_common and login_server roles will be skipped. <br>
->>To skip the installation of:
+>> To skip the installation of:
 >> * The login node: In the `omnia_config.yml` file, set the *login_node_required* variable to "false".  
 >> * The FreeIPA server and client: Use `--skip-tags freeipa` while executing the *omnia.yml* file. 
 

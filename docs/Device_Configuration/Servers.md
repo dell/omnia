@@ -7,6 +7,10 @@
 ### Generating a Custom ISO
 * Using the Omnia role _control_plane_customiso_, a custom ISO is generated. Based on the parameters entered above, the Kickstart file is configured and added to the custom ISO file. The *unattended_<OS name>.iso* file is copied to an NFS share on the control plane to provision the PowerEdge servers using iDRAC. 
 
+### Run `idrac_template` via CLI
+1. Verify that `/opt/omnia/idrac_inventory` is created and updated with all iDRAC IP details. This is done automatically when `control_plane.yml` is run. If it's not updated, run `ansible-playbook collect_device_info.yml` from the control_plane directory.
+2. Run `ansible-playbook idrac.yml -i /opt/omnia/idrac_inventory`
+
 ### Run idrac_template on the AWX UI.
 1. Run `kubectl get svc -n awx`.
 2. Copy the Cluster-IP address of the awx-ui. 

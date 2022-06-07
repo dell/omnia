@@ -48,6 +48,10 @@ Enter all relevant parameters for configuring your switches in the following fil
 * opensm.conf (optional)
 * ib_vars.yml
 
+### Run `infiniband_template` via CLI
+1. Verify that `/opt/omnia/infiniband_inventory` is created and updated with all infiniband switch IP details. This is done automatically when `control_plane.yml` is run. If it's not updated, run `ansible-playbook collect_device_info.yml` from the control_plane directory.
+2. Run `ansible-playbook infiniband.yml -i /opt/omnia/infiniband_inventory`
+
 
 ### Run infiniband_template on the AWX UI.
 1. Run `kubectl get svc -n awx`.
@@ -55,3 +59,5 @@ Enter all relevant parameters for configuring your switches in the following fil
 3. To retrieve the AWX UI password, run `kubectl get secret awx-admin-password -n awx -o jsonpath="{.data.password}" | base64 --decode`.
 4. Open the default web browser on the control plane and enter `http://<IP>:8052`, where IP is the awx-ui IP address and 8052 is the awx-ui port number. Log in to the AWX UI using the username as `admin` and the retrieved password.  
 5. Under __RESOURCES__ -> __Templates__, launch the **infiniband_template**.
+
+

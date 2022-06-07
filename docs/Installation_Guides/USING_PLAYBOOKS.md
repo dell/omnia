@@ -37,7 +37,7 @@ For Omnia to configure the devices and to provision the bare metal servers which
 * [Configure PowerVault Storage](../Device_Configuration/PowerVault.md)
 
 
-## Assign component roles using AWX UI
+## Assign component roles via AWX UI
 1. If Red Hat is used, ensure that red hat subscription is enabled on the nodes. If it isn't, use AWX to run [`redhat_subscription_template`](#red-hat-subscription) after running `control_plane.yml` to activate red hat subscription.
 2. On the AWX dashboard, under __RESOURCES__ __->__ __Inventories__, select **node_inventory**.
 3. Select the **Hosts** tab.
@@ -63,15 +63,20 @@ The **deploy_omnia_template** may not run successfully if:
   If you have set the `login_node_required` variable in the `omnia_config` file to "false", then you can skip assigning host to the login node.
 - Under Skip Tags, when both kubernetes and slurm tags are selected.
 
->> **Note**: On the AWX UI, hosts will be listed only after few nodes have been provisioned by Omnia. It takes approximately 10 to 15 minutes to display the host details after the provisioning is complete. If a device is provisioned, but you are unable to view the host details on the AWX UI, then you can run the following command from **omnia** -> **control_plane** -> **tools** folder to view the hosts which are reachable. <br> `ansible-playbook -i ../roles/collect_node_info/provisioned_hosts.yml provision_report.yml`
-
+>> **Note**:
+>> On the AWX UI, hosts will be listed only after few nodes have been provisioned by Omnia. It takes approximately 10 to 15 minutes to display the host details after the provisioning is complete. If a device is provisioned, but you are unable to view the host details on the AWX UI, then you can run the following command from **omnia** -> **control_plane** -> **tools** folder to view the hosts which are reachable. <br> `ansible-playbook -i ../roles/collect_node_info/provisioned_hosts.yml provision_report.yml`
+>> To set component roles via CLI, refer to [Omnia CLI Installation guide](INSTALL_OMNIA_CLI.md).
 
 ## Install JupyterHub and Kubeflow playbooks
 If you want to install __JupyterHub__ and __Kubeflow__ playbooks, you have to first install the __JupyterHub__ playbook and then install the __Kubeflow__ playbook.  
 To install __JupyterHub__ and __Kubeflow__ playbooks:
-1.	From AWX UI, under __RESOURCES__ -> __Templates__, select __DeployOmnia__ template.
-2.	From __PLAYBOOK__ dropdown menu, select __platforms/jupyterhub.yml__ and launch the template to install JupyterHub playbook.
-3.	From __PLAYBOOK__ dropdown menu, select __platforms/kubeflow.yml__ and launch the template to install Kubeflow playbook.
+1. From AWX UI, under __RESOURCES__ -> __Templates__, select __DeployOmnia__ template.
+2. From __PLAYBOOK__ dropdown menu, select __platforms/jupyterhub.yml__ and launch the template to install JupyterHub playbook.
+3. From __PLAYBOOK__ dropdown menu, select __platforms/kubeflow.yml__ and launch the template to install Kubeflow playbook.
+
+The same playbooks can also be installed via CLI using:
+1. `ansible-playbook platforms/jupyterhub.yml -i inventory`
+2. `ansible-playbook platforms/kubeflow.yml -i inventory`
 
 >> **Note**: When the Internet connectivity is unstable or slow, it may take more time to pull the images to create the Kubeflow containers. If the time limit is exceeded, the **Apply Kubeflow configurations** task may fail. To resolve this issue, you must redeploy Kubernetes cluster and reinstall Kubeflow by completing the following steps:
 >> 1. Complete the PXE booting of the head and compute nodes.

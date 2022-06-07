@@ -68,7 +68,7 @@ To configure the login node, refer to [Install_Omnia](INSTALL_OMNIA_CLI.md).
 ```
 ansible-playbook control_plane.yml
 ```  
-8. If the host_mapping_file_path is not provided, then you must manually assign the component roles through the AWX UI. Go to [Assign component roles using AWX UI](USING_PLAYBOOKS.md#assign-component-roles-using-awx-ui).
+8. If the host_mapping_file_path is not provided, then you must manually assign the component roles through the AWX UI. Go to [Assign component roles using AWX UI](USING_PLAYBOOKS.md#assign-component-roles-via-awx-ui).
 
 Omnia creates a log file which is available at: `/var/log/omnia.log`.  
 
@@ -157,15 +157,22 @@ If you want to view or edit the *login_vars.yml* file, run the following command
 
 >> **Note**: It is suggested that you use the ansible-vault view or edit commands and that you do not use the ansible-vault decrypt or encrypt commands. If you have used the ansible-vault decrypt or encrypt commands, provide 644 permission to *login_vars.yml*.
 
+## Default Ansible CLI configurations
+If AWX is not set up by the control plane (That is, when `awx_web_support` in `base_vars.yml` is set to false) , the following configurations take place:
+* To update device inventories manually in the directory `/opt/omnia`, run `ansible-playbook collect_device_info.yml` from the `control_plane` folder. For updating the node inventory, run `ansible-playbook collect_node_info.yml` from the `control_plane` folder.
+* For networking switches, InfiniBand switches, iDRAC, and PowerVault Storage, four inventories are available- **ethernet_inventory**, **infiniband_inventory**, **idrac_inventory**, **provisioned_idrac_inventory**, and **powervault_inventory** in `/opt/omnia/`
+* IP addresses of the hosts are stored in **node_inventory** in the directory `/opt/omnia`.
+* All device credentials used for configuration are taken from `login_vars.yml`.
+
 ## Default Ansible AWX configurations  
 * The role used to deploy AWX within the *control_plane.yml* file: *webui_awx*.  
 * All the pods are deployed in the specific namespace: *awx*.  
 * The AWX reference source code repository: https://github.com/ansible/awx.git 
 
-If AWX is set up by the control plane, the following configurations take place::
+If AWX is set up by the control plane (That is, when `awx_web_support` in `base_vars.yml` is set to true) , the following configurations take place:
 * The organization's name is set to **DellEMC**.
 * The project name is set to **omnia** which is the playbook's directory for the templates.
-* For networking switches, InfiniBand switches, iDRAC, and PowerVault Storage, four inventories are available- **ethernet_inventory**, **infiniband_inventory**, **idrac_inventory**, **provisioned_idrac_inventory**, and **powervault_me4_inventory**.
+* For networking switches, InfiniBand switches, iDRAC, and PowerVault Storage, four inventories are available- **ethernet_inventory**, **infiniband_inventory**, **idrac_inventory**, **provisioned_idrac_inventory**, and **powervault_inventory**.
 * IP addresses of the hosts are stored in **node_inventory**.
 * The device credentials are stored in **idrac_credential**, **ethernet_credential**, **infiniband_credential**, and **powervault_me4_credential**. The **node_credential** stores the credentials of nodes in the cluster. 
 * Four groups are created under **node_inventory**-manager, compute, login, and nfs. All nodes in the inventory are to be added to these groups from the AWX UI by the user.
