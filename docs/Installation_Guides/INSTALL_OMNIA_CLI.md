@@ -45,7 +45,7 @@ To skip the installation of Kubernetes, enter:
 	
 To skip the installation of Slurm, enter:  
     `ansible-playbook omnia.yml -i inventory --skip-tags "slurm"`  
->> **Caution**: LMOD and LUA are installed with Slurm when running `omnia.yml`. If LMOD and LUA are required, do not use the skip Slurm tag.
+>> **Warning**: LMOD and LUA are installed with Slurm when running `omnia.yml`. If LMOD and LUA are required, do not use the skip Slurm tag.
 
 To skip the NFS client setup, enter the following command to skip the k8s_nfs_client_setup role of Kubernetes:  
     `ansible-playbook omnia.yml -i inventory --skip-tags "nfs_client"`
