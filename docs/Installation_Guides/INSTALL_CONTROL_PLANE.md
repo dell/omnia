@@ -5,27 +5,30 @@ Using Omnia 1.2, you can provision and monitor hardware devices such as servers,
 
 ![Typical layout of a HPC cluster](../images/Omnia_Architecture.png)
 
-* Connecting a Pass-Through Switch: Provision and configure a 1GBE pass-through switch which will be used as a pass-through uplink switch. One of the NIC on the control plane must be connected to a data port on the pass-through switch and a second connection must be established from a data port on the pass-through switch to the management port of the TOR network switch.  
->> **Note:**  Omnia is not responsible for provisioning and configuring the pass-through switch.
-* Establishing a management network: From the data ports on the pass-through switch, connect to the following ports:
-	* iDRAC ports on manager and compute nodes
-	* Management port on the network switches
-	* Management port on the PowerVault devices
-	* Management port on the InfiniBand switches  
+## List of all supported Omnia Network Topologies
+1. [Dedicated Network](../NETWORK_TOPOLOGY_DEDICATED.md)
+   This connection option uses the server’s dedicated iDRAC connection for management, while the production data traffic flows through the NICs on the server. This configuration separates the two flows of traffic. For more information on the topology, click on the hyperlinked heading.
+	* Connecting a Pass-Through Switch: Provision and configure a 1GBE pass-through switch which will be used as a pass-through uplink switch. One of the NIC on the control plane must be connected to a data port on the pass-through switch and a second connection must be established from a data port on the pass-through switch to the management port of the TOR network switch.  
+    >> **Note**:  Omnia is not responsible for provisioning and configuring the pass-through switch.
+     * Establishing a management network: From the data ports on the pass-through switch, connect to the following ports:
+         * iDRAC ports on manager and compute nodes
+         * Management port on the network switches
+         * Management port on the PowerVault devices
+         * Management port on the InfiniBand switches  
+			
+       Through this management network, management DHCP assigns IP addresses to the devices in the HPC cluster. 
+     * Establishing a data network: 
+         * Connect one of the data ports on the PowerVault device to the NIC of the compute node. 
+         * For InfiniBand DHCP, connect NIC on the control plane to one of the data ports of the InfiniBand Switch. Next, connect one of the data ports of the InfiniBand switch to the NIC on the compute node. 
+         * Establishing a host network: For Cobbler DHCP to assign an IP address to the compute node NIC, connect NIC of the control plane to the data port on the network switch. Connect another data port on the network switch to the NIC on the compute node. Omnia will provision OS on the compute nodes using PXE when the iDRAC Enterprise license is missing on any of the compute nodes in the HPC cluster.
+			
+    >> **Note**:
+    >> 	* Cobbler web support has been discontinued from Omnia 1.2 onwards.
+    >> 	* Note that the PowerVault NFS server should have separate NICs configured for management, data (Connecting to other compute nodes) and a dedicated data connection to the storage array.
+    >> 	* Refer to the [Control Plane Pre-Requisites](../PreRequisites/Control_Plane_PreReqs.md) file to ensure smooth running of the control_plane.
 
-  Through this management network, management DHCP assigns IP addresses to the devices in the HPC cluster. 
-* Establishing a data network: 
-	* Connect one of the data ports on the PowerVault device to the NIC of the compute node. 
-	* For InfiniBand DHCP, connect NIC on the control plane to one of the data ports of the InfiniBand Switch. Next, connect one of the data ports of the InfiniBand switch to the NIC on the compute node. 
-* Establishing a host network: For Cobbler DHCP to assign an IP address to the compute node NIC, connect NIC of the control plane to the data port on the network switch. Connect another data port on the network switch to the NIC on the compute node. Omnia will provision OS on the compute nodes using PXE when the iDRAC Enterprise license is missing on any of the compute nodes in the HPC cluster.
-
->> __Note__:
->>
->> 	* Cobbler web support has been discontinued from Omnia 1.2 onwards.
->> 	* Note that the PowerVault NFS server should have separate NICs configured for management, data (Connecting to other compute nodes) and a dedicated data connection to the storage array.
->> 	* Refer to the [Control Plane Pre-Requisites](../PreRequisites/Control_Plane_PreReqs.md) file to ensure smooth running of the control_plane.
-
-## [List of all supported Omnia Network Topologies](../SUPPORTED_NETWORK_TOPOLOGY.md)
+2. [Shared LOM](../NETWORK_TOPOLOGY_LOM.md)
+   A LOM port could be shared with the host operating system production traffic. Also, LOM ports can be dedicated to server management. For example, with a four-port LOM adapter, LOM ports one and two could be used for production data while three and four could be used for iDRAC, VNC, RDP, or other operating system-based management data. For more information on the topology, click on the hyperlinked heading.
 
 ## Steps to deploy the Omnia Control Plane
 
@@ -44,7 +47,7 @@ git clone -b release https://github.com/dellhpc/omnia.git
 * Specify the Kubernetes version which will be installed on the manager and compute nodes in the **k8s_version** variable. By default, it is set to **1.16.7**. Edit this variable to change the version. Supported versions are 1.16.7 and 1.19.3.
 * To configure a login node in the cluster. By default, the *login_node_required* variable is set to "true". Using the login node, cluster administrators can provide access to users to log in to the login node to schedule Slurm jobs. However, if you do not want to configure the login node, then you can set the variable to "false". Without the login node, Slurm jobs can be scheduled only through the manager node.
 
->> __Note__: Ensure that the parameter `enable_security_support` in `telemetry\input_params\base_vars.yml` is set to 'false' before editing the following variables.
+>> **Note**: Ensure that the parameter `enable_security_support` in `telemetry\input_params\base_vars.yml` is set to 'false' before editing the following variables.
 
 To configure the login node, refer to [Install_Omnia](INSTALL_OMNIA_CLI.md).
 * To enable security features on the Control Plane, use the steps provided [here](../Security/ENABLE_SECURITY_CONTROL_PLANE.md).
@@ -59,13 +62,13 @@ To configure the login node, refer to [Install_Omnia](INSTALL_OMNIA_CLI.md).
 
 5. Change the directory to **control_plane/input_params** using the command: `cd omnia/control_plane/input_params`
 6. Edit the *base_vars.yml* file to update the required variables.
->> **Note:** The IP address *192.168.25.x* is used for PowerVault Storage communications. Therefore, do not use this IP address for other configurations.**  
+>>**Note**: The IP address *192.168.25.x* is used for PowerVault Storage communications. Therefore, do not use this IP address for other configurations.**  
  
 7. Provided that the host_mapping_file_path is updated as per the provided template, Omnia deploys the control plane and assigns the component roles by executing the omnia.yml file.  To deploy the Omnia control plane, run the following command: 
 ```
 ansible-playbook control_plane.yml
 ```  
-8. If the host_mapping_file_path is not provided, then you must manually assign the component roles through the AWX UI. Go to [Assign component roles using AWX UI](USING_AWX_PLAYBOOKS.md#assign-component-roles-using-awx-ui).
+8. If the host_mapping_file_path is not provided, then you must manually assign the component roles through the AWX UI. Go to [Assign component roles using AWX UI](USING_PLAYBOOKS.md#assign-component-roles-via-awx-ui).
 
 Omnia creates a log file which is available at: `/var/log/omnia.log`.  
 
@@ -132,11 +135,11 @@ The network configuration performed by Omnia depends on the value of `network_in
 </tbody>
 </table>
 
->> __Note:__
-* When `network interface` type is `lom`, `idrac_support` is assumed to be true irrespective of user input.
-* Omnia will not automatically assign IPs to all devices (powervault or ethernet/Infiniband switches) when `network_interface_type` is lom. However, if required, users can follow the [linked steps](USING_AWX_PLAYBOOKS.md#setting-up-static-ips-on-devices-when-the-network-interface-type-is-shared-lom).
-* Despite the value of `mgmt_network_nic` and `host_network_nic` being the same in LOM environments, the IPs assigned for management and data should not be in the same range. The start and end values of the management IP range and the host IP range cannot be the same.
-* When `roce_network_nic` is provided, the `host_mapping_file_path` is disregarded. This means that static IP assignment is not supported when high speed data paths are used for provisioning.
+>> **Note**:
+>> * When `network interface` type is `lom`, `idrac_support` is assumed to be true irrespective of user input.
+>> * Omnia will not automatically assign IPs to all devices (powervault or ethernet/Infiniband switches) when `network_interface_type` is lom. However, if required, users can follow the [linked steps](USING_PLAYBOOKS.md#setting-up-static-ips-on-devices-when-the-network-interface-type-is-shared-lom).
+>> * Despite the value of `mgmt_network_nic` and `host_network_nic` being the same in LOM environments, the IPs assigned for management and data should not be in the same range. The start and end values of the management IP range and the host IP range cannot be the same.
+>> * When `roce_network_nic` is provided, the `host_mapping_file_path` is disregarded. This means that static IP assignment is not supported when high speed data paths are used for provisioning.
 
 Once all network configuration is complete, Omnia uses AWX to integrate a centralized log system, receive live updates of running jobs, scheduled jobs, etc. AWX can also be used to assign component roles, install kuberenetes, JupyterHub, Kubeflow, Slurm, Prometheus and Grafana.
 
@@ -154,15 +157,22 @@ If you want to view or edit the *login_vars.yml* file, run the following command
 
 >> **Note**: It is suggested that you use the ansible-vault view or edit commands and that you do not use the ansible-vault decrypt or encrypt commands. If you have used the ansible-vault decrypt or encrypt commands, provide 644 permission to *login_vars.yml*.
 
+## Default Ansible CLI configurations
+If AWX is not set up by the control plane (That is, when `awx_web_support` in `base_vars.yml` is set to false) , the following configurations take place:
+* To update device inventories manually in the directory `/opt/omnia`, run `ansible-playbook collect_device_info.yml` from the `control_plane` folder. For updating the node inventory, run `ansible-playbook collect_node_info.yml` from the `control_plane` folder.
+* For networking switches, InfiniBand switches, iDRAC, and PowerVault Storage, four inventories are available- **ethernet_inventory**, **infiniband_inventory**, **idrac_inventory**, **provisioned_idrac_inventory**, and **powervault_inventory** in `/opt/omnia/`
+* IP addresses of the hosts are stored in **node_inventory** in the directory `/opt/omnia`.
+* All device credentials used for configuration are taken from `login_vars.yml`.
+
 ## Default Ansible AWX configurations  
 * The role used to deploy AWX within the *control_plane.yml* file: *webui_awx*.  
 * All the pods are deployed in the specific namespace: *awx*.  
 * The AWX reference source code repository: https://github.com/ansible/awx.git 
 
-Omnia performs the following configurations on AWX:
+If AWX is set up by the control plane (That is, when `awx_web_support` in `base_vars.yml` is set to true) , the following configurations take place:
 * The organization's name is set to **DellEMC**.
 * The project name is set to **omnia** which is the playbook's directory for the templates.
-* For networking switches, InfiniBand switches, iDRAC, and PowerVault Storage, four inventories are available- **ethernet_inventory**, **infiniband_inventory**, **idrac_inventory**, **provisioned_idrac_inventory**, and **powervault_me4_inventory**.
+* For networking switches, InfiniBand switches, iDRAC, and PowerVault Storage, four inventories are available- **ethernet_inventory**, **infiniband_inventory**, **idrac_inventory**, **provisioned_idrac_inventory**, and **powervault_inventory**.
 * IP addresses of the hosts are stored in **node_inventory**.
 * The device credentials are stored in **idrac_credential**, **ethernet_credential**, **infiniband_credential**, and **powervault_me4_credential**. The **node_credential** stores the credentials of nodes in the cluster. 
 * Four groups are created under **node_inventory**-manager, compute, login, and nfs. All nodes in the inventory are to be added to these groups from the AWX UI by the user.
@@ -171,7 +181,7 @@ Omnia performs the following configurations on AWX:
 
 >> **Note**: The AWX configurations are automatically performed by Omnia, and Dell Technologies recommends that you do not change the default configurations that are provided by Omnia as the functionality may be impacted.  
 
-The AWX UI can be used to run playbooks such as `omnia.yml`. To set up red hat subscription, Slurm, Kubernetes, JupyterHub , configure devices etc, check out [Using AWX Playbooks](USING_AWX_PLAYBOOKS.md).
+The AWX UI/ Ansible CLI can be used to run playbooks such as `omnia.yml`. To set up red hat subscription, Slurm, Kubernetes, JupyterHub , configure devices etc, check out [Using Playbooks](USING_PLAYBOOKS.md).
 
 
 ## Creating a new cluster 
@@ -188,5 +198,5 @@ From Omnia 1.2, the cobbler container OS will follow the OS on the control plane
 >> 4. Run `control_plane.yml` to provision rocky and create a profile called `rocky-x86_64` in the cobbler container.
 
 
->> __Note:__ All compute nodes in a cluster must run the same OS. 
+>> **Note**: All compute nodes in a cluster must run the same OS. 
 
