@@ -14,12 +14,15 @@ If hosts are listed, then an IP address has been assigned to them by DHCP. Howev
   **Resolution**:
     * For `omnia.yml` and `control_plane.yml` : Provide the docker username and password for the Docker Hub account in the *omnia_config.yml* file and execute the playbook.
     * For HPC cluster, during `omnia.yml execution`, a kubernetes secret 'dockerregcred' will be created in default namespace and patched to service account. User needs to patch this secret in their respective namespace while deploying custom applications and use the secret as imagePullSecrets in yaml file to avoid ErrImagePull. [Click here for more info](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/)
-> __Note:__ If the playbook is already executed and the pods are in __ImagePullBack__ state, then run `kubeadm reset -f` in all the nodes before re-executing the playbook with the docker credentials.
+> **Note**: If the playbook is already executed and the pods are in __ImagePullBack__ state, then run `kubeadm reset -f` in all the nodes before re-executing the playbook with the docker credentials.
 
 ## What to do after a reboot if kubectl commands return: `The connection to the server head_node_ip:port was refused - did you specify the right host or port?`
   On the control plane or the manager node, run the following commands:
     * `swapoff -a`
     * `systemctl restart kubelet`
+
+## What to do if AWX auto aborts jobs (Omnia template typically) when executed on a cluster larger than 5 nodes?
+Use CLI to execute Omnia by default by disabling AWX (set `awx_web_support` in `base_vars.yml` to `false`).
 
 ## How to clear up the configuration if `control_plane.yml` fails at the webui_awx stage?
   In the `webui_awx/files` directory, delete the `.tower_cli.cfg` and `.tower_vault_key` files, and then re-run `control_plane.yml`.
@@ -40,7 +43,7 @@ If hosts are listed, then an IP address has been assigned to them by DHCP. Howev
 **Potential Cause**: <br>
 This error is caused by design. There is a mismatch between the AWX version (20.0.0) and the AWX galaxy collection (19.4.0) version used by control plane. At the time of design (Omnia 1.2.1), these were the latest available versions of AWX/AWX galaxy collection. This will be fixed in later code releases.
 
->> __Note:__ This failure does not stop the execution of other tasks. Check the AWX log to verify that the script has run successfully.
+>> **Note**: This failure does not stop the execution of other tasks. Check the AWX log to verify that the script has run successfully.
 
 ## Why are inventory details not updated in AWX?
 **Potential Cause**:
