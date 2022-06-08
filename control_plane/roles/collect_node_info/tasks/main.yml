@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+
 - name: Set Facts
   set_fact:
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
@@ -20,12 +21,6 @@
   command: hostname
   register: host_name
   changed_when: false
-
-- name: Install sshpass
-  package:
-    name: sshpass
-    state: present
-  when: awx_search_key not in host_name.stdout
 
 - name: Check if provisioned host file exists
   stat:
@@ -84,7 +79,7 @@
       changed_when: false
       register: os_hosts
       
-    - name: Create device_inventory
+    - name: Create node_inventory
       add_host:
         name: "{{ item }}"
         groups: "node_inventory"
