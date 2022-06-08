@@ -55,3 +55,8 @@ del_repo_files:
     - /root/dsu
     - /tmp/rocky
     - /tmp/leap
+
+
+base_vars_file_path: "{{ playbook_dir }}/../input_params/base_vars.yml"
+
+omnia_log_dir: "/var/log/omnia.log"

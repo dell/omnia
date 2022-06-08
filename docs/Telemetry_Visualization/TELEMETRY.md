@@ -21,7 +21,7 @@ Use any one of the following browsers to access the Grafana UI (https://< Grafan
 * Safari
 * Microsoft Edge
 
->> __Note:__ Always enable JavaScript in your browser. Running Grafana without JavaScript enabled in the browser is not supported.
+>> **Note**: Always enable JavaScript in your browser. Running Grafana without JavaScript enabled in the browser is not supported.
 
 ## Prerequisites to Enabling Slurm Telemetry
 
@@ -38,7 +38,7 @@ Use any one of the following browsers to access the Grafana UI (https://< Grafan
 
 `ansible-playbook telemetry.yml`
 
->> __Note:__ Telemetry Collection is only initiated on iDRACs on AWX that have a datacenter license and are running a firmware version of 4 or higher.
+>> **Note**: Telemetry Collection is only initiated on iDRACs on AWX that have a datacenter license and are running a firmware version of 4 or higher.
 
 ## Adding a New Node to Telemetry
 After initiation, new nodes can be added to telemetry by running the following commands from `omnia/telemetry`:

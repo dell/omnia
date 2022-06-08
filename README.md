@@ -22,12 +22,12 @@ Omnia (Latin: all or everything) is a deployment tool to turn servers with RPM-b
 
 # Using Omnia
 
-1. Set up your network based on the sample topologies provided [here](docs/SUPPORTED_NETWORK_TOPOLOGY.md)
+1. Set up your network based on the sample topologies provided [here](docs/NETWORK_TOPOLOGY_LOM.md)
 2. Verify that your system meets Omnia's [hardware](docs/Support_Matrix/Hardware) and [software requirements](docs/Support_Matrix/Software/Operating_Systems)
 3. Ensure that all [pre-requisites](docs/PreRequisites) are met.
 4. Fill out all the required [input parameters](docs/Input_Parameter_Guide).
-5. [Run Control_Plane](docs/Installation_Guides/INSTALL_OMNIA_CONTROL_PLANE.md) to provision OS's, [configure devices](docs/Device_Configuration) and set up [security measures](docs/Security).
-6. [Run Omnia](docs/Installation_Guides/INSTALL_OMNIA_CLI.md) to set up Kubernetes and Slurm.
+5. [Run Control_Plane](docs/Installation_Guides/INSTALL_CONTROL_PLANE.md) to provision OS's, [configure devices](docs/Device_Configuration) and set up [security measures](docs/Security).
+6. [Run Omnia on target cluster nodes](docs/Installation_Guides/INSTALL_OMNIA_CLI.md) to set up Kubernetes and Slurm.
 7. Run the telemetry playbook to [set up](docs/Installation_Guides/INSTALL_TELEMETRY.md) and use [Telemetry and Visualization Services](docs/Telemetry_Visualization)
    ![Omnia Flow](docs/images/Omnia_Flow.png)
 
@@ -108,6 +108,8 @@ Our thanks go to everyone who makes Omnia possible ([emoji key](https://allcontr
   </tr>
   <tr>
     <td align="center"><a href="https://github.com/srinandini-karumuri"><img src="https://avatars.githubusercontent.com/u/104345504?v=4?s=100" width="100px;" alt=""/><br /><sub><b>srinandini-karumuri</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=srinandini-karumuri" title="Code">💻</a></td>
+    <td align="center"><a href="https://github.com/Rishabhm47"><img src="https://avatars.githubusercontent.com/u/106973551?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Rishabhm47</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=Rishabhm47" title="Tests">⚠️</a> <a href="https://github.com/dellhpc/omnia/commits?author=Rishabhm47" title="Code">💻</a></td>
+    <td align="center"><a href="https://github.com/vaishakh-pm"><img src="https://avatars.githubusercontent.com/u/104622022?v=4?s=100" width="100px;" alt=""/><br /><sub><b>vaishakh-pm</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=vaishakh-pm" title="Tests">⚠️</a> <a href="https://github.com/dellhpc/omnia/commits?author=vaishakh-pm" title="Code">💻</a></td>
   </tr>
 </table>
 

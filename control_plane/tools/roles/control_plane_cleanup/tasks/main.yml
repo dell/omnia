@@ -18,28 +18,40 @@
 
 - name: Clean AWX
   include_tasks: clean_awx.yml
-  tags: clean_awx
+  tags: awx
 
 - name: Clean Cobbler
   include_tasks: clean_cobbler.yml
-  tags: clean_cobbler
+  tags: cobbler
   
 - name: Clean Management network container
   include_tasks: clean_mgmt_container.yml
-  tags: clean_mgmt
+  tags: mgmt
 
-- name: Clean IB
+- name: Clean Infiniband
   include_tasks: clean_ib.yml
-  tags: clean_ib
+  tags: ib
 
 - name: Clean Security
   include_tasks: clean_security.yml 
-  tags: clean_security
+  tags: security
+
+- name: Clean grafana
+  include_tasks: clean_grafana.yml
+  tags: grafana
+
+- name: Clean Telemetry
+  include_tasks: clean_telemetry.yml
+  tags: telemetry
+
+- name: Reset kubeadm cluster
+  include_tasks: reset_kubeadm_cluster.yml
+  tags: reset_cluster
 
 - name: Decrypt vault files
   include_tasks: decrypt_vault_files.yml
   tags: decrypt_vault
 
-- name: Reset kubeadm cluster
-  include_tasks: reset_kubeadm_cluster.yml
-  tags: reset_cluster
+- name: Deleting all common config files/images
+  include_tasks: delete_common_config_files.yml
+  tags: common_config

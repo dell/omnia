@@ -232,3 +232,10 @@
     enabled: yes
   tags: install
   failed_when: false
+
+- block:
+    - name: Install packages for lua_lmod
+      package:
+        name: "{{ lmod_packages }}"
+        state: present
+  when: os_supported_leap in compute_os
