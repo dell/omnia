@@ -13,9 +13,10 @@
 #  limitations under the License.
 ---
 
-#Usage: passwordless_ssh.yml
+# Usage: set_passwordless_ssh.yml
 rsa_id_file: "/root/.ssh/id_rsa"
 passphrase: ""
 auth_key_path: "/root/.ssh/authorized_keys"
 config_file: "/root/.ssh/config"
 ssh_file_mode: "0600"
+key_pair_search_key: "OPENSSH PRIVATE KEY"

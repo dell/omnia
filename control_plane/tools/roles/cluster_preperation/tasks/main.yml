@@ -12,6 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+
 - name: Set Facts
   set_fact:
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
@@ -22,17 +23,23 @@
     path: /etc/ssh/ssh_config
     regexp: '#   StrictHostKeyChecking ask'
     replace: 'StrictHostKeyChecking no'
+  register: disable_host_key_checking
 
 - name: Disable strict mode checking
   replace:
     path: /etc/ssh/ssh_config
     regexp: '^StrictModes\ '
     replace: 'StrictModes no'
+  register: disable_strict_mode_checking
 
 - name: Restart sshd
   service:
     name: sshd
     state: restarted
+  tags: skip_ansible_lint
+  when: 
+    - disable_strict_mode_checking.changed or
+      disable_host_key_checking.changed
 
 - name: Install sshpass
   package:
@@ -42,7 +49,7 @@
 - name: Verify and set passwordless ssh from manager to compute nodes
   block:
     - name: Execute on individual hosts
-      include_tasks: passwordless_ssh.yml
+      include_tasks: check_passwordless_ssh.yml
       with_items: "{{ ssh_to }}"
       loop_control:
         pause: 5
