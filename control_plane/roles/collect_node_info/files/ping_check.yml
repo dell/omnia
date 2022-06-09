@@ -21,18 +21,18 @@
 
 - name: Check for reachable hosts in AWX
   block:
-    - name: Check for reachable nodes
+    - name: Check for reachable nodes in AWX
       ping:
       register: ping_check
 
-    - name: Group reachable hosts
+    - name: Group reachable hosts in AWX
       group_by:
         key: "reachable"
       when:
         - ping_check.ping is defined
         - '"pong" in ping_check.ping'
 
-    - name: Group unreachable hosts
+    - name: Group unreachable hosts in AWX
       group_by:
         key: "unreachable"
       when:
@@ -42,19 +42,19 @@
 
 - name: Check for reachable hosts in CLI
   block:
-    - name: Check for reachable nodes
+    - name: Check for reachable nodes in CLI
       command: ping -c1 {{ inventory_hostname }}
       delegate_to: localhost
       register: ping_result
       ignore_errors: yes
       changed_when: false
 
-    - name: Group reachable hosts
+    - name: Group reachable hosts in CLI
       group_by:
         key: "reachable"
       when: "'100% packet loss' not in ping_result.stdout"
 
-    - name: Group unreachable hosts
+    - name: Group unreachable hosts in CLI
       group_by:
         key: "unreachable"
       when: "'100% packet loss' in ping_result.stdout"
