@@ -13,12 +13,12 @@
 # limitations under the License.
 ---
 
-- name: powervault_me4_inventory validation tasks
+- name: powervault_inventory validation tasks
   block:
-    - name: Fetch the hosts in powervault me4 inventory
+    - name: Fetch the hosts in powervault inventory
       command: >-
         awx --conf.host {{ awx_host }} --conf.username {{ awx_username }} --conf.password {{ awx_password }}
-        --conf.insecure hosts list --inventory powervault_me4_inventory -f human --filter "name"
+        --conf.insecure hosts list --inventory powervault_inventory -f human --filter "name"
       changed_when: false
       no_log: true
       register: me4_storage
@@ -32,7 +32,7 @@
       when: not awx_web_support
 
     - name: Get auth string for powervault
-      shell: echo -n {{ powervault_me4_username }}_{{ powervault_me4_password }} | sha256sum
+      shell: echo -n {{ powervault_username }}_{{ powervault_password }} | sha256sum
       changed_when: false
       register: auth_string
       no_log: true
@@ -48,7 +48,7 @@
       register: session_key
       when: inventory_hostname not in me4_storage.stdout
 
-    - name: Assert me4_powervault
+    - name: Assert powervault
       uri:
         url: https://{{ inventory_hostname }}/api/show/system
         method: GET
@@ -60,31 +60,31 @@
       register: system_info
       when: inventory_hostname not in me4_storage.stdout
 
-    - name: Set powervault_me4_status
+    - name: Set powervault_status
       set_fact:
-        powervault_me4_status: true
+        powervault_status: true
       when:
         - inventory_hostname not in me4_storage.stdout
-        - me4_powervault_search_key in system_info.json.system[0]['scsi-product-id']
+        - me4_powervault_search_key in sytem_info.json.system[0]['scsi-product-id'] or me5_powervault_search_key in system_info.json.system[0]['scsi-product-id']
   rescue:
-    - name: Failed while adding device to powervault_me4_inventory
+    - name: Failed while adding device to powervault_inventory
       debug:
-        msg: "{{ powervault_me4_fail_msg }}"
+        msg: "{{ powervault_fail_msg }}"
   when:
     - not idrac_inventory_status
     - not ethernet_inventory_status
     - not ib_inventory_status
-    - not powervault_me4_status
+    - not powervault_status
     - inventory_hostname not in idrac_hosts.stdout
     - inventory_hostname not in ethernet_switches.stdout
     - inventory_hostname not in infiniband_switches.stdout
 
-- name: Add the host to awx powervault_me4_inventory
+- name: Add the host to awx powervault_inventory
   block:
-    - name: Add the host to awx powervault_me4_inventory if not present
+    - name: Add the host to awx powervault_inventory if not present
       command: >-
         awx --conf.host {{ awx_host }} --conf.username {{ awx_username }} --conf.password {{ awx_password }}
-        --conf.insecure hosts create --name {{ inventory_hostname }} --inventory powervault_me4_inventory
+        --conf.insecure hosts create --name {{ inventory_hostname }} --inventory powervault_inventory
       changed_when: true
       no_log: true
       when: awx_web_support
@@ -100,7 +100,7 @@
       throttle: 1
       when: not awx_web_support
   rescue:
-    - name: Failed while adding device to powervault_me4_inventory
+    - name: Failed while adding device to powervault_inventory
       debug:
-        msg: "{{ powervault_me4_fail_msg }}"
-  when: powervault_me4_status
+        msg: "{{ powervault_fail_msg }}"
+  when: powervault_status
