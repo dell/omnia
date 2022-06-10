@@ -86,7 +86,7 @@ public_nic: "eno2"
 # Default value: "192.168.0.0/16"
 appliance_k8s_pod_net_cidr: "192.168.0.0/16"
 
-### Usage: provision_idrac, network_ib, network_ethernet, powervault_me4 ###
+### Usage: provision_idrac, network_ib, network_ethernet, powervault ###
 
 # The trap destination IP address is the IP address of the SNMP Server where the trap will be sent
 # If this variable is left blank, SNMP will be disabled.

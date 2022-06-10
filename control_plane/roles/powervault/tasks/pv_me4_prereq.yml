@@ -21,7 +21,7 @@
   tags: install
 
 - name: Get auth string
-  shell: echo -n {{ powervault_me4_username }}_{{ powervault_me4_password }} | sha256sum
+  shell: echo -n {{ powervault_username }}_{{ powervault_password }} | sha256sum
   register: auth_string
   changed_when: false
   ignore_errors: yes
@@ -50,25 +50,23 @@
     body_format: json
     validate_certs: no
     use_proxy: no
+    timeout: 60
     headers:
       {'sessionKey': "{{ session_key.json.status[0].response }}", 'datatype':'json'}
   register: system_info
-  tags: install
 
 - name: Get the product id
   set_fact:
     pv_id: "{{ system_info.json.system[0]['product-id'] }}"
 
 - name: Verify the product id and model no. of device
-  fail:
-    msg: "{{ fail_pv_support }}"
-  when:
-    - scsi_product_id not in system_info.json.system[0]['scsi-product-id']
-    - pv_id  != "ME4084" or pv_id != "ME4024"  or pv_id != "ME4012"
+  assert:
+    that: ("ME4" in pv_id) or ("ME5" in pv_id)
+    fail_msg: "{{ fail_pv_support }}"
 
 - name: Set system name
   uri:
-    url: https://{{ inventory_hostname }}/api/set/system/name/{{ powervault_me4_system_name }}
+    url: https://{{ inventory_hostname }}/api/set/system/name/{{ powervault_system_name }}
     method: GET
     body_format: json
     validate_certs: no
@@ -76,5 +74,4 @@
     headers:
       {'sessionKey': "{{ session_key.json.status[0].response }}", 'datatype':'json'}
   register: system_name
-  when: powervault_me4_system_name
-  tags: install
+  when: powervault_system_name
