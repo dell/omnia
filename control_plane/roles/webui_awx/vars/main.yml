@@ -90,7 +90,7 @@ group_names:
 credential_details:
   - { name: node_credential, type: Machine, username: root, password: "{{ provision_password }}", flag: true }
   - { name: idrac_credential, type: Network, username: "{{ idrac_username }}", password: "{{ idrac_password }}", flag: "{{ idrac_support }}" }
-  - { name: ethernet_credential, type: Machine, username: "{{ ethernet_switch_username }}", password: "{{ ethernet_switch_password }}", flag: "{{ ethernet_switch_support }}" }
+  - { name: ethernet_credential, type: Network, username: "{{ ethernet_switch_username }}", password: "{{ ethernet_switch_password }}", flag: "{{ ethernet_switch_support }}" }
   - { name: infiniband_credential, type: Network, username: "{{ ib_username }}", password: "{{ ib_password }}", flag: "{{ ib_switch_support }}" }
   - { name: powervault_credential, type: Network, username: "{{ powervault_username }}", password: "{{ powervault_password }}", flag: "{{ powervault_support }}" }
 job_template_details:
