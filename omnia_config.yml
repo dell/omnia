@@ -124,3 +124,20 @@ beegfs_client_version: "7.2.6"
 # Default value: false
 # If there is a need for installing different version of BeeGFS client then make this variable to true
 beegfs_version_change: false
+
+# This variable is used for supportig NFS bolt-on on login_node, compute, and manager nodes
+# Values should be entered in JSON format only.
+# For enabling NFS bolt-on support, atleast one list of valid values should be provided.
+# Example for single mount file system:
+# nfs_client_params: 
+# - { server_ip: <IP>, server_share_path: < server_mount>, client_share_path: <client_mount> }
+# Example for suppoting multiple mount points:
+# nfs_client_params: 
+#    - { server_ip: <IP1>, server_share_path: < server_mount1>, client_share_path: <client_mount1> } 
+#    - { server_ip: <IP1>, server_share_path: < server_mount2>, client_share_path: <client_mount2> } 
+# Example for multiple mount file system:
+# nfs_client_params: 
+# - { server_ip: <IP1>, server_share_path: < server_mount1>, client_share_path: <client_mount1>} 
+# - { server_ip: <IP2>, server_share_path: < server_mount2>, client_share_path: <client_mount2> } 
+nfs_client_params:
+   - { server_ip: , server_share_path: , client_share_path:  }
