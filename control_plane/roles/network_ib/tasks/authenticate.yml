@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,14 +13,25 @@
 # limitations under the License.
 ---
 
-- name: Set Credentials for IB switch
+- name: Set Credentials for IB switch - AWX
   set_fact:
     username: "{{ lookup('env','ANSIBLE_NET_USERNAME') }}"
     password: "{{ lookup('env','ANSIBLE_NET_PASSWORD') }}"
+  no_log: true
+  when: awx_web_support
+
+- name: Set Credentials for IB switch - CLI
+  set_fact:
+    username: "{{ ib_username }}"
+    password: "{{ ib_password }}"
+  no_log: true
+  when: not awx_web_support
+
+- name: Initialize variables
+  set_fact:
     global_config: false
     interface_config: false
     filtered_dict: {}
-  no_log: true
 
 - name: Authenticate
   block:
