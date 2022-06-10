@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+
 # tasks file for network_ethernet
 
 - name: Include base variable file
@@ -19,6 +20,17 @@
 
 - name: Check if ethernet switch is supported
   block:
+    - name: Fetch ethernet credentials when awx_web_support is false
+      include_tasks: fetch_ethernet_credentials.yml
+      when: not awx_web_support
+    
+    - name: Set Credentials for IB switch in AWX
+      set_fact:
+        ethernet_switch_username: "{{ lookup('env','ANSIBLE_NET_USERNAME') }}"
+        ethernet_switch_password: "{{ lookup('env','ANSIBLE_NET_PASSWORD') }}"
+      no_log: true
+      when: awx_web_support
+
     - name: Check pre-requisites
       include_tasks: pre_requisites.yml
 
