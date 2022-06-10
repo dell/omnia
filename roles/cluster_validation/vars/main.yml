@@ -53,7 +53,7 @@ rdma_support_success_msg: "rdma_support validated successfully"
 rdma_support_failure_msg: "Failed. rdma_support should be either true or false"
 beegfs_mgmt_server_success_msg: "beegfs_mgmt_server, validated successfully"
 beegfs_mgmt_server_fail_msg: "Failed. Please enter IP of management server in IPV4 format"
-beegfs_mgmt_server_not_reachable_msg: "Failure, IP provided for beegfs_mgmt_server is not rechable. Please provide rechable IP of beegfs management server"
+beegfs_mgmt_server_not_reachable_msg: "Failure, IP provided for beegfs_mgmt_server is not reachable. Please provide reachable IP of beegfs management server"
 ping_msg: "100% packet loss"
 beegfs_mounts_fail_msg: "Failed. Please provide a path for mounting beegfs file system"
 beegfs_client_version_success_msg: "beegfs_client_version, validated successfully "
@@ -126,3 +126,14 @@ restrict_softwares_failure_msg: "Warning. Values should be comma separated. The 
 # Usage: install_packages.yml
 ansible_base_version: '2.9'
 ipaddr_collection: ansible.utils:2.5.2
+
+# Usage: fetch_nfs_client_params.yml
+nfs_server_reach_msg: "Failed. Nfs server is not reachable. Please enter valid nfs server IP in nfs_client_params"
+server_share_path_success_msg: "server_share_path is validated successfully"
+server_share_path_failure_msg: "Failed. Please enter valid NFS server mount location"
+server_ip_success_msg: "Successfully verified server_ip variable declaration"
+server_ip_fail_msg: "Failed, Declare server_ip variable in nfs_client_params of omnia_config, please refer comments in omnia_config.yml"
+server_share_path_fail_msg: "Failed, Declare server_share_path variable in nfs_client_params of omnia_config, please refer comments in omnia_config.yml"
+client_share_path_success_msg: "Successfully verified client_share_path variable declaration"
+client_share_path_fail_msg: "Failed, Declare client_share_path variable in nfs_client_params of omnia_config, please refer comments in omnia_config.yml"
+server_share_path_len_success_msg: "server_share_path validated successfully"
