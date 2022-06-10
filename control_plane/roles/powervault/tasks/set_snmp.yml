@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,11 +14,10 @@
 ---
 
 - name: Get auth string
-  shell: echo -n {{ powervault_me4_username }}_{{ powervault_me4_password }}  | sha256sum
+  shell: echo -n {{ powervault_username }}_{{ powervault_password }}  | sha256sum
   register: snmp_auth_string
   changed_when: false
   ignore_errors: yes
-  tags: install
 
 - name: Get session key
   uri:
@@ -28,11 +27,10 @@
       {'datatype': 'json'}
     validate_certs: no
   register: snmp_session_key
-  tags: install
 
 - name: Set snmp parameters
   uri:
-    url: https://{{ inventory_hostname }}/api/set/snmp-parameters/enable/{{ powervault_me4_snmp_notify_level }}/add-trap-host/{{ snmp_trap_destination }}/read-community/{{ snmp_community_name }}
+    url: https://{{ inventory_hostname }}/api/set/snmp-parameters/enable/{{ powervault_snmp_notify_level }}/add-trap-host/{{ snmp_trap_destination }}/read-community/{{ snmp_community_name }}
     method: GET
     body_format: json
     validate_certs: no
@@ -40,4 +38,3 @@
     headers:
       {'sessionKey': "{{ snmp_session_key.json.status[0].response }}", 'datatype':'json'}
   register: snmp
-  tags: install

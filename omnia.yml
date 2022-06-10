@@ -109,16 +109,16 @@
       when: hostvars['127.0.0.1']['powervault_status']
 
 - name: Map volume
-  hosts: powervault_me4
+  hosts: powervault
   connection: local
   gather_facts: false
   tasks:
     - name: Include map volume task
-      include_tasks: "{{ playbook_dir }}/control_plane/roles/powervault_me4/tasks/ports.yml"
+      include_tasks: "{{ playbook_dir }}/control_plane/roles/powervault/tasks/ports.yml"
       when: hostvars['127.0.0.1']['powervault_status']
 
     - name: Include map volume task
-      include_tasks: "{{ playbook_dir }}/control_plane/roles/powervault_me4/tasks/map_volume.yml"
+      include_tasks: "{{ playbook_dir }}/control_plane/roles/powervault/tasks/map_volume.yml"
       when: hostvars['127.0.0.1']['powervault_status']
 
 - name: Apply NFS server setup on NFS node
