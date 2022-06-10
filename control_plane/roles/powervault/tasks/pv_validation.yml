@@ -36,11 +36,10 @@
     fail_msg: "{{ protocol_wrong_value }}"
     success_msg: "{{ protocol_success }}"
 
-- name: Validate the value of protocol is sas
+- name: Validate the value of powervault_protocol is not fc
   fail:
     msg: "{{ protocol_supported }}"
-  when:
-      - powervault_protocol | lower != "sas" or  powervault_protocol | lower != "iscsi"
+  when: powervault_protocol | lower == "fc"
 
 - name: Check if system name has space
   shell: echo {{ powervault_system_name }} | grep '\s' -c

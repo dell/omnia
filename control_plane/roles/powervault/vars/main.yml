@@ -26,7 +26,7 @@ wrong_vol_size: "Failed: Given volume size is wrong"
 wrong_pool_type: "Failed: Given pool type value is wrong"
 protocol_wrong_value: "Failed. Check the value given in protocol."
 protocol_success: "Success. The protocol value validated"
-protocol_supported: "Only sas protocol is supported. Check the value of protocol."
+protocol_supported: "Failed. fc is not supported in this release."
 volume_wrong_value: "Atleast 1 volume should be given"
 server_path_empty: "Failed.Server_shared_path must not be empty"
 

@@ -80,6 +80,10 @@
         ethernet_inventory_status: false
         ib_inventory_status: false
         powervault_status: false
+        idrac_hosts_output: ""
+        ethernet_switches_output: ""
+        infiniband_switches_output: ""
+        powervault_storage_output: ""
 
     - name: Add devices to idrac_inventory
       include_tasks: add_idrac_inventory.yml

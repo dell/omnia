@@ -15,20 +15,30 @@
 
 - name: powervault_inventory validation tasks
   block:
-    - name: Fetch the hosts in powervault inventory
+    - name: Fetch the hosts in powervault inventory in AWX
       command: >-
         awx --conf.host {{ awx_host }} --conf.username {{ awx_username }} --conf.password {{ awx_password }}
         --conf.insecure hosts list --inventory powervault_inventory -f human --filter "name"
       changed_when: false
       no_log: true
-      register: me4_storage
+      register: powervault_storage_awx
       when: awx_web_support
 
-    - name: Check IP already present in powervault_inventory - CLI
+    - name: Check IP already present in powervault_inventory in CLI
       command: grep "{{ inventory_hostname }}" "{{ powervault_inventory_path }}"
-      register: me4_storage
+      register: powervault_storage_cli
       failed_when: false
       changed_when: false
+      when: not awx_web_support
+
+    - name: Set powervault_storage_output in AWX
+      set_fact:
+        powervault_storage_output: "{{ powervault_storage_awx.stdout }}"
+      when: awx_web_support
+
+    - name: Set ethernet_switches_output in CLI
+      set_fact:
+        powervault_storage_output: "{{ powervault_storage_cli.stdout }}"
       when: not awx_web_support
 
     - name: Get auth string for powervault
@@ -36,7 +46,7 @@
       changed_when: false
       register: auth_string
       no_log: true
-      when: inventory_hostname not in me4_storage.stdout
+      when: inventory_hostname not in powervault_storage_output
 
     - name: Get session key for powervault
       uri:
@@ -46,7 +56,7 @@
           {'datatype': 'json'}
         validate_certs: no
       register: session_key
-      when: inventory_hostname not in me4_storage.stdout
+      when: inventory_hostname not in powervault_storage_output
 
     - name: Assert powervault
       uri:
@@ -55,17 +65,18 @@
         body_format: json
         validate_certs: no
         use_proxy: no
+        timeout: 60
         headers:
           {'sessionKey': "{{ session_key.json.status[0].response }}", 'datatype':'json'}
       register: system_info
-      when: inventory_hostname not in me4_storage.stdout
+      when: inventory_hostname not in powervault_storage_output
 
     - name: Set powervault_status
       set_fact:
         powervault_status: true
       when:
-        - inventory_hostname not in me4_storage.stdout
-        - me4_powervault_search_key in sytem_info.json.system[0]['scsi-product-id'] or me5_powervault_search_key in system_info.json.system[0]['scsi-product-id']
+        - inventory_hostname not in powervault_storage_output
+        - me4_powervault_search_key in system_info.json.system[0]['scsi-product-id'] or me5_powervault_search_key in system_info.json.system[0]['scsi-product-id']
   rescue:
     - name: Failed while adding device to powervault_inventory
       debug:
@@ -75,9 +86,9 @@
     - not ethernet_inventory_status
     - not ib_inventory_status
     - not powervault_status
-    - inventory_hostname not in idrac_hosts.stdout
-    - inventory_hostname not in ethernet_switches.stdout
-    - inventory_hostname not in infiniband_switches.stdout
+    - inventory_hostname not in idrac_hosts_output
+    - inventory_hostname not in ethernet_switches_output
+    - inventory_hostname not in infiniband_switches_output
 
 - name: Add the host to awx powervault_inventory
   block:
