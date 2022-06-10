@@ -73,7 +73,7 @@
 - name: Set fact for volume names
   set_fact:
     vol_space_count: "{{ vol_space_count | default ([]) + [{ 'name': item.item.name , 'space': item.stdout }] }}"
-  loop: "{{ vol_count1.results}}"
+  loop: "{{ vol_count1.results }}"
   loop_control:
     label: "{{ item.stdout_lines }}"
 
