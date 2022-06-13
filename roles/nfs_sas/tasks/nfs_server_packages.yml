@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,19 +13,20 @@
 #  limitations under the License.
 ---
 
-- name: Assert if powervault IP is defined
-  assert:
-    that: powervault_ip | length | int > 4
+- name: Install nfs-utils
+  package:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - nfs-utils
+    - firewalld
 
-- name: Ping the powervault to validate connectivity
-  command: ping -c1 {{ powervault_ip }}
-  register: validate_pv
-  changed_when: false
-  failed_when: false
-
-- name: Verify connection to PowerVault 
-  assert:
-    that:
-      - "' 0% packet loss' in validate_pv.stdout"
-    success_msg: "{{ powervault_ip_success_msg }}"
-    fail_msg: "{{ powervault_ip_failure_msg }}"
+- name: Start and enable rpcbind and nfs-server service
+  service:
+    name: "{{ item }}"
+    state: started
+    enabled: yes
+  with_items:
+    - rpcbind
+    - nfs-server
+    - firewalld

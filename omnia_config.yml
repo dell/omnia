@@ -125,6 +125,13 @@ beegfs_client_version: "7.2.6"
 # If there is a need for installing different version of BeeGFS client then make this variable to true
 beegfs_version_change: false
 
+# Mandatory field when nfs_node group is defined with an IP.
+# IP of Powervault connected to NFS Server should be provided.
+# In a single run of omnia, only one NFS Server is configured.
+# To configure multiple NFS Servers, add one IP in nfs_node group in a single run of omnia.yml and 
+# give variable values accordingly. To configure another nfs node, update variables and run nfs_sas.yml
+powervault_ip:
+
 # This variable is used for supportig NFS bolt-on on login_node, compute, and manager nodes
 # Values should be entered in JSON format only.
 # For enabling NFS bolt-on support, atleast one list of valid values should be provided.
