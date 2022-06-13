@@ -67,3 +67,6 @@ os_centos: 'centos'
 os_rocky: 'rocky'
 os_version: '8.0'
 os_supported_leap: "leap"
+lmod_packages:
+   - lua-lmod
+   - gnu-compilers-hpc

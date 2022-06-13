@@ -231,3 +231,11 @@
   when:
     - login_node_required
     - enable_secure_login_node
+
+- name: Initializing variables for NFS bolt on support
+  set_fact:
+    nfs_client_support: false
+
+- name: Include fetch_nfs_client_params.yml
+  include_tasks: fetch_nfs_client_params.yml
+  with_items: "{{ nfs_client_params }}"

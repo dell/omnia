@@ -105,7 +105,7 @@ fail_msg_idrac_credentials: "Failed. Incorrect idrac_username or idrac_password 
 fail_msg_grafana_credentials: "Failed. Incorrect grafana_username or grafana_password format provided in login_vars.yml"
 fail_msg_ethernet_credentials: "Failed. Incorrect ethernet_switch_username or ethernet_switch_password format provided in login_vars.yml"
 fail_msg_ib_credentials: "Failed. Incorrect ib_username or ib_password format provided in login_vars.yml"
-fail_msg_me4_credentials: "Failed. Incorrect powervault_me4_username or powervault_me4_password format provided in login_vars.yml"
+fail_msg_credentials: "Failed. Incorrect powervault_username or powervault_password format provided in login_vars.yml"
 login_security_config_failure_msg: "Failed. Please provide the required passwords in login_vars.yml for installing ipa"
 success_msg_dir_manager_password: "ms_directory_manager_password successfully validated"
 fail_msg_dir_manager_password: "Failed. Incorrect format provided for ms_directory_manager_password"

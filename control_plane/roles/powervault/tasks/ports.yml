@@ -13,11 +13,11 @@
 #  limitations under the License.
 ---
 
-- name: Include powervault_me4_vars.yml
-  include_vars: "{{ playbook_dir }}/control_plane/input_params/powervault_me4_vars.yml"
+- name: Include powervault_vars.yml
+  include_vars: "{{ playbook_dir }}/control_plane/input_params/powervault_vars.yml"
 
-- name: Include powervault_me4 role variables
-  include_vars: "{{ playbook_dir }}/control_plane/roles/powervault_me4/vars/main.yml"
+- name: Include powervault role variables
+  include_vars: "{{ playbook_dir }}/control_plane/roles/powervault/vars/main.yml"
 
 - name: Check if login_vars.yml file is encrypted
   command: cat {{ login_pv_file }}
@@ -41,26 +41,24 @@
   no_log: true
 
 - name: Get auth string
-  shell: echo -n {{ powervault_me4_username }}_{{ powervault_me4_password }}  | sha256sum
+  shell: echo -n {{ powervault_username }}_{{ powervault_password }}  | sha256sum
   register: port_auth_string
   changed_when: false
   ignore_errors: yes
-  tags: install
 
 - name: Get session key
   uri:
-    url: https://{{ groups['powervault_me4'][0] }}/api/login/{{ port_auth_string.stdout | replace(" -", "") }}
+    url: https://{{ groups['powervault'][0] }}/api/login/{{ port_auth_string.stdout | replace(" -", "") }}
     method: GET
     headers:
       {'datatype': 'json'}
     validate_certs: no
   register: port_session_key
   delegate_to: localhost
-  tags: install
 
 - name: Show ports
   uri:
-    url: https://{{ groups['powervault_me4'][0] }}/api/show/ports
+    url: https://{{ groups['powervault'][0] }}/api/show/ports
     method: GET
     body_format: json
     validate_certs: no
@@ -69,7 +67,6 @@
       {'sessionKey': "{{ port_session_key.json.status[0].response }}", 'datatype':'json'}
   register: show_ports
   delegate_to: localhost
-  tags: install
 
 - name: Up ports
   set_fact:
@@ -88,7 +85,7 @@
 
 - name: Assign ip to ports
   uri:
-    url: https://{{ groups['powervault_me4'][0] }}/api/set/host-parameters/gateway/{{ port_gateway }}/ip/{{ item.0 }}/netmask/{{ port_netmask }}/ports/{{ item.1 }}/prompt/yes/noprompt
+    url: https://{{ groups['powervault'][0] }}/api/set/host-parameters/gateway/{{ port_gateway }}/ip/{{ item.0 }}/netmask/{{ port_netmask }}/ports/{{ item.1 }}/prompt/yes/noprompt
     method: GET
     body_format: json
     validate_certs: no
@@ -100,4 +97,3 @@
     - "{{ set_port_ip }}"
     - "{{ up_port }}"
   delegate_to: localhost
-  tags: install

@@ -21,27 +21,31 @@
   include_vars: "{{ playbook_dir }}/roles/control_plane_customiso/vars/main.yml"
   run_once: true
 
-- name: Check {{ management_station_ip_file }} file is present
-  stat:
-    path: "{{ role_path }}/files/{{ management_station_ip_file }}"
-  register: ip_file_check
-  run_once: true
-  
-- name: Fetch management station ip from {{ management_station_ip_file }}
-  command: cat {{ role_path }}/files/{{ management_station_ip_file }}
-  changed_when: false
-  register: fetch_ip
-  run_once: true
-  when: ip_file_check.stat.exists
+- block:
+    - name: Check {{ management_station_ip_file }} file is present
+      stat:
+        path: "{{ role_path }}/files/{{ management_station_ip_file }}"
+      register: ip_file_check
+      run_once: true
+      
+    - name: Fetch management station ip from {{ management_station_ip_file }}
+      command: cat {{ role_path }}/files/{{ management_station_ip_file }}
+      changed_when: false
+      register: fetch_ip
+      run_once: true
+      when: ip_file_check.stat.exists
 
-- name: Missing {{ management_station_ip_file }}
-  fail:
-    msg: "{{ missing_ip_file_fail_msg }}"
-  when: not ip_file_check.stat.exists
-  
-- name: Set management_station_ip
-  set_fact:
-    management_station_ip: "{{ fetch_ip.stdout }}"
+    - name: Missing {{ management_station_ip_file }}
+      fail:
+        msg: "{{ missing_ip_file_fail_msg }}"
+      when: not ip_file_check.stat.exists
+      
+    - name: Set management_station_ip
+      set_fact:
+        management_station_ip: "{{ fetch_ip.stdout }}"
+  when:
+    - provision_method == provision_method_idrac or
+      firmware_update_required | bool
 
 - name: Initialize variables
   set_fact:
@@ -60,7 +64,8 @@
     idrac_license_name: ""
     deploy_os_status: false
 
-- block:
+- name: Check provision_status in AWX
+  block:
     - name: Check tower_cli.cfg is encrypted
       command: cat "{{ playbook_dir }}/roles/webui_awx/files/{{ awx_vars_filename }}"
       changed_when: false
@@ -138,17 +143,44 @@
       changed_when: false
       no_log: true
 
-    - name: Set provision status
+    - name: Set provision status - AWX
       set_fact:
         provision_status: true
       when: inventory_hostname in fetch_inventory.stdout
 
-    - name: Removing hosts already provisioned
+    - name: Removing hosts already provisioned - AWX
       debug:
-        msg: "{{ provision_skip_msg }}"
+        msg: "{{ provision_skip_msg_awx }}"
       when: provision_status
+  when: awx_web_support
 
-  when: awx_search_key in hostname.stdout
+- name: Check provision_status in CLI
+  block:
+    - name: Check if provisioned_idrac_inventory file exists
+      stat:
+        path: "{{ provisioned_idrac_inventory_path }}"
+      register: provisioned_idrac_check
+      run_once: true
+
+    - name: Check the provisioned_idrac_inventory output
+      command: cat {{ provisioned_idrac_inventory_path }}
+      changed_when: false
+      register: provisioned_idrac_list
+      run_once: true
+      when: provisioned_idrac_check.stat.exists
+
+    - name: Set provision status - CLI
+      set_fact:
+        provision_status: true
+      when: 
+        - provisioned_idrac_check.stat.exists
+        - inventory_hostname in provisioned_idrac_list.stdout
+
+    - name: Removing hosts already provisioned - CLI
+      debug:
+        msg: "{{ provision_skip_msg_cli }}"
+      when: provision_status
+  when: not awx_web_support
 
 - block:
     - name: Show status of the Lifecycle Controller

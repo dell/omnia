@@ -18,4 +18,4 @@
   gather_facts: false
   connection: local
   roles:
-    - powervault_me4
+    - powervault

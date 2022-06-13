@@ -21,14 +21,24 @@
         --conf.insecure hosts list --inventory ethernet_inventory -f human --filter "name"
       changed_when: false
       no_log: true
-      register: ethernet_switches
+      register: ethernet_switches_awx
       when: awx_web_support
 
-    - name: Check IP already present in ethernet_inventory - CLI
+    - name: Check IP already present in ethernet_inventory in CLI
       command: grep "{{ inventory_hostname }}" "{{ ethernet_inventory_path }}"
-      register: ethernet_switches
+      register: ethernet_switches_cli
       failed_when: false
       changed_when: false
+      when: not awx_web_support
+
+    - name: Set ethernet_switches_output in AWX
+      set_fact:
+        ethernet_switches_output: "{{ ethernet_switches_awx.stdout }}"
+      when: awx_web_support
+
+    - name: Set ethernet_switches_output in CLI
+      set_fact:
+        ethernet_switches_output: "{{ ethernet_switches_cli.stdout }}"
       when: not awx_web_support
 
     - name: Assert ethernet switch
@@ -38,7 +48,7 @@
           username: "{{ ethernet_switch_username }}"
           password: "{{ ethernet_switch_password }}"
         commands: ['show version']
-      when: inventory_hostname not in ethernet_switches.stdout
+      when: inventory_hostname not in ethernet_switches_output
       register: dellswitch_info
       no_log: true
 
@@ -46,7 +56,7 @@
       set_fact:
         ethernet_inventory_status: true
       when:
-        - inventory_hostname not in ethernet_switches.stdout
+        - inventory_hostname not in ethernet_switches_output
         - dellswitch_info.stdout | regex_search(ethernet_search_key)
   rescue:
     - name: Failed while adding device to ethernet_inventory
@@ -55,7 +65,7 @@
   when:
     - not idrac_inventory_status
     - not ethernet_inventory_status
-    - inventory_hostname not in idrac_hosts.stdout
+    - inventory_hostname not in idrac_hosts_output
 
 - name: Add the host to awx ethernet inventory
   block:
