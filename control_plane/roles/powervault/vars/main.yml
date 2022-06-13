@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -24,6 +24,11 @@ wrong_pool: "Failed: Given pool value is wrong"
 wrong_partition: "Failed: Given partition is wrong"
 wrong_vol_size: "Failed: Given volume size is wrong"
 wrong_pool_type: "Failed: Given pool type value is wrong"
+protocol_wrong_value: "Failed. Check the value given in protocol."
+protocol_success: "Success. The protocol value validated"
+protocol_supported: "Failed. fc is not supported in this release."
+volume_wrong_value: "Atleast 1 volume should be given"
+server_path_empty: "Failed.Server_shared_path must not be empty"
 
 # Usage: pv_me4_prereq.yml
 scsi_product_id: ME4
@@ -31,7 +36,7 @@ fail_pv_support: "Failed. Powervault not supported"
 success_pv_support: "Success. Powervault supported"
 
 # Usage: main.yml
-pv_file: "{{ role_path }}/../../input_params/powervault_me4_vars.yml"
+pv_file: "{{ role_path }}/../../input_params/powervault_vars.yml"
 base_pv_file: "{{ role_path }}/../../input_params/base_vars.yml"
 
 # Usage: volume.yml
@@ -51,3 +56,7 @@ up_port: []
 access: rw
 login_pv_file: "{{ playbook_dir }}/control_plane/input_params/login_vars.yml"
 login_pv_vault_file: "{{ playbook_dir }}/control_plane/input_params/.login_vault_key"
+
+# Usage: sas_map.yml
+temp1: 10
+t1: 1

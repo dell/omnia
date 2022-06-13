@@ -9,7 +9,7 @@
 | 8.5            	| Yes *                	| Yes           	|
 | 8.6               | Yes *                 | Yes           	|
 
->> __Note:__ 
+>> **Note**: 
 >> * Always deploy the Minimal Edition of the OS on compute nodes.
 >> *  While Omnia may work with Red Hat 8.3 and above, all Omnia testing was done with Red Hat 8.3 on the control plane. All minor versions of Red Hat 8 are supported on the compute nodes.
 
@@ -31,6 +31,6 @@
 | RHEL-8.3  	| 7.2.6                      	| Supported     	|
 | RHEL-8.3  	| 7.3.0                      	| Supported     	|
 
->> __Note:__
+>> **Note**:
 >> * At any given point, the client and management BeeGFS servers must be running the same major version of BeeGFS (ie 7.x). However, minor versions need not match (ie, management **7.x**.y and client **7.x**.z is supported).
 >> * Upgrading BeeGFS to 7.3 using `omnia.yml` is not supported

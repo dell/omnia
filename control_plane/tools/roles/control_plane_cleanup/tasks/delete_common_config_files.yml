@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,11 +11,24 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 ---
 
-- name: Powervault Configuration
-  hosts: all
-  gather_facts: false
-  connection: local
-  roles:
-    - powervault_me4
+- name: Include base vars
+  include_vars: "{{ base_vars_file_path }}"
+  tags: common_config
+
+- name: Deleting Omnia mount location
+  command: "rm -rf {{ mount_location }}"
+  tags: common_config
+
+- name: Deleting omnia log files
+  command: "rm -rf {{ omnia_log_dir }}"
+  tags: common_config
+
+- name: Deleting all extra buildah images
+  command: "buildah rmi --all --force"
+  changed_when: true
+  ignore_errors: true
+  tags: common_config
+

@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -44,7 +44,7 @@
 - name: Assert firmware_update_required value
   assert:
     that:
-      - firmware_update_required == true or firmware_update_required == false
+      - firmware_update_required | lower == "true" or firmware_update_required | lower == "false"
     success_msg: "{{ firmware_update_success_msg }}"
     fail_msg: "{{ firmware_update_fail_msg }}"
 
@@ -69,20 +69,14 @@
     fail_msg: "{{ snmp_trap_dest_fail_msg }}"
   when: snmp_trap_status
 
-- name: Check hostname
-  command: hostname
-  changed_when: false
-  register: hostname
-  run_once: true
-
 - name: Fetch idrac credentials
   include_tasks: fetch_idrac_credentials.yml
-  when: awx_search_key not in hostname.stdout
+  when: not awx_web_support
 
 - name: Set idrac credentials
   set_fact:
     idrac_username: "{{ lookup('env','ANSIBLE_NET_USERNAME') }}"
     idrac_password: "{{ lookup('env','ANSIBLE_NET_PASSWORD') }}"
   no_log: true
-  when: awx_search_key in hostname.stdout
+  when: awx_web_support
   run_once: true

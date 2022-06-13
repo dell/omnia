@@ -86,14 +86,14 @@ ib_username: ""
 # The password must not contain -,\, ',"
 ib_password: ""
 
-### Usage: powervault_me4 ###
+### Usage: powervault ###
 
-# The username for powervault_me4
+# The username for powervault
 # The username must not contain -,\, ',"
-powervault_me4_username: ""
+powervault_username: ""
 
-# Password used for powervault_me4
+# Password used for powervault
 # The password should have atleast one uppercase character, one lowercase character,
 # one numeric character and one non-alphanumeric character.
 # The password must not contain -,\, ',", . , < , comma(,)
-powervault_me4_password: ""
+powervault_password: ""
