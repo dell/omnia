@@ -23,3 +23,4 @@ host_username: root
 host_added_msg: "Added host to awx inventory: "
 host_unreachable_msg: "Following hosts are unreachable: "
 awx_search_key: "-job-"
+node_inventory_path: /opt/omnia/node_inventory

@@ -44,5 +44,6 @@ infiniband_status_code: 302
 
 # Usage: add_powervault_inventory.yml
 powervault_inventory_path:  /opt/omnia/powervault_inventory
-powervault_me4_fail_msg: "Failed. Unable to add {{ inventory_hostname }} to powervault_me4_inventory"
+powervault_fail_msg: "Failed. Unable to add {{ inventory_hostname }} to powervault_inventory"
 me4_powervault_search_key: "ME4"
+me5_powervault_search_key: "ME5"
