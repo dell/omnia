@@ -11,7 +11,7 @@
 1. Verify that `/opt/omnia/idrac_inventory` is created and updated with all iDRAC IP details. This is done automatically when `control_plane.yml` is run. If it's not updated, run `ansible-playbook collect_device_info.yml` from the control_plane directory.
 2. Run `ansible-playbook idrac.yml -i /opt/omnia/idrac_inventory`
 
-### Run idrac_template on the AWX UI.
+### Run `idrac_template` on the AWX UI.
 1. Run `kubectl get svc -n awx`.
 2. Copy the Cluster-IP address of the awx-ui. 
 3. To retrieve the AWX UI password, run `kubectl get secret awx-admin-password -n awx -o jsonpath="{.data.password}" | base64 --decode`.
