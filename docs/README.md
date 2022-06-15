@@ -36,6 +36,7 @@ Omnia can deploy firmware, install Kubernetes or Slurm (or both), along with add
 - Due to known limitations with AWX, installation of AWX is now optional using the parameters `awx_web_support`.
 - Added LMod module system installation to handle the MODULEPATH Hierarchical problem.
 - Added NFS bolt on support to allow manager, compute and login nodes to become NFS clients.
+- Added support for PowerVault ME5 over SAS.
 
 # Using Omnia
 1. Set up your network based on the sample topologies provided [here](NETWORK_TOPOLOGY_LOM.md)

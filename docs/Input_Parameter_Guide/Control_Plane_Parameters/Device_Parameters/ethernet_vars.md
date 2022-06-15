@@ -1,5 +1,5 @@
 # Parameters in `ethernet_vars.yml`
-This file is located in [/control_plane/input_params](../../../control_plane/input_params/ethernet_vars.yml)
+This file is located in [/control_plane/input_params](../../../../control_plane/input_params/ethernet_vars.yml)
 
 Variables	|	Default, choices	|	Description
 ----------------	|	-----------------	|	-----------------

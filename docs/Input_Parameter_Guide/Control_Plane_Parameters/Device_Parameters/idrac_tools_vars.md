@@ -1,5 +1,5 @@
 # Parameters in `idrac_tools_vars.yml`
-This file is located in [/control_plane/input_params](../../../control_plane/input_params/idrac_tools_vars.yml)
+This file is located in [/control_plane/input_params](../../../../control_plane/input_params/idrac_tools_vars.yml)
 
 | Parameter                        	| Default/Accepted Values               | Additional Information                                                                                                                           	|
 |----------------------------------	|---------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------	|
