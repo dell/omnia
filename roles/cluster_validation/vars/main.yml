@@ -84,10 +84,8 @@ nfs_node_group_fail_msg: "nfs_node group should contain exactly 1 node"
 nfs_node_group_success_msg: "nfs_node group check passed"
 
 # Usage: fetch_powervault_status.yml
-tower_config_path: "{{ playbook_dir }}/control_plane/roles/webui_awx/files/.tower_cli.cfg"
-tower_vault_path: "{{ playbook_dir }}/control_plane/roles/webui_awx/files/.tower_vault_key"
-powervault_inventory_name: "powervault_me4_inventory"
-powervault_group: "powervault"
+powervault_ip_success_msg: "Powervault IP is reachable."
+powervault_ip_failure_msg: "Powervault IP is not defined in omnia_config.yml or not reacheable."
 
 # Usage: fetch_control_plane_credentials.yml
 login_vars_filename: input_params/login_vars.yml
