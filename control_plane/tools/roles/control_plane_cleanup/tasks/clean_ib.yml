@@ -17,15 +17,15 @@
   changed_when: false
   failed_when: false
   register: infiniband_pod_name
-  tags: clean_ib
+  tags: ib
 
 - name: Delete infiniband container
   command: "kubectl delete -f {{ k8s_infiniband }}"
   when: "infiniband_pod_name.stdout in k8s_pods.stdout"
   failed_when: false
-  tags: clean_ib
+  tags: ib
 
 - name: Delete infiniband image
   command: "buildah rmi -f {{ infiniband_container }}:latest"
   when: infiniband_container in image_list.stdout
-  tags: clean_ib
+  tags: ib

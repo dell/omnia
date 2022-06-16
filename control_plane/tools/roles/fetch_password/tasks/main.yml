@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -29,13 +29,8 @@
   changed_when: false
   when: "'$ANSIBLE_VAULT;' in config_content.stdout"
 
-- name: Include variable file appliance_config.yml
+- name: Include variable file login_vars.yml
   include_vars: "{{ role_path }}/../../../{{ login_vars_filename }}"
-  no_log: true
-
-- name: Save input variables from file
-  set_fact:
-    cobbler_password: "{{ provision_password }}"
   no_log: true
 
 - name: Encrypt login_vars.yml
@@ -47,4 +42,4 @@
 - name: Update login_vars.yml permission
   file:
     path: "{{ role_path }}/../../../{{ login_vars_filename }}"
-    mode: "{{ file_perm }}"
+    mode: "{{ vault_file_perm }}"

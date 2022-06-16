@@ -19,29 +19,8 @@
   ignore_unreachable: true
   ignore_errors: true
   tasks:
-    - name: Refresh ssh keys
-      command: ssh-keygen -R {{ inventory_hostname }}
-      delegate_to: localhost
-      changed_when: false
-      failed_when: false
-    
-    - name: Check for reachable nodes
-      ping:
-      register: ping_check
-
-    - name: Group reachable hosts
-      group_by:
-        key: "reachable"
-      when:
-        - ping_check.ping is defined
-        - '"pong" in ping_check.ping'
-
-    - name: Group unreachable hosts
-      group_by:
-        key: "unreachable"
-      when:
-        - ping_check.unreachable is defined
-        - ping_check.unreachable
+    - name: Ping for reachable hosts
+      include_tasks: ping_check.yml
 
 - name: Get provision password
   hosts: localhost
@@ -68,6 +47,7 @@
 
     - name: Fetch AWX credentials
       include_tasks: fetch_awx_credentials.yml
+      when: hostvars['localhost']['awx_web_support']
 
 - name: Set hostname for reachable nodes and gather facts
   hosts: reachable
@@ -220,13 +200,35 @@
       delegate_to: localhost
       run_once: true
 
-    - name: Fetch facts and add new hosts
-      include_tasks: add_host.yml
+    - name: Fetch facts and add new hosts in AWX
+      include_tasks: add_host_awx.yml
+      when: hostvars['localhost']['awx_web_support']
+
+    - name: Fetch facts and add new hosts in CLI
+      include_tasks: add_host_cli.yml
+      when: not hostvars['localhost']['awx_web_support']
 
 - name: Cleanup inventory
   hosts: unreachable
   connection: local
   gather_facts: false
   tasks:
-    - name: Remove unreachable hosts
-      include_tasks: remove_host.yml
+    - name: Remove unreachable hosts in AWX
+      include_tasks: remove_host_awx.yml
+      when: hostvars['localhost']['awx_web_support']
+
+    - name: Remove unreachable hosts in CLI
+      include_tasks: remove_host_cli.yml
+      when: not hostvars['localhost']['awx_web_support']
+
+- name: Setup passwordless ssh from control plane to all nodes
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Invoke cluster_preparation role
+      include_role:
+        name: "{{ playbook_dir }}/../../../tools/roles/cluster_preperation"
+      vars:
+        ssh_to: "{{ groups['reachable'] }}"
+      when: not hostvars['localhost']['awx_web_support']

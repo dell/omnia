@@ -155,17 +155,17 @@
         - device_support_status
 
 
-    - name: Execute powervault_me4 template
+    - name: Execute powervault template
       block:
-        - name: Launch powervault_me4 job template
+        - name: Launch powervault job template
           awx.awx.tower_job_launch:
-            job_template: "{{ powervault_me4_job_template }}"
+            job_template: "{{ powervault_job_template }}"
             tower_config_file: "{{ tower_config_file }}"
             wait: yes
             timeout: "{{ awx_max_wait_time }}"
           register: powervault_job_status
       rescue:
-        - name: Warning message for powervault_me4 template
+        - name: Warning message for powervault template
           debug:
             msg: "{{ powervault_template_warn_msg }}"
       when:

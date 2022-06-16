@@ -52,8 +52,8 @@ Below is a list of all logs available to Loki and can be accessed on the dashboa
    3. To edit the encrypted parameters:
     `ansible-vault edit login_vars.yml --vault-password-file .login_vault_key`
 ## 5. Checking pod status on the control plane
-    * Select the pod you need to troubleshoot from the output of `kubectl get pods -A`
-    * Check the status of the pod by running `kubectl describe pod <pod name> -n <namespace name>`
+   * Select the pod you need to troubleshoot from the output of `kubectl get pods -A`
+   * Check the status of the pod by running `kubectl describe pod <pod name> -n <namespace name>`
 
 
 

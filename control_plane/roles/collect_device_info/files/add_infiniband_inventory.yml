@@ -21,14 +21,24 @@
         --conf.insecure hosts list --inventory infiniband_inventory -f human --filter "name"
       changed_when: false
       no_log: true
-      register: infiniband_switches
+      register: infiniband_switches_awx
       when: awx_web_support
 
-    - name: Check IP already present in infiniband_inventory - CLI
+    - name: Check IP already present in infiniband_inventory in CLI
       command: grep "{{ inventory_hostname }}" "{{ infiniband_inventory_path }}"
-      register: infiniband_switches
+      register: infiniband_switches_cli
       failed_when: false
       changed_when: false
+      when: not awx_web_support
+
+    - name: Set infiniband_switches_output in AWX
+      set_fact:
+        infiniband_switches_output: "{{ infiniband_switches_awx.stdout }}"
+      when: awx_web_support
+
+    - name: Set ethernet_switches_output in CLI
+      set_fact:
+        infiniband_switches_output: "{{ infiniband_switches_cli.stdout }}"
       when: not awx_web_support
 
     - name: Authenticate infiniband Switch
@@ -43,7 +53,7 @@
         status_code: "{{ infiniband_status_code }}"
       no_log: true
       register: login
-      when: inventory_hostname not in infiniband_switches.stdout
+      when: inventory_hostname not in infiniband_switches_output
 
     - name: Assert infiniband switch
       uri:
@@ -61,14 +71,14 @@
           }
       register: infinibandswitch_info
       when:
-        - inventory_hostname not in infiniband_switches.stdout
+        - inventory_hostname not in infiniband_switches_output
         - not login.failed
 
     - name: Set ib_inventory_status
       set_fact:
         ib_inventory_status: true
       when:
-        - inventory_hostname not in infiniband_switches.stdout
+        - inventory_hostname not in infiniband_switches_output
         - not login.failed
         - (infinibandswitch_info.json.results is defined and infinibandswitch_info.json.results[0].data['Product name'] == infiniband_search_key) or (infinibandswitch_info.json.data is defined and infinibandswitch_info.json.data['Product name'] == infiniband_search_key)
   rescue:
@@ -79,8 +89,8 @@
     - not idrac_inventory_status
     - not ethernet_inventory_status
     - not ib_inventory_status
-    - inventory_hostname not in idrac_hosts.stdout
-    - inventory_hostname not in ethernet_switches.stdout
+    - inventory_hostname not in idrac_hosts_output
+    - inventory_hostname not in ethernet_switches_output
 
 - name: Add the host to awx infiniband_inventory
   block:

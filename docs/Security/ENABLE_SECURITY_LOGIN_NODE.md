@@ -1,14 +1,14 @@
 # Enabling Security on the Login Node 
 
->> __Note:__ For 389ds/SSSD to work, an external LDAP server has to be set up in your environment as Omnia does not configure LDAP.
+>> **Note**: For 389ds/SSSD to work, an external LDAP server has to be set up in your environment as Omnia does not configure LDAP.
 
-* Once all [pre-requisites](../PreRequisites/Login_Node_Security_PreReqs.md) are met, ensure that `enable_secure_login_node` is set to **true** in `omnia_config.yml`
+* Once all [pre-requisites](../PreRequisites/OMNIA_PreReqs.md) are met, ensure that `enable_secure_login_node` is set to **true** in `omnia_config.yml`
 
 ## Limiting User Authentication over sshd
 
 Users logging into this host can be __optionally__ allowed or denied using an access control list. All users to be allowed or denied are to be listed in the variable `user` in `omnia_security_vars.yml`. 
 
->> __Note:__ All users on the server will have to be defined manually. Omnia does not create any users by default.
+>> **Note**: All users on the server will have to be defined manually. Omnia does not create any users by default.
 
 ## Session Timeout
 
@@ -18,7 +18,7 @@ To encourage security, users who have been idle over 3 minutes will be logged ou
 
 Optionally, different communication protocols can be disabled on the control plane using the `restrict_program_support` and `restrict_softwares` variables in `omnia_security_vars.yml. These protocols include: telnet,lpd,bluetooth,rlogin and rexec. Features that cannot be disabled include: ftp,smbd,nmbd,automount and portmap. 
 
->> __Note:__ The parameter `restrict_softwares` is __case-sensitive__
+>> **Note**: The parameter `restrict_softwares` is __case-sensitive__
 
 ## Logging Program Executions using Snoopy
 
@@ -32,7 +32,7 @@ Using PSACCT on Rocky and Acct on LeapOS, admins can monitor activity. For more 
 
 If the `alert_email_address` variable in `omnia_security_config.yml` is populated with a single, valid email ID, all authentication failures will trigger an email notification. A cron job is set up to verify failures and send emails every hour.
 
->> __Note:__ The `alert_email_address` variable is __optional__. If it is not populated, authentication failure email alerts will be disabled.
+>> **Note**: The `alert_email_address` variable is __optional__. If it is not populated, authentication failure email alerts will be disabled.
 
 ## Kernel Lockdown
 

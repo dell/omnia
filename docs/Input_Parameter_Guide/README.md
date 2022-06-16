@@ -12,7 +12,7 @@ Before running `control_plane.yml` or `omnia.yml` ensure that the following para
     6. [iDRAC tools Parameters](Control_Plane_Parameters/Device_Parameters/idrac_tools_vars.md)
     7. [iDRAC Parameters](Control_Plane_Parameters/Device_Parameters/idrac_vars.md)
     8. [Open Subnet Manager Configuration](Control_Plane_Parameters/Device_Parameters/opensm_conf.md)
-    9. [Powervault ME4 Parameters](Control_Plane_Parameters/Device_Parameters/powervault_me4_vars.md)
+    9. [Powervault ME4 Parameters](Control_Plane_Parameters/Device_Parameters/powervault_vars.md)
     10. [Redhat Subscription Manager Parameters](Control_Plane_Parameters/Device_Parameters/rhsm_vars.md)
     11. [Top Of the Rack Interface Keys](Control_Plane_Parameters/Device_Parameters/TOR_Interface_Keys.md)
 2. [Base Parameters](Control_Plane_Parameters/base_vars.md)

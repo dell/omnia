@@ -13,9 +13,14 @@
 #  limitations under the License.
 ---
 
-#Usage: passwordless_ssh.yml
+# Usage: main.yml
+min_length: 8
+skip_cluster_preparation_msg: "cluster_preparation role to setup passwordless SSH will be skipped due to missing credential provision_password in control_plane/login_vars.yml"
+
+# Usage: set_passwordless_ssh.yml
 rsa_id_file: "/root/.ssh/id_rsa"
 passphrase: ""
 auth_key_path: "/root/.ssh/authorized_keys"
 config_file: "/root/.ssh/config"
 ssh_file_mode: "0600"
+key_pair_search_key: "OPENSSH PRIVATE KEY"
