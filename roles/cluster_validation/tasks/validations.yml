@@ -35,6 +35,7 @@
     nfs_node_status: true
   when:
     - groups['nfs_node'] is defined
+    - groups['nfs_node'] | length | int > 0
 
 - name: NFS group to contain exactly 1 node
   assert:
