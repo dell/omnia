@@ -43,8 +43,8 @@
   copy:
     src: metal-config.yaml
     dest: "{{ metallb_config_file_dest }}"
-    owner: root
-    group: root
+    #owner: root
+    #group: root
     mode: "{{ metallb_config_file_mode }}"
   tags: init
 
@@ -98,8 +98,8 @@
   copy:
     src: k8s_dashboard_admin.yaml
     dest: "{{ k8s_dashboard_admin_file_dest }}"
-    owner: root
-    group: root
+    #owner: root
+    #group: root
     mode: "{{ k8s_dashboard_admin_file_mode }}"
 
 - name: Create admin user for K8s dashboard
@@ -170,8 +170,8 @@
   copy:
     src: "{{ slurm_exporter_config_file }}"
     dest: "{{ slurm_exporter_config_file_path }}"
-    owner: root
-    group: root
+    #owner: root
+    #group: root
     mode: "{{ slurm_exporter_file_mode }}"
   tags: init
 

@@ -21,6 +21,8 @@ Below is a list of all logs available to Loki and can be accessed on the dashboa
 | HTTPD logs         | /var/log/httpd/ *                         | FreeIPA API Calls            | This log is available when FreeIPA or 389ds is set up ( ie when   enable_security_support is set to 'true') |
 | DNF logs           | /var/log/dnf.log                          | Installation Logs            | This log is configured on Rocky OS                                                                 |
 | Zypper Logs        | /var/log/zypper.log                       | Installation Logs            | This log is configured on Leap OS                                                                  |
+| BeeGFS Logs        | /var/log/beegfs-client.log                | BeeGFS Logs                  | This log is configured on BeeGFS client nodes.                                                                  |
+
 
 
 ## 2. Checking logs of individual containers:
@@ -50,8 +52,8 @@ Below is a list of all logs available to Loki and can be accessed on the dashboa
    3. To edit the encrypted parameters:
     `ansible-vault edit login_vars.yml --vault-password-file .login_vault_key`
 ## 5. Checking pod status on the control plane
-    * Select the pod you need to troubleshoot from the output of `kubectl get pods -A`
-    * Check the status of the pod by running `kubectl describe pod <pod name> -n <namespace name>`
+   * Select the pod you need to troubleshoot from the output of `kubectl get pods -A`
+   * Check the status of the pod by running `kubectl describe pod <pod name> -n <namespace name>`
 
 
 

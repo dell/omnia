@@ -38,7 +38,26 @@
       default_lease_time | length < 1 or
       provision_os | length < 1 or
       provision_state | length < 1 or
-      mount_location | length < 1
+      mount_location | length < 1 or
+      network_interface_type | length < 1
+
+- name: Initialize variables
+  set_fact:
+    mgmt_network_container_status: false
+    backup_mgmt_map_status: false
+    backup_map_status: false
+    roce_enabled: false
+    cobbler_lom: false
+    mgmt_lom: false
+  tags: init
+
+- name: Validate network interface type
+  assert:
+    that:
+      - network_interface_type | lower == "dedicated" or  network_interface_type | lower == "lom"
+    success_msg: "{{ success_network_type }}"
+    fail_msg: "{{ fail_network_type }}"
+  tags: init
 
 - name: Validate management network nic
   assert:
@@ -55,6 +74,26 @@
     fail_msg: "{{ fail_device_config }}"
   tags: init
 
+- name: Validate the value of awx_web_support
+  assert:
+    that:
+      - awx_web_support | lower == "true" or awx_web_support | lower == "false"
+    success_msg: "{{ success_awx_web_support }}"
+    fail_msg: "{{ fail_awx_web_support }}"
+  tags: init
+
+- name: Install ansible galaxy collection when awx_web_support is false
+  command: ansible-galaxy collection install {{ item }}
+  changed_when: true
+  with_items: "{{ ansible_collections_cli }}"
+  when: not awx_web_support
+
+- name: Install omsdk using pip when awx_web_support is false
+  pip:
+    name: "{{ omsdk_package }}"
+    state: present
+  when: not awx_web_support
+
 - name: Set fact for device_ip_list_path
   set_fact:
     device_config_ip_file: false
@@ -69,12 +108,13 @@
     - idrac_support
   tags: init
 
-- name: Warning msg if idrac_support is false and device_ip_list is given
-  assert:
-    that:
-      - '"/"  in device_ip_list_path'
-    success_msg: "{{ device_ip_list_not_supported  }}"
-  when: not idrac_support
+- name: Warning - waiting for 15 seconds for proper input
+  pause:
+    seconds: 15
+    prompt: "{{ device_ip_list_not_supported  }}"
+  when:
+     - '"/"  in device_ip_list_path'
+     -  not idrac_support
   tags: validate
   failed_when: false
 
@@ -86,7 +126,9 @@
 - name: Validate contents of device_ip_list
   set_fact:
     device_support_status: true
-  when: (device_config_support) or (idrac_support and device_config_ip_file)
+  when:
+    - (device_config_support and network_interface_type == "dedicated") or
+      (idrac_support and device_config_ip_file)
   tags: init
 
 - name: Assert valid mgmt_mapping_file_path
@@ -175,6 +217,7 @@
     content: |
       [defaults]
       log_path = /var/log/omnia.log
+      host_key_checking = false
   when: not ansible_conf_exists.stat.exists
   tags: init
 
@@ -221,6 +264,13 @@
     fail_msg: "{{ fail_awx_organization }}"
   tags: [ validate, awx ]
 
+- name: Create default directory to store omnia files
+  file:
+    path: "{{ omnia_default_path }}"
+    state: directory
+    mode: "{{ mount_dir_perm }}"
+  tags: init
+
 - name: Make mount directory for grafana if it doesnt exist
   file:
     path: "{{ mount_location }}"
@@ -230,16 +280,35 @@
     owner: root
   tags: [ init, monitoring ]
 
+- name: Check status of idrac_support
+  set_fact:
+    idrac_support: true
+  when: network_interface_type == "lom"
+  tags: init
+ 
 - name: Validate provision paramters
   import_tasks: validate_provision_vars.yml
   tags: [ validate, idrac, pxe ]
 
 - name: Validate device_config_support
   import_tasks: device_config_validations.yml
+  when: device_support_status
 
 - name: Validate device_config_support
   import_tasks: validate_device_ip_file.yml
   when: device_config_ip_file
 
-- name: Validate NIC parameters
+- name: Validate lom parameters
+  import_tasks: validate_lom.yml
+  when: network_interface_type == "lom"
+
+- name: Validate NIC parameters when dedicated network type
   import_tasks: validate_nic_vars.yml
+  when: network_interface_type == "dedicated"
+
+- name: Validate NIC parameters when lom network type
+  import_tasks: lom_nic_configurations.yml
+  when: network_interface_type == "lom"
+
+- name: Validate common parameters to network interface
+  import_tasks: network_type_common.yml

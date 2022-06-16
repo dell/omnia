@@ -12,6 +12,59 @@
 # limitations under the License.
 ---
 
+- block:
+    - name: Remove blank lines
+      shell: set -o pipefail && awk -F, 'length>NF+1' {{ mgmt_mapping_file_path }} > {{ temp_mgmt_mapping_file }}
+      changed_when: false
+
+    - name: Remove blank spaces
+      shell: set -o pipefail && sed -i.bak -E 's/(^|,)[[:blank:]]+/\1/g; s/[[:blank:]]+(,|$)/\1/g'  {{ temp_mgmt_mapping_file }}
+      args:
+        warn: no
+      changed_when: false
+
+    - name: Compare the file for new nodes
+      block:
+        - name: Check difference
+          shell: set -o pipefail && diff {{ temp_mgmt_mapping_file }} {{ role_path }}/files/backup_mgmt_mapping_file.csv| tr -d \>|tr -d \<| grep -E -- ', & :| '
+          register: diff_mgmt_output
+          changed_when: false
+          failed_when: false
+
+        - name: Status of new nodes
+          set_fact:
+            new_mgmt_node_status: true
+          when: diff_mgmt_output.stdout
+      rescue:
+        - name: No new nodes
+          debug:
+            msg: "No new nodes to add"
+            verbosity: 2
+      when: backup_mgmt_map_status
+
+    - name: Fetch inputs from mapping file
+      command: awk 'NR > 1 { print }' {{ temp_mgmt_mapping_file }}
+      changed_when: false
+      register: fetch_mgmt_mapping_file
+
+    - name: Fetch input
+      blockinfile:
+        path: "{{ role_path }}/files/dhcp.template"
+        insertafter: '^#insert the static DHCP leases for mgmt configurations here'
+        block: |
+          host {{ item.split(',')[1] }} {
+            hardware ethernet {{ item.split(',')[0] }};
+            fixed-address {{ item.split(',')[1] }};
+          }
+        marker: "# {mark} DHCP BLOCK OF {{ item.split(',')[0] }}"
+      when: (not cobbler_image_status) or (new_node_status)
+      failed_when: false
+      with_items: "{{ fetch_mgmt_mapping_file.stdout_lines }}"
+  when:
+    - network_interface_type == "lom"
+    - dhcp_lom_file
+    - mgmt_mapping_file_path | length > 1
+
 - name: Remove blank lines
   shell:  set -o pipefail && awk -F, 'length>NF+1' {{ host_mapping_file_path }} > {{ temp_host_mapping_file }}
   changed_when: false
@@ -49,7 +102,7 @@
 - name: Fetch input
   blockinfile:
     path: "{{ role_path }}/files/dhcp.template"
-    insertafter: '^#insert the static DHCP leases for configuration here'
+    insertafter: '^#insert the static DHCP leases for host configuration here'
     block: |
       host {{ item.split(',')[1] }} {
         hardware ethernet {{ item.split(',')[0] }};

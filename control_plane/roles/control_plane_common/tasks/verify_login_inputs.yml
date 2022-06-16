@@ -22,7 +22,7 @@
 
 - name: Decrpyt login_vars.yml
   command: >-
-    ansible-vault decrypt {{ login_vars_filename }}
+    /usr/local/bin/ansible-vault decrypt {{ login_vars_filename }}
     --vault-password-file {{ vault_filename }}
   changed_when: false
   when: "'$ANSIBLE_VAULT;' in config_content.stdout"
@@ -191,35 +191,35 @@
     - ib_switch_support
   tags: [ validate, network-ib ]
 
-- name: Assert username and password for powervault me4
+- name: Assert username and password for powervault
   block:
-    - name: Assert powervault_me4_username and powervault_me4_password
+    - name: Assert powervault_username and powervault_password
       assert:
         that:
-          - powervault_me4_username | length >= min_username_length
-          - powervault_me4_username | length < max_length
-          - '"-" not in powervault_me4_username '
-          - '"\\" not in powervault_me4_username '
-          - '"\"" not in powervault_me4_username '
-          - " \"'\" not in powervault_me4_username "
-          - powervault_me4_password | length > min_length | int - 1
-          - powervault_me4_password | length < max_length | int + 1
-          - '"-" not in powervault_me4_password '
-          - '"," not in powervault_me4_password '
-          - '"." not in powervault_me4_password '
-          - '"<" not in powervault_me4_password '
-          - '"\\" not in powervault_me4_password '
-          - '"\"" not in powervault_me4_password '
-          - " \"'\" not in powervault_me4_password "
-          - powervault_me4_password | regex_search('^(?=.*[a-z]).+$')
-          - powervault_me4_password | regex_search('^(?=.*[A-Z]).+$')
-          - powervault_me4_password | regex_search('^(?=.*\\d).+$')
-          - powervault_me4_password | regex_search('^(?=.*[!#$%&()*+/:;=>?@^_`{} ~]).+$')
+          - powervault_username | length >= min_username_length
+          - powervault_username | length < max_length
+          - '"-" not in powervault_username '
+          - '"\\" not in powervault_username '
+          - '"\"" not in powervault_username '
+          - " \"'\" not in powervault_username "
+          - powervault_password | length > min_length | int - 1
+          - powervault_password | length < max_length | int + 1
+          - '"-" not in powervault_password '
+          - '"," not in powervault_password '
+          - '"." not in powervault_password '
+          - '"<" not in powervault_password '
+          - '"\\" not in powervault_password '
+          - '"\"" not in powervault_password '
+          - " \"'\" not in powervault_password "
+          - powervault_password | regex_search('^(?=.*[a-z]).+$')
+          - powervault_password | regex_search('^(?=.*[A-Z]).+$')
+          - powervault_password | regex_search('^(?=.*\\d).+$')
+          - powervault_password | regex_search('^(?=.*[!#$%&()*+/:;=>?@^_`{} ~]).+$')
       no_log: true
   rescue:
-    - name: Powervault me4 credentials validation check
+    - name: Powervault  credentials validation check
       fail:
-        msg: "{{ fail_msg_me4_credentials }}"
+        msg: "{{ fail_msg_credentials }}"
   when:
     - device_support_status
     - powervault_support
@@ -272,7 +272,7 @@
 
 - name: Encrypt input config file
   command: >-
-    ansible-vault encrypt {{ login_vars_filename }}
+    /usr/local/bin/ansible-vault encrypt {{ login_vars_filename }}
     --vault-password-file {{ vault_filename }}
   changed_when: false
   tags: init
@@ -280,5 +280,5 @@
 - name: Update login_vars.yml permission
   file:
     path: "{{ login_vars_filename }}"
-    mode: "{{ file_perm }}"
+    mode: "{{ vault_file_perm }}"
   tags: init

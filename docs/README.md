@@ -1,10 +1,10 @@
 **Omnia** (Latin: all or everything) is a deployment tool to configure Dell EMC PowerEdge servers running standard RPM-based Linux OS images into clusters capable of supporting HPC, AI, and data analytics workloads. It uses Slurm, Kubernetes, and other packages to manage jobs and run diverse workloads on the same converged solution. It is a collection of [Ansible](https://ansible.com) playbooks, is open source, and is constantly being extended to enable comprehensive workloads.
 
 #### Current release version
-1.2
+1.2.1
 
 #### Previous release version
-1.1.2
+1.2
 
 ## Blogs about Omnia
 - [Introduction to Omnia](https://infohub.delltechnologies.com/p/omnia-open-source-deployment-of-high-performance-clusters-to-run-simulation-ai-and-data-analytics-workloads/)
@@ -28,24 +28,24 @@ Omnia can deploy firmware, install Kubernetes or Slurm (or both), along with add
 ![Omnia Slurm Stack](images/omnia-slurm.png)  
 
 ## What's new in this release
-- Support for Rocky 8.5 with the latest python/ansible on the Control Plane.
-- Support for Leap 15.3 on the cluster.
-- Support for Rocky 8.5 on the cluster.
-- Added Grafana integration for better monitoring capability.
-- Added Loki Log aggregation of Var Logs.
-- Added Slurm/K8s Monitoring capability.
-- Added security features to comply with NIST 800-53 Revision 5 and 800-171 Revision 5.
-- Added the ability to collect telemetry information from SLURM and iDRAC.
-- Added Grafana plugins to view real time graphs of cluster/node statistics.
+- Added support for Red Hat on both control plane and compute nodes
+- Added support for BOSS controllers
+- Added support for bolt-on BeeGFS configuration
+- Added ability to upgrade kernel on Red Hat devices
+- Added support for shared LOM (LAN on Motherboard) configuration
+- Due to known limitations with AWX, installation of AWX is now optional using the parameters `awx_web_support`.
+- Added LMod module system installation to handle the MODULEPATH Hierarchical problem.
+- Added NFS bolt on support to allow manager, compute and login nodes to become NFS clients.
 
 # Using Omnia
-1. Verify that your system meets Omnia's [hardware](Support_Matrix/Hardware) and [software requirements](Support_Matrix/Software/Operating_Systems)
-2. Ensure that all [pre-requisites](PreRequisites) are met.
-3. Fill out all the required [input parameters](Input_Parameter_Guide).
-4. [Run Control_Plane](Installation_Guides/INSTALL_OMNIA_CONTROL_PLANE.md) to provision OS's, [configure devices](Device_Configuration) and set up [security measures](Security):
-5. [Run Omnia](Installation_Guides/INSTALL_OMNIA_CLI.md) to set up Kubernetes and Slurm.
-6. Run the telemetry playbook to [set up](Installation_Guides/INSTALL_TELEMETRY.md) and use [Telemetry and Visualization Services](Telemetry_Visualization)
-![Omnia Flow](images/Omnia_Flow.png)
+1. Set up your network based on the sample topologies provided [here](NETWORK_TOPOLOGY_LOM.md)
+2. Verify that your system meets Omnia's [hardware](Support_Matrix/Hardware) and [software requirements](Support_Matrix/Software/Operating_Systems)
+3. Ensure that all [pre-requisites](PreRequisites) are met.
+4. Fill out all the required [input parameters](Input_Parameter_Guide).
+5. [Run Control_Plane](Installation_Guides/INSTALL_CONTROL_PLANE.md) to provision OS's, [configure devices](Device_Configuration) and set up [security measures](Security).
+6. [Run Omnia on target cluster nodes](Installation_Guides/INSTALL_OMNIA_CLI.md) to set up Kubernetes and Slurm.
+7. Run the telemetry playbook to [set up](Installation_Guides/INSTALL_TELEMETRY.md) and use [Telemetry and Visualization Services](Telemetry_Visualization)
+   ![Omnia Flow](images/Omnia_Flow.png)
 
 ## Troubleshooting Omnia
 * For a list of commonly encountered issues, check out our [FAQs](Troubleshooting/FAQ.md).

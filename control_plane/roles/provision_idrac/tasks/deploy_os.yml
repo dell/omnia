@@ -121,8 +121,27 @@
       changed_when: true
       no_log: true
       when:
-        - awx_search_key in hostname.stdout
+        - awx_web_support
         - inventory_hostname not in fetch_inventory.stdout
+        - deploy_os_status
+  rescue:
+    - name: Unable to add host to provisioned_idrac_inventory
+      fail:
+        msg: "{{ add_inventory_fail_msg }}"
+    
+- block:
+    - name: Add the host to node_inventory if not present
+      lineinfile:
+        path: "{{ provisioned_idrac_inventory_path }}"
+        line: '{{ item }} service_tag={{ service_tag }} model="{{ model }}"'
+        state: present
+        create: yes
+        mode: "{{ file_permission }}"
+      delegate_to: localhost
+      with_items: "{{ inventory_hostname }}"
+      throttle: 1
+      when:
+        - not awx_web_support
         - deploy_os_status
   rescue:
     - name: Unable to add host to provisioned_idrac_inventory

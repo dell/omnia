@@ -15,7 +15,7 @@
 
 # This role will not group the devices if user provides invalid credentials
 
-- name: Create inventory in awx
+- name: Create inventory for devices
   hosts: device_inventory
   connection: local
   gather_facts: false
@@ -28,67 +28,9 @@
       include_vars: "{{ base_vars_file }}"
       run_once: true
 
-    - name: Check if tower_config_file file is encrypted
-      command: cat "{{ playbook_dir }}/../../webui_awx/files/.tower_cli.cfg"
-      changed_when: false
-      no_log: true
-      register: tower_config_content
-      run_once: true
-
-    - name: Decrypt tower_config_file
-      command: >-
-        ansible-vault decrypt "{{ playbook_dir }}/../../webui_awx/files/.tower_cli.cfg"
-        --vault-password-file "{{ playbook_dir }}/../../webui_awx/files/.tower_vault_key"
-      changed_when: false
-      when: "'$ANSIBLE_VAULT;' in tower_config_content.stdout"
-      run_once: true
-
-    - name: Change file permissions
-      file:
-        path: "{{ playbook_dir }}/../../webui_awx/files/.tower_cli.cfg"
-        mode: "{{ file_perm }}"
-      run_once: true
-
-    - name: Fetch awx host
-      command: grep "host:" "{{ playbook_dir }}/../../webui_awx/files/.tower_cli.cfg"
-      register: fetch_awx_host
-      changed_when: false
-      run_once: true
-
-    - name: Fetch awx username
-      command: grep "username:" "{{ playbook_dir }}/../../webui_awx/files/.tower_cli.cfg"
-      register: fetch_awx_username
-      changed_when: false
-      run_once: true
-      no_log: true
-
-    - name: Fetch awx password
-      command: grep "password:" "{{ playbook_dir }}/../../webui_awx/files/.tower_cli.cfg"
-      register: fetch_awx_password
-      changed_when: false
-      run_once: true
-      no_log: true
-
-    - name: Set awx variables
-      set_fact:
-        awx_host: "{{ fetch_awx_host.stdout | regex_replace('host: ','') }}"
-        awx_username: "{{ fetch_awx_username.stdout | regex_replace('username: ','') }}"
-        awx_password: "{{ fetch_awx_password.stdout | regex_replace('password: ','') }}"
-      no_log: true
-
-    - name: Encrypt tower_config_file
-      command: >-
-        ansible-vault encrypt "{{ playbook_dir }}/../../webui_awx/files/.tower_cli.cfg"
-        --vault-password-file "{{ playbook_dir }}/../../webui_awx/files/.tower_vault_key"
-      changed_when: false
-      when: "'$ANSIBLE_VAULT;' in tower_config_content.stdout"
-      run_once: true
-
-    - name: Change file permissions
-      file:
-        path: "{{ playbook_dir }}/../../webui_awx/files/.tower_cli.cfg"
-        mode: "{{ file_perm }}"
-      run_once: true
+    - name: Fetch AWX credentials
+      include_tasks: fetch_awx_credentials.yml
+      when: awx_web_support
 
     - name: Check if {{ login_vars_file }} file is encrypted
       command: cat {{ login_vars_file }}
@@ -118,6 +60,14 @@
       when: "'$ANSIBLE_VAULT;' in config_content.stdout"
       run_once: true
 
+    - name: Change file permissions
+      file:
+        path: "{{ login_vars_file }}"
+        mode: "{{ file_perm }}"
+      delegate_to: localhost
+      run_once: true
+      changed_when: false
+
     - name: Install paramiko
       command: pip3 install paramiko -i http://pypi.douban.com/simple/ --trusted-host pypi.douban.com
       delegate_to: localhost
@@ -129,252 +79,20 @@
         idrac_inventory_status: false
         ethernet_inventory_status: false
         ib_inventory_status: false
-        powervault_me4_status: false
+        powervault_status: false
+        idrac_hosts_output: ""
+        ethernet_switches_output: ""
+        infiniband_switches_output: ""
+        powervault_storage_output: ""
 
-    - name: idrac_inventory validation tasks
-      block:
-        - name: Fetch the hosts in idrac_inventory
-          command: >-
-            awx --conf.host {{ awx_host }} --conf.username {{ awx_username }} --conf.password {{ awx_password }}
-            --conf.insecure hosts list --inventory idrac_inventory -f human --filter "name"
-          changed_when: false
-          no_log: true
-          run_once: true
-          register: idrac_hosts
+    - name: Add devices to idrac_inventory
+      include_tasks: add_idrac_inventory.yml
 
-        - name: Assert idrac IP
-          dellemc.openmanage.idrac_system_info:
-            idrac_ip: "{{ inventory_hostname }}"
-            idrac_user: "{{ idrac_username }}"
-            idrac_password: "{{ idrac_password }}"
-          register: idrac_info
-          when: inventory_hostname not in idrac_hosts.stdout
+    - name: Add devices to ethernet_inventory
+      include_tasks: add_ethernet_inventory.yml
 
-        - name: Set idrac_inventory_status
-          set_fact:
-            idrac_inventory_status: true
-          when:
-            - inventory_hostname not in idrac_hosts.stdout
-            - idrac_search_key in idrac_info.system_info.iDRAC[0].ProductInfo
-      rescue:
-        - name: Failed while adding device to idrac_inventory
-          debug:
-            msg: "{{ idrac_inventory_fail_msg }}"
-      when: not idrac_inventory_status
+    - name: Add devices to infiniband_inventory
+      include_tasks: add_infiniband_inventory.yml
 
-    - name: Add host to awx idrac_inventory
-      block:
-        - name: Initialise idrac_description
-          set_fact:
-            idrac_description: "Description Unavailable"
-
-        - name: Set idrac_description
-          set_fact:
-            idrac_description: "Service Tag: {{ idrac_info.system_info.System[0].ServiceTag }}, Model: {{ idrac_info.system_info.System[0].Model }}"
-          when: idrac_info.system_info.System[0].ServiceTag is defined
-
-        - name: Add the host to awx idrac_inventory if not present
-          command: >-
-            awx --conf.host {{ awx_host }} --conf.username {{ awx_username }} --conf.password {{ awx_password }}
-            --conf.insecure hosts create --name {{ inventory_hostname }} --description "{{ idrac_description }}" --inventory idrac_inventory
-          changed_when: true
-          no_log: true
-      rescue:
-        - name: Failed while adding device to idrac_inventory
-          debug:
-            msg: "{{ idrac_inventory_fail_msg }}"
-      when: idrac_inventory_status
-
-    - name: ethernet_inventory validation tasks
-      block:
-        - name: Fetch the hosts in ethernet inventory
-          command: >-
-            awx --conf.host {{ awx_host }} --conf.username {{ awx_username }} --conf.password {{ awx_password }}
-            --conf.insecure hosts list --inventory ethernet_inventory -f human --filter "name"
-          changed_when: false
-          no_log: true
-          register: ethernet_switches
-
-        - name: Assert ethernet switch
-          dellos10_command:
-            provider:
-              host: "{{ inventory_hostname }}"
-              username: "{{ ethernet_switch_username }}"
-              password: "{{ ethernet_switch_password }}"
-            commands: ['show version']
-          when: inventory_hostname not in ethernet_switches.stdout
-          register: dellswitch_info
-          no_log: true
-
-        - name: Set ethernet_inventory_status
-          set_fact:
-            ethernet_inventory_status: true
-          when:
-            - inventory_hostname not in ethernet_switches.stdout
-            - dellswitch_info.stdout | regex_search(ethernet_search_key)
-      rescue:
-        - name: Failed while adding device to ethernet_inventory
-          debug:
-            msg: "{{ ethernet_inventory_fail_msg }}"
-      when:
-        - not idrac_inventory_status
-        - not ethernet_inventory_status
-        - inventory_hostname not in idrac_hosts.stdout
-
-    - name: Add the host to awx ethernet inventory
-      block:
-        - name: Add the host to awx ethernet inventory if not present
-          command: >-
-            awx --conf.host {{ awx_host }} --conf.username {{ awx_username }} --conf.password {{ awx_password }}
-            --conf.insecure hosts create --name {{ inventory_hostname }} --inventory ethernet_inventory
-          changed_when: true
-          no_log: true
-      rescue:
-        - name: Failed while adding device to ethernet_inventory
-          debug:
-            msg: "{{ ethernet_inventory_fail_msg }}"
-      when: ethernet_inventory_status
-
-    - name: ib_inventory validation tasks
-      block:
-        - name: Fetch the hosts in infiniband inventory
-          command: >-
-            awx --conf.host {{ awx_host }} --conf.username {{ awx_username }} --conf.password {{ awx_password }}
-            --conf.insecure hosts list --inventory infiniband_inventory -f human --filter "name"
-          changed_when: false
-          no_log: true
-          register: infiniband_switches
-
-        - name: Authenticate infiniband Switch
-          uri:
-            url: http://{{ inventory_hostname }}/admin/launch?script=rh&template=login&action=login
-            method: POST
-            body_format: form-urlencoded
-            body:
-              f_user_id: "{{ ib_username }}"
-              f_password: "{{ ib_password }}"
-              enter: Sign in
-            status_code: "{{ infiniband_status_code }}"
-          no_log: true
-          register: login
-          when: inventory_hostname not in infiniband_switches.stdout
-
-        - name: Assert infiniband switch
-          uri:
-            url: http://{{ inventory_hostname }}/admin/launch?script=json
-            method: POST
-            body_format: json
-            headers:
-              Cookie: "{{ login.set_cookie.split(';')[0] }}"
-            body:
-              {
-              "commands":
-              [
-                "show version"
-              ]
-              }
-          register: infinibandswitch_info
-          when:
-            - inventory_hostname not in infiniband_switches.stdout
-            - not login.failed
-
-        - name: Set ib_inventory_status
-          set_fact:
-            ib_inventory_status: true
-          when:
-            - inventory_hostname not in infiniband_switches.stdout
-            - not login.failed
-            - (infinibandswitch_info.json.results is defined and infinibandswitch_info.json.results[0].data['Product name'] == infiniband_search_key) or (infinibandswitch_info.json.data is defined and infinibandswitch_info.json.data['Product name'] == infiniband_search_key)
-      rescue:
-        - name: Failed while adding device to ib_inventory
-          debug:
-            msg: "{{ ib_inventory_fail_msg }}"
-      when:
-        - not idrac_inventory_status
-        - not ethernet_inventory_status
-        - not ib_inventory_status
-        - inventory_hostname not in idrac_hosts.stdout
-
-    - name: Add the host to awx infiniband_inventory
-      block:
-        - name: Add the host to awx infiniband_inventory if not present
-          command: >-
-            awx --conf.host {{ awx_host }} --conf.username {{ awx_username }} --conf.password {{ awx_password }}
-            --conf.insecure hosts create --name {{ inventory_hostname }} --inventory infiniband_inventory
-          changed_when: true
-          no_log: true
-      rescue:
-        - name: Failed while adding device to ib_inventory
-          debug:
-            msg: "{{ ib_inventory_fail_msg }}"
-      when: ib_inventory_status
-
-    - name: powervault_me4_inventory validation tasks
-      block:
-        - name: Fetch the hosts in powervault me4 inventory
-          command: >-
-            awx --conf.host {{ awx_host }} --conf.username {{ awx_username }} --conf.password {{ awx_password }}
-            --conf.insecure hosts list --inventory powervault_me4_inventory -f human --filter "name"
-          changed_when: false
-          no_log: true
-          register: me4_storage
-
-        - name: Get auth string for powervault
-          shell: echo -n {{ powervault_me4_username }}_{{ powervault_me4_password }} | sha256sum
-          changed_when: false
-          register: auth_string
-          no_log: true
-          when: inventory_hostname not in me4_storage.stdout
-
-        - name: Get session key for powervault
-          uri:
-            url: https://{{ inventory_hostname }}/api/login/{{ auth_string.stdout | replace(" -", "") }}
-            method: GET
-            headers:
-              {'datatype': 'json'}
-            validate_certs: no
-          register: session_key
-          when: inventory_hostname not in me4_storage.stdout
-
-        - name: Assert me4_powervault
-          uri:
-            url: https://{{ inventory_hostname }}/api/show/system
-            method: GET
-            body_format: json
-            validate_certs: no
-            use_proxy: no
-            headers:
-              {'sessionKey': "{{ session_key.json.status[0].response }}", 'datatype':'json'}
-          register: system_info
-          when: inventory_hostname not in me4_storage.stdout
-
-        - name: Set powervault_me4_status
-          set_fact:
-            powervault_me4_status: true
-          when:
-            - inventory_hostname not in me4_storage.stdout
-            - me4_powervault_search_key in system_info.json.system[0]['scsi-product-id']
-      rescue:
-        - name: Failed while adding device to powervault_me4_inventory
-          debug:
-            msg: "{{ powervault_me4_fail_msg }}"
-      when:
-        - not idrac_inventory_status
-        - not ethernet_inventory_status
-        - not ib_inventory_status
-        - not powervault_me4_status
-        - inventory_hostname not in idrac_hosts.stdout
-
-    - name: Add the host to awx powervault_me4_inventory
-      block:
-        - name: Add the host to awx powervault_me4_inventory if not present
-          command: >-
-            awx --conf.host {{ awx_host }} --conf.username {{ awx_username }} --conf.password {{ awx_password }}
-            --conf.insecure hosts create --name {{ inventory_hostname }} --inventory powervault_me4_inventory
-          changed_when: true
-          no_log: true
-      rescue:
-        - name: Failed while adding device to powervault_me4_inventory
-          debug:
-            msg: "{{ powervault_me4_fail_msg }}"
-      when: powervault_me4_status
+    - name: Add devices to powervault_inventory
+      include_tasks: add_powervault_inventory.yml

@@ -91,7 +91,7 @@ Prometheus is installed:
 2. Start the web server: `./prometheus`.  
 3. To launch the Prometheus UI, in the web browser, enter `http://localhost:9090`. 
 
-__Note:__ 
+**Note**: 
 * If Prometheus is installed through Slurm without installing Kubernetes, then it will be removed when Kubernetes is installed because Prometheus would be running as a pod. 
 * Only a single instance of Prometheus is installed when both Kubernetes and Slurm are installed.
 
@@ -101,7 +101,7 @@ __Note:__
 
 * Select the dashboard (![Dashboard Icon](../Telemetry_Visualization/Images/DashBoardIcon.PNG)) tab to view the list of Prometheus based dashboards. Some default dashboards include CoreDNS, Prometheus Overview, Kubernetes Networking etc.
 
->> __Note:__ Both the control plane and HPC clusters can be monitored on these dashboards by toggling the datasource at the top of each dashboard. 
+>> **Note**: Both the control plane and HPC clusters can be monitored on these dashboards by toggling the datasource at the top of each dashboard. 
 
 ## Accessing Control Plane metrics (fetched by Prometheus) on Grafana
 
@@ -111,7 +111,7 @@ __Note:__
 
 * Select the dashboard (![Dashboard Icon](../Telemetry_Visualization/Images/DashBoardIcon.PNG)) tab to view the list of Prometheus based dashboards. Some default dashboards include CoreDNS, Prometheus Overview, Kubernetes Networking etc.
 
->> __Note:__ Both the control plane and HPC clusters can be monitored on these dashboards by toggling the datasource at the top of each dashboard:
+>> **Note**: Both the control plane and HPC clusters can be monitored on these dashboards by toggling the datasource at the top of each dashboard:
 
 | Data Source | Description | Source |
 |-------------|-------------|--------|

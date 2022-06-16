@@ -94,13 +94,6 @@
             dest: "{{ role_path }}/files/{{ idrac_kickstart_file }}"
             mode: "{{ file_permission }}"
           when: provision_os == os_supported_rhel
-
-        - name: Configure kickstart file - nic
-          lineinfile:
-            path: "{{ role_path }}/files/{{ idrac_kickstart_file }}"
-            insertafter: '^network  --bootproto=dhcp --device=link --onboot=on --activate'
-            line: 'network  --bootproto=dhcp --device={{ item }} --onboot=on --activate'         
-          with_items: "{{ rocky_host_nic }}"
       when:
         - provision_os == os_supported_rocky or
           provision_os == os_supported_rhel

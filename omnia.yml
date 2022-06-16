@@ -31,22 +31,39 @@
     - hostname_validation
   tags: freeipa
 
+- name: BeeGFS validation
+  hosts: manager, compute
+  gather_facts: false
+  any_errors_fatal: true
+  roles:
+    - beegfs_validation
+  tags: beegfs
+
 - name: Apply common installation and config
   hosts: manager, compute, login_node, nfs_node
   gather_facts: false
+  any_errors_fatal: true
   roles:
     - common
   tags: common
-  
-- name: Validate nfs_node config
+
+- name: Configure NFS node for SAS protocol
   hosts: nfs_node
   gather_facts: false
-  tasks:
-    - name: Validate nfs_node config
-      include_role:
-        name: powervault_me4_nfs
-        tasks_from: validate_nfs_config.yml
-      when: hostvars['127.0.0.1']['powervault_status']
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+  roles:
+    - nfs_sas
+  
+# - name: Validate nfs_node config
+#   hosts: nfs_node
+#   gather_facts: false
+#   tasks:
+#     - name: Validate nfs_node config
+#       include_role:
+#         name: powervault_me4_nfs
+#         tasks_from: validate_nfs_config.yml
+#       when: hostvars['127.0.0.1']['powervault_status']
 
 - name: Apply login common installation and config
   hosts: manager, login_node
@@ -90,49 +107,49 @@
     - k8s_firewalld
   tags: kubernetes
 
-- name: Powervault Server Configuration
-  hosts: nfs_node
-  gather_facts: false
-  tasks:
-    - name: Configuring NFS node
-      include_role:
-        name: powervault_me4_nfs
-      when: hostvars['127.0.0.1']['powervault_status']
+# - name: Powervault Server Configuration
+#   hosts: nfs_node
+#   gather_facts: false
+#   tasks:
+#     - name: Configuring NFS node
+#       include_role:
+#         name: powervault_me4_nfs
+#       when: hostvars['127.0.0.1']['powervault_status']
 
-- name: Map volume
-  hosts: powervault_me4
-  connection: local
-  gather_facts: false
-  tasks:
-    - name: Include map volume task
-      include_tasks: "{{ playbook_dir }}/control_plane/roles/powervault_me4/tasks/ports.yml"
-      when: hostvars['127.0.0.1']['powervault_status']
+# - name: Map volume
+#   hosts: powervault
+#   connection: local
+#   gather_facts: false
+#   tasks:
+#     - name: Include map volume task
+#       include_tasks: "{{ playbook_dir }}/control_plane/roles/powervault/tasks/ports.yml"
+#       when: hostvars['127.0.0.1']['powervault_status']
 
-    - name: Include map volume task
-      include_tasks: "{{ playbook_dir }}/control_plane/roles/powervault_me4/tasks/map_volume.yml"
-      when: hostvars['127.0.0.1']['powervault_status']
+#     - name: Include map volume task
+#       include_tasks: "{{ playbook_dir }}/control_plane/roles/powervault/tasks/map_volume.yml"
+#       when: hostvars['127.0.0.1']['powervault_status']
 
-- name: Apply NFS server setup on NFS node
-  hosts: nfs_node
-  gather_facts: false
-  tasks:
-    - name: Check the mapped volume on server
-      include_role:
-        name: powervault_me4_nfs
-        tasks_from: nfs_volume
-      when: hostvars['127.0.0.1']['powervault_status']
+# - name: Apply NFS server setup on NFS node
+#   hosts: nfs_node
+#   gather_facts: false
+#   tasks:
+#     - name: Check the mapped volume on server
+#       include_role:
+#         name: powervault_me4_nfs
+#         tasks_from: nfs_volume
+#       when: hostvars['127.0.0.1']['powervault_status']
 
-    - name: Mount partitions
-      include_role:
-         name: powervault_me4_nfs
-         tasks_from: mount_me4_partitions
-      when: hostvars['127.0.0.1']['powervault_status']
+#     - name: Mount partitions
+#       include_role:
+#          name: powervault_me4_nfs
+#          tasks_from: mount_me4_partitions
+#       when: hostvars['127.0.0.1']['powervault_status']
 
-    - name: Setup NFS server on the partitions
-      include_role:
-         name: powervault_me4_nfs
-         tasks_from: me4_nfs_server_setup
-      when: hostvars['127.0.0.1']['powervault_status']
+#     - name: Setup NFS server on the partitions
+#       include_role:
+#          name: powervault_me4_nfs
+#          tasks_from: me4_nfs_server_setup
+#       when: hostvars['127.0.0.1']['powervault_status']
 
 - name: Apply NFS server setup on manager node
   hosts: manager
@@ -229,6 +246,19 @@
     - slurm_restd
   tags: slurm
 
+- name: Apply BeeGFS client installation and config on manager and compute nodes
+  hosts: manager, compute
+  gather_facts: false
+  roles:
+    - beegfs_client
+  tags: beegfs
+
+- name: Apply NFS client installation and config
+  hosts: manager, compute, login_node
+  gather_facts: false
+  roles:
+    - nfs_client
+  tags: nfs_client
+
 - name: Passwordless SSH between manager and compute nodes
   include: control_plane/tools/passwordless_ssh.yml
-  when: hostvars['127.0.0.1']['control_plane_status']

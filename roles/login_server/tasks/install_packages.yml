@@ -13,11 +13,21 @@
 #  limitations under the License.
 ---
 
-- name: Install packages
+- name: Install packages for Rocky
   package:
     name: "{{ ipa_server_packages }}"
     state: present
   tags: install
+  when: 
+    - ansible_distribution | lower == os_rocky or
+      ansible_distribution | lower == os_centos
+
+- name: Install packages for RHEL
+  package:
+    name: "{{ ipa_server_packages_rhel }}"
+    state: present
+  tags: install
+  when: ansible_distribution | lower == os_redhat
 
 - name: Take a backup of /etc/resolv.conf
   copy:

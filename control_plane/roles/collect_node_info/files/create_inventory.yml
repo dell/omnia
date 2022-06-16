@@ -12,28 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+
 - name: Find reachable hosts
   hosts: node_inventory
   gather_facts: false
   ignore_unreachable: true
   ignore_errors: true
   tasks:
-    - name: Check for reachable nodes
-      command: ping -c1 {{ inventory_hostname }}
-      delegate_to: localhost
-      register: ping_result
-      ignore_errors: yes
-      changed_when: false
-
-    - name: Refresh ssh keys
-      command: ssh-keygen -R {{ inventory_hostname }}
-      delegate_to: localhost
-      changed_when: false
-
-    - name: Group reachable hosts
-      group_by:
-        key: "reachable"
-      when: "'100% packet loss' not in ping_result.stdout"
+    - name: Ping for reachable hosts
+      include_tasks: ping_check.yml
 
 - name: Get provision password
   hosts: localhost
@@ -58,6 +45,10 @@
     - name: Include vars file of inventory role
       include_vars: "{{ omnia_config_file }}"
 
+    - name: Fetch AWX credentials
+      include_tasks: fetch_awx_credentials.yml
+      when: hostvars['localhost']['awx_web_support']
+
 - name: Set hostname for reachable nodes and gather facts
   hosts: reachable
   gather_facts: False
@@ -77,20 +68,20 @@
       command: hostname
       register: hostname_check
       changed_when: false
-      ignore_errors: true
+      failed_when: false
       
     - name: Check if IP is present in mapping file
       command: grep "{{ inventory_hostname }}" ../../provision_cobbler/files/new_host_mapping_file.csv
       delegate_to: localhost
       register: file_present
-      when: mapping_file | bool == true
-      ignore_errors: true
+      when: mapping_file | bool
+      failed_when: false
 
     - name: Set fact if mapping file is present
       set_fact:
         mapping_file_present: "{{ file_present.stdout }}"
-      when: mapping_file | bool == true
-      ignore_errors: true
+      when: mapping_file | bool
+      failed_when: false
 
     - name: Get the static hostname from mapping file
       shell: awk -F',' '$3 == "{{ inventory_hostname }}" { print $2 }' ../../provision_cobbler/files/new_host_mapping_file.csv
@@ -98,19 +89,19 @@
       when: 
         - ( hostname_check.stdout is defined )
         - ( 'localhost' in hostname_check.stdout ) 
-        - ( mapping_file_present != "" ) 
-        - ( mapping_file | bool == true )
+        - ( mapping_file_present | length > 1  ) 
+        - ( mapping_file | bool )
       register: host_name
-      ignore_errors: true
+      failed_when: false
 
     - name: Set the hostname from mapping file
       command: hostnamectl set-hostname "{{ host_name.stdout + '.' + hostvars['localhost']['domain_name'] }}"
       when: 
         - ( hostname_check.stdout is defined )
         - ( 'localhost' in hostname_check.stdout ) 
-        - ( mapping_file_present != "" ) 
-        - ( mapping_file | bool == true )
-      ignore_errors: true
+        - ( mapping_file_present | length > 1 ) 
+        - ( mapping_file | bool )
+      failed_when: false
 
     - name: Set the hostname if hostname not present mapping file
       command: hostnamectl set-hostname "compute{{ inventory_hostname.split('.')[-2] + '-' + inventory_hostname.split('.')[-1] + '.' + hostvars['localhost']['domain_name'] }}"
@@ -119,16 +110,16 @@
         - ( 'localhost' in hostname_check.stdout )
         - ( file_present.rc is defined ) 
         - ( file_present.rc != 0 ) 
-        - ( mapping_file | bool == true )
-      ignore_errors: true
+        - ( mapping_file | bool )
+      failed_when: false
 
     - name: Set the system hostname if mapping file not present
       command: hostnamectl set-hostname "compute{{ inventory_hostname.split('.')[-2] + '-' + inventory_hostname.split('.')[-1]+'.'+ hostvars['localhost']['domain_name'] }}"
       when: 
         - ( hostname_check.stdout is defined )
         - ( 'localhost' in hostname_check.stdout ) 
-        - ( mapping_file | bool == false )
-      ignore_errors: true
+        - ( not mapping_file | bool )
+      failed_when: false
 
     - name: Add new hostname to /etc/hosts from mapping file
       lineinfile:
@@ -138,9 +129,9 @@
       when: 
         - ( hostname_check.stdout is defined )
         - ( 'localhost' in hostname_check.stdout ) 
-        - ( mapping_file_present != "" ) 
-        - ( mapping_file | bool == true )
-      ignore_errors: true
+        - ( mapping_file_present | length > 1 ) 
+        - ( mapping_file | bool )
+      failed_when: false
 
     - name: Add new hostname to /etc/hosts if hostname not present mapping file
       lineinfile:
@@ -152,8 +143,8 @@
         - ( 'localhost' in hostname_check.stdout )
         - ( file_present.rc is defined ) 
         - ( file_present.rc != 0 ) 
-        - ( mapping_file | bool == true )
-      ignore_errors: true
+        - ( mapping_file | bool )
+      failed_when: false
 
     - name: Add new hostname to /etc/hosts if mapping file not present
       lineinfile:
@@ -163,8 +154,8 @@
       when: 
         - ( hostname_check.stdout is defined )
         - ( 'localhost' in hostname_check.stdout ) 
-        - ( mapping_file | bool == false )
-      ignore_errors: true
+        - ( not mapping_file | bool )
+      failed_when: false
 
     - name: Initialize service tag
       set_fact:
@@ -209,76 +200,35 @@
       delegate_to: localhost
       run_once: true
 
-    - name: Check if tower_config_file file is encrypted
-      command: cat "{{ playbook_dir }}/../../webui_awx/files/.tower_cli.cfg"
-      changed_when: false
-      no_log: true
-      register: tower_config_content
-      delegate_to: localhost
-      run_once: true
+    - name: Fetch facts and add new hosts in AWX
+      include_tasks: add_host_awx.yml
+      when: hostvars['localhost']['awx_web_support']
 
-    - name: Decrypt tower_config_file
-      command: >-
-        ansible-vault decrypt "{{ playbook_dir }}/../../webui_awx/files/.tower_cli.cfg"
-        --vault-password-file "{{ playbook_dir }}/../../webui_awx/files/.tower_vault_key"
-      changed_when: false
-      when: "'$ANSIBLE_VAULT;' in tower_config_content.stdout"
-      delegate_to: localhost
-      run_once: true
+    - name: Fetch facts and add new hosts in CLI
+      include_tasks: add_host_cli.yml
+      when: not hostvars['localhost']['awx_web_support']
 
-    - name: Change file permissions - tower_config_file
-      file:
-        path: "{{ playbook_dir }}/../../webui_awx/files/.tower_cli.cfg"
-        mode: "{{ hostvars['localhost']['file_perm'] }}"
-      delegate_to: localhost
-      run_once: true
+- name: Cleanup inventory
+  hosts: unreachable
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Remove unreachable hosts in AWX
+      include_tasks: remove_host_awx.yml
+      when: hostvars['localhost']['awx_web_support']
 
-    - name: Fetch awx host
-      command: grep "host:" "{{ playbook_dir }}/../../webui_awx/files/.tower_cli.cfg"
-      register: fetch_awx_host
-      changed_when: false
-      delegate_to: localhost
-      run_once: true
+    - name: Remove unreachable hosts in CLI
+      include_tasks: remove_host_cli.yml
+      when: not hostvars['localhost']['awx_web_support']
 
-    - name: Fetch awx username
-      command: grep "username:" "{{ playbook_dir }}/../../webui_awx/files/.tower_cli.cfg"
-      register: fetch_awx_username
-      changed_when: false
-      run_once: true
-      delegate_to: localhost
-      run_once: true
-
-    - name: Fetch awx password
-      command: grep "password:" "{{ playbook_dir }}/../../webui_awx/files/.tower_cli.cfg"
-      register: fetch_awx_password
-      changed_when: false
-      run_once: true
-      delegate_to: localhost
-      run_once: true
-
-    - name: Set awx variables
-      set_fact:
-        awx_host: "{{ fetch_awx_host.stdout | regex_replace('host: ','') }}"
-        awx_username: "{{ fetch_awx_username.stdout | regex_replace('username: ','') }}"
-        awx_password: "{{ fetch_awx_password.stdout | regex_replace('password: ','') }}"
-      no_log: true
-
-    - name: Encrypt tower_config_file
-      command: >-
-        ansible-vault encrypt "{{ playbook_dir }}/../../webui_awx/files/.tower_cli.cfg"
-        --vault-password-file "{{ playbook_dir }}/../../webui_awx/files/.tower_vault_key"
-      changed_when: false
-      when: "'$ANSIBLE_VAULT;' in tower_config_content.stdout"
-      run_once: true
-      delegate_to: localhost
-      run_once: true
-
-    - name: Change file permissions - tower_config_file
-      file:
-        path: "{{ playbook_dir }}/../../webui_awx/files/.tower_cli.cfg"
-        mode: "{{ hostvars['localhost']['file_perm'] }}"
-      delegate_to: localhost
-      run_once: true
-
-    - name: Fetch facts and add new hosts
-      include_tasks: add_host.yml
+- name: Setup passwordless ssh from control plane to all nodes
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Invoke cluster_preparation role
+      include_role:
+        name: "{{ playbook_dir }}/../../../tools/roles/cluster_preperation"
+      vars:
+        ssh_to: "{{ groups['reachable'] }}"
+      when: not hostvars['localhost']['awx_web_support']

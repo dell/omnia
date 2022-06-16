@@ -92,7 +92,8 @@
         "bug",
         "doc",
         "test",
-        "maintenance"
+        "maintenance",
+        "talk"
       ]
     },
     {
@@ -448,6 +449,26 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/104345504?v=4",
       "profile": "https://github.com/srinandini-karumuri",
       "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "Rishabhm47",
+      "name": "Rishabhm47",
+      "avatar_url": "https://avatars.githubusercontent.com/u/106973551?v=4",
+      "profile": "https://github.com/Rishabhm47",
+      "contributions": [
+        "test",
+        "code"
+      ]
+    },
+    {
+      "login": "vaishakh-pm",
+      "name": "vaishakh-pm",
+      "avatar_url": "https://avatars.githubusercontent.com/u/104622022?v=4",
+      "profile": "https://github.com/vaishakh-pm",
+      "contributions": [
+        "test",
         "code"
       ]
     }

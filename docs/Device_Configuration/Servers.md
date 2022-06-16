@@ -5,7 +5,11 @@
 ## Configuring Servers with Out-of-Band Management (Provision Method: iDRAC)
 
 ### Generating a Custom ISO
-* Using the Omnia role _control_plane_customiso_, a custom ISO is generated. Based on the parameters entered above, the Kickstart file is configured and added to the custom ISO file. The *unattended_centos7.iso*, *unattended_rocky8.iso* or *unattended_leap15.iso* file is copied to an NFS share on the control plane to provision the PowerEdge servers using iDRAC. 
+* Using the Omnia role _control_plane_customiso_, a custom ISO is generated. Based on the parameters entered above, the Kickstart file is configured and added to the custom ISO file. The *unattended_<OS name>.iso* file is copied to an NFS share on the control plane to provision the PowerEdge servers using iDRAC. 
+
+### Run `idrac_template` via CLI
+1. Verify that `/opt/omnia/idrac_inventory` is created and updated with all iDRAC IP details. This is done automatically when `control_plane.yml` is run. If it's not updated, run `ansible-playbook collect_device_info.yml` from the control_plane directory.
+2. Run `ansible-playbook idrac.yml -i /opt/omnia/idrac_inventory`
 
 ### Run idrac_template on the AWX UI.
 1. Run `kubectl get svc -n awx`.
@@ -19,7 +23,7 @@ Omnia role used to provision custom ISO on PowerEdge Servers using iDRAC: *provi
 For the `idrac.yml` file to successfully provision the custom ISO on the PowerEdge Servers, ensure that the following prerequisites are met:
 * The **idrac_inventory** file is updated with the iDRAC IP addresses.
 * Required input parameters are updated in the **idrac_vars.yml** file under **omnia/control_plane/input_params** directory.
-* An *unattended_centos7.iso*, *unattended_rocky8.iso* or *unattended_leap15.iso* file is available in an NFS path.
+* An *unattended_<OS name>.iso* file is available in an NFS path.
 * The Lifecycle Controller Remote Services of PowerEdge Servers is in the 'ready' state.
 * The Redfish services are enabled in the iDRAC settings under **Services**.
 * The PowerEdge Servers have the iDRAC Enterprise or Datacenter license. If the license is not found, servers will be PXE booted and provisioned using Cobbler.  
@@ -30,9 +34,9 @@ The **provision_idrac** file configures and validates the following:
 * Required input parameters and prerequisites.
 * BIOS and SNMP settings.
 * The latest available version of the iDRAC firmware is updated.
-* If bare metal servers have a RAID controller installed, Virtual disks are created for RAID configuration.
-* Availability of iDRAC Enterprise or Datacenter License on iDRAC.  
-
+* If bare metal servers have BOSS controllers installed, virtual disks (Data will be stored in a RAID 1 configuration by default) will be created on the BOSS controller (ie, RAID controllers will be ignored/unmanaged). Ensure that exactly 2 SSD disks are available on the server.
+* If bare metal servers have a RAID controller installed, Virtual disks are created for RAID configuration (Data will be saved in a RAID 0 configuration by default).
+* Availability of iDRAC Enterprise or Datacenter License on iDRAC.
 After the configurations are validated, the **provision_idrac** file provisions the custom ISO on the PowerEdge Servers. After the OS is provisioned successfully, iDRAC IP addresses are updated in the *provisioned_idrac_inventory* in AWX.
 
 >>**Note**:
@@ -70,13 +74,14 @@ To create the Cobbler image, Omnia configures the following:
 To access the Cobbler dashboard, enter `https://<IP>/cobbler_web` where `<IP>` is the Global IP address of the control plane. For example, enter
 `https://100.98.24.225/cobbler_web` to access the Cobbler dashboard.
 
->>__Note__: After the Cobbler Server provisions the operating system on the servers, IP addresses and hostnames are assigned by the DHCP service.  
+>>**Note**: After the Cobbler Server provisions the operating system on the servers, IP addresses and hostnames are assigned by the DHCP service.  
 >>* If a mapping file is not provided, the hostname to the server is provided based on the following format: **computexxx-xxx** where "xxx-xxx" is the last two octets of the Host IP address. For example, if the Host IP address is 172.17.0.11 then the assigned hostname by Omnia is compute0-11.  
 >>* If a mapping file is provided, the hostnames follow the format provided in the mapping file.  
 
->>__Note__: If you want to add more nodes, append the new nodes in the existing mapping file. However, do not modify the previous nodes in the mapping file as it may impact the existing cluster.
+>>**Note**: 
+>> * If you want to add more nodes, append the new nodes in the existing mapping file. However, do not modify the previous nodes in the mapping file as it may impact the existing cluster.
+>> * With the addition of Multiple profiles, the cobbler container dynamically updates the mount point based on the value of `provision_os` in `base_vars.yml`.
 
->> __Note__: With the addition of Multiple profiles, the cobbler container dynamically updates the mount point based on the value of `provision_os` in `base_vars.yml`.
 
 ### DHCP routing using Cobbler
 Omnia now supports DHCP routing via Cobbler. To enable routing, update the `primary_dns` and `secondary_dns` in `base_vars` with the appropriate IPs (hostnames are currently not supported). For compute nodes that are not directly connected to the internet (ie only host network is configured), this configuration allows for internet connectivity.
@@ -98,7 +103,7 @@ Omnia provides the following options to enhance security on the provisioned Powe
 		* Provide the following values in the **idrac_ldap.yml** file.  
 		* To view the `idrac_tools_vars.yml` file, run the following command: `ansible-vault view idrac_tools_vars.yml --vault-password-file .idrac_vault_key`  
 	
->>**Note**: It is suggested that you use the ansible-vault view or edit commands and that you do not use the ansible-vault decrypt or encrypt commands. If you have used the ansible-vault decrypt or encrypt commands, provide 644 permission to `idrac_tools_vars.yml`.  
+>> **Note**: It is suggested that you use the ansible-vault view or edit commands and that you do not use the ansible-vault decrypt or encrypt commands. If you have used the ansible-vault decrypt or encrypt commands, provide 644 permission to `idrac_tools_vars.yml`.  
 
 On the AWX Dashboard, select the respective security requirement playbook and launch the iDRAC template by performing the following steps.
 1. On the AWX Dashboard, under __RESOURCES__ -> __Templates__, select the **idrac_template**.

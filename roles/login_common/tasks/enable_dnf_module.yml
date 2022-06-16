@@ -17,5 +17,6 @@
   command: dnf module enable idm:DL1 -y
   when:
     - ( ansible_distribution | lower == os_centos ) or
-      ( ansible_distribution | lower == os_rocky )
+      ( ansible_distribution | lower == os_rocky ) or
+      ( ansible_distribution | lower == os_redhat ) 
     - ( ansible_distribution_version >= os_version )

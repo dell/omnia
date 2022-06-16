@@ -13,11 +13,6 @@
 #  limitations under the License.
 ---
 
-- name: Initialize variables
-  set_fact:
-    mgmt_network_container_status: false
-  tags: init
-
 - name: Check mgmt_network_container status on the machine
   command: kubectl get pods -n network-config
   register: mgmt_network_container_result

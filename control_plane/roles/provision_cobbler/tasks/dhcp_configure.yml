@@ -18,6 +18,7 @@
     src: "{{ role_path }}/files/temp_dhcp.template"
     dest: "{{ role_path }}/files/dhcp.template"
     mode: "{{ ks_mode }}"
+  when: not dhcp_lom_file
 
 - name: Configure DHCP routing settings
   block:
@@ -40,8 +41,10 @@
         insertafter: "^(.*)range dynamic-bootp"
         line: "option domain-name-servers {{ primary_dns }}, {{ secondary_dns }};"
       when: secondary_dns | length > 1
-  when: primary_dns | length > 1
-  
+  when:
+    - primary_dns | length > 1
+    - not dhcp_lom_file
+
 - name: Assign subnet and netmask
   replace:
     path: "{{ role_path }}/files/dhcp.template"

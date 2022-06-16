@@ -1,0 +1,72 @@
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- block:
+  
+  # Testcase OMNIA_1.3_PV_me5_TC_001
+  # Test case to validate configuration of disks and disk-groups
+
+    - name: Validating the powervault disk groups
+      assert:
+        that:
+          - system_info.json['disk-groups'][0]['name'] == "{{ powervault_disk_group_name }}"
+        success_msg: "{{ disk_groups_pass }}"
+        fail_msg: "{{ disk_groups_fail }}"
+      tags: Validate_disk_groups
+
+    - name: Validating the powervault disks
+      assert:
+        that:
+          - disks_info.json['drives'][0]['disk-group'] == "{{ powervault_disk_group_name }}"
+        success_msg: "{{ disks_pass }}"
+
+        fail_msg: "{{ disks_fail }}"
+      tags: Validate_disks
+  tags: TC_001
+
+- block:
+
+  # Testcase OMNIA_1.3_PV_TC_002
+  # Test case to validate configuration of pools and volumes
+
+    - name: Validating the powervault pools
+      assert:
+        that:
+          - pools_info.json['pools'][0]['disk-groups'][0]['pool'] == "{{ powervault_pool }}"
+        success_msg: "{{ pools_pass }}"
+        fail_msg: "{{ pools_fail }}"
+      tags: Validate_pools
+
+    - name: Validating the powervault volumes
+      assert:
+        that:
+          - volumes_info.json['volumes'][0]['volume-name'] in "{{ powervault_volumes }}"
+        success_msg: "{{ volumes_pass }}"
+        fail_msg: "{{ volumes_fail }}"
+      tags: Validate_volumes
+  tags: TC_002    
+
+- block:
+  # Testcase OMNIA_1.3_PV_me5_TC_006
+  # When server_shared_path and client_shared_path provided
+    - name: Check server_shared_path
+      assert:
+        that:
+          - "'pass' in output.stdout"
+        success_msg: "{{powervault_success_msg}}"
+        fail_msg: " {{powervault_fail_msg}}"
+      tags: TC_006 
+
+   

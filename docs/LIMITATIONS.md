@@ -10,8 +10,6 @@
 * The Kubernetes pods will not be able to access the Internet or start when firewalld is enabled on the node. This is a limitation in Kubernetes. So, the firewalld daemon will be disabled on all the nodes as part of omnia.yml execution.
 * Only one storage instance (Powervault) is currently supported in the HPC cluster.
 * Cobbler web support has been discontinued from Omnia 1.2 onwards.
-* Configuration of storage devices with boss cards is not supported.
-* Shared LOM (LAN on Motherboard) architecture is not supported.
 * Omnia supports only basic telemetry configurations. Changing data fetching time intervals for telemetry is not supported.
 * Slurm cluster metrics will only be fetched from clusters configured by Omnia via AWX.
 * All iDRACs must have the same username and password.
@@ -19,3 +17,5 @@
 * Slurm Telemetry is supported only on a single cluster.
 * Omnia does not Infiniband drivers on compute nodes running LeapOS.
 * Omnia does not activate Infiniband NICs on compute nodes automatically. Steps to enable them manually are provided [here](Device_Configuration/Servers.md)
+* When `roce_network_nic` is provided when running `control_plane.yml`,  `host_mapping_file_path` is disregarded. This means that static IP assignment is not supported when using high speed data paths for provisioning.
+*  AWX auto aborts jobs when there are more than 5 nodes in a cluster. To manage larger clusters, please use Ansible CLI.

@@ -12,15 +12,46 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+- name: Get common details
+  import_tasks: clean_common.yml
+  tags: common
 
-- name: Remove containers and images
-  include_tasks: remove_containers_images.yml
+- name: Clean AWX
+  include_tasks: clean_awx.yml
+  tags: awx
 
-- name: Decrypt vault files
-  include_tasks: decrypt_vault_files.yml
+- name: Clean Cobbler
+  include_tasks: clean_cobbler.yml
+  tags: cobbler
+  
+- name: Clean Management network container
+  include_tasks: clean_mgmt_container.yml
+  tags: mgmt
+
+- name: Clean Infiniband
+  include_tasks: clean_ib.yml
+  tags: ib
+
+- name: Clean Security
+  include_tasks: clean_security.yml 
+  tags: security
+
+- name: Clean grafana
+  include_tasks: clean_grafana.yml
+  tags: grafana
+
+- name: Clean Telemetry
+  include_tasks: clean_telemetry.yml
+  tags: telemetry
 
 - name: Reset kubeadm cluster
   include_tasks: reset_kubeadm_cluster.yml
+  tags: reset_cluster
 
-- name: Delete vault keys and files
-  include_tasks: delete_files_vault_keys.yml
+- name: Decrypt vault files
+  include_tasks: decrypt_vault_files.yml
+  tags: decrypt_vault
+
+- name: Deleting all common config files/images
+  include_tasks: delete_common_config_files.yml
+  tags: common_config

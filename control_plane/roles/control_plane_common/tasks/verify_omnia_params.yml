@@ -45,7 +45,7 @@
 
 - name: Decrpyt omnia_config.yml
   command: >-
-    ansible-vault decrypt {{ role_path }}/../../../{{ config_filename }}
+    /usr/local/bin/ansible-vault decrypt {{ role_path }}/../../../{{ config_filename }}
     --vault-password-file {{ role_path }}/../../../{{ config_vaultname }}
   when: "'$ANSIBLE_VAULT;' in config_content.stdout"
   tags: init
@@ -193,7 +193,7 @@
 
 - name: Encrypt input config file
   command: >-
-    ansible-vault encrypt {{ role_path }}/../../../{{ config_filename }}
+    /usr/local/bin/ansible-vault encrypt {{ role_path }}/../../../{{ config_filename }}
     --vault-password-file {{ role_path }}/../../../{{ config_vaultname }}
   changed_when: false
   tags: init

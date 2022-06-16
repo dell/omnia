@@ -43,6 +43,7 @@
     </interfaces>
   </networking>
   <services-manager t="map">
+    <default_target>multi-user</default_target>
     <services t="map">
       <enable t="list">
         <service>chronyd</service>
@@ -90,4 +91,39 @@
       <username>root</username>
     </user>
   </users>
+  <scripts>
+    <pre-scripts config:type="list">
+      <script>
+        <feedback config:type="boolean">true</feedback>
+        <debug config:type="boolean">false</debug>
+        <filename>pre.sh</filename>
+        <interpreter>shell</interpreter>
+        <source><![CDATA[
+find /dev -name "*DELLBOSS*" -printf %P"\n" | egrep -v -e part -e scsi | head -1 > /tmp/bossdisk.txt
+
+if [ -s /tmp/bossdisk.txt  ]
+then
+
+  (cat /tmp/profile/autoinst.xml | head -n -1  && echo -e '  <partitioning t="list">
+    <drive t="map">
+      <device>/dev/disk/by-id/@ROOT_DEVICE@</device>
+      <type t="symbol">CT_DISK</type>
+      <use>all</use>
+    </drive>
+  </partitioning>
+</profile>') >> /tmp/profile/modified.xml
+
+  cp /tmp/profile/modified.xml /tmp/profile/autoinst.xml
+
+  sed -e "s/@ROOT_DEVICE@/`find /dev/disk/by-id/ -name '*DELLBOSS*' -printf %P'\n' | egrep -v -e part -e scsi | head -1`/" /tmp/profile/autoinst.xml > /tmp/profile/modified.xml
+
+  cp /tmp/profile/modified.xml /tmp/profile/autoinst.xml
+
+fi
+
+         ]]> 
+        </source>
+      </script>
+    </pre-scripts>
+  </scripts>
 </profile>
