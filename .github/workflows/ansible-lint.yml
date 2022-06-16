@@ -35,7 +35,7 @@ jobs:
           /github/workspace/control_plane/ethernet.yml
           /github/workspace/control_plane/idrac.yml
           /github/workspace/control_plane/infiniband.yml
-          /github/workspace/control_plane/powervault_me4.yml
+          /github/workspace/control_plane/powervault.yml
           /github/workspace/telemetry/telemetry.yml
           /github/workspace/platforms/jupyterhub.yml
           /github/workspace/platforms/kubeflow.yml

@@ -22,14 +22,24 @@
       changed_when: false
       no_log: true
       run_once: true
-      register: idrac_hosts
+      register: idrac_hosts_awx
       when: awx_web_support
 
-    - name: Check IP already present in idrac_inventory - CLI
+    - name: Check IP already present in idrac_inventory in CLI
       command: grep "{{ inventory_hostname }}" "{{ idrac_inventory_path }}"
-      register: idrac_hosts
+      register: idrac_hosts_cli
       failed_when: false
       changed_when: false
+      when: not awx_web_support
+
+    - name: Set idrac_hosts_output in AWX
+      set_fact:
+        idrac_hosts_output: "{{ idrac_hosts_awx.stdout }}"
+      when: awx_web_support
+
+    - name: Set idrac_hosts_output in CLI
+      set_fact:
+        idrac_hosts_output: "{{ idrac_hosts_cli.stdout }}"
       when: not awx_web_support
 
     - name: Assert idrac IP
@@ -38,13 +48,13 @@
         idrac_user: "{{ idrac_username }}"
         idrac_password: "{{ idrac_password }}"
       register: idrac_info
-      when: inventory_hostname not in idrac_hosts.stdout
+      when: inventory_hostname not in idrac_hosts_output
 
     - name: Set idrac_inventory_status
       set_fact:
         idrac_inventory_status: true
       when:
-        - inventory_hostname not in idrac_hosts.stdout
+        - inventory_hostname not in idrac_hosts_output
         - idrac_search_key in idrac_info.system_info.iDRAC[0].ProductInfo
   rescue:
     - name: Failed while adding device to idrac_inventory

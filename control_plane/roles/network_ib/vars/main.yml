@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+
 # vars file for network_ib
 
 # Usage: pre_requisites.yml
@@ -20,3 +21,8 @@ config_file: "{{ role_path }}/../../input_params/ib_vars.yml"
 fail_msg_config_file: Inifiniband config file doesn't exist.
 success_msg_save_config: Infiniband config file validated.
 fail_msg_save_config: save_changes_to_startup variable can only be set to true or false.
+
+# Usage: fetch_infiniband_credentials.yml
+login_input_filename: "{{ playbook_dir }}/input_params/login_vars.yml"
+login_vault_filename: "{{ playbook_dir }}/input_params/.login_vault_key"
+file_permission: 0644

@@ -13,79 +13,19 @@
 #  limitations under the License.
 ---
 
-- name: Check tower_cli.cfg is encrypted
-  command: cat "{{ tower_config_path }}"
+- name: Assert if powervault IP is defined
+  assert:
+    that: powervault_ip | length | int > 4
+
+- name: Ping the powervault to validate connectivity
+  command: ping -c1 {{ powervault_ip }}
+  register: validate_pv
   changed_when: false
-  register: awx_content
-  run_once: true
-  no_log: true
+  failed_when: false
 
-- name: Decrpyt tower_cli.cfg
-  command: ansible-vault decrypt "{{ tower_config_path }}" --vault-password-file "{{ tower_vault_path }}"
-  changed_when: false
-  run_once: true
-  when: "'$ANSIBLE_VAULT;' in awx_content.stdout"
-
-- name: Fetch awx host
-  command: grep "host:" "{{ tower_config_path }}"
-  register: fetch_awx_host
-  changed_when: false
-  run_once: true
-
-- name: Fetch awx username
-  command: grep "username:" "{{ tower_config_path }}"
-  register: fetch_awx_username
-  changed_when: false
-  run_once: true
-  no_log: true
-
-- name: Fetch awx password
-  command: grep "password:" "{{ tower_config_path }}"
-  register: fetch_awx_password
-  changed_when: false
-  run_once: true
-  no_log: true
-
-- name: Set awx variables
-  set_fact:
-    awx_host: "{{ fetch_awx_host.stdout | regex_replace('host: ','') }}"
-    awx_username: "{{ fetch_awx_username.stdout | regex_replace('username: ','') }}"
-    awx_password: "{{ fetch_awx_password.stdout | regex_replace('password: ','') }}"
-  no_log: true
-
-- name: Encrypt tower_cli.cfg
-  command: ansible-vault encrypt "{{ tower_config_path }}" --vault-password-file "{{ tower_vault_path }}"
-  changed_when: false
-  run_once: true
-  when: "'$ANSIBLE_VAULT;' in awx_content.stdout"
-
-- name: Get inventory list
-  command: >-
-    awx --conf.host "{{ awx_host }}" --conf.username "{{ awx_username }}" --conf.password "{{ awx_password }}"
-    inventory list -f human --filter "name"
-  register: inventory_list
-  run_once: true
-  changed_when: false
-  no_log: true
-
-- block:
-    - name: Fetch powervault_me4_inventory
-      command: >-
-        awx --conf.host {{ awx_host }} --conf.username {{ awx_username }} --conf.password {{ awx_password }}
-        hosts list --inventory "{{ powervault_inventory_name }}" -f human --filter "name"
-      register: fetch_inventory
-      run_once: true
-      changed_when: false
-      no_log: true
-
-    - name: Set powervault_status
-      set_fact:
-        powervault_status: true
-      when: fetch_inventory.stdout_lines[2:] | length > 0
-
-    - name: Create powervault_me4 group
-      add_host:
-        name: "{{ item | regex_replace(' ','') }}"
-        groups: "{{ powervault_group }}"
-      when: powervault_status
-      with_items: "{{ fetch_inventory.stdout_lines[2:] }}"
+- name: Verify connection to PowerVault 
+  assert:
+    that:
+      - "' 0% packet loss' in validate_pv.stdout"
+    success_msg: "{{ powervault_ip_success_msg }}"
+    fail_msg: "{{ powervault_ip_failure_msg }}"

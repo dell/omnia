@@ -17,15 +17,15 @@
   changed_when: false
   failed_when: false
   register: mngmnt_network_pod_name
-  tags: clean_mgmt
+  tags: mgmt
 
 - name: Delete management network container
   command: "kubectl delete -f {{ k8s_mngmnt_network }}"
   when: "mngmnt_network_pod_name.stdout in k8s_pods.stdout"
   failed_when: false
-  tags: clean_mgmt
+  tags: mgmt
 
 - name: Delete management network image
   command: "buildah rmi -f {{ mngmnt_network_container }}:latest"
   when: mngmnt_network_container in image_list.stdout
-  tags: clean_mgmt
+  tags: mgmt

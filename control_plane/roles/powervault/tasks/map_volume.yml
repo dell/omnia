@@ -1,0 +1,102 @@
+# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Include powervault_vars.yml
+  include_vars: "{{ playbook_dir }}/control_plane/input_params/powervault_vars.yml"
+
+- name: Include powervault role variables
+  include_vars: "{{ playbook_dir }}/control_plane/roles/powervault/vars/main.yml"
+
+- name: Check if login_vars.yml file is encrypted
+  command: cat {{ login_pv_file }}
+  changed_when: false
+  no_log: true
+  register: config_content
+  delegate_to: localhost
+  run_once: true
+
+- name: Decrpyt login_vars.yml
+  command: >-
+    ansible-vault decrypt {{ login_pv_file }}
+    --vault-password-file {{ login_pv_vault_file }}
+  changed_when: false
+  run_once: true
+  delegate_to: localhost
+  when: "'$ANSIBLE_VAULT;' in config_content.stdout"
+
+- name: Include variable file login_vars.yml
+  include_vars: "{{ login_pv_file }}"
+  no_log: true
+
+- name: Get auth string
+  shell: echo -n {{ powervault_username }}_{{ powervault_password }}  | sha256sum
+  register: map_auth_string
+  changed_when: false
+  ignore_errors: yes
+  delegate_to: localhost
+
+- name: Get session key
+  uri:
+    url: https://{{ groups['powervault'][0] }}/api/login/{{ map_auth_string.stdout | replace(" -", "") }}
+    method: GET
+    headers:
+      {'datatype': 'json'}
+    validate_certs: no
+  register: map_session_key
+  delegate_to: localhost
+
+- name: Get map port
+  set_fact:
+    map_port: "{{ item.0 }}"
+  when: hostvars['pv']['map_ip'] == item.1
+  with_together:
+    - "{{ up_port }}"
+    - "{{ set_port_ip }}"
+  register: output
+
+- name: Set the LUN nos.
+  set_fact:
+   lun_no:  "{{ lun_no | default ([]) }} + [ '{{ temp1 }}']"
+   temp1: "{{ temp1|int + t1|int }}"
+  loop: "{{ powervault_volumes }}"
+
+- name: Add the lun numbers to volumes
+  set_fact:
+    pv_volumes: "{{ pv_volumes | default ([]) + [{ 'name': item.0.name, 'lun_no': item.1 }] }}"
+  with_together:
+    - "{{ powervault_volumes }}"
+    - "{{ lun_no }}"
+
+- name: Map volumes to initiators
+  uri:
+    url: https://{{ groups['powervault'][0] }}/api/map/volume/{{ item[1].name }}/access/{{ access }}/ports/{{ map_port }}/lun/{{ item[1].lun_no }}/initiator/{{ hostvars['server_iqdn_id']['server_iqdn'] }}
+    method: GET
+    body_format: json
+    validate_certs: no
+    use_proxy: no
+    headers:
+      {'sessionKey': "{{ sas_session_key.json.status[0].response }}", 'datatype':'json'}
+  with_nested:
+    - "{{ initiator_ids }}"
+    - "{{ pv_volumes }}"
+
+- name: Encypt login_vars.yml
+  command: >-
+    ansible-vault encrypt {{ login_pv_file }}
+    --vault-password-file {{ login_pv_vault_file }}
+  changed_when: false
+  run_once: true
+  delegate_to: localhost
+  when: "'$ANSIBLE_VAULT;' in config_content.stdout"

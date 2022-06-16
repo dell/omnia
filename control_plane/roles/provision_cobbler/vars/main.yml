@@ -21,6 +21,7 @@ temp_mgmt_mapping_file: "{{ role_path }}/files/new_mgmt_mapping_file.csv"
 
 # Usage: check_prerequisite.yml
 cobbler_namespace: cobbler
+management_station_ip_file: "management_station_ip.txt"
 
 # Usage: provision_password.yml
 provision_encrypted_dest: ../files/

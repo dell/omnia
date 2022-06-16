@@ -4,4 +4,4 @@
 |----------------	|--------------------	|---------------	|
 | 7.9 Minimal OS 	| No                 	| Yes           	|
 
->> __Note:__ Always deploy the Minimal Edition of the OS on Compute Nodes
+>> **Note**: Always deploy the Minimal Edition of the OS on Compute Nodes

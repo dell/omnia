@@ -95,7 +95,9 @@
       with_items: "{{ idrac_info.system_info.Controller }}"
       loop_control:
         index_var: my_idx3
-      when: raid_search_key in idrac_info.system_info.ControllerSensor[my_idx3].FQDD
+      when: 
+        - raid_search_key in idrac_info.system_info.ControllerSensor[my_idx3].FQDD
+        - non_raid_search_key not in idrac_info.system_info.ControllerSensor[my_idx3].FQDD
 
     - name: Set raid_vd_status
       set_fact:
