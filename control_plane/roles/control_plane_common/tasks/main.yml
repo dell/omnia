@@ -20,6 +20,10 @@
   import_tasks: internet_validation.yml
   tags: init
 
+- name: Configure omnia version
+  import_tasks: omnia_version_configuration.yml
+  tags: init
+
 - name: Common packages installation
   import_tasks: package_installation.yml
   tags: init
