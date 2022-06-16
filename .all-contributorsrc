@@ -471,6 +471,16 @@
         "test",
         "code"
       ]
+    },
+    {
+      "login": "shridhar-sharma",
+      "name": "shridhar-sharma",
+      "avatar_url": "https://avatars.githubusercontent.com/u/104621992?v=4",
+      "profile": "https://github.com/shridhar-sharma",
+      "contributions": [
+        "test",
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
