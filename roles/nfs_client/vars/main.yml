@@ -21,3 +21,4 @@ file_perm: 0777
 fstab_path: "/etc/fstab"
 mount_message: "Failed to mount NFS client, Make sure NFS server is running"
 client_folder_msg: "is a stale folder. Please give some other folder for mount"
+default_client_mount_options: "nosuid,rw,sync,hard,intr 0 0"
