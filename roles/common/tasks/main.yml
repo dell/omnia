@@ -104,7 +104,14 @@
       package:
         name: "{{ common_packages }}"
         state: present
+      when: os_supported_centos not in compute_os
       tags: install
+
+    - name: Install common packages for CentOS 7.9
+      package:
+        name: "{{ common_packages_centos }}"
+        state: present
+      when: os_supported_centos in compute_os
 
     - name: Install common packages for non leap and non RHEL OS
       package:
