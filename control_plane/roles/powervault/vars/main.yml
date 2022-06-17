@@ -60,3 +60,8 @@ login_pv_vault_file: "{{ playbook_dir }}/control_plane/input_params/.login_vault
 # Usage: sas_map.yml
 temp1: 10
 t1: 1
+
+# Usage: fetch_powervault_credentials.yml
+login_input_filename: "{{ playbook_dir }}/input_params/login_vars.yml"
+login_vault_filename: "{{ playbook_dir }}/input_params/.login_vault_key"
+file_permission: 0644
