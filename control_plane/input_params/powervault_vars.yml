@@ -28,7 +28,7 @@ powervault_locale: "English"
 
 # Specify the system name to identify the system
 # Default value:  "Uninitialized_Name"
-# Length should be less than 30 and it should not contain space.
+# Length should be less than 30, and it should not contain space.
 # Optional
 powervault_system_name: "Unintialized_Name"
 

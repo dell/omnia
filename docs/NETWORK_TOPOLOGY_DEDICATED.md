@@ -7,7 +7,7 @@ Depending on internet access for host nodes, there are two ways to achieve a ded
 When all compute nodes have their own public network access, `primary_dns` and `secondary_dns` in `base_vars.yml` become optional variables as the control plane is not required to be a gateway to the network. The network design would follow the below diagram: <br>
 ![Dedicated Setup with dedicated public nic on compute nodes](images/Omnia_NetworkConfig_Inet.png)
 2. Dedicated Setup with single NIC on compute nodes <br>
-When all compute nodes rely on the control plane for public network access, the variables `primary_dns` and `secondary_dns` in `base_vars.yml` are used to indicate that the control plane is the gateway for all compute nodes to get internet access. Since all public network traffic will be routed through the control plane, the user may have to take precautions to avoid bottlenecks in such a set up. <br>
+When all compute nodes rely on the control plane for public network access, the variables `primary_dns` and `secondary_dns` in `base_vars.yml` are used to indicate that the control plane is the gateway for all compute nodes to get internet access. Since all public network traffic will be routed through the control plane, the user may have to take precautions to avoid bottlenecks in such a set-up. <br>
 ![Dedicated Setup with single NIC on compute nodes](images/Omnia_NetworkConfig_NoInet.png)
 
 

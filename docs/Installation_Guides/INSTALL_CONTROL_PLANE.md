@@ -181,7 +181,7 @@ If AWX is set up by the control plane (That is, when `awx_web_support` in `base_
 
 >> **Note**: The AWX configurations are automatically performed by Omnia, and Dell Technologies recommends that you do not change the default configurations that are provided by Omnia as the functionality may be impacted.  
 
-The AWX UI/ Ansible CLI can be used to run playbooks such as `omnia.yml`. To set up red hat subscription, Slurm, Kubernetes, JupyterHub , configure devices etc, check out [Using Playbooks](USING_PLAYBOOKS.md).
+The AWX UI/ Ansible CLI can be used to run playbooks such as `omnia.yml`. To set up red hat subscription, Slurm, Kubernetes, JupyterHub , configure devices etc., check out [Using Playbooks](USING_PLAYBOOKS.md).
 
 
 ## Creating a new cluster 
