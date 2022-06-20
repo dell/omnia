@@ -32,6 +32,15 @@
     mount_option_status: true
   when: item.client_mount_options | default("", true) | length > 1
 
+- name: Fetch server_ip and server_share_path from list
+  set_fact:
+    temp_server_ip: "{{ item.server_ip }}"
+    temp_server_sharepath: "{{ item.server_share_path }}"
+
+- name: Creating string for mount point
+  set_fact:
+    mount_exp: "{{ temp_server_ip }}:{{ temp_server_sharepath }} on {{ client_mount_path }} type"
+
 - name: Package installation for NFS
   package:
     name: "{{ nfs_packages }}"
@@ -81,4 +90,4 @@
         path: "{{ fstab_path }}"
         line: "{{ item.server_ip }}:{{ item.server_share_path }}     {{ client_mount_path }}  nfs     {{ default_client_mount_options }}"
       when: not mount_option_status
-  when: '"{{ item.server_ip }}:{{ item.server_share_path }} on {{ client_mount_path }}" not in mounted_share.stdout'
+  when: mount_exp not in mounted_share.stdout
