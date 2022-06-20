@@ -1,5 +1,5 @@
 # Parameters in `idrac_ldap.yml`
-This file is located in [/control_plane/tools](../../../control_plane/tools/idrac_ldap.yml)
+This file is located in [/control_plane/tools](../../../../control_plane/tools/idrac_ldap.yml)
 
 |	Variables</br> [Required if ldap_directory_services is enabled/ Optional]	|	Default, choices	|	Description
 ----------------	|	-----------------	|	-----------------

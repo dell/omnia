@@ -36,7 +36,7 @@ k8s_pod_network_cidr: "10.244.0.0/16"
 # Username for Dockerhub account
 # This will be used for Docker login and a kubernetes secret will be created and patched to service account in default namespace.
 # This kubernetes secret can be used to pull images from private repositories
-# This value is optional but suggested to avoid docker pull limit issues
+# This value is optional but suggested avoiding docker pull limit issues
 docker_username: ""
 
 # Password for Dockerhub account

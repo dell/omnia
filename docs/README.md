@@ -33,9 +33,10 @@ Omnia can deploy firmware, install Kubernetes or Slurm (or both), along with add
 - Added support for bolt-on BeeGFS configuration
 - Added ability to upgrade kernel on Red Hat devices
 - Added support for shared LOM (LAN on Motherboard) configuration
-- Due to known limitations with AWX, installation of AWX is now optional using the parameters `awx_web_support`.
+- Due to known limitations with AWX, installation of AWX is now optional using the parameter `awx_web_support`.
 - Added LMod module system installation to handle the MODULEPATH Hierarchical problem.
 - Added NFS bolt on support to allow manager, compute and login nodes to become NFS clients.
+- Added support for PowerVault ME5 over SAS.
 
 # Using Omnia
 1. Set up your network based on the sample topologies provided [here](NETWORK_TOPOLOGY_LOM.md)
@@ -67,4 +68,4 @@ It's not just new features and bug fixes that can be contributed to the Omnia pr
 * Feedback
 * Validation that it works for your particular configuration
 
-If you would like to contribute, see [CONTRIBUTING](https://github.com/dellhpc/omnia/blob/release/CONTRIBUTING.md).
+If you would like to contribute, see [CONTRIBUTING](../CONTRIBUTING.md).

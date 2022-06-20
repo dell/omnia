@@ -174,14 +174,14 @@ If AWX is set up by the control plane (That is, when `awx_web_support` in `base_
 * The project name is set to **omnia** which is the playbook's directory for the templates.
 * For networking switches, InfiniBand switches, iDRAC, and PowerVault Storage, four inventories are available- **ethernet_inventory**, **infiniband_inventory**, **idrac_inventory**, **provisioned_idrac_inventory**, and **powervault_inventory**.
 * IP addresses of the hosts are stored in **node_inventory**.
-* The device credentials are stored in **idrac_credential**, **ethernet_credential**, **infiniband_credential**, and **powervault_me4_credential**. The **node_credential** stores the credentials of nodes in the cluster. 
+* The device credentials are stored in **idrac_credential**, **ethernet_credential**, **infiniband_credential**, and **powervault_credential**. The **node_credential** stores the credentials of nodes in the cluster. 
 * Four groups are created under **node_inventory**-manager, compute, login, and nfs. All nodes in the inventory are to be added to these groups from the AWX UI by the user.
-* iDRAC, networking switches, InfiniBand switches, and PowerVault storage devices can be configured using the respective templates: **idrac_template**, **ethernet_template**, **infiniband_template**, and **powervault_me4_template**. **deploy_omnia_template** is used to deploy Kubernetes and Slurm on the compute nodes. 
+* iDRAC, networking switches, InfiniBand switches, and PowerVault storage devices can be configured using the respective templates: **idrac_template**, **ethernet_template**, **infiniband_template**, and **powervault_template**. **deploy_omnia_template** is used to deploy Kubernetes and Slurm on the compute nodes. 
 * Schedules are created for the **node_inventory_job** (every **60 minutes**) and the **device_inventory_job** (**once daily**) to dynamically retrieve and update node and device details to AWX. These jobs can also be run manually (node_inventory_job, device_inventory_job) if required.
 
 >> **Note**: The AWX configurations are automatically performed by Omnia, and Dell Technologies recommends that you do not change the default configurations that are provided by Omnia as the functionality may be impacted.  
 
-The AWX UI/ Ansible CLI can be used to run playbooks such as `omnia.yml`. To set up red hat subscription, Slurm, Kubernetes, JupyterHub , configure devices etc, check out [Using Playbooks](USING_PLAYBOOKS.md).
+The AWX UI/ Ansible CLI can be used to run playbooks such as `omnia.yml`. To set up red hat subscription, Slurm, Kubernetes, JupyterHub , configure devices etc., check out [Using Playbooks](USING_PLAYBOOKS.md).
 
 
 ## Creating a new cluster 

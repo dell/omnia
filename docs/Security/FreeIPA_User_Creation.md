@@ -45,7 +45,7 @@
 			
 ```
 			
-4. The random password displayed can be used to login to the login node using the newly created user.
+4. The random password displayed can be used to log in to the login node using the newly created user.
 
 	` ssh omniauser@192.168.1.6`
 
