@@ -219,12 +219,6 @@
   include_tasks: fetch_beegfs_inputs.yml
   when:
     - beegfs_support
-    
-- name: Fetch powervault inputs
-  include_tasks: fetch_powervault_status.yml
-  when:
-    - powervault_support
-    - nfs_node_status
 
 - name: Encrypt input config file
   command: >-
