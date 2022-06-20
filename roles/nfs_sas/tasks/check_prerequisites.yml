@@ -92,15 +92,18 @@
     include_vars: "{{ role_path }}/../../control_plane/{{ login_vars_filename }}"
     no_log: true
 
+  when: powervault_support
+
 # Validate Powervault variables
 
-  - name: Fetch powervault inputs
-    include_tasks: "{{ role_path }}/../cluster_validation/tasks/fetch_powervault_status.yml"
-    when:
-      - powervault_support
-      - nfs_node_status
+- name: Fetch powervault inputs
+  include_tasks: "../../cluster_validation/tasks/fetch_powervault_status.yml"
+  when:
+    - powervault_support
+    - nfs_node_status
 
 # Encrpyt omnia_config.yml file
+- block:
 
   - name: Encrypt input config file
     command: >-
