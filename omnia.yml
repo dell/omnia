@@ -54,6 +54,7 @@
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
   roles:
     - nfs_sas
+  tags: nfs_server
   
 # - name: Validate nfs_node config
 #   hosts: nfs_node
@@ -159,9 +160,7 @@
       include_role:
         name: k8s_nfs_server_setup
       when: not hostvars['127.0.0.1']['powervault_status']
-      tags:
-        - kubernetes
-        - nfs
+      tags: [ kubernetes, k8s_pv_nfs ]
 
 - name: Apply NFS client setup on compute nodes
   hosts: compute
@@ -171,9 +170,7 @@
       include_role:
         name: k8s_nfs_client_setup
       when: not hostvars['127.0.0.1']['powervault_status']
-      tags:
-        - kubernetes
-        - nfs
+      tags: [ kubernetes, k8s_pv_nfs ]
 
 - name: Start K8s on manager server
   hosts: manager

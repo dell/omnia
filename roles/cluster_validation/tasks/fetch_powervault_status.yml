@@ -13,9 +13,16 @@
 #  limitations under the License.
 ---
 
-- name: Assert if powervault IP is defined
-  assert:
-    that: powervault_ip | length | int > 4
+- block:
+  - name: Assert if powervault IP is defined with correct format
+    assert:
+      that: 
+        - powervault_ip | length > 0
+        - powervault_ip | ipaddr
+  rescue:
+  - name: Powervault IP not defined
+    fail:
+      msg: "{{ pv_ip_undefined_msg }}"
 
 - name: Ping the powervault to validate connectivity
   command: ping -c1 {{ powervault_ip }}
@@ -29,3 +36,29 @@
       - "' 0% packet loss' in validate_pv.stdout"
     success_msg: "{{ powervault_ip_success_msg }}"
     fail_msg: "{{ powervault_ip_failure_msg }}"
+
+- name: Get auth string
+  shell: >
+          set -o pipefail && \
+          echo -n {{ powervault_username }}_{{ powervault_password }}  | sha256sum
+  register: auth_string
+  changed_when: false
+  delegate_to: localhost
+  no_log: true
+
+- name: Login to powervault
+  uri:
+    url: https://{{ powervault_ip }}/api/login/{{ auth_string.stdout | replace(" -", "") }}
+    method: GET
+    headers:
+      {'datatype': 'json'}
+    validate_certs: no
+  register: login_key
+  delegate_to: localhost
+
+- name: Check login status of powervault
+  assert:
+    that:
+      - login_key.json.status[0]['response-type'] == "Success"
+    success_msg: "{{ powervault_login_success_msg }}"
+    fail_msg: "{{ powervault_login_failure_msg }}"
