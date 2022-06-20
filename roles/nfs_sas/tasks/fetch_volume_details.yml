@@ -27,6 +27,7 @@
   register: auth_string
   changed_when: false
   delegate_to: localhost
+  no_log: true
 
 - name: Get session key
   uri:
