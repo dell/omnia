@@ -249,7 +249,7 @@ host_mapping_header_with_role_format: "MAC,Hostname,IP,Component_role"
 fail_mapping_file_field_seperation: "Failed: Mapping file should be comma separated and all fields must be filled."
 fail_mapping_file_duplicate_ip: "Failed: Duplicate ip exists. Please verify following mapping file again: "
 fail_mapping_file_duplicate_hostname: "Failed: Duplicate hostname exists. Please verify host mapping file again."
-fail_mapping_file_hostname_chars: "Hostname should not contain _ or . or space as it will cause error with slurm and K8s. Found in: "
+fail_mapping_file_hostname_chars: "Hostname should not contain _ or . or space as it might result in issues with authentication tools like FreeIPA. Make sure the mapping file contains only the hostname, and not the domain_name. Found in: "
 fail_mapping_file_roles_error: "Failed. Define correct Component Roles for each node.
                                 Component roles can only take values: {{ group_name_manager }}, {{group_name_compute}},
                                  {{ group_name_login }}, {{ group_name_nfs }}"
