@@ -34,6 +34,13 @@
     success_msg: "{{ client_share_path_success_msg }}"
     fail_msg: "{{ client_share_path_fail_msg }}"
 
+- name: Verify client_mount_options variable declaration
+  assert:
+    that:
+      - item.client_mount_options is defined
+    success_msg: "{{ client_mount_options_success_msg }}"
+    fail_msg: "{{ client_mount_options_fail_msg }}"
+
 - name: Verify server_share_path
   assert:
     that:

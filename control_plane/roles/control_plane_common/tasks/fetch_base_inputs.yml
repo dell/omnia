@@ -264,13 +264,6 @@
     fail_msg: "{{ fail_awx_organization }}"
   tags: [ validate, awx ]
 
-- name: Create default directory to store omnia files
-  file:
-    path: "{{ omnia_default_path }}"
-    state: directory
-    mode: "{{ mount_dir_perm }}"
-  tags: init
-
 - name: Make mount directory for grafana if it doesnt exist
   file:
     path: "{{ mount_location }}"

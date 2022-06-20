@@ -13,15 +13,20 @@
 #  limitations under the License.
 ---
 
-- name: Set powervault credentials
+- name: Include variable file base_vars.yml
+  include_vars: "{{ base_pv_file }}"
+  no_log: true
+
+- name: Fetch powervault credentials when awx_web_support is false
+  include_tasks: fetch_powervault_credentials.yml
+  when: not awx_web_support
+
+- name: Set powervault credentials in AWX
   set_fact:
     powervault_username: "{{ lookup('env','ANSIBLE_NET_USERNAME') }}"
     powervault_password: "{{ lookup('env','ANSIBLE_NET_PASSWORD') }}"
   no_log: true
-
-- name: Include variable file base_vars.yml
-  include_vars: "{{ base_pv_file }}"
-  no_log: true
+  when: awx_web_support
 
 - name: Include variable file for powervault
   include_vars: "{{ pv_file }}"
