@@ -52,6 +52,12 @@
 - name: Fetch control_plane credentials
   include_tasks: fetch_control_plane_credentials.yml
 
+- name: Fetch powervault inputs
+  include_tasks: fetch_powervault_status.yml
+  when:
+    - powervault_support
+    - nfs_node_status
+
 - name: Install Packages
   include_tasks: install_packages.yml
   when: not control_plane_status
