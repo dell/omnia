@@ -12,6 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+
 - name: Saving distribution of os
   set_fact:
     compute_os: "{{ ansible_facts['distribution'] | lower }}"
@@ -139,6 +140,12 @@
     - name: Collect host facts (including acclerator information)
       setup: ~
 
+    - name: Check for Mellanox NICs
+      shell: lspci | grep -o Mellanox | wc -l
+      register: num_mellanox
+      failed_when: false
+      changed_when: false
+
     - name: Install infiniband drivers
       package:
         name: "{{ item }}"
@@ -146,6 +153,7 @@
       with_items: "{{ infiniband_non_leap }}"
       register: ib_package_status
       tags: install
+      when: num_mellanox.stdout | int > 0
     
     - block:
         - name: Reboot after installing ib drivers
@@ -177,9 +185,10 @@
           failed_when: false
           with_items: "{{ ib_nics }}"
       when:
-       - ib_package_status.changed
-       - hostvars['127.0.0.1']['control_plane_status']
-       - hostvars['127.0.0.1']['ib_switch_support']
+        - num_mellanox.stdout | int > 0
+        - ib_package_status.changed
+        - hostvars['127.0.0.1']['control_plane_status']
+        - hostvars['127.0.0.1']['ib_switch_support']
   when: ( os_supported_leap not in compute_os )
 
 - block:
@@ -247,6 +256,12 @@
       setup: ~
       tags: install
 
+    - name: Check for Mellanox NICs
+      shell: lspci | grep -o Mellanox | wc -l
+      register: num_mellanox
+      failed_when: false
+      changed_when: false
+
     - name: Install infiniband drivers
       package:
         name: "{{ item }}"
@@ -254,6 +269,7 @@
       with_items: "{{ infiniband_leap }}"
       register: ib_package_status
       tags: install
+      when: num_mellanox.stdout | int > 0
     
     - block:
         - name: Reboot after installing ib drivers
@@ -285,9 +301,10 @@
           failed_when: false
           with_items: "{{ ib_nics }}"
       when:
-       - ib_package_status.changed
-       - hostvars['127.0.0.1']['control_plane_status']
-       - hostvars['127.0.0.1']['ib_switch_support']
+        - num_mellanox.stdout | int > 0
+        - ib_package_status.changed
+        - hostvars['127.0.0.1']['control_plane_status']
+        - hostvars['127.0.0.1']['ib_switch_support']
   when: ( os_supported_leap in compute_os ) and ( ansible_distribution_version >= os_supported_leap_version )
 
 - name: Deploy time ntp/chrony
