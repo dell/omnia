@@ -15,6 +15,8 @@
 
 # Usage: main.yml
 awx_search_key: "-job-"
+base_vars_path: "{{ playbook_dir }}/control_plane/input_params/base_vars.yml"
+cobbler_pod_name: cobbler
 
 # Usage: fetch_omnia_inputs.yml
 config_filename: "omnia_config.yml"
