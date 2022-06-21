@@ -67,6 +67,13 @@
     regexp: "0.0.0.0:6820"
     replace: "{{ manager_hostname }}:{{ slurm_restd_port }}"
 
+- name: Update ExecStart paramter in case of CentOS 7.9
+  replace:
+    path: "{{ systemd_path_dest }}/slurm-restd-custom.service"
+    regexp: "slurmrestd"
+    replace: "/usr/sbin/slurmrestd"
+  when: os_supported_centos in compute_os
+
 - name: Add random token
   shell: set -o pipefail && export SLURM_JWT=nvisjvopaekgvgoawkgvpao84r93fjmdkvmdkvm
   changed_when: false

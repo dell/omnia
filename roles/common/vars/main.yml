@@ -34,6 +34,18 @@ common_packages:
   - openssl
   - singularity
   - python3-pexpect
+
+common_packages_centos:
+  - gcc
+  - nfs-utils
+  - python3-pip
+  - bash-completion
+  - chrony
+  - pciutils
+  - openssl
+  - singularity
+  - pexpect
+
 max_retries: 20
 max_delay: 20
 
@@ -130,3 +142,4 @@ infiniband_non_leap:
 
 rhel_code_ready_repo: codeready-builder-for-rhel-8-x86_64-rpms
 rhel_epel_repo8: https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+os_supported_centos: "centos"

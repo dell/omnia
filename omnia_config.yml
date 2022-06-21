@@ -36,7 +36,7 @@ k8s_pod_network_cidr: "10.244.0.0/16"
 # Username for Dockerhub account
 # This will be used for Docker login and a kubernetes secret will be created and patched to service account in default namespace.
 # This kubernetes secret can be used to pull images from private repositories
-# This value is optional but suggested to avoid docker pull limit issues
+# This value is optional but suggested avoiding docker pull limit issues
 docker_username: ""
 
 # Password for Dockerhub account
@@ -127,17 +127,25 @@ beegfs_version_change: false
 
 # This variable is used for supportig NFS bolt-on on login_node, compute, and manager nodes
 # Values should be entered in JSON format only.
+# If mount_option values are empty, NFS client will be mounted with these values "nosuid,rw,sync,hard,intr 0 0"
 # For enabling NFS bolt-on support, atleast one list of valid values should be provided.
 # Example for single mount file system:
 # nfs_client_params: 
-# - { server_ip: <IP>, server_share_path: < server_mount>, client_share_path: <client_mount> }
+# - { server_ip: 198.168.0.1, server_share_path: "/mnt/share", client_share_path: "/mnt/mount", client_mount_options: "nosuid,rw,sync,hard,intr 0 0" }
 # Example for suppoting multiple mount points:
 # nfs_client_params: 
-#    - { server_ip: <IP1>, server_share_path: < server_mount1>, client_share_path: <client_mount1> } 
-#    - { server_ip: <IP1>, server_share_path: < server_mount2>, client_share_path: <client_mount2> } 
+#    - { server_ip: 198.168.0.1, server_share_path: "/mnt/share1", client_share_path: "/mnt/mount1", client_mount_options: "nosuid,rw,sync,hard,intr 0 0" } 
+#    - { server_ip: 198.168.0.1, server_share_path: "/mnt/share2", client_share_path: "/mnt/mount2", client_mount_options: "nosuid,rw,sync,hard,intr 0 0" } 
 # Example for multiple mount file system:
 # nfs_client_params: 
-# - { server_ip: <IP1>, server_share_path: < server_mount1>, client_share_path: <client_mount1>} 
-# - { server_ip: <IP2>, server_share_path: < server_mount2>, client_share_path: <client_mount2> } 
+# - { server_ip: 198.168.0.1, server_share_path: "/mnt/share1", client_share_path: "/mnt/mount1", client_mount_options: "nosuid,rw,sync,hard,intr 0 0" } 
+# - { server_ip: 198.168.0.2, server_share_path: "/mnt/share2", client_share_path: "/mnt/mount2", client_mount_options: "nosuid,rw,sync,hard,intr 0 0" } 
 nfs_client_params:
-   - { server_ip: , server_share_path: , client_share_path:  }
+   - { server_ip: , server_share_path: , client_share_path: , client_mount_options: }
+   
+# Mandatory field when nfs_node group is defined with an IP and omnia is required to configure nfs server.
+# IP of Powervault connected to NFS Server should be provided.
+# In a single run of omnia, only one NFS Server is configured.
+# To configure multiple NFS Servers, add one IP in nfs_node group in a single run of omnia.yml and 
+# give variable values accordingly. To configure another nfs node, update variables and run nfs_sas.yml
+powervault_ip:

@@ -57,7 +57,7 @@ allow_deny: "Allow"
 # Root access is needed.
 restrict_program_support: false
 
-# The below mentioned services can be disabled, by adding values in comma separated values format for restrict_softwares variable
+# The below-mentioned services can be disabled, by adding values in comma separated values format for restrict_softwares variable
 # Services: telnet,lpd,bluetooth,rlogin,rexec
 # Ex: restrict_softwares: 'telnet,lpd,bluetooth' ( This disables 3 services, to disable more services, add services with comma separation. )
 restrict_softwares: ''

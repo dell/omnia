@@ -5,11 +5,10 @@ Once `control_plane.yml` is run, AWX UI or Ansible CLI can be used to run differ
 2. [Using `omnia.yml` to set up clusters, BeeGFS etc](INSTALL_OMNIA_CLI.md)
 3. [Configure new devices added to the cluster](#configuring-new-devices-added-to-the-cluster)
 4. [Installing JupyterHub And Kubeflow](#install-jupyterhub-and-kubeflow-playbooks)
-5. [Assigning Roles to Compute Nodes](#assign-component-roles-using-awx-ui)
-6. [Add a new compute node to the cluster](#add-a-new-compute-node-to-the-cluster)
-7. [Creating a new cluster](#creating-a-new-cluster)
-8. [Updating Kernel on Red Hat](#kernel-updates-on-red-hat)
-9. [Setting up Static IPs on Devices when the network interface type is shared LOM](#setting-up-static-ips-on-devices-when-the-network-interface-type-is-shared-lom)
+5. [Add a new compute node to the cluster](#add-a-new-compute-node-to-the-cluster)
+6. [Creating a new cluster](#creating-a-new-cluster)
+7. [Updating Kernel on Red Hat](#kernel-updates-on-red-hat)
+8. [Setting up Static IPs on Devices when the network interface type is shared LOM](#setting-up-static-ips-on-devices-when-the-network-interface-type-is-shared-lom)
 
 ## Accessing the AWX UI
 1. Run `kubectl get svc -n awx`.

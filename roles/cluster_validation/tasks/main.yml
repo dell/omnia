@@ -13,22 +13,13 @@
 #  limitations under the License.
 ---
 
-- name: Perform validations
-  include_tasks: validations.yml
-
-- name: Fetch omnia_config.yml inputs
-  include_tasks: fetch_omnia_inputs.yml
-
-- name: Fetch control_plane credentials
-  include_tasks: fetch_control_plane_credentials.yml
-  
 - name: Initialize variables
   set_fact:
     control_plane_status: false
     powervault_status: false
     nfs_node_status: false
     ansible_collection_used: false
-
+    
 - name: Check AWX instance
   command: awx --version
   changed_when: false
@@ -47,25 +38,29 @@
     - not awx_version_check.failed
     - awx_search_key in awx_hostname.stdout
 
-- name: Install Packages
-  include_tasks: install_packages.yml
-  when: not control_plane_status
-
 - name: Set ansible_collection_used to true in awx
   set_fact:
     ansible_collection_used: true
   when: control_plane_status
 
-- name: Set NFS node status
-  set_fact:
-    nfs_node_status: true
-  when:
-    - control_plane_status
-    - groups['nfs_node'] | length == 1
+- name: Perform validations
+  include_tasks: validations.yml
 
-- name: Fetch powervault status
+- name: Fetch omnia_config.yml inputs
+  include_tasks: fetch_omnia_inputs.yml
+
+- name: Fetch control_plane credentials
+  include_tasks: fetch_control_plane_credentials.yml
+
+- name: Fetch powervault inputs
   include_tasks: fetch_powervault_status.yml
-  when: nfs_node_status
+  when:
+    - powervault_support
+    - nfs_node_status
+
+- name: Install Packages
+  include_tasks: install_packages.yml
+  when: not control_plane_status
   
 - name: omnia.yml runing on host
   block:

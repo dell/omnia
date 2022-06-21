@@ -38,6 +38,7 @@ jansson_src_url: https://github.com/akheron/jansson/archive/refs/tags/v2.14.tar.
 jansson_path: /usr/local/lib/pkgconfig
 jansson_dir_path: /var/lib/jansson-2.14/
 os_supported_leap: "leap"
+os_supported_centos: "centos"
 
 # Usage: install_libjwt.yml
 libjwt_repo: https://github.com/benmcollins/libjwt.git

@@ -46,16 +46,25 @@
   roles:
     - common
   tags: common
-  
-- name: Validate nfs_node config
+
+- name: Configure NFS node for SAS protocol
   hosts: nfs_node
   gather_facts: false
-  tasks:
-    - name: Validate nfs_node config
-      include_role:
-        name: powervault_me4_nfs
-        tasks_from: validate_nfs_config.yml
-      when: hostvars['127.0.0.1']['powervault_status']
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+  roles:
+    - nfs_sas
+  tags: nfs_server
+  
+# - name: Validate nfs_node config
+#   hosts: nfs_node
+#   gather_facts: false
+#   tasks:
+#     - name: Validate nfs_node config
+#       include_role:
+#         name: powervault_me4_nfs
+#         tasks_from: validate_nfs_config.yml
+#       when: hostvars['127.0.0.1']['powervault_status']
 
 - name: Apply login common installation and config
   hosts: manager, login_node
@@ -99,49 +108,49 @@
     - k8s_firewalld
   tags: kubernetes
 
-- name: Powervault Server Configuration
-  hosts: nfs_node
-  gather_facts: false
-  tasks:
-    - name: Configuring NFS node
-      include_role:
-        name: powervault_me4_nfs
-      when: hostvars['127.0.0.1']['powervault_status']
+# - name: Powervault Server Configuration
+#   hosts: nfs_node
+#   gather_facts: false
+#   tasks:
+#     - name: Configuring NFS node
+#       include_role:
+#         name: powervault_me4_nfs
+#       when: hostvars['127.0.0.1']['powervault_status']
 
-- name: Map volume
-  hosts: powervault
-  connection: local
-  gather_facts: false
-  tasks:
-    - name: Include map volume task
-      include_tasks: "{{ playbook_dir }}/control_plane/roles/powervault/tasks/ports.yml"
-      when: hostvars['127.0.0.1']['powervault_status']
+# - name: Map volume
+#   hosts: powervault
+#   connection: local
+#   gather_facts: false
+#   tasks:
+#     - name: Include map volume task
+#       include_tasks: "{{ playbook_dir }}/control_plane/roles/powervault/tasks/ports.yml"
+#       when: hostvars['127.0.0.1']['powervault_status']
 
-    - name: Include map volume task
-      include_tasks: "{{ playbook_dir }}/control_plane/roles/powervault/tasks/map_volume.yml"
-      when: hostvars['127.0.0.1']['powervault_status']
+#     - name: Include map volume task
+#       include_tasks: "{{ playbook_dir }}/control_plane/roles/powervault/tasks/map_volume.yml"
+#       when: hostvars['127.0.0.1']['powervault_status']
 
-- name: Apply NFS server setup on NFS node
-  hosts: nfs_node
-  gather_facts: false
-  tasks:
-    - name: Check the mapped volume on server
-      include_role:
-        name: powervault_me4_nfs
-        tasks_from: nfs_volume
-      when: hostvars['127.0.0.1']['powervault_status']
+# - name: Apply NFS server setup on NFS node
+#   hosts: nfs_node
+#   gather_facts: false
+#   tasks:
+#     - name: Check the mapped volume on server
+#       include_role:
+#         name: powervault_me4_nfs
+#         tasks_from: nfs_volume
+#       when: hostvars['127.0.0.1']['powervault_status']
 
-    - name: Mount partitions
-      include_role:
-         name: powervault_me4_nfs
-         tasks_from: mount_me4_partitions
-      when: hostvars['127.0.0.1']['powervault_status']
+#     - name: Mount partitions
+#       include_role:
+#          name: powervault_me4_nfs
+#          tasks_from: mount_me4_partitions
+#       when: hostvars['127.0.0.1']['powervault_status']
 
-    - name: Setup NFS server on the partitions
-      include_role:
-         name: powervault_me4_nfs
-         tasks_from: me4_nfs_server_setup
-      when: hostvars['127.0.0.1']['powervault_status']
+#     - name: Setup NFS server on the partitions
+#       include_role:
+#          name: powervault_me4_nfs
+#          tasks_from: me4_nfs_server_setup
+#       when: hostvars['127.0.0.1']['powervault_status']
 
 - name: Apply NFS server setup on manager node
   hosts: manager
@@ -151,9 +160,7 @@
       include_role:
         name: k8s_nfs_server_setup
       when: not hostvars['127.0.0.1']['powervault_status']
-      tags:
-        - kubernetes
-        - nfs
+      tags: [ kubernetes, k8s_pv_nfs ]
 
 - name: Apply NFS client setup on compute nodes
   hosts: compute
@@ -163,9 +170,7 @@
       include_role:
         name: k8s_nfs_client_setup
       when: not hostvars['127.0.0.1']['powervault_status']
-      tags:
-        - kubernetes
-        - nfs
+      tags: [ kubernetes, k8s_pv_nfs ]
 
 - name: Start K8s on manager server
   hosts: manager

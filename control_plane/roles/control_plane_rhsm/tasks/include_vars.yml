@@ -72,7 +72,7 @@
 - name: Assign rhsm_release
   set_fact:
     rhsm_release: "{{ redhat_subscription_release | default(omit) }}"
-  when: redhat_subscription_release | default("", true) | length > 1
+  when: redhat_subscription_release | default("", true) | string | length > 1
   run_once: true
 
 - name: Assign rhsm_force_register
