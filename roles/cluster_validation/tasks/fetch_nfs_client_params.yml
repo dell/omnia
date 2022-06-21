@@ -41,26 +41,32 @@
     success_msg: "{{ client_mount_options_success_msg }}"
     fail_msg: "{{ client_mount_options_fail_msg }}"
 
-- name: Verify server_ip value
-  assert:
-    that:
-      - item.server_ip | default("", true) | length > 1
-    success_msg: "{{ server_ip_value_success_msg }}"
-    fail_msg: "{{ server_ip_value_failure_msg }}"
-
-- name: Verify server_share_path value
-  assert:
-    that:
-      - item.server_share_path | default("", true) | length > 1
-    success_msg: "{{ server_share_path_len_success_msg }}"
-    fail_msg: "{{ server_share_path_failure_msg }}"
-
 - name: Updating nfs_client_support value
   set_fact:
     nfs_client_support: true
   when:
-    - item.server_ip | default("", true) | length > 1
-    - item.server_share_path | default("", true) | length > 1
+    - item.server_ip | default("", true) | length > 1 or
+      item.server_share_path | default("", true) | length > 1 or
+      item.client_share_path | default("", true) | length > 1 or
+      item.client_mount_options | default("", true) | length > 1
+
+- name: Initialize variables
+  set_fact:
+    nfs_client_declaration: false
+
+- block:
+    - name: Updating nfs_client_declaration value when values are declared correctly
+      set_fact:
+        nfs_client_declaration: true
+      when:
+        - item.server_ip | default("", true) | length > 1
+        - item.server_share_path | default("", true) | length > 1
+    
+    - name: Status of nfs_client_params
+      fail:
+        msg: "{{ nfs_client_declaration_msg }}"
+      when: not nfs_client_declaration
+  when: nfs_client_support
 
 - name: Test reachablility of NFS server
   command: ping -c3 {{ item.server_ip }}

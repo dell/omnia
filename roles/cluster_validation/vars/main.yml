@@ -142,5 +142,5 @@ client_share_path_fail_msg: "Failed, Declare client_share_path variable in nfs_c
 server_share_path_len_success_msg: "server_share_path validated successfully"
 client_mount_options_success_msg: "client_mount_options declaration validated successfully"
 client_mount_options_fail_msg: "Failed, please declare client_mount_options variable in nfs_client_params"
-server_ip_value_success_msg: "Successfuly validated server_ip value declaration"
-server_ip_value_failure_msg: "Failed. Please declare server_ip value in nfs_client_params"
+server_ip_msg: "As server_ip is not available NFS bolt-on role will not work"
+nfs_client_declaration_msg: "Make sure to declare values in server_ip and server_share_path in all the lists on nfs_client_params"

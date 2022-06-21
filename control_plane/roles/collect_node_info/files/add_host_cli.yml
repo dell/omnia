@@ -30,4 +30,18 @@
   delegate_to: localhost
   with_items: "{{ inventory_hostname }}"
   throttle: 1
-  when: item not in check_node_inventory.stdout
+  when:
+    - hostname_check.stdout is defined
+    - item not in check_node_inventory.stdout 
+
+- name: Check the node_inventory output
+  command: cat {{ hostvars['localhost']['node_inventory_path'] }}
+  changed_when: false
+  register: prov_hosts
+
+- name: Create provisioned_hosts
+  add_host:
+    name: "{{ item }}"
+    groups: "provisioned_hosts"
+  with_items: "{{ prov_hosts.stdout_lines }}"
+  when: item | trim | length > 1
