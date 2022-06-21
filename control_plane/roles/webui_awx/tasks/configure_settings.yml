@@ -97,18 +97,13 @@
     mode: "{{ file_perm }}"
 
 - name: Open awx TCP ports on the firewall
-  firewalld:
-    port: "{{ item }}/tcp"
-    permanent: yes
-    state: enabled
+  command: "firewall-cmd --permanent --add-port={{ item }}/tcp"
   with_items: "{{ awx_tcp_ports }}"
+  changed_when: true
 
 - name: Masquerade the firewall
-  firewalld:
-    masquerade: yes
-    permanent: yes
-    state: enabled
-    zone: public
+  command: "firewall-cmd --zone=public --add-masquerade"
+  changed_when: true
 
 - name: Reload firewalld service
   systemd:

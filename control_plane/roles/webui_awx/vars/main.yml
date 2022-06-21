@@ -107,7 +107,7 @@ rhsm_job_template_details:
 kernel_upgrade_job_template_details:
   - { name: kernel_upgrade_template, inventory: node_inventory,playbook: control_plane/kernel_upgrade.yml, credential: node_credential }
 omnia_job_template_details:
-  - { name: deploy_omnia_template, inventory: node_inventory, playbook: omnia.yml, credential: node_credential, extra_vars: "ansible_python_interpreter=/usr/bin/python3" }
+  - { name: deploy_omnia_template, inventory: node_inventory, playbook: omnia.yml, credential: node_credential }
 scheduled_templates:
   - { name: NodeInventorySchedule, template: node_inventory_job, schedule_rule: "DTSTART:20210815T120000Z RRULE:FREQ=HOURLY;INTERVAL=1", flag: true }
   - { name: DeviceInventorySchedule, template: device_inventory_job, schedule_rule: "DTSTART:20210815T060000Z RRULE:FREQ=DAILY;INTERVAL=1", flag: "{{ device_support_status or network_interface_type == 'lom' }}" }

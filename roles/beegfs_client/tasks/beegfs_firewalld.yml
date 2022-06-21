@@ -25,11 +25,9 @@
     enabled: yes
 
 - name: Configure firewalld ports for BeeGFS client
-  firewalld:
-    port: "{{ item }}"
-    permanent: yes
-    state: enabled
+  command: "firewall-cmd --permanent --add-port={{ item }}"
   with_items: '{{ beegfs_ports }}'
+  changed_when: true
 
 - name: Reload firewalld
   command: firewall-cmd --reload
