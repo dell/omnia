@@ -164,6 +164,8 @@ If AWX is not set up by the control plane (That is, when `awx_web_support` in `b
 * IP addresses of the hosts are stored in **node_inventory** in the directory `/opt/omnia`.
 * All device credentials used for configuration are taken from `login_vars.yml`.
 
+>> **Note**: In a LOM setup, running `ansible-playbook collect_device_info.yml` will only return IPs of iDRAC. To get the IPs of all supported devices, run `ansible-playbook collect_node_info.yml`.
+
 ## Default Ansible AWX configurations  
 * The role used to deploy AWX within the *control_plane.yml* file: *webui_awx*.  
 * All the pods are deployed in the specific namespace: *awx*.  
