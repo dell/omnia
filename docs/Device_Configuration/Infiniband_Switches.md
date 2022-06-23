@@ -49,7 +49,7 @@ Enter all relevant parameters for configuring your switches in the following fil
 * ib_vars.yml
 
 ### Run `infiniband_template` via CLI
-1. Verify that `/opt/omnia/infiniband_inventory` is created and updated with all infiniband switch IP details. This is done automatically when `control_plane.yml` is run. If it's not updated, run `ansible-playbook collect_device_info.yml` from the control_plane directory.
+1. Verify that `/opt/omnia/infiniband_inventory` is created and updated with all infiniband switch IP details. This is done automatically when `control_plane.yml` is run. If it's not updated, run `ansible-playbook collect_device_info.yml` (dedicated NIC) or `ansible-playbook collect_node_info.yml` (LOM NIC) from the control_plane directory.
 2. Run `ansible-playbook infiniband.yml -i /opt/omnia/infiniband_inventory`
 
 
