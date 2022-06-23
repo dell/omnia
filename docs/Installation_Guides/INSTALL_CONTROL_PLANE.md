@@ -70,7 +70,7 @@ ansible-playbook control_plane.yml
 ```  
 8. If the host_mapping_file_path is not provided, then you must manually assign the component roles through the AWX UI. Go to [Assign component roles using AWX UI](USING_PLAYBOOKS.md#assign-component-roles-via-awx-ui).
 
-Omnia creates a log file which is available at: `/var/log/omnia.log`.  
+Omnia creates a log file which is available at: `/var/log/omnia/omnia.log`.  
 
 
 ## Configurations Performed by Omnia Control Plane
@@ -163,6 +163,12 @@ If AWX is not set up by the control plane (That is, when `awx_web_support` in `b
 * For networking switches, InfiniBand switches, iDRAC, and PowerVault Storage, four inventories are available- **ethernet_inventory**, **infiniband_inventory**, **idrac_inventory**, **provisioned_idrac_inventory**, and **powervault_inventory** in `/opt/omnia/`
 * IP addresses of the hosts are stored in **node_inventory** in the directory `/opt/omnia`.
 * All device credentials used for configuration are taken from `login_vars.yml`.
+* Schedules are created for the **node_inventory_job** (every **60 minutes**) and the **device_inventory_job** (**once daily**) to dynamically retrieve and update node and device details to `/opt/omnia`. Logs pertaining to these jobs are available in `/var/log/omnia/` in the folders `collect_node_info` and `collect_device_info`. These jobs can also be run manually using playbooks if required.
+* Jobs initiated by control plane are logged here: `/var/log/omnia/<taget device type>`. (Eg: /var/log/omnia/idrac, /var/log/omnia/powervault etc.)
+
+>> **Note**: 
+>> * In a LOM setup, running `ansible-playbook collect_device_info.yml` will only return IPs of iDRAC. To get the IPs of all supported devices, run `ansible-playbook collect_node_info.yml`.
+>> * All AWX job templates will fail if `awx_web_support` in `base_vars.yml` is set to false irrespective of whether AWX is running with previous configurations.
 
 ## Default Ansible AWX configurations  
 * The role used to deploy AWX within the *control_plane.yml* file: *webui_awx*.  
