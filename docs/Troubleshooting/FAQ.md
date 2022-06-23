@@ -11,13 +11,29 @@ If hosts are listed, then an IP address has been assigned to them by DHCP. Howev
 ## How do I find the version of Omnia being used?
 If `control_plane.yml` has run, a version file is created here: `/opt/omnia/omnia_version`.
 
+## Why does the task 'nfs_client: Mount NFS client' fail with `No route to host`?
+**Potential Cause**:
+* There's a mismatch in the share path listed in `/etc/exports` and in `omnia_config.yml` under `nfs_bolt_on`.
+**Resolution**:
+* Ensure that the input paths are a perfect match down to the character to avoid any errors.
+
+## Why does the task 'nfs_client: Mount NFS client' fail with `Failed to mount NFS client. Make sure NFS Server is running on IP xx.xx.xx.xx`?
+**Potential Cause**:
+* The required services for NFS may not be running:
+- nfs
+- rpc-bind
+- mountd <br>
+  **Resolution**:
+* Enable the required services using `firewall-cmd --permanent --add-service=<service name>` and then reload the firewall using `firewall-cmd --reload`.
+
+
 ## Why do Kubernetes Pods show `ImagePullBack` or `ErrPullImage` errors in their status?
 **Potential Cause**:
     * The errors occur when the Docker pull limit is exceeded.
   **Resolution**:
     * For `omnia.yml` and `control_plane.yml` : Provide the docker username and password for the Docker Hub account in the *omnia_config.yml* file and execute the playbook.
     * For HPC cluster, during `omnia.yml execution`, a kubernetes secret 'dockerregcred' will be created in default namespace and patched to service account. User needs to patch this secret in their respective namespace while deploying custom applications and use the secret as imagePullSecrets in yaml file to avoid ErrImagePull. [Click here for more info](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/)
-> **Note**: If the playbook is already executed and the pods are in __ImagePullBack__ state, then run `kubeadm reset -f` in all the nodes before re-executing the playbook with the docker credentials.
+>> **Note**: If the playbook is already executed and the pods are in __ImagePullBack__ state, then run `kubeadm reset -f` in all the nodes before re-executing the playbook with the docker credentials.
 
 ## What to do after a reboot if kubectl commands return: `The connection to the server head_node_ip:port was refused - did you specify the right host or port?`
   On the control plane or the manager node, run the following commands:
