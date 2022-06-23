@@ -58,7 +58,7 @@ To open the ports required, use the following steps:
 * Ensure that an existing NFS server is running. NFS clients are mounted using the existing NFS server's IP.
 * Fill out the `nfs_bolt_on` variable in the `omnia_config.yml` file in JSON format using the samples provided [here](../Input_Parameter_Guide/omnia_config.md)
 * This role runs on manager, compute and login nodes.
-* Make sure that `/etc/exports` is populated with the same paths listed as `server_share_path` in the `nfs_bolt_on` in `omnia_config.yml`.
+* Make sure that `/etc/exports` on the NFS server is populated with the same paths listed as `server_share_path` in the `nfs_bolt_on` in `omnia_config.yml`.
 * Post configuration, enable the following services (using this command: `firewall-cmd --permanent --add-service=<service name>`) and then reload the firewall (using this command: `firewall-cmd --reload`).
   - nfs
   - rpc-bind
