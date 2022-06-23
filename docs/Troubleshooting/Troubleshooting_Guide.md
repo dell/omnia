@@ -55,6 +55,9 @@ Below is a list of all logs available to Loki and can be accessed on the dashboa
    * Select the pod you need to troubleshoot from the output of `kubectl get pods -A`
    * Check the status of the pod by running `kubectl describe pod <pod name> -n <namespace name>`
 
+## 6. Omnia version file
+The Omnia version number is stored in `/opt/omnia/omnia_version` when `control_plane.yml` is run.
+
 
 
 
