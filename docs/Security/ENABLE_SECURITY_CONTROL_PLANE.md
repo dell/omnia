@@ -65,7 +65,7 @@ Below is a list of all logs available to Loki and can be accessed on the dashboa
 
 | Name               | Location                                  | Purpose                      | Additional Information                                                                             |
 |--------------------|-------------------------------------------|------------------------------|----------------------------------------------------------------------------------------------------|
-| Omnia Logs         | /var/log/omnia.log                        | Omnia Log                    | This log is configured by Default                                                                  |
+| Omnia Logs         | /var/log/omnia/omnia.log                        | Omnia Log                    | This log is configured by Default                                                                  |
 | syslogs            | /var/log/messages                         | System Logging               | This log is configured by Default                                                                  |
 | Audit Logs         | /var/log/audit/audit.log                  | All Login Attempts           | This log is configured by Default                                                                  |
 | CRON logs          | /var/log/cron                             | CRON Job Logging             | This log is configured by Default                                                                  |
