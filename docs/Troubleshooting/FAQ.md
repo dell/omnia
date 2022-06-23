@@ -8,6 +8,9 @@
 If hosts are listed, then an IP address has been assigned to them by DHCP. However, hosts are not displayed on the AWX UI as the PXE boot is still in process or is not initiated.
 * Check for the reachable and unreachable hosts using the provision_report.yml tool present in the omnia/control_plane/tools folder. To run provision_report.yml, in the omnia/control_plane/ directory, run playbook -i roles/collect_node_info/files/provisioned_hosts.yml tools/provision_report.yml.
 
+## How do I find the version of Omnia being used?
+If `control_plane.yml` has run, a version file is created here: `/opt/omnia/omnia_version`.
+
 ## Why do Kubernetes Pods show `ImagePullBack` or `ErrPullImage` errors in their status?
 **Potential Cause**:
     * The errors occur when the Docker pull limit is exceeded.
@@ -44,6 +47,13 @@ Use CLI to execute Omnia by default by disabling AWX (set `awx_web_support` in `
 This error is caused by design. There is a mismatch between the AWX version (20.0.0) and the AWX galaxy collection (19.4.0) version used by control plane. At the time of design (Omnia 1.2.1), these were the latest available versions of AWX/AWX galaxy collection. This will be fixed in later code releases.
 
 >> **Note**: This failure does not stop the execution of other tasks. Check the AWX log to verify that the script has run successfully.
+
+## Why does provisioning RHEL 8.3 fail on some nodes with "dasbus.error.DBusError: 'NoneType' object has no attribute 'set_property'"?
+This error is known to Red Hat and is being addressed [here](https://bugzilla.redhat.com/show_bug.cgi?id=1912898). Red Hat has offered a user intervention [here](https://access.redhat.com/solutions/5872751). Omnia recommends that in the event of this failure, any OS other than RHEL 8.3.
+
+## Why do AWX job templates fail when `awx_web_support` is false in `base_vars.yml`?
+As a pre-requisite to running AWX job templates, AWX should be enabled by setting `awx_web_support` to true in `base_vars.yml`.
+ 
 
 ## Why are inventory details not updated in AWX?
 **Potential Cause**:
@@ -236,7 +246,7 @@ If the above solution **doesn't work**,
 ## What to do after a control plane reboot?
 1. Once the control plane reboots, wait for 10-15 minutes to allow all k8s pods and services to come up. This can be verified using:
 * `kubectl get pods --all-namespaces`
-2. If the pods do not come up, check `/var/log/omnia.log` for more information.
+2. If the pods do not come up, check `/var/log/omnia/omnia.log` for more information.
 3. Cobbler profiles are not persistent across reboots. The latest profile will be available post-reboot based on the values of `provision_os` and `iso_file_path` in `base_vars.yml`. Re-run `control_plane.yml` with different values for `provision_os` and `iso_file_path` to restore the profiles.
 4. Devices that have had their IP assigned dynamically via DHCP may get assigned new IPs. This in turn can cause duplicate entries for the same device on AWX. Clusters may also show inconsistency and ambiguity.
 

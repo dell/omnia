@@ -6,7 +6,7 @@
 >> * Edit the `ethernet_vars.yml` file for Dell PowerSwitch S5232F-ON and all other PowerSwitches except S3* and S4* switches.
 
 ## Run `ethernet_template` via CLI
-1. Verify that `/opt/omnia/ethernet_inventory` is created and updated with all ethernet switch IP details. This is done automatically when `control_plane.yml` is run. If it's not updated, run `ansible-playbook collect_device_info.yml` from the control_plane directory.
+1. Verify that `/opt/omnia/ethernet_inventory` is created and updated with all ethernet switch IP details. This is done automatically when `control_plane.yml` is run. If it's not updated, run `ansible-playbook collect_device_info.yml` (dedicated NIC) or `ansible-playbook collect_node_info.yml` (LOM NIC) from the control_plane directory.
 2. Run `ansible-playbook ethernet.yml -i /opt/omnia/ethernet_inventory`
 
 ## Run `ethernet_template` via AWX UI
