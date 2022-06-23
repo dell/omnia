@@ -43,7 +43,7 @@ To open the ports required, use the following steps:
 
 ## NFS server configuration
 * Ensure that powervault support is enabled by setting `powervault_support` to true in `base_vars.yml`. By default, a volume called 'omnia_home' will be created on the powervault to mount on the nfs_node.
-* For multiple NFS volumes, enter the following details in JSON list format in `omnia_config.yml` under `powervault_volumes`:
+* For multiple NFS volumes, enter the following details in JSON list format in `powervault_vars.yml` under `powervault_volumes`:
     - name [Mandatory]: The name of the NFS export.
     - server_share_path [Mandatory]: The path at which volume is mounted on nfs_node
     - server_export_options: (Default) rw,sync,no_root_squash
