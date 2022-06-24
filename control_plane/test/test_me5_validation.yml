@@ -12,61 +12,57 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+# Testcase OMNIA_1.3_PV_me5_TC_001
+# Test case to validate configuration of disks and disk-groups
 
-- block:
-  
-  # Testcase OMNIA_1.3_PV_me5_TC_001
-  # Test case to validate configuration of disks and disk-groups
-
-    - name: Validating the powervault disk groups
-      assert:
-        that:
+  - name: Validating the powervault disk groups
+    assert:
+      that:
           - system_info.json['disk-groups'][0]['name'] == "{{ powervault_disk_group_name }}"
-        success_msg: "{{ disk_groups_pass }}"
-        fail_msg: "{{ disk_groups_fail }}"
-      tags: Validate_disk_groups
+      success_msg: "{{ disk_groups_pass }}"
+      fail_msg: "{{ disk_groups_fail }}"
 
-    - name: Validating the powervault disks
-      assert:
-        that:
-          - disks_info.json['drives'][0]['disk-group'] == "{{ powervault_disk_group_name }}"
-        success_msg: "{{ disks_pass }}"
+  - name: Validating the powervault disks
+    assert:
+      that:
+        - disks_info.json['drives'][0]['disk-group'] == "{{ powervault_disk_group_name }}"
+      success_msg: "{{ disks_pass }}"
+      fail_msg: "{{ disks_fail }}"
+    tags: TC_001
 
-        fail_msg: "{{ disks_fail }}"
-      tags: Validate_disks
-  tags: TC_001
+  - name: Validating the powervault pools
+    assert:
+      that:
+        - pools_info.json['pools'][0]['disk-groups'][0]['pool'] == "{{ powervault_pool }}"
+      success_msg: "{{ pools_pass }}"
+      fail_msg: "{{ pools_fail }}"
 
-- block:
+  - name: Validating the powervault volumes
+    assert:
+      that:
+        - item['volume-name'] in "{{ name }}"
+      success_msg: "{{ volumes_pass }}"
+      fail_msg: "{{ volumes_fail }}"
+    loop: "{{ volumes }}"
 
-  # Testcase OMNIA_1.3_PV_TC_002
-  # Test case to validate configuration of pools and volumes
+# Testcase OMNIA_1.3_PV_me5_TC_004
+# When server_shared_path and client_shared_path provided
 
-    - name: Validating the powervault pools
-      assert:
-        that:
-          - pools_info.json['pools'][0]['disk-groups'][0]['pool'] == "{{ powervault_pool }}"
-        success_msg: "{{ pools_pass }}"
-        fail_msg: "{{ pools_fail }}"
-      tags: Validate_pools
+  - name: Check server_shared_path
+    assert:
+      that:
+        - "'pass' in output.stdout"
+      success_msg: "{{powervault_success_msg}}"
+      fail_msg: " {{powervault_fail_msg}}"
+    tags: TC_004    
 
-    - name: Validating the powervault volumes
-      assert:
-        that:
-          - volumes_info.json['volumes'][0]['volume-name'] in "{{ powervault_volumes }}"
-        success_msg: "{{ volumes_pass }}"
-        fail_msg: "{{ volumes_fail }}"
-      tags: Validate_volumes
-  tags: TC_002    
+# Testcase OMNIA_1.3_PV_me5_TC_005
+# When server_shared_path and client_shared_path provided
 
-- block:
-  # Testcase OMNIA_1.3_PV_me5_TC_006
-  # When server_shared_path and client_shared_path provided
-    - name: Check server_shared_path
-      assert:
-        that:
-          - "'pass' in output.stdout"
-        success_msg: "{{powervault_success_msg}}"
-        fail_msg: " {{powervault_fail_msg}}"
-      tags: TC_006 
-
-   
+  - name: Check server_shared_path
+    assert:
+      that:
+        - "'pass' in output.stdout"
+      success_msg: "{{powervault_success_msg}}"
+      fail_msg: " {{powervault_fail_msg}}"
+    tags: TC_005
