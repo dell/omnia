@@ -28,7 +28,11 @@ protocol_wrong_value: "Failed. Check the value given in protocol."
 protocol_success: "Success. The protocol value validated"
 protocol_supported: "Failed. fc is not supported in this release."
 volume_wrong_value: "Atleast 1 volume should be given"
-server_path_empty: "Failed.Server_shared_path must not be empty"
+server_path_empty: "Failed. Server_share_path must not be empty"
+powervault_volumes_options_fail_msg: "powervault_volumes variable is not declared with all key values."
+server_export_options_success_msg: "server_export_options declaration validated successfully"
+client_share_path_success_msg: "client_share_path declaration validated successfully"
+client_mount_options_success_msg: "client_mount_options declaration validated successfully"
 
 # Usage: pv_me4_prereq.yml
 scsi_product_id: ME4
