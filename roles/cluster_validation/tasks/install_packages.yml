@@ -28,3 +28,8 @@
   command: ansible-galaxy collection install "{{ ipaddr_collection }}"
   changed_when: false
   when: ansible_collection_used
+
+- name: Install ansible collection
+  command: ansible-galaxy collection install "{{ ansible_collection_nfs }}"
+  changed_when: false 
+  when: ansible_collection_used
