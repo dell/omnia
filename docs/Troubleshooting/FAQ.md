@@ -11,13 +11,39 @@ If hosts are listed, then an IP address has been assigned to them by DHCP. Howev
 ## How do I find the version of Omnia being used?
 If `control_plane.yml` has run, a version file is created here: `/opt/omnia/omnia_version`.
 
+## Why does the task 'nfs_client: Mount NFS client' fail with `No route to host`?
+**Potential Cause**:
+* There's a mismatch in the share path listed in `/etc/exports` and in `omnia_config.yml` under `nfs_bolt_on`.
+**Resolution**:
+* Ensure that the input paths are a perfect match down to the character to avoid any errors.
+
+## Why does the task 'nfs_client: Mount NFS client' fail with `Failed to mount NFS client. Make sure NFS Server is running on IP xx.xx.xx.xx`?
+**Potential Cause**:
+* The required services for NFS may not be running:
+- nfs
+- rpc-bind
+- mountd <br>
+  **Resolution**:
+* Enable the required services using `firewall-cmd --permanent --add-service=<service name>` and then reload the firewall using `firewall-cmd --reload`.
+
+## Why do Passwordless SSH tasks fail while running `collect_node_info.yml`?
+**Potential Cause**:
+* Incorrect credentials in `login_vars.yml`
+* The target device may not be server running an OS. (It may be a device on a LOM network)
+
+**Resolution**:
+* Correct the credentials in `login_vars.yml` if the target is a server.
+* Ignore the error if your target device is a storage device, switch etc.
+
+
+
 ## Why do Kubernetes Pods show `ImagePullBack` or `ErrPullImage` errors in their status?
 **Potential Cause**:
     * The errors occur when the Docker pull limit is exceeded.
   **Resolution**:
     * For `omnia.yml` and `control_plane.yml` : Provide the docker username and password for the Docker Hub account in the *omnia_config.yml* file and execute the playbook.
     * For HPC cluster, during `omnia.yml execution`, a kubernetes secret 'dockerregcred' will be created in default namespace and patched to service account. User needs to patch this secret in their respective namespace while deploying custom applications and use the secret as imagePullSecrets in yaml file to avoid ErrImagePull. [Click here for more info](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/)
-> **Note**: If the playbook is already executed and the pods are in __ImagePullBack__ state, then run `kubeadm reset -f` in all the nodes before re-executing the playbook with the docker credentials.
+>> **Note**: If the playbook is already executed and the pods are in __ImagePullBack__ state, then run `kubeadm reset -f` in all the nodes before re-executing the playbook with the docker credentials.
 
 ## What to do after a reboot if kubectl commands return: `The connection to the server head_node_ip:port was refused - did you specify the right host or port?`
   On the control plane or the manager node, run the following commands:
@@ -249,6 +275,9 @@ If the above solution **doesn't work**,
 2. If the pods do not come up, check `/var/log/omnia/omnia.log` for more information.
 3. Cobbler profiles are not persistent across reboots. The latest profile will be available post-reboot based on the values of `provision_os` and `iso_file_path` in `base_vars.yml`. Re-run `control_plane.yml` with different values for `provision_os` and `iso_file_path` to restore the profiles.
 4. Devices that have had their IP assigned dynamically via DHCP may get assigned new IPs. This in turn can cause duplicate entries for the same device on AWX. Clusters may also show inconsistency and ambiguity.
+
+## Why does the first run of `control_plane.yml` or `omnia.yml` not get logged to `/var/log/omnia/omnia.log`?
+Since ansible.cfg gets configured to log data to `/var/log/omnia/omnia.log` during the initial run of `control_plane.yml` or `omnia.yml`, the initial run does not get logged. All subsequent runs of `omnia.log` and `control_plane.yml` will be logged by default.
 
 ## How to clear existing DHCP leases after a management NIC IP change?
 If `device_config_support` is set to TRUE,
