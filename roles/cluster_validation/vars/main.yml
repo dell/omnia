@@ -87,10 +87,7 @@ nfs_node_group_success_msg: "nfs_node group check passed"
 
 # Usage: fetch_powervault_status.yml
 pv_ip_undefined_msg: "Please give IP of powervault connected to nfs_node in omnia_config.yml in correct format"
-powervault_ip_success_msg: "Powervault IP is reachable."
-powervault_ip_failure_msg: "Powervault IP is not defined in omnia_config.yml or not reacheable."
-powervault_login_success_msg: "Login to powervault was successful"
-powervault_login_failure_msg: "Please give valid powervault credentials in control_plane/input_params/login_vars.yml"
+powervault_login_failure_msg: "Unable to connect to powervault. Please check powervault_ip in omnia_config.yml and powervault credentials in login_vars.yml"
 
 # Usage: fetch_control_plane_credentials.yml
 login_vars_filename: input_params/login_vars.yml
@@ -131,6 +128,7 @@ restrict_softwares_failure_msg: "Warning. Values should be comma separated. The 
 # Usage: install_packages.yml
 ansible_base_version: '2.9'
 ipaddr_collection: ansible.utils:2.5.2
+ansible_collection_nfs: ansible.posix:1.4.0
 
 # Usage: fetch_nfs_client_params.yml
 nfs_server_reach_msg: "Failed. Nfs server is not reachable. Please enter valid nfs server IP in nfs_client_params"
