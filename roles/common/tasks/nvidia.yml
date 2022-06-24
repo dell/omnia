@@ -12,98 +12,25 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-- block:
-    - name: Add libnvidia container Repo
-      yum_repository:
-        name: libnvidia-container
-        description:  libnvidia-container
-        baseurl: https://nvidia.github.io/libnvidia-container/stable/centos7/$basearch
-        repo_gpgcheck: no
-        gpgcheck: no
-        gpgkey: https://nvidia.github.io/libnvidia-container/gpgkey
-        sslverify: yes
-        sslcacert: /etc/pki/tls/certs/ca-bundle.crt
-        enabled: yes
-      tags: install
 
-    - name: Add nvidia-container-runtime Repo
-      yum_repository:
-        name: nvidia-container-runtime
-        description:  nvidia-container-runtime
-        baseurl: https://nvidia.github.io/nvidia-container-runtime/stable/centos7/$basearch
-        repo_gpgcheck: no
-        gpgcheck: no
-        gpgkey: https://nvidia.github.io/nvidia-container-runtime/gpgkey
-        sslverify: yes
-        sslcacert: /etc/pki/tls/certs/ca-bundle.crt
-        enabled: yes
-      tags: install
+- name: Install nvidia drivers and software components for CentOS
+  include_tasks: nvidia_centos.yml
+  tags: install
+  when:
+   - ansible_facts['distribution'] == os_name
+   - ansible_facts['distribution_major_version'] == os_version
 
-    - name: Add nvidia-docker Repo
-      yum_repository:
-        name: nvidia-docker
-        description:  nvidia-docker
-        baseurl: https://nvidia.github.io/nvidia-docker/centos7/$basearch
-        repo_gpgcheck: no
-        gpgcheck: no
-        gpgkey: https://nvidia.github.io/nvidia-docker/gpgkey
-        enabled: yes
-        sslverify: yes
-        sslcacert: /etc/pki/tls/certs/ca-bundle.crt
-      tags: install
+- name: Install nvidia drivers and software components for leap
+  include_tasks: nvidia_leap.yml
+  tags: install
+  when:
+   - os_supported_leap in compute_os
+   - ansible_distribution_version >= os_supported_leap_version
 
-    - name: Install nvidia driver and nvidia-docker2
-      package:
-        name: "{{ nvidia_packages }}"
-        enablerepo: libnvidia-container,nvidia-docker
-        state: present
-      tags: install
-    
-    - name: Reboot after installing GPU drivers
-      reboot:
-      tags: install
-  when:  ( os_supported_leap not in compute_os )
-
-- block:
-    - name: Fetching list of repos from zypper
-      command: /usr/bin/zypper lr --uri
-      changed_when: false
-      register: zypper_repos
-      tags: install
-
-    - name: Add nvidia repository for leap
-      command: zypper --gpg-auto-import-keys addrepo {{ nvidia_docker_repo }}
-      failed_when: false
-      changed_when: false
-      when: '"nvidia-docker" not in zypper_repos.stdout'
-      tags: install
-
-    - name: Install libnvidia container repo
-      zypper:
-        name: libnvidia-container1
-        disable_gpg_check: yes
-        state: present
-      tags: install
-
-    - name: Install nvidia-container-runtime repo
-      zypper:
-        name: nvidia-container-runtime
-        disable_gpg_check: yes
-        state: present
-      tags: install
-
-    - name: Install nvidia-docker
-      zypper:
-        name: nvidia-container-runtime
-        disable_gpg_check: yes
-        replacefiles: true
-        state: present
-      tags: install
-    
-    - name: Reboot after installing GPU drivers
-      reboot:
-      tags: install
-  when: ( os_supported_leap in compute_os ) and ( ansible_distribution_version >= os_supported_leap_version )
+- name: Install nvidia drivers and software components for RHEL
+  include_tasks: nvidia_rhel.yml
+  tags: install
+  when: os_supported_redhat in compute_os 
 
 - name: Set nvidia as default runtime
   copy:

@@ -13,19 +13,23 @@
 #  limitations under the License.
 ---
 
-- name: Install AMD GPU drivers and software components for CentOS
-  include_tasks: amd_centos.yml
+- name: Add AMD ROCm repository for CentOS/RockyLinux 8.x
+  yum_repository:
+    name: ROCm
+    description: AMD GPU ROCm Repository
+    baseurl: "{{ amd_rhel_url }}"
+    gpgcheck: yes
+    gpgkey: "{{ amd_rhel_gpg }}"
+    enabled: yes
   tags: install
-  when: ansible_facts['distribution'] == os_name
 
-- name: Install AMD GPU drivers and software components for RHEL
-  include_tasks: amd_rhel.yml
+- name: Install AMD ROCm drivers(This might take 10 to 15 mins in the first run)
+  package:
+    name: rocm-dkms
+    enablerepo: ROCm
+    state: present
   tags: install
-  when: os_supported_redhat in compute_os
 
-- name: Install AMD GPU drivers and software components for Leap
-  include_tasks: amd_leap.yml
+- name: Reboot after installing GPU drivers
+  reboot:
   tags: install
-  when:
-   - os_supported_leap in compute_os
-   - ansible_distribution_version >= os_supported_leap_version
