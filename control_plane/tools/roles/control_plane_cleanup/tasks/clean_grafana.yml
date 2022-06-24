@@ -18,17 +18,20 @@
   register: k8s_pods
   tags: grafana
   changed_when: false
+  ignore_errors: true
 
 - name: Get the image list
   shell: "buildah images grafana/grafana-enterprise"
   register: image_list
   tags: grafana
   changed_when: false
+  ignore_errors: true
 
 - name: Delete grafana deployment
   command: "kubectl delete deployment grafana -n grafana"
   when: "'grafana' in k8s_pods.stdout"
   tags: grafana
+  ignore_errors: true
 
 - name: Delete grafana service
   command: "kubectl delete service grafana -n grafana"

@@ -86,6 +86,11 @@ python_version_support: '3.6.8'
 default_ansible_config_file_path: /etc/ansible/ansible.cfg
 invalid_run_tag_msg: "Failed. init tag should be used with run tags"
 invalid_skip_tag_msg: "Failed. init tag can't be used with skip tags"
+omnia_log_path: /var/log/omnia
+ansible_config_details:
+  - { line: "[defaults]", regexp: "^(.*)[defaults](.*)" , check: "[defaults]", insertafter: "BOF" }
+  - { line: "log_path = /var/log/omnia/omnia.log", regexp: "^(.*)log_path(.*)" , check:  "log_path", insertafter: "^(.*)defaults(.*)" }
+  - { line: "host_key_checking = false", regexp: "^(.*)host_key_checking(.*)" , check:  "host_key_checking", insertafter: "^(.*)defaults(.*)" }
 
 # Usage: verify_login_inputs.yml
 login_vars_filename: "input_params/login_vars.yml"

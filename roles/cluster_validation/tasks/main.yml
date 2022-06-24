@@ -88,6 +88,12 @@
       debug:
         msg: "omnia.yml running on host"
 
+    - name: Create log folder for omnia
+      file:
+        path: "{{ omnia_log_path }}"
+        state: directory
+        mode: "{{ vault_file_perm }}"
+
     - name: Check whether ansible config file exists
       stat:
         path: "{{ ansible_conf_file_path }}/ansible.cfg"
@@ -106,13 +112,30 @@
         mode: "{{ file_perm }}"
         content: |
           [defaults]
-          log_path = /var/log/omnia.log
+          log_path = /var/log/omnia/omnia.log
       when: not ansible_conf_exists.stat.exists
+
+    - name: Check the content of ansible.cfg
+      command: cat {{ ansible_conf_file_path }}/ansible.cfg
+      changed_when: false
+      register: ansible_conf_output
+      when: ansible_conf_exists.stat.exists
 
     - name: Set omnia.log file
       replace:
         path: "{{ ansible_conf_file_path }}/ansible.cfg"
         regexp: '#log_path = /var/log/ansible.log'
-        replace: 'log_path = /var/log/omnia.log'
+        replace: 'log_path = /var/log/omnia/omnia.log'
       when: ansible_conf_exists.stat.exists
+
+    - name: Set host_key_checking to false in ansible.cfg
+      lineinfile:
+        path: "{{ ansible_conf_file_path }}/ansible.cfg"
+        regexp: "{{ item.check }}"
+        insertafter: "{{ item.insertafter }}"
+        line: '{{ item.line }}'
+      when: 
+        - ansible_conf_exists.stat.exists
+        - item.check not in ansible_conf_output.stdout
+      with_items: "{{ ansible_config_details }}"
   when: ( not control_plane_status ) or ( not awx_web_support )
