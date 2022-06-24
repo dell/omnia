@@ -26,6 +26,14 @@ If `control_plane.yml` has run, a version file is created here: `/opt/omnia/omni
   **Resolution**:
 * Enable the required services using `firewall-cmd --permanent --add-service=<service name>` and then reload the firewall using `firewall-cmd --reload`.
 
+## Why do Passwordless SSH tasks fail while running `collect_node_info.yml`?
+**Potential Cause**:
+* Incorrect credentials in `login_vars.yml`
+* The target device may not be server running an OS. (It may be a device on a LOM network)
+
+**Resolution**:
+* Correct the credentials in `login_vars.yml` if the target is a server.
+* Ignore the error if your target device is a storage device, switch etc.
 
 ## Why do Kubernetes Pods show `ImagePullBack` or `ErrPullImage` errors in their status?
 **Potential Cause**:
