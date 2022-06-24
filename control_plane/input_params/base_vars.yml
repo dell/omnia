@@ -26,9 +26,9 @@ network_interface_type: "dedicated"
 
 # This variable is used to enable AWX UI features on control plane
 # Accepted values: "true" or "false"
-# Default value: "true"
-# If AWX UI features are not needed or user has more than 5 nodes cluster, set this to "false"
-awx_web_support: true
+# Default value: "false"
+# If AWX UI features are needed, set this to "true"
+awx_web_support: false
 
 # This variable is used to support the management network container.
 # This container configures IP for all the different devices like idrac, switches and powervaults.
@@ -135,7 +135,7 @@ provision_os: "rocky"
 # The iso file should be Rocky8-Minimal or CentOS7-2009-minimal or openSUSE-Leap-15.3-DVD edition or RHEL-8.x-DVD.
 # Other iso files are not supported.
 # Required field
-iso_file_path: "/home/Rocky-8.5-x86_64-minimal.iso"
+iso_file_path: "/home/Rocky-8.6-x86_64-minimal.iso"
 
 # This is the timezone that will be set during provisioning of OS
 # Available timezones are provided in control_plane/common/files/timezone.txt

@@ -12,19 +12,16 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-- name: Install ansible collection
-  command: ansible-galaxy collection install "{{ ansible_collection_nfs }}"
-  changed_when: false 
-  delegate_to: localhost
 
 - name: Define volume name and identifier ID
   set_fact:
     volume_name: "{{ item['volume-name'] }}"
     wwn_id: "{{ item.wwn | lower }}"
 
-- name: Define server shared path for the volume
+- name: Define server share path for the volume
   set_fact:
-    server_shared_path: "{{ value.server_shared_path }}"
+    server_share_path: "{{ value.server_share_path }}"
+    server_export_options: "{{ value.server_export_options }}"
   when: value.name == volume_name 
   loop: "{{ powervault_volumes }}"
   loop_control: 
@@ -49,7 +46,7 @@
   changed_when: false 
   register: pvs_output
 
-- name: Create a new ext4 primary partition
+- name: Declare a new physical volume space
   command: pvcreate "/dev/mapper/{{ mpath_name }}"
   changed_when: false
   when: mpath_name not in pvs_output.stdout
@@ -111,15 +108,15 @@
 
   - name: Make mount directory for volume if it doesnt exist
     file:
-      path: "{{ server_shared_path }}"
+      path: "{{ server_share_path }}"
       state: directory
       mode: "{{ mount_dir_permissions }}"
       group: root
       owner: root
 
-  - name: Mount multipath to nfs_server shared path 
+  - name: Mount multipath to nfs_server share path 
     mount:
-      path: "{{ server_shared_path }}"
+      path: "{{ server_share_path }}"
       src: "{{ lvm_path }}" 
       fstype: ext4
       state: mounted
@@ -127,11 +124,16 @@
 
   when: lvm_path not in mount_status.stdout
 
+- name: Setting server_export_options
+  set_fact:
+    server_export_options: "{{ default_server_options }}"
+  when: server_export_options | default("", true) | length < 1
+
 - name: Adding NFS share entries in /etc/exports
   lineinfile:
     path: "{{ exports_file }}"
-    line: "{{ server_shared_path }} {{ node }}(rw,sync,no_root_squash)"
-  loop:
+    line: "{{ server_share_path }} {{ node }}({{ server_export_options }})"
+  with_items:
     - "{{ groups['manager'] }}"
     - "{{ groups['compute'] }}"
   loop_control:

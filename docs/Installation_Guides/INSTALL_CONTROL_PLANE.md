@@ -170,6 +170,7 @@ If AWX is not set up by the control plane (That is, when `awx_web_support` in `b
 >> * In a LOM setup, running `ansible-playbook collect_device_info.yml` will only return IPs of iDRAC. To get the IPs of all supported devices, run `ansible-playbook collect_node_info.yml`.
 >> * All AWX job templates will fail if `awx_web_support` in `base_vars.yml` is set to false irrespective of whether AWX is running with previous configurations.
 
+
 ## Default Ansible AWX configurations  
 * The role used to deploy AWX within the *control_plane.yml* file: *webui_awx*.  
 * All the pods are deployed in the specific namespace: *awx*.  

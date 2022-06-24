@@ -22,6 +22,7 @@
   - name: Initialize variables
     set_fact:
       nfs_node_status: false
+      nfs_client_support: false
 
   - name: Set NFS node status
     set_fact:
