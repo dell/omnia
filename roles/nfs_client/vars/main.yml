@@ -18,6 +18,7 @@ nfs_packages:
   - nfs-utils
   - nfs4-acl-tools
 file_perm: 0777
+powervault_vars_filename: "powervault_vars.yml"
 fstab_path: "/etc/fstab"
 mount_message: "Failed to mount NFS client, Make sure NFS server is running"
 client_folder_msg: "is a stale folder. Please give some other folder for mount"
