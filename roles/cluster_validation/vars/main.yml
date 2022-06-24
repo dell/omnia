@@ -17,6 +17,10 @@
 awx_search_key: "-job-"
 base_vars_path: "{{ playbook_dir }}/control_plane/input_params/base_vars.yml"
 cobbler_pod_name: cobbler
+ansible_config_details:
+  - { line: "[defaults]", regexp: "^(.*)[defaults](.*)" , check: "[defaults]", insertafter: "BOF" }
+  - { line: "log_path = /var/log/omnia/omnia.log", regexp: "^(.*)log_path(.*)" , check:  "log_path", insertafter: "^(.*)defaults(.*)" }
+omnia_log_path: /var/log/omnia
 
 # Usage: fetch_omnia_inputs.yml
 config_filename: "omnia_config.yml"

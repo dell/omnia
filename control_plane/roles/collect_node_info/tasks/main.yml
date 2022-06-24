@@ -32,6 +32,12 @@
   
 - name: Update inventory
   block:
+    - name: Fetch ansible-vault path
+      command: whereis ansible-vault
+      changed_when: false
+      register: ansible_vault_path
+      run_once: true
+
     - name: Check if {{ login_vars_file }} file is encrypted
       command: cat {{ login_vars_file }}
       changed_when: false
@@ -41,7 +47,7 @@
 
     - name: Decrpyt {{ login_vars_file }}
       command: >-
-        ansible-vault decrypt {{ login_vars_file }}
+        {{ ansible_vault_path.stdout.split(' ')[1] }} decrypt {{ login_vars_file }}
         --vault-password-file {{ login_vault_file }}
       when: "'$ANSIBLE_VAULT;' in config_content.stdout"
       changed_when: false
@@ -63,7 +69,7 @@
 
     - name: Encrypt {{ login_vars_file }}
       command: >-
-        ansible-vault encrypt {{ login_vars_file }}
+        {{ ansible_vault_path.stdout.split(' ')[1] }} encrypt {{ login_vars_file }}
         --vault-password-file {{ login_vault_file }}
       changed_when: false
       when: "'$ANSIBLE_VAULT;' in config_content.stdout"

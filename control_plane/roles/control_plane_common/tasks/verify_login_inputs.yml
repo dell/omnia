@@ -22,7 +22,7 @@
 
 - name: Decrpyt login_vars.yml
   command: >-
-    /usr/local/bin/ansible-vault decrypt {{ login_vars_filename }}
+    {{ ansible_vault_path.stdout.split(' ')[1] }} decrypt {{ login_vars_filename }}
     --vault-password-file {{ vault_filename }}
   changed_when: false
   when: "'$ANSIBLE_VAULT;' in config_content.stdout"
@@ -272,7 +272,7 @@
 
 - name: Encrypt input config file
   command: >-
-    /usr/local/bin/ansible-vault encrypt {{ login_vars_filename }}
+    {{ ansible_vault_path.stdout.split(' ')[1] }} encrypt {{ login_vars_filename }}
     --vault-password-file {{ vault_filename }}
   changed_when: false
   tags: init
