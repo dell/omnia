@@ -17,6 +17,16 @@
   set_fact:
     compute_os: "{{ ansible_facts['distribution'] | lower }}"
 
+- name: Fetch name and version of OS
+  shell:
+    cmd: . /etc/os-release;echo $ID$VERSION_ID
+  register: os_details
+  changed_when: false
+
+- name: Save OS distribution
+  set_fact:
+    os_distribution: "{{ os_details.stdout }}"
+
 - name: Initialize variables for ib
   set_fact:
     ib_nics: []
@@ -313,18 +323,12 @@
 
 - name: Install Nvidia drivers and software components
   include_tasks: nvidia.yml
-  when:
-    - ansible_local.inventory.nvidia_gpu > 0
-    - ( ansible_facts['distribution'] == os_name and ansible_facts['distribution_major_version'] == os_version) or 
-      ( os_supported_leap in compute_os ) and ( ansible_distribution_version >= os_supported_leap_version )
+  when: ansible_local.inventory.nvidia_gpu > 0
   tags: install
 
 - name: Install AMD GPU drivers and software components
   include_tasks: amd.yml
-  when:
-    - ansible_local.inventory.amd_gpu > 0
-    - ansible_facts['distribution'] == os_name or 
-      ( os_supported_leap in compute_os ) and ( ansible_distribution_version >= os_supported_leap_version )
+  when: ansible_local.inventory.amd_gpu > 0
   tags: install
 
 - name: Get the hostname
