@@ -14,11 +14,8 @@
 ---
 
 - name: Firewall ports addition - tcp/udp ports
-  firewalld:
-    zone: public
-    port: "{{ item }}"
-    permanent: true
-    state: enabled
+  command: "firewall-cmd --zone=public --permanent --add-port={{ item }}"
+  changed_when: true
   with_items:
     - "{{ https_port1 }}"
     - "{{ https_port2 }}"

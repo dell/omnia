@@ -63,10 +63,8 @@
   tags: nfs_server
 
 - name: Configuring firewall
-  firewalld:
-    service: "{{ item }}"
-    permanent: true
-    state: enabled
+  command: "firewall-cmd --permanent --add-service={{ item }}"
+  changed_when: true
   with_items:
     - "{{ nfs_services }}"
   tags: nfs_server
