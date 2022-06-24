@@ -35,6 +35,8 @@ If `control_plane.yml` has run, a version file is created here: `/opt/omnia/omni
 * Correct the credentials in `login_vars.yml` if the target is a server.
 * Ignore the error if your target device is a storage device, switch etc.
 
+
+
 ## Why do Kubernetes Pods show `ImagePullBack` or `ErrPullImage` errors in their status?
 **Potential Cause**:
     * The errors occur when the Docker pull limit is exceeded.
@@ -273,6 +275,9 @@ If the above solution **doesn't work**,
 2. If the pods do not come up, check `/var/log/omnia/omnia.log` for more information.
 3. Cobbler profiles are not persistent across reboots. The latest profile will be available post-reboot based on the values of `provision_os` and `iso_file_path` in `base_vars.yml`. Re-run `control_plane.yml` with different values for `provision_os` and `iso_file_path` to restore the profiles.
 4. Devices that have had their IP assigned dynamically via DHCP may get assigned new IPs. This in turn can cause duplicate entries for the same device on AWX. Clusters may also show inconsistency and ambiguity.
+
+## Why does the first run of `control_plane.yml` or `omnia.yml` not get logged to `/var/log/omnia/omnia.log`?
+Since ansible.cfg gets configured to log data to `/var/log/omnia/omnia.log` during the initial run of `control_plane.yml` or `omnia.yml`, the initial run does not get logged. All subsequent runs of `omnia.log` and `control_plane.yml` will be logged by default.
 
 ## How to clear existing DHCP leases after a management NIC IP change?
 If `device_config_support` is set to TRUE,
