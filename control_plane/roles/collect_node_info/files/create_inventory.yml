@@ -19,37 +19,21 @@
   ignore_unreachable: true
   ignore_errors: true
   tasks:
-    - name: Refresh ssh keys
-      command: ssh-keygen -R {{ inventory_hostname }}
-      delegate_to: localhost
-      changed_when: false
-      failed_when: false
-    
-    - name: Check for reachable nodes
-      ping:
-      register: ping_check
+    - name: Ping for reachable hosts
+      include_tasks: ping_check.yml
 
-    - name: Group reachable hosts
-      group_by:
-        key: "reachable"
-      when:
-        - ping_check.ping is defined
-        - '"pong" in ping_check.ping'
-
-    - name: Group unreachable hosts
-      group_by:
-        key: "unreachable"
-      when:
-        - ping_check.unreachable is defined
-        - ping_check.unreachable
-
-- name: Get provision password
+- name: Fetch omnia and awx config details
   hosts: localhost
   connection: local
   gather_facts: false
   tasks:
     - name: Include vars file of inventory role
       include_vars: ../vars/main.yml
+
+    - name: Fetch ansible-vault path
+      command: whereis ansible-vault
+      changed_when: false
+      register: ansible_vault_path
 
     - name: Check if omnia config file is encrypted
       command: "cat {{ omnia_config_file }}"
@@ -59,15 +43,27 @@
 
     - name: Decrpyt omnia_config.yml
       command: >-
-        ansible-vault decrypt "{{ omnia_config_file }}"
+        {{ ansible_vault_path.stdout.split(' ')[1] }} decrypt "{{ omnia_config_file }}"
         --vault-password-file "{{ omnia_config_vault_file }}"
       when: "'$ANSIBLE_VAULT;' in config_content.stdout"
 
     - name: Include vars file of inventory role
       include_vars: "{{ omnia_config_file }}"
 
+    - name: Encrypt omnia_config.yml file
+      command: >-
+        {{ ansible_vault_path.stdout.split(' ')[1] }} encrypt "{{ hostvars['localhost']['omnia_config_file'] }}"
+        --vault-password-file "{{ hostvars['localhost']['omnia_config_vault_file'] }}"
+      changed_when: false
+
+    - name: Update omnia_config.yml permissions
+      file:
+        path: "{{ hostvars['localhost']['omnia_config_file'] }}"
+        mode: "{{ hostvars['localhost']['file_perm'] }}"
+
     - name: Fetch AWX credentials
       include_tasks: fetch_awx_credentials.yml
+      when: hostvars['localhost']['awx_web_support']
 
 - name: Set hostname for reachable nodes and gather facts
   hosts: reachable
@@ -205,28 +201,123 @@
   connection: local
   gather_facts: false
   tasks:
-    - name: Encrypt omnia_config.yml file
-      command: >-
-        ansible-vault encrypt "{{ hostvars['localhost']['omnia_config_file'] }}"
-        --vault-password-file "{{ hostvars['localhost']['omnia_config_vault_file'] }}"
+    - name: Fetch ansible-vault path
+      command: whereis ansible-vault
       changed_when: false
+      register: ansible_vault_path
       delegate_to: localhost
       run_once: true
 
-    - name: Update omnia_config.yml permissions
-      file:
-        path: "{{ hostvars['localhost']['omnia_config_file'] }}"
-        mode: "{{ hostvars['localhost']['file_perm'] }}"
-      delegate_to: localhost
-      run_once: true
+    - name: Fetch facts and add new hosts in AWX
+      include_tasks: add_host_awx.yml
+      when: hostvars['localhost']['awx_web_support']
 
-    - name: Fetch facts and add new hosts
-      include_tasks: add_host.yml
+    - name: Fetch facts and add new hosts in CLI
+      include_tasks: add_host_cli.yml
+      when: not hostvars['localhost']['awx_web_support']
+      
+    - name: Device inventory formation when share lom
+      block:
+        - name: Include vars from collect device info
+          include_vars: "{{ playbook_dir }}/../../collect_device_info/vars/main.yml"
+
+        - name: Check if {{ login_vars_file }} file is encrypted
+          command: cat {{ login_vars_file }}
+          changed_when: false
+          no_log: true
+          register: config_content
+          delegate_to: localhost
+          run_once: true
+
+        - name: Decrpyt {{ login_vars_file }}
+          command: >-
+            {{ ansible_vault_path.stdout.split(' ')[1] }} decrypt {{ login_vars_file }}
+            --vault-password-file {{ login_vault_file }}
+          when: "'$ANSIBLE_VAULT;' in config_content.stdout"
+          changed_when: false
+          delegate_to: localhost
+          run_once: true
+
+        - name: Include variable file {{ login_vars_file }}
+          include_vars: "{{ login_vars_file }}"
+          no_log: true
+          delegate_to: localhost
+          run_once: true
+
+        - name: Encrypt {{ login_vars_file }}
+          command: >-
+            {{ ansible_vault_path.stdout.split(' ')[1] }} encrypt {{ login_vars_file }}
+            --vault-password-file {{ login_vault_file }}
+          changed_when: false
+          when: "'$ANSIBLE_VAULT;' in config_content.stdout"
+          delegate_to: localhost
+          run_once: true
+
+        - name: Change file permissions
+          file:
+            path: "{{ login_vars_file }}"
+            mode: "{{ file_perm }}"
+          delegate_to: localhost
+          run_once: true
+
+        - name: Install paramiko
+          command: pip3 install paramiko -i http://pypi.douban.com/simple/ --trusted-host pypi.douban.com
+          delegate_to: localhost
+          run_once: true
+          changed_when: false
+ 
+        - name: Initialize variables
+          set_fact:
+            idrac_inventory_status: false
+            ethernet_inventory_status: false
+            ib_inventory_status: false
+            powervault_status: false
+            idrac_hosts_output: ""
+            ethernet_switches_output: ""
+            infiniband_switches_output: ""
+            powervault_storage_output: ""
+            awx_web_support: "{{ hostvars['localhost']['awx_web_support'] }}"
+
+        - name: Set AWX variables
+          set_fact:
+            awx_host: "{{ hostvars['localhost']['awx_host'] }}"
+            awx_username: "{{ hostvars['localhost']['awx_username'] }}"
+            awx_password: "{{ hostvars['localhost']['awx_password'] }}"
+          when: awx_web_support
+
+        - name: Add devices to ethernet_inventory
+          include_tasks: "{{ playbook_dir }}/../../collect_device_info/files/add_ethernet_inventory.yml"
+
+        - name: Add devices to infiniband_inventory
+          include_tasks: "{{ playbook_dir }}/../../collect_device_info/files/add_infiniband_inventory.yml"
+
+        - name: Add devices to powervault_inventory
+          include_tasks: "{{ playbook_dir }}/../../collect_device_info/files/add_powervault_inventory.yml"
+      when: 
+        - hostvars['localhost']['network_interface_type'] == "lom"
+        - inventory_hostname not in prov_hosts.stdout
 
 - name: Cleanup inventory
   hosts: unreachable
   connection: local
   gather_facts: false
   tasks:
-    - name: Remove unreachable hosts
-      include_tasks: remove_host.yml
+    - name: Remove unreachable hosts in AWX
+      include_tasks: remove_host_awx.yml
+      when: hostvars['localhost']['awx_web_support']
+
+    - name: Remove unreachable hosts in CLI
+      include_tasks: remove_host_cli.yml
+      when: not hostvars['localhost']['awx_web_support']
+
+- name: Setup passwordless ssh from control plane to all nodes
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Invoke cluster_preparation role
+      include_role:
+        name: "{{ playbook_dir }}/../../../tools/roles/cluster_preperation"
+      vars:
+        ssh_to: "{{ groups['reachable'] }}"
+      when: not hostvars['localhost']['awx_web_support']

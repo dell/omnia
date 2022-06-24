@@ -1,5 +1,5 @@
 # Parameters in `idrac_2fa.yml`
-This file is located in [/control_plane/tools](../../../control_plane/tools/idrac2fa_vars.yml)
+This file is located in [/control_plane/tools](../../../../control_plane/tools/idrac_2fa.yml)
 
 |	Variables</br> [Required if two_factor_authentication is enabled/ Optional]	|	Default, choices	|	Description
 ----------------	|	-----------------	|	-----------------

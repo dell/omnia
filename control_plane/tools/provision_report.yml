@@ -54,8 +54,8 @@
   ignore_unreachable: true
   remote_user: "root"
   vars:
-    ansible_password: "{{ hostvars['127.0.0.1']['cobbler_password'] }}"
-    ansible_become_pass: "{{ hostvars['127.0.0.1']['cobbler_password'] }}"
+    ansible_password: "{{ hostvars['127.0.0.1']['provision_password'] }}"
+    ansible_become_pass: "{{ hostvars['127.0.0.1']['provision_password'] }}"
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
   tasks:
     - name: Check ssh status

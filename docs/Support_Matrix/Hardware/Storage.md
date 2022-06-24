@@ -1,10 +1,11 @@
 # Storage Supported by Omnia
-For information on how to configure your storage systems, [click here.](../../Device_Configuration/Storage.md)
+For information on how to configure your storage systems, [click here.](../../Device_Configuration/PowerVault.md)
 ## PowerVault Storage
 
 | Storage Type 	| Storage Model                     	|
 |--------------	|-----------------------------------	|
 | ME4          	|  ME4084       ME4024       ME4012 	|
+| ME5          	|  ME5012       ME5024       ME5084  	|
 
 ## BOSS Controller/Drive Type on Servers
 

@@ -57,6 +57,7 @@ crio_repo2_url: https://download.opensuse.org/repositories/devel:kubic:libcontai
 crio_repo2_dest: /etc/yum.repos.d/devel:kubic:libcontainers:stable:cri-o:1.21.repo
 docker_repo_url: https://download.docker.com/linux/centos/docker-ce.repo
 docker_repo_dest: /etc/yum.repos.d/docker-ce.repo
+crio_version: 1.21
 
 # Usage: k8s_firewalld.yml
 k8s_master_ports:

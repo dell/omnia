@@ -86,6 +86,11 @@ python_version_support: '3.6.8'
 default_ansible_config_file_path: /etc/ansible/ansible.cfg
 invalid_run_tag_msg: "Failed. init tag should be used with run tags"
 invalid_skip_tag_msg: "Failed. init tag can't be used with skip tags"
+omnia_log_path: /var/log/omnia
+ansible_config_details:
+  - { line: "[defaults]", regexp: "^(.*)[defaults](.*)" , check: "[defaults]", insertafter: "BOF" }
+  - { line: "log_path = /var/log/omnia/omnia.log", regexp: "^(.*)log_path(.*)" , check:  "log_path", insertafter: "^(.*)defaults(.*)" }
+  - { line: "host_key_checking = false", regexp: "^(.*)host_key_checking(.*)" , check:  "host_key_checking", insertafter: "^(.*)defaults(.*)" }
 
 # Usage: verify_login_inputs.yml
 login_vars_filename: "input_params/login_vars.yml"
@@ -105,7 +110,7 @@ fail_msg_idrac_credentials: "Failed. Incorrect idrac_username or idrac_password 
 fail_msg_grafana_credentials: "Failed. Incorrect grafana_username or grafana_password format provided in login_vars.yml"
 fail_msg_ethernet_credentials: "Failed. Incorrect ethernet_switch_username or ethernet_switch_password format provided in login_vars.yml"
 fail_msg_ib_credentials: "Failed. Incorrect ib_username or ib_password format provided in login_vars.yml"
-fail_msg_me4_credentials: "Failed. Incorrect powervault_me4_username or powervault_me4_password format provided in login_vars.yml"
+fail_msg_credentials: "Failed. Incorrect powervault_username or powervault_password format provided in login_vars.yml"
 login_security_config_failure_msg: "Failed. Please provide the required passwords in login_vars.yml for installing ipa"
 success_msg_dir_manager_password: "ms_directory_manager_password successfully validated"
 fail_msg_dir_manager_password: "Failed. Incorrect format provided for ms_directory_manager_password"
@@ -201,7 +206,6 @@ success_network_type: " Success. Network_interface_type has valid values"
 fail_network_type: " Failed. Give valid value in network_interface_type "
 success_awx_web_support: "awx_web_support validated"
 fail_awx_web_support: "Failed. awx_web_support only accepts boolean values true or false"
-omnia_default_path: /opt/omnia
 
 # Usage: ip_metric.yml
 public_metric: 101
@@ -250,7 +254,7 @@ host_mapping_header_with_role_format: "MAC,Hostname,IP,Component_role"
 fail_mapping_file_field_seperation: "Failed: Mapping file should be comma separated and all fields must be filled."
 fail_mapping_file_duplicate_ip: "Failed: Duplicate ip exists. Please verify following mapping file again: "
 fail_mapping_file_duplicate_hostname: "Failed: Duplicate hostname exists. Please verify host mapping file again."
-fail_mapping_file_hostname_chars: "Hostname should not contain _ or . or space as it will cause error with slurm and K8s. Found in: "
+fail_mapping_file_hostname_chars: "Hostname should not contain _ or . or space as it might result in issues with authentication tools like FreeIPA. Make sure the mapping file contains only the hostname, and not the domain_name. Found in: "
 fail_mapping_file_roles_error: "Failed. Define correct Component Roles for each node.
                                 Component roles can only take values: {{ group_name_manager }}, {{group_name_compute}},
                                  {{ group_name_login }}, {{ group_name_nfs }}"
@@ -337,3 +341,11 @@ rhsm_git_stable_commit: "0f7ac2a"
 rhsm_git_dest: "{{ playbook_dir }}/roles/control_plane_rhsm/files/openstack-rhsm"
 portal_file_path: "{{ playbook_dir }}/roles/control_plane_rhsm/files/openstack-rhsm/tasks/portal.yml"
 satellite_file_path: "{{ playbook_dir }}/roles/control_plane_rhsm/files/openstack-rhsm/tasks/satellite.yml"
+
+# Usage: omnia_version_configuration.yml
+omnia_default_path: /opt/omnia
+src_omnia_version: "{{  playbook_dir.split('control_plane')[0] }}/.metadata/omnia_version"
+dest_omnia_version: "/opt/omnia/omnia_version"
+enable_upgrade_prompt_msg: "Detected omnia_version change from {{ omnia_version }} to {{ new_omnia_version }}. Do you want to proceed with upgrade? Enter 'yes' to proceed or 'no' to abort execution"
+enable_upgrade_fail_msg: "Failed. Unable to proceed to with control plane upgrade. Re-run control_plane.yml to perform upgrade."
+enable_upgrade_warn_msg: "Currently enabling upgrade is not supported. This will be supported in upcoming omnia version"

@@ -13,79 +13,42 @@
 #  limitations under the License.
 ---
 
-- name: Check tower_cli.cfg is encrypted
-  command: cat "{{ tower_config_path }}"
-  changed_when: false
-  register: awx_content
-  run_once: true
-  no_log: true
-
-- name: Decrpyt tower_cli.cfg
-  command: ansible-vault decrypt "{{ tower_config_path }}" --vault-password-file "{{ tower_vault_path }}"
-  changed_when: false
-  run_once: true
-  when: "'$ANSIBLE_VAULT;' in awx_content.stdout"
-
-- name: Fetch awx host
-  command: grep "host:" "{{ tower_config_path }}"
-  register: fetch_awx_host
-  changed_when: false
-  run_once: true
-
-- name: Fetch awx username
-  command: grep "username:" "{{ tower_config_path }}"
-  register: fetch_awx_username
-  changed_when: false
-  run_once: true
-  no_log: true
-
-- name: Fetch awx password
-  command: grep "password:" "{{ tower_config_path }}"
-  register: fetch_awx_password
-  changed_when: false
-  run_once: true
-  no_log: true
-
-- name: Set awx variables
-  set_fact:
-    awx_host: "{{ fetch_awx_host.stdout | regex_replace('host: ','') }}"
-    awx_username: "{{ fetch_awx_username.stdout | regex_replace('username: ','') }}"
-    awx_password: "{{ fetch_awx_password.stdout | regex_replace('password: ','') }}"
-  no_log: true
-
-- name: Encrypt tower_cli.cfg
-  command: ansible-vault encrypt "{{ tower_config_path }}" --vault-password-file "{{ tower_vault_path }}"
-  changed_when: false
-  run_once: true
-  when: "'$ANSIBLE_VAULT;' in awx_content.stdout"
-
-- name: Get inventory list
-  command: >-
-    awx --conf.host "{{ awx_host }}" --conf.username "{{ awx_username }}" --conf.password "{{ awx_password }}"
-    inventory list -f human --filter "name"
-  register: inventory_list
-  run_once: true
-  changed_when: false
-  no_log: true
-
 - block:
-    - name: Fetch powervault_me4_inventory
-      command: >-
-        awx --conf.host {{ awx_host }} --conf.username {{ awx_username }} --conf.password {{ awx_password }}
-        hosts list --inventory "{{ powervault_inventory_name }}" -f human --filter "name"
-      register: fetch_inventory
-      run_once: true
-      changed_when: false
-      no_log: true
+  - name: Assert if powervault IP is defined with correct format
+    assert:
+      that: 
+        - powervault_ip | length > 7
+  rescue:
+  - name: Powervault IP not defined
+    fail:
+      msg: "{{ pv_ip_undefined_msg }}"
 
-    - name: Set powervault_status
-      set_fact:
-        powervault_status: true
-      when: fetch_inventory.stdout_lines[2:] | length > 0
+- block: 
+  - name: Get auth string
+    shell: >
+            set -o pipefail && \
+            echo -n {{ powervault_username }}_{{ powervault_password }}  | sha256sum
+    register: auth_string
+    changed_when: false
+    delegate_to: localhost
+    no_log: true
 
-    - name: Create powervault_me4 group
-      add_host:
-        name: "{{ item | regex_replace(' ','') }}"
-        groups: "{{ powervault_group }}"
-      when: powervault_status
-      with_items: "{{ fetch_inventory.stdout_lines[2:] }}"
+  - name: Login to powervault
+    uri:
+      url: https://{{ powervault_ip }}/api/login/{{ auth_string.stdout | replace(" -", "") }}
+      method: GET
+      headers:
+        {'datatype': 'json'}
+      validate_certs: no
+    register: login_key
+    delegate_to: localhost
+
+  - name: Check login status of powervault
+    assert:
+      that:
+        - login_key.json.status[0]['response-type'] == "Success"
+
+  rescue:
+  - name: Show message
+    fail:
+      msg: "{{ powervault_login_failure_msg }}"

@@ -7,7 +7,11 @@
 ### Generating a Custom ISO
 * Using the Omnia role _control_plane_customiso_, a custom ISO is generated. Based on the parameters entered above, the Kickstart file is configured and added to the custom ISO file. The *unattended_<OS name>.iso* file is copied to an NFS share on the control plane to provision the PowerEdge servers using iDRAC. 
 
-### Run idrac_template on the AWX UI.
+### Run `idrac_template` via CLI
+1. Verify that `/opt/omnia/idrac_inventory` is created and updated with all iDRAC IP details. This is done automatically when `control_plane.yml` is run. If it's not updated, run `ansible-playbook collect_device_info.yml` from the control_plane directory.
+2. Run `ansible-playbook idrac.yml -i /opt/omnia/idrac_inventory`
+
+### Run `idrac_template` on the AWX UI.
 1. Run `kubectl get svc -n awx`.
 2. Copy the Cluster-IP address of the awx-ui. 
 3. To retrieve the AWX UI password, run `kubectl get secret awx-admin-password -n awx -o jsonpath="{.data.password}" | base64 --decode`.
@@ -70,11 +74,11 @@ To create the Cobbler image, Omnia configures the following:
 To access the Cobbler dashboard, enter `https://<IP>/cobbler_web` where `<IP>` is the Global IP address of the control plane. For example, enter
 `https://100.98.24.225/cobbler_web` to access the Cobbler dashboard.
 
->>__Note__: After the Cobbler Server provisions the operating system on the servers, IP addresses and hostnames are assigned by the DHCP service.  
+>>**Note**: After the Cobbler Server provisions the operating system on the servers, IP addresses and hostnames are assigned by the DHCP service.  
 >>* If a mapping file is not provided, the hostname to the server is provided based on the following format: **computexxx-xxx** where "xxx-xxx" is the last two octets of the Host IP address. For example, if the Host IP address is 172.17.0.11 then the assigned hostname by Omnia is compute0-11.  
 >>* If a mapping file is provided, the hostnames follow the format provided in the mapping file.  
 
->>__Note__: 
+>>**Note**: 
 >> * If you want to add more nodes, append the new nodes in the existing mapping file. However, do not modify the previous nodes in the mapping file as it may impact the existing cluster.
 >> * With the addition of Multiple profiles, the cobbler container dynamically updates the mount point based on the value of `provision_os` in `base_vars.yml`.
 

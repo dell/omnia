@@ -1,0 +1,99 @@
+# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Include powervault_vars.yml
+  include_vars: "{{ playbook_dir }}/control_plane/input_params/powervault_vars.yml"
+
+- name: Include powervault role variables
+  include_vars: "{{ playbook_dir }}/control_plane/roles/powervault/vars/main.yml"
+
+- name: Check if login_vars.yml file is encrypted
+  command: cat {{ login_pv_file }}
+  changed_when: false
+  no_log: true
+  register: config_content
+  delegate_to: localhost
+  run_once: true
+
+- name: Decrpyt login_vars.yml
+  command: >-
+    ansible-vault decrypt {{ login_pv_file }}
+    --vault-password-file {{ login_pv_vault_file }}
+  changed_when: false
+  run_once: true
+  delegate_to: localhost
+  when: "'$ANSIBLE_VAULT;' in config_content.stdout"
+
+- name: Include variable file login_vars.yml
+  include_vars: "{{ login_pv_file }}"
+  no_log: true
+
+- name: Get auth string
+  shell: echo -n {{ powervault_username }}_{{ powervault_password }}  | sha256sum
+  register: port_auth_string
+  changed_when: false
+  ignore_errors: yes
+
+- name: Get session key
+  uri:
+    url: https://{{ groups['powervault'][0] }}/api/login/{{ port_auth_string.stdout | replace(" -", "") }}
+    method: GET
+    headers:
+      {'datatype': 'json'}
+    validate_certs: no
+  register: port_session_key
+  delegate_to: localhost
+
+- name: Show ports
+  uri:
+    url: https://{{ groups['powervault'][0] }}/api/show/ports
+    method: GET
+    body_format: json
+    validate_certs: no
+    use_proxy: no
+    headers:
+      {'sessionKey': "{{ port_session_key.json.status[0].response }}", 'datatype':'json'}
+  register: show_ports
+  delegate_to: localhost
+
+- name: Up ports
+  set_fact:
+    up_port: "{{ up_port + [item.port] }}"
+    target_id: "{{ item.get('target-id') }}"
+  when: item.status == "Up"
+  loop: "{{ show_ports.json.port }}"
+  loop_control:
+    label: "{{ item.port }}"
+
+- name: Set ip
+  set_fact:
+    set_port_ip: "{{ set_port_ip+['{{ port_ip }}{{ temp|int }}'] }}"
+    temp: "{{ temp|int+t|int }}"
+  loop: "{{ up_port }}"
+
+- name: Assign ip to ports
+  uri:
+    url: https://{{ groups['powervault'][0] }}/api/set/host-parameters/gateway/{{ port_gateway }}/ip/{{ item.0 }}/netmask/{{ port_netmask }}/ports/{{ item.1 }}/prompt/yes/noprompt
+    method: GET
+    body_format: json
+    validate_certs: no
+    use_proxy: no
+    headers:
+      {'sessionKey': "{{ port_session_key.json.status[0].response }}", 'datatype':'json'}
+  register: set_ports
+  with_together: 
+    - "{{ set_port_ip }}"
+    - "{{ up_port }}"
+  delegate_to: localhost

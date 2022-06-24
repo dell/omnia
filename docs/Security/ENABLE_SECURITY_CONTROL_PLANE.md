@@ -9,14 +9,14 @@ Omnia uses [FreeIPA (on RockyOS)](https://www.freeipa.org/page/Documentation
 
 Once all [pre-requisites](../PreRequisites/Control_Plane_Security_PreReqs.md) are met, set the parameter 'enable_security_support' to true in `base_vars.yml`
 
->> __Note:__ 
+>> **Note**: 
 >> * In the event that `control_plane.yml` fails after executing the control plane security tasks, `sshd` services will have to be restarted manually by the User.
 >> * Once security features are enabled on the control plane, `/etc/resolv.conf` will become immutable. To edit the file, run `chattr -i /etc/resolv.conf` . To make file immutable after edits, run `chattr +i /etc/resolv.conf`. Changes made using this method may not be persistent across reboots.
 ## Limiting User Authentication over sshd
 
 Users logging into this host can be __optionally__ allowed or denied using an access control list. All users to be allowed or denied are to be listed in the variable `user` in `security_vars.yml`. 
 
->> __Note:__ All users on the server will have to be defined manually. Omnia does not create any users by default.
+>> **Note**: All users on the server will have to be defined manually. Omnia does not create any users by default.
 
 ## Session Timeout
 
@@ -26,7 +26,7 @@ To encourage security, users who have been idle over 3 minutes will be logged ou
 
 Optionally, different communication protocols can be disabled on the control plane using the `restrict_program_support` and `restrict_softwares` variables. These protocols include: telnet,lpd,bluetooth,rlogin and rexec. Features that cannot be disabled include: ftp,smbd,nmbd,automount and portmap. 
 
->> __Note:__ The parameter `restrict_softwares` is __case-sensitive__
+>> **Note**: The parameter `restrict_softwares` is __case-sensitive__
 
 ## Logging Program Executions using Snoopy
 
@@ -40,13 +40,13 @@ Using PSACCT on Rocky and Acct on LeapOS, admins can monitor activity. For more 
 
 If the `alert_email_address` variable in `security_config.yml` is populated with a single, valid email ID, all authentication failures will trigger an email notification. A cron job is set up to verify failures and send emails every hour.
 
->> __Note:__ The `alert_email_address` variable is __optional__. If it is not populated, authentication failure email alerts will be disabled.
+>> **Note**: The `alert_email_address` variable is __optional__. If it is not populated, authentication failure email alerts will be disabled.
 
 ## Log Aggregation via Grafana
 
 [Loki](https://grafana.com/docs/loki/latest/fundamentals/overview/) is a datastore used to efficiently hold log data for security purposes. Using the `promtail` agent, logs are collated and streamed via a HTTP API.
 
->> __Note:__ When `control_plane.yml` is run, Loki is automatically set up as a data source on the Grafana UI.
+>> **Note**: When `control_plane.yml` is run, Loki is automatically set up as a data source on the Grafana UI.
 
 
 
@@ -65,7 +65,7 @@ Below is a list of all logs available to Loki and can be accessed on the dashboa
 
 | Name               | Location                                  | Purpose                      | Additional Information                                                                             |
 |--------------------|-------------------------------------------|------------------------------|----------------------------------------------------------------------------------------------------|
-| Omnia Logs         | /var/log/omnia.log                        | Omnia Log                    | This log is configured by Default                                                                  |
+| Omnia Logs         | /var/log/omnia/omnia.log                        | Omnia Log                    | This log is configured by Default                                                                  |
 | syslogs            | /var/log/messages                         | System Logging               | This log is configured by Default                                                                  |
 | Audit Logs         | /var/log/audit/audit.log                  | All Login Attempts           | This log is configured by Default                                                                  |
 | CRON logs          | /var/log/cron                             | CRON Job Logging             | This log is configured by Default                                                                  |

@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+
 - name: Set Facts
   set_fact:
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
@@ -20,12 +21,6 @@
   command: hostname
   register: host_name
   changed_when: false
-
-- name: Install sshpass
-  package:
-    name: sshpass
-    state: present
-  when: awx_search_key not in host_name.stdout
 
 - name: Check if provisioned host file exists
   stat:
@@ -37,6 +32,12 @@
   
 - name: Update inventory
   block:
+    - name: Fetch ansible-vault path
+      command: whereis ansible-vault
+      changed_when: false
+      register: ansible_vault_path
+      run_once: true
+
     - name: Check if {{ login_vars_file }} file is encrypted
       command: cat {{ login_vars_file }}
       changed_when: false
@@ -46,7 +47,7 @@
 
     - name: Decrpyt {{ login_vars_file }}
       command: >-
-        ansible-vault decrypt {{ login_vars_file }}
+        {{ ansible_vault_path.stdout.split(' ')[1] }} decrypt {{ login_vars_file }}
         --vault-password-file {{ login_vault_file }}
       when: "'$ANSIBLE_VAULT;' in config_content.stdout"
       changed_when: false
@@ -68,7 +69,7 @@
 
     - name: Encrypt {{ login_vars_file }}
       command: >-
-        ansible-vault encrypt {{ login_vars_file }}
+        {{ ansible_vault_path.stdout.split(' ')[1] }} encrypt {{ login_vars_file }}
         --vault-password-file {{ login_vault_file }}
       changed_when: false
       when: "'$ANSIBLE_VAULT;' in config_content.stdout"
@@ -84,7 +85,7 @@
       changed_when: false
       register: os_hosts
       
-    - name: Create device_inventory
+    - name: Create node_inventory
       add_host:
         name: "{{ item }}"
         groups: "node_inventory"

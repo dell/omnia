@@ -15,6 +15,12 @@
 
 # Usage: main.yml
 awx_search_key: "-job-"
+base_vars_path: "{{ playbook_dir }}/control_plane/input_params/base_vars.yml"
+cobbler_pod_name: cobbler
+ansible_config_details:
+  - { line: "[defaults]", regexp: "^(.*)[defaults](.*)" , check: "[defaults]", insertafter: "BOF" }
+  - { line: "log_path = /var/log/omnia/omnia.log", regexp: "^(.*)log_path(.*)" , check:  "log_path", insertafter: "^(.*)defaults(.*)" }
+omnia_log_path: /var/log/omnia
 
 # Usage: fetch_omnia_inputs.yml
 config_filename: "omnia_config.yml"
@@ -53,7 +59,7 @@ rdma_support_success_msg: "rdma_support validated successfully"
 rdma_support_failure_msg: "Failed. rdma_support should be either true or false"
 beegfs_mgmt_server_success_msg: "beegfs_mgmt_server, validated successfully"
 beegfs_mgmt_server_fail_msg: "Failed. Please enter IP of management server in IPV4 format"
-beegfs_mgmt_server_not_reachable_msg: "Failure, IP provided for beegfs_mgmt_server is not rechable. Please provide rechable IP of beegfs management server"
+beegfs_mgmt_server_not_reachable_msg: "Failure, IP provided for beegfs_mgmt_server is not reachable. Please provide reachable IP of beegfs management server"
 ping_msg: "100% packet loss"
 beegfs_mounts_fail_msg: "Failed. Please provide a path for mounting beegfs file system"
 beegfs_client_version_success_msg: "beegfs_client_version, validated successfully "
@@ -84,10 +90,8 @@ nfs_node_group_fail_msg: "nfs_node group should contain exactly 1 node"
 nfs_node_group_success_msg: "nfs_node group check passed"
 
 # Usage: fetch_powervault_status.yml
-tower_config_path: "{{ playbook_dir }}/control_plane/roles/webui_awx/files/.tower_cli.cfg"
-tower_vault_path: "{{ playbook_dir }}/control_plane/roles/webui_awx/files/.tower_vault_key"
-powervault_inventory_name: "powervault_me4_inventory"
-powervault_group: "powervault_me4"
+pv_ip_undefined_msg: "Please give IP of powervault connected to nfs_node in omnia_config.yml in correct format"
+powervault_login_failure_msg: "Unable to connect to powervault. Please check powervault_ip in omnia_config.yml and powervault credentials in login_vars.yml"
 
 # Usage: fetch_control_plane_credentials.yml
 login_vars_filename: input_params/login_vars.yml
@@ -128,3 +132,19 @@ restrict_softwares_failure_msg: "Warning. Values should be comma separated. The 
 # Usage: install_packages.yml
 ansible_base_version: '2.9'
 ipaddr_collection: ansible.utils:2.5.2
+ansible_collection_nfs: ansible.posix:1.4.0
+
+# Usage: fetch_nfs_client_params.yml
+nfs_server_reach_msg: "Failed. Nfs server is not reachable. Please enter valid nfs server IP in nfs_client_params"
+server_share_path_success_msg: "server_share_path is validated successfully"
+server_share_path_failure_msg: "Failed. Please enter valid NFS server mount location"
+server_ip_success_msg: "Successfully verified server_ip variable declaration"
+server_ip_fail_msg: "Failed, Declare server_ip variable in nfs_client_params of omnia_config, please refer comments in omnia_config.yml"
+server_share_path_fail_msg: "Failed, Declare server_share_path variable in nfs_client_params of omnia_config, please refer comments in omnia_config.yml"
+client_share_path_success_msg: "Successfully verified client_share_path variable declaration"
+client_share_path_fail_msg: "Failed, Declare client_share_path variable in nfs_client_params of omnia_config, please refer comments in omnia_config.yml"
+server_share_path_len_success_msg: "server_share_path validated successfully"
+client_mount_options_success_msg: "client_mount_options declaration validated successfully"
+client_mount_options_fail_msg: "Failed, please declare client_mount_options variable in nfs_client_params"
+server_ip_msg: "As server_ip is not available NFS bolt-on role will not work"
+nfs_client_declaration_msg: "Make sure to declare values in server_ip and server_share_path in all the lists on nfs_client_params"
