@@ -48,8 +48,6 @@
               changed_when: true
               register: collect_device_info_job
 
-            - debug:
-                var: collect_device_info_job
           rescue:
             - name: Warning message for device inventory job
               debug:
