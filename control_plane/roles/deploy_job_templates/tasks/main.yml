@@ -103,9 +103,7 @@
         - name: Warning message for ethernet template
           debug:
             msg: "{{ ethernet_template_warn_msg }}"
-      when:
-        - ethernet_switch_support
-        - device_support_status
+      when: ethernet_switch_support
 
     - name: Wait for 15 mins for DHCP to assign IP to devices
       wait_for:
@@ -133,9 +131,7 @@
         - name: Warning message for ethernet template
           debug:
             msg: "{{ ethernet_template_warn_msg }}"
-      when:
-        - ethernet_switch_support
-        - device_support_status
+      when: ethernet_switch_support
 
     - name: Execute infiniband template
       block:
@@ -150,10 +146,7 @@
         - name: Warning message for infiniband template
           debug:
             msg: "{{ infiniband_template_warn_msg }}"
-      when:
-        - ib_switch_support
-        - device_support_status
-
+      when: ib_switch_support
 
     - name: Execute powervault template
       block:
@@ -168,9 +161,7 @@
         - name: Warning message for powervault template
           debug:
             msg: "{{ powervault_template_warn_msg }}"
-      when:
-        - powervault_support
-        - device_support_status
+      when: powervault_support
 
     - name: Execute idrac template
       block:

@@ -161,7 +161,6 @@
     project: "{{ project_name }}"
     playbook: "{{ item.playbook }}"
     ask_skip_tags_on_launch: true
-    extra_vars: "{{ item.extra_vars }}"
     credentials:
       - "{{ item.credential }}"
     state: present

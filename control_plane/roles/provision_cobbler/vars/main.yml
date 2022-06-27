@@ -57,7 +57,7 @@ cobbler_ports:
  - 69/tcp
  - 69/udp
  - 4011/udp
- -
+
 # Usage: cobbler_image.yml
 cobbler_image_name: cobbler
 cobbler_image_tag: latest
