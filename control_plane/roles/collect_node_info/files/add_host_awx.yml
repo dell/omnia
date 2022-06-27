@@ -64,3 +64,17 @@
     - host_description != "Description Unavailable"
     - add_host_awx is defined
     - add_host_awx is not failed
+
+- block:
+    - name: Final provisioned nodes inventory
+      command: >-
+        awx --conf.host {{ hostvars['localhost']['awx_host'] }} --conf.username {{ hostvars['localhost']['awx_username'] }} --conf.password {{ hostvars['localhost']['awx_password'] }} --conf.insecure hosts list --inventory node_inventory
+      changed_when: false
+      delegate_to: localhost
+      no_log: true
+      run_once: true
+      register: prov_hosts
+  rescue:
+    - name: Failed to fetch hosts in AWX
+      fail:
+        msg: "{{ prov_hosts.stderr }}"

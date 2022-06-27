@@ -32,11 +32,28 @@
   throttle: 1
   when:
     - hostname_check.stdout is defined
-    - item not in check_node_inventory.stdout 
+    - item not in check_node_inventory.stdout
 
-- name: Check the node_inventory output
-  command: cat {{ hostvars['localhost']['node_inventory_path'] }}
+- name: Create a list of provisioned hosts
+  command: awk -F' ' '{ print $1 }' "{{ hostvars['localhost']['node_inventory_path'] }}"
   changed_when: false
+  delegate_to: localhost
+  register: prov_temp
+
+- name: Add the host to provisioned inventory
+  lineinfile:
+    path: "{{ hostvars['localhost']['provisioned_hosts'] }}"
+    line: "{{ item }}"
+    state: present
+    create: yes
+    mode: "{{ hostvars['localhost']['file_perm'] }}"
+  delegate_to: localhost
+  with_items: "{{ prov_temp.stdout_lines }}"
+
+- name: Check the provisioned_hosts output
+  command: cat "{{ hostvars['localhost']['provisioned_hosts'] }}"
+  changed_when: false
+  delegate_to: localhost
   register: prov_hosts
 
 - name: Create provisioned_hosts
@@ -45,3 +62,4 @@
     groups: "provisioned_hosts"
   with_items: "{{ prov_hosts.stdout_lines }}"
   when: item | trim | length > 1
+  delegate_to: localhost
