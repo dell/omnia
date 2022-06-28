@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -38,37 +38,31 @@
     - rpcbind
     - nfs-server
 
-- name: Adding K8s NFS share entries in /etc/exports
+- name: Adding NFS share entries in /etc/exports for manager
   lineinfile:
     path: "{{ exports_file_path }}"
-    line: "{{ me4_nfs_share_k8s }} {{ item }}(rw,sync,no_root_squash)"
-  with_items:
+    line: "{{ item.0.location }} {{ item.1 }}(rw,sync,no_root_squash)"
+  with_nested:
+    - "{{ pv_volumes }}"
     - "{{ groups['manager'] }}"
-    - "{{ groups['compute'] }}"
 
-- name: Adding K8s NFS share entries in /etc/exports
+- name: Adding NFS share entries in /etc/exports for compute
   lineinfile:
     path: "{{ exports_file_path }}"
-    line: "{{ me4_nfs_share_k8s }} {{ item }}(rw,sync,no_root_squash)"
-  with_items:
-    - "{{ groups['manager'] }}"
-    - "{{ groups['compute'] }}"
-
-- name: Adding Slurm NFS share entries in /etc/exports
-  lineinfile:
-    path: "{{ exports_file_path }}"
-    line: "{{ me4_nfs_share_slurm }} {{ item }}(rw,sync,no_root_squash)"
-  with_items:
-    - "{{ groups['manager'] }}"
-    - "{{ groups['compute'] }}"
+    line: "{{ item.0.location }} {{ item.1 }}(rw,sync,no_root_squash)"
+  with_nested:
+      - "{{ pv_volumes }}"
+      - "{{ groups['compute'] }}"
 
 - name: Exporting the shared directories
   command: exportfs -ra
   changed_when: true
 
 - name: Configuring firewall
-  command: "firewall-cmd --permanent --add-service={{ item }}"
-  changed_when: true
+  firewalld:
+    service: "{{ item }}"
+    permanent: true
+    state: enabled
   with_items:
     - "{{ nfs_services }}"
 

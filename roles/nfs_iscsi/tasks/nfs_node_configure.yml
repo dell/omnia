@@ -14,16 +14,16 @@
 ---
 
 - name: Include
-  include_tasks: "{{ pv_ports_file }}"
+  include_tasks: ports.yml
 
 - name: Refresh ssh keys
-  command: ssh-keygen -R {{ groups['powervault_me4'][0] }}
+  command: ssh-keygen -R {{ powervault_ip }}
   changed_when: false
   tags: install
   failed_when: false
 
 - name: Validate authentication of username and password
-  command: ping -c1 {{ groups['powervault_me4'][0] }}
+  command: ping -c1 {{ powervault_ip }}
   register: validate_login
   changed_when: false
   failed_when: false
@@ -135,7 +135,7 @@
   with_items: "{{ ports_available.results }}"
   when: item.rc == 0
 
-- name: Pv port ip
+- name: Pv port set ip
   set_fact:
     map_ip_output: "{{ item.stdout_lines }}"
   with_items: "{{ ports_available.results }}"
@@ -161,15 +161,15 @@
     grep "InitiatorName=" /etc/iscsi/initiatorname.iscsi | cut -f2 -d"="
   register: iqdn_id
   changed_when: false
-  tags: install
 
-- name: Add ME4 volume data to dummy host
-  add_host:
-    name:   "server_iqdn_id"
+- name: Add volume data to dummy host
+  set_fact:
     server_iqdn: "{{ iqdn_id.stdout }}"
 
 - name: Login to the powervault
   command: iscsiadm -m node --login {{ pv_name }} -p {{ ip_port }}
   changed_when: true
   failed_when: false
-  tags: install
+
+- name: Map volumes
+  include_tasks: map_volume.yml
