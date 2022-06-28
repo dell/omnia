@@ -14,7 +14,8 @@
 ---
 
 # Usage: pre-requisites.yml
-control_plane_installation_required: "AWX and grafana installation through control_plane.yml is mandatory for telemetry.yml"
+installation_required_web_support: "AWX and grafana installation through control_plane.yml is mandatory for telemetry.yml when awx_web_support is set to true"
+installation_required: "Grafana installation through control_plane.yml is mandatory for telemetry.yml"
 
 os_supported_leap: "leap"
 selinux_warning: "Warning! SELinux status is disabled by user. No SELinux policy is loaded"
