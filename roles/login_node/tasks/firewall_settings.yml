@@ -27,11 +27,8 @@
   tags: firewalld
 
 - name: Firewall rule for slurm jobs - tcp/udp ports
-  firewalld:
-    zone: public
-    port: "{{ item }}"
-    permanent: true
-    state: enabled
+  command: "firewall-cmd --zone=public --permanent --add-port={{ item }}"
+  changed_when: true
   with_items:
     - "{{ slurmctld_tcp_port }}"
     - "{{ slurmd_tcp_port }}"

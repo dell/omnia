@@ -82,16 +82,24 @@
     fail_msg: "{{ fail_awx_web_support }}"
   tags: init
 
-- name: Install ansible galaxy collection when awx_web_support is false
-  command: ansible-galaxy collection install {{ item }}
-  changed_when: true
-  with_items: "{{ ansible_collections_cli }}"
-  when: not awx_web_support
+- block:
+    - name: Fetch ansible-galaxy path
+      command: whereis ansible-galaxy
+      changed_when: false
+      register: ansible_galaxy_path
+      tags: init
 
-- name: Install omsdk using pip when awx_web_support is false
-  pip:
-    name: "{{ omsdk_package }}"
-    state: present
+    - name: Install ansible galaxy collection when awx_web_support is false
+      command: "{{ ansible_galaxy_path.stdout.split(' ')[1] }} collection install {{ item }}"
+      changed_when: true
+      with_items: "{{ ansible_collections_cli }}"
+      tags: init
+  
+    - name: Install omsdk using pip when awx_web_support is false
+      pip:
+        name: "{{ omsdk_package }}"
+        state: present
+      tags: init
   when: not awx_web_support
 
 - name: Set fact for device_ip_list_path
@@ -194,32 +202,6 @@
     fail_msg: "{{ fail_snmp_comm_msg }}"
   when: snmp_enabled
   tags: [ validate, idrac, network-device, network-ib ]
-
-- name: Check whether ansible config file exists
-  stat:
-    path: "{{ ansible_conf_file_path }}/ansible.cfg"
-  register: ansible_conf_exists
-  tags: init
-
-- name: Create the directory if it does not exist
-  file:
-    path: "{{ ansible_conf_file_path }}"
-    state: directory
-    mode: "{{ file_perm }}"
-  when: not ansible_conf_exists.stat.exists
-  changed_when: false
-  tags: init
-
-- name: Create ansible config file if it does not exist
-  copy:
-    dest: '{{ ansible_conf_file_path }}/ansible.cfg'
-    mode: "{{ file_perm }}"
-    content: |
-      [defaults]
-      log_path = /var/log/omnia.log
-      host_key_checking = false
-  when: not ansible_conf_exists.stat.exists
-  tags: init
 
 - name: Validate infiniband base_vars are not empty
   assert:

@@ -55,26 +55,78 @@
     - os_supported_leap in mgmt_os
     - ansible_distribution_version >= os_supported_leap_version
 
-- name: Verify whether ansible configuration file exists
+- name: Include base variable file base_vars.yml
+  include_vars: "{{ base_vars_filename }}"
+  tags: init
+
+- name: Create log folder for omnia
+  file:
+    path: "{{ omnia_log_path }}"
+    state: directory
+    mode: "{{ vault_file_perm }}"
+
+- name: Check whether ansible config file exists
   stat:
-    path: "{{ default_ansible_config_file_path }}"
-  register: file_exists
+    path: "{{ ansible_conf_file_path }}/ansible.cfg"
+  register: ansible_conf_exists
+  tags: init
+
+- name: Create the directory if it does not exist
+  file:
+    path: "{{ ansible_conf_file_path }}"
+    state: directory
+    mode: "{{ file_perm }}"
+  when: not ansible_conf_exists.stat.exists
+  tags: init
+
+- name: Create ansible config file if it does not exist
+  copy:
+    dest: '{{ ansible_conf_file_path }}/ansible.cfg'
+    mode: "{{ file_perm }}"
+    content: |
+      [defaults]
+      log_path = /var/log/omnia/omnia.log
+      host_key_checking = false
+  when: not ansible_conf_exists.stat.exists
+  tags: init
+
+- name: Check the content of ansible.cfg
+  command: cat {{ ansible_conf_file_path }}/ansible.cfg
+  changed_when: false
+  register: ansible_conf_output
+  when: ansible_conf_exists.stat.exists
   tags: init
 
 - name: Set log_path to omnia.log in ansible.cfg
   replace:
-    path: "{{ default_ansible_config_file_path }}"
+    path: "{{ ansible_conf_file_path }}/ansible.cfg"
     regexp: '#log_path = /var/log/ansible.log'
-    replace: 'log_path = /var/log/omnia.log'
-  when: file_exists.stat.exists
+    replace: 'log_path = /var/log/omnia/omnia.log'
+  when: 
+    - ansible_conf_exists.stat.exists
+    - '"log_path" in ansible_conf_output.stdout'
   tags: init
 
 - name: Set host_key_checking to false in ansible.cfg
   replace:
-    path: "{{ default_ansible_config_file_path }}"
+    path: "{{ ansible_conf_file_path }}/ansible.cfg"
     regexp: '^(.*)host_key_checking(.*)'
     replace: 'host_key_checking = false'
-  when: file_exists.stat.exists
+  when: 
+    - ansible_conf_exists.stat.exists
+    - '"host_key_checking" in ansible_conf_output.stdout'
+  tags: init
+
+- name: Set host_key_checking to false in ansible.cfg
+  lineinfile:
+    path: "{{ ansible_conf_file_path }}/ansible.cfg"
+    regexp: "{{ item.check }}"
+    insertafter: "{{ item.insertafter }}"
+    line: '{{ item.line }}'
+  when: 
+    - ansible_conf_exists.stat.exists
+    - item.check not in ansible_conf_output.stdout
+  with_items: "{{ ansible_config_details }}"
   tags: init
 
 - name: Check OS support
@@ -106,3 +158,9 @@
 
   tags: init
   when: os_supported_leap not in mgmt_os
+
+- name: Fetch ansible-vault path
+  command: whereis ansible-vault
+  changed_when: false
+  register: ansible_vault_path
+  tags: init

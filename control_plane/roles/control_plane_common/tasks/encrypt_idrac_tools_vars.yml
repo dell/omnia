@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@
 
 - name: Encrpyt idrac_tools_vars.yml
   command: >-
-    ansible-vault encrypt {{ idrac_tools_vars_filename }} --vault-password-file {{ idrac_tools_vaultname }}
+    {{ ansible_vault_path.stdout.split(' ')[1] }} encrypt {{ idrac_tools_vars_filename }} --vault-password-file {{ idrac_tools_vaultname }}
   changed_when: true
   when: "'$ANSIBLE_VAULT;' not in idrac_tools_content.stdout"
 
