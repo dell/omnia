@@ -206,7 +206,6 @@
       changed_when: false
       register: ansible_vault_path
       delegate_to: localhost
-      run_once: true
 
     - name: Fetch facts and add new hosts in AWX
       include_tasks: add_host_awx.yml
@@ -227,7 +226,6 @@
           no_log: true
           register: config_content
           delegate_to: localhost
-          run_once: true
 
         - name: Decrpyt {{ login_vars_file }}
           command: >-
@@ -236,13 +234,11 @@
           when: "'$ANSIBLE_VAULT;' in config_content.stdout"
           changed_when: false
           delegate_to: localhost
-          run_once: true
 
         - name: Include variable file {{ login_vars_file }}
           include_vars: "{{ login_vars_file }}"
           no_log: true
           delegate_to: localhost
-          run_once: true
 
         - name: Encrypt {{ login_vars_file }}
           command: >-
@@ -251,19 +247,16 @@
           changed_when: false
           when: "'$ANSIBLE_VAULT;' in config_content.stdout"
           delegate_to: localhost
-          run_once: true
 
         - name: Change file permissions
           file:
             path: "{{ login_vars_file }}"
             mode: "{{ file_perm }}"
           delegate_to: localhost
-          run_once: true
 
         - name: Install paramiko
           command: pip3 install paramiko -i http://pypi.douban.com/simple/ --trusted-host pypi.douban.com
           delegate_to: localhost
-          run_once: true
           changed_when: false
  
         - name: Initialize variables
