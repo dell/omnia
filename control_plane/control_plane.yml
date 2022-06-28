@@ -20,7 +20,7 @@
     - role: control_plane_common
 
     - role: control_plane_k8s
-      tags: init
+      tags: [ init, k8s ]
 
     - role: control_plane_device
       tags: network-device
@@ -51,3 +51,6 @@
 
     - role: deploy_job_templates
       tags: templates
+    
+    - role: deploy_job_templates_cli
+      tags: templates_cli

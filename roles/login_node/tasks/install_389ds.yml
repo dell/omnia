@@ -131,10 +131,8 @@
         enabled: yes
 
     - name: Permit traffic in default zone for ldap and ldaps service
-      firewalld:
-        service: "{{ item }}"
-        permanent: yes
-        state: enabled
+      command: "firewall-cmd --permanent --add-service={{ item }}"
+      changed_when: true
       with_items: "{{ ldap_services }}"
 
     - name: Reload firewalld

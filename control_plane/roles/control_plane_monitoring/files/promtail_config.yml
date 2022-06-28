@@ -103,7 +103,7 @@ scrape_configs:
       - localhost
     labels:
       job: Omnia
-      __path__: /var/log/omnia.log
+      __path__: /var/log/omnia/omnia.log
 
 - job_name: syslog
   static_configs:

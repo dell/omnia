@@ -13,23 +13,23 @@
 #  limitations under the License.
 ---
 
-- name: Firewall ports addition - tcp/udp ports
-  command: "firewall-cmd --zone=public --permanent --add-port={{ item }}"
-  changed_when: true
-  with_items:
-    - "{{ https_port1 }}"
-    - "{{ https_port2 }}"
-    - "{{ ldap_port1 }}"
-    - "{{ ldap_port2 }}"
-    - "{{ kerberos_port1 }}"
-    - "{{ kerberos_port2 }}"
-    - "{{ kerberos_port3 }}"
-    - "{{ kerberos_port4 }}"
-    - "{{ dns_port1 }}"
-    - "{{ dns_port2 }}"
-    - "{{ ntp_port1 }}"
-    - "{{ dt_port1 }}"
+- name: Add AMD ROCm repository for CentOS/RockyLinux 8.x
+  yum_repository:
+    name: ROCm
+    description: AMD GPU ROCm Repository
+    baseurl: "{{ amd_rhel_url }}"
+    gpgcheck: yes
+    gpgkey: "{{ amd_rhel_gpg }}"
+    enabled: yes
+  tags: install
 
-- name: Reload firewalld
-  command: firewall-cmd --reload
-  changed_when: true
+- name: Install AMD ROCm drivers(This might take 10 to 15 mins in the first run)
+  package:
+    name: rocm-dkms
+    enablerepo: ROCm
+    state: present
+  tags: install
+
+- name: Reboot after installing GPU drivers
+  reboot:
+  tags: install
