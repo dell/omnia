@@ -268,7 +268,14 @@ If the above solution **doesn't work**,
 2. Delete the folder: `/var/nfs_awx`.
 3. Delete the file: `omnia/control_plane/roles/webui_awx/files/.tower_cli.cfg`.
 4. Re-run *control_plane.yml*.
-  
+
+## Why is my NFS mount not visible on the client?
+
+**Potential Cause**: The directory being used by the client as a mount point is already in use by a different NFS export. <br>
+**Resolution**: Verify that the directory being used as a mount point is empty by using `cd <client share path> | ls` or `mount | grep <client share path>`. If empty, re-run the playbook.
+![](../images/omnia_NFS_mount_fcfs.png)
+
+
 ## What to do after a control plane reboot?
 1. Once the control plane reboots, wait for 10-15 minutes to allow all k8s pods and services to come up. This can be verified using:
 * `kubectl get pods --all-namespaces`

@@ -49,7 +49,7 @@ To open the ports required, use the following steps:
     - server_export_options: (Default) rw,sync,no_root_squash
     - client_shared_path: The path at which volume is mounted on manager, compute, login node. Unless specified otherwise, the client path will inherit the options from the `server_export_path`.
     - client_mount_options: Default value is- nosuid,rw,sync,hard,intr 0 0 (unless specified otherwise)
-* The default entry for `powervault_volumes` will look like this: <br> `  - { name: omnia_home, server_share_path: /home, server_export_options: ,client_share_path: , client_mount_options: }` <br>
+* The default entry for `powervault_volumes` will look like this: <br> `  - { name: omnia_home, server_share_path: /home/omnia_home, server_export_options: ,client_share_path: , client_mount_options: }` <br>
 * Ensure that `powervault_ip` is populated. The right powervault IP can be found in `/opt/omnia/powervault_inventory`. If it's not present, run `ansible-playbook collect_device_info.yml` (dedicated NIC) or `ansible-playbook collect_node_info.yml` (LOM NIC) from the control_plane directory.
 
 >> **Note**: In a single run of omnia, only one NFS Server is configured. To configure multiple NFS Servers, add one IP in the nfs_node group and populate the variables accordingly per run of `omnia.yml`. To configure another nfs node, update variables and run `nfs_sas.yml`.
