@@ -101,6 +101,7 @@ job_template_details:
   - { name: infiniband_template, inventory: infiniband_inventory, playbook: control_plane/infiniband.yml, credential: infiniband_credential, flag: "{{ ib_switch_support }}" }
   - { name: powervault_template, inventory: powervault_inventory, playbook: control_plane/powervault.yml, credential: powervault_credential, flag: "{{ powervault_support }}" }
   - { name: nfs_sas_template, inventory: node_inventory, playbook: nfs_sas.yml, credential: node_credential, flag: "{{ powervault_support }}" }
+  - { name: nfs_iscsi_template, inventory: node_inventory, playbook: nfs_iscsi.yml, credential: node_credential, flag: "{{ powervault_support }}" }
   - { name: redhat_unregister_template, inventory: node_inventory, playbook: control_plane/rhsm_unregister.yml, credential: node_credential, flag: true }
 rhsm_job_template_details:
   - { name: redhat_subscription_template, inventory: node_inventory, playbook: control_plane/rhsm_subscription.yml, credential: node_credential, flag: true }
