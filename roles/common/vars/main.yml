@@ -159,3 +159,12 @@ amd_rhel_gpg: "https://repo.radeon.com/rocm/rocm.gpg.key"
 centos7_rocm_url: "https://repo.radeon.com/rocm/yum/rpm"
 centos_rocm_gpg: "https://repo.radeon.com/rocm/rocm.gpg.key"
 centos8_rocm_url: " https://repo.radeon.com/rocm/centos8/rpm"
+
+# Usage: nvidia_rocky.yml
+nvidia_rocky_pkgs:
+    - nvidia-driver
+    - nvidia-settings
+    - cuda-driver
+cuda_rocky_url: "https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64"
+cuda_rocky_gpg: "https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64/D42D0685.pub"
+nvidia_status: "[WARNING] NVIDIA for rocky won't be supported, due to required kernel packages are not available"
