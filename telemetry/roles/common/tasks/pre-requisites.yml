@@ -12,12 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+- name: Include control_plane base_vars.yml file
+  include_vars: "{{ playbook_dir }}/../control_plane/input_params/base_vars.yml"
+  no_log: true
 
-- name: Check existence of awx and grafana on management station
+- name: Check existence of pre-required tools on management station
   block:
     - name: Check AWX instance
       command: awx --version
-      changed_when: false
+      when: awx_web_support
 
     - name: Check grafana service
       command: kubectl get svc -n grafana
@@ -27,7 +30,12 @@
   rescue:
     - name: AWX and grafana needs to be installed
       fail:
-        msg: "{{ control_plane_installation_required }}"
+        msg: "{{ installation_required_web_support }}"
+      when: awx_web_support
+
+    - name: Grafana needs to be installed
+      fail:
+        msg: "{{ installation_required }}"
 
 - name: Saving management station os
   set_fact:

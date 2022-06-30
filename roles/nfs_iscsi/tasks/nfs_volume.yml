@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,13 +14,13 @@
 ---
 
 - name: Refresh ssh keys
-  command: ssh-keygen -R {{ groups['powervault_me4'][0] }}
+  command: ssh-keygen -R {{ powervault_ip }}
   changed_when: false
   tags: install
   failed_when: false
 
 - name: Validate authentication of username and password
-  command: ping -c1 {{ groups['powervault_me4'][0] }}
+  command: ping -c1 {{ powervault_ip }}
   register: validate_login
   changed_when: false
   failed_when: false
@@ -29,12 +29,10 @@
   command: rescan-scsi-bus.sh --forcerescan
   changed_when: false
   register: volume_pv
-  tags: install
 
 - name: Assert if volume created or not
   assert:
     that:
-      - "' Model: ME4' in volume_pv.stdout"
+      - "' Model: ME4' in volume_pv.stdout in volume_pv.stdout"
     success_msg: "Volume is created"
     fail_msg: "Volume is not created properly."
-  tags: install

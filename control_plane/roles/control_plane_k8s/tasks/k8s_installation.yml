@@ -71,10 +71,6 @@
   until: crio_repo2_result is not failed
   retries: 20
 
-- name: Enable crio repo
-  command: "dnf module enable cri-o:{{ crio_version }} -y"
-  changed_when: false
-
 - name: Add kubernetes repo
   yum_repository:
     name: kubernetes

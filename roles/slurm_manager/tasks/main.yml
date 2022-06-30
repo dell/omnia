@@ -134,7 +134,8 @@
   when: hostvars['127.0.0.1']['ansible_collection_used']
 
 - name: Firewall rule slurm - allow all incoming traffic on internal network
-  command: 'firewall-cmd --add-rich-rule={{ firewalld_rich_rule }}'
+  command: |
+        firewall-cmd --add-rich-rule='rule family={{ family }} source address={{ network_address }} accept'
   changed_when: true
   tags: firewalld
 

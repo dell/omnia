@@ -18,14 +18,12 @@
   register: validate_login
   changed_when: false
   ignore_errors: yes
-  tags: install
 
 - name: Get auth string
   shell: echo -n {{ powervault_username }}_{{ powervault_password }} | sha256sum
   register: auth_string
   changed_when: false
   ignore_errors: yes
-  tags: install
 
 - name: Get session key
   uri:
@@ -35,13 +33,6 @@
       {'datatype': 'json'}
     validate_certs: no
   register: session_key
-  tags: install
-
-- name: Set powervault ip
-  add_host:
-    name: "pv_ip"
-    powervault_ip: "{{ inventory_hostname }}"
-  tags: install
 
 - name: Execute show system command
   uri:
@@ -63,6 +54,12 @@
   assert:
     that: ("ME4" in pv_id) or ("ME5" in pv_id)
     fail_msg: "{{ fail_pv_support }}"
+
+- name: Verify the powervault version if ISCSI protocol selected
+  assert:
+    that: ("ME4" in pv_id)
+    fail_msg: "{{ fail_iscsi_support }}"
+  when: powervault_protocol == "iscsi"
 
 - name: Set system name
   uri:

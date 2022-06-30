@@ -38,6 +38,7 @@ client_mount_options_success_msg: "client_mount_options declaration validated su
 scsi_product_id: ME4
 fail_pv_support: "Failed. Powervault not supported"
 success_pv_support: "Success. Powervault supported"
+fail_iscsi_support: "Failed.Only powervault ME4 is supported for iscsi protocol."
 
 # Usage: main.yml
 pv_file: "{{ role_path }}/../../input_params/powervault_vars.yml"

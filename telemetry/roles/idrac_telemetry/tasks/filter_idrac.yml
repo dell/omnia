@@ -16,18 +16,46 @@
 - name: iDRAC count incrementer
   set_fact:
     idrac_awx_count: "{{ idrac_awx_count | int + 1 }}"
-    awx_idrac: "{{ awx_idrac + [ idrac_inventory_jsondata['results'][idrac_index].name ] }}"
     datacenter_license: false
     firmware_version: false
 
+- name: Set iDRAC IP list when awx_web_support is true
+  set_fact:
+      awx_idrac: "{{ awx_idrac + [ idrac_inventory_jsondata['results'][idrac_index].name ] }}"
+  when: awx_web_support
+
+- name: Set iDRAC IP list when awx_web_support is false
+  set_fact:
+      awx_idrac: "{{ awx_idrac + [ item ] }}"
+  when: not awx_web_support
+
 - name: Filter iDRAC
   block:
-  - name: Get system inventory
+  - name: Get system inventory with awx_web_support set to true
     dellemc.openmanage.idrac_system_info:
       idrac_ip: "{{ idrac_inventory_jsondata['results'][idrac_index].name }}"
       idrac_user: "{{ idrac_username }}"
       idrac_password: "{{ idrac_password }}"
-    register: idrac_system_info
+    register: idrac_system_info_awx
+    when: awx_web_support
+
+  - name: Get system inventory with awx_web_support set to false
+    dellemc.openmanage.idrac_system_info:
+      idrac_ip: "{{ item }}"
+      idrac_user: "{{ idrac_username }}"
+      idrac_password: "{{ idrac_password }}"
+    register: idrac_system_info_cli
+    when: not awx_web_support
+
+  - name: Set fact for idrac_system_info
+    set_fact:
+      idrac_system_info: "{{ idrac_system_info_awx }}"
+    when: awx_web_support
+
+  - name: Set fact for idrac_system_info
+    set_fact:
+      idrac_system_info: "{{ idrac_system_info_cli }}"
+    when: not awx_web_support
 
   - name: Check datacenter license status
     set_fact:
@@ -42,14 +70,33 @@
       - '"License" in idrac_system_info.system_info.License[index].LicenseDescription'
       - '"Healthy" in idrac_system_info.system_info.License[index].PrimaryStatus'
 
-  - name: Filter iDRAC with supported firmware version
+  - name: Filter iDRAC with supported firmware version 
     block:
-    - name: Get firmware version
+    - name: Get firmware version with awx_web_support set to true
       dellemc.openmanage.idrac_firmware_info:
         idrac_ip:   "{{ idrac_inventory_jsondata['results'][idrac_index].name }}"
         idrac_user: "{{ idrac_username }}"
         idrac_password:  "{{ idrac_password }}"
-      register: idrac_firmware_info
+      register: idrac_firmware_info_awx
+      when: awx_web_support
+
+    - name: Get firmware version with awx_web_support set to false
+      dellemc.openmanage.idrac_firmware_info:
+        idrac_ip:   "{{ item }}"
+        idrac_user: "{{ idrac_username }}"
+        idrac_password:  "{{ idrac_password }}"
+      register: idrac_firmware_info_cli
+      when: not awx_web_support
+
+    - name: Set fact for idrac_system_info
+      set_fact:
+        idrac_firmware_info: "{{ idrac_firmware_info_awx }}"
+      when: awx_web_support
+
+    - name: Set fact for idrac_system_info
+      set_fact:
+        idrac_firmware_info: "{{ idrac_firmware_info_cli }}"
+      when: not awx_web_support
 
     - name: Set firmware version status
       set_fact:
@@ -64,14 +111,31 @@
     when: datacenter_license is true
 
   rescue:
-    - name: iDRAC check list
+    - name: iDRAC check list when awx_web_support is set to true
       set_fact:
         failed_idrac: "{{ failed_idrac + [ idrac_inventory_jsondata['results'][idrac_index].name ] }}"
+      when: awx_web_support
 
-- name: Filtered iDRAC list
-  set_fact:
-    telemetry_idrac: "{{ telemetry_idrac + [ idrac_inventory_jsondata['results'][idrac_index].name ] }}"
-    filtered_idrac_count: "{{ filtered_idrac_count | int + 1 }}"
+    - name: iDRAC check list when awx_web_support is set to false
+      set_fact:
+        failed_idrac: "{{ failed_idrac + [ item ] }}"
+      when: not awx_web_support
+
+- name: Set variables for filtered iDRACs
+  block:
+  - name: Set iDRAC list When awx_web_support is set to true
+    set_fact:
+      telemetry_idrac: "{{ telemetry_idrac + [ idrac_inventory_jsondata['results'][idrac_index].name ] }}"
+    when: awx_web_support
+  
+  - name: Set iDRAC list when awx_web_support is set to false
+    set_fact:
+      telemetry_idrac: "{{ telemetry_idrac + [ item ] }}"
+    when: not awx_web_support
+
+  - name: Set counter value
+    set_fact:
+      filtered_idrac_count: "{{ filtered_idrac_count | int + 1 }}"
   when:
-    - datacenter_license is true
-    - firmware_version is true
+  - datacenter_license is true
+  - firmware_version is true
