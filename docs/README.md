@@ -37,6 +37,9 @@ Omnia can deploy firmware, install Kubernetes or Slurm (or both), along with add
 - Added LMod module system installation to handle the MODULEPATH Hierarchical problem.
 - Added NFS bolt on support to allow manager, compute and login nodes to become NFS clients.
 - Added support for PowerVault ME5 over SAS.
+- Added NFS server configuration support
+- Added NVIDIA GPU driver support for RHEL and Rocky.
+- Added support for RHEL on AMD servers.
 
 # Using Omnia
 1. Set up your network based on the sample topologies provided [here](NETWORK_TOPOLOGY_LOM.md)
