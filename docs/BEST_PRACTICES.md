@@ -6,3 +6,4 @@
 * Avoid rebooting the Control Plane as much as possible to ensure that all network configuration does not get disturbed.
 * Review the [PreRequisites](PreRequisites) before running Omnia Scripts.
 * If telemetry is to be enabled using Omnia, use AWX to deploy Slurm/Kubernetes.
+* Ensure that the firefox version being used on the control plane is the latest available. This can be achieved using `dnf update firefox -y`

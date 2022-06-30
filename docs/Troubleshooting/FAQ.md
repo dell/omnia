@@ -13,7 +13,7 @@ If `control_plane.yml` has run, a version file is created here: `/opt/omnia/omni
 
 ## Why does the task 'nfs_client: Mount NFS client' fail with `No route to host`?
 **Potential Cause**:
-* There's a mismatch in the share path listed in `/etc/exports` and in `omnia_config.yml` under `nfs_bolt_on`.
+* There's a mismatch in the share path listed in `/etc/exports` and in `omnia_config.yml` under `nfs_client_params`.
 **Resolution**:
 * Ensure that the input paths are a perfect match down to the character to avoid any errors.
 
