@@ -63,3 +63,9 @@
   with_items: "{{ prov_hosts.stdout_lines }}"
   when: item | trim | length > 1
   delegate_to: localhost
+
+- name: Delete provisioned_hosts file
+  file:
+    path: "{{ hostvars['localhost']['provisioned_hosts'] }}"
+    state: absent
+  delegate_to: localhost
