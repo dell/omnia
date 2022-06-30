@@ -75,6 +75,7 @@ boss_vd_fail_msg: "Failed. Unable to create virtual disk from BOSS controller. V
 raid_vd_fail_msg: "Failed. Unable to create virtual disk from RAID controller. Verify HDD disk attached to RAID controller and try again."
 boss_drives_count: 2
 boss_drives_count_fail_msg: "Failed. Omnia supports only creating RAID 1 virtual disk using 2 SSD disk. Only 2 SSD disk should be present in BOSS controller."
+non_raid_disk_key: "Non-RAID"
 
 # Usage: deploy_os.yml
 expose_duration: 60
