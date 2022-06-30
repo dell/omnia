@@ -57,3 +57,28 @@
     that: mysqldb_name | length > 1
     success_msg: "{{ mysqldb_success_msg }}"
     fail_msg: "{{ mysqldb_fail_msg }}"
+
+- name: Verify Inventory file based on awx_web_support
+  block:
+    - name: Verify Inventory file when awx_web_support is false
+      fail:
+        msg: "{{ inventory_absent_message }}"
+      when:
+        - groups['manager'] is not defined
+        - groups['compute'] is not defined
+
+    - name: Verify manager group in inventory when awx_web_support is false
+      assert:
+        that: "groups['manager'] | length | int == 1"
+        fail_msg: "{{ telemetry_manager_group_fail_msg }}"
+        success_msg: "{{ telemetry_manager_group_success_msg }}"
+
+    - name: Verify compute group in inventory when awx_web_support is false
+      assert:
+        that: "groups['compute'] | length | int >= 1"
+        fail_msg: "{{ telemetry_compute_group_fail_msg }}"
+        success_msg: "{{ telemetry_compute_group_success_msg }}"
+  when:
+    - not awx_web_support
+    - slurm_telemetry_support
+  any_errors_fatal: true
