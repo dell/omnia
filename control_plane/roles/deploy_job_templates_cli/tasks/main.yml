@@ -81,6 +81,18 @@
             timeout: "{{ dhcp_wait_time }}"
           when: ethernet_switch_support
 
+        - name: Execute device inventory job
+          block:
+            - name: Execute collect_device_info.yml
+              shell: ansible-playbook {{ playbook_dir }}/collect_device_info.yml >> {{ collect_device_info_log }} | echo "Executed collect_device_info.yml"
+              changed_when: true
+              register: collect_device_info_job
+          rescue:
+            - name: Warning message for device inventory job
+              debug:
+                msg: "{{ device_inventory_job_warn_msg }}. Error: {{ collect_device_info_job.stderr }}"
+          when: ethernet_switch_support
+
         - name: Execute ethernet job
           block:
             - name: Execute ethernet.yml
