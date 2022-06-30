@@ -21,12 +21,13 @@
         * Run the following commands to install Python 3.6:  
           `dnf install epel-release -y` <br><br> `dnf install python3 -y`
         * Run the following commands to install Ansible:
+    >> **Caution**: Omnia does not support Ansible versions greater than 2.13.
            ```
            pip3.6 install --upgrade pip
            python3.6 -m pip install ansible
            ```
-        After the installation is complete, run `ansible --version` to verify if the installation is successful. In the output, ensure that the executable location path is present in the PATH variable by running `echo $PATH`.
-        If executable location path is not present, update the path by running `export PATH=$PATH:<executable location>\`.  
+  After the installation is complete, run `ansible --version` to verify if the installation is successful. In the output, ensure that the executable location path is present in the PATH variable by running `echo $PATH`.
+  If executable location path is not present, update the path by running `export PATH=$PATH:<executable location>\`.  
 	
         For example,  
         ```
