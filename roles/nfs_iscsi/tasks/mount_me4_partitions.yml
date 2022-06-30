@@ -44,7 +44,7 @@
   changed_when: false
 
 - name: Extract the disks
-  command:  awk -F' ' '{ print $6}' hello.txt
+  command:  awk -F' ' '{ print $6}' pv_mount.txt
   register: disk_op
   changed_when: false
 
