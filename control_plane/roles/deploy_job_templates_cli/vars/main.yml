@@ -25,5 +25,18 @@ job_log_path:
 
 collect_node_info_log: "{{ omnia_log_path }}/collect_node_info/collect_node_info_`/usr/bin/date +\\%F-\\%H\\%M\\%S`.log"
 collect_device_info_log: "{{ omnia_log_path }}/collect_device_info/collect_device_info_`/usr/bin/date +\\%F-\\%H\\%M\\%S`.log"
+ethernet_job_log: "{{ omnia_log_path }}/ethernet/ethernet_`/usr/bin/date +\\%F-\\%H\\%M\\%S`.log"
+infiniband_job_log: "{{ omnia_log_path }}/infiniband/infiniband_`/usr/bin/date +\\%F-\\%H\\%M\\%S`.log"
+powervault_job_log: "{{ omnia_log_path }}/powervault/powervault_`/usr/bin/date +\\%F-\\%H\\%M\\%S`.log"
+idrac_job_log: "{{ omnia_log_path }}/idrac/idrac_`/usr/bin/date +\\%F-\\%H\\%M\\%S`.log"
 device_inventory_job_warn_msg: "collect_device_info.yml execution didn't exit successfully. Detailed log can be viewed on {{ omnia_log_path }} directory"
 node_inventory_job_warn_msg: "collect_node_info.yml execution didn't exit successfully. Detailed log can be viewed on {{ omnia_log_path }} directory"
+ethernet_job_warn_msg: "ethernet.yml execution didn't exit successfully. Detailed log can be viewed on {{ omnia_log_path }} directory"
+infiniband_job_warn_msg: "infiniband.yml execution didn't exit successfully. Detailed log can be viewed on {{ omnia_log_path }} directory"
+powervault_job_warn_msg: "powervault.yml execution didn't exit successfully. Detailed log can be viewed on {{ omnia_log_path }} directory"
+idrac_job_warn_msg: "idrac.yml execution didn't exit successfully. Detailed log can be viewed on {{ omnia_log_path }} directory"
+ethernet_inventory_path: /opt/omnia/ethernet_inventory
+infiniband_inventory_path: /opt/omnia/infiniband_inventory
+powervault_inventory_path:  /opt/omnia/powervault_inventory
+idrac_inventory_path: /opt/omnia/idrac_inventory
+dhcp_wait_time: 900
