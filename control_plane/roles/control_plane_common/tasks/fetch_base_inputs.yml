@@ -94,7 +94,13 @@
       changed_when: true
       with_items: "{{ ansible_collections_cli }}"
       tags: init
-  
+
+    - name: Install omsdk using pip3.6
+      command: pip3.6 install "{{ omsdk_package }}"
+      changed_when: true
+      failed_when: false
+      tags: init
+
     - name: Install omsdk using pip when awx_web_support is false
       pip:
         name: "{{ omsdk_package }}"

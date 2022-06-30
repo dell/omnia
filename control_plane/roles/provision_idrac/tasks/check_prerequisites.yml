@@ -51,6 +51,7 @@
   set_fact:
     raid_type: false
     raid_vd_status: false
+    non_raid_disk_status: false
     raid_controller_sensor: ""
     raid_enclosure_name: ""
     boss_type: false
