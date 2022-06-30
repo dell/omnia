@@ -1,10 +1,10 @@
 **Omnia** (Latin: all or everything) is a deployment tool to configure Dell EMC PowerEdge servers running standard RPM-based Linux OS images into clusters capable of supporting HPC, AI, and data analytics workloads. It uses Slurm, Kubernetes, and other packages to manage jobs and run diverse workloads on the same converged solution. It is a collection of [Ansible](https://ansible.com) playbooks, is open source, and is constantly being extended to enable comprehensive workloads.
 
 #### Current release version
-1.2.1
+1.3
 
 #### Previous release version
-1.2
+1.2.2
 
 ## Blogs about Omnia
 - [Introduction to Omnia](https://infohub.delltechnologies.com/p/omnia-open-source-deployment-of-high-performance-clusters-to-run-simulation-ai-and-data-analytics-workloads/)
@@ -37,7 +37,7 @@ Omnia can deploy firmware, install Kubernetes or Slurm (or both), along with add
 - Added LMod module system installation to handle the MODULEPATH Hierarchical problem.
 - Added NFS bolt on support to allow manager, compute and login nodes to become NFS clients.
 - Added support for PowerVault ME5 over SAS.
-- Added NFS server configuration support
+- Added NFS server configuration support for PowerVault ME4, ME5.
 - Added NVIDIA GPU driver support for RHEL and Rocky.
 - Added support for RHEL on AMD servers.
 
