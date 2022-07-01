@@ -16,3 +16,15 @@
 - name: Enable module idm
   command: dnf module enable idm:DL1 -y
   changed_when: false
+
+- name: Switch to the RPMs delivered through the idm:DL1 stream(It may take 5-10 mins)
+  command: yum distro-sync --skip-broken --nobest -y
+  changed_when: true
+  failed_when: false
+  when: os_supported_rhel in mgmt_os
+
+- name: Install dns and adtrust(It may take 5-10 mins)
+  command: yum module install idm:DL1/{dns,adtrust} -y
+  changed_when: true
+  failed_when: false
+  when: os_supported_rhel in mgmt_os

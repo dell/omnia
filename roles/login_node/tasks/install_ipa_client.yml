@@ -18,6 +18,12 @@
   register: loginnode_hostname
   changed_when: false
 
+- name: Install DL1 - client(It may take 5-10 mins)
+  command: yum module install idm:DL1/client -y
+  changed_when: true
+  failed_when: false
+  when: ansible_distribution | lower == os_redhat
+
 - name: Install freeipa client package
   package:
     name: "{{ ipa_client_package }}"
@@ -56,7 +62,7 @@
   failed_when: false
 
 - block:
-    - name: Install ipa client in CentOS 7.9
+    - name: Install ipa client in CentOS 7.9(It may take 5-10 mins)
       command: >-
         ipa-client-install --domain '{{ required_domain_name }}' --server '{{ required_server_hostname }}'
         --principal admin --password '{{ required_ipa_admin_pwd }}' --force-join --enable-dns-updates --force-ntpd -U
@@ -67,7 +73,7 @@
         - ( ansible_distribution | lower == os_centos )
         - ( ansible_distribution_version < os_version )
 
-    - name: Install ipa client in Rocky 8
+    - name: Install ipa client in RHEL 8 or Rocky 8(It may take 5-10 mins)
       command: >-
         ipa-client-install --domain '{{ required_domain_name }}' --server '{{ required_server_hostname }}'
         --principal admin --password '{{ required_ipa_admin_pwd }}' --force-join --enable-dns-updates --no-ntp -U
