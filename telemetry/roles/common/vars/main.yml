@@ -61,6 +61,12 @@ timescaledb_fail_msg: "Timescale DB name should have minimum length of 2"
 mysqldb_success_msg: "MySQL DB name validated successfully"
 mysqldb_fail_msg: "MySQL DB name should have minimum length of 2"
 
+telemetry_manager_group_fail_msg: "Failed. manager group should contain only 1 node in inventory for slurm telemetry"
+telemetry_manager_group_success_msg: "Manager group validated in inventory for slurm telemetry"
+telemetry_compute_group_fail_msg: "compute group should contain atleast 1 node in inventory for slurm telemetry"
+telemetry_compute_group_success_msg: "Compute group validated in inventory for slurm telemetry"
+inventory_absent_message: "Failed. Inventory file absent for slurm telemetry / manager or compute group not present in inventory"
+
 # Usage: validate_login_vars.yml
 vault_filename: "{{ role_path }}/../../input_params/.login_vault_key"
 login_vars_fail_msg: "Username/password validation in telemetry_login_vars.yml failed. Please check the requirements."
