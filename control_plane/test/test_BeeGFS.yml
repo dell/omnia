@@ -83,7 +83,7 @@
     - name: assert IB drivers used for build drivers
       assert:
         that:
-         - " '{{ ofed_kernel_modules_path }}' in beegfs_ib_info.stdout"
+         - " '{{ beegfs_ofed_kernel_modules_path }}' in beegfs_ib_info.stdout"
         success_msg: "{{ Beegfs_build_location_success }}"
         fail_msg: "{{ Beegfs_build_location_error }}"
 
