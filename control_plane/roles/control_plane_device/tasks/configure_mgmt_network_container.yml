@@ -20,21 +20,18 @@
   failed_when: false
 
 - name: Wait for mgmt_network pod to come to ready state
-  command: kubectl wait --for=condition=ready -n network-config pod -l app=mgmt-network
+  command: kubectl wait --for=condition=ready --timeout={{ pod_timeout }} -n network-config pod -l app=mgmt-network
   changed_when: false
-  tags: install
 
 - name: Get mgmt_network pod name
   command: 'kubectl get pod -n network-config -l app=mgmt-network -o jsonpath="{.items[0].metadata.name}"'
   changed_when: false
   register: mgmt_network_pod_name
-  tags: install
 
 - name: Configuring mgmt_network container
   command: 'kubectl exec --stdin --tty -n network-config {{ mgmt_network_pod_name.stdout }} \
     -- ansible-playbook /root/mgmt_container_configure.yml -e mgmt_nic="{{ mgmt_network_nic }}" -e network_interface_type="{{ network_interface_type }}"'
   changed_when: false
-  tags: install
   when:
    - not mgmt_network_container_status
    - device_support_status

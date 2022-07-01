@@ -13,6 +13,9 @@
 ---
 
 - block:
+    - name: Validate if new nodes are added
+      import_tasks: mgmt_lom_status.yml
+
     - name: Remove blank lines
       shell: set -o pipefail && awk -F, 'length>NF+1' {{ mgmt_mapping_file_path }} > {{ temp_mgmt_mapping_file }}
       changed_when: false
@@ -129,12 +132,12 @@
 - name: Copy the dhcp.template inside container
   command: 'kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} \
     -- cp /root/omnia/control_plane/roles/provision_cobbler/files/dhcp.template /etc/cobbler/dhcp.template'
-  when:  ( cobbler_container_status ) and ( new_node_status )
+  when:  ( cobbler_container_status and ( new_mgmt_node_status or new_node_status ))
 
 - name: Cobbler sync for adding new nodes
   command: 'kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} -- cobbler sync'
-  when:  ( cobbler_container_status ) and ( new_node_status )
+  when:  ( cobbler_container_status and ( new_mgmt_node_status or new_node_status ))
 
 - name: Restart dhcpd
   command: 'kubectl exec --stdin --tty -n {{ cobbler_namespace }} {{ cobbler_pod_name.stdout }} -- systemctl restart dhcpd'
-  when:  ( cobbler_container_status ) and ( new_node_status )
+  when:  ( cobbler_container_status and ( new_mgmt_node_status or new_node_status ))

@@ -77,6 +77,7 @@
       when:
         - ( not cobbler_image_status and  host_mapping_file ) or ( backup_map_status )
           or ( cobbler_lom and ( mgmt_mapping_file or  backup_mgmt_map_status ))
+        - roce_network_nic | length < 1
 
     - name: Cobbler image creation
       include_tasks: cobbler_image.yml
