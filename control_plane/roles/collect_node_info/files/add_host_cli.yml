@@ -32,6 +32,8 @@
   throttle: 1
   when:
     - hostname_check.stdout is defined
+    - service_tag_details.stdout is defined
+    - check_node_inventory.stdout is defined
     - item not in check_node_inventory.stdout
 
 - name: Create a list of provisioned hosts
