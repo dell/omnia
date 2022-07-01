@@ -44,7 +44,7 @@
     - name: Status of unmounting
       fail:
         msg: "{{ beegfs_mount_status_msg }}"
-  when: hostvars['127.0.0.1']['unmount_client']
+  when: hostvars['127.0.0.1']['beegfs_unmount_client']
 
 - block:
     - name: Fetch kernel version

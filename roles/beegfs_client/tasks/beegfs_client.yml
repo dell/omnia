@@ -36,7 +36,7 @@
         insertafter: "{{ default_arg }}"
         line: "{{ modified_arg }}"
       when:
-        - hostvars['127.0.0.1']['ofed_kernel_modules_path'] | length < 1
+        - hostvars['127.0.0.1']['beegfs_ofed_kernel_modules_path'] | length < 1
 
     - name: Modify BeeGFS client autobuild file for separate OFED kernel modules
       lineinfile:
@@ -44,12 +44,12 @@
         regexp: "{{ default_arg }}"
         insertafter: "{{ default_arg }}"
         line: "{{ modified_arg_ofed }}"
-      when: hostvars['127.0.0.1']['ofed_kernel_modules_path'] | length > 1
+      when: hostvars['127.0.0.1']['beegfs_ofed_kernel_modules_path'] | length > 1
 
     - name: Rebuilding BeeGFS client module
       command: "{{ rebuild_path }}"
       changed_when: true
-  when: hostvars['127.0.0.1']['rdma_support']
+  when: hostvars['127.0.0.1']['beegfs_rdma_support']
 
 - name: Modify BeeGFS client autobuild file for without RDMA
   lineinfile:
@@ -57,7 +57,7 @@
     regexp: "{{ default_arg }}"
     insertafter: "{{ default_arg }}"
     line: "{{ without_rdma_arg }}"
-  when: not hostvars['127.0.0.1']['rdma_support']
+  when: not hostvars['127.0.0.1']['beegfs_rdma_support']
 
 - name: Modify BeeGFS mounts file for supporting different mount location
   lineinfile:
@@ -65,7 +65,7 @@
     regexp: "{{ client_mount_location }}"
     insertbefore: "{{ client_mount_location }}"
     line: "{{ hostvars['127.0.0.1']['beegfs_mounts'] }} {{ client_mount_location }}"
-  when: hostvars['127.0.0.1']['unmount_client']
+  when: hostvars['127.0.0.1']['beegfs_unmount_client']
 
 - name: Rebuilding BeeGFS client module
   command: "{{ rebuild_path }}"
