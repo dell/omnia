@@ -101,6 +101,12 @@
         enablerepo: "{{ crio_repo }}"
         disablerepo: "*"
         state: present
+    
+    - name: Add versionlock cri-o
+      command: yum versionlock cri-o
+      args:
+        warn: false
+      changed_when: true
   when: os_supported_rhel in mgmt_os
 
 - name: Install k8s packages
