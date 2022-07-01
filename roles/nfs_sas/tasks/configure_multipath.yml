@@ -52,15 +52,10 @@
       creates: /etc/multipath.conf
   when: compute_os == os_supported_rocky or compute_os == os_supported_rhel
 
-- block:
-  - name: Install multipath package on Leap
-    package:
-      name: multipath-tools
-      state: present
-
-  - name: Create configuration
-    command: multipath
-    changed_when: false
+- name: Install multipath package on Leap
+  package:
+    name: multipath-tools
+    state: present
   when: os_supported_leap in compute_os
 
 - name: Start and enable on boot the multipath daemon
