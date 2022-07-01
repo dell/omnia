@@ -18,14 +18,12 @@
     src: "{{ role_path }}/files/temp_dhcp.template"
     dest: "{{ role_path }}/files/dhcpd.conf"
     mode: 0775
-  tags: install
 
 - name: Assign subnet and netmask
   replace:
     path: "{{ role_path }}/files/dhcpd.conf"
     regexp: '^subnet subnet_mask netmask net_mask {'
     replace: 'subnet {{ ib_subnet }} netmask {{ ib_netmask }} {'
-  tags: install
 
 - name: Assign netmask
   replace:

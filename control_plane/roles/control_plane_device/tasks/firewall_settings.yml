@@ -23,4 +23,3 @@
   systemd:
     name: firewalld
     state: reloaded
-  tags: install

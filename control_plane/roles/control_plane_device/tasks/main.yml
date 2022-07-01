@@ -42,7 +42,7 @@
   - name: Dhcp Configuration for shared lom
     include_tasks: lom_dhcp_configure.yml
     when:
-      - (not mgmt_network_container_image_status) or ( backup_mgmt_map_status)
+      - (not mgmt_network_container_image_status) or ( backup_mgmt_map_status or backup_map_status )
       - network_interface_type == "lom"
       - mgmt_lom
 

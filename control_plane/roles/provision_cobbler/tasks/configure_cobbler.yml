@@ -22,7 +22,7 @@
     - not provision_os_change
 
 - name: Wait for cobbler pod to come to ready state
-  command: kubectl wait --for=condition=ready -n {{ cobbler_namespace }} pod -l app=cobbler
+  command: kubectl wait --for=condition=ready --timeout={{ pod_timeout }} -n {{ cobbler_namespace }} pod -l app=cobbler
   changed_when: false
 
 - name: Get cobbler pod name

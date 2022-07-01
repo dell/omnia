@@ -19,7 +19,6 @@
   when: not mgmt_network_container_image_status
   args:
     chdir: "{{ role_path }}/files/"
-  tags: install
 
 - name: Update image name in k8s_mgmt_network.yml
   replace:
@@ -36,4 +35,3 @@
 - name: Deploy mgmt_network pod
   command: "kubectl apply -f {{ role_path }}/files/k8s_mgmt_network.yml"
   changed_when: true
-  tags: install
