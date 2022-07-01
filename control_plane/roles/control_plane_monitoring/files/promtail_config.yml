@@ -152,3 +152,51 @@ scrape_configs:
     labels:
       job: k8s pods
       __path__: /var/log/pods/*/*/*log
+
+- job_name: iDRAC CLI logs
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: iDRAC CLI logs
+      __path__: /var/log/omnia/idrac/*log
+
+- job_name: Powervault CLI logs
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: Powervault CLI logs
+      __path__: /var/log/omnia/powervault/*log
+
+- job_name: Ethernet CLI logs
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: Ethernet CLI logs
+      __path__: /var/log/omnia/ethernet/*log
+
+- job_name: InfiniBand CLI logs
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: InfiniBand CLI logs
+      __path__: /var/log/omnia/infiniband/*log
+
+- job_name: Node Inventory CLI logs
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: Node Inventory CLI logs
+      __path__: /var/log/omnia/collect_node_info/*log
+
+- job_name: Device Inventory CLI logs
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: Device Inventory CLI logs
+      __path__: /var/log/omnia/collect_device_info/*log
