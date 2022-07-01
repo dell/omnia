@@ -25,4 +25,6 @@
   command: yum distro-sync --skip-broken --nobest -y
   changed_when: true
   failed_when: false
+  args:
+    warn: false
   when: ansible_distribution | lower == os_redhat

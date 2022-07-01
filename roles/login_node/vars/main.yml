@@ -29,6 +29,7 @@ slurmd_udp_port: "6818/udp"
 # Usage: install_ipa_client.yml
 hosts_file_dest: "/etc/hosts"
 hosts_file_mode: "0644"
+cert_path: /etc/ipa/ca.crt
 
 # Usage: ipa_configuration.yml
 sysadmin_sudo_rule: sysadmin_sudo

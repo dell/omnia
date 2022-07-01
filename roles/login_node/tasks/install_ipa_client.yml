@@ -22,13 +22,22 @@
   command: yum module install idm:DL1/client -y
   changed_when: true
   failed_when: false
+  args:
+    warn: false
   when: ansible_distribution | lower == os_redhat
 
 - name: Install freeipa client package
   package:
     name: "{{ ipa_client_package }}"
     state: present
-  tags: install
+
+- name: Delete the cert_path
+  command: rm -rf {{ cert_path }}
+  changed_when: false
+  failed_when: false
+  args:
+    warn: false
+  when: ansible_distribution | lower == os_redhat
 
 - name: Set hostname of ipa server when manager node has ipa server installed
   set_fact:
