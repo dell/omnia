@@ -38,10 +38,14 @@ k8s_package_names:
   - kubectl
 version_kubectl: "v1.21.0"
 # Usage: k8s_installation.yml
-common_packages:
+k8s_common_packages_rocky:
   - openssl
   - bash-completion
   - cri-o
+  - buildah
+k8s_common_packages_rhel:
+  - openssl
+  - bash-completion
   - buildah
 k8s_packages:
   - kubelet-1.21.0
@@ -57,6 +61,7 @@ crio_repo2_url: https://download.opensuse.org/repositories/devel:kubic:libcontai
 crio_repo2_dest: /etc/yum.repos.d/devel:kubic:libcontainers:stable:cri-o:1.21.repo
 docker_repo_url: https://download.docker.com/linux/centos/docker-ce.repo
 docker_repo_dest: /etc/yum.repos.d/docker-ce.repo
+crio_repo: "devel_kubic_libcontainers_stable_cri-o_1.21,rhel-8-for-x86_64-appstream-rpms,rhel-8-for-x86_64-baseos-rpms"
 
 # Usage: k8s_firewalld.yml
 k8s_master_ports:
