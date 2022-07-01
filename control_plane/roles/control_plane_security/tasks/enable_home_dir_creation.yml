@@ -13,20 +13,14 @@
 #  limitations under the License.
 ---
 
-- block:   
-    - name: Add ports of manager and login node to firewall
-      include_tasks: firewall_settings.yml
+- name: Install mkhomedir to enable home directory creation for users
+  command: authselect enable-feature with-mkhomedir
+  changed_when: false
+  failed_when: false
 
-    - name: Enable module idm in Rocky or Centos >= 8.0
-      include_tasks: enable_dnf_module.yml
-
-    - name: Update Packages
-      include_tasks: update_package.yml
-
-    - name: Enable user home directory creation
-      include_tasks: enable_home_dir_creation.yml
-  when:
-    - os_leap not in ansible_distribution | lower
-    - hostvars['127.0.0.1']['login_node_required']
-    - hostvars['127.0.0.1']['ipa_server_ms'] and login_node_group in group_names or
-      not hostvars['127.0.0.1']['ipa_server_ms']
+- name: Enable oddjob service
+  systemd:
+    name: oddjobd
+    state: started
+    enabled: yes
+  failed_when: false
