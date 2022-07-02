@@ -22,6 +22,14 @@
     - ansible_distribution | lower == os_rocky or
       ansible_distribution | lower == os_centos
 
+- name: Install DL1 - dns and adtrust(It may take 5-10 mins)
+  command: yum module install idm:DL1/{dns,adtrust} -y
+  changed_when: true
+  failed_when: false
+  args:
+    warn: false
+  when: ansible_distribution | lower == os_redhat
+
 - name: Install packages for RHEL
   package:
     name: "{{ ipa_server_packages_rhel }}"
