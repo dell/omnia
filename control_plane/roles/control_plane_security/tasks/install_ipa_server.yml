@@ -14,7 +14,7 @@
 ---
 
 - block:
-    - name: Install ipa server in CentOS or Rocky
+    - name: Install ipa server in RHEL 8 or Rocky 8(It may take 5-10 mins)
       command: >-
         ipa-server-install -n '{{ domain_name }}' --hostname='{{ server_hostname_ms }}' -a '{{ ms_kerberos_admin_password }}'
         -p '{{ ms_directory_manager_password }}' -r '{{ realm_name }}' --setup-dns --no-forwarders --no-reverse --no-ntp -U
