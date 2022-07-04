@@ -6,6 +6,7 @@
 
 >> **Note**: Always deploy the Minimal Edition of the OS on Compute Nodes
 
+
 ## Using BeeGFS on Rocky
 
 | OS version   	| BeeGFS Client Version       	| Status        	|

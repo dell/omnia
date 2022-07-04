@@ -21,7 +21,7 @@
         * Run the following commands to install Python 3.6:  
           `dnf install epel-release -y` <br><br> `dnf install python3 -y`
         * Run the following commands to install Ansible:
-    >> **Caution**: Omnia does not support Ansible versions greater than 2.13.
+    >> **Warning**: Omnia does not support Ansible versions greater than 2.13.
            ```
            pip3.6 install --upgrade pip
            python3.6 -m pip install ansible

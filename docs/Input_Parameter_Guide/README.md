@@ -22,4 +22,4 @@ Before running `control_plane.yml` or `omnia.yml` ensure that the following para
 ## Telemetry and Visualization Parameters
 1. [Telemetry Base Parameters](Telemetry_Visualization_Parameters/telemetry_base_vars.md)
 2. [Telemetry Login Parameters](Telemetry_Visualization_Parameters/telemetry_base_vars.md)
-## [Config Parameters](omnia_config.md)
+## [Omnia Configuration Parameters](omnia_config.md)
