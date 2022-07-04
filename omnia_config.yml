@@ -80,6 +80,13 @@ kerberos_admin_password: ""
 # By default it is set to false indicating security features will not be configured
 enable_secure_login_node: false
 
+# Mandatory field when nfs_node group is defined with an IP and omnia is required to configure nfs server.
+# IP of Powervault connected to NFS Server should be provided.
+# In a single run of omnia, only one NFS Server is configured.
+# To configure multiple NFS Servers, add one IP in nfs_node group in a single run of omnia.yml and 
+# give variable values accordingly. To configure another nfs node, update variables and run nfs_sas.yml
+powervault_ip:
+
 # This variable is used to install beegfs-client on compute and manager nodes
 # Accepted values: true or false
 # Default value: false
@@ -90,12 +97,12 @@ beegfs_support: false
 # Accepted values: true or false
 # Default value: false
 # To enable support for remote direct memory access (RDMA), set this value to true
-rdma_support: false
+beegfs_rdma_support: false
 
 # This variable if there are separate OFED kernel modules installed
 # Add path for kernel module
 # Default value is ""
-ofed_kernel_modules_path: ""
+beegfs_ofed_kernel_modules_path: ""
 
 # This variable is used for taking BeeGFS management server IP
 # Provide IP of beegfs management server
@@ -104,18 +111,18 @@ beegfs_mgmt_server: ""
 
 # Beegfs-client file system mount location
 # Default value is "/mnt/beegfs"
-# Make sure unmount_client value is true, for changing BeeGFS mounts location
+# Make sure beegfs_unmount_client value is true, for changing BeeGFS mounts location
 beegfs_mounts: "/mnt/beegfs"
 
-# The value of unmount_client should be true, if there is a change in beegfs_mounts value or beegfs_client_version
+# The value of beegfs_unmount_client should be true, if there is a change in beegfs_mounts value or beegfs_client_version
 # Accepted values: true or false
 # Default value: false
 # changing this value to true will unmount running instance of BeeGFS client
-unmount_client: false
+beegfs_unmount_client: false
 
 # Beegfs client version needs to be installed on compute and manager nodes
 # Default value is 7.2.6
-# Make sure unmount_client value is true, for changing version in the next run
+# Make sure beegfs_unmount_client value is true, for changing version in the next run
 # Supported versions are greater than 7.2
 beegfs_client_version: "7.2.6"
 
@@ -125,6 +132,7 @@ beegfs_client_version: "7.2.6"
 # If there is a need for installing different version of BeeGFS client then make this variable to true
 beegfs_version_change: false
 
+# NFS bolt-on support, USER have to mount EXTERNAL NFS server, omnia will mount NFS client
 # This variable is used for supportig NFS bolt-on on login_node, compute, and manager nodes
 # Values should be entered in JSON format only.
 # If mount_option values are empty, NFS client will be mounted with these values "nosuid,rw,sync,hard,intr 0 0"
@@ -142,10 +150,3 @@ beegfs_version_change: false
 # - { server_ip: 198.168.0.2, server_share_path: "/mnt/share2", client_share_path: "/mnt/mount2", client_mount_options: "nosuid,rw,sync,hard" } 
 nfs_client_params:
    - { server_ip: , server_share_path: , client_share_path: , client_mount_options: }
-   
-# Mandatory field when nfs_node group is defined with an IP and omnia is required to configure nfs server.
-# IP of Powervault connected to NFS Server should be provided.
-# In a single run of omnia, only one NFS Server is configured.
-# To configure multiple NFS Servers, add one IP in nfs_node group in a single run of omnia.yml and 
-# give variable values accordingly. To configure another nfs node, update variables and run nfs_sas.yml
-powervault_ip:

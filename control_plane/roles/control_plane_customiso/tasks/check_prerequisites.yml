@@ -36,9 +36,14 @@
   changed_when: true
   with_items: "{{ idrac_collections }}"
 
+- name: Install omsdk using pip3.6
+  command: pip3.6 install "{{ omsdk_package }}"
+  changed_when: true
+  failed_when: false
+
 - name: Install omsdk using pip
   pip:
-    name: omsdk==1.2.488
+    name: "{{ omsdk_package }}"
     state: present
 
 - name: Check iso mount folder

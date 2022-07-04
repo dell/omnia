@@ -71,10 +71,6 @@
   until: crio_repo2_result is not failed
   retries: 20
 
-- name: Enable crio repo
-  command: "dnf module enable cri-o:{{ crio_version }} -y"
-  changed_when: false
-
 - name: Add kubernetes repo
   yum_repository:
     name: kubernetes
@@ -87,10 +83,31 @@
       - https://packages.cloud.google.com/yum/doc/yum-key.gpg
       - https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
 
-- name: Install common packages
+- name: Install common packages for rocky
   package:
-    name: "{{ common_packages }}"
+    name: "{{ k8s_common_packages_rocky }}"
     state: present
+  when: os_supported_rocky in mgmt_os
+
+- block:
+    - name: Install packages for RHEL
+      package:
+        name: "{{ k8s_common_packages_rhel }}"
+        state: present
+    
+    - name: Install cri-o for RHEL
+      yum:
+        name: cri-o
+        enablerepo: "{{ crio_repo }}"
+        disablerepo: "*"
+        state: present
+    
+    - name: Add versionlock cri-o
+      command: yum versionlock cri-o
+      args:
+        warn: false
+      changed_when: true
+  when: os_supported_rhel in mgmt_os
 
 - name: Install k8s packages
   package:

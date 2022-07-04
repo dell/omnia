@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,9 +13,20 @@
 #  limitations under the License.
 ---
 
-- name: Include variable file for powervault
-  include_vars: "{{ pv_nfs_file }}"
-  no_log: true
+- name: Check pre-requisites for NFS Server configuration
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Validate nfs_node config
+      include_role:
+        name: nfs_iscsi
+        tasks_from: check_prerequisites.yml
 
-- name: Configure the server
-  include_tasks: nfs_node_configure.yml
+- name: Configure NFS node for ISCSI protocol
+  hosts: nfs_node
+  gather_facts: true
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+  roles:
+    - nfs_iscsi

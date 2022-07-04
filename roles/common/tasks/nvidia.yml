@@ -32,6 +32,11 @@
   tags: install
   when: os_supported_redhat in compute_os 
 
+- name: Install nvidia drivers and software components for rocky
+  include_tasks: nvidia_rocky.yml
+  tags: install
+  when: os_supported_rocky in compute_os
+
 - name: Set nvidia as default runtime
   copy:
     src: daemon.json

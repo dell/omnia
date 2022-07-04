@@ -14,7 +14,8 @@
 ---
 
 # Usage: pre-requisites.yml
-control_plane_installation_required: "AWX and grafana installation through control_plane.yml is mandatory for telemetry.yml"
+installation_required_web_support: "AWX and grafana installation through control_plane.yml is mandatory for telemetry.yml when awx_web_support is set to true"
+installation_required: "Grafana installation through control_plane.yml is mandatory for telemetry.yml"
 
 os_supported_leap: "leap"
 selinux_warning: "Warning! SELinux status is disabled by user. No SELinux policy is loaded"
@@ -59,6 +60,12 @@ timescaledb_fail_msg: "Timescale DB name should have minimum length of 2"
 
 mysqldb_success_msg: "MySQL DB name validated successfully"
 mysqldb_fail_msg: "MySQL DB name should have minimum length of 2"
+
+telemetry_manager_group_fail_msg: "Failed. manager group should contain only 1 node in inventory for slurm telemetry"
+telemetry_manager_group_success_msg: "Manager group validated in inventory for slurm telemetry"
+telemetry_compute_group_fail_msg: "compute group should contain atleast 1 node in inventory for slurm telemetry"
+telemetry_compute_group_success_msg: "Compute group validated in inventory for slurm telemetry"
+inventory_absent_message: "Failed. Inventory file absent for slurm telemetry / manager or compute group not present in inventory"
 
 # Usage: validate_login_vars.yml
 vault_filename: "{{ role_path }}/../../input_params/.login_vault_key"

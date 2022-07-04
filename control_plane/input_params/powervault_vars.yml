@@ -85,6 +85,8 @@ powervault_disk_group_name: "omnia"
 #                     This value is taken as server_share_path unless specified otherwise.
 # client_mount_options: Default value is- nosuid,rw,sync,hard,intr (unless specified otherwise)
 # Must specify atleast 1 volume
+# Example:
+#   - { name: omnia_home, server_share_path: /home/omnia_home, server_export_options: rw,sync,no_root_squash,client_share_path: /home/omnia_home, client_mount_options: nosuid,rw,sync,hard,intr }
 # Required field
 powervault_volumes:
   - { name: omnia_home, server_share_path: /home/omnia_home, server_export_options: ,client_share_path: , client_mount_options: }

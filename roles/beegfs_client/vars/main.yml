@@ -19,8 +19,8 @@ beegfs_common_pkgs_non_leap:
    - elfutils-libelf-devel
 os_supported_leap: "leap"
 max_retries: 20
-unmount_client_success_msg: "Success, unmounting existing BeeGFS client as requested"
-unmount_client_fail_msg: "Failed, updating unmount_client to true is needed when there is a change in beegfs mount location or in version. Else, it should be false"
+beegfs_unmount_client_success_msg: "Success, unmounting existing BeeGFS client as requested"
+beegfs_unmount_client_fail_msg: "Failed, updating beegfs_unmount_client to true is needed when there is a change in beegfs mount location or in version. Else, it should be false"
 beegfs_mount_status_msg: "Failed, Make sure there is an active beegfs file system running, which is not in busy state"
 # Usage: remove_client.yml
 beegfs_folder_location: "/etc/beegfs"
@@ -56,6 +56,6 @@ client_mount_path: "/mnt/beegfs"
 default_arg: "^buildArgs=-j8"
 without_rdma_arg: "buildArgs=-j8"
 modified_arg: "buildArgs=-j8 BEEGFS_OPENTK_IBVERBS=1"
-modified_arg_ofed: "buildArgs=-j8 BEEGFS_OPENTK_IBVERBS=1 OFED_INCLUDE_PATH={{ hostvars['127.0.0.1']['ofed_kernel_modules_path'] }}"
+modified_arg_ofed: "buildArgs=-j8 BEEGFS_OPENTK_IBVERBS=1 OFED_INCLUDE_PATH={{ hostvars['127.0.0.1']['beegfs_ofed_kernel_modules_path'] }}"
 rebuild_path: "/etc/init.d/beegfs-client rebuild"
 beegfs_client_setup: "/opt/beegfs/sbin/beegfs-setup-client"

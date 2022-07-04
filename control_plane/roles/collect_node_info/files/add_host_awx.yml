@@ -49,6 +49,7 @@
       no_log: true
       when:
         - hostname_check.stdout is defined
+        - service_tag_details.stdout is defined
         - fetch_hosts.stdout is defined
         - inventory_hostname not in fetch_hosts.stdout
   rescue:

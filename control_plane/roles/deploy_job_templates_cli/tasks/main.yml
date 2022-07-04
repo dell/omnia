@@ -44,10 +44,9 @@
         - name: Execute device inventory job
           block:
             - name: Execute collect_device_info.yml
-              shell: ansible-playbook {{ playbook_dir }}/collect_device_info.yml >> {{ collect_device_info_log }}
+              shell: ansible-playbook {{ playbook_dir }}/collect_device_info.yml >> {{ collect_device_info_log }} | echo "Executed collect_device_info.yml"
               changed_when: true
               register: collect_device_info_job
-
           rescue:
             - name: Warning message for device inventory job
               debug:
@@ -56,7 +55,7 @@
         - name: Execute node inventory job
           block:
             - name: Execute collect_node_info.yml
-              shell: ansible-playbook {{ playbook_dir }}/collect_node_info.yml >> {{ collect_node_info_log }}
+              shell: ansible-playbook {{ playbook_dir }}/collect_node_info.yml >> {{ collect_node_info_log }} | echo "Executed collect_node_info.yml"
               changed_when: true
               register: collect_node_info_job
           rescue:
@@ -64,5 +63,81 @@
               debug:
                 msg: "{{ node_inventory_job_warn_msg }}. Error: {{ collect_node_info_job.stderr }}"
           when: network_interface_type == 'lom'
+
+        - name: Execute ethernet job to configure TOR swithes
+          block:
+            - name: Execute ethernet.yml to configure TOR swithes
+              shell: ansible-playbook {{ playbook_dir }}/ethernet.yml -i {{ ethernet_inventory_path }} >> {{ ethernet_job_log }} | echo "Executed ethernet.yml"
+              changed_when: true
+              register: ethernet_tor_job
+          rescue:
+            - name: Warning message for ethernet job to configure TOR swithes
+              debug:
+                msg: "{{ ethernet_job_warn_msg }}. Error: {{ ethernet_tor_job.stderr }}"
+          when: ethernet_switch_support
+
+        - name: Wait for 15 mins for DHCP to assign IP to devices
+          wait_for:
+            timeout: "{{ dhcp_wait_time }}"
+          when: ethernet_switch_support
+
+        - name: Execute device inventory job
+          block:
+            - name: Execute collect_device_info.yml
+              shell: ansible-playbook {{ playbook_dir }}/collect_device_info.yml >> {{ collect_device_info_log }} | echo "Executed collect_device_info.yml"
+              changed_when: true
+              register: collect_device_info_job
+          rescue:
+            - name: Warning message for device inventory job
+              debug:
+                msg: "{{ device_inventory_job_warn_msg }}. Error: {{ collect_device_info_job.stderr }}"
+          when: ethernet_switch_support
+
+        - name: Execute ethernet job
+          block:
+            - name: Execute ethernet.yml
+              shell: ansible-playbook {{ playbook_dir }}/ethernet.yml -i {{ ethernet_inventory_path }} >> {{ ethernet_job_log }} | echo "Executed ethernet.yml"
+              changed_when: true
+              register: ethernet_job
+          rescue:
+            - name: Warning message for ethernet job
+              debug:
+                msg: "{{ ethernet_job_warn_msg }}. Error: {{ ethernet_job.stderr }}"
+          when: ethernet_switch_support
+        
+        - name: Execute infiniband job
+          block:
+            - name: Execute infiniband.yml
+              shell: ansible-playbook {{ playbook_dir }}/infiniband.yml -i {{ infiniband_inventory_path }} >> {{ infiniband_job_log }} | echo "Executed infiniband.yml"
+              changed_when: true
+              register: infiniband_job
+          rescue:
+            - name: Warning message for infiniband job
+              debug:
+                msg: "{{ infiniband_job_warn_msg }}. Error: {{ infiniband_job.stderr }}"
+          when: ib_switch_support
+
+        - name: Execute powervault job
+          block:
+            - name: Execute powervault.yml
+              shell: ansible-playbook {{ playbook_dir }}/powervault.yml -i {{ powervault_inventory_path }} >> {{ powervault_job_log }} | echo "Executed powervault.yml"
+              changed_when: true
+              register: powervault_job
+          rescue:
+            - name: Warning message for powervault job
+              debug:
+                msg: "{{ powervault_job_warn_msg }}. Error: {{ powervault_job.stderr }}"
+          when: powervault_support
+
+        - name: Execute idrac job
+          block:
+            - name: Execute idrac.yml
+              shell: ansible-playbook {{ playbook_dir }}/idrac.yml -i {{ idrac_inventory_path }} >> {{ idrac_job_log }} | echo "Executed idrac.yml"
+              changed_when: true
+              register: idrac_job
+          rescue:
+            - name: Warning message for idrac job
+              debug:
+                msg: "{{ idrac_job_warn_msg }}. Error: {{ idrac_job.stderr }}"
       when: device_support_status or network_interface_type == 'lom'
   when: not awx_web_support
