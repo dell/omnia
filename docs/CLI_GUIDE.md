@@ -13,7 +13,7 @@ If AWX is not set up by the control plane (That is, when `awx_web_support` in `b
 
 
 ## Running `control_plane.yml`
-When AWX is disabled, the `control_plane.yml` script can only be invoked using CLI.
+Assuming all [pre-requisites](PreRequisites/Control_Plane_PreReqs.md) are met, `control_plane.yml` script can only be invoked using CLI when AWX is disabled.
 ```
 cd /omnia/control_plane
 ansible-playbook control_plane.yml
@@ -55,8 +55,10 @@ To update all device inventories (Nodes will be excluded), run: `ansible-playboo
 Before running `omnia.yml`, it is mandatory that red hat subscription be set up on manager/ compute nodes running Red Hat.
 * To set up Red hat subscription, fill in the [rhsm_vars.yml file](Input_Parameter_Guide/Control_Plane_Parameters/Device_Parameters/rhsm_vars.md). Once it's filled in, run the template using AWX or Ansible. <br>
 * The flow of the playbook will be determined by the value of `redhat_subscription_method` in `rhsm_vars.yml`.
-    - If `redhat_subscription_method` is set to `portal`, pass the values `username` and `password` on the AWX screen. For CLI, run the command: <br> `ansible-playbook rhsm_subscription.yml -i inventory -e redhat_subscription_username= "<username>" -e redhat_subscription_password="<password>"`
-    - If `redhat_subscription_method` is set to `satellite`, pass the values `organizational identifier` and `activation key` on the AWX screen. For CLI, run the command: <br> `ansible-playbook rhsm_subscription.yml -i inventory -e redhat_subscription_activation_key= "<activation-key>" -e redhat_subscription_org_id ="<org-id>"`
+    - If `redhat_subscription_method` is set to `portal`, pass the values `username` and `password` on the AWX screen. For CLI, run the command: <br> `ansible-playbook rhsm_subscription.yml -i inventory -e redhat_subscription_username="<username>" -e redhat_subscription_password="<password>"`
+    - If `redhat_subscription_method` is set to `satellite`, pass the values `organizational identifier` and `activation key` on the AWX screen. For CLI, run the command: <br> `ansible-playbook rhsm_subscription.yml -i inventory -e redhat_subscription_activation_key="<activation-key>" -e redhat_subscription_org_id ="<org-id>"`
+
+>> **Note**: If all nodes in `/opt/omnia/node_inventory` are running Redhat, use the inventory `/opt/omnia/node_inventory` to enable or disable Redhat subscription. For example, to enable subscription via portal method, use the command `ansible-playbook rhsm_subscription.yml -i /opt/omnia/node_inventory -e redhat_subscription_username="<username>" -e redhat_subscription_password="<password>"`
 
 ## Disable Red Hat subscription <br>
 `ansible_playbook omnia/control_plane/rhsm_unregister.yml -i inventory`
