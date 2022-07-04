@@ -166,7 +166,7 @@ If AWX is not set up by the control plane (That is, when `awx_web_support` in `b
 * Schedules are created for the **node_inventory_job** (every **60 minutes**) and the **device_inventory_job** (**once daily**) to dynamically retrieve and update node and device details to `/opt/omnia`. Logs pertaining to these jobs are available in `/var/log/omnia/` in the folders `collect_node_info` and `collect_device_info`. These jobs can also be run manually using playbooks if required.
 * Jobs initiated by control plane are logged here: `/var/log/omnia/<target device type>`. (Eg: /var/log/omnia/idrac, /var/log/omnia/powervault etc.)
 
->> **Caution**: When `awx_web_support` is set to false, all one touch configuration is not supported. That is, `omnia.yml` execution based on the `host_mapping_file` will not be completed.
+>> **Warning**: When `awx_web_support` is set to false, all one touch configuration is not supported. That is, `omnia.yml` execution based on the `host_mapping_file` will not be completed.
 
 >> **Note**: 
 >> * In a LOM setup, running `ansible-playbook collect_device_info.yml` will only return IPs of iDRAC. To get the IPs of all supported devices, run `ansible-playbook collect_node_info.yml`.
