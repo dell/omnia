@@ -1,5 +1,14 @@
 # Prerequisites before installing `omnia.yml`
 
+* Verify that all inventory files are updated.
+* Verify that all nodes are assigned a group.
+  * The manager group should have exactly 1 manager node.
+  * The compute group should have at least 1 node.
+  * The login_node group is optional. If present, it should have exactly 1 node.
+  * The nfs_node group is optional. If powervault is configured by omnia control plane, then the host connected to the powervault (That is the nfs server) should be part of nfs_node group.
+
+
+Below are the pre-requisites for all optional features that can be enabled using `omnia.yml`.
 
 ## Installing BeeGFS Client
 * If the user intends to use BeeGFS, ensure that a BeeGFS cluster has been set up with beegfs-mgmtd, beegfs-meta, beegfs-storage services running.
