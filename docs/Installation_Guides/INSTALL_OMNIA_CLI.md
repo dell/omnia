@@ -67,10 +67,12 @@ Omnia considers `slurm` as the default username for MariaDB.
 
 The following __kubernetes__ roles are provided by Omnia when __omnia.yml__ file is run:
 - __common__ role:
-	- Install common packages on manager and compute nodes
-	- Docker is installed
-	- Deploy time ntp/chrony
-	- Install Nvidia drivers and software components
+    - Install common packages on manager and compute nodes
+    - Docker is installed
+  **Note**: Due to lack of availability, the CentOS docker repository is installed on target nodes running Redhat.
+    - Deploy time ntp/chrony
+    - Install Nvidia drivers and software components
+  **Caution**: If the target node is running Rocky, Nvidia drivers will only be installed if kernel package upgrades are available. If not, the installation is skipped with a warning message.
 - **k8s_common** role: 
 	- Required Kubernetes packages are installed
 	- Starts the docker and Kubernetes services.

@@ -26,6 +26,13 @@ If `control_plane.yml` has run, a version file is created here: `/opt/omnia/omni
   **Resolution**:
 * Enable the required services using `firewall-cmd --permanent --add-service=<service name>` and then reload the firewall using `firewall-cmd --reload`.
 
+## What to do when `omnia.yml` fails with `nfs-server.service might not be running on NFS Server. Please check or start services`?
+**Potential Cause**: nfs-server.service is not running on the target node. <br>
+**Resolution**: Use the following commands to bring up the service: <br>
+`systemctl start nfs-server.service` <br>
+`systemctl enable nfs-server.service`
+
+
 ## Why do Passwordless SSH tasks fail while running `collect_node_info.yml`?
 **Potential Cause**:
 * Incorrect credentials in `login_vars.yml`
@@ -34,8 +41,6 @@ If `control_plane.yml` has run, a version file is created here: `/opt/omnia/omni
 **Resolution**:
 * Correct the credentials in `login_vars.yml` if the target is a server.
 * Ignore the error if your target device is a storage device, switch etc.
-
-
 
 ## Why do Kubernetes Pods show `ImagePullBack` or `ErrPullImage` errors in their status?
 **Potential Cause**:
