@@ -16,7 +16,7 @@ Omnia (Latin: all or everything) is a deployment tool to turn servers with RPM-b
 
 ## Pre Requisites before installing Omnia
 - [Python3](https://www.python.org/)
-- [Ansible 2.11.9](https://www.ansible.com/)
+- [Ansible 2.13.1](https://www.ansible.com/)
 - [RockyOS](https://rockylinux.org/) / [Red Hat](https://www.redhat.com/en/enterprise-linux-8)
 
 
@@ -29,6 +29,9 @@ Omnia (Latin: all or everything) is a deployment tool to turn servers with RPM-b
 5. [Run Control_Plane](docs/Installation_Guides/INSTALL_CONTROL_PLANE.md) to provision OS's, [configure devices](docs/Device_Configuration) and set up [security measures](docs/Security).
 6. [Run Omnia on target cluster nodes](docs/Installation_Guides/INSTALL_OMNIA_CLI.md) to set up Kubernetes and Slurm.
 7. Run the telemetry playbook to [set up](docs/Installation_Guides/INSTALL_TELEMETRY.md) and use [Telemetry and Visualization Services](docs/Telemetry_Visualization)
+
+>> **Note**: For a complete guide to running Omnia via CLI, check [this](docs/CLI_GUIDE.md) out!
+
    ![Omnia Flow](docs/images/Omnia_Flow.png)
 
 ## Troubleshooting Omnia
