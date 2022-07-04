@@ -13,7 +13,7 @@ If AWX is not set up by the control plane (That is, when `awx_web_support` in `b
 
 
 ## Running `control_plane.yml`
-Assuming all [pre-requisites](PreRequisites/Control_Plane_PreReqs.md) are met, `control_plane.yml` script can only be invoked using CLI when AWX is disabled.
+Assuming all [pre-requisites](PreRequisites/Control_Plane_PreReqs.md) are met and [input parameters](Input_Parameter_Guide) are entered, `control_plane.yml` script can only be invoked using CLI when AWX is disabled.
 ```
 cd /omnia/control_plane
 ansible-playbook control_plane.yml
