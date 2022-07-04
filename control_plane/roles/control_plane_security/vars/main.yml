@@ -35,6 +35,7 @@ ntp_port1: "123/udp"
 # Usage: enable_dnf_module.yml
 os_supported_centos: "centos"
 os_supported_rocky: "rocky"
+yum_distro_exclude: "kernel*,NetworkManager*,grub*,systemd*,container*,redhat*,subscription-manager*"
 
 # Usage: install_packages.yml
 ipa_server_packages:
