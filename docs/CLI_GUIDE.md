@@ -11,7 +11,7 @@ When AWX is disabled, the `control_plane.yml` script can only be invoked using C
 cd /omnia/control_plane
 ansible-playbook control_plane.yml
 ```
->> **Note:** It is recommended that `control_plane.yml` is run from the control plane directory as explained above.
+>> **Note**: It is recommended that `control_plane.yml` is run from the control plane directory as explained above.
 
 ## Updating inventory
 On executing Omnia control plane, all devices that can be managed by Omnia will be assigned an IP and device inventories will be created by device type in `/opt/omnia`. The inventories available are:
@@ -60,8 +60,8 @@ Run `omnia.yml` to create the cluster
 `ansible-playbook omnia.yml -i inventory` 
 
 >> **Note**:
-* To skip the creation of a Kubernetes cluster, use the skip tag:  `ansible-playbook omnia.yml -i inventory --skip-tags kubernetes`
-* To skip the creation of a Slurm cluster, use the skip tag:  `ansible-playbook omnia.yml -i inventory --skip-tags slurm`
+>> * To skip the creation of a Kubernetes cluster, use the skip tag:  `ansible-playbook omnia.yml -i inventory --skip-tags kubernetes`
+>> * To skip the creation of a Slurm cluster, use the skip tag:  `ansible-playbook omnia.yml -i inventory --skip-tags slurm`
 
 ## Installing job management tools
 ### Installing Jupyterhub <br>
