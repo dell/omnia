@@ -30,7 +30,7 @@ Omnia (Latin: all or everything) is a deployment tool to turn servers with RPM-b
 6. [Run Omnia on target cluster nodes](docs/Installation_Guides/INSTALL_OMNIA_CLI.md) to set up Kubernetes and Slurm.
 7. Run the telemetry playbook to [set up](docs/Installation_Guides/INSTALL_TELEMETRY.md) and use [Telemetry and Visualization Services](docs/Telemetry_Visualization)
 
->> **Note**: For a complete guide to running Omnia via CLI, check [this](https://github.com/dellhpc/omnia/blob/devel/docs/CLI_GUIDE.md) out!
+>> **Note**: For a complete guide to running Omnia via CLI, check [this](docs/CLI_GUIDE.md) out!
 
    ![Omnia Flow](docs/images/Omnia_Flow.png)
 
