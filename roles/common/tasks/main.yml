@@ -36,14 +36,18 @@
   include_tasks: validate_rhsm.yml
   when: compute_os == os_supported_redhat
 
-- name: Subscrbe for code ready builder repo in RHEL
-  command: subscription-manager repos --enable "{{ rhel_code_ready_repo }}"
-  changed_when: false
-  when: os_supported_redhat in compute_os
+- block:
+    - name: Subscrbe for code ready builder repo in RHEL
+      command: subscription-manager repos --enable "{{ rhel_code_ready_repo }}"
+      changed_when: false
 
-- name: Install epel repo 8
-  command: dnf install "{{ rhel_epel_repo8 }}" -y
-  changed_when: false
+    - name: Install epel repo 8
+      command: dnf install "{{ rhel_epel_repo8 }}" -y
+      changed_when: false
+
+    - name: Upgrade libmodulemd
+      command: dnf upgrade libmodulemd -y
+      changed_when: false
   when: os_supported_redhat in compute_os
 
 - name: Create a custom fact directory on each host
