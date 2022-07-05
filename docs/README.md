@@ -49,7 +49,10 @@ Omnia can deploy firmware, install Kubernetes or Slurm (or both), along with add
 5. [Run Control_Plane](Installation_Guides/INSTALL_CONTROL_PLANE.md) to provision OS's, [configure devices](Device_Configuration) and set up [security measures](Security).
 6. [Run Omnia on target cluster nodes](Installation_Guides/INSTALL_OMNIA_CLI.md) to set up Kubernetes and Slurm.
 7. Run the telemetry playbook to [set up](Installation_Guides/INSTALL_TELEMETRY.md) and use [Telemetry and Visualization Services](Telemetry_Visualization)
-   ![Omnia Flow](images/Omnia_Flow.png)
+
+>> **Note**: For a complete guide to running Omnia via CLI, check [this](https://github.com/dellhpc/omnia/blob/devel/docs/CLI_GUIDE.md) out!  
+
+![Omnia Flow](images/Omnia_Flow.png)
 
 ## Troubleshooting Omnia
 * For a list of commonly encountered issues, check out our [FAQs](Troubleshooting/FAQ.md).
