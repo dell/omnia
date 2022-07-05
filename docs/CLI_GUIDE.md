@@ -4,12 +4,6 @@
 To enable CLI on the control plane, disable AWX. This can be done by setting `awx_web_support` to `false` in `/ommia/control_plane/input_params/base_vars.yml`. If done before the initial run of `control_plane.yml`, Omnia will not install AWX on the control plane, thereby re-routing all other configuration via Ansible CLI.
 >> **Note**: If `awx_web_support` is set to false on any subsequent runs of `control_plane.yml`, AWX will not be uninstalled. This will require user intervention. However, all configuration after `awx_web_support` is disabled will be via CLI.
 If AWX is not set up by the control plane (That is, when `awx_web_support` in `base_vars.yml` is set to false) , the following configurations take place:
-* To update device inventories manually in the directory `/opt/omnia`, run `ansible-playbook collect_device_info.yml` from the `control_plane` folder. For updating the node inventory, run `ansible-playbook collect_node_info.yml` from the `control_plane` folder.
-* For networking switches, InfiniBand switches, iDRAC, and PowerVault Storage, four inventories are available- **ethernet_inventory**, **infiniband_inventory**, **idrac_inventory**, **provisioned_idrac_inventory**, and **powervault_inventory** in `/opt/omnia/`
-* IP addresses of the hosts are stored in **node_inventory** in the directory `/opt/omnia`.
-* All device credentials used for configuration are taken from `login_vars.yml`.
-* Schedules are created for the **node_inventory_job** (every **60 minutes**) and the **device_inventory_job** (**once daily**) to dynamically retrieve and update node and device details to `/opt/omnia`. Logs pertaining to these jobs are available in `/var/log/omnia/` in the folders `collect_node_info` and `collect_device_info`. These jobs can also be run manually using playbooks if required.
-* Jobs initiated by control plane are logged here: `/var/log/omnia/<target device type>`. (Eg: /var/log/omnia/idrac, /var/log/omnia/powervault etc.)
 
 
 ## Running `control_plane.yml`
@@ -29,7 +23,14 @@ On executing Omnia control plane, all devices that can be managed by Omnia will 
 5. powervault_inventory <br> ![img.png](images/Powervault_Inventory.png)
 6. node_inventory <br> ![img.png](images/node_inventory.png)
 
-To update all device inventories (Nodes will be excluded), run: `ansible-playbook configure_devices_cli.yml --tags=device_inventory`. Alternatively, run `ansible-playbook collect_device_info.yml`
+* To update all device inventories (Nodes will be excluded), run: `ansible-playbook configure_devices_cli.yml --tags=device_inventory`. Alternatively, run `ansible-playbook collect_device_info.yml`
+* To update device inventories manually in the directory `/opt/omnia`, run `ansible-playbook collect_device_info.yml` from the `control_plane` folder. For updating the node inventory, run `ansible-playbook collect_node_info.yml` from the `control_plane` folder.
+* For networking switches, InfiniBand switches, iDRAC, and PowerVault Storage, four inventories are available- **ethernet_inventory**, **infiniband_inventory**, **idrac_inventory**, **provisioned_idrac_inventory**, and **powervault_inventory** in `/opt/omnia/`
+* IP addresses of the hosts are stored in **node_inventory** in the directory `/opt/omnia`.
+* All device credentials used for configuration are taken from `login_vars.yml`.
+* Schedules are created for the **node_inventory_job** (every **60 minutes**) and the **device_inventory_job** (**once daily**) to dynamically retrieve and update node and device details to `/opt/omnia`. Logs pertaining to these jobs are available in `/var/log/omnia/` in the folders `collect_node_info` and `collect_device_info`. These jobs can also be run manually using playbooks if required.
+* Jobs initiated by control plane are logged here: `/var/log/omnia/<target device type>`. (Eg: /var/log/omnia/idrac, /var/log/omnia/powervault etc.)
+
 
 ## Configure devices
 
@@ -55,8 +56,8 @@ To update all device inventories (Nodes will be excluded), run: `ansible-playboo
 Before running `omnia.yml`, it is mandatory that red hat subscription be set up on manager/ compute nodes running Red Hat.
 * To set up Red hat subscription, fill in the [rhsm_vars.yml file](Input_Parameter_Guide/Control_Plane_Parameters/Device_Parameters/rhsm_vars.md). Once it's filled in, run the template using AWX or Ansible. <br>
 * The flow of the playbook will be determined by the value of `redhat_subscription_method` in `rhsm_vars.yml`.
-    - If `redhat_subscription_method` is set to `portal`, pass the values `username` and `password` on the AWX screen. For CLI, run the command: <br> `ansible-playbook rhsm_subscription.yml -i inventory -e redhat_subscription_username="<username>" -e redhat_subscription_password="<password>"`
-    - If `redhat_subscription_method` is set to `satellite`, pass the values `organizational identifier` and `activation key` on the AWX screen. For CLI, run the command: <br> `ansible-playbook rhsm_subscription.yml -i inventory -e redhat_subscription_activation_key="<activation-key>" -e redhat_subscription_org_id ="<org-id>"`
+    - If `redhat_subscription_method` is set to `portal`, run the command: <br> `ansible-playbook rhsm_subscription.yml -i inventory -e redhat_subscription_username="<username>" -e redhat_subscription_password="<password>"`
+    - If `redhat_subscription_method` is set to `satellite`, run the command: <br> `ansible-playbook rhsm_subscription.yml -i inventory -e redhat_subscription_activation_key="<activation-key>" -e redhat_subscription_org_id ="<org-id>"`
 
 >> **Note**: If all nodes in `/opt/omnia/node_inventory` are running Redhat, use the inventory `/opt/omnia/node_inventory` to enable or disable Redhat subscription. For example, to enable subscription via portal method, use the command `ansible-playbook rhsm_subscription.yml -i /opt/omnia/node_inventory -e redhat_subscription_username="<username>" -e redhat_subscription_password="<password>"`
 
