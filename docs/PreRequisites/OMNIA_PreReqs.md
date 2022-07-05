@@ -66,7 +66,7 @@ To open the ports required, use the following steps:
 * Ensure that `powervault_ip` is populated. The right powervault IP can be found in `/opt/omnia/powervault_inventory`. If it's not present, run `ansible-playbook collect_device_info.yml` (dedicated NIC) or `ansible-playbook collect_node_info.yml` (LOM NIC) from the control_plane directory.
 >> **Note**: In a single run of omnia, only one NFS Server is configured. To configure multiple NFS Servers, add one IP in the nfs_node group and populate the variables accordingly per run of `omnia.yml`. To configure another nfs node, update variables and run `nfs_sas.yml`.
 * If NFS server configuration is to happen via SAS, the following conditions are to be met:
-  * There should be multiple network paths available between the NFS server and the Powervault to ensure high availability. For more information, click [here](: https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/8/html/configuring_device_mapper_multipath/overview-of-device-mapper-multipathing_configuring-device-mapper-multipath). <br>
+  * There should be multiple network paths available between the NFS server and the Powervault to ensure high availability. For more information, click [here](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/8/html/configuring_device_mapper_multipath/overview-of-device-mapper-multipathing_configuring-device-mapper-multipath). <br>
   ![img.png](../images/MultipathingOverSAS.png)
   * Set `powervault_protocol` to 'sas' in `powervault_vars.yml`.
 * If NFS server configuration is to happen via ISCSI, the following conditions are to be met:
