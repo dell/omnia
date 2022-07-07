@@ -76,9 +76,7 @@ To access the Cobbler dashboard, enter `https://<IP>/cobbler_web` where `<IP>` i
 
 >>**Note**: After the Cobbler Server provisions the operating system on the servers, IP addresses and hostnames are assigned by the DHCP service.  
 >>* If a mapping file is not provided, the hostname to the server is provided based on the following format: **computexxx-xxx** where "xxx-xxx" is the last two octets of the Host IP address. For example, if the Host IP address is 172.17.0.11 then the assigned hostname by Omnia is compute0-11.  
->>* If a mapping file is provided, the hostnames follow the format provided in the mapping file.  
-
->>**Note**: 
+>>* If a mapping file is provided, the hostnames follow the format provided in the mapping file.
 >> * If you want to add more nodes, append the new nodes in the existing mapping file. However, do not modify the previous nodes in the mapping file as it may impact the existing cluster.
 >> * With the addition of Multiple profiles, the cobbler container dynamically updates the mount point based on the value of `provision_os` in `base_vars.yml`.
 
