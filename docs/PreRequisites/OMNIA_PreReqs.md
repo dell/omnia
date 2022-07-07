@@ -5,7 +5,7 @@
   * The manager group should have exactly 1 manager node.
   * The compute group should have at least 1 node.
   * The login_node group is optional. If present, it should have exactly 1 node.
-  * The nfs_node group is optional. If powervault is configured by omnia control plane, then the host connected to the powervault (That is the nfs server) should be part of nfs_node group.
+  * The nfs_node group is optional. If powervault is configured by omnia control plane, then the host connected to the powervault (That is the nfs server) should be part of nfs_node group. There should be only 1 nfs server in the group.
 
 
 Below are the pre-requisites for all optional features that can be enabled using `omnia.yml`.
@@ -58,10 +58,21 @@ To open the ports required, use the following steps:
     - server_export_options: (Default) rw,sync,no_root_squash
     - client_shared_path: The path at which volume is mounted on manager, compute, login node. Unless specified otherwise, the client path will inherit the options from the `server_export_path`.
     - client_mount_options: Default value is- nosuid,rw,sync,hard,intr 0 0 (unless specified otherwise)
+* Only one NFS server is configured per run of `omnia.yml`. To configure multiple NFS servers, update the following per execution:
+  * `powervault_ip` in `omnia_config.yml` 
+  * `powervault_volumes` in `omnia_config.yml`
+  * nfs_node group IP in the node inventory
 * The default entry for `powervault_volumes` will look like this: <br> `  - { name: omnia_home, server_share_path: /home/omnia_home, server_export_options: ,client_share_path: , client_mount_options: }` <br>
 * Ensure that `powervault_ip` is populated. The right powervault IP can be found in `/opt/omnia/powervault_inventory`. If it's not present, run `ansible-playbook collect_device_info.yml` (dedicated NIC) or `ansible-playbook collect_node_info.yml` (LOM NIC) from the control_plane directory.
-
 >> **Note**: In a single run of omnia, only one NFS Server is configured. To configure multiple NFS Servers, add one IP in the nfs_node group and populate the variables accordingly per run of `omnia.yml`. To configure another nfs node, update variables and run `nfs_sas.yml`.
+* If NFS server configuration is to happen via SAS, the following conditions are to be met:
+  * There should be multiple network paths available between the NFS server and the Powervault to ensure high availability. For more information, click [here](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/8/html/configuring_device_mapper_multipath/overview-of-device-mapper-multipathing_configuring-device-mapper-multipath). <br>
+  ![img.png](../images/MultipathingOverSAS.png)
+  * Set `powervault_protocol` to 'sas' in `powervault_vars.yml`.
+* If NFS server configuration is to happen via ISCSI, the following conditions are to be met:
+  * The powervault in use is from the ME4 series.
+
+  
 
 ## NFS bolt-on
 * Ensure that an existing NFS server is running. NFS clients are mounted using the existing NFS server's IP.
