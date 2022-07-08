@@ -16,12 +16,45 @@ ansible-playbook control_plane.yml
 
 ## Updating inventory
 On executing Omnia control plane, all devices that can be managed by Omnia will be assigned an IP and device inventories will be created by device type in `/opt/omnia`. The inventories available are:
-1. ethernet_inventory <br> ![img.png](images/Ethernet_Inventory.png)
-2. infiniband_inventory <br> ![img.png](images/Infiniband_Inventory.png)
-3. idrac_inventory <br> ![img.png](images/idrac_inventory.png)
-4. provisioned_idrac_inventory <br> ![img.png](images/Provisioned_idrac_inventory.png)
-5. powervault_inventory <br> ![img.png](images/Powervault_Inventory.png)
-6. node_inventory <br> ![img.png](images/node_inventory.png)
+1. ethernet_inventory 
+```
+cat /opt/omnia/ethernet_inventory
+172.17.0.108
+```
+2. infiniband_inventory 
+```
+cat /opt/omnia/infiniband_inventory
+172.17.0.110
+```
+3. idrac_inventory 
+```
+cat /opt/omnia/idrac_inventory
+172.19.0.100 service_tag=XXXXXXX model="PowerEdge R640"
+172.19.0.101 service_tag=XXXXXXX model="PowerEdge R740"
+172.19.0.103 service_tag=XXXXXXX model="PowerEdge C6420"
+172.19.0.104 service_tag=XXXXXXX model="PowerEdge R7525"
+```
+4. provisioned_idrac_inventory 
+```
+cat /opt/omnia/provisioned_idrac_inventory
+172.19.0.100 service_tag=XXXXXXX model="PowerEdge R640"
+172.19.0.101 service_tag=XXXXXXX model="PowerEdge R740"
+172.19.0.103 service_tag=XXXXXXX model="PowerEdge C6420"
+172.19.0.104 service_tag=XXXXXXX model="PowerEdge R7525"
+```
+5. powervault_inventory 
+```
+cat /opt/omnia/powervault_inventory
+172.17.0.109
+```
+6. node_inventory 
+```
+cat /opt/omnia/node_inventory
+172.17.0.100 service_tag=XXXXXXX operating_system=RedHat
+172.17.0.101 service_tag=XXXXXXX operating_system=RedHat
+172.17.0.102 service_tag=XXXXXXX operating_system=openSUSE Leap
+172.17.0.103 service_tag=XXXXXXX operating_system=Rocky
+```
 
 * To update all device inventories (Nodes will be excluded), run: `ansible-playbook configure_devices_cli.yml --tags=device_inventory`. Alternatively, run `ansible-playbook collect_device_info.yml`
 * To update device inventories manually in the directory `/opt/omnia`, run `ansible-playbook collect_device_info.yml` from the `control_plane` folder. For updating the node inventory, run `ansible-playbook collect_node_info.yml` from the `control_plane` folder.
@@ -55,6 +88,7 @@ On executing Omnia control plane, all devices that can be managed by Omnia will 
 ## Enable Red Hat subscription
 Before running `omnia.yml`, it is mandatory that red hat subscription be set up on manager/ compute nodes running Red Hat.
 * To set up Red hat subscription, fill in the [rhsm_vars.yml file](Input_Parameter_Guide/Control_Plane_Parameters/Device_Parameters/rhsm_vars.md). Once it's filled in, run the template using AWX or Ansible. <br>
+* Ensure that `/opt/omnia/node_inventory` is populated with all required information. For information on how to re-run inventories manually, click [here](#updating-inventory).
 * The flow of the playbook will be determined by the value of `redhat_subscription_method` in `rhsm_vars.yml`.
     - If `redhat_subscription_method` is set to `portal`, run the command: <br> `ansible-playbook rhsm_subscription.yml -i inventory -e redhat_subscription_username="<username>" -e redhat_subscription_password="<password>"`
     - If `redhat_subscription_method` is set to `satellite`, run the command: <br> `ansible-playbook rhsm_subscription.yml -i inventory -e redhat_subscription_activation_key="<activation-key>" -e redhat_subscription_org_id ="<org-id>"`
@@ -65,7 +99,9 @@ Before running `omnia.yml`, it is mandatory that red hat subscription be set up 
 `ansible_playbook omnia/control_plane/rhsm_unregister.yml -i inventory`
 
 ## Installing clusters
-If all inventories and groups are assigned per the [Omnia Pre Requisites](PreRequisites/OMNIA_PreReqs.md): 
+* Ensure all inventories and groups are assigned per [Omnia Pre Requisites](PreRequisites/OMNIA_PreReqs.md).
+* Fill out the required parameters in [omnia_config.yml](Input_Parameter_Guide/omnia_config.md).
+* Verify that all nodes are assigned a group. Use the [linked example file](../examples/host_inventory_file.ini) as a reference.
 * The `node_inventory` file in `opt/omnia` should have a list of all nodes (IPs) that are provisioned by Omnia. Assign groups to all nodes based on the below criteria:
     * The __manager__ group should have exactly 1 manager node.
     * The __compute__ group should have at least 1 node.
@@ -83,6 +119,8 @@ Run `omnia.yml` to create the cluster
 `ansible-playbook platforms/jupyterhub.yml -i inventory`
 ### Installing Kubeflow <br>
 `ansible-playbook platforms/kubeflow.yml -i inventory`
+
+For more information on job management tools, [click here.](Installation_Guides/INSTALL_OMNIA_CLI.md#installing-jupyterhub-and-kubeflow-playbooks)
  
 
 
