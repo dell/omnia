@@ -32,6 +32,10 @@ If `control_plane.yml` has run, a version file is created here: `/opt/omnia/omni
 `systemctl start nfs-server.service` <br>
 `systemctl enable nfs-server.service`
 
+## Why are service tags missing in the node inventory?
+**Potential Cause**: Temporary network glitches may cause a loss of information. <br>
+**Resolution**: Re-run the playbook `collect_node_info.yml` to repopulate the data. Use the command `ansible-playbook collect_node_info.yml` to run the playbook.
+
 
 ## Why do Passwordless SSH tasks fail while running `collect_node_info.yml`?
 **Potential Cause**:
