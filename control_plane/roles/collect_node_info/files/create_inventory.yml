@@ -233,6 +233,7 @@
             --vault-password-file {{ login_vault_file }}
           when: "'$ANSIBLE_VAULT;' in config_content.stdout"
           changed_when: false
+          failed_when: false
           delegate_to: localhost
 
         - name: Include variable file {{ login_vars_file }}
@@ -246,6 +247,7 @@
             --vault-password-file {{ login_vault_file }}
           changed_when: false
           when: "'$ANSIBLE_VAULT;' in config_content.stdout"
+          failed_when: false
           delegate_to: localhost
 
         - name: Change file permissions
