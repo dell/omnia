@@ -49,6 +49,9 @@
     roce_enabled: false
     cobbler_lom: false
     mgmt_lom: false
+    new_node_status: false
+    new_mgmt_node_status: false
+    cobbler_image_status: false
   tags: init
 
 - name: Validate network interface type
