@@ -89,7 +89,7 @@ Based on the value of `powervault_support`, NFS configuration can take one of tw
 
 ### NFS server configuration
 * Ensure that powervault support is enabled by setting `powervault_support` to true in `base_vars.yml`. By default, a volume called 'omnia_home' will be created on the powervault to mount on the nfs_node.
->> **Caution**: Powervault will only be available over SAS if the powervault has been configured using [`powervault.yml`](../Device_Configuration/PowerVault.md).
+>> **Warning**: Powervault will only be available over SAS if the powervault has been configured using [`powervault.yml`](../Device_Configuration/PowerVault.md).
 * For multiple NFS volumes, enter the following details in JSON list format in `powervault_vars.yml` under `powervault_volumes`:
     - name [Mandatory]: The name of the NFS export.
     - server_share_path [Mandatory]: The path at which volume is mounted on nfs_node
