@@ -200,3 +200,11 @@ scrape_configs:
     labels:
       job: Device Inventory CLI logs
       __path__: /var/log/omnia/collect_device_info/*log
+
+- job_name: Startup Omnia logs
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: Startup Omnia logs
+      __path__: /var/log/omnia/startup_omnia/*log
