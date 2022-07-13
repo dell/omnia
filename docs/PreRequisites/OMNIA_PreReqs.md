@@ -39,7 +39,11 @@ To open the ports required, use the following steps:
 
 * Ensure that the nodes in the inventory have been assigned roles: manager, compute, login_node (optional), nfs_node
 
-### NFS bolt-on
+### NFS configuration
+Based on the value of `powervault_support`, NFS configuration can take one of two forms:
+![img.png](../images/nfs_flowchart.png)
+
+#### NFS bolt-on
 * Ensure that an existing NFS server is running. NFS clients are mounted using the existing NFS server's IP.
 * Fill out the `nfs_client_params` variable in the `omnia_config.yml` file in JSON format using the samples provided [here](../Input_Parameter_Guide/omnia_config.md)
 * This role runs on manager, compute and login nodes.
@@ -61,7 +65,7 @@ To open the ports required, use the following steps:
   3. **Multiple NFS Filesystems**: Multiple filesystems are mounted from multiple NFS servers. The value of `nfs_client_params` would be <br> ` - { server_ip: xx.xx.xx.xx, server_share_path: "/mnt/server1", client_share_path: "/mnt/client1", client_mount_options: "nosuid,rw,sync,hard,intr" }` <br> `- { server_ip: yy.yy.yy.yy, server_share_path: "/mnt/server2", client_share_path: "/mnt/client2", client_mount_options: "nosuid,rw,sync,hard,intr" }` <br> `- { server_ip: zz.zz.zz.zz, server_share_path: "/mnt/server3", client_share_path: "/mnt/client3", client_mount_options: "nosuid,rw,sync,hard,intr" } `
 
 
-### Enabling Security: Login Node
+#### Enabling Security: Login Node
 
 * Verify that the login node host name has been set. If not, use the following steps to set it.
     * Set hostname of the login node to hostname.domainname format using the below command:
