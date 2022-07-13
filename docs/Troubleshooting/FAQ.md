@@ -398,7 +398,7 @@ To correct the issue, run:
 
 ## Why does the `BeeGFS-client` service fail?
 **Potential Causes**:
-1. SELINUX may be enabled. (use `setstatus` to diagnose the issue)
+1. SELINUX may be enabled. (use `sestatus` to diagnose the issue)
 2. Ports 8008, 8003, 8004, 8005 and 8006 may be closed. (use `systemctl status beegfs-mgmtd, systemctl status beegfs-meta, systemctl status beegfs-storage` to diagnose the issue)
 3. The BeeGFS set up may be incompatible with Red Hat. 
 
