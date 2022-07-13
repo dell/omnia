@@ -126,3 +126,6 @@ k8s_dashboard_yaml_url: https://raw.githubusercontent.com/kubernetes/dashboard/v
 k8s_dashboard_admin_file_dest: /root/k8s/k8s_dashboard_admin.yaml
 k8s_dashboard_admin_file_mode: 0655
 nfs_path: /var/nfs_awx
+startup_omnia_log_path: /var/log/omnia/startup_omnia
+vault_file_perm: '0644'
+startup_omnia_log: "{{ startup_omnia_log_path }}/startup_omnia_`/usr/bin/date +\\%F-\\%H\\%M\\%S`.log"

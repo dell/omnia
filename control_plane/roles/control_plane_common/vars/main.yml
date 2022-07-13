@@ -55,6 +55,7 @@ ansible_collections_cli:
   - kubernetes.core:2.2.3
   - community.grafana:1.3.0
   - ansible.utils:2.5.2
+max_retries: 20
 
 # Usage: set_docker_os.yml
 docker_rocky_os_version: "8.5"
