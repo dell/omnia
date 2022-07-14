@@ -26,6 +26,11 @@ If `control_plane.yml` has run, a version file is created here: `/opt/omnia/omni
   **Resolution**:
 * Enable the required services using `firewall-cmd --permanent --add-service=<service name>` and then reload the firewall using `firewall-cmd --reload`.
 
+## Why does `configure_device_cli` fail when `awx_web_support` is set to true in `base_vars.yml`?
+**Potential Cause**: CLI templates require that AWX is disabled when deployed. <br>
+**Resolution**: Set `awx_web_support` to false when deploying `configure_device_cli`.
+
+
 ## What to do when `omnia.yml` fails with `nfs-server.service might not be running on NFS Server. Please check or start services`?
 **Potential Cause**: nfs-server.service is not running on the target node. <br>
 **Resolution**: Use the following commands to bring up the service: <br>
@@ -393,7 +398,7 @@ To correct the issue, run:
 
 ## Why does the `BeeGFS-client` service fail?
 **Potential Causes**:
-1. SELINUX may be enabled. (use `setstatus` to diagnose the issue)
+1. SELINUX may be enabled. (use `sestatus` to diagnose the issue)
 2. Ports 8008, 8003, 8004, 8005 and 8006 may be closed. (use `systemctl status beegfs-mgmtd, systemctl status beegfs-meta, systemctl status beegfs-storage` to diagnose the issue)
 3. The BeeGFS set up may be incompatible with Red Hat. 
 

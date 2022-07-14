@@ -39,8 +39,12 @@ To open the ports required, use the following steps:
 
 * Ensure that the nodes in the inventory have been assigned roles: manager, compute, login_node (optional), nfs_node
 
-### NFS bolt-on
-* Ensure that an existing NFS server is running. NFS clients are mounted using the existing NFS server's IP.
+### NFS configuration
+Based on the value of `powervault_support`, NFS configuration can take one of two forms:
+![img.png](../images/nfs_flowchart.png)
+
+#### NFS bolt-on
+* Ensure that an external NFS server is running. NFS clients are mounted using the external NFS server's IP.
 * Fill out the `nfs_client_params` variable in the `omnia_config.yml` file in JSON format using the samples provided [here](../Input_Parameter_Guide/omnia_config.md)
 * This role runs on manager, compute and login nodes.
 * Make sure that `/etc/exports` on the NFS server is populated with the same paths listed as `server_share_path` in the `nfs_client_params` in `omnia_config.yml`.
@@ -61,7 +65,7 @@ To open the ports required, use the following steps:
   3. **Multiple NFS Filesystems**: Multiple filesystems are mounted from multiple NFS servers. The value of `nfs_client_params` would be <br> ` - { server_ip: xx.xx.xx.xx, server_share_path: "/mnt/server1", client_share_path: "/mnt/client1", client_mount_options: "nosuid,rw,sync,hard,intr" }` <br> `- { server_ip: yy.yy.yy.yy, server_share_path: "/mnt/server2", client_share_path: "/mnt/client2", client_mount_options: "nosuid,rw,sync,hard,intr" }` <br> `- { server_ip: zz.zz.zz.zz, server_share_path: "/mnt/server3", client_share_path: "/mnt/client3", client_mount_options: "nosuid,rw,sync,hard,intr" } `
 
 
-### Enabling Security: Login Node
+#### Enabling Security: Login Node
 
 * Verify that the login node host name has been set. If not, use the following steps to set it.
     * Set hostname of the login node to hostname.domainname format using the below command:
@@ -85,10 +89,10 @@ To open the ports required, use the following steps:
 
 ### NFS server configuration
 * Ensure that powervault support is enabled by setting `powervault_support` to true in `base_vars.yml`. By default, a volume called 'omnia_home' will be created on the powervault to mount on the nfs_node.
->> **Caution**: Powervault will only be available over SAS if the powervault has been configured using [`powervault.yml`](../Device_Configuration/PowerVault.md).
+>> **Warning**: Powervault will only be available over SAS if the powervault has been configured using [`powervault.yml`](../Device_Configuration/PowerVault.md).
 * For multiple NFS volumes, enter the following details in JSON list format in `powervault_vars.yml` under `powervault_volumes`:
     - name [Mandatory]: The name of the NFS export.
-    - server_share_path [Mandatory]: The path at which volume is mounted on nfs_node
+    - server_share_path [Mandatory]: The path at which volume is mounted on nfs_node. This directory will be assigned 755 permissions during NFS server configuration.
     - server_export_options: (Default) rw,sync,no_root_squash
     - client_shared_path: The path at which volume is mounted on manager, compute, login node. Unless specified otherwise, the client path will inherit the options from the `server_export_path`.
     - client_mount_options: Default value is- nosuid,rw,sync,hard,intr 0 0 (unless specified otherwise)
