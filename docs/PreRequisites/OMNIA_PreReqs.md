@@ -44,7 +44,7 @@ Based on the value of `powervault_support`, NFS configuration can take one of tw
 ![img.png](../images/nfs_flowchart.png)
 
 #### NFS bolt-on
-* Ensure that an existing NFS server is running. NFS clients are mounted using the external NFS server's IP.
+* Ensure that an external NFS server is running. NFS clients are mounted using the external NFS server's IP.
 * Fill out the `nfs_client_params` variable in the `omnia_config.yml` file in JSON format using the samples provided [here](../Input_Parameter_Guide/omnia_config.md)
 * This role runs on manager, compute and login nodes.
 * Make sure that `/etc/exports` on the NFS server is populated with the same paths listed as `server_share_path` in the `nfs_client_params` in `omnia_config.yml`.
