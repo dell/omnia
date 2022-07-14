@@ -36,6 +36,7 @@
   register: port_auth_string
   changed_when: false
   delegate_to: localhost
+  no_log: true
   ignore_errors: yes
 
 - name: Get session key
