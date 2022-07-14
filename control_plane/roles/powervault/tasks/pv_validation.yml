@@ -41,6 +41,14 @@
     msg: "{{ protocol_supported }}"
   when: powervault_protocol | lower == "fc"
 
+- name: Validate the value of powervault controller mode
+  assert:
+    that:
+      - powervault_controller_mode | length > 1
+      - powervault_controller_mode | lower == "single" or powervault_controller_mode | lower == "multi"
+    fail_msg: "{{ controller_wrong_value }}"
+    success_msg: "{{ controller_success }}"
+
 - name: Check if system name has space
   shell: echo {{ powervault_system_name }} | grep '\s' -c
   register: space_count
@@ -182,13 +190,12 @@
 - name: Check parition percentage
   assert:
     that:
+      - powervault_disk_partition_size| length > 1
       - powervault_disk_partition_size|int
       - powervault_disk_partition_size|int < 90
       - powervault_disk_partition_size|int > 5
     msg: "{{ wrong_partition }}"
-  when:
-    - powervault_disk_partition_size| length > 1
-    - powervault_protocol == "iscsi"
+  when: powervault_protocol == "iscsi"
 
 - name: Check the volume size
   assert:
@@ -203,6 +210,4 @@
   assert:
     that:
       - powervault_server_nic | length > 2
-  when:
-   - powervault_server_nic | length > 1
-   - powervault_protocol == "iscsi"
+  when: powervault_protocol == "iscsi"
