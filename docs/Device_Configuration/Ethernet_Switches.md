@@ -1,9 +1,10 @@
 # Configuring Ethernet Switches
-
 * Enter the information required in `input_params/base_vars.yml`, `input_params/login_vars.yml`, `ethernet_vars.yml` and/or `input_params/ethernet_tor_vars.yml` per the provided [Input Parameter Guides](../Input_Parameter_Guide/Control_Plane_Parameters/Device_Parameters).
+
 >>**Note**: 
 >> * Edit the `ethernet_tor_vars.yml` file for all S3* and S4* PowerSwitches such as S3048-ON, S4048T-ON, S4112F-ON, S4048-ON, S4048T-ON, S4112F-ON, S4112T-ON, and S4128F-ON.  
 >> * Edit the `ethernet_vars.yml` file for Dell PowerSwitch S5232F-ON and all other PowerSwitches except S3* and S4* switches.
+>> * When initializing a factory reset switch, the user needs to ensure DHCP is enabled and an IPv6 address is not assigned. Omnia will assign an IP address to the switch using DHCP with all other configurations.
 
 ## Run `ethernet_template` via CLI
 1. Verify that `/opt/omnia/ethernet_inventory` is created and updated with all ethernet switch IP details. This is done automatically when `control_plane.yml` is run. If it's not updated, run `ansible-playbook collect_device_info.yml` (dedicated NIC) or `ansible-playbook collect_node_info.yml` (LOM NIC) from the control_plane directory.

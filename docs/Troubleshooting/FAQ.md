@@ -13,9 +13,15 @@ If `control_plane.yml` has run, a version file is created here: `/opt/omnia/omni
 
 ## Why does the task 'nfs_client: Mount NFS client' fail with `No route to host`?
 **Potential Cause**:
-* There's a mismatch in the share path listed in `/etc/exports` and in `omnia_config.yml` under `nfs_client_params`.
+* There's a mismatch in the share path listed in `/etc/exports` and in `omnia_config.yml` under `nfs_client_params`. <br>
 **Resolution**:
 * Ensure that the input paths are a perfect match down to the character to avoid any errors.
+
+## Why does the task 'Gather facts from all the nodes' stuck when re-running `omnia.yml`?
+**Potential Cause**: Corrupted entries in the `/root/.ansible/cp/` folder. For more information on this issue, [check this out](https://github.com/ansible/ansible/issues/17349)! <br>
+**Resolution**: Clear the directory `/root/.ansible/cp/` using the following commands: <br>
+`cd /root/.ansible/cp/` <br>
+`rm -rf *` 
 
 ## Why does the task 'nfs_client: Mount NFS client' fail with `Failed to mount NFS client. Make sure NFS Server is running on IP xx.xx.xx.xx`?
 **Potential Cause**:
@@ -69,12 +75,6 @@ Use CLI to execute Omnia by default by disabling AWX (set `awx_web_support` in `
 
 ## How to clear up the configuration if `control_plane.yml` fails at the webui_awx stage?
   In the `webui_awx/files` directory, delete the `.tower_cli.cfg` and `.tower_vault_key` files, and then re-run `control_plane.yml`.
-
-## Why would FreeIPA server/client installation fail?  
-**Potential Cause**:
-    The hostnames of the manager and login nodes are not set in the correct format.  
-  **Resolution**:
-    If you have enabled the option to install the login node in the cluster, set the hostnames of the nodes in the format: *hostname.domainname*. For example, *manager.omnia.test* is a valid hostname for the login node. **Note**: To find the cause for the failure of the FreeIPA server and client installation, see *ipaserver-install.log* in the manager node or */var/log/ipaclient-install.log* in the login node.
 
 ## Why does the task 'Control Plane Common: Fetch the available subnets and netmasks' fail with `no ipv4_secondaries present`? <br>
 ![img.png](../images/SharedLomError.png) <br>
@@ -416,4 +416,17 @@ To correct the issue, run:
 ![](../images/FreeIPA_RHEL_Error.png)
 **Potential Causes**: Required repositories may not be enabled by your red hat subscription. <br>
 **Resolution**: Enable all required repositories via your red hat subscription.
+
+## Why would FreeIPA server/client installation fail?
+**Potential Cause**:
+The hostnames of the manager and login nodes are not set in the correct format.  
+**Resolution**:
+If you have enabled the option to install the login node in the cluster, set the hostnames of the nodes in the format: *hostname.domainname*. For example, *manager.omnia.test* is a valid hostname for the login node. **Note**: To find the cause for the failure of the FreeIPA server and client installation, see *ipaserver-install.log* in the manager node or */var/log/ipaclient-install.log* in the login node.
+
+## Why does FreeIPA installation fail on the control plane when the public NIC provided is static?
+**Potential Cause**: The network config file for the public NIC on the control plane does not define any DNS entries. <br>
+**Resolution**: Ensure the fields `DNS1` and `DNS2` are updated appropriately in the file `/etc/sysconfig/network-scripts/ifcfg-<NIC name>`.
+
+
+
 
