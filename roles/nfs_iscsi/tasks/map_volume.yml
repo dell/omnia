@@ -18,6 +18,7 @@
   register: map_auth_string
   changed_when: false
   ignore_errors: yes
+  no_log: true
   delegate_to: localhost
 
 - name: Get session key
