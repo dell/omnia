@@ -72,3 +72,48 @@
       {'sessionKey': "{{ session_key.json.status[0].response }}", 'datatype':'json'}
   register: system_name
   when: powervault_system_name
+
+- name: Check single controller mode
+  uri:
+    url: https://{{ inventory_hostname }}/api/show/controllers
+    method: GET
+    body_format: json
+    validate_certs: no
+    use_proxy: no
+    headers:
+      {'sessionKey': "{{ session_key.json.status[0].response }}", 'datatype':'json'}
+  register: show_controller
+
+- name: Create list of controllers
+  set_fact:
+    controller_no: "{{ controller_no | default ([]) }} + [ '{{ item['controller-id'] }}']"
+  with_items: "{{ show_controller.json.controllers }}"
+  no_log: true
+
+- name: Assert the powervault_controller_mode when single
+  assert:
+    that:
+      - powervault_controller_mode != "single"
+    fail_msg: "{{ controller_wrong_value }}"
+    success_msg: "{{ controller_success }}"
+  when: controller_no | length > 1
+
+- name: Assert the powervault_controller_mode when multi
+  assert:
+    that:
+      - powervault_controller_mode != "multi"
+    fail_msg: "{{ controller_wrong_value }}"
+    success_msg: "{{ controller_success }}"
+  when: controller_no | length == 1
+
+- name: Enable single controller mode
+  uri:
+    url: https://{{ inventory_hostname }}/api/set/advanced-settings/single-controller
+    method: GET
+    body_format: json
+    validate_certs: no
+    use_proxy: no
+    headers:
+      {'sessionKey': "{{ session_key.json.status[0].response }}", 'datatype':'json'}
+  register: single_controller
+  when: powervault_controller_mode == "single"
