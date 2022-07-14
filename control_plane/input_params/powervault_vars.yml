@@ -22,6 +22,11 @@
 # Default value: sas
 powervault_protocol: "sas"
 
+# Accepted Values: single, multi
+# Depicts how many controller are present in the powervault.
+# Default: multi
+powervault_controller_mode: "multi"
+
 # This variable indicates the language of installation
 # Currently, only "English" is supported
 powervault_locale: "English"
