@@ -1,6 +1,7 @@
 # Configuring Dell EMC PowerVault Storage  
 
 * Enter the information required in `input_params/base_vars.yml`, `input_params/login_vars.yml` and `input_params/powervault_vars` per the provided [Input Parameter Guides](../Input_Parameter_Guide/Control_Plane_Parameters).
+* Per run on `powervault_template`, only single controller powervaults OR multi controller powervaults can be configured. That is, a combination of single controller and multi controller powervaults cannot be configured during the same run on `powervault_template.yml`.
 * Ensure that there's a dedicated data connection between the Storage array and the PowerVault NFS node.
 * If the powervault being configured is factory reset, there will be no users created. This needs to be done manually.
 * Ensure that all controllers on the powervault are DHCP enabled (verify using `show network-parameters`) and can reach the control plane. To enable DHCP on a controller, use the below command:
