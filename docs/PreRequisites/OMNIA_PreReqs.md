@@ -1,7 +1,7 @@
 # Prerequisites before installing `omnia.yml`
 
 * Verify that all inventory files are updated.
-* If the target cluster has more than 10 nodes, use a docker enterprise account to avoid Docker pull limits.
+* If the target cluster requires more than 10 kubernetes nodes, use a docker enterprise account to avoid docker pull limits.
 * Verify that all nodes are assigned a group. Use the [linked example file](../../examples/host_inventory_file.ini) as a reference.
   * The manager group should have exactly 1 manager node.
   * The compute group should have at least 1 node.

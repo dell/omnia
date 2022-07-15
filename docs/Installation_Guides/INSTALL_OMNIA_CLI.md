@@ -45,6 +45,8 @@ To skip the installation of Kubernetes, enter:
 	
 To skip the installation of Slurm, enter:  
     `ansible-playbook omnia.yml -i inventory --skip-tags "slurm"`  
+>> **Note**: If only Slurm is being installed on the cluster, docker credentials are not required.
+
 >> **Warning**: LMOD and LUA are installed with Slurm when running `omnia.yml`. If LMOD and LUA are required, do not use the skip Slurm tag.
 
 To skip the NFS client setup, enter the following command to skip the k8s_nfs_client_setup role of Kubernetes:  
@@ -104,7 +106,7 @@ The following __kubernetes__ roles are provided by Omnia when __omnia.yml__ file
 		a. Format the OS on manager and compute nodes.  
 		b. In the control plane, edit the *omnia_config.yml* file to change the Kubernetes Pod Network CIDR or CNI value. Suggested IP range is 192.168.0.0/16 and ensure you provide an IP which is not in use in your host network.  
 		c. Execute `omnia.yml` and skip slurm using `--skip-tags slurm`.
-
+	
 ## Slurm roles
 
 The following __Slurm__ roles are provided by Omnia when __omnia.yml__ file is run:
