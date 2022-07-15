@@ -7,6 +7,7 @@
     2. [Rocky 8](https://rockylinux.org/)
     3. [Red Hat 8.x](https://www.redhat.com/en/enterprise-linux-8)
 * As a best practice, ensure that PowerCap policy is disabled and the BIOS system profile is set to Performance on the Control Plane.
+* If devices (switches, servers and storage) are to be configured and managed by Omnia, ensure that DHCP is enabled on all target devices.
 * For DHCP configuration, you can provide a host mapping file (Example available [here](../../examples/host_mapping_file_os_provisioning.csv)). If the mapping file is not provided and the variable is left blank, a default mapping file will be created. The provided details must be in the format: MAC address, Hostname, IP address, Component_role. For example, `10:11:12:13,server1,100.96.20.66,compute` and  `14:15:16:17,server2,100.96.22.199,manager` are valid entries.  
 >> **Note**:  
 >>  * In the `omnia/examples` folder, a **mapping_host_file.csv** template is provided which can be used for DHCP configuration. The header in the template file must not be deleted before saving the file. It is recommended to provide this optional file as it allows IP assignments provided by Omnia to be persistent across control plane reboots.  

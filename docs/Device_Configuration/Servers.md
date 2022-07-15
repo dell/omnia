@@ -1,6 +1,10 @@
 # Custom ISO provisioning on Dell EMC PowerEdge Servers
 
 * Enter the information required in `input_params/base_vars.yml`, `input_params/login_vars.yml` and `idrac_vars.yml` per the provided [Input Parameter Guides](../Input_Parameter_Guide).
+>>**Note**: 
+* When initializing a factory reset server, the user needs to ensure __IPv4 DHCP (iDRAC Settings > Connectivity > Network > IPv4 Settings)__ is enabled. Omnia will assign an IP address to the server using DHCP with all other configurations.
+* If the `network_interface_type` is set to lom, ensure that __NIC selection (iDRAC Settings > Connectivity > Network > Network Settings)__ is set to the appropriate LOM NIC. When set to dedicated, ensure that __NIC selection__ is set to dedicated.
+
 
 ## Configuring Servers with Out-of-Band Management (Provision Method: iDRAC)
 

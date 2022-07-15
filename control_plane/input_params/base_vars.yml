@@ -158,8 +158,8 @@ default_lease_time: "86400"
 
 ### Usage: provision_cobbler ###
 
-# The nic/ethernet card that needs to be connected to provision the OS of bare metal servers
 # This nic will be configured by Omnia for the DHCP server.
+# If a ROCE NIC is not provided, this NIC will route provisioning information
 # Default value: "eno3"
 host_network_nic: "eno3"
 
@@ -212,7 +212,6 @@ mgmt_mapping_file_path: ""
 
 # The nic/ethernet card that needs to be connected to configure high speed pxe provisioning.
 # This nic will be configured by Omnia's cobbler for the DHCP server.
-# ROCE stands for RDMA over converged ethernet.
 # Optional
 roce_network_nic: ""
 
