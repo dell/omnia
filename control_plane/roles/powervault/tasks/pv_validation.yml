@@ -17,6 +17,7 @@
   shell: echo -n {{ powervault_username }}_{{ powervault_password }} | sha256sum
   register: val_auth_string
   changed_when: false
+  no_log: true
   ignore_errors: yes
 
 - name: Get session key
