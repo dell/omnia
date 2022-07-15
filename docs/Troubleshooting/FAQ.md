@@ -21,7 +21,10 @@ If `control_plane.yml` has run, a version file is created here: `/opt/omnia/omni
 **Potential Cause**: Corrupted entries in the `/root/.ansible/cp/` folder. For more information on this issue, [check this out](https://github.com/ansible/ansible/issues/17349)! <br>
 **Resolution**: Clear the directory `/root/.ansible/cp/` using the following commands: <br>
 `cd /root/.ansible/cp/` <br>
-`rm -rf *` 
+`rm -rf *`  <br>
+Alternatively, run the task manually: <br>
+`cd omnia/tools`
+`ansible-playbook gather_facts_resolution.yml`
 
 ## Why does the task 'nfs_client: Mount NFS client' fail with `Failed to mount NFS client. Make sure NFS Server is running on IP xx.xx.xx.xx`?
 **Potential Cause**:
