@@ -21,6 +21,7 @@ ansible_config_details:
   - { line: "[defaults]", regexp: "^(.*)[defaults](.*)" , check: "[defaults]", insertafter: "BOF" }
   - { line: "log_path = /var/log/omnia/omnia.log", regexp: "^(.*)log_path(.*)" , check:  "log_path", insertafter: "^(.*)defaults(.*)" }
 omnia_log_path: /var/log/omnia
+cp_path: "/root/.ansible/cp/"
 
 # Usage: fetch_omnia_inputs.yml
 config_filename: "omnia_config.yml"

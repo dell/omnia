@@ -139,3 +139,6 @@
         - item.check not in ansible_conf_output.stdout
       with_items: "{{ ansible_config_details }}"
   when: ( not control_plane_status ) or ( not awx_web_support )
+
+- name: Include gather_facts playbook
+  include_tasks: gather_fact_resolution.yml
