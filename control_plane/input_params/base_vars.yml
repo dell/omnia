@@ -73,9 +73,9 @@ powervault_support: false
 
 # This variable is used to enable security features on control plane
 # Accepted values: "true" or "false"
-# Default value: "true"
-# If security features are not needed, set this to "false"
-enable_security_support: true
+# Default value: "false"
+# If security features are required, set this to "true"
+enable_security_support: false
 
 # The nic/ethernet card that will be connected to the public internet.
 # Default value: eno2
@@ -216,7 +216,10 @@ mgmt_mapping_file_path: ""
 roce_network_nic: ""
 
 # The dhcp range for assigning the IPv4 address
-# Example: 172.17.0.1
+# Example: 
+# roce_network_dhcp_start_range: "172.21.0.100"
+# roce_network_dhcp_end_range: "172.21.0.200"
+# Optional
 roce_network_dhcp_start_range: ""
 roce_network_dhcp_end_range: ""
 
@@ -224,10 +227,13 @@ roce_network_dhcp_end_range: ""
 
 # The nic/ethernet card that needs to be connected to configure infiniband switch
 # This nic will be configured by Omnia for the DHCP server.
-# Default value: ib0
-ib_network_nic: "ib0"
+# Optional
+ib_network_nic: ""
 
 # The dhcp range for assigning the IPv4 address
-# Example: 172.17.0.1
-ib_network_dhcp_start_range: "172.25.0.100"
-ib_network_dhcp_end_range: "172.25.0.200"
+# Example: 
+# ib_network_dhcp_start_range: "172.23.0.100"
+# ib_network_dhcp_end_range: "172.23.0.200"
+# Optional
+ib_network_dhcp_start_range: ""
+ib_network_dhcp_end_range: ""

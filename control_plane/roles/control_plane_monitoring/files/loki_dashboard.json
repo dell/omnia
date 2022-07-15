@@ -50,7 +50,7 @@
             "type": "loki",
             "uid": "control-plane-loki"
           },
-          "expr": "{filename=\"/var/log/omnia/omnia.log\",job=\"Omnia\"}",
+          "expr": "{filename=\"/var/log/omnia.log\",job=\"Omnia logs\"}",
           "queryType": "randomWalk",
           "refId": "A"
         }
