@@ -1,11 +1,13 @@
 # Prerequisites before installing `omnia.yml`
 
 * Verify that all inventory files are updated.
+* If the target cluster requires more than 10 kubernetes nodes, use a docker enterprise account to avoid docker pull limits.
 * Verify that all nodes are assigned a group. Use the [linked example file](../../examples/host_inventory_file.ini) as a reference.
   * The manager group should have exactly 1 manager node.
   * The compute group should have at least 1 node.
   * The login_node group is optional. If present, it should have exactly 1 node.
   * The nfs_node group is optional. If powervault is configured by omnia control plane, then the host connected to the powervault (That is the nfs server) should be part of nfs_node group. There should be only 1 nfs server in the group.
+  * Users should also ensure that all repos are available on the target nodes running Red Hat.
 >> **Note**: The inventory file accepts both IPs and FQDNs as long as they can be resolved by DNS.
 
 ## Features enabled by `omnia.yml`
