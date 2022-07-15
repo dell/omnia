@@ -66,69 +66,19 @@
     mode: "{{ vault_file_perm }}"
   tags: init
 
-- name: Check whether ansible config file exists
-  stat:
-    path: "{{ ansible_conf_file_path }}/ansible.cfg"
-  register: ansible_conf_exists
-  tags: init
-
-- name: Create the directory if it does not exist
-  file:
-    path: "{{ ansible_conf_file_path }}"
-    state: directory
-    mode: "{{ file_perm }}"
-  when: not ansible_conf_exists.stat.exists
-  tags: init
-
-- name: Create ansible config file if it does not exist
+- name: Copy ansible.cfg to other folders
   copy:
-    dest: '{{ ansible_conf_file_path }}/ansible.cfg'
-    mode: "{{ file_perm }}"
-    content: |
-      [defaults]
-      log_path = /var/log/omnia/omnia.log
-      host_key_checking = false
-  when: not ansible_conf_exists.stat.exists
-  tags: init
+    src: "{{ src_ansible_cfg }}"
+    dest: "{{ item.path }}"
+    mode: "{{ vault_file_perm }}"
+  with_items: "{{ dest_ansible_cfg }}"
 
-- name: Check the content of ansible.cfg
-  command: cat {{ ansible_conf_file_path }}/ansible.cfg
-  changed_when: false
-  register: ansible_conf_output
-  when: ansible_conf_exists.stat.exists
-  tags: init
-
-- name: Set log_path to omnia.log in ansible.cfg
+- name: Update log_path in ansible.cfg
   replace:
-    path: "{{ ansible_conf_file_path }}/ansible.cfg"
-    regexp: '#log_path = /var/log/ansible.log'
-    replace: 'log_path = /var/log/omnia/omnia.log'
-  when: 
-    - ansible_conf_exists.stat.exists
-    - '"log_path" in ansible_conf_output.stdout'
-  tags: init
-
-- name: Set host_key_checking to false in ansible.cfg
-  replace:
-    path: "{{ ansible_conf_file_path }}/ansible.cfg"
-    regexp: '^(.*)host_key_checking(.*)'
-    replace: 'host_key_checking = false'
-  when: 
-    - ansible_conf_exists.stat.exists
-    - '"host_key_checking" in ansible_conf_output.stdout'
-  tags: init
-
-- name: Set host_key_checking to false in ansible.cfg
-  lineinfile:
-    path: "{{ ansible_conf_file_path }}/ansible.cfg"
-    regexp: "{{ item.check }}"
-    insertafter: "{{ item.insertafter }}"
-    line: '{{ item.line }}'
-  when: 
-    - ansible_conf_exists.stat.exists
-    - item.check not in ansible_conf_output.stdout
-  with_items: "{{ ansible_config_details }}"
-  tags: init
+    path: "{{ item.path }}"
+    regexp: "{{ item.regexp }}"
+    replace: "{{ item.log_path }}"
+  with_items: "{{ dest_ansible_cfg }}"
 
 - name: Check OS support
   assert:
