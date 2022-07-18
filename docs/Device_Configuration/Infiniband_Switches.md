@@ -23,17 +23,6 @@ In case any of these services are not in the state required, run:
 
 `json-gw enable` (To enable the JSON gateway)
 
->> **Note**: If a server is connected to an Infiniband Switch via an Infiniband NIC, Omnia will not activate this NIC:
->> * For servers running Rocky,Infiniband NICs can be manually enabled using `ifup <InfiniBand NIC>`.
->> * For servers running LeapOS, ensure the following pre-requisites are met before manually bringing up the interface:
->> 	1. The following repositories have to be installed:
->> 		* [Leap OSS](http://download.opensuse.org/distribution/leap/15.3/repo/oss/)
->> 		* [Leap Non OSS](http://download.opensuse.org/distribution/leap/15.3/repo/non-oss/)
->> 	2. Run: `zypper install -n rdma-core librdmacm1 libibmad5 libibumad3 infiniband-diags` to install IB NIC drivers.  (If the drivers do not install smoothly, reboot the server to apply the required changes)
->> 	3. Run: `service network status` to verify that `wicked.service` is running.
->> 	4. Verify that the ifcfg-<InfiniBand NIC> file is present in `/etc/sysconfig/network`
->> 	5. Once all the pre-requisites are met, bring up the interface manually using `ifup <InfiniBand NIC>`
-
 
 When connecting to a new or factory reset switch, the configuration wizard requests to execute an initial configuration:
 * **(Recommended)** If the user enters 'no', they still have to provide the admin and monitor passwords. 

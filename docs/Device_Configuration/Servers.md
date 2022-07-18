@@ -41,22 +41,15 @@ The **provision_idrac** file configures and validates the following:
 * If bare metal servers have BOSS controllers installed, virtual disks (Data will be stored in a RAID 1 configuration by default) will be created on the BOSS controller (ie, RAID controllers will be ignored/unmanaged). Ensure that exactly 2 SSD disks are available on the server.
 * If bare metal servers have a RAID controller installed, Virtual disks are created for RAID configuration (Data will be saved in a RAID 0 configuration by default).
 * Availability of iDRAC Enterprise or Datacenter License on iDRAC.
-After the configurations are validated, the **provision_idrac** file provisions the custom ISO on the PowerEdge Servers. After the OS is provisioned successfully, iDRAC IP addresses are updated in the *provisioned_idrac_inventory* in AWX.
-
+* Omnia validates and configures the active host NICs in PXE device settings when `provision_method` is set to PXE. (If no active NIC is found, `idrac.yml` will fail on the target node.)
+* If target node has an Infiniband NIC card, it will be prioritized as the first PXE device when `provision_method` is set to PXE.
+* After the configurations are validated, `idrac.yml` provisions the custom ISO on the PowerEdge Servers when `provision_method` is set to idrac. After the OS is provisioned successfully, iDRAC IP addresses are updated in the *provisioned_idrac_inventory* AWX/CLI.
+* Alternatively, if the `provision_method` is set to PXE, the cobbler profile (created by the last run of `control_plane.yml`) will be provisioned on the target node.
 >>**Note**:
->> * The `idrac.yml` file initiates the provisioning of custom ISO on the PowerEdge servers. Wait for some time for the node inventory to be updated on the AWX UI. 
+>> * The `idrac.yml` file initiates the provisioning of custom ISO on the PowerEdge servers. Wait for some time for the node inventory to be updated on the AWX/CLI. 
 >> * Due to the latest `catalog.xml` file, Firmware updates may fail for certain components. Omnia execution doesn't get interrupted but an error gets logged on AWX. For now, please download those individual updates manually.
->> * If a server is connected to an Infiniband Switch via an Infiniband NIC, Omnia will not activate this NIC. Use the below instructions depending on the OS.
->> * For servers running Rocky,Infiniband NICs can be manually enabled using `ifup <InfiniBand NIC>`.
->> * If your server is running LeapOS, ensure the following pre-requisites are met before manually bringing up the interface:
->> 	1. The following repositories have to be installed:
->> 		* [Leap OSS](http://download.opensuse.org/distribution/leap/15.3/repo/oss/)
->> 		* [Leap Non OSS](http://download.opensuse.org/distribution/leap/15.3/repo/non-oss/)
->> 	2. Run: `zypper install -n rdma-core librdmacm1 libibmad5 libibumad3 infiniband-diags` to install IB NIC drivers.  (If the drivers do not install smoothly, reboot the server to apply the required changes)
->> 	3. Run: `service network status` to verify that `wicked.service` is running.
->> 	4. Verify that the ifcfg-<InfiniBand NIC> file is present in `/etc/sysconfig/network`
->> 	5. Once all the pre-requisites are met, bring up the interface manually using `ifup <InfiniBand NIC>`
-
+>> * If a server is connected to an Infiniband Switch via an Infiniband NIC, Omnia will activate this NIC when `omnia.yml` is executed.
+>> * Infiniband NICs can be manually enabled using `ifup <InfiniBand NIC>`.
 
 
 ### Provisioning newly added PowerEdge servers in the cluster
