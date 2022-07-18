@@ -65,6 +65,7 @@ cobbler_rocky_dockerfile_path: "{{ playbook_dir }}/roles/provision_cobbler/files
 cobbler_leap_dockerfile_path: "{{ playbook_dir }}/roles/provision_cobbler/files/Dockerfile_leap"
 ib_dockerfile_path: "{{ playbook_dir }}/roles/control_plane_ib/files/Dockerfile"
 mgmnt_dockerfile_path: "{{ playbook_dir }}/roles/control_plane_device/files/Dockerfile"
+roce_opensm_dockerfile_path: "{{ playbook_dir }}/roles/control_plane_roce_sm/files/Dockerfile"
 
 # Usage: pre_requisite.yml
 internet_delay: 0
