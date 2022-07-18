@@ -123,7 +123,6 @@ Hosts that are not in DHCP mode do not get populated in the host list when `cont
                 3. For connecting to PowerVault (Data Connection)
 
 ## Why is the Infiniband NIC down after provisioning the server? <br>
-Omnia does not activate Infiniband NICs. 
 1. For servers running Rocky, enable the Infiniband NIC manually, use `ifup <InfiniBand NIC>`. 
 2. If your server is running LeapOS, ensure the following pre-requisites are met before manually bringing up the interface:
    1. The following repositories have to be installed:
@@ -132,8 +131,8 @@ Omnia does not activate Infiniband NICs.
    2. Run: `zypper install -n rdma-core librdmacm1 libibmad5 libibumad3 infiniband-diags` to install IB NIC drivers.  (If the drivers do not install smoothly, reboot the server to apply the required changes)
    3. Run: `service network status` to verify that `wicked.service` is running.
    4. Verify that the ifcfg-< InfiniBand NIC > file is present in `/etc/sysconfig/network`.
-   5. Once all the above pre-requisites are met, bring up the interface manually using `ifup <InfiniBand NIC>`.
-
+   5. Once all the above pre-requisites are met, bring up the interface manually using `ifup <InfiniBand NIC>`. <br>
+Alternatively, run `omnia.yml` to activate the NIC.
 
 ## What to do if AWX jobs fail with `Error creating pod: container failed to start, ImagePullBackOff`?
 **Potential Cause**:<br>
@@ -174,6 +173,26 @@ Wait for AWX UI to be accessible at http://\<management-station-IP>:8081, and th
 
 ## Why does Omnia Control Plane fail at Task: `control_plane_common: Assert Value of idrac_support if mngmt_network container needed`?
 When `device_config_support` is set to true, `idrac_support` also needs to be set to true. 
+
+## Why does the `idrac.yml` template hang during the import SCP file task on certain target nodes?
+**Potential Causes**: <br>
+1. The server hardware does not allow for auto rebooting
+2. Pending jobs may be running at the time of applying the SCP configuration.
+
+**Resolution**: <br>
+
+1. Login to the iDRAC console to check if the server is stuck in boot errors (F1 prompt message). If true, clear the hardware error or disable POST (PowerOn Self Test).
+2. Reset iDRAC to clear the job queue (If a job is pending).
+
+## Why is the iDRAC server not reachable after running `idrac.yml` for certain target nodes?
+**Potential Causes**: <br>
+1. The server hardware does not allow for auto rebooting
+2. PXE booting is hung on the node
+
+**Resolution**: <br>
+
+1. Login to the iDRAC console to check if the server is stuck in boot errors (F1 prompt message). If true, clear the hardware error or disable POST (PowerOn Self Test).
+2. Hard-reboot the server to bring up the server and verify that the boot process runs smoothly. (If it gets stuck again, disable PXE and try provisioning the server via iDRAC.)
 
 ## What to do if the nodes in a Kubernetes cluster reboot:
 Wait for 15 minutes after the Kubernetes cluster reboots. Next, verify the status of the cluster using the following commands:
@@ -296,12 +315,9 @@ If the above solution **doesn't work**,
 ## What to do after a control plane reboot?
 1. Once the control plane reboots, wait for 10-15 minutes to allow all k8s pods and services to come up. This can be verified using:
 * `kubectl get pods --all-namespaces`
-2. If the pods do not come up, check `/var/log/omnia/omnia.log` for more information.
+2. If the pods do not come up, check `/var/log/omnia/startup_omnia/startup_omnia_yyyy-mm-dd-HHMMSS.log` for more information.
 3. Cobbler profiles are not persistent across reboots. The latest profile will be available post-reboot based on the values of `provision_os` and `iso_file_path` in `base_vars.yml`. Re-run `control_plane.yml` with different values for `provision_os` and `iso_file_path` to restore the profiles.
 4. Devices that have had their IP assigned dynamically via DHCP may get assigned new IPs. This in turn can cause duplicate entries for the same device on AWX. Clusters may also show inconsistency and ambiguity.
-
-## Why does the first run of `control_plane.yml` or `omnia.yml` not get logged to `/var/log/omnia/omnia.log`?
-Since ansible.cfg gets configured to log data to `/var/log/omnia/omnia.log` during the initial run of `control_plane.yml` or `omnia.yml`, the initial run does not get logged. All subsequent runs of `omnia.log` and `control_plane.yml` will be logged by default.
 
 ## How to clear existing DHCP leases after a management NIC IP change?
 If `device_config_support` is set to TRUE,
@@ -410,6 +426,9 @@ To correct the issue, run:
 2. Open all ports required by BeeGFS: 8008, 8003, 8004, 8005 and 8006
 3. Check the [support matrix for Red Hat or Rocky](../Support_Matrix/Software/Operating_Systems) to verify your set-up.
 4. For further insight into the issue, check out `/var/log/beegfs-client.log`
+
+## How many active NICs are configured by `idrac.yml`?
+Upto 4 active NICs can be configured by `idrac.yml`. Past the first 4 NICs, all NICs will be ignored.
 
 ## What to do when `control_plane.yml` fail with 'Error: kinit: Connection refused while getting default ccache' while completing the control plane security role?
 1. Start the sssd-kcm.socket: `systemcl start sssd-kcm.socket`

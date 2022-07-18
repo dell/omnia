@@ -36,7 +36,7 @@ git clone -b release https://github.com/dellhpc/omnia.git
 |-----------------------------	|-----------------------------------------------------------	|
 | `ansible-playbook omnia.yml -i inventory -e 'ansible_python_interpreter=/usr/bin/python3'`   	| `ansible-playbook omnia.yml -i inventory`	|
 		
-
+>> **Note:** Omnia creates a log file which is available at: `/var/log/omnia.log`.
 
 6. By default, no skip tags are selected, and both Kubernetes and Slurm will be deployed.  
 

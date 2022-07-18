@@ -121,6 +121,11 @@ Run `omnia.yml` to create the cluster
 `ansible-playbook platforms/kubeflow.yml -i inventory`
 
 For more information on job management tools, [click here.](Installation_Guides/INSTALL_OMNIA_CLI.md#installing-jupyterhub-and-kubeflow-playbooks)
- 
 
+## Installing telemetry
 
+Once `control_plane.yml` and `omnia.yml` are executed, run the following command from `omnia/telemetry`: <br>
+`ansible-playbook telemetry.yml -i inventory`  (This command references the inventory created when running `omnia.yml`)
+
+ >> **Note**: If slurm_telemetry_support is set to `false` in `telemetry_base_vars.yml`, run `ansible-playbook telemetry.yml`
+ For more information on telemetry, [click here.](Installation_Guides/INSTALL_TELEMETRY.md)
