@@ -16,6 +16,9 @@
 - hosts: localhost
   connection: local
   gather_facts: false
+  vars:
+    node_inventory_path: /root/omnia/control_plane/roles/collect_node_info/files/provisioned_hosts.yml
+    device_inventory_path: /root/omnia/control_plane/roles/collect_device_info/files/mgmt_provisioned_hosts.yml
   tasks:
     - name: Read dhcp file for rocky
       set_fact:
@@ -79,46 +82,72 @@
 
         - name: Final inventory for hosts
           shell: |
-            cat hosts.yml static_hosts.yml| sort -ur  >> omnia/control_plane/roles/collect_node_info/files/provisioned_hosts.yml
+            cat hosts.yml static_hosts.yml| sort -ur  >> {{ node_inventory_path }}
           changed_when: false
 
         - name: Final inventory for devices
           shell: |
-            cat devices.yml static_mgmt.yml| sort -ur  >> omnia/control_plane/roles/collect_device_info/files/mgmt_provisioned_hosts.yml
+            cat devices.yml static_mgmt.yml| sort -ur  >> {{ device_inventory_path }}
           changed_when: false
 
-        - name: Temp result for device
-          shell: cat /root/omnia/control_plane/roles/collect_node_info/files/provisioned_hosts.yml | sort | uniq
+        - name: Filter provisioned_hosts
+          shell: cat {{ node_inventory_path }} | sort | uniq
           register: inventory
           changed_when: false
 
-        - name: Final Inventory
-          copy:
-            content: "{{ inventory.stdout}}"
-            dest: omnia/control_plane/roles/collect_node_info/files/provisioned_hosts.yml
+        - name: Delete line greater than 15 characters for provisioned_hosts
+          lineinfile:
+            path: "{{ node_inventory_path }}"
+            line: "{{ item }}"
+            state: absent
+          with_items: "{{ inventory.stdout_lines }}"
+          when: item | trim | length > 15
 
-        - name: New line at end of file
-          shell: echo "">> omnia/control_plane/roles/collect_node_info/files/provisioned_hosts.yml
+        - name: Fetch output of provisioned_hosts
+          shell: cat {{ node_inventory_path }} | sort | uniq
+          register: inventory
+          changed_when: false
+
+        - name: Final inventory of provisioned_hosts
+          copy:
+            content: "{{ inventory.stdout }}"
+            dest: "{{ node_inventory_path }}"
+
+        - name: New line at end of file of provisioned_hosts
+          shell: echo "">> {{ node_inventory_path }}
           changed_when: false
       when: network_interface_type == "lom"
 
-    - name: Final inventory
-      shell: cat dynamic_hosts.yml static_hosts.yml| sort -ur >> omnia/control_plane/roles/collect_device_info/files/mgmt_provisioned_hosts.yml
+    - name: Final inventory for devices when dedicated
+      shell: cat dynamic_hosts.yml static_hosts.yml| sort -ur >> {{ device_inventory_path }}
       changed_when: false
       when: network_interface_type == "dedicated"
 
-    - name: Temp result
-      shell: cat /root/omnia/control_plane/roles/collect_device_info/files/mgmt_provisioned_hosts.yml | sort | uniq
+    - name: Filter mgmt_provisioned_hosts
+      shell: cat {{ device_inventory_path }} | sort | uniq
       register: inventory
       changed_when: false
 
-    - name: Final Inventory
+    - name: Delete line greater than 15 characters for mgmt_provisioned_hosts
+      lineinfile:
+        path: "{{ device_inventory_path }}"
+        line: "{{ item }}"
+        state: absent
+      with_items: "{{ inventory.stdout_lines }}"
+      when: item | trim | length > 15
+
+    - name: Fetch output of mgmt_provisioned_hosts
+      shell: cat {{ device_inventory_path }} | sort | uniq
+      register: inventory
+      changed_when: false
+
+    - name: Final inventory of mgmt_provisioned_hosts 
       copy:
         content: "{{ inventory.stdout }}"
-        dest: omnia/control_plane/roles/collect_device_info/files/mgmt_provisioned_hosts.yml
+        dest: "{{ device_inventory_path }}"
 
-    - name: New line at end of file
-      shell: echo "">> omnia/control_plane/roles/collect_device_info/files/mgmt_provisioned_hosts.yml
+    - name: New line at end of file of mgmt_provisioned_hosts
+      shell: echo "">> {{ device_inventory_path }}
       changed_when: false
 
     - name: Delete files
