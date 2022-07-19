@@ -339,7 +339,9 @@
         success_msg: "{{ success_msg_different_nics_ib }}"
         fail_msg: "{{ fail_msg_different_nics_ib }}"
       tags: [ validate, pxe, network-ib, network-device ]
-  when: ib_switch_support
+  when:
+    - ib_switch_support
+    - not opensm_roce_enabled
 
 - name: Verify different nics with roce nic
   assert:
@@ -364,3 +366,4 @@
     - ib_switch_support
     - roce_network_nic | length > 1
     - mgmt_lom
+    - not opensm_roce_enabled
