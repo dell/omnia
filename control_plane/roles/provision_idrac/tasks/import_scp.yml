@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -46,9 +46,13 @@
     insertafter: '^(.*)SysProfile'
   with_items:
     - '  <Attribute Name="PxeDev1EnDis">Enabled</Attribute>'
+    - '  <Attribute Name="PxeDev1Protocol">IPv4</Attribute>'
     - '  <Attribute Name="PxeDev2EnDis">Enabled</Attribute>'
+    - '  <Attribute Name="PxeDev2Protocol">IPv4</Attribute>'
     - '  <Attribute Name="PxeDev3EnDis">Enabled</Attribute>'
+    - '  <Attribute Name="PxeDev3Protocol">IPv4</Attribute>'
     - '  <Attribute Name="PxeDev4EnDis">Enabled</Attribute>'
+    - '  <Attribute Name="PxeDev4Protocol">IPv4</Attribute>'
     - '  <Attribute Name="HttpDev1EnDis">Disabled</Attribute>'
     - '  <Attribute Name="HttpDev2EnDis">Disabled</Attribute>'
     - '  <Attribute Name="HttpDev3EnDis">Disabled</Attribute>'
