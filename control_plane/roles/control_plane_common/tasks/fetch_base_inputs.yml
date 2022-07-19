@@ -47,6 +47,7 @@
     backup_mgmt_map_status: false
     backup_map_status: false
     roce_enabled: false
+    opensm_roce_enabled: false
     cobbler_lom: false
     mgmt_lom: false
     new_node_status: false
@@ -68,7 +69,7 @@
     fail_msg: "{{ input_base_failure_msg }}"
   tags: validate
   when: device_config_support
-  
+
 - name: Validate the value of device config support
   assert:
     that:
@@ -83,6 +84,14 @@
       - awx_web_support | lower == "true" or awx_web_support | lower == "false"
     success_msg: "{{ success_awx_web_support }}"
     fail_msg: "{{ fail_awx_web_support }}"
+  tags: init
+
+- name: Set fact for roce when opensm needed
+  set_fact:
+      opensm_roce_enabled: true
+  when:
+    - '"infiniband" in ansible_facts[roce_network_nic].type'
+    - ( roce_network_nic == ib_network_nic ) or ( ib_network_nic | length < 1 )
   tags: init
 
 - block:
@@ -224,8 +233,21 @@
     success_msg: "{{ success_msg_ib }}"
     fail_msg: "{{ fail_msg_ib }}"
   register: ib_check
-  when: ib_switch_support
-  tags: [ validate, network-ib ]
+  when:
+    - ib_switch_support
+    - not opensm_roce_enabled
+  tags: [ validate, network-ib, network-roce-sm ]
+
+- name: Set fact for infiniband base_vars when roce is ib
+  set_fact:
+    ib_network_nic: "{{ roce_network_nic }}"
+    ib_network_dhcp_start_range: "{{ roce_network_dhcp_start_range }}"
+    ib_network_dhcp_end_range: "{{ roce_network_dhcp_end_range }}"
+  when:
+    - ib_switch_support
+    - opensm_roce_enabled
+    - ib_network_nic | length < 1
+  tags: [ init, network-ib, network-roce-sm ]
 
 - name: Assert enable_security_support
   assert:
