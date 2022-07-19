@@ -90,6 +90,7 @@
   set_fact:
       opensm_roce_enabled: true
   when:
+    - roce_network_nic | length > 2
     - '"infiniband" in ansible_facts[roce_network_nic].type'
     - ( roce_network_nic == ib_network_nic ) or ( ib_network_nic | length < 1 )
   tags: init
