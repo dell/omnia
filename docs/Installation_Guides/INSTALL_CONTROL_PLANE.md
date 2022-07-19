@@ -70,7 +70,7 @@ ansible-playbook control_plane.yml
 ```  
 8. If the host_mapping_file_path is not provided, then you must manually assign the component roles through the AWX UI. Go to [Assign component roles using AWX UI](USING_PLAYBOOKS.md#assign-component-roles-via-awx-ui).
 
-Omnia creates a log file which is available at: `/var/log/omnia/omnia.log`.  
+Omnia creates a log file which is available at: `/var/log/omnia_control_plane.log`.  
 
 
 ## Configurations Performed by Omnia Control Plane
