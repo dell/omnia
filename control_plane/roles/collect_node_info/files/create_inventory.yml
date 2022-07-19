@@ -207,6 +207,10 @@
       register: ansible_vault_path
       delegate_to: localhost
 
+    - name: Initialize prov_hosts_list
+      set_fact:
+        prov_hosts_list: ""
+
     - name: Fetch facts and add new hosts in AWX
       include_tasks: add_host_awx.yml
       when: hostvars['localhost']['awx_web_support']
@@ -290,7 +294,7 @@
           include_tasks: "{{ playbook_dir }}/../../collect_device_info/files/add_powervault_inventory.yml"
       when: 
         - hostvars['localhost']['network_interface_type'] == "lom"
-        - inventory_hostname not in prov_hosts.stdout
+        - inventory_hostname not in prov_hosts_list
 
 - name: Cleanup inventory
   hosts: unreachable
