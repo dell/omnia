@@ -11,6 +11,12 @@ If hosts are listed, then an IP address has been assigned to them by DHCP. Howev
 ## How do I find the version of Omnia being used?
 If `control_plane.yml` has run, a version file is created here: `/opt/omnia/omnia_version`.
 
+## What are the mapping files required when configuring in a LOM setup?
+| File name               | Purpose                                                                     | Associated Variable                  | Format                           | Sample File Path                                     |
+|-------------------------|-----------------------------------------------------------------------------|--------------------------------------|----------------------------------|------------------------------------------------------|
+| Host mapping            | Mapping file listing all devices (barring iDRAC) for DHCP   configurations  | base_vars.yml/host_mapping_file_path | xx:yy:zz:aa:bb,server,172.17.0.5 | omnia/examples/host_mapping_file_os_provisioning.csv |
+| Management mapping file | Mapping file listing iDRACs for DHCP configurations                         | base_vars/mgmt_mapping_file_path     | xx:yy:zz:aa:bb,172.17.0.5        | omnia/examples/mapping_device_file.csv               |
+
 ## Why does the task 'nfs_client: Mount NFS client' fail with `No route to host`?
 **Potential Cause**:
 * There's a mismatch in the share path listed in `/etc/exports` and in `omnia_config.yml` under `nfs_client_params`. <br>
@@ -429,6 +435,10 @@ To correct the issue, run:
 
 ## How many active NICs are configured by `idrac.yml`?
 Upto 4 active NICs can be configured by `idrac.yml`. Past the first 4 NICs, all NICs will be ignored.
+
+## Why are the PXE device settings not configured by Omnia on some servers?
+While the NIC qualifies as active, it may not qualify as a PXE device NIC (It may be a mellanox NIC). In such a situation, Omnia assumes that PXE device settings are already configured and proceeds to attempt a PXE boot. <br> 
+If this is not the case, manually configure a PXE device NIC and re-run `idrac.yml` to proceed.
 
 ## What to do when `control_plane.yml` fail with 'Error: kinit: Connection refused while getting default ccache' while completing the control plane security role?
 1. Start the sssd-kcm.socket: `systemcl start sssd-kcm.socket`

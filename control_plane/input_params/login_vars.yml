@@ -70,30 +70,36 @@ idrac_password: ""
 
 # The username for ethernet switch
 # The username must not contain -,\, ',"
+# Required only if ethernet_switch_support: true
 ethernet_switch_username: ""
 
 # Password used for ethernet switch
 # The password must not contain -,\, ',"
+# Required only if ethernet_switch_support: true
 ethernet_switch_password: ""
 
 ### Usage: network_ib ###
 
 # The username for infiniband switch
 # The username must not contain -,\, ',"
+# Required only if ib_switch_support: true
 ib_username: ""
 
 # Password used for infiniband switch
 # The password must not contain -,\, ',"
+# Required only if ib_switch_support: true
 ib_password: ""
 
 ### Usage: powervault ###
 
 # The username for powervault
 # The username must not contain -,\, ',"
+# Required only if powervault_support: true
 powervault_username: ""
 
 # Password used for powervault
 # The password should have atleast one uppercase character, one lowercase character,
 # one numeric character and one non-alphanumeric character.
 # The password must not contain -,\, ',", . , < , comma(,)
+# Required only if powervault_support: true
 powervault_password: ""
