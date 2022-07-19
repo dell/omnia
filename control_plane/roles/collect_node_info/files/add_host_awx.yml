@@ -75,6 +75,10 @@
       no_log: true
       run_once: true
       register: prov_hosts
+
+    - name: Set prov_hosts_list in AWX
+      set_fact:
+        prov_hosts_list: "{{ prov_hosts.stdout }}"
   rescue:
     - name: Failed to fetch hosts in AWX
       fail:
