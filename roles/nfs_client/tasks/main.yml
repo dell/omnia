@@ -16,7 +16,9 @@
 - name: Install NFS client with bolt-on support
   include_tasks: nfs_client.yml
   with_items: "{{ hostvars['127.0.0.1']['nfs_client_params'] }}"
-  when: hostvars['127.0.0.1']['nfs_client_support']
+  when: 
+  - hostvars['127.0.0.1']['nfs_client_support'] 
+  - not (hostvars['127.0.0.1']['powervault_support'] and hostvars['127.0.0.1']['nfs_node_status'])
 
 - name: Install NFS Client when PV is present in the cluster
   block:
