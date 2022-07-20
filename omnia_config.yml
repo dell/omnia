@@ -135,7 +135,7 @@ beegfs_version_change: false
 # NFS bolt-on support, USER have to mount EXTERNAL NFS server, omnia will mount NFS client
 # This variable is used for supportig NFS bolt-on on login_node, compute, and manager nodes
 # Values should be entered in JSON format only.
-# If mount_option values are empty, NFS client will be mounted with these values "nosuid,rw,sync,hard,intr 0 0"
+# If mount_option values are empty, NFS client will be mounted with these values "nosuid,rw,sync,hard,intr"
 # For enabling NFS bolt-on support, atleast one list of valid values should be provided.
 # Example for single mount file system:
 # nfs_client_params: 
