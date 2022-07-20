@@ -11,7 +11,7 @@
 * Only one storage instance (Powervault) is currently supported in the HPC cluster.
 * Cobbler web support has been discontinued from Omnia 1.2 onwards.
 * Omnia supports only basic telemetry configurations. Changing data fetching time intervals for telemetry is not supported.
-* Slurm cluster metrics will only be fetched from clusters configured by Omnia via AWX.
+* Slurm cluster metrics will only be fetched from clusters configured by Omnia.
 * All iDRACs must have the same username and password.
 * OpenSUSE Leap 15.3 is not supported on the Control Plane.
 * Slurm Telemetry is supported only on a single cluster.

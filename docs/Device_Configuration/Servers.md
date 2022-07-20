@@ -31,7 +31,7 @@ For the `idrac.yml` file to successfully provision the custom ISO on the PowerEd
 * The Lifecycle Controller Remote Services of PowerEdge Servers is in the 'ready' state.
 * The Redfish services are enabled in the iDRAC settings under **Services**.
 * The PowerEdge Servers have the iDRAC Enterprise or Datacenter license. If the license is not found, servers will be PXE booted and provisioned using Cobbler.  
-* If `provision_method` is set to PXE in `base_vars.yml`, ensure that all PXE devices have a configured, active NIC. To verify/ configure NIC availability: On the server, go to `BIOS Setup -> Network Settings -> PXE Device`. For each listed device (typically 4), configure/ check for an active NIC under `PXE device settings`
+* If `provision_method` is set to PXE in `base_vars.yml`, ensure that all PXE devices have an active NIC. To verify/ configure NIC availability: On the server, go to `BIOS Setup -> Network Settings -> PXE Device`. For each listed device (typically 4), configure/ check for an active NIC under `PXE device settings`
 * iDRAC 9 based Dell EMC PowerEdge Servers with firmware versions 5.00.10.20 and above. (With the latest BIOS available)
 
 The **provision_idrac** file configures and validates the following:
@@ -50,6 +50,7 @@ The **provision_idrac** file configures and validates the following:
 >> * Due to the latest `catalog.xml` file, Firmware updates may fail for certain components. Omnia execution doesn't get interrupted but an error gets logged on AWX. For now, please download those individual updates manually.
 >> * If a server is connected to an Infiniband Switch via an Infiniband NIC, Omnia will activate this NIC when `omnia.yml` is executed.
 >> * Infiniband NICs can be manually enabled using `ifup <InfiniBand NIC>`.
+>> * PXE device settings are only configured on active, valid PXE NICs present in PXE device settings. If no such NIC is found, Omnia assumes that a NIC was pre-configured and attempts a PXE boot. If that's not the case, configure the PXE device NIC manually and rerun `idrac.yml`
 
 
 ### Provisioning newly added PowerEdge servers in the cluster
