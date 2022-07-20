@@ -21,6 +21,7 @@
   with_items:
     - { path: "{{ cobbler_rocky_dockerfile_path }}"}
     - { path: "{{ ib_dockerfile_path }}"}
+    - { path: "{{ roce_opensm_dockerfile_path }}"}
 
 - name: Replace the leap os version in dockerfile
   replace:

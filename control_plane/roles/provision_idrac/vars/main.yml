@@ -49,7 +49,7 @@ idrac9_supported_version: "5.00.10.20"
 idrac9_firmware_not_supported_msg: "[WARNING]Firmware version of iDRAC9 less than 5.00.10.20 is not supported for provisioning. Following tasks can be failed due to older firmware version. In case of failure, update firmware manually and re-run the idrac_template"
 idrac8_supported_version: "2.81.81.81"
 idrac8_firmware_not_supported_msg: "[WARNING]Firmware version of iDRAC8 less than 2.81.81.81 is not supported for provisioning. Following tasks can be failed due to older firmware version. In case of failure, update firmware manually and re-run the idrac_template"
-retries_count: 5
+retries_count: 2
 provision_method_idrac: "idrac"
 provision_method_pxe: "PXE"
 
@@ -61,7 +61,7 @@ firmware_job_success_msg: "Firmware update job compeleted successfully"
 
 # Usage: import_scp.yml
 scp_filename: idrac_scp.xml
-import_scp_fail_msg: "Import scp failed. This could be due to older bios, idrac version or due to pending lc tasks."
+import_scp_fail_msg: "Import scp failed. This could be due to older bios, idrac version or due to pending lc tasks. Verify the server is not stuck with F1 prompt error."
 
 # Usage: create_vd.yml
 raid_level: "RAID 0"
@@ -82,9 +82,12 @@ expose_duration: 60
 file_permission: 0644
 provision_os_msg: "OS provisioning is initiated. Wait for installation to complete for all servers."
 idrac_provisioning_fail_msg: "OS provisioning using iDRAC is failed. This could be due to older firmware or some internal issues with server. Re-run idrac_template in AWX or idrac.yml in CLI after fixing the issue"
-pxe_provisioning_fail_msg: "OS provisioning using PXE is failed. This could be due some internal issues with server. Re-run idrac_template in AWX or idrac.yml in CLI after fixing the issue"
+pxe_provisioning_fail_msg: "OS provisioning using PXE failed. This could be due to outdated NIC firmware. Re-run idrac_template in AWX or idrac.yml in CLI after fixing the issue"
 add_inventory_fail_msg: "Failed. Unable to add provisioned host to provisioned_idrac_inventory."
 max_delay: 40
 max_retries: 30
 max_timeout: 500
 idrac_reset_time: 30
+
+# configure_pxe_boot.yml
+active_nic_fail_msg: "No host active nic present for the device. Please check the host connection for the server and retry again."
