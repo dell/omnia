@@ -191,7 +191,7 @@
 - name: Check parition percentage
   assert:
     that:
-      - powervault_disk_partition_size| length > 1
+      - powervault_disk_partition_size| length > 0
       - powervault_disk_partition_size|int
       - powervault_disk_partition_size|int < 90
       - powervault_disk_partition_size|int > 5
