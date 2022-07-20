@@ -110,6 +110,14 @@
   tags: init
   when: os_supported_leap not in mgmt_os
 
+- name: Verify ansible version on control plane
+  assert:
+    that:
+      - ansible_version.full is version_compare('{{ max_ansible_version }}', '<')
+    success_msg: "Ansible version is  {{ ansible_version.full }}"
+    fail_msg: "Ansible version should be less than {{ max_ansible_version }}"
+  tags: init
+  
 - name: Fetch ansible-vault path
   command: whereis ansible-vault
   changed_when: false
