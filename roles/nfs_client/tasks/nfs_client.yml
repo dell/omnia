@@ -69,16 +69,26 @@
             msg: "{{ client_mount_path }} {{ client_folder_msg }}"
 
     - block:
-        - name: Mount NFS client
-          command: "mount -t nfs {{ item.server_ip }}:{{ item.server_share_path }} {{ client_mount_path }}"
+        - name: Mount NFS client when mount options are provided
+          command: "mount -o {{ item.client_mount_options }} -t nfs {{ item.server_ip }}:{{ item.server_share_path }} {{ client_mount_path }}"
           changed_when: true
           args:
             warn: false
           async: "{{ sync_value }}"
           poll: "{{ poll_value }}"
           register: nfs_mount_status
+          when: mount_option_status
+        
+        - name: Mount NFS client when mount options are not provided
+          command: "mount -o {{ default_client_mount_options }} -t nfs {{ item.server_ip }}:{{ item.server_share_path }} {{ client_mount_path }}"
+          changed_when: true
+          args:
+            warn: false
+          async: "{{ sync_value }}"
+          poll: "{{ poll_value }}"
+          register: nfs_mount_status
+          when: not mount_option_status
       rescue:
-
         - name: Status of NFS mount when NFS server is not available on mentioned server_share_path
           fail:
             msg: "{{ mount_message }} on IP {{ item.server_ip }}"
