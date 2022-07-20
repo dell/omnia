@@ -97,7 +97,7 @@ Based on the value of `powervault_support`, NFS configuration can take one of tw
     - server_share_path [Mandatory]: The path at which volume is mounted on nfs_node. This directory will be assigned 755 permissions during NFS server configuration.
     - server_export_options: (Default) rw,sync,no_root_squash
     - client_shared_path: The path at which volume is mounted on manager, compute, login node. Unless specified otherwise, the client path will inherit the options from the `server_export_path`.
-    - client_mount_options: Default value is- nosuid,rw,sync,hard,intr 0 0 (unless specified otherwise)
+    - client_mount_options: Default value is- nosuid,rw,sync,hard,intr (unless specified otherwise)
 * Only one NFS server is configured per run of `omnia.yml`. To configure multiple NFS servers, update the following per execution:
   * `powervault_ip` in `omnia_config.yml`
   * nfs_node group IP in the node inventory
