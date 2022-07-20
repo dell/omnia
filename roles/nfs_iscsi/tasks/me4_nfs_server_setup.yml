@@ -54,6 +54,17 @@
       - "{{ pv_volumes }}"
       - "{{ groups['compute'] }}"
 
+- name: Adding NFS share entries in /etc/exports for compute
+  lineinfile:
+    path: "{{ exports_file_path }}"
+    line: "{{ item.0.location }} {{ item.1 }}(rw,sync,no_root_squash)"
+  with_nested:
+      - "{{ pv_volumes }}"
+      - "{{ groups['login_node'] }}"
+  when:
+    - groups['login_node'] is defined
+    - groups['login_node'] | length | int > 0
+
 - name: Exporting the shared directories
   command: exportfs -ra
   changed_when: true
