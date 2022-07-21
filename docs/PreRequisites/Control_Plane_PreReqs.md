@@ -33,7 +33,7 @@
   After the installation is complete, run `ansible --version` to verify if the installation is successful. In the output, ensure that the executable location path is present in the PATH variable by running `echo $PATH`.
   If executable location path is not present, update the path by running `export PATH=$PATH:<executable location>\`.  
 	
-        For example,  
+For example,  
         ```
         ansible -- version
         ansible 2.10.9
@@ -43,7 +43,7 @@
         executable location = /usr/local/bin/ansible
         python version = 3.6.8 (default, Aug 24 2020, 17:57:11) [GCC 8.3.1 20191121 (Red Hat 8.3.1-5)]
         ```
-        The executable location is `/usr/local/bin/ansible`. Update the path by running the following command:
+The executable location is `/usr/local/bin/ansible`. Update the path by running the following command:
         ```
         export PATH=$PATH:/usr/local/bin
         ```  
