@@ -32,6 +32,7 @@ common_packages:
   - dos2unix
   - make
   - sshpass
+  - network-scripts
 
 os_supported_leap: "leap"
 os_supported_leap_version: "15.3"
