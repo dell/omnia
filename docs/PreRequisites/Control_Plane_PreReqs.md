@@ -16,16 +16,18 @@
 >>	* No upper case characters are allowed in the hostname.
 >>	* The hostname cannot start with a number.
 * Connect one of the Ethernet cards on the control plane to the HPC switch. The other Ethernet card must be connected to the internet network. Acceptable network topologies are provided in the [Supported Network Topology file.](../EXAMPLE_SYSTEM_DESIGNS.md)
-* Ensure that all connection names under the network manager match their corresponding device names. This can be verified using the command `nmcli connection`. In the event of a mismatch, edit the file `/etc/sysconfig/network-scripts/ifcfg-<nic name>` using vi editor.
-  * You must have root privileges to perform installations and configurations using the Omnia control plane.
-    * On the control plane, ensure that Python 3.6 or 3.8 and Ansible are installed (The following commands are compatible with all 3 OS's unless marked otherwise).  
-        * Run the following commands to install Python 3.6 or 3.8:  
-          `dnf install epel-release -y` <br><br> `dnf install python3 -y`
-        * Run the following commands to install Ansible:
-    >> **Warning**: Omnia does not support Ansible versions greater than 6.0.0.
+  * Ensure that all connection names under the network manager match their corresponding device names. This can be verified using the command `nmcli connection`. In the event of a mismatch, edit the file `/etc/sysconfig/network-scripts/ifcfg-<nic name>` using vi editor.
+    * You must have root privileges to perform installations and configurations using the Omnia control plane.
+      * On the control plane, ensure that Python 3.6 or 3.8 and Ansible are installed (The following commands are compatible with all 3 OS's unless marked otherwise).  
+          * Run the following commands to install Python 3.6 or 3.8:  
+            `dnf install epel-release -y` <br><br> `dnf install python3 -y`
+          * Run the following commands to install Ansible:
+      >> **Warning**: Omnia does not support Ansible versions greater than 6.0.0.
            
-          ` pip3.6 install --upgrade pip`<br>`pip3.8 install --upgrade pip`
-           `python3.6 -m pip install ansible` <br> `python3.8 -m pip install ansible==5.10.0`
+  ` pip3.6 install --upgrade pip`  <br>
+  `pip3.8 install --upgrade pip`   <br>
+  `python3.6 -m pip install ansible`  <br>
+  `python3.8 -m pip install ansible==5.10.0` <br>
   
           
   After the installation is complete, run `ansible --version` to verify if the installation is successful. In the output, ensure that the executable location path is present in the PATH variable by running `echo $PATH`.
