@@ -24,10 +24,10 @@
           * Run the following commands to install Ansible:
       >> **Warning**: Omnia does not support Ansible versions greater than 6.0.0.
            
-             ` pip3.6 install --upgrade pip`  <br>
-             `pip3.8 install --upgrade pip`   <br>
-             `python3.6 -m pip install ansible`  <br>
-             `python3.8 -m pip install ansible==5.10.0` <br>
+` pip3.6 install --upgrade pip`  <br>
+`pip3.8 install --upgrade pip`   <br>
+`python3.6 -m pip install ansible`  <br>
+`python3.8 -m pip install ansible==5.10.0` <br>
   
           
   After the installation is complete, run `ansible --version` to verify if the installation is successful. In the output, ensure that the executable location path is present in the PATH variable by running `echo $PATH`.
