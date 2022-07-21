@@ -45,7 +45,7 @@ For example,
 
 The executable location is `/usr/local/bin/ansible`. Update the path by running the following command: <br>
 
-        `export PATH=$PATH:/usr/local/bin`
+`export PATH=$PATH:/usr/local/bin`
 	
 >>**Note**:
 >> * To deploy Omnia, Python 3.6 provides bindings to system tools such as RPM, DNF, and SELinux. As versions greater than 3.6 do not provide these bindings to system tools, ensure that you install Python 3.6 with dnf.  
