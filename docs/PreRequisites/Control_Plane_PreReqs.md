@@ -34,19 +34,18 @@
   If executable location path is not present, update the path by running `export PATH=$PATH:<executable location>\`.  
 	
 For example,  
-        ```
-        ansible -- version
-        ansible 2.10.9
-        config file = None
-        configured module search path = ['/root/.ansible/plugins/modules', '/usr/share/ansible/plugins/modules']
-        ansible python module location = /usr/local/lib/python3.6/site-packages/ansible
-        executable location = /usr/local/bin/ansible
-        python version = 3.6.8 (default, Aug 24 2020, 17:57:11) [GCC 8.3.1 20191121 (Red Hat 8.3.1-5)]
-        ```
-The executable location is `/usr/local/bin/ansible`. Update the path by running the following command:
-        ```
-        export PATH=$PATH:/usr/local/bin
-        ```  
+
+`ansible -- version` <br>
+`ansible 2.10.9` <br>
+`config file = None` <br>
+`configured module search path = ['/root/.ansible/plugins/modules', '/usr/share/ansible/plugins/modules']` <br>
+`ansible python module location = /usr/local/lib/python3.6/site-packages/ansible` <br>
+`executable location = /usr/local/bin/ansible` <br>
+`python version = 3.6.8 (default, Aug 24 2020, 17:57:11) [GCC 8.3.1 20191121 (Red Hat 8.3.1-5)]` <br>
+
+The executable location is `/usr/local/bin/ansible`. Update the path by running the following command: <br>
+
+        `export PATH=$PATH:/usr/local/bin`
 	
 >>**Note**:
 >> * To deploy Omnia, Python 3.6 provides bindings to system tools such as RPM, DNF, and SELinux. As versions greater than 3.6 do not provide these bindings to system tools, ensure that you install Python 3.6 with dnf.  
