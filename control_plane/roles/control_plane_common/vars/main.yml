@@ -68,6 +68,7 @@ mgmnt_dockerfile_path: "{{ playbook_dir }}/roles/control_plane_device/files/Dock
 roce_opensm_dockerfile_path: "{{ playbook_dir }}/roles/control_plane_roce_sm/files/Dockerfile"
 
 # Usage: pre_requisite.yml
+max_ansible_version: 2.13
 internet_delay: 0
 internet_timeout: 10
 hostname: github.com
