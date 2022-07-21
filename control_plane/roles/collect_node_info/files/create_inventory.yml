@@ -49,6 +49,7 @@
 
     - name: Include vars file of inventory role
       include_vars: "{{ omnia_config_file }}"
+      no_log: true
 
     - name: Encrypt omnia_config.yml file
       command: >-
@@ -223,42 +224,6 @@
       block:
         - name: Include vars from collect device info
           include_vars: "{{ playbook_dir }}/../../collect_device_info/vars/main.yml"
-
-        - name: Check if {{ login_vars_file }} file is encrypted
-          command: cat {{ login_vars_file }}
-          changed_when: false
-          no_log: true
-          register: config_content
-          delegate_to: localhost
-
-        - name: Decrpyt {{ login_vars_file }}
-          command: >-
-            {{ ansible_vault_path.stdout.split(' ')[1] }} decrypt {{ login_vars_file }}
-            --vault-password-file {{ login_vault_file }}
-          when: "'$ANSIBLE_VAULT;' in config_content.stdout"
-          changed_when: false
-          failed_when: false
-          delegate_to: localhost
-
-        - name: Include variable file {{ login_vars_file }}
-          include_vars: "{{ login_vars_file }}"
-          no_log: true
-          delegate_to: localhost
-
-        - name: Encrypt {{ login_vars_file }}
-          command: >-
-            {{ ansible_vault_path.stdout.split(' ')[1] }} encrypt {{ login_vars_file }}
-            --vault-password-file {{ login_vault_file }}
-          changed_when: false
-          when: "'$ANSIBLE_VAULT;' in config_content.stdout"
-          failed_when: false
-          delegate_to: localhost
-
-        - name: Change file permissions
-          file:
-            path: "{{ login_vars_file }}"
-            mode: "{{ file_perm }}"
-          delegate_to: localhost
 
         - name: Install paramiko
           command: pip3 install paramiko -i http://pypi.douban.com/simple/ --trusted-host pypi.douban.com

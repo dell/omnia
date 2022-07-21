@@ -12,20 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-- name: Get mngmnt_network pod name
-  command: 'kubectl get pod -n network-config -l app=mngmnt-network -o jsonpath="{.items[0].metadata.name}"'
+- name: Get mgmt_network pod name
+  command: 'kubectl get pod -n network-config -l app=mgmt-network -o jsonpath="{.items[0].metadata.name}"'
   changed_when: false
   failed_when: false
-  register: mngmnt_network_pod_name
+  register: mgmt_network_pod_name
   tags: mgmt
 
 - name: Delete management network container
-  command: "kubectl delete -f {{ k8s_mngmnt_network }}"
-  when: "mngmnt_network_pod_name.stdout in k8s_pods.stdout"
+  command: "kubectl delete -f {{ k8s_mgmt_network }}"
+  when: "mgmt_network_pod_name.stdout in k8s_pods.stdout"
   failed_when: false
   tags: mgmt
 
 - name: Delete management network image
-  command: "buildah rmi -f {{ mngmnt_network_container }}:latest"
-  when: mngmnt_network_container in image_list.stdout
+  command: "buildah rmi -f {{ mgmt_network_container }}:latest"
+  when: mgmt_network_container in image_list.stdout
   tags: mgmt
