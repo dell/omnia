@@ -72,7 +72,6 @@
         {{ ansible_vault_path.stdout.split(' ')[1] }} encrypt {{ login_vars_file }}
         --vault-password-file {{ login_vault_file }}
       changed_when: false
-      when: "'$ANSIBLE_VAULT;' in config_content.stdout"
       run_once: true
 
     - name: Change file permissions
