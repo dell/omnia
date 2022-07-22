@@ -51,10 +51,12 @@ common_packages_non_leap:
   - nvidia-detect
   - docker-ce-cli-20.10.2
   - docker-ce-20.10.2
+  - network-scripts
 common_packages_rhel:
   - yum-plugin-versionlock
   - docker-ce-cli-20.10.2
   - docker-ce-20.10.2
+  - network-scripts
 docker_packages:
   - docker-ce-cli-20.10.2
   - docker-ce-20.10.2
