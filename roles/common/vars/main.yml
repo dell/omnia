@@ -145,13 +145,18 @@ nvidia_rhel_packages:
   - nvidia-container-toolkit
   - nvidia-docker2
   - nvidia-container-runtime
+rhel_libnvidia_curl_url: "https://nvidia.github.io/libnvidia-container/{{ os_distribution }}/libnvidia-container.repo"
 rhel_libnvidia_url: "https://nvidia.github.io/libnvidia-container/stable/{{ os_distribution }}/$basearch"
 rhel_libnvidia_gpg: "https://nvidia.github.io/libnvidia-container/gpgkey"
 rhel_ssl_cert: "/etc/pki/tls/certs/ca-bundle.crt"
+rhle_libexp_curl_url: "https://nvidia.github.io/nvidia-container-runtime/{{ os_distribution }}/nvidia-container-runtime.repo"
 rhle_libexp_url: "https://nvidia.github.io/nvidia-container-runtime/stable/{{ os_distribution }}/$basearch"
 rhel_libexp_gpg: "https://nvidia.github.io/nvidia-container-runtime/gpgkey"
+rhel_nvidia_docker_curl_url: "https://nvidia.github.io/nvidia-docker/{{ os_distribution }}/nvidia-docker.repo"
 rhel_nvidia_docker_url: "https://nvidia.github.io/nvidia-docker/{{ os_distribution }}/$basearch"
 rhel_nvidia_docker_gpg: "https://nvidia.github.io/nvidia-docker/gpgkey"
+return_code: 200
+nvidia_packages_status: "Nvidia packages are not installed as repositories are not available for {{ os_distribution }}."
 
 # Usage: amd_rhel.yml
 amd_rhel_url: "https://repo.radeon.com/rocm/centos8/4.3.1"
