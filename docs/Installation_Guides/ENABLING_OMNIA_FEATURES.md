@@ -1,4 +1,4 @@
-# Ansible Playbooks And How To Use Them
+ # Ansible Playbooks And How To Use Them
 
 Once `control_plane.yml` is run, AWX UI or Ansible CLI can be used to run different scripts on your control_plane. Some of these functionalities include:
 1. [Setting up Red Hat Subscription](#red-hat-subscription)

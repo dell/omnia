@@ -9,6 +9,7 @@
   * The nfs_node group is optional. If powervault is configured by omnia control plane, then the host connected to the powervault (That is the nfs server) should be part of nfs_node group. There should be only 1 nfs server in the group.
   * Users should also ensure that all repos are available on the target nodes running Red Hat.
 >> **Note**: The inventory file accepts both IPs and FQDNs as long as they can be resolved by DNS.
+* For RedHat clusters, ensure that [RedHat subscription](../Installation_Guides/ENABLING_OMNIA_FEATURES.md#red-hat-subscription) is enabled on all target nodes.
 
 ## Features enabled by `omnia.yml`
 * Slurm: Once all the required parameters in [omnia_config.yml](../Input_Parameter_Guide/omnia_config.md) are filled in, `omnia.yml` can be used to set up slurm.
