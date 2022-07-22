@@ -13,52 +13,118 @@
 #  limitations under the License.
 ---
 
-- name: Add libnvidia container Repo
-  yum_repository:
-    name: libnvidia-container
-    description: libnvidia-container
-    baseurl: "{{ rhel_libnvidia_url }}"
-    repo_gpgcheck: yes
-    gpgcheck: no
-    enabled: yes
-    gpgkey: "{{ rhel_libnvidia_gpg }}"
-    sslverify: yes
-    sslcacert: "{{ rhel_ssl_cert }}"
+- name: Initialise nvidia repo status
+  set_fact:
+    nvidia_repo_status: true
   tags: install
+
+- name: Add libnvidia container Repo
+  block:
+  - name: Check if libnvidia container repo exists
+    uri:
+      url: "{{ rhel_libnvidia_curl_url }}"
+      method: GET
+      return_content: yes
+    failed_when: false
+    register: nvidia_repo_register
+    tags: install
+
+  - name: Add libnvidia container Repo
+    yum_repository:
+      name: libnvidia-container
+      description: libnvidia-container
+      baseurl: "{{ rhel_libnvidia_url }}"
+      repo_gpgcheck: yes
+      gpgcheck: no
+      enabled: yes
+      gpgkey: "{{ rhel_libnvidia_gpg }}"
+      sslverify: yes
+      sslcacert: "{{ rhel_ssl_cert }}"
+    when: nvidia_repo_register.status == return_code
+    tags: install
+
+  - name: Set nvidia repo status if repo not available
+    set_fact:
+      nvidia_repo_status: false
+    when: not nvidia_repo_register.status == return_code 
+    tags: install
 
 - name: Add nvidia-container-runtime Repo
-  yum_repository:
-    description: nvidia-container-runtime
-    name: nvidia-container-runtime
-    baseurl: "{{ rhle_libexp_url }}"
-    repo_gpgcheck: yes
-    gpgcheck: no
-    enabled: no
-    gpgkey: "{{ rhel_libexp_gpg }}"
-    sslverify: yes
-    sslcacert: "{{ rhel_ssl_cert }}"
-  tags: install
+  block:
+  - name: Check if nvidia-container-runtime repo exists
+    uri:
+      url: "{{ rhle_libexp_curl_url }}"
+      method: GET
+      return_content: yes
+    failed_when: false
+    register: nvidia_repo_register
+    tags: install
+
+  - name: Add nvidia-container-runtime Repo
+    yum_repository:
+      description: nvidia-container-runtime
+      name: nvidia-container-runtime
+      baseurl: "{{ rhle_libexp_url }}"
+      repo_gpgcheck: yes
+      gpgcheck: no
+      enabled: no
+      gpgkey: "{{ rhel_libexp_gpg }}"
+      sslverify: yes
+      sslcacert: "{{ rhel_ssl_cert }}"
+    when: nvidia_repo_register.status == return_code
+    tags: install
+
+  - name: Set nvidia repo status if repo not available
+    set_fact:
+      nvidia_repo_status: false
+    when: not nvidia_repo_register.status == return_code
+    tags: install
 
 - name: Add nvidia-docker Repo
-  yum_repository:
-    name: nvidia-docker
-    description:  nvidia-docker
-    baseurl: "{{ rhel_nvidia_docker_url }}"
-    repo_gpgcheck: no
-    gpgcheck: no
-    gpgkey: "{{ rhel_nvidia_docker_gpg }}"
-    enabled: yes
-    sslverify: yes
-    sslcacert: "{{ rhel_ssl_cert }}"
-  tags: install
+  block:
+  - name: Check if nvidia-docke repo exists
+    uri:
+      url: "{{ rhel_nvidia_docker_curl_url }}"
+      method: GET
+      return_content: yes
+    failed_when: false
+    register: nvidia_repo_register
+    tags: install
+
+  - name: Add nvidia-docker Repo
+    yum_repository:
+      name: nvidia-docker
+      description:  nvidia-docker
+      baseurl: "{{ rhel_nvidia_docker_url }}"
+      repo_gpgcheck: no
+      gpgcheck: no
+      gpgkey: "{{ rhel_nvidia_docker_gpg }}"
+      enabled: yes
+      sslverify: yes
+      sslcacert: "{{ rhel_ssl_cert }}"
+    when: nvidia_repo_register.status == return_code 
+    tags: install
+
+  - name: Set nvidia repo status if repo not available
+    set_fact:
+      nvidia_repo_status: false
+    when: not nvidia_repo_register.status == return_code 
+    tags: install
 
 - name: Install nvidia packages
   package:
     name: "{{ nvidia_rhel_packages }}"
     enablerepo: libnvidia-container,nvidia-docker
     state: present
+  when: nvidia_repo_status
   tags: install
+
+- name: Status message for nvidia packages
+  debug:
+    msg: "{{ nvidia_packages_status }}"
+  when: not nvidia_repo_status
     
 - name: Reboot after installing GPU drivers
   reboot:
+  when: nvidia_repo_status
   tags: install
