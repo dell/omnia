@@ -12,10 +12,10 @@ If hosts are listed, then an IP address has been assigned to them by DHCP. Howev
 If `control_plane.yml` has run, a version file is created here: `/opt/omnia/omnia_version`.
 
 ## What are the mapping files required when configuring in a LOM setup?
-| File name               | Purpose                                                                     | Associated Variable                  | Format                           | Sample File Path                                     |
-|-------------------------|-----------------------------------------------------------------------------|--------------------------------------|----------------------------------|------------------------------------------------------|
-| Host mapping            | Mapping file listing all devices (barring iDRAC) for DHCP   configurations  | base_vars.yml/host_mapping_file_path | xx:yy:zz:aa:bb,server,172.17.0.5 | omnia/examples/host_mapping_file_os_provisioning.csv |
-| Management mapping file | Mapping file listing iDRACs for DHCP configurations                         | base_vars/mgmt_mapping_file_path     | xx:yy:zz:aa:bb,172.17.0.5        | omnia/examples/mapping_device_file.csv               |
+| File name               | Purpose                                                                                               | Associated Variable  (base_vars.yml)   | Format                           | Sample File Path                                     |
+|-------------------------|-------------------------------------------------------------------------------------------------------|----------------------------------------|----------------------------------|------------------------------------------------------|
+| Host mapping            | __Mapping file listing all devices (barring iDRAC) and provisioned hosts for DHCP configurations__    | `host_mapping_file_path`               | xx:yy:zz:aa:bb,server,172.17.0.5 | omnia/examples/host_mapping_file_os_provisioning.csv |
+| Management mapping file | __Mapping file listing iDRACs for DHCP configurations__                                               | `mgmt_mapping_file_path`               | xx:yy:zz:aa:bb,172.17.0.5        | omnia/examples/mapping_device_file.csv               |
 
 ## Why does the task 'nfs_client: Mount NFS client' fail with `No route to host`?
 **Potential Cause**:

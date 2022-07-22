@@ -26,7 +26,7 @@ git clone -b release https://github.com/dellhpc/omnia.git
 
 4. Create an inventory file in the *omnia* folder. Add login node IP address under the *[login_node]* group, manager node IP address under the *[manager]* group, compute node IP addresses under the *[compute]* group, and NFS node IP address under the *[nfs_node]* group. A template file named INVENTORY is provided in the *omnia\docs* folder.  
 >>	**Note**: 
->> * Omnia checks for red hat subscription being enabled on red hat nodes as a pre-requisite. Check out [how to enable Red Hat subscription here](USING_PLAYBOOKS.md#red-hat-subscription). Not having Red Hat subscription enabled on the manager node will cause `omnia.yml` to fail. If compute nodes do not have Red Hat subscription enabled, `omnia.yml` will skip the node entirely.
+>> * Omnia checks for red hat subscription being enabled on RedHat nodes as a pre-requisite. Check out [how to enable Red Hat subscription here](ENABLING_OMNIA_FEATURES.md#red-hat-subscription). Not having Red Hat subscription enabled on the manager node will cause `omnia.yml` to fail. If compute nodes do not have Red Hat subscription enabled, `omnia.yml` will skip the node entirely.
 >> * Ensure that all the four groups (login_node, manager, compute, nfs_node) are present in the template, even if the IP addresses are not updated under login_node and nfs_node groups.
 
 
