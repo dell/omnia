@@ -23,6 +23,18 @@ If `control_plane.yml` has run, a version file is created here: `/opt/omnia/omni
 **Resolution**:
 * Ensure that the input paths are a perfect match down to the character to avoid any errors.
 
+## Why does the task 'control plane security: Authenticate as admin' fail?
+**Potential Cause**: <br>
+The required services are not running on the control plane. Verify the service status using: <br>
+`systemctl status sssd-kcm.socket` <br>
+`systemctl status sssd.service` <br>
+**Resolution**: <br>
+* Restart the services using: <br>
+`systemctl start sssd-kcm.socket` <br>
+`systemctl start sssd.service` <br>
+* Re-run `control_plane.yml` using the tags `init` and `security`. <br>
+`Ansible-playbook control_plane.yml –tags init,security`
+
 ## Why does the task 'Gather facts from all the nodes' stuck when re-running `omnia.yml`?
 **Potential Cause**: Corrupted entries in the `/root/.ansible/cp/` folder. For more information on this issue, [check this out](https://github.com/ansible/ansible/issues/17349)! <br>
 **Resolution**: Clear the directory `/root/.ansible/cp/` using the following commands: <br>
