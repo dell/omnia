@@ -36,11 +36,8 @@
   include_tasks: slurm_pam_compute.yml
   when: inventory_hostname in groups['compute']
 
-- name: Start slurmd on login node
-  systemd:
-    name: slurmd.service
-    state: restarted
-    enabled: yes
+- name: Configure slurm pam for login node
+  include_tasks: slurm_pam_login_node.yml
   when:
     - groups['login_node'] is defined
     - inventory_hostname in groups['login_node']

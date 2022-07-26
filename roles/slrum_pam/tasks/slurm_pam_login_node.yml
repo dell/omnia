@@ -13,12 +13,20 @@
 # limitations under the License.
 ---
 
-# This playbook is used to configure slurm job based user access in compute nodes
-# The inventory queried in the below command is to be created by the user prior to running `omnia.yml`.
-# Command to execute: ansible-playbook job_based_user_access.yml -i inventory
+- name: Modify slurm.conf configuration for TaskPlugin
+  lineinfile:
+    path: "{{ slurm_confpth }}"
+    regexp: "{{ task_plugin_regexp }}"
+    line: "{{ task_plugin_compute }}"
 
-- name: Setup slurm pam authentication
-  hosts: manager, compute, login_node
-  gather_facts: true
-  roles:
-    - slurm_pam
+- name: Modify slurm.conf configuration for PrologFlags
+  lineinfile:
+    path: "{{ slurm_confpth }}"
+    insertafter: "^{{ task_plugin_compute }}"
+    line: "{{ prolog_flag_content }}"
+
+- name: Start slurmd on compute nodes
+  systemd:
+    name: slurmd.service
+    state: restarted
+    enabled: yes
