@@ -9,6 +9,7 @@ Once `control_plane.yml` is run, AWX UI or Ansible CLI can be used to run differ
 6. [Creating a new cluster](#creating-a-new-cluster)
 7. [Updating Kernel on Red Hat](#kernel-updates-on-red-hat)
 8. [Setting up Static IPs on Devices when the network interface type is shared LOM](#setting-up-static-ips-on-devices-when-the-network-interface-type-is-shared-lom)
+9. [Setting up a centralized IPA service](#setting-up-a-centralized-ipa-authentication-service)
 
 ## Accessing the AWX UI
 1. Run `kubectl get svc -n awx`.
@@ -142,3 +143,16 @@ Through AWX UI <br>
 ![img.png](../images/Execute_Kernel_Upgrade_UI.png)
 
 >>**Note**: Omnia does not support roll-backs/downgrades of the Kernel.
+
+## Setting up a centralized IPA authentication service
+IPA services are used to provide account management and centralized authentication. To set up IPA services for all nodes in the target cluster, run the following command from the `omnia/tools` folder on the control plane: <br>
+`ansible-playbook install_ipa_client.yml -i inventory -e kerberos_admin_password="" -e ipa_server_hostname="" -e domain_name="" -e ipa_server_ipadress=""` <br>
+| Input Parameter         | Definition                                                      | Variable value                                                                                                                                                                                                                                                    |
+|-------------------------|-----------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| kerberos_admin_password | "admin" user password for the IPA server on RockyOS and RedHat. | The password can be found in the file   `omnia/control_plane/input_params/login_vars.yml` when the IPA server is   installed on the control plane. If the IPA server is installed on the manager   node, the value can be found in `omnia/omnia_config.yml`       |
+| ipa_server_hostname     | The hostname of the IPA server                                  | The hostname can be found on the IPA server (typically control plane or   manager node) using the `hostname` command                                                                                                                                              |
+| domain_name             | Domain name                                                     | The domain name can be found in the file   `omnia/control_plane/input_params/security_vars.yml` when the IPA server is   installed on the control plane. If the IPA server is installed on the manager   node, the value can be found in `omnia/omnia_config.yml` |
+| ipa_server_ipadress     | The IP address of the IPA server                                | The IP address can be found on the IPA server (typically control plane or   manager node) using the `ip a` command. This IP address should be accessible   from all target nodes.                                                                                 |
+>> **Note**:
+>> * The inventory queried in the above command is to be created by the user prior to running `omnia.yml`.
+>> * To set up IPA services on the NFS server,[ click here](../Security/FreeIPA_User_Creation.md#mounting-user-home-directories-to-the-nfs-server)

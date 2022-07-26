@@ -44,7 +44,7 @@ If the `alert_email_address` variable in `security_config.yml` is populated with
 
 ## Log Aggregation via Grafana
 
-[Loki](https://grafana.com/docs/loki/latest/fundamentals/overview/) is a datastore used to efficiently hold log data for security purposes. Using the `promtail` agent, logs are collated and streamed via a HTTP API.
+[Loki](https://grafana.com/docs/loki/latest/fundamentals/overview/) is a datastore used to efficiently hold log data for security purposes. Using the `promtail` agent, logs are collated and streamed via an HTTP API.
 
 >> **Note**: When `control_plane.yml` is run, Loki is automatically set up as a data source on the Grafana UI.
 
@@ -54,7 +54,7 @@ If the `alert_email_address` variable in `security_config.yml` is populated with
 
 Loki uses basic regex based syntax to filter for specific jobs, dates or timestamps.
 
-* Select the Explore ![Explore Icon](../Telemetry_Visualization/Images/ExploreIcon.PNG) tab to select control-plane-loki from the drop down.
+* Select the Explore ![Explore Icon](../Telemetry_Visualization/Images/ExploreIcon.PNG) tab to select control-plane-loki from the drop-down.
 * Using [LogQL queries](https://grafana.com/docs/loki/latest/logql/log_queries/), all logs in `/var/log` can be accessed using filters (Eg: `{job=???Omnia???}` )
 
 ## Viewing Logs on the Dashboard

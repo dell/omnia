@@ -58,21 +58,22 @@
 
 	` srun --nodes 1 --ntasks-per-node 1 --partition normal hostname`
 
-## Mounting user home directories to the NFS Share
-### Configuring ipa client services on the NFS node
-1. Log into the NFS node using any user account.
-2. Update `/etc/host` with the IPA server host details. <br>
-```text
-vi /etc/hosts 
-xx.xx.xx.xx  ipaserver.omnia.test
-```
-3. Use dnf to install ipa-client on the NFS server. <br>
-`dnf install ipa-client -y`
-4. Configure ipa-client services using the following command: <br>
-`ipa-client-install --domain omnia.test --server ipaserver.omnia.test --principal admin --password kerberos --force-join --enable-dns-updates --force-ntpd --mkhomedir -U`
+## Mounting user home directories to the NFS Server
+### Configuring ipa client services on the NFS server
+In order to set up shared user home directories on the NFS server, an authentication service has to be installed on the NFS server. IPA client is used on the NFS share to manage authentication.
+
+1.Run the playbook `install_ipa_client.yml` from the `omnia/tools` folder on the control plane to set up the IPA client on all target nodes: <br>
+`ansible-playbook install_ipa_client.yml -i inventory -e kerberos_admin_password="" -e ipa_server_hostname="" -e domain_name="" -e ipa_server_ipadress=""`
+| Input Parameter         | Definition                                                      | Variable value                                                                                                                                                                                                                                                    |
+|-------------------------|-----------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| kerberos_admin_password | "admin" user password for the IPA server on RockyOS and RedHat. | The password can be found in the file   `omnia/control_plane/input_params/login_vars.yml` when the IPA server is   installed on the control plane. If the IPA server is installed on the manager   node, the value can be found in `omnia/omnia_config.yml`       |
+| ipa_server_hostname     | The hostname of the IPA server                                  | The hostname can be found on the IPA server (typically control plane or   manager node) using the `hostname` command                                                                                                                                              |
+| domain_name             | Domain name                                                     | The domain name can be found in the file   `omnia/control_plane/input_params/security_vars.yml` when the IPA server is   installed on the control plane. If the IPA server is installed on the manager   node, the value can be found in `omnia/omnia_config.yml` |
+| ipa_server_ipadress     | The IP address of the IPA server                                | The IP address can be found on the IPA server (typically control plane or   manager node) using the `ip a` command. This IP address should be accessible   from all target nodes.                                                                                 |
 
 >> **Note**:
 >> * The password to the admin account on the IPA server for the management server is available in `control_plane/input_params/login_vars.yml`. If your IPA server is on the login node, the password will be available in `input_params/omnia_config.yml`.
->> * The IPA server and the target cluster nodes do not have to be in the same domain. However, the server has to be reachable to all nodes.
-
-5. (Optional) Set up the default home directory for IPA users with the command: `ipa config-mod --homedirectory=/mnt/users/ `
+>> * For external NFS servers, ensure that a password-less SSH session is enabled between the control plane and the server. Omnia configures password-less SSH sessions during the run of `control_plane.yml`.
+>> * All NFS servers and their prospective clients have to reside in the same domain. Else, this will have to be rectified by the user.
+>> * To set up IPA services on all nodes, [click here](../Installation_Guides/ENABLING_OMNIA_FEATURES.md#setting-up-a-centralized-ipa-authentication-service)
+2. (Optional) Set up the default home directory for IPA users with the command: `ipa config-mod --homedirectory=/xxxxx/`

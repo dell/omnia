@@ -14,7 +14,7 @@
 ---
 
 # Password used for Slurm database.
-# The Length of the password should be atleast 8.
+# The Length of the password should be at least 8.
 # The password must not contain -,\, ',"
 mariadb_password: "password"
 
@@ -133,14 +133,14 @@ beegfs_client_version: "7.2.6"
 beegfs_version_change: false
 
 # NFS bolt-on support, USER have to mount EXTERNAL NFS server, omnia will mount NFS client
-# This variable is used for supportig NFS bolt-on on login_node, compute, and manager nodes
+# This variable is used for supporting NFS bolt-on on login_node, compute, and manager nodes
 # Values should be entered in JSON format only.
 # If mount_option values are empty, NFS client will be mounted with these values "nosuid,rw,sync,hard,intr"
-# For enabling NFS bolt-on support, atleast one list of valid values should be provided.
+# For enabling NFS bolt-on support, at least one list of valid values should be provided.
 # Example for single mount file system:
 # nfs_client_params: 
 # - { server_ip: 198.168.0.1, server_share_path: "/mnt/share", client_share_path: "/mnt/mount", client_mount_options: "nosuid,rw,sync,hard" }
-# Example for suppoting multiple mount points:
+# Example for supporting multiple mount points:
 # nfs_client_params: 
 #    - { server_ip: 198.168.0.1, server_share_path: "/mnt/share1", client_share_path: "/mnt/mount1", client_mount_options: "nosuid,rw,sync,hard" } 
 #    - { server_ip: 198.168.0.1, server_share_path: "/mnt/share2", client_share_path: "/mnt/mount2", client_mount_options: "nosuid,rw,sync,hard" } 
