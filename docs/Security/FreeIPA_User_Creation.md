@@ -10,7 +10,7 @@
 ## Adding the New User
 1. ssh to manager node
 
-	`ssh xxxxx@192.168.1.5`
+	`ssh xxxxx@xx.xx.xx.xx`
 
 2. Use the command below to create a user:
 
