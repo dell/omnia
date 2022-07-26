@@ -13,6 +13,10 @@
 # limitations under the License.
 ---
 
+# This playbook is used to configure slurm job based user access in compute nodes
+# The inventory queried in the below command is to be created by the user prior to running `omnia.yml`.
+# Command to execute: ansible-playbook install_ipa_client.yml -i inventory
+
 - name: Setup slurm pam authentication
   hosts: manager, compute, login_node
   gather_facts: true
