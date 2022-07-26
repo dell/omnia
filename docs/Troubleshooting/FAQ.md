@@ -69,7 +69,7 @@ Alternatively, run the task manually: <br>
 **Resolution**: Re-run the playbook `collect_node_info.yml` to repopulate the data. Use the command `ansible-playbook collect_node_info.yml` to run the playbook.
 
 
-## Why do Passwordless SSH tasks fail while running `collect_node_info.yml`?
+## Why do Password-less SSH tasks fail while running `collect_node_info.yml`?
 **Potential Cause**:
 * Incorrect credentials in `login_vars.yml`
 * The target device may not be server running an OS. (It may be a device on a LOM network)
@@ -393,12 +393,12 @@ Provisioning server using BOSS controller is now supported by Omnia 1.2.1.
 
 Once complete, it's safe to re-run control_plane.yml.
 
-## Why does the Initialize Kubeadm task fail with 'nnode.Registration.name: Invalid value: \"<Host name>\"'?
+## Why does the 'Initialize Kubeadm' task fail with 'nnode.Registration.name: Invalid value: \"<Host name>\"'?
 
 **Potential Cause**: The control_plane playbook does not support hostnames with an underscore in it such as 'mgmt_station'.
 
 As defined in RFC 822, the only legal characters are the following:
-1. Alphanumeric (a-z and 0-9): Both uppercase and lowercase letters are acceptable, and the hostname is case insensitive. In other words, dvader.empire.gov is identical to DVADER.EMPIRE.GOV and Dvader.Empire.Gov.
+1. Alphanumeric (a-z and 0-9): Both uppercase and lowercase letters are acceptable, and the hostname is case-insensitive. In other words, dvader.empire.gov is identical to DVADER.EMPIRE.GOV and Dvader.Empire.Gov.
 
 2. Hyphen (-): Neither the first nor the last character in a hostname field should be a hyphen.
 
