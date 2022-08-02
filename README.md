@@ -22,7 +22,7 @@ Omnia (Latin: all or everything) is a deployment tool to turn servers with RPM-b
 
 # Using Omnia
 
-1. Set up your network based on the sample topologies provided [here](docs/NETWORK_TOPOLOGY_LOM.md)
+1. Set up your network based on the sample topologies provided [here](docs/NETWORK_TOPOLOGY_LOM.md) or [here](docs/NETWORK_TOPOLOGY_DEDICATED.md)
 2. Verify that your system meets Omnia's [hardware](docs/Support_Matrix/Hardware) and [software requirements](docs/Support_Matrix/Software/Operating_Systems)
 3. Ensure that all [pre-requisites](docs/PreRequisites) are met.
 4. Fill out all the required [input parameters](docs/Input_Parameter_Guide).
