@@ -3,6 +3,7 @@
 |----------------	|-------------------|---------------	|
 | 8.4            	| Yes               | Yes           	|
 | 8.5            	| Yes               | Yes           	|
+| 8.6            	| Yes               | Yes           	|
 
 >> **Note**: Always deploy the Minimal Edition of the OS on Compute Nodes
 
