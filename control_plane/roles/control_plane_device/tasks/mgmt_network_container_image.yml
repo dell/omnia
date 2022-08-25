@@ -16,6 +16,10 @@
 - name: Image creation (It may take 5-10 mins)
   command: "buildah bud -t {{ mgmt_network_image_name }}:{{ mgmt_network_image_tag }} --network host ."
   changed_when: true
+  register: mgmt_image_creation
+  retries: 10
+  delay: 5
+  until: mgmt_image_creation is not failed
   when: not mgmt_network_container_image_status
   args:
     chdir: "{{ role_path }}/files/"

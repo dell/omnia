@@ -40,6 +40,9 @@
       command: docker login -u {{ docker_username }} -p {{ docker_password }}
       changed_when: true
       register: docker_login_output
+      retries: 10
+      delay: 5
+      until: docker_login_output is not failed
       when: docker_username or docker_password
       no_log: true
   rescue:

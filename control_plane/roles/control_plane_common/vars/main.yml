@@ -218,7 +218,7 @@ public_metric: 101
 mgmt_metric: 102
 host_metric: 103
 ib_metric: 150
-pod_timeout: 600s
+pod_timeout: 30m
 
 # Usage: device_config_validations
 success_msg_ib: "Infiniband variables validated"

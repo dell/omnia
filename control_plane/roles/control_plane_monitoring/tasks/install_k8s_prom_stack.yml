@@ -66,5 +66,5 @@
             enabled: False
 
 - name: Wait for kube-prom-stack pod to come to ready state
-  command: kubectl wait --for=condition=ready --timeout=10m -n "{{ monitoring_namespace }}" pod -l app=kube-prometheus-stack-operator
+  command: kubectl wait --for=condition=ready --timeout={{ pod_timeout }} -n "{{ monitoring_namespace }}" pod -l app=kube-prometheus-stack-operator
   changed_when: false

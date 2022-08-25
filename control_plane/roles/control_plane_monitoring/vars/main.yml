@@ -29,6 +29,7 @@ k8s_prom_stack_crd:
   - thanosrulers.monitoring.coreos.com
 kube_prom_stack_image_name: k8s.gcr.io/ingress-nginx/kube-webhook-certgen
 kube_prom_stack_image_tag: v1.0
+pod_timeout: 30m
 
 # Usage: configure_k8s_prom_grafana.yml
 grafana_namespace: grafana
