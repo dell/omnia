@@ -168,6 +168,8 @@
   changed_when: false
   when: "'custom-awx-ee' not in docker_images.stdout"
   register: awx_image_status
+  retries: 10
+  delay: 5
   until: awx_image_status is not failed
   retries: "{{ image_retries }}"
 
