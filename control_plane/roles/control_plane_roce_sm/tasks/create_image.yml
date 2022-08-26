@@ -21,6 +21,10 @@
 
 - name: Subnet manager image creation (It may take 5-10 mins)
   command: "buildah bud -t {{ sm_docker_image_name }}:{{ sm_docker_image_tag }} --network host -f {{ role_path }}/files/Dockerfile"
+  register: sm_image_creation
+  retries: 10
+  delay: 5
+  until: sm_image_creation is not failed
   args:
     chdir: "{{ role_path }}/files/"
   when: "sm_docker_image_name not in buildah_images.stdout"
