@@ -3,7 +3,6 @@
 ## Enabling CLI on the control plane
 To enable CLI on the control plane, disable AWX. This can be done by setting `awx_web_support` to `false` in `/ommia/control_plane/input_params/base_vars.yml`. If done before the initial run of `control_plane.yml`, Omnia will not install AWX on the control plane, thereby re-routing all other configuration via Ansible CLI.
 >> **Note**: If `awx_web_support` is set to false on any subsequent runs of `control_plane.yml`, AWX will not be uninstalled. This will require user intervention. However, all configuration after `awx_web_support` is disabled will be via CLI.
-If AWX is not set up by the control plane (That is, when `awx_web_support` in `base_vars.yml` is set to false) , the following configurations take place:
 
 
 ## Running `control_plane.yml`

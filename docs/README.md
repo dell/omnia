@@ -42,7 +42,9 @@ Omnia can deploy firmware, install Kubernetes or Slurm (or both), along with add
 - Added support for RHEL on AMD servers.
 
 # Using Omnia
-1. Set up your network based on the sample topologies provided [here](NETWORK_TOPOLOGY_LOM.md)
+1. Set up your network based on the sample topologies provided here:
+    * [LOM](NETWORK_TOPOLOGY_LOM.md)
+    * [Dedicated](NETWORK_TOPOLOGY_DEDICATED.md)
 2. Verify that your system meets Omnia's [hardware](Support_Matrix/Hardware) and [software requirements](Support_Matrix/Software/Operating_Systems)
 3. Ensure that all [pre-requisites](PreRequisites) are met.
 4. Fill out all the required [input parameters](Input_Parameter_Guide).
