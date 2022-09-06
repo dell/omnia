@@ -213,4 +213,4 @@
   tags: beegfs
 
 - name: Passwordless SSH between manager and compute nodes
-  import_playbook: control_plane/tools/passwordless_ssh.yml
+  import_playbook: legacy_appliance/tools/passwordless_ssh.yml

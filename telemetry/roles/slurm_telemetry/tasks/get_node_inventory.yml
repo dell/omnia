@@ -33,7 +33,7 @@
       executable: pip3
 
   - name: Check the awx status on control plane
-    include_vars: "{{ playbook_dir }}/../control_plane/input_params/base_vars.yml"
+    include_vars: "{{ playbook_dir }}/../legacy_appliance/input_params/base_vars.yml"
     no_log: true
 
   - name: Get awx inventory details when awx is installed on control plane

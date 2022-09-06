@@ -15,7 +15,7 @@
 
 # Include base_vars.yml
 - name: Include base_vars of control plane
-  include_vars: "{{ role_path }}/../../control_plane/input_params/base_vars.yml"
+  include_vars: "{{ role_path }}/../../legacy_appliance/input_params/base_vars.yml"
 
 # Check nfs_node_status
 - block:
@@ -76,20 +76,20 @@
 # Include login_vars.yml
 
   - name: Check login_vars file is encrypted
-    command: cat "{{ role_path }}/../../control_plane/{{ login_vars_filename }}"
+    command: cat "{{ role_path }}/../../legacy_appliance/{{ login_vars_filename }}"
     changed_when: false
     register: config_content
     no_log: true
 
   - name: Decrpyt login_vars.yml
     command: >-
-      ansible-vault decrypt "{{ role_path }}/../../control_plane/{{ login_vars_filename }}"
-      --vault-password-file "{{ role_path }}/../../control_plane/{{ vault_filename }}"
+      ansible-vault decrypt "{{ role_path }}/../../legacy_appliance/{{ login_vars_filename }}"
+      --vault-password-file "{{ role_path }}/../../legacy_appliance/{{ vault_filename }}"
     changed_when: false
     when: "'$ANSIBLE_VAULT;' in config_content.stdout"
 
   - name: Include variable file login_vars.yml
-    include_vars: "{{ role_path }}/../../control_plane/{{ login_vars_filename }}"
+    include_vars: "{{ role_path }}/../../legacy_appliance/{{ login_vars_filename }}"
     no_log: true
   when: powervault_support
 
@@ -118,7 +118,7 @@
 
   - name: Save vault key
     copy:
-      dest: "{{ role_path }}/../../control_plane/{{ vault_filename }}"
+      dest: "{{ role_path }}/../../legacy_appliance/{{ vault_filename }}"
       content: |
         {{ vault_key }}
       force: yes
@@ -127,12 +127,12 @@
 
   - name: Encrypt login_vars file
     command: >-
-      ansible-vault encrypt "{{ role_path }}/../../control_plane/{{ login_vars_filename }}"
-      --vault-password-file "{{ role_path }}/../../control_plane/{{ vault_filename }}"
+      ansible-vault encrypt "{{ role_path }}/../../legacy_appliance/{{ login_vars_filename }}"
+      --vault-password-file "{{ role_path }}/../../legacy_appliance/{{ vault_filename }}"
     changed_when: false
 
   - name: Update login_vars.yml permission
     file:
-      path: "{{ role_path }}/../../control_plane/{{ login_vars_filename }}"
+      path: "{{ role_path }}/../../legacy_appliance/{{ login_vars_filename }}"
       mode: "{{ vault_file_perm }}"
   when: powervault_support

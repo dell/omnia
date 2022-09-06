@@ -25,7 +25,7 @@ pv_ip_undefined_msg: "Please give IP of powervault connected to nfs_node in omni
 powervault_ip_success_msg: "Powervault IP is reachable."
 powervault_ip_failure_msg: "Powervault IP is not defined in omnia_config.yml or not reacheable."
 powervault_login_success_msg: "Login to powervault was successful"
-powervault_login_failure_msg: "Please give valid powervault credentials in control_plane/input_params/login_vars.yml"
+powervault_login_failure_msg: "Please give valid powervault credentials in legacy_appliance/input_params/login_vars.yml"
 
 #Usage: configure_multipath.yml
 awx_search_key: "-job-"

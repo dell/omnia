@@ -15,7 +15,7 @@
 
 - block:
   - name: Include Powervault variables
-    include_vars: "{{ role_path }}/../../control_plane/input_params/{{ powervault_vars_filename }}"
+    include_vars: "{{ role_path }}/../../legacy_appliance/input_params/{{ powervault_vars_filename }}"
   
   - block:
     - name: Configure and enable multipathd

@@ -14,7 +14,7 @@
 ---
 
 - name: Include base_vars of control plane
-  include_vars: "{{ role_path }}/../../control_plane/input_params/base_vars.yml"
+  include_vars: "{{ role_path }}/../../legacy_appliance/input_params/base_vars.yml"
 
 - name: Check if omnia_vault_key exists
   stat:

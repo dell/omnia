@@ -27,7 +27,7 @@ pv_ip_undefined_msg: "Please give IP of powervault connected to nfs_node in omni
 powervault_ip_success_msg: "Powervault IP is reachable."
 powervault_ip_failure_msg: "Powervault IP is not defined in omnia_config.yml or not reacheable."
 powervault_login_success_msg: "Login to powervault was successful"
-powervault_login_failure_msg: "Please give valid powervault credentials in control_plane/input_params/login_vars.yml"
+powervault_login_failure_msg: "Please give valid powervault credentials in legacy_appliance/input_params/login_vars.yml"
 me4_fail_msg: "Only ME4 is supported for iscsi protocol. Please check the protocol type or selected or check the powervault model"
 
 # Usage: mount_me4_partitions.yml
@@ -47,9 +47,9 @@ pv_nic: "{{ powervault_server_nic }}"
 pv_nic_ip: 192.168.25.3
 pv_nic_gateway: 192.168.25.1
 pv_port_ip: 192.168.25.5
-pv_nfs_file: "{{ role_path }}/../../control_plane/input_params/powervault_vars.yml"
+pv_nfs_file: "{{ role_path }}/../../legacy_appliance/input_params/powervault_vars.yml"
 nic_path: "/etc/sysconfig/network-scripts/ifcfg-{{ powervault_server_nic }}"
-pv_ports_file: "{{ playbook_dir }}/control_plane/roles/powervault_me4/tasks/ports.yml"
+pv_ports_file: "{{ playbook_dir }}/legacy_appliance/roles/powervault_me4/tasks/ports.yml"
 os_supported_leap: "leap"
 nic_status_search: "File exists"
 nic_conf_failed_msg: "NIC configuration failed"
@@ -69,6 +69,6 @@ fail_iscsi_support: "Failed. Only ME4 is supported for iscsi protocol"
 
 # Usage: map_volume.yml
 access: rw
-login_pv_file: "{{ playbook_dir }}/control_plane/input_params/login_vars.yml"
-login_pv_vault_file: "{{ playbook_dir }}/control_plane/input_params/.login_vault_key"
+login_pv_file: "{{ playbook_dir }}/legacy_appliance/input_params/login_vars.yml"
+login_pv_vault_file: "{{ playbook_dir }}/legacy_appliance/input_params/.login_vault_key"
 pv_map_ip: 192.168.25.5

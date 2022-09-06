@@ -20,7 +20,7 @@
   no_log: true
 
 - name: Include control_plane base_vars.yml file
-  include_vars: "{{ playbook_dir }}/../control_plane/input_params/base_vars.yml"
+  include_vars: "{{ playbook_dir }}/../legacy_appliance/input_params/base_vars.yml"
   no_log: true
 
 - name: Initiate telemetry process if idrac_support is enabled
@@ -39,13 +39,13 @@
 
   - name: Initialize variables
     set_fact:
-      tower_config_file: "{{ playbook_dir }}/../control_plane/roles/webui_awx/files/.tower_cli.cfg"
-      tower_vault_file: "{{ playbook_dir }}/../control_plane/roles/webui_awx/files/.tower_vault_key"
+      tower_config_file: "{{ playbook_dir }}/../legacy_appliance/roles/webui_awx/files/.tower_cli.cfg"
+      tower_vault_file: "{{ playbook_dir }}/../legacy_appliance/roles/webui_awx/files/.tower_vault_key"
       idrac_telemetry_scripting_repo: "https://github.com/dell/iDRAC-Telemetry-Scripting.git"
       idrac_telemetry_scripting_stable_commit: "1f4bb26"
       idrac_telemetry_scripting_folder: iDRAC-Telemetry-Scripting
-      idrac_login_input_filename: "{{ playbook_dir }}/../control_plane/input_params/login_vars.yml"
-      idrac_login_vault_filename: "{{ playbook_dir }}/../control_plane/input_params/.login_vault_key"
+      idrac_login_input_filename: "{{ playbook_dir }}/../legacy_appliance/input_params/login_vars.yml"
+      idrac_login_vault_filename: "{{ playbook_dir }}/../legacy_appliance/input_params/.login_vault_key"
       login_vars_file: "{{ playbook_dir }}/input_params/telemetry_login_vars.yml"
       vault_filename: "{{ playbook_dir }}/input_params/.login_vault_key"
       idrac_inventory_filename: "/opt/omnia/idrac_inventory"

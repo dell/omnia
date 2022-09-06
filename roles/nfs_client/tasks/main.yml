@@ -23,7 +23,7 @@
 - name: Install NFS Client when PV is present in the cluster
   block:
   - name: Include Powervault variables
-    include_vars: "{{ role_path }}/../../control_plane/input_params/{{ powervault_vars_filename }}"
+    include_vars: "{{ role_path }}/../../legacy_appliance/input_params/{{ powervault_vars_filename }}"
 
   - block:
     - name: Create a new list with nfs server ip defined

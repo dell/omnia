@@ -14,20 +14,20 @@
 ---
 
 # Usage: pre-requisites.yml
-installation_required_web_support: "AWX and grafana installation through control_plane.yml is mandatory for telemetry.yml when awx_web_support is set to true"
-installation_required: "Grafana installation through control_plane.yml is mandatory for telemetry.yml"
+installation_required_web_support: "AWX and grafana installation through appliance.yml is mandatory for telemetry.yml when awx_web_support is set to true"
+installation_required: "Grafana installation through appliance.yml is mandatory for telemetry.yml"
 
 os_supported_leap: "leap"
 selinux_warning: "Warning! SELinux status is disabled by user. No SELinux policy is loaded"
 
 base_vars_file: "{{ role_path }}/../../input_params/telemetry_base_vars.yml"
 login_vars_file: "{{ role_path }}/../../input_params/telemetry_login_vars.yml"
-control_plane_base_vars_file: "{{ role_path }}/../../../control_plane/input_params/base_vars.yml"
-ctrl_plane_login_vars_filename: "{{ role_path }}/../../../control_plane/input_params/login_vars.yml"
+control_plane_base_vars_file: "{{ role_path }}/../../../legacy_appliance/input_params/base_vars.yml"
+ctrl_plane_login_vars_filename: "{{ role_path }}/../../../legacy_appliance/input_params/login_vars.yml"
 
 fail_msg_base_vars: "telemetry_base_vars.yml file doesn't exist."
 fail_msg_login_vars: "telemetry_login_vars.yml file doesn't exist."
-ctrl_plane_fail_msg_login_vars: "control_plane/login_vars.yml file doesn't exist"
+ctrl_plane_fail_msg_login_vars: "legacy_appliance/login_vars.yml file doesn't exist"
 pip_packages:
   - openshift
   - omsdk
@@ -71,11 +71,11 @@ inventory_absent_message: "Failed. Inventory file absent for slurm telemetry / m
 vault_filename: "{{ role_path }}/../../input_params/.login_vault_key"
 login_vars_fail_msg: "Username/password validation in telemetry_login_vars.yml failed. Please check the requirements."
 
-ctrl_plane_login_vault_filename: "{{ role_path }}/../../../control_plane/input_params/.login_vault_key"
+ctrl_plane_login_vault_filename: "{{ role_path }}/../../../legacy_appliance/input_params/.login_vault_key"
 min_length_grafana: 5
 max_length: 30
 ctrl_plane_login_vars_fail_msg: "Incorrect grafana_username or grafana_password format provided
-                                  in control_plane/login_vars.yml"
+                                  in legacy_appliance/login_vars.yml"
 
 # Usage: k8s_secrets.yml
 namespace: telemetry-and-visualizations

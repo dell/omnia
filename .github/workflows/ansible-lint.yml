@@ -29,13 +29,13 @@ jobs:
         #   playbook_2.yml
         targets: |
           /github/workspace/omnia.yml
-          /github/workspace/control_plane/control_plane.yml
-          /github/workspace/control_plane/collect_device_info.yml
-          /github/workspace/control_plane/collect_node_info.yml
-          /github/workspace/control_plane/ethernet.yml
-          /github/workspace/control_plane/idrac.yml
-          /github/workspace/control_plane/infiniband.yml
-          /github/workspace/control_plane/powervault.yml
+          /github/workspace/legacy_appliance/appliance.yml
+          /github/workspace/legacy_appliance/collect_device_info.yml
+          /github/workspace/legacy_appliance/collect_node_info.yml
+          /github/workspace/legacy_appliance/ethernet.yml
+          /github/workspace/legacy_appliance/idrac.yml
+          /github/workspace/legacy_appliance/infiniband.yml
+          /github/workspace/legacy_appliance/powervault.yml
           /github/workspace/telemetry/telemetry.yml
           /github/workspace/platforms/jupyterhub.yml
           /github/workspace/platforms/kubeflow.yml

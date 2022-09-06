@@ -14,7 +14,7 @@
 ---
 
 - name: include base vars
-  include_vars: "{{ role_path }}/../../control_plane/input_params/base_vars.yml"
+  include_vars: "{{ role_path }}/../../legacy_appliance/input_params/base_vars.yml"
 
 - block:
   - name: Include variable file for powervault

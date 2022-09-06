@@ -13,7 +13,7 @@
 # limitations under the License.
 ---
 - name: Include control_plane base_vars.yml file
-  include_vars: "{{ playbook_dir }}/../control_plane/input_params/base_vars.yml"
+  include_vars: "{{ playbook_dir }}/../legacy_appliance/input_params/base_vars.yml"
   no_log: true
 
 - name: Check existence of pre-required tools on management station
@@ -78,12 +78,12 @@
     msg: "{{ fail_msg_login_vars }}"
   when: not stat_result.stat.exists
 
-- name: Check that control_plane/login_vars.yml exists
+- name: Check that legacy_appliance/login_vars.yml exists
   stat:
     path: "{{ ctrl_plane_login_vars_filename }}"
   register: stat_result
 
-- name: Fail if control_plane/login_vars.yml file doesn't exist
+- name: Fail if legacy_appliance/login_vars.yml file doesn't exist
   fail:
     msg: "{{ ctrl_plane_fail_msg_login_vars }}"
   when: not stat_result.stat.exists
