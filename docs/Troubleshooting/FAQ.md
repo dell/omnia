@@ -453,7 +453,7 @@ While the NIC qualifies as active, it may not qualify as a PXE device NIC (It ma
 If this is not the case, manually configure a PXE device NIC and re-run `idrac.yml` to proceed.
 
 ## What to do when `control_plane.yml` fail with 'Error: kinit: Connection refused while getting default ccache' while completing the control plane security role?
-1. Start the sssd-kcm.socket: `systemcl start sssd-kcm.socket`
+1. Start the sssd-kcm.socket: `systemctl start sssd-kcm.socket`
 2. Re-run `control_plane.yml`
 
 ## Why does installing FreeIPA fail on Red Hat servers?
