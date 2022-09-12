@@ -16,6 +16,10 @@
 - name: Image creation (It may take 5-10 mins)
   command: "buildah bud -t {{ infiniband_image_name }}:{{ infiniband_image_tag }} --network host ."
   changed_when: true
+  register: ib_image_creation
+  retries: 10
+  delay: 5
+  until: ib_image_creation is not failed
   args:
     chdir: "{{ role_path }}/files/"
   when: not infiniband_container_image_status
