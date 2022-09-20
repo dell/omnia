@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Enabling Security on the Login Node &mdash; Omnia 1.4 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Running Omnia" href="../../RunningOmnia/index.html" />
+    <link rel="prev" title="Enabling Security on the Control Plane" href="controlplane.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html">
+            <img src="../../_static/omnia-logo.png" class="logo" alt="Logo"/>
+          </a>
+              <div class="version">
+                1.4
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../Overview/index.html">Omnia: Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../GettingStarted/index.html">Getting Started With Omnia</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Running Control Plane</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../controlplaneparams.html">Input Parameters for Control Plane</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../controlplaneprereqs.html">Before You Run Control Plane</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installcontrolplane.html">Running Control Plane Playbook</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../configuredevices/index.html">Configuring Devices</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Setting Up Security</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="controlplane.html">Enabling Security on the Control Plane</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Enabling Security on the Login Node</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../RunningOmnia/index.html">Running Omnia</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../EnablingOptionalFeatures/index.html">Enabling Optional Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../Telemetry_Visualization/index.html">Telemetry And Visualization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../Troubleshooting/index.html">Troubleshooting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../limitations.html">Limitations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../bestpractices.html">Best Practices</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Omnia</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../index.html">Running Control Plane</a> &raquo;</li>
+          <li><a href="index.html">Setting Up Security</a> &raquo;</li>
+      <li>Enabling Security on the Login Node</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/RunningControlPlane/security/loginnode.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="enabling-security-on-the-login-node">
+<h1>Enabling Security on the Login Node<a class="headerlink" href="#enabling-security-on-the-login-node" title="Permalink to this heading"></a></h1>
+<ul class="simple">
+<li><p>Once all <a class="reference external" href="../OMNIA_PreReqs.md">pre-requisites</a> are met, ensure that <code class="docutils literal notranslate"><span class="pre">enable_secure_login_node</span></code> is set to <strong>true</strong> in <code class="docutils literal notranslate"><span class="pre">omnia_config.yml</span></code></p></li>
+</ul>
+<p><strong>Limiting User Authentication over sshd</strong></p>
+<p>Users logging into this host can be <strong>optionally</strong> allowed or denied using an access control list. All users to be allowed or denied are to be listed in the variable <code class="docutils literal notranslate"><span class="pre">user</span></code> in <code class="docutils literal notranslate"><span class="pre">omnia_security_vars.yml</span></code>.</p>
+<p>&gt;&gt; <strong>Note</strong>: All users on the server will have to be defined manually. Omnia does not create any users by default.</p>
+<p><strong>Session Timeout</strong></p>
+<p>To encourage security, users who have been idle over 3 minutes will be logged out automatically. To adjust this value, update the <code class="docutils literal notranslate"><span class="pre">session_timeout</span></code> variable in <code class="docutils literal notranslate"><span class="pre">omnia_security_vars.yml</span></code>. This variable is mandatory.</p>
+<p><strong>Restricting Program Support</strong></p>
+<p>Optionally, different communication protocols can be disabled on the control plane using the <cite>restrict_program_support</cite> and <cite>restrict_softwares</cite> variables in <a href="#id1"><span class="problematic" id="id2">`</span></a>omnia_security_vars.yml. These protocols include: telnet,lpd,bluetooth,rlogin and rexec. Features that cannot be disabled include: ftp,smbd,nmbd,automount and portmap.</p>
+<p>&gt;&gt; <strong>Note</strong>: The parameter <cite>restrict_softwares</cite> is __case-<a href="#id3"><span class="problematic" id="id4">sensitive__</span></a></p>
+<p><strong>Logging Program Executions using Snoopy</strong></p>
+<p>Omnia installs Snoopy to log all program executions on Linux/BSD systems. For more information on Snoopy, click [here](<a class="reference external" href="https://github.com/a2o/snoopy">https://github.com/a2o/snoopy</a>).</p>
+<p><strong>Logging User activity using PSACCT/ACCT</strong></p>
+<p>Using PSACCT on Rocky and Acct on LeapOS, admins can monitor activity. For more information, click [here](<a class="reference external" href="https://www.redhat.com/sysadmin/linux-system-monitoring-acct">https://www.redhat.com/sysadmin/linux-system-monitoring-acct</a>).</p>
+<p><strong>Configuring Email Alerts for Authentication Failures</strong></p>
+<p>If the <cite>alert_email_address</cite> variable in <cite>omnia_security_config.yml</cite> is populated with a single, valid email ID, all authentication failures will trigger an email notification. A cron job is set up to verify failures and send emails every hour.</p>
+<p>&gt;&gt; <strong>Note</strong>: The <cite>alert_email_address</cite> variable is __optional__. If it is not populated, authentication failure email alerts will be disabled.</p>
+<p><strong>Kernel Lockdown</strong></p>
+<ul class="simple">
+<li><p>RockyOS has Kernel Lockdown mode (Integrity) enabled by default</p></li>
+<li><p>SUSE/Leap allows users to set Kernel Lockdown mode to Confidentiality or Integrity.</p></li>
+</ul>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="controlplane.html" class="btn btn-neutral float-left" title="Enabling Security on the Control Plane" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../../RunningOmnia/index.html" class="btn btn-neutral float-right" title="Running Omnia" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Cassey Goveas.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

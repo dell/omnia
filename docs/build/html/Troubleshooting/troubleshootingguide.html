@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Troubleshooting Guide &mdash; Omnia 1.4 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Limitations" href="../limitations.html" />
+    <link rel="prev" title="Frequently Asked Questions" href="FAQ.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html">
+            <img src="../_static/omnia-logo.png" class="logo" alt="Logo"/>
+          </a>
+              <div class="version">
+                1.4
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../Overview/index.html">Omnia: Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../GettingStarted/index.html">Getting Started With Omnia</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../RunningControlPlane/index.html">Running Control Plane</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../RunningOmnia/index.html">Running Omnia</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../EnablingOptionalFeatures/index.html">Enabling Optional Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Telemetry_Visualization/index.html">Telemetry And Visualization</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Troubleshooting</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="knownissues.html">Known Issues</a></li>
+<li class="toctree-l2"><a class="reference internal" href="FAQ.html">Frequently Asked Questions</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Troubleshooting Guide</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#control-plane-logs">Control plane logs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#logs-of-individual-containers">Logs of individual containers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#connecting-to-internal-databases">Connecting to internal databases</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#checking-and-updating-encrypted-parameters">Checking and updating encrypted parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#checking-pod-status-on-the-control-plane">Checking pod status on the control plane</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#omnia-version-file">Omnia version file</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../limitations.html">Limitations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../bestpractices.html">Best Practices</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Omnia</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="index.html">Troubleshooting</a> &raquo;</li>
+      <li>Troubleshooting Guide</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/Troubleshooting/troubleshootingguide.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="troubleshooting-guide">
+<h1>Troubleshooting Guide<a class="headerlink" href="#troubleshooting-guide" title="Permalink to this heading"></a></h1>
+<section id="control-plane-logs">
+<h2>Control plane logs<a class="headerlink" href="#control-plane-logs" title="Permalink to this heading"></a></h2>
+<p>All log files can be viewed via the Dashboard tab (![Dashboard Icon](../Telemetry_Visualization/Images/DashBoardIcon.PNG)). The Default Dashboard displays <code class="docutils literal notranslate"><span class="pre">omnia.log</span></code> and <code class="docutils literal notranslate"><span class="pre">syslog</span></code>. Custom dashboards can be created per user requirements.</p>
+<p>Below is a list of all logs available to Loki and can be accessed on the dashboard:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 28%" />
+<col style="width: 11%" />
+<col style="width: 52%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Name</p></th>
+<th class="head"><p>Location</p></th>
+<th class="head"><p>Purpose</p></th>
+<th class="head"><p>Additional Information</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Omnia Logs</p></td>
+<td><p>/var/log/omnia.log</p></td>
+<td><p>Omnia Log</p></td>
+<td><p>This log is configured by Default. This log can be used to track all changes made by all playbooks in the <code class="docutils literal notranslate"><span class="pre">omnia</span></code> directory.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Omnia Control Plane</p></td>
+<td><p>/var/log/omnia_control_plane.log</p></td>
+<td><p>Control plane Log</p></td>
+<td><p>This log is configured by Default. This log can be used to track all changes made by all playbooks in the <code class="docutils literal notranslate"><span class="pre">omnia/control_plane</span></code> directory.</p></td>
+</tr>
+<tr class="row-even"><td><p>Omnia Telemetry</p></td>
+<td><p>/var/log/omnia/omnia_telemetry.log</p></td>
+<td><p>Telemetry Log</p></td>
+<td><p>This log is configured by Default. This log can be used to track all changes made by all playbooks in the <code class="docutils literal notranslate"><span class="pre">omnia/telemetry</span></code> directory.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Omnia Tools</p></td>
+<td><p>/var/log/omnia/omnia_tools.log</p></td>
+<td><p>Tools Log</p></td>
+<td><p>This log is configured by Default. This log can be used to track all changes made by all playbooks in the <code class="docutils literal notranslate"><span class="pre">omnia/tools</span></code> directory.</p></td>
+</tr>
+<tr class="row-even"><td><p>Omnia Platforms</p></td>
+<td><p>/var/log/omnia/omnia_platforms.log</p></td>
+<td><p>Platforms Log</p></td>
+<td><p>This log is configured by Default. This log can be used to track all changes made by all playbooks in the <code class="docutils literal notranslate"><span class="pre">omnia/platforms</span></code> directory.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Omnia Control Plane Tools</p></td>
+<td><p>/var/log/omnia/omnia_control_plane_tools.log</p></td>
+<td><p>Control Plane tools logs</p></td>
+<td><p>This log is configured by Default. This log can be used to track all changes made by all playbooks in the <code class="docutils literal notranslate"><span class="pre">omnia/control_plane/tools</span></code> directory.</p></td>
+</tr>
+<tr class="row-even"><td><p>Node Info CLI log</p></td>
+<td><p>/var/log/omnia/collect_node_info/collect_node_info_yyyy-mm-dd-HHMMSS.log</p></td>
+<td><p>CLI Log</p></td>
+<td><p>This log is configured when AWX is disabled. This log can be used to track scheduled and unscheduled node inventory jobs initiated by CLI.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Device Info CLI log</p></td>
+<td><p>/var/log/omnia/collect_device_info/collect_device_info_yyyy-mm-dd-HHMMSS.log</p></td>
+<td><p>CLI Log</p></td>
+<td><p>This log is configured when AWX is disabled. This log can be used to track scheduled and unscheduled device inventory jobs initiated by CLI.</p></td>
+</tr>
+<tr class="row-even"><td><p>iDRAC CLI log</p></td>
+<td><p>/var/log/omnia/idrac/idrac-yyyy-mm-dd-HHMMSS.log</p></td>
+<td><p>CLI Log</p></td>
+<td><p>This log is configured when AWX is disabled. This log can be used to track iDRAC jobs initiated by CLI.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Infiniband CLI log</p></td>
+<td><p>//var/log/omnia/infiniband/infiniband-yyyy-mm-dd-HHMMSS.log</p></td>
+<td><p>CLI Log</p></td>
+<td><p>This log is configured when AWX is disabled. This log can be used to track Infiniband jobs initiated by CLI.</p></td>
+</tr>
+<tr class="row-even"><td><p>Ethernet CLI log</p></td>
+<td><p>/var/log/omnia/ethernet/ethernet-yyyy-mm-dd-HHMMSS.log</p></td>
+<td><p>CLI Log</p></td>
+<td><p>This log is configured when AWX is disabled. This log can be used to track Ethernet jobs initiated by CLI.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Powervault CLI log</p></td>
+<td><p>/var/log/omnia/powervault/powervault-yyyy-mm-dd-HHMMSS.log</p></td>
+<td><p>CLI Log</p></td>
+<td><p>This log is configured when AWX is disabled. This log can be used to track Powervault jobs initiated by CLI.</p></td>
+</tr>
+<tr class="row-even"><td><p>syslogs</p></td>
+<td><p>/var/log/messages</p></td>
+<td><p>System Logging</p></td>
+<td><p>This log is configured by Default</p></td>
+</tr>
+<tr class="row-odd"><td><p>Audit Logs</p></td>
+<td><p>/var/log/audit/audit.log</p></td>
+<td><p>All Login Attempts</p></td>
+<td><p>This log is configured by Default</p></td>
+</tr>
+<tr class="row-even"><td><p>CRON logs</p></td>
+<td><p>/var/log/cron</p></td>
+<td><p>CRON Job Logging</p></td>
+<td><p>This log is configured by Default</p></td>
+</tr>
+<tr class="row-odd"><td><p>Pods logs</p></td>
+<td><p>/var/log/pods/ * / * / * log</p></td>
+<td><p>k8s pods</p></td>
+<td><p>This log is configured by Default</p></td>
+</tr>
+<tr class="row-even"><td><p>Access Logs</p></td>
+<td><p>/var/log/dirsrv/slapd-&lt;Realm Name&gt;/access</p></td>
+<td><p>Directory Server Utilization</p></td>
+<td><p>This log is available when FreeIPA or 389ds is set up ( ie when   enable_security_support is set to ‘true’)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Error Log</p></td>
+<td><p>/var/log/dirsrv/slapd-&lt;Realm Name&gt;/errors</p></td>
+<td><p>Directory Server Errors</p></td>
+<td><p>This log is available when FreeIPA or 389ds is set up ( ie when   enable_security_support is set to ‘true’)</p></td>
+</tr>
+<tr class="row-even"><td><p>CA Transaction Log</p></td>
+<td><p>/var/log/pki/pki-tomcat/ca/transactions</p></td>
+<td><p>FreeIPA PKI Transactions</p></td>
+<td><p>This log is available when FreeIPA or 389ds is set up ( ie when   enable_security_support is set to ‘true’)</p></td>
+</tr>
+<tr class="row-odd"><td><p>KRB5KDC</p></td>
+<td><p>/var/log/krb5kdc.log</p></td>
+<td><p>KDC Utilization</p></td>
+<td><p>This log is available when FreeIPA or 389ds is set up ( ie when   enable_security_support is set to ‘true’)</p></td>
+</tr>
+<tr class="row-even"><td><p>Secure logs</p></td>
+<td><p>/var/log/secure</p></td>
+<td><p>Login Error Codes</p></td>
+<td><p>This log is available when FreeIPA or 389ds is set up ( ie when   enable_security_support is set to ‘true’)</p></td>
+</tr>
+<tr class="row-odd"><td><p>HTTPD logs</p></td>
+<td><p>/var/log/httpd/ *</p></td>
+<td><p>FreeIPA API Calls</p></td>
+<td><p>This log is available when FreeIPA or 389ds is set up ( ie when   enable_security_support is set to ‘true’)</p></td>
+</tr>
+<tr class="row-even"><td><p>DNF logs</p></td>
+<td><p>/var/log/dnf.log</p></td>
+<td><p>Installation Logs</p></td>
+<td><p>This log is configured on Rocky OS</p></td>
+</tr>
+<tr class="row-odd"><td><p>Zypper Logs</p></td>
+<td><p>/var/log/zypper.log</p></td>
+<td><p>Installation Logs</p></td>
+<td><p>This log is configured on Leap OS</p></td>
+</tr>
+<tr class="row-even"><td><p>BeeGFS Logs</p></td>
+<td><p>/var/log/beegfs-client.log</p></td>
+<td><p>BeeGFS Logs</p></td>
+<td><p>This log is configured on BeeGFS client nodes.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="logs-of-individual-containers">
+<h2>Logs of individual containers<a class="headerlink" href="#logs-of-individual-containers" title="Permalink to this heading"></a></h2>
+<blockquote>
+<div><ol class="arabic simple">
+<li><p>A list of namespaces and their corresponding pods can be obtained using:
+<code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">get</span> <span class="pre">pods</span> <span class="pre">-A</span></code></p></li>
+<li><p>Get a list of containers for the pod in question using:
+<code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">get</span> <span class="pre">pods</span> <span class="pre">&lt;pod_name&gt;</span> <span class="pre">-o</span> <span class="pre">jsonpath='{.spec.containers[*].name}'</span></code></p></li>
+<li><p>Once you have the namespace, pod and container names, run the below command to get the required logs:
+<code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">logs</span> <span class="pre">pod</span> <span class="pre">&lt;pod_name&gt;</span> <span class="pre">-n</span> <span class="pre">&lt;namespace&gt;</span> <span class="pre">-c</span> <span class="pre">&lt;container_name&gt;</span></code></p></li>
+</ol>
+</div></blockquote>
+</section>
+<section id="connecting-to-internal-databases">
+<h2>Connecting to internal databases<a class="headerlink" href="#connecting-to-internal-databases" title="Permalink to this heading"></a></h2>
+<ul class="simple">
+<li><dl class="simple">
+<dt>TimescaleDB</dt><dd><ul>
+<li><p>Go inside the pod: <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">exec</span> <span class="pre">-it</span> <span class="pre">pod/timescaledb-0</span> <span class="pre">-n</span> <span class="pre">telemetry-and-visualizations</span> <span class="pre">--</span> <span class="pre">/bin/bash</span></code></p></li>
+<li><p>Connect to psql: <code class="docutils literal notranslate"><span class="pre">psql</span> <span class="pre">-U</span> <span class="pre">&lt;postgres_username&gt;</span></code></p></li>
+<li><p>Connect to database: <code class="docutils literal notranslate"><span class="pre">&lt;</span> <span class="pre">timescaledb_name</span> <span class="pre">&gt;</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>MySQL DB</dt><dd><ul>
+<li><p>Go inside the pod: <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">exec</span> <span class="pre">-it</span> <span class="pre">pod/mysqldb-n</span> <span class="pre">telemetry-and-visualizations</span> <span class="pre">--</span> <span class="pre">/bin/bash</span></code></p></li>
+<li><p>Connect to psql: <code class="docutils literal notranslate"><span class="pre">psql</span> <span class="pre">-U</span> <span class="pre">&lt;mysqldb_username&gt;</span> <span class="pre">-p</span> <span class="pre">&lt;mysqldb_password&gt;</span></code></p></li>
+<li><p>Connect to database: <code class="docutils literal notranslate"><span class="pre">USE</span> <span class="pre">&lt;mysqldb_name&gt;</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</section>
+<section id="checking-and-updating-encrypted-parameters">
+<h2>Checking and updating encrypted parameters<a class="headerlink" href="#checking-and-updating-encrypted-parameters" title="Permalink to this heading"></a></h2>
+<blockquote>
+<div><ol class="arabic simple">
+<li><p>Move to the filepath where the parameters are saved (as an example, we will be using <code class="docutils literal notranslate"><span class="pre">login_vars.yml</span></code>):
+<code class="docutils literal notranslate"><span class="pre">cd</span> <span class="pre">control_plane/input_params</span></code></p></li>
+</ol>
+<p>2. To view the encrypted parameters:
+<code class="docutils literal notranslate"><span class="pre">ansible-vault</span> <span class="pre">view</span> <span class="pre">login_vars.yml</span> <span class="pre">--vault-password-file</span> <span class="pre">.login_vault_key</span></code>
+3. To edit the encrypted parameters:</p>
+<blockquote>
+<div><p><code class="docutils literal notranslate"><span class="pre">ansible-vault</span> <span class="pre">edit</span> <span class="pre">login_vars.yml</span> <span class="pre">--vault-password-file</span> <span class="pre">.login_vault_key</span></code></p>
+</div></blockquote>
+</div></blockquote>
+</section>
+<section id="checking-pod-status-on-the-control-plane">
+<h2>Checking pod status on the control plane<a class="headerlink" href="#checking-pod-status-on-the-control-plane" title="Permalink to this heading"></a></h2>
+<blockquote>
+<div><ul class="simple">
+<li><p>Select the pod you need to troubleshoot from the output of <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">get</span> <span class="pre">pods</span> <span class="pre">-A</span></code></p></li>
+<li><p>Check the status of the pod by running <code class="docutils literal notranslate"><span class="pre">kubectl</span> <span class="pre">describe</span> <span class="pre">pod</span> <span class="pre">&lt;pod</span> <span class="pre">name&gt;</span> <span class="pre">-n</span> <span class="pre">&lt;namespace</span> <span class="pre">name&gt;</span></code></p></li>
+</ul>
+</div></blockquote>
+</section>
+<section id="omnia-version-file">
+<h2>Omnia version file<a class="headerlink" href="#omnia-version-file" title="Permalink to this heading"></a></h2>
+<p>The Omnia version number is stored in <code class="docutils literal notranslate"><span class="pre">/opt/omnia/omnia_version</span></code> when <code class="docutils literal notranslate"><span class="pre">control_plane.yml</span></code> is run.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="FAQ.html" class="btn btn-neutral float-left" title="Frequently Asked Questions" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../limitations.html" class="btn btn-neutral float-right" title="Limitations" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Cassey Goveas.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
