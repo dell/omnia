@@ -39,8 +39,6 @@ Omnia (Latin: all or everything) is a deployment tool to turn servers with RPM-b
 
 6. `Run Omnia on target cluster nodes <RunningOmnia/index.html>`_ to set up Kubernetes and Slurm.
 
-7. Run the `telemetry playbook to set up <Telemetry_Visualization/index.html>`_ .
-
 
 .. image:: images/Omnia_Flow.png
 
@@ -82,8 +80,6 @@ Omnia (Latin: all or everything) is a deployment tool to turn servers with RPM-b
    RunningInit/index
    RunningControlPlane/index
    RunningOmnia/index
-   EnablingOptionalFeatures/index
-   Telemetry_Visualization/index
    Troubleshooting/index
    samplefiles
    limitations
