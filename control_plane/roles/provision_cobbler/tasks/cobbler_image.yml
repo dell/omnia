@@ -16,6 +16,10 @@
 - name: Image creation (It may take 5-10 mins)
   command: "buildah bud -f Dockerfile_rocky -t {{ cobbler_image_name }}:{{ cobbler_image_tag }} --network host ."
   changed_when: true
+  register: cobbler_image_creation
+  retries: 10
+  delay: 5
+  until: cobbler_image_creation is not failed
   args:
     chdir: "{{ role_path }}/files/"
   when: 

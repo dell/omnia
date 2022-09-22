@@ -1,13 +1,21 @@
 # Custom ISO provisioning on Dell EMC PowerEdge Servers
 
 * Enter the information required in `input_params/base_vars.yml`, `input_params/login_vars.yml` and `idrac_vars.yml` per the provided [Input Parameter Guides](../Input_Parameter_Guide).
+>>**Note**: 
+* When initializing a factory reset server, the user needs to ensure __IPv4 DHCP (iDRAC Settings > Connectivity > Network > IPv4 Settings)__ is enabled. Omnia will assign an IP address to the server using DHCP with all other configurations.
+* If the `network_interface_type` is set to lom, ensure that __NIC selection (iDRAC Settings > Connectivity > Network > Network Settings)__ is set to the appropriate LOM NIC. When set to dedicated, ensure that __NIC selection__ is set to dedicated.
+
 
 ## Configuring Servers with Out-of-Band Management (Provision Method: iDRAC)
 
 ### Generating a Custom ISO
 * Using the Omnia role _control_plane_customiso_, a custom ISO is generated. Based on the parameters entered above, the Kickstart file is configured and added to the custom ISO file. The *unattended_<OS name>.iso* file is copied to an NFS share on the control plane to provision the PowerEdge servers using iDRAC. 
 
-### Run idrac_template on the AWX UI.
+### Run `idrac_template` via CLI
+1. Verify that `/opt/omnia/idrac_inventory` is created and updated with all iDRAC IP details. This is done automatically when `control_plane.yml` is run. If it's not updated, run `ansible-playbook collect_device_info.yml` from the control_plane directory.
+2. Run `ansible-playbook idrac.yml -i /opt/omnia/idrac_inventory`
+
+### Run `idrac_template` on the AWX UI.
 1. Run `kubectl get svc -n awx`.
 2. Copy the Cluster-IP address of the awx-ui. 
 3. To retrieve the AWX UI password, run `kubectl get secret awx-admin-password -n awx -o jsonpath="{.data.password}" | base64 --decode`.
@@ -23,7 +31,7 @@ For the `idrac.yml` file to successfully provision the custom ISO on the PowerEd
 * The Lifecycle Controller Remote Services of PowerEdge Servers is in the 'ready' state.
 * The Redfish services are enabled in the iDRAC settings under **Services**.
 * The PowerEdge Servers have the iDRAC Enterprise or Datacenter license. If the license is not found, servers will be PXE booted and provisioned using Cobbler.  
-* If `provision_method` is set to PXE in `base_vars.yml`, ensure that all PXE devices have a configured, active NIC. To verify/ configure NIC availability: On the server, go to `BIOS Setup -> Network Settings -> PXE Device`. For each listed device (typically 4), configure/ check for an active NIC under `PXE device settings`
+* If `provision_method` is set to PXE in `base_vars.yml`, ensure that all PXE devices have an active NIC. To verify/ configure NIC availability: On the server, go to `BIOS Setup -> Network Settings -> PXE Device`. For each listed device (typically 4), configure/ check for an active NIC under `PXE device settings`
 * iDRAC 9 based Dell EMC PowerEdge Servers with firmware versions 5.00.10.20 and above. (With the latest BIOS available)
 
 The **provision_idrac** file configures and validates the following:
@@ -33,22 +41,16 @@ The **provision_idrac** file configures and validates the following:
 * If bare metal servers have BOSS controllers installed, virtual disks (Data will be stored in a RAID 1 configuration by default) will be created on the BOSS controller (ie, RAID controllers will be ignored/unmanaged). Ensure that exactly 2 SSD disks are available on the server.
 * If bare metal servers have a RAID controller installed, Virtual disks are created for RAID configuration (Data will be saved in a RAID 0 configuration by default).
 * Availability of iDRAC Enterprise or Datacenter License on iDRAC.
-After the configurations are validated, the **provision_idrac** file provisions the custom ISO on the PowerEdge Servers. After the OS is provisioned successfully, iDRAC IP addresses are updated in the *provisioned_idrac_inventory* in AWX.
-
+* Omnia validates and configures the active host NICs in PXE device settings when `provision_method` is set to PXE. (If no active NIC is found, `idrac.yml` will fail on the target node.)
+* If target node has an Infiniband NIC card, it will be prioritized as the first PXE device when `provision_method` is set to PXE.
+* After the configurations are validated, `idrac.yml` provisions the custom ISO on the PowerEdge Servers when `provision_method` is set to idrac. After the OS is provisioned successfully, iDRAC IP addresses are updated in the *provisioned_idrac_inventory* AWX/CLI.
+* Alternatively, if the `provision_method` is set to PXE, the cobbler profile (created by the last run of `control_plane.yml`) will be provisioned on the target node.
 >>**Note**:
->> * The `idrac.yml` file initiates the provisioning of custom ISO on the PowerEdge servers. Wait for some time for the node inventory to be updated on the AWX UI. 
+>> * The `idrac.yml` file initiates the provisioning of custom ISO on the PowerEdge servers. Wait for some time for the node inventory to be updated on the AWX/CLI. 
 >> * Due to the latest `catalog.xml` file, Firmware updates may fail for certain components. Omnia execution doesn't get interrupted but an error gets logged on AWX. For now, please download those individual updates manually.
->> * If a server is connected to an Infiniband Switch via an Infiniband NIC, Omnia will not activate this NIC. Use the below instructions depending on the OS.
->> * For servers running Rocky,Infiniband NICs can be manually enabled using `ifup <InfiniBand NIC>`.
->> * If your server is running LeapOS, ensure the following pre-requisites are met before manually bringing up the interface:
->> 	1. The following repositories have to be installed:
->> 		* [Leap OSS](http://download.opensuse.org/distribution/leap/15.3/repo/oss/)
->> 		* [Leap Non OSS](http://download.opensuse.org/distribution/leap/15.3/repo/non-oss/)
->> 	2. Run: `zypper install -n rdma-core librdmacm1 libibmad5 libibumad3 infiniband-diags` to install IB NIC drivers.  (If the drivers do not install smoothly, reboot the server to apply the required changes)
->> 	3. Run: `service network status` to verify that `wicked.service` is running.
->> 	4. Verify that the ifcfg-<InfiniBand NIC> file is present in `/etc/sysconfig/network`
->> 	5. Once all the pre-requisites are met, bring up the interface manually using `ifup <InfiniBand NIC>`
-
+>> * If a server is connected to an Infiniband Switch via an Infiniband NIC, Omnia will activate this NIC when `omnia.yml` is executed.
+>> * Infiniband NICs can be manually enabled using `ifup <InfiniBand NIC>`.
+>> * PXE device settings are only configured on active, valid PXE NICs present in PXE device settings. If no such NIC is found, Omnia assumes that a NIC was pre-configured and attempts a PXE boot. If that's not the case, configure the PXE device NIC manually and rerun `idrac.yml`
 
 
 ### Provisioning newly added PowerEdge servers in the cluster
@@ -70,11 +72,9 @@ To create the Cobbler image, Omnia configures the following:
 To access the Cobbler dashboard, enter `https://<IP>/cobbler_web` where `<IP>` is the Global IP address of the control plane. For example, enter
 `https://100.98.24.225/cobbler_web` to access the Cobbler dashboard.
 
->>__Note__: After the Cobbler Server provisions the operating system on the servers, IP addresses and hostnames are assigned by the DHCP service.  
+>>**Note**: After the Cobbler Server provisions the operating system on the servers, IP addresses and hostnames are assigned by the DHCP service.  
 >>* If a mapping file is not provided, the hostname to the server is provided based on the following format: **computexxx-xxx** where "xxx-xxx" is the last two octets of the Host IP address. For example, if the Host IP address is 172.17.0.11 then the assigned hostname by Omnia is compute0-11.  
->>* If a mapping file is provided, the hostnames follow the format provided in the mapping file.  
-
->>__Note__: 
+>>* If a mapping file is provided, the hostnames follow the format provided in the mapping file.
 >> * If you want to add more nodes, append the new nodes in the existing mapping file. However, do not modify the previous nodes in the mapping file as it may impact the existing cluster.
 >> * With the addition of Multiple profiles, the cobbler container dynamically updates the mount point based on the value of `provision_os` in `base_vars.yml`.
 

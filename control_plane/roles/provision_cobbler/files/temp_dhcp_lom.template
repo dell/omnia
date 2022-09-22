@@ -26,6 +26,8 @@ class "vendor-class" {
 shared-network lom {
 subnet mgmt_subnet_mask netmask mgmt_net_mask {
 option subnet-mask mgmt_net_mask;
+#option routers mgmt_router;
+#option domain-name-servers dns1;
 default-lease-time default;
 max-lease-time max;
 pool

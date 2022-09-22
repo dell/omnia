@@ -5,9 +5,11 @@
 
 `ansible-playbook telemetry.yml`
 
->> __Note:__ Telemetry Collection is only initiated on iDRACs on AWX that have a datacenter license and are running a firmware version of 4 or higher.
+>> **Note**: Telemetry Collection is only initiated on iDRACs on AWX that have a datacenter license and are running a firmware version of 4 or higher.
 
 ## Adding a New Node to Telemetry
 After initiation, new nodes can be added to telemetry by running the following commands from `omnia/telemetry`:
 		
 `ansible-playbook add_idrac_node.yml`
+
+>> **Note**: Omnia creates a log file which is available at: `/var/log/omnia_telemetry.log`.  

@@ -13,87 +13,19 @@
 #  limitations under the License.
 ---
 
-- block:
-    - name: Add AMD ROCm repository for CentOS 7.x
-      yum_repository:
-        name: ROCm
-        description: AMD GPU ROCm Repository
-        baseurl: https://repo.radeon.com/rocm/yum/rpm
-        gpgcheck: yes
-        gpgkey: https://repo.radeon.com/rocm/rocm.gpg.key
-        enabled: yes
-      tags: install
-      when: ansible_facts['distribution_major_version'] == "7"
+- name: Install AMD GPU drivers and software components for CentOS
+  include_tasks: amd_centos.yml
+  tags: install
+  when: ansible_facts['distribution'] == os_name
 
-    - name: Add AMD ROCm repository for CentOS/RockyLinux 8.x
-      yum_repository:
-        name: ROCm
-        description: AMD GPU ROCm Repository
-        baseurl: https://repo.radeon.com/rocm/centos8/rpm
-        gpgcheck: yes
-        gpgkey: https://repo.radeon.com/rocm/rocm.gpg.key
-        enabled: yes
-      tags: install
-      when: ansible_facts['distribution_major_version'] == "8"
+- name: Install AMD GPU drivers and software components for RHEL
+  include_tasks: amd_rhel.yml
+  tags: install
+  when: os_supported_redhat in compute_os
 
-    - name: Install AMD ROCm drivers
-      package:
-        name: rocm-dkms
-        enablerepo: ROCm
-        state: present
-      tags: install
-
-    - name: Reboot after installing GPU drivers
-      reboot:
-      tags: install
-  when:  ( os_supported_leap not in compute_os )
-
-- block:
-    - name: Installing dkms
-      package:
-        name: dkms
-        state: present
-      changed_when: true
-      tags: install
-
-    - name: Add AMD ROCm repository for leap
-      zypper_repository:
-        name: rocm
-        repo: "{{ amd_repo }}"
-        state: present
-      failed_when: false
-      tags: install
-
-    - name: Import gpg-key for installing AMD ROCm
-      rpm_key:
-        key: "{{ gpg_key_amd }}"
-        state: present
-      tags: install
-
-    - name: Install AMD ROCm drivers
-      ansible.builtin.expect:
-        command: zypper install rocm-dkms
-        responses:
-            (.*) [1/2/c/d/?](.): '2'
-            (.*)(y): 'y'
-      tags: install
-
-    - name: Allowing modules
-      copy:
-        src: module.conf
-        dest: "{{ amd_gpu_dest }}"
-        owner: root
-        group: root
-        mode: "{{ conf_file_mode }}"
-      tags: install
-
-    - name: Enable the modules amdgpu
-      modprobe:
-        name: amdgpu
-        state: present
-      tags: install
-    
-    - name: Reboot after installing GPU drivers
-      reboot:
-      tags: install
-  when: ( os_supported_leap in compute_os ) and ( ansible_distribution_version >= os_supported_leap_version )
+- name: Install AMD GPU drivers and software components for Leap
+  include_tasks: amd_leap.yml
+  tags: install
+  when:
+   - os_supported_leap in compute_os
+   - ansible_distribution_version >= os_supported_leap_version

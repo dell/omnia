@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -128,6 +128,12 @@
   changed_when: true
   when: "'network-config' not in k8s_namespaces.stdout"
 
+- name: Create log folder for startup omnia
+  file:
+    path: "{{ startup_omnia_log_path }}"
+    state: directory
+    mode: "{{ vault_file_perm }}"
+
 - name: Fetch ansible-playbook path
   command: whereis ansible-playbook
   changed_when: false
@@ -137,4 +143,4 @@
   cron:
     name: "Start omnia services on reboot"
     special_time: reboot
-    job: "{{ ansible_playbook_path.stdout.split(' ')[1] }} {{ playbook_dir }}/startup_omnia.yml"
+    job: "{{ ansible_playbook_path.stdout.split(' ')[1] }} {{ playbook_dir }}/startup_omnia.yml >> {{ startup_omnia_log }}"

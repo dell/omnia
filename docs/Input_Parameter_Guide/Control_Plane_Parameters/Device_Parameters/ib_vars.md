@@ -1,5 +1,5 @@
 # Parameters in `ib_vars.yml`
-This file is located in [/control_plane/input_params](../../../control_plane/input_params/ib_vars.yml)
+This file is located in [/control_plane/input_params](../../../../control_plane/input_params/ib_vars.yml)
 
 Variables	|	Default, choices	|	Description
 ----------------	|	-----------------	|	-----------------

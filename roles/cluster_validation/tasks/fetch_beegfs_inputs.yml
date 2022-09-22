@@ -13,19 +13,19 @@
 #  limitations under the License.
 ---
 
-- name: Assert rdma_support
+- name: Assert beegfs_rdma_support
   assert:
     that:
-      - rdma_support == true or rdma_support == false
-    success_msg: "{{ rdma_support_success_msg }}"
-    fail_msg: "{{ rdma_support_failure_msg }}"
+      - beegfs_rdma_support == true or beegfs_rdma_support == false
+    success_msg: "{{ beegfs_rdma_support_success_msg }}"
+    fail_msg: "{{ beegfs_rdma_support_failure_msg }}"
 
-- name: Verify ofed_kernel_modules_path when rdma_support is false
+- name: Verify beegfs_ofed_kernel_modules_path when beegfs_rdma_support is false
   fail:
     msg: " {{ ofed_kernel_fail_msg }}"
   when:
-    - ofed_kernel_modules_path | length > 1
-    - not rdma_support
+    - beegfs_ofed_kernel_modules_path | length > 1
+    - not beegfs_rdma_support
 
 - name: Assert beegfs_mgmt_server
   assert:
@@ -40,12 +40,12 @@
       command: ping -c3 {{ beegfs_mgmt_server }}
       changed_when: false
       failed_when: false
-      register: beegfs_mgmt_server_rechablility
+      register: beegfs_mgmt_server_reachablility
 
     - name: Verify beegfs_mgmt_server reachable or not
       fail:
         msg: "{{ beegfs_mgmt_server_not_reachable_msg }}"
-      when: ping_msg in beegfs_mgmt_server_rechablility.stdout
+      when: ping_msg in beegfs_mgmt_server_reachablility.stdout
   when: beegfs_mgmt_server | length > 1
 
 - name: Verify beegfs_mounts is not empty
@@ -53,12 +53,12 @@
     msg: " {{ beegfs_mounts_fail_msg }}"
   when: beegfs_mounts | length < 1
 
-- name: Assert unmount_client
+- name: Assert beegfs_unmount_client
   assert:
     that:
-      - unmount_client == true or unmount_client == false
-    success_msg: "{{ unmount_client_success_msg }}"
-    fail_msg: "{{ unmount_client_failure_msg }}"
+      - beegfs_unmount_client == true or beegfs_unmount_client == false
+    success_msg: "{{ beegfs_unmount_client_success_msg }}"
+    fail_msg: "{{ beegfs_unmount_client_failure_msg }}"
 
 - name: Validate beegfs_client_version
   assert:
@@ -73,7 +73,7 @@
         url: "{{ beegfs_non_leap_repo }}"
         return_content: yes
   rescue:     
-    - name: beegfs_client_version rechability status
+    - name: beegfs_client_version reachability status
       fail:
         msg: "{{ beegfs_repo_status_msg }}"
 
@@ -84,10 +84,10 @@
     success_msg: "{{ beegfs_version_change_success_msg }}"
     fail_msg: "{{ beegfs_version_change_failure_msg }}"
 
-- name: Assert unmount_client when beegfs_version_change
+- name: Assert beegfs_unmount_client when beegfs_version_change
   assert:
     that:
-      - unmount_client == true
+      - beegfs_unmount_client == true
     success_msg: "{{ unmount_success_msg }}"
     fail_msg: "{{ unmount_failure_msg }}"
   when: beegfs_version_change

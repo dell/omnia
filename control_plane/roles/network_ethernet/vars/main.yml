@@ -24,3 +24,8 @@ success_msg_tor_save_config: TOR Ethernet config file validated.
 fail_msg_tor_save_config: save_changes_to_startup variable can only be set to true or false in ethernet_tor_vars.yml
 success_msg_save_config: Ethernet config file validated.
 fail_msg_save_config: save_changes_to_startup variable can only be set to true or false.
+
+# Usage: fetch_ethernet_credentials.yml
+login_input_filename: "{{ playbook_dir }}/input_params/login_vars.yml"
+login_vault_filename: "{{ playbook_dir }}/input_params/.login_vault_key"
+file_permission: 0644

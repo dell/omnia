@@ -14,7 +14,7 @@
 ---
 
 - name: Wait for loki pod to come to ready state
-  command: kubectl wait --for=condition=ready --timeout=10m -n "{{ grafana_namespace }}" pod -l app="{{ loki_k8s_name }}"
+  command: kubectl wait --for=condition=ready --timeout={{ pod_timeout }} -n "{{ grafana_namespace }}" pod -l app="{{ loki_k8s_name }}"
   changed_when: false
 
 - name: Get loki service ip

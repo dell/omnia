@@ -25,7 +25,7 @@ idrac_system_profile: "Performance"
 # Default value: false
 firmware_update_required: false
 
-# This is the list of poweredge server models
+# List of poweredge server models
 # The firmware updates will be downloaded only for the below list of models
 # Update the list in the format given below
 # poweredge_model: R640,R740,C4140

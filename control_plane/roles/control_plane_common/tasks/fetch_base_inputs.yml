@@ -47,8 +47,12 @@
     backup_mgmt_map_status: false
     backup_map_status: false
     roce_enabled: false
+    opensm_roce_enabled: false
     cobbler_lom: false
     mgmt_lom: false
+    new_node_status: false
+    new_mgmt_node_status: false
+    cobbler_image_status: false
   tags: init
 
 - name: Validate network interface type
@@ -65,7 +69,7 @@
     fail_msg: "{{ input_base_failure_msg }}"
   tags: validate
   when: device_config_support
-  
+
 - name: Validate the value of device config support
   assert:
     that:
@@ -73,6 +77,53 @@
     success_msg: "{{ success_device_config }}"
     fail_msg: "{{ fail_device_config }}"
   tags: init
+
+- name: Validate the value of awx_web_support
+  assert:
+    that:
+      - awx_web_support | lower == "true" or awx_web_support | lower == "false"
+    success_msg: "{{ success_awx_web_support }}"
+    fail_msg: "{{ fail_awx_web_support }}"
+  tags: init
+
+- name: Set fact for roce when opensm needed
+  set_fact:
+      opensm_roce_enabled: true
+  when:
+    - ansible_facts[roce_network_nic].type is defined
+    - roce_network_nic | length > 1
+    - '"infiniband" in ansible_facts[roce_network_nic].type'
+    - ( roce_network_nic == ib_network_nic ) or ( ib_network_nic | length < 1 )
+  tags: init
+
+- block:
+    - name: Fetch ansible-galaxy path
+      command: whereis ansible-galaxy
+      changed_when: false
+      register: ansible_galaxy_path
+      tags: init
+
+    - name: Install ansible galaxy collection when awx_web_support is false
+      command: "{{ ansible_galaxy_path.stdout.split(' ')[1] }} collection install {{ item }}"
+      changed_when: true
+      register: install_ansible_galaxy
+      until: install_ansible_galaxy is not failed
+      retries: "{{ max_retries }}"
+      with_items: "{{ ansible_collections_cli }}"
+      tags: init
+
+    - name: Install omsdk using pip3.6
+      command: pip3.6 install "{{ omsdk_package }}"
+      changed_when: true
+      failed_when: false
+      tags: init
+
+    - name: Install omsdk using pip when awx_web_support is false
+      pip:
+        name: "{{ omsdk_package }}"
+        state: present
+      tags: init
+  when: not awx_web_support
 
 - name: Set fact for device_ip_list_path
   set_fact:
@@ -175,31 +226,6 @@
   when: snmp_enabled
   tags: [ validate, idrac, network-device, network-ib ]
 
-- name: Check whether ansible config file exists
-  stat:
-    path: "{{ ansible_conf_file_path }}/ansible.cfg"
-  register: ansible_conf_exists
-  tags: init
-
-- name: Create the directory if it does not exist
-  file:
-    path: "{{ ansible_conf_file_path }}"
-    state: directory
-    mode: "{{ file_perm }}"
-  when: not ansible_conf_exists.stat.exists
-  changed_when: false
-  tags: init
-
-- name: Create ansible config file if it does not exist
-  copy:
-    dest: '{{ ansible_conf_file_path }}/ansible.cfg'
-    mode: "{{ file_perm }}"
-    content: |
-      [defaults]
-      log_path = /var/log/omnia.log
-  when: not ansible_conf_exists.stat.exists
-  tags: init
-
 - name: Validate infiniband base_vars are not empty
   assert:
     that:
@@ -209,8 +235,21 @@
     success_msg: "{{ success_msg_ib }}"
     fail_msg: "{{ fail_msg_ib }}"
   register: ib_check
-  when: ib_switch_support
-  tags: [ validate, network-ib ]
+  when:
+    - ib_switch_support
+    - not opensm_roce_enabled
+  tags: [ validate, network-ib, network-roce-sm ]
+
+- name: Set fact for infiniband base_vars when roce is ib
+  set_fact:
+    ib_network_nic: "{{ roce_network_nic }}"
+    ib_network_dhcp_start_range: "{{ roce_network_dhcp_start_range }}"
+    ib_network_dhcp_end_range: "{{ roce_network_dhcp_end_range }}"
+  when:
+    - ib_switch_support
+    - opensm_roce_enabled
+    - ib_network_nic | length < 1
+  tags: [ init, network-ib, network-roce-sm ]
 
 - name: Assert enable_security_support
   assert:

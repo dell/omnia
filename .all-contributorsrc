@@ -55,7 +55,8 @@
         "review",
         "maintenance",
         "projectManagement",
-        "mentoring"
+        "mentoring",
+        "talk"
       ]
     },
     {
@@ -117,6 +118,15 @@
         "bug",
         "maintenance",
         "talk"
+      ]
+    },
+    {
+      "login": "Khushboodholi",
+      "name": "Khushboo Dholi",
+      "avatar_url": "https://avatars.githubusercontent.com/u/12014935?v=4",
+      "profile": "https://github.com/Khushboodholi",
+      "contributions": [
+        "code"
       ]
     },
     {
@@ -318,7 +328,8 @@
       "profile": "https://github.com/nihalranjan-hpc",
       "contributions": [
         "test",
-        "code"
+        "code",
+        "talk"
       ]
     },
     {
@@ -398,15 +409,6 @@
       ]
     },
     {
-      "login": "Khushboodholi",
-      "name": "Khushboodholi",
-      "avatar_url": "https://avatars.githubusercontent.com/u/12014935?v=4",
-      "profile": "https://github.com/Khushboodholi",
-      "contributions": [
-        "code"
-      ]
-    },
-    {
       "login": "naresh3774",
       "name": "Naresh Sharma",
       "avatar_url": "https://avatars.githubusercontent.com/u/101410892?v=4",
@@ -449,6 +451,46 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/104345504?v=4",
       "profile": "https://github.com/srinandini-karumuri",
       "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "Rishabhm47",
+      "name": "Rishabhm47",
+      "avatar_url": "https://avatars.githubusercontent.com/u/106973551?v=4",
+      "profile": "https://github.com/Rishabhm47",
+      "contributions": [
+        "test",
+        "code"
+      ]
+    },
+    {
+      "login": "vaishakh-pm",
+      "name": "vaishakh-pm",
+      "avatar_url": "https://avatars.githubusercontent.com/u/104622022?v=4",
+      "profile": "https://github.com/vaishakh-pm",
+      "contributions": [
+        "test",
+        "code"
+      ]
+    },
+    {
+      "login": "shridhar-sharma",
+      "name": "shridhar-sharma",
+      "avatar_url": "https://avatars.githubusercontent.com/u/104621992?v=4",
+      "profile": "https://github.com/shridhar-sharma",
+      "contributions": [
+        "test",
+        "code"
+      ]
+    },
+    {
+      "login": "JayaDayyala",
+      "name": "Jaya.Dayyala",
+      "avatar_url": "https://avatars.githubusercontent.com/u/108455487?v=4",
+      "profile": "https://github.com/JayaDayyala",
+      "contributions": [
+        "test",
         "code"
       ]
     }

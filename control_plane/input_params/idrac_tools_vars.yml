@@ -65,24 +65,24 @@ smtp_password: ""
 cert_validation_enable: "disabled"
 
 # Sever address used for LDAP
-# Required field
 # It's recommended to provide the LDAP server ip address instead of FQDN
+# Required field
 ldap_server_address: ""
 
-# TCP port port at which the LDAP server is listening for connections
+# TCP port at which the LDAP server is listening for connections
 # Default port for LDAP: 389
 # Default port for LDAP over SSL: 636
 ldap_port: "636"
 
 # Distinguished Name of the node in your directory tree from which to start searching for records
-# For example: cn=Administrator,cn=Users,dc=mycompany,dc=com
+# Example: cn=Administrator,cn=Users,dc=mycompany,dc=com
 bind_dn: ""
 
 # Password used for bind_dn
 bind_password: ""
 
 # The distinguished name of the search base. 
-# For example: dc=mycompany,dc=com
+# Example: dc=mycompany,dc=com
 # Required field
 base_dn: ""
 
@@ -94,21 +94,21 @@ group_attribute: ""
 
 # Specify whether the group attribute type is DN or not
 # Accepted Values: "enabled" or "disabled"
-# Default value: disabled
+# Default value: "disabled"
 group_attribute_is_dn: "disabled"
 
 # Search scope is related to the Base DN. 
-# The search scope defines how LDAP will search for your objects.
+# The search scope defines how LDAP will search for the target objects.
 search_filter: ""
 
 # DN of LDAP group be to added
 # Supports adding only one role group
-# For example: cn=Admins,cn=Group,dc=mycompany,dc=com
+# cn=Admins,cn=Group,dc=mycompany,dc=com
 # Required field
 role_group1_dn: ""
 
-# Privielege to LDAP role group 1
-# Supported values: "Administrator", "Operator", "ReadOnly"
+# Privilege to LDAP role group 1
 # Default value: role_group1_privilege will be "Administrator"
+# Accepted values: "Administrator", "Operator", "ReadOnly"
 # Required field
 role_group1_privilege: "Administrator"

@@ -55,19 +55,30 @@
     - os_supported_leap in mgmt_os
     - ansible_distribution_version >= os_supported_leap_version
 
-- name: Verify whether ansible configuration file exists
-  stat:
-    path: "{{ default_ansible_config_file_path }}"
-  register: file_exists
+- name: Include base variable file base_vars.yml
+  include_vars: "{{ base_vars_filename }}"
   tags: init
 
-- name: Set omnia.log file
-  replace:
-    path: "{{ default_ansible_config_file_path }}"
-    regexp: '#log_path = /var/log/ansible.log'
-    replace: 'log_path = /var/log/omnia.log'
-  when: file_exists.stat.exists
+- name: Create log folder for omnia
+  file:
+    path: "{{ omnia_log_path }}"
+    state: directory
+    mode: "{{ vault_file_perm }}"
   tags: init
+
+- name: Copy ansible.cfg to other folders
+  copy:
+    src: "{{ src_ansible_cfg }}"
+    dest: "{{ item.path }}"
+    mode: "{{ vault_file_perm }}"
+  with_items: "{{ dest_ansible_cfg }}"
+
+- name: Update log_path in ansible.cfg
+  replace:
+    path: "{{ item.path }}"
+    regexp: "{{ item.regexp }}"
+    replace: "{{ item.log_path }}"
+  with_items: "{{ dest_ansible_cfg }}"
 
 - name: Check OS support
   assert:
@@ -98,3 +109,17 @@
 
   tags: init
   when: os_supported_leap not in mgmt_os
+
+- name: Verify ansible version on control plane
+  assert:
+    that:
+      - ansible_version.full is version_compare('{{ max_ansible_version }}', '<')
+    success_msg: "Ansible version is  {{ ansible_version.full }}"
+    fail_msg: "Ansible version should be less than {{ max_ansible_version }}"
+  tags: init
+  
+- name: Fetch ansible-vault path
+  command: whereis ansible-vault
+  changed_when: false
+  register: ansible_vault_path
+  tags: init

@@ -95,7 +95,9 @@
       with_items: "{{ idrac_info.system_info.Controller }}"
       loop_control:
         index_var: my_idx3
-      when: raid_search_key in idrac_info.system_info.ControllerSensor[my_idx3].FQDD
+      when: 
+        - raid_search_key in idrac_info.system_info.ControllerSensor[my_idx3].FQDD
+        - non_raid_search_key not in idrac_info.system_info.ControllerSensor[my_idx3].FQDD
 
     - name: Set raid_vd_status
       set_fact:
@@ -108,6 +110,16 @@
         - raid_type
         - idrac_info.system_info.VirtualDisk[my_idx6].Name == raid_vd_name
 
+    - name: Check physical disk is not Non-RAID
+      set_fact:
+        non_raid_disk_status: true
+      with_items: "{{ idrac_info.system_info.PhysicalDisk }}"
+      loop_control:
+        index_var: my_idx7
+      when: 
+        - idrac_info.system_info.PhysicalDisk is defined
+        - non_raid_disk_key in idrac_info.system_info.PhysicalDisk[my_idx7].RaidStatus
+
     - name: View existing storage details
       dellemc.openmanage.dellemc_idrac_storage_volume:
         idrac_ip: "{{ inventory_hostname }}"
@@ -118,6 +130,7 @@
       when: 
         - raid_type
         - not raid_vd_status
+        - not non_raid_disk_status
 
     - name: Set drives details - RAID
       set_fact:
@@ -126,6 +139,7 @@
       when: 
         - raid_type
         - not raid_vd_status
+        - not non_raid_disk_status
         - idrac_volume_list.storage_status.Message.Controller[raid_controller_sensor].Enclosure[raid_enclosure_name].PhysicalDisk is defined
 
     - block:
@@ -148,6 +162,7 @@
           when: 
             - raid_type
             - not raid_vd_status
+            - not non_raid_disk_status
             - idrac_volume_list.storage_status.Message.Controller[raid_controller_sensor].Enclosure[raid_enclosure_name].PhysicalDisk is defined
       rescue:
         - name: Creating RAID VD failed

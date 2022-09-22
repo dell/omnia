@@ -16,14 +16,10 @@
 #Tasks for modifying firewall configurations for mgmt_network_container
 
 - name: Permit traffic in default zone for tftp service
-  firewalld:
-    service: tftp
-    permanent: yes
-    state: enabled
-  tags: install
+  command: "firewall-cmd --permanent --add-service=tftp"
+  changed_when: true
 
 - name: Reboot firewalld
   systemd:
     name: firewalld
     state: reloaded
-  tags: install

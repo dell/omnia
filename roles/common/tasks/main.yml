@@ -12,9 +12,20 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+
 - name: Saving distribution of os
   set_fact:
     compute_os: "{{ ansible_facts['distribution'] | lower }}"
+
+- name: Fetch name and version of OS
+  shell:
+    cmd: . /etc/os-release;echo $ID$VERSION_ID
+  register: os_details
+  changed_when: false
+
+- name: Save OS distribution
+  set_fact:
+    os_distribution: "{{ os_details.stdout }}"
 
 - name: Initialize variables for ib
   set_fact:
@@ -25,14 +36,18 @@
   include_tasks: validate_rhsm.yml
   when: compute_os == os_supported_redhat
 
-- name: Subscrbe for code ready builder repo in RHEL
-  command: subscription-manager repos --enable "{{ rhel_code_ready_repo }}"
-  changed_when: false
-  when: os_supported_redhat in compute_os
+- block:
+    - name: Subscrbe for code ready builder repo in RHEL
+      command: subscription-manager repos --enable "{{ rhel_code_ready_repo }}"
+      changed_when: false
 
-- name: Install epel repo 8
-  command: dnf install "{{ rhel_epel_repo8 }}" -y
-  changed_when: false
+    - name: Install epel repo 8
+      command: dnf install "{{ rhel_epel_repo8 }}" -y
+      changed_when: false
+
+    - name: Upgrade libmodulemd
+      command: dnf upgrade libmodulemd -y
+      changed_when: false
   when: os_supported_redhat in compute_os
 
 - name: Create a custom fact directory on each host
@@ -104,7 +119,14 @@
       package:
         name: "{{ common_packages }}"
         state: present
+      when: os_supported_centos not in compute_os
       tags: install
+
+    - name: Install common packages for CentOS 7.9
+      package:
+        name: "{{ common_packages_centos }}"
+        state: present
+      when: os_supported_centos in compute_os
 
     - name: Install common packages for non leap and non RHEL OS
       package:
@@ -132,6 +154,12 @@
     - name: Collect host facts (including acclerator information)
       setup: ~
 
+    - name: Check for Mellanox NICs
+      shell: lspci | grep -o Mellanox | wc -l
+      register: num_mellanox
+      failed_when: false
+      changed_when: false
+
     - name: Install infiniband drivers
       package:
         name: "{{ item }}"
@@ -139,6 +167,7 @@
       with_items: "{{ infiniband_non_leap }}"
       register: ib_package_status
       tags: install
+      when: num_mellanox.stdout | int > 0
     
     - block:
         - name: Reboot after installing ib drivers
@@ -170,9 +199,10 @@
           failed_when: false
           with_items: "{{ ib_nics }}"
       when:
-       - ib_package_status.changed
-       - hostvars['127.0.0.1']['control_plane_status']
-       - hostvars['127.0.0.1']['ib_switch_support']
+        - num_mellanox.stdout | int > 0
+        - ib_package_status.changed
+        - hostvars['127.0.0.1']['control_plane_status']
+        - hostvars['127.0.0.1']['ib_switch_support']
   when: ( os_supported_leap not in compute_os )
 
 - block:
@@ -240,6 +270,12 @@
       setup: ~
       tags: install
 
+    - name: Check for Mellanox NICs
+      shell: lspci | grep -o Mellanox | wc -l
+      register: num_mellanox
+      failed_when: false
+      changed_when: false
+
     - name: Install infiniband drivers
       package:
         name: "{{ item }}"
@@ -247,6 +283,7 @@
       with_items: "{{ infiniband_leap }}"
       register: ib_package_status
       tags: install
+      when: num_mellanox.stdout | int > 0
     
     - block:
         - name: Reboot after installing ib drivers
@@ -278,9 +315,10 @@
           failed_when: false
           with_items: "{{ ib_nics }}"
       when:
-       - ib_package_status.changed
-       - hostvars['127.0.0.1']['control_plane_status']
-       - hostvars['127.0.0.1']['ib_switch_support']
+        - num_mellanox.stdout | int > 0
+        - ib_package_status.changed
+        - hostvars['127.0.0.1']['control_plane_status']
+        - hostvars['127.0.0.1']['ib_switch_support']
   when: ( os_supported_leap in compute_os ) and ( ansible_distribution_version >= os_supported_leap_version )
 
 - name: Deploy time ntp/chrony
@@ -289,18 +327,12 @@
 
 - name: Install Nvidia drivers and software components
   include_tasks: nvidia.yml
-  when:
-    - ansible_local.inventory.nvidia_gpu > 0
-    - ( ansible_facts['distribution'] == os_name and ansible_facts['distribution_major_version'] == os_version) or 
-      ( os_supported_leap in compute_os ) and ( ansible_distribution_version >= os_supported_leap_version )
+  when: ansible_local.inventory.nvidia_gpu > 0
   tags: install
 
 - name: Install AMD GPU drivers and software components
   include_tasks: amd.yml
-  when:
-    - ansible_local.inventory.amd_gpu > 0
-    - ansible_facts['distribution'] == os_name or 
-      ( os_supported_leap in compute_os ) and ( ansible_distribution_version >= os_supported_leap_version )
+  when: ansible_local.inventory.amd_gpu > 0
   tags: install
 
 - name: Get the hostname

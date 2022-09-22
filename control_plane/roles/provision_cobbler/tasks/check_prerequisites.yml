@@ -18,7 +18,6 @@
     cobbler_container_status: false
     cobbler_image_status: false
     cobbler_config_status: false
-    new_node_status: false
     provision_os_change: false
     previous_os: None
     dhcp_lom_file: false
@@ -152,3 +151,29 @@
     - previous_os != None
     - previous_os != provision_os
     - cobbler_config_status
+
+- name: Create management_station_ip_file when awx_web_support is false
+  block:
+    - name: Remove the management_station_ip_file
+      file:
+        path: "{{ playbook_dir }}/roles/provision_idrac/files/{{ management_station_ip_file }}"
+        state: absent
+
+    - name: Copy management station ip to {{ management_station_ip_file }}
+      lineinfile:
+        path: "{{ playbook_dir }}/roles/provision_idrac/files/{{ management_station_ip_file }}"
+        line: "{{ mgmt_network_ip }}"
+        mode: "{{ temp_file_perm }}"
+        create: yes
+      when: ( device_config_support ) or ( network_interface_type == "lom" )
+
+    - name: Copy management station ip to {{ management_station_ip_file }}
+      lineinfile:
+        path: "{{ playbook_dir }}/roles/provision_idrac/files/{{ management_station_ip_file }}"
+        line: "{{ public_ip }}"
+        mode: "{{ temp_file_perm }}"
+        create: yes
+      when: not device_config_support
+  when: 
+    - not awx_web_support
+    - not idrac_support

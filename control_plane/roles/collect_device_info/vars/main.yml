@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,20 +17,33 @@
 # vars file for collect_device_info role
 # This role will not group the devices if user provides invalid credentials
 
-# Usage main.yml
+# Usage: main.yml
 mgmt_provisioned_hosts_file: "{{ role_path }}/files/mgmt_provisioned_hosts.yml"
 
-# Usage create_inventory.yml
-infiniband_status_code: 302
-idrac_search_key: "Integrated Dell Remote Access Controller"
-ethernet_search_key: "OS10"
-infiniband_search_key: "MLNX-OS"
-me4_powervault_search_key: "ME4"
-idrac_inventory_fail_msg: "Failed. Unable to add {{ inventory_hostname }} to idrac_inventory"
-ethernet_inventory_fail_msg:  "Failed. Unable to add {{ inventory_hostname }} to ethernet_inventory"
-ib_inventory_fail_msg: "Failed. Unable to add {{ inventory_hostname }} to ib_inventory"
-powervault_me4_fail_msg: "Failed. Unable to add {{ inventory_hostname }} to powervault_me4_inventory"
+# Usage: create_inventory.yml
 base_vars_file: "{{ playbook_dir }}/../../../input_params/base_vars.yml"
 login_vars_file: "{{ playbook_dir }}/../../../input_params/login_vars.yml"
 login_vault_file: "{{ playbook_dir }}/../../../input_params/.login_vault_key"
 file_perm: '0644'
+
+# Usage: add_idrac_inventory.yml
+idrac_inventory_path: /opt/omnia/idrac_inventory
+idrac_inventory_fail_msg: "Failed. Unable to add {{ inventory_hostname }} to idrac_inventory"
+idrac_search_key: "Integrated Dell Remote Access Controller"
+
+# Usage: add_ethernet_inventory.yml
+ethernet_inventory_path: /opt/omnia/ethernet_inventory
+ethernet_inventory_fail_msg:  "Failed. Unable to add {{ inventory_hostname }} to ethernet_inventory"
+ethernet_search_key: "OS10"
+
+# Usage: add_infiniband_inventory.yml
+infiniband_inventory_path: /opt/omnia/infiniband_inventory
+ib_inventory_fail_msg: "Failed. Unable to add {{ inventory_hostname }} to ib_inventory"
+infiniband_search_key: "MLNX-OS"
+infiniband_status_code: 302
+
+# Usage: add_powervault_inventory.yml
+powervault_inventory_path:  /opt/omnia/powervault_inventory
+powervault_fail_msg: "Failed. Unable to add {{ inventory_hostname }} to powervault_inventory"
+me4_powervault_search_key: "ME4"
+me5_powervault_search_key: "ME5"

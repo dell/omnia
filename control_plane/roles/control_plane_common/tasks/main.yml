@@ -20,6 +20,10 @@
   import_tasks: internet_validation.yml
   tags: init
 
+- name: Configure omnia version
+  import_tasks: omnia_version_configuration.yml
+  tags: init
+
 - name: Common packages installation
   import_tasks: package_installation.yml
   tags: init
@@ -47,7 +51,7 @@
 
 - name: Subnet manager inputs validation
   import_tasks: fetch_sm_inputs.yml
-  when: ib_switch_support
+  when: ib_switch_support or opensm_roce_enabled
 
 - name: Security inputs validation
   import_tasks: fetch_security_inputs.yml

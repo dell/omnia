@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,10 +13,18 @@
 #  limitations under the License.
 ---
 
-- name: Enable module idm in Rocky or Centos >= 8.0
+- name: Enable module idm in Rocky or RHEL
   command: dnf module enable idm:DL1 -y
   when:
     - ( ansible_distribution | lower == os_centos ) or
       ( ansible_distribution | lower == os_rocky ) or
       ( ansible_distribution | lower == os_redhat ) 
     - ( ansible_distribution_version >= os_version )
+
+- name: Switch to the RPMs delivered through the idm:DL1 stream(It may take 5-10 mins)
+  command: yum distro-sync --skip-broken --nobest --exclude={{ yum_distro_exclude }} -y
+  changed_when: true
+  failed_when: false
+  args:
+    warn: false
+  when: ansible_distribution | lower == os_redhat

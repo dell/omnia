@@ -8,7 +8,18 @@ Below is a list of all logs available to Loki and can be accessed on the dashboa
 
 | Name               | Location                                  | Purpose                      | Additional Information                                                                             |
 |--------------------|-------------------------------------------|------------------------------|----------------------------------------------------------------------------------------------------|
-| Omnia Logs         | /var/log/omnia.log                        | Omnia Log                    | This log is configured by Default. This log can be used to track all changes made by Omnia                                                                  |
+| Omnia Logs         | /var/log/omnia.log                        | Omnia Log                    | This log is configured by Default. This log can be used to track all changes made by all playbooks in the `omnia` directory.                                                                 |
+| Omnia Control Plane| /var/log/omnia_control_plane.log          | Control plane Log            | This log is configured by Default. This log can be used to track all changes made by all playbooks in the `omnia/control_plane` directory.                                                            |
+| Omnia Telemetry    | /var/log/omnia/omnia_telemetry.log        | Telemetry Log                | This log is configured by Default. This log can be used to track all changes made by all playbooks in the `omnia/telemetry` directory.                                                           |
+| Omnia Tools        | /var/log/omnia/omnia_tools.log            | Tools Log                    | This log is configured by Default. This log can be used to track all changes made by all playbooks in the `omnia/tools` directory.                                                           |
+| Omnia Platforms    | /var/log/omnia/omnia_platforms.log        | Platforms Log                | This log is configured by Default. This log can be used to track all changes made by all playbooks in the `omnia/platforms` directory.                                                           |
+| Omnia Control Plane Tools| /var/log/omnia/omnia_control_plane_tools.log        | Control Plane tools logs                | This log is configured by Default. This log can be used to track all changes made by all playbooks in the `omnia/control_plane/tools` directory.                                                           |
+| Node Info CLI log  | /var/log/omnia/collect_node_info/collect_node_info_yyyy-mm-dd-HHMMSS.log        | CLI Log                | This log is configured when AWX is disabled. This log can be used to track scheduled and unscheduled node inventory jobs initiated by CLI.                                                           |
+| Device Info CLI log| /var/log/omnia/collect_device_info/collect_device_info_yyyy-mm-dd-HHMMSS.log        | CLI Log                | This log is configured when AWX is disabled. This log can be used to track scheduled and unscheduled device inventory jobs initiated by CLI.                                                           |
+| iDRAC CLI log     | /var/log/omnia/idrac/idrac-yyyy-mm-dd-HHMMSS.log        | CLI Log                | This log is configured when AWX is disabled. This log can be used to track iDRAC jobs initiated by CLI.                                                           |
+| Infiniband CLI log| //var/log/omnia/infiniband/infiniband-yyyy-mm-dd-HHMMSS.log        | CLI Log                | This log is configured when AWX is disabled. This log can be used to track Infiniband jobs initiated by CLI.                                                           |
+| Ethernet CLI log| /var/log/omnia/ethernet/ethernet-yyyy-mm-dd-HHMMSS.log        | CLI Log                | This log is configured when AWX is disabled. This log can be used to track Ethernet jobs initiated by CLI.                                                           |
+| Powervault CLI log| /var/log/omnia/powervault/powervault-yyyy-mm-dd-HHMMSS.log        | CLI Log                | This log is configured when AWX is disabled. This log can be used to track Powervault jobs initiated by CLI.                                                           |
 | syslogs            | /var/log/messages                         | System Logging               | This log is configured by Default                                                                  |
 | Audit Logs         | /var/log/audit/audit.log                  | All Login Attempts           | This log is configured by Default                                                                  |
 | CRON logs          | /var/log/cron                             | CRON Job Logging             | This log is configured by Default                                                                  |
@@ -52,8 +63,11 @@ Below is a list of all logs available to Loki and can be accessed on the dashboa
    3. To edit the encrypted parameters:
     `ansible-vault edit login_vars.yml --vault-password-file .login_vault_key`
 ## 5. Checking pod status on the control plane
-    * Select the pod you need to troubleshoot from the output of `kubectl get pods -A`
-    * Check the status of the pod by running `kubectl describe pod <pod name> -n <namespace name>`
+   * Select the pod you need to troubleshoot from the output of `kubectl get pods -A`
+   * Check the status of the pod by running `kubectl describe pod <pod name> -n <namespace name>`
+
+## 6. Omnia version file
+The Omnia version number is stored in `/opt/omnia/omnia_version` when `control_plane.yml` is run.
 
 
 

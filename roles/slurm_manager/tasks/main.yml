@@ -108,11 +108,7 @@
   tags: firewalld
 
 - name: Firewall rule for slurm - tcp/udp ports
-  firewalld:
-    zone: public
-    port: "{{ item }}"
-    permanent: true
-    state: enabled
+  command: "firewall-cmd --zone=public --permanent --add-port={{ item }}"
   with_items:
     - "{{ tcp_port1 }}"
     - "{{ tcp_port2 }}"
@@ -124,6 +120,7 @@
     - "{{ udp_port2 }}"
     - "{{ udp_port4 }}"
   when: "'manager' in group_names"
+  changed_when: true
   tags: firewalld
 
 - name: Get network address/subnet mask
@@ -137,11 +134,9 @@
   when: hostvars['127.0.0.1']['ansible_collection_used']
 
 - name: Firewall rule slurm - allow all incoming traffic on internal network
-  firewalld:
-    zone: public
-    rich_rule: 'rule family="{{ family }}" source address="{{ network_address }}" accept'
-    permanent: true
-    state: enabled
+  command: |
+        firewall-cmd --add-rich-rule='rule family={{ family }} source address={{ network_address }} accept'
+  changed_when: true
   tags: firewalld
 
 - name: Reload firewalld
