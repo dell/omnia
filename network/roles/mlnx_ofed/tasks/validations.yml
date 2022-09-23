@@ -58,14 +58,9 @@
 
     - name: Check if mlnx_ofed version and distro details are given correctly
       block:
-        - name: Initialize mlnx_ofed_repo URL
-          ansible.builtin.set_fact:
-            mlnx_ofed_repository: "https://content.mellanox.com/ofed/MLNX_OFED-{{ mlnx_ofed_version }}/
-            MLNX_OFED_LINUX-{{ mlnx_ofed_version }}-{{ mlnx_ofed_distro }}-x86_64.tgz"
-
         - name: Check status of mlnx_ofed repo url
           ansible.builtin.uri:
-            url: "{{ mlnx_ofed_repository }}"
+            url: "{{ ofed_repository }}"
             method: HEAD
             return_content: true
             status_code: "{{ uri_status_code }}"
