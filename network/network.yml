@@ -12,3 +12,39 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+
+- name: Gather facts for all nodes
+  hosts: all
+  gather_facts: true
+
+- name: Validate input parameters for mlnx_ofed
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  tasks:
+    - name: Validate variables from network_config.yml
+      ansible.builtin.include_role:
+        name: mlnx_ofed
+        tasks_from: validations.yml
+
+- name: Check nodes having Infiniband Support
+  hosts: all
+  tasks:
+    - name: Validate if nodes have IB support
+      ansible.builtin.include_role:
+        name: mlnx_ofed
+        tasks_from: pre-requisites.yml
+
+- name: Setup NFS Server on RedHat control plane if Infiniband Support is present on nodes
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Setup NFS Server on control plane if Rhel OS is installed on nodes
+      ansible.builtin.include_role:
+        name: mlnx_ofed
+        tasks_from: initiate_nfs_server.yml
+
+- name: Setup NFS client and install mlnx_ofed drivers if Rhel OS is installed on nodes
+  hosts: ib_inventory
+  roles:
+    - mlnx_ofed
