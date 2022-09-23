@@ -60,8 +60,6 @@
 
 - name: Reboot
   ansible.builtin.reboot:
-  args:
-    warn: false
 
 - name: Enable openibd service
   ansible.builtin.service:
