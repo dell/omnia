@@ -23,8 +23,6 @@
 - name: Reboot
   ansible.builtin.reboot:
   when: ib_package_status.changed
-  args:
-    warn: false
 
 - name: Check IB nic availability
   block:
