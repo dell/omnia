@@ -18,16 +18,13 @@ os_supported_leap: "leap"
 os_supported_rocky: "rocky"
 os_supported_rhel: "redhat"
 
-# Usage: pre-requisites.yml
-mlnx_ofed_version_success: "mlnx_ofed_version validated successfully."
-mlnx_ofed_version_fail: "mlnx_ofed_version validation failed. Make sure the version entered is present in {{ mlnx_ofed_repository }}"
-
 # Usage: validations.yml
 inactive_msg1: "1. Host {{ ansible_ssh_host }} is not subscribed to redhat"
 inactive_msg2: "2. Host {{ ansible_ssh_host }} didnt have baseos and appstream repos enabled."
 fail_mlnx_file_type: "The given file is not a .tgz file."
 fail_mlnx_file: "File doesn't exist at given path: "
 uri_status_code: 200
+ofed_repository: "https://content.mellanox.com/ofed/MLNX_OFED-{{ mlnx_ofed_version }}/MLNX_OFED_LINUX-{{ mlnx_ofed_version }}-{{ mlnx_ofed_distro }}-x86_64.tgz"
 fail_mlnx_url: "Please check mlnx_ofed_version. The tar file for mentioned version should be available in
  https://network.nvidia.com/products/infiniband-drivers/linux/mlnx_ofed/"
 mlnx_ofed_add_kernel_support_fail_msg: "mlnx_ofed_add_kernel_support variable can only be set to true or false."
