@@ -1,0 +1,34 @@
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Usage: validate_nic_vars.yml
+provision_config_filename: "{{ playbook_dir }}/../input/provision_config.yml"
+input_provision_failure_msg: "Please provide all the required parameters in provision_config.yml"
+success_msg_nic: "nic successfully validated"
+fail_msg_nic: "Failed. Provide proper values"
+success_subnet: "The subnet provided is validated"
+fail_subnet: " Please provide proper subnet"
+success_lom: " Network interface type is LOM"
+fail_lom: "Failed. In case of LOM, admin_nic_subnet and bmc_nic_subnet can't be same. Please provide proper input"
+success_pxe: "Proper PXE ranges provided"
+fail_pxe: "Failed. Please provide proper PXE ranges"
+success_msg_different_nics: "Validated. Nics are different in case of LOM."
+fail_msg_different_nics: "Failed.Incorrect nic information.Public nic must be different from BMC and PXE nics ."
+
+# Usage: validate_switch_vars.yml
+pxe_switch_ip_valid: "Valid switch ip provided"
+pxe_switch_ip_invalid: " Failed. Provide a valid switch ip"
+fail_switch_or_mapping_file: "Failed. Please provide either PXE mapping file or PXE switch details. If switch details are given, please provide proper node name as well."
+fail_msg_pxe_path: "Failed. Please provide a valid PXE mapping file path"
