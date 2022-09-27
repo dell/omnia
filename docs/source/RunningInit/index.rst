@@ -15,60 +15,15 @@ Running Init.sh
 
 * Root privilege is available
 
-* Python 3.8 is installed ::
-
-    dnf install epel-release -y
-
-    dnf install python3 -y
+* Python 3.8 will be installed (if not installed).
 
 .. note:: To deploy Omnia, Python provides bindings to system tools such as RPM, DNF, and SELinux.
 
-* Ansible 2.12.6 is installed
+* PIP will be installed (if not installed).
 
-    Verify if Ansible is already installed by running ``ansible --version``. If version 2.9 or later is installed, uninstall it before installing a newer version using the following commands. ::
+* Ansible 2.12.9 is installed (if not installed).
 
-        pip uninstall ansible
-
-        pip uninstall ansible-base (if ansible 2.9 is installed)
-
-        pip uninstall ansible-core` (if ansible 2.10 > version is installed)
-
-    .. Warning:: Omnia does not support Ansible versions greater than 6.0.0.
-
-    To install Ansible, run the following commands. ::
-
-
-        pip3.6 install --upgrade pip
-
-        pip3.8 install --upgrade pip
-
-        python3.6 -m pip install ansible
-
-        python3.8 -m pip install ansible==5.10.0
-
-    After the installation is complete, run ``ansible --version`` to verify if the installation is successful. In the output, ensure that the executable location path is present in the PATH variable by running ``echo $PATH``.
-
-    If executable location path is not present, update the path by running ``export PATH=$PATH:<executable location>\``.
-
-    For example, ::
-
-
-        ansible -- version
-
-        ansible 2.10.9
-
-        config file = None
-
-        configured module search path = ['/root/.ansible/plugins/modules', '/usr/share/ansible/plugins/modules']
-
-        ansible python module location = /usr/local/lib/python3.6/site-packages/ansible
-
-        executable location = /usr/local/bin/ansible
-
-        python version = 3.6.8 (default, Aug 24 2020, 17:57:11) [GCC 8.3.1 20191121 (Red Hat 8.3.1-5)]
-
-
-The executable location is ``/usr/local/bin/ansible``. Update the path by running ``export PATH=$PATH:/usr/local/bin``
+* SeLinux will be disabled (if not disabled previously).
 
 .. note:: If SeLinux is not disabled, it will be disabled by the script and the user will be prompted to reboot the control plane.
 
