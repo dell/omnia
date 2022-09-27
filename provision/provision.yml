@@ -13,7 +13,7 @@
 # limitations under the License.
 ---
 
-- name: Executing control_plane roles
+- name: Executing provision roles
   hosts: localhost
   connection: local
   roles:
