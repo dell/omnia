@@ -14,7 +14,7 @@
 ---
 
 - name: Apply configuration for- "{{ inventory_hostname }}" - "{{ item }}"
-  uri:
+  ansible.builtin.uri:
     url: http://{{ inventory_hostname }}/admin/launch?script=json
     method: POST
     body_format: json
@@ -22,16 +22,16 @@
       Cookie: "{{ login.set_cookie.split(';')[0] }}"
     body:
       {
-      "commands":
-       [
-         "{{ item }}"
-       ]
+        "commands":
+          [
+            "{{ item }}"
+          ]
       }
   register: global_conf
 
 - name: Status check for - "{{ inventory_hostname }}" - "{{ item }}"
-  fail:
+  ansible.builtin.fail:
     msg: "{{ global_conf.json }}"
-  when: 
-    - ( global_conf.json.status is defined and global_conf.json.status != "OK" ) or 
+  when:
+    - ( global_conf.json.status is defined and global_conf.json.status != "OK" ) or
       ( global_conf.json.results is defined and global_conf.json.results[0].status != "OK" )
