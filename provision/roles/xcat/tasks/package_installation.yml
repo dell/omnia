@@ -13,8 +13,11 @@
 # limitations under the License.
 ---
 
-- name: Executing provision roles
-  hosts: localhost
-  connection: local
-  roles:
-    - role: xcat
+- name: Install common packages
+  ansible.builtin.package:
+    name: "{{ common_packages_xcat }}"
+    state: present
+
+- name: Install netaddr
+  ansible.builtin.command: pip3.8 install netaddr
+  changed_when: true
