@@ -1,0 +1,77 @@
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Usage: pre_requisites.yml
+hdr_config_file: "{{ role_path }}/../../infiniband_hdr_input.yml"
+edr_config_file: "{{ role_path }}/../../infiniband_edr_input.yml"
+fail_msg_hdr_config_file: "infiniband_hdr_input.yml file doesn't exist."
+fail_msg_edr_config_file: "infiniband_edr_input.yml config file doesn't exist."
+success_msg_save_config: "Successfully validated save_changes_to_startup."
+fail_msg_save_config: "save_changes_to_startup variable can only be set to true or false."
+ib_switch_type_success_msg: "Successfully validated ib_switch_type."
+ib_switch_type_fail_msg: "ib_switch_type can only be set to either hdr or edr."
+enable_split_port_success_msg: "Successfully validated enable_split_port."
+enable_split_port_fail_msg: "enable_split_port can only be set to true or false."
+ib_username_fail_msg: "Failed validating ib_username on {{ inventory_hostname }}. Incorrect format provided for ib_username"
+ib_password_fail_msg: "Failed validating ib_password on {{ inventory_hostname }}. Incorrect format provided for ib_password"
+min_username_length: 4
+max_length: 30
+ib_username_dec_msg: "ib_username should be passed as extra argument while playbook execution"
+ib_password_dec_msg: "ib_password should be passed as extra argument while playbook execution"
+success_snmp_trap_dest: "SNMP trap destination IP validated"
+fail_snmp_trap_dest: "Failed. Incorrect SNMP trap destination IP format provided in base_address.yml"
+
+# Usage: pre_requisites_split_ports.yml
+ib_admin_passwd_dec_fail_msg: "Please declare ib_admin_password when split port functionality was needed"
+ib_monitor_passwd_dec_fail_msg: "Please declare ib_monitor_password when split port functionality was needed"
+ib_usr_admin_passwd_fail_msg: "ib_admin_password should not be same as ib_username"
+ib_usr_monitor_passwd_fail_msg: "ib_monitor_password should not be same as ib_username"
+ib_admin_password_fail_msg: "ib_admin_password validation failed on {{ inventory_hostname }}. Please check for password constraints in docs"
+ib_monitor_password_fail_msg: "ib_monitor_password  failed on {{ inventory_hostname }}. Please check for password constraints in docs"
+ib_default_password_fail_msg: "Failed validation for ib_default_password on {{ inventory_hostname }}. Make sure password constraints are met"
+ib_default_passwd_dec_fail_msg: "Please declare ib_default_password if split_port functionality was needed"
+
+# Usage: configure_split_ready.yml
+ib_not_reachable_msg: "{{ inventory_hostname }} IB switch is not reachable at this point"
+split_ready_success_msg: "Successfully configured switch to split ready mode on {{ inventory_hostname }}"
+split_status_msg: "Switch is already in split ready mode"
+switch_time: 300
+split_ready_loc: "{{ role_path }}/files/split_ready.py"
+sync_value: 300
+poll_value: 5
+
+# Usage: configure_initial_wizard.yml
+ib_passwd_fail_msg: "Failed while validating ib_admin_password and ib_monitor_password. Please check for password constraints in docs"
+ib_config_fail_msg: "Please do initial configuration manually on {{ inventory_hostname }}, Re-execute playbook. As there is a mismatch in switch configuration"
+ib_config_success_msg: "Successfully configured initial wizard on {{ inventory_hostname }}"
+init_wizard_path: "{{ role_path }}/files/initial_wizard.py"
+ib_def_password_fail_msg: "Incorrect ib_default_password provided for {{ inventory_hostname }}"
+wizard_msg: "Failed configuring initial wizard, Please do initial configuration manually"
+
+# Usage: authenticate.yml
+ib_srv_fail_msg: "Make sure SSl secure cookie is disabled, HTTP and JSON is enabled on {{ inventory_hostname }}"
+ib_auth_msg: "Authentication failed for {{ inventory_hostname }}, please check switch credentials"
+
+# Usage: split_port.yml
+skip_port_status_msg: "Port:{{ item }} is not available for splitting"
+
+# Usage: configure_services.yml
+ssl_msg: "no web https ssl secure-cookie enable"
+http_msg: "web http enable"
+json_msg: "json-gw enable"
+
+# Usage: interface_config.yml
+split_port1: '1/1/1 '
+split_port2: '1/2/1 '

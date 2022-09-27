@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,11 +11,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 ---
--  name: Infiniband Configuration
-   hosts: all
-   gather_facts: false
-   connection: local
-   roles:
-    - network_ib
+
+- name: Fetch list of ports from IB switch
+  ansible.builtin.expect:
+    command: 'ssh {{ ib_username }}@{{ inventory_hostname }} cli \"enable\" \"config t\" \"show interfaces ib llr\"'
+    responses:
+      "(.*)assword: ":
+        - "{{ ib_login_password }}"
+        - ''
+  no_log: true
+  register: ports_status
+
+- name: Initialize ports_avail with available ports on IB switch
+  ansible.builtin.set_fact:
+    ports_avail: "{{ ports_status.stdout }}"
+  no_log: true
