@@ -29,18 +29,9 @@ jobs:
         #   playbook_2.yml
         targets: |
           /github/workspace/omnia.yml
-          /github/workspace/control_plane/control_plane.yml
-          /github/workspace/control_plane/collect_device_info.yml
-          /github/workspace/control_plane/collect_node_info.yml
-          /github/workspace/control_plane/ethernet.yml
-          /github/workspace/control_plane/idrac.yml
-          /github/workspace/control_plane/infiniband.yml
-          /github/workspace/control_plane/powervault.yml
           /github/workspace/telemetry/telemetry.yml
           /github/workspace/platforms/jupyterhub.yml
           /github/workspace/platforms/kubeflow.yml
-          /github/workspace/tools/install_tools.yml
-          /github/workspace/tools/intel_tools.yml
         # [optional]
         # Arguments to override a package and its version to be set explicitly.
         # Must follow the example syntax.
