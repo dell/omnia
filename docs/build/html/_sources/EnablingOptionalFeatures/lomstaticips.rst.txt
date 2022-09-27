@@ -1,2 +1,0 @@
-Setting Up Static IPs on LOM Devices
-===================================

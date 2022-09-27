@@ -1,2 +1,0 @@
-Enabling Security on the Control Plane
-========================================

@@ -82,6 +82,7 @@ Omnia (Latin: all or everything) is a deployment tool to turn servers with RPM-b
    RunningOmnia/index
    Collections/index
    Troubleshooting/index
+   SecurityConfigGuide/index
    samplefiles
    limitations
    bestpractices
