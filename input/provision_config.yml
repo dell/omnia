@@ -71,3 +71,54 @@ pxe_switch_snmp_community_string: "public"
 
 # TBD
 node_name: "compute"
+
+# This is the operating system image that will be used for provisioning compute nodes in the cluster.
+# Accepted values: rocky, rhel
+# Default value: "rocky"
+# Required field
+provision_os: "rocky"
+
+# This is the path where the user has to place the iso image that needs to be provisioned in target nodes.
+# The iso file should be Rocky8-DVD or RHEL-8.x-DVD.
+# Other iso files are not supported.
+# Required field
+iso_file_path: "/home/Rocky-8.6-x86_64-dvd1.iso"
+
+# This is the timezone that will be set during provisioning of OS
+# Available timezones are provided in provision/roles/xcat/files/timezone.txt
+# Default timezone will be "GMT"
+# Some of the other available timezones are EST,CET,MST,CST6CDT,PST8PDT
+timezone: "GMT"
+
+# This is the language that will be set during provisioning of the OS
+# Default language supported is "en-US"
+language: "en-US"
+
+# Default lease time that will be used by dhcp
+# Its unit is seconds
+# Min: 21600 seconds
+# Default: 86400 seconds
+# Max: 31536000 seconds
+# Required field
+default_lease_time: "86400"
+
+# This variable is used to accept the domain name the user intends to configure
+domain_name: "omnia.test"
+
+# Password used while deploying OS on bare metal servers.
+# The Length of the password should be at least 8 characters.
+# The password must not contain -,\, ',"
+# Required field
+provision_password: ""
+
+# Password used for postgres database.
+# The Length of the password should be at least 8 characters.
+# The password should contain only alphanumeric characters
+# Required field
+postgresdb_password: ""
+
+# The DNS servers IP address for the internet access of compute nodes(through DHCP routing using cobbler)
+# If this variable is empty, a separate public internet nic should be present in compute nodes for internet access.
+# Optional field
+primary_dns: ""
+secondary_dns: ""
