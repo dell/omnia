@@ -13,7 +13,7 @@ OS Version Control Plane Compute Nodes
 ========== ============= =============
 
 .. note::
-    * Always deploy the Minimal Edition of the OS on compute nodes.
+    * Always deploy the DVD Edition of the OS on compute nodes to access offline repos.
     * While Omnia may work with Red Hat 8.3 and above, all Omnia testing was done with Red Hat 8.3 on the control plane. All minor versions of Red Hat 8 are supported on the compute nodes.
 
 **Using BeeGFS on Red Hat**
