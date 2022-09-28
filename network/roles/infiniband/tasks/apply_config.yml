@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,18 +13,19 @@
 # limitations under the License.
 
 ---
+
 - name: Apply global configuration
-  include_tasks: global_config.yml
+  ansible.builtin.include_tasks: global_config.yml
   with_items: "{{ mellanox_switch_config }}"
   when: mellanox_switch_config is defined and mellanox_switch_config
 
-- name: Set empty dictionary if not defined
-  set_fact:
+- name: Set empty dictionary if mellanox_switch_interface_config not defined
+  ansible.builtin.set_fact:
     mellanox_switch_interface_config: {}
   when: mellanox_switch_interface_config is not defined or not mellanox_switch_interface_config
 
 - name: Apply interface configuration
-  include_tasks: interface_config.yml
+  ansible.builtin.include_tasks: interface_config.yml
   with_dict: "{{ mellanox_switch_interface_config }}"
   loop_control:
     label: "{{ item.key }}"

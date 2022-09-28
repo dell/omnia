@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,14 +13,11 @@
 # limitations under the License.
 ---
 
-- name: Save configuration
-  block:
-  - name: Set parameters to save configuration
-    set_fact:
-      save_config: "configuration write"
-
-  - name: Save current switch configuration to startup-configuration
-    include_tasks: global_config.yml
-    with_items: "{{ save_config }}"
-
-  when: save_changes_to_startup
+- name: Configuring HTTP, SSL, Json services on switch
+  ansible.builtin.expect:
+    command: 'ssh {{ ib_username }}@{{ inventory_hostname }} cli \"enable\" \"config t\" \"{{ ssl_msg }}\" \"{{ http_msg }}\" \"{{ json_msg }}\"'
+    responses:
+      "(.*)assword: ":
+        - "{{ ib_admin_password }}"
+        - ''
+  no_log: true

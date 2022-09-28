@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,8 +13,8 @@
 # limitations under the License.
 ---
 
-- name: Apply interface configuration for- "{{ inventory_hostname }}"
-  uri:
+- name: Apply interface configuration for "{{ avail_port }}" port of IB - "{{ inventory_hostname }}"
+  ansible.builtin.uri:
     url: http://{{ inventory_hostname }}/admin/launch?script=json
     method: POST
     body_format: json
@@ -22,20 +22,21 @@
       Cookie: "{{ login.set_cookie.split(';')[0] }}"
     body:
       {
-      "commands":
-       [
-         "interface {{ item.key }}",
-         "description {{ item.value.description | default('<none>') }}",
-         "{{ item.value.config | default([]) |join(', ') }}"
-       ]
+        "commands":
+          [
+            "interface {{ avail_port }}",
+            "description {{ ib_description | default('<none>') }}",
+            "{{ item.value.config | default([]) | join(', ') }}"
+          ]
       }
   register: interface_conf
 
 - name: Status check for- "{{ inventory_hostname }}"
-  fail:
-    msg: "{{ results }}"
-  when:  results.status != "OK"
+  ansible.builtin.assert:
+    that: results.status != "OK"
+    success_msg: "{{ results.status_message }}"
   loop: "{{ interface_conf.json.results }}"
   loop_control:
     loop_var: results
     label: "{{ results.executed_command }}"
+  failed_when: false

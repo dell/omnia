@@ -1,0 +1,162 @@
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Usage: pre_requisites.yml
+selinux_status_fail_msg: "selinux is not disabled. Disable it in /etc/sysconfig/selinux and reboot the system"
+
+# Usage: validate_public_nic.yml
+provision_config_filename: "{{ playbook_dir }}/../input/provision_config.yml"
+input_provision_failure_msg: "Please provide all the required parameters in provision_config.yml"
+success_msg_nic: "nic successfully validated"
+fail_msg_nic: "Failed. Provide proper values"
+
+# Usage: validate_admin_nic.yml
+success_subnet: "The subnet provided is validated"
+fail_subnet: " Please provide proper subnet"
+success_lom: " Network interface type is LOM"
+fail_lom: "Failed. In case of LOM, admin_nic_subnet and bmc_nic_subnet can't be same. Please provide proper input"
+
+# Usage: validate_pxe_nic.yml
+success_pxe: "Proper PXE ranges provided"
+fail_pxe: "Failed. Please provide proper PXE ranges"
+success_msg_different_nics: "Validated. Nics are different in case of LOM."
+fail_msg_different_nics: "Failed.Incorrect nic information.Public nic must be different from BMC and PXE nics ."
+
+# Usage: validate_switch_vars.yml
+pxe_switch_ip_valid: "Valid switch ip provided"
+pxe_switch_ip_invalid: " Failed. Provide a valid switch ip"
+fail_switch_or_mapping_file: "Failed. Please provide either PXE mapping file or PXE switch details. If switch details are given, please provide proper node name as well."
+fail_msg_pxe_path: "Failed. Please provide a valid PXE mapping file path"
+
+# Usage: package_installation.yml
+common_packages_xcat:
+  - python3-netaddr
+  - openssl
+  - dos2unix
+  - net-snmp
+  - net-snmp-utils
+
+# Usage: validate_provision_vars.yml
+input_provision_fail_msg: "Please provide all the required provision parameters"
+default_lease_time_success_msg: "default_lease_time validated"
+default_lease_time_fail_msg: "Failed. Please provide a valid default_lease_time"
+timezone_success_msg: "timezone validated"
+timezone_fail_msg: "Failed. Incorrect timezone provided. Please check the file timezone.txt in files folder"
+language_fail_msg: "Failed. Only en-US language supported"
+provision_os_success_msg: "provision_os validated"
+provision_os_fail_msg: "Failed. Incorrect provision_os selected. Supported OS are {{ os_supported_rocky }} or {{ os_supported_rhel }}"
+iso_file_path_missing_msg: "Incorrect iso_file_path provided. Make sure ISO file is present in the provided iso_file_path."
+iso_file_path_success_msg: "iso_file_path validated"
+iso_file_path_fail_msg: "Failed. Invalid iso_file_path provided. Make sure iso_file_path contains value mentioned in provision_os."
+dns_empty_warning_msg: "[WARNING] primary_dns and secondary_dns is empty. DHCP routing in compute nodes for internet access won't be configured."
+primary_dns_empty_msg: "primary_dns is empty and secondary_dns provided. If one dns entry present, provide primary_dns only."
+primary_dns_success_msg: "primary_dns successfully validated"
+primary_dns_fail_msg: "Failed. Incorrect primary_dns provided"
+primary_dns_not_reachable_msg: "Failed. primary_dns is not reachable. Provide valid dns"
+secondary_dns_success_msg: "secondary_dns successfully validated"
+secondary_dns_fail_msg: "Failed. Incorrect secondary_dns provided"
+secondary_dns_not_reachable_msg: "[WARNING] secondary_dns is not reachable"
+ping_search_key: "100% packet loss"
+provision_password_fail_msg: "Failed. Incorrect provision_password format in provision_config.yml"
+min_length: 8
+max_length: 30
+warning_wait_time: 30
+postgresdb_password_fail_msg: "Failed. postgresdb_password should contain only alphanumeric characters in provision_config.yml"
+os_supported_rocky: rocky
+os_supported_rhel: rhel
+
+# Usage: validate_domain_name.yml
+domain_name_success_msg: "domain_name successfully validated"
+domain_name_fail_msg: "Failed. Incorrect format provided for domain_name in provision_config.yml"
+server_hostname_success_msg: "Hostname in server hostname validated"
+server_hostname_fail_msg: "Failed. Hostname set is not valid"
+server_domain_name_blank_msg: "Failed. domain_name is not set in hostname. It should have hostname.domain_name format"
+server_domain_name_success_msg: "domain_name in server hostname validated"
+server_domain_name_fail_msg: "Failed. domain_name set is not same as domain_name in provision_config.yml"
+hosts_file_path: /etc/hosts
+hosts_file_mode: "0644"
+
+# Usage: firewall_settings.yml
+xcat_ports:
+  - "3001/tcp"
+  - "3001/udp"
+  - "3002/tcp"
+  - "3002/udp"
+  - "3003/tcp"
+  - "7/tcp"
+  - "22/tcp"
+  - "22/udp"
+  - "873/tcp"
+  - "873/udp"
+  - "53/tcp"
+  - "53/udp"
+  - "67/tcp"
+  - "67/tcp"
+  - "68/tcp"
+  - "68/udp"
+  - "69/tcp"
+  - "69/udp"
+  - "80/tcp"
+  - "80/udp"
+  - "88/tcp"
+  - "88/udp"
+  - "111/udp"
+  - "514/tcp"
+  - "514/udp"
+  - "544/tcp"
+  - "657/tcp"
+  - "657/udp"
+  - "782/tcp"
+  - "1058/tcp"
+  - "2049/tcp"
+  - "2049/udp"
+  - "4011/tcp"
+  - "300/tcp"
+  - "623/tcp"
+  - "623/udp"
+  - "161/tcp"
+  - "161/udp"
+  - "162/tcp"
+  - "162/udp"
+  - "5432/tcp"
+
+# Usage: install_xcat.yml
+xcat_directory: /root/xcat
+xcat_core_url: http://xcat.org/files/xcat/xcat-core/2.16.x_Linux/xcat-core/xcat-core-2.16.4-linux.tar.bz2
+xcat_core_dest: "{{ xcat_directory }}/xcat-core-2.16.4-linux.tar.bz2"
+xcat_dep_url: http://xcat.org/files/xcat/xcat-dep/2.x_Linux/xcat-dep-2.16.4-linux.tar.bz2
+xcat_dep_dest: "{{ xcat_directory }}/xcat-dep-2.16.4-linux.tar.bz2"
+xcat_packages:
+  - xCAT
+  - postgresql*
+  - perl-DBD-Pg
+file_permission: 0744
+xcat_env_path: "/etc/profile.d/xcat.sh"
+xcat_env_msg: "Saving xcat enviornment variables"
+
+# Usage: configure_xcat.yml
+xcat_services:
+  - xcatd
+  - postgresql
+  - firewalld
+  - snmpd
+
+xcat_rhel8_path:
+  - { src: "{{ role_path }}/files/temp_ks_rhel8.tmpl", dest: "/opt/xcat/share/xcat/install/rh/compute.rhels8.tmpl", mode: 0644 }
+  - { src: "{{ role_path }}/files/temp_pre_rhel8", dest: "/opt/xcat/share/xcat/install/scripts/pre.rhels8", mode: 0644 }
+  - { src: "{{ role_path }}/files/temp_post_rhel8", dest: "/opt/xcat/share/xcat/install/scripts/post.rhels8", mode: 0644 }
+  - { src: "{{ role_path }}/files/temp_rhel8.pkglist", dest: "/opt/xcat/share/xcat/install/rh/compute.rhels8.pkglist", mode: 0644 }
+
+xcat_rhel8_tmpl: "/opt/xcat/share/xcat/install/rh/compute.rhels8.tmpl"

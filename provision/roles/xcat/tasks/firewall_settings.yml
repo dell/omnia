@@ -13,8 +13,21 @@
 # limitations under the License.
 ---
 
-- name: Executing provision roles
-  hosts: localhost
-  connection: local
-  roles:
-    - role: xcat
+- name: Start and enable firewalld
+  ansible.builtin.service:
+    name: firewalld
+    state: started
+    enabled: true
+
+- name: Firewall rule for xcat - tcp/udp ports
+  ansible.builtin.command: "firewall-cmd --zone=public --permanent --add-port={{ item }}"
+  changed_when: true
+  with_items: "{{ xcat_ports }}"
+
+- name: Firewall rule for snmpd
+  ansible.builtin.command: "firewall-cmd --zone=public --add-service snmp --permanent"
+  changed_when: true
+
+- name: Reload firewalld
+  ansible.builtin.command: firewall-cmd --reload
+  changed_when: true

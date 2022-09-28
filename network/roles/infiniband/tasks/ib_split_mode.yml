@@ -13,8 +13,17 @@
 # limitations under the License.
 ---
 
-- name: Executing provision roles
-  hosts: localhost
-  connection: local
-  roles:
-    - role: xcat
+- name: Fetch system profile of IB switch
+  ansible.builtin.expect:
+    command: 'ssh {{ ib_username }}@{{ inventory_hostname }} cli \"show system profile\"'
+    responses:
+      "(.*)assword: ":
+        - "{{ ib_login_password }}"
+        - ''
+  no_log: true
+  register: profile_status
+
+- name: Update split_ready_status with present split mode of switch
+  ansible.builtin.set_fact:
+    split_ready_status: true
+  when: '"Split Ready            : yes" in profile_status.stdout_lines'

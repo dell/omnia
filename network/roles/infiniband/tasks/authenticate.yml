@@ -13,54 +13,32 @@
 # limitations under the License.
 ---
 
-- name: Set Credentials for IB switch - AWX
-  set_fact:
-    username: "{{ lookup('env','ANSIBLE_NET_USERNAME') }}"
-    password: "{{ lookup('env','ANSIBLE_NET_PASSWORD') }}"
-  no_log: true
-  when: awx_web_support
-
-- name: Set Credentials for IB switch - CLI
-  set_fact:
-    username: "{{ ib_username }}"
-    password: "{{ ib_password }}"
-  no_log: true
-  when: not awx_web_support
-
 - name: Initialize variables
-  set_fact:
+  ansible.builtin.set_fact:
     global_config: false
     interface_config: false
-    filtered_dict: {}
 
 - name: Authenticate
   block:
-    - name: Authenticate to switch- "{{ inventory_hostname }}"
-      uri:
+    - name: Authenticating "{{ inventory_hostname }}"
+      ansible.builtin.uri:
         url: http://{{ inventory_hostname }}/admin/launch?script=rh&template=login&action=login
         method: POST
         body_format: form-urlencoded
         body:
-          f_user_id: "{{ username }}"
-          f_password: "{{ password }}"
+          f_user_id: "{{ ib_username }}"
+          f_password: "{{ ib_login_password }}"
           enter: Sign in
         status_code: 302
       register: login
       no_log: true
-
-    - name: Verify authentication status
-      fail:
-        msg: "Authentication failed"
-      when: login.set_cookie is undefined
-
   rescue:
-    - name: Filtered response creation
-      set_fact:
-        filtered_dict: "{{ filtered_dict |combine({ item.key: item.value }) }}"
-      when: item.key not in 'invocation'
-      with_dict: "{{ login }}"
-      no_log: true
-
     - name: Authentication failure response
-      fail:
-        msg: "{{ filtered_dict }}"
+      ansible.builtin.fail:
+        msg: "{{ ib_srv_fail_msg }}"
+      when: '"Connection refused" in login.msg'
+
+- name: Verify authentication status
+  ansible.builtin.fail:
+    msg: "{{ ib_auth_msg }}"
+  when: login.set_cookie is undefined
