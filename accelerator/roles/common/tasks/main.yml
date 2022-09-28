@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,5 +13,12 @@
 #  limitations under the License.
 ---
 
-amd_gpu_version: "latest"
-amd_rocm_version: "latest"
+- name: Saving distribution of os
+  set_fact:
+    compute_os: "{{ ansible_distribution | lower }}"
+    compute_os_version: "{{ ansible_distribution_version }}"
+
+- name: Set the OS to RHEL
+  set_fact:
+    rhel_compute_os: 'rhel'
+  when: '"redhat" == compute_os'
