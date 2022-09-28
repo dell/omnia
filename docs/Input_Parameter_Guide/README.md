@@ -12,9 +12,9 @@ Before running `control_plane.yml` or `omnia.yml` ensure that the following para
     6. [iDRAC tools Parameters](Control_Plane_Parameters/Device_Parameters/idrac_tools_vars.md)
     7. [iDRAC Parameters](Control_Plane_Parameters/Device_Parameters/idrac_vars.md)
     8. [Open Subnet Manager Configuration](Control_Plane_Parameters/Device_Parameters/opensm_conf.md)
-    9. [Powervault ME4 Parameters](Control_Plane_Parameters/Device_Parameters/powervault_vars.md)
+    9. [Powervault Parameters](Control_Plane_Parameters/Device_Parameters/powervault_vars.md)
     10. [Redhat Subscription Manager Parameters](Control_Plane_Parameters/Device_Parameters/rhsm_vars.md)
-    11. [Top Of the Rack Interface Keys](Control_Plane_Parameters/Device_Parameters/TOR_Interface_Keys.md)
+    11. [Top-Of-the-Rack Interface Keys](Control_Plane_Parameters/Device_Parameters/TOR_Interface_Keys.md)
 2. [Base Parameters](Control_Plane_Parameters/base_vars.md)
 3. [Login Parameters](Control_Plane_Parameters/login_vars.md)
 
@@ -22,4 +22,4 @@ Before running `control_plane.yml` or `omnia.yml` ensure that the following para
 ## Telemetry and Visualization Parameters
 1. [Telemetry Base Parameters](Telemetry_Visualization_Parameters/telemetry_base_vars.md)
 2. [Telemetry Login Parameters](Telemetry_Visualization_Parameters/telemetry_base_vars.md)
-## [Config Parameters](omnia_config.md)
+## [Omnia Configuration Parameters](omnia_config.md)

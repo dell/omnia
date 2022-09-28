@@ -8,13 +8,83 @@
 If hosts are listed, then an IP address has been assigned to them by DHCP. However, hosts are not displayed on the AWX UI as the PXE boot is still in process or is not initiated.
 * Check for the reachable and unreachable hosts using the provision_report.yml tool present in the omnia/control_plane/tools folder. To run provision_report.yml, in the omnia/control_plane/ directory, run playbook -i roles/collect_node_info/files/provisioned_hosts.yml tools/provision_report.yml.
 
+## How do I find the version of Omnia being used?
+If `control_plane.yml` has run, a version file is created here: `/opt/omnia/omnia_version`.
+
+## What are the mapping files required when configuring in a LOM setup?
+| File name               | Purpose                                                                                               | Associated Variable  (base_vars.yml)   | Format                           | Sample File Path                                     |
+|-------------------------|-------------------------------------------------------------------------------------------------------|----------------------------------------|----------------------------------|------------------------------------------------------|
+| Host mapping            | __Mapping file listing all devices (barring iDRAC) and provisioned hosts for DHCP configurations__    | `host_mapping_file_path`               | xx:yy:zz:aa:bb,server,172.17.0.5 | omnia/examples/host_mapping_file_os_provisioning.csv |
+| Management mapping file | __Mapping file listing iDRACs for DHCP configurations__                                               | `mgmt_mapping_file_path`               | xx:yy:zz:aa:bb,172.17.0.5        | omnia/examples/mapping_device_file.csv               |
+
+## Why does the task 'nfs_client: Mount NFS client' fail with `No route to host`?
+**Potential Cause**:
+* There's a mismatch in the share path listed in `/etc/exports` and in `omnia_config.yml` under `nfs_client_params`. <br>
+**Resolution**:
+* Ensure that the input paths are a perfect match down to the character to avoid any errors.
+
+## Why does the task 'control plane security: Authenticate as admin' fail?
+**Potential Cause**: <br>
+The required services are not running on the control plane. Verify the service status using: <br>
+`systemctl status sssd-kcm.socket` <br>
+`systemctl status sssd.service` <br>
+**Resolution**: <br>
+* Restart the services using: <br>
+`systemctl start sssd-kcm.socket` <br>
+`systemctl start sssd.service` <br>
+* Re-run `control_plane.yml` using the tags `init` and `security`. <br>
+`Ansible-playbook control_plane.yml –tags init,security`
+
+## Why does the task 'Gather facts from all the nodes' stuck when re-running `omnia.yml`?
+**Potential Cause**: Corrupted entries in the `/root/.ansible/cp/` folder. For more information on this issue, [check this out](https://github.com/ansible/ansible/issues/17349)! <br>
+**Resolution**: Clear the directory `/root/.ansible/cp/` using the following commands: <br>
+`cd /root/.ansible/cp/` <br>
+`rm -rf *`  <br>
+Alternatively, run the task manually: <br>
+`cd omnia/tools`
+`ansible-playbook gather_facts_resolution.yml`
+
+## Why does the task 'nfs_client: Mount NFS client' fail with `Failed to mount NFS client. Make sure NFS Server is running on IP xx.xx.xx.xx`?
+**Potential Cause**:
+* The required services for NFS may not be running:
+- nfs
+- rpc-bind
+- mountd <br>
+  **Resolution**:
+* Enable the required services using `firewall-cmd --permanent --add-service=<service name>` and then reload the firewall using `firewall-cmd --reload`.
+
+## Why does `configure_device_cli` fail when `awx_web_support` is set to true in `base_vars.yml`?
+**Potential Cause**: CLI templates require that AWX is disabled when deployed. <br>
+**Resolution**: Set `awx_web_support` to false when deploying `configure_device_cli`.
+
+
+## What to do when `omnia.yml` fails with `nfs-server.service might not be running on NFS Server. Please check or start services`?
+**Potential Cause**: nfs-server.service is not running on the target node. <br>
+**Resolution**: Use the following commands to bring up the service: <br>
+`systemctl start nfs-server.service` <br>
+`systemctl enable nfs-server.service`
+
+## Why are service tags missing in the node inventory?
+**Potential Cause**: Temporary network glitches may cause a loss of information. <br>
+**Resolution**: Re-run the playbook `collect_node_info.yml` to repopulate the data. Use the command `ansible-playbook collect_node_info.yml` to run the playbook.
+
+
+## Why do Password-less SSH tasks fail while running `collect_node_info.yml`?
+**Potential Cause**:
+* Incorrect credentials in `login_vars.yml`
+* The target device may not be server running an OS. (It may be a device on a LOM network)
+
+**Resolution**:
+* Correct the credentials in `login_vars.yml` if the target is a server.
+* Ignore the error if your target device is a storage device, switch etc.
+
 ## Why do Kubernetes Pods show `ImagePullBack` or `ErrPullImage` errors in their status?
 **Potential Cause**:
     * The errors occur when the Docker pull limit is exceeded.
   **Resolution**:
     * For `omnia.yml` and `control_plane.yml` : Provide the docker username and password for the Docker Hub account in the *omnia_config.yml* file and execute the playbook.
     * For HPC cluster, during `omnia.yml execution`, a kubernetes secret 'dockerregcred' will be created in default namespace and patched to service account. User needs to patch this secret in their respective namespace while deploying custom applications and use the secret as imagePullSecrets in yaml file to avoid ErrImagePull. [Click here for more info](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/)
-> **Note**: If the playbook is already executed and the pods are in __ImagePullBack__ state, then run `kubeadm reset -f` in all the nodes before re-executing the playbook with the docker credentials.
+>> **Note**: If the playbook is already executed and the pods are in __ImagePullBack__ state, then run `kubeadm reset -f` in all the nodes before re-executing the playbook with the docker credentials.
 
 ## What to do after a reboot if kubectl commands return: `The connection to the server head_node_ip:port was refused - did you specify the right host or port?`
   On the control plane or the manager node, run the following commands:
@@ -27,12 +97,6 @@ Use CLI to execute Omnia by default by disabling AWX (set `awx_web_support` in `
 ## How to clear up the configuration if `control_plane.yml` fails at the webui_awx stage?
   In the `webui_awx/files` directory, delete the `.tower_cli.cfg` and `.tower_vault_key` files, and then re-run `control_plane.yml`.
 
-## Why would FreeIPA server/client installation fail?  
-**Potential Cause**:
-    The hostnames of the manager and login nodes are not set in the correct format.  
-  **Resolution**:
-    If you have enabled the option to install the login node in the cluster, set the hostnames of the nodes in the format: *hostname.domainname*. For example, *manager.omnia.test* is a valid hostname for the login node. **Note**: To find the cause for the failure of the FreeIPA server and client installation, see *ipaserver-install.log* in the manager node or */var/log/ipaclient-install.log* in the login node.
-
 ## Why does the task 'Control Plane Common: Fetch the available subnets and netmasks' fail with `no ipv4_secondaries present`? <br>
 ![img.png](../images/SharedLomError.png) <br>
 **Potential Cause**: If a shared LOM environment is in use, the management network/host network NIC may only have one IP assigned to it. <br>
@@ -44,6 +108,13 @@ Use CLI to execute Omnia by default by disabling AWX (set `awx_web_support` in `
 This error is caused by design. There is a mismatch between the AWX version (20.0.0) and the AWX galaxy collection (19.4.0) version used by control plane. At the time of design (Omnia 1.2.1), these were the latest available versions of AWX/AWX galaxy collection. This will be fixed in later code releases.
 
 >> **Note**: This failure does not stop the execution of other tasks. Check the AWX log to verify that the script has run successfully.
+
+## Why does provisioning RHEL 8.3 fail on some nodes with "dasbus.error.DBusError: 'NoneType' object has no attribute 'set_property'"?
+This error is known to Red Hat and is being addressed [here](https://bugzilla.redhat.com/show_bug.cgi?id=1912898). Red Hat has offered a user intervention [here](https://access.redhat.com/solutions/5872751). Omnia recommends that in the event of this failure, any OS other than RHEL 8.3.
+
+## Why do AWX job templates fail when `awx_web_support` is false in `base_vars.yml`?
+As a pre-requisite to running AWX job templates, AWX should be enabled by setting `awx_web_support` to true in `base_vars.yml`.
+ 
 
 ## Why are inventory details not updated in AWX?
 **Potential Cause**:
@@ -70,7 +141,6 @@ Hosts that are not in DHCP mode do not get populated in the host list when `cont
                 3. For connecting to PowerVault (Data Connection)
 
 ## Why is the Infiniband NIC down after provisioning the server? <br>
-Omnia does not activate Infiniband NICs. 
 1. For servers running Rocky, enable the Infiniband NIC manually, use `ifup <InfiniBand NIC>`. 
 2. If your server is running LeapOS, ensure the following pre-requisites are met before manually bringing up the interface:
    1. The following repositories have to be installed:
@@ -79,8 +149,8 @@ Omnia does not activate Infiniband NICs.
    2. Run: `zypper install -n rdma-core librdmacm1 libibmad5 libibumad3 infiniband-diags` to install IB NIC drivers.  (If the drivers do not install smoothly, reboot the server to apply the required changes)
    3. Run: `service network status` to verify that `wicked.service` is running.
    4. Verify that the ifcfg-< InfiniBand NIC > file is present in `/etc/sysconfig/network`.
-   5. Once all the above pre-requisites are met, bring up the interface manually using `ifup <InfiniBand NIC>`.
-
+   5. Once all the above pre-requisites are met, bring up the interface manually using `ifup <InfiniBand NIC>`. <br>
+Alternatively, run `omnia.yml` to activate the NIC.
 
 ## What to do if AWX jobs fail with `Error creating pod: container failed to start, ImagePullBackOff`?
 **Potential Cause**:<br>
@@ -121,6 +191,26 @@ Wait for AWX UI to be accessible at http://\<management-station-IP>:8081, and th
 
 ## Why does Omnia Control Plane fail at Task: `control_plane_common: Assert Value of idrac_support if mngmt_network container needed`?
 When `device_config_support` is set to true, `idrac_support` also needs to be set to true. 
+
+## Why does the `idrac.yml` template hang during the import SCP file task on certain target nodes?
+**Potential Causes**: <br>
+1. The server hardware does not allow for auto rebooting
+2. Pending jobs may be running at the time of applying the SCP configuration.
+
+**Resolution**: <br>
+
+1. Login to the iDRAC console to check if the server is stuck in boot errors (F1 prompt message). If true, clear the hardware error or disable POST (PowerOn Self Test).
+2. Reset iDRAC to clear the job queue (If a job is pending).
+
+## Why is the iDRAC server not reachable after running `idrac.yml` for certain target nodes?
+**Potential Causes**: <br>
+1. The server hardware does not allow for auto rebooting
+2. PXE booting is hung on the node
+
+**Resolution**: <br>
+
+1. Login to the iDRAC console to check if the server is stuck in boot errors (F1 prompt message). If true, clear the hardware error or disable POST (PowerOn Self Test).
+2. Hard-reboot the server to bring up the server and verify that the boot process runs smoothly. (If it gets stuck again, disable PXE and try provisioning the server via iDRAC.)
 
 ## What to do if the nodes in a Kubernetes cluster reboot:
 Wait for 15 minutes after the Kubernetes cluster reboots. Next, verify the status of the cluster using the following commands:
@@ -232,11 +322,18 @@ If the above solution **doesn't work**,
 2. Delete the folder: `/var/nfs_awx`.
 3. Delete the file: `omnia/control_plane/roles/webui_awx/files/.tower_cli.cfg`.
 4. Re-run *control_plane.yml*.
-  
+
+## Why is my NFS mount not visible on the client?
+
+**Potential Cause**: The directory being used by the client as a mount point is already in use by a different NFS export. <br>
+**Resolution**: Verify that the directory being used as a mount point is empty by using `cd <client share path> | ls` or `mount | grep <client share path>`. If empty, re-run the playbook.
+![](../images/omnia_NFS_mount_fcfs.png)
+
+
 ## What to do after a control plane reboot?
 1. Once the control plane reboots, wait for 10-15 minutes to allow all k8s pods and services to come up. This can be verified using:
 * `kubectl get pods --all-namespaces`
-2. If the pods do not come up, check `/var/log/omnia.log` for more information.
+2. If the pods do not come up, check `/var/log/omnia/startup_omnia/startup_omnia_yyyy-mm-dd-HHMMSS.log` for more information.
 3. Cobbler profiles are not persistent across reboots. The latest profile will be available post-reboot based on the values of `provision_os` and `iso_file_path` in `base_vars.yml`. Re-run `control_plane.yml` with different values for `provision_os` and `iso_file_path` to restore the profiles.
 4. Devices that have had their IP assigned dynamically via DHCP may get assigned new IPs. This in turn can cause duplicate entries for the same device on AWX. Clusters may also show inconsistency and ambiguity.
 
@@ -296,12 +393,12 @@ Provisioning server using BOSS controller is now supported by Omnia 1.2.1.
 
 Once complete, it's safe to re-run control_plane.yml.
 
-## Why does the Initialize Kubeadm task fail with 'nnode.Registration.name: Invalid value: \"<Host name>\"'?
+## Why does the 'Initialize Kubeadm' task fail with 'nnode.Registration.name: Invalid value: \"<Host name>\"'?
 
 **Potential Cause**: The control_plane playbook does not support hostnames with an underscore in it such as 'mgmt_station'.
 
 As defined in RFC 822, the only legal characters are the following:
-1. Alphanumeric (a-z and 0-9): Both uppercase and lowercase letters are acceptable, and the hostname is case insensitive. In other words, dvader.empire.gov is identical to DVADER.EMPIRE.GOV and Dvader.Empire.Gov.
+1. Alphanumeric (a-z and 0-9): Both uppercase and lowercase letters are acceptable, and the hostname is case-insensitive. In other words, dvader.empire.gov is identical to DVADER.EMPIRE.GOV and Dvader.Empire.Gov.
 
 2. Hyphen (-): Neither the first nor the last character in a hostname field should be a hyphen.
 
@@ -338,7 +435,7 @@ To correct the issue, run:
 
 ## Why does the `BeeGFS-client` service fail?
 **Potential Causes**:
-1. SELINUX may be enabled. (use `setstatus` to diagnose the issue)
+1. SELINUX may be enabled. (use `sestatus` to diagnose the issue)
 2. Ports 8008, 8003, 8004, 8005 and 8006 may be closed. (use `systemctl status beegfs-mgmtd, systemctl status beegfs-meta, systemctl status beegfs-storage` to diagnose the issue)
 3. The BeeGFS set up may be incompatible with Red Hat. 
 
@@ -348,6 +445,13 @@ To correct the issue, run:
 3. Check the [support matrix for Red Hat or Rocky](../Support_Matrix/Software/Operating_Systems) to verify your set-up.
 4. For further insight into the issue, check out `/var/log/beegfs-client.log`
 
+## How many active NICs are configured by `idrac.yml`?
+Upto 4 active NICs can be configured by `idrac.yml`. Past the first 4 NICs, all NICs will be ignored.
+
+## Why are the PXE device settings not configured by Omnia on some servers?
+While the NIC qualifies as active, it may not qualify as a PXE device NIC (It may be a mellanox NIC). In such a situation, Omnia assumes that PXE device settings are already configured and proceeds to attempt a PXE boot. <br> 
+If this is not the case, manually configure a PXE device NIC and re-run `idrac.yml` to proceed.
+
 ## What to do when `control_plane.yml` fail with 'Error: kinit: Connection refused while getting default ccache' while completing the control plane security role?
 1. Start the sssd-kcm.socket: `systemcl start sssd-kcm.socket`
 2. Re-run `control_plane.yml`
@@ -356,4 +460,17 @@ To correct the issue, run:
 ![](../images/FreeIPA_RHEL_Error.png)
 **Potential Causes**: Required repositories may not be enabled by your red hat subscription. <br>
 **Resolution**: Enable all required repositories via your red hat subscription.
+
+## Why would FreeIPA server/client installation fail?
+**Potential Cause**:
+The hostnames of the manager and login nodes are not set in the correct format.  
+**Resolution**:
+If you have enabled the option to install the login node in the cluster, set the hostnames of the nodes in the format: *hostname.domainname*. For example, *manager.omnia.test* is a valid hostname for the login node. **Note**: To find the cause for the failure of the FreeIPA server and client installation, see *ipaserver-install.log* in the manager node or */var/log/ipaclient-install.log* in the login node.
+
+## Why does FreeIPA installation fail on the control plane when the public NIC provided is static?
+**Potential Cause**: The network config file for the public NIC on the control plane does not define any DNS entries. <br>
+**Resolution**: Ensure the fields `DNS1` and `DNS2` are updated appropriately in the file `/etc/sysconfig/network-scripts/ifcfg-<NIC name>`.
+
+
+
 

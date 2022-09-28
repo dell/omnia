@@ -32,16 +32,53 @@
   throttle: 1
   when:
     - hostname_check.stdout is defined
-    - item not in check_node_inventory.stdout 
+    - service_tag_details.stdout is defined
+    - check_node_inventory.stdout is defined
+    - item not in check_node_inventory.stdout
 
-- name: Check the node_inventory output
-  command: cat {{ hostvars['localhost']['node_inventory_path'] }}
-  changed_when: false
-  register: prov_hosts
+- name: Check node_inventory is present
+  stat:
+    path: "{{ hostvars['localhost']['node_inventory_path'] }}"
+  register: node_inventory_check
 
-- name: Create provisioned_hosts
-  add_host:
-    name: "{{ item }}"
-    groups: "provisioned_hosts"
-  with_items: "{{ prov_hosts.stdout_lines }}"
-  when: item | trim | length > 1
+- block:
+    - name: Create a list of provisioned hosts
+      command: awk -F' ' '{ print $1 }' "{{ hostvars['localhost']['node_inventory_path'] }}"
+      changed_when: false
+      delegate_to: localhost
+      register: prov_temp
+
+    - name: Add the host to provisioned inventory
+      lineinfile:
+        path: "{{ hostvars['localhost']['provisioned_hosts'] }}"
+        line: "{{ item }}"
+        state: present
+        create: yes
+        mode: "{{ hostvars['localhost']['file_perm'] }}"
+      delegate_to: localhost
+      with_items: "{{ prov_temp.stdout_lines }}"
+
+    - name: Check the provisioned_hosts output
+      command: cat "{{ hostvars['localhost']['provisioned_hosts'] }}"
+      changed_when: false
+      delegate_to: localhost
+      register: prov_hosts
+
+    - name: Create provisioned_hosts
+      add_host:
+        name: "{{ item }}"
+        groups: "provisioned_hosts"
+      with_items: "{{ prov_hosts.stdout_lines }}"
+      when: item | trim | length > 1
+      delegate_to: localhost
+
+    - name: Set prov_hosts_list in CLI
+      set_fact:
+        prov_hosts_list: "{{ prov_hosts.stdout }}"
+
+    - name: Delete provisioned_hosts file
+      file:
+        path: "{{ hostvars['localhost']['provisioned_hosts'] }}"
+        state: absent
+      delegate_to: localhost
+  when: node_inventory_check.stat.exists

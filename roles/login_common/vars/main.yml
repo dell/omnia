@@ -40,3 +40,4 @@ os_rocky: 'rocky'
 os_leap: 'leap'
 os_redhat: 'redhat'
 os_version: '8.0'
+yum_distro_exclude: "kernel*,NetworkManager*,grub*,systemd*,container*,redhat*,subscription-manager*"

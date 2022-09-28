@@ -13,7 +13,32 @@
 #  limitations under the License.
 ---
 
-- name: Install NFS client
+- name: Install NFS client with bolt-on support
   include_tasks: nfs_client.yml
   with_items: "{{ hostvars['127.0.0.1']['nfs_client_params'] }}"
-  when: hostvars['127.0.0.1']['nfs_client_support']
+  when: 
+  - hostvars['127.0.0.1']['nfs_client_support'] 
+  - not (hostvars['127.0.0.1']['powervault_support'] and hostvars['127.0.0.1']['nfs_node_status'])
+
+- name: Install NFS Client when PV is present in the cluster
+  block:
+  - name: Include Powervault variables
+    include_vars: "{{ role_path }}/../../control_plane/input_params/{{ powervault_vars_filename }}"
+
+  - block:
+    - name: Create a new list with nfs server ip defined
+      vars:
+        volume_entry: "{{ item | combine({'server_ip': groups['nfs_node'][0]}) }}"
+      set_fact:
+        updated_volume_entry: "{{ updated_volume_entry | default([]) + [volume_entry] }}"
+      loop: "{{ powervault_volumes }}"
+
+    - name: Install NFS client
+      include_tasks: nfs_client.yml
+      with_items: "{{ updated_volume_entry }}"
+      
+    when: powervault_protocol | lower == "sas"
+  
+  when: 
+    - hostvars['127.0.0.1']['powervault_support']
+    - hostvars['127.0.0.1']['nfs_node_status']

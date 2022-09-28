@@ -45,7 +45,7 @@ powervault_vars_filename: powervault_vars.yml
 mount_dir_permissions: 0755
 lvm_size: 100%FREE
 exports_file: "/etc/exports"
-ansible_collection_nfs: ansible.posix:1.4.0
+default_server_options: "rw,sync,no_root_squash"
 
 #Usage: nfs_server_packages.yml
 nfs_utilities:

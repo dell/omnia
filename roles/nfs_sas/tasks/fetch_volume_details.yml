@@ -51,8 +51,8 @@
   register: show_volume_details
   delegate_to: localhost
 
-# Mount each volume to server_shared_path
+# Mount each volume to server_share_path
 
-- name: Mount volumes to server_shared_path
+- name: Mount volumes to server_share_path
   include_tasks: mount_volume.yml
   with_items: "{{ show_volume_details.json.volumes }}"

@@ -57,3 +57,4 @@
   when:
     - device_support_status or network_interface_type == "lom"
     - ib_switch_support
+    - not opensm_roce_enabled

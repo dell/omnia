@@ -12,6 +12,9 @@
 # limitations under the License.
 ---
 - block:
+    - name: Validate if new nodes are added
+      import_tasks: cobbler_lom_status.yml
+
     - name: Remove blank lines
       shell:  set -o pipefail && awk -F, 'length>NF+1' {{ host_mapping_file_path }} > {{ temp_host_mapping_file }}
       changed_when: false
@@ -48,7 +51,7 @@
 
     - name: Fetch input
       blockinfile:
-        path: "{{ role_path }}/files/dhcp.template"
+        path: "{{ role_path }}/files/dhcpd.conf"
         insertafter: '^#insert the static DHCP leases for host configurations here'
         block: |
           host {{ item.split(',')[1] }} {
@@ -69,12 +72,11 @@
   when:
     - network_interface_type == "lom"
     - dhcp_lom_file
-      - host_mapping_file_path | length > 1
+    - host_mapping_file_path | length > 1
 
 - name: Remove blank lines
   shell:  set -o pipefail && awk -F, 'length>NF+1' {{ mgmt_mapping_file_path }} > {{ temp_mgmt_mapping_file }}
   changed_when: false
-  tags: install
 
 - name: Remove blank spaces
   shell:  set -o pipefail && sed -i.bak -E 's/(^|,)[[:blank:]]+/\1/g; s/[[:blank:]]+(,|$)/\1/g'  {{ temp_mgmt_mapping_file }}
@@ -133,11 +135,11 @@
   when:  mgmt_network_container_status
   tags: install
 
-- name: Copy the dhcp.template inside container
-  command: 'kubectl exec --stdin --tty -n network-config {{ mgmt_pod_name.stdout }} \
-    -- cp /root/omnia/control_plane/roles/control_plane_device/files/dhcp.template /etc/dhcpd/dhcpd.conf'
-  when:  (  mgmt_network_container_status ) and ( new_mgmt_node_status  )
+- name: Copy the dhcpd.conf inside container
+  command:  'kubectl exec --stdin --tty -n network-config {{ mgmt_pod_name.stdout }} \
+    -- cp {{ role_path }}/files/dhcpd.conf /etc/dhcpd/dhcpd.conf'
+  when:  ( mgmt_network_container_status and ( new_mgmt_node_status or new_node_status ))
 
 - name: Restart dhcpd
   command: 'kubectl exec --stdin --tty -n network-config {{ mgmt_pod_name.stdout }} -- systemctl restart dhcpd'
-  when:  (  mgmt_network_container_status ) and ( new_mgmt_node_status )
+  when:  ( mgmt_network_container_status and ( new_mgmt_node_status or new_node_status ))

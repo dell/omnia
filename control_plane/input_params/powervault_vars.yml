@@ -22,6 +22,11 @@
 # Default value: sas
 powervault_protocol: "sas"
 
+# Accepted Values: single, multi
+# Depicts how many controller are present in the powervault.
+# Default: multi
+powervault_controller_mode: "multi"
+
 # This variable indicates the language of installation
 # Currently, only "English" is supported
 powervault_locale: "English"
@@ -76,12 +81,20 @@ powervault_disk_range: "0.0-1"
 # Required field
 powervault_disk_group_name: "omnia"
 
-# Specifies the volume names
-# Default value "k8s_volume" and "slurm_volume"
+# Specify the volume details for powervault and NFS Server node
+# By default, volume named omnia_home is created on powervault
+# For multiple volumes, list of json with volume details should be provided.
+# server_share_path: The path at which volume is mounted on nfs_node
+# server_export_options: Default value is- rw,sync,no_root_squash (unless specified otherwise)
+# client_shared_path: The path at which volume is mounted on manager, compute, login node. 
+#                     This value is taken as server_share_path unless specified otherwise.
+# client_mount_options: Default value is- nosuid,rw,sync,hard,intr (unless specified otherwise)
 # Must specify atleast 1 volume
+# Example:
+#   - { name: omnia_home, server_share_path: /home/omnia_home, server_export_options: rw,sync,no_root_squash,client_share_path: /home/omnia_home, client_mount_options: nosuid,rw,sync,hard,intr }
 # Required field
 powervault_volumes:
-  - { name: omnia_home, server_shared_path: /home, client_shared_path: }
+  - { name: omnia_home, server_share_path: /home/omnia_home, server_export_options: ,client_share_path: , client_mount_options: }
 
 # Specifies the volume size
 # Format: 100GB <SizeGB>

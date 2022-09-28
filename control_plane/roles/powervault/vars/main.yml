@@ -27,13 +27,20 @@ wrong_pool_type: "Failed: Given pool type value is wrong"
 protocol_wrong_value: "Failed. Check the value given in protocol."
 protocol_success: "Success. The protocol value validated"
 protocol_supported: "Failed. fc is not supported in this release."
+controller_wrong_value: "Failed.Check the value of the controller.If only 1 controller is present give single else give multi."
+controller_success: "Success. The controller value is validated"
 volume_wrong_value: "Atleast 1 volume should be given"
-server_path_empty: "Failed.Server_shared_path must not be empty"
+server_path_empty: "Failed. Server_share_path must not be empty"
+powervault_volumes_options_fail_msg: "powervault_volumes variable is not declared with all key values."
+server_export_options_success_msg: "server_export_options declaration validated successfully"
+client_share_path_success_msg: "client_share_path declaration validated successfully"
+client_mount_options_success_msg: "client_mount_options declaration validated successfully"
 
 # Usage: pv_me4_prereq.yml
 scsi_product_id: ME4
 fail_pv_support: "Failed. Powervault not supported"
 success_pv_support: "Success. Powervault supported"
+fail_iscsi_support: "Failed.Only powervault ME4 is supported for iscsi protocol."
 
 # Usage: main.yml
 pv_file: "{{ role_path }}/../../input_params/powervault_vars.yml"

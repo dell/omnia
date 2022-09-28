@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,24 +25,44 @@
 
 - name: Configure DHCP routing settings
   block:
-    - name: Add option routers when dns provided
+    - name: Add host option routers when dns provided
       lineinfile:
         path: "{{ role_path }}/files/dhcpd.conf"
         insertafter: "^(.*)range dynamic-bootp"
         line: "option routers {{ hpc_ip }};"
 
-    - name: Add domain name servers when primary dns only provided
+    - name: Add host domain name servers when primary dns only provided
       lineinfile:
         path: "{{ role_path }}/files/dhcpd.conf"
         insertafter: "^(.*)range dynamic-bootp"
         line: "option domain-name-servers {{ primary_dns }};"
       when: secondary_dns | length < 1
 
-    - name: Add domain name servers when primary and secondary dns provided
+    - name: Add host domain name servers when primary and secondary dns provided
       lineinfile:
         path: "{{ role_path }}/files/dhcpd.conf"
         insertafter: "^(.*)range dynamic-bootp"
         line: "option domain-name-servers {{ primary_dns }}, {{ secondary_dns }};"
+      when: secondary_dns | length > 1  
+
+    - name: Add mgmt option routers when dns provided
+      replace:
+        path: "{{ role_path }}/files/dhcpd.conf"
+        regexp: "^#option routers mgmt_router;"
+        replace: "option routers {{ mgmt_network_ip }};"
+
+    - name: Add mgmt domain name servers when primary dns only provided
+      replace:
+        path: "{{ role_path }}/files/dhcpd.conf"
+        regexp: "^#option domain-name-servers dns1;"
+        replace: "option domain-name-servers {{ primary_dns }};"
+      when: secondary_dns | length < 1
+
+    - name: Add mgmt domain name servers when primary and secondary dns provided
+      replace:
+        path: "{{ role_path }}/files/dhcpd.conf"
+        regexp: "^#option domain-name-servers dns1;"
+        replace: "option domain-name-servers {{ primary_dns }}, {{ secondary_dns }};"
       when: secondary_dns | length > 1
   when: primary_dns | length > 1
 

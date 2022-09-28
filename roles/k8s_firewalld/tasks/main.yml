@@ -27,48 +27,38 @@
   tags: firewalld
 
 - name: Configure firewalld on master nodes
-  firewalld:
-    port: "{{ item }}"
-    permanent: yes
-    state: enabled
+  command: "firewall-cmd --permanent --add-port={{ item }}"
   with_items: '{{ k8s_master_ports }}'
   when: "'manager' in group_names"
+  changed_when: true
   tags: firewalld
 
 - name: Configure firewalld on compute nodes
-  firewalld:
-    port: "{{ item }}/tcp"
-    permanent: yes
-    state: enabled
+  command: "firewall-cmd --permanent --add-port={{ item }}/tcp"
   with_items: '{{ k8s_compute_ports }}'
   when: "'compute' in group_names and groups['manager'][0] != groups['compute'][0] and groups['compute']|length >= 1"
+  changed_when: true
   tags: firewalld
 
 - name: Open flannel ports on the firewall
-  firewalld:
-    port: "{{ item }}/udp"
-    permanent: yes
-    state: enabled
+  command: "firewall-cmd --permanent --add-port={{ item }}/udp"
   with_items: "{{ flannel_udp_ports }}"
   when: hostvars['127.0.0.1']['k8s_cni'] == "flannel"
+  changed_when: true
   tags: firewalld
 
 - name: Open calico UDP ports on the firewall
-  firewalld:
-    port: "{{ item }}/udp"
-    permanent: yes
-    state: enabled
+  command: "firewall-cmd --permanent --add-port={{ item }}/udp"
   with_items: "{{ calico_udp_ports }}"
   when: hostvars['127.0.0.1']['k8s_cni'] == "calico"
+  changed_when: true
   tags: firewalld
 
 - name: Open calico TCP ports on the firewall
-  firewalld:
-    port: "{{ item }}/tcp"
-    permanent: yes
-    state: enabled
+  command: "firewall-cmd --permanent --add-port={{ item }}/tcp"
   with_items: "{{ calico_tcp_ports }}"
   when: hostvars['127.0.0.1']['k8s_cni'] == "calico"
+  changed_when: true
   tags: firewalld
 
 - name: Masquerade the firewall

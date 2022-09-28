@@ -32,6 +32,7 @@ common_packages:
   - dos2unix
   - make
   - sshpass
+  - network-scripts
 
 os_supported_leap: "leap"
 os_supported_leap_version: "15.3"
@@ -55,6 +56,7 @@ ansible_collections_cli:
   - kubernetes.core:2.2.3
   - community.grafana:1.3.0
   - ansible.utils:2.5.2
+max_retries: 20
 
 # Usage: set_docker_os.yml
 docker_rocky_os_version: "8.5"
@@ -64,8 +66,10 @@ cobbler_rocky_dockerfile_path: "{{ playbook_dir }}/roles/provision_cobbler/files
 cobbler_leap_dockerfile_path: "{{ playbook_dir }}/roles/provision_cobbler/files/Dockerfile_leap"
 ib_dockerfile_path: "{{ playbook_dir }}/roles/control_plane_ib/files/Dockerfile"
 mgmnt_dockerfile_path: "{{ playbook_dir }}/roles/control_plane_device/files/Dockerfile"
+roce_opensm_dockerfile_path: "{{ playbook_dir }}/roles/control_plane_roce_sm/files/Dockerfile"
 
 # Usage: pre_requisite.yml
+max_ansible_version: 2.13
 internet_delay: 0
 internet_timeout: 10
 hostname: github.com
@@ -86,6 +90,13 @@ python_version_support: '3.6.8'
 default_ansible_config_file_path: /etc/ansible/ansible.cfg
 invalid_run_tag_msg: "Failed. init tag should be used with run tags"
 invalid_skip_tag_msg: "Failed. init tag can't be used with skip tags"
+omnia_log_path: /var/log/omnia
+src_ansible_cfg: "{{ playbook_dir }}/ansible.cfg"
+dest_ansible_cfg: 
+  - { path: "{{ playbook_dir }}/tools/ansible.cfg", log_path: "/var/log/omnia/omnia_control_plane_tools.log", regexp: "/var/log/omnia_control_plane.log" }
+  - { path: "{{ playbook_dir }}/../telemetry/ansible.cfg", log_path: "/var/log/omnia/omnia_telemetry.log", regexp: "/var/log/omnia_control_plane.log" }
+  - { path: "{{ playbook_dir }}/../tools/ansible.cfg", log_path: "/var/log/omnia/omnia_tools.log", regexp: "/var/log/omnia_control_plane.log" }
+  - { path: "{{ playbook_dir }}/../platforms/ansible.cfg", log_path: "/var/log/omnia/omnia_platforms.log", regexp: "/var/log/omnia_control_plane.log" }
 
 # Usage: verify_login_inputs.yml
 login_vars_filename: "input_params/login_vars.yml"
@@ -207,6 +218,7 @@ public_metric: 101
 mgmt_metric: 102
 host_metric: 103
 ib_metric: 150
+pod_timeout: 30m
 
 # Usage: device_config_validations
 success_msg_ib: "Infiniband variables validated"

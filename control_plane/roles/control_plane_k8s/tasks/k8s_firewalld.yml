@@ -14,24 +14,18 @@
 ---
 
 - name: Configure firewalld on master nodes
-  firewalld:
-    port: "{{ item }}"
-    permanent: yes
-    state: enabled
+  command: "firewall-cmd --permanent --add-port={{ item }}"
+  changed_when: true
   with_items: '{{ k8s_master_ports }}'
 
 - name: Open calico UDP ports on the firewall
-  firewalld:
-    port: "{{ item }}/udp"
-    permanent: yes
-    state: enabled
+  command: "firewall-cmd --permanent --add-port={{ item }}/udp"
+  changed_when: true
   with_items: "{{ calico_udp_ports }}"
 
 - name: Open calico TCP ports on the firewall
-  firewalld:
-    port: "{{ item }}/tcp"
-    permanent: yes
-    state: enabled
+  command: "firewall-cmd --permanent --add-port={{ item }}/tcp"
+  changed_when: true
   with_items: "{{ calico_tcp_ports }}"
 
 - name: Masquerade the firewall

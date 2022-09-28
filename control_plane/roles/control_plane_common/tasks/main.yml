@@ -51,7 +51,7 @@
 
 - name: Subnet manager inputs validation
   import_tasks: fetch_sm_inputs.yml
-  when: ib_switch_support
+  when: ib_switch_support or opensm_roce_enabled
 
 - name: Security inputs validation
   import_tasks: fetch_security_inputs.yml

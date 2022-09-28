@@ -46,6 +46,7 @@
 
 - name: Map the volumes for sas
   include_tasks: sas_mapping.yml
+  when: powervault_protocol == "sas"
 
 - name: Set snmp parameters
   include_tasks: set_snmp.yml

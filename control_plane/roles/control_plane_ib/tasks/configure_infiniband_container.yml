@@ -14,7 +14,7 @@
 ---
 
 - name: Wait for infiniband pod to come to ready state
-  command: kubectl wait --for=condition=ready -n network-config pod -l app=infiniband
+  command: kubectl wait --for=condition=ready --timeout={{ pod_timeout }} -n network-config pod -l app=infiniband
   changed_when: false
 
 - name: Get infiniband pod name

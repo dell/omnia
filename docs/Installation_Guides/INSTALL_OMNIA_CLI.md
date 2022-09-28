@@ -26,7 +26,7 @@ git clone -b release https://github.com/dellhpc/omnia.git
 
 4. Create an inventory file in the *omnia* folder. Add login node IP address under the *[login_node]* group, manager node IP address under the *[manager]* group, compute node IP addresses under the *[compute]* group, and NFS node IP address under the *[nfs_node]* group. A template file named INVENTORY is provided in the *omnia\docs* folder.  
 >>	**Note**: 
->> * Omnia checks for red hat subscription being enabled on red hat nodes as a pre-requisite. Check out [how to enable Red Hat subscription here](USING_PLAYBOOKS.md#red-hat-subscription). Not having Red Hat subscription enabled on the manager node will cause `omnia.yml` to fail. If compute nodes do not have Red Hat subscription enabled, `omnia.yml` will skip the node entirely.
+>> * Omnia checks for red hat subscription being enabled on RedHat nodes as a pre-requisite. Check out [how to enable Red Hat subscription here](ENABLING_OMNIA_FEATURES.md#red-hat-subscription). Not having Red Hat subscription enabled on the manager node will cause `omnia.yml` to fail. If compute nodes do not have Red Hat subscription enabled, `omnia.yml` will skip the node entirely.
 >> * Ensure that all the four groups (login_node, manager, compute, nfs_node) are present in the template, even if the IP addresses are not updated under login_node and nfs_node groups.
 
 
@@ -36,7 +36,7 @@ git clone -b release https://github.com/dellhpc/omnia.git
 |-----------------------------	|-----------------------------------------------------------	|
 | `ansible-playbook omnia.yml -i inventory -e 'ansible_python_interpreter=/usr/bin/python3'`   	| `ansible-playbook omnia.yml -i inventory`	|
 		
-
+>> **Note:** Omnia creates a log file which is available at: `/var/log/omnia.log`.
 
 6. By default, no skip tags are selected, and both Kubernetes and Slurm will be deployed.  
 
@@ -45,6 +45,8 @@ To skip the installation of Kubernetes, enter:
 	
 To skip the installation of Slurm, enter:  
     `ansible-playbook omnia.yml -i inventory --skip-tags "slurm"`  
+>> **Note**: If only Slurm is being installed on the cluster, docker credentials are not required.
+
 >> **Warning**: LMOD and LUA are installed with Slurm when running `omnia.yml`. If LMOD and LUA are required, do not use the skip Slurm tag.
 
 To skip the NFS client setup, enter the following command to skip the k8s_nfs_client_setup role of Kubernetes:  
@@ -67,10 +69,12 @@ Omnia considers `slurm` as the default username for MariaDB.
 
 The following __kubernetes__ roles are provided by Omnia when __omnia.yml__ file is run:
 - __common__ role:
-	- Install common packages on manager and compute nodes
-	- Docker is installed
-	- Deploy time ntp/chrony
-	- Install Nvidia drivers and software components
+    - Install common packages on manager and compute nodes
+    - Docker is installed
+  **Note**: Due to lack of availability, the CentOS docker repository is installed on target nodes running Redhat.
+    - Deploy time ntp/chrony
+    - Install Nvidia drivers and software components
+>>  **Caution**: If the target node is running Rocky, Nvidia drivers will only be installed if kernel package upgrades are available. If not, the installation is skipped with a warning message.
 - **k8s_common** role: 
 	- Required Kubernetes packages are installed
 	- Starts the docker and Kubernetes services.
@@ -94,7 +98,7 @@ The following __kubernetes__ roles are provided by Omnia when __omnia.yml__ file
 	- Kubernetes' services are deployed such as Kubernetes Dashboard, Prometheus, MetalLB and NFS client provisioner
 
 
-* Whenever k8s_version, k8s_cni or k8s_pod_network_cidr needs to be modified after the HPC cluster is setup, the OS in the manager and compute nodes in the cluster must be re-flashed before executing omnia.yml again.
+* Whenever k8s_version, k8s_cni or k8s_pod_network_cidr needs to be modified after the HPC cluster is set up, the OS in the manager and compute nodes in the cluster must be re-flashed before executing omnia.yml again.
 * After Kubernetes is installed and configured, few Kubernetes and calico/flannel related ports are opened in the manager and compute nodes. This is required for Kubernetes Pod-to-Pod and Pod-to-Service communications. Calico/flannel provides a full networking stack for Kubernetes pods.
 * If Kubernetes Pods are unable to communicate with the servers (i.e., unable to access the Internet) when the DNS servers are not responding, then the Kubernetes Pod Network CIDR may be overlapping with the host network which is DNS issue. To resolve this issue:
 	1. Disable firewalld.service.
@@ -102,7 +106,7 @@ The following __kubernetes__ roles are provided by Omnia when __omnia.yml__ file
 		a. Format the OS on manager and compute nodes.  
 		b. In the control plane, edit the *omnia_config.yml* file to change the Kubernetes Pod Network CIDR or CNI value. Suggested IP range is 192.168.0.0/16 and ensure you provide an IP which is not in use in your host network.  
 		c. Execute `omnia.yml` and skip slurm using `--skip-tags slurm`.
-
+	
 ## Slurm roles
 
 The following __Slurm__ roles are provided by Omnia when __omnia.yml__ file is run:
@@ -151,7 +155,7 @@ Commands to install JupyterHub and Kubeflow:
 To update the INVENTORY file present in `omnia` directory with the new node IP address under the compute group. Ensure the other nodes which are already a part of the cluster are also present in the compute group along with the new node. Then, run `omnia.yml` to add the new node to the cluster and update the configurations of the manager node.
 
 ## Using BeeGFS on Clusters
-BeeGFS is a hardware-independent POSIX parallel file system (a.k.a Software-defined Parallel Storage) developed with a strong focus on performance and designed for ease of use, simple installation, and management. BeeGFS is created on an Available Source development model (source code is publicly available), offering a self-supported Community Edition and a fully supported Enterprise Edition with additional features and functionalities. BeeGFS is designed for all performance-oriented environments including HPC, AI and Deep Learning, Media & Entertainment, Life Sciences, and Oil & Gas (to name a few).
+BeeGFS is a hardware-independent POSIX parallel file system (a.k.a. Software-defined Parallel Storage) developed with a strong focus on performance and designed for ease of use, simple installation, and management. BeeGFS is created on an Available Source development model (source code is publicly available), offering a self-supported Community Edition and a fully supported Enterprise Edition with additional features and functionalities. BeeGFS is designed for all performance-oriented environments including HPC, AI and Deep Learning, Media & Entertainment, Life Sciences, and Oil & Gas (to name a few).
 ![BeeGFS Structure](../images/BeeGFS_Structure.jpg)
 
 Once all the [pre-requisites](../PreRequisites/OMNIA_PreReqs.md#installing-beegfs-client) are met, run `omnia.yml` to set up BeeGFS. 

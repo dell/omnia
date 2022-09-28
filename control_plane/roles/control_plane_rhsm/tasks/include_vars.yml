@@ -72,7 +72,7 @@
 - name: Assign rhsm_release
   set_fact:
     rhsm_release: "{{ redhat_subscription_release | default(omit) }}"
-  when: redhat_subscription_release | default("", true) | string | length > 1
+  when: redhat_subscription_release | default("", true) | string | length > 0
   run_once: true
 
 - name: Assign rhsm_force_register
@@ -83,13 +83,13 @@
 - name: Assign rhsm_pool_ids
   set_fact:
     rhsm_pool_ids: "{{ redhat_subscription_pool_ids | default(omit) }}"
-  when: redhat_subscription_pool_ids | default("", true) | length > 1 
+  when: redhat_subscription_pool_ids | default("", true) | length > 0
   run_once: true
 
 - name: Assign rhsm_repos
   set_fact:
     rhsm_repos: "{{ redhat_subscription_repos | default(omit) }}"
-  when: redhat_subscription_repos | default("", true) | length > 1
+  when: redhat_subscription_repos | default("", true) | length > 0
   run_once: true
 
 - name: Assign rhsm_repos_state

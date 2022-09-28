@@ -97,12 +97,12 @@ scrape_configs:
       job: secure
       __path__: /var/log/secure
 
-- job_name: Omnia
+- job_name: Omnia logs
   static_configs:
   - targets:
       - localhost
     labels:
-      job: Omnia
+      job: Omnia logs
       __path__: /var/log/omnia.log
 
 - job_name: syslog
@@ -152,3 +152,99 @@ scrape_configs:
     labels:
       job: k8s pods
       __path__: /var/log/pods/*/*/*log
+
+- job_name: iDRAC CLI logs
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: iDRAC CLI logs
+      __path__: /var/log/omnia/idrac/*log
+
+- job_name: Powervault CLI logs
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: Powervault CLI logs
+      __path__: /var/log/omnia/powervault/*log
+
+- job_name: Ethernet CLI logs
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: Ethernet CLI logs
+      __path__: /var/log/omnia/ethernet/*log
+
+- job_name: InfiniBand CLI logs
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: InfiniBand CLI logs
+      __path__: /var/log/omnia/infiniband/*log
+
+- job_name: Node Inventory CLI logs
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: Node Inventory CLI logs
+      __path__: /var/log/omnia/collect_node_info/*log
+
+- job_name: Device Inventory CLI logs
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: Device Inventory CLI logs
+      __path__: /var/log/omnia/collect_device_info/*log
+
+- job_name: Startup Omnia logs
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: Startup Omnia logs
+      __path__: /var/log/omnia/startup_omnia/*log
+
+- job_name: Omnia control plane logs
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: Omnia control plane logs
+      __path__: /var/log/omnia_control_plane.log
+
+- job_name: Omnia control plane tools logs
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: Omnia control plane tools logs
+      __path__: /var/log/omnia/omnia_control_plane_tools.log
+
+- job_name: Omnia platforms logs
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: Omnia platforms logs
+      __path__: /var/log/omnia/omnia_platforms.log
+
+- job_name: Omnia tools logs
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: Omnia tools logs
+      __path__: /var/log/omnia/omnia_tools.log
+
+- job_name: Omnia telemetry logs
+  static_configs:
+  - targets:
+      - localhost
+    labels:
+      job: Omnia telemetry logs
+      __path__: /var/log/omnia/omnia_telemetry.log 

@@ -9,7 +9,7 @@ Omnia uses the server-based Subnet Manager (SM). SM runs in a Kubernetes namespa
 
 ## Setting up a new or factory reset switch
 
-Before running `infiniband.yml`, ensure that SSL Secure Cookies are disabled also HTTP and JSON Gateway need to be enabled on your switch.  This can be verifed by running:
+Before running `infiniband.yml`, ensure that SSL Secure Cookies are disabled also HTTP and JSON Gateway need to be enabled on your switch.  This can be verified by running:
 
 `show web`  (To check if SSL Secure Cookies is disabled and HTTP is enabled)
 
@@ -22,17 +22,6 @@ In case any of these services are not in the state required, run:
 `web http enable` (To enable the HTTP gateway)
 
 `json-gw enable` (To enable the JSON gateway)
-
->> **Note**: If a server is connected to an Infiniband Switch via an Infiniband NIC, Omnia will not activate this NIC:
->> * For servers running Rocky,Infiniband NICs can be manually enabled using `ifup <InfiniBand NIC>`.
->> * For servers running LeapOS, ensure the following pre-requisites are met before manually bringing up the interface:
->> 	1. The following repositories have to be installed:
->> 		* [Leap OSS](http://download.opensuse.org/distribution/leap/15.3/repo/oss/)
->> 		* [Leap Non OSS](http://download.opensuse.org/distribution/leap/15.3/repo/non-oss/)
->> 	2. Run: `zypper install -n rdma-core librdmacm1 libibmad5 libibumad3 infiniband-diags` to install IB NIC drivers.  (If the drivers do not install smoothly, reboot the server to apply the required changes)
->> 	3. Run: `service network status` to verify that `wicked.service` is running.
->> 	4. Verify that the ifcfg-<InfiniBand NIC> file is present in `/etc/sysconfig/network`
->> 	5. Once all the pre-requisites are met, bring up the interface manually using `ifup <InfiniBand NIC>`
 
 
 When connecting to a new or factory reset switch, the configuration wizard requests to execute an initial configuration:
@@ -49,7 +38,7 @@ Enter all relevant parameters for configuring your switches in the following fil
 * ib_vars.yml
 
 ### Run `infiniband_template` via CLI
-1. Verify that `/opt/omnia/infiniband_inventory` is created and updated with all infiniband switch IP details. This is done automatically when `control_plane.yml` is run. If it's not updated, run `ansible-playbook collect_device_info.yml` from the control_plane directory.
+1. Verify that `/opt/omnia/infiniband_inventory` is created and updated with all infiniband switch IP details. This is done automatically when `control_plane.yml` is run. If it's not updated, run `ansible-playbook collect_device_info.yml` (dedicated NIC) or `ansible-playbook collect_node_info.yml` (LOM NIC) from the control_plane directory.
 2. Run `ansible-playbook infiniband.yml -i /opt/omnia/infiniband_inventory`
 
 
@@ -57,7 +46,7 @@ Enter all relevant parameters for configuring your switches in the following fil
 1. Run `kubectl get svc -n awx`.
 2. Copy the Cluster-IP address of the awx-ui. 
 3. To retrieve the AWX UI password, run `kubectl get secret awx-admin-password -n awx -o jsonpath="{.data.password}" | base64 --decode`.
-4. Open the default web browser on the control plane and enter `http://<IP>:8052`, where IP is the awx-ui IP address and 8052 is the awx-ui port number. Log in to the AWX UI using the username as `admin` and the retrieved password.  
+4. Open the default web browser on the control plane and enter `http://<IP>:8052`, where IP is the awx-ui IP address and 8052 is the awx-ui port number. Log in to the AWX UI using the username `admin` and the retrieved password.  
 5. Under __RESOURCES__ -> __Templates__, launch the **infiniband_template**.
 
 

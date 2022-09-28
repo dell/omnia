@@ -17,6 +17,7 @@
   shell: echo -n {{ powervault_username }}_{{ powervault_password }} | sha256sum
   register: val_auth_string
   changed_when: false
+  no_log: true
   ignore_errors: yes
 
 - name: Get session key
@@ -40,6 +41,14 @@
   fail:
     msg: "{{ protocol_supported }}"
   when: powervault_protocol | lower == "fc"
+
+- name: Validate the value of powervault controller mode
+  assert:
+    that:
+      - powervault_controller_mode | length > 1
+      - powervault_controller_mode | lower == "single" or powervault_controller_mode | lower == "multi"
+    fail_msg: "{{ controller_wrong_value }}"
+    success_msg: "{{ controller_success }}"
 
 - name: Check if system name has space
   shell: echo {{ powervault_system_name }} | grep '\s' -c
@@ -88,10 +97,36 @@
 - name: Check if server path is not empty
   assert:
     that:
-      - item.server_shared_path != None
-      - '"/" in item.server_shared_path'
+      - item.server_share_path != None
+      - '"/" in item.server_share_path'
     fail_msg: "{{ server_path_empty }}"
   with_items: "{{ powervault_volumes }}"
+
+- block:
+  - name: Verify server_export_options variable declaration
+    assert:
+      that:
+        - item.server_export_options is defined
+      success_msg: "{{ server_export_options_success_msg }}"
+    with_items: "{{ powervault_volumes }}"
+
+  - name: Verify client_share_path variable declaration
+    assert:
+      that:
+        - item.client_share_path is defined
+      success_msg: "{{ client_share_path_success_msg }}"
+    with_items: "{{ powervault_volumes }}"
+
+  - name: Verify client_mount_options variable declaration
+    assert:
+      that:
+        - item.client_mount_options is defined
+      success_msg: "{{ client_mount_options_success_msg }}"
+    with_items: "{{ powervault_volumes }}"  
+  rescue:
+  - name: Show message
+    fail:
+      msg: "{{ powervault_volumes_options_fail_msg }}"
 
 - name: Assert disk group name given if pool type is linear
   assert:
@@ -156,13 +191,12 @@
 - name: Check parition percentage
   assert:
     that:
+      - powervault_disk_partition_size| length > 0
       - powervault_disk_partition_size|int
       - powervault_disk_partition_size|int < 90
       - powervault_disk_partition_size|int > 5
     msg: "{{ wrong_partition }}"
-  when:
-    - powervault_disk_partition_size| length > 1
-    - powervault_protocol == "iscsi"
+  when: powervault_protocol == "iscsi"
 
 - name: Check the volume size
   assert:
@@ -177,6 +211,4 @@
   assert:
     that:
       - powervault_server_nic | length > 2
-  when:
-   - powervault_server_nic | length > 1
-   - powervault_protocol == "iscsi"
+  when: powervault_protocol == "iscsi"

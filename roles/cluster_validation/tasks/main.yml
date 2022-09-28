@@ -19,29 +19,49 @@
     powervault_status: false
     nfs_node_status: false
     ansible_collection_used: false
-    
-- name: Check AWX instance
-  command: awx --version
-  changed_when: false
-  failed_when: false
-  register: awx_version_check
 
-- name: Check AWX hostname
-  command: hostname
-  changed_when: false
-  register: awx_hostname
+- name: Include base_vars.yml
+  include_vars: "{{ base_vars_path }}"
 
-- name: Set control_plane_status
-  set_fact:
-    control_plane_status: true
-  when:
-    - not awx_version_check.failed
-    - awx_search_key in awx_hostname.stdout
+- block:
+    - name: Check AWX instance
+      command: awx --version
+      changed_when: false
+      failed_when: false
+      register: awx_version_check
+
+    - name: Check AWX hostname
+      command: hostname
+      changed_when: false
+      register: awx_hostname
+
+    - name: Set control_plane_status
+      set_fact:
+        control_plane_status: true
+      when:
+        - not awx_version_check.failed
+        - awx_search_key in awx_hostname.stdout
+  when: awx_web_support
+
+- block:
+    - name: Check cobbler pod status
+      command: kubectl get pods -n cobbler
+      changed_when: false
+      failed_when: false
+      register: cobbler_check
+
+    - name: Set control_plane_status
+      set_fact:
+        control_plane_status: true
+      when: cobbler_pod_name in cobbler_check.stdout
+  when: not awx_web_support
 
 - name: Set ansible_collection_used to true in awx
   set_fact:
     ansible_collection_used: true
-  when: control_plane_status
+  when: 
+    - awx_web_support
+    - control_plane_status
 
 - name: Perform validations
   include_tasks: validations.yml
@@ -58,41 +78,30 @@
     - powervault_support
     - nfs_node_status
 
-- name: Install Packages
-  include_tasks: install_packages.yml
-  when: not control_plane_status
-  
-- name: omnia.yml runing on host
-  block:
-    - name: Passwordless SSH status
-      debug:
-        msg: "omnia.yml running on host"
+- block:
+    - name: Install Packages
+      include_tasks: install_packages.yml
 
-    - name: Check whether ansible config file exists
-      stat:
-        path: "{{ ansible_conf_file_path }}/ansible.cfg"
-      register: ansible_conf_exists
-
-    - name: Create the directory if it does not exist
+    - name: Create log folder for omnia
       file:
-        path: "{{ ansible_conf_file_path }}"
+        path: "{{ omnia_log_path }}"
         state: directory
-        mode: "{{ file_perm }}"
-      when: not ansible_conf_exists.stat.exists
+        mode: "{{ vault_file_perm }}"
 
-    - name: Create ansible config file if it does not exist
+    - name: Copy ansible.cfg to other folders
       copy:
-        dest: "{{ ansible_conf_file_path }}/ansible.cfg"
-        mode: "{{ file_perm }}"
-        content: |
-          [defaults]
-          log_path = /var/log/omnia.log
-      when: not ansible_conf_exists.stat.exists
+        src: "{{ ansible_cfg_src }}"
+        dest: "{{ item.path }}"
+        mode: "{{ vault_file_perm }}"
+      with_items: "{{ ansible_cfg_dest }}"
 
-    - name: Set omnia.log file
+    - name: Update log_path in ansible.cfg
       replace:
-        path: "{{ ansible_conf_file_path }}/ansible.cfg"
-        regexp: '#log_path = /var/log/ansible.log'
-        replace: 'log_path = /var/log/omnia.log'
-      when: ansible_conf_exists.stat.exists
-  when: not control_plane_status
+        path: "{{ item.path }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.log_path }}"
+      with_items: "{{ ansible_cfg_dest }}"
+  when: ( not control_plane_status ) or ( not awx_web_support )
+  
+- name: Include gather_facts playbook
+  include_tasks: gather_fact_resolution.yml

@@ -148,6 +148,16 @@
   changed_when: true
   when: "'awx-postgres-pv' not in k8s_pvs.stdout"
 
+- name: Install awxkit using pip3
+  pip:
+    name: awxkit
+    state: present
+
+- name: Install awx collection
+  command: "ansible-galaxy collection install awx.awx:{{ awx_version }}"
+  changed_when: true
+  register: installation_status
+
 - name: Get the docker images
   command: buildah images
   changed_when: false
@@ -158,6 +168,8 @@
   changed_when: false
   when: "'custom-awx-ee' not in docker_images.stdout"
   register: awx_image_status
+  retries: 10
+  delay: 5
   until: awx_image_status is not failed
   retries: "{{ image_retries }}"
 
@@ -170,16 +182,6 @@
   wait_for:
     timeout: "{{ awx_wait_time }}"
   when: not k8s_pods.stdout | regex_search('awx-([A-Za-z0-9]{10})-([A-Za-z0-9]{5})')
-
-- name: Install awxkit using pip3
-  pip:
-    name: awxkit
-    state: present
-
-- name: Install awx collection
-  command: "ansible-galaxy collection install awx.awx:{{ awx_version }}"
-  changed_when: true
-  register: installation_status
 
 - name: Fails if the pods go into ImagePullBackOff state
   block:

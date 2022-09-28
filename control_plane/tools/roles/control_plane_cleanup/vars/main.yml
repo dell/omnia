@@ -14,7 +14,7 @@
 ---
 
 # Usage: remove_container_images.yml
-k8s_mngmnt_network: "{{ playbook_dir }}/../roles/control_plane_device/files/k8s_mngmnt_network.yml"
+k8s_mgmt_network: "{{ playbook_dir }}/../roles/control_plane_device/files/k8s_mgmt_network.yml"
 k8s_cobbler: "{{ playbook_dir }}/../roles/provision_cobbler/files/k8s_cobbler.yml"
 awx_projects_pv: "{{ playbook_dir }}/../roles/webui_awx/files/awx_projects_pv.yml"
 awx_postgres_pv:  "{{ playbook_dir }}/../roles/webui_awx/files/awx_postgres_pv.yml"
@@ -22,7 +22,7 @@ awx_operator: "{{ playbook_dir }}/../../../awx-operator/"
 awx_file: "{{ playbook_dir }}/../roles/webui_awx/files/awx.yml"
 k8s_infiniband: "{{ playbook_dir }}/../roles/control_plane_ib/files/k8s_infiniband.yml"
 infiniband_container: infiniband_container
-mngmnt_network_container: mngmnt_network_container
+mgmt_network_container: mgmt_network_container
 cobbler_image: cobbler
 awx_image: custom-awx-ee
 
