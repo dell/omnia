@@ -73,7 +73,7 @@ provision_password_fail_msg: "Failed. Incorrect provision_password format in pro
 min_length: 8
 max_length: 30
 warning_wait_time: 30
-postgresdb_password_fail_msg: "Failed. postgresdb_password should contain only alphanumeric characters in provision_config.yml"
+postgresdb_password_fail_msg: "Failed. postgresdb_password should contain only lower case alphanumeric characters in provision_config.yml"
 os_supported_rocky: rocky
 os_supported_rhel: rhel
 
