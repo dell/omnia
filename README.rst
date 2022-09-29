@@ -10,6 +10,8 @@ Omnia (Latin: all or everything) is a deployment tool to turn servers with RPM-b
 
 .. image:: docs/source/images/omnia-logo-transparent.png
 
+
+
 **Pre Requisites before installing Omnia**
 
 - `Python3 <https://www.python.org/>`_
@@ -17,8 +19,6 @@ Omnia (Latin: all or everything) is a deployment tool to turn servers with RPM-b
 - `Ansible 2.12.7 <https://www.ansible.com/>`_
 
 - `RockyOS <https://rockylinux.org/>`_ / `Red Hat <https://www.redhat.com/en/enterprise-linux-8>`_
-
-
 
 
 
@@ -61,3 +61,18 @@ Omnia (Latin: all or everything) is a deployment tool to turn servers with RPM-b
 .. image:: https://www.vizias.com/uploads/1/1/8/9/118906653/published/thick-blue-white-ring-letters-full.png
 
 .. image:: https://user-images.githubusercontent.com/5414112/153955170-0a4b199a-54f0-42af-939c-03eac76881c0.png
+
+
+.. |Omnia version| image:: https://img.shields.io/github/v/release/dellhpc/omnia?include_prereleases
+.. |Downloads| image:: https://img.shields.io/github/downloads/dellhpc/omnia/total
+.. |Last Commit| image:: https://img.shields.io/github/last-commit/dellhpc/omnia/devel
+.. |Commits Since 1.4| image:: https://img.shields.io/github/commits-since/dellhpc/omnia/v1.3/devel
+.. |Contributors| image:: https://img.shields.io/github/all-contributors/dellhpc/omnia
+   :target: docs/CONTRIBUTORS.md
+   :alt: Contributors
+.. |Forks| image:: https://img.shields.io/github/forks/dellhpc/omnia
+.. |License| image:: https://img.shields.io/github/license/dellhpc/omnia
+   :target: LICENSE
+   :alt: Repository License
+
+
