@@ -15,7 +15,8 @@ Change directory to the omnia/provision folder:
 
 Enter all required parameters:
 
-<Table insert here>
+.. include:: ../../InputParamGuide/provision.yml
+
 
 Run the script:
 
