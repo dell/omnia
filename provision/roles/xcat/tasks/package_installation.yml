@@ -13,14 +13,11 @@
 # limitations under the License.
 ---
 
-- name: Verify if the node has accelerator
-  ansible.builtin.shell: |
-    set -o pipefail
-    'lspci | grep "Display controller: Advanced Micro Devices, Inc. \[AMD/ATI\]"'
-  register: lspci_output
-  changed_when: false
-  failed_when: false
+- name: Install common packages
+  ansible.builtin.package:
+    name: "{{ common_packages_xcat }}"
+    state: present
 
-- name: Install AMD GPU drivers and software components
-  ansible.builtin.include_tasks: amd.yml
-  when: lspci_output.stdout | length > 0
+- name: Install netaddr
+  ansible.builtin.command: pip3.8 install netaddr
+  changed_when: true

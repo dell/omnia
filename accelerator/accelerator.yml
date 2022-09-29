@@ -12,3 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+
+- name: Gather Cluster Facts
+  hosts: manager, compute, login_node
+  gather_facts: true
+  roles:
+    - common
+  tags: amd, nvidia
+
+- name: Perform GPU driver and ROCm installation for AMD Accelerators
+  hosts: manager, compute, login_node
+  gather_facts: true
+  any_errors_fatal: true
+  roles:
+    - amd
+  tags: amd
+
+- name: Perform GPU driver and CUDA installation for NVIDIA Accelerators
+  hosts: manager, compute, login_node
+  gather_facts: false
+  any_errors_fatal: true
+  roles:
+    - nvidia
+  tags: nvidia
