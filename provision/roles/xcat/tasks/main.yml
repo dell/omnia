@@ -16,15 +16,15 @@
 - name: Check xcat pre-requisites
   ansible.builtin.include_tasks: pre_requisites.yml
 
+- name: Common packages installation
+  ansible.builtin.include_tasks: package_installation.yml
+  when: not xcat_installation_status
+
 - name: Validate the nic parameters
   ansible.builtin.include_tasks: validate_public_nic.yml
 
 - name: Validate the switch related parameters
   ansible.builtin.include_tasks: validate_switch_vars.yml
-
-- name: Common packages installation
-  ansible.builtin.include_tasks: package_installation.yml
-  when: not xcat_installation_status
 
 - name: Validate provision parameters
   ansible.builtin.include_tasks: validate_provision_vars.yml
