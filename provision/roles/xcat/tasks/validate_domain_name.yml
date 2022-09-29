@@ -56,12 +56,6 @@
     success_msg: "{{ server_domain_name_success_msg }}"
     fail_msg: "{{ server_domain_name_fail_msg }}"
 
-- name: Fetch pxe_nic details
-  ansible.builtin.set_fact:
-    pxe_nic_ip: "{{ lookup('vars', 'ansible_' + pxe_nic).ipv4.address }}"
-    pxe_nic_netmask: "{{ lookup('vars', 'ansible_' + pxe_nic).ipv4.netmask }}"
-    pxe_nic_subnet: "{{ lookup('vars', 'ansible_' + pxe_nic).ipv4.network }}"
-
 - name: Fetch hostname of the server
   ansible.builtin.command: hostname
   changed_when: false
