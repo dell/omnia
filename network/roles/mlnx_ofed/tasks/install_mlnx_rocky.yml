@@ -18,11 +18,11 @@
     name: "{{ item }}"
     state: present
   with_items: "{{ infiniband_rocky }}"
-  register: ib_package_status
+  notify:
+    - Reboot node
 
-- name: Reboot
-  ansible.builtin.reboot:
-  when: ib_package_status.changed
+- name: Flush handler to reboot the node
+  ansible.builtin.meta: flush_handlers
 
 - name: Check IB nic availability
   block:
