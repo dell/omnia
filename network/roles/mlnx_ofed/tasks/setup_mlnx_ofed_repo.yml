@@ -13,14 +13,14 @@
 #  limitations under the License.
 ---
 
-- name: Download MLNX OFED iso
+- name: Download MLNX OFED tgz
   ansible.builtin.get_url:
     url: "{{ ofed_repository }}"
     dest: "{{ mlnx_ofed_filepath }}"
     mode: "{{ mlnx_ofed_nfs_permissions }}"
   when: mlnx_ofed_offline_path is not defined or mlnx_ofed_offline_path | default("", true) | length == 0
 
-- name: Copy local MLNX OFED iso when offline path is specified
+- name: Copy local MLNX OFED tgz when offline path is specified
   ansible.builtin.copy:
     src: "{{ mlnx_ofed_offline_path }}"
     dest: "{{ mlnx_ofed_filepath }}"
