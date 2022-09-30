@@ -88,4 +88,4 @@ Running Control Plane Playbook
 
 .. note:: If the cluster does not have access to the internet, AppStream will not function. Please use the available offline repositories instead.
 
-.. warning:: Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect. 
+.. warning:: Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect.
