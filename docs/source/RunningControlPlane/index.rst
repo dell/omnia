@@ -2,8 +2,8 @@ Running Control Plane
 ======================
 
 .. toctree::
-    controlplaneparams
     controlplaneprereqs
+    controlplaneparams
     installcontrolplane
     configuredevices/index
     security/index

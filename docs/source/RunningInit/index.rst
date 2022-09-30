@@ -1,7 +1,7 @@
-Running Init.sh
+Running prereq.sh
 =================
 
-``Init.sh`` is used to verify that all pre-requisites for Omnia are met before running the script. This includes the following checks:
+``prereq.sh`` is used to verify that all pre-requisites for Omnia are met before running the script. This includes the following checks:
 
 * Stable internet connection
 

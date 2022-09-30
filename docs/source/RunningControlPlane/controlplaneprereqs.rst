@@ -1,14 +1,12 @@
 Before You Run Control Plane
 ============================
 
-
+* (Recommended) Run ``prereq.sh`` to get the system ready to deploy Omnia. Alternatively, ensure that `Ansible 2.12.9 <https://docs.ansible.com/ansible/latest/reference_appendices/release_and_maintenance.html>`_ and `Python 3.8 <https://www.python.org/downloads/release/python-380/>`_ are installed on the system.
 * To provision the bare metal servers, download one of the following ISOs for deployment:
 
-    1. `Leap 15.3 <https://get.opensuse.org/leap/>`_
+    1. `Rocky 8 <https://rockylinux.org/>`_
 
-    2. `Rocky 8 <https://rockylinux.org/>`_
-
-    3. `Red Hat 8.x <https://www.redhat.com/en/enterprise-linux-8>`_
+    2. `Red Hat 8.x <https://www.redhat.com/en/enterprise-linux-8>`_
 
 * If devices (switches, servers and storage) are to be configured and managed by Omnia, ensure that DHCP is enabled on all target devices.
 
@@ -38,4 +36,3 @@ Before You Run Control Plane
 .. include:: ../Appendices/hostnamereqs.rst
 
 
-* Fill in all required parameters under  ``/control_plane/input_parameters`` and security parameters under  ``omnia_security_config.yml``/  ``security_vars.yml``.

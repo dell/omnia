@@ -3,49 +3,85 @@ Running Control Plane Playbook
 
 
 1. On the control plane, change the working directory to the directory where you want to clone the Omnia Git repository.
+
 2. Clone the Omnia repository using the command: ::
 
     git clone https://github.com/dellhpc/omnia.git
 
 
-3. Change the directory to **omnia** using the command: ``cd omnia``
-4. Edit the *omnia_config.yml* file to:
-    * Specify the Kubernetes version which will be installed on the manager and compute nodes in the **k8s_version** variable. By default, it is set to **1.16.7**. Edit this variable to change the version. Supported versions are 1.16.7 and 1.19.3.
-    * To configure a login node in the cluster. By default, the *login_node_required* variable is set to "true". Using the login node, cluster administrators can provide access to users to log in to the login node to schedule Slurm jobs. However, if you do not want to configure the login node, then you can set the variable to "false". Without the login node, Slurm jobs can be scheduled only through the manager node.
+3. Change the directory to ``omnia`` using the command ::
 
-.. note::
-    * Ensure that the parameter ``enable_security_support`` in ``telemetry\input_params\base_vars.yml`` is set to 'false' before editing the following variables.
+    cd omnia
 
-    * The login node will be configured when running ``omnia.yml``.
+5. Change the directory to ``omnia/input`` using the command ::
 
-    * To enable security features on the Control Plane, use the steps provided `here <security/index.html>`_.
+    cd input_params
 
-    * To deploy Grafana on the Control Plane, use the steps provided `here <../Telemetry_Visualization/index.html>`_.
+6. Edit the *provision.yml* file to update the required variables.
 
-    * Supported values for Kubernetes CNI are calico and flannel. The default value of CNI considered by Omnia is calico.
++----------------------------------+-------------------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Name                             | Default, Accepted Values            | Required? | Additional Information                                                                                                                                                                                                                                           |
++==================================+=====================================+===========+==================================================================================================================================================================================================================================================================+
+| public_nic                       |                                     | TRUE      | The NIC/ethernet card that is connected to the public internet.                                                                                                                                                                                                  |
++----------------------------------+-------------------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| admin_nic                        |                                     | TRUE      | The NIC/ethernet card that is used for shared LAN over Management (LOM)   capability.                                                                                                                                                                            |
++----------------------------------+-------------------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| admin_nic_subnet                 |                                     | TRUE      | The intended subnet for shared LOM capability.                                                                                                                                                                                                                   |
++----------------------------------+-------------------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| pxe_nic                          |                                     | TRUE      | This NIC used to obtain routing information.                                                                                                                                                                                                                     |
++----------------------------------+-------------------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| pxe_nic_start_range              |                                     | TRUE      | The start of the DHCP  range used   to assign IPv4 addresses                                                                                                                                                                                                     |
++----------------------------------+-------------------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| pxe_nic_end_range                |                                     | TRUE      | The end of the DHCP  range used to   assign IPv4 addresses                                                                                                                                                                                                       |
++----------------------------------+-------------------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| ib_nic_subnet                    |                                     | FALSE     | If provided, Omnia will assign static IPs to IB NICs on the compute nodes   within the provided subnet.                                                                                                                                                          |
++----------------------------------+-------------------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| bmc_nic_subnet                   |                                     | FALSE     | If provided, Omnia will assign static IPs to the iDRAC NICs.                                                                                                                                                                                                     |
++----------------------------------+-------------------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| pxe_mapping_file_path            |                                     | FALSE     | The mapping file consists of the MAC address and its respective IP   address and hostname. If static IPs are required, create a csv file in the   format MAC,Hostname,IP. A sample file is provided here:   omnia/examples/host_mapping_file_os_provisioning.csv |
++----------------------------------+-------------------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| pxe_switch_ip                    |                                     | FALSE     | PXE switch that will be connected to all iDRACs for provisioning                                                                                                                                                                                                 |
++----------------------------------+-------------------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| pxe_switch_snmp_community_string | **public**                          | FALSE     | The SNMP community string used to access statistics, MAC addresses and   IPs stored within a router or other device.                                                                                                                                             |
++----------------------------------+-------------------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| node_name                        | **compute**                         | TRUE      | The intended node name for nodes in the cluster.                                                                                                                                                                                                                 |
++----------------------------------+-------------------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| provision_os                     | **rocky**,rhel                      | TRUE      | The operating system image that will be used for provisioning compute   nodes in the cluster.                                                                                                                                                                    |
++----------------------------------+-------------------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| iso_file_path                    | **/home/Rocky-8.6-x86_64-dvd1.iso** | TRUE      | The path where the user places the ISO image that needs to be provisioned   in target nodes.                                                                                                                                                                     |
++----------------------------------+-------------------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| timezone                         | **GMT**                             | TRUE      | The timezone that will be set during provisioning of OS. Available   timezones are provided in provision/roles/xcat/files/timezone.txt.                                                                                                                          |
++----------------------------------+-------------------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| language                         | **en-US**                           | TRUE      | The language that will be set during provisioning of the OS                                                                                                                                                                                                      |
++----------------------------------+-------------------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| default_lease_time               | **86400**                           | TRUE      | Default lease time in seconds that will be used by DHCP.                                                                                                                                                                                                         |
++----------------------------------+-------------------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| domain_name                      | **omnia.test**                      | TRUE      | DNS domain name to be set for iDRAC.                                                                                                                                                                                                                             |
++----------------------------------+-------------------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| provision_password               |                                     | TRUE      | Password used while deploying OS on bare metal servers. The Length of the   password should be at least 8 characters. The password must not contain -,\,   ',".                                                                                                  |
++----------------------------------+-------------------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| postgresdb_password              |                                     | TRUE      | Password used to authenticate into the PostGresDB used by xCAT.                                                                                                                                                                                                  |
++----------------------------------+-------------------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| primary_dns                      |                                     | FALSE     | The primary DNS host IP queried by Cobbler to provide Internet access to   Compute Node (through DHCP routing)                                                                                                                                                   |
++----------------------------------+-------------------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| secondary_dns                    |                                     | FALSE     | The secondary DNS host IP queried by Cobbler to provide Internet access   to Compute Node (through DHCP routing)                                                                                                                                                 |
++----------------------------------+-------------------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-    * The default value of `Kubernetes Pod <https://docs.projectcalico.org/getting-started/kubernetes/quickstart>`_ Network CIDR is 10.244.0.0/16. If 10.244.0.0/16 is already in use within your network, select a different Pod Network CIDR.
 
-    * The default path of the Ansible configuration file is ``/etc/ansible/``. If the file is not present in the default path, then edit the ``ansible_conf_file_path`` variable to update the configuration path.
-
-    * If you choose to enable security on the login node, simply follow the steps mentioned `here <../RunningControlPlane/security/loginnode.html>`_.
+.. warning:: The IP address *192.168.25.x* is used for PowerVault Storage communications. Therefore, do not use this IP address for other configurations.
 
 
 
-5. Change the directory to ``control_plane/input_params`` using the command: ``cd omnia/control_plane/input_params``
+7. Provided that the ``host_mapping_file_path`` is updated as per the provided template, Omnia deploys the control plane and assigns the component roles by executing the ``omnia.yml`` file.  To deploy the Omnia control plane, run the following command ::
 
-6. Edit the *base_vars.yml* file to update the required variables.
+    ansible-playbook control_plane.yml
 
-.. note:: The IP address *192.168.25.x* is used for PowerVault Storage communications. Therefore, do not use this IP address for other configurations.
+8. By running ``control_plane.yml``, the following configurations take place:
 
+    1. All available compute nodes will be PXE booted to have IP addresses and host names as specified in ``omnia/input/provision.yml``.
 
+    2. All ports required for xCAT to run will be opened (For a complete list, check out the `Security Configuration Document <../SecurityConfigGuide/PortsUsed/xCAT>`_).
 
-7. Provided that the host_mapping_file_path is updated as per the provided template, Omnia deploys the control plane and assigns the component roles by executing the ``omnia.yml`` file.  To deploy the Omnia control plane, run the following command: ``ansible-playbook control_plane.yml``
+    3. A PostgreSQL database is set up with all relevant cluster information such as MAC IDs, service tags, infiniband IPs, BMC IPs etc.
 
-
-
-8. If the host_mapping_file_path is not provided, then you must manually assign the component roles through the AWX UI.
-
-
-
-Omnia creates a log file which is available at: ``/var/log/omnia_control_plane.log``.
+    4.
