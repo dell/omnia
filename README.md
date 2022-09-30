@@ -48,6 +48,8 @@ For Omnia documentation, please see the [website](https://dellhpc.github.io/omni
 <img src="docs/images/pisa.png" height="100px" alt="Universita di Pisa"> <img src="https://user-images.githubusercontent.com/83095575/117071024-64956c80-ace3-11eb-9d90-2dac7daef11c.png" height="80px" alt="Arizona State University"> 
 <img src="https://user-images.githubusercontent.com/5414112/153955170-0a4b199a-54f0-42af-939c-03eac76881c0.png" height="100px" alt="Texas Tech University">
 
+<img src="docs/images/Liqid.png" height="50px" alt="LIQID Inc.">
+
 ## Contributors
 Our thanks go to everyone who makes Omnia possible ([emoji key](https://allcontributors.org/docs/en/emoji-key)):
 <!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
