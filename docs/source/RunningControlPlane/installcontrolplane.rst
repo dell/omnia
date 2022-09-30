@@ -19,10 +19,7 @@ Running Control Plane Playbook
 
 6. Edit the *provision.yml* file to update the required variables.
 
-
 .. warning:: The IP address *192.168.25.x* is used for PowerVault Storage communications. Therefore, do not use this IP address for other configurations.
-
-
 
 7. Provided that the ``host_mapping_file_path`` is updated as per the provided template, Omnia deploys the control plane and assigns the component roles by executing the ``omnia.yml`` file.  To deploy the Omnia control plane, run the following command ::
 
@@ -30,13 +27,13 @@ Running Control Plane Playbook
 
 8. By running ``control_plane.yml``, the following configurations take place:
 
-    1. All available compute nodes will be PXE booted to have IP addresses and host names as specified in ``omnia/input/provision.yml``.
+    i. All available compute nodes will be PXE booted to have IP addresses and host names as specified in ``omnia/input/provision.yml``.
 
-    2. All ports required for xCAT to run will be opened (For a complete list, check out the `Security Configuration Document <../SecurityConfigGuide/PortsUsed/xCAT>`_).
+    ii. All ports required for xCAT to run will be opened (For a complete list, check out the `Security Configuration Document <../SecurityConfigGuide/PortsUsed/xCAT>`_).
 
-    3. A PostgreSQL database is set up with all relevant cluster information such as MAC IDs, service tags, infiniband IPs, BMC IPs etc.
+    iii. A PostgreSQL database is set up with all relevant cluster information such as MAC IDs, service tags, infiniband IPs, BMC IPs etc.
 
-    4. Offline repositories will be created based on the OS being deployed across the cluster.
+    iv. Offline repositories will be created based on the OS being deployed across the cluster.
 
 .. note:: If the cluster does not have access to the internet, AppStream will not function. Please use the available offline repositories instead.
 
