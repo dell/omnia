@@ -48,3 +48,6 @@
   hosts: ib_inventory
   roles:
     - mlnx_ofed
+  handlers:
+    - name: Reboot node
+      ansible.builtin.reboot:

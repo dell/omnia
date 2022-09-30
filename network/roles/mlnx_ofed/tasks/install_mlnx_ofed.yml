@@ -22,14 +22,14 @@
   ansible.builtin.package:
     name: "{{ 'kernel-devel-' + kernel_version.stdout }}"
 
-- name: Download packages needed for MLNX OFED
+- name: Download packages needed for MLNX OFED (This task may take 10 mins)
   ansible.builtin.package:
     name: "{{ ofed_packages }}"
     state: present
 
 - name: Install mlnx_ofed
   block:
-    - name: Run MLNX OFED installation script
+    - name: Run MLNX OFED installation script (It will take 15-20 mins for this task)
       ansible.builtin.command: "{{ mlnx_ofed_filename + '/mlnxofedinstall' + ' --force ' + hostvars['localhost']['mlnx_ofed_args'] }}"
       changed_when: false
       register: run_output
@@ -49,7 +49,7 @@
         msg: "{{ run_output.stdout }}"
       when: missing_packages | default("", true) | length == 0
 
-    - name: Run MLNX OFED installation script (It will take 10-15 mins for this task)
+    - name: Run MLNX OFED installation script (It will take 15-20 mins for this task)
       ansible.builtin.command: "{{ mlnx_ofed_filename + '/mlnxofedinstall' + ' --force ' + hostvars['localhost']['mlnx_ofed_args'] }}"
       changed_when: false
       register: run_output
