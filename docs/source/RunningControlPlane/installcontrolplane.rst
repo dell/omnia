@@ -84,4 +84,8 @@ Running Control Plane Playbook
 
     3. A PostgreSQL database is set up with all relevant cluster information such as MAC IDs, service tags, infiniband IPs, BMC IPs etc.
 
-    4.
+    4. Offline repositories will be created based on the OS being deployed across the cluster.
+
+.. note:: If the cluster does not have access to the internet, AppStream will not function. Please use the available offline repositories instead.
+
+.. warning:: Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect. 
