@@ -15,7 +15,7 @@ Change directory to the omnia/provision folder:
 
 Enter all required parameters:
 
-.. include:: ../../InputParamGuide/provision.yml
+.. include:: ../../InputParamGuide/provision.rst
 
 
 Run the script:
@@ -24,4 +24,4 @@ Run the script:
 
 .. warning::
 
-* The xCAT script opens multiple ports required for xCAT to function
+* The xCAT script opens multiple ports required for xCAT to function. For a list of ports required, click here <../../../SecurityConfigGuide/PortsUsed/xCAT>

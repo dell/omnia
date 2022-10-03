@@ -16,6 +16,8 @@ Before You Run Control Plane
 
 * Ensure that all connection names under the network manager match their corresponding device names. This can be verified using the command  ``nmcli connection``. In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcfg-<nic name>`` using vi editor.
 
+* All target hosts should be set up in PXE mode before running the script.
+
 * If Red Hat is in use on the control plane, enable RedHat subscription. Not only does Omnia not enable RHEL subscription on the control plane, package installation may fail if RHEL subscription is disabled.
 
 * Users should also ensure that all repos are available on the Red Hat control plane.

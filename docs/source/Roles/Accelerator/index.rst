@@ -1,4 +1,4 @@
 Accelerator
 ============
 
-The accelerator role allows users to update AMD and NVIDIA drivers and ensure the smooth, efficient running of GPUs.
+The accelerator role allows users to  set up the AMD ROCm platform or the CUDA Nvidia toolkit. These tools allow users to unlock the potential of installed GPUs.
