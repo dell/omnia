@@ -14,4 +14,6 @@ Some of the network features Omnia offers are:
 2. Infiniband switch configuration
 
 
+.. include:: ../../InputParamGuide/network_config.rst
+
 

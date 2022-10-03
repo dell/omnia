@@ -9,8 +9,6 @@ Once Omnia is downloaded from github:
 
 ``git clone https://github.com/dellhpc/omnia.git``
 
-Enter all required parameters in ``omnia/input/provision_config.yml``:
-
 .. include:: ../../InputParamGuide/provision.rst
 
 Change directory to the omnia/provision folder:
@@ -24,4 +22,4 @@ Run the script:
 
 .. warning::
 
-* The xCAT script opens multiple ports required for xCAT to function. For a list of ports required, `click here <../../SecurityConfigGuide/PortsUsed/xCAT>`_.
+* The xCAT script opens multiple ports required for xCAT to function. For a list of ports required, `click here <../../SecurityConfigGuide/PortsUsed/xCAT.html>`_.
