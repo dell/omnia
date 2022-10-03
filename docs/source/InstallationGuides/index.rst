@@ -18,6 +18,7 @@ Run the script ``prereqs.sh`` to verify the system is ready for Omnia deployment
 
 .. toctree::
     :hidden:
+
     RunningInit/index
     RunningControlPlane/index
     RunningOmnia/index
