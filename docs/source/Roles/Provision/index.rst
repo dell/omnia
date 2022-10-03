@@ -24,4 +24,4 @@ Run the script:
 
 .. warning::
 
-* The xCAT script opens multiple ports required for xCAT to function. For a list of ports required, `click here <../../../SecurityConfigGuide/PortsUsed/xCAT>`_.
+* The xCAT script opens multiple ports required for xCAT to function. For a list of ports required, `click here <../../SecurityConfigGuide/PortsUsed/xCAT>`_.
