@@ -26,10 +26,8 @@ Running prereq.sh
 * SeLinux will be disabled (if not disabled previously).
 
 .. note::
-
-* If SeLinux is not disabled, it will be disabled by the script and the user will be prompted to reboot the control plane.
-
-* If provisioning via IB NICs is required, users are required to install IB drivers using ````
+    * If SeLinux is not disabled, it will be disabled by the script and the user will be prompted to reboot the control plane.
+    * If provisioning via IB NICs is required, users are required to install IB drivers using ``yum groupinstall "Infiniband Support" -y``
 
 
 
