@@ -18,13 +18,13 @@
 
 - name: Check if redhat node is present
   ansible.builtin.set_fact:
-    redhat_node_ip: "{{ redhat_node_ip | default([]) }} + {{ [item] }}"
+    redhat_node_ip: "{{ redhat_node_ip | default([]) + [ item ] }}"
   with_items: "{{ groups['all'] }}"
   when: "'redhat' in hostvars[item].ansible_distribution | lower"
 
 - name: Perform validations when compute nodes have redhat os installed
   block:
-    - name: Check redhat distro is available
+    - name: Set Redhat distro 
       ansible.builtin.set_fact:
         mlnx_ofed_distro: "{{ 'rhel' + hostvars[redhat_node_ip[0]].ansible_distribution_version }}"
 
