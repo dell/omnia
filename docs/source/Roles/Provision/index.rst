@@ -9,13 +9,13 @@ Once Omnia is downloaded from github:
 
 ``git clone https://github.com/dellhpc/omnia.git``
 
+Enter all required parameters in ``omnia/input/provision_config.yml``:
+
+.. include:: ../../InputParamGuide/provision.rst
+
 Change directory to the omnia/provision folder:
 
 ``cd omnia/provision``
-
-Enter all required parameters:
-
-.. include:: ../../InputParamGuide/provision.rst
 
 
 Run the script:
