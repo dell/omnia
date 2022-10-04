@@ -12,7 +12,9 @@ Before You Run Control Plane
 
 * For DHCP configuration, you can provide a host mapping file. If the mapping file is not provided and the variable is left blank, a default mapping file will be created. The provided details must be in the format: MAC address, Hostname, IP address, Component_role. For example,  ``10:11:12:13,server1,100.96.20.66,compute`` and   ``14:15:16:17,server2,100.96.22.199,manager`` are valid entries.
 
-* Connect one of the Ethernet cards on the control plane to the HPC switch. The other Ethernet card must be connected to the internet network. Acceptable network topologies are provided in the `Supported Network Topology file. <../Overview/NetworkTopologies/index.html>`_
+* Connect one of the Ethernet cards on the control plane to the HPC switch. The other Ethernet card must be connected to the internet network. Follow the below diagram to set up the network:
+
+.. image:: ../../images/SharedLomRoceNIC.png
 
 * Ensure that all connection names under the network manager match their corresponding device names. This can be verified using the command  ``nmcli connection``. In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcfg-<nic name>`` using vi editor.
 
