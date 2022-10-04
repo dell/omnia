@@ -1,4 +1,4 @@
 Input Parameters for Omnia
 ==========================
 
-.. include:: ../../InputParamGuide/omniainputs.rst
+.. include:: ../../../InputParamGuide/omniainputs.rst
