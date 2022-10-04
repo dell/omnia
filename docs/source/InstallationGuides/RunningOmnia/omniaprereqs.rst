@@ -6,7 +6,7 @@ Before You Run Omnia
 
 * If the target cluster requires more than 10 kubernetes nodes, use a docker enterprise account to avoid docker pull limits.
 
-* Verify that all nodes are assigned a group. Use the `host_inventory.ini <../samplefiles.html>`_ as a reference.
+* Verify that all nodes are assigned a group. Use the `host_inventory.ini <../../samplefiles.html>`_ as a reference.
 
   * The manager group should have exactly 1 manager node.
 
@@ -20,7 +20,7 @@ Before You Run Omnia
 
 .. note:: The inventory file accepts both IPs and FQDNs as long as they can be resolved by DNS.
 
-* For RedHat clusters, ensure that `RedHat subscription <../EnablingOptionalFeatures/rhsm.html>`_ is enabled on all target nodes.
+* For RedHat clusters, ensure that RedHat subscription is enabled on all target nodes.
 
 
 
@@ -88,7 +88,7 @@ To open the ports required, use the following steps:
 
 Based on the value of ``powervault_support``, NFS configuration can take one of two forms:
 
-.. image:: ../images/nfs_flowchart.png
+.. image:: ../../images/nfs_flowchart.png
 
 
 
@@ -169,7 +169,7 @@ Based on the value of ``powervault_support``, NFS configuration can take one of 
 
 
 
-.. include:: ../Appendices/hostnamereqs.rst
+.. include:: ../../Appendices/hostnamereqs.rst
 
 
 
@@ -210,7 +210,7 @@ Based on the value of ``powervault_support``, NFS configuration can take one of 
 
 * There should be multiple network paths available between the NFS server and the Powervault to ensure high availability. For more information, `click here <https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/8/html/configuring_device_mapper_multipath/overview-of-device-mapper-multipathing_configuring-device-mapper-multipath>`_.
 
-.. image:: ../images/MultipathingOverSAS.png
+.. image:: ../images/../MultipathingOverSAS.png
 
 * Set ``powervault_protocol`` to 'sas' in ``powervault_vars.yml``.
 

@@ -125,9 +125,9 @@ Below is a list of all logs available to Loki and can be accessed on the dashboa
 +---------------------------+------------------------------------------------------------------------------+------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------+
 
 
-.. |Dashboard| image:: ../../images/Visualization/DashBoardIcon.PNG
+.. |Dashboard| image:: ../../../images/Visualization/DashBoardIcon.PNG
     :height: 25px
 
-.. |Explore| image:: ../../images/Visualization/ExploreIcon.PNG
+.. |Explore| image:: ../../../images/Visualization/ExploreIcon.PNG
     :height: 25px
 
