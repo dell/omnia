@@ -29,7 +29,7 @@ Running Control Plane Playbook
 
     i. All available compute nodes will be PXE booted to have IP addresses and host names as specified in ``omnia/input/provision.yml``.
 
-    ii. All ports required for xCAT to run will be opened (For a complete list, check out the `Security Configuration Document <../SecurityConfigGuide/PortsUsed/xCAT>`_).
+    ii. All ports required for xCAT to run will be opened (For a complete list, check out the `Security Configuration Document <../../SecurityConfigGuide/PortsUsed/xCAT.html>`_).
 
     iii. A PostgreSQL database is set up with all relevant cluster information such as MAC IDs, service tags, infiniband IPs, BMC IPs etc.
 
