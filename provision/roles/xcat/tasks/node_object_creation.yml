@@ -46,8 +46,9 @@
     - name: Create node object from mapping file created by snmp utility
       ansible.builtin.shell: >
         source {{ xcat_env_path }} && \
-        mkdef -t node "{{ utility_mapping_file_output.list[idx2].Hostname.split('.')[0] }}" groups={{ provision_os }},all ip="{{ utility_mapping_file_output.list[idx2].IP }}"
-        mac="{{ utility_mapping_file_output.list[idx2].MAC }}" hostnames="{{ utility_mapping_file_output.list[idx2].Hostname }}"  netboot=xnba arch=x86_64  -f
+        mkdef -t node "{{ utility_mapping_file_output.list[idx2].Hostname.split('.')[0] }}" groups={{ provision_os }},all
+        ip="{{ utility_mapping_file_output.list[idx2].IP }}" mac="{{ utility_mapping_file_output.list[idx2].MAC }}"
+        hostnames="{{ utility_mapping_file_output.list[idx2].Hostname }}"  netboot=xnba arch=x86_64  -f
       with_items: "{{ utility_mapping_file_output.list }}"
       changed_when: true
       loop_control:
