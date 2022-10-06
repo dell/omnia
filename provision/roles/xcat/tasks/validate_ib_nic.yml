@@ -13,5 +13,9 @@
 #  limitations under the License.
 ---
 
-amd_gpu_version: "latest"
-amd_rocm_version: "latest"
+- name: Assert IB nic subnet if it is given
+  ansible.builtin.assert:
+    that:
+      - ib_nic_subnet | length > 6
+    success_msg: "{{ success_subnet }} for IB "
+    fail_msg: "{{ fail_subnet }} for IB"

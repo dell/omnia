@@ -13,7 +13,35 @@
 # limitations under the License.
 ---
 
-# Will be updated later in each PR
-- name: Pass
-  debug:
-    msg: "Pass"
+- name: Check xcat pre-requisites
+  ansible.builtin.include_tasks: pre_requisites.yml
+
+- name: Common packages installation
+  ansible.builtin.include_tasks: package_installation.yml
+  when: not xcat_installation_status
+
+- name: Validate the nic parameters
+  ansible.builtin.include_tasks: validate_public_nic.yml
+
+- name: Validate the switch related parameters
+  ansible.builtin.include_tasks: validate_switch_vars.yml
+
+- name: Validate provision parameters
+  ansible.builtin.include_tasks: validate_provision_vars.yml
+
+- name: Validate domain_name
+  ansible.builtin.include_tasks: validate_domain_name.yml
+
+- name: Configure firewall settings
+  ansible.builtin.include_tasks: firewall_settings.yml
+  when: not xcat_installation_status
+
+- name: Install xcat
+  ansible.builtin.include_tasks: install_xcat.yml
+  when: not xcat_installation_status
+
+- name: Configure xcat
+  ansible.builtin.include_tasks: configure_xcat.yml
+
+- name: Create xcat osimage
+  ansible.builtin.include_tasks: create_osimage.yml
