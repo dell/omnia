@@ -20,12 +20,11 @@
 public_nic: "eno2"
 
 ## Admin NIC Details
-# TBD
+# This is the shared LOM nic.
 # Default value: "eno1"
 # Mandatory
 admin_nic: "eno1"
 
-# TBD
 # Default value: "172.29.0.0"
 # Mandatory
 admin_nic_subnet: "172.29.0.0"
@@ -43,7 +42,6 @@ pxe_nic_end_range: "172.29.0.200"
 
 ### IB NIC Details
 # If provided, omnia will handle and assign static IPs to compute node's IB network.
-# TBD
 # Optional
 ib_nic_subnet: ""
 
@@ -69,20 +67,25 @@ pxe_mapping_file_path: ""
 pxe_switch_ip: ""
 pxe_switch_snmp_community_string: "public"
 
-# TBD
-node_name: "compute"
+# The prefix for the node names, if needed to be dynamically allocated.
+# Mandatory, if PXE switch IP given
+node_name: "node"
+
+# This variable is used to accept the domain name the user intends to configure
+# Mandatory
+domain_name: ""
 
 # This is the operating system image that will be used for provisioning compute nodes in the cluster.
 # Accepted values: rocky, rhel
 # Default value: "rocky"
 # Required field
-provision_os: "rocky"
+provision_os: "rhel"
 
 # This is the path where the user has to place the iso image that needs to be provisioned in target nodes.
 # The iso file should be Rocky8-DVD or RHEL-8.x-DVD.
 # Other iso files are not supported.
 # Required field
-iso_file_path: "/home/Rocky-8.6-x86_64-dvd1.iso"
+iso_file_path: "/home/RHEL-8.4.0-20210503.1-x86_64-dvd1.iso"
 
 # This is the timezone that will be set during provisioning of OS
 # Available timezones are provided in provision/roles/xcat/files/timezone.txt
@@ -101,9 +104,6 @@ language: "en-US"
 # Max: 31536000 seconds
 # Required field
 default_lease_time: "86400"
-
-# This variable is used to accept the domain name the user intends to configure
-domain_name: "omnia.test"
 
 # Password used while deploying OS on bare metal servers.
 # The Length of the password should be at least 8 characters.
