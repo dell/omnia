@@ -1,0 +1,44 @@
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Create DHCP configuration
+  ansible.builtin.shell: >
+    source {{ xcat_env_path }} && \
+    makedhcp -n
+  changed_when: true
+
+- name: Add hosts entry
+  ansible.builtin.shell: >
+    source {{ xcat_env_path }} && \
+    makehosts {{ provision_os }}
+  changed_when: true
+
+- name: Apply DHCP Configuration
+  ansible.builtin.shell: >
+    source {{ xcat_env_path }} && \
+    makedhcp -a
+  changed_when: true
+
+- name: Create DNS configuration
+  ansible.builtin.shell: >
+    source {{ xcat_env_path }} && \
+    makedns -n
+  changed_when: true
+
+- name: Set osimage to node object
+  ansible.builtin.shell: >
+    source {{ xcat_env_path }} && \
+    nodeset {{ provision_os }} osimage={{ provision_os_image }}
+  changed_when: true
