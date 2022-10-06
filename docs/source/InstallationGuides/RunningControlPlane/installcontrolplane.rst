@@ -10,7 +10,7 @@ Running Control Plane Playbook
 
     cd input_params
 
-3. Edit the *provision.yml* file to update the required variables.
+3. Edit the *provision_config.yml* file to update the required variables.
 
 .. warning:: The IP address *192.168.25.x* is used for PowerVault Storage communications. Therefore, do not use this IP address for other configurations.
 
@@ -25,6 +25,16 @@ Running Control Plane Playbook
     ii. All ports required for xCAT to run will be opened (For a complete list, check out the `Security Configuration Document <../../SecurityConfigGuide/PortsUsed/xCAT.html>`_).
 
     iii. A PostgreSQL database is set up with all relevant cluster information such as MAC IDs, service tags, infiniband IPs, BMC IPs etc.
+
+            To access the DB, run:
+
+                        ``psql -U postgres``
+
+                        ``\c omniadb``
+
+            To view the schema being used in the cluster: ``\dn``
+            To view the tables in the database: ``\dt``
+            To view the contents of the ``nodeinfo`` table: ``select * from cluster.nodeinfo``
 
     iv. Offline repositories will be created based on the OS being deployed across the cluster.
 
