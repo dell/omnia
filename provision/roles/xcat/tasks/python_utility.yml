@@ -19,4 +19,3 @@
       {{ pxe_nic_start_range }} {{ pxe_nic_end_range }} {{ node_name }} {{ pxe_mapping_path }} {{ domain_name }}
   register: snmp_status
   changed_when: true
-  

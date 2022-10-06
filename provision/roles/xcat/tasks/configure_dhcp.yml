@@ -13,23 +13,32 @@
 # limitations under the License.
 ---
 
-- name: Install common packages
-  ansible.builtin.package:
-    name: "{{ common_packages_xcat }}"
-    state: present
-
-- name: Install netaddr
-  ansible.builtin.command: pip3.8 install netaddr
+- name: Create DHCP configuration
+  ansible.builtin.shell: >
+    source {{ xcat_env_path }} && \
+    makedhcp -n
   changed_when: true
 
-- name: Install python snmp
-  ansible.builtin.command: "{{ python_version }} -m pip install {{ snmp_python_package }}"
+- name: Add hosts entry
+  ansible.builtin.shell: >
+    source {{ xcat_env_path }} && \
+    makehosts {{ provision_os }}
   changed_when: true
 
-- name: Install python postgres
-  ansible.builtin.command: "{{ python_version }} -m pip install {{ postgres_python_package }}"
+- name: Apply DHCP Configuration
+  ansible.builtin.shell: >
+    source {{ xcat_env_path }} && \
+    makedhcp -a
   changed_when: true
 
-- name: Install ansible galaxy collection ansible.utils
-  ansible.builtin.command: ansible-galaxy collection install "{{ ipaddr_collection }}"
+- name: Create DNS configuration
+  ansible.builtin.shell: >
+    source {{ xcat_env_path }} && \
+    makedns -n
+  changed_when: true
+
+- name: Set osimage to node object
+  ansible.builtin.shell: >
+    source {{ xcat_env_path }} && \
+    nodeset {{ provision_os }} osimage={{ provision_os_image }}
   changed_when: true

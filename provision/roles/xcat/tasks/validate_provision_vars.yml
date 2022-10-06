@@ -107,7 +107,7 @@
     - name: Assert primary_dns when not empty
       ansible.builtin.assert:
         that:
-          - primary_dns | ipv4
+          - primary_dns | ansible.utils.ipv4
         success_msg: "{{ primary_dns_success_msg }}"
         fail_msg: "{{ primary_dns_fail_msg }}"
 
@@ -127,7 +127,7 @@
         - name: Assert secondary_dns when not empty
           ansible.builtin.assert:
             that:
-              - secondary_dns | ipv4
+              - secondary_dns | ansible.utils.ipv4
               - secondary_dns != primary_dns
             success_msg: "{{ secondary_dns_success_msg }}"
             fail_msg: "{{ secondary_dns_fail_msg }}"
@@ -174,7 +174,7 @@
           - '"\"" not in postgresdb_password'
           - " \"'\" not in postgresdb_password"
           - '"@" not in postgresdb_password'
-          - postgresdb_password is regex(("^(([a-z]|[a-z][a-z0-9\-]*[a-z0-9])\.)*([a-z]|[a-z][a-z0-9\-]*[a-z0-9])$"))
+          - postgresdb_password is regex("^(?=.*[a-zA-Z])(?=.*[0-9])[A-Za-z0-9]+$")
       no_log: true
   rescue:
     - name: Validation check for postgresdb_password
