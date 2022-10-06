@@ -65,7 +65,7 @@ Before running infiniband.yml, ensure that SSL Secure Cookies are disabled also 
 
 In case any of these services are not in the state required, run:
 
-``no web https ssl`` secure-cookie enable (To disable SSL Secure Cookies)
+``no web https ssl secure-cookie enable`` (To disable SSL Secure Cookies)
 
 ``web http enable`` (To enable the HTTP gateway)
 
@@ -89,12 +89,18 @@ If ``enable_split_port`` is **TRUE**, run ``ansible-playbook infiniband_switch_c
 
 If ``enable_split_port`` is **FALSE**, run ``ansible-playbook infiniband_switch_config.yml -i inventory -e ib_username="" -e ib_password=""  -e ib_switch_type =""``
 
-Where ``ib_username`` is the username used to authenticate into the switch.
-Where ``ib_password`` is the password used to authenticate into the switch.
-Where ``ib_admin_password`` is the intended password to authenticate into the switch after ``infiniband_switch_config.yml`` has run.
-Where ``ib_monitor_password`` is the mandatory password required while running the initial configuration wizard on the Inifiniband switch.
-Where ``ib_default_password`` is the password used to authenticate into factory reset/fresh-install switches.
-Where ``ib_switch_type`` refers to the model of the switch: HDR/EDR
+
+* Where ``ib_username`` is the username used to authenticate into the switch.
+
+* Where ``ib_password`` is the password used to authenticate into the switch.
+
+* Where ``ib_admin_password`` is the intended password to authenticate into the switch after ``infiniband_switch_config.yml`` has run.
+
+* Where ``ib_monitor_password`` is the mandatory password required while running the initial configuration wizard on the Inifiniband switch.
+
+* Where ``ib_default_password`` is the password used to authenticate into factory reset/fresh-install switches.
+
+* Where ``ib_switch_type`` refers to the model of the switch: HDR/EDR
 
 .. note::
 
