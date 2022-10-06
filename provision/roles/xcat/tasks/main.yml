@@ -33,7 +33,7 @@
   ansible.builtin.include_tasks: validate_domain_name.yml
 
 - name: Executing python utilities
-  ansible.built.include_tasks: python_utility.yml
+  ansible.builtin.include_tasks: python_utility.yml
   when: pxe_switch_ip | length > 6
 
 - name: Configure firewall settings
