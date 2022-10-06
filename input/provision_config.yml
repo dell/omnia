@@ -105,9 +105,6 @@ language: "en-US"
 # Required field
 default_lease_time: "86400"
 
-# This variable is used to accept the domain name the user intends to configure
-domain_name: "omnia.test"
-
 # Password used while deploying OS on bare metal servers.
 # The Length of the password should be at least 8 characters.
 # The password must not contain -,\, ',"
