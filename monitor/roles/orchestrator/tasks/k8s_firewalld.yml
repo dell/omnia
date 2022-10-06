@@ -14,25 +14,25 @@
 ---
 
 - name: Configure firewalld on master nodes
-  command: "firewall-cmd --permanent --add-port={{ item }}"
+  ansible.builtin.command: "firewall-cmd --permanent --add-port={{ item }}"
   changed_when: true
   with_items: '{{ k8s_master_ports }}'
 
 - name: Open calico UDP ports on the firewall
-  command: "firewall-cmd --permanent --add-port={{ item }}/udp"
+  ansible.builtin.command: "firewall-cmd --permanent --add-port={{ item }}/udp"
   changed_when: true
   with_items: "{{ calico_udp_ports }}"
 
 - name: Open calico TCP ports on the firewall
-  command: "firewall-cmd --permanent --add-port={{ item }}/tcp"
+  ansible.builtin.command: "firewall-cmd --permanent --add-port={{ item }}/tcp"
   changed_when: true
   with_items: "{{ calico_tcp_ports }}"
 
 - name: Masquerade the firewall
-  command: firewall-cmd --add-masquerade --permanent
+  ansible.builtin.command: firewall-cmd --add-masquerade --permanent
   changed_when: true
   tags: firewalld
 
 - name: Reload firewalld
-  command: firewall-cmd --reload
+  ansible.builtin.command: firewall-cmd --reload
   changed_when: true

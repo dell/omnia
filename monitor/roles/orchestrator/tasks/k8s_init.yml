@@ -14,30 +14,31 @@
 ---
 
 - name: Disable SWAP (1/2)
-  command: /usr/sbin/swapoff -a
+  ansible.builtin.command: /usr/sbin/swapoff -a
   changed_when: true
 
 - name: Disable SWAP in fstab (2/2)
-  replace:
+  ansible.builtin.replace:
     path: /etc/fstab
     regexp: '^([^#].*?\sswap\s+.*)$'
     replace: '# \1'
 
 - name: Get K8s nodes status
-  command: kubectl get nodes
+  ansible.builtin.command: kubectl get nodes
   changed_when: false
   failed_when: false
   register: k8s_nodes
 
 - name: Get K8s pods status
-  command: kubectl get pods --all-namespaces
+  ansible.builtin.command: kubectl get pods --all-namespaces
   changed_when: false
   failed_when: false
   register: k8s_pods
 
-- block:
+- name: Login to docker
+  block:
     - name: Docker login
-      command: docker login -u {{ docker_username }} -p {{ docker_password }}
+      ansible.builtin.command: docker login -u {{ docker_username }} -p {{ docker_password }}
       changed_when: true
       register: docker_login_output
       retries: 10
@@ -47,99 +48,99 @@
       no_log: true
   rescue:
     - name: Warning - docker login failed
-      debug:
-        msg: "Warning: {{ docker_login_output.stderr }}" 
+      ansible.builtin.debug:
+        msg: "Warning: {{ docker_login_output.stderr }}"
 
 - name: Docker login check
-  fail:
+  ansible.builtin.fail:
     msg: "{{ docker_login_fail_msg }}"
   when: docker_login_output is failed
 
 - name: Initialize kubeadm (This process may take 5-10min)
   block:
     - name: Initialize kubeadm (This process may take 5-10min)
-      command: "kubeadm init --pod-network-cidr='{{ appliance_k8s_pod_net_cidr }}' \
-        --apiserver-advertise-address='{{ public_ip }}'"
+      ansible.builtin.command: "kubeadm init --pod-network-cidr='{{ appliance_k8s_pod_net_cidr }}' \
+        --apiserver-advertise-address='{{ ansible_default_ipv4.address }}'"
       changed_when: true
       register: init_output
   rescue:
     - name: Reset kubeadm
-      command: "kubeadm reset -f"
+      ansible.builtin.command: "kubeadm reset -f"
       changed_when: true
 
     - name: Initialize kubeadm (This process may take 5-10min)
-      command: "kubeadm init --pod-network-cidr='{{ appliance_k8s_pod_net_cidr }}' \
-          --apiserver-advertise-address='{{ public_ip }}'"
+      ansible.builtin.command: "kubeadm init --pod-network-cidr='{{ appliance_k8s_pod_net_cidr }}' \
+          --apiserver-advertise-address='{{ ansible_default_ipv4.address }}'"
       changed_when: true
       register: init_output
 
     - name: Get K8s pods status
-      command: kubectl get pods --all-namespaces
+      ansible.builtin.command: kubectl get pods --all-namespaces
       changed_when: false
       failed_when: false
       register: k8s_pods
   when: "'master' not in k8s_nodes.stdout"
 
 - name: Setup directory for Kubernetes environment for root
-  file:
+  ansible.builtin.file:
     path: "{{ k8s_root_directory }}"
     state: directory
     mode: "{{ k8s_root_directory_mode }}"
 
 - name: Copy Kubernetes config for root
-  copy:
+  ansible.builtin.copy:
     src: "{{ k8s_config_src }}"
     dest: "{{ k8s_config_dest }}"
     owner: root
     group: root
     mode: "{{ k8s_config_file_mode }}"
-    remote_src: yes
+    remote_src: true
 
 - name: Update the kubernetes config file permissions
-  shell: "chown $(id -u):$(id -g) '{{ k8s_config_dest }}'"
+  ansible.builtin.shell: "chown $(id -u):$(id -g) '{{ k8s_config_dest }}'"
   args:
     warn: false
   changed_when: true
 
 - name: Cluster token
-  shell: >
+  ansible.builtin.shell: >
     set -o pipefail && \
       kubeadm token list | cut -d ' ' -f1 | sed -n '2p'
   changed_when: false
   register: k8s_token
 
 - name: CA Hash
-  shell: >
+  ansible.builtin.shell: >
     set -o pipefail && \
       openssl x509 -pubkey -in {{ k8s_cert_path }} | openssl rsa -pubin -outform der 2>/dev/null | openssl dgst -sha256 -hex | sed 's/^.* //'
   changed_when: false
   register: k8s_manager_ca_hash
 
 - name: Add K8S Manager IP, Token, and Hash to dummy host
-  add_host:
-    name:   "K8S_TOKEN_HOLDER"
-    token:  "{{ k8s_token.stdout }}"
-    hash:   "{{ k8s_manager_ca_hash.stdout }}"
-    ip:     "{{ public_ip }}"
+  ansible.builtin.add_host:
+    name: "K8S_TOKEN_HOLDER"
+    token: "{{ k8s_token.stdout }}"
+    hash: "{{ k8s_manager_ca_hash.stdout }}"
+    ip: "{{ ansible_default_ipv4.address }}"
 
 - name: Create yaml repo for setup
-  file:
+  ansible.builtin.file:
     path: "{{ yaml_repo_dir_path }}"
     state: directory
     mode: "{{ yaml_repo_dir_mode }}"
 
 - name: Setup Calico SDN network - tigera-operator
-  command: "kubectl create -f {{ tigera_operator_url }}"
+  ansible.builtin.command: "kubectl create -f {{ tigera_operator_url }}"
   changed_when: true
   when: "'tigera-operator' not in k8s_pods.stdout"
 
 - name: Setup Calico SDN network - custom-resources
-  command: "kubectl create -f {{ calico_yml_url }}"
+  ansible.builtin.command: "kubectl create -f {{ calico_yml_url }}"
   changed_when: true
   failed_when: false
   when: "'calico-system' not in k8s_pods.stdout"
 
 - name: Edge / Workstation Install allows pods to schedule on manager
-  command: kubectl taint nodes --all node-role.kubernetes.io/master-
+  ansible.builtin.command: kubectl taint nodes --all node-role.kubernetes.io/master-
   changed_when: true
   failed_when: false

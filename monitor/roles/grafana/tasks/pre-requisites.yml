@@ -13,20 +13,50 @@
 # limitations under the License.
 ---
 
+- name: Check for grafana folder existence
+  ansible.builtin.stat:
+    path: "{{ grafana_conf_dest }}"
+  register: grafana_conf_status
+
+- name: Create data folder when its doesn't exists
+  ansible.builtin.file:
+    path: "{{ grafana_conf_dest }}"
+    state: directory
+    mode: "{{ mount_dir_perm }}"
+    group: root
+    owner: root
+  when: not grafana_conf_status.stat.exists
+
+- name: Copy grafana service file
+  ansible.builtin.copy:
+    src: grafana_svc_details.ini
+    dest: "{{ grafana_conf_dest }}"
+    owner: root
+    group: root
+    mode: "{{ conf_file_mode }}"
+
+- name: Make mount directory for grafana if it doesnt exist
+  ansible.builtin.file:
+    path: "{{ mount_location }}"
+    state: directory
+    mode: "{{ mount_dir_perm }}"
+    group: root
+    owner: root
+
 - name: Add kubernetes and grafana ansible-galaxy collection
-  command: ansible-galaxy collection install "{{ item }}"
+  ansible.builtin.command: ansible-galaxy collection install "{{ item }}"
   with_items: "{{ collections_name }}"
   changed_when: false
 
 - name: Install PyYAML using pip3
-  pip:
+  ansible.builtin.pip:
     name: PyYAML
     state: present
     executable: pip3
     extra_args: --ignore-installed
-  
+
 - name: Install openshift using pip3
-  pip:
+  ansible.builtin.pip:
     name: openshift
     state: present
     executable: pip3
@@ -39,7 +69,7 @@
     state: present
 
 - name: Make grafana persistent directory if it doesnt exist
-  file:
+  ansible.builtin.file:
     path: "{{ mount_location + grafana_k8s }}"
     state: directory
     mode: "{{ directory_mode }}"

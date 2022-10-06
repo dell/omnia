@@ -12,3 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+
+# When grafana support was needed, change this value to true
+# Default value is false
+# Accepted values are true or false
+monitor_support: false
