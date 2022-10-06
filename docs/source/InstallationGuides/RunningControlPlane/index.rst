@@ -5,5 +5,4 @@ Running Control Plane
     controlplaneprereqs
     controlplaneparams
     installcontrolplane
-    configuredevices/index
-    security/index
+
