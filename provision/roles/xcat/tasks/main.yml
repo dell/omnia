@@ -49,3 +49,12 @@
 
 - name: Create xcat osimage
   ansible.builtin.include_tasks: create_osimage.yml
+
+- name: Create racadm repo
+  ansible.builtin.include_tasks: racadm_config.yml
+
+- name: Create node object
+  ansible.builtin.include_tasks: node_object_creation.yml
+
+- name: Configure DHCP
+  ansible.builtin.include_tasks: configure_dhcp.yml
