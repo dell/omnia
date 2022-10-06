@@ -37,7 +37,7 @@ fail_msg_different_nics: "Failed.Incorrect nic information.Public nic must be di
 # Usage: validate_switch_vars.yml
 pxe_switch_ip_valid: "Valid switch ip provided"
 pxe_switch_ip_invalid: " Failed. Provide a valid switch ip"
-fail_switch_or_mapping_file: "Failed. Please provide either PXE mapping file or PXE switch details. If switch details are given, please provide proper node name as well."
+fail_switch_or_mapping_file: "Failed.Please provide either PXE mapping file or PXE switch details.If switch details are given,then provide proper nodename too."
 fail_msg_pxe_path: "Failed. Please provide a valid PXE mapping file path"
 
 # Usage: package_installation.yml
@@ -47,6 +47,9 @@ common_packages_xcat:
   - dos2unix
   - net-snmp
   - net-snmp-utils
+python_version: python3.8
+snmp_python_package: easysnmp
+postgres_python_package: psycopg2-binary
 
 # Usage: validate_provision_vars.yml
 input_provision_fail_msg: "Please provide all the required provision parameters"
@@ -131,6 +134,10 @@ xcat_ports:
   - "162/tcp"
   - "162/udp"
   - "5432/tcp"
+
+# Usage: python_utility.yml
+snmp_utility_path: "{{ role_path }}/files/snmp_utility.py"
+pxe_mapping_path: "{{ role_path }}/files/pxe_mapping_file.csv"
 
 # Usage: install_xcat.yml
 xcat_directory: /root/xcat
