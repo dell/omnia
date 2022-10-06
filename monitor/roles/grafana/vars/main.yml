@@ -13,11 +13,18 @@
 #  limitations under the License.
 ---
 
+# Usage: main.yml
+monitor_config_vars: "{{ role_path }}/../../../input/monitor_config.yml"
+grafana_conf_path: "/opt/omnia/.data/grafana_svc_details.ini"
+grafana_conf_dest: "/opt/omnia/.data/"
+conf_file_mode: 0644
+
 # Usage: pre-requisites.yml
 collections_name:
   - kubernetes.core:2.2.3
   - community.grafana:1.3.0
 directory_mode: '0774'
+mount_dir_perm: '0775'
 
 # Usage: secrets.yml
 grafana_secrets: grafana-secrets
@@ -45,3 +52,12 @@ plugins_name:
 grafana_plugins_folder_name: github-grafana-plugins/
 grafana_plugins_github_repo: https://github.com/nsfcac/grafana-plugin.git
 grafana_plugins_stable_commit: "947da4f"
+
+# Usage: validate_grafana.yml
+monitor_config_vars: "{{ role_path }}/../../../input/monitor_config.yml"
+fail_msg_grafana_credentials: "Failed. Incorrect grafana_username or grafana_password format provided"
+mount_validation_msg: "Make sure mount location value is not null"
+min_length_grafana: 5
+max_length: 30
+selinux_warning: "Warning! SELinux status is disabled by user. No SELinux policy is loaded"
+os_supported_leap: "leap"

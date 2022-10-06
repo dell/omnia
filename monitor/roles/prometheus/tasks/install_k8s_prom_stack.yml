@@ -14,7 +14,7 @@
 ---
 
 - name: Pull image for kube-webhook-certgen
-  command: buildah pull "{{ kube_prom_stack_image_name }}:{{ kube_prom_stack_image_tag }}"
+  ansible.builtin.command: buildah pull "{{ kube_prom_stack_image_name }}:{{ kube_prom_stack_image_tag }}"
   changed_when: true
   register: pull_prom_stack_image
   until: pull_prom_stack_image is not failed
@@ -24,7 +24,7 @@
   kubernetes.core.helm_repository:
     name: prometheus-community
     repo_url: "{{ helm_repo_prometheus }}"
-  failed_when: False
+  failed_when: false
 
 - name: Install kube-prom-stack
   block:
@@ -33,23 +33,23 @@
         name: "{{ monitoring_app_name }}"
         chart_ref: prometheus-community/kube-prometheus-stack
         chart_version: "{{ k8s_prom_stack_chart_version }}"
-        update_repo_cache: True
+        update_repo_cache: true
         release_namespace: "{{ monitoring_namespace }}"
-        create_namespace : yes
+        create_namespace: true
         wait: true
         values:
           grafana:
-            enabled: False
+            enabled: false
   rescue:
     - name: Delete helm kube-prom-stack deployments
-      command: helm delete {{ monitoring_app_name }} -n {{ monitoring_namespace }}
-      changed_when: True
-      failed_when: False
+      ansible.builtin.command: helm delete {{ monitoring_app_name }} -n {{ monitoring_namespace }}
+      changed_when: true
+      failed_when: false
 
     - name: Delete existing kube-prom-stack crd
-      command: "kubectl delete crd {{ item }}"
-      changed_when: True
-      failed_when: False
+      ansible.builtin.command: "kubectl delete crd {{ item }}"
+      changed_when: true
+      failed_when: false
       with_items: "{{ k8s_prom_stack_crd }}"
 
     - name: Install kube-prom-stack
@@ -57,14 +57,15 @@
         name: "{{ monitoring_app_name }}"
         chart_ref: prometheus-community/kube-prometheus-stack
         chart_version: "{{ k8s_prom_stack_chart_version }}"
-        update_repo_cache: True
+        update_repo_cache: true
         release_namespace: "{{ monitoring_namespace }}"
-        create_namespace : yes
+        create_namespace: true
         wait: true
         values:
           grafana:
-            enabled: False
+            enabled: false
 
 - name: Wait for kube-prom-stack pod to come to ready state
-  command: kubectl wait --for=condition=ready --timeout={{ pod_timeout }} -n "{{ monitoring_namespace }}" pod -l app=kube-prometheus-stack-operator
+  ansible.builtin.command: >-
+    kubectl wait --for=condition=ready --timeout={{ pod_timeout }} -n "{{ monitoring_namespace }}" pod -l app=kube-prometheus-stack-operator
   changed_when: false

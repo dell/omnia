@@ -12,3 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+
+- name: Include pre-requisites for k8s
+  hosts: localhost
+  tasks:
+    - name: Pre-requisites for orchestrator
+      ansible.builtin.include_role:
+        name: orchestrator
+        tasks_from: validate_k8s_params.yml
+
+- name: Include pre-requisites for grafana
+  hosts: localhost
+  tasks:
+    - name: Pre-requisites for grafana
+      ansible.builtin.include_role:
+        name: grafana
+        tasks_from: validate_grafana_params.yml
+
+- name: Executing monitor roles
+  hosts: localhost
+  connection: local
+  roles:
+    - role: orchestrator
+    - role: grafana
+    - role: prometheus

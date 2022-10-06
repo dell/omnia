@@ -13,41 +13,50 @@
 #  limitations under the License.
 ---
 
+- name: Include Pre-requisites
+  ansible.builtin.include_tasks: pre_requisites.yml
+
+- name: NFS Server setup
+  ansible.builtin.import_tasks: nfs_server_setup.yml
+
 - name: Install K8s packages
-  include_tasks: k8s_installation.yml
+  ansible.builtin.include_tasks: k8s_installation.yml
   when: os_supported_leap not in mgmt_os
 
 - name: Install K8s packages for leap
-  include_tasks: k8s_installation_leap.yml
-  when: ( os_supported_leap in mgmt_os ) and ( ansible_distribution_version >= os_supported_leap_version )
+  ansible.builtin.include_tasks: k8s_installation_leap.yml
+  when:
+    - os_supported_leap in mgmt_os
+    - ansible_distribution_version >= os_supported_leap_version
 
 - name: Configure firewalld
-  import_tasks: k8s_firewalld.yml
+  ansible.builtin.import_tasks: k8s_firewalld.yml
 
 - name: Install helm
-  import_tasks: k8s_helm.yml
+  ansible.builtin.import_tasks: k8s_helm.yml
 
 - name: Initialize K8s
-  import_tasks: k8s_init.yml
+  ansible.builtin.import_tasks: k8s_init.yml
 
 - name: Waiting for 15 seconds for nodes to be ready
-  pause:
+  ansible.builtin.pause:
     seconds: 15
 
 - name: Get K8s nodes status
-  command: kubectl get nodes
+  ansible.builtin.command: kubectl get nodes
   changed_when: false
   failed_when: false
   register: k8s_nodes
 
-- block:
-  - name: Reset kubeadm
-    command: kubeadm reset -f
-    changed_when: false
+- name: Reset kubeadm & initialise k8s
+  block:
+    - name: Reset kubeadm
+      ansible.builtin.command: kubeadm reset -f
+      changed_when: false
 
-  - name: Initialise k8s
-    include_tasks: k8s_init.yml
+    - name: Initialise k8s
+      ansible.builtin.include_tasks: k8s_init.yml
   when: "' Ready' not in k8s_nodes.stdout"
 
 - name: Deploy K8s dashboard
-  import_tasks: k8s_services.yml
+  ansible.builtin.import_tasks: k8s_services.yml

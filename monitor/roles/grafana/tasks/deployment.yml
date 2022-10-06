@@ -41,31 +41,31 @@
                 image: "{{ grafana_image }}"
                 imagePullPolicy: "IfNotPresent"
                 env:
-                - name: GF_SERVER_HTTP_PORT
-                  value: "{{ grafana_port }}"
-                - name: GF_PLUGINS_PLUGIN_ADMIN_ENABLED
-                  value: "true"
-                - name: GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS
-                  value: "{{ grafana_plugins_names }}"
-                - name: GF_SECURITY_ADMIN_USER
-                  valueFrom:
-                    secretKeyRef:
-                      name: "{{ grafana_secrets }}"
-                      key: grafana_username
-                - name: GF_SECURITY_ADMIN_PASSWORD
-                  valueFrom:
-                    secretKeyRef:
-                      name: "{{ grafana_secrets }}"
-                      key: grafana_password
+                  - name: GF_SERVER_HTTP_PORT
+                    value: "{{ grafana_port }}"
+                  - name: GF_PLUGINS_PLUGIN_ADMIN_ENABLED
+                    value: "true"
+                  - name: GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS
+                    value: "{{ grafana_plugins_names }}"
+                  - name: GF_SECURITY_ADMIN_USER
+                    valueFrom:
+                      secretKeyRef:
+                        name: "{{ grafana_secrets }}"
+                        key: grafana_username
+                  - name: GF_SECURITY_ADMIN_PASSWORD
+                    valueFrom:
+                      secretKeyRef:
+                        name: "{{ grafana_secrets }}"
+                        key: grafana_password
                 ports:
-                - containerPort: "{{ grafana_http_port }}"
+                  - containerPort: "{{ grafana_http_port }}"
                 volumeMounts:
-                - mountPath: /var/lib/grafana/
-                  name: grafana-data
+                  - mountPath: /var/lib/grafana/
+                    name: grafana-data
             volumes:
-            - name: grafana-data
-              persistentVolumeClaim:
-                claimName: grafana-volume-claim
+              - name: grafana-data
+                persistentVolumeClaim:
+                  claimName: grafana-volume-claim
 
 - name: Service for grafana
   kubernetes.core.k8s:

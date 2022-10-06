@@ -13,7 +13,30 @@
 # limitations under the License.
 ---
 
-# Will be updated later in each PR
-- name: Pass
-  debug:
-    msg: "Pass"
+- name: Include monitor_config.yml
+  ansible.builtin.include_vars: "{{ monitor_config_vars }}"
+
+- name: Pre-requisites for grafana
+  ansible.builtin.include_tasks: pre-requisites.yml
+
+- name: Create k8s secrets for grafana
+  ansible.builtin.include_tasks: secrets.yml
+
+- name: Create persistent volume for grafana
+  ansible.builtin.include_tasks: volume.yml
+
+- name: Create grafana pod
+  ansible.builtin.include_tasks: deployment.yml
+
+- name: Add grafana-plugins for visualization
+  ansible.builtin.include_tasks: plugins.yml
+
+- name: Get grafana service IP
+  ansible.builtin.command: kubectl get svc "{{ grafana_k8s }}" -n "{{ grafana_namespace }}" -o=jsonpath='{.spec.clusterIP}'
+  changed_when: false
+  register: grafana_svc_ip
+
+- name: Get grafana service port
+  ansible.builtin.command: kubectl get svc "{{ grafana_k8s }}" -n "{{ grafana_namespace }}" -o=jsonpath='{.spec.ports[0].port}'
+  changed_when: false
+  register: grafana_svc_port
