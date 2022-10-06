@@ -14,13 +14,13 @@
 ---
 
 - name: Create directory for helm installer file
-  file:
+  ansible.builtin.file:
     path: "{{ helm_installer_file_directory }}"
     state: directory
     mode: "{{ helm_installer_file_directory_mode }}"
 
 - name: Get helm installer
-  get_url:
+  ansible.builtin.get_url:
     url: "{{ helm_installer_url }}"
     dest: "{{ helm_installer_file_dest }}"
     mode: "{{ helm_installer_file_mode }}"
@@ -29,16 +29,16 @@
   retries: 20
 
 - name: Install helm
-  command: "/bin/bash {{ helm_installer_file_dest }}"
+  ansible.builtin.command: "/bin/bash {{ helm_installer_file_dest }}"
   changed_when: true
   register: install_helm_result
   until: install_helm_result is not failed
   retries: 20
 
 - name: Helm - add stable repo
-  command: "helm repo add stable '{{ helm_stable_repo_url }}'"
+  ansible.builtin.command: "helm repo add stable '{{ helm_stable_repo_url }}'"
   changed_when: true
 
 - name: Helm - update repo
-  command: helm repo update
+  ansible.builtin.command: helm repo update
   changed_when: true

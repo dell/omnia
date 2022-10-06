@@ -13,7 +13,8 @@
 # limitations under the License.
 ---
 
-# Will be updated later in each PR
-- name: Pass
-  debug:
-    msg: "Pass"
+- name: Install K8s prometheus stack
+  ansible.builtin.import_tasks: install_k8s_prom_stack.yml
+
+- name: Configure K8s prometheus in grafana
+  ansible.builtin.import_tasks: configure_k8s_prom_grafana.yml

@@ -13,12 +13,20 @@
 #  limitations under the License.
 ---
 
-# vars file for kubernetes
+# Usage: pre_requisites.yml
+os_supported_rhel: "redhat"
+os_supported_rocky: "rocky"
+k8s_pkgs:
+  - yum-plugin-versionlock
+  - python3-netaddr
+monitor_config_vars: "{{ role_path }}/../../../input/monitor_config.yml"
+success_msg_k8s_pod_network_cidr: "Appliance k8s pod network cidr validated"
+fail_msg_k8s_pod_network_cidr: "Failed. Incorrect appliance k8s pod network cidr provided in base_vars.yml"
 
 # Usage: k8s_installation_leap.yml
 k8s_repo_leap: https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
 rpm_pkg_leap: https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
-yum_key_leap:  https://packages.cloud.google.com/yum/doc/yum-key.gpg
+yum_key_leap: https://packages.cloud.google.com/yum/doc/yum-key.gpg
 gpg_pubkey_leap: "rpm -q gpg-pubkey --qf '%{name}-%{version}-%{release} --> %{summary}'"
 docker_repo_url_leap: https://download.docker.com/linux/sles/docker-ce.repo
 docker_repo_dest_leap: /etc/YaST2/docker-ce.repo
@@ -37,6 +45,7 @@ k8s_package_names:
   - kubelet
   - kubectl
 version_kubectl: "v1.21.0"
+
 # Usage: k8s_installation.yml
 k8s_common_packages_rocky:
   - openssl
@@ -62,6 +71,7 @@ crio_repo2_dest: /etc/yum.repos.d/devel:kubic:libcontainers:stable:cri-o:1.21.re
 docker_repo_url: https://download.docker.com/linux/centos/docker-ce.repo
 docker_repo_dest: /etc/yum.repos.d/docker-ce.repo
 crio_repo: "devel_kubic_libcontainers_stable_cri-o_1.21,rhel-8-for-x86_64-appstream-rpms,rhel-8-for-x86_64-baseos-rpms"
+file_mode: 0700
 
 # Usage: k8s_firewalld.yml
 k8s_master_ports:
@@ -125,7 +135,16 @@ metallb_run_as_user_port: "65534"
 k8s_dashboard_yaml_url: https://raw.githubusercontent.com/kubernetes/dashboard/v2.2.0/aio/deploy/recommended.yaml
 k8s_dashboard_admin_file_dest: /root/k8s/k8s_dashboard_admin.yaml
 k8s_dashboard_admin_file_mode: 0655
-nfs_path: /var/nfs_awx
+nfs_path: /var/nfs_repo
 startup_omnia_log_path: /var/log/omnia/startup_omnia
 vault_file_perm: '0644'
 startup_omnia_log: "{{ startup_omnia_log_path }}/startup_omnia_`/usr/bin/date +\\%F-\\%H\\%M\\%S`.log"
+
+# Usage: nfs_server_setup.yml
+nfs_share_offline_repo: /var/nfs_repo
+nfs_share_dir_mode: 0777
+exports_file_path: /etc/exports
+nfs_services:
+  - mountd
+  - rpc-bind
+  - nfs

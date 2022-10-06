@@ -14,16 +14,17 @@
 ---
 
 - name: Get kube-prometheus svc IP
-  command: kubectl get svc -n {{ monitoring_namespace }} -l app=kube-prometheus-stack-prometheus -o=jsonpath='{.items[0].spec.clusterIP}'
+  ansible.builtin.command: kubectl get svc -n {{ monitoring_namespace }} -l app=kube-prometheus-stack-prometheus -o=jsonpath='{.items[0].spec.clusterIP}'
   changed_when: false
   register: kube_prom_svc_ip
 
 - name: Get kube-prometheus svc port
-  command: kubectl get svc -n {{ monitoring_namespace }} -l app=kube-prometheus-stack-prometheus -o=jsonpath='{.items[0].spec.ports[0].port}'
+  ansible.builtin.command: kubectl get svc -n {{ monitoring_namespace }} -l app=kube-prometheus-stack-prometheus -o=jsonpath='{.items[0].spec.ports[0].port}'
   changed_when: false
   register: kube_prom_svc_port
 
-- block:
+- name: Create prometheus datasource
+  block:
     - name: Create prometheus datasource in grafana
       community.grafana.grafana_datasource:
         name: control-plane-prometheus
@@ -37,10 +38,11 @@
       register: create_prom_datasource
   rescue:
     - name: Create prometheus datasource in grafana failed
-      fail:
+      ansible.builtin.fail:
         msg: "Error: {{ create_prom_datasource.msg }}"
 
-- block:
+- name: Import K8s grafana dashboards
+  block:
     - name: Import K8s grafana dashboards
       community.grafana.grafana_dashboard:
         grafana_url: "http://{{ grafana_svc_ip.stdout }}:{{ grafana_svc_port.stdout }}"
@@ -48,24 +50,24 @@
         grafana_password: "{{ grafana_password }}"
         state: present
         commit_message: Updated by ansible
-        overwrite: yes
+        overwrite: true
         path: "{{ role_path }}/files/{{ item }}"
       with_items: "{{ grafana_dashboard_json_files }}"
       no_log: true
       register: import_prom_dashboards
   rescue:
     - name: Import K8s grafana dashboards failed
-      fail:
+      ansible.builtin.fail:
         msg: "Error: {{ import_prom_dashboards.msg }}"
 
 - name: Save grafana svc ip
-  replace:
-    path: "{{ role_path }}/../../../roles/k8s_start_services/files/grafana_svc_details.ini"
+  ansible.builtin.replace:
+    path: "{{ grafana_conf_path }}"
     regexp: "ip=.*"
     replace: "ip={{ grafana_svc_ip.stdout }}"
 
 - name: Save grafana port
-  replace:
-    path: "{{ role_path }}/../../../roles/k8s_start_services/files/grafana_svc_details.ini"
+  ansible.builtin.replace:
+    path: "{{ grafana_conf_path }}"
     regexp: "port=.*"
     replace: "port={{ grafana_svc_port.stdout }}"
