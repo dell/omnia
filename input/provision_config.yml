@@ -113,7 +113,7 @@ provision_password: ""
 
 # Password used for postgres database.
 # The Length of the password should be at least 8 characters.
-# The password should contain only lower case alphanumeric characters
+# The password should contain only alphanumeric characters
 # Required field
 postgresdb_password: ""
 
