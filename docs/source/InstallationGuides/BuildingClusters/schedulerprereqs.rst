@@ -1,5 +1,5 @@
-Before You Run Omnia
-====================
+Before You Build Clusters
+===========================
 
 
 * Verify that all inventory files are updated.

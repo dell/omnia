@@ -1,5 +1,5 @@
-Input Parameters for Control Plane
-==================================
+Input Parameters for Provision Tool
+=====================================
 
 Fill in all provision-specific parameters in ``omnia/input/provision_config.yml``
 

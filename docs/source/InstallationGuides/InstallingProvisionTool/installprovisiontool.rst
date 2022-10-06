@@ -1,4 +1,4 @@
-Running Control Plane Playbook
+Running The Provision Tool
 ==============================
 
 
@@ -32,8 +32,11 @@ Running Control Plane Playbook
 
                         ``\c omniadb``
 
+
             To view the schema being used in the cluster: ``\dn``
+
             To view the tables in the database: ``\dt``
+
             To view the contents of the ``nodeinfo`` table: ``select * from cluster.nodeinfo``
 
     iv. Offline repositories will be created based on the OS being deployed across the cluster.
