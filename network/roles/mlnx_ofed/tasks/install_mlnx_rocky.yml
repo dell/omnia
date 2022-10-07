@@ -26,7 +26,7 @@
 
 - name: Check IB nic availability
   block:
-    - name: Check status of openibd service
+    - name: Check IB nic availability
       ansible.builtin.shell: "ip a | grep -o ' ib.'"
       changed_when: false
       register: ib_nics
