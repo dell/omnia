@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,7 +13,31 @@
 #  limitations under the License.
 ---
 
-# Will be updated later in each PR
-- name: Pass
-  ansible.builtin.debug:
-    msg: "Pass"
+- name: Install cuda toolkit when node has nvidia gpu accelerator installed
+  block:
+    - name: Include vars file of accelerator role
+      ansible.builtin.include_vars: "{{ role_path }}/../../../input/accelerator_config.yml"
+
+    # - name: Check status of cuda installation
+    #   ansible.builtin.command: yum info cuda
+    #   changed_when: false
+    #   failed_when: false
+    #   register: cuda_status
+
+    - name: Setup nfs client on nodes with nvidia gpu support
+      ansible.builtin.include_tasks: setup_nfs_client.yml
+      when:
+        - hostvars['localhost']['nfs_cuda'] is true
+        # - "'Installed' not in cuda_status.stdout"
+
+    - name: Install cuda on redhat / rocky nodes
+      ansible.builtin.include_tasks: install_cuda_redhat.yml
+      when: os_supported_rhel in ansible_facts['distribution'] | lower or
+          os_supported_rocky in ansible_facts['distribution'] | lower
+
+    - name: Install cuda on leap nodes
+      ansible.builtin.include_tasks: install_cuda_leap.yml
+      when: os_supported_leap in ansible_facts['distribution'] | lower
+
+  when:
+    - cuda_node_status
