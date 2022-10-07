@@ -28,10 +28,22 @@
     - amd
   tags: amd
 
-- name: Perform GPU driver and CUDA installation for NVIDIA Accelerators
-  hosts: manager, compute, login_node
-  gather_facts: false
-  any_errors_fatal: true
+- name: Validate input parameters for CUDA Accelerator and setup nfs server if needed
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  tasks:
+    - name: Validate variables from network_config.yml
+      ansible.builtin.include_role:
+        name: nvidia
+        tasks_from: validations.yml
+  tags: nvidia
+
+- name: Setup NFS client and install cuda drivers on nodes
+  hosts: all
   roles:
     - nvidia
+  handlers:
+    - name: Reboot node
+      ansible.builtin.reboot:
   tags: nvidia
