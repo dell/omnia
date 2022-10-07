@@ -57,6 +57,12 @@
     network_interface_type: "dedicated"
     roce_enabled: false
 
+- name: Update roce_enabled value in provision init file
+  ansible.builtin.replace:
+    path: "{{ provision_conf_path }}"
+    regexp: "roce_enabled=.*"
+    replace: "roce_enabled={{ roce_enabled }}"
+
 - name: Validation related to admin nic
   ansible.builtin.include_tasks: validate_admin_nic.yml
 
