@@ -28,7 +28,7 @@
       - bmc_nic_subnet != admin_nic_subnet
     success_msg: "{{ success_lom }}"
     fail_msg: "{{ fail_lom }}"
-  tags: [ validate, bmc-network, admin-network ]
+  tags: [validate, bmc-network, admin-network]
 
 - name: Assert the subnet details of BMC nic
   ansible.builtin.assert:

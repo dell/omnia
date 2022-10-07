@@ -37,16 +37,21 @@ fail_msg_different_nics: "Failed.Incorrect nic information.Public nic must be di
 # Usage: validate_switch_vars.yml
 pxe_switch_ip_valid: "Valid switch ip provided"
 pxe_switch_ip_invalid: " Failed. Provide a valid switch ip"
-fail_switch_or_mapping_file: "Failed. Please provide either PXE mapping file or PXE switch details. If switch details are given, please provide proper node name as well."
+fail_switch_or_mapping_file: "Failed.Please provide either PXE mapping file or PXE switch details.If switch details are given,then provide proper nodename too."
 fail_msg_pxe_path: "Failed. Please provide a valid PXE mapping file path"
 
 # Usage: package_installation.yml
+ipaddr_collection: ansible.utils:2.5.2
 common_packages_xcat:
   - python3-netaddr
   - openssl
   - dos2unix
   - net-snmp
   - net-snmp-utils
+  - createrepo
+python_version: python3.8
+snmp_python_package: easysnmp
+postgres_python_package: psycopg2-binary
 
 # Usage: validate_provision_vars.yml
 input_provision_fail_msg: "Please provide all the required provision parameters"
@@ -73,7 +78,7 @@ provision_password_fail_msg: "Failed. Incorrect provision_password format in pro
 min_length: 8
 max_length: 30
 warning_wait_time: 30
-postgresdb_password_fail_msg: "Failed. postgresdb_password should contain only lower case alphanumeric characters in provision_config.yml"
+postgresdb_password_fail_msg: "Failed. postgresdb_password should contain only alphanumeric characters in provision_config.yml"
 os_supported_rocky: rocky
 os_supported_rhel: rhel
 
@@ -132,6 +137,10 @@ xcat_ports:
   - "162/udp"
   - "5432/tcp"
 
+# Usage: python_utility.yml
+snmp_utility_path: "{{ role_path }}/files/snmp_utility.py"
+pxe_mapping_path: "{{ role_path }}/files/pxe_mapping_file.csv"
+
 # Usage: install_xcat.yml
 xcat_directory: /root/xcat
 xcat_core_url: http://xcat.org/files/xcat/xcat-core/2.16.x_Linux/xcat-core/xcat-core-2.16.4-linux.tar.bz2
@@ -142,9 +151,10 @@ xcat_packages:
   - xCAT
   - postgresql*
   - perl-DBD-Pg
-file_permission: 0744
+file_permission: 0755
 xcat_env_path: "/etc/profile.d/xcat.sh"
 xcat_env_msg: "Saving xcat enviornment variables"
+max_retries: 10
 
 # Usage: configure_xcat.yml
 xcat_services:
@@ -160,3 +170,14 @@ xcat_rhel8_path:
   - { src: "{{ role_path }}/files/temp_rhel8.pkglist", dest: "/opt/xcat/share/xcat/install/rh/compute.rhels8.pkglist", mode: 0644 }
 
 xcat_rhel8_tmpl: "/opt/xcat/share/xcat/install/rh/compute.rhels8.tmpl"
+
+# Usage: racadm_config.yml
+racadm_url: "https://dl.dell.com/FOLDER05920767M/1/DellEMC-iDRACTools-Web-LX-9.4.0-3732_A00.tar.gz"
+racadm_file: "{{ xcat_directory }}/racadm.tar.gz"
+racadm_path: /opt/racadm
+racadm_xcat_repo: /install/racadm/x86_64/RHEL8
+racadm_rhel8_file_path: /opt/racadm/iDRACTools/racadm/RHEL8/x86_64/
+ipmitool_rhel8_file_path: /opt/racadm/iDRACTools/ipmitool/RHEL8_x86_64/
+
+# Usage: node_object_creation.yml
+osimage_search_key: install-compute

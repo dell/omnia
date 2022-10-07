@@ -15,8 +15,8 @@
 
 - name: Set the network interface type if lom
   ansible.builtin.set_fact:
-    network_interface_type : "lom"
-  when: lookup('vars','ansible_'+admin_nic).ipv4_secondaries[0].network is defined
+    network_interface_type: "lom"
+  when: lookup('vars', 'ansible_' + admin_nic).ipv4_secondaries[0].network is defined
 
 - name: Assert admin nic value
   ansible.builtin.assert:
@@ -24,12 +24,12 @@
       - admin_nic in nic_addr_up.stdout
     success_msg: " Admin {{ success_msg_nic }}"
     fail_msg: "{{ fail_msg_nic }} for admin nic"
-  tags: [ validate, admin-network ]
+  tags: [validate, admin-network]
 
 - name: Fetch the available subnets to verify which NIC is primary and which is secondary
   ansible.builtin.set_fact:
-    ipv4_subnet: "{{ lookup('vars','ansible_'+admin_nic).ipv4.network }}"
-    ipv4_sec_subnet: "{{ lookup('vars','ansible_'+admin_nic).ipv4_secondaries[0].network }}"
+    ipv4_subnet: "{{ lookup('vars', 'ansible_' + admin_nic).ipv4.network }}"
+    ipv4_sec_subnet: "{{ lookup('vars', 'ansible_' + admin_nic).ipv4_secondaries[0].network }}"
   when: network_interface_type == "lom"
   tags: init
 
@@ -47,17 +47,17 @@
 # LOM configuration
 - name: Extracting admin nic details in case of LOM
   block:
-  - name: Assign admin nic details if it is primary nic
-    ansible.builtin.set_fact:
-      admin_nic_ip: "{{ lookup('vars','ansible_'+admin_nic).ipv4.address }}"
-      admin_nic_netmask: "{{ lookup('vars','ansible_'+admin_nic).ipv4.netmask }}"
-    when: admin_nic_subnet == ipv4_subnet
+    - name: Assign admin nic details if it is primary nic
+      ansible.builtin.set_fact:
+        admin_nic_ip: "{{ lookup('vars', 'ansible_' + admin_nic).ipv4.address }}"
+        admin_nic_netmask: "{{ lookup('vars', 'ansible_' + admin_nic).ipv4.netmask }}"
+      when: admin_nic_subnet == ipv4_subnet
 
-  - name: Assign admin nic details if it is secondary nic
-    ansible.builtin.set_fact:
-     admin_nic_ip: "{{ lookup('vars','ansible_'+admin_nic).ipv4_secondaries[0].address }}"
-     admin_nic_netmask: "{{ lookup('vars','ansible_'+admin_nic).ipv4_secondaries[0].netmask }}"
-    when: admin_nic_subnet == ipv4_sec_subnet
+    - name: Assign admin nic details if it is secondary nic
+      ansible.builtin.set_fact:
+        admin_nic_ip: "{{ lookup('vars', 'ansible_' + admin_nic).ipv4_secondaries[0].address }}"
+        admin_nic_netmask: "{{ lookup('vars', 'ansible_' + admin_nic).ipv4_secondaries[0].netmask }}"
+      when: admin_nic_subnet == ipv4_sec_subnet
   when: network_interface_type == "lom"
   tags: init
 
@@ -67,12 +67,12 @@
     - name: Assert proper subnet details are provided for admin nic
       ansible.builtin.assert:
         that:
-          - admin_nic_subnet == "{{ lookup('vars','ansible_'+admin_nic).ipv4.network }}"
+          - admin_nic_subnet == "{{ lookup('vars', 'ansible_' + admin_nic).ipv4.network }}"
         success_msg: "{{ success_subnet }}"
         fail_msg: "{{ fail_subnet }} for admin nic"
 
     - name: Fetch the admin nic ip and netmask when it is primary NIC
       ansible.builtin.set_fact:
-        admin_nic_ip: "{{ lookup('vars','ansible_'+admin_nic).ipv4.address }}"
-        admin_nic_netmask: "{{ lookup('vars','ansible_'+admin_nic).ipv4.netmask }}"
+        admin_nic_ip: "{{ lookup('vars', 'ansible_' + admin_nic).ipv4.address }}"
+        admin_nic_netmask: "{{ lookup('vars', 'ansible_' + admin_nic).ipv4.netmask }}"
   when: network_interface_type == "dedicated"

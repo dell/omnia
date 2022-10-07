@@ -45,16 +45,17 @@
       - public_nic in nic_addr_up.stdout
     success_msg: "Public {{ success_msg_nic }}"
     fail_msg: "{{ fail_msg_nic }} for public nic"
-  tags: [ validate, init ]
+  tags: [validate, init]
 
 - name: Fetch the system public IP
   ansible.builtin.set_fact:
-    public_nic_ip: "{{ lookup('vars','ansible_'+public_nic).ipv4.address }}"
+    public_nic_ip: "{{ lookup('vars', 'ansible_' + public_nic).ipv4.address }}"
   tags: init
 
 - name: Initialize network interface type
   ansible.builtin.set_fact:
-     network_interface_type: "dedicated"
+    network_interface_type: "dedicated"
+    roce_enabled: false
 
 - name: Validation related to admin nic
   ansible.builtin.include_tasks: validate_admin_nic.yml
