@@ -23,29 +23,7 @@ Omnia (Latin: all or everything) is a deployment tool to turn servers with RPM-b
 
 
 
-
-
-**Using Omnia**
-
-1. Set up your network based on the sample topologies provided `here <NetworkTopologies/index.html>`_
-
-2. Verify that your system meets Omnia's `hardware <SupportMatrix/Hardware/index.html>`_ and `software requirements <SupportMatrix/OperatingSystems/index.html>`_
-
-3. Ensure that all pre-requisites are met before each script.
-
-4. Fill out all the required input parameters by script.
-
-5. Run `Control_Plane <RunningControlPlane/index.html>`_ to provision OS's, `configure devices <RunningControlPlane/configuredevices/index.html>`_ and `set up security measures <RunningControlPlane/security/index.html>`_.
-
-6. `Run Omnia on target cluster nodes <RunningOmnia/index.html>`_ to set up Kubernetes and Slurm.
-
-
-
-**Troubleshooting Omnia**
-
-* For a list of commonly encountered issues, check out our `FAQs <Troubleshooting/FAQ.html>`_.
-
-* To troubleshoot Omnia, use our `Troubleshooting Guide <Troubleshooting/troubleshootingguide.html>`_.
+For a better understanding of what Omnia does, check out our `docs <https://omnia-documentation.readthedocs.io/en/latest/index.html>`_!
 
 
 **Omnia Community Members**
