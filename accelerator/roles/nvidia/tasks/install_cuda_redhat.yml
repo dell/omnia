@@ -1,0 +1,105 @@
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Install cuda packages
+  block:
+    - name: Check kernel version
+      ansible.builtin.command: uname -r
+      changed_when: false
+      register: kernel_version
+
+    - name: Download development packages and kernel devel packages
+      ansible.builtin.package:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - "@Development tools"
+        - "{{ 'kernel-devel-' + kernel_version.stdout }}"
+        - "{{ 'kernel-headers-' + kernel_version.stdout }}"
+
+    # - name: Update epel repo
+    #   ansible.builtin.package:
+    #     name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+    #     state: present
+    #     disable_gpg_check: yes
+
+    - name: Install cuda toolkit using offline path
+      block:
+        - name: Install packages from cuda rpm file
+          ansible.builtin.command: rpm -i "{{ cuda_filepath }}"
+          changed_when: false
+
+      when: hostvars['localhost']['local_installer']
+
+    - name: Install latest cuda toolkit using network way
+      block:
+        - name: Set Redhat distro
+          ansible.builtin.set_fact:
+            distro: "{{ 'rhel' + ansible_distribution_major_version }}"
+
+        - name: Add cuda repository
+          ansible.builtin.command: dnf config-manager --add-repo "https://developer.download.nvidia.com/compute/cuda/repos/{{ distro }}/x86_64/cuda-{{ distro }}.repo"
+          changed_when: false
+
+      when: not hostvars['localhost']['local_installer']
+
+    - name: Delete xorg.conf file if present
+      ansible.builtin.file:
+        path: "/etc/X11/xorg.conf"
+        state: absent
+
+    - name: Install CUDA SDK
+      ansible.builtin.package:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - "@nvidia-driver:{{ cuda_stream }}"
+        - cuda
+      notify:
+        - Reboot node
+
+  when: "'Installed' not in cuda_status.stdout"
+
+- name: Flush handler to reboot the node
+  ansible.builtin.meta: flush_handlers
+
+- name: Check if cuda drivers are loaded
+  ansible.builtin.command: nvcc -V
+  changed_when: false
+  register: nvcc_output
+
+- name: Perform Post Installation steps
+  block:
+    - name: Enable nvidia-persistenced systemd service
+      ansible.builtin.service:
+        name: nvidia-persistenced
+        enabled: true
+
+    - name: Check current environment variables
+      ansible.builtin.command: cat /etc/environment
+      changed_when: false
+      register: environment_output
+
+    - name: Set environment variable in /etc/environment
+      ansible.builtin.shell: echo "PATH=$PATH:/usr/local/cuda/bin" > /etc/environment
+      when: "'cuda' not in environment_output.stdout"
+
+    - name: Refresh environment variable
+      ansible.builtin.shell: source /etc/environment && echo $PATH
+      changed_when: false
+      args:
+        executable: /bin/bash
+
+  when: "'NVIDIA' not in nvcc_output.stdout"
