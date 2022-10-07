@@ -13,12 +13,16 @@
 #  limitations under the License.
 ---
 
-amd_gpu_version: "latest"
-amd_rocm_version: "latest"
+- name: Install cuda toolkit using offline path
+  block:
+    - name: To Do
+      ansible.builtin.debug:
+        msg: "Code yet to be written."
+  when: hostvars['localhost']['local_installer']
 
-# Default: 11.7.1
-cuda_toolkit_version: latest
-
-# If version is not latest, giving toolkit_path is mandatory
-cuda_toolkit_path: 
-cuda_stream: latest-dkms
+- name: Install latest cuda toolkit using network way
+  block:
+    - name: To Do
+      ansible.builtin.debug:
+        msg: "Code yet to be written."
+  when: not hostvars['localhost']['local_installer']

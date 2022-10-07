@@ -27,4 +27,4 @@ mlnx_ofed_version: 5.7-1.0.2.0
 # not compatible with mlnx_ofed version in use. 
 # Mandatory variable
 # Default value: false
-mlnx_ofed_add_kernel_support: false
+mlnx_ofed_add_kernel_support: true

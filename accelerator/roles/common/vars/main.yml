@@ -13,7 +13,4 @@
 #  limitations under the License.
 ---
 
-custom_fact_dir: /etc/ansible/facts.d
-custom_fact_dir_mode: 0755
-accelerator_discovery_script_dest: /etc/ansible/facts.d/inventory.fact
-accelerator_discovery_script_mode: 0755
+os_supported_rhel: "redhat"

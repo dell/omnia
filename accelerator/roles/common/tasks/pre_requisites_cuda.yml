@@ -13,12 +13,19 @@
 #  limitations under the License.
 ---
 
-amd_gpu_version: "latest"
-amd_rocm_version: "latest"
+- name: Initialise cuda node status
+  ansible.builtin.set_fact:
+    cuda_node_status: false
 
-# Default: 11.7.1
-cuda_toolkit_version: latest
+- name: Check nvidia card status
+  ansible.builtin.shell: >
+    set -o pipefail && \
+    lspci | grep -i nvidia
+  changed_when: false
+  register: lspci_status
+  failed_when: false
 
-# If version is not latest, giving toolkit_path is mandatory
-cuda_toolkit_path: 
-cuda_stream: latest-dkms
+- name: Update cuda node status
+  ansible.builtin.set_fact:
+    cuda_node_status: true
+  when: "'NVIDIA' in lspci_status.stdout"
