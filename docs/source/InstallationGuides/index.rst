@@ -29,7 +29,7 @@ Run the script ``prereqs.sh`` to verify the system is ready for Omnia deployment
 
     RunningInit/index
     InstallingProvisionTool/index
-    RunningScheduler/index
+    BuildingClusters/index
     ConfiguringSwitches/index
     ConfiguringStorage/index
 

@@ -1,4 +1,4 @@
-Building Cluster
+Building Clusters
 =================
 
 1. Clone the Omnia repository: ``git clone https://github.com/dellhpc/omnia.git``
