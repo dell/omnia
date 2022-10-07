@@ -23,9 +23,6 @@
 - name: Gather facts from all the nodes
   hosts: manager, compute, login_node, nfs_node
 
-- name: Import playbook to install infiniband support packages
-  ansible.builtin.import_playbook: network/network.yml
-
 - name: Validate hostname
   hosts: manager, login_node
   gather_facts: false
