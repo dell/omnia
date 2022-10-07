@@ -55,3 +55,5 @@ server_ip: "{{ hostvars['localhost']['server_ip'] }}"
 os_supported_rhel: "redhat"
 os_supported_rocky: "rocky"
 os_supported_leap: "leap"
+
+cuda_repo_url: "https://developer.download.nvidia.com/compute/cuda/repos/{{ distro }}/x86_64/cuda-{{ distro }}.repo"
