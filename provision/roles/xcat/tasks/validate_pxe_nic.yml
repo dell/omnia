@@ -19,7 +19,7 @@
       - pxe_nic in nic_addr_up.stdout
     success_msg: " PXE {{ success_msg_nic }}"
     fail_msg: "{{ fail_msg_nic }} for PXE nic"
-  tags: [ validate, pxe-network ]
+  tags: [validate, pxe-network]
 
 - name: Verify public nic is different from others
   ansible.builtin.assert:
@@ -27,22 +27,22 @@
       - public_nic != pxe_nic
     success_msg: "{{ success_msg_different_nics }}"
     fail_msg: "{{ fail_msg_different_nics }}"
-  tags: [ validate, bmc-network, pxe-network ]
+  tags: [validate, bmc-network, pxe-network]
 
 ### PXE nic
 # LOM Configuration
 - name: Extracting PXE nic details in case of LOM
   block:
-  - name: Set fact for extracting the subnet of PXE nic
-    ansible.builtin.set_fact:
-      pxe_nic_subnet: "{{ admin_nic_subnet }}"
-    tags: init
+    - name: Set fact for extracting the subnet of PXE nic
+      ansible.builtin.set_fact:
+        pxe_nic_subnet: "{{ admin_nic_subnet }}"
+      tags: init
 
-  - name: Assign PXE nic details in case of LOM
-    ansible.builtin.set_fact:
-      pxe_nic_ip: "{{ admin_nic_ip }}"
-      pxe_nic_netmask: "{{ admin_nic_netmask }}"
-    tags: init
+    - name: Assign PXE nic details in case of LOM
+      ansible.builtin.set_fact:
+        pxe_nic_ip: "{{ admin_nic_ip }}"
+        pxe_nic_netmask: "{{ admin_nic_netmask }}"
+      tags: init
   when:
     - network_interface_type == "lom"
     - admin_nic == pxe_nic
@@ -50,12 +50,12 @@
 # Dedicated configuration or ROCE Configuration
 - name: Extracting PXE nic details in case of dedicated
   block:
-  - name: Assign PXE nic details in case of LOM
-    ansible.builtin.set_fact:
-      pxe_nic_subnet: "{{ lookup('vars','ansible_'+pxe_nic).ipv4.network }}"
-      pxe_nic_ip: "{{ lookup('vars','ansible_'+pxe_nic).ipv4.address }}"
-      pxe_nic_netmask: "{{ lookup('vars','ansible_'+pxe_nic).ipv4.netmask }}"
-    tags: init
+    - name: Assign PXE nic details in case of LOM
+      ansible.builtin.set_fact:
+        pxe_nic_subnet: "{{ lookup('vars', 'ansible_' + pxe_nic).ipv4.network }}"
+        pxe_nic_ip: "{{ lookup('vars', 'ansible_' + pxe_nic).ipv4.address }}"
+        pxe_nic_netmask: "{{ lookup('vars', 'ansible_' + pxe_nic).ipv4.netmask }}"
+      tags: init
   when:
     - network_interface_type == "dedicated" or
       admin_nic != pxe_nic
@@ -66,7 +66,7 @@
     IFS=. read -r m1 m2 m3 m4 <<< "{{ pxe_nic_netmask }}"
     printf "%d.%d.%d.%d\n" "$((i1 & m1))" "$((i2 & m2))" "$((i3 & m3))" "$((i4 & m4))"
   args:
-    warn: no
+    warn: false
   register: calc_pxe_start_subnet
   changed_when: false
   tags: init
@@ -82,7 +82,7 @@
     IFS=. read -r m1 m2 m3 m4 <<< "{{ pxe_nic_netmask }}"
     printf "%d.%d.%d.%d\n" "$((i1 & m1))" "$((i2 & m2))" "$((i3 & m3))" "$((i4 & m4))"
   args:
-    warn: no
+    warn: false
   register: calc_pxe_end_subnet
   changed_when: false
   tags: init
@@ -106,4 +106,12 @@
       - pxe_end_subnet == pxe_nic_subnet
     success_msg: "{{ success_pxe }} for PXE nic"
     fail_msg: "{{ fail_pxe }} for PXE nic"
-  tags: [ validate, pxe-network ]
+  tags: [validate, pxe-network]
+
+- name: Set fact if roce is enabled or not
+  ansible.builtin.set_fact:
+    roce_enabled: true
+  when:
+    - admin_nic != pxe_nic
+    - ib_nic_subnet | length > 6
+    - pxe_nic_subnet == ib_nic_subnet

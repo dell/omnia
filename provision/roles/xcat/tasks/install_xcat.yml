@@ -24,6 +24,9 @@
     url: "{{ xcat_core_url }}"
     dest: "{{ xcat_core_dest }}"
     mode: "{{ file_permission }}"
+  register: download_xcat_core
+  until: download_xcat_core is not failed
+  retries: "{{ max_retries }}"
 
 - name: Untar xcat-core package
   ansible.builtin.unarchive:
@@ -39,6 +42,9 @@
     url: "{{ xcat_dep_url }}"
     dest: "{{ xcat_dep_dest }}"
     mode: "{{ file_permission }}"
+  register: download_xcat_dep
+  until: download_xcat_dep is not failed
+  retries: "{{ max_retries }}"
 
 - name: Untar xcat-dep package
   ansible.builtin.unarchive:
