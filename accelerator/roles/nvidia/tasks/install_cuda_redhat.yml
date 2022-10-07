@@ -13,64 +13,61 @@
 #  limitations under the License.
 ---
 
-- name: Install cuda packages
+- name: Check kernel version
+  ansible.builtin.command: uname -r
+  changed_when: false
+  register: kernel_version
+
+- name: Download development packages and kernel devel packages
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - "@Development tools"
+    - "{{ 'kernel-devel-' + kernel_version.stdout }}"
+    - "{{ 'kernel-headers-' + kernel_version.stdout }}"
+
+# - name: Update epel repo
+#   ansible.builtin.package:
+#     name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+#     state: present
+#     disable_gpg_check: yes
+
+- name: Install cuda toolkit using offline path
   block:
-    - name: Check kernel version
-      ansible.builtin.command: uname -r
+    - name: Install packages from cuda rpm file
+      ansible.builtin.yum:
+        name: "{{ cuda_filepath }}"
+        state: present
+
+  when: hostvars['localhost']['local_installer']
+
+- name: Install latest cuda toolkit using network way
+  block:
+    - name: Set Redhat distro
+      ansible.builtin.set_fact:
+        distro: "{{ 'rhel' + ansible_distribution_major_version }}"
+
+    - name: Add cuda repository
+      ansible.builtin.command: dnf config-manager --add-repo "{{ cuda_repo_url }}"
       changed_when: false
-      register: kernel_version
 
-    - name: Download development packages and kernel devel packages
-      ansible.builtin.package:
-        name: "{{ item }}"
-        state: present
-      with_items:
-        - "@Development tools"
-        - "{{ 'kernel-devel-' + kernel_version.stdout }}"
-        - "{{ 'kernel-headers-' + kernel_version.stdout }}"
+  when: not hostvars['localhost']['local_installer']
 
-    # - name: Update epel repo
-    #   ansible.builtin.package:
-    #     name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
-    #     state: present
-    #     disable_gpg_check: yes
+- name: Delete xorg.conf file if present
+  ansible.builtin.file:
+    path: "/etc/X11/xorg.conf"
+    state: absent
 
-    - name: Install cuda toolkit using offline path
-      block:
-        - name: Install packages from cuda rpm file
-          ansible.builtin.command: rpm -i "{{ cuda_filepath }}"
-          changed_when: false
-
-      when: hostvars['localhost']['local_installer']
-
-    - name: Install latest cuda toolkit using network way
-      block:
-        - name: Set Redhat distro
-          ansible.builtin.set_fact:
-            distro: "{{ 'rhel' + ansible_distribution_major_version }}"
-
-        - name: Add cuda repository
-          ansible.builtin.command: dnf config-manager --add-repo "https://developer.download.nvidia.com/compute/cuda/repos/{{ distro }}/x86_64/cuda-{{ distro }}.repo"
-          changed_when: false
-
-      when: not hostvars['localhost']['local_installer']
-
-    - name: Delete xorg.conf file if present
-      ansible.builtin.file:
-        path: "/etc/X11/xorg.conf"
-        state: absent
-
-    - name: Install CUDA SDK
-      ansible.builtin.package:
-        name: "{{ item }}"
-        state: present
-      with_items:
-        - "@nvidia-driver:{{ cuda_stream }}"
-        - cuda
-      notify:
-        - Reboot node
-
-  when: "'Installed' not in cuda_status.stdout"
+- name: Install CUDA SDK
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - "@nvidia-driver:{{ cuda_stream }}"
+    - cuda
+  notify:
+    - Reboot node
 
 - name: Flush handler to reboot the node
   ansible.builtin.meta: flush_handlers
