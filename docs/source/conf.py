@@ -91,7 +91,9 @@ html_title = 'Omnia'
 # documentation.
 #
 html_theme_options = {
-    'logo_only': True
+    'logo_only': True,
+    'titles_only': True,
+    "rightsidebar": False
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,

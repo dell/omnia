@@ -26,11 +26,11 @@ Before You Build Clusters
 
 **Features enabled by omnia.yml**
 
-* Slurm: Once all the required parameters in `Omnia_config.yml <omniainputparams.html>`_ are filled in, ``omnia.yml`` can be used to set up slurm.
+* Slurm: Once all the required parameters in `Omnia_config.yml <schedulerinputparams.html>`_ are filled in, ``omnia.yml`` can be used to set up slurm.
 
-* `Login Node (Additionally secure login node) <../RunningControlPlane/security/loginnode.html>`_
+* Login Node (Additionally secure login node)
 
-* Kubernetes: Once all the required parameters in `omnia_config.yml <omniainputparams.html>`_ are filled in, ``omnia.yml`` can be used to set up kubernetes.
+* Kubernetes: Once all the required parameters in `omnia_config.yml <schedulerinputparams.html>`_ are filled in, ``omnia.yml`` can be used to set up kubernetes.
 
 * BeeGFS bolt on installation
 
@@ -180,7 +180,7 @@ Based on the value of ``powervault_support``, NFS configuration can take one of 
 
 * Ensure that powervault support is enabled by setting ``powervault_support`` to true in ``base_vars.yml``. By default, a volume called 'omnia_home' will be created on the powervault to mount on the nfs_node.
 
-.. warning:: Powervault will only be available over SAS if the powervault has been configured using `powervault.yml <../RunningControlPlane/configuredevices/powervault.html>`_.
+.. warning:: Powervault will only be available over SAS if the powervault has been configured using `powervault.yml <../ConfiguringStorage>`_.
 
 * For multiple NFS volumes, enter the following details in JSON list format in ``powervault_vars.yml`` under ``powervault_volumes``:
 

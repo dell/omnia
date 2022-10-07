@@ -29,7 +29,7 @@ Input the configuration variables into the ``infiniband_edr_input.yml`` or ``inf
 
 **Before you run the playbook**
 
-Before running infiniband.yml, ensure that SSL Secure Cookies are disabled also HTTP and JSON Gateway need to be enabled on your switch. This can be verified by running:
+Before running infiniband.yml, ensure that SSL Secure Cookies are disabled. Also, HTTP and JSON Gateway need to be enabled on your switch. This can be verified by running:
 
 ``show web`` (To check if SSL Secure Cookies is disabled and HTTP is enabled)
 
@@ -57,7 +57,7 @@ If the user enters 'yes', they will also be prompted to enter the hostname for t
 
 **Running the playbook**
 
-If ``enable_split_port`` is **TRUE**, run ``ansible-playbook infiniband_switch_config.yml -i inventory -e ib_username="" -e ib_password="" -e ib_admin_password="" -e ib_monitor_password=""  -e ib_default_password="" -e ib_switch_type ="xdr"``
+If ``enable_split_port`` is **TRUE**, run ``ansible-playbook infiniband_switch_config.yml -i inventory -e ib_username="" -e ib_password="" -e ib_admin_password="" -e ib_monitor_password=""  -e ib_default_password="" -e ib_switch_type =""``
 
 If ``enable_split_port`` is **FALSE**, run ``ansible-playbook infiniband_switch_config.yml -i inventory -e ib_username="" -e ib_password=""  -e ib_switch_type =""``
 
@@ -75,6 +75,8 @@ If ``enable_split_port`` is **FALSE**, run ``ansible-playbook infiniband_switch_
 * Where ``ib_switch_type`` refers to the model of the switch: HDR/EDR
 
 .. note::
+
+ ``ib_admin_password`` and ``ib_monitor_password`` have the following constraints:
 
     * Passwords should contain 8-64 characters.
 
