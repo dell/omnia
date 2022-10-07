@@ -13,15 +13,24 @@
 #  limitations under the License.
 ---
 
-- name: Assert IB nic subnet if it is given
-  ansible.builtin.assert:
-    that:
-      - ib_nic_subnet | length > 6
-    success_msg: "{{ success_subnet }} for IB "
-    fail_msg: "{{ fail_subnet }} for IB"
+- name: Check for provision file exists
+  ansible.builtin.stat:
+    path: "{{ provision_conf_dest }}"
+  register: provision_conf_status
 
-- name: Set the BMC start range
-  ansible.builtin.set_fact:
-    ib_nic_start_range: "{{ ib_nic_subnet.split('.')[0] + '.' + ib_nic_subnet.split('.')[1] + '.' + pxe_nic_start_range.split('.')[-2] + '.' + pxe_nic_start_range.split('.')[-1] }}"
-    ib_nic_end_range:  "{{ ib_nic_subnet.split('.')[0] + '.' + ib_nic_subnet.split('.')[1] + '.' + pxe_nic_end_range.split('.')[-2] + '.' + pxe_nic_end_range.split('.')[-1] }}"
-    
+- name: Create data folder if it doesn't exists
+  ansible.builtin.file:
+    path: "{{ provision_conf_dest }}"
+    state: directory
+    mode: "{{ mount_dir_perm }}"
+    group: root
+    owner: root
+  when: not provision_conf_status.stat.exists
+
+- name: Copy provision ini file
+  ansible.builtin.copy:
+    src: provision.ini
+    dest: "{{ provision_conf_dest }}"
+    owner: root
+    group: root
+    mode: "{{ conf_file_mode }}"
