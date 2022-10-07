@@ -15,3 +15,10 @@
 
 amd_gpu_version: "latest"
 amd_rocm_version: "latest"
+
+# Default: 11.7.1
+cuda_toolkit_version: latest
+
+# If version is not latest, giving toolkit_path is mandatory
+cuda_toolkit_path: 
+cuda_stream: latest-dkms
