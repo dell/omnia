@@ -50,20 +50,6 @@
       changed_when: false
   when: os_supported_redhat in compute_os
 
-- name: Create a custom fact directory on each host
-  file:
-    path: "{{ custom_fact_dir }}"
-    state: directory
-    mode: "{{ custom_fact_dir_mode }}"
-
-- name: Install accelerator discovery script
-  copy:
-    src: inventory.fact
-    dest: "{{ accelerator_discovery_script_dest }}"
-    owner: root
-    group: root
-    mode: "{{ accelerator_discovery_script_mode }}"
-
 - block:
     - name: Add epel-release repo
       package:
@@ -150,9 +136,6 @@
         - "{{ docker_packages }}"
       changed_when: true
       tags: install
-
-    - name: Collect host facts (including acclerator information)
-      setup: ~
 
     - name: Check for Mellanox NICs
       shell: lspci | grep -o Mellanox | wc -l
@@ -266,10 +249,6 @@
         state: present
       tags: install
 
-    - name: Collect host facts (including acclerator information)
-      setup: ~
-      tags: install
-
     - name: Check for Mellanox NICs
       shell: lspci | grep -o Mellanox | wc -l
       register: num_mellanox
@@ -323,16 +302,6 @@
 
 - name: Deploy time ntp/chrony
   include_tasks: ntp.yml
-  tags: install
-
-- name: Install Nvidia drivers and software components
-  include_tasks: nvidia.yml
-  when: ansible_local.inventory.nvidia_gpu > 0
-  tags: install
-
-- name: Install AMD GPU drivers and software components
-  include_tasks: amd.yml
-  when: ansible_local.inventory.amd_gpu > 0
   tags: install
 
 - name: Get the hostname

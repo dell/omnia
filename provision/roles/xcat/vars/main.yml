@@ -34,6 +34,12 @@ fail_pxe: "Failed. Please provide proper PXE ranges"
 success_msg_different_nics: "Validated. Nics are different in case of LOM."
 fail_msg_different_nics: "Failed.Incorrect nic information.Public nic must be different from BMC and PXE nics ."
 
+# Usage: create_provision_ini.yml
+provision_conf_path: "/opt/omnia/.data/provision.ini"
+provision_conf_dest: "/opt/omnia/.data/"
+mount_dir_perm: 0775
+conf_file_mode: 0644
+
 # Usage: validate_switch_vars.yml
 pxe_switch_ip_valid: "Valid switch ip provided"
 pxe_switch_ip_invalid: " Failed. Provide a valid switch ip"
@@ -140,6 +146,7 @@ xcat_ports:
 # Usage: python_utility.yml
 snmp_utility_path: "{{ role_path }}/files/snmp_utility.py"
 pxe_mapping_path: "{{ role_path }}/files/pxe_mapping_file.csv"
+postgres_utility_path: "{{ role_path }}/files/postgres_utility.py"
 
 # Usage: install_xcat.yml
 xcat_directory: /root/xcat

@@ -27,18 +27,13 @@
     - "{{ 'kernel-devel-' + kernel_version.stdout }}"
     - "{{ 'kernel-headers-' + kernel_version.stdout }}"
 
-# - name: Update epel repo
-#   ansible.builtin.package:
-#     name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
-#     state: present
-#     disable_gpg_check: yes
-
 - name: Install cuda toolkit using offline path
   block:
     - name: Install packages from cuda rpm file
       ansible.builtin.yum:
         name: "{{ cuda_filepath }}"
         state: present
+        disable_gpg_check: true
 
   when: hostvars['localhost']['local_installer']
 
@@ -75,6 +70,7 @@
 - name: Check if cuda drivers are loaded
   ansible.builtin.command: nvcc -V
   changed_when: false
+  failed_when: false
   register: nvcc_output
 
 - name: Perform Post Installation steps
