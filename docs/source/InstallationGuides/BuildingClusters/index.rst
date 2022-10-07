@@ -2,5 +2,5 @@ Building Clusters
 ==============
 .. toctree::
     schedulerinputparams
-    schedulerinputparams
+    schedulerprereqs
     installscheduler
