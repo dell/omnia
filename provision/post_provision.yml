@@ -1,0 +1,38 @@
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Executing post provision roles
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  tasks:
+    - name: Include post_provision playbook
+      ansible.builtin.include_role:
+        name: xcat
+        tasks_from: create_admin_inventory.yml
+
+- name: Executing tasks for assigning static IP
+  hosts: admin_inventory
+  tasks:
+    - name: Include task for assigning inifiniband IP
+      ansible.builtin.include_role:
+        name: xcat
+        tasks_from: assign_infiniband_ip.yml
+
+- name: Import playbook to install infiniband support packages
+  ansible.builtin.import_playbook: ../network/network.yml
+
+- name: Import playbook to install accelerator packages for nodes having GPU support
+  ansible.builtin.import_playbook: ../accelerator/accelerator.yml

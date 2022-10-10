@@ -75,7 +75,7 @@
 
   rescue:
     - name: Message to user
-      ansible.builtin.fail:
+      ansible.builtin.debug:
         msg: "{{ fail_ib_nic }}"
 
 - name: Activate the IB nics
