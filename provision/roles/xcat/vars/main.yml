@@ -58,6 +58,7 @@ common_packages_xcat:
 python_version: python3.8
 snmp_python_package: easysnmp
 postgres_python_package: psycopg2-binary
+requests_python_package: requests
 
 # Usage: validate_provision_vars.yml
 input_provision_fail_msg: "Please provide all the required provision parameters"
