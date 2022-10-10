@@ -69,17 +69,6 @@ elrepo_rpm_url: "https://www.elrepo.org/elrepo-release-{{ ansible_facts['distrib
 docker_repo_url: https://download.docker.com/linux/centos/docker-ce.repo
 docker_repo_dest: /etc/yum.repos.d/docker-ce.repo
 os_name: "CentOS"
-infiniband_leap:
-    - rdma-core
-    - librdmacm1
-    - libibmad5
-    - libibumad3
-    - infiniband-diags
-infiniband_non_leap:
-    - "@Infiniband Support"
-    - infiniband-diags
-    - perftest
-    - qperf
 rhel_code_ready_repo: codeready-builder-for-rhel-8-x86_64-rpms
 rhel_epel_repo8: https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
 os_supported_centos: "centos"
