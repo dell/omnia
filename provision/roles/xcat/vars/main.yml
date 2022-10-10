@@ -122,6 +122,8 @@ xcat_ports:
   - "69/udp"
   - "80/tcp"
   - "80/udp"
+  - "443/tcp"
+  - "443/udp"
   - "88/tcp"
   - "88/udp"
   - "111/udp"
@@ -171,6 +173,7 @@ xcat_services:
   - firewalld
   - snmpd
 
+# Usage: create_osimage.yml
 xcat_rhel8_path:
   - { src: "{{ role_path }}/files/temp_ks_rhel8.tmpl", dest: "/opt/xcat/share/xcat/install/rh/compute.rhels8.tmpl", mode: 0644 }
   - { src: "{{ role_path }}/files/temp_pre_rhel8", dest: "/opt/xcat/share/xcat/install/scripts/pre.rhels8", mode: 0644 }
@@ -178,6 +181,8 @@ xcat_rhel8_path:
   - { src: "{{ role_path }}/files/temp_rhel8.pkglist", dest: "/opt/xcat/share/xcat/install/rh/compute.rhels8.pkglist", mode: 0644 }
 
 xcat_rhel8_tmpl: "/opt/xcat/share/xcat/install/rh/compute.rhels8.tmpl"
+xcat_rhel8_post_script: "/opt/xcat/share/xcat/install/scripts/post.rhels8"
+public_nic_zone: public
 
 # Usage: racadm_config.yml
 racadm_url: "https://dl.dell.com/FOLDER05920767M/1/DellEMC-iDRACTools-Web-LX-9.4.0-3732_A00.tar.gz"
