@@ -13,9 +13,6 @@
 #  limitations under the License.
 ---
 
-- name: Include Pre-requisites
-  ansible.builtin.include_tasks: pre_requisites.yml
-
 - name: NFS Server setup
   ansible.builtin.import_tasks: nfs_server_setup.yml
 

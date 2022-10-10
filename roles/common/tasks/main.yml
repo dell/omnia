@@ -136,6 +136,7 @@
         - "{{ docker_packages }}"
       changed_when: true
       tags: install
+  when: ( os_supported_leap not in compute_os )
 
 - block:
     - name: Add leap repos
@@ -197,6 +198,7 @@
         name: docker-compose
         state: present
       tags: install
+  when: ( os_supported_leap in compute_os ) and ( ansible_distribution_version >= os_supported_leap_version )
 
 - name: Deploy time ntp/chrony
   include_tasks: ntp.yml
