@@ -11,11 +11,20 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 ---
-- name: Infiniband Configuration
-  hosts: all
-  gather_facts: false
-  connection: local
-  roles:
-   - infiniband
+
+- name: Create inventory with admin IP's
+  ansible.builtin.set_fact:
+     admin_list: "{{ admin_list + [item.admin_ip] }}"
+
+- name: Creating record to be inserted in mapping file
+  ansible.builtin.set_fact:
+     csv_tmp: >
+       {{ item.admin_ip }},{{ item.ib_ip }}
+
+- name: Save records to mapping file
+  ansible.builtin.lineinfile:
+     insertafter: EOF
+     dest: "{{ mapping_file_dest }}"
+     line: "{{ csv_tmp }}"
+     mode: "{{ file_perm }}"

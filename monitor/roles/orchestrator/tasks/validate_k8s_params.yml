@@ -20,6 +20,15 @@
   ansible.builtin.set_fact:
     mgmt_os: "{{ ansible_facts['distribution'] | lower }}"
 
+- name: Install netaddr
+  ansible.builtin.command: pip3 install netaddr
+  changed_when: false
+
+- name: Common package installation
+  ansible.builtin.package:
+    name: "{{ k8s_pkgs }}"
+    state: present
+
 - name: Assert kubernetes pod network CIDR
   ansible.builtin.assert:
     that:

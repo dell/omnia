@@ -15,7 +15,12 @@
 
 - name: Call snmp utility if switch IP provided
   ansible.builtin.command: |
-     python3 {{ snmp_utility_path }} {{ pxe_switch_ip }} {{ pxe_switch_snmp_community_string }}
-      {{ pxe_nic_start_range }} {{ pxe_nic_end_range }} {{ node_name }} {{ pxe_mapping_path }} {{ domain_name }}
+     {{ python_version }} {{ postgres_utility_path }}
+  register: postgres_status
+
+- name: Call snmp utility if switch IP provided
+  ansible.builtin.command: |
+     {{ python_version }} {{ snmp_utility_path }} {{ pxe_switch_ip }} {{ pxe_switch_snmp_community_string }}
+      {{ pxe_nic_start_range }} {{ pxe_nic_end_range }} {{ node_name }} {{ pxe_mapping_path }} {{ domain_name }} {{ roce_enabled }}
   register: snmp_status
-  changed_when: true
+  when: pxe_switch_ip | length > 6

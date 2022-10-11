@@ -23,11 +23,8 @@
 - name: Gather facts from all the nodes
   hosts: manager, compute, login_node, nfs_node
 
-- name: Import playbook to install infiniband support packages
-  ansible.builtin.import_playbook: network/network.yml
-
 - name: Validate hostname
-  hosts: manager, login_node
+  hosts: manager, login_node, compute
   gather_facts: false
   any_errors_fatal: true
   roles:
@@ -76,7 +73,7 @@
   tags: nfs_client
 
 - name: Apply login common installation and config
-  hosts: manager, login_node
+  hosts: manager, login_node, compute
   gather_facts: false
   roles:
     - login_common
@@ -90,7 +87,7 @@
   tags: freeipa
 
 - name: Apply login node installation and config
-  hosts: login_node
+  hosts: login_node, compute
   gather_facts: false
   roles:
     - login_node

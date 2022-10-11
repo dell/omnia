@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,11 +13,19 @@
 #  limitations under the License.
 ---
 
-- name: Common package installation
-  ansible.builtin.package:
-    name: "{{ k8s_pkgs }}"
-    state: present
+- name: Initialise cuda node status
+  ansible.builtin.set_fact:
+    cuda_node_status: false
 
-- name: Install netaddr
-  ansible.builtin.command: pip3 install netaddr
+- name: Check nvidia card status
+  ansible.builtin.shell: >
+    set -o pipefail && \
+    lspci | grep -i nvidia
   changed_when: false
+  register: lspci_status
+  failed_when: false
+
+- name: Update cuda node status
+  ansible.builtin.set_fact:
+    cuda_node_status: true
+  when: "'NVIDIA' in lspci_status.stdout"

@@ -13,37 +13,26 @@
 # limitations under the License.
 ---
 
-- name: Gather Cluster Facts
-  hosts: manager, compute, login_node
-  gather_facts: true
-  roles:
-    - common
-  tags: amd, nvidia
-
-- name: Perform GPU driver and ROCm installation for AMD Accelerators
-  hosts: manager, compute, login_node
-  gather_facts: true
-  any_errors_fatal: true
-  roles:
-    - amd
-  tags: amd
-
-- name: Validate input parameters for CUDA Accelerator and setup nfs server if needed
+- name: Executing post provision roles
   hosts: localhost
   connection: local
   gather_facts: true
   tasks:
-    - name: Validate variables from network_config.yml
+    - name: Include post_provision playbook
       ansible.builtin.include_role:
-        name: nvidia
-        tasks_from: validations.yml
-  tags: nvidia
+        name: xcat
+        tasks_from: create_admin_inventory.yml
 
-- name: Setup NFS client and install cuda drivers on nodes
-  hosts: all
-  roles:
-    - nvidia
-  handlers:
-    - name: Reboot node
-      ansible.builtin.reboot:
-  tags: nvidia
+- name: Executing tasks for assigning static IP
+  hosts: admin_inventory
+  tasks:
+    - name: Include task for assigning inifiniband IP
+      ansible.builtin.include_role:
+        name: xcat
+        tasks_from: assign_infiniband_ip.yml
+
+- name: Import playbook to install infiniband support packages
+  ansible.builtin.import_playbook: ../network/network.yml
+
+- name: Import playbook to install accelerator packages for nodes having GPU support
+  ansible.builtin.import_playbook: ../accelerator/accelerator.yml

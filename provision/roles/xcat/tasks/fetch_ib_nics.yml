@@ -11,11 +11,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 ---
-- name: Infiniband Configuration
-  hosts: all
-  gather_facts: false
-  connection: local
-  roles:
-   - infiniband
+
+- name: Gather NIC information
+  ansible.builtin.set_fact:
+    fact_result: "{{ lookup('vars', 'ansible_' + item) }}"
+
+- name: Collect available empty ib nics
+  ansible.builtin.set_fact:
+    ib_nics: "{{ ib_nics + [item] }}"
+  when:
+    - fact_result.type == "infiniband"
+    - fact_result.ipv4.address is not defined

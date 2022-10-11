@@ -20,6 +20,9 @@
   ansible.builtin.include_tasks: package_installation.yml
   when: not xcat_installation_status
 
+- name: Create the provision ini file
+  ansible.builtin.include_tasks: create_provision_ini.yml
+
 - name: Validate the nic parameters
   ansible.builtin.include_tasks: validate_public_nic.yml
 
@@ -32,10 +35,6 @@
 - name: Validate domain_name
   ansible.builtin.include_tasks: validate_domain_name.yml
 
-- name: Executing python utilities
-  ansible.builtin.include_tasks: python_utility.yml
-  when: pxe_switch_ip | length > 6
-
 - name: Configure firewall settings
   ansible.builtin.include_tasks: firewall_settings.yml
   when: not xcat_installation_status
@@ -46,6 +45,9 @@
 
 - name: Configure xcat
   ansible.builtin.include_tasks: configure_xcat.yml
+
+- name: Executing python utilities
+  ansible.builtin.include_tasks: python_utility.yml
 
 - name: Create xcat osimage
   ansible.builtin.include_tasks: create_osimage.yml
