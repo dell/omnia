@@ -25,4 +25,4 @@ The monitoring roles sets up `Grafana <https://grafana.com/>`_  and `Prometheus 
 
 2. Run the playbook using the following command:
 
-``ansible-playbook omnia/monitor/monitor.yml``
+``ansible-playbook omnia/monitor/monitor.yml ``

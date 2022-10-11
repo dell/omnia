@@ -1,17 +1,11 @@
 Building Clusters
 =================
 
-1. Clone the Omnia repository: ``git clone https://github.com/dellhpc/omnia.git``
-
-.. warning:: Do not delete the 'omnia' folder created as a result of this command.
-
-2. Change the directory to **omnia**: ``cd omnia``
-
-3. In the ``omnia_config.yml`` file, provide the `required details <omniainputparams.html>`_.
+1. In the ``omnia_config.yml`` file, provide the `required details <omniainputparams.html>`_.
 
 .. note::  Without the login node, Slurm jobs can be scheduled only through the manager node.
 
-4. Create an inventory file in the *omnia* folder. Add login node IP address under the *[login_node]* group, manager node IP address under the *[manager]* group, compute node IP addresses under the *[compute]* group, and NFS node IP address under the *[nfs_node]* group. A template file named INVENTORY is provided in the *omnia\docs* folder.
+2. Create an inventory file in the *omnia* folder. Add login node IP address under the *[login_node]* group, manager node IP address under the *[manager]* group, compute node IP addresses under the *[compute]* group, and NFS node IP address under the *[nfs_node]* group. A template file named INVENTORY is provided in the *omnia\docs* folder.
 
 .. note::
      * Omnia checks for `red hat subscription being enabled on RedHat nodes as a pre-requisite <../EnablingOptionalFeatures/rhsm.html>`_. Not having Red Hat subscription enabled on the manager node will cause ``omnia.yml`` to fail. If compute nodes do not have Red Hat subscription enabled, ``omnia.yml`` will skip the node entirely.
@@ -19,7 +13,7 @@ Building Clusters
      * Omnia creates a log file which is available at: ``/var/log/omnia.log``.
      * If only Slurm is being installed on the cluster, docker credentials are not required.
 
-5. To install Omnia:
+3. To install Omnia:
 
     For LeapOS:      ``ansible-playbook omnia.yml -i inventory -e 'ansible_python_interpreter=/usr/bin/python3'``
 
