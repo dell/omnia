@@ -14,14 +14,14 @@
 ---
 
 - name: Gather Cluster Facts
-  hosts: manager, compute, login_node
+  hosts: all
   gather_facts: true
   roles:
     - common
   tags: amd, nvidia
 
 - name: Perform GPU driver and ROCm installation for AMD Accelerators
-  hosts: manager, compute, login_node
+  hosts: all
   gather_facts: true
   any_errors_fatal: true
   roles:

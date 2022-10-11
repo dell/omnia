@@ -104,29 +104,37 @@
   changed_when: true
 
 - name: Helm - add stable repo
-  command: "helm repo add stable '{{ helm_stable_repo_url }}'"
+  shell: "export PATH=/usr/local/bin:$PATH && helm repo add stable '{{ helm_stable_repo_url }}'"
   changed_when: true
   tags: init
 
+- name: Check nvidia card status
+  ansible.builtin.shell: >
+    set -o pipefail && \
+    lspci | grep -i nvidia
+  changed_when: false
+  register: lspci_status
+  failed_when: false
+
 - name: Helm - add Nvidia k8s-device-plugin (nvdp) repo
-  command: "helm repo add nvdp '{{ nvidia_k8s_device_plugin_repo_url }}'"
+  shell: "export PATH=/usr/local/bin:$PATH && helm repo add nvdp '{{ nvidia_k8s_device_plugin_repo_url }}'"
   changed_when: true
-  when: ansible_local.inventory.nvidia_gpu > 0
+  when: "'NVIDIA' in lspci_status.stdout"
   tags: init
 
 - name: Helm - add Nvidia GPU discovery (nvgfd) repo
-  command: "helm repo add nvgfd '{{ nvidia_gpu_discovery_repo_url }}'"
+  shell: "export PATH=/usr/local/bin:$PATH && helm repo add nvgfd '{{ nvidia_gpu_discovery_repo_url }}'"
   changed_when: true
-  when: ansible_local.inventory.nvidia_gpu > 0
+  when: "'NVIDIA' in lspci_status.stdout"
   tags: init
 
 - name: Helm - update repo
-  command: helm repo update
+  shell: export PATH=/usr/local/bin:$PATH && helm repo update
   changed_when: true
   tags: init
 
 - name: Start NFS Client Provisioner using NFS on manager node
-  command: "helm install nfs-omnia stable/nfs-client-provisioner --set nfs.server='{{ nfs_server_manager_node }}' --set nfs.path='{{ nfs_share_dir }}'"
+  shell: "export PATH=/usr/local/bin:$PATH && helm install nfs-omnia stable/nfs-client-provisioner --set nfs.server='{{ nfs_server_manager_node }}' --set nfs.path='{{ nfs_share_dir }}'"
   changed_when: true
   when: "'nfs-client-provisioner' not in k8s_pods.stdout"
   tags: init
@@ -178,8 +186,8 @@
   tags: init
 
 - name: Prometheus deployment
-  command: >
-    helm install stable/prometheus \
+  shell: >
+    export PATH=/usr/local/bin:$PATH && helm install stable/prometheus \
     --set-file extraScrapeConfigs="{{ slurm_exporter_config_file_path }}{{ slurm_exporter_config_file }}" \
     --set alertmanager.persistentVolume.storageClass=nfs-client,server.persistentVolume.storageClass=nfs-client,server.service.type=LoadBalancer \
     --generate-name
@@ -194,19 +202,19 @@
   tags: init
 
 - name: Install nvidia-device-plugin
-  command: "helm install --version='{{ nvidia_device_plugin_version }}' --generate-name --set migStrategy='{{ mig_strategy }}' nvdp/nvidia-device-plugin"
+  shell: "export PATH=/usr/local/bin:$PATH && helm install --version='{{ nvidia_device_plugin_version }}' --generate-name --set migStrategy='{{ mig_strategy }}' nvdp/nvidia-device-plugin"
   changed_when: true
   when:
     - "'nvidia-device-plugin' not in k8s_pods.stdout"
-    - ansible_local.inventory.nvidia_gpu > 0
+    - "'NVIDIA' in lspci_status.stdout"
   tags: init
 
 - name: Install GPU Feature Discovery
-  command: "helm install --version='{{ gpu_feature_discovery_version }}' --generate-name --set migStrategy='{{ mig_strategy }}' nvgfd/gpu-feature-discovery"
+  shell: "export PATH=/usr/local/bin:$PATH && helm install --version='{{ gpu_feature_discovery_version }}' --generate-name --set migStrategy='{{ mig_strategy }}' nvgfd/gpu-feature-discovery"
   changed_when: true
   when:
     - "'node-feature-discovery' not in k8s_pods.stdout"
-    - ansible_local.inventory.nvidia_gpu > 0
+    - "'NVIDIA' in lspci_status.stdout"
   tags: init
 
 - name: Deploy Xilinx Device plugin
@@ -214,6 +222,7 @@
   changed_when: true
   register: fpga_enable
   when: "'fpga-device-plugin' not in k8s_pods.stdout"
+  failed_when: false
   tags: init
 
 - name: Deploy ROCm Device plugin
@@ -230,12 +239,12 @@
   #tags: init
 
 - name: Install Spark Operator
-  command: "helm repo add spark-operator '{{ spark_operator_repo }}'"
+  shell: "export PATH=/usr/local/bin:$PATH && helm repo add spark-operator '{{ spark_operator_repo }}'"
   changed_when: true
   tags: init
 
 - name: Install Spark Operator Namespace
-  command: helm install my-release spark-operator/spark-operator --set image.tag={{ operator_image_tag }} --namespace spark-operator --create-namespace
+  shell: export PATH=/usr/local/bin:$PATH && helm install my-release spark-operator/spark-operator --set image.tag={{ operator_image_tag }} --namespace spark-operator --create-namespace
   changed_when: true
   when: "'spark-operator' not in k8s_pods.stdout"
   tags: init

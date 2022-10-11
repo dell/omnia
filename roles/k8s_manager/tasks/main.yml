@@ -31,9 +31,19 @@
   tags: manager
 
 - name: Install helm
-  command: "/bin/bash {{ helm_installer_file_dest }}"
-  changed_when: true
-  register: install_helm
-  until: install_helm is not failed
-  retries: 20
-  tags: manager
+  block:
+    - name: Install helm
+      ansible.builtin.command: "/bin/bash {{ helm_installer_file_dest }}"
+      changed_when: true
+      register: install_helm
+      until: install_helm is not failed
+      retries: 20
+      tags: manager
+  rescue:
+    - name: Install helm
+      ansible.builtin.shell: "export PATH=/usr/local/bin:$PATH && /bin/bash {{ helm_installer_file_dest }}"
+      changed_when: true
+      register: install_helm
+      until: install_helm is not failed
+      retries: 20
+      tags: manager

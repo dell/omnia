@@ -66,20 +66,20 @@
 
 - name: Flush handler to reboot the node
   ansible.builtin.meta: flush_handlers
+  
+- name: Enable nvidia-persistenced systemd service
+  ansible.builtin.service:
+    name: nvidia-persistenced
+    enabled: true
 
-- name: Check if cuda drivers are loaded
-  ansible.builtin.command: nvcc -V
+- name: Check if nvidia drivers are loaded
+  ansible.builtin.command: cat /proc/driver/nvidia/version
   changed_when: false
   failed_when: false
-  register: nvcc_output
+  register: nvidia_output
 
 - name: Perform Post Installation steps
   block:
-    - name: Enable nvidia-persistenced systemd service
-      ansible.builtin.service:
-        name: nvidia-persistenced
-        enabled: true
-
     - name: Check current environment variables
       ansible.builtin.command: cat /etc/environment
       changed_when: false
@@ -95,4 +95,4 @@
       args:
         executable: /bin/bash
 
-  when: "'NVIDIA' not in nvcc_output.stdout"
+  when: "'NVIDIA' not in nvidia_output.stdout"
