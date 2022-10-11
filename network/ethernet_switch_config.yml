@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,16 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 ---
--  name: Ethernet Configuration 
-   hosts: all
-   gather_facts: false
-   connection: network_cli
-   collections:
-    - dellemc.os10
-   vars:
-     ansible_network_os: dellemc.os10.os10
-     ansible_command_timeout: 180
-   roles:
-    - network_ethernet
+
+- name: Ethernet Configuration
+  hosts: all
+  gather_facts: false
+  connection: network_cli
+  collections:
+   - dellemc.os10
+  vars:
+   ansible_network_os: dellemc.os10.os10
+   ansible_command_timeout: 180
+  roles:
+   - ethernet

@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,113 +13,121 @@
 #  limitations under the License.
 
 
-# ---Default configurations written for Dell PowerSwitch S3048-ON---
+# ---Default configurations written for Dell PowerSwitch S5232F-ON---
 # ---Change the configurations as per the switch model to avoid failures---
-# ---Use this configuration file for all S3* and S4* switches---
-# ---S3* Switches: S3048-ON, S4048T-ON, S4112F-ON---
-# ---S4* Switches: S4048-ON, S4048T-ON, S4112F-ON, S4112T-ON, S4128F-ON,
-# ---------------- S4148F-ON, S4128T-ON, S4148T-ON, S4148FE, S4148U, S4248FBL-ON ---
+# ---Use this configuration file for all switches other than S3* and S4* switches---
+
 
 # Global configuration for switch
 os10_config:
     - "interface vlan1"
     - "exit"
 
+# By default, all ports are set up in 10g-4x breakout mode
+# Possible values of breakout/fanout mode: 10g-4x, 25g-4x, 40g-1x, 50g-2x, 100g-1x
+breakout_value: 10g-4x
+
+# The trap destination IP address is the IP address of the SNMP Server where the trap will be sent
+# If this variable is left blank, SNMP will be disabled.
+# Provide a valid SNMP server IP
+snmp_trap_destination: ""
+
 # Interface configuration for switch
+# By default, all ports are brought up in admin UP state
 os10_interface:
     ethernet 1/1/1:
-      desc: "Port 1"
       admin: up
+      fanout: "{{ breakout_value }}"
     ethernet 1/1/2:
-      desc: "Port 2"
       admin: up
+      fanout: "{{ breakout_value }}"
     ethernet 1/1/3:
-      desc: "Port 3"
       admin: up
+      fanout: "{{ breakout_value }}"
     ethernet 1/1/4:
-      desc: "Port 4"
       admin: up
+      fanout: "{{ breakout_value }}"
     ethernet 1/1/5:
-      desc: "Port 5"
       admin: up
+      fanout: "{{ breakout_value }}"
     ethernet 1/1/6:
-      desc: "Port 6"
       admin: up
+      fanout: "{{ breakout_value }}"
     ethernet 1/1/7:
-      desc: "Port 7"
       admin: up
+      fanout: "{{ breakout_value }}"
     ethernet 1/1/8:
-      desc: "Port 8"
       admin: up
+      fanout: "{{ breakout_value }}"
     ethernet 1/1/9:
-      desc: "Port 9"
       admin: up
+      fanout: "{{ breakout_value }}"
     ethernet 1/1/10:
-      desc: "Port 10"
       admin: up
+      fanout: "{{ breakout_value }}"
     ethernet 1/1/11:
-      desc: "Port 11"
       admin: up
+      fanout: "{{ breakout_value }}"
     ethernet 1/1/12:
-      desc: "Port 12"
       admin: up
+      fanout: "{{ breakout_value }}"
     ethernet 1/1/13:
-      desc: "Port 13"
       admin: up
+      fanout: "{{ breakout_value }}"
     ethernet 1/1/14:
-      desc: "Port 14"
       admin: up
+      fanout: "{{ breakout_value }}"
     ethernet 1/1/15:
-      desc: "Port 15"
       admin: up
+      fanout: "{{ breakout_value }}"
     ethernet 1/1/16:
-      desc: "Port 16"
       admin: up
+      fanout: "{{ breakout_value }}"
     ethernet 1/1/17:
-      desc: "Port 17"
       admin: up
+      fanout: "{{ breakout_value }}"
     ethernet 1/1/18:
-      desc: "Port 18"
       admin: up
+      fanout: "{{ breakout_value }}"
     ethernet 1/1/19:
-      desc: "Port 19"
       admin: up
+      fanout: "{{ breakout_value }}"
     ethernet 1/1/20:
-      desc: "Port 20"
       admin: up
+      fanout: "{{ breakout_value }}"
     ethernet 1/1/21:
-      desc: "Port 21"
       admin: up
+      fanout: "{{ breakout_value }}"
     ethernet 1/1/22:
-      desc: "Port 22"
       admin: up
+      fanout: "{{ breakout_value }}"
     ethernet 1/1/23:
-      desc: "Port 23"
       admin: up
+      fanout: "{{ breakout_value }}"
     ethernet 1/1/24:
-      desc: "Port 24"
       admin: up
+      fanout: "{{ breakout_value }}"
     ethernet 1/1/25:
-      desc: "Port 25"
       admin: up
+      fanout: "{{ breakout_value }}"
     ethernet 1/1/26:
-      desc: "Port 26"
       admin: up
+      fanout: "{{ breakout_value }}"
     ethernet 1/1/27:
-      desc: "Port 27"
       admin: up
+      fanout: "{{ breakout_value }}"
     ethernet 1/1/28:
-      desc: "Port 28"
       admin: up
+      fanout: "{{ breakout_value }}"
     ethernet 1/1/29:
-      desc: "Port 29"
       admin: up
+      fanout: "{{ breakout_value }}"
     ethernet 1/1/30:
-      desc: "Port 30"
       admin: up
+      fanout: "{{ breakout_value }}"
     ethernet 1/1/31:
-      desc: "Port 31"
       admin: up
+      fanout: "{{ breakout_value }}"
     ethernet 1/1/32:
       desc: "Port 32"
       admin: up
@@ -128,60 +136,6 @@ os10_interface:
       admin: up
     ethernet 1/1/34:
       desc: "Port 34"
-      admin: up
-    ethernet 1/1/35:
-      desc: "Port 35"
-      admin: up
-    ethernet 1/1/36:
-      desc: "Port 36"
-      admin: up
-    ethernet 1/1/37:
-      desc: "Port 37"
-      admin: up
-    ethernet 1/1/38:
-      desc: "Port 38"
-      admin: up
-    ethernet 1/1/39:
-      desc: "Port 39"
-      admin: up
-    ethernet 1/1/40:
-      desc: "Port 40"
-      admin: up
-    ethernet 1/1/41:
-      desc: "Port 41"
-      admin: up
-    ethernet 1/1/42:
-      desc: "Port 42"
-      admin: up
-    ethernet 1/1/43:
-      desc: "Port 43"
-      admin: up
-    ethernet 1/1/44:
-      desc: "Port 4"
-      admin: up
-    ethernet 1/1/45:
-      desc: "Port 45"
-      admin: up
-    ethernet 1/1/46:
-      desc: "Port 46"
-      admin: up
-    ethernet 1/1/47:
-      desc: "Port 47"
-      admin: up
-    ethernet 1/1/48:
-      desc: "Port 48"
-      admin: up
-    ethernet 1/1/49:
-      desc: "Port 49"
-      admin: up
-    ethernet 1/1/50:
-      desc: "Port 50"
-      admin: up
-    ethernet 1/1/51:
-      desc: "Port 51"
-      admin: up
-    ethernet 1/1/52:
-      desc: "Port 52"
       admin: up
     vlan 1:
       admin: up

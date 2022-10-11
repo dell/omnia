@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 - name: Configure SNMP
   block:
   - name: Set parameters for SNMP configuration
-    set_fact:
+    ansible.builtin.set_fact:
       os10_snmp:
         snmp_community:
           - name: "{{ snmp_community_name }}"
@@ -34,7 +34,7 @@
     when: snmp_trap_destination | length > 1
 
 - name: Apply SNMP configuration
-  include_role:
+  ansible.builtin.include_role:
     name: dellemc.os10.os10_snmp
   vars:
     - hostname: "{{ inventory_hostname }}"
