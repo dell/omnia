@@ -1,0 +1,6 @@
+---
+              version:  1.23.12
+              pkg_kubeadm: kubeadm-{{ version }}
+              both_pkg:
+                   - kubelet-{{ version }}
+                   - kubectl-{{ version }}
