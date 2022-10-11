@@ -108,16 +108,24 @@
   changed_when: true
   tags: init
 
+- name: Check nvidia card status
+  ansible.builtin.shell: >
+    set -o pipefail && \
+    lspci | grep -i nvidia
+  changed_when: false
+  register: lspci_status
+  failed_when: false
+
 - name: Helm - add Nvidia k8s-device-plugin (nvdp) repo
   command: "helm repo add nvdp '{{ nvidia_k8s_device_plugin_repo_url }}'"
   changed_when: true
-  when: ansible_local.inventory.nvidia_gpu > 0
+  when: "'NVIDIA' in lspci_status.stdout"
   tags: init
 
 - name: Helm - add Nvidia GPU discovery (nvgfd) repo
   command: "helm repo add nvgfd '{{ nvidia_gpu_discovery_repo_url }}'"
   changed_when: true
-  when: ansible_local.inventory.nvidia_gpu > 0
+  when: "'NVIDIA' in lspci_status.stdout"
   tags: init
 
 - name: Helm - update repo
@@ -198,7 +206,7 @@
   changed_when: true
   when:
     - "'nvidia-device-plugin' not in k8s_pods.stdout"
-    - ansible_local.inventory.nvidia_gpu > 0
+    - "'NVIDIA' in lspci_status.stdout"
   tags: init
 
 - name: Install GPU Feature Discovery
@@ -206,7 +214,7 @@
   changed_when: true
   when:
     - "'node-feature-discovery' not in k8s_pods.stdout"
-    - ansible_local.inventory.nvidia_gpu > 0
+    - "'NVIDIA' in lspci_status.stdout"
   tags: init
 
 - name: Deploy Xilinx Device plugin
