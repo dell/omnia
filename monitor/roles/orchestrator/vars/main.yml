@@ -13,7 +13,7 @@
 #  limitations under the License.
 ---
 
-# Usage: pre_requisites.yml
+# Usage: validate_k8s_params.yml
 os_supported_rhel: "redhat"
 os_supported_rocky: "rocky"
 k8s_pkgs:
