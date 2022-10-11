@@ -46,7 +46,8 @@ For a better understanding of what Omnia does, check out our `docs <https://omni
 .. image:: https://user-images.githubusercontent.com/5414112/153955170-0a4b199a-54f0-42af-939c-03eac76881c0.png
   :width: 80pt
 
-
+.. image:: https://www.eweek.com/wp-content/uploads/2020/10/Liquid-1.jpg
+    :width: 80pt
 
 .. |Omnia version| image:: https://img.shields.io/github/v/release/dellhpc/omnia?include_prereleases
 .. |Downloads| image:: https://img.shields.io/github/downloads/dellhpc/omnia/total
