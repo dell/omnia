@@ -54,7 +54,6 @@ grafana_plugins_github_repo: https://github.com/nsfcac/grafana-plugin.git
 grafana_plugins_stable_commit: "947da4f"
 
 # Usage: validate_grafana.yml
-monitor_config_vars: "{{ role_path }}/../../../input/monitor_config.yml"
 fail_msg_grafana_credentials: "Failed. Incorrect grafana_username or grafana_password format provided"
 mount_validation_msg: "Make sure mount location value is not null"
 min_length_grafana: 5

@@ -40,12 +40,8 @@
       retries: 20
       tags: manager
   rescue:
-    - name: Adding /usr/local/bin to PATH
-      ansible.builtin.shell: export PATH="/usr/local/bin:$PATH"
-      changed_when: false
-    
     - name: Install helm
-      ansible.builtin.command: "/bin/bash {{ helm_installer_file_dest }}"
+      ansible.builtin.shell: "export PATH=/usr/local/bin:$PATH && /bin/bash {{ helm_installer_file_dest }}"
       changed_when: true
       register: install_helm
       until: install_helm is not failed
