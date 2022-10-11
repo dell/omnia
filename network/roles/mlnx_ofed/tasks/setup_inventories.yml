@@ -29,4 +29,5 @@
     groups: "redhat_inventory"
   with_items: "{{ groups.ib_inventory }}"
   when:
+    - groups.ib_inventory is defined
     - hostvars[item].redhat_status is true
