@@ -222,6 +222,7 @@
   changed_when: true
   register: fpga_enable
   when: "'fpga-device-plugin' not in k8s_pods.stdout"
+  failed_when: false
   tags: init
 
 - name: Deploy ROCm Device plugin
