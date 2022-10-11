@@ -42,6 +42,7 @@
   rescue:
     - name: Adding /usr/local/bin to PATH
       ansible.builtin.shell: export PATH="/usr/local/bin:$PATH"
+      changed_when: false
     
     - name: Install helm
       ansible.builtin.command: "/bin/bash {{ helm_installer_file_dest }}"
