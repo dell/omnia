@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 ---
 
 - name: Set build directory
-  set_fact:
+  ansible.builtin.set_fact:
     build_dir: "{{ role_path }}/files/temp"
 
 - name: Apply switch configuration
@@ -26,7 +26,7 @@
       ansible_ssh_password: "{{ ethernet_switch_password }}"
 
 - name: Apply switch interface configuration
-  include_role:
+  ansible.builtin.include_role:
     name: dellemc.os10.os10_interface
   vars:
     - hostname: "{{ inventory_hostname }}"

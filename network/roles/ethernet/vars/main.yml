@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,20 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# vars file for network_ethernet
 
 # Usage: pre_requisites.yml
-base_vars_file: "{{ role_path }}/../../input_params/base_vars.yml"
-tor_config_file: "{{ role_path }}/../../input_params/ethernet_tor_vars.yml"
-config_file: "{{ role_path }}/../../input_params/ethernet_vars.yml"
+tor_config_file: "{{ role_path }}/../../ethernet_tor_input.yml"
+config_file: "{{ role_path }}/../../ethernet_input.yml"
 fail_msg_tor_config_file: TOR Ethernet config file doesn't exist.
 fail_msg_config_file: Ethernet config file doesn't exist.
 success_msg_tor_save_config: TOR Ethernet config file validated.
 fail_msg_tor_save_config: save_changes_to_startup variable can only be set to true or false in ethernet_tor_vars.yml
 success_msg_save_config: Ethernet config file validated.
 fail_msg_save_config: save_changes_to_startup variable can only be set to true or false.
-
-# Usage: fetch_ethernet_credentials.yml
-login_input_filename: "{{ playbook_dir }}/input_params/login_vars.yml"
-login_vault_filename: "{{ playbook_dir }}/input_params/.login_vault_key"
-file_permission: 0644
+fail_msg_ethernet_credentials: "Failed. Incorrect ethernet_switch_username or ethernet_switch_password format provided"
+max_length: 30
+min_username_length: 4
