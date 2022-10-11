@@ -13,18 +13,22 @@
 #  limitations under the License.
 ---
 
-amd_gpu_version: "latest"
-amd_rocm_version: "latest"
+- name: Fetch redhat subscription status
+  ansible.builtin.command: subscription-manager list
+  changed_when: false
+  register: rhsm_status
 
-# This variable is used to download cuda toolkit file.
-# By default latest cuda is installed unless cuda_toolkit_path is specified.
-# Default: latest (11.8.0)
-cuda_toolkit_version: latest
+- name: Check redhat subscription status
+  ansible.builtin.assert:
+    that: "'Subscribed' in rhsm_status.stdout"
 
-# This variable is used to give offline rpm file for cuda toolkit.
-# If cuda_toolkit_version is not latest, giving cuda_toolkit_path is mandatory.
-cuda_toolkit_path: 
+- name: Fetch redhat enabled repo list
+  ansible.builtin.command: subscription-manager repos --list-enabled
+  changed_when: false
+  register: rhsm_repo_list
 
-# This variable is used to set stream for nvidia drivers
-# Default: latest-dkms
-cuda_stream: latest-dkms
+- name: Check redhat enabled repos
+  ansible.builtin.assert:
+    that:
+      - "'appstream' in rhsm_repo_list.stdout"
+      - "'baseos' in rhsm_repo_list.stdout"

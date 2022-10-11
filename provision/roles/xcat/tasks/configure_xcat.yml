@@ -44,8 +44,7 @@
       ansible.builtin.shell: source {{ xcat_env_path }} && chdef -t site nameservers="{{ primary_dns }}, {{ secondary_dns }}"
       changed_when: true
       when: secondary_dns | length > 1
-  when:
-    - primary_dns | length > 1
+  when: primary_dns | length > 1
 
 - name: Configure domain in site table
   ansible.builtin.shell: source {{ xcat_env_path }} && chdef -t site domain="{{ domain_name }}"

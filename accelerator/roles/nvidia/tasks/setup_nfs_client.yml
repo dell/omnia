@@ -13,31 +13,30 @@
 #  limitations under the License.
 ---
 
-- name: Install infiniband drivers
+- name: Install NFS packages
   ansible.builtin.package:
-    name: "{{ item }}"
+    name: "{{ nfs_packages }}"
     state: present
-  with_items: "{{ infiniband_leap }}"
-  notify:
-    - Reboot node
 
-- name: Flush handler to reboot the node
-  ansible.builtin.meta: flush_handlers
-
-- name: Check IB nic availability
-  block:
-    - name: Check IB nic availability
-      ansible.builtin.shell: "ip a | grep -o ' ib.'"
-      changed_when: false
-      register: ib_nics
-
-  rescue:
-    - name: Message to user
-      ansible.builtin.debug:
-        msg: "{{ fail_ib_nic }}"
-
-- name: Activate the IB nics
-  ansible.builtin.command: nmcli connection up {{ item }}
-  with_items: "{{ ib_nics.stdout_lines }}"
+- name: Check mounted share
+  ansible.builtin.shell: >
+    set -o pipefail && \
+    mount | grep nfs
   changed_when: false
+  args:
+    warn: false
+  register: mounted_share
   failed_when: false
+
+- name: Create the directory for mounting NFS client
+  ansible.builtin.file:
+    path: "{{ cuda_nfs_path }}"
+    state: directory
+    mode: "{{ cuda_nfs_permissions }}"
+
+- name: Mount NFS client
+  ansible.builtin.command: "mount -o {{ client_mount_options }} -t nfs {{ server_ip }}:{{ cuda_nfs_path }} {{ cuda_nfs_path }}"
+  changed_when: true
+  args:
+    warn: false
+  when: cuda_nfs_path not in mounted_share.stdout

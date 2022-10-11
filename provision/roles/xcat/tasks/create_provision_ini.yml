@@ -13,18 +13,24 @@
 #  limitations under the License.
 ---
 
-amd_gpu_version: "latest"
-amd_rocm_version: "latest"
+- name: Check for provision file exists
+  ansible.builtin.stat:
+    path: "{{ provision_conf_dest }}"
+  register: provision_conf_status
 
-# This variable is used to download cuda toolkit file.
-# By default latest cuda is installed unless cuda_toolkit_path is specified.
-# Default: latest (11.8.0)
-cuda_toolkit_version: latest
+- name: Create data folder if it doesn't exists
+  ansible.builtin.file:
+    path: "{{ provision_conf_dest }}"
+    state: directory
+    mode: "{{ mount_dir_perm }}"
+    group: root
+    owner: root
+  when: not provision_conf_status.stat.exists
 
-# This variable is used to give offline rpm file for cuda toolkit.
-# If cuda_toolkit_version is not latest, giving cuda_toolkit_path is mandatory.
-cuda_toolkit_path: 
-
-# This variable is used to set stream for nvidia drivers
-# Default: latest-dkms
-cuda_stream: latest-dkms
+- name: Copy provision ini file
+  ansible.builtin.copy:
+    src: provision.ini
+    dest: "{{ provision_conf_dest }}"
+    owner: root
+    group: root
+    mode: "{{ conf_file_mode }}"
