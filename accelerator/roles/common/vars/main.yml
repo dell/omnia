@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,4 +13,50 @@
 #  limitations under the License.
 ---
 
+# Usage: validations.yml
+cuda_toolkit_mandatory: Giving cuda_toolkit_path is mandatory if cuda_toolkit_version is not latest.
+cuda_toolkit_file_type: Please give location of appropriate .rpm installer file downloaded from https://developer.nvidia.com/cuda-downloads
+fail_cuda_toolkit: "No file could be found at the location: "
+
+# Usage: setup_nfs_server.yml
+nfs_utilities:
+  - nfs-utils
+  - firewalld
+nfs_services:
+  - rpcbind
+  - nfs-server
+  - firewalld
+firewall_services:
+  - nfs
+  - mountd
+  - rpc-bind
+firewall_ports:
+  - 111/tcp
+  - 111/udp
+  - 2049/tcp
+  - 2049/udp
+  - 20048/tcp
+  - 20048/udp
+
+cuda_nfs_path: "/opt/cuda_toolkit"
+cuda_nfs_permissions: '0777'
+exports_file: "/etc/exports"
+server_export_options: "rw,sync,no_root_squash"
+cuda_filepath: "{{ cuda_nfs_path + '/cuda_repo.rpm' }}"
+
+# Usage: setup_nfs_client.yml
+nfs_packages:
+  - nfs-utils
+  - nfs4-acl-tools
+client_mount_options: "nosuid,rw,sync,hard,intr"
+server_ip: "{{ hostvars['localhost']['server_ip'] }}"
+
+# main.yml
 os_supported_rhel: "redhat"
+os_supported_rocky: "rocky"
+os_supported_leap: "leap"
+
+cuda_repo_url: "https://developer.download.nvidia.com/compute/cuda/repos/{{ distro }}/x86_64/cuda-{{ distro }}.repo"
+
+inactive_msg1: "1. Host {{ ansible_ssh_host }} is not subscribed to redhat"
+inactive_msg2: "2. Host {{ ansible_ssh_host }} didnt have baseos and appstream repos enabled."
