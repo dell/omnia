@@ -20,7 +20,7 @@ Control plane configuration
 
 
 
-Depending on the user input in   ``base_vars.yml``, the below table explains the outcomes of running   ``control_plane.yml`` to configure the network:
+Depending on the user input in   ``base_vars.yml``, the below table explains the outcomes of running   ``provision.yml`` to configure the network:
 
 +--------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------+
 | High speed data   network available? | Outcome                                                                                                                                                                                                                                                                                                                                  | One Touch Configuration Support |

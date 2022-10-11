@@ -25,7 +25,7 @@ Configuring iDRAC
 
 **Run idrac_template via CLI**
 
-1. Verify that ``/opt/omnia/idrac_inventory`` is created and updated with all iDRAC IP details. This is done automatically when ``control_plane.yml`` is run. If it's not updated, run ``ansible-playbook collect_device_info.yml`` from the control_plane directory.
+1. Verify that ``/opt/omnia/idrac_inventory`` is created and updated with all iDRAC IP details. This is done automatically when ``provision.yml`` is run. If it's not updated, run ``ansible-playbook collect_device_info.yml`` from the control_plane directory.
 
 2. Run ``ansible-playbook idrac.yml -i /opt/omnia/idrac_inventory``
 
@@ -89,7 +89,7 @@ The **provision_idrac** file configures and validates the following:
 
 * After the configurations are validated, ``idrac.yml`` provisions the custom ISO on the PowerEdge Servers when ``provision_method`` is set to idrac. After the OS is provisioned successfully, iDRAC IP addresses are updated in the *provisioned_idrac_inventory* AWX/CLI.
 
-* Alternatively, if the ``provision_method`` is set to PXE, the cobbler profile (created by the last run of ``control_plane.yml``) will be provisioned on the target node.
+* Alternatively, if the ``provision_method`` is set to PXE, the cobbler profile (created by the last run of ``provision.yml``) will be provisioned on the target node.
 
 .. note::
 

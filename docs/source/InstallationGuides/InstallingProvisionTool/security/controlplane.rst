@@ -15,7 +15,7 @@ Set the parameter 'enable_security_support' to true in ``base_vars.yml``.
 
 .. note::
 
-    * In the event that ``control_plane.yml`` fails after executing the control plane security tasks, ``sshd`` services will have to be restarted manually by the User.
+    * In the event that ``provision.yml`` fails after executing the control plane security tasks, ``sshd`` services will have to be restarted manually by the User.
 
     * Once security features are enabled on the control plane, ``/etc/resolv.conf`` will become immutable. To edit the file, run ``chattr -i /etc/resolv.conf`` . To make file immutable after edits, run ``chattr +i /etc/resolv.conf``. Changes made using this method may not be persistent across reboots.
 
@@ -53,7 +53,7 @@ If the ``alert_email_address`` variable in ``security_config.yml`` is populated 
 
 `Loki <https://grafana.com/docs/loki/latest/fundamentals/overview/>`_ is a datastore used to efficiently hold log data for security purposes. Using the ``promtail`` agent, logs are collated and streamed via an HTTP API.
 
-.. note:: When ``control_plane.yml`` is run, Loki is automatically set up as a data source on the Grafana UI.
+.. note:: When ``provision.yml`` is run, Loki is automatically set up as a data source on the Grafana UI.
 
 **Querying Loki**
 

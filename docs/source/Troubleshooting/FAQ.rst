@@ -3,7 +3,7 @@ Frequently Asked Questions
 
 **How do I find the version of Omnia being used?**
                                                 
-If ``control_plane.yml`` has run, a version file is created here: ``/opt/omnia/omnia_version``.
+If ``provision.yml`` has run, a version file is created here: ``/opt/omnia/omnia_version``.
 
 What are the mapping files required when configuring in a LOM setup?
 
@@ -51,14 +51,14 @@ If ``device_config_support`` is set to FALSE, no reboots are required.
 
 Provisioning server using BOSS controller is now supported by Omnia 1.2.1.
 
-**What steps have to be taken to re-run control_plane.yml after a Kubernetes reset?**
+**What steps have to be taken to re-run provision.yml after a Kubernetes reset?**
 
 
 1. Delete the folder: ``/var/nfs_awx``
 
 2. Delete the file:  ``/<project name>/control_plane/roles/webui_awx/files/.tower_cli.cfg``
 
-Once complete, it's safe to re-run ``control_plane.yml``.
+Once complete, it's safe to re-run ``provision.yml``.
 
 **Can Cobbler deploy both Rocky and CentOS at the same time?**
 

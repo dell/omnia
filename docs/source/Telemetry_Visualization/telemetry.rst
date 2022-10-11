@@ -47,7 +47,7 @@ Prerequisites to enabling slurm telemetry
 Initiating telemetry
 ---------------------
 
-1. Once ``control_plane.yml`` and ``omnia.yml`` are executed, run the following commands from ``omnia/telemetry``:
+1. Once ``provision.yml`` and ``omnia.yml`` are executed, run the following commands from ``omnia/telemetry``:
 
 ``ansible-playbook telemetry.yml``
 
