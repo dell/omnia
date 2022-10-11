@@ -1,14 +1,14 @@
-<img src="docs/images/omnia-logo.png" width="500px">
+<img src="docs/source/images/omnia-logo.png" width="500px">
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
 <!-- DO NOT ADD A BADGE -->
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 
-![GitHub](https://img.shields.io/github/license/dellhpc/omnia) ![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/dellhpc/omnia?include_prereleases) ![GitHub last commit (branch)](https://img.shields.io/github/last-commit/dellhpc/omnia/devel) ![GitHub commits since tagged version](https://img.shields.io/github/commits-since/dellhpc/omnia/v1.3/devel) 
+![GitHub](https://img.shields.io/github/license/dellhpc/omnia) ![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/dellhpc/omnia?include_prereleases) ![GitHub last commit (branch)](https://img.shields.io/github/last-commit/dellhpc/omnia/devel) ![GitHub commits since tagged version](https://img.shields.io/github/commits-since/dellhpc/omnia/v1.3.1/devel)
 
 ![All contributors](https://img.shields.io/github/all-contributors/dellhpc/omnia) ![GitHub forks](https://img.shields.io/github/forks/dellhpc/omnia) ![GitHub Repo stars](https://img.shields.io/github/stars/dellhpc/omnia) ![GitHub all releases](https://img.shields.io/github/downloads/dellhpc/omnia/total)
 
-![GitHub issues](https://img.shields.io/github/issues-raw/dellhpc/omnia) ![GitHub Discussions](https://img.shields.io/github/discussions/dellhpc/omnia) [<img src="https://img.shields.io/badge/slack-dellhpc-blue.svg?logo=slack">](https://app.slack.com/client/TH80K68HY/C018L5109PW)
+![GitHub issues](https://img.shields.io/github/issues-raw/dellhpc/omnia) ![GitHub Discussions](https://img.shields.io/github/discussions/dellhpc/omnia)[<img src="https://img.shields.io/badge/slack-dellhpc-blue.svg?logo=slack">](https://app.slack.com/client/TH80K68HY/C018L5109PW)
 
 #### Ansible playbook-based deployment of Slurm and Kubernetes on servers running an RPM-based Linux OS
 
@@ -16,39 +16,32 @@ Omnia (Latin: all or everything) is a deployment tool to turn servers with RPM-b
 
 ## Pre Requisites before installing Omnia
 - [Python3](https://www.python.org/)
-- [Ansible 2.12.7](https://www.ansible.com/)
+- [Ansible  2.12.9](https://www.ansible.com/)
 - [RockyOS](https://rockylinux.org/) / [Red Hat](https://www.redhat.com/en/enterprise-linux-8)
 
 
 # Using Omnia
 
-1. Set up your network based on the sample topologies provided [here](docs/NETWORK_TOPOLOGY_LOM.md)
-2. Verify that your system meets Omnia's [hardware](docs/Support_Matrix/Hardware) and [software requirements](docs/Support_Matrix/Software/Operating_Systems)
-3. Ensure that all [pre-requisites](docs/PreRequisites) are met.
-4. Fill out all the required [input parameters](docs/Input_Parameter_Guide).
-5. [Run Control_Plane](docs/Installation_Guides/INSTALL_CONTROL_PLANE.md) to provision OS's, [configure devices](docs/Device_Configuration) and set up [security measures](docs/Security).
-6. [Run Omnia on target cluster nodes](docs/Installation_Guides/INSTALL_OMNIA_CLI.md) to set up Kubernetes and Slurm.
-7. Run the telemetry playbook to [set up](docs/Installation_Guides/INSTALL_TELEMETRY.md) and use [Telemetry and Visualization Services](docs/Telemetry_Visualization)
+1. Run the [pre-req script](https://omnia-documentation.readthedocs.io/en/latest/InstallationGuides/RunningInit/index.html) to ready your system for Omnia. 
+2. Run the [provision tool](https://omnia-documentation.readthedocs.io/en/latest/InstallationGuides/InstallingProvisionTool/index.html) to deploy servers with the OS required.
+3. Run the [monitoring tool](https://omnia-documentation.readthedocs.io/en/latest/Roles/Monitor/index.html) to set up Grafana and Prometheus.
 
->> **Note**: For a complete guide to running Omnia via CLI, check [this](https://github.com/dellhpc/omnia/tree/devel/docs/CLI_GUIDE.md) out!
-
-   ![Omnia Flow](docs/images/Omnia_Flow.png)
 
 ## Troubleshooting Omnia
-* For a list of commonly encountered issues, check out our [FAQs](docs/Troubleshooting/FAQ.md).
-* To troubleshoot Omnia, use our [Troubleshooting Guide](docs/Troubleshooting/Troubleshooting_Guide.md).
+* For a list of commonly encountered issues, check out our [FAQs](https://omnia-documentation.readthedocs.io/en/latest/Troubleshooting/FAQ.html).
+* To troubleshoot Omnia, use our [Troubleshooting Guide](https://omnia-documentation.readthedocs.io/en/latest/Troubleshooting/troubleshootingguide.html).
 
 ## Omnia Documentation
-For Omnia documentation, please see the [website](https://dellhpc.github.io/omnia).
+For Omnia documentation, please see the [website](https://omnia-documentation.readthedocs.io/en/latest/index.html).
 
 ## Omnia Community Members:
 <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Dell_Technologies_logo.svg/512px-Dell_Technologies_logo.svg.png" height="50px" alt="Dell Technologies">
 <img src="https://upload.wikimedia.org/wikipedia/commons/0/0e/Intel_logo_%282020%2C_light_blue%29.svg" height="50px" alt="Intel Corporation">
 
-<img src="docs/images/pisa.png" height="100px" alt="Universita di Pisa"> <img src="https://user-images.githubusercontent.com/83095575/117071024-64956c80-ace3-11eb-9d90-2dac7daef11c.png" height="80px" alt="Arizona State University"> 
+<img src="docs/source/images/pisa.png" height="100px" alt="Universita di Pisa"> <img src="https://user-images.githubusercontent.com/83095575/117071024-64956c80-ace3-11eb-9d90-2dac7daef11c.png" height="80px" alt="Arizona State University"> 
 <img src="https://user-images.githubusercontent.com/5414112/153955170-0a4b199a-54f0-42af-939c-03eac76881c0.png" height="100px" alt="Texas Tech University">
 
-<img src="docs/images/Liqid.png" height="50px" alt="LIQID Inc.">
+<img src="https://www.eweek.com/wp-content/uploads/2020/10/Liquid-1.jpg" height="50px" alt="LIQID Inc.">
 
 ## Contributors
 Our thanks go to everyone who makes Omnia possible ([emoji key](https://allcontributors.org/docs/en/emoji-key)):
