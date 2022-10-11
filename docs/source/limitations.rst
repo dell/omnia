@@ -1,7 +1,7 @@
 Limitations
 ===========
 
--  Once ``control_plane.yml`` is used to configure devices, it is
+-  Once ``provision.yml`` is used to configure devices, it is
    recommended to avoid rebooting the control plane.
 -  If the control plane reboots, DHCP services restart. Devices that
    have had their IP assigned dynamically via DHCP may get assigned new
@@ -40,9 +40,5 @@ Limitations
 -  All iDRACs must have the same username and password.
 -  OpenSUSE Leap 15.3 is not supported on the Control Plane.
 -  Slurm Telemetry is supported only on a single cluster.
--  When ``roce_network_nic`` is provided when running
-   ``control_plane.yml``, ``host_mapping_file_path`` is disregarded.
-   This means that static IP assignment is not supported when using high
-   speed data paths for provisioning.
 -  AWX auto aborts jobs when there are more than 5 nodes in a cluster.
    To manage larger clusters, please use Ansible CLI.

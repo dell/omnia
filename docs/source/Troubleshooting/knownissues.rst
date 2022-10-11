@@ -41,9 +41,9 @@ The required services are not running on the control plane. Verify the service s
 ``systemctl start sssd-kcm.socket``
 ``systemctl start sssd.service``
 
-* Re-run ``control_plane.yml`` using the tags ``init`` and ``security``.
+* Re-run ``provision.yml`` using the tags ``init`` and ``security``.
 
-``Ansible-playbook control_plane.yml –tags init,security``
+``Ansible-playbook provision.yml –tags init,security``
 
 **Why does the task 'Gather facts from all the nodes' stuck when re-running `**`omnia.yml``?**
 
@@ -120,7 +120,7 @@ Alternatively, run the task manually:
     * The errors occur when the Docker pull limit is exceeded.
 **Resolution**:
 
-    * For ``omnia.yml`` and ``control_plane.yml`` : Provide the docker username and password for the Docker Hub account in the *omnia_config.yml* file and execute the playbook.
+    * For ``omnia.yml`` and ``provision.yml`` : Provide the docker username and password for the Docker Hub account in the *omnia_config.yml* file and execute the playbook.
 
     * For HPC cluster, during ``omnia.yml execution``, a kubernetes secret 'dockerregcred' will be created in default namespace and patched to service account. User needs to patch this secret in their respective namespace while deploying custom applications and use the secret as imagePullSecrets in yaml file to avoid ErrImagePull. [Click here for more info](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/)
 .. note:: If the playbook is already executed and the pods are in **ImagePullBack** state, then run ``kubeadm reset -f`` in all the nodes before re-executing the playbook with the docker credentials.
@@ -139,9 +139,9 @@ On the control plane or the manager node, run the following commands:
 Use CLI to execute Omnia by default by disabling AWX (set ``awx_web_support`` in ``base_vars.yml`` to ``false``).
 
 
-**How to clear up the configuration if ``control_plane.yml`` fails at the webui_awx stage:**
+**How to clear up the configuration if ``provision.yml`` fails at the webui_awx stage:**
 
-In the ``webui_awx/files`` directory, delete the ``.tower_cli.cfg`` and ``.tower_vault_key`` files, and then re-run ``control_plane.yml``.
+In the ``webui_awx/files`` directory, delete the ``.tower_cli.cfg`` and ``.tower_vault_key`` files, and then re-run ``provision.yml``.
 
 **Why does the task 'Control Plane Common: Fetch the available subnets and netmasks' fail with ``no ipv4_secondaries present``?**
 
@@ -180,7 +180,7 @@ As a pre-requisite to running AWX job templates, AWX should be enabled by settin
 
     Manually validate/update the relevant login information on the AWX settings screen or in ``login_vars.yml``.
 
-**Why aren't all IPs that are available in ``dhcp.leases`` and ``mgmt_provisioned_hosts.yml`` updated in the Device Inventory Job/ iDRAC inventory during ``control_plane.yml`` execution?**
+**Why aren't all IPs that are available in ``dhcp.leases`` and ``mgmt_provisioned_hosts.yml`` updated in the Device Inventory Job/ iDRAC inventory during ``provision.yml`` execution?**
 
 
 **Potential Cause**:
@@ -191,9 +191,9 @@ As a pre-requisite to running AWX job templates, AWX should be enabled by settin
 
     Wait for the DHCP lease for the relevant device to expire or restart the switch/device to clear the lease.
 
-**Why is the host list empty when executing ``control_plane.yml``?**
+**Why is the host list empty when executing ``provision.yml``?**
 
-Hosts that are not in DHCP mode do not get populated in the host list when ``control_plane.yml`` is run.
+Hosts that are not in DHCP mode do not get populated in the host list when ``provision.yml`` is run.
 
 **Why does the task 'Install Packages' fail on the NFS node with the message: ``Failure in talking to yum: Cannot find a valid baseurl for repo: base/7/x86_64.``**
 
@@ -240,7 +240,7 @@ Alternatively, run ``omnia.yml`` to activate the NIC.
 
 **Potential Cause**:
 
- After running ``control_plane.yml``, the AWX image got deleted due to space considerations (use ``df -h`` to diagnose the issue.).
+ After running ``provision.yml``, the AWX image got deleted due to space considerations (use ``df -h`` to diagnose the issue.).
 
 **Resolution**:
 
@@ -263,7 +263,7 @@ Lack of space in the root partition (/) causes Linux to clear files automaticall
 
 * Once the partition is cleared, run ``kubeadm reset -f``
 
-* Re-run ``control_plane.yml``
+* Re-run ``provision.yml``
 
 **Why does the task 'control_plane_common: Setting Metric' fail?**
 
@@ -286,7 +286,7 @@ Lack of space in the root partition (/) causes Linux to clear files automaticall
 
 
 
-**Why is the error "Wait for AWX UI to be up" displayed when ``control_plane.yml`` fails?**
+**Why is the error "Wait for AWX UI to be up" displayed when ``provision.yml`` fails?**
 
 
 **Potential Causes**:
@@ -299,7 +299,7 @@ Lack of space in the root partition (/) causes Linux to clear files automaticall
 
   **Resolution**:
 
-Wait for AWX UI to be accessible at http://\<management-station-IP>:8081, and then run the ``control_plane.yml`` file again, where  **management-station-IP ** is the IP address of the management node.
+Wait for AWX UI to be accessible at http://\<management-station-IP>:8081, and then run the ``provision.yml`` file again, where  **management-station-IP ** is the IP address of the management node.
 
 
 **Why does Omnia Control Plane fail at Task: ``control_plane_common: Assert Value of idrac_support if mngmt_network container needed``?**
@@ -370,7 +370,7 @@ Wait for 15 minutes after the Kubernetes cluster reboots. Next, verify the statu
 
 Run the command ``kubectl get pods  namespace default`` to ensure **nfs-client** pod and all Prometheus server pods are in the **Running** state.
 
-While configuring Cobbler, why does the ``control_plane.yml`` fail during the Run import command?
+While configuring Cobbler, why does the ``provision.yml`` fail during the Run import command?
 
 
 **Cause**:
@@ -387,7 +387,7 @@ While configuring Cobbler, why does the ``control_plane.yml`` fail during the Ru
 
 3. Verify that the downloaded .iso file is valid and correct.
 
-4. Delete the Cobbler container using ``docker rm -f cobbler`` and rerun ``control_plane.yml``.
+4. Delete the Cobbler container using ``docker rm -f cobbler`` and rerun ``provision.yml``.
 
 
 **Why does PXE boot fail with tftp timeout or service timeout errors?**
@@ -517,7 +517,7 @@ If the above solution **doesn't work**,
 
 3. Delete the file: ``omnia/control_plane/roles/webui_awx/files/.tower_cli.cfg``.
 
-4. Re-run ``control_plane.yml``.
+4. Re-run ``provision.yml``.
 
 **Why is my NFS mount not visible on the client?**
 
@@ -538,7 +538,7 @@ If the above solution **doesn't work**,
 
 2. If the pods do not come up, check ``/var/log/omnia/startup_omnia/startup_omnia_yyyy-mm-dd-HHMMSS.log`` for more information.
 
-3. Cobbler profiles are not persistent across reboots. The latest profile will be available post-reboot based on the values of ``provision_os`` and ``iso_file_path`` in ``base_vars.yml``. Re-run ``control_plane.yml`` with different values for ``provision_os`` and ``iso_file_path`` to restore the profiles.
+3. Cobbler profiles are not persistent across reboots. The latest profile will be available post-reboot based on the values of ``provision_os`` and ``iso_file_path`` in ``base_vars.yml``. Re-run ``provision.yml`` with different values for ``provision_os`` and ``iso_file_path`` to restore the profiles.
 
 4. Devices that have had their IP assigned dynamically via DHCP may get assigned new IPs. This in turn can cause duplicate entries for the same device on AWX. Clusters may also show inconsistency and ambiguity.
 
@@ -561,11 +561,11 @@ It is recommended that the ansible-vault view or edit commands are used and not 
 
 **What to do if a custom ISO file is not present on the device:**
 
-* Re-run the *control_plane.yml* file.
+* Re-run the *provision.yml* file.
 
 **What to do if the management_station_ip.txt file under provision_idrac/files folder is missing:**
 
-* Re-run the *control_plane.yml* file.
+* Re-run the *provision.yml* file.
 
 
 **The provisioning of PowerEdge servers failed. How do I clean up before starting over?**
@@ -671,11 +671,11 @@ To correct the issue, run:
 While the NIC qualifies as active, it may not qualify as a PXE device NIC (It may be a mellanox NIC). In such a situation, Omnia assumes that PXE device settings are already configured and proceeds to attempt a PXE boot.
 If this is not the case, manually configure a PXE device NIC and re-run ``idrac.yml`` to proceed.
 
-**What to do when ``control_plane.yml`` fail with 'Error: kinit: Connection refused while getting default ccache' while completing the control plane security role?**
+**What to do when ``provision.yml`` fail with 'Error: kinit: Connection refused while getting default ccache' while completing the control plane security role?**
 
 1. Start the sssd-kcm.socket: ``systemctl start sssd-kcm.socket``
 
-2. Re-run ``control_plane.yml``
+2. Re-run ``provision.yml``
 
 **Why does installing FreeIPA fail on Red Hat servers?**
 

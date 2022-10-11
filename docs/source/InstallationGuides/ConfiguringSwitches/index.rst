@@ -1,6 +1,9 @@
 Configuring Switches
 =====================
 
+Configuring Infiniband Switches
+--------------------------------
+
 Depending on the number of ports available on your Infiniband switch, they can be classified into:
     - EDR Switches (36 ports)
     - HDR Switches (40 ports)
@@ -76,7 +79,7 @@ If ``enable_split_port`` is **FALSE**, run ``ansible-playbook infiniband_switch_
 
 .. note::
 
- ``ib_admin_password`` and ``ib_monitor_password`` have the following constraints:
+ * ``ib_admin_password`` and ``ib_monitor_password`` have the following constraints:
 
     * Passwords should contain 8-64 characters.
 
@@ -85,6 +88,66 @@ If ``enable_split_port`` is **FALSE**, run ``ansible-playbook infiniband_switch_
     * Passwords should be different than 5 previous passwords.
 
     * Passwords should contain at least one of each: Lowercase, uppercase and digits.
+
+ * The inventory file should be a list of IPs separated by newlines. Check out the device_ip_list.yml section in `Sample Files <https://omnia-documentation.readthedocs.io/en/latest/samplefiles.html>`_
+
+
+Configuring Ethernet Switches
+-----------------------------
+
+* Edit the ``ethernet_tor_input.yml`` file for all S3* and S4* PowerSwitches such as S3048-ON, S4048T-ON, S4112F-ON, S4048-ON, S4048T-ON, S4112F-ON, S4112T-ON, and S4128F-ON.
+
++-------------------------+-------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Variables               | Default, choices                                                                    | Description                                                                                                                                                                                                                                                                                                                                |
++=========================+=====================================================================================+============================================================================================================================================================================================================================================================================================================================================+
+| os10_config             | "interface vlan1",   "exit"                                                         | Global configurations for the switch.                                                                                                                                                                                                                                                                                                      |
++-------------------------+-------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| os10_interface          | By default: Port description is provided   and Each interface is set to "up" state. | Update the individual interfaces of the   PowerSwitch S3048-ON (ToR Switch). The interfaces are from ethernet   1/1/1 to ethernet 1/1/52. For more information about the   interfaces, see the Supported interface keys of PowerSwitch S3048-ON (ToR   Switch). Note: The playbooks will fail if any invalid configurations are   entered. |
+|                         |                                                                                     |                                                                                                                                                                                                                                                                                                                                            |
++-------------------------+-------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| save_changes_to_startup | false, true                                                                         | Change it to "true" only when   you are certain that the updated configurations and commands are valid.   WARNING: When set to "true", the startup configuration file is   updated. If incorrect configurations or commands are entered, the Ethernet   switches may not operate as expected.                                              |
++-------------------------+-------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+* Edit the ``ethernet_input.yml`` file for Dell PowerSwitch S5232F-ON and all other PowerSwitches except S3* and S4* switches.
+
++----------------------------+-------------------------------------------------------------------------------------------------------------+-----------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Name                       | Default, accepted values                                                                                    | Required? | Purpose                                                                                                                                                                                                               |
++============================+=============================================================================================================+===========+=======================================================================================================================================================================================================================+
+| os10_config                |  - "interface vlan1"                                                                                        | TRUE      | Global configurations for the   switch.                                                                                                                                                                               |
+|                            |          - "exit"                                                                                           |           |                                                                                                                                                                                                                       |
++----------------------------+-------------------------------------------------------------------------------------------------------------+-----------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| breakout_value             | **10g-4x**,  25g-4x, 40g-1x, 50g-2x, 100g-1x                                                                | TRUE      | By default, all ports are   configured in the 10g-4x breakout mode in which a QSFP28 or QSFP+ port is   split into four 10G interfaces. For more information about the breakout   modes, see Configure breakout mode. |
++----------------------------+-------------------------------------------------------------------------------------------------------------+-----------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| snmp_trap_destination      |                                                                                                             | FALSE     |  The trap destination IP address is the IP   address of the SNMP Server where the trap will be sent. Ensure that the SNMP   IP is valid.                                                                              |
++----------------------------+-------------------------------------------------------------------------------------------------------------+-----------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| ethernet 1/1/(1-34) config | By default:                                                                                                 | TRUE      | By default, all ports are   brought up in admin UP state                                                                                                                                                              |
+|                            |      Port description is provided.                                                                          |           +-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|                            |      Each interface is set to "up" state.                                                                   |           | Update   the individual interfaces of the Dell PowerSwitch S5232F-ON.                                                                                                                                                 |
+|                            |      The fanout/breakout mode for 1/1/1 to 1/1/31 is as per the value set in the   breakout_value variable. |           |      The interfaces are from ethernet 1/1/1 to ethernet 1/1/34. By default, the   breakout mode is set for 1/1/1 to 1/1/31.                                                                                           |
+|                            |                                                                                                             |           |      Note: The playbooks will fail if any invalid configurations are entered.                                                                                                                                         |
++----------------------------+-------------------------------------------------------------------------------------------------------------+-----------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| save_changes_to_startup    | FALSE                                                                                                       | TRUE      | Change it to "true"   only when you are certain that the updated configurations and commands are   valid.                                                                                                             |
+|                            |                                                                                                             |           |      WARNING: When set to "true", the startup configuration file is   updated. If incorrect configurations or commands are entered, the Ethernet   switches may not operate as expected.                              |
++----------------------------+-------------------------------------------------------------------------------------------------------------+-----------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+* When initializing a factory reset switch, the user needs to ensure DHCP is enabled and an IPv6 address is not assigned. Omnia will assign an IP address to the switch using DHCP with all other configurations.
+
+
+**Running the playbook**
+
+*	``cd omnia/network``
+
+*	``ansible-playbook ethernet_switch_config.yml -i inventory -e ethernet_switch_username=”” -e ethernet_switch_password=””``
+
+* Where ``ethernet_switch_username`` is the username used to authenticate into the switch.
+
+* The inventory file should be a list of IPs separated by newlines. Check out the device_ip_list.yml section in `Sample Files <https://omnia-documentation.readthedocs.io/en/latest/samplefiles.html>`_
+
+* Where ``ethernet_switch_password`` is the username used to authenticate into the switch.
+
+
+
+
 
 
 

@@ -26,7 +26,7 @@ Configuring Powervault
 
 **Run Powervault_template via CLI**
 
-1. Verify that ``/opt/omnia/powervault_inventory`` is created and updated with all powervault IP details. This is done automatically when ``control_plane.yml`` is run. If it's not updated, run ``ansible-playbook collect_device_info.yml`` (dedicated NIC) or ``ansible-playbook collect_node_info.yml`` (LOM NIC) from the control_plane directory.
+1. Verify that ``/opt/omnia/powervault_inventory`` is created and updated with all powervault IP details. This is done automatically when ``provision.yml`` is run. If it's not updated, run ``ansible-playbook collect_device_info.yml`` (dedicated NIC) or ``ansible-playbook collect_node_info.yml`` (LOM NIC) from the control_plane directory.
 
 2. Run ``ansible-playbook powervault.yml -i /opt/omnia/powervault_inventory``
 
