@@ -37,7 +37,7 @@ When all compute nodes rely on the control plane for public network access, the 
 
 **Control plane configuration**
 
-Depending on the user input in ``base_vars.yml``, the below table explains the outcomes of running ``control_plane.yml`` to configure the network:
+Depending on the user input in ``base_vars.yml``, the below table explains the outcomes of running ``provision.yml`` to configure the network:
 
 +-----------------------+---------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------+
 | device_config_support | idrac_support | Outcome                                                                                                                                                                                                                                                                   | One Touch Configuration Support |

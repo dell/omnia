@@ -100,7 +100,7 @@ Checking pod status on the control plane
 
 Omnia version file
 ------------------------
-The Omnia version number is stored in ``/opt/omnia/omnia_version`` when ``control_plane.yml`` is run.
+The Omnia version number is stored in ``/opt/omnia/omnia_version`` when ``provision.yml`` is run.
 
 
 .. |Dashboard| image:: ../images/Visualization/DashBoardIcon.PNG

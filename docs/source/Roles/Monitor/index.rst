@@ -5,7 +5,7 @@ The monitoring roles sets up `Grafana <https://grafana.com/>`_  and `Prometheus 
 
 **Setting Up Monitoring**
 
-1. To set up monitoring, enter all required variables in ``omnia/input/monitor.yml``.
+1. To set up monitoring, enter all required variables in ``omnia/input/monitor_config.yml``.
 
 +----------------------------+--------------------------+-----------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Name                       | Default, Accepted Values | Required? | Additional Information                                                                                                                                                                                                                                       |
