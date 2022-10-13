@@ -14,7 +14,9 @@
 ---
 
 - name: Fetch record from mapping file
-  ansible.builtin.shell: cat "{{ mapping_file_dest }}" | grep "{{ inventory_hostname }}"
+  ansible.builtin.shell: >
+    set -o pipefail && \
+    cat "{{ mapping_file_dest }}" | grep "{{ inventory_hostname }}"
   register: fetch_hostname
   changed_when: false
   delegate_to: localhost
@@ -28,7 +30,7 @@
   changed_when: true
 
 - name: Add hosts file entry
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: "{{ hosts_file_path }}"
     line: "{{ inventory_hostname }} {{ server_hostname }}"
     state: present
