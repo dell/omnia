@@ -1,0 +1,16 @@
+---
+- name: Upgrade Master
+  hosts: master
+  vars_files:
+               - variable.yml
+  tasks:
+       - name: one
+         include_tasks: upgrade_master.yml
+
+- name: Upgrade Node
+  hosts: node
+  vars_files:
+               - variable.yml
+  tasks:
+       - name: two
+         include_tasks: upgrade_node.yml
