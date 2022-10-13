@@ -18,18 +18,18 @@
   connection: local
   gather_facts: true
   tasks:
-    - name: Include post_provision playbook
+    - name: Create node inventory
       ansible.builtin.include_role:
         name: xcat
-        tasks_from: create_admin_inventory.yml
+        tasks_from: create_node_inventory.yml
 
-- name: Executing tasks for assigning static IP
-  hosts: admin_inventory
+- name: Executing post provision configuration tasks
+  hosts: node_inventory
   tasks:
-    - name: Include task for assigning inifiniband IP
+    - name: Post provision configuration of the server
       ansible.builtin.include_role:
         name: xcat
-        tasks_from: assign_infiniband_ip.yml
+        tasks_from: post_provision_config.yml
 
 - name: Import playbook to install infiniband support packages
   ansible.builtin.import_playbook: ../network/network.yml
