@@ -209,6 +209,17 @@ base64decode()
 # Specify "bootloader" configuration in "/tmp/partitionfile" if there is no user customized partition file
 echo "bootloader --location=mbr" >> /tmp/partitionfile
 
+# Fetching BOSS card information
+find /dev -name "*DELLBOSS*" -printf %P"\n" | egrep -v -e part -e scsi | head -1 > /tmp/bossdisk.txt
+
+if [ -s /tmp/bossdisk.txt ]
+then
+  echo "#BOSS controller present" >> /tmp/partitionfile
+  echo "ignoredisk --only-use=`find /dev -name '*DELLBOSS*' -printf %P'\n' | egrep -v -e part -e scsi | head -1`" >> /tmp//partitionfile
+else
+  echo "#BOSS controller not present" >> /tmp/partitionfile
+fi
+
 BOOTFSTYPE=xfs
 FSTYPE=xfs
 EFIFSTYPE=efi
