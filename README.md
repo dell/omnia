@@ -1,4 +1,4 @@
-<img src="docs/source/images/omnia-logo.png" width="500px">
+<img src="docs/source/images/omnia-logo-transparent.png" width="500px">
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
 <!-- DO NOT ADD A BADGE -->
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
@@ -14,25 +14,16 @@
 
 Omnia (Latin: all or everything) is a deployment tool to turn servers with RPM-based Linux images into functioning Slurm/Kubernetes clusters.
 
-## Pre Requisites before installing Omnia
-- [Python3](https://www.python.org/)
-- [Ansible  2.12.9](https://www.ansible.com/)
-- [RockyOS](https://rockylinux.org/) / [Red Hat](https://www.redhat.com/en/enterprise-linux-8)
-
-
-# Using Omnia
-
-1. Run the [pre-req script](https://omnia-documentation.readthedocs.io/en/latest/InstallationGuides/RunningInit/index.html) to ready your system for Omnia. 
-2. Run the [provision tool](https://omnia-documentation.readthedocs.io/en/latest/InstallationGuides/InstallingProvisionTool/index.html) to deploy servers with the OS required.
-3. Run the [monitoring tool](https://omnia-documentation.readthedocs.io/en/latest/Roles/Monitor/index.html) to set up Grafana and Prometheus.
-
-
-## Troubleshooting Omnia
-* For a list of commonly encountered issues, check out our [FAQs](https://omnia-documentation.readthedocs.io/en/latest/Troubleshooting/FAQ.html).
-* To troubleshoot Omnia, use our [Troubleshooting Guide](https://omnia-documentation.readthedocs.io/en/latest/Troubleshooting/troubleshootingguide.html).
 
 ## Omnia Documentation
-For Omnia documentation, please see the [website](https://omnia-documentation.readthedocs.io/en/latest/index.html).
+
+Omnia Documentation is hosted on [Read The Docs](https://omnia-documentation.readthedocs.io/en/latest/index.html).
+
+Current Status: ![GitHub](https://readthedocs.org/projects/omnia-documentation/badge/?version=latest)
+
+## Licensing
+
+Omnia is made available under the [Apache 2.0 license](https://opensource.org/licenses/Apache-2.0)
 
 ## Omnia Community Members:
 <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Dell_Technologies_logo.svg/512px-Dell_Technologies_logo.svg.png" height="50px" alt="Dell Technologies">

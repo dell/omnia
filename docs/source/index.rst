@@ -22,6 +22,15 @@ Omnia (Latin: all or everything) is a deployment tool to turn servers with RPM-b
 - `RockyOS <https://rockylinux.org/>`_ / `Red Hat <https://www.redhat.com/en/enterprise-linux-8>`_
 
 
+**Using Omnia**
+
+1. Run the `pre-req script <InstallationGuides/RunningInit/index.html>`_ to ready your system for Omnia.
+
+2. Run the `provision tool <InstallationGuides/InstallingProvisionTool/index.html>`_ to deploy servers with the OS required.
+
+3. Run the `monitoring tool <Roles/Monitor/index.html>`_ to set up Grafana and Prometheus.
+
+
 
 For a better understanding of what Omnia does, check out our `docs <https://omnia-documentation.readthedocs.io/en/latest/index.html>`_!
 
@@ -29,22 +38,28 @@ For a better understanding of what Omnia does, check out our `docs <https://omni
 **Omnia Community Members**
 
 .. image:: https://download.logo.wine/logo/Dell_Technologies/Dell_Technologies-Logo.wine.png
-   :width: 80pt
+   :width: 60pt
 
 .. image:: https://i.pcmag.com/imagery/articles/05PmkAe4XLJQ94pQo36E1uc-1..v1599074802.jpg
-    :width: 80pt
+    :width: 60pt
 
 .. image:: https://www.shorttermprograms.com/images/cache/600_by_314/uploads/institution-logos/university-of-pisa.png
-  :width: 80pt
-
-.. image:: https://1000logos.net/wp-content/uploads/2021/04/ASU-logo.png
-  :width: 80pt
+  :width: 60pt
 
 .. image:: https://www.vizias.com/uploads/1/1/8/9/118906653/published/thick-blue-white-ring-letters-full.png
-    :width: 80pt
+   :width:
+
+.. image:: https://1000logos.net/wp-content/uploads/2021/04/ASU-logo.png
+  :width: 60pt
+
+.. image:: https://www.vizias.com/uploads/1/1/8/9/118906653/published/thick-blue-white-ring-letters-full.png
+    :width: 60pt
 
 .. image:: https://user-images.githubusercontent.com/5414112/153955170-0a4b199a-54f0-42af-939c-03eac76881c0.png
-  :width: 80pt
+  :width: 60pt
+
+.. image:: https://www.eweek.com/wp-content/uploads/2020/10/Liquid-1.jpg
+   :width: 60pt
 
 
 
@@ -65,7 +80,7 @@ For a better understanding of what Omnia does, check out our `docs <https://omni
 .. |Omnia version| image:: https://img.shields.io/github/v/release/dellhpc/omnia?include_prereleases
 .. |Downloads| image:: https://img.shields.io/github/downloads/dellhpc/omnia/total
 .. |Last Commit| image:: https://img.shields.io/github/last-commit/dellhpc/omnia/devel
-.. |Commits Since 1.4| image:: https://img.shields.io/github/commits-since/dellhpc/omnia/v1.3/devel
+.. |Commits Since 1.4| image:: https://img.shields.io/github/commits-since/dellhpc/omnia/v1.3.1/devel
 .. |Contributors| image:: https://img.shields.io/github/all-contributors/dellhpc/omnia
    :target: docs/CONTRIBUTORS.md
    :alt: Contributors
