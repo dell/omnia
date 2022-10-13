@@ -52,6 +52,9 @@
 - name: Create xcat osimage
   ansible.builtin.include_tasks: create_osimage.yml
 
+- name: Enable internet access
+  ansible.builtin.include_tasks: internet_access.yml
+
 - name: Create racadm repo
   ansible.builtin.include_tasks: racadm_config.yml
 
