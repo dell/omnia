@@ -195,10 +195,13 @@ ipmitool_rhel8_file_path: /opt/racadm/iDRACTools/ipmitool/RHEL8_x86_64/
 # Usage: node_object_creation.yml
 osimage_search_key: install-compute
 
-# Usage: create_admin_inventory.yml
+# Usage: create_node_inventory.yml
 mapping_file_dest: "/tmp/mapping.csv"
 provision_file_dest: "/opt/omnia/.data/provision.ini"
 provision_file_msg: "/opt/omnia/.data/provision.ini doesn't exists, make sure you run provision.yml"
 
 # Usage: create_mapping_file.yml
 file_perm: 0644
+
+# Usage: assign_bmc_ip.yml
+idrac_port: 443

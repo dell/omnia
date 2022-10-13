@@ -13,11 +13,18 @@
 # limitations under the License.
 ---
 
+- name: Include provision_config.yml
+  ansible.builtin.include_vars: "{{ provision_config_filename }}"
+
+- name: Set pxe_nic details
+  ansible.builtin.set_fact:
+    pxe_nic_netmask: "{{ lookup('vars', 'ansible_' + pxe_nic).ipv4.netmask }}"
+
 - name: Initialize variables
   ansible.builtin.set_fact:
     db_result: []
-    admin_list: []
     empty_ib_ip: 0
+    empty_bmc_ip: 0
 
 - name: Check for mapping file existence
   ansible.builtin.stat:
@@ -34,7 +41,7 @@
   ansible.builtin.postgresql_query:
     db: omniadb
     login_user: postgres
-    query: SELECT admin_ip,ib_ip FROM cluster.nodeinfo;
+    query: SELECT admin_ip,ib_ip,bmc_ip,hostname FROM cluster.nodeinfo;
   become_user: postgres
   register: query_status
 
@@ -50,28 +57,28 @@
   become_user: postgres
   register: ib_ip_count
 
-- name: Update count of empty ib_ip's
+- name: Fetch records from DB when bmc_ip is null
+  ansible.builtin.postgresql_query:
+    db: omniadb
+    login_user: postgres
+    query: SELECT admin_ip,bmc_ip FROM cluster.nodeinfo where bmc_ip is null;
+  become_user: postgres
+  register: bmc_ip_count
+
+- name: Update count of empty_bmc_ip and empty_ib_ip
   ansible.builtin.set_fact:
+    empty_bmc_ip: "{{ bmc_ip_count.rowcount | int }}"
     empty_ib_ip: "{{ ib_ip_count.rowcount | int }}"
 
-- name: Create and update mapping file
-  block:
-    - name: Create mapping file and set header
-      ansible.builtin.lineinfile:
-        dest: "{{ mapping_file_dest }}"
-        line:
-          admin_ip,ib_ip
-        create: true
-        state: present
-        mode: "{{ file_perm }}"
+- name: Create mapping file and set header
+  ansible.builtin.lineinfile:
+    dest: "{{ mapping_file_dest }}"
+    line:
+      admin_ip,ib_ip,bmc_ip,hostname
+    create: true
+    state: present
+    mode: "{{ file_perm }}"
 
-    - name: Include task to create mapping file
-      ansible.builtin.include_tasks: create_mapping_file.yml
-      with_items: "{{ db_result }}"
-
-    - name: Create group with admin_ip's
-      ansible.builtin.add_host:
-        name: "{{ item }}"
-        groups: "admin_inventory"
-      with_items: "{{ admin_list }}"
-  when: empty_ib_ip | int == 0
+- name: Include task to create mapping file
+  ansible.builtin.include_tasks: create_mapping_file.yml
+  with_items: "{{ db_result }}"
