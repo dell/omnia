@@ -61,7 +61,9 @@
           with_items: "{{ nics_avail }}"
 
         - name: Fetch record from mapping file
-          ansible.builtin.shell: cat "{{ mapping_file_dest }}" | grep "{{ inventory_hostname }}"
+          ansible.builtin.shell: >
+            set -o pipefail && \
+            cat "{{ mapping_file_dest }}" | grep "{{ inventory_hostname }}"
           register: status
           changed_when: false
           delegate_to: localhost
@@ -88,4 +90,3 @@
     path: "{{ mapping_file_dest }}"
     state: absent
   delegate_to: localhost
-
