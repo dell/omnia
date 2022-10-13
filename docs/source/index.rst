@@ -12,25 +12,9 @@ Ansible playbook-based deployment of Slurm and Kubernetes on servers running an 
 
 Omnia (Latin: all or everything) is a deployment tool to turn servers with RPM-based Linux images into functioning Slurm/Kubernetes clusters.
 
+**Licensing**
 
-**Pre Requisites before installing Omnia**
-
-- `Python3 <https://www.python.org/>`_
-
-- `Ansible 2.12.7 <https://www.ansible.com/>`_
-
-- `RockyOS <https://rockylinux.org/>`_ / `Red Hat <https://www.redhat.com/en/enterprise-linux-8>`_
-
-
-**Using Omnia**
-
-1. Run the `pre-req script <InstallationGuides/RunningInit/index.html>`_ to ready your system for Omnia.
-
-2. Run the `provision tool <InstallationGuides/InstallingProvisionTool/index.html>`_ to deploy servers with the OS required.
-
-3. Run the `monitoring tool <Roles/Monitor/index.html>`_ to set up Grafana and Prometheus.
-
-
+Omnia is made available under the `Apache 2.0 license. <https://opensource.org/licenses/Apache-2.0>`_
 
 For a better understanding of what Omnia does, check out our `docs <https://omnia-documentation.readthedocs.io/en/latest/index.html>`_!
 
