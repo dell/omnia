@@ -16,7 +16,9 @@
 - name: Assign bmc_ip
   block:
     - name: Fetch record from mapping file
-      ansible.builtin.shell: cat "{{ mapping_file_dest }}" | grep "{{ inventory_hostname }}"
+      ansible.builtin.shell: >
+        set -o pipefail && \
+        cat "{{ mapping_file_dest }}" | grep "{{ inventory_hostname }}"
       register: fetch_bmc_ip
       changed_when: false
       delegate_to: localhost
@@ -30,7 +32,7 @@
     - name: Set bmc_ip to iDRAC
       ansible.builtin.command: racadm setniccfg -s {{ bmc_ip }} {{ bmc_netmask }} {{ bmc_gateway }}
       changed_when: true
-    
+
     - name: Wait for iDRAC Port to become active
       ansible.builtin.wait_for:
         host: "{{ bmc_ip }}"
