@@ -13,29 +13,6 @@
 # limitations under the License.
 ---
 
-- name: Assert username and password for ethernet switches
-  block:
-    - name: Verify ethernet_switch_username and ethernet_switch_password are not empty
-      ansible.builtin.assert:
-        that:
-          - ethernet_switch_username | length >= min_username_length
-          - ethernet_switch_username | length < max_length
-          - '"-" not in ethernet_switch_username '
-          - '"\\" not in ethernet_switch_username '
-          - '"\"" not in ethernet_switch_username '
-          - " \"'\" not in ethernet_switch_username "
-          - ethernet_switch_password | length > min_username_length | int - 1
-          - ethernet_switch_password | length < max_length | int + 1
-          - '"-" not in ethernet_switch_password '
-          - '"\\" not in ethernet_switch_password '
-          - '"\"" not in ethernet_switch_password '
-          - " \"'\" not in ethernet_switch_password "
-      no_log: true
-  rescue:
-    - name: Ethernet switch credentials validation check
-      ansible.builtin.fail:
-        msg: "{{ fail_msg_ethernet_credentials }}"
-
 - name: Install paramiko
   ansible.builtin.command: pip3 install paramiko -i http://pypi.douban.com/simple/ --trusted-host pypi.douban.com
   delegate_to: localhost
@@ -76,7 +53,7 @@
 
 - name: Pre-requisite tasks for S3* and S4* switches
   block:
-    - name: Include ethernet_tor_vars.yml config variable file
+    - name: Include ethernet_tor_input.yml config variable file
       ansible.builtin.include_vars: "{{ tor_config_file }}"
 
     - name: Assert save_changes_to_startup variable
@@ -88,7 +65,7 @@
 
 - name: Pre-requisite tasks for other ethernet switches
   block:
-    - name: Include ethernet_vars.yml config variable file
+    - name: Include ethernet_input.yml config variable file
       ansible.builtin.include_vars: "{{ config_file }}"
 
     - name: Assert save_changes_to_startup variable
@@ -97,3 +74,29 @@
         success_msg: "{{ success_msg_save_config }}"
         fail_msg: "{{ fail_msg_save_config }}"
   when: "'S3' not in model_type and 'S4' not in model_type"
+
+- name: Initialize snmp_enabled
+  ansible.builtin.set_fact:
+    snmp_enabled: false
+
+- name: Verify snmp_trap_destination IP address
+  ansible.builtin.set_fact:
+    snmp_enabled: true
+  when: snmp_trap_destination | length > 1
+
+- name: Validate snmp parameters
+  block:
+    - name: Assert snmp trap destination address
+      ansible.builtin.assert:
+        that:
+          - snmp_trap_destination | length > 7
+        success_msg: "{{ success_snmp_trap_dest }}"
+        fail_msg: "{{ fail_snmp_trap_dest }}"
+
+    - name: Assert snmp_community_name value
+      ansible.builtin.assert:
+        that:
+          - snmp_community_name | length > 1
+        success_msg: "{{ snmp_community_success_msg }}"
+        fail_msg: "{{ snmp_community_fail_msg }}"
+  when: snmp_enabled

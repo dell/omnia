@@ -1,4 +1,4 @@
-<img src="docs/source/images/omnia-logo.png" width="500px">
+<img src="docs/source/images/omnia-logo-transparent.png" width="500px">
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
 <!-- DO NOT ADD A BADGE -->
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
@@ -14,34 +14,24 @@
 
 Omnia (Latin: all or everything) is a deployment tool to turn servers with RPM-based Linux images into functioning Slurm/Kubernetes clusters.
 
-## Pre Requisites before installing Omnia
-- [Python3](https://www.python.org/)
-- [Ansible  2.12.9](https://www.ansible.com/)
-- [RockyOS](https://rockylinux.org/) / [Red Hat](https://www.redhat.com/en/enterprise-linux-8)
-
-
-# Using Omnia
-
-1. Run the [pre-req script](https://omnia-documentation.readthedocs.io/en/latest/InstallationGuides/RunningInit/index.html) to ready your system for Omnia. 
-2. Run the [provision tool](https://omnia-documentation.readthedocs.io/en/latest/InstallationGuides/InstallingProvisionTool/index.html) to deploy servers with the OS required.
-3. Run the [monitoring tool](https://omnia-documentation.readthedocs.io/en/latest/Roles/Monitor/index.html) to set up Grafana and Prometheus.
-
-
-## Troubleshooting Omnia
-* For a list of commonly encountered issues, check out our [FAQs](https://omnia-documentation.readthedocs.io/en/latest/Troubleshooting/FAQ.html).
-* To troubleshoot Omnia, use our [Troubleshooting Guide](https://omnia-documentation.readthedocs.io/en/latest/Troubleshooting/troubleshootingguide.html).
 
 ## Omnia Documentation
-For Omnia documentation, please see the [website](https://omnia-documentation.readthedocs.io/en/latest/index.html).
+
+Omnia Documentation is hosted on [Read The Docs](https://omnia-documentation.readthedocs.io/en/latest/index.html).
+
+Current Status: ![GitHub](https://readthedocs.org/projects/omnia-documentation/badge/?version=latest)
+
+## Licensing
+
+Omnia is made available under the [Apache 2.0 license](https://opensource.org/licenses/Apache-2.0)
 
 ## Omnia Community Members:
 <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Dell_Technologies_logo.svg/512px-Dell_Technologies_logo.svg.png" height="50px" alt="Dell Technologies">
-<img src="https://upload.wikimedia.org/wikipedia/commons/0/0e/Intel_logo_%282020%2C_light_blue%29.svg" height="50px" alt="Intel Corporation">
+<img src="https://upload.wikimedia.org/wikipedia/commons/0/0e/Intel_logo_%282020%2C_light_blue%29.svg" height="50px" alt="Intel Corporation"> 
 
-<img src="docs/source/images/pisa.png" height="100px" alt="Universita di Pisa"> <img src="https://user-images.githubusercontent.com/83095575/117071024-64956c80-ace3-11eb-9d90-2dac7daef11c.png" height="80px" alt="Arizona State University"> 
-<img src="https://user-images.githubusercontent.com/5414112/153955170-0a4b199a-54f0-42af-939c-03eac76881c0.png" height="100px" alt="Texas Tech University">
+<img src="docs/source/images/pisa.png" height="80px" alt="Universita di Pisa"> <img src="https://user-images.githubusercontent.com/83095575/117071024-64956c80-ace3-11eb-9d90-2dac7daef11c.png" height="80px" alt="Arizona State University"> <img src="https://www.vizias.com/uploads/1/1/8/9/118906653/published/thick-blue-white-ring-letters-full.png" height="60px" alt="Vizias">
 
-<img src="https://www.eweek.com/wp-content/uploads/2020/10/Liquid-1.jpg" height="50px" alt="LIQID Inc.">
+<img src="https://www.eweek.com/wp-content/uploads/2020/10/Liquid-1.jpg" height="80px" alt="LIQID Inc."> <img src="https://user-images.githubusercontent.com/5414112/153955170-0a4b199a-54f0-42af-939c-03eac76881c0.png" height="80px" alt="Texas Tech University">
 
 ## Contributors
 Our thanks go to everyone who makes Omnia possible ([emoji key](https://allcontributors.org/docs/en/emoji-key)):

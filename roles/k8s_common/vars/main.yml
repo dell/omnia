@@ -14,7 +14,7 @@
 ---
 k8s_repo_leap: https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
 rpm_pkg_leap: https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
-yum_key_leap:  https://packages.cloud.google.com/yum/doc/yum-key.gpg
+yum_key_leap: https://packages.cloud.google.com/yum/doc/yum-key.gpg
 gpg_pubkey_leap: "rpm -q gpg-pubkey --qf '%{name}-%{version}-%{release} --> %{summary}'"
 docker_repo_url_leap: https://download.docker.com/linux/sles/docker-ce.repo
 docker_repo_dest_leap: /etc/YaST2/docker-ce.repo
@@ -40,3 +40,5 @@ k8s_conf_dest: /etc/sysctl.d/
 k8s_repo_file_mode: 0644
 
 k8s_conf_file_mode: 0644
+grafana_conf_path: "/opt/omnia/.data/grafana_svc_details.ini"
+min_length_grafana: 5

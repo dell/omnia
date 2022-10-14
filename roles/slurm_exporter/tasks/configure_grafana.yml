@@ -14,7 +14,7 @@
 ---
 
 - name: Include k8s_start_services variables
-  include_vars: ../../k8s_start_services/vars/main.yml
+  ansible.builtin.include_vars: ../../k8s_start_services/vars/main.yml
 
 - block:
     - name: Create prometheus datasource in grafana
@@ -31,11 +31,11 @@
       register: create_slurm_prom_datasource
   rescue:
     - name: Create prometheus datasource in grafana failed
-      fail:
+      ansible.builtin.fail:
         msg: "Error: {{ create_slurm_prom_datasource.msg }}"
 
 - name: Replace data source in slurm dashboard
-  replace:
+  ansible.builtin.replace:
     path: "{{ role_path }}/files/{{ item }}"
     regexp: '"uid": "hpc.*'
     replace: '"uid": "hpc-prometheus-{{ ansible_default_ipv4.address }}"'
@@ -43,14 +43,14 @@
   delegate_to: localhost
 
 - name: Replace title in slurm dashboard (1/2)
-  replace:
+  ansible.builtin.replace:
     path: "{{ role_path }}/files/slurm-dashboard-node-exporter.json"
     regexp: '"title": "SLURM - Node Exporter Server Metrics.*'
     replace: '"title": "SLURM - Node Exporter Server Metrics - ({{ ansible_default_ipv4.address }})",'
   delegate_to: localhost
 
 - name: Replace title in slurm dashboard (2/2)
-  replace:
+  ansible.builtin.replace:
     path: "{{ role_path }}/files/slurm-dashboard.json"
     regexp: '"title": "SLURM - CPUs/GPUs, Nodes, Jobs, Scheduler.*'
     replace: '"title": "SLURM - CPUs/GPUs, Nodes, Jobs, Scheduler ({{ ansible_default_ipv4.address }})",'
@@ -72,5 +72,5 @@
       register: import_prom_dashboards
   rescue:
     - name: Import K8s grafana dashboards failed
-      fail:
+      ansible.builtin.fail:
         msg: "Error: {{ import_prom_dashboards.msg }}"
