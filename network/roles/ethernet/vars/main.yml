@@ -25,3 +25,10 @@ fail_msg_save_config: save_changes_to_startup variable can only be set to true o
 fail_msg_ethernet_credentials: "Failed. Incorrect ethernet_switch_username or ethernet_switch_password format provided"
 max_length: 30
 min_username_length: 4
+ansible_collections:
+  - dellemc.os10:1.1.1
+max_retries: 20
+success_snmp_trap_dest: "SNMP trap destination IP validated"
+fail_snmp_trap_dest: "Failed. Incorrect SNMP trap destination IP format provided in ethernet input file"
+snmp_community_success_msg: "snmp_community_name validated"
+snmp_community_fail_msg: "Failed. snmp_community_name should not be empty, please provide input in ethernet input file"

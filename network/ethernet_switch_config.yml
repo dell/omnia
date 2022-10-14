@@ -13,14 +13,22 @@
 # limitations under the License.
 ---
 
+- name: Include pre-requisites ethernet configuration
+  hosts: localhost
+  tasks:
+    - name: Pre-requisites for ethernet configuration
+      ansible.builtin.include_role:
+        name: ethernet
+        tasks_from: validate_ethernet_vars.yml
+
 - name: Ethernet Configuration
   hosts: all
   gather_facts: false
   connection: network_cli
   collections:
-   - dellemc.os10
+    - dellemc.os10
   vars:
-   ansible_network_os: dellemc.os10.os10
-   ansible_command_timeout: 180
+    ansible_network_os: dellemc.os10.os10
+    ansible_command_timeout: 180
   roles:
-   - ethernet
+    - ethernet
