@@ -1,11 +1,10 @@
 Running prereq.sh
 =================
 
-``prereq.sh`` is used to verify that all pre-requisites for Omnia are met before running the script.
+``prereq.sh`` is used to verify that all pre-requisites for Omnia are met before running the script. ::
 
-``cd omnia``
-
-``sh prereqs.sh``
+    cd omnia
+    sh prereqs.sh
 
 
 This includes the following checks:

@@ -1,4 +1,4 @@
-Updating Kernels on Red Hat
+Updating Kernels on RHEL
 =============================
 
 **Pre-requisites**
@@ -18,9 +18,3 @@ Via CLI:
 ``cd omnia/control_plane``
 
 ``ansible-playbook kernel_upgrade.yml -i inventory -e rhsm_kernel_version=x.xx.x-xxxx``
-
-Through AWX UI
-
-.. image:: ../images/Execute_Kernel_Upgrade_UI.png
-
-.. note:: Omnia does not support roll-backs/downgrades of the Kernel.

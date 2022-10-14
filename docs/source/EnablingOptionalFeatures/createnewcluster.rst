@@ -5,9 +5,9 @@ If the new cluster is to run on a different OS than the previous cluster, update
 
 
 
-    Example: In a scenario where the user wishes to deploy Red Hat and Rocky on their multiple servers, below are the steps they would use:
+    Example: In a scenario where the user wishes to deploy RHEL and Rocky on their multiple servers, below are the steps they would use:
 
-        1. Set ``provision_os`` to ``rhel`` and ``iso_file_path`` to ``/root/rhel-8.4-DVD-x86_64-Current.iso``.
+        1. Set ``provision_os`` to ``rhel`` and ``iso_file_path`` to ``/root/rhel-8.x-DVD-x86_64-Current.iso``.
 
         2. Run ``provision.yml`` to create a rhel osimage.
 
