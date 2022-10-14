@@ -29,7 +29,7 @@ Input the configuration variables into the ``infiniband_edr_input.yml`` or ``inf
 
 **Before you run the playbook**
 
-Before running infiniband.yml, ensure that SSL Secure Cookies are disabled. Also, HTTP and JSON Gateway need to be enabled on your switch. This can be verified by running:
+Before running ``infiniband.yml``, ensure that SSL Secure Cookies are disabled. Also, HTTP and JSON Gateway need to be enabled on your switch. This can be verified by running:
 
 ``show web`` (To check if SSL Secure Cookies is disabled and HTTP is enabled)
 

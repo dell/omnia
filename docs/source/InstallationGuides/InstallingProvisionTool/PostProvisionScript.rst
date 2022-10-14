@@ -11,5 +11,8 @@ Once the servers are provisioned, run the post provision script to:
 
 * call ``network.yml`` and ``accelerator.yml`` to set up Ethernet switches, Infiniband switches, CUDA toolkit and ROCm drivers.
 
+To run the script, use the below commands: ::
+
+    ansible-playbook post_provision.yml
 
 

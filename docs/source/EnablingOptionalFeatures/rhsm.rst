@@ -76,15 +76,15 @@ Required Parameters
 
 Before running ``omnia.yml``, it is mandatory that red hat subscription be set up on compute nodes running RHEL.
 
-* To set up Red hat subscription, fill in the ``rhsm_vars.yml`` file. Once it's filled in, run the template using AWX or Ansible.
+* To set up Red hat subscription, fill in the ``rhsm_vars.yml`` file. Once it's filled in, run the template using Ansible.
 
 * The flow of the playbook will be determined by the value of ``redhat_subscription_method`` in ``rhsm_vars.yml``.
 
-    - If ``redhat_subscription_method`` is set to ``portal``, pass the values ``username`` and ``password`` on the AWX screen. For CLI, run the command:
+    - If ``redhat_subscription_method`` is set to ``portal``, pass the values ``username`` and ``password``. For CLI, run the command:
 
         ``ansible-playbook rhsm_subscription.yml -i inventory -e redhat_subscription_username= "<username>" -e redhat_subscription_password="<password>"``
 
-    - If ``redhat_subscription_method`` is set to ``satellite``, pass the values ``organizational identifier`` and ``activation key`` on the AWX screen. For CLI, run the command:
+    - If ``redhat_subscription_method`` is set to ``satellite``, pass the values ``organizational identifier`` and ``activation key``. For CLI, run the command:
 
         ``ansible-playbook rhsm_subscription.yml -i inventory -e redhat_subscription_activation_key= "<activation-key>" -e redhat_subscription_org_id ="<org-id>"``
 
