@@ -21,9 +21,7 @@ omnia_log_path: /var/log/omnia
 cp_path: "/root/.ansible/cp/"
 ansible_cfg_src: "{{ playbook_dir }}/ansible.cfg"
 ansible_cfg_dest: 
-  - { path: "{{ playbook_dir }}/control_plane/tools/ansible.cfg", log_path: "/var/log/omnia/omnia_control_plane_tools.log", regexp: "/var/log/omnia.log" }
   - { path: "{{ playbook_dir }}/telemetry/ansible.cfg", log_path: "/var/log/omnia/omnia_telemetry.log", regexp: "/var/log/omnia.log" }
-  - { path: "{{ playbook_dir }}/tools/ansible.cfg", log_path: "/var/log/omnia/omnia_tools.log", regexp: "/var/log/omnia.log" }
   - { path: "{{ playbook_dir }}/platforms/ansible.cfg", log_path: "/var/log/omnia/omnia_platforms.log", regexp: "/var/log/omnia.log" }
 
 # Usage: fetch_omnia_inputs.yml
