@@ -106,3 +106,5 @@ grafana_svc_port: "{{ lookup('ini', 'port section=grafana_svc file={{ playbook_d
 opensuse_os_name: "openSUSE Leap"
 
 nginx_listen_port: 3200
+
+nginx_install_msg: "Skipping installation of nginx as required details of grafana are not provided"

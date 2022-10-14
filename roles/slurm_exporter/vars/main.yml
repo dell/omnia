@@ -25,7 +25,7 @@ slurm_exporter_exec: "{{ slurm_exporter_inst_dir }}/bin/prometheus-slurm-exporte
 system_path: "/usr/bin"
 stable_commit_id: "00a7dee"
 
-#Usage: install_prometheus.yml
+# Usage: install_prometheus.yml
 prometheus_git_repo: "https://github.com/prometheus/prometheus/releases/download/v2.23.0/prometheus-2.23.0.linux-amd64.tar.gz"
 prometheus_inst_path: "/var/lib/prometheus-2.23.0.linux-amd64/"
 prometheus_exec_path: "{{ prometheus_inst_path }}/prometheus"
@@ -33,15 +33,15 @@ system_local_path: "/usr/local/bin"
 prometheus_config_file: "{{ prometheus_inst_path }}/prometheus.yml"
 opensuse_os_name: "openSUSE Leap"
 
-#Usage: start_service.yml
+# Usage: start_service.yml
 file_permission: "0755"
 systemd_path_dest: "/etc/systemd/system/"
 slurm_exporter_port: "8081"
 
-#Usage: configure_prometheus_pod.yml
+# Usage: configure_prometheus_pod.yml
 slurm_config_file: "slurm_exporter_config.yaml"
 
-#Usage: configure_grafana.yml
+# Usage: configure_grafana.yml
 prometheus_ip: http://localhost:9090
 nginx_conf_file_path: /etc/nginx/nginx.conf
 nginx_conf_file_mode: 2534
@@ -50,3 +50,7 @@ grafana_svc_port: "{{ lookup('ini', 'port section=grafana_svc file=../../k8s_sta
 slurm_dashboard_json_files:
   - slurm-dashboard.json
   - slurm-dashboard-node-exporter.json
+
+# Usage: main.yml
+grafana_install_msg: "Skipping configuration of grafana as required details of grafana are not provided"
+nginx_install_msg: "Skipping installation of nginx as required details of grafana are not provided"
