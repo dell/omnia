@@ -30,6 +30,10 @@ os10_config:
 # Provide a valid SNMP server IP
 snmp_trap_destination: ""
 
+# Provide the snmp community name required
+# Default value:"public"
+snmp_community_name: "public"
+
 # Interface configuration for switch
 os10_interface:
     ethernet 1/1/1:

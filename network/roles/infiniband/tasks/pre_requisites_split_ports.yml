@@ -13,6 +13,12 @@
 # limitations under the License.
 ---
 
+- name: Expect-package installation
+  ansible.builtin.pip:
+    name: pexpect
+    state: present
+    executable: pip3
+
 - name: Initialize split_ready_status to false
   ansible.builtin.set_fact:
     split_ready_status: false
