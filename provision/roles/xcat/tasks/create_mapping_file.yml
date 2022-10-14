@@ -53,8 +53,17 @@
     - empty_ib_ip | int > 0
     - empty_bmc_ip | int > 0
 
-- name: Create group with admin_ip's
+- name: Check for reachable node - {{ item.admin_ip }}
+  ansible.builtin.command: ping -c1 {{ item.admin_ip }}
+  register: ping_result
+  changed_when: false
+  failed_when: false
+  when: item.admin_ip is defined
+
+- name: Create group with admin_ip - {{ item.admin_ip }}
   ansible.builtin.add_host:
     name: "{{ item.admin_ip }}"
     groups: "node_inventory"
-  when: item.admin_ip is defined
+  when:
+    - item.admin_ip is defined
+    - ping_search_key not in ping_result.stdout
