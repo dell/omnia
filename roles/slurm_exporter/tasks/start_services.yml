@@ -14,20 +14,20 @@
 ---
 
 - name: Install firewalld
-  package:
+  ansible.builtin.package:
     name: firewalld
     state: present
   tags: firewalld
 
 - name: Start and enable firewalld
-  service:
+  ansible.builtin.service:
     name: firewalld
     state: started
     enabled: yes
   tags: firewalld
 
 - name: Firewall port addition for slurm exporter
-  command: "firewall-cmd --zone=public --permanent --add-port={{ item }}"
+  ansible.builtin.command: "firewall-cmd --zone=public --permanent --add-port={{ item }}"
   changed_when: true
   with_items:
     - "{{ slurm_exporter_port }}/tcp"
@@ -35,33 +35,33 @@
   tags: firewalld
 
 - name: Reload firewalld
-  command: firewall-cmd --reload
+  ansible.builtin.command: firewall-cmd --reload
   changed_when: true
   tags: firewalld
 
 - name: Stop and disable firewalld
-  service:
+  ansible.builtin.service:
     name: firewalld
     state: stopped
     enabled: no
   tags: firewalld
 
 - name: Create systemd unit file
-  copy:
+  ansible.builtin.copy:
     src: "{{ role_path }}/files/prometheus-slurm-exporter.service"
     dest: "{{ systemd_path_dest }}"
     remote_src: no
     mode: "{{ file_permission }}"
 
 - name: Update the port in service file
-  replace:
+  ansible.builtin.replace:
     path: "{{ systemd_path_dest }}/prometheus-slurm-exporter.service"
     regexp: "0.0.0.0:8080"
     replace: "0.0.0.0:{{ slurm_exporter_port }}"
   tags: init
 
 - name: Start services
-  systemd:
+  ansible.builtin.systemd:
     name: prometheus-slurm-exporter
     state: restarted
     enabled: yes

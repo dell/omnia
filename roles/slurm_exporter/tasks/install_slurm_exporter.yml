@@ -14,51 +14,51 @@
 ---
 
 - name: Download and untar go package
-  unarchive:
+  ansible.builtin.unarchive:
     src: "{{ go_pack_url }}"
     dest: "{{ installation_dir }}"
     remote_src: yes
 
 - name: Add to the linux path
-  shell: echo $PATH
+  ansible.builtin.shell: echo $PATH
   environment:
     PATH: "{{ extended_path }}:{{ ansible_env.PATH }}"
   changed_when: False
 
 - name: Clone the source code
-  git:
+  ansible.builtin.git:
     repo: "{{ slurm_exporter_git_repo }}"
     dest: "{{ slurm_exporter_inst_dir }}"
     version: "{{ stable_commit_id }}"
 
 - name: export GOPATH
-  shell: echo $GOPATH
+  ansible.builtin.shell: echo $GOPATH
   environment:
     PATH: "{{ ansible_env.PATH }}:/var/lib/go/bin/"
     GOPATH: "{{ go_modules_path }}"
   changed_when: False
 
 - name: Download dependencies
-  command: "{{ go_exec_path }} mod download"
+  ansible.builtin.command: "{{ go_exec_path }} mod download"
   args:
     chdir: "{{ slurm_exporter_inst_dir }}"
   changed_when: False
 
 - name: Build the exporter
-  shell: "{{ go_exec_path }} build -o bin/prometheus-slurm-exporter {main,accounts,cpus,nodes,partitions,queue,scheduler,users}.go"
+  ansible.builtin.shell: "{{ go_exec_path }} build -o bin/prometheus-slurm-exporter {main,accounts,cpus,nodes,partitions,queue,scheduler,users}.go"
   args:
     chdir: "{{ slurm_exporter_inst_dir }}"
   changed_when: False
 
 - name: Run all tests included in _test.go files
-  shell: "{{ go_exec_path }} test -v *.go"
+  ansible.builtin.shell: "{{ go_exec_path }} test -v *.go"
   args:
     chdir: "{{ slurm_exporter_inst_dir }}"
   changed_when: False
   failed_when: false
 
 - name: Copy executable to /usr/bin
-  copy:
+  ansible.builtin.copy:
     src: "{{ slurm_exporter_exec }}"
     dest: "{{ system_path }}"
     remote_src: yes

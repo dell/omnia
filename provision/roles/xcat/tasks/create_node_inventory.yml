@@ -20,6 +20,22 @@
   ansible.builtin.set_fact:
     pxe_nic_netmask: "{{ lookup('vars', 'ansible_' + pxe_nic).ipv4.netmask }}"
 
+- name: Set the admin_nic_subnet and admin_nic_sec_subnet
+  ansible.builtin.set_fact:
+    admin_nic_subnet: "{{ lookup('vars', 'ansible_' + admin_nic).ipv4.network }}"
+    admin_nic_sec_subnet: "{{ lookup('vars', 'ansible_' + admin_nic).ipv4_secondaries[0].network }}"
+  when: lookup('vars', 'ansible_' + admin_nic).ipv4_secondaries[0].network is defined
+
+- name: Set the bmc_gateway when admin_nic_subnet equal to bmc_nic_subnet
+  ansible.builtin.set_fact:
+    bmc_gateway: "{{ lookup('vars', 'ansible_' + admin_nic).ipv4.address }}"
+  when: admin_nic_subnet == bmc_nic_subnet
+
+- name: Set the bmc_gateway when admin_nic_sec_subnet equal to bmc_nic_subnet
+  ansible.builtin.set_fact:
+    bmc_gateway: "{{ lookup('vars', 'ansible_' + admin_nic).ipv4_secondaries[0].address }}"
+  when: admin_nic_sec_subnet == bmc_nic_subnet
+
 - name: Initialize variables
   ansible.builtin.set_fact:
     db_result: []

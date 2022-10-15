@@ -14,7 +14,7 @@
 ---
 
 - name: Wait for calico pod to come to ready state
-  command: "kubectl wait --for=condition=ready -n kube-system pod -l k8s-app=calico-node --timeout=10m"
+  ansible.builtin.command: "kubectl wait --for=condition=ready -n kube-system pod -l k8s-app=calico-node --timeout=10m"
   changed_when: false
   register: calico_pod_status
   failed_when: false
@@ -24,7 +24,7 @@
   tags: install
 
 - name: Wait for flannel pod to come to ready state
-  command: "kubectl wait --for=condition=ready -n kube-system pod -l app=flannel --timeout=10m"
+  ansible.builtin.command: "kubectl wait --for=condition=ready -n kube-system pod -l app=flannel --timeout=10m"
   changed_when: false
   register: flannel_pod_status
   failed_when: false
@@ -34,7 +34,7 @@
   tags: install
 
 - name: Wait for nfs-client-provisioner pod to come to ready state
-  command: "kubectl wait --for=condition=ready -n default pod -l app=nfs-client-provisioner --timeout=10m"
+  ansible.builtin.command: "kubectl wait --for=condition=ready -n default pod -l app=nfs-client-provisioner --timeout=10m"
   changed_when: false
   register: nfs_pod_status
   failed_when: false
@@ -44,7 +44,7 @@
   tags: install
 
 - name: Wait for volcano-scheduler pod to come to ready state
-  command: "kubectl wait --for=condition=ready -n volcano-system pod -l app=volcano-scheduler --timeout=5m"
+  ansible.builtin.command: "kubectl wait --for=condition=ready -n volcano-system pod -l app=volcano-scheduler --timeout=5m"
   changed_when: false
   register: volcano_pod_status
   failed_when: false
@@ -54,27 +54,27 @@
   tags: install
 
 - name: Get K8s pods
-  command: kubectl get pods --all-namespaces
+  ansible.builtin.command: kubectl get pods --all-namespaces
   changed_when: false
   register: k8s_pods
   when: "'manager' in group_names"
   tags: install
 
 - name: Add k8s_pods_status to dummy host
-  add_host:
+  ansible.builtin.add_host:
     name: "check_k8s_pods"
     k8s_pods_status: "{{ k8s_pods.stdout }}"
   tags: install
 
 - name: Fail message
-  fail:
+  ansible.builtin.fail:
     msg: "{{ docker_pull_limit_msg }}"
   when:
     - "'ImagePullBackOff' in hostvars['check_k8s_pods']['k8s_pods_status'] or 'ErrImagePull' in hostvars['check_k8s_pods']['k8s_pods_status']"
     - not hostvars['127.0.0.1']['docker_username'] and not hostvars['127.0.0.1']['docker_password']
 
 - name: Docker login
-  command: docker login -u {{ hostvars['127.0.0.1']['docker_username'] }} -p {{ hostvars['127.0.0.1']['docker_password'] }}
+  ansible.builtin.command: docker login -u {{ hostvars['127.0.0.1']['docker_username'] }} -p {{ hostvars['127.0.0.1']['docker_password'] }}
   changed_when: true
   register: docker_login_output
   failed_when: false
@@ -85,14 +85,14 @@
   no_log: true
 
 - name: Docker login check
-  fail:
+  ansible.builtin.fail:
     msg: "{{ docker_login_fail_msg }}"
   when:
     - docker_login_output is failed
     - "'compute' in group_names"
 
 - name: Pull K8s services docker images
-  command: docker pull {{ item }}
+  ansible.builtin.command: docker pull {{ item }}
   with_items: "{{ k8s_docker_images }}"
   when:
     - "'ImagePullBackOff' in hostvars['check_k8s_pods']['k8s_pods_status'] or 'ErrImagePull' in hostvars['check_k8s_pods']['k8s_pods_status']"
