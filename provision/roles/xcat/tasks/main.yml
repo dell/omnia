@@ -32,6 +32,10 @@
 - name: Validate provision parameters
   ansible.builtin.include_tasks: validate_provision_vars.yml
 
+- name: Validate disk partition parameters
+  ansible.builtin.include_tasks: validate_disk_partition_vars.yml
+  with_items: "{{ disk_partition }}"
+
 - name: Validate domain_name
   ansible.builtin.include_tasks: validate_domain_name.yml
 
@@ -51,6 +55,10 @@
 
 - name: Create xcat osimage
   ansible.builtin.include_tasks: create_osimage.yml
+
+- name: User defined disk partition configuration
+  ansible.builtin.include_tasks: disk_partition.yml
+  when: disk_partition_configuration
 
 - name: Enable internet access
   ansible.builtin.include_tasks: internet_access.yml

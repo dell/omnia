@@ -29,6 +29,13 @@
         bmc_netmask: "{{ hostvars['localhost']['pxe_nic_netmask'] }}"
         bmc_gateway: 0.0.0.0
 
+    - name: Set bmc_gateway in case of LOM
+      ansible.builtin.set_fact:
+        bmc_gateway: "{{ hostvars['localhost']['bmc_gateway'] }}"
+      when:
+        - hostvars['localhost']['bmc_gateway'] is defined
+        - hostvars['localhost']['bmc_gateway'] | length > 1
+
     - name: Set bmc_ip to iDRAC
       ansible.builtin.command: racadm setniccfg -s {{ bmc_ip }} {{ bmc_netmask }} {{ bmc_gateway }}
       changed_when: true
