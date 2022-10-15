@@ -163,7 +163,7 @@ This error is caused by design. There is a mismatch between the AWX version (20.
 
 **Why does provisioning RHEL 8.3 fail on some nodes with "dasbus.error.DBusError: 'NoneType' object has no attribute 'set_property'"?**
 
-This error is known to Red Hat and is being addressed `here <https://bugzilla.redhat.com/show_bug.cgi?id=1912898>`_. Red Hat has offered a user intervention `here <https://access.redhat.com/solutions/5872751>`_. Omnia recommends that in the event of this failure, any OS other than RHEL 8.3.
+This error is known to RHEL and is being addressed `here <https://bugzilla.redhat.com/show_bug.cgi?id=1912898>`_. Red Hat has offered a user intervention `here <https://access.redhat.com/solutions/5872751>`_. Omnia recommends that in the event of this failure, any OS other than RHEL 8.3.
 
 **Why do AWX job templates fail when ``awx_web_support`` is false in ``base_vars.yml``?**
 
@@ -651,7 +651,7 @@ To correct the issue, run:
 
 2. Ports 8008, 8003, 8004, 8005 and 8006 may be closed. (use ``systemctl status beegfs-mgmtd, systemctl status beegfs-meta, systemctl status beegfs-storage`` to diagnose the issue)
 
-3. The BeeGFS set up may be incompatible with Red Hat.
+3. The BeeGFS set up may be incompatible with RHEL.
 
 
 
@@ -661,7 +661,7 @@ To correct the issue, run:
 
 2. Open all ports required by BeeGFS: 8008, 8003, 8004, 8005 and 8006
 
-3. Check the [support matrix for Red Hat or Rocky](../Support_Matrix/Software/Operating_Systems) to verify your set-up.
+3. Check the [support matrix for RHEL or Rocky](../Support_Matrix/Software/Operating_Systems) to verify your set-up.
 
 4. For further insight into the issue, check out ``/var/log/beegfs-client.log``
 
@@ -677,7 +677,7 @@ If this is not the case, manually configure a PXE device NIC and re-run ``idrac.
 
 2. Re-run ``provision.yml``
 
-**Why does installing FreeIPA fail on Red Hat servers?**
+**Why does installing FreeIPA fail on RHEL servers?**
 
 .. image:: ../images/FreeIPA_RHEL_Error.png
 

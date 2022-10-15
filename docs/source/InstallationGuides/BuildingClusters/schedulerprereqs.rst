@@ -16,7 +16,7 @@ Before You Build Clusters
 
   * The nfs_node group is optional. If powervault is configured by omnia control plane, then the host connected to the powervault (That is the nfs server) should be part of nfs_node group. There should be only 1 nfs server in the group.
 
-  * Users should also ensure that all repos are available on the target nodes running Red Hat.
+  * Users should also ensure that all repos are available on the target nodes running RHEL.
 
 .. note:: The inventory file accepts both IPs and FQDNs as long as they can be resolved by DNS.
 

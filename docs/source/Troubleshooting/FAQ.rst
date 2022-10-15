@@ -14,9 +14,6 @@ Frequently Asked Questions
 |                         | configurations                                                                   |                                      |                                  |                                                      |
 +-------------------------+----------------------------------------------------------------------------------+--------------------------------------+----------------------------------+------------------------------------------------------+
 
-**Are hosts automatically cleaned up from the AWX UI when re-deploying the cluster?**
-
-No. Before re-deploying the cluster, users have to manually delete all hosts from the awx UI.
 
 **How to enable DHCP routing on Compute Nodes:**
 

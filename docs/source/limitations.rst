@@ -3,10 +3,6 @@ Limitations
 
 -  Once ``provision.yml`` is used to configure devices, it is
    recommended to avoid rebooting the control plane.
--  If the control plane reboots, DHCP services restart. Devices that
-   have had their IP assigned dynamically via DHCP may get assigned new
-   IPs. This in turn can cause duplicate entries for the same device on
-   AWX. Clusters may also show inconsistency and ambiguity.
 -  Removal of Slurm and Kubernetes component roles are not supported.
    However, skip tags can be provided at the start of installation to
    select the component roles.
@@ -40,5 +36,3 @@ Limitations
 -  All iDRACs must have the same username and password.
 -  OpenSUSE Leap 15.3 is not supported on the Control Plane.
 -  Slurm Telemetry is supported only on a single cluster.
--  AWX auto aborts jobs when there are more than 5 nodes in a cluster.
-   To manage larger clusters, please use Ansible CLI.

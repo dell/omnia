@@ -1,11 +1,11 @@
 Running The Provision Tool
 ==============================
 
-1. Edit the *omnia/input/provision_config.yml* file to update the required variables.
+1. Edit the ``omnia/input/provision_config.yml`` file to update the required variables.
 
 .. warning:: The IP address *192.168.25.x* is used for PowerVault Storage communications. Therefore, do not use this IP address for other configurations.
 
-2. Provided that the ``host_mapping_file_path`` is updated as per the provided template (Omnia/examples/pxe_mapping_file.csv), Omnia deploys the control plane and assigns the component roles by executing the ``omnia.yml`` file.  To deploy the Omnia control plane, run the following command ::
+2. Provided that the ``pxe_mapping_file_path`` is updated as per the provided template (Omnia/examples/pxe_mapping_file.csv), Omnia deploys the control plane and assigns the component roles by executing the ``omnia.yml`` file.  To deploy the Omnia control plane, run the following command ::
 
     ansible-playbook provision.yml
 
@@ -17,11 +17,11 @@ Running The Provision Tool
 
     iii. A PostgreSQL database is set up with all relevant cluster information such as MAC IDs, service tags, infiniband IPs, BMC IPs etc.
 
-            To access the DB, run:
+            To access the DB, run: ::
 
-                        ``psql -U postgres``
+                        psql -U postgres
 
-                        ``\c omniadb``
+                        \c omniadb
 
 
             To view the schema being used in the cluster: ``\dn``
@@ -32,6 +32,13 @@ Running The Provision Tool
 
     iv. Offline repositories will be created based on the OS being deployed across the cluster.
 
-.. note:: If the cluster does not have access to the internet, AppStream will not function. Please use the available offline repositories instead.
+Once the script is complete, ensure that PXE boot and RAID configurations are set up on remote nodes. Users are then expected to reboot target servers to provision the right OS.
+
+.. note::
+
+* If the cluster does not have access to the internet, AppStream will not function. Please use the available offline repositories instead.
+
+* Password-less SSH will be created from the host to all target nodes and between nodes.
+
 
 .. warning:: Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect.
