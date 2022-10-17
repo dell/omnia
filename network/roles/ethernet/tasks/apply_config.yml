@@ -18,7 +18,7 @@
     build_dir: "{{ role_path }}/files/temp"
 
 - name: Apply switch configuration
-  dellos10_config:
+  dellemc.os10.os10_config:
     commands: "{{ os10_config }}"
   when: os10_config is defined
   vars:
