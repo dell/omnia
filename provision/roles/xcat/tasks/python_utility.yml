@@ -13,16 +13,27 @@
 # limitations under the License.
 ---
 
-- name: Call snmp utility if switch IP provided
+- name: Call postgres utility if switch IP provided
   ansible.builtin.command: |
      {{ python_version }} {{ postgres_utility_path }}
   register: postgres_status
-  changed_when: true
+  changed_when: false
 
 - name: Call snmp utility if switch IP provided
   ansible.builtin.command: |
      {{ python_version }} {{ snmp_utility_path }} {{ pxe_switch_ip }} {{ pxe_switch_snmp_community_string }}
       {{ pxe_nic_start_range }} {{ pxe_nic_end_range }} {{ node_name }} {{ pxe_mapping_path }} {{ domain_name }} {{ roce_enabled }}
   register: snmp_status
-  changed_when: true
   when: pxe_switch_ip | length > 6
+
+- name: Call bmc utility
+  ansible.builtin.command: |
+     {{ python_version }} {{ bmc_utility_path }} {{ bmc_nic_start_range }} {{ bmc_nic_end_range }}
+  when: bmc_nic_subnet | length > 6
+
+- name: Call ib utility
+  ansible.builtin.command: |
+     {{ python_version }} {{ ib_utility_path }} {{ ib_nic_start_range }} {{ ib_nic_end_range }}
+  when:
+    - ib_nic_subnet | length > 6
+    - not roce_enabled

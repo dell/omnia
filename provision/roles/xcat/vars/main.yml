@@ -155,6 +155,8 @@ xcat_ports:
 snmp_utility_path: "{{ role_path }}/files/snmp_utility.py"
 pxe_mapping_path: "{{ role_path }}/files/pxe_mapping_file.csv"
 postgres_utility_path: "{{ role_path }}/files/postgres_utility.py"
+bmc_utility_path: "{{ role_path }}/files/bmc_utility.py"
+ib_utility_path: "{{ role_path }}/files/ib_utility.py"
 
 # Usage: install_xcat.yml
 xcat_directory: /root/xcat
