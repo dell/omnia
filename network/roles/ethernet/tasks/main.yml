@@ -16,8 +16,13 @@
 - name: Check pre-requisites
   ansible.builtin.include_tasks: pre_requisites.yml
 
-- name: Configure switch
+- name: Configure S seriesswitch
   ansible.builtin.include_tasks: apply_config.yml
+  when: sseries
+
+- name: Configure Z or N series switch
+  ansible.builtin.include_tasks: setup_ports.yml
+  when: zseries
 
 - name: Configure SNMP
   ansible.builtin.include_tasks: snmp_config.yml
