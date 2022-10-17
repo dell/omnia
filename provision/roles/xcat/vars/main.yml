@@ -45,6 +45,7 @@ pxe_switch_ip_valid: "Valid switch ip provided"
 pxe_switch_ip_invalid: " Failed. Provide a valid switch ip"
 fail_switch_or_mapping_file: "Failed.Please provide either PXE mapping file or PXE switch details.If switch details are given,then provide proper nodename too."
 fail_msg_pxe_path: "Failed. Please provide a valid PXE mapping file path"
+pxe_switch_unreachable: "Failed. Given switch is unreachable. Please provide correct switch IP."
 
 # Usage: package_installation.yml
 ipaddr_collection: ansible.utils:2.5.2
