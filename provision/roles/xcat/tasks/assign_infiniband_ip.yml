@@ -80,6 +80,11 @@
             method4: manual
             state: present
           when: ib_nics | length > 0
+        
+        - name: Reactivate ib nic to up
+          ansible.builtin.command: nmcli connection up {{ ib_nics[0] }}
+          changed_when: false
+          when: ib_nics | length > 0
       when:
         - not roce_enabled
         - mapping_status.stat.exists

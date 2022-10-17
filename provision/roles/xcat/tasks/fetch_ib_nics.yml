@@ -23,3 +23,4 @@
   when:
     - fact_result.type == "infiniband"
     - fact_result.ipv4.address is not defined
+    - fact_result.active
