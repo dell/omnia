@@ -67,7 +67,7 @@ def filter_dec_oid():
         for i in item.split('.'):
             number = format(int(i), 'x')
             # To append 0 as MAC has 00 instead of 0
-            if number == "0":
+            if number == "0" or number == "a" or number == "b" or number == "c" or number == "d" or number == "e" or number =="f":
                 number = "0" + number
             temp_nos.append(number)
         hexa_mac.append(temp_nos[-6:])
@@ -87,7 +87,7 @@ def final_hex_mac():
             temp = temp + value + ":"
         final_mac[count] = temp[:-1]
         count = count + 1
-
+    print(final_mac)
     identify_device_type()
 
 
@@ -99,7 +99,7 @@ def identify_device_type():
         response = requests.get(url + final_mac[key])
         if response.status_code != 200:
             raise Exception("[!] Invalid MAC Address!")
-        if "Broadcom" in response.content.decode() or "Intel" in response.content.decode():
+        if "Dell" not in response.content.decode():
             valid_mac.append(final_mac[key])
             print(response.content.decode())
         else:
@@ -152,11 +152,11 @@ def mapping_file_creation():
     if roce_status == "False":
         if ip_start_addr + result[0][0] > ip_end_addr:
             print(" PXE ip range has exceeded the provided range. Please provide proper range")
-            sql= '''Update cluster.nodeinfo set admin_ip = NULL'''
+            sql= '''Drop table cluster.nodeinfo'''
             cursor.execute(sql)
-            os.abort()
+            sys.exit('PXE ip range has exceeded the provided range. Please provide proper range')
         else:
-            sql = '''Update cluster.nodeinfo set admin_ip=admin_ip + id
+            sql = '''Update cluster.nodeinfo set admin_ip=inet'{ip_start_addr}' + id
                where admin_ip - id <> inet ('{ip_start_addr}') '''.format(ip_start_addr=ip_start_addr)
             cursor.execute(sql)
         sql = '''select admin_mac,hostname,admin_ip from cluster.nodeinfo'''
@@ -171,11 +171,11 @@ def mapping_file_creation():
     if roce_status == "True":
         if ip_start_addr + result[0][0] > ip_end_addr:
             print(" PXE ip range has exceeded the provided range. Please provide proper range")
-            sql= '''Update cluster.nodeinfo set ib_ip = NULL'''
+            sql= '''Drop table cluster.nodeinfo'''
             cursor.execute(sql)
-            os.abort()
+            sys.exit('PXE ip range has exceeded the provided range. Please provide proper range')
         else:
-            sql = '''Update cluster.nodeinfo set ib_ip=ib_ip + id
+            sql = '''Update cluster.nodeinfo set ib_ip=inet'{ip_start_addr}' + id
                where ib_ip - id <> inet ('{ip_start_addr}') '''.format(ip_start_addr=ip_start_addr)
             cursor.execute(sql)
         sql = '''select admin_mac,hostname,ib_ip from cluster.nodeinfo'''

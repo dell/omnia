@@ -13,14 +13,22 @@
 # limitations under the License.
 ---
 
-- name: Gather NIC information
-  ansible.builtin.set_fact:
-    fact_result: "{{ lookup('vars', 'ansible_' + item) }}"
+- name: Bring vlan interface up
+  dellemc.os10.os10_config:
+    lines:
+      - 'no shutdown'
+    parents: ['interface vlan1']
+  vars:
+    - ansible_ssh_user: "{{ ethernet_switch_username }}"
+      ansible_ssh_password: "{{ ethernet_switch_password }}"
+  when: item.value.admin == 'up'
 
-- name: Collect available empty ib nics
-  ansible.builtin.set_fact:
-    ib_nics: "{{ ib_nics + [item] }}"
-  when:
-    - fact_result.type == "infiniband"
-    - fact_result.ipv4.address is not defined
-    - fact_result.active
+- name: Bring vlan interface down
+  dellemc.os10.os10_config:
+    lines:
+      - 'shutdown'
+    parents: ['interface vlan1']
+  vars:
+    - ansible_ssh_user: "{{ ethernet_switch_username }}"
+      ansible_ssh_password: "{{ ethernet_switch_password }}"
+  when: item.value.admin == 'down'
