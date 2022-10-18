@@ -92,9 +92,7 @@ Before running ``omnia.yml``, it is mandatory that red hat subscription be set u
 Red Hat Unsubscription
 -----------------------
 
-To disable subscription on RHEL nodes, the ``red_hat_unregister_template`` has to be called either by:
-
-Using CLI, run the command: ::
+To disable subscription on RHEL nodes, the ``red_hat_unregister_template`` has to be called: ::
 
     ansible_playbook omnia/control_plane/rhsm_unregister.yml -i inventory
 
