@@ -13,7 +13,7 @@
 #  limitations under the License.
 ---
 
-- name: Include input params for mlnx_ofed
+- name: Include input for mlnx_ofed
   ansible.builtin.include_vars: "{{ role_path }}/../../../input/accelerator_config.yml"
 
 - name: Set cuda installation way to network
