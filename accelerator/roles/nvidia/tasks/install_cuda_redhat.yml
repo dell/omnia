@@ -13,19 +13,24 @@
 #  limitations under the License.
 ---
 
-- name: Check kernel version
-  ansible.builtin.command: uname -r
-  changed_when: false
-  register: kernel_version
+- name: Subscribe for code ready builder repo in RHEL
+  ansible.builtin.command: subscription-manager repos --enable=codeready-builder-for-rhel-8-x86_64-rpms
+  when: os_supported_rhel in ansible_facts['distribution'] | lower
+
+- name: Download development packages
+  ansible.builtin.package:
+    name: "@Development tools"
+    state: present
 
 - name: Download development packages and kernel devel packages
-  ansible.builtin.package:
-    name: "{{ item }}"
+  ansible.builtin.shell: dnf install kernel-devel-$(uname -r) kernel-headers-$(uname -r) -y
+  changed_when: true
+
+- name: Enable EPEL Repo
+  ansible.builtin.yum:
+    name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
     state: present
-  with_items:
-    - "@Development tools"
-    - "{{ 'kernel-devel-' + kernel_version.stdout }}"
-    - "{{ 'kernel-headers-' + kernel_version.stdout }}"
+    disable_gpg_check: true
 
 - name: Install cuda toolkit using offline path
   block:
@@ -54,6 +59,10 @@
     path: "/etc/X11/xorg.conf"
     state: absent
 
+- name: Clean cache
+  ansible.builtin.command: yum clean all
+  changed_when: false
+
 - name: Install CUDA SDK
   ansible.builtin.package:
     name: "{{ item }}"
@@ -66,17 +75,12 @@
 
 - name: Flush handler to reboot the node
   ansible.builtin.meta: flush_handlers
-  
-- name: Enable nvidia-persistenced systemd service
-  ansible.builtin.service:
-    name: nvidia-persistenced
-    enabled: true
 
-- name: Check if nvidia drivers are loaded
-  ansible.builtin.command: cat /proc/driver/nvidia/version
+- name: Check if environment variables are set
+  ansible.builtin.command: echo $PATH
   changed_when: false
   failed_when: false
-  register: nvidia_output
+  register: path_output
 
 - name: Perform Post Installation steps
   block:
@@ -95,4 +99,14 @@
       args:
         executable: /bin/bash
 
-  when: "'NVIDIA' not in nvidia_output.stdout"
+  when: "'cuda' not in path_output.stdout"
+
+- name: Enable nvidia-persistenced systemd service
+  ansible.builtin.service:
+    name: nvidia-persistenced
+    enabled: true
+
+- name: Start nvidia-persistenced service, if not started
+  ansible.builtin.service:
+    name: nvidia-persistenced
+    state: started
