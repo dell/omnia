@@ -13,10 +13,26 @@
 # limitations under the License.
 ---
 
-- name: Fetch default network table entries
-  ansible.builtin.shell: source {{ xcat_env_path }} && lsdef -t network
-  changed_when: false
-  register: default_network
+- name: Fetch default networks table entries
+  block:
+    - name: Fetch default network table entries
+      ansible.builtin.shell: source {{ xcat_env_path }} && lsdef -t network
+      changed_when: false
+      register: default_network
+  rescue:
+    - name: Restart postgresql and xcat services
+      ansible.builtin.service:
+        name: "{{ item }}"
+        state: restarted
+        enabled: true
+      with_items:
+        - postgresql
+        - xcatd
+
+    - name: Fetch default network table entries
+      ansible.builtin.shell: source {{ xcat_env_path }} && lsdef -t network
+      changed_when: false
+      register: default_network
 
 - name: Delete default network table entries
   ansible.builtin.shell: source {{ xcat_env_path }} && rmdef -t network {{ item.split(' ')[0] }}
