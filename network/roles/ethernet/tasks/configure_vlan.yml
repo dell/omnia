@@ -13,24 +13,22 @@
 # limitations under the License.
 ---
 
-- name: Set build directory
-  ansible.builtin.set_fact:
-    build_dir: "{{ role_path }}/files/temp"
-
-- name: Apply switch configuration
+- name: Bring vlan interface up
   dellemc.os10.os10_config:
-    commands: "{{ os10_config }}"
-  when: os10_config is defined
+    lines:
+      - 'no shutdown'
+    parents: ['interface vlan1']
   vars:
     - ansible_ssh_user: "{{ ethernet_switch_username }}"
       ansible_ssh_password: "{{ ethernet_switch_password }}"
+  when: item.value.admin == 'up'
 
-- name: Apply switch interface configuration
-  ansible.builtin.include_role:
-    name: dellemc.os10.os10_interface
+- name: Bring vlan interface down
+  dellemc.os10.os10_config:
+    lines:
+      - 'shutdown'
+    parents: ['interface vlan1']
   vars:
-    - hostname: "{{ inventory_hostname }}"
-      os10_cfg_generate: true
-      ansible_ssh_user: "{{ ethernet_switch_username }}"
+    - ansible_ssh_user: "{{ ethernet_switch_username }}"
       ansible_ssh_password: "{{ ethernet_switch_password }}"
-  when: os10_interface is defined
+  when: item.value.admin == 'down'

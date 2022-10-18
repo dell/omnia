@@ -13,6 +13,12 @@
 # limitations under the License.
 ---
 
+- name: Install ansible-pylibssh
+  ansible.builtin.pip:
+    name: ansible-pylibssh
+    state: present
+    executable: pip3
+
 - name: Install paramiko
   ansible.builtin.command: pip3 install paramiko -i http://pypi.douban.com/simple/ --trusted-host pypi.douban.com
   delegate_to: localhost
@@ -29,14 +35,24 @@
     msg: "{{ fail_msg_tor_config_file }}"
   when: not stat_result.stat.exists
 
-- name: Check if ethernet_input.yml exists
+- name: Check if ethernet_sseries_input.yml exists
   ansible.builtin.stat:
     path: "{{ config_file }}"
   register: stat_result
 
-- name: Fail if ethernet_input.yml file doesn't exist
+- name: Fail if ethernet_sseries_input.yml file doesn't exist
   ansible.builtin.fail:
     msg: "{{ fail_msg_config_file }}"
+  when: not stat_result.stat.exists
+
+- name: Check if ethernet_zseries_input.yml exists
+  ansible.builtin.stat:
+    path: "{{ ethernet_zseries_file }}"
+  register: stat_result
+
+- name: Fail if ethernet_zseries_input.yml file doesn't exist
+  ansible.builtin.fail:
+    msg: "{{ fail_msg_zseries_file }}"
   when: not stat_result.stat.exists
 
 - name: Check switch model name
@@ -51,29 +67,40 @@
   ansible.builtin.set_fact:
     model_type: "{{ model_type.stdout[0].split(' ')[-1] }}"
 
-- name: Pre-requisite tasks for S3* and S4* switches
-  block:
-    - name: Include ethernet_tor_input.yml config variable file
-      ansible.builtin.include_vars: "{{ tor_config_file }}"
+- name: Initialize variable for switch type
+  ansible.builtin.set_fact:
+    sseries: false
+    zseries: false
 
-    - name: Assert save_changes_to_startup variable
-      ansible.builtin.assert:
-        that: "save_changes_to_startup == true or save_changes_to_startup == false"
-        success_msg: "{{ success_msg_tor_save_config }}"
-        fail_msg: "{{ fail_msg_tor_save_config }}"
+- name: Include tor_config_file file
+  ansible.builtin.include_vars: "{{ tor_config_file }}"
   when: "'S3' in model_type or 'S4' in model_type"
 
-- name: Pre-requisite tasks for other ethernet switches
-  block:
-    - name: Include ethernet_input.yml config variable file
-      ansible.builtin.include_vars: "{{ config_file }}"
+- name: Include ethernet_sseries_input.yml file
+  ansible.builtin.include_vars: "{{ config_file }}"
+  when:
+    - "'S3' not in model_type and 'S4' not in model_type"
+    - "'Z' not in model_type and 'N' not in model_type"
 
-    - name: Assert save_changes_to_startup variable
-      ansible.builtin.assert:
-        that: "save_changes_to_startup == true or save_changes_to_startup == false"
-        success_msg: "{{ success_msg_save_config }}"
-        fail_msg: "{{ fail_msg_save_config }}"
-  when: "'S3' not in model_type and 'S4' not in model_type"
+- name: Pre-requisite tasks for ethernet switches which are N or Z series
+  ansible.builtin.include_vars: "{{ ethernet_zseries_file }}"
+  when: "'Z' in model_type or 'N' in model_type"
+
+- name: Update S series variable
+  ansible.builtin.set_fact:
+    sseries: true
+  when: "'Z' not in model_type and 'N' not in model_type"
+
+- name: Update Z series variable
+  ansible.builtin.set_fact:
+    zseries: true
+  when: "'Z' in model_type or 'N' in model_type"
+
+- name: Assert save_changes_to_startup variable
+  ansible.builtin.assert:
+    that: save_changes_to_startup == true or save_changes_to_startup == false
+    success_msg: "{{ success_msg_save_config }}"
+    fail_msg: "{{ fail_msg_save_config }}"
 
 - name: Initialize snmp_enabled
   ansible.builtin.set_fact:

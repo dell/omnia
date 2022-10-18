@@ -15,14 +15,14 @@
 
 # Usage: pre_requisites.yml
 tor_config_file: "{{ role_path }}/../../ethernet_tor_input.yml"
-config_file: "{{ role_path }}/../../ethernet_input.yml"
+config_file: "{{ role_path }}/../../ethernet_sseries_input.yml"
 fail_msg_tor_config_file: TOR Ethernet config file doesn't exist.
 fail_msg_config_file: Ethernet config file doesn't exist.
 success_msg_tor_save_config: TOR Ethernet config file validated.
 fail_msg_tor_save_config: save_changes_to_startup variable can only be set to true or false in ethernet_tor_vars.yml
 success_msg_save_config: Ethernet config file validated.
 fail_msg_save_config: save_changes_to_startup variable can only be set to true or false.
-fail_msg_ethernet_credentials: "Failed. Incorrect ethernet_switch_username or ethernet_switch_password format provided"
+fail_msg_ethernet_credentials: 'command:ansible-playbook ethernet_switch_config.yml -i inventory -e ethernet_switch_username="" -e ethernet_switch_password=""'
 max_length: 30
 min_username_length: 4
 ansible_collections:
@@ -32,3 +32,7 @@ success_snmp_trap_dest: "SNMP trap destination IP validated"
 fail_snmp_trap_dest: "Failed. Incorrect SNMP trap destination IP format provided in ethernet input file"
 snmp_community_success_msg: "snmp_community_name validated"
 snmp_community_fail_msg: "Failed. snmp_community_name should not be empty, please provide input in ethernet input file"
+fail_msg_zseries_file: "Z series config file doesn't exists"
+ethernet_zseries_file: "{{ role_path }}/../../ethernet_zseries_input.yml"
+port_status_msg: "Failed. Either port already split with different breakout value or port is not available on ethernet switch"
+port_prefix: "1/1/"
