@@ -55,7 +55,15 @@ Provisioning server using BOSS controller is now supported by Omnia 1.2.1.
 Once complete, it's safe to re-run ``monitor.yml``.
 
 
-**How many active NICs are configured by ``idrac.yml``?**
+**How many active NICs are configured by idrac.yml?**
 
 Upto 4 active NICs can be configured by ``idrac.yml``. Past the first 4 NICs, all NICs will be ignored.
+
+**How to re-launch services after a control-plane reboot while running provision.yml**
+
+After a reboot of the control plane while running ``provision.yml``, to bring up ``xcatd`` services, please run the below commands: ::
+
+    systemctl restart postgresql.service
+
+    systemctl restart xcatd.service
 

@@ -2,7 +2,7 @@ Configuring Ethernet Switches (Z series)
 -----------------------------------------
 
 
-* Edit the ``omnia/network/ethernet_zseries_input.yml`` file for all Z series PowerSwitches such as Z9264F-ON.
+* Edit the ``omnia/network/ethernet_zseries_input.yml`` file for all Z series PowerSwitches such as Z9332F-ON, Z9262-ON, Z9264F-ON Z. The default configuration is written for Z9264F-ON.
 
 +------------------------------+-------------------------------------------------------------------------------------------------------------+-----------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Name                         | Default, accepted values                                                                                    | Required? | Purpose                                                                                                                                                                                                             |
@@ -12,7 +12,7 @@ Configuring Ethernet Switches (Z series)
 +------------------------------+-------------------------------------------------------------------------------------------------------------+-----------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | breakout_value               | **10g-4x**,  25g-4x, 40g-1x, 100g-1x                                                                        | required  | By default, all ports are configured in the 10g-4x breakout mode in which   a QSFP28 or QSFP+ port is split into four 10G interfaces. For more   information about the breakout modes, see Configure breakout mode. |
 +------------------------------+-------------------------------------------------------------------------------------------------------------+-----------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| snmp_trap_destination                                                                                                                      | optional  |  The trap destination IP address is   the IP address of the SNMP Server where the trap will be sent. Ensure that   the SNMP IP is valid.                                                                            |
+| snmp_trap_destination        |                                                                                                             | optional  |  The trap destination IP address is   the IP address of the SNMP Server where the trap will be sent. Ensure that   the SNMP IP is valid.                                                                            |
 +------------------------------+-------------------------------------------------------------------------------------------------------------+-----------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | snmp_community_string        | public                                                                                                      | optional  |  An SNMP community string is a   means of accessing statistics stored within a router or other device.                                                                                                              |
 +------------------------------+-------------------------------------------------------------------------------------------------------------+-----------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -30,7 +30,7 @@ Configuring Ethernet Switches (Z series)
 
 * The 65th port on a Z series switch cannot be split.
 
-* Only odd ports support breakouts. For more information, `click here <https://www.dell.com/support/kbdoc/en-in/000195212/powerscale-dell-z9264-switches-only-allow-breakout-cables-in-odd-port-numbers?lang=en#>`_.
+* Only odd ports support breakouts on Z9264F-ON. For more information, `click here <https://www.dell.com/support/kbdoc/en-in/000195212/powerscale-dell-z9264-switches-only-allow-breakout-cables-in-odd-port-numbers?lang=en#>`_.
 
 **Running the playbook**
 
