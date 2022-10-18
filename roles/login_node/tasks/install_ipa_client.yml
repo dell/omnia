@@ -98,3 +98,15 @@
     - name: Install ipa client failed
       fail:
         msg: "Error: {{ install_ipa_client.stderr_lines }}"
+
+- name: Install mkhomedir to enable home directory creation for users
+  command: authselect enable-feature with-mkhomedir
+  changed_when: false
+  failed_when: false
+
+- name: Enable oddjob service
+  systemd:
+    name: oddjobd
+    state: started
+    enabled: yes
+  failed_when: false
