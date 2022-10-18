@@ -76,3 +76,15 @@
     dest: "{{ resolv_conf_path }}"
     mode: "{{ file_mode }}"
     remote_src: yes
+
+- name: Install mkhomedir to enable home directory creation for users
+  command: authselect enable-feature with-mkhomedir
+  changed_when: false
+  failed_when: false
+
+- name: Enable oddjob service
+  systemd:
+    name: oddjobd
+    state: started
+    enabled: yes
+  failed_when: false
