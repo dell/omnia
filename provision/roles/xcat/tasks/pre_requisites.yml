@@ -36,6 +36,25 @@
   ansible.builtin.set_fact:
     xcat_installation_status: false
 
+- name: Check output of network table
+  ansible.builtin.command: lsdef -t network
+  changed_when: false
+  failed_when: false
+  register: network_table_check
+
+- name: Restart postgresql and xcat services if xcat already installed
+  ansible.builtin.service:
+    name: "{{ item }}"
+    state: restarted
+    enabled: true
+  failed_when: false
+  with_items:
+    - postgresql
+    - xcatd
+  when:
+    - network_table_check.stderr is defined
+    - xcat_connection_search_key in network_table_check.stderr | lower
+
 - name: Gathering service facts
   ansible.builtin.service_facts:
 
