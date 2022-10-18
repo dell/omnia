@@ -34,8 +34,11 @@ pxe_mapping_path = sys.argv[6]
 domain_name = sys.argv[7]
 roce_status = sys.argv[8]
 temp_decimal_oids = []
+temp_dec_dict={}
 hexa_mac = []
+dict_hexa_mac={}
 final_mac = {}
+dict_final_mac={}
 valid_mac = []
 
 
@@ -47,37 +50,77 @@ def collect_dec_oid():
     description = session.walk('.1.3.6.1.2.1.17.7.1.2.2.1.2')
 
     # Collect information about the temp decimal MACs/oids
+    # temp_dec_dict is a dict with key as port no and values as mib
     for item in description:
-        temp_decimal_oids.append(item.oid)
-
+        if item.value not in temp_dec_dict:
+           temp_dec_dict[item.value]=list()
+           temp_dec_dict[item.value].append(item.oid)
+        else:
+           temp_dec_dict[item.value].append(item.oid)
     filter_dec_oid()
 
 
 def filter_dec_oid():
     count = 1
     temp_oids = []
+    mib_dict={}
+    double_temp_oids={}
 
     # Extract the last 6 digit that forms the decimal MAC
-    for item in temp_decimal_oids:
-        temp_oids.append(item.split('-')[1])
+    # Segregating based on whether key has 1 value or 2 values
+    for key in temp_dec_dict:
+        for value in temp_dec_dict[key]:
+           if key not in mib_dict:
+              mib_dict[key]=list()
+              mib_dict[key].append(value.split('-')[1])
+           else:
+              mib_dict[key].append(value.split('-')[1])
+
+    for key in mib_dict:
+        if len(mib_dict[key]) == 1:
+            for value in mib_dict[key]:
+                temp_oids.append(value)
+        if len(mib_dict[key]) > 1:
+             for value in mib_dict[key]:
+                 if key not in double_temp_oids:
+                    double_temp_oids[key]=list()
+                    double_temp_oids[key].append(value)
+                 else:
+                    double_temp_oids[key].append(value)
 
     for item in temp_oids:
         temp_nos = []
         # Convert decimal to hexadecimal numbers
         for i in item.split('.'):
             number = format(int(i), 'x')
+
             # To append 0 as MAC has 00 instead of 0
             if number == "0" or number == "a" or number == "b" or number == "c" or number == "d" or number == "e" or number =="f":
                 number = "0" + number
             temp_nos.append(number)
         hexa_mac.append(temp_nos[-6:])
         count = count + 1
+
+    for key in double_temp_oids:
+        for value in double_temp_oids[key]:
+            for i in value.split('.'):
+                 number = format(int(i), 'x')
+
+            # To append 0 as MAC has 00 instead of 0
+                 if number == 0 or number == "a" or number == "b" or number == "c" or number == "d" or number == "e" or number =="f":
+                      number = "0" + number
+                 temp_nos.append(number)
+            if key not in dict_hexa_mac:
+                 dict_hexa_mac[key]= list()
+                 dict_hexa_mac[key].append(temp_nos[-6:])
+            else:
+                 dict_hexa_mac[key].append(temp_nos[-6:])
+
     final_hex_mac()
 
 
 def final_hex_mac():
     count = 1
-
     for row1 in hexa_mac:
         temp = ""
         for value in row1:
@@ -87,23 +130,56 @@ def final_hex_mac():
             temp = temp + value + ":"
         final_mac[count] = temp[:-1]
         count = count + 1
-    print(final_mac)
+
+    # dict_hexa_mac containes hexa mac as value and port as key. Most key will have 2 values
+    for key in dict_hexa_mac:
+        for value in dict_hexa_mac[key]:
+            temp=""
+            for i in value:
+                if i.isnumeric() is True and 9 >= int(i) > 0:
+                   i = "0" + i
+                temp = temp + i + ":"
+            if key not in dict_final_mac:
+                dict_final_mac[key]=list()
+                dict_final_mac[key].append(temp[:-1])
+            else:
+                dict_final_mac[key].append(temp[:-1])
+
     identify_device_type()
 
 
 def identify_device_type():
     url = "https://api.macvendors.com/"
-
+    temp_valid_mac={}
     for key in final_mac:
         # Use get method to fetch details
         response = requests.get(url + final_mac[key])
         if response.status_code != 200:
             raise Exception("[!] Invalid MAC Address!")
-        if "Dell" not in response.content.decode():
+        else:
             valid_mac.append(final_mac[key])
             print(response.content.decode())
-        else:
-            print(response.content.decode() + " : Not a valid device type")
+
+    for key in dict_final_mac:
+        temp_dict={}
+        for value in dict_final_mac[key]:
+            response = requests.get(url + value)
+            if response.status_code != 200:
+               raise Exception("[!] Invalid MAC Address!")
+            else:
+               temp_dict[value]=response.content.decode()
+        temp_valid_mac[key]=temp_dict;
+
+    for key in temp_valid_mac:
+        count=0
+        for value in temp_valid_mac[key]:
+            if "Dell" in temp_valid_mac[key][value]:
+                 count=count+1;
+            else:
+               valid_mac.append(value)
+        if count == 2:
+          for value in temp_valid_mac[key]:
+               valid_mac.append(value)
 
     mapping_file_creation()
 
