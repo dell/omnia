@@ -60,14 +60,14 @@ bmc_nic_subnet: ""
 # Optional ( Either pxe_mapping_file_path or PXE switch details should to be provided )
 pxe_mapping_file_path: ""
 
-# Switch details
-# TBD
 # PXE switch that will be connected to all iDRACs for provisioning
+# Ensure that SNMP is enabled on the mentioned switch.
 # Optional ( Either pxe_mapping_file_path or PXE switch details should to be provided )
 pxe_switch_ip: ""
 pxe_switch_snmp_community_string: "public"
 
 # The prefix for the node names, if needed to be dynamically allocated.
+# Mandatory, if PXE switch IP given
 # Mandatory, if PXE switch IP given
 node_name: "node"
 
