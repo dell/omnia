@@ -6,7 +6,9 @@ Choose a compute outside your intended cluster to provision and configure it. Th
     dnf install epel-release -y (For computes running Rocky)
     dnf install git -y
 
-If you intend to provision the cluster via Infiniband NICs, install the required drivers using: ``yum groupinstall "Infiniband Support" -y``
+If you intend to provision the cluster via Infiniband NICs, install the required drivers using: ::
+
+    yum groupinstall "Infiniband Support" -y
 
 Use the image below to set up your network:
 

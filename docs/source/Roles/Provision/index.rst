@@ -58,6 +58,7 @@ Provision
 
 2. Provided that the ``host_mapping_file_path`` is updated as per the provided template (Omnia/examples/pxe_mapping_file.csv), Omnia deploys the control plane and assigns the component roles by executing the ``omnia.yml`` file.  To deploy the Omnia control plane, run the following command ::
 
+    cd omnia/provision
     ansible-playbook provision.yml
 
 3. By running ``provision.yml``, the following configurations take place:

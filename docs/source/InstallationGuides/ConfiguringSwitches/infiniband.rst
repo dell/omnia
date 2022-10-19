@@ -29,19 +29,16 @@ Input the configuration variables into the ``infiniband_edr_input.yml`` or ``inf
 
 **Before you run the playbook**
 
-Before running ``infiniband.yml``, ensure that SSL Secure Cookies are disabled. Also, HTTP and JSON Gateway need to be enabled on your switch. This can be verified by running:
+Before running ``infiniband.yml``, ensure that SSL Secure Cookies are disabled. Also, HTTP and JSON Gateway need to be enabled on your switch. This can be verified by running: ::
 
-``show web`` (To check if SSL Secure Cookies is disabled and HTTP is enabled)
+    show web (To check if SSL Secure Cookies is disabled and HTTP is enabled)
+    show json-gw (To check if JSON Gateway is enabled)
 
-``show json-gw`` (To check if JSON Gateway is enabled)
+In case any of these services are not in the state required, run: ::
 
-In case any of these services are not in the state required, run:
-
-``no web https ssl secure-cookie enable`` (To disable SSL Secure Cookies)
-
-``web http enable`` (To enable the HTTP gateway)
-
-``json-gw enable`` (To enable the JSON gateway)
+    no web https ssl secure-cookie enable (To disable SSL Secure Cookies)
+    web http enable (To enable the HTTP gateway)
+    json-gw enable (To enable the JSON gateway)
 
 
 When connecting to a new or factory reset switch, the configuration wizard requests to execute an initial configuration:
@@ -57,9 +54,14 @@ If the user enters 'yes', they will also be prompted to enter the hostname for t
 
 **Running the playbook**
 
-If ``enable_split_port`` is **TRUE**, run ``ansible-playbook infiniband_switch_config.yml -i inventory -e ib_username="" -e ib_password="" -e ib_admin_password="" -e ib_monitor_password=""  -e ib_default_password="" -e ib_switch_type =""``
+If ``enable_split_port`` is **TRUE**, run::
 
-If ``enable_split_port`` is **FALSE**, run ``ansible-playbook infiniband_switch_config.yml -i inventory -e ib_username="" -e ib_password=""  -e ib_switch_type =""``
+    ansible-playbook infiniband_switch_config.yml -i inventory -e ib_username="" -e ib_password="" -e ib_admin_password="" -e ib_monitor_password=""  -e ib_default_password="" -e ib_switch_type =""
+
+
+If ``enable_split_port`` is **FALSE**, run::
+
+    ansible-playbook infiniband_switch_config.yml -i inventory -e ib_username="" -e ib_password=""  -e ib_switch_type =""
 
 
 * Where ``ib_username`` is the username used to authenticate into the switch.

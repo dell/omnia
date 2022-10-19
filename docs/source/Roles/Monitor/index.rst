@@ -1,7 +1,7 @@
-Monitoring
+Monitor
 ==========
 
-The monitoring roles sets up `Grafana <https://grafana.com/>`_  and `Prometheus <https://prometheus.io/>`_.
+The monitor role sets up `Grafana <https://grafana.com/>`_ ,  `Prometheus <https://prometheus.io/>`_ and `Loki <https://grafana.com/oss/loki/>`_ as Kubernetes pods.
 
 **Setting Up Monitoring**
 
