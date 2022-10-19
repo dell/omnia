@@ -15,6 +15,7 @@
 
 # Usage: pre_requisites.yml
 selinux_status_fail_msg: "selinux is not disabled. Disable it in /etc/sysconfig/selinux and reboot the system"
+xcat_connection_search_key: "connection failure"
 
 # Usage: validate_public_nic.yml
 provision_config_filename: "{{ playbook_dir }}/../input/provision_config.yml"
