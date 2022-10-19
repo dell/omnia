@@ -14,20 +14,21 @@
 ---
 
 - name: Wait for loki pod to come to ready state
-  command: kubectl wait --for=condition=ready --timeout={{ pod_timeout }} -n "{{ grafana_namespace }}" pod -l app="{{ loki_k8s_name }}"
+  ansible.builtin.command: kubectl wait --for=condition=ready --timeout={{ pod_timeout }} -n "{{ grafana_namespace }}" pod -l app="{{ loki_k8s_name }}"
   changed_when: false
 
 - name: Get loki service ip
-  command: kubectl get svc loki -n {{ grafana_namespace }} -o=jsonpath='{.spec.clusterIP}'
+  ansible.builtin.command: kubectl get svc loki -n {{ grafana_namespace }} -o=jsonpath='{.spec.clusterIP}'
   changed_when: false
   register: loki_svc_ip
 
 - name: Get loki service port
-  command: kubectl get svc loki -n {{ grafana_namespace }} -o=jsonpath='{.spec.ports[0].port}'
+  ansible.builtin.command: kubectl get svc loki -n {{ grafana_namespace }} -o=jsonpath='{.spec.ports[0].port}'
   changed_when: false
   register: loki_svc_port
 
-- block:
+- name: Create loki datasource in grafana
+  block:
     - name: Create loki datasource in grafana
       community.grafana.grafana_datasource:
         name: control-plane-loki
@@ -40,10 +41,11 @@
       register: create_loki_datasource
   rescue:
     - name: Create loki datasource in grafana failed
-      fail:
+      ansible.builtin.fail:
         msg: "Error: {{ create_loki_datasource.msg }}"
 
-- block:
+- name: Import loki dashboard in grafana
+  block:
     - name: Import loki dashboard in grafana
       community.grafana.grafana_dashboard:
         grafana_url: "http://{{ grafana_svc_ip.stdout }}:{{ grafana_svc_port.stdout }}"
@@ -51,11 +53,11 @@
         grafana_password: "{{ grafana_password }}"
         state: present
         commit_message: Updated by ansible
-        overwrite: yes
+        overwrite: true
         path: "{{ role_path }}/files/loki_dashboard.json"
       no_log: true
       register: import_loki_dashboard
   rescue:
     - name: Import loki datasource in grafana failed
-      fail:
+      ansible.builtin.fail:
         msg: "Error: {{ import_loki_dashboard.msg }}"
