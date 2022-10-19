@@ -82,10 +82,12 @@ Before running ``omnia.yml``, it is mandatory that red hat subscription be set u
 
     - If ``redhat_subscription_method`` is set to ``portal``, pass the values ``username`` and ``password``. For CLI, run the command: ::
 
+        cd omnia/utils
         ansible-playbook rhsm_subscription.yml -i inventory -e redhat_subscription_username= "<username>" -e redhat_subscription_password="<password>"
 
     - If ``redhat_subscription_method`` is set to ``satellite``, pass the values ``organizational identifier`` and ``activation key``. For CLI, run the command: ::
 
+        cd omnia/utils
         ansible-playbook rhsm_subscription.yml -i inventory -e redhat_subscription_activation_key= "<activation-key>" -e redhat_subscription_org_id ="<org-id>"
 
 
@@ -94,5 +96,7 @@ Red Hat Unsubscription
 
 To disable subscription on RHEL nodes, the ``red_hat_unregister_template`` has to be called: ::
 
-    ansible_playbook omnia/control_plane/rhsm_unregister.yml -i inventory
+
+    cd omnia/utils
+    ansible_playbook rhsm_unregister.yml -i inventory
 

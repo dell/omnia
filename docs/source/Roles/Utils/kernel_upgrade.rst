@@ -15,6 +15,6 @@ Updating Kernels on RHEL
 
 Via CLI: ::
 
-    cd omnia/control_plane
+    cd omnia/utils
     ansible-playbook kernel_upgrade.yml -i inventory -e rhsm_kernel_version=x.xx.x-xxxx
 
