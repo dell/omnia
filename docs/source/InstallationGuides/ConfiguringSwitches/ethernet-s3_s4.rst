@@ -26,11 +26,11 @@ Configuring Ethernet Switches (S3 and S4 series)
 * When initializing a factory reset switch, the user needs to ensure DHCP is enabled and an IPv6 address is not assigned. Omnia will assign an IP address to the switch using DHCP with all other configurations.
 
 
-**Running the playbook**
+**Running the playbook**::
 
-*	``cd omnia/network``
+    cd omnia/network
 
-*	``ansible-playbook ethernet_switch_config.yml -i inventory -e ethernet_switch_username=”” -e ethernet_switch_password=””``
+    ansible-playbook ethernet_switch_config.yml -i inventory -e ethernet_switch_username=”” -e ethernet_switch_password=””
 
 * Where ``ethernet_switch_username`` is the username used to authenticate into the switch.
 

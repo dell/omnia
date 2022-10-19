@@ -32,11 +32,11 @@ Configuring Ethernet Switches (Z series)
 
 * Only odd ports support breakouts on Z9264F-ON. For more information, `click here <https://www.dell.com/support/kbdoc/en-in/000195212/powerscale-dell-z9264-switches-only-allow-breakout-cables-in-odd-port-numbers?lang=en#>`_.
 
-**Running the playbook**
+**Running the playbook**::
 
-*	``cd omnia/network``
+    cd omnia/network
 
-*	``ansible-playbook ethernet_switch_config.yml -i inventory -e ethernet_switch_username=”” -e ethernet_switch_password=””``
+    ansible-playbook ethernet_switch_config.yml -i inventory -e ethernet_switch_username=”” -e ethernet_switch_password=””
 
 * Where ``ethernet_switch_username`` is the username used to authenticate into the switch.
 
