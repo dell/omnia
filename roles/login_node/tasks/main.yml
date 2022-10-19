@@ -58,4 +58,5 @@
       when: hostvars['127.0.0.1']['enable_secure_login_node']
   when:
     - hostvars['127.0.0.1']['login_node_required']
-    - hostvars[groups['manager'][0]] != hostvars[groups['login_node'][0]]
+    - groups['manager'][0] != groups['login_node'][0]
+    - inventory_hostname not in groups['manager'][0]

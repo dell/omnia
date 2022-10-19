@@ -13,20 +13,14 @@
 #  limitations under the License.
 ---
 
-- name: Install K8s prometheus stack
-  import_tasks: install_k8s_prom_stack.yml
-
-- name: Configure K8s prometheus in grafana
-  import_tasks: configure_k8s_prom_grafana.yml
-
 - name: Build promtail image
-  import_tasks: promtail_image.yml
+  ansible.builtin.import_tasks: promtail_image.yml
 
 - name: Deploy loki pod
-  import_tasks: k8s_loki_pod.yml
+  ansible.builtin.import_tasks: k8s_loki_pod.yml
 
 - name: Deploy loki service
-  import_tasks: loki_service.yml
+  ansible.builtin.import_tasks: loki_service.yml
 
 - name: Configure loki in grafana
-  import_tasks: configure_loki_grafana.yml
+  ansible.builtin.import_tasks: configure_loki_grafana.yml

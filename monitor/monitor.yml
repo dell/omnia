@@ -36,3 +36,4 @@
     - role: orchestrator
     - role: grafana
     - role: prometheus
+    - role: loki

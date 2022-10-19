@@ -6,6 +6,7 @@ DO NOT SKIP TO THE FINAL VERSION
 
 Edit the inventory file with the master / node Ips to be upgraded
 
+<pre>
 Edit the variable.yml from: 
 1.19.3 -->  1.20.15 
 & run $ansible-playbook -i inventory main.yml 
@@ -18,4 +19,4 @@ then update from
 then update from
 1.22.15 --> 1.23.12
 & run $ansible-playbook -i inventory main.yml
-
+</pre>

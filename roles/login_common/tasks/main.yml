@@ -22,9 +22,6 @@
 
     - name: Update Packages
       include_tasks: update_package.yml
-
-    - name: Enable user home directory creation
-      include_tasks: enable_home_dir_creation.yml
   when:
     - os_leap not in ansible_distribution | lower
     - hostvars['127.0.0.1']['login_node_required']
