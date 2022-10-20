@@ -5,7 +5,7 @@ The storage role allows users to configure PowerVault Storage devices, BeeGFS an
 
 **Installing BeeGFS**
 
-1. Enter all the required parameters in ``omnia/input/storage_config.yml``
+Enter all the required parameters in ``omnia/input/storage_config.yml``
 
 +---------------------------------+--------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Name                            | Default, accepted values | Required? | Purpose                                                                                                                                                                                        |
@@ -30,6 +30,7 @@ The storage role allows users to configure PowerVault Storage devices, BeeGFS an
 
 To run the playbook: ::
 
+    cd omnia/storage
     ansible-playbook storage.yml -i inventory
 
 (Where inventory refers to the `host_inventory_file.ini <../../samplefiles.rst>`_)
