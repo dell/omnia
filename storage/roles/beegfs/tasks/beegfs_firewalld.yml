@@ -12,20 +12,29 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-- name: Saving distribution of os
-  set_fact:
-    compute_os: "{{ ansible_facts['distribution'] | lower }}"
 
-- block:
-    - name: Fetch SElinux mode
-      command: sestatus
-      register: selinux_status
-      changed_when: false
+- name: Install firewalld
+  ansible.builtin.package:
+    name: firewalld
+    state: present
 
-    - name: Check SELinux status
-      fail:
-        msg: "{{ selinux_fail_msg }}"
-      when: '"SELinux status:                 disabled" not in selinux_status.stdout_lines'
-  when:
-   - os_supported_leap not in compute_os
-   - hostvars['127.0.0.1']['beegfs_support']
+- name: Start and enable firewalld
+  ansible.builtin.service:
+    name: firewalld
+    state: started
+    enabled: true
+
+- name: Configure firewalld ports for BeeGFS client
+  ansible.builtin.command: "firewall-cmd --permanent --add-port={{ item }}"
+  with_items: '{{ beegfs_ports }}'
+  changed_when: true
+
+- name: Reload firewalld
+  ansible.builtin.command: firewall-cmd --reload
+  changed_when: true
+
+- name: Stop and disable firewalld
+  ansible.builtin.service:
+    name: firewalld
+    state: stopped
+    enabled: false

@@ -12,3 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+
+- name: Validate input parameters for BeeGFS
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Validate variables
+      ansible.builtin.include_role:
+        name: beegfs
+        tasks_from: validate_beegfs_vars.yml
+  tags: beegfs
+
+- name: Install BeeGFS client
+  hosts: manager, compute
+  gather_facts: true
+  roles:
+    - beegfs
+  tags: beegfs
