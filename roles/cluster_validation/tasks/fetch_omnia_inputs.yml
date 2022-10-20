@@ -208,18 +208,6 @@
     - login_node_required
     - not ipa_server_ms
 
-- name: Assert beegfs_support
-  assert:
-    that:
-      - beegfs_support == true or beegfs_support == false
-    success_msg: "{{ beegfs_support_success_msg }}"
-    fail_msg: "{{ beegfs_support_failure_msg }}"
-
-- name: Fetch beegfs inputs
-  include_tasks: fetch_beegfs_inputs.yml
-  when:
-    - beegfs_support
-
 - name: Encrypt input config file
   command: >-
     ansible-vault encrypt {{ role_path }}/../../{{ config_filename }}
