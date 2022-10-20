@@ -21,16 +21,16 @@ For a better understanding of what Omnia does, check out our `docs <https://omni
 
 **Omnia Community Members**
 
-.. image:: https://download.logo.wine/logo/Dell_Technologies/Dell_Technologies-Logo.wine.png
+.. image:: images/logos/delltech.jpg
    :width: 60pt
 
-.. image:: https://i.pcmag.com/imagery/articles/05PmkAe4XLJQ94pQo36E1uc-1..v1599074802.jpg
+.. image:: https://upload.wikimedia.org/wikipedia/commons/0/0e/Intel_logo_%282020%2C_light_blue%29.svg
     :width: 60pt
 
-.. image:: https://www.shorttermprograms.com/images/cache/600_by_314/uploads/institution-logos/university-of-pisa.png
+.. image:: images/logos/pisa.png
   :width: 60pt
 
-.. image:: https://www.vizias.com/uploads/1/1/8/9/118906653/published/thick-blue-white-ring-letters-full.png
+.. image:: https://user-images.githubusercontent.com/83095575/117071024-64956c80-ace3-11eb-9d90-2dac7daef11c.png
    :width:
 
 .. image:: https://1000logos.net/wp-content/uploads/2021/04/ASU-logo.png
@@ -42,7 +42,7 @@ For a better understanding of what Omnia does, check out our `docs <https://omni
 .. image:: https://user-images.githubusercontent.com/5414112/153955170-0a4b199a-54f0-42af-939c-03eac76881c0.png
   :width: 60pt
 
-.. image:: https://www.eweek.com/wp-content/uploads/2020/10/Liquid-1.jpg
+.. image:: images/logos/liqid.png
    :width: 60pt
 
 
