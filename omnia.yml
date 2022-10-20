@@ -31,14 +31,6 @@
     - hostname_validation
   tags: freeipa
 
-- name: BeeGFS validation
-  hosts: manager, compute
-  gather_facts: false
-  any_errors_fatal: true
-  roles:
-    - beegfs_validation
-  tags: beegfs
-
 - name: Apply common installation and config
   hosts: manager, compute, login_node, nfs_node
   gather_facts: false
@@ -205,12 +197,8 @@
     - slurm_restd
   tags: slurm
 
-- name: Apply BeeGFS client installation and config on manager and compute nodes
-  hosts: manager, compute
-  gather_facts: false
-  roles:
-    - beegfs_client
-  tags: beegfs
+- name: Import playbook to install BeeGFS client
+  ansible.builtin.import_playbook: storage/storage.yml
 
 - name: Passwordless SSH between manager and compute nodes
   import_playbook: control_plane/tools/passwordless_ssh.yml
