@@ -39,7 +39,7 @@ For a better understanding of what Omnia does, check out our `docs <https://omni
 .. image:: https://user-images.githubusercontent.com/5414112/153955170-0a4b199a-54f0-42af-939c-03eac76881c0.png
   :width: 60pt
 
-.. image:: images/logos/liqid.png
+.. image:: images/logos/Liqid.png
    :width: 60pt
 
 
