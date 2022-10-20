@@ -112,12 +112,25 @@
     snmp_enabled: true
   when: snmp_trap_destination | length > 1
 
+- name: Install netaddr
+  ansible.builtin.command: "{{ pip_version }} install netaddr"
+  changed_when: false
+
+- name: Install common packages
+  ansible.builtin.package:
+    name: "{{ common_pkg }}"
+    state: present
+
+- name: Install ansible.utils galaxy collection
+  ansible.builtin.command: ansible-galaxy collection install "{{ utils_collection }}"
+  changed_when: true
+
 - name: Validate snmp trap destination address
   ansible.builtin.assert:
     that:
       - snmp_enabled
       - snmp_trap_destination | length > 7
-      - snmp_trap_destination | ipv4
+      - snmp_trap_destination | ansible.utils.ipv4
     success_msg: "{{ success_snmp_trap_dest }}"
     fail_msg: "{{ fail_snmp_trap_dest }}"
   when: snmp_enabled

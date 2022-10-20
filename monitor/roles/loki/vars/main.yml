@@ -13,20 +13,17 @@
 #  limitations under the License.
 ---
 
-- name: Update realm_name in promtail_config.yml
-  replace:
-    path: "{{ role_path }}/files/promtail_config.yml"
-    regexp: 'OMNIA-TEST'
-    replace: "{{ realm_name | replace('.','-') }}"
-  when: enable_security_support
+# Usage: promtail_image.yml
+promtail_image_name: "promtail"
+promtail_image_tag: "latest"
+image_creation_retries: 20
 
-- name: Promtail image creation
-  command: "buildah bud -f Dockerfile_promtail -t {{ promtail_image_name }}:{{ promtail_image_tag }} ."
-  changed_when: true
-  register: create_promtail_image
-  retries: 10
-  delay: 5
-  until: create_promtail_image is not failed
-  retries: "{{ image_creation_retries }}"
-  args:
-    chdir: "{{ role_path }}/files/"
+# Usage: k8s_loki_pod.yml
+loki_k8s_name: loki
+loki_port: 3100
+loki_image_name: docker.io/grafana/loki
+loki_image_tag: 2.4.1
+
+# Usage: configure_loki_grafana
+pod_timeout: 30m
+grafana_namespace: grafana

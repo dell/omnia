@@ -13,14 +13,11 @@
 #  limitations under the License.
 ---
 
-- name: Install mkhomedir to enable home directory creation for users
-  command: authselect enable-feature with-mkhomedir
-  changed_when: false
-  failed_when: false
-
-- name: Enable oddjob service
-  systemd:
-    name: oddjobd
-    state: started
-    enabled: yes
-  failed_when: false
+- name: Promtail image creation
+  ansible.builtin.command: "buildah bud -f Dockerfile_promtail -t {{ promtail_image_name }}:{{ promtail_image_tag }} ."
+  changed_when: true
+  register: create_promtail_image
+  until: create_promtail_image is not failed
+  retries: "{{ image_creation_retries }}"
+  args:
+    chdir: "{{ role_path }}/files/"
