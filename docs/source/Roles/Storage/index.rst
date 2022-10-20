@@ -33,4 +33,4 @@ To run the playbook: ::
     cd omnia/storage
     ansible-playbook storage.yml -i inventory
 
-(Where inventory refers to the `host_inventory_file.ini <../../samplefiles.rst>`_)
+(Where inventory refers to the `host_inventory_file.ini <../../samplefiles.html>`_)
