@@ -12,27 +12,17 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-    
-- name: Stop all BeeGFS services
-  systemd:
-    name: "{{ item }}"
-    state: stopped
-    enabled: no
-  with_items: "{{ beegfs_client_pkg }}"
-  failed_when: false
 
-- name: Removing files related to BeeGFS client
-  file:
-    path: "{{ beegfs_folder_location }}"
-    state: absent
+- name: Include storage_config.yml
+  ansible.builtin.include_vars: "{{ storage_config_vars }}"
 
-- name: Removing packages for BeeGFS client
-  package:
-    name: "{{ item }}"
-    state: absent
-  with_items: "{{ beegfs_pkgs }}"
+- name: Assert beegfs_support
+  ansible.builtin.assert:
+    that:
+      - beegfs_support == true or beegfs_support == false
+    success_msg: "{{ beegfs_support_success_msg }}"
+    fail_msg: "{{ beegfs_support_failure_msg }}"
 
-- name: Remove repo of BeeGFS client
-  file:
-    path: "{{ beegfs_repo_dest_non_leap }}"
-    state: absent
+- name: Fetch beegfs inputs
+  ansible.builtin.include_tasks: fetch_beegfs_inputs.yml
+  when: beegfs_support
