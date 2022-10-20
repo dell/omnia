@@ -21,8 +21,12 @@
     mgmt_os: "{{ ansible_facts['distribution'] | lower }}"
 
 - name: Install netaddr
-  ansible.builtin.command: pip3 install netaddr
+  ansible.builtin.command: "{{ pip_version }} install netaddr"
   changed_when: false
+
+- name: Install ansible.utils galaxy collection
+  ansible.builtin.command: ansible-galaxy collection install "{{ utils_collection }}"
+  changed_when: true
 
 - name: Common package installation
   ansible.builtin.package:
@@ -32,7 +36,7 @@
 - name: Assert kubernetes pod network CIDR
   ansible.builtin.assert:
     that:
-      - appliance_k8s_pod_net_cidr | ipv4
+      - appliance_k8s_pod_net_cidr | ansible.utils.ipv4
       - appliance_k8s_pod_net_cidr | length > 9
       - '"/" in appliance_k8s_pod_net_cidr '
     success_msg: "{{ success_msg_k8s_pod_network_cidr }}"
