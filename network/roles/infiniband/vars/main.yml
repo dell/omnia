@@ -32,6 +32,10 @@ ib_username_dec_msg: "ib_username should be passed as extra argument while playb
 ib_password_dec_msg: "ib_password should be passed as extra argument while playbook execution"
 success_snmp_trap_dest: "SNMP trap destination IP validated"
 fail_snmp_trap_dest: "Failed. Incorrect SNMP trap destination IP format provided in base_address.yml"
+common_pkg:
+  - python3-netaddr
+utils_collection: ansible.utils:2.5.2
+pip_version: pip3.8
 
 # Usage: pre_requisites_split_ports.yml
 ib_admin_passwd_dec_fail_msg: "Please declare ib_admin_password when split port functionality was needed"
