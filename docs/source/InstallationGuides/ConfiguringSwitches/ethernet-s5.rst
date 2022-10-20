@@ -28,6 +28,7 @@ Configuring Ethernet Switches (S5 series)
 
 * When initializing a factory reset switch, the user needs to ensure DHCP is enabled and an IPv6 address is not assigned. Omnia will assign an IP address to the switch using DHCP with all other configurations.
 
+.. note:: The ``breakout_value`` of a port can only be changed after un-splitting the port.
 
 **Running the playbook**::
 

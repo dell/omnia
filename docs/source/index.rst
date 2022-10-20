@@ -31,9 +31,6 @@ For a better understanding of what Omnia does, check out our `docs <https://omni
   :width: 60pt
 
 .. image:: https://user-images.githubusercontent.com/83095575/117071024-64956c80-ace3-11eb-9d90-2dac7daef11c.png
-   :width:
-
-.. image:: https://1000logos.net/wp-content/uploads/2021/04/ASU-logo.png
   :width: 60pt
 
 .. image:: https://www.vizias.com/uploads/1/1/8/9/118906653/published/thick-blue-white-ring-letters-full.png

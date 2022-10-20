@@ -2,7 +2,7 @@ Configuring Ethernet Switches (Z series)
 -----------------------------------------
 
 
-* Edit the ``omnia/network/ethernet_zseries_input.yml`` file for all Z series PowerSwitches such as Z9332F-ON, Z9262-ON, Z9264F-ON Z. The default configuration is written for Z9264F-ON.
+* Edit the ``omnia/network/ethernet_zseries_input.yml`` file for all Z series PowerSwitches such as Z9332F-ON, Z9262-ON, Z9264F-ON and N3248TE-ON. The default configuration is written for Z9264F-ON.
 
 +------------------------------+-------------------------------------------------------------------------------------------------------------+-----------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Name                         | Default, accepted values                                                                                    | Required? | Purpose                                                                                                                                                                                                             |
@@ -30,7 +30,9 @@ Configuring Ethernet Switches (Z series)
 
 * The 65th port on a Z series switch cannot be split.
 
-* Only odd ports support breakouts on Z9264F-ON. For more information, `click here <https://www.dell.com/support/kbdoc/en-in/000195212/powerscale-dell-z9264-switches-only-allow-breakout-cables-in-odd-port-numbers?lang=en#>`_.
+    * Only odd ports support breakouts on Z9264F-ON. For more information, `click here <https://www.dell.com/support/kbdoc/en-in/000195212/powerscale-dell-z9264-switches-only-allow-breakout-cables-in-odd-port-numbers?lang=en#>`_.
+
+.. note:: The ``breakout_value`` of a port can only be changed after un-splitting the port.
 
 **Running the playbook**::
 
