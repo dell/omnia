@@ -46,7 +46,7 @@ beegfs_pkgs:
    - beegfs-helperd
    - beegfs-utils
    - libbeegfs-ib
-beegfs_client_non_leap_repo: "https://www.beegfs.io/release/beegfs_{{ hostvars['127.0.0.1']['beegfs_client_version'] }}/dists/beegfs-rhel8.repo"
+beegfs_client_non_leap_repo: "https://www.beegfs.io/release/beegfs_{{ beegfs_client_version }}/dists/beegfs-rhel8.repo"
 beegfs_repo_dest_non_leap: "/etc/yum.repos.d/beegfs_rhel8.repo"
 min_retries: 10
 beegfs_client_conf_file: "/etc/beegfs/beegfs-client-autobuild.conf"
@@ -59,7 +59,7 @@ client_mount_path: "/mnt/beegfs"
 default_arg: "^buildArgs=-j8"
 without_rdma_arg: "buildArgs=-j8"
 modified_arg: "buildArgs=-j8 BEEGFS_OPENTK_IBVERBS=1"
-modified_arg_ofed: "buildArgs=-j8 BEEGFS_OPENTK_IBVERBS=1 OFED_INCLUDE_PATH={{ hostvars['127.0.0.1']['beegfs_ofed_kernel_modules_path'] }}"
+modified_arg_ofed: "buildArgs=-j8 BEEGFS_OPENTK_IBVERBS=1 OFED_INCLUDE_PATH={{ beegfs_ofed_kernel_modules_path }}"
 rebuild_path: "/etc/init.d/beegfs-client rebuild"
 beegfs_client_setup: "/opt/beegfs/sbin/beegfs-setup-client"
 file_mode: '0644'
