@@ -13,11 +13,6 @@
 #  limitations under the License.
 ---
 
-- name: Include base variable file base_vars.yml
-  ansible.builtin.include_vars: "{{ provision_config_filename }}"
-  no_log: true
-  tags: init
-
 - name: Validate if input params of provision config are not empty
   ansible.builtin.fail:
     msg: "{{ input_provision_failure_msg }}"
