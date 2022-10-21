@@ -53,7 +53,7 @@
   ansible.builtin.command: >-
     {{ ansible_vault_path.stdout.split(' ')[1] }} encrypt {{ monitor_config_filename }}
     --vault-password-file {{ monitor_vault_path }}
-  changed_when: false  
+  changed_when: false
 
 - name: Update monitor_config.yml permission
   ansible.builtin.file:
