@@ -19,7 +19,6 @@ os_supported_rocky: "rocky"
 k8s_pkgs:
   - yum-plugin-versionlock
   - python3-netaddr
-monitor_config_vars: "{{ role_path }}/../../../input/monitor_config.yml"
 success_msg_k8s_pod_network_cidr: "Appliance k8s pod network cidr validated"
 fail_msg_k8s_pod_network_cidr: "Failed. Incorrect appliance k8s pod network cidr provided in base_vars.yml"
 utils_collection: ansible.utils:2.5.2
