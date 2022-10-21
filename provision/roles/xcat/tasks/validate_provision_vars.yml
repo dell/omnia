@@ -13,9 +13,6 @@
 #  limitations under the License.
 ---
 
-- name: Include provision_config.yml
-  ansible.builtin.include_vars: "{{ playbook_dir }}/../input/provision_config.yml"
-
 - name: Validate input parameters of base_vars are not empty
   ansible.builtin.fail:
     msg: "{{ input_provision_fail_msg }}"
