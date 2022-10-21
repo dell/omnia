@@ -27,6 +27,7 @@ Enter all the required parameters in ``omnia/input/storage_config.yml``
 | beegfs_version_change           | **FALSE**, TRUE          | Optional  | Use this variable to change the BeeGFS version on the target nodes.                                                                                                                            |
 +---------------------------------+--------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
+ .. note:: When working with RHEL, ensure that the BeeGFS configuration is supported using the `link here <../../Overview/SupportMatrix/OperatingSystems/RedHat.html>`_.
 
 To run the playbook: ::
 
