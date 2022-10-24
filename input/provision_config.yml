@@ -60,14 +60,14 @@ bmc_nic_subnet: ""
 # Optional ( Either pxe_mapping_file_path or PXE switch details should to be provided )
 pxe_mapping_file_path: ""
 
-# Switch details
-# TBD
 # PXE switch that will be connected to all iDRACs for provisioning
+# Ensure that SNMP is enabled on the mentioned switch.
 # Optional ( Either pxe_mapping_file_path or PXE switch details should to be provided )
 pxe_switch_ip: ""
 pxe_switch_snmp_community_string: "public"
 
 # The prefix for the node names, if needed to be dynamically allocated.
+# Mandatory, if PXE switch IP given
 # Mandatory, if PXE switch IP given
 node_name: "node"
 
@@ -77,7 +77,7 @@ domain_name: ""
 
 # This is the operating system image that will be used for provisioning compute nodes in the cluster.
 # Accepted values: rocky, rhel
-# Default value: "rocky"
+# Default value: "rhel"
 # Required field
 provision_os: "rhel"
 
@@ -122,3 +122,13 @@ postgresdb_password: ""
 # Optional field
 primary_dns: ""
 secondary_dns: ""
+
+# User defined disk partition applied to remote servers
+# The disk partition desired_capacity has to be provided in MB.
+# Valid mount_point values accepted for disk partition are /home, /var, /tmp, /usr, swap
+# Default partition size provided for /boot is 1024MB, /boot/efi is 256MB and the remaining space to / partition.
+# Example for disk_partition:
+# disk_partition:
+#   - { mount_point: "/home", desired_capacity: "102400" }
+disk_partition:
+  - { mount_point: "", desired_capacity: "" }

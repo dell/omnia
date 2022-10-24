@@ -14,15 +14,5 @@
 ---
 
 - name: Install cuda toolkit using offline path
-  block:
-    - name: To Do
-      ansible.builtin.debug:
-        msg: "Code yet to be written."
-  when: hostvars['localhost']['local_installer']
-
-- name: Install latest cuda toolkit using network way
-  block:
-    - name: To Do
-      ansible.builtin.debug:
-        msg: "Code yet to be written."
-  when: not hostvars['localhost']['local_installer']
+  ansible.builtin.debug:
+    msg: "Cuda Installation on leap is not yet supported."

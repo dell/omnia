@@ -14,7 +14,9 @@
 ---
 
 # Usage: main.yml
-monitor_config_vars: "{{ role_path }}/../../../input/monitor_config.yml"
+monitor_config_filename: "{{ role_path }}/../../../input/monitor_config.yml"
+monitor_vault_path: "{{ role_path }}/../../../input/.monitor_vault_key"
+ansible_vault_search_key: "$ANSIBLE_VAULT;"
 grafana_conf_path: "/opt/omnia/.data/grafana_svc_details.ini"
 grafana_conf_dest: "/opt/omnia/.data/"
 conf_file_mode: 0644
@@ -54,7 +56,6 @@ grafana_plugins_github_repo: https://github.com/nsfcac/grafana-plugin.git
 grafana_plugins_stable_commit: "947da4f"
 
 # Usage: validate_grafana.yml
-monitor_config_vars: "{{ role_path }}/../../../input/monitor_config.yml"
 fail_msg_grafana_credentials: "Failed. Incorrect grafana_username or grafana_password format provided"
 mount_validation_msg: "Make sure mount location value is not null"
 min_length_grafana: 5

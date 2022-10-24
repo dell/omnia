@@ -14,7 +14,7 @@
 ---
 
 common_packages:
-   - slurm-slurmd 
+   - slurm-slurmd
    - slurm-pmi
    - munge
    - munge-libs
@@ -59,7 +59,7 @@ spool_dir: "/var/spool/"
 spool_pth: "/var/spool/slurm/"
 slurmctld_pid: "/var/run/slurmctld.pid"
 slurmd_pid: "/var/run/slurmd.pid"
-cluster_name : "manager,compute"
+cluster_name: "manager,compute"
 slurmctld_log: "/var/log/slurm/slurmctld.log"
 slurmd_log: "/var/log/slurm/slurmd.log"
 
@@ -70,3 +70,5 @@ os_supported_leap: "leap"
 lmod_packages:
    - lua-lmod
    - gnu-compilers-hpc
+grafana_conf_path: "/opt/omnia/.data/grafana_svc_details.ini"
+min_length_grafana: 5

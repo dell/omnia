@@ -14,48 +14,48 @@
 ---
 
 - name: Install Nginx
-  package:
+  ansible.builtin.package:
     name: nginx
     state: present
   when: ansible_facts['distribution'] != opensuse_os_name
 
 - name: Install Nginx
-  zypper:
+  community.general.zypper:
     name: nginx
     state: present
   when: ansible_facts['distribution'] == opensuse_os_name
 
 - name: Get prometheus service IP
-  command: kubectl get svc -l app=prometheus,component=server -o=jsonpath='{.items[0].spec.clusterIP}'
+  ansible.builtin.command: kubectl get svc -l app=prometheus,component=server -o=jsonpath='{.items[0].spec.clusterIP}'
   changed_when: false
   register: prometheus_svc_ip
 
 - name: Configure nginx.conf (1/2)
-  replace:
+  ansible.builtin.replace:
     path: "{{ role_path }}/templates/nginx.conf.j2"
     regexp: '        server_name  .*'
     replace: "        server_name  {{ ansible_default_ipv4.address }};"
   delegate_to: localhost
 
 - name: Configure nginx.conf (2/2)
-  replace:
+  ansible.builtin.replace:
     path: "{{ role_path }}/templates/nginx.conf.j2"
     regexp: '          proxy_pass http://.*'
     replace: "          proxy_pass http://{{ prometheus_svc_ip.stdout }};"
   delegate_to: localhost
 
 - name: Load nginx conf
-  template:
+  ansible.builtin.template:
     src: nginx.conf.j2
     dest: "{{ nginx_conf_file_path }}"
     mode: "{{ nginx_conf_file_mode }}"
 
 - name: Validate nginx conf file
-  command: nginx -t
+  ansible.builtin.command: nginx -t
   changed_when: false
 
 - name: Start and enable nginx service
-  service:
+  ansible.builtin.service:
     name: nginx
     state: restarted
     enabled: yes
@@ -75,5 +75,5 @@
       register: create_k8s_prom_datasource
   rescue:
     - name: Create prometheus datasource in grafana failed
-      fail:
+      ansible.builtin.fail:
         msg: "Error: {{ create_k8s_prom_datasource.msg }}"

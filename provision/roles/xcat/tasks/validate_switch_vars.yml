@@ -12,11 +12,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-# Basic Validation
-- name: Include base variable file base_vars.yml
-  ansible.builtin.include_vars: "{{ provision_config_filename }}"
-  no_log: true
-  tags: init
 
 - name: Set facts to validate snmp support
   ansible.builtin.set_fact:
@@ -66,6 +61,17 @@
         that: pxe_switch_ip | ipv4
         success_msg: "{{ pxe_switch_ip_valid }}"
         fail_msg: "{{ pxe_switch_ip_invalid }}"
+
+    - name: Test using ping
+      ansible.builtin.command: ping -c 1 {{ pxe_switch_ip }}
+      register: ping_switch
+      ignore_errors: true
+      changed_when: false
+
+    - name: Check if switch is reachable or not
+      ansible.builtin.fail:
+        msg: "{{ pxe_switch_unreachable }}"
+      when: ping_search_key in ping_switch.stdout
 
     - name: Set fact for switch ip
       ansible.builtin.set_fact:

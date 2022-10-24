@@ -47,21 +47,3 @@
     path: "{{ xcat_rhel8_tmpl }}"
     regexp: '^lang ks_language'
     replace: 'lang {{ language }}'
-
-- name: Enable internet accesss in compute nodes
-  block:
-    - name: Add masquerade to public_nic zone
-      ansible.builtin.command: firewall-cmd --zone={{ public_nic_zone }} --add-masquerade --permanent
-      changed_when: true
-
-    - name: Reload firewalld
-      ansible.builtin.command: firewall-cmd --reload
-      changed_when: true
-  when: primary_dns | length > 1
-
-- name: Disable repos
-  ansible.builtin.lineinfile:
-    path: "{{ xcat_rhel8_post_script }}"
-    insertafter: '^(.*)echo "Disabling repos"'
-    line: "    sed -i -e 's/enabled=1/enabled=0/' /etc/yum.repos.d/$repo_file"
-  when: primary_dns | length < 1

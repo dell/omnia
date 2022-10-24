@@ -49,4 +49,3 @@
          command: "kubectl --kubeconfig /etc/kubernetes/admin.conf uncordon {{ node_name|default(ansible_nodename) }}"
          delegate_to: "{{ kubernetes_kubeadm_target }}"
          changed_when: true
-

@@ -14,19 +14,19 @@
 ---
 
 - name: Include common variables
-  include_vars: ../../slurm_exporter/vars/main.yml
+  ansible.builtin.include_vars: ../../slurm_exporter/vars/main.yml
 
 - name: Include k8s_nfs_server_setup variables
   include_vars: ../../k8s_nfs_server_setup/vars/main.yml
 
 - name: Wait for CoreDNS to restart
-  command: kubectl rollout status deployment/coredns -n kube-system  --timeout=5m
+  ansible.builtin.command: kubectl rollout status deployment/coredns -n kube-system  --timeout=5m
   changed_when: false
   failed_when: false
   tags: init
 
 - name: Get K8s pods
-  command: kubectl get pods --all-namespaces
+  ansible.builtin.command: kubectl get pods --all-namespaces
   changed_when: false
   register: k8s_pods
   tags: init
@@ -37,7 +37,7 @@
   #tags: init
 
 - name: Create MetalLB Setup Config Files
-  copy:
+  ansible.builtin.copy:
     src: metal-config.yaml
     dest: "{{ metallb_config_file_dest }}"
     #owner: root
@@ -55,44 +55,44 @@
   #tags: init
 
 - name: Create Metallb namespace
-  command: "kubectl create -f https://raw.githubusercontent.com/metallb/metallb/v0.10.3/manifests/namespace.yaml"
+  ansible.builtin.command: "kubectl create -f https://raw.githubusercontent.com/metallb/metallb/v0.10.3/manifests/namespace.yaml"
   changed_when: true
   when: "'metallb' not in k8s_pods.stdout"
   tags: init
 
 - name: Generate Metallb default secret
-  command: "kubectl create secret generic metallb-memberlist --from-literal=secretkey='$(openssl rand -base64 128)'"
+  ansible.builtin.command: "kubectl create secret generic metallb-memberlist --from-literal=secretkey='$(openssl rand -base64 128)'"
   changed_when: true
   when: "'metallb' not in k8s_pods.stdout"
   tags: init
 
 - name: Generate Metallb metallb-system secret
-  command: "kubectl create secret generic -n metallb-system metallb-memberlist --from-literal=secretkey='$(openssl rand -base64 128)'"
+  ansible.builtin.command: "kubectl create secret generic -n metallb-system metallb-memberlist --from-literal=secretkey='$(openssl rand -base64 128)'"
   changed_when: true
   when: "'metallb' not in k8s_pods.stdout"
   tags: init
 
 - name: Deploy Metallb
   #command: "helm install metallb metallb/metallb  -f '{{ metallb_config_file_dest }}'"
-  command: "kubectl create -f  https://raw.githubusercontent.com/metallb/metallb/v0.10.3/manifests/metallb.yaml"
+  ansible.builtin.command: "kubectl create -f  https://raw.githubusercontent.com/metallb/metallb/v0.10.3/manifests/metallb.yaml"
   changed_when: true
   when: "'metallb' not in k8s_pods.stdout"
   tags: init
 
 - name: Apply Metallb config
-  command: "kubectl create -f  '{{ metallb_config_file_dest }}'"
+  ansible.builtin.command: "kubectl create -f  '{{ metallb_config_file_dest }}'"
   changed_when: true
   when: "'metallb' not in k8s_pods.stdout"
   tags: init
 
 - name: Start k8s dashboard
-  command: "kubectl create -f '{{ k8s_dashboard_yaml_url }}'"
+  ansible.builtin.command: "kubectl create -f '{{ k8s_dashboard_yaml_url }}'"
   changed_when: true
   when: "'kubernetes-dashboard' not in k8s_pods.stdout"
   tags: init
 
 - name: Copy k8s_dashboard_admin.yml file
-  copy:
+  ansible.builtin.copy:
     src: k8s_dashboard_admin.yaml
     dest: "{{ k8s_dashboard_admin_file_dest }}"
     #owner: root
@@ -100,46 +100,54 @@
     mode: "{{ k8s_dashboard_admin_file_mode }}"
 
 - name: Create admin user for K8s dashboard
-  command: "kubectl apply -f {{ k8s_dashboard_admin_file_dest }}"
+  ansible.builtin.command: "kubectl apply -f {{ k8s_dashboard_admin_file_dest }}"
   changed_when: true
 
 - name: Helm - add stable repo
-  command: "helm repo add stable '{{ helm_stable_repo_url }}'"
+  ansible.builtin.shell: "export PATH=/usr/local/bin:$PATH && helm repo add stable '{{ helm_stable_repo_url }}'"
   changed_when: true
   tags: init
 
+- name: Check nvidia card status
+  ansible.builtin.shell: >
+    set -o pipefail && \
+    lspci | grep -i nvidia
+  changed_when: false
+  register: lspci_status
+  failed_when: false
+
 - name: Helm - add Nvidia k8s-device-plugin (nvdp) repo
-  command: "helm repo add nvdp '{{ nvidia_k8s_device_plugin_repo_url }}'"
+  ansible.builtin.shell: "export PATH=/usr/local/bin:$PATH && helm repo add nvdp '{{ nvidia_k8s_device_plugin_repo_url }}'"
   changed_when: true
-  when: ansible_local.inventory.nvidia_gpu > 0
+  when: "'NVIDIA' in lspci_status.stdout"
   tags: init
 
 - name: Helm - add Nvidia GPU discovery (nvgfd) repo
-  command: "helm repo add nvgfd '{{ nvidia_gpu_discovery_repo_url }}'"
+  ansible.builtin.shell: "export PATH=/usr/local/bin:$PATH && helm repo add nvgfd '{{ nvidia_gpu_discovery_repo_url }}'"
   changed_when: true
-  when: ansible_local.inventory.nvidia_gpu > 0
+  when: "'NVIDIA' in lspci_status.stdout"
   tags: init
 
 - name: Helm - update repo
-  command: helm repo update
+  ansible.builtin.shell: export PATH=/usr/local/bin:$PATH && helm repo update
   changed_when: true
   tags: init
 
 - name: Start NFS Client Provisioner using NFS on manager node
-  command: "helm install nfs-omnia stable/nfs-client-provisioner --set nfs.server='{{ nfs_server_manager_node }}' --set nfs.path='{{ nfs_share_dir }}'"
+  ansible.builtin.shell: "export PATH=/usr/local/bin:$PATH && helm install nfs-omnia stable/nfs-client-provisioner --set nfs.server='{{ nfs_server_manager_node }}' --set nfs.path='{{ nfs_share_dir }}'"
   changed_when: true
   when: "'nfs-client-provisioner' not in k8s_pods.stdout"
   tags: init
 
 - name: Set NFS-Client Provisioner as DEFAULT StorageClass
-  shell: >
+  ansible.builtin.shell: >
     kubectl patch storageclasses.storage.k8s.io nfs-client \
     -p '{ "metadata": { "annotations":{ "storageclass.kubernetes.io/is-default-class":"true" }}}'
   changed_when: true
   tags: init
 
 - name: Check if prometheus is installed on the host
-  stat:
+  ansible.builtin.stat:
     path: "{{ prometheus_path_on_host }}"
   register: prometheus_status
   changed_when: False
@@ -147,14 +155,14 @@
   tags: init
 
 - name: Delete prometheus installed on host if it exists
-  file:
+  ansible.builtin.file:
     path: "{{ prometheus_path_on_host }}"
     state: absent
   when: prometheus_status.stat.exists
   tags: init
 
 - name: Copy the slurm exporter config file
-  copy:
+  ansible.builtin.copy:
     src: "{{ slurm_exporter_config_file }}"
     dest: "{{ slurm_exporter_config_file_path }}"
     #owner: root
@@ -163,7 +171,7 @@
   tags: init
 
 - name: Fetch the public IP of the host
-  shell: >
+  ansible.builtin.shell: >
     set -o pipefail && \
       ip route get 8.8.8.8 | awk '{print $7}'
   register: public_ip
@@ -171,15 +179,15 @@
   tags: init
 
 - name: Add the host IP to config file
-  replace:
+  ansible.builtin.replace:
     path: "{{ slurm_exporter_config_file_path }}{{ slurm_exporter_config_file }}"
     regexp: "localhost:8080"
     replace: "{{ public_ip.stdout }}:{{ slurm_exporter_port }}"
   tags: init
 
 - name: Prometheus deployment
-  command: >
-    helm install stable/prometheus \
+  ansible.builtin.shell: >
+    export PATH=/usr/local/bin:$PATH && helm install stable/prometheus \
     --set-file extraScrapeConfigs="{{ slurm_exporter_config_file_path }}{{ slurm_exporter_config_file }}" \
     --set alertmanager.persistentVolume.storageClass=nfs-client,server.persistentVolume.storageClass=nfs-client,server.service.type=LoadBalancer \
     --generate-name
@@ -188,36 +196,37 @@
   tags: init
 
 - name: Install MPI Operator
-  command: "kubectl create -f '{{ mpi_operator_yaml_url }}'"
+  ansible.builtin.command: "kubectl create -f '{{ mpi_operator_yaml_url }}'"
   changed_when: true
   when: "'mpi-operator' not in k8s_pods.stdout"
   tags: init
 
 - name: Install nvidia-device-plugin
-  command: "helm install --version='{{ nvidia_device_plugin_version }}' --generate-name --set migStrategy='{{ mig_strategy }}' nvdp/nvidia-device-plugin"
+  ansible.builtin.shell: "export PATH=/usr/local/bin:$PATH && helm install --version='{{ nvidia_device_plugin_version }}' --generate-name --set migStrategy='{{ mig_strategy }}' nvdp/nvidia-device-plugin"
   changed_when: true
   when:
     - "'nvidia-device-plugin' not in k8s_pods.stdout"
-    - ansible_local.inventory.nvidia_gpu > 0
+    - "'NVIDIA' in lspci_status.stdout"
   tags: init
 
 - name: Install GPU Feature Discovery
-  command: "helm install --version='{{ gpu_feature_discovery_version }}' --generate-name --set migStrategy='{{ mig_strategy }}' nvgfd/gpu-feature-discovery"
+  ansible.builtin.shell: "export PATH=/usr/local/bin:$PATH && helm install --version='{{ gpu_feature_discovery_version }}' --generate-name --set migStrategy='{{ mig_strategy }}' nvgfd/gpu-feature-discovery"
   changed_when: true
   when:
     - "'node-feature-discovery' not in k8s_pods.stdout"
-    - ansible_local.inventory.nvidia_gpu > 0
+    - "'NVIDIA' in lspci_status.stdout"
   tags: init
 
 - name: Deploy Xilinx Device plugin
-  command: "kubectl create -f '{{ fpga_device_plugin_yaml_url }}'"
+  ansible.builtin.command: "kubectl create -f '{{ fpga_device_plugin_yaml_url }}'"
   changed_when: true
   register: fpga_enable
   when: "'fpga-device-plugin' not in k8s_pods.stdout"
+  failed_when: false
   tags: init
 
 - name: Deploy ROCm Device plugin
-  command: "kubectl create -f '{{ rocm_device_plugin_yaml_url }}'"
+  ansible.builtin.command: "kubectl create -f '{{ rocm_device_plugin_yaml_url }}'"
   changed_when: true
   register: amd_gpu_enable
   when: "'amdgpu-device-plugin' not in k8s_pods.stdout"
@@ -230,12 +239,12 @@
   #tags: init
 
 - name: Install Spark Operator
-  command: "helm repo add spark-operator '{{ spark_operator_repo }}'"
+  ansible.builtin.shell: "export PATH=/usr/local/bin:$PATH && helm repo add spark-operator '{{ spark_operator_repo }}'"
   changed_when: true
   tags: init
 
 - name: Install Spark Operator Namespace
-  command: helm install my-release spark-operator/spark-operator --set image.tag={{ operator_image_tag }} --namespace spark-operator --create-namespace
+  ansible.builtin.shell: export PATH=/usr/local/bin:$PATH && helm install my-release spark-operator/spark-operator --set image.tag={{ operator_image_tag }} --namespace spark-operator --create-namespace
   changed_when: true
   when: "'spark-operator' not in k8s_pods.stdout"
   tags: init

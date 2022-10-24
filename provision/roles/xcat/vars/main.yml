@@ -15,9 +15,26 @@
 
 # Usage: pre_requisites.yml
 selinux_status_fail_msg: "selinux is not disabled. Disable it in /etc/sysconfig/selinux and reboot the system"
+xcat_connection_search_key: "connection failure"
+
+# Usage: package_installation.yml
+ipaddr_collection: ansible.utils:2.5.2
+common_packages_xcat:
+  - python3-netaddr
+  - openssl
+  - dos2unix
+  - net-snmp
+  - net-snmp-utils
+  - createrepo
+python_version: python3.8
+snmp_python_package: easysnmp
+postgres_python_package: psycopg2-binary
+requests_python_package: requests
 
 # Usage: validate_public_nic.yml
-provision_config_filename: "{{ playbook_dir }}/../input/provision_config.yml"
+provision_config_filename: "{{ role_path }}/../../../input/provision_config.yml"
+provision_vault_path: "{{ role_path }}/../../../input/.provision_vault_key"
+ansible_vault_search_key: "$ANSIBLE_VAULT;"
 input_provision_failure_msg: "Please provide all the required parameters in provision_config.yml"
 success_msg_nic: "nic successfully validated"
 fail_msg_nic: "Failed. Provide proper values"
@@ -45,20 +62,7 @@ pxe_switch_ip_valid: "Valid switch ip provided"
 pxe_switch_ip_invalid: " Failed. Provide a valid switch ip"
 fail_switch_or_mapping_file: "Failed.Please provide either PXE mapping file or PXE switch details.If switch details are given,then provide proper nodename too."
 fail_msg_pxe_path: "Failed. Please provide a valid PXE mapping file path"
-
-# Usage: package_installation.yml
-ipaddr_collection: ansible.utils:2.5.2
-common_packages_xcat:
-  - python3-netaddr
-  - openssl
-  - dos2unix
-  - net-snmp
-  - net-snmp-utils
-  - createrepo
-python_version: python3.8
-snmp_python_package: easysnmp
-postgres_python_package: psycopg2-binary
-requests_python_package: requests
+pxe_switch_unreachable: "Failed. Given switch is unreachable. Please provide correct switch IP."
 
 # Usage: validate_provision_vars.yml
 input_provision_fail_msg: "Please provide all the required provision parameters"
@@ -88,6 +92,10 @@ warning_wait_time: 30
 postgresdb_password_fail_msg: "Failed. postgresdb_password should contain only alphanumeric characters in provision_config.yml"
 os_supported_rocky: rocky
 os_supported_rhel: rhel
+mount_point_success_msg: "mountpoint of disk_partition successfully validated"
+mount_point_fail_msg: "Failed. Supported disk_partition mount_point values are /home, /var, /tmp, /usr, swap"
+desired_capacity_success_msg: "desired_capacity of disk_partition successfully validated"
+desired_capacity_fail_msg: "Failed. Provide valid integer value to desired_capacity of disk_partition"
 
 # Usage: validate_domain_name.yml
 domain_name_success_msg: "domain_name successfully validated"
@@ -150,6 +158,8 @@ xcat_ports:
 snmp_utility_path: "{{ role_path }}/files/snmp_utility.py"
 pxe_mapping_path: "{{ role_path }}/files/pxe_mapping_file.csv"
 postgres_utility_path: "{{ role_path }}/files/postgres_utility.py"
+bmc_utility_path: "{{ role_path }}/files/bmc_utility.py"
+ib_utility_path: "{{ role_path }}/files/ib_utility.py"
 
 # Usage: install_xcat.yml
 xcat_directory: /root/xcat
@@ -195,10 +205,16 @@ ipmitool_rhel8_file_path: /opt/racadm/iDRACTools/ipmitool/RHEL8_x86_64/
 # Usage: node_object_creation.yml
 osimage_search_key: install-compute
 
-# Usage: create_admin_inventory.yml
+# Usage: create_node_inventory.yml
 mapping_file_dest: "/tmp/mapping.csv"
 provision_file_dest: "/opt/omnia/.data/provision.ini"
 provision_file_msg: "/opt/omnia/.data/provision.ini doesn't exists, make sure you run provision.yml"
 
 # Usage: create_mapping_file.yml
 file_perm: 0644
+
+# Usage: assign_bmc_ip.yml
+idrac_port: 443
+
+# Usage: disk_partition.yml
+xcat_rhel8_pre_script: "/opt/xcat/share/xcat/install/scripts/pre.rhels8"

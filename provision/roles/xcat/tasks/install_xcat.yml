@@ -37,7 +37,7 @@
   ansible.builtin.command: "{{ xcat_directory }}/xcat-core/mklocalrepo.sh"
   changed_when: true
 
-- name: Download xcat-dep package
+- name: Download xcat-dep package (This task may take 10 mins)
   ansible.builtin.get_url:
     url: "{{ xcat_dep_url }}"
     dest: "{{ xcat_dep_dest }}"

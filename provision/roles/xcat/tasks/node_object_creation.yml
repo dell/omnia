@@ -13,6 +13,14 @@
 # limitations under the License.
 ---
 
+- name: Fetch all node object list
+  ansible.builtin.shell: >
+    source {{ xcat_env_path }} && \
+    lsdef all -i mac
+  changed_when: false
+  failed_when: false
+  register: node_mac_list
+
 - name: Create node object from mapping file provided by user
   block:
     - name: Read mapping file provided by user
@@ -29,6 +37,7 @@
       changed_when: true
       loop_control:
         index_var: idx1
+      when: mapping_file_output.list[idx1].MAC | lower not in node_mac_list.stdout | lower
   when: pxe_mapping_file_path | length > 0
 
 - name: Check status of mapping file created by snmp utility
@@ -53,4 +62,5 @@
       changed_when: true
       loop_control:
         index_var: idx2
+      when: utility_mapping_file_output.list[idx2].MAC | lower not in node_mac_list.stdout | lower
   when: pxe_mapping_path_status.stat.exists

@@ -13,18 +13,57 @@
 # limitations under the License.
 ---
 
-- name: Create inventory with admin IP's
-  ansible.builtin.set_fact:
-     admin_list: "{{ admin_list + [item.admin_ip] }}"
-
-- name: Creating record to be inserted in mapping file
-  ansible.builtin.set_fact:
-     csv_tmp: >
-       {{ item.admin_ip }},{{ item.ib_ip }}
-
-- name: Save records to mapping file
+- name: Save records to mapping file when both ib_ip and bmc_ip present - {{ item.admin_ip }}
   ansible.builtin.lineinfile:
-     insertafter: EOF
-     dest: "{{ mapping_file_dest }}"
-     line: "{{ csv_tmp }}"
-     mode: "{{ file_perm }}"
+    insertafter: EOF
+    dest: "{{ mapping_file_dest }}"
+    line: "{{ item.admin_ip }},{{ item.ib_ip }},{{ item.bmc_ip }},{{ item.hostname }}"
+    mode: "{{ file_perm }}"
+  when:
+    - empty_ib_ip | int == 0
+    - empty_bmc_ip | int == 0
+
+- name: Save records to mapping file when empty_bmc_ip present - {{ item.admin_ip }}
+  ansible.builtin.lineinfile:
+    insertafter: EOF
+    dest: "{{ mapping_file_dest }}"
+    line: "{{ item.admin_ip }},{{ item.ib_ip }},null,{{ item.hostname }}"
+    mode: "{{ file_perm }}"
+  when:
+    - empty_ib_ip | int == 0
+    - empty_bmc_ip | int > 0
+
+- name: Save records to mapping file when empty_ib_ip present - {{ item.admin_ip }}
+  ansible.builtin.lineinfile:
+    insertafter: EOF
+    dest: "{{ mapping_file_dest }}"
+    line: "{{ item.admin_ip }},null,{{ item.bmc_ip }},{{ item.hostname }}"
+    mode: "{{ file_perm }}"
+  when:
+    - empty_ib_ip | int > 0
+    - empty_bmc_ip | int == 0
+
+- name: Save records to mapping file when empty_ib_ip and empty_bmc_ip present - {{ item.admin_ip }}
+  ansible.builtin.lineinfile:
+    insertafter: EOF
+    dest: "{{ mapping_file_dest }}"
+    line: "{{ item.admin_ip }},null,null,{{ item.hostname }}"
+    mode: "{{ file_perm }}"
+  when:
+    - empty_ib_ip | int > 0
+    - empty_bmc_ip | int > 0
+
+- name: Check for reachable node - {{ item.admin_ip }}
+  ansible.builtin.command: ping -c1 {{ item.admin_ip }}
+  register: ping_result
+  changed_when: false
+  failed_when: false
+  when: item.admin_ip is defined
+
+- name: Create group with admin_ip - {{ item.admin_ip }}
+  ansible.builtin.add_host:
+    name: "{{ item.admin_ip }}"
+    groups: "node_inventory"
+  when:
+    - item.admin_ip is defined
+    - ping_search_key not in ping_result.stdout

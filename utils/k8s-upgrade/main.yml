@@ -1,5 +1,3 @@
----
-
 - name: Upgrade Master
   hosts: masters
   serial: 1
@@ -17,5 +15,3 @@
   tasks:
        - name: two
          include_tasks: upgrade_node.yml
-
-

@@ -20,7 +20,9 @@
   ansible.builtin.set_fact:
     redhat_node_ip: "{{ redhat_node_ip | default([]) + [item] }}"
   with_items: "{{ groups['all'] }}"
-  when: "'redhat' in hostvars[item].ansible_distribution | lower"
+  when:
+    - hostvars[item].ansible_distribution is defined
+    - "'redhat' in hostvars[item].ansible_distribution | lower"
 
 - name: Perform validations when compute nodes have redhat os installed
   block:

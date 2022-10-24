@@ -33,51 +33,102 @@ node_name = sys.argv[5]
 pxe_mapping_path = sys.argv[6]
 domain_name = sys.argv[7]
 roce_status = sys.argv[8]
+pxe_mac_address = sys.argv[9]
 temp_decimal_oids = []
+temp_dec_dict = {}
 hexa_mac = []
+dict_hexa_mac = {}
 final_mac = {}
+dict_final_mac = {}
 valid_mac = []
 
 
 def collect_dec_oid():
-    # Create an SNMP session to be used for all our requests
-    session = Session(hostname=switch_ip, community=switch_string, version=2)
+    try:
+        # Create an SNMP session to be used for all our requests
+        session = Session(hostname=switch_ip, community=switch_string, version=2)
 
-    # Run snmp walk on the created session
-    description = session.walk('.1.3.6.1.2.1.17.7.1.2.2.1.2')
+        # Run snmp walk on the created session
+        description = session.walk('.1.3.6.1.2.1.17.7.1.2.2.1.2')
+
+    except easysnmp.exceptions.EasySNMPTimeoutError:
+        sys.exit('Please ensure that SNMP is enabled on switch IP mentioned in inputs.')
+
+    except:
+        sys.exit('SNMP Walk on switch failed. Please check switch configurations')
 
     # Collect information about the temp decimal MACs/oids
+    # temp_dec_dict is a dict with key as port no and values as mib
     for item in description:
-        temp_decimal_oids.append(item.oid)
-
+        if item.value not in temp_dec_dict:
+            temp_dec_dict[item.value] = list()
+            temp_dec_dict[item.value].append(item.oid)
+        else:
+            temp_dec_dict[item.value].append(item.oid)
     filter_dec_oid()
 
 
 def filter_dec_oid():
     count = 1
     temp_oids = []
+    mib_dict = {}
+    double_temp_oids = {}
 
     # Extract the last 6 digit that forms the decimal MAC
-    for item in temp_decimal_oids:
-        temp_oids.append(item.split('-')[1])
+    # Segregating based on whether key has 1 value or 2 values
+    for key in temp_dec_dict:
+        for value in temp_dec_dict[key]:
+            if key not in mib_dict:
+                mib_dict[key] = list()
+                mib_dict[key].append(value.split('-')[1])
+            else:
+                mib_dict[key].append(value.split('-')[1])
+
+    for key in mib_dict:
+        if len(mib_dict[key]) == 1:
+            for value in mib_dict[key]:
+                temp_oids.append(value)
+        if len(mib_dict[key]) > 1:
+            for value in mib_dict[key]:
+                if key not in double_temp_oids:
+                    double_temp_oids[key] = list()
+                    double_temp_oids[key].append(value)
+                else:
+                    double_temp_oids[key].append(value)
 
     for item in temp_oids:
         temp_nos = []
         # Convert decimal to hexadecimal numbers
         for i in item.split('.'):
             number = format(int(i), 'x')
+
             # To append 0 as MAC has 00 instead of 0
-            if number == "0":
+            if number == "0" or number == "a" or number == "b" or number == "c" or number == "d" or number == "e" or number == "f":
                 number = "0" + number
             temp_nos.append(number)
         hexa_mac.append(temp_nos[-6:])
         count = count + 1
+
+    for key in double_temp_oids:
+        for value in double_temp_oids[key]:
+            for i in value.split('.'):
+                number = format(int(i), 'x')
+
+                # To append 0 as MAC has 00 instead of 0
+                if number == 0 or number == "a" or number == "b" or number == "c" or number == "d" or number == "e" or number == "f":
+                    number = "0" + number
+                temp_nos.append(number)
+            if key not in dict_hexa_mac:
+                dict_hexa_mac[key] = list()
+                dict_hexa_mac[key].append(temp_nos[-6:])
+            else:
+                dict_hexa_mac[key].append(temp_nos[-6:])
+
     final_hex_mac()
 
 
 def final_hex_mac():
     count = 1
-
     for row1 in hexa_mac:
         temp = ""
         for value in row1:
@@ -88,29 +139,62 @@ def final_hex_mac():
         final_mac[count] = temp[:-1]
         count = count + 1
 
+    # dict_hexa_mac containes hexa mac as value and port as key. Most key will have 2 values
+    for key in dict_hexa_mac:
+        for value in dict_hexa_mac[key]:
+            temp = ""
+            for i in value:
+                if i.isnumeric() is True and 9 >= int(i) > 0:
+                    i = "0" + i
+                temp = temp + i + ":"
+            if key not in dict_final_mac:
+                dict_final_mac[key] = list()
+                dict_final_mac[key].append(temp[:-1])
+            else:
+                dict_final_mac[key].append(temp[:-1])
+
     identify_device_type()
 
 
 def identify_device_type():
     url = "https://api.macvendors.com/"
-
+    temp_valid_mac = {}
     for key in final_mac:
         # Use get method to fetch details
         response = requests.get(url + final_mac[key])
         if response.status_code != 200:
             raise Exception("[!] Invalid MAC Address!")
-        if "Broadcom" in response.content.decode() or "Intel" in response.content.decode():
+        else:
             valid_mac.append(final_mac[key])
             print(response.content.decode())
-        else:
-            print(response.content.decode() + " : Not a valid device type")
+
+    for key in dict_final_mac:
+        temp_dict = {}
+        for value in dict_final_mac[key]:
+            response = requests.get(url + value)
+            if response.status_code != 200:
+                raise Exception("[!] Invalid MAC Address!")
+            else:
+                temp_dict[value] = response.content.decode()
+        temp_valid_mac[key] = temp_dict
+
+    for key in temp_valid_mac:
+        count = 0
+        for value in temp_valid_mac[key]:
+            if "Dell" in temp_valid_mac[key][value]:
+                count = count + 1
+            else:
+                valid_mac.append(value)
+        if count == 2:
+            for value in temp_valid_mac[key]:
+                valid_mac.append(value)
 
     mapping_file_creation()
 
 
 def mapping_file_creation():
     count = 0
-    ip_start_addr = ipaddress.IPv4Address(pxe_start_range)-1
+    ip_start_addr = ipaddress.IPv4Address(pxe_start_range) - 1
     fields = ['MAC', 'Hostname', 'IP']
     ip_end_addr = ipaddress.IPv4Address(pxe_end_range)
     # Create a mapping file named pxe_mapping_file.csv
@@ -126,67 +210,75 @@ def mapping_file_creation():
     conn.autocommit = True
     cursor = conn.cursor()
 
-    for key in valid_mac:
-        # Check if the mac address already exists in the table
-        sql = '''select exists(select admin_mac from cluster.nodeinfo where admin_mac='{key}')'''.format(key=key)
-        cursor.execute(sql)
-        output = cursor.fetchone()[0]
-        host_name = node_name + str(count)
-        count = '%05d' % (int(count) + 1)
-        host_name = node_name + str(count) + "." + domain_name
-        # When roce is disabled
-        if output == False and roce_status == "False":
-            sql = '''INSERT INTO cluster.nodeinfo(admin_mac,hostname,admin_ip,bmc_ip,ib_ip) VALUES (
-        '{key}','{host_name}','{ip_start_addr}',NULL,NULL)'''.format(key=key, host_name=host_name, ip_start_addr=ip_start_addr)
-            cursor.execute(sql)
+    # Check if there exists any node with valid vendor
+    if len(valid_mac) > 0:
+        for key in valid_mac:
+            if key != pxe_mac_address:
+                # Check if the mac address already exists in the table
+                sql = '''select exists(select admin_mac from cluster.nodeinfo where admin_mac='{key}')'''.format(key=key)
+                cursor.execute(sql)
+                output = cursor.fetchone()[0]
+                host_name = node_name + str(count)
+                count = '%05d' % (int(count) + 1)
+                host_name = node_name + str(count) + "." + domain_name
+                # When roce is disabled
+                if output == False and roce_status == "False":
+                    sql = '''INSERT INTO cluster.nodeinfo(admin_mac,hostname,admin_ip,bmc_ip,ib_ip) VALUES (
+                '{key}','{host_name}','{ip_start_addr}',NULL,NULL)'''.format(key=key, host_name=host_name,
+                                                                             ip_start_addr=ip_start_addr)
+                    cursor.execute(sql)
 
-        # When roce is enabled
-        if output == False and roce_status == "True":
-            sql = '''INSERT INTO cluster.nodeinfo(admin_mac,hostname,admin_ip,bmc_ip,ib_ip) VALUES (
-        '{key}','{host_name}',NULL,NULL,'{ip_start_addr}')'''.format(key=key, host_name=host_name,ip_start_addr=ip_start_addr)
-            cursor.execute(sql)
-    sql = '''select max(id) from cluster.nodeinfo'''
-    cursor.execute(sql)
-    result = cursor.fetchall()
-
-    if roce_status == "False":
-        if ip_start_addr + result[0][0] > ip_end_addr:
-            print(" PXE ip range has exceeded the provided range. Please provide proper range")
-            sql= '''Update cluster.nodeinfo set admin_ip = NULL'''
-            cursor.execute(sql)
-            os.abort()
-        else:
-            sql = '''Update cluster.nodeinfo set admin_ip=admin_ip + id
-               where admin_ip - id <> inet ('{ip_start_addr}') '''.format(ip_start_addr=ip_start_addr)
-            cursor.execute(sql)
-        sql = '''select admin_mac,hostname,admin_ip from cluster.nodeinfo'''
-        cursor.execute(sql);
-        result = cursor.fetchall()
-        with open(filename, 'w') as csvfile:
-            csvwriter = csv.writer(csvfile)
-            csvwriter.writerow(fields)
-            csvwriter.writerows(result)
-            csvfile.close()
-
-    if roce_status == "True":
-        if ip_start_addr + result[0][0] > ip_end_addr:
-            print(" PXE ip range has exceeded the provided range. Please provide proper range")
-            sql= '''Update cluster.nodeinfo set ib_ip = NULL'''
-            cursor.execute(sql)
-            os.abort()
-        else:
-            sql = '''Update cluster.nodeinfo set ib_ip=ib_ip + id
-               where ib_ip - id <> inet ('{ip_start_addr}') '''.format(ip_start_addr=ip_start_addr)
-            cursor.execute(sql)
-        sql = '''select admin_mac,hostname,ib_ip from cluster.nodeinfo'''
+                # When roce is enabled
+                if output == False and roce_status == "True":
+                    sql = '''INSERT INTO cluster.nodeinfo(admin_mac,hostname,admin_ip,bmc_ip,ib_ip) VALUES (
+                '{key}','{host_name}',NULL,NULL,'{ip_start_addr}')'''.format(key=key, host_name=host_name,
+                                                                             ip_start_addr=ip_start_addr)
+                    cursor.execute(sql)
+        sql = '''select max(id) from cluster.nodeinfo'''
         cursor.execute(sql)
         result = cursor.fetchall()
-        with open(filename, 'w') as csvfile:
-            csvwriter = csv.writer(csvfile)
-            csvwriter.writerow(fields)
-            csvwriter.writerows(result)
-            csvfile.close()
-    conn.close()
+
+        if roce_status == "False":
+            if ip_start_addr + result[0][0] > ip_end_addr:
+                print(" PXE ip range has exceeded the provided range. Please provide proper range")
+                sql = '''Drop table cluster.nodeinfo'''
+                cursor.execute(sql)
+                sys.exit('PXE ip range has exceeded the provided range. Please provide proper range')
+            else:
+                sql = '''Update cluster.nodeinfo set admin_ip=inet'{ip_start_addr}' + id
+                   where admin_ip - id <> inet ('{ip_start_addr}') '''.format(ip_start_addr=ip_start_addr)
+                cursor.execute(sql)
+            sql = '''select admin_mac,hostname,admin_ip from cluster.nodeinfo'''
+            cursor.execute(sql)
+            result = cursor.fetchall()
+            with open(filename, 'w') as csvfile:
+                csvwriter = csv.writer(csvfile)
+                csvwriter.writerow(fields)
+                csvwriter.writerows(result)
+                csvfile.close()
+
+        if roce_status == "True":
+            if ip_start_addr + result[0][0] > ip_end_addr:
+                print(" PXE ip range has exceeded the provided range. Please provide proper range")
+                sql = '''Drop table cluster.nodeinfo'''
+                cursor.execute(sql)
+                sys.exit('PXE ip range has exceeded the provided range. Please provide proper range')
+            else:
+                sql = '''Update cluster.nodeinfo set ib_ip=inet'{ip_start_addr}' + id
+                   where ib_ip - id <> inet ('{ip_start_addr}') '''.format(ip_start_addr=ip_start_addr)
+                cursor.execute(sql)
+            sql = '''select admin_mac,hostname,ib_ip from cluster.nodeinfo'''
+            cursor.execute(sql)
+            result = cursor.fetchall()
+            with open(filename, 'w') as csvfile:
+                csvwriter = csv.writer(csvfile)
+                csvwriter.writerow(fields)
+                csvwriter.writerows(result)
+                csvfile.close()
+        conn.close()
+
+    else:
+        sys.exit("No valid MAC can be found!!Check the switch IP")
 
 
 collect_dec_oid()
