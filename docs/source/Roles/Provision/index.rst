@@ -1,7 +1,6 @@
 Provision
 =========
 
-
 1. Edit the ``omnia/input/provision_config.yml`` file to update the required variables.
 
 +----------------------------------+------------------------------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -69,11 +68,11 @@ Provision
 
     iii. A PostgreSQL database is set up with all relevant cluster information such as MAC IDs, service tags, infiniband IPs, BMC IPs etc.
 
-            To access the DB, run:
+            To access the DB, run: ::
 
-                        ``psql -U postgres``
+                        psql -U postgres
 
-                        ``\c omniadb``
+                        \c omniadb
 
 
             To view the schema being used in the cluster: ``\dn``
@@ -84,6 +83,19 @@ Provision
 
     iv. Offline repositories will be created based on the OS being deployed across the cluster.
 
-.. note:: If the cluster does not have access to the internet, AppStream will not function. Please use the available offline repositories instead.
+.. note::
+
+    * If the cluster does not have access to the internet, AppStream will not function. Please use the available offline repositories instead.
+
+    * After running ``provision.yml``, the file ``input/provision_config.yml`` will be encrypted. To edit file, use the command: ``ansible-vault edit provision_config.yml --vault-password-file .provision_vault_key``
+
+    * If the ``provision.yml`` is to be used to re-provision target servers, use the following steps:
+
+         * Use ``lsdef -t osimage | grep install-compute`` to get a list of all valid OS profiles.
+
+         * Use ``nodeset all osimage=<selected OS image from previous command>`` to provision the OS on the target server.
+
+         * PXE boot the target server to bring up the OS.
+
 
 .. warning:: Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect.

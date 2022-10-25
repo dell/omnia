@@ -1,17 +1,6 @@
 Sample Files
 =============
 
-device_ip_list.yml
--------------------
-
-
-::
-
-    172.19.0.100
-
-    172.19.0.200
-
-
 host_inventory_file
 --------------------
 
@@ -53,38 +42,17 @@ host_inventory_file.ini
     [compute]
     compute[000:064]
 
-mapping_device_file.csv
------------------------
 
-::
 
-    MAC,IP
-    xx:yy:zz:aa:bb,1.2.3.4
-
-host_mapping_file_os_provisioning.csv
+pxe_mapping_file.csv
 ------------------------------------
 
 ::
-
-
     MAC,Hostname,IP
-
-    xx:yy:zz:aa:bb,server,1.2.3.4
-
-    aa:bb:cc:dd:ee,server2,10.10.11.12
+    xx:yy:zz:aa:bb:cc,server,172.29.0.5
+    aa:bb:cc:dd:ee:ff,server2, 172.29.0.6
 
 
-host_mapping_file_one_touch.csv
--------------------------------
-
-::
-
-
-        MAC,Hostname,IP,Component_role
-
-        xx:yy:zz:aa:bb,server,1.2.3.4,manager
-
-        aa:bb:cc:dd:ee,server2,10.10.11.12,nfs_node
 
 
 

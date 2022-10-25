@@ -5,13 +5,10 @@ Frequently Asked Questions
 **What are the mapping files required when configuring in a LOM setup?**
 
 +-------------------------+----------------------------------------------------------------------------------+--------------------------------------+----------------------------------+------------------------------------------------------+
-| File name               | Purpose                                                                          | Associated Variable  (base_vars.yml) | Format                           | Sample File Path                                     |
+| File name               | Purpose                                                                          | Associated Variable                  | Format                           | Sample File Path                                     |
 +=========================+==================================================================================+======================================+==================================+======================================================+
-| Host mapping            | Mapping file listing all devices (barring iDRAC) and provisioned hosts for DHCP  | ``host_mapping_file_path``           | xx:yy:zz:aa:bb,server,172.17.0.5 | omnia/examples/host_mapping_file_os_provisioning.csv |
-|                         | configurations                                                                   |                                      |                                  |                                                      |
-+-------------------------+----------------------------------------------------------------------------------+--------------------------------------+----------------------------------+------------------------------------------------------+
-| Management mapping file | Mapping file listing iDRACs for DHCP                                             | ``mgmt_mapping_file_path``           | xx:yy:zz:aa:bb,172.17.0.5        | omnia/examples/mapping_device_file.csv               |
-|                         | configurations                                                                   |                                      |                                  |                                                      |
+| Host mapping            | Mapping file listing all devices (barring iDRAC) and provisioned hosts for DHCP  | ``host_mapping_file_path``           | xx:yy:zz:aa:bb:CC,server,172.29.0.5 | omnia/examples/pxe_mapping_file.csv                  |
+|                         | configurations                                                                   |                                      |                                     |                                                      |
 +-------------------------+----------------------------------------------------------------------------------+--------------------------------------+----------------------------------+------------------------------------------------------+
 
 **Why does splitting an ethernet Z series port fail with "Failed. Either port already split with different breakout value or port is not available on ethernet switch"?**
@@ -30,25 +27,15 @@ Resolution:
 
 **How to enable DHCP routing on Compute Nodes:**
 
-To enable routing, update the ``primary_dns`` and ``secondary_dns`` in ``base_vars`` with the appropriate IPs (hostnames are currently not supported). For compute nodes that are not directly connected to the internet (ie only host network is configured), this configuration allows for internet connectivity.
+To enable routing, update the ``primary_dns`` and ``secondary_dns`` in ``provision_config.yml`` with the appropriate IPs (hostnames are currently not supported). For compute nodes that are not directly connected to the internet (ie only host network is configured), this configuration allows for internet connectivity.
 
-**How to clear existing DHCP leases after a management NIC IP change:**
-
-
-If ``device_config_support`` is set to TRUE,
-
-1. Reboot the ethernet TOR (Top of the Rack) switches in your environment.
-
-2. If the leases aren't cleared, reboot the devices that have not registered the new IP.
-
-If ``device_config_support`` is set to FALSE, no reboots are required.
 
 **What to do if the LC is not ready:**
 
 
 * Verify that the LC is in a ready state for all servers: ``racadm getremoteservicesstatus``
 
-* Launch iDRAC template.
+* PXE boot the target server.
 
 **Is Disabling 2FA supported by Omnia?**
 
@@ -58,19 +45,6 @@ If ``device_config_support`` is set to FALSE, no reboots are required.
 
 Provisioning server using BOSS controller is now supported by Omnia 1.2.1.
 
-**What steps have to be taken to re-run monitor.yml after a Kubernetes reset?**
-
-
-1. Delete the folder: ``/var/nfs_awx``
-
-2. Delete the file:  ``/<project name>/control_plane/roles/webui_awx/files/.tower_cli.cfg``
-
-Once complete, it's safe to re-run ``monitor.yml``.
-
-
-**How many active NICs are configured by idrac.yml?**
-
-Upto 4 active NICs can be configured by ``idrac.yml``. Past the first 4 NICs, all NICs will be ignored.
 
 **How to re-launch services after a control-plane reboot while running provision.yml**
 
@@ -80,3 +54,10 @@ After a reboot of the control plane while running ``provision.yml``, to bring up
 
     systemctl restart xcatd.service
 
+**How to re-provision a server once it's been set up by xCAT**
+
+* Use ``lsdef -t osimage | grep install-compute`` to get a list of all valid OS profiles.
+
+* Use ``nodeset all osimage=<selected OS image from previous command>`` to provision the OS on the target server.
+
+* PXE boot the target server to bring up the OS.
