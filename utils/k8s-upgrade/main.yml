@@ -1,14 +1,15 @@
----
 - name: Upgrade Master
-  hosts: master
+  hosts: masters
+  serial: 1
   vars_files:
-               - variable.yml
+          - variable.yml
   tasks:
        - name: one
          include_tasks: upgrade_master.yml
 
 - name: Upgrade Node
-  hosts: node
+  hosts: workers
+  serial: 1
   vars_files:
                - variable.yml
   tasks:

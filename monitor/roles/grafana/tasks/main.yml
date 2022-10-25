@@ -13,9 +13,6 @@
 # limitations under the License.
 ---
 
-- name: Include monitor_config.yml
-  ansible.builtin.include_vars: "{{ monitor_config_vars }}"
-
 - name: Pre-requisites for grafana
   ansible.builtin.include_tasks: pre-requisites.yml
 
