@@ -13,13 +13,6 @@
 #  limitations under the License.
 ---
 
-- name: Include monitor_config.yml
-  ansible.builtin.include_vars: "{{ monitor_config_vars }}"
-
-- name: Saving management station OS
-  ansible.builtin.set_fact:
-    mgmt_os: "{{ ansible_facts['distribution'] | lower }}"
-
 - name: Install netaddr
   ansible.builtin.command: "{{ pip_version }} install netaddr"
   changed_when: false

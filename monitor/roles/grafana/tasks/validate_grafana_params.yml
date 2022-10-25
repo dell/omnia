@@ -13,8 +13,8 @@
 #  limitations under the License.
 ---
 
-- name: Include monitor_config.yml
-  ansible.builtin.include_vars: "{{ monitor_config_vars }}"
+- name: Include monitor configuration variables
+  ansible.builtin.include_tasks: include_monitor_config.yml
 
 - name: Assert grafana credentials
   block:
@@ -44,6 +44,10 @@
   ansible.builtin.fail:
     msg: "{{ mount_validation_msg }}"
   when: mount_location | length < 1
+
+- name: Saving management station OS
+  ansible.builtin.set_fact:
+    mgmt_os: "{{ ansible_facts['distribution'] | lower }}"
 
 - name: Set SELinux to permissive mode
   block:

@@ -12,25 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
-- name: Validate pre-requisites for monitor roles
-  hosts: localhost
-  tasks:
-    - name: Pre-requisites for grafana
-      ansible.builtin.include_role:
-        name: grafana
-        tasks_from: validate_grafana_params.yml
-
-    - name: Pre-requisites for orchestrator
-      ansible.builtin.include_role:
-        name: orchestrator
-        tasks_from: validate_k8s_params.yml
-
-- name: Executing monitor roles
-  hosts: localhost
-  connection: local
-  roles:
-    - role: orchestrator
-    - role: grafana
-    - role: prometheus
-    - role: loki
+# Usage: To cleanup provision setup
+xcat_packages_path: "/opt/xcat/share/xcat/tools/go-xcat"
+xcat_cert_path: "/root/.xcat"
+xcat_data_files_path: "/etc/xcat"
+xcat_del_files:
+  - "/install"
+  - "/tftpboot"
+  - "/etc/yum.repos.d/xCAT-*"
+  - "/etc/sysconfig/xcat"
+  - "/etc/apache2/conf.d/xCAT-*"
+  - "/etc/logrotate.d/xCAT-*"
+  - "/etc/rsyslogd.d/xCAT-*"
+  - "/var/log/xcat"
+  - "/opt/xcat/"
+  - "/mnt/xcat"
+  - "{{ playbook_dir }}/../provision/roles/xcat/files/pxe_mapping_file.csv"
+  - /root/xcat
+  - /root/xcat-dbback
+  - /opt/racadm
+pg_dir_path: "/var/lib/pgsql"

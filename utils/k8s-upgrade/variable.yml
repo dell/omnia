@@ -4,3 +4,5 @@
               both_pkg:
                    - kubelet-{{ version }}
                    - kubectl-{{ version }}
+
+              kubernetes_kubeadm_target: '192.168.123.101'
