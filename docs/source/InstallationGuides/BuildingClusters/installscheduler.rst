@@ -15,10 +15,10 @@ Building Clusters
 
 3. To install Omnia:
 
-    For LeapOS:      ``ansible-playbook omnia.yml -i inventory -e 'ansible_python_interpreter=/usr/bin/python3'``
+       For CentOS, Rocky and RHEL:       ``ansible-playbook omnia.yml -e grafana_username="" -e grafana_password=""``
 
+.. note:: To skip installing Grafana during the run of ``omnia.yml``, omit the parameters ``grafana_username`` and ``grafana_password``. Alternatively, Grafana is not installed by ``omnia.yml`` if it's not available on the Control Plane.
 
-    For CentOS, Rocky and RedHat:       ``ansible-playbook omnia.yml -i inventory``
 
 **Using Skip Tags**
 
