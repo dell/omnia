@@ -13,16 +13,13 @@
 #  limitations under the License.
 ---
 
-# Usage: nfs_client.yml
-nfs_packages:
-  - nfs-utils
-  - nfs4-acl-tools
-file_perm: 0777
-powervault_vars_filename: "powervault_vars.yml"
-fstab_path: "/etc/fstab"
-mount_message: "Failed to mount NFS client, Make sure NFS server is running on mentioned server_share_path"
-client_folder_msg: "is a stale folder. Please give some other folder for mount"
-default_client_mount_options: "nosuid,rw,sync,hard,intr"
-mount_msg: "nfs-server.service might not be running on NFS Server. Please check or start services"
-sync_value: 300
-poll_value: 5
+- name: Include storage_config.yml
+  ansible.builtin.include_vars: "{{ storage_config_vars }}"
+
+- name: Initializing variables for NFS bolt on support
+  ansible.builtin.set_fact:
+    nfs_client_support: false
+
+- name: Include fetch_nfs_client_params.yml
+  ansible.builtin.include_tasks: fetch_nfs_client_params.yml
+  with_items: "{{ nfs_client_params }}"

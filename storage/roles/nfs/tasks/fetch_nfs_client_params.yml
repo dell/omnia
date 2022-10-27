@@ -14,35 +14,35 @@
 ---
 
 - name: Verify server_ip variable declaration
-  assert:
+  ansible.builtin.assert:
     that:
       - item.server_ip is defined
     success_msg: "{{ server_ip_success_msg }}"
     fail_msg: "{{ server_ip_fail_msg }}"
 
 - name: Verify server_share_path variable declaration
-  assert:
+  ansible.builtin.assert:
     that:
       - item.server_share_path is defined
     success_msg: "{{ server_share_path_success_msg }}"
     fail_msg: "{{ server_share_path_fail_msg }}"
 
 - name: Verify client_share_path variable declaration
-  assert:
+  ansible.builtin.assert:
     that:
       - item.client_share_path is defined
     success_msg: "{{ client_share_path_success_msg }}"
     fail_msg: "{{ client_share_path_fail_msg }}"
 
 - name: Verify client_mount_options variable declaration
-  assert:
+  ansible.builtin.assert:
     that:
       - item.client_mount_options is defined
     success_msg: "{{ client_mount_options_success_msg }}"
     fail_msg: "{{ client_mount_options_fail_msg }}"
 
 - name: Updating nfs_client_support value
-  set_fact:
+  ansible.builtin.set_fact:
     nfs_client_support: true
   when:
     - item.server_ip | default("", true) | length > 1 or
@@ -51,30 +51,31 @@
       item.client_mount_options | default("", true) | length > 1
 
 - name: Initialize variables
-  set_fact:
+  ansible.builtin.set_fact:
     nfs_client_declaration: false
 
-- block:
+- name: Check for variable declaration and update status
+  block:
     - name: Updating nfs_client_declaration value when values are declared correctly
-      set_fact:
+      ansible.builtin.set_fact:
         nfs_client_declaration: true
       when:
         - item.server_ip | default("", true) | length > 1
         - item.server_share_path | default("", true) | length > 1
-    
+
     - name: Status of nfs_client_params
-      fail:
+      ansible.builtin.fail:
         msg: "{{ nfs_client_declaration_msg }}"
       when: not nfs_client_declaration
   when: nfs_client_support
 
 - name: Test reachablility of NFS server
-  command: ping -c3 {{ item.server_ip }}
+  ansible.builtin.command: ping -c3 {{ item.server_ip }}
   changed_when: false
   failed_when: false
   register: nfs_server_reachability
 
 - name: Verify NFS server reachable or not
-  fail:
+  ansible.builtin.fail:
     msg: "{{ nfs_server_reach_msg }}"
   when: ping_msg in nfs_server_reachability.stdout
