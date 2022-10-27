@@ -1,25 +1,61 @@
 Rocky
 =====
 
-| OS Version     	| Control Plane 	| Compute Nodes 	|
-|----------------	|-------------------|---------------	|
-| 8.4            	| Yes               | Yes           	|
-| 8.5            	| Yes               | Yes           	|
++------------+---------------+---------------+
+| OS Version | Control Plane | Compute Nodes |
++============+===============+===============+
+| 8.4        | Yes           | Yes           |
++------------+---------------+---------------+
+| 8.5        | Yes           | Yes           |
++------------+---------------+---------------+
 
 .. note:: Always deploy the DVD Edition of the OS on Compute Nodes
 
-Using BeeGFS on Rocky
--------------------
+**Using BeeGFS on Rocky**
 
-| OS version   	| BeeGFS Client Version       	| Status        	|
-|-----------	|----------------------------	|---------------	|
-| Rocky-8.5 	| 7.2.4                      	| Not Supported 	|
-| Rocky-8.5 	| 7.2.5                      	| Not Supported 	|
-| Rocky-8.5 	| 7.2.6                      	| Supported     	|
-| Rocky-8.5 	| 7.3.0                      	| Supported     	|
++-----------------------------------------+----------------+
+| Rocky OS version                        | BeeGFS version |
++=========================================+================+
+| Rocky Linux 8.4: no OFED, OFED 5.3, 5.4 | 7.3.2          |
++-----------------------------------------+----------------+
+| Rocky Linux 8.5: no OFED, OFED 5.5      | 7.3.2          |
++-----------------------------------------+----------------+
+| Rocky Linux 8.6: no OFED, OFED 5.6      | 7.3.2          |
++-----------------------------------------+----------------+
+| Rocky Linux 8.4: no OFED, OFED 5.3, 5.4 | 7.3.1          |
++-----------------------------------------+----------------+
+| Rocky Linux 8.5: no OFED, OFED 5.5      | 7.3.1          |
++-----------------------------------------+----------------+
+| Rocky Linux 8.6: no OFED, OFED 5.6      | 7.3.1          |
++-----------------------------------------+----------------+
+| Rocky Linux 8.4: no OFED, OFED 5.3, 5.4 | 7.3.0          |
++-----------------------------------------+----------------+
+| Rocky Linux 8.5: no OFED, OFED 5.5      | 7.3.0          |
++-----------------------------------------+----------------+
+| Rocky Linux 8.4: no OFED, OFED 5.3, 5.4 | 7.2.8          |
++-----------------------------------------+----------------+
+| Rocky Linux 8.5: no OFED, OFED 5.5      | 7.2.8          |
++-----------------------------------------+----------------+
+| Rocky Linux 8.6: no OFED, OFED 5.6      | 7.2.8          |
++-----------------------------------------+----------------+
+| Rocky Linux 8.4: no OFED, OFED 5.3, 5.4 | 7.2.7          |
++-----------------------------------------+----------------+
+| Rocky Linux 8.5: no OFED, OFED 5.5      | 7.2.7          |
++-----------------------------------------+----------------+
+| Rocky Linux 8.6: no OFED, OFED 5.6      | 7.2.7          |
++-----------------------------------------+----------------+
+| Rocky Linux 8.5: no OFED, OFED 5.5      | 7.2.6          |
++-----------------------------------------+----------------+
+| Rocky Linux 8.6: no OFED, OFED 5.6      | 7.2.6          |
++-----------------------------------------+----------------+
+| Rocky Linux 8.4: no OFED, OFED 5.3, 5.4 | 7.2.5          |
++-----------------------------------------+----------------+
+| Rocky Linux 8.4: no OFED, OFED 5.3, 5.4 | 7.2.4          |
++-----------------------------------------+----------------+
+
 
 .. note::
 
      * At any given point, the client and management BeeGFS servers must be running the same major version of BeeGFS (ie 7.x). However, minor versions need not match (ie, management **7.x**.y and client **7.x**.z is supported).
 
-     * Upgrading BeeGFS to 7.3 using `omnia.yml` is not supported
+     * Upgrading BeeGFS to 7.3 using ``omnia.yml`` is not supported

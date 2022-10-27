@@ -29,7 +29,7 @@ Omnia is made available under the [Apache 2.0 license](https://opensource.org/li
 <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Dell_Technologies_logo.svg/512px-Dell_Technologies_logo.svg.png" height="50px" alt="Dell Technologies">
 <img src="https://upload.wikimedia.org/wikipedia/commons/0/0e/Intel_logo_%282020%2C_light_blue%29.svg" height="50px" alt="Intel Corporation"> 
 
-<img src="docs/source/images/pisa.png" height="80px" alt="Universita di Pisa"> <img src="https://user-images.githubusercontent.com/83095575/117071024-64956c80-ace3-11eb-9d90-2dac7daef11c.png" height="80px" alt="Arizona State University"> <img src="https://www.vizias.com/uploads/1/1/8/9/118906653/published/thick-blue-white-ring-letters-full.png" height="60px" alt="Vizias">
+<img src="docs/source/images/logos/pisa.png" height="80px" alt="Universita di Pisa"> <img src="https://user-images.githubusercontent.com/83095575/117071024-64956c80-ace3-11eb-9d90-2dac7daef11c.png" height="80px" alt="Arizona State University"> <img src="https://www.vizias.com/uploads/1/1/8/9/118906653/published/thick-blue-white-ring-letters-full.png" height="60px" alt="Vizias">
 
 <img src="https://www.eweek.com/wp-content/uploads/2020/10/Liquid-1.jpg" height="80px" alt="LIQID Inc."> <img src="https://user-images.githubusercontent.com/5414112/153955170-0a4b199a-54f0-42af-939c-03eac76881c0.png" height="80px" alt="Texas Tech University">
 

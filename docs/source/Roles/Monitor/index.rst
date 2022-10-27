@@ -23,6 +23,9 @@ The monitor role sets up `Grafana <https://grafana.com/>`_ ,  `Prometheus <https
 | mount_location             | /opt/omnia/telemetry     | required  | The path where the Grafana persistent volume will be mounted.  If telemetry is set up, all telemetry   related files will also be stored and both timescale and mysql databases will   be mounted to this location. '/' is mandatory at the end of the path. |
 +----------------------------+--------------------------+-----------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
+
+.. note:: After running ``monitor.yml``, the file ``input/monitor_config.yml`` will be encrypted. To edit the file, use ``ansible-vault edit monitor_config.yml --vault-password-file .monitor_vault_key``.
+
 2. Run the playbook using the following command: ::
 
     cd omnia/monitor

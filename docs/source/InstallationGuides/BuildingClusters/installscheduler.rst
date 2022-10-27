@@ -1,24 +1,24 @@
 Building Clusters
 =================
 
-1. In the ``omnia_config.yml`` file, provide the `required details <omniainputparams.html>`_.
+1. In the ``omnia_config.yml`` file, provide the `required details <schedulerinputparams.html>`_.
 
 .. note::  Without the login node, Slurm jobs can be scheduled only through the manager node.
 
 2. Create an inventory file in the *omnia* folder. Add login node IP address under the *[login_node]* group, manager node IP address under the *[manager]* group, compute node IP addresses under the *[compute]* group, and NFS node IP address under the *[nfs_node]* group. A template file named INVENTORY is provided in the *omnia\docs* folder.
 
 .. note::
-     * Omnia checks for `red hat subscription being enabled on RedHat nodes as a pre-requisite <../EnablingOptionalFeatures/rhsm.html>`_. Not having Red Hat subscription enabled on the manager node will cause ``omnia.yml`` to fail. If compute nodes do not have Red Hat subscription enabled, ``omnia.yml`` will skip the node entirely.
+     * Omnia checks for `red hat subscription being enabled on RedHat nodes as a pre-requisite <../../Roles/Utils/rhsm_subscription.html>`_. Not having Red Hat subscription enabled on the manager node will cause ``omnia.yml`` to fail. If compute nodes do not have Red Hat subscription enabled, ``omnia.yml`` will skip the node entirely.
      * Ensure that all the four groups (login_node, manager, compute, nfs_node) are present in the template, even if the IP addresses are not updated under login_node and nfs_node groups.
      * Omnia creates a log file which is available at: ``/var/log/omnia.log``.
      * If only Slurm is being installed on the cluster, docker credentials are not required.
 
 3. To install Omnia:
 
-    For LeapOS:      ``ansible-playbook omnia.yml -i inventory -e 'ansible_python_interpreter=/usr/bin/python3'``
+       For CentOS, Rocky and RHEL:       ``ansible-playbook omnia.yml -e grafana_username="" -e grafana_password=""``
 
+.. note:: To skip installing Grafana during the run of ``omnia.yml``, omit the parameters ``grafana_username`` and ``grafana_password``. Alternatively, Grafana is not installed by ``omnia.yml`` if it's not available on the Control Plane.
 
-    For CentOS, Rocky and RedHat:       ``ansible-playbook omnia.yml -i inventory``
 
 **Using Skip Tags**
 
@@ -192,5 +192,5 @@ BeeGFS is a hardware-independent POSIX parallel file system (a.k.a. Software-def
 
 .. image:: ../../images/BeeGFS_Structure.jpg
 
-For a list of pre-requisites to setting up BeeGFS, check out the `Omnia Pre-requisites <omniaprereqs.html>`_
+For a list of pre-requisites to setting up BeeGFS, check out the `Omnia Pre-requisites <schedulerprepreqs.html>`_
 
