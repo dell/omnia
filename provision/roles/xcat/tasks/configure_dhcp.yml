@@ -13,32 +13,66 @@
 # limitations under the License.
 ---
 
-- name: Create DHCP configuration
-  ansible.builtin.shell: >
-    source {{ xcat_env_path }} && \
-    makedhcp -n
-  changed_when: true
+- name: Task for creating DHCP configuration
+  block:
+    - name: Create DHCP configuration
+      ansible.builtin.command: makedhcp -n
+      changed_when: true
+      register: create_dhcp_config
+  rescue:
+    - name: DHCP configuration failed
+      ansible.builtin.fail:
+        msg: "{{ dhcp_config_fail_msg }} {{ create_dhcp_config.stderr }}"
+      when: create_dhcp_config.stderr is defined
 
-- name: Add hosts entry
-  ansible.builtin.shell: >
-    source {{ xcat_env_path }} && \
-    makehosts {{ provision_os }}
-  changed_when: true
+- name: Task for adding hosts entry
+  block:
+    - name: Add hosts entry
+      ansible.builtin.command: makehosts all
+      changed_when: true
+      register: create_hosts_entry
+  rescue:
+    - name: Verify hosts entry creation is successful
+      ansible.builtin.debug:
+        msg: "{{ hosts_entry_warning_msg }} {{ create_hosts_entry.stderr }}"
+      when: create_hosts_entry.stderr is defined
 
-- name: Apply DHCP Configuration
-  ansible.builtin.shell: >
-    source {{ xcat_env_path }} && \
-    makedhcp -a
-  changed_when: true
+- name: Task for applying DHCP configuration
+  block:
+    - name: Apply DHCP Configuration
+      ansible.builtin.command: makedhcp -a
+      changed_when: true
+      register: apply_dhcp_config
+  rescue:
+    - name: Verify DHCP configuration applied is successfully
+      ansible.builtin.fail:
+        msg: "{{ dhcp_config_apply_fail_msg }} {{ apply_dhcp_config.stderr }}"
+      when: apply_dhcp_config.stderr is defined
 
-- name: Create DNS configuration
-  ansible.builtin.shell: >
-    source {{ xcat_env_path }} && \
-    makedns -n
-  changed_when: true
+- name: Task for creating DNS configuration
+  block:
+    - name: Create DNS configuration
+      ansible.builtin.command: makedns -n
+      changed_when: true
+      register: dns_config
+  rescue:
+    - name: Verify DNS configuration is successful
+      ansible.builtin.debug:
+        msg: "{{ dns_config_warning_msg }} {{ dns_config.stderr }}"
+      when: dns_config.stderr is defined
 
-- name: Set osimage to node object
-  ansible.builtin.shell: >
-    source {{ xcat_env_path }} && \
-    nodeset {{ provision_os }} osimage={{ provision_os_image }}
-  changed_when: true
+- name: Task for set osimage to node object
+  block:
+    - name: Set osimage to node object
+      ansible.builtin.command: nodeset all osimage={{ provision_os_image }}
+      changed_when: true
+      register: set_osimage
+
+    - name: Installation status - provision.yml
+      ansible.builtin.debug:
+        msg: "{{ xcat_install_success_msg }}"
+  rescue:
+    - name: Verify set node object is successful
+      ansible.builtin.debug:
+        msg: "{{ set_osimage_warning_msg }} {{ set_osimage.stderr }}"
+      when: set_osimage.stderr is defined
