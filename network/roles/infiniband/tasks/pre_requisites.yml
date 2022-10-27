@@ -13,11 +13,27 @@
 # limitations under the License.
 ---
 
-- name: Validate type of IB switch
+- name: Verify all paramaters are provided
   ansible.builtin.assert:
-    that: "ib_switch_type | lower == 'edr' or ib_switch_type | lower == 'hdr'"
-    success_msg: "{{ ib_switch_type_success_msg }}"
-    fail_msg: "{{ ib_switch_type_fail_msg }}"
+    that:
+      - ib_switch_type is defined
+      - ib_username is defined
+      - ib_password is defined
+      - ib_switch_type | lower == 'edr' or ib_switch_type | lower == 'hdr'
+      - ib_username | length >= min_username_length
+      - ib_username | length < max_length
+      - '"-" not in ib_username '
+      - '"\\" not in ib_username '
+      - '"\"" not in ib_username '
+      - " \"'\" not in ib_username "
+      - ib_password | length > min_username_length | int - 1
+      - ib_password | length < max_length | int + 1
+      - '"-" not in ib_password '
+      - '"\\" not in ib_password '
+      - '"\"" not in ib_password '
+      - " \"'\" not in ib_password "
+    success_msg: "{{ success_valid_msg }}"
+    fail_msg: "{{ fail_valid_msg }}"
 
 - name: Check if infiniband_hdr_input.yml exists
   ansible.builtin.stat:
@@ -68,40 +84,6 @@
   ansible.builtin.fail:
     msg: "{{ ib_password_dec_msg }}"
   when: ib_password is not defined
-
-- name: Validate ib_username
-  block:
-    - name: Assert ib_username
-      ansible.builtin.assert:
-        that:
-          - ib_username | length >= min_username_length
-          - ib_username | length < max_length
-          - '"-" not in ib_username '
-          - '"\\" not in ib_username '
-          - '"\"" not in ib_username '
-          - " \"'\" not in ib_username "
-      no_log: true
-  rescue:
-    - name: Validate ib_username
-      ansible.builtin.fail:
-        msg: "{{ ib_username_fail_msg }}"
-
-- name: Validate ib_password
-  block:
-    - name: Assert ib_password
-      ansible.builtin.assert:
-        that:
-          - ib_password | length > min_username_length | int - 1
-          - ib_password | length < max_length | int + 1
-          - '"-" not in ib_password '
-          - '"\\" not in ib_password '
-          - '"\"" not in ib_password '
-          - " \"'\" not in ib_password "
-      no_log: true
-  rescue:
-    - name: Validate ib_password
-      ansible.builtin.fail:
-        msg: "{{ ib_password_fail_msg }}"
 
 - name: Set facts to validate snmp support
   ansible.builtin.set_fact:
