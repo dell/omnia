@@ -243,9 +243,13 @@ provision_file_msg: "/opt/omnia/.data/provision.ini doesn't exists, make sure yo
 
 # Usage: create_mapping_file.yml
 file_perm: 0644
+ssh_search_key: "permission denied"
 
 # Usage: assign_bmc_ip.yml
 idrac_port: 443
 
 # Usage: disk_partition.yml
 xcat_rhel8_pre_script: "/opt/xcat/share/xcat/install/scripts/pre.rhels8"
+
+# Usage: assign_hostname.yml
+node_inventory_path: /opt/omnia/node_inventory
