@@ -36,9 +36,16 @@ Once the script is complete, ensure that PXE boot and RAID configurations are se
 
 .. note::
 
-* If the cluster does not have access to the internet, AppStream will not function. Please use the available offline repositories instead.
+    * If the cluster does not have access to the internet, AppStream will not function. Please use the available offline repositories instead.
 
-* Password-less SSH will be created from the host to all target nodes and between nodes.
+    * After running ``provision.yml``, the file ``input/provision_config.yml`` will be encrypted. To edit file, use the command: ``ansible-vault edit provision_config.yml --vault-password-file .provision_vault_key``
 
+    * If the ``provision.yml`` is to be used to re-provision target servers, use the following steps:
+
+         * Use ``lsdef -t osimage | grep install-compute`` to get a list of all valid OS profiles.
+
+         * Use ``nodeset all osimage=<selected OS image from previous command>`` to provision the OS on the target server.
+
+         * PXE boot the target server to bring up the OS.
 
 .. warning:: Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect.

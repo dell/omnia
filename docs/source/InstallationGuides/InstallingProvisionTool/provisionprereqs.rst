@@ -10,7 +10,7 @@ Before You Run The Provision Tool
 
 * If devices (switches, servers and storage) are to be configured and managed by Omnia, ensure that DHCP is enabled on all target devices.
 
-* For DHCP configuration, you can provide a host mapping file. If the mapping file is not provided and the variable is left blank, a default mapping file will be created. The provided details must be in the format: MAC address, Hostname, IP address. For example,  ``10:11:12:13,server1,100.96.20.66`` and   ``14:15:16:17,server2,100.96.22.199`` are valid entries.
+* For DHCP configuration, you can provide a host mapping file. If the mapping file is not provided and the variable is left blank, a default mapping file will be created. The provided details must be in the format: MAC,hostname,IP. For example,  ``10:11:12:13:14:15,server1,100.96.20.66`` and   ``14:15:16:17:18:19,server2,100.96.22.199`` are valid entries.
 
 * Ensure that all connection names under the network manager match their corresponding device names. This can be verified using the command  ``nmcli connection``. In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcfg-<nic name>`` using vi editor.
 
