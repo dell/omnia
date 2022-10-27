@@ -13,64 +13,71 @@
 # limitations under the License.
 ---
 
-- name: Check xcat pre-requisites
-  ansible.builtin.include_tasks: pre_requisites.yml
+- name: Install and configure xcat
+  block:
+    - name: Check xcat pre-requisites
+      ansible.builtin.include_tasks: pre_requisites.yml
 
-- name: Common packages installation
-  ansible.builtin.include_tasks: package_installation.yml
-  when: not xcat_installation_status
+    - name: Common packages installation
+      ansible.builtin.include_tasks: package_installation.yml
+      when: not xcat_installation_status
 
-- name: Create the provision ini file
-  ansible.builtin.include_tasks: create_provision_ini.yml
+    - name: Create the provision ini file
+      ansible.builtin.include_tasks: create_provision_ini.yml
 
-- name: Include provision configuration variables
-  ansible.builtin.include_tasks: include_provision_config.yml
+    - name: Include provision configuration variables
+      ansible.builtin.include_tasks: include_provision_config.yml
 
-- name: Validate the nic parameters
-  ansible.builtin.include_tasks: validate_public_nic.yml
+    - name: Validate the nic parameters
+      ansible.builtin.include_tasks: validate_public_nic.yml
 
-- name: Validate the switch related parameters
-  ansible.builtin.include_tasks: validate_switch_vars.yml
+    - name: Validate the switch related parameters
+      ansible.builtin.include_tasks: validate_switch_vars.yml
 
-- name: Validate provision parameters
-  ansible.builtin.include_tasks: validate_provision_vars.yml
+    - name: Validate provision parameters
+      ansible.builtin.include_tasks: validate_provision_vars.yml
 
-- name: Validate disk partition parameters
-  ansible.builtin.include_tasks: validate_disk_partition_vars.yml
-  with_items: "{{ disk_partition }}"
+    - name: Validate disk partition parameters
+      ansible.builtin.include_tasks: validate_disk_partition_vars.yml
+      with_items: "{{ disk_partition }}"
 
-- name: Validate domain_name
-  ansible.builtin.include_tasks: validate_domain_name.yml
+    - name: Validate domain_name
+      ansible.builtin.include_tasks: validate_domain_name.yml
 
-- name: Configure firewall settings
-  ansible.builtin.include_tasks: firewall_settings.yml
-  when: not xcat_installation_status
+    - name: Configure firewall settings
+      ansible.builtin.include_tasks: firewall_settings.yml
+      when: not xcat_installation_status
 
-- name: Install xcat
-  ansible.builtin.include_tasks: install_xcat.yml
-  when: not xcat_installation_status
+    - name: Install xcat
+      ansible.builtin.include_tasks: install_xcat.yml
+      when: not xcat_installation_status
 
-- name: Configure xcat
-  ansible.builtin.include_tasks: configure_xcat.yml
+    - name: Configure xcat
+      ansible.builtin.include_tasks: configure_xcat.yml
 
-- name: Executing python utilities
-  ansible.builtin.include_tasks: python_utility.yml
+    - name: Executing python utilities
+      ansible.builtin.include_tasks: python_utility.yml
 
-- name: Create xcat osimage
-  ansible.builtin.include_tasks: create_osimage.yml
+    - name: Create xcat osimage
+      ansible.builtin.include_tasks: create_osimage.yml
 
-- name: User defined disk partition configuration
-  ansible.builtin.include_tasks: disk_partition.yml
-  when: disk_partition_configuration
+    - name: User defined disk partition configuration
+      ansible.builtin.include_tasks: disk_partition.yml
+      when: disk_partition_configuration
 
-- name: Enable internet access
-  ansible.builtin.include_tasks: internet_access.yml
+    - name: Enable internet access
+      ansible.builtin.include_tasks: internet_access.yml
 
-- name: Create racadm repo
-  ansible.builtin.include_tasks: racadm_config.yml
+    - name: Create racadm repo
+      ansible.builtin.include_tasks: racadm_config.yml
 
-- name: Create node object
-  ansible.builtin.include_tasks: node_object_creation.yml
+    - name: Create node object
+      ansible.builtin.include_tasks: node_object_creation.yml
 
-- name: Configure DHCP
-  ansible.builtin.include_tasks: configure_dhcp.yml
+    - name: Configure DHCP
+      ansible.builtin.include_tasks: configure_dhcp.yml
+  environment:
+    XCATROOT: "{{ xcat_root_env }}"
+    PATH: "{{ ansible_env.PATH }}:{{ xcat_path_env }}"
+    MANPATH: "{{ xcat_manpath_env }}"
+    PERL_BADLANG: "{{ perl_badlang_env }}"
