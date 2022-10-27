@@ -31,3 +31,5 @@ The monitor role sets up `Grafana <https://grafana.com/>`_ ,  `Prometheus <https
     cd omnia/monitor
     ansible-playbook monitor.yml
 
+
+For more information, check out our `docs <https://omnia-documentation.readthedocs.io/en/latest/index.html>`_!

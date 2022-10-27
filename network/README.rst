@@ -24,4 +24,5 @@ Some of the network features Omnia offers are:
 | mlnx_ofed_add_kernel_support | FALSE                    | TRUE      | Indicates whether the kernel needs to be upgraded to be compatible with   mlnx_ofed.                                                                                                    |
 +------------------------------+--------------------------+-----------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
+For more information, check out our `docs <https://omnia-documentation.readthedocs.io/en/latest/index.html>`_!
 
