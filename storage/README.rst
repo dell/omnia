@@ -82,7 +82,7 @@ To open the ports required, use the following steps:
 
 * Ensure that an external NFS server is running. NFS clients are mounted using the external NFS server's IP.
 
-* Fill out the ``nfs_client_params`` variable in the ``omnia_config.yml`` file in JSON format using the samples provided `here <omniainputparams.html>`_
+* Fill out the ``nfs_client_params`` variable in the ``storage_config.yml`` file in JSON format using the samples provided above.
 
 * This role runs on manager, compute and login nodes.
 
