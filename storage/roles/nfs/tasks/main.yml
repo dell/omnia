@@ -13,7 +13,7 @@
 #  limitations under the License.
 ---
 
-- name: Include storage_config.yml
+- name: Include storage_config.yml file
   ansible.builtin.include_vars: "{{ storage_config_vars }}"
 
 - name: Initialize nfs_client_support
