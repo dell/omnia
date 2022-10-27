@@ -75,7 +75,7 @@
   failed_when: false
   register: nfs_server_reachability
 
-- name: Verify NFS server reachable or not
+- name: Verify NFS server reachability
   ansible.builtin.fail:
     msg: "{{ nfs_server_reach_msg }}"
   when: ping_msg in nfs_server_reachability.stdout
