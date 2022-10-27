@@ -57,13 +57,6 @@
     - nfs_iscsi
   tags: nfs_server_iscsi
 
-- name: Apply NFS client installation and config
-  hosts: manager, compute, login_node
-  gather_facts: false
-  roles:
-    - nfs_client
-  tags: nfs_client
-
 - name: Apply login common installation and config
   hosts: manager, login_node, compute
   gather_facts: false
