@@ -13,6 +13,26 @@
 #  limitations under the License.
 ---
 
+
+# NFS bolt-on support, USER have to mount EXTERNAL NFS server, omnia will mount NFS client
+# This variable is used for supporting NFS bolt-on on login_node, compute, and manager nodes
+# Values should be entered in JSON format only.
+# If mount_option values are empty, NFS client will be mounted with these values "nosuid,rw,sync,hard,intr"
+# For enabling NFS bolt-on support, at least one list of valid values should be provided.
+# Example for single mount file system:
+# nfs_client_params: 
+# - { server_ip: 198.168.0.1, server_share_path: "/mnt/share", client_share_path: "/mnt/mount", client_mount_options: "nosuid,rw,sync,hard" }
+# Example for supporting multiple mount points:
+# nfs_client_params: 
+#    - { server_ip: 198.168.0.1, server_share_path: "/mnt/share1", client_share_path: "/mnt/mount1", client_mount_options: "nosuid,rw,sync,hard" } 
+#    - { server_ip: 198.168.0.1, server_share_path: "/mnt/share2", client_share_path: "/mnt/mount2", client_mount_options: "nosuid,rw,sync,hard" } 
+# Example for multiple mount file system:
+# nfs_client_params: 
+# - { server_ip: 198.168.0.1, server_share_path: "/mnt/share1", client_share_path: "/mnt/mount1", client_mount_options: "nosuid,rw,sync,hard" } 
+# - { server_ip: 198.168.0.2, server_share_path: "/mnt/share2", client_share_path: "/mnt/mount2", client_mount_options: "nosuid,rw,sync,hard" } 
+nfs_client_params:
+   - { server_ip: , server_share_path: , client_share_path: , client_mount_options: }
+
 # This variable is used to install beegfs-client on compute and manager nodes
 # Accepted values: true or false
 # Default value: false
