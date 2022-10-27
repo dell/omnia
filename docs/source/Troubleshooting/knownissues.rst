@@ -16,9 +16,9 @@ Known Issues
 **Potential Cause**:
 The required services are not running on the node. Verify the service status using:::
 
-    systemctl status sssd-kcm.socket``
+    systemctl status sssd-kcm.socket
 
-    systemctl status sssd.service``
+    systemctl status sssd.service
 
 **Resolution**:
 
@@ -35,11 +35,11 @@ The required services are not running on the node. Verify the service status usi
 
 **Potential Cause**: Corrupted entries in the ``/root/.ansible/cp/`` folder. For more information on this issue, `check this out <https://github.com/ansible/ansible/issues/17349>`_!
 
-**Resolution**: Clear the directory ``/root/.ansible/cp/`` using the following commands:
+**Resolution**: Clear the directory ``/root/.ansible/cp/`` using the following commands: ::
 
-``cd /root/.ansible/cp/``
+    cd /root/.ansible/cp/
 
-``rm -rf *``
+    rm -rf *
 
 Alternatively, run the task manually: ::
 
@@ -292,19 +292,15 @@ Recommended Actions:
 
 4. If PIDs are in the **Listening** state, kill the processes of that specific port.
 
-5. Restart all Slurm services:
+5. Restart all Slurm services: ::
 
 
 
-``slurmctl restart slurmctld`` on manager node
+    slurmctl restart slurmctld on manager node
 
+    systemctl restart slurmdbd on manager node
 
-
-``systemctl restart slurmdbd`` on manager node
-
-
-
-``systemctl restart slurmd`` on compute node
+    systemctl restart slurmd on compute node
 
 
 **Why do Kubernetes Pods stop communicating with the servers when the DNS servers are not responding?**
@@ -374,7 +370,7 @@ As defined in RFC 822, the only legal characters are the following:
 
 1. Delete Jupyterhub deployment by executing the following command in manager node: ``helm delete jupyterhub -n jupyterhub``
 
-2. Re-execute jupyterhub.yml after 8-9 hours.
+2. Re-execute ``jupyterhub.yml`` after 8-9 hours.
 
 
 **What to do when Kubeflow pods are in 'ImagePullBackOff' or 'ErrImagePull' status after executing kubeflow.yml:**
@@ -384,7 +380,7 @@ As defined in RFC 822, the only legal characters are the following:
 
 1. Delete Kubeflow deployment by executing the following command in manager node: ``kfctl delete -V -f /root/k8s/omnia-kubeflow/kfctl_k8s_istio.v1.0.2.yaml``
 
-2. Re-execute kubeflow.yml after 8-9 hours
+2. Re-execute ``kubeflow.yml`` after 8-9 hours
 
 
 **Why does the Task [infiniband_switch_config : Authentication failure response] fail with the message 'Status code was -1 and not [302]: Request failed: <urlopen error [Errno 111] Connection refused>' on Infiniband Switches when running ``infiniband.yml``?**
