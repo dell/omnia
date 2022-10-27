@@ -35,5 +35,6 @@
   changed_when: true
 
 - name: Install ansible galaxy collection ansible.utils
-  ansible.builtin.command: ansible-galaxy collection install "{{ ipaddr_collection }}"
+  ansible.builtin.command: ansible-galaxy collection install "{{ item }}"
   changed_when: true
+  with_items: "{{ ansible_galaxy_collection }}"
