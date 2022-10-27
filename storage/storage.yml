@@ -34,7 +34,7 @@
   hosts: localhost
   connection: local
   tasks:
-    - name: Validate variables
+    - name: Validate input variables
       ansible.builtin.include_role:
         name: nfs
         tasks_from: validate_nfs_vars.yml
