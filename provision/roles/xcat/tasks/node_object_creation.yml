@@ -14,9 +14,7 @@
 ---
 
 - name: Fetch all node object list
-  ansible.builtin.shell: >
-    source {{ xcat_env_path }} && \
-    lsdef all -i mac
+  ansible.builtin.command: lsdef all -i mac
   changed_when: false
   failed_when: false
   register: node_mac_list
@@ -30,7 +28,6 @@
 
     - name: Create node object from mapping file provided by user
       ansible.builtin.shell: >
-        source {{ xcat_env_path }} && \
         mkdef -t node "{{ mapping_file_output.list[idx1].Hostname.split('.')[0] }}" groups={{ provision_os }},all ip="{{ mapping_file_output.list[idx1].IP }}"
         mac="{{ mapping_file_output.list[idx1].MAC }}" hostnames="{{ mapping_file_output.list[idx1].Hostname }}"  netboot=xnba arch=x86_64  -f
       with_items: "{{ mapping_file_output.list }}"
@@ -54,7 +51,6 @@
 
     - name: Create node object from mapping file created by snmp utility
       ansible.builtin.shell: >
-        source {{ xcat_env_path }} && \
         mkdef -t node "{{ utility_mapping_file_output.list[idx2].Hostname.split('.')[0] }}" groups={{ provision_os }},all
         ip="{{ utility_mapping_file_output.list[idx2].IP }}" mac="{{ utility_mapping_file_output.list[idx2].MAC }}"
         hostnames="{{ utility_mapping_file_output.list[idx2].Hostname }}"  netboot=xnba arch=x86_64  -f

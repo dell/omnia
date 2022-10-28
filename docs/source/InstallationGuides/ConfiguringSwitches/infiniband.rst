@@ -27,6 +27,7 @@ Input the configuration variables into the ``infiniband_edr_input.yml`` or ``inf
 | save_changes_to_startup | false, true              |           | Indicates whether the switch configuration is to persist across reboots                                                                                                |
 +-------------------------+--------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
+
 **Before you run the playbook**
 
 Before running ``infiniband.yml``, ensure that SSL Secure Cookies are disabled. Also, HTTP and JSON Gateway need to be enabled on your switch. This can be verified by running: ::
@@ -88,5 +89,5 @@ If ``enable_split_port`` is **FALSE**, run::
 
     * Passwords should contain at least one of each: Lowercase, uppercase and digits.
 
- * The inventory file should be a list of IPs separated by newlines. Check out the device_ip_list.yml section in `Sample Files <https://omnia-documentation.readthedocs.io/en/latest/samplefiles.html>`_
+ * The inventory file should be a list of IPs separated by newlines. Check out the ``device_ip_list.yml`` section in `Sample Files <https://omnia-documentation.readthedocs.io/en/latest/samplefiles.html>`_
 
