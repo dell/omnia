@@ -57,12 +57,12 @@ If the user enters 'yes', they will also be prompted to enter the hostname for t
 
 If ``enable_split_port`` is **TRUE**, run::
 
-    ansible-playbook infiniband_switch_config.yml -i inventory -e ib_username="" -e ib_password="" -e ib_admin_password="" -e ib_monitor_password=""  -e ib_default_password="" -e ib_switch_type =""
+    ansible-playbook infiniband_switch_config.yml -i inventory -e ib_username="" -e ib_password="" -e ib_admin_password="" -e ib_monitor_password=""  -e ib_default_password="" -e ib_switch_type=""
 
 
 If ``enable_split_port`` is **FALSE**, run::
 
-    ansible-playbook infiniband_switch_config.yml -i inventory -e ib_username="" -e ib_password=""  -e ib_switch_type =""
+    ansible-playbook infiniband_switch_config.yml -i inventory -e ib_username="" -e ib_password=""  -e ib_switch_type=""
 
 
 * Where ``ib_username`` is the username used to authenticate into the switch.
