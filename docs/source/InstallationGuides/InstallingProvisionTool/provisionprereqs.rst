@@ -20,14 +20,16 @@ Before You Run The Provision Tool
 
 * Users should also ensure that all repos are available on the Red Hat control plane.
 
+* Ensure that the pxe_nic and public_nic are in the firewalld zone: public.
+
  .. Note::
 
     * After the installation of the Omnia appliance, changing the Omnia host is not supported. If you need to change the Omnia host, you must redeploy the entire cluster.
 
     * If there are errors while executing any of the Ansible playbook commands, then re-run the commands.
 
-* Ensure that the pxe_nic and public_nic are in the firewalld zone: public.
 
-.. include:: ../Appendices/hostnamereqs.rst
+
+
 
 

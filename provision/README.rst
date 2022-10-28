@@ -99,3 +99,5 @@ Provision
 
 
 .. warning:: Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect.
+
+For more information, check out our `docs <https://omnia-documentation.readthedocs.io/en/latest/index.html>`_!
