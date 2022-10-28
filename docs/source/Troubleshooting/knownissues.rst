@@ -29,7 +29,7 @@ The required services are not running on the node. Verify the service status usi
 
 * Re-run ``omnia.yml`` using: ::
 
-    ansible-playbook provision.yml
+    ansible-playbook omnia.yml
 
 **Why does the task 'Gather facts from all the nodes' stuck when re-running `**`omnia.yml``?**
 
