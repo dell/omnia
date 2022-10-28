@@ -109,7 +109,7 @@ To correct the issue, run:
 3. On the server, go to ``BIOS Setup -> Network Settings -> PXE Device``. For each listed device (typically 4), configure an active NIC under ``PXE device settings``
 
 
-**Why do Kubernetes Pods show ``ImagePullBack`` or ``ErrPullImage`` errors in their status?**
+**Why do Kubernetes Pods show "ImagePullBack" or "ErrPullImage" errors in their status?**
 
 **Potential Cause**:
 
@@ -301,7 +301,7 @@ Recommended Actions:
 
 * Enable the required services using ``firewall-cmd  permanent  add-service=<service name>`` and then reload the firewall using ``firewall-cmd  reload``.
 
-**What to do when ``omnia.yml`` fails with ``nfs-server.service might not be running on NFS Server. Please check or start services``?**
+**What to do when omnia.yml fails with nfs-server.service might not be running on NFS Server. Please check or start services``?**
 
 **Potential Cause**: nfs-server.service is not running on the target node.
 
@@ -464,7 +464,7 @@ If you have enabled the option to install the login node in the cluster, set the
 
 **What to do when JupyterHub pods are in 'ImagePullBackOff' or 'ErrImagePull' status after executing jupyterhub.yml:**
 
-**Potential Cause**: Your Docker pull limit has been exceeded. For more information, click [here](https://www.docker.com/increase-rate-limits)
+**Potential Cause**: Your Docker pull limit has been exceeded. For more information, `click here <https://www.docker.com/increase-rate-limits>`_.
 
 1. Delete Jupyterhub deployment by executing the following command in manager node: ``helm delete jupyterhub -n jupyterhub``
 
