@@ -1,7 +1,7 @@
 Set PXE NICs to Static
 -------------------------
 
-Before provisioning servers, it's important that all PXE NICs are set to static. Omnia includes a utility to achieve this programmatically.
+Use the below playbook to optionally set all PXE NICs on provisioned nodes to 'static'.
 
 **To run the playbook**::
 
