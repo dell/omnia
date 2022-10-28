@@ -63,6 +63,19 @@ modified_arg_ofed: "buildArgs=-j8 BEEGFS_OPENTK_IBVERBS=1 OFED_INCLUDE_PATH={{ b
 rebuild_path: "/etc/init.d/beegfs-client rebuild"
 beegfs_client_setup: "/opt/beegfs/sbin/beegfs-setup-client"
 file_mode: '0644'
+beegfs_client_status:
+   - "Please make sure you give correct IP for beegfs_mgmt_server variable"
+   - "Make sure beegfs-client version is compatible with other beegfs server versions"
+   - "Make sure beegfs-mgmtd, beegfs-meta, beegfs-storage server is running"
+   - "Firewall ports should be enabled on beegfs-mgmtd, beegfs-meta, beegfs-storage servers"
+   - "Make sure to reload firewall. After enabling firewall ports"
+beegfs_rebuild_status:
+   - "Make sure that beegfs-client and beegfs other server's versions are compatible"
+   - "Please use compatible OFED and BeeGFS versions"
+   - "Please check kernel version is compatible with BeeGFS or not"
+   - "Please provide a valid path for beegfs_ofed_kernel_modules_path variable"
+beegfs_rebuild_tcp_msg:
+   - "Make sure that beegfs-client and beegfs other server's versions are compatible"
 
 # Usage: validate_beegfs_vars.yml
 selinux_fail_msg: "SELinux should be in disabled mode, for installing beegfs client. Please diasbled selinux and reboot the system"
