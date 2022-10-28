@@ -40,6 +40,7 @@ python_version: python3.8
 snmp_python_package: easysnmp
 postgres_python_package: psycopg2-binary
 requests_python_package: requests
+pandas_python_package: pandas
 
 # Usage: include_provision_config.yml
 provision_config_filename: "{{ role_path }}/../../../input/provision_config.yml"
@@ -183,6 +184,9 @@ pxe_mapping_path: "{{ role_path }}/files/pxe_mapping_file.csv"
 postgres_utility_path: "{{ role_path }}/files/postgres_utility.py"
 bmc_utility_path: "{{ role_path }}/files/bmc_utility.py"
 ib_utility_path: "{{ role_path }}/files/ib_utility.py"
+mapping_file_db_path: "{{ role_path }}/files/mapping_file_db.py"
+mapping_bmc_path: "{{ role_path }}/files/mapping_bmc.py"
+mapping_ib_path: "{{ role_path }}/files/mapping_ib.py"
 
 # Usage: install_xcat.yml
 xcat_directory: /root/xcat
