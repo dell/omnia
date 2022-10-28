@@ -14,9 +14,6 @@
 ---
 
 # Usage: main.yml
-awx_search_key: "-job-"
-base_vars_path: "{{ playbook_dir }}/control_plane/input_params/base_vars.yml"
-cobbler_pod_name: cobbler
 omnia_log_path: /var/log/omnia
 cp_path: "/root/.ansible/cp/"
 ansible_cfg_src: "{{ playbook_dir }}/ansible.cfg"
@@ -67,17 +64,8 @@ login_node_group_success_msg: "Login node group check passed when login_node_req
 nfs_node_group_fail_msg: "nfs_node group should contain exactly 1 node"
 nfs_node_group_success_msg: "nfs_node group check passed"
 
-# Usage: fetch_powervault_status.yml
-pv_ip_undefined_msg: "Please give IP of powervault connected to nfs_node in omnia_config.yml in correct format"
-powervault_login_failure_msg: "Unable to connect to powervault. Please check powervault_ip in omnia_config.yml and powervault credentials in login_vars.yml"
-
-# Usage: fetch_control_plane_credentials.yml
-login_vars_filename: input_params/login_vars.yml
-vault_filename: input_params/.login_vault_key
-vault_file_perm: '0644'
-
 # Usage: fetch_security_inputs.yml
-security_vars_filename: "{{ playbook_dir }}/omnia_security_config.yml"
+security_vars_filename: "omnia_security_config.yml"
 max_failures_success_msg: "max_failures successfully validated"
 max_failures_fail_msg: "Failed. Incorrect max_failures value in security_vars.yml"
 failure_reset_interval_success_msg: "failure_reset_interval successfully validated"
@@ -111,4 +99,3 @@ restrict_softwares_failure_msg: "Warning. Values should be comma separated. The 
 ansible_base_version: '2.9'
 ipaddr_collection: ansible.utils:2.5.2
 ansible_collection_nfs: ansible.posix:1.4.0
-

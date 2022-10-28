@@ -14,17 +14,17 @@
 ---
 
 - name: Include security variable file security_vars.yml
-  include_vars: "{{ security_vars_filename }}"
+  ansible.builtin.include_vars: "{{ role_path }}/../../../input/{{ security_vars_filename }}"
 
 - name: Validate max_failures
-  assert:
+  ansible.builtin.assert:
     that:
       - max_failures | int == max_failures_default_value
     success_msg: "{{ max_failures_success_msg }}"
     fail_msg: "{{ max_failures_fail_msg }}"
 
 - name: Validate failure_reset_interval
-  assert:
+  ansible.builtin.assert:
     that:
       - failure_reset_interval | int
       - failure_reset_interval | int <= failure_reset_interval_max_value
@@ -33,7 +33,7 @@
     fail_msg: "{{ failure_reset_interval_fail_msg }}"
 
 - name: Validate lockout_duration
-  assert:
+  ansible.builtin.assert:
     that:
       - lockout_duration | int
       - lockout_duration | int <= lockout_duration_max_value
@@ -42,7 +42,7 @@
     fail_msg: "{{ lockout_duration_fail_msg }}"
 
 - name: Validate session_timeout
-  assert:
+  ansible.builtin.assert:
     that:
       - session_timeout | int
       - session_timeout | int <= session_timeout_max_value
@@ -51,7 +51,7 @@
     fail_msg: "{{ session_timeout_fail_msg }}"
 
 - name: Validate alert_email_address
-  assert:
+  ansible.builtin.assert:
     that:
       - email_search_key in alert_email_address
       - alert_email_address | length < email_max_length
@@ -60,17 +60,17 @@
   when: alert_email_address | length > 1
 
 - name: Warning - alert_email_address is empty
-  debug:
+  ansible.builtin.debug:
     msg: "{{ alert_email_warning_msg }}"
   when: alert_email_address | length < 1
 
 - name: Prepare user list
-  set_fact:
-      user_list: "{{ lookup('vars', 'user').split()| unique | select| list }}"
+  ansible.builtin.set_fact:
+    user_list: "{{ lookup('vars', 'user').split() | unique | select | list }}"
   when: user | length > 1
 
-- name: validate user
-  assert:
+- name: Validate user
+  ansible.builtin.assert:
     that:
       - item is regex("^(?!-)[a-zA-Z]+[0-9-]*[@]((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$") or
         item is regex("(?!-)[a-zA-Z]+[0-9-]*$")
@@ -81,31 +81,32 @@
     - user | length > 1
 
 - name: Validate allow_deny
-  assert:
+  ansible.builtin.assert:
     that:
       - allow_deny == 'Allow' or allow_deny == 'Deny'
     success_msg: "{{ allow_deny_success_msg }}"
     fail_msg: "{{ allow_deny_fail_msg }}"
 
 - name: Assert restrict_program_support
-  assert:
+  ansible.builtin.assert:
     that:
       - restrict_program_support == true or restrict_program_support == false
     success_msg: "{{ restrict_program_support_success_msg }}"
     fail_msg: "{{ restrict_program_support_failure_msg }}"
 
 - name: Initialize variables for restrict_softwares
-  set_fact:
+  ansible.builtin.set_fact:
     restrict_program_status: false
     disable_services: []
 
-- block:
+- name: Validate Restrict program support variables
+  block:
     - name: The services needs to be disabled are appending to list
-      set_fact:
-          services_list: "{{ lookup('vars', 'restrict_softwares').split(',')| map('trim') | unique | select| list }}"
+      ansible.builtin.set_fact:
+        services_list: "{{ lookup('vars', 'restrict_softwares').split(',') | map('trim') | unique | select | list }}"
 
     - name: Assert restrict_softwares variable
-      assert:
+      ansible.builtin.assert:
         that:
           - item == 'telnet' or
             item == 'lpd' or
@@ -118,8 +119,8 @@
       with_items: "{{ services_list }}"
 
     - name: Creating a list for disabling services
-      set_fact:
-          disable_services: "{{ disable_services + [ item ] }}"
+      ansible.builtin.set_fact:
+        disable_services: "{{ disable_services + [item] }}"
       when:
         - item == 'telnet' or
           item == 'lpd' or
@@ -129,7 +130,7 @@
       with_items: "{{ services_list }}"
 
     - name: Setting restrict_program_status
-      set_fact:
+      ansible.builtin.set_fact:
         restrict_program_status: true
       when:
         - disable_services | length > 0

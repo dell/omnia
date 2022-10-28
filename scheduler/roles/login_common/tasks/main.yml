@@ -13,16 +13,15 @@
 #  limitations under the License.
 ---
 
-- name: Include login_common variables
-  include_vars: "{{ playbook_dir }}/roles/login_common/vars/main.yml"
+- block:   
+    - name: Add ports of manager and login node to firewall
+      include_tasks: firewall_settings.yml
 
-- block:
-    - name: Install required packages
-      include_tasks: install_packages.yml
+    - name: Enable module idm in Rocky or Centos >= 8.0
+      include_tasks: enable_dnf_module.yml
 
-    - name: Install free-ipa server
-      include_tasks: install_ipa_server.yml
+    - name: Update Packages
+      include_tasks: update_package.yml
   when:
     - os_leap not in ansible_distribution | lower
     - hostvars['127.0.0.1']['login_node_required']
-    - not hostvars['127.0.0.1']['ipa_server_ms']

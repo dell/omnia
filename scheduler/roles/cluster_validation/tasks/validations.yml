@@ -14,32 +14,18 @@
 ---
 
 - name: Validate skip tags
-  fail:
+  ansible.builtin.fail:
     msg: "{{ skip_tag_fail_msg }}"
   when: "'slurm' in ansible_skip_tags and 'kubernetes' in ansible_skip_tags"
 
 - name: Manager group to contain exactly 1 node
-  assert:
+  ansible.builtin.assert:
     that: "groups['manager'] | length | int == 1"
     fail_msg: "{{ manager_group_fail_msg }}"
     success_msg: "{{ manager_group_success_msg }}"
 
 - name: Compute group to contain atleast 1 node
-  assert:
+  ansible.builtin.assert:
     that: "groups['compute'] | length | int >= 1"
     fail_msg: "{{ compute_group_fail_msg }}"
     success_msg: "{{ compute_group_success_msg }}"
-
-- name: Set NFS node status
-  set_fact:
-    nfs_node_status: true
-  when:
-    - groups['nfs_node'] is defined
-    - groups['nfs_node'] | length | int > 0
-
-- name: NFS group to contain exactly 1 node
-  assert:
-    that: "groups['nfs_node'] | length | int == 1"
-    fail_msg: "{{ nfs_node_group_fail_msg }}"
-    success_msg: "{{ nfs_node_group_success_msg }}"
-  when: nfs_node_status
