@@ -46,9 +46,16 @@
         line: "{{ modified_arg_ofed }}"
       when: beegfs_ofed_kernel_modules_path | length > 1
 
-    - name: Rebuilding BeeGFS client module
-      ansible.builtin.command: "{{ rebuild_path }}"
-      changed_when: true
+    - name: Rebuild BeeGFS client with OFED
+      block:
+        - name: Rebuilding BeeGFS client module with OFED
+          ansible.builtin.command: "{{ rebuild_path }}"
+          changed_when: true
+      rescue:
+        - name: Failed to rebuild BeeGFS client with OFED
+          ansible.builtin.assert:
+            that: false
+            fail_msg: "{{ beegfs_rebuild_status }}"
   when: beegfs_rdma_support
 
 - name: Modify BeeGFS client autobuild file for without RDMA
@@ -67,17 +74,31 @@
     line: "{{ beegfs_mounts }} {{ client_mount_location }}"
   when: beegfs_unmount_client
 
-- name: Rebuilding BeeGFS client module
-  ansible.builtin.command: "{{ rebuild_path }}"
-  changed_when: true
+- name: Rebuild BeeGFS client
+  block:
+    - name: Rebuilding BeeGFS client module
+      ansible.builtin.command: "{{ rebuild_path }}"
+      changed_when: true
+  rescue:
+    - name: Failed to rebuild BeeGFS client
+      ansible.builtin.assert:
+        that: false
+        fail_msg: "{{ beegfs_rebuild_tcp_msg }}"
 
 - name: Configuring BeeGFS client
   ansible.builtin.command: "{{ beegfs_client_setup }} -m {{ beegfs_mgmt_server }}"
   changed_when: true
 
 - name: Start and enable BeeGFS client and helperd modules
-  ansible.builtin.systemd:
-    name: "{{ item }}"
-    state: restarted
-    enabled: true
-  with_items: "{{ beegfs_client_pkg }}"
+  block:
+    - name: Starting and enabling BeeGFS client and helperd modules
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: restarted
+        enabled: true
+      with_items: "{{ beegfs_client_pkg }}"
+  rescue:
+    - name: Failed to start BeeGFS client or helperd modules
+      ansible.builtin.assert:
+        that: false
+        fail_msg: "{{ beegfs_client_status }}"
