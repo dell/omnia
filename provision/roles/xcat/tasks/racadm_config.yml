@@ -58,7 +58,6 @@
 - name: Fetch xcat osimage name for provision_os
   ansible.builtin.shell: >
     set -o pipefail && \
-    source {{ xcat_env_path }} && \
     lsdef -t osimage | grep {{ provision_os }} | grep {{ osimage_search_key }}
   changed_when: false
   register: fetch_osimage
@@ -68,7 +67,5 @@
     provision_os_image: "{{ fetch_osimage.stdout.split(' ')[0] }}"
 
 - name: Build racadm repo
-  ansible.builtin.shell: >
-    source {{ xcat_env_path }} && \
-    chdef -t osimage -o {{ provision_os_image }} -p pkgdir={{ racadm_xcat_repo }}
+  ansible.builtin.command: chdef -t osimage -o {{ provision_os_image }} -p pkgdir={{ racadm_xcat_repo }}
   changed_when: true

@@ -31,7 +31,7 @@
   when: provision_os in os_image_check.stdout
 
 - name: Create OS image
-  ansible.builtin.shell: source {{ xcat_env_path }} && copycds {{ iso_file_path }}
+  ansible.builtin.command: copycds {{ iso_file_path }}
   changed_when: true
   when: not os_image_status
 
