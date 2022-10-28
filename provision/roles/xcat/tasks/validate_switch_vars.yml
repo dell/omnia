@@ -34,7 +34,7 @@
 
 - name: Warning - both mapping file and switch ip is provided
   ansible.builtin.debug:
-    msg: "{{ provision_option_warning_msg }}"
+    msg: "{{ provision_option_fail_msg }}"
   when:
     - pxe_mapping_file
     - pxe_switch_ip | length > 1
