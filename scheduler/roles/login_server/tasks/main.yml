@@ -13,23 +13,15 @@
 #  limitations under the License.
 ---
 
-- name: Include variable file for powervault
-  ansible.builtin.include_vars: "{{ role_path }}/../../powervault_input.yml"
-  no_log: true
+- name: Include login_common variables
+  include_vars: "{{ playbook_dir }}/roles/login_common/vars/main.yml"
 
-- name: Validation of powervault vars
-  ansible.builtin.include_tasks: pv_validation.yml
+- block:
+    - name: Install required packages
+      include_tasks: install_packages.yml
 
-- name: Check powervault pre-requisite
-  ansible.builtin.include_tasks: pv_me4_prereq.yml
-
-- name: Create volume
-  ansible.builtin.include_tasks: volume.yml
-
-- name: Map the volumes for sas
-  ansible.builtin.include_tasks: sas_mapping.yml
-  when: powervault_protocol == "sas"
-
-- name: Set snmp parameters
-  ansible.builtin.include_tasks: set_snmp.yml
-  when: snmp_trap_destination != ""
+    - name: Install free-ipa server
+      include_tasks: install_ipa_server.yml
+  when:
+    - os_leap not in ansible_distribution | lower
+    - hostvars['127.0.0.1']['login_node_required']

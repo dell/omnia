@@ -13,14 +13,20 @@
 # limitations under the License.
 ---
 
-- name: Gather facts from all the nodes
-  hosts: manager, compute, login_node, nfs_node
+- name: Check pre-requisites for NFS Server configuration
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Validate nfs_node config
+      ansible.builtin.include_role:
+        name: nfs_sas
+        tasks_from: check_prerequisites.yml
 
-- name: Execute slurm/kubernetes
-  ansible.builtin.import_playbook: scheduler/scheduler.yml
-
-- name: Import playbook to configure storage on nodes
-  ansible.builtin.import_playbook: storage/storage.yml
-
-- name: Passwordless SSH between manager and compute nodes
-  ansible.builtin.import_playbook: utils/passwordless_ssh.yml
+- name: Configure NFS node for SAS protocol
+  hosts: nfs_node
+  gather_facts: true
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+  roles:
+    - nfs_sas

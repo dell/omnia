@@ -13,23 +13,18 @@
 #  limitations under the License.
 ---
 
-- name: Include variable file for powervault
-  ansible.builtin.include_vars: "{{ role_path }}/../../powervault_input.yml"
-  no_log: true
+- name: Configure NFS Server
+  when: hostvars['127.0.0.1']['nfs_node_status']
+  block:
+    - name: Configure and enable multipathd
+      ansible.builtin.include_tasks: configure_multipath.yml
 
-- name: Validation of powervault vars
-  ansible.builtin.include_tasks: pv_validation.yml
+    - name: Setup NFS Server
+      ansible.builtin.include_tasks: nfs_server_packages.yml
 
-- name: Check powervault pre-requisite
-  ansible.builtin.include_tasks: pv_me4_prereq.yml
+    - name: Fetch volume details from powervault and mount volumes on NFS server
+      ansible.builtin.include_tasks: fetch_volume_details.yml
 
-- name: Create volume
-  ansible.builtin.include_tasks: volume.yml
-
-- name: Map the volumes for sas
-  ansible.builtin.include_tasks: sas_mapping.yml
-  when: powervault_protocol == "sas"
-
-- name: Set snmp parameters
-  ansible.builtin.include_tasks: set_snmp.yml
-  when: snmp_trap_destination != ""
+    - name: Exporting the shared directories
+      ansible.builtin.command: exportfs -ra
+      changed_when: true

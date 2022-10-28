@@ -13,23 +13,18 @@
 #  limitations under the License.
 ---
 
-- name: Include variable file for powervault
-  ansible.builtin.include_vars: "{{ role_path }}/../../powervault_input.yml"
-  no_log: true
+- name: Initialize variables
+  ansible.builtin.set_fact:
+    ansible_collection_used: false
 
-- name: Validation of powervault vars
-  ansible.builtin.include_tasks: pv_validation.yml
+- name: Perform validations
+  ansible.builtin.include_tasks: validations.yml
 
-- name: Check powervault pre-requisite
-  ansible.builtin.include_tasks: pv_me4_prereq.yml
+- name: Fetch omnia_config.yml inputs
+  ansible.builtin.include_tasks: fetch_omnia_inputs.yml
 
-- name: Create volume
-  ansible.builtin.include_tasks: volume.yml
+- name: Install Packages
+  ansible.builtin.include_tasks: install_packages.yml
 
-- name: Map the volumes for sas
-  ansible.builtin.include_tasks: sas_mapping.yml
-  when: powervault_protocol == "sas"
-
-- name: Set snmp parameters
-  ansible.builtin.include_tasks: set_snmp.yml
-  when: snmp_trap_destination != ""
+- name: Include gather_facts playbook
+  ansible.builtin.include_tasks: gather_fact_resolution.yml
