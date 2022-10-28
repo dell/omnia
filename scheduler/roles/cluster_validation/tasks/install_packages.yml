@@ -14,22 +14,22 @@
 ---
 
 - name: Set fact for ansible version
-  set_fact:
+  ansible.builtin.set_fact:
     ansible_collection_used: true
   when: "ansible_version.full is version_compare(ansible_base_version, '>')"
 
 - name: Install netaddr
-  pip:
+  ansible.builtin.pip:
     name: netaddr
     state: present
     executable: pip3
 
 - name: Install ansible galaxy collection ansible.utils
-  command: ansible-galaxy collection install "{{ ipaddr_collection }}"
+  ansible.builtin.command: ansible-galaxy collection install "{{ ipaddr_collection }}"
   changed_when: false
   when: ansible_collection_used
 
 - name: Install ansible collection
-  command: ansible-galaxy collection install "{{ ansible_collection_nfs }}"
-  changed_when: false 
+  ansible.builtin.command: ansible-galaxy collection install "{{ ansible_collection_nfs }}"
+  changed_when: false
   when: ansible_collection_used

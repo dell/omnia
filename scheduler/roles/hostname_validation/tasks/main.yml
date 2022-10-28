@@ -18,8 +18,6 @@
   when:
     - os_leap not in ansible_distribution | lower
     - hostvars['127.0.0.1']['login_node_required']
-    - hostvars['127.0.0.1']['ipa_server_ms'] and login_node_group in group_names or
-      not hostvars['127.0.0.1']['ipa_server_ms']
 
 - name: Verify domain name in hostname - leap
   include_tasks: validate_hostname.yml
@@ -37,4 +35,3 @@
   when: 
     - os_leap in ansible_distribution | lower
     - hostvars['127.0.0.1']['login_node_required']
-    - hostvars['127.0.0.1']['ipa_server_ms']

@@ -13,17 +13,18 @@
 #  limitations under the License.
 ---
 
-- block:   
-    - name: Add ports of manager and login node to firewall
-      include_tasks: firewall_settings.yml
+- name: Initialize variables
+  ansible.builtin.set_fact:
+    ansible_collection_used: false
 
-    - name: Enable module idm in Rocky or Centos >= 8.0
-      include_tasks: enable_dnf_module.yml
+- name: Perform validations
+  ansible.builtin.include_tasks: validations.yml
 
-    - name: Update Packages
-      include_tasks: update_package.yml
-  when:
-    - os_leap not in ansible_distribution | lower
-    - hostvars['127.0.0.1']['login_node_required']
-    - hostvars['127.0.0.1']['ipa_server_ms'] and login_node_group in group_names or
-      not hostvars['127.0.0.1']['ipa_server_ms']
+- name: Fetch omnia_config.yml inputs
+  ansible.builtin.include_tasks: fetch_omnia_inputs.yml
+
+- name: Install Packages
+  ansible.builtin.include_tasks: install_packages.yml
+
+- name: Include gather_facts playbook
+  ansible.builtin.include_tasks: gather_fact_resolution.yml
