@@ -13,7 +13,7 @@
 #  limitations under the License.
 ---
 
-- name: Validate input parameters of base_vars are not empty
+- name: Validate input parameters of provision vars are not empty
   ansible.builtin.fail:
     msg: "{{ input_provision_fail_msg }}"
   when:

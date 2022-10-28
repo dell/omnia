@@ -16,7 +16,7 @@
 - name: Fetch default networks table entries
   block:
     - name: Fetch default network table entries
-      ansible.builtin.shell: source {{ xcat_env_path }} && lsdef -t network
+      ansible.builtin.command: lsdef -t network
       changed_when: false
       register: default_network
   rescue:
@@ -30,12 +30,12 @@
         - xcatd
 
     - name: Fetch default network table entries
-      ansible.builtin.shell: source {{ xcat_env_path }} && lsdef -t network
+      ansible.builtin.command: lsdef -t network
       changed_when: false
       register: default_network
 
 - name: Delete default network table entries
-  ansible.builtin.shell: source {{ xcat_env_path }} && rmdef -t network {{ item.split(' ')[0] }}
+  ansible.builtin.command: rmdef -t network {{ item.split(' ')[0] }}
   changed_when: true
   with_items: "{{ default_network.stdout_lines }}"
   when:
@@ -44,7 +44,6 @@
 
 - name: Configure site table
   ansible.builtin.shell: >
-    source {{ xcat_env_path }} && \
     chdef -t site dhcpinterfaces="{{ pxe_nic }}" master="{{ pxe_nic_ip }}" dhcplease="{{ default_lease_time }}"
     timezone="{{ timezone }}" forwarders="" nameservers=""
   changed_when: true
@@ -52,35 +51,33 @@
 - name: Configure DHCP routing settings
   block:
     - name: Configure site table
-      ansible.builtin.shell: source {{ xcat_env_path }} && chdef -t site nameservers="{{ primary_dns }}"
+      ansible.builtin.command: chdef -t site nameservers="{{ primary_dns }}"
       changed_when: true
       when: secondary_dns | length < 1
 
     - name: Configure site table
-      ansible.builtin.shell: source {{ xcat_env_path }} && chdef -t site nameservers="{{ primary_dns }}, {{ secondary_dns }}"
+      ansible.builtin.command: chdef -t site nameservers="{{ primary_dns }}, {{ secondary_dns }}"
       changed_when: true
       when: secondary_dns | length > 1
   when: primary_dns | length > 1
 
 - name: Configure domain in site table
-  ansible.builtin.shell: source {{ xcat_env_path }} && chdef -t site domain="{{ domain_name }}"
+  ansible.builtin.command: chdef -t site domain="{{ domain_name }}"
   changed_when: true
 
 - name: Configure system password
   ansible.builtin.shell: >
-    source {{ xcat_env_path }} && \
     chtab key=system passwd.username=root passwd.password=`openssl passwd -1 {{ provision_password }}`
   changed_when: true
 
 - name: Configure host_network in networks table
   ansible.builtin.shell: >
-    source {{ xcat_env_path }} && \
     chdef -t network -o host_network net={{ pxe_nic_subnet }} mask={{ pxe_nic_netmask }} mgtifname={{ pxe_nic }}
     gateway={{ pxe_nic_ip }} dhcpserver={{ pxe_nic_ip }} tftpserver={{ pxe_nic_ip }} staticrange="{{ pxe_nic_start_range }}-{{ pxe_nic_end_range }}"
   changed_when: true
 
 - name: Setup postgres database
-  ansible.builtin.shell: source {{ xcat_env_path }} && /opt/xcat/bin/pgsqlsetup -i -V
+  ansible.builtin.command: /opt/xcat/bin/pgsqlsetup -i -V
   changed_when: true
   no_log: true
   environment:
