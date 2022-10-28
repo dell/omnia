@@ -4,6 +4,7 @@ Running prereq.sh
 ``prereq.sh`` is used to verify that all pre-requisites for Omnia are met before running the script. ::
 
     cd omnia
+    chmod +x prereq.sh
     sh prereqs.sh
 
 

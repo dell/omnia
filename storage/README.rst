@@ -135,3 +135,6 @@ To open the ports required, use the following steps:
     ansible-playbook storage.yml -i inventory
 
 (Where inventory refers to the `host_inventory_file.ini <../../samplefiles.html>`_ listing **only** manager and compute nodes.)
+
+
+For more information, check out our `docs <https://omnia-documentation.readthedocs.io/en/latest/index.html>`_!

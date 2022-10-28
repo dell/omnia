@@ -7,3 +7,4 @@ The Utilities role allows users to set up certain tasks such as
     epel
     kernel_upgrade
     rhsm_subscription
+    configuringPXE

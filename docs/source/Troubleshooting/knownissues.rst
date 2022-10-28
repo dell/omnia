@@ -1,98 +1,20 @@
 Known Issues
 ==========================
 
-**Why does the task 'nfs_client: Mount NFS client' fail with ``No route to host``?**
+**Why are some target servers not reachable after running PXE booting them?**
 
-**Potential Cause**:
 
-* There's a mismatch in the share path listed in ``/etc/exports`` and in ``omnia_config.yml`` under ``nfs_client_params``.
+**Potential Causes**:
 
-**Resolution**:
+1. The server hardware does not allow for auto rebooting
 
-* Ensure that the input paths are a perfect match down to the character to avoid any errors.
-
-**Why does the task 'security: Authenticate as admin' fail?**
-
-**Potential Cause**:
-The required services are not running on the node. Verify the service status using:::
-
-    systemctl status sssd-kcm.socket
-
-    systemctl status sssd.service
+2. PXE booting is hung on the node
 
 **Resolution**:
 
-* Restart the services using:::
+1. Login to the iDRAC console to check if the server is stuck in boot errors (F1 prompt message). If true, clear the hardware error or disable POST (PowerOn Self Test).
 
-    systemctl start sssd-kcm.socket
-    systemctl start sssd.service
-
-* Re-run ``omnia.yml`` using: ::
-
-    ansible-playbook provision.yml
-
-**Why does the task 'Gather facts from all the nodes' stuck when re-running `**`omnia.yml``?**
-
-**Potential Cause**: Corrupted entries in the ``/root/.ansible/cp/`` folder. For more information on this issue, `check this out <https://github.com/ansible/ansible/issues/17349>`_!
-
-**Resolution**: Clear the directory ``/root/.ansible/cp/`` using the following commands: ::
-
-    cd /root/.ansible/cp/
-
-    rm -rf *
-
-Alternatively, run the task manually: ::
-
-    cd omnia/utils/cluster
-    ansible-playbook gather_facts_resolution.yml
-
-**Why does the task 'nfs_client: Mount NFS client' fail with ``Failed to mount NFS client. Make sure NFS Server is running on IP xx.xx.xx.xx``?**
-
-**Potential Cause**:
-
-* The required services for NFS may not be running:
-
-    - nfs
-    - rpc-bind
-    - mountd
-
-**Resolution**:
-
-* Enable the required services using ``firewall-cmd  permanent  add-service=<service name>`` and then reload the firewall using ``firewall-cmd  reload``.
-
-**What to do when ``omnia.yml`` fails with ``nfs-server.service might not be running on NFS Server. Please check or start services``?**
-
-**Potential Cause**: nfs-server.service is not running on the target node.
-
-**Resolution**: Use the following commands to bring up the service: ::
-
-    systemctl start nfs-server.service
-
-    systemctl enable nfs-server.service
-
-
-
-**Why do Kubernetes Pods show ``ImagePullBack`` or ``ErrPullImage`` errors in their status?**
-
-**Potential Cause**:
-
-    * The errors occur when the Docker pull limit is exceeded.
-**Resolution**:
-
-    * For ``omnia.yml`` and ``provision.yml`` : Provide the docker username and password for the Docker Hub account in the *omnia_config.yml* file and execute the playbook.
-
-    * For HPC cluster, during ``omnia.yml execution``, a kubernetes secret 'dockerregcred' will be created in default namespace and patched to service account. User needs to patch this secret in their respective namespace while deploying custom applications and use the secret as imagePullSecrets in yaml file to avoid ErrImagePull. [Click here for more info](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/)
-.. note:: If the playbook is already executed and the pods are in **ImagePullBack** state, then run ``kubeadm reset -f`` in all the nodes before re-executing the playbook with the docker credentials.
-
-**What to do after a reboot if kubectl commands return: ``The connection to the server head_node_ip:port was refused - did you specify the right host or port?``**
-
-
-On the control plane or the manager node, run the following commands: ::
-
-   swapoff -a
-
-   systemctl restart kubelet
-
+2. Hard-reboot the server to bring up the server and verify that the boot process runs smoothly. (If it gets stuck again, disable PXE and try provisioning the server via iDRAC.)
 
 **Why does the task 'Provision: Fetch the available subnets and netmasks' fail with 'no ipv4_secondaries present'?**
 
@@ -105,23 +27,6 @@ On the control plane or the manager node, run the following commands: ::
 **Why does provisioning RHEL 8.3 fail on some nodes with "dasbus.error.DBusError: 'NoneType' object has no attribute 'set_property'"?**
 
 This error is known to RHEL and is being addressed `here <https://bugzilla.redhat.com/show_bug.cgi?id=1912898>`_. Red Hat has offered a user intervention `here <https://access.redhat.com/solutions/5872751>`_. Omnia recommends that in the event of this failure, any OS other than RHEL 8.3.
-
-**Why does the task 'Install Packages' fail on the NFS node with the message: ``Failure in talking to yum: Cannot find a valid baseurl for repo: base/7/x86_64.``**
-
-
-**Potential Cause**:
-
-    There are connections missing on the NFS node.
-
-**Resolution**:
-
-        Ensure that there are 3 NICs being used on the NFS node:
-
-                1. For provisioning the OS
-
-                2. For connecting to the internet (Management purposes)
-
-                3. For connecting to PowerVault (Data Connection)
 
 **Why is the Infiniband NIC down after provisioning the server?**
 
@@ -147,63 +52,22 @@ This error is known to RHEL and is being addressed `here <https://bugzilla.redha
 Alternatively, run ``network.yml`` or  ``post_provision.yml`` (Only if the nodes are provisioned using Omnia) to activate the NIC.
 
 
-**Why do pods and images appear to get deleted automatically?**
+**Why does the Task [infiniband_switch_config : Authentication failure response] fail with the message 'Status code was -1 and not [302]: Request failed: <urlopen error [Errno 111] Connection refused>' on Infiniband Switches when running ``infiniband.yml``?**
+
+To configure a new Infiniband Switch, it is required that HTTP and JSON gateway be enabled. To verify that they are enabled, run:
+
+``show web`` (To check if HTTP is enabled)
+
+``show json-gw`` (To check if JSON Gateway is enabled)
+
+To correct the issue, run:
+
+``web http enable`` (To enable the HTTP gateway)
+
+``json-gw enable`` (To enable the JSON gateway)
 
 
-**Potential Cause**:
-
-Lack of space in the root partition (/) causes Linux to clear files automatically (Use ``df -h`` to diagnose the issue).
-
-  **Resolution**:
-
-* Delete large, unused files to clear the root partition (Use the command ``find / -xdev -size +5M | xargs ls -lh | sort -n -k5`` to identify these files). Before running ``monitor.yml``, it is recommended to have a minimum of 50% free space in the root partition.
-
-* Once the partition is cleared, run ``kubeadm reset -f``
-
-* Re-run ``monitor.yml``
-
-**Why are some target servers not reachable after running PXE booting them?**
-
-
-**Potential Causes**:
-
-1. The server hardware does not allow for auto rebooting
-
-2. PXE booting is hung on the node
-
-**Resolution**:
-
-1. Login to the iDRAC console to check if the server is stuck in boot errors (F1 prompt message). If true, clear the hardware error or disable POST (PowerOn Self Test).
-
-2. Hard-reboot the server to bring up the server and verify that the boot process runs smoothly. (If it gets stuck again, disable PXE and try provisioning the server via iDRAC.)
-
-**What to do if the nodes in a Kubernetes cluster reboot:**
-
-
-Wait for 15 minutes after the Kubernetes cluster reboots. Next, verify the status of the cluster using the following commands:
-
-* ``kubectl get nodes`` on the manager node to get the real-time k8s cluster status.
-
-* ``kubectl get pods  all-namespaces`` on the manager node to check which the pods are in the **Running** state.
-
-* ``kubectl cluster-info`` on the manager node to verify that both the k8s master and kubeDNS are in the **Running** state.
-
-
-**What to do when the Kubernetes services are not in the  Running  state:**
-
-
-1. Run ``kubectl get pods  all-namespaces`` to verify that all pods are in the **Running** state.
-
-2. If the pods are not in the **Running** state, delete the pods using the command:``kubectl delete pods <name of pod>``
-
-3. Run the corresponding playbook that was used to install Kubernetes: ``omnia.yml``, ``jupyterhub.yml``, or ``kubeflow.yml``.
-
-
-**What to do when the JupyterHub or Prometheus UI is not accessible:**
-
-Run the command ``kubectl get pods  namespace default`` to ensure **nfs-client** pod and all Prometheus server pods are in the **Running** state.
-
-While configuring Cobbler, why does the ``provision.yml`` fail during the Run import command?
+**While configuring xCAT, why does the ``provision.yml`` fail during the Run import command?**
 
 
 **Cause**:
@@ -214,7 +78,7 @@ While configuring Cobbler, why does the ``provision.yml`` fail during the Run im
 
   **Resolution**:
 
-1. Go to  **var** -> **log** -> **cobbler** -> **cobbler.log** to view the error.
+1. Go to  **var** -> **log** -> **xCAT** -> **xCAT.log** to view the error.
 
 2. If the error message is **repo verification failed**, the .iso file is not mounted properly.
 
@@ -243,6 +107,125 @@ While configuring Cobbler, why does the ``provision.yml`` fail during the Run im
 2. Check if other systems except for the control plane have xcatd running. If yes, then stop the xCAT service using the following commands: ``systemctl stop xcatd``.
 
 3. On the server, go to ``BIOS Setup -> Network Settings -> PXE Device``. For each listed device (typically 4), configure an active NIC under ``PXE device settings``
+
+
+**Why do Kubernetes Pods show "ImagePullBack" or "ErrPullImage" errors in their status?**
+
+**Potential Cause**:
+
+    * The errors occur when the Docker pull limit is exceeded.
+**Resolution**:
+
+    * For ``omnia.yml`` and ``provision.yml`` : Provide the docker username and password for the Docker Hub account in the *omnia_config.yml* file and execute the playbook.
+
+    * For HPC cluster, during ``omnia.yml execution``, a kubernetes secret 'dockerregcred' will be created in default namespace and patched to service account. User needs to patch this secret in their respective namespace while deploying custom applications and use the secret as imagePullSecrets in yaml file to avoid ErrImagePull. [Click here for more info](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/)
+.. note:: If the playbook is already executed and the pods are in **ImagePullBack** state, then run ``kubeadm reset -f`` in all the nodes before re-executing the playbook with the docker credentials.
+
+**Why does the task 'Gather facts from all the nodes' stuck when re-running `**`omnia.yml``?**
+
+**Potential Cause**: Corrupted entries in the ``/root/.ansible/cp/`` folder. For more information on this issue, `check this out <https://github.com/ansible/ansible/issues/17349>`_!
+
+**Resolution**: Clear the directory ``/root/.ansible/cp/`` using the following commands: ::
+
+    cd /root/.ansible/cp/
+
+    rm -rf *
+
+Alternatively, run the task manually: ::
+
+    cd omnia/utils/cluster
+    ansible-playbook gather_facts_resolution.yml
+
+**What to do after a reboot if kubectl commands return: ``The connection to the server head_node_ip:port was refused - did you specify the right host or port?``**
+
+
+On the control plane or the manager node, run the following commands: ::
+
+   swapoff -a
+
+   systemctl restart kubelet
+
+
+
+**What to do if the nodes in a Kubernetes cluster reboot:**
+
+
+Wait for 15 minutes after the Kubernetes cluster reboots. Next, verify the status of the cluster using the following commands:
+
+* ``kubectl get nodes`` on the manager node to get the real-time k8s cluster status.
+
+* ``kubectl get pods  all-namespaces`` on the manager node to check which the pods are in the **Running** state.
+
+* ``kubectl cluster-info`` on the manager node to verify that both the k8s master and kubeDNS are in the **Running** state.
+
+
+**What to do when the Kubernetes services are not in the  Running  state:**
+
+
+1. Run ``kubectl get pods  all-namespaces`` to verify that all pods are in the **Running** state.
+
+2. If the pods are not in the **Running** state, delete the pods using the command:``kubectl delete pods <name of pod>``
+
+3. Run the corresponding playbook that was used to install Kubernetes: ``omnia.yml``, ``jupyterhub.yml``, or ``kubeflow.yml``.
+
+
+
+**Why do Kubernetes Pods stop communicating with the servers when the DNS servers are not responding?**
+
+
+**Potential Cause**: The host network is faulty causing DNS to be unresponsive
+
+
+
+**Resolution**:
+
+1. In your Kubernetes cluster, run ``kubeadm reset -f`` on all the nodes.
+
+2. On the management node, edit the ``omnia_config.yml`` file to change the Kubernetes Pod Network CIDR. The suggested IP range is 192.168.0.0/16. Ensure that the IP provided is not in use on your host network.
+
+3. Execute omnia.yml and skip slurm ``ansible-playbook omnia.yml  skip-tags slurm``
+
+**Why does pulling images to create the Kubeflow timeout causing the 'Apply Kubeflow Configuration' task to fail?**
+
+
+**Potential Cause**: Unstable or slow Internet connectivity.
+
+**Resolution**:
+
+1. Complete the PXE booting/format the OS on the manager and compute nodes.
+
+2. In the omnia_config.yml file, change the k8s_cni variable value from ``calico`` to ``flannel``.
+
+3. Run the Kubernetes and Kubeflow playbooks.
+
+
+
+**Why does the 'Initialize Kubeadm' task fail with 'nnode.Registration.name: Invalid value: \"<Host name>\"'?**
+
+**Potential Cause**: The control_plane playbook does not support hostnames with an underscore in it such as 'mgmt_station'.
+
+As defined in RFC 822, the only legal characters are the following:
+1. Alphanumeric (a-z and 0-9): Both uppercase and lowercase letters are acceptable, and the hostname is case-insensitive. In other words, dvader.empire.gov is identical to DVADER.EMPIRE.GOV and Dvader.Empire.Gov.
+
+2. Hyphen (-): Neither the first nor the last character in a hostname field should be a hyphen.
+
+3. Period (.): The period should be used only to delimit fields in a hostname (e.g., dvader.empire.gov)
+
+
+**What to do when Kubeflow pods are in 'ImagePullBackOff' or 'ErrImagePull' status after executing kubeflow.yml:**
+
+
+**Potential Cause**: Your Docker pull limit has been exceeded. For more information, click [here](https://www.docker.com/increase-rate-limits)
+
+1. Delete Kubeflow deployment by executing the following command in manager node: ``kfctl delete -V -f /root/k8s/omnia-kubeflow/kfctl_k8s_istio.v1.0.2.yaml``
+
+2. Re-execute ``kubeflow.yml`` after 8-9 hours
+
+**What to do when omnia.yml fail with 'Error: kinit: Connection refused while getting default ccache' while completing the security role?**
+
+1. Start the sssd-kcm.socket: ``systemctl start sssd-kcm.socket``
+
+2. Re-run ``omnia.yml``
 
 
 **What to do when Slurm services do not start automatically after the cluster reboots:**
@@ -303,42 +286,74 @@ Recommended Actions:
     systemctl restart slurmd on compute node
 
 
-**Why do Kubernetes Pods stop communicating with the servers when the DNS servers are not responding?**
 
+**Why does the task 'nfs_client: Mount NFS client' fail with ``Failed to mount NFS client. Make sure NFS Server is running on IP xx.xx.xx.xx``?**
 
-**Potential Cause**: The host network is faulty causing DNS to be unresponsive
+**Potential Cause**:
 
+* The required services for NFS may not be running:
 
-
-**Resolution**:
-
-1. In your Kubernetes cluster, run ``kubeadm reset -f`` on all the nodes.
-
-2. On the management node, edit the ``omnia_config.yml`` file to change the Kubernetes Pod Network CIDR. The suggested IP range is 192.168.0.0/16. Ensure that the IP provided is not in use on your host network.
-
-3. Execute omnia.yml and skip slurm ``ansible-playbook omnia.yml  skip-tags slurm``
-
-**Why does pulling images to create the Kubeflow timeout causing the 'Apply Kubeflow Configuration' task to fail?**
-
-
-**Potential Cause**: Unstable or slow Internet connectivity.
+    - nfs
+    - rpc-bind
+    - mountd
 
 **Resolution**:
 
-1. Complete the PXE booting/format the OS on the manager and compute nodes.
+* Enable the required services using ``firewall-cmd  permanent  add-service=<service name>`` and then reload the firewall using ``firewall-cmd  reload``.
 
-2. In the omnia_config.yml file, change the k8s_cni variable value from ``calico`` to ``flannel``.
+**What to do when omnia.yml fails with nfs-server.service might not be running on NFS Server. Please check or start services``?**
 
-3. Run the Kubernetes and Kubeflow playbooks.
+**Potential Cause**: nfs-server.service is not running on the target node.
 
-**Why is my NFS mount not visible on the client?**
+**Resolution**: Use the following commands to bring up the service: ::
+
+    systemctl start nfs-server.service
+
+    systemctl enable nfs-server.service
 
 
-**Potential Cause**: The directory being used by the client as a mount point is already in use by a different NFS export.
 
-**Resolution**: Verify that the directory being used as a mount point is empty by using ``cd <client share path> | ls`` or ``mount | grep <client share path>``. If empty, re-run the playbook.
 
-.. image:: ../images/omnia_NFS_mount_fcfs.png
+
+**Why does the task 'Install Packages' fail on the NFS node with the message: ``Failure in talking to yum: Cannot find a valid baseurl for repo: base/7/x86_64.``**
+
+
+**Potential Cause**:
+
+    There are connections missing on the NFS node.
+
+**Resolution**:
+
+        Ensure that there are 3 NICs being used on the NFS node:
+
+                1. For provisioning the OS
+
+                2. For connecting to the internet (Management purposes)
+
+                3. For connecting to PowerVault (Data Connection)
+
+
+**Why do pods and images appear to get deleted automatically?**
+
+
+**Potential Cause**:
+
+Lack of space in the root partition (/) causes Linux to clear files automatically (Use ``df -h`` to diagnose the issue).
+
+  **Resolution**:
+
+* Delete large, unused files to clear the root partition (Use the command ``find / -xdev -size +5M | xargs ls -lh | sort -n -k5`` to identify these files). Before running ``monitor.yml``, it is recommended to have a minimum of 50% free space in the root partition.
+
+* Once the partition is cleared, run ``kubeadm reset -f``
+
+* Re-run ``monitor.yml``
+
+
+**What to do when the JupyterHub or Prometheus UI is not accessible:**
+
+Run the command ``kubectl get pods  namespace default`` to ensure **nfs-client** pod and all Prometheus server pods are in the **Running** state.
+
+
 
 
 **What to do if PowerVault throws the error: ``Error: The specified disk is not available. - Unavailable disk (0.x) in disk range '0.x-x'``:**
@@ -352,50 +367,28 @@ Recommended Actions:
 At any given time only one type of disk group can be created on the system. That is, all disk groups on the system have to exclusively be linear or virtual. To fix the issue, either delete the existing disk group or change the type of pool you are creating.
 
 
-**Why does the 'Initialize Kubeadm' task fail with 'nnode.Registration.name: Invalid value: \"<Host name>\"'?**
+**Why does the task 'nfs_client: Mount NFS client' fail with ``No route to host``?**
 
-**Potential Cause**: The control_plane playbook does not support hostnames with an underscore in it such as 'mgmt_station'.
+**Potential Cause**:
 
-As defined in RFC 822, the only legal characters are the following:
-1. Alphanumeric (a-z and 0-9): Both uppercase and lowercase letters are acceptable, and the hostname is case-insensitive. In other words, dvader.empire.gov is identical to DVADER.EMPIRE.GOV and Dvader.Empire.Gov.
+* There's a mismatch in the share path listed in ``/etc/exports`` and in ``omnia_config.yml`` under ``nfs_client_params``.
 
-2. Hyphen (-): Neither the first nor the last character in a hostname field should be a hyphen.
+**Resolution**:
 
-3. Period (.): The period should be used only to delimit fields in a hostname (e.g., dvader.empire.gov)
-
-**What to do when JupyterHub pods are in 'ImagePullBackOff' or 'ErrImagePull' status after executing jupyterhub.yml:**
+* Ensure that the input paths are a perfect match down to the character to avoid any errors.
 
 
-**Potential Cause**: Your Docker pull limit has been exceeded. For more information, click [here](https://www.docker.com/increase-rate-limits)
-
-1. Delete Jupyterhub deployment by executing the following command in manager node: ``helm delete jupyterhub -n jupyterhub``
-
-2. Re-execute ``jupyterhub.yml`` after 8-9 hours.
+**Why is my NFS mount not visible on the client?**
 
 
-**What to do when Kubeflow pods are in 'ImagePullBackOff' or 'ErrImagePull' status after executing kubeflow.yml:**
+**Potential Cause**: The directory being used by the client as a mount point is already in use by a different NFS export.
+
+**Resolution**: Verify that the directory being used as a mount point is empty by using ``cd <client share path> | ls`` or ``mount | grep <client share path>``. If empty, re-run the playbook.
+
+.. image:: ../images/omnia_NFS_mount_fcfs.png
 
 
-**Potential Cause**: Your Docker pull limit has been exceeded. For more information, click [here](https://www.docker.com/increase-rate-limits)
 
-1. Delete Kubeflow deployment by executing the following command in manager node: ``kfctl delete -V -f /root/k8s/omnia-kubeflow/kfctl_k8s_istio.v1.0.2.yaml``
-
-2. Re-execute ``kubeflow.yml`` after 8-9 hours
-
-
-**Why does the Task [infiniband_switch_config : Authentication failure response] fail with the message 'Status code was -1 and not [302]: Request failed: <urlopen error [Errno 111] Connection refused>' on Infiniband Switches when running ``infiniband.yml``?**
-
-To configure a new Infiniband Switch, it is required that HTTP and JSON gateway be enabled. To verify that they are enabled, run:
-
-``show web`` (To check if HTTP is enabled)
-
-``show json-gw`` (To check if JSON Gateway is enabled)
-
-To correct the issue, run:
-
-``web http enable`` (To enable the HTTP gateway)
-
-``json-gw enable`` (To enable the JSON gateway)
 
 **Why does the ``BeeGFS-client`` service fail?**
 
@@ -419,11 +412,28 @@ To correct the issue, run:
 
 4. For further insight into the issue, check out ``/var/log/beegfs-client.log``
 
-**What to do when omnia.yml fail with 'Error: kinit: Connection refused while getting default ccache' while completing the security role?**
 
-1. Start the sssd-kcm.socket: ``systemctl start sssd-kcm.socket``
 
-2. Re-run ``omnia.yml``
+**Why does the task 'security: Authenticate as admin' fail?**
+
+**Potential Cause**:
+The required services are not running on the node. Verify the service status using:::
+
+    systemctl status sssd-kcm.socket
+
+    systemctl status sssd.service
+
+**Resolution**:
+
+* Restart the services using:::
+
+    systemctl start sssd-kcm.socket
+    systemctl start sssd.service
+
+* Re-run ``omnia.yml`` using: ::
+
+    ansible-playbook omnia.yml
+
 
 **Why does installing FreeIPA fail on RHEL servers?**
 
@@ -451,6 +461,14 @@ If you have enabled the option to install the login node in the cluster, set the
 
 **Resolution**: Ensure the fields ``DNS1`` and ``DNS2`` are updated appropriately in the file ``/etc/sysconfig/network-scripts/ifcfg-<NIC name>``.
 
+
+**What to do when JupyterHub pods are in 'ImagePullBackOff' or 'ErrImagePull' status after executing jupyterhub.yml:**
+
+**Potential Cause**: Your Docker pull limit has been exceeded. For more information, `click here <https://www.docker.com/increase-rate-limits>`_.
+
+1. Delete Jupyterhub deployment by executing the following command in manager node: ``helm delete jupyterhub -n jupyterhub``
+
+2. Re-execute ``jupyterhub.yml`` after 8-9 hours.
 
 
 
