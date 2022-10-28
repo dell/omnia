@@ -14,43 +14,45 @@
 ---
 
 - name: Intialize provision_password_status
-  set_fact:
+  ansible.builtin.set_fact:
     provision_password_status: false
-  
+
 - name: Set provision_password_status to true
-  set_fact:
+  ansible.builtin.set_fact:
     provision_password_status: true
-  when: 
+    provision_password: "{{ hostvars['127.0.0.1']['provision_password'] }}"
+  when:
     - hostvars['127.0.0.1']['provision_password'] is defined
     - hostvars['127.0.0.1']['provision_password'] | length > min_length | int - 1
 
 - name: Skipping cluster_preparation role
-  debug:
+  ansible.builtin.debug:
     msg: "{{ skip_cluster_preparation_msg }}"
   when: not provision_password_status
 
-- block:
+- name: Set passwordless SSH
+  block:
     - name: Set Facts
-      set_fact:
+      ansible.builtin.set_fact:
         ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
         ssh_key_status: false
 
     - name: Disable host key checking
-      replace:
+      ansible.builtin.replace:
         path: /etc/ssh/ssh_config
         regexp: '#   StrictHostKeyChecking ask'
         replace: 'StrictHostKeyChecking no'
       register: disable_host_key_checking
 
     - name: Disable strict mode checking
-      replace:
+      ansible.builtin.replace:
         path: /etc/ssh/ssh_config
         regexp: '^StrictModes\ '
         replace: 'StrictModes no'
       register: disable_strict_mode_checking
 
     - name: Restart sshd
-      service:
+      ansible.builtin.service:
         name: sshd
         state: restarted
       tags: skip_ansible_lint
@@ -59,14 +61,14 @@
           disable_host_key_checking.changed
 
     - name: Install sshpass
-      package:
+      ansible.builtin.package:
         name: sshpass
         state: present
 
     - name: Verify and set passwordless ssh from manager to compute nodes
       block:
         - name: Execute on individual hosts
-          include_tasks: check_passwordless_ssh.yml
+          ansible.builtin.include_tasks: check_passwordless_ssh.yml
           with_items: "{{ ssh_to }}"
           loop_control:
             pause: 5
