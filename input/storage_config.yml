@@ -47,8 +47,9 @@ beegfs_rdma_support: false
 
 # This variable if there are separate OFED kernel modules installed
 # Add path for kernel module
-# Default value is ""
-beegfs_ofed_kernel_modules_path: ""
+# Default value is "/usr/src/ofa_kernel/default/include"
+# Please make sure this path is present on your nodes, else give appropriate path before execution
+beegfs_ofed_kernel_modules_path: "/usr/src/ofa_kernel/default/include"
 
 # This variable is used for taking BeeGFS management server IP
 # Provide IP of beegfs management server
