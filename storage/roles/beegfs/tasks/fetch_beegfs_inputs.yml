@@ -20,13 +20,6 @@
     success_msg: "{{ beegfs_rdma_support_success_msg }}"
     fail_msg: "{{ beegfs_rdma_support_failure_msg }}"
 
-- name: Verify beegfs_ofed_kernel_modules_path when beegfs_rdma_support is false
-  ansible.builtin.fail:
-    msg: " {{ ofed_kernel_fail_msg }}"
-  when:
-    - beegfs_ofed_kernel_modules_path | length > 1
-    - not beegfs_rdma_support
-
 - name: Assert beegfs_mgmt_server
   ansible.builtin.assert:
     that:
