@@ -38,6 +38,7 @@ First, enter all required parameters in ``omnia/input/storage_config.yml``
 |                                 |                                                                                      |           |      - { server_ip: yy.yy.yy.yy, server_share_path: "/mnt/share3",   client_share_path: "/mnt/client3", client_mount_options:   "nosuid,rw,sync,hard,intr"}                                    |
 |                                 |                                                                                      |           |      For more information, check this out.                                                                                                                                                     |
 +---------------------------------+--------------------------------------------------------------------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
 .. note:: If ``omnia.yml`` is run with the ``omnia/input/storage_config.yml`` filled out, BeeGFS and NFS client will be set up.
 
 **Installing BeeGFS Client**
@@ -74,7 +75,7 @@ To open the ports required, use the following steps:
 
 
 
-* Ensure that the nodes in the inventory have been assigned roles: manager, compute, login_node (optional), nfs_node
+* Ensure that the nodes in the inventory have been assigned **only** these roles: manager and compute.
 
  .. note:: When working with RHEL, ensure that the BeeGFS configuration is supported using the `link here <../../Overview/SupportMatrix/OperatingSystems/RedHat.html>`_.
 
@@ -134,4 +135,6 @@ To open the ports required, use the following steps:
     cd omnia/storage
     ansible-playbook storage.yml -i inventory
 
-(Where inventory refers to the `host_inventory_file.ini <../../samplefiles.html>`_ listing **only** manager and compute nodes.)
+(Where inventory refers to the `host_inventory_file.ini <../../samplefiles.html>`_ listing manager, login_node and compute nodes.)
+
+
