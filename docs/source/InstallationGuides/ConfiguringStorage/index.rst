@@ -3,7 +3,7 @@ Configuring Storage
 
 **Configuring Powervault Storage**
 
-To configure powervault ME4 and ME 5 storage arrays, follow the below steps:
+To configure powervault ME4 and ME5 storage arrays, follow the below steps:
 
 Fill out all required parameters in ``/omnia/storage/powervault_input.yml``:
 
@@ -87,7 +87,7 @@ Run the playbook: ::
     cd omnia/storage
     ansible-playbook nfs_sas.yml -i inventory
 
-* Where the ``inventory`` refers to a list of all nodes in the format of `host_inventory_file.ini <../../samplefiles.rst>`_
+* Where the ``inventory`` refers to a list of all nodes in the format of `host_inventory_file.ini <../../samplefiles.html>`_
 
 
 
