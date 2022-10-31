@@ -13,25 +13,18 @@
 #  limitations under the License.
 ---
 
-- block:
-  - name: Include Powervault variables
-    include_vars: "{{ role_path }}/../../control_plane/input_params/{{ powervault_vars_filename }}"
-  
-  - block:
+- name: Configure NFS Server
+  when: hostvars['127.0.0.1']['nfs_node_status']
+  block:
     - name: Configure and enable multipathd
-      include_tasks: configure_multipath.yml
+      ansible.builtin.include_tasks: configure_multipath.yml
 
     - name: Setup NFS Server
-      include_tasks: nfs_server_packages.yml
+      ansible.builtin.include_tasks: nfs_server_packages.yml
 
     - name: Fetch volume details from powervault and mount volumes on NFS server
-      include_tasks: fetch_volume_details.yml
-    
+      ansible.builtin.include_tasks: fetch_volume_details.yml
+
     - name: Exporting the shared directories
-      command: exportfs -ra
+      ansible.builtin.command: exportfs -ra
       changed_when: true
-    when: powervault_protocol == 'sas'
-    
-  when: 
-    - hostvars['127.0.0.1']['powervault_support']
-    - hostvars['127.0.0.1']['nfs_node_status']

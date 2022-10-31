@@ -14,6 +14,10 @@
 ---
 
 # Usage: pv_validation.yml
+min_length: 8
+max_length: 30
+min_username_length: 4
+pv_fail_msg_credentials: "Please give correct credentials of powervault as extra variable while executing playbook."
 system_name_wrong: "Failed. Given name might be empty or it  containes space or is more than 30 in length"
 snmp_wrong_value: "Failed. Snmp value wrong"
 snmp_success: "Success: Snmp value correct"
@@ -31,10 +35,7 @@ controller_wrong_value: "Failed.Check the value of the controller.If only 1 cont
 controller_success: "Success. The controller value is validated"
 volume_wrong_value: "Atleast 1 volume should be given"
 server_path_empty: "Failed. Server_share_path must not be empty"
-powervault_volumes_options_fail_msg: "powervault_volumes variable is not declared with all key values."
-server_export_options_success_msg: "server_export_options declaration validated successfully"
-client_share_path_success_msg: "client_share_path declaration validated successfully"
-client_mount_options_success_msg: "client_mount_options declaration validated successfully"
+powervault_volumes_fail_msg: "powervault_volumes variable is not defined."
 
 # Usage: pv_me4_prereq.yml
 scsi_product_id: ME4
@@ -67,8 +68,3 @@ login_pv_vault_file: "{{ playbook_dir }}/control_plane/input_params/.login_vault
 # Usage: sas_map.yml
 temp1: 10
 t1: 1
-
-# Usage: fetch_powervault_credentials.yml
-login_input_filename: "{{ playbook_dir }}/input_params/login_vars.yml"
-login_vault_filename: "{{ playbook_dir }}/input_params/.login_vault_key"
-file_permission: 0644
