@@ -83,18 +83,10 @@ powervault_disk_group_name: "omnia"
 
 # Specify the volume details for powervault and NFS Server node
 # By default, volume named omnia_home is created on powervault
-# For multiple volumes, list of json with volume details should be provided.
-# server_share_path: The path at which volume is mounted on nfs_node
-# server_export_options: Default value is- rw,sync,no_root_squash (unless specified otherwise)
-# client_shared_path: The path at which volume is mounted on manager, compute, login node. 
-#                     This value is taken as server_share_path unless specified otherwise.
-# client_mount_options: Default value is- nosuid,rw,sync,hard,intr (unless specified otherwise)
+# Multiple volumes can be defined as comma seperated values. example: omnia_home1, omnia_home2
 # Must specify atleast 1 volume
-# Example:
-#   - { name: omnia_home, server_share_path: /home/omnia_home, server_export_options: rw,sync,no_root_squash,client_share_path: /home/omnia_home, client_mount_options: nosuid,rw,sync,hard,intr }
 # Required field
-powervault_volumes:
-  - { name: omnia_home, server_share_path: /home/omnia_home, server_export_options: ,client_share_path: , client_mount_options: }
+powervault_volumes: omnia_home
 
 # Specifies the volume size
 # Format: 100GB <SizeGB>
@@ -119,3 +111,12 @@ powervault_disk_partition_size: ""
 # Example: em1 for CentOS-7, eno1 for RockyOS etc.
 # Only required if, 'iscsi' protocol is needed.
 powervault_server_nic: ""
+
+# The trap destination IP address is the IP address of the SNMP Server where the trap will be sent
+# If this variable is left blank, SNMP will be disabled.
+# Provide a valid SNMP server IP
+snmp_trap_destination: ""
+
+# Provide the snmp community name required
+# Default value:"public"
+snmp_community_name: "public"
