@@ -13,47 +13,51 @@
 #  limitations under the License.
 ---
 
-- name: Include ipa server variables
-  include_vars: ../../login_common/vars/main.yml
+- name: Include login_common variables
+  ansible.builtin.include_vars: "{{ role_path }}/../login_common/vars/main.yml"
 
 - block:
     - name: Add ports to firewall to run slurm jobs
-      include_tasks: firewall_settings.yml
+      ansible.builtin.include_tasks: firewall_settings.yml
     
+    - name: Check freeipa installed or not
+      ansible.builtin.include_tasks: check_prerequisites.yml
+      when: os_leap not in ansible_distribution | lower
+
     - name: Install ipa client
-      include_tasks: install_ipa_client.yml
+      ansible.builtin.include_tasks: install_ipa_client.yml
       when: os_leap not in ansible_distribution | lower
 
     - name: Install 389 directory server
-      include_tasks: install_389ds.yml
+      ansible.builtin.include_tasks: install_389ds.yml
       when: os_leap in ansible_distribution | lower
 
     - block:
         - name: FreeIPA configuration
-          include_tasks: ipa_configuration.yml
+          ansible.builtin.include_tasks: ipa_configuration.yml
           when: os_leap not in ansible_distribution | lower
 
         - name: Install Apparmor on Leap
-          include_tasks: install_apparmor.yml
+          ansible.builtin.include_tasks: install_apparmor.yml
           
         - name: Install snoopy
-          include_tasks: install_snoopy.yml
+          ansible.builtin.include_tasks: install_snoopy.yml
 
         - name: Install psacct/acct
-          include_tasks: user_monitor.yml
+          ansible.builtin.include_tasks: user_monitor.yml
 
         - name: Alert configuration
-          include_tasks: configure_alerting.yml
+          ansible.builtin.include_tasks: configure_alerting.yml
           when: hostvars['127.0.0.1']['alert_email_address'] | length > 1
 
         - name: Configure ssh access to login node
-          include_tasks: configure_sshd.yml
+          ansible.builtin.include_tasks: configure_sshd.yml
         
         - name: Session timeout configuration
-          include_tasks: session_timeout.yml
+          ansible.builtin.include_tasks: session_timeout.yml
 
         - name: Restrict nonessential programs
-          include_tasks: restrict_nonessentials.yml
+          ansible.builtin.include_tasks: restrict_nonessentials.yml
           when: hostvars['127.0.0.1']['restrict_program_status']
       when: hostvars['127.0.0.1']['enable_secure_login_node']
   when:
