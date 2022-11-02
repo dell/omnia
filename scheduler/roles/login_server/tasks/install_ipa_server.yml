@@ -13,26 +13,15 @@
 #  limitations under the License.
 ---
 
-- name: Include common vars
-  include_vars: ../../login_common/vars/main.yml
-
-- name: Fetch hostname
-  command: hostname
-  register: new_serv_hostname
-  changed_when: false
-
-- name: Set fact for server hostname
-  set_fact:
-    server_hostname: "{{ new_serv_hostname.stdout }}"
-
-- name: Uninstall server if it is already installed
-  command: ipa-server-install --uninstall -U
+- name: Uninstall ipa server if already installed
+  ansible.builtin.command: ipa-server-install --uninstall -U
   changed_when: false
   failed_when: false
 
-- block:
+- name: Install ipa server
+  block:
     - name: Install ipa server in CentOS 7.9(It may take 5-10 mins)
-      command: >-
+      ansible.builtin.command: >-
         ipa-server-install -n '{{ hostvars['127.0.0.1']['domain_name'] }}' --hostname='{{ server_hostname }}' -a '{{ hostvars['127.0.0.1']['kerberos_admin_password'] }}'
         -p '{{ hostvars['127.0.0.1']['directory_manager_password'] }}' -r '{{ hostvars['127.0.0.1']['realm_name'] }}' --setup-dns --auto-forwarders --auto-reverse -U
       changed_when: true
@@ -43,7 +32,7 @@
         - ( ansible_distribution_version < os_version )
 
     - name: Install ipa server in RHEL 8 or Rocky 8(It may take 5-10 mins)
-      command: >-
+      ansible.builtin.command: >-
         ipa-server-install -n '{{ hostvars['127.0.0.1']['domain_name'] }}' --hostname='{{ server_hostname }}' -a '{{ hostvars['127.0.0.1']['kerberos_admin_password'] }}'
         -p '{{ hostvars['127.0.0.1']['directory_manager_password'] }}' -r '{{ hostvars['127.0.0.1']['realm_name'] }}' --setup-dns --no-forwarders --no-reverse --no-ntp -U
       changed_when: true
@@ -56,35 +45,52 @@
         - ( ansible_distribution_version >= os_version )
   rescue:
     - name: Install ipa server failed
-      fail:
+      ansible.builtin.fail:
         msg: "Error: {{ install_ipa_server.stderr_lines }}"
 
-- block:
+- name: Authenticate as admin
+  block:
     - name: Authenticate as admin
-      shell: set -o pipefail && echo $'{{ hostvars['127.0.0.1']['kerberos_admin_password'] }}' | kinit admin
+      ansible.builtin.shell: set -o pipefail && echo $'{{ hostvars['127.0.0.1']['kerberos_admin_password'] }}' | kinit {{ ipa_admin_username }}
       no_log: true
       changed_when: false
       register: authenticate_admin
   rescue:
-    - name: Authenticate as admin failed
-      fail:
-        msg: "Error: {{ authenticate_admin.stderr }}"
+    - name: Retry authenticate as admin
+      block:
+        - name: Start sssd-kcm and sssd services
+          ansible.builtin.systemd:
+            name: "{{ item }}"
+            state: started
+          with_items:
+            - sssd-kcm.socket
+            - sssd.service
+
+        - name: Authenticate as admin
+          ansible.builtin.shell: set -o pipefail && echo $'{{ hostvars['127.0.0.1']['kerberos_admin_password'] }}' | kinit {{ ipa_admin_username }}
+          no_log: true
+          changed_when: false
+          register: authenticate_admin
+      rescue:
+        - name: Authenticate as admin failed
+          ansible.builtin.fail:
+            msg: "Error: {{ authenticate_admin.stderr }}"
 
 - name: Replace the /etc/resolv.conf file
-  copy:
+  ansible.builtin.copy:
     src: "{{ temp_resolv_conf_path }}"
     dest: "{{ resolv_conf_path }}"
     mode: "{{ file_mode }}"
     remote_src: yes
 
 - name: Install mkhomedir to enable home directory creation for users
-  command: authselect enable-feature with-mkhomedir
+  ansible.builtin.command: authselect enable-feature with-mkhomedir
   changed_when: false
   failed_when: false
 
 - name: Enable oddjob service
-  systemd:
+  ansible.builtin.systemd:
     name: oddjobd
     state: started
-    enabled: yes
+    enabled: true
   failed_when: false
