@@ -15,13 +15,13 @@
 
 - block:   
     - name: Add ports of manager and login node to firewall
-      include_tasks: firewall_settings.yml
+      ansible.builtin.include_tasks: firewall_settings.yml
 
     - name: Enable module idm in Rocky or Centos >= 8.0
-      include_tasks: enable_dnf_module.yml
+      ansible.builtin.include_tasks: enable_dnf_module.yml
 
     - name: Update Packages
-      include_tasks: update_package.yml
+      ansible.builtin.include_tasks: update_package.yml
   when:
     - os_leap not in ansible_distribution | lower
     - hostvars['127.0.0.1']['login_node_required']
