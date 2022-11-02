@@ -13,7 +13,7 @@
 #  limitations under the License.
 ---
 
-#Usage: check_prerequisites.yml
+# Usage: check_prerequisites.yml
 nfs_node_group_fail_msg: "nfs_node group should contain exactly 1 node"
 nfs_node_group_success_msg: "nfs_node group check passed"
 config_filename: "omnia_config.yml"
@@ -21,33 +21,31 @@ config_vaultname: .omnia_vault_key
 login_vars_filename: input_params/login_vars.yml
 vault_filename: input_params/.login_vault_key
 vault_file_perm: 0644
-pv_ip_undefined_msg: "Please give IP of powervault connected to nfs_node in omnia_config.yml"
 powervault_ip_success_msg: "Powervault IP is reachable."
 powervault_ip_failure_msg: "Powervault IP is not defined in omnia_config.yml or not reacheable."
 powervault_login_success_msg: "Login to powervault was successful"
-powervault_login_failure_msg: "Please give valid powervault credentials in control_plane/input_params/login_vars.yml"
 
-#Usage: configure_multipath.yml
+# Usage: configure_multipath.yml
 awx_search_key: "-job-"
 os_supported_rocky: "rocky"
 os_supported_rhel: "redhat"
 os_supported_leap: "leap"
 multipath_success_msg: "Multipath assertion successful"
-multipath_failure_msg: "Failed due to one of the following reasons: Volumes are not 
-created on powervault/ Multipath connections are not done from powervault to nfs server node."
+multipath_failure_msg: "Failed due to one of the following reasons: \n
+Volumes are not created on powervault/ Multipath connections are not done from powervault to nfs server node."
 powervault_token_me4: DellEMC,ME4
 powervault_token_me5: DellEMC,ME5
 
-#Usage: main.yml
+# Usage: main.yml
 powervault_vars_filename: powervault_vars.yml
 
-#Usage: mount_volume.yml
+# Usage: mount_volume.yml
 mount_dir_permissions: 0755
 lvm_size: 100%FREE
 exports_file: "/etc/exports"
 default_server_options: "rw,sync,no_root_squash"
 
-#Usage: nfs_server_packages.yml
+# Usage: nfs_server_packages.yml
 nfs_utilities:
   - nfs-utils
   - firewalld
@@ -66,3 +64,11 @@ firewall_ports:
   - 2049/udp
   - 20048/tcp
   - 20048/udp
+
+# Usage: fetch_powervault_status.yml
+min_length: 8
+max_length: 30
+min_username_length: 4
+pv_fail_msg_credentials: "Please give correct credentials of powervault as extra variable while executing playbook."
+pv_ip_undefined_msg: "Please give IP of powervault connected to nfs_node in nfs_server_input.yml in correct format"
+powervault_login_failure_msg: "Unable to connect to powervault. Please check powervault_ip in nfs_server_input.yml & provide correct powervault credentials."
