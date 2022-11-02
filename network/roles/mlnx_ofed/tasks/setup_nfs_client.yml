@@ -40,3 +40,8 @@
   args:
     warn: false
   when: mlnx_ofed_nfs_path not in mounted_share.stdout
+
+- name: Add mount configuration to /etc/fstab file
+  ansible.builtin.lineinfile:
+    path: "{{ fstab_path }}"
+    line: "{{ server_ip }}:{{ mlnx_ofed_nfs_path }}     {{ mlnx_ofed_nfs_path }}  nfs     {{ client_mount_options }}"
