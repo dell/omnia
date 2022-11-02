@@ -24,6 +24,7 @@ ansible_cfg_dest:
 # Usage: fetch_omnia_inputs.yml
 config_filename: "omnia_config.yml"
 config_vaultname: .omnia_vault_key
+vault_key_permission: 0644
 min_length: 8
 max_length: 30
 fail_msg_mariadb_password: "maria_db password not given in correct format."
