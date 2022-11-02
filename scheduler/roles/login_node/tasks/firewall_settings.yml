@@ -13,21 +13,15 @@
 #  limitations under the License.
 ---
 
-- name: Install firewalld
-  package:
-    name: firewalld
-    state: present
-  tags: firewalld
-
 - name: Start and enable firewalld
-  service:
+  ansible.builtin.service:
     name: firewalld
     state: started
-    enabled: yes
+    enabled: true
   tags: firewalld
 
 - name: Firewall rule for slurm jobs - tcp/udp ports
-  command: "firewall-cmd --zone=public --permanent --add-port={{ item }}"
+  ansible.builtin.command: "firewall-cmd --zone=public --permanent --add-port={{ item }}"
   changed_when: true
   with_items:
     - "{{ slurmctld_tcp_port }}"
@@ -38,13 +32,13 @@
   tags: firewalld
 
 - name: Reload firewalld
-  command: firewall-cmd --reload
+  ansible.builtin.command: firewall-cmd --reload
   changed_when: true
   tags: firewalld
 
 - name: Stop and disable firewalld
-  service:
+  ansible.builtin.service:
     name: firewalld
     state: stopped
-    enabled: no
+    enabled: false
   tags: firewalld
