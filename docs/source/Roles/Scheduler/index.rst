@@ -13,8 +13,8 @@ To ensure security while running jobs on the cluster, users can be assigned perm
 .. note::
 
 
-    The inventory queried in the above command is to be created by the user prior to running ``omnia.yml``.
+    * The inventory queried in the above command is to be created by the user prior to running ``omnia.yml``.
 
-    Slurm and IPA client need to installed on the nodes before running this playbook.
+    * Slurm and IPA client need to installed on the nodes before running this playbook.
 
-    Only users added to the 'slurm' group can execute slurm jobs. To add users to the group, use the command: ``usermod -a -G slurm <username>``.
+    * Only users added to the 'slurm' group can execute slurm jobs. To add users to the group, use the command: ``usermod -a -G slurm <username>``.
