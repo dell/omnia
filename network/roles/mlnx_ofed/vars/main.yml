@@ -63,6 +63,7 @@ nfs_packages:
   - nfs4-acl-tools
 client_mount_options: "nosuid,rw,sync,hard,intr"
 server_ip: "{{ hostvars['localhost']['server_ip'] }}"
+fstab_path: "/etc/fstab"
 
 # Usage: install_mlnx_ofed.yml
 ofed_packages:
