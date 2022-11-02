@@ -1,16 +1,6 @@
 Frequently Asked Questions
 ==========================
 
-
-**What are the mapping files required when configuring in a LOM setup?**
-
-+-------------------------+----------------------------------------------------------------------------------+--------------------------------------+----------------------------------+------------------------------------------------------+
-| File name               | Purpose                                                                          | Associated Variable                  | Format                           | Sample File Path                                     |
-+=========================+==================================================================================+======================================+==================================+======================================================+
-| Host mapping            | Mapping file listing all devices (barring iDRAC) and provisioned hosts for DHCP  | ``host_mapping_file_path``           | xx:yy:zz:aa:bb:CC,server,172.29.0.5 | omnia/examples/pxe_mapping_file.csv                  |
-|                         | configurations                                                                   |                                      |                                     |                                                      |
-+-------------------------+----------------------------------------------------------------------------------+--------------------------------------+----------------------------------+------------------------------------------------------+
-
 **Why does splitting an ethernet Z series port fail with "Failed. Either port already split with different breakout value or port is not available on ethernet switch"?**
 
 

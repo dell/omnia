@@ -52,7 +52,7 @@ This error is known to RHEL and is being addressed `here <https://bugzilla.redha
 Alternatively, run ``network.yml`` or  ``post_provision.yml`` (Only if the nodes are provisioned using Omnia) to activate the NIC.
 
 
-**Why does the Task [infiniband_switch_config : Authentication failure response] fail with the message 'Status code was -1 and not [302]: Request failed: <urlopen error [Errno 111] Connection refused>' on Infiniband Switches when running ``infiniband.yml``?**
+**Why does the Task [infiniband_switch_config : Authentication failure response] fail with the message 'Status code was -1 and not [302]: Request failed: <urlopen error [Errno 111] Connection refused>' on Infiniband Switches when running infiniband_switch_config.yml?**
 
 To configure a new Infiniband Switch, it is required that HTTP and JSON gateway be enabled. To verify that they are enabled, run:
 
@@ -299,7 +299,7 @@ Recommended Actions:
 
 **Resolution**:
 
-* Enable the required services using ``firewall-cmd  permanent  add-service=<service name>`` and then reload the firewall using ``firewall-cmd  reload``.
+* Enable the required services using ``firewall-cmd  --permanent  --add-service=<service name>`` and then reload the firewall using ``firewall-cmd  --reload``.
 
 **What to do when omnia.yml fails with nfs-server.service might not be running on NFS Server. Please check or start services``?**
 
@@ -410,7 +410,7 @@ At any given time only one type of disk group can be created on the system. That
 
 3. Check the [support matrix for RHEL or Rocky](../Support_Matrix/Software/Operating_Systems) to verify your set-up.
 
-4. For further insight into the issue, check out ``/var/log/beegfs-client.log``
+4. For further insight into the issue, check out ``/var/log/beegfs-client.log`` on nodes where the BeeGFS client is running.
 
 
 
