@@ -5,13 +5,13 @@ Running The Provision Tool
 
 .. warning:: The IP address *192.168.25.x* is used for PowerVault Storage communications. Therefore, do not use this IP address for other configurations.
 
-2. Provided that the ``pxe_mapping_file_path`` is updated as per the provided `template (omnia/examples/pxe_mapping_file.csv) <../samplefiles.html>`_, Omnia deploys the control plane and assigns the component roles by executing the ``omnia.yml`` file.  To deploy the Omnia control plane, run the following command ::
+2. Update the ``pxe_mapping_file_path`` or ``pxe_switch_ip`` in the ``input/provision_config.yml``. To deploy the Omnia provision tool, run the following command ::
 
     ansible-playbook provision.yml
 
 3. By running ``provision.yml``, the following configurations take place:
 
-    i. All available compute nodes will be PXE booted to have IP addresses and host names as specified in ``omnia/input/provision.yml``.
+    i. All compute nodes in cluster will be enabled for PXE boot with osimage mentioned in ``provision_config.yml``.
 
     ii. All ports required for xCAT to run will be opened (For a complete list, check out the `Security Configuration Document <../../SecurityConfigGuide/PortsUsed/xCAT.html>`_).
 
@@ -32,11 +32,11 @@ Running The Provision Tool
 
     iv. Offline repositories will be created based on the OS being deployed across the cluster.
 
-Once the script is complete, ensure that PXE boot and RAID configurations are set up on remote nodes. Users are then expected to reboot target servers to provision the right OS.
+Once the script is complete, ensure that PXE boot and RAID configurations are set up on remote nodes. Users are then expected to reboot target servers to provision the OS.
 
 .. note::
 
-    * If the cluster does not have access to the internet, AppStream will not function. Please use the available offline repositories instead.
+    * If the cluster does not have access to the internet, AppStream will not function. Please use the available offline repositories instead. To provide internet access through pxe network nic, update ``primary_dns`` and ``secondary_dns`` in ``provision_config.yml`` and run ``provision.yml``
 
     * After running ``provision.yml``, the file ``input/provision_config.yml`` will be encrypted. To edit file, use the command: ``ansible-vault edit provision_config.yml --vault-password-file .provision_vault_key``
 
