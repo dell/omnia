@@ -22,11 +22,17 @@ Input the configuration variables into the ``infiniband_edr_input.yml`` or ``inf
 +-------------------------+--------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | log_directory           |                          |           | The directory where temporary files of opensm are stored. Can be set to   the default directory or enter a directory path to store temporary files.                    |
 +-------------------------+--------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| ib 1/(1-xx) config      | "no shutdown"            |           | Indicates the required state of ports 1-xx (depending on the value of  1/xx)                                                                                           |
+| mellanox_switch_config  |                          | optional  | List of configuration lines to   apply to the switch.                                                                                                                  |
+|                         |                          |           |      # Example:                                                                                                                                                        |
+|                         |                          |           |          # mellanox_switch_config:                                                                                                                                     |
+|                         |                          |           |            # - Command 1                                                                                                                                               |
+|                         |                          |           |            # - Command 2                                                                                                                                               |
+|                         |                          |           | By default, the list is empty.                                                                                                                                         |
++-------------------------+--------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| ib   1/(1-xx) config    | "no shutdown"            |           | Indicates the required state of ports 1-xx (depending on the value of   1/x)                                                                                           |
 +-------------------------+--------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | save_changes_to_startup | false, true              |           | Indicates whether the switch configuration is to persist across reboots                                                                                                |
 +-------------------------+--------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-
 
 **Before you run the playbook**
 
