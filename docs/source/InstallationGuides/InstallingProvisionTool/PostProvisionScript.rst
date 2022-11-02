@@ -11,6 +11,10 @@ Once the servers are provisioned, run the post provision script to:
 
 * Invoke ``network.yml`` and ``accelerator.yml`` to install OFED, CUDA toolkit and ROCm drivers.
 
+* If ``ib_nic_subnet`` is provided in the ``input/provision_config.yml`` file, Infiniband NICs will be assigned static IPs.
+
+.. note::  The prefix for IB IP is 16 by default and supports 65,534 hosts.
+
 * Create ``node_inventory`` in /opt/omnia listing provisioned nodes. ::
 
     cat /opt/omnia/node_inventory
