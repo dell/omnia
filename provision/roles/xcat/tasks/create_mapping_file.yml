@@ -68,7 +68,7 @@
       when: ping_search_key not in ping_result.stdout
 
     - name: Verify whether passwordless ssh is set on the remote host - {{ item.admin_ip }}
-      ansible.builtin.command: ssh -o "PasswordAuthentication=no" root@{{ item.admin_ip }} 'hostname'
+      ansible.builtin.command: sshpass ssh -o "PasswordAuthentication=no" root@{{ item.admin_ip }} 'hostname'
       register: ssh_output
       async: 15
       poll: 5
