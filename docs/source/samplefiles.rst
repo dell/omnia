@@ -8,6 +8,7 @@ device_ip_list.yml
     172.19.0.100
     172.19.0.200
 
+
 host_inventory_file
 --------------------
 
