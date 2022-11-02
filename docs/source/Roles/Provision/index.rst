@@ -55,7 +55,8 @@ Provision
 
 .. warning:: The IP address *192.168.25.x* is used for PowerVault Storage communications. Therefore, do not use this IP address for other configurations.
 
-2. Update the ``pxe_mapping_file_path`` or ``pxe_switch_ip`` in the ``input/provision_config.yml``. To deploy the Omnia control plane, run the following command ::
+
+2. Update the ``pxe_mapping_file_path`` or ``pxe_switch_ip`` in the ``input/provision_config.yml``. To deploy the Omnia provision tool, run the following command ::
 
     ansible-playbook provision.yml
 
