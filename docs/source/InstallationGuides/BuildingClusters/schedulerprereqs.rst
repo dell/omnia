@@ -153,7 +153,7 @@ To open the ports required, use the following steps:
 
 * There should be multiple network paths available between the NFS server and the Powervault to ensure high availability. For more information, `click here <https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/8/html/configuring_device_mapper_multipath/overview-of-device-mapper-multipathing_configuring-device-mapper-multipath>`_.
 
-.. image:: ../images/../MultipathingOverSAS.png
+.. image:: ../../images/MultipathingOverSAS.png
 
 * Set ``powervault_protocol`` to 'sas' in ``powervault_vars.yml``.
 
