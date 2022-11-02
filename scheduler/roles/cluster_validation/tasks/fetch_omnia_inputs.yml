@@ -24,13 +24,12 @@
   when: not vault_key_result.stat.exists
 
 - name: Save vault key
-  ansible.builtin.template:
-    dest: "{{ role_path }}/../../../input/{{ config_vaultname }}"
-    content: |
-      {{ vault_key }}
+  ansible.builtin.lineinfile:
+    path: "{{ role_path }}/../../../input/{{ config_vaultname }}"
+    line: "{{ vault_key }}"
+    mode: "{{ vault_key_permission }}"
     owner: root
-    force: true
-    mode: '0600'
+    create: true
   when: not vault_key_result.stat.exists
 
 - name: Check if omnia config file is encrypted
