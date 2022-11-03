@@ -39,3 +39,4 @@
   when:
     - os_leap not in ansible_distribution | lower
     - hostvars['127.0.0.1']['login_node_required']
+    - not hostvars['127.0.0.1']['ldap_required']

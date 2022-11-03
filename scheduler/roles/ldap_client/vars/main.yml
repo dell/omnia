@@ -13,16 +13,15 @@
 #  limitations under the License.
 ---
 
-- block:   
-    - name: Add ports of manager and login node to firewall
-      ansible.builtin.include_tasks: firewall_settings.yml
+# Usage: configre_ldap_client.yml
+ldap_client_packages:
+  - openldap-clients
+  - sssd
+  - sssd-ldap
+  - oddjob-mkhomedir
+  - openssl-perl
 
-    - name: Enable module idm in Rocky or Centos >= 8.0
-      ansible.builtin.include_tasks: enable_dnf_module.yml
-
-    - name: Update Packages
-      ansible.builtin.include_tasks: update_package.yml
-  when:
-    - os_leap not in ansible_distribution | lower
-    - hostvars['127.0.0.1']['login_node_required']
-    - not hostvars['127.0.0.1']['ldap_required']
+sssd_conf_dest: "/etc/sssd/sssd.conf"
+file_permission: "0600"
+tls_cert_path: "/etc/openldap/certs/"
+ldap_conf_dest: "/etc/openldap/ldap.conf"
