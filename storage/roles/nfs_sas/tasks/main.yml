@@ -13,20 +13,18 @@
 #  limitations under the License.
 ---
 
-- name: Check pre-requisites for NFS Server configuration
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  tasks:
-    - name: Validate nfs_node config
-      include_role:
-        name: nfs_iscsi
-        tasks_from: check_prerequisites.yml
+- name: Configure NFS Server
+  when: hostvars['127.0.0.1']['nfs_node_status']
+  block:
+    - name: Configure and enable multipathd
+      ansible.builtin.include_tasks: configure_multipath.yml
 
-- name: Configure NFS node for ISCSI protocol
-  hosts: nfs_node
-  gather_facts: true
-  vars:
-    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
-  roles:
-    - nfs_iscsi
+    - name: Setup NFS Server
+      ansible.builtin.include_tasks: nfs_server_packages.yml
+
+    - name: Fetch volume details from powervault and mount volumes on NFS server
+      ansible.builtin.include_tasks: fetch_volume_details.yml
+
+    - name: Exporting the shared directories
+      ansible.builtin.command: exportfs -ra
+      changed_when: true

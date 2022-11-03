@@ -13,6 +13,9 @@
 #  limitations under the License.
 ---
 
+# Usage: check_prerequisites.yml
+return_status: 200
+
 # Usage: install_packages.yml
 ipa_client_package:
   - bind-utils

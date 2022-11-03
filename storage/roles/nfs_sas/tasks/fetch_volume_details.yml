@@ -13,15 +13,18 @@
 #  limitations under the License.
 ---
 
+- name: Include base_vars of control plane
+  ansible.builtin.include_vars: "{{ role_path }}/../../nfs_server_input.yml"
+
 - name: Set powervault username and password
-  set_fact:
+  ansible.builtin.set_fact:
     powervault_username: "{{ hostvars['127.0.0.1']['powervault_username'] }}"
     powervault_password: "{{ hostvars['127.0.0.1']['powervault_password'] }}"
     powervault_ip: "{{ hostvars['127.0.0.1']['powervault_ip'] }}"
   no_log: true
 
 - name: Get auth string
-  shell: >
+  ansible.builtin.shell: >
           set -o pipefail && \
           echo -n {{ powervault_username }}_{{ powervault_password }}  | sha256sum
   register: auth_string
@@ -30,22 +33,22 @@
   no_log: true
 
 - name: Get session key
-  uri:
+  ansible.builtin.uri:
     url: https://{{ powervault_ip }}/api/login/{{ auth_string.stdout | replace(" -", "") }}
     method: GET
     headers:
       {'datatype': 'json'}
-    validate_certs: no
+    validate_certs: false
   register: session_key
   delegate_to: localhost
 
 - name: Show volumes details
-  uri:
+  ansible.builtin.uri:
     url: https://{{ powervault_ip }}/api/show/volumes/details
     method: GET
     body_format: json
-    validate_certs: no
-    use_proxy: no
+    validate_certs: false
+    use_proxy: false
     headers:
       {'sessionKey': "{{ session_key.json.status[0].response }}", 'datatype':'json'}
   register: show_volume_details
@@ -54,5 +57,5 @@
 # Mount each volume to server_share_path
 
 - name: Mount volumes to server_share_path
-  include_tasks: mount_volume.yml
+  ansible.builtin.include_tasks: mount_volume.yml
   with_items: "{{ show_volume_details.json.volumes }}"

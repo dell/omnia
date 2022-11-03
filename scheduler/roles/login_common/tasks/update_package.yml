@@ -14,7 +14,7 @@
 ---
 
 - name: Update nss package to install ipa server/client
-  command: yum update nss -y
+  ansible.builtin.command: yum update nss -y
   changed_when: false
   args:
     warn: false
