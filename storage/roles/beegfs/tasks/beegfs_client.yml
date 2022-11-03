@@ -27,6 +27,20 @@
     name: "{{ beegfs_pkgs }}"
     state: present
 
+- name: Disable security features of BeeGFS helperd
+  ansible.builtin.replace:
+    path: "{{ helperd_location }}"
+    regexp: "^connDisableAuthentication = false"
+    replace: "connDisableAuthentication = true"
+  when: beegfs_client_version >= '7.3.1'
+
+- name: Disable security features of BeeGFS client
+  ansible.builtin.replace:
+    path: "{{ client_mount_location }}"
+    regexp: "^connDisableAuthentication     = false"
+    replace: "connDisableAuthentication     = true"
+  when: beegfs_client_version >= '7.3.1'
+
 - name: Modify configuration files to support rdma
   block:
     - name: Modify BeeGFS client autobuild file for infiniband support
