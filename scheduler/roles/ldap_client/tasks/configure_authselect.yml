@@ -13,16 +13,18 @@
 #  limitations under the License.
 ---
 
-- block:   
-    - name: Add ports of manager and login node to firewall
-      ansible.builtin.include_tasks: firewall_settings.yml
+- name: Configure authselect with sssd
+  ansible.builtin.command: authselect select sssd with-mkhomedir --force
+  changed_when: false
 
-    - name: Enable module idm in Rocky or Centos >= 8.0
-      ansible.builtin.include_tasks: enable_dnf_module.yml
+- name: Start and enable sssd.service
+  ansible.builtin.systemd:
+    name: sssd
+    state: started
+    enabled: true
 
-    - name: Update Packages
-      ansible.builtin.include_tasks: update_package.yml
-  when:
-    - os_leap not in ansible_distribution | lower
-    - hostvars['127.0.0.1']['login_node_required']
-    - not hostvars['127.0.0.1']['ldap_required']
+- name: Enable oddjob service
+  ansible.builtin.systemd:
+    name: oddjobd
+    state: started
+    enabled: true
