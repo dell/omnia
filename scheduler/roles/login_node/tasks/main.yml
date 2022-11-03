@@ -35,7 +35,9 @@
     - block:
         - name: FreeIPA configuration
           ansible.builtin.include_tasks: ipa_configuration.yml
-          when: os_leap not in ansible_distribution | lower
+          when:
+            - os_leap not in ansible_distribution | lower
+            - not hostvars['127.0.0.1']['ldap_required']
 
         - name: Install Apparmor on Leap
           ansible.builtin.include_tasks: install_apparmor.yml

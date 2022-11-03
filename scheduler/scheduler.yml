@@ -40,6 +40,13 @@
     - common
   tags: common
 
+- name: Apply ldap client installation and config
+  hosts: manager, compute, login_node
+  gather_facts: false
+  roles:
+    - ldap_client
+  tags: ldap
+
 - name: Apply login common installation and config
   hosts: manager, login_node
   gather_facts: false
