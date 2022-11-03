@@ -111,10 +111,3 @@ kerberos_admin_password: ""
 # It can be set to true or false
 # By default it is set to false indicating security features will not be configured
 enable_secure_login_node: false
-
-# Mandatory field when nfs_node group is defined with an IP and omnia is required to configure nfs server.
-# IP of Powervault connected to NFS Server should be provided.
-# In a single run of omnia, only one NFS Server is configured.
-# To configure multiple NFS Servers, add one IP in nfs_node group in a single run of omnia.yml and 
-# give variable values accordingly. To configure another nfs node, update variables and run nfs_sas.yml
-powervault_ip:
