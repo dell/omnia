@@ -84,10 +84,9 @@ OS Version Control Plane Compute Nodes
 
 .. note::
     * At any given point, the client and management BeeGFS servers must be running the same major version of BeeGFS (ie 7.x). However, minor versions need not match (ie, management **7.x**.y and client **7.x**.z is supported).
+
     * Upgrading BeeGFS to 7.3 using ``omnia.yml`` is not supported.
 
+    * Currently, Omnia does not support BeeGFS versions 7.3.1 and 7.3.2.
 
-.. include:: ../../../EnablingOptionalFeatures/rhsm.rst
-
-.. include:: ../../../EnablingOptionalFeatures/updatekernel.rst
 
