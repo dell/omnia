@@ -48,7 +48,7 @@
   tags: ldap
 
 - name: Apply login common installation and config
-  hosts: manager, login_node
+  hosts: manager, login_node, compute
   gather_facts: false
   roles:
     - login_common
@@ -62,7 +62,7 @@
   tags: freeipa
 
 - name: Apply login node installation and config
-  hosts: login_node
+  hosts: login_node, compute
   gather_facts: false
   roles:
     - login_node
