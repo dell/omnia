@@ -19,8 +19,11 @@ Enter all required parameters in ``omnia/input/accelerator_config.yml``.
 | cuda_stream          | latest-dkms              | optional  | A stream in CUDA is a sequence of operations that execute on the device   in the order in which they are issued by the host code.                                                                                    |
 +----------------------+--------------------------+-----------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-.. note:: For target nodes running RedHat, ensure that redhat subscription is enabled before running ``accelerator.yml``
+.. note::
 
+    * For target nodes running RedHat, ensure that redhat subscription is enabled before running ``accelerator.yml``
+
+    * The post-provision script calls ``network.yml`` to install OFED drivers.
 
 To install all the latest GPU drivers and toolkits, run: ::
 

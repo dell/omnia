@@ -1,6 +1,21 @@
 Frequently Asked Questions
 ==========================
 
+**How to add a new node for provisioning?**
+
+
+1. Using a mapping file:
+
+    * Update the existing mapping file by appending the new entry (without the disrupting the older entries) or provide a new mapping file by pointing ``pxe_mapping_file_path`` in ``provision_config.yml`` to the new location.
+
+    * Run ``provision.yml``.
+
+2. Using the switch IP:
+
+    * Run ``provision.yml`` once the switch has discovered the potential new node.
+
+
+
 **Why does splitting an ethernet Z series port fail with "Failed. Either port already split with different breakout value or port is not available on ethernet switch"?**
 
 

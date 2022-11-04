@@ -192,5 +192,5 @@ BeeGFS is a hardware-independent POSIX parallel file system (a.k.a. Software-def
 
 .. image:: ../../images/BeeGFS_Structure.jpg
 
-For a list of pre-requisites to setting up BeeGFS, check out the `Omnia Pre-requisites <schedulerprepreqs.html>`_
+For a list of pre-requisites to setting up BeeGFS, check out the `Omnia Pre-requisites <schedulerprereqs.html>`_
 

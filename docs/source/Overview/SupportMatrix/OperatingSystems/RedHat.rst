@@ -87,6 +87,4 @@ OS Version Control Plane Compute Nodes
 
     * Upgrading BeeGFS to 7.3 using ``omnia.yml`` is not supported.
 
-    * Currently, Omnia does not support BeeGFS versions 7.3.1 and 7.3.2.
-
 

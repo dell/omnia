@@ -23,7 +23,10 @@ Once the servers are provisioned, run the post provision script to:
     172.17.0.102 service_tag=XXXXXXX operating_system=Rocky
     172.17.0.103 service_tag=XXXXXXX operating_system=Rocky
 
-To run the script, use the below command: ::
+
+.. note:: Before post provision script, verify redhat subscription is enabled using the ``rhsm_subscription.yml`` playbook in utils
+
+To run the script, use the below command:::
 
     ansible-playbook post_provision.yml
 

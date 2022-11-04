@@ -21,3 +21,5 @@ New Features
 -	Omnia playbook execution with Kubernetes, Slurm & FreeIPA installation in all compute nodes
 
 -	Infiniband switch configuration and split port functionality
+
+-   Added support for Ethernet Z series switches.

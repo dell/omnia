@@ -16,8 +16,6 @@ Below is a list of all Omnia's roles:
   Network/index
   Scheduler/index
   Storage/index
-  Logging/index
   Accelerator/index
-  Security/index
   Monitor/index
   Utils/index
