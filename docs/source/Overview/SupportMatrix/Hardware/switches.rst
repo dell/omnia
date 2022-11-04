@@ -13,3 +13,8 @@ Switches
 +==============================+==============================================+
 | Dell Networking Switches     | PowerSwitch   S3048-ON PowerSwitch S5232F-ON |
 +------------------------------+----------------------------------------------+
+
+
+.. note:: The switches that have reached EOL might not function properly. It is recommended by Omnia to use the switch models mentioned in support matrix.
+
+
