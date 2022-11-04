@@ -36,10 +36,6 @@ Before You Build Clusters
 
 * NFS bolt on support
 
-* NFS server-client configuration (With powervault)
-
-
-
 
 
 **Optional features installed by omnia.yml**
@@ -125,7 +121,7 @@ To open the ports required, use the following steps:
 
 .. warning:: Powervault will only be available over SAS if the powervault has been configured using `powervault.yml <../ConfiguringStorage>`_.
 
-* For multiple NFS volumes, enter the following details in JSON list format in ``powervault_vars.yml`` under ``powervault_volumes``:
+* For multiple NFS volumes, enter the following details in JSON list format in ``powervault_input.yml`` under ``powervault_volumes``:
 
     - name [Mandatory]: The name of the NFS export.
 
@@ -155,7 +151,7 @@ To open the ports required, use the following steps:
 
 .. image:: ../../images/MultipathingOverSAS.png
 
-* Set ``powervault_protocol`` to 'sas' in ``powervault_vars.yml``.
+* Set ``powervault_protocol`` to 'sas' in ``powervault_input.yml``.
 
 * Configuring NFS over ISCSI is only supported on Powervault ME4.
 
