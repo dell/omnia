@@ -9,7 +9,7 @@ Omnia uses `FreeIPA (on RockyOS) <https://www.freeipa.org/page/Documentation>`_ 
 
 
 
-Set the parameter 'enable_security_support' to true in ``base_vars.yml``.
+Set the parameter 'enable_security_support' to true in ``provision_config.yml``.
 
 
 

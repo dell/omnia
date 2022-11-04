@@ -117,7 +117,7 @@ To open the ports required, use the following steps:
 
 **NFS server configuration**
 
-* Ensure that powervault support is enabled by setting ``powervault_support`` to true in ``base_vars.yml``. By default, a volume called 'omnia_home' will be created on the powervault to mount on the nfs_node.
+* Ensure that powervault support is enabled by setting ``powervault_support`` to true in ``provision_config.yml``. By default, a volume called 'omnia_home' will be created on the powervault to mount on the nfs_node.
 
 .. warning:: Powervault will only be available over SAS if the powervault has been configured using `powervault.yml <../ConfiguringStorage>`_.
 

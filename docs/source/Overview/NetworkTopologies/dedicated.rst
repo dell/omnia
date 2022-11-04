@@ -47,7 +47,7 @@ Depending on internet access for host nodes, there are two ways to achieve a ded
 
 
 
-When all compute nodes have their own public network access, ``primary_dns`` and ``secondary_dns`` in ``base_vars.yml`` become optional variables as the control plane is not required to be a gateway to the network. The network design would follow the below diagram:
+When all compute nodes have their own public network access, ``primary_dns`` and ``secondary_dns`` in ``provision_config.yml`` become optional variables as the control plane is not required to be a gateway to the network. The network design would follow the below diagram:
 
 
 
@@ -59,7 +59,7 @@ When all compute nodes have their own public network access, ``primary_dns`` and
 
 
 
-When all compute nodes rely on the control plane for public network access, the variables ``primary_dns`` and ``secondary_dns`` in ``base_vars.yml`` are used to indicate that the control plane is the gateway for all compute nodes to get internet access. Since all public network traffic will be routed through the control plane, the user may have to take precautions to avoid bottlenecks in such a set-up. ``
+When all compute nodes rely on the control plane for public network access, the variables ``primary_dns`` and ``secondary_dns`` in ``provision_config.yml`` are used to indicate that the control plane is the gateway for all compute nodes to get internet access. Since all public network traffic will be routed through the control plane, the user may have to take precautions to avoid bottlenecks in such a set-up. ``
 
 
 
@@ -71,7 +71,7 @@ When all compute nodes rely on the control plane for public network access, the 
 
 
 
-Depending on the user input in ``base_vars.yml``, the below table explains the outcomes of running ``provision.yml`` to configure the network:
+Depending on the user input in ``provision_config.yml``, the below table explains the outcomes of running ``provision.yml`` to configure the network:
 
 
 +-----------------------+---------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------+
