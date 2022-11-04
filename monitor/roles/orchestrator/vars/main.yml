@@ -20,7 +20,7 @@ k8s_pkgs:
   - yum-plugin-versionlock
   - python3-netaddr
 success_msg_k8s_pod_network_cidr: "Appliance k8s pod network cidr validated"
-fail_msg_k8s_pod_network_cidr: "Failed. Incorrect appliance k8s pod network cidr provided in base_vars.yml"
+fail_msg_k8s_pod_network_cidr: "Failed. Incorrect appliance k8s pod network cidr provided in monitor_config.yml"
 utils_collection: ansible.utils:2.5.2
 pip_version: pip3.8
 
