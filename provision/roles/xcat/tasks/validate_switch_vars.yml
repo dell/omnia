@@ -28,20 +28,16 @@
     - '"/" in pxe_mapping_file_path'
   tags: init
 
-- name: Assert if PXE mapping file path is valid or not
-  block:
-    - name: Check that the pxe mapping file path exists
-      ansible.builtin.stat:
-        path: "{{ pxe_mapping_file_path }}"
-      register: pxe_stat_result
-      tags: init
-
-    - name: Fail if config file doesn't exist
-      ansible.builtin.fail:
-        msg: "{{ fail_msg_pxe_path }}"
-      when: not pxe_stat_result.stat.exists
-      tags: init
+- name: Validate PXE mapping file
+  ansible.builtin.include_tasks: validate_mapping_file.yml
   when: pxe_mapping_file
+
+- name: Warning - both mapping file and switch ip is provided
+  ansible.builtin.debug:
+    msg: "{{ provision_option_fail_msg }}"
+  when:
+    - pxe_mapping_file
+    - pxe_switch_ip | length > 1
 
 # Assert the Switch details provided in case PXE mapping file not present
 - name: Validate switch details exist if pxe mapping file not present
@@ -58,7 +54,7 @@
 
     - name: Valid pxe switch ip is given
       ansible.builtin.assert:
-        that: pxe_switch_ip | ipv4
+        that: pxe_switch_ip | ansible.utils.ipv4
         success_msg: "{{ pxe_switch_ip_valid }}"
         fail_msg: "{{ pxe_switch_ip_invalid }}"
 

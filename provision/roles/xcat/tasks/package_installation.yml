@@ -34,6 +34,11 @@
   ansible.builtin.command: "{{ python_version }} -m pip install {{ requests_python_package }}"
   changed_when: true
 
-- name: Install ansible galaxy collection ansible.utils
-  ansible.builtin.command: ansible-galaxy collection install "{{ ipaddr_collection }}"
+- name: Install python pandas
+  ansible.builtin.command: "{{ python_version }} -m pip install {{ pandas_python_package }}"
   changed_when: true
+
+- name: Install ansible galaxy collection ansible.utils
+  ansible.builtin.command: ansible-galaxy collection install "{{ item }}"
+  changed_when: true
+  with_items: "{{ ansible_galaxy_collection }}"

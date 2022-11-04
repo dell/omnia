@@ -52,7 +52,8 @@
           ansible.builtin.set_fact:
             nics_avail: "{{ nics_avail + [item.split('-')[1]] }}"
           with_items: "{{ nics_status.stdout_lines }}"
-
+          when: "'ifcfg-ib' in item"
+   
         - name: Fetch IB nics
           ansible.builtin.include_tasks: fetch_ib_nics.yml
           with_items: "{{ nics_avail }}"
@@ -73,7 +74,7 @@
           community.general.nmcli:
             type: infiniband
             conn_name: '{{ ib_nics[0] }}'
-            ip4: '{{ infiniband_ip }}/24'
+            ip4: '{{ infiniband_ip }}/16'
             method4: manual
             state: present
           when: ib_nics | length > 0

@@ -13,6 +13,32 @@
 # limitations under the License.
 ---
 
+- name: Verify all paramaters are provided
+  ansible.builtin.assert:
+    that:
+      - ib_admin_password is defined
+      - ib_monitor_password is defined
+      - ib_default_password is defined
+      - ib_default_password | length > 0
+      - '"-" not in ib_default_password '
+      - '"\\" not in ib_default_password '
+      - '"\"" not in ib_default_password '
+      - " \"'\" not in ib_default_password "
+      - ib_admin_password | regex_search('^(?=.*[A-Z])(?=.*[0-9])(?=.*[a-z]).{8,}$')
+      - ib_admin_password | length < 65
+      - '"-" not in ib_admin_password '
+      - '"\\" not in ib_admin_password '
+      - '"\"" not in ib_admin_password '
+      - " \"'\" not in ib_admin_password "
+      - ib_monitor_password | regex_search('^(?=.*[A-Z])(?=.*[0-9])(?=.*[a-z]).{8,}$')
+      - ib_monitor_password | length < 65
+      - '"-" not in ib_monitor_password '
+      - '"\\" not in ib_monitor_password '
+      - '"\"" not in ib_monitor_password '
+      - " \"'\" not in ib_monitor_password "
+    success_msg: "{{ success_valid_msg }}"
+    fail_msg: "{{ fail_validation_msg }}"
+
 - name: Expect-package installation
   ansible.builtin.pip:
     name: pexpect
@@ -42,21 +68,6 @@
       with_items: "{{ range_ports }}"
   when: ib_split_ports | default("", true) | length > 1
 
-- name: Validate ib_default_password declaration
-  ansible.builtin.fail:
-    msg: "{{ ib_default_passwd_dec_fail_msg }}"
-  when: ib_default_password is not defined
-
-- name: Validate ib_admin_password declaration
-  ansible.builtin.fail:
-    msg: "{{ ib_admin_passwd_dec_fail_msg }}"
-  when: ib_admin_password is not defined
-
-- name: Validate ib_monitor_password declaration
-  ansible.builtin.fail:
-    msg: "{{ ib_monitor_passwd_dec_fail_msg }}"
-  when: ib_monitor_password is not defined
-
 - name: Validate admin password is not username
   ansible.builtin.fail:
     msg: "{{ ib_usr_admin_passwd_fail_msg }}"
@@ -66,53 +77,3 @@
   ansible.builtin.fail:
     msg: "{{ ib_usr_monitor_passwd_fail_msg }}"
   when: ib_monitor_password == ib_username
-
-- name: Validate default password of IB switch
-  block:
-    - name: Assert ib_default_password
-      ansible.builtin.assert:
-        that:
-          - ib_default_password | length > 0
-          - '"-" not in ib_default_password '
-          - '"\\" not in ib_default_password '
-          - '"\"" not in ib_default_password '
-          - " \"'\" not in ib_default_password "
-      no_log: true
-  rescue:
-    - name: Validate ib_default_password
-      ansible.builtin.fail:
-        msg: "{{ ib_default_password_fail_msg }}"
-
-- name: Validate admin password of IB switch
-  block:
-    - name: Asset ib_admin_password
-      ansible.builtin.assert:
-        that:
-          - ib_admin_password | regex_search('^(?=.*[A-Z])(?=.*[0-9])(?=.*[a-z]).{8,}$')
-          - ib_admin_password | length < 65
-          - '"-" not in ib_admin_password '
-          - '"\\" not in ib_admin_password '
-          - '"\"" not in ib_admin_password '
-          - " \"'\" not in ib_admin_password "
-      no_log: true
-  rescue:
-    - name: Validate ib_admin_password
-      ansible.builtin.fail:
-        msg: "{{ ib_admin_password_fail_msg }}"
-
-- name: Validate monitor password of IB switch
-  block:
-    - name: Validate ib_monitor_password
-      ansible.builtin.assert:
-        that:
-          - ib_monitor_password | regex_search('^(?=.*[A-Z])(?=.*[0-9])(?=.*[a-z]).{8,}$')
-          - ib_monitor_password | length < 65
-          - '"-" not in ib_monitor_password '
-          - '"\\" not in ib_monitor_password '
-          - '"\"" not in ib_monitor_password '
-          - " \"'\" not in ib_monitor_password "
-      no_log: true
-  rescue:
-    - name: Validate ib_monitor_password
-      ansible.builtin.fail:
-        msg: "{{ ib_monitor_password_fail_msg }}"

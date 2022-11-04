@@ -86,22 +86,23 @@ Connecting to internal databases
 
 Checking and updating encrypted parameters
 -----------------------------------------------
-   1. Move to the filepath where the parameters are saved (as an example, we will be using ``login_vars.yml``):
-      ``cd control_plane/input_params``
-   2. To view the encrypted parameters:
-   ``ansible-vault view login_vars.yml --vault-password-file .login_vault_key``
-   3. To edit the encrypted parameters:
-    ``ansible-vault edit login_vars.yml --vault-password-file .login_vault_key``
+
+1. Move to the filepath where the parameters are saved (as an example, we will be using ``provision_config.yml``):
+
+      ``cd omnia/input/``
+
+2. To view the encrypted parameters: ::
+
+   ``ansible-vault view provision_config.yml --vault-password-file .provision_vault_key``
+
+  3. To edit the encrypted parameters: ::
+
+    ``ansible-vault edit provision_config.yml --vault-password-file .provision_vault_key``
 
 Checking pod status on the control plane
 --------------------------------------------
    * Select the pod you need to troubleshoot from the output of ``kubectl get pods -A``
    * Check the status of the pod by running ``kubectl describe pod <pod name> -n <namespace name>``
-
-Omnia version file
-------------------------
-The Omnia version number is stored in ``/opt/omnia/omnia_version`` when ``provision.yml`` is run.
-
 
 .. |Dashboard| image:: ../images/Visualization/DashBoardIcon.PNG
     :height: 25px

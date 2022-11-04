@@ -1,5 +1,10 @@
-[master]
-192.168.1.131
+#Example Inventory FIle 
 
-[node]
-192.168.1.132
+[masters]
+192.168.123.101
+
+
+[workers]
+192.168.123.102     node_name=c02.aiaas.local
+192.168.123.103     node_name=c03.aiaas.local
+192.168.123.104     node_name=c04.aiaas.local

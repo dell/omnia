@@ -13,6 +13,21 @@
 #  limitations under the License.
 ---
 
+- name: Check for beegfs_ofed_kernel_modules_path
+  block:
+    - name: Verify beegfs_ofed_kernel_modules_path existence
+      ansible.builtin.stat:
+        path: "{{ beegfs_ofed_kernel_modules_path }}"
+      register: beegfs_ofed_path
+
+    - name: Fail if beegfs_ofed_kernel_modules_path doesn't exists
+      ansible.builtin.fail:
+        msg: "{{ fail_msg_beegfs_ofed_path }}"
+      when: not beegfs_ofed_path.stat.exists
+  when:
+    - beegfs_rdma_support
+    - beegfs_ofed_kernel_modules_path | length > 1
+
 - name: Fetch SElinux mode
   ansible.builtin.command: sestatus
   register: selinux_status
@@ -85,9 +100,10 @@
   changed_when: false
 
 - name: Install kernel-devel package
-  ansible.builtin.package:
-    name: "kernel-devel-{{ kernel_version.stdout }}"
-    state: present
+  ansible.builtin.command: "yum install kernel-devel-{{ kernel_version.stdout }} -y"
+  args:
+    warn: false
+  changed_when: false
 
 - name: Install common packages for BeeGFS client
   ansible.builtin.package:

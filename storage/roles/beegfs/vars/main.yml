@@ -24,6 +24,7 @@ beegfs_unmount_client_fail_msg: "Failed, beegfs_unmount_client should be true wh
 beegfs_mount_status_msg: "Failed, Make sure there is an active beegfs file system running, which is not in busy state"
 os_supported_redhat: "redhat"
 rhel_code_ready_repo: codeready-builder-for-rhel-8-x86_64-rpms
+fail_msg_beegfs_ofed_path: "Please make sure {{ beegfs_ofed_kernel_modules_path }} path exists"
 
 # Usage: remove_client.yml
 beegfs_folder_location: "/etc/beegfs"
@@ -63,6 +64,21 @@ modified_arg_ofed: "buildArgs=-j8 BEEGFS_OPENTK_IBVERBS=1 OFED_INCLUDE_PATH={{ b
 rebuild_path: "/etc/init.d/beegfs-client rebuild"
 beegfs_client_setup: "/opt/beegfs/sbin/beegfs-setup-client"
 file_mode: '0644'
+beegfs_client_status:
+   - "Please make sure you give correct IP for beegfs_mgmt_server variable"
+   - "Make sure beegfs-client version is compatible with other beegfs server versions"
+   - "Make sure beegfs-mgmtd, beegfs-meta, beegfs-storage server is running"
+   - "Firewall ports should be enabled on beegfs-mgmtd, beegfs-meta, beegfs-storage servers"
+   - "Make sure to reload firewall. After enabling firewall ports"
+   - "If BeeGFS version is greater than 7.3.1, make sure to disable security feature in meta,storage, mgmtd servers"
+beegfs_rebuild_status:
+   - "Make sure that beegfs-client and beegfs other server's versions are compatible"
+   - "Please use compatible OFED and BeeGFS versions"
+   - "Please check kernel version is compatible with BeeGFS or not"
+   - "Please provide a valid path for beegfs_ofed_kernel_modules_path variable"
+beegfs_rebuild_tcp_msg:
+   - "Make sure that beegfs-client and beegfs other server's versions are compatible"
+helperd_location: "/etc/beegfs/beegfs-helperd.conf"
 
 # Usage: validate_beegfs_vars.yml
 selinux_fail_msg: "SELinux should be in disabled mode, for installing beegfs client. Please diasbled selinux and reboot the system"
@@ -79,7 +95,6 @@ ping_msg: "100% packet loss"
 beegfs_mounts_fail_msg: "Failed. Please provide a path for mounting beegfs file system"
 beegfs_client_version_success_msg: "beegfs_client_version, validated successfully "
 beegfs_client_version_fail_msg: "Failed, Please provide beegfs_client_version grater than 7.2"
-ofed_kernel_fail_msg: "Failed. beegfs_rdma_support must be true for configuring separate drivers"
 beegfs_non_leap_repo: "https://www.beegfs.io/release/beegfs_{{ beegfs_client_version }}/dists/beegfs-rhel8.repo"
 beegfs_repo_status_msg: "Failed. Value entered for beegfs_client_version is not valid. Please enter valid beegfs client version by checking beegfs release page"
 beegfs_unmount_client_success_msg: "beegfs_unmount_client validated successfully"

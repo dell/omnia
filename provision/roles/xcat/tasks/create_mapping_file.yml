@@ -53,17 +53,38 @@
     - empty_ib_ip | int > 0
     - empty_bmc_ip | int > 0
 
-- name: Check for reachable node - {{ item.admin_ip }}
-  ansible.builtin.command: ping -c1 {{ item.admin_ip }}
-  register: ping_result
-  changed_when: false
-  failed_when: false
+- name: Check IP is host or not
+  block:
+    - name: Check for reachable node - {{ item.admin_ip }}
+      ansible.builtin.command: ping -c1 {{ item.admin_ip }}
+      register: ping_result
+      changed_when: false
+      failed_when: false
+
+    - name: Refresh ssh-key - {{ item.admin_ip }}
+      ansible.builtin.command: ssh-keygen -R {{ item.admin_ip }}
+      changed_when: false
+      failed_when: false
+      when: ping_search_key not in ping_result.stdout
+
+    - name: Verify whether passwordless ssh is set on the remote host - {{ item.admin_ip }}
+      ansible.builtin.command: sshpass ssh -o "PasswordAuthentication=no" root@{{ item.admin_ip }} 'hostname'
+      register: ssh_output
+      async: 15
+      poll: 5
+      failed_when: false
+      changed_when: false
+      when: ping_search_key not in ping_result.stdout
   when: item.admin_ip is defined
 
-- name: Create group with admin_ip - {{ item.admin_ip }}
+- name: Create group node_inventory with admin_ip - {{ item.admin_ip }}
   ansible.builtin.add_host:
     name: "{{ item.admin_ip }}"
     groups: "node_inventory"
   when:
     - item.admin_ip is defined
     - ping_search_key not in ping_result.stdout
+    - ssh_output.stderr is defined
+    - ssh_output.stdout is defined
+    - ssh_search_key not in ssh_output.stderr | lower
+    - ssh_output.stdout | length > 2

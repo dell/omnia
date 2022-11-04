@@ -23,6 +23,7 @@ Change directory to Omnia using: ::
 
     cd omnia
     chmod +x prereq.sh
+    sh prereqs.sh
 
 Run the script ``prereqs.sh`` to verify the system is ready for Omnia deployment.
 

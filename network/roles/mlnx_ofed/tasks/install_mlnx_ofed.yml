@@ -54,21 +54,30 @@
       changed_when: false
       register: run_output
 
+- name: Set kernel grub mode
+  ansible.builtin.command: grubby --set-default /boot/vmlinuz-"{{ kernel_version.stdout }}"
+  changed_when: false
+
 - name: Post installation steps
   ansible.builtin.command: dracut -f
   changed_when: false
-
-- name: Reboot
-  ansible.builtin.reboot:
 
 - name: Enable openibd service
   ansible.builtin.service:
     name: openibd
     enabled: true
 
+- name: Reboot
+  ansible.builtin.reboot:
+
+- name: Restart openibd service
+  ansible.builtin.service:
+    name: openibd
+    state: restarted
+
 - name: Check IB nic availability
   block:
-    - name: Check status of openibd service
+    - name: Check IB nic status
       ansible.builtin.shell: "ip a | grep -o ' ib.'"
       changed_when: false
       register: ib_nics
