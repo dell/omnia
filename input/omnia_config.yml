@@ -53,7 +53,7 @@ ansible_config_file_path: /etc/ansible
 # Boolean indicating whether login node is required or not
 # It can be set to true or false
 # By default it is set to true indicating login node will be configured
-login_node_required: true
+login_node_required: false
 
 # Boolean indicating whether ldap client is required or not
 # It can be set to true or false
@@ -90,6 +90,12 @@ user_home_dir: "/home"
 # For LDAP - if dc=omnia,dc=test, Provide omnia.test
 # For LDAP - If dc=dell,dc=omnia,dc=com Provide dell.omnia.com
 domain_name: "omnia.test"
+
+# Boolean indicating whether FreeIPA is required or not
+# It can be set to true or false
+# By default it is set to true indicating FreeIPA will be installed on all the nodes
+# If freeipa_required is set to false, then FreeIPA will not be installed
+freeipa_required: true
 
 # A Kerberos realm is the domain over which a Kerberos authentication server has the authority to authenticate a user, host or service. 
 # A realm name is often, but not always the upper case version of the name of the DNS domain over which it presides

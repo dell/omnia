@@ -53,6 +53,10 @@ secure_login_node_fail_msg: "Failed. enable_secure_login_node should be either t
 ipa_secret_file: "{{ playbook_dir }}/control_plane/roles/control_plane_security/files/.ipavars.yml"
 ldap_required_success_msg: "ldap_required variable successfully validated"
 ldap_required_fail_msg: "Failed. ldap_required should be either true or false"
+freeipa_required_success_msg: "freeipa_required variable sccessfully validated"
+freeipa_required_fail_msg: "Failed. freeipa_required should be either true or false"
+ldap_login_failure_msg: "Failed. Both login_node_required and ldap_required cannot be true"
+ldap_freeipa_failure_msg: "Failed. Both ldap_required and freeipa_required cannot be true"
 
 # Usage: validations.yml
 skip_tag_fail_msg: "Can't skip both slurm and kubernetes"
