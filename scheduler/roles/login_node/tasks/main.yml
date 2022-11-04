@@ -61,8 +61,12 @@
         - name: Restrict nonessential programs
           ansible.builtin.include_tasks: restrict_nonessentials.yml
           when: hostvars['127.0.0.1']['restrict_program_status']
-      when: hostvars['127.0.0.1']['enable_secure_login_node']
+      when:
+        - hostvars['127.0.0.1']['enable_secure_login_node']
+        - inventory_hostname in groups['login_node'][0]
   when:
-    - hostvars['127.0.0.1']['login_node_required']
+    - hostvars['127.0.0.1']['login_node_required'] or
+      hostvars['127.0.0.1']['freeipa_required']
+    - not hostvars['127.0.0.1']['ldap_required']
     - groups['manager'][0] != groups['login_node'][0]
     - inventory_hostname not in groups['manager'][0]
