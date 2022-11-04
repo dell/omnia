@@ -35,5 +35,5 @@
   changed_when: false
 
 - name: Enable snoopy
-  ansible.builtin.command: snoopyctl enable
+  ansible.builtin.command: /usr/local/sbin/snoopyctl enable
   changed_when: false
