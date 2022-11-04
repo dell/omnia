@@ -71,6 +71,7 @@ To ensure security while running jobs on the cluster, users can be assigned perm
     cd omnia/scheduler
     ansible-playbook job_based_user_access.yml -i inventory
 
+
 .. note::
 
     * The inventory queried in the above command is to be created by the user prior to running ``omnia.yml`` as ``scheduler.yml`` is invoked by ``omnia.yml``

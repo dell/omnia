@@ -28,13 +28,18 @@ Before You Build Clusters
 
 * Slurm: Once all the required parameters in `Omnia_config.yml <schedulerinputparams.html>`_ are filled in, ``omnia.yml`` can be used to set up slurm.
 
-* Login Node (Additionally secure login node)
+* LDAP client support: The manager and compute nodes will have LDAP installed but the login node will be excluded.
+
+* FreeIPA support
+
+* Login Node (Additionally secure login node): FreeIPA will be installed when ``login_node_required`` is TRUE.
 
 * Kubernetes: Once all the required parameters in `omnia_config.yml <schedulerinputparams.html>`_ are filled in, ``omnia.yml`` can be used to set up kubernetes.
 
 * BeeGFS bolt on installation
 
 * NFS bolt on support
+
 
 
 
@@ -110,9 +115,17 @@ To open the ports required, use the following steps:
 
 .. include:: ../../Appendices/hostnamereqs.rst
 
+**LDAP Client configuration**
 
+* Ensure that an LDAP server is set up outside the cluster.
 
+* Ensure that a Self Signed Certificate or a CA signed certificate is available for TLS encrypted connectivity.
 
+* Ports 389 and 636 should be open on the server.
+
+* Ensure that the LDAP server is reachable to the entire cluster.
+
+* Ensure that firewall.d allows for ldapd communication.
 
 
 **NFS server configuration**
@@ -154,6 +167,7 @@ To open the ports required, use the following steps:
 * Set ``powervault_protocol`` to 'sas' in ``powervault_input.yml``.
 
 * Configuring NFS over ISCSI is only supported on Powervault ME4.
+
 
   
 

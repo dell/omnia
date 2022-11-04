@@ -165,6 +165,12 @@ The following **Slurm** roles are provided by Omnia when ``omnia.yml`` file is r
 
 	- Slurm exporter is installed on the host like Slurm, and Slurm exporter will be successfully installed only if Slurm is installed.
 
+**Installing LDAP Client**
+
+Manager and compute nodes will have LDAP client installed and configured if ``ldap_required`` is set to TRUE.
+
+.. note:: No users/groups will be created by Omnia.
+
 **Login node roles**
 
 
@@ -174,7 +180,7 @@ To enable the login node, the *login_node_required* variable must be set to "tru
 
 - **login_server** role: FreeIPA server is installed and configured on the manager node to provide authentication using LDAP and Kerberos principles.
 
-- **login_node** role: For Rocky, FreeIPA client is installed and configured on the login node and is integrated with the server running on the manager node. For LeapOS, 389ds will be installed instead.
+- **login_node** role: For RHEL and Rocky, FreeIPA client is installed and configured on the login and compute nodes and is integrated with the server running on the manager node. For LeapOS, 389ds will be installed instead.
 
 
 
@@ -186,7 +192,7 @@ To enable the login node, the *login_node_required* variable must be set to "tru
 
  * The FreeIPA server and client: Use ``--skip-tags freeipa`` while executing the *omnia.yml* file.
 
-**Using BeeGFS on the cluster**
+**Using BeeGFS Client on the cluster**
 
 BeeGFS is a hardware-independent POSIX parallel file system (a.k.a. Software-defined Parallel Storage) developed with a strong focus on performance and designed for ease of use, simple installation, and management. BeeGFS is created on an Available Source development model (source code is publicly available), offering a self-supported Community Edition and a fully supported Enterprise Edition with additional features and functionalities. BeeGFS is designed for all performance-oriented environments including HPC, AI and Deep Learning, Media & Entertainment, Life Sciences, and Oil & Gas (to name a few).
 
