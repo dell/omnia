@@ -44,6 +44,35 @@
         path: "{{ sssd_conf_dest }}"
         regexp: "homedir_substring = /home"
         replace: "homedir_substring = {{ hostvars['127.0.0.1']['user_home_dir'] }}"
+
+    - name: Update the certificate path
+      ansible.builtin.replace:
+        path: "{{ sssd_conf_dest }}"
+        regexp: "ldap_tls_cacert = /etc/openldap/certs/ldapserver.crt"
+        replace: "ldap_tls_cacert = {{ hostvars['127.0.0.1']['ldap_ca_cert_path'] }}"
+
+    - name: Update bind dn details if it is provided in input file
+      block:
+        - name: Update the certificate path
+          ansible.builtin.replace:
+            path: "{{ sssd_conf_dest }}"
+            regexp: "#ldap_default_bind_dn = cn=admin,dc=omnia,dc=test"
+            replace: "ldap_default_bind_dn = cn={{ hostvars['127.0.0.1']['ldap_bind_username'] }},{{ reqd_domain_name }}"
+
+        - name: Update the authtok type
+          ansible.builtin.replace:
+            path: "{{ sssd_conf_dest }}"
+            regexp: "#ldap_default_authtok_type = password"
+            replace: "ldap_default_authtok_type = password"
+
+        - name: Update the ldap bind password
+          ansible.builtin.replace:
+            path: "{{ sssd_conf_dest }}"
+            regexp: "#ldap_default_authtok = blank"
+            replace: "ldap_default_authtok = {{ hostvars['127.0.0.1']['ldap_bind_password'] }}"
+      when:
+        - hostvars['127.0.0.1']['ldap_bind_username'] | length > 1
+        - hostvars['127.0.0.1']['ldap_bind_password'] | length > 1
   when:
     - hostvars['127.0.0.1']['ldap_connection_type'] == 'TLS' or
       hostvars['127.0.0.1']['ldap_connection_type'] == 'tls'
