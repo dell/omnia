@@ -1,0 +1,41 @@
+#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+## Usage: test_ldap_server_setup.yml
+ldap_package_installation_success_msg: "LDAP packages are successfully installed"
+ldap_package_installation_fail_msg: "LDAP package installation failed"
+slapd_status_success_msg: "slapd process is active and enabled"
+slapd_status_fail_msg: "slapd process is inactive or disbaled. Please check !!"
+slapd_password: "Dell_123$"
+user_olcSuffix: 'dc=dell,dc=com'
+user_olcRootDN: 'cn=admin'
+
+## Usage: test_ldap_authentication.yml
+random_number: "{{ 10000 | random }}"
+random_user_passwd: "{{ 10000 | random }}"
+ldap_cn_var: "user"
+ldap_sn_var: "validation"
+add_user_file_path: "{{ playbook_dir }}/files/adduser.ldif"
+ldap_add_user_success_msg: "LDAP user created successfully with cn: "
+ldap_add_user_fail_msg: "LDAP user creation failed"
+ldap_user_search_client_success_msg: "Created user available on client nodes"
+ldap_user_search_client_fail_msg: "Created user is not available on client nodes"
+ldap_client_installation_manager_success_msg: "LDAP client installation is successful on manager"
+ldap_client_installation_manager_fail_msg: "LDAP client installation failed on manager"
+ldap_client_installation_compute_success_msg: "LDAP client installation is successful on compute"
+ldap_client_installation_compute_fail_msg: "LDAP client installation failed on compute"
+ldap_client_installation_login_success_msg: "LDAP client is not installed on login node"
+ldap_client_installation_login_fail_msg: "LDAP client is installed even when login_node_required is false"
+ipa_installation_success_msg: "IPA installation successful on client nodes"
+ipa_installation_fail_msg: "IPA installation failed on client nodes"
