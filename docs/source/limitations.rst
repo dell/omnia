@@ -36,4 +36,4 @@ Limitations
 -  All iDRACs must have the same username and password.
 -  OpenSUSE Leap 15.3 is not supported on the Control Plane.
 -  Slurm Telemetry is supported only on a single cluster.
--  Since Omnia does not flush the mapping DB, PXE NIC ranges should contain IPs that are double the iDRACs present.
+-  Omnia might contain some unused MACs since LOM switch have both iDRAC MACs as well as ethernet MACs, PXE NIC ranges should contain IPs that are double the iDRACs present.

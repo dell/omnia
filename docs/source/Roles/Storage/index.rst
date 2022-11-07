@@ -80,7 +80,7 @@ To open the ports required, use the following steps:
 
     * When working with RHEL, ensure that the BeeGFS configuration is supported using the `link here <../../Overview/SupportMatrix/OperatingSystems/RedHat.html>`_.
 
-    * If the BeeGFS server (MGMTD, Meta, or storage) is running BeeGFS version 7.3.1 or higher, the security feature on the server should be disabled. Change the value of ``connDisableAuthentication`` to ``false`` in /etc/beegfs/beegfs-mgmtd.conf, /etc/beegfs/beegfs-meta.conf and /etc/beegfs/beegfs-storage.conf. Restart the services to complete the task: ::
+    * If the BeeGFS server (MGMTD, Meta, or storage) is running BeeGFS version 7.3.1 or higher, the security feature on the server should be disabled. Change the value of ``connDisableAuthentication`` to ``true`` in /etc/beegfs/beegfs-mgmtd.conf, /etc/beegfs/beegfs-meta.conf and /etc/beegfs/beegfs-storage.conf. Restart the services to complete the task: ::
 
         systemctl restart beegfs-mgmtd
         systemctl restart beegfs-meta

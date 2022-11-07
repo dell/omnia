@@ -37,6 +37,7 @@ First, enter all required parameters in ``omnia/input/storage_config.yml``
 |                                 |                                                                                     |           |      - { server_ip: xx.xx.xx.xx, server_share_path: “/mnt/share2”,   client_share_path: “/mnt/client2”, client_mount_options: “nosuid,rw,sync,hard,intr”}                                      |
 |                                 |                                                                                     |           |      - { server_ip: yy.yy.yy.yy, server_share_path: “/mnt/share3”,   client_share_path: “/mnt/client3”, client_mount_options:   “nosuid,rw,sync,hard,intr”}                                    |
 +---------------------------------+-------------------------------------------------------------------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
 .. note:: If ``omnia.yml`` is run with the ``omnia/input/storage_config.yml`` filled out, BeeGFS and NFS client will be set up.
 
 **Installing BeeGFS Client**
@@ -75,7 +76,18 @@ To open the ports required, use the following steps:
 
 * Ensure that the nodes in the inventory have been assigned **only** these roles: manager and compute.
 
- .. note:: When working with RHEL, ensure that the BeeGFS configuration is supported using the `link here <../../Overview/SupportMatrix/OperatingSystems/RedHat.html>`_.
+ .. note::
+
+    * When working with RHEL, ensure that the BeeGFS configuration is supported using the `link here <../../Overview/SupportMatrix/OperatingSystems/RedHat.html>`_.
+
+    * If the BeeGFS server (MGMTD, Meta, or storage) is running BeeGFS version 7.3.1 or higher, the security feature on the server should be disabled. Change the value of ``connDisableAuthentication`` to ``true`` in /etc/beegfs/beegfs-mgmtd.conf, /etc/beegfs/beegfs-meta.conf and /etc/beegfs/beegfs-storage.conf. Restart the services to complete the task: ::
+
+        systemctl restart beegfs-mgmtd
+        systemctl restart beegfs-meta
+        systemctl restart beegfs-storage
+        systemctl status beegfs-mgmtd
+        systemctl status beegfs-meta
+        systemctl status beegfs-storage
 
 **NFS bolt-on**
 
@@ -136,5 +148,3 @@ To open the ports required, use the following steps:
 (Where inventory refers to the `host_inventory_file.ini <../../samplefiles.html>`_ listing manager, login_node and compute nodes.)
 
 
-
-For more information, check out our `docs <https://omnia-documentation.readthedocs.io/en/latest/index.html>`_!
