@@ -66,3 +66,7 @@ After a reboot of the control plane while running ``provision.yml``, to bring up
 * Use ``nodeset all osimage=<selected OS image from previous command>`` to provision the OS on the target server.
 
 * PXE boot the target server to bring up the OS.
+
+**How many IPs are required within the PXE NIC range?**
+
+Ensure that the number of IPs available between ``pxe_nic_start_range`` and ``pxe_nic_end_range`` is double the number of iDRACs available to account for potential stale entries in the mapping DB.
