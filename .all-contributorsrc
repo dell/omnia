@@ -503,6 +503,16 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "rahuldell21",
+      "name": "rahuldell21",
+      "avatar_url": "https://avatars.githubusercontent.com/u/117621375?v=4",
+      "profile": "https://github.com/rahuldell21",
+      "contributions": [
+        "code",
+        "test"
+      ]
     }
   ],
   "contributorsPerLine": 7,
