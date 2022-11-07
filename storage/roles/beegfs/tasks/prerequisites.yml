@@ -100,9 +100,10 @@
   changed_when: false
 
 - name: Install kernel-devel package
-  ansible.builtin.package:
-    name: "kernel-devel-{{ kernel_version.stdout }}"
-    state: present
+  ansible.builtin.command: "yum install kernel-devel-{{ kernel_version.stdout }} -y"
+  args:
+    warn: false
+  changed_when: false
 
 - name: Install common packages for BeeGFS client
   ansible.builtin.package:

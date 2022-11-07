@@ -11,4 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
----
+--- 
+
+
+network_config_file: "{{ playbook_dir }}/../input/network_config.yml"
+ofed_success_message: "Specified OFED Driver Installed Successfully"
+ofed_fail_message: "Specified OFED Driver Not Installed Successfully"

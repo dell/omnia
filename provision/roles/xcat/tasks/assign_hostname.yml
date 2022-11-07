@@ -13,6 +13,12 @@
 # limitations under the License.
 ---
 
+- name: Delete the hosts file entry
+  ansible.builtin.lineinfile:
+    path: "{{ hosts_file_path }}"
+    state: absent
+    regexp: '^(.*){{ inventory_hostname }}(.*)'
+
 - name: Fetch record from mapping file
   ansible.builtin.shell: >
     set -o pipefail && \

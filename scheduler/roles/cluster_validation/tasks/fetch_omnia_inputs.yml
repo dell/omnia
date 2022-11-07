@@ -110,15 +110,44 @@
     success_msg: "{{ login_node_required_success_msg }}"
     fail_msg: "{{ login_node_required_fail_msg }}"
 
+- name: Verify the value of ldap_required
+  ansible.builtin.assert:
+    that:
+      - ldap_required == true or ldap_required == false
+    success_msg: "{{ ldap_required_success_msg }}"
+    fail_msg: "{{ ldap_required_fail_msg }}"
+
+- name: Verify the value of freeipa_required
+  ansible.builtin.assert:
+    that:
+      - freeipa_required == true or freeipa_required == false
+    success_msg: "{{ freeipa_required_success_msg }}"
+    fail_msg: "{{ freeipa_required_fail_msg }}"
+
+- name: Validate if login node and ldap required are enabled
+  ansible.builtin.fail:
+    msg: "{{ ldap_login_failure_msg }}"
+  when:
+    - login_node_required
+    - ldap_required
+
+- name: Validate if freeipa and ldap required are enabled
+  ansible.builtin.fail:
+    msg: "{{ ldap_freeipa_failure_msg }}"
+  when:
+    - freeipa_required
+    - ldap_required
+
 - name: Validate login node parameters when login_node_reqd is set to true
   ansible.builtin.fail:
-    msg: "{{ input_config_failure_msg }} for login_node"
+    msg: "{{ input_config_failure_msg }} for freeipa or login_node"
   when:
     - ( domain_name | length < 1 or
       realm_name | length < 1 or
       directory_manager_password | length < 1 or
       kerberos_admin_password | length < 1 )
-    - login_node_required
+    - login_node_required or freeipa_required
+    - not ldap_required
 
 - name: Verify the value of enable_secure_login_node
   ansible.builtin.assert:
@@ -134,7 +163,7 @@
       - "groups['login_node'] | length | int == 1"
     fail_msg: "{{ login_node_group_fail_msg }}"
     success_msg: "{{ login_node_group_success_msg }}"
-  when: login_node_required
+  when: login_node_required  or freeipa_required
 
 - name: Validate the domain name
   ansible.builtin.assert:
@@ -143,7 +172,9 @@
     success_msg: "{{ domain_name_success_msg }}"
     fail_msg: "{{ domain_name_fail_msg }}"
   when:
-    - login_node_required
+    - login_node_required or
+      freeipa_required or
+      ldap_required
 
 - name: Validate the realm name
   ansible.builtin.assert:
@@ -153,7 +184,8 @@
     success_msg: "{{ realm_name_success_msg }}"
     fail_msg: "{{ realm_name_fail_msg }}"
   when:
-    - login_node_required
+    - login_node_required or freeipa_required
+    - not ldap_required
 
 - name: Assert directory_manager_password
   ansible.builtin.assert:
@@ -167,7 +199,8 @@
     success_msg: "{{ success_msg_directory_manager_password }}"
     fail_msg: "{{ fail_msg_directory_manager_password }}"
   when:
-    - login_node_required
+    - login_node_required or freeipa_required
+    - not ldap_required
 
 - name: Assert kerberos_admin_password
   ansible.builtin.assert:
@@ -181,7 +214,8 @@
     success_msg: "{{ success_msg_kerberos_admin_password }}"
     fail_msg: "{{ fail_msg_kerberos_admin_password }}"
   when:
-    - login_node_required
+    - login_node_required or freeipa_required
+    - not ldap_required
 
 - name: Encrypt input config file
   ansible.builtin.command: >-
@@ -194,3 +228,7 @@
   when:
     - login_node_required
     - enable_secure_login_node
+
+- name: Fetch LDAP client inputs
+  ansible.builtin.include_tasks: fetch_ldap_client_inputs.yml
+  when: ldap_required
