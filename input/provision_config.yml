@@ -53,6 +53,7 @@ pxe_nic_end_range: "172.29.0.200"
 # If provided the db entry will be in parallel with either the pxe_nic ranges
 # Or whatever is provided in mapping file ( only if roce is disabled)
 # Example: If admin_ip: 172.29.0.101 and ib_nic_subnet: 178.30.0.0, then ib_ip: 178.30.0.101
+# Make sure ib nics having ib as prefix
 # Optional
 ib_nic_subnet: ""
 

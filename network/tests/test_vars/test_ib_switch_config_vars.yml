@@ -11,4 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
----
+--- 
+login_vars_file: "{{ playbook_dir }}/../../input/control_plane_config.yml"
+login_vault_file: "{{ playbook_dir }}/../../input/.control_plane_config_key.yml"
+file_perm: '0644'
+username: ""
+password: ""
+infiniband_inventory_path: /opt/omnia/infiniband_inventory
+ib_inventory_fail_msg: "Failed. Unable to find Infiniband Inventory"
+split_success_message: "IB Switch Split Successful"
+split_fail_message: "IB Switch Split Not Successful"

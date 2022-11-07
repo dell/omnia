@@ -51,6 +51,12 @@ login_node_required_fail_msg: "Failed. login_node_required should be either true
 secure_login_node_success_msg: "enable_secure_login_node successfully validated"
 secure_login_node_fail_msg: "Failed. enable_secure_login_node should be either true or false"
 ipa_secret_file: "{{ playbook_dir }}/control_plane/roles/control_plane_security/files/.ipavars.yml"
+ldap_required_success_msg: "ldap_required variable successfully validated"
+ldap_required_fail_msg: "Failed. ldap_required should be either true or false"
+freeipa_required_success_msg: "freeipa_required variable sccessfully validated"
+freeipa_required_fail_msg: "Failed. freeipa_required should be either true or false"
+ldap_login_failure_msg: "Failed. Both login_node_required and ldap_required cannot be true"
+ldap_freeipa_failure_msg: "Failed. Both ldap_required and freeipa_required cannot be true"
 
 # Usage: validations.yml
 skip_tag_fail_msg: "Can't skip both slurm and kubernetes"
@@ -68,13 +74,13 @@ nfs_node_group_success_msg: "nfs_node group check passed"
 # Usage: fetch_security_inputs.yml
 security_vars_filename: "omnia_security_config.yml"
 max_failures_success_msg: "max_failures successfully validated"
-max_failures_fail_msg: "Failed. Incorrect max_failures value in security_vars.yml"
+max_failures_fail_msg: "Failed. Incorrect max_failures value in omnia_security_config.yml"
 failure_reset_interval_success_msg: "failure_reset_interval successfully validated"
-failure_reset_interval_fail_msg: "Failed. Incorrect failure_reset_interval value in security_vars.yml"
+failure_reset_interval_fail_msg: "Failed. Incorrect failure_reset_interval value in omnia_security_config.yml"
 lockout_duration_success_msg: "lockout_duration successfully validated"
-lockout_duration_fail_msg: "Failed. Incorrect lockout_duration value in security_vars.yml"
+lockout_duration_fail_msg: "Failed. Incorrect lockout_duration value in omnia_security_config.yml"
 session_timeout_success_msg: "session_timeout successfully validated"
-session_timeout_fail_msg: "Failed. Incorrect session_timeout value in security_vars.yml"
+session_timeout_fail_msg: "Failed. Incorrect session_timeout value in omnia_security_config.yml"
 max_failures_default_value: 3
 failure_reset_interval_min_value: 30
 failure_reset_interval_max_value: 60
@@ -83,14 +89,14 @@ lockout_duration_max_value: 10
 session_timeout_min_value: 90
 session_timeout_max_value: 180
 alert_email_success_msg: "alert_email_address successfully validated"
-alert_email_fail_msg: "Failed. Incorrect alert_email_address value in security_vars.yml"
+alert_email_fail_msg: "Failed. Incorrect alert_email_address value in omnia_security_config.yml"
 alert_email_warning_msg: "[WARNING] alert_email_address is empty. Authentication failure alerts won't be configured."
 email_max_length: 320
 email_search_key: "@"
 user_success_msg: "user successfully validated"
-user_fail_msg: "Failed. Incorrect user format in security_vars.yml"
+user_fail_msg: "Failed. Incorrect user format in omnia_security_config.yml"
 allow_deny_success_msg: "Access successfully validated"
-allow_deny_fail_msg: "Failed. Incorrect Access format in security_vars.yml"
+allow_deny_fail_msg: "Failed. Incorrect Access format in omnia_security_config.yml"
 restrict_program_support_success_msg: "restrict_program_support successfully validated"
 restrict_program_support_failure_msg: "Failed. Accepted values are true or false."
 restrict_softwares_success_msg: "restrict_softwares successfully validated"
@@ -100,3 +106,11 @@ restrict_softwares_failure_msg: "Warning. Values should be comma separated. The 
 ansible_base_version: '2.9'
 ipaddr_collection: ansible.utils:2.5.2
 ansible_collection_nfs: ansible.posix:1.4.0
+
+#Usage: fetch_ldap_client_inputs.yml
+ldap_client_config_failure_msg: "LDAP Client Input parameters cannot be empty when ldap_reqired is set to true"
+ldap_server_failure_msg: "LDAP server is not reachable. Please check the reachability from cluster"
+ping_msg: "100% packet loss"
+ldap_connection_type_success_msg: "LDAP Connection type successfully validated"
+ldap_connection_type_fail_msg: "Failed. LDAP Connection type must be: SSL, TLS, ssl or tls"
+ldap_ca_cert_path_failure_msg: "Failed. The mentioned certificate does not exist"

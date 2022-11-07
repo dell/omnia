@@ -14,26 +14,26 @@
 ---
 
 - name: Install required packages
-  package:
+  ansible.builtin.package:
     name: "{{ snoopy_packages }}"
     state: present
 
 - name: Download snoopy package
-  get_url:
+  ansible.builtin.get_url:
     url: "{{ snoopy_url }}"
     dest: "{{ snoopy_path }}"
 
 - name: Change permissions
-  file:
+  ansible.builtin.file:
    path: "{{ snoopy_path }}"
    mode: "{{ snoopy_mode }}"
 
 - name: Run the script
-  shell: sh ./install-snoopy.sh stable
+  ansible.builtin.shell: sh ./install-snoopy.sh stable
   args:
    chdir: "{{ snoopy_path }}"
   changed_when: false
 
 - name: Enable snoopy
-  command: snoopy-enable
+  ansible.builtin.command: /usr/local/sbin/snoopyctl enable
   changed_when: false

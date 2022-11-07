@@ -70,6 +70,7 @@ beegfs_client_status:
    - "Make sure beegfs-mgmtd, beegfs-meta, beegfs-storage server is running"
    - "Firewall ports should be enabled on beegfs-mgmtd, beegfs-meta, beegfs-storage servers"
    - "Make sure to reload firewall. After enabling firewall ports"
+   - "If BeeGFS version is greater than 7.3.1, make sure to disable security feature in meta,storage, mgmtd servers"
 beegfs_rebuild_status:
    - "Make sure that beegfs-client and beegfs other server's versions are compatible"
    - "Please use compatible OFED and BeeGFS versions"
@@ -77,6 +78,7 @@ beegfs_rebuild_status:
    - "Please provide a valid path for beegfs_ofed_kernel_modules_path variable"
 beegfs_rebuild_tcp_msg:
    - "Make sure that beegfs-client and beegfs other server's versions are compatible"
+helperd_location: "/etc/beegfs/beegfs-helperd.conf"
 
 # Usage: validate_beegfs_vars.yml
 selinux_fail_msg: "SELinux should be in disabled mode, for installing beegfs client. Please diasbled selinux and reboot the system"
