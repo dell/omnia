@@ -89,6 +89,7 @@ To open the ports required, use the following steps:
         systemctl status beegfs-meta
         systemctl status beegfs-storage
 
+
 **NFS bolt-on**
 
 * Ensure that an external NFS server is running. NFS clients are mounted using the external NFS server's IP.
