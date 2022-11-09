@@ -4,3 +4,4 @@ Building Clusters
     schedulerinputparams
     schedulerprereqs
     installscheduler
+    BeeGFS
