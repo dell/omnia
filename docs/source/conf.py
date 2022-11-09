@@ -27,3 +27,5 @@ root_doc = 'index'
 
 html_theme = 'piccolo_theme'
 html_static_path = ['_static']
+
+
