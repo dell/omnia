@@ -5,7 +5,7 @@ Configuring Storage
 
 To configure powervault ME4 and ME5 storage arrays, follow the below steps:
 
-Fill out all required parameters in ``/omnia/storage/powervault_input.yml``:
+Fill out all required parameters in ``/storage/powervault_input.yml``:
 
 +---------------------------------------------+-----------------------------------+-----------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Parameter                                   | Default, Accepted values          | Required? | Additional information                                                                                                                                                                                                                                                                                |
@@ -65,7 +65,7 @@ Run the playbook: ::
 
 **Configuring NFS servers**
 
-To configure an NFS server, enter the following parameters in ``/omnia/storage/nfs_server_input.yml``
+To configure an NFS server, enter the following parameters in ``/storage/nfs_server_input.yml``
 
 +--------------------+----------------------------------------------------------------------------------------+-----------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Parameter          | Default, Accepted values                                                               | Required? | Additional information                                                                                                                                                                                                                                                                                                                                                                                                                                |
