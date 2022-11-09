@@ -41,7 +41,7 @@ To open the ports required, use the following steps:
 * Ensure that the nodes in the inventory have been assigned **only** these roles: manager and compute.
 
  .. note::
- 
+
     * If the BeeGFS server (MGMTD, Meta, or storage) is running BeeGFS version 7.3.1 or higher, the security feature on the server should be disabled. Change the value of ``connDisableAuthentication`` to ``true`` in /etc/beegfs/beegfs-mgmtd.conf, /etc/beegfs/beegfs-meta.conf and /etc/beegfs/beegfs-storage.conf. Restart the services to complete the task: ::
 
         systemctl restart beegfs-mgmtd
