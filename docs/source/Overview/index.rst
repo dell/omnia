@@ -29,10 +29,9 @@ Blogs about Omnia
 What Omnia does
 ----------------
 
-Omnia can deploy and configure devices, and build clusters that use Slurm or Kubernetes (or both!) for workload management. Omnia will install software from a variety of sources, including:
+Omnia can deploy and configure devices, and build clusters that use Slurm or Kubernetes (or both) for workload management. Omnia will install software from a variety of sources, including:
 
     * Helm repositories
 
     * Source code repositories
 
-    * `OperatorHub <https://operatorhub.io/>`_

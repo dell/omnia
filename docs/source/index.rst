@@ -45,8 +45,6 @@ For a better understanding of what Omnia does, check out our `docs <https://omni
 
 
 .. toctree::
-   :hidden:
-
    Overview/index
    InstallationGuides/index
    Roles/index
