@@ -25,9 +25,17 @@ root_doc = 'index'
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'piccolo_theme'
-html_theme_path='Appendices/piccolo_theme-master.zip'
+html_theme = 'sphinx_rtd_theme'
+html_logo = "images/omnia-logo.png"
+html_title = 'Omnia'
 
-html_static_path = ['_static']
+html_theme_options = {
+    'logo_only': True,
+    'titles_only': True,
+    "rightsidebar": False
+}
+
+
+
 
 
