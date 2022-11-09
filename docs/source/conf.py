@@ -26,7 +26,7 @@ root_doc = 'index'
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = 'piccolo_theme'
-html_theme_path='Appendices/piccolo_theme'
+html_theme_path='Appendices/piccolo_theme-master.zip'
 
 html_static_path = ['_static']
 
