@@ -34,52 +34,9 @@ Before You Build Clusters
 
 * Kubernetes: Once all the required parameters in `omnia_config.yml <schedulerinputparams.html>`_ are filled in, ``omnia.yml`` can be used to set up kubernetes.
 
-* BeeGFS bolt on installation
+* `BeeGFS bolt on installation <BeeGFS.html>`
 
 * NFS bolt on support
-
-
-
-
-**Optional features installed by omnia.yml**
-
-
-
-**Installing BeeGFS Client**
-
-* If the user intends to use BeeGFS, ensure that a BeeGFS cluster has been set up with beegfs-mgmtd, beegfs-meta, beegfs-storage services running.
-
-  Ensure that the following ports are open for TCP and UDP connectivity:
-
-        +------+-----------------------------------+
-        | Port | Service                           |
-        +======+===================================+
-        | 8008 | Management service (beegfs-mgmtd) |
-        +------+-----------------------------------+
-        | 8003 | Storage service (beegfs-storage)  |
-        +------+-----------------------------------+
-        | 8004 | Client service (beegfs-client)    |
-        +------+-----------------------------------+
-        | 8005 | Metadata service (beegfs-meta)    |
-        +------+-----------------------------------+
-        | 8006 | Helper service (beegfs-helperd)   |
-        +------+-----------------------------------+
-
-
-
-To open the ports required, use the following steps:
-
-    1. ``firewall-cmd --permanent --zone=public --add-port=<port number>/tcp``
-
-    2. ``firewall-cmd --permanent --zone=public --add-port=<port number>/udp``
-
-    3. ``firewall-cmd --reload``
-
-    4. ``systemctl status firewalld``
-
-
-
-* Ensure that the nodes in the inventory have been assigned roles: manager, compute, login_node (optional), nfs_node
 
 
 
