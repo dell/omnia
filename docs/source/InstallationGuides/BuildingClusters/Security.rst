@@ -47,7 +47,7 @@ LDAP client support
 FreeIPA
 ---------
 
-FreeIPA will be installed when ``login_node_required`` is TRUE.
+FreeIPA will be installed when ``login_node_required`` is true.
 
 .. caution:: Since both FreeIPA and LDAP are authentication systems, only one of the two can be installed at any given time.
 

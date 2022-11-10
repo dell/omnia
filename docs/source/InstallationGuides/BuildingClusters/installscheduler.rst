@@ -87,7 +87,7 @@ To ensure security while running jobs on the cluster, users can be assigned perm
 
 **Installing LDAP Client**
 
-Manager and compute nodes will have LDAP client installed and configured if ``ldap_required`` is set to TRUE.
+Manager and compute nodes will have LDAP client installed and configured if ``ldap_required`` is set to true.
 
 .. note::
     * No users/groups will be created by Omnia.
