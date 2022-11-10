@@ -9,7 +9,7 @@ Omnia uses `FreeIPA (on RockyOS) <https://www.freeipa.org/page/Documentation>`_ 
 
 
 
-Set the parameter 'enable_security_support' to true in ``base_vars.yml``.
+Set the parameter 'enable_security_support' to true in ``provision_config.yml``.
 
 
 
@@ -75,7 +75,7 @@ Below is a list of all logs available to Loki and can be accessed on the dashboa
 +===========================+==============================================================================+==============================+====================================================================================================================================================+
 | Omnia Logs                | /var/log/omnia.log                                                           | Omnia Log                    | This log is configured by Default. This log can be used to track all changes made by all playbooks in the ``omnia`` directory.                     |
 +---------------------------+------------------------------------------------------------------------------+------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------+
-| Omnia Control Plane       | /var/log/omnia_control_plane.log                                             | Control plane Log            | This log is configured by Default. This log can be used to track all changes made by all playbooks in the ``omnia/control_plane`` directory.       |
+| Omnia Control Plane       | /var/log/omnia_control_plane.log                                             | Control plane Log            | This log is configured by Default. This log can be used to track all changes made by all playbooks in the ``control_plane`` directory.       |
 +---------------------------+------------------------------------------------------------------------------+------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------+
 | Omnia Telemetry           | /var/log/omnia/omnia_telemetry.log                                           | Telemetry Log                | This log is configured by Default. This log can be used to track all changes made by all playbooks in the ``omnia/telemetry`` directory.           |
 +---------------------------+------------------------------------------------------------------------------+------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------+

@@ -1,6 +1,21 @@
 Frequently Asked Questions
 ==========================
 
+**How to add a new node for provisioning?**
+
+
+1. Using a mapping file:
+
+    * Update the existing mapping file by appending the new entry (without the disrupting the older entries) or provide a new mapping file by pointing ``pxe_mapping_file_path`` in ``provision_config.yml`` to the new location.
+
+    * Run ``provision.yml``.
+
+2. Using the switch IP:
+
+    * Run ``provision.yml`` once the switch has discovered the potential new node.
+
+
+
 **Why does splitting an ethernet Z series port fail with "Failed. Either port already split with different breakout value or port is not available on ethernet switch"?**
 
 
@@ -51,3 +66,7 @@ After a reboot of the control plane while running ``provision.yml``, to bring up
 * Use ``nodeset all osimage=<selected OS image from previous command>`` to provision the OS on the target server.
 
 * PXE boot the target server to bring up the OS.
+
+**How many IPs are required within the PXE NIC range?**
+
+Ensure that the number of IPs available between ``pxe_nic_start_range`` and ``pxe_nic_end_range`` is double the number of iDRACs available to account for potential stale entries in the mapping DB.
