@@ -10,7 +10,11 @@ Before You Run The Provision Tool
 
 * To dictate IP address/MAC mapping, a host mapping file can be provided. If the mapping file is not provided and the variable is left blank, a default mapping file will be created by querying the switch. Use the `pxe_mapping_file.csv <../../Samplefiles.html>`_ to create your own mapping file.
 
-* Ensure that all connection names under the network manager match their corresponding device names. This can be verified using the command  ``nmcli connection``. In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcfg-<nic name>`` using vi editor.
+* Ensure that all connection names under the network manager match their corresponding device names. ::
+
+    nmcli connection
+
+In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcfg-<nic name>`` using vi editor.
 
 * All target hosts should be set up in PXE mode before running the playbook.
 
