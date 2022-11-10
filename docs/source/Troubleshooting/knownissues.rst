@@ -474,6 +474,8 @@ If you have enabled the option to install the login node in the cluster, set the
 
 Reboot the NFS server (external to the cluster) to bring up the services again: ::
 
+    systemctl disable nfs-server
+    systemctl enable nfs-server
     systemctl restart nfs-server
 
 

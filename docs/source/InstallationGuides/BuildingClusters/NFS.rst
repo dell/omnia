@@ -4,6 +4,9 @@ NFS Bolt On
 After an NFS client is configured, if the NFS server is rebooted, the client may not be able to send communications to the server. In those cases, restart the NFS server using the below command:
 
 ::
+
+    systemctl disable nfs-server
+    systemctl enable nfs-server
     systemctl restart nfs-server
 
 
