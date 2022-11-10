@@ -470,5 +470,13 @@ If you have enabled the option to install the login node in the cluster, set the
 
 2. Re-execute ``jupyterhub.yml`` after 8-9 hours.
 
+**What to do if NFS clients are unable to access the share after an NFS server reboot?**
+
+Reboot the NFS server (external to the cluster) to bring up the services again: ::
+
+    systemctl restart nfs-server
+
+
+
 
 
