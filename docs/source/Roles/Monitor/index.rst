@@ -5,7 +5,7 @@ The monitor role sets up `Grafana <https://grafana.com/>`_ ,  `Prometheus <https
 
 **Setting Up Monitoring**
 
-1. To set up monitoring, enter all required variables in ``/monitor_config.yml``.
+1. To set up monitoring, enter all required variables in ``monitor/monitor_config.yml``.
 
 +----------------------------+--------------------------+-----------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Name                       | Default, Accepted Values | Required? | Additional Information                                                                                                                                                                                                                                       |

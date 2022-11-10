@@ -3,7 +3,7 @@ Accelerator
 
 The accelerator role allows users to  set up the `AMD ROCm <https://www.amd.com/en/graphics/servers-solutions-rocm>`_ platform or the `CUDA Nvidia toolkit <https://developer.nvidia.com/cuda-zone>`_. These tools allow users to unlock the potential of installed GPUs.
 
-Enter all required parameters in ``/accelerator_config.yml``.
+Enter all required parameters in ``input/accelerator_config.yml``.
 
 +----------------------+--------------------------+-----------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Name                 | Default, Accepted Values | Required? | Information                                                                                                                                                                                                          |

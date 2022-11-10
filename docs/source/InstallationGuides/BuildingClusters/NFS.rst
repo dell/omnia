@@ -1,6 +1,15 @@
 NFS Bolt On
 ===========
 
+After an NFS client is configured, if the NFS server is rebooted, the client may not be able to send communications to the server. In those cases, restart the NFS server using the below command:
+
+::
+    systemctl restart nfs-server
+
+
+
+NFS Server
+===========
 
 * Ensure that powervault support is enabled by setting ``powervault_support`` to true in ``provision_config.yml``. By default, a volume called 'omnia_home' will be created on the powervault to mount on the nfs_node.
 
