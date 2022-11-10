@@ -86,7 +86,7 @@ Run the playbook: ::
     cd omnia/storage
     ansible-playbook nfs_sas.yml -i inventory
 
-* Where the ``inventory`` refers to a list of all nodes in the format of `host_inventory_file.ini <../../samplefiles.html>`_
+* Where the ``inventory`` refers to a list of all nodes in the format of `inventory file <../../samplefiles.html>`_
 
 
 

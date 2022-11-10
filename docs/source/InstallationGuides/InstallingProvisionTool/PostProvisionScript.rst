@@ -1,7 +1,7 @@
 After Running the Provision Tool
 =================================
 
-Once the servers are provisioned, run the post provision script to:
+Once the **servers are provisioned**, run the post provision script to:
 
 * Configure iDRAC IP or BMC IP if ``bmc_nic_subnet`` is provided in ``input/provision_config.yml``.
 

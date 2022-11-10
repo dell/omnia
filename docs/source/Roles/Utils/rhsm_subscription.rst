@@ -90,7 +90,7 @@ Before running ``omnia.yml``, it is mandatory that red hat subscription be set u
         cd omnia/utils
         ansible-playbook rhsm_subscription.yml -i inventory -e redhat_subscription_activation_key= "<activation-key>" -e redhat_subscription_org_id ="<org-id>"
 
-Where the inventory refers to a file listing all manager and compute nodes per the format provided in `host_inventory_file.ini <../samplefiles.html>`_.
+Where the inventory refers to a file listing all manager and compute nodes per the format provided in `inventory file <../samplefiles.html>`_.
 
 
 
