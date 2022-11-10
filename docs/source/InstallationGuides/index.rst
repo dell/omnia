@@ -5,7 +5,7 @@ Choose a server outside your intended cluster to function as your control plane.
 
 The control plane needs to be internet-capable with Github and a full OS installed.
 
-.. note:: Omnia can be run on control planes running RHEL and Rocky. For a complete list of versions supported, check out the support matrix <../OperatingSystems>`_!
+.. note:: Omnia can be run on control planes running RHEL and Rocky. For a complete list of versions supported, check out the `support matrix<../../Overview/SupportMatrix/OperatingSystems/index.rst>`_ !
 
 ::
 
