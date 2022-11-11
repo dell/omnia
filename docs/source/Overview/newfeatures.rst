@@ -2,22 +2,47 @@ New Features
 ===========
 
 
-- 	Provisioning of remote nodes through PXE boot by providing TOR switch IP
 
--	Provisioning of remote nodes through PXE boot by providing mapping file
+-	Omnia Prerequisites Installation on Control Plane
 
--	PXE provisioning of remote nodes through admin NIC or shared LOM NIC
+-	Provisioning Tool Installation on Control Plane
 
--	Database update of mac address, hostname and admin IP
+-	MAC Address Discovery from switch
 
--	Optional monitoring support(Grafana installation) on control plane
+-	Provisioning of remote nodes from
 
--	OFED installation on the remote nodes
+-	User defined Mapping file with MAC address, IP and hostname
 
--	CUDA installation on the remote nodes
+-	Nodes discovered by Omnia
 
--	AMD accelerator and ROCm support on the remote nodes
+-	DataBase Update of Host, iDRAC and IB IPs on Control Plane
 
--	Omnia playbook execution with Kubernetes, Slurm & FreeIPA installation in all compute nodes
+-	iDRAC and Infiniband IP Assignment on remote nodes
 
--	Infiniband switch configuration and split port functionality
+-	Inventory Creation on Control Plane
+
+-	OFED Installation on cluster
+
+-	Nvidia and AMD Accelerator Installation
+
+-	CUDA and ROCm installation
+
+-	Slurm and K8s installation and configuration
+
+-	Beegfs bolt-on support
+
+-	NFS Bolt-on support
+
+-	PowerVault ME4 and ME5 configurations along with NFS server configuration
+
+-	LDAP Client Installation on Manager and compute Nodes
+
+-	FreeIPA Installation on manager, compute and login nodes
+
+-	Passwordless ssh support
+
+- Grafana installation for viewing metrics
+
+- Automated Infiniband EDR/HDR switch configuration
+
+- Automated Ethernet switch configuration

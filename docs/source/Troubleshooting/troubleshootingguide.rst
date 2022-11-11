@@ -89,7 +89,7 @@ Checking and updating encrypted parameters
 
 1. Move to the filepath where the parameters are saved (as an example, we will be using ``provision_config.yml``):
 
-      ``cd omnia/input/``
+      ``cd input/``
 
 2. To view the encrypted parameters: ::
 
