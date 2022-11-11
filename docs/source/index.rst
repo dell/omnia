@@ -43,6 +43,7 @@ For a better understanding of what Omnia does, check out our `docs <https://omni
    :width: 60pt
 
 
+**Table Of Contents**
 
 .. toctree::
    Overview/index
