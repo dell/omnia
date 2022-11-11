@@ -82,9 +82,9 @@ These parameters is located in ``input/omnia_config.yml``
 
 * For RedHat clusters, ensure that RedHat subscription is enabled on all target nodes.
 
-**Features enabled by omnia.yml**
+**Features enabled by scheduler.yml**
 
-* Slurm: Once all the required parameters in ``Omnia_config.yml`` are filled in, ``omnia.yml`` can be used to set up slurm.
+* Slurm: Once all the required parameters in ``Omnia_config.yml`` are filled in, ``scheduler.yml`` can be used to set up slurm.
 
 * LDAP client support: The manager and compute nodes will have LDAP installed but the login node will be excluded.
 
@@ -92,41 +92,20 @@ These parameters is located in ``input/omnia_config.yml``
 
 * Login Node (Additionally secure login node)
 
-* Kubernetes: Once all the required parameters in `omnia_config.yml <schedulerinputparams.html>`_ are filled in, ``omnia.yml`` can be used to set up kubernetes.
+* Kubernetes: Once all the required parameters in `omnia_config.yml <schedulerinputparams.html>`_ are filled in, ``scheduler.yml`` can be used to set up kubernetes.
 
 * BeeGFS bolt on installation
 
 * NFS bolt on support
-
-**Install scheduler**
-
-
-1. In the ``input/omnia_config.yml`` file, provide the `required details <schedulerinputparams.html>`_.
-
-.. note::  Without the login node, Slurm jobs can be scheduled only through the manager node.
-
-2. Create an inventory file in the *omnia* folder. Add login node IP address under the *[login_node]* group, manager node IP address under the *[manager]* group, compute node IP addresses under the *[compute]* group, and NFS node IP address under the *[nfs_node]* group. A template file named INVENTORY is provided in the *omnia\docs* folder.
-
-.. note::
-     * Omnia checks for `red hat subscription being enabled on RedHat nodes as a pre-requisite <../../Roles/Utils/rhsm_subscription.html>`_. Not having Red Hat subscription enabled on the manager node will cause ``omnia.yml`` to fail. If compute nodes do not have Red Hat subscription enabled, ``omnia.yml`` will skip the node entirely.
-     * Ensure that all the four groups (login_node, manager, compute, nfs_node) are present in the template, even if the IP addresses are not updated under login_node and nfs_node groups.
-     * Omnia creates a log file which is available at: ``/var/log/omnia.log``.
-     * If only Slurm is being installed on the cluster, docker credentials are not required.
-
-3. To install Omnia:
-
-       For CentOS, Rocky and RHEL:       ``ansible-playbook omnia.yml -i inventory``
-
-.. note:: To visualize the cluster (Slurm/Kubernetes) metrics on Grafana (On the control plane)  during the run of ``omnia.yml``, add the parameters ``grafana_username`` and ``grafana_password`` (That is ``ansible-playbook omnia.yml -i inventory -e grafana_username="" -e grafana_password=""``). Alternatively, Grafana is not installed by ``omnia.yml`` if it's not available on the Control Plane.
 
 
 **Using Skip Tags**
 
 Using skip tags, the scheduler running on the cluster can be set to Slurm or Kubernetes while running the ``omnia.yml`` playbook. This choice can be made  depending on the expected HPC/AI workloads.
 
-    * Kubernetes: ``ansible-playbook omnia.yml -i inventory --skip-tags "kubernetes"``  (To set Slurm as the scheduler)
+    * Kubernetes: ``ansible-playbook scheduler.yml -i inventory --skip-tags "kubernetes"``  (To set Slurm as the scheduler)
 
-    * Slurm: ``ansible-playbook omnia.yml -i inventory --skip-tags "slurm"`` (To set Kubernetes as the scheduler)
+    * Slurm: ``ansible-playbook scheduler.yml -i inventory --skip-tags "slurm"`` (To set Kubernetes as the scheduler)
 
 .. note::
         * If you want to view or edit the ``omnia_config.yml`` file, run the following command:
@@ -139,7 +118,7 @@ Using skip tags, the scheduler running on the cluster can be set to Slurm or Kub
 
 **Kubernetes Roles**
 
-As part of setting up Kubernetes roles, ``omnia.yml`` handles the following tasks on the manager and compute nodes:
+As part of setting up Kubernetes roles, ``scheduler.yml`` handles the following tasks on the manager and compute nodes:
 
     * Docker is installed.
     * Kubernetes is installed.
@@ -150,7 +129,7 @@ As part of setting up Kubernetes roles, ``omnia.yml`` handles the following task
 
 **Slurm Roles**
 
-As part of setting up Slurm roles, ``omnia.yml`` handles the following tasks on the manager and compute nodes:
+As part of setting up Slurm roles, ``scheduler.yml`` handles the following tasks on the manager and compute nodes:
 
     * Slurm is installed.
     * All required services are started (Such as slurmd, slurmctld, slurmdbd).
@@ -198,7 +177,7 @@ Manager and compute nodes will have LDAP client installed and configured if ``ld
 
  * The login node: In the ``omnia_config.yml`` file, set the *login_node_required* variable to "false".
 
- * The FreeIPA server and client: Use ``--skip-tags freeipa`` while executing the *omnia.yml* file.
+ * The FreeIPA server and client: Use ``--skip-tags freeipa`` while executing the *scheduler.yml* file.
 
 
 
