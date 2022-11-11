@@ -33,7 +33,7 @@
         catalog_file_name: "Catalog.xml"
       register: update_firmware
       when: model_status
-    
+
     - name: Wait for one minute to complete firmware update
       ansible.builtin.wait_for:
         timeout: 60

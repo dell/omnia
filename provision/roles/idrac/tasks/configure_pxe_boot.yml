@@ -19,7 +19,7 @@
 
 - name: Set infiniband NIC as active_nic when roce_enabled
   ansible.builtin.set_fact:
-    active_nic: "{{ active_nic + [ idrac_info.system_info.PCIDevice[my_idx8].FQDD ] }}"
+    active_nic: "{{ active_nic + [idrac_info.system_info.PCIDevice[my_idx8].FQDD] }}"
   with_items: "{{ idrac_info.system_info.PCIDevice }}"
   when:
     - idrac_info.system_info.PCIDevice[my_idx8].DeviceDescription is defined
@@ -29,7 +29,7 @@
 
 - name: Set active_nic from NIC details
   ansible.builtin.set_fact:
-    active_nic: "{{ active_nic + [ idrac_info.system_info.NIC[my_idx9].FQDD ] }}"
+    active_nic: "{{ active_nic + [idrac_info.system_info.NIC[my_idx9].FQDD] }}"
   with_items: "{{ idrac_info.system_info.NIC }}"
   when:
     - idrac_info.system_info.NIC[my_idx9].LinkStatus is defined

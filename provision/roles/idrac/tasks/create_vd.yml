@@ -47,7 +47,7 @@
       ansible.builtin.set_fact:
         drives_id: "{{ idrac_volume_list.storage_status.Message.Controller[boss_controller_sensor].PhysicalDisk }}"
         drives_count: "{{ idrac_volume_list.storage_status.Message.Controller[boss_controller_sensor].PhysicalDisk | length }}"
-      when: 
+      when:
         - not boss_vd_status
         - idrac_volume_list.storage_status.Message.Controller[boss_controller_sensor].PhysicalDisk is defined
 
@@ -59,7 +59,8 @@
         - idrac_volume_list.storage_status.Message.Controller[boss_controller_sensor].PhysicalDisk is defined
         - drives_count | int != boss_drives_count
 
-    - block:
+    - name: Create BOSS controller VD
+      block:
         - name: Create VD - BOSS
           dellemc.openmanage.dellemc_idrac_storage_volume:
             idrac_ip: "{{ inventory_hostname }}"
@@ -95,7 +96,7 @@
       with_items: "{{ idrac_info.system_info.Controller }}"
       loop_control:
         index_var: my_idx3
-      when: 
+      when:
         - raid_search_key in idrac_info.system_info.ControllerSensor[my_idx3].FQDD
         - non_raid_search_key not in idrac_info.system_info.ControllerSensor[my_idx3].FQDD
 
@@ -116,7 +117,7 @@
       with_items: "{{ idrac_info.system_info.PhysicalDisk }}"
       loop_control:
         index_var: my_idx7
-      when: 
+      when:
         - idrac_info.system_info.PhysicalDisk is defined
         - non_raid_disk_key in idrac_info.system_info.PhysicalDisk[my_idx7].RaidStatus
 
@@ -127,7 +128,7 @@
         idrac_password: "{{ idrac_password }}"
         state: "view"
       register: idrac_volume_list
-      when: 
+      when:
         - raid_type
         - not raid_vd_status
         - not non_raid_disk_status
@@ -136,13 +137,14 @@
       ansible.builtin.set_fact:
         drives_id: "{{ idrac_volume_list.storage_status.Message.Controller[raid_controller_sensor].Enclosure[raid_enclosure_name].PhysicalDisk }}"
         drives_count: "{{ idrac_volume_list.storage_status.Message.Controller[raid_controller_sensor].Enclosure[raid_enclosure_name].PhysicalDisk | length }}"
-      when: 
+      when:
         - raid_type
         - not raid_vd_status
         - not non_raid_disk_status
         - idrac_volume_list.storage_status.Message.Controller[raid_controller_sensor].Enclosure[raid_enclosure_name].PhysicalDisk is defined
 
-    - block:
+    - name: Create RAID controller VD
+      block:
         - name: Create VD - RAID
           dellemc.openmanage.dellemc_idrac_storage_volume:
             idrac_ip: "{{ inventory_hostname }}"

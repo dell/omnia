@@ -30,7 +30,7 @@
 
 - name: Set xcat_installation_status to true
   ansible.builtin.assert:
-    that:  
+    that:
       - "'xcatd.service' in ansible_facts.services"
       - "'postgresql.service' in ansible_facts.services"
       - "'running' in ansible_facts.services['xcatd.service'].state"

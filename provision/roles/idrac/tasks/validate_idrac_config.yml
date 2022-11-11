@@ -23,7 +23,7 @@
           - provision_os | length > 1
       no_log: true
   rescue:
-    - name: idrac credentials validation check
+    - name: Missing mandatory input parameters
       ansible.builtin.fail:
         msg: "{{ missing_idrac_input_fail_msg }}"
 
