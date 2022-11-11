@@ -17,16 +17,16 @@
 
 # Usage: validate_idrac_config.yml
 idrac_input_filename: "{{ role_path }}/../../idrac_input.yml"
-idrac_input_fail_msg: "Please provide all the required parameters in idrac_config.yml"
+idrac_input_fail_msg: "Please provide all the required parameters in idrac_input.yml"
 idrac_system_profile_success_msg: "idrac_system_profile validated"
-idrac_system_profile_fail_msg: "Failed. Incorrect setting input for idrac_system_profile in idrac_config.yml"
+idrac_system_profile_fail_msg: "Failed. Incorrect setting input for idrac_system_profile in idrac_input.yml"
 firmware_update_success_msg: "firmware_update_required validated"
-firmware_update_fail_msg: "Failed. firmware_update_required accepts only true or false in idrac_config.yml"
+firmware_update_fail_msg: "Failed. firmware_update_required accepts only true or false in idrac_input.yml"
 firmware_job_skip_msg: "Firmware update task skipped due to missing updates in /var/nfs_repo"
 snmp_community_success_msg: "snmp_community_name validated"
-snmp_community_fail_msg: "Failed. snmp_community_name should not be empty in idrac_config.yml"
+snmp_community_fail_msg: "Failed. snmp_community_name should not be empty in idrac_input.yml"
 snmp_trap_dest_success_msg: "snmp_trap_destination validated"
-snmp_trap_dest_fail_msg: "Failed. Incorrect value for snmp_trap_destination in idrac_config.yml"
+snmp_trap_dest_fail_msg: "Failed. Incorrect value for snmp_trap_destination in idrac_input.yml"
 missing_idrac_input_fail_msg: "Failed. Missing input parameters. commmand to execute: Command:ansible-playbook idrac.yml -i inventory -e idrac_username='' -e idrac_password='' -e provision_os=''"
 provision_os_fail_msg: "Failed. Supported provision os are rhel and rocky"
 os_supported_rhel: rhel
