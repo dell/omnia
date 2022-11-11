@@ -111,8 +111,9 @@
       retries: "{{ retries_count }}"
       when: active_nic_count >= "4"
   rescue:
-    - block:
-        - name: Retry configuring boot order for PXE booting 
+    - name: Retry configuring boot order
+      block:
+        - name: Retry configuring boot order for PXE booting
           dellemc.openmanage.idrac_bios:
             idrac_ip: "{{ inventory_hostname }}"
             idrac_user: "{{ idrac_username }}"
@@ -135,7 +136,7 @@
       ansible.builtin.set_fact:
         deploy_os_status: "{{ not deploy_os_pxe2.failed }}"
       when: active_nic_count == "2"
-    
+
     - name: Set deploy_os_status when provision_method == PXE for 3 active_nic
       ansible.builtin.set_fact:
         deploy_os_status: "{{ not deploy_os_pxe3.failed }}"
@@ -145,7 +146,7 @@
       ansible.builtin.set_fact:
         deploy_os_status: "{{ not deploy_os_pxe4.failed }}"
       when: active_nic_count >= "4"
-    
+
     - name: Set deploy_os_status when provision_method == PXE for retry
       ansible.builtin.set_fact:
         deploy_os_status: "{{ not deploy_os_pxe_retry.failed }}"

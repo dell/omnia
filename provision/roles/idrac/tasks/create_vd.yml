@@ -159,7 +159,7 @@
                 drives:
                   id: "{{ drives_id }}"
           register: create_raid_vd_status
-          when: 
+          when:
             - raid_type
             - not raid_vd_status
             - not non_raid_disk_status

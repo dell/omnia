@@ -97,7 +97,7 @@
     - name: Import SCP failed
       ansible.builtin.fail:
         msg: "{{ import_scp_fail_msg }}"
-        
+
 - name: Remove the SCP file
   ansible.builtin.file:
     path: "{{ role_path }}/files/{{ scp_filename }}"

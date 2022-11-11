@@ -23,7 +23,7 @@
         path: "{{ provisioned_idrac_inventory_path }}"
         line: '{{ item }} service_tag={{ idrac_info.system_info.System[0].ServiceTag }} model={{ idrac_info.system_info.System[0].Model }}'
         state: present
-        create: yes
+        create: true
         mode: "{{ file_permission }}"
       delegate_to: localhost
       with_items: "{{ inventory_hostname }}"

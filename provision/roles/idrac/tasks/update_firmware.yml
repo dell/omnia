@@ -13,9 +13,10 @@
 # limitations under the License.
 ---
 
-- block:
+- name: Update firmware
+  block:
     - name: Set model status
-      set_fact:
+      ansible.builtin.set_fact:
         model_status: true
       when: item in idrac_info.system_info.System[0].Model
       with_items: "{{ poweredge_model.split(',') | map('trim') }}"
@@ -26,21 +27,21 @@
         idrac_user: "{{ idrac_username }}"
         idrac_password: "{{ idrac_password }}"
         share_name: "{{ management_station_ip }}:{{ nfs_share_offline_repo }}/dellupdates"
-        reboot: True
-        job_wait: True
-        apply_update: True
+        reboot: true
+        job_wait: true
+        apply_update: true
         catalog_file_name: "Catalog.xml"
       register: update_firmware
       when: model_status
     
     - name: Wait for one minute to complete firmware update
-      wait_for:
+      ansible.builtin.wait_for:
         timeout: 60
       run_once: true
       when: model_status
 
     - name: Wait for iDRAC port to become active
-      wait_for:
+      ansible.builtin.wait_for:
         host: "{{ inventory_hostname }}"
         port: "{{ idrac_port }}"
         delay: "{{ max_delay }}"
@@ -48,27 +49,27 @@
         state: started
 
     - name: Firmware update status
-      debug:
+      ansible.builtin.debug:
         msg: "{{ firmware_job_success_msg }}"
       when:
         - model_status
         - not update_firmware.failed
 
     - name: Firmware update skip status
-      debug:
+      ansible.builtin.debug:
         msg: "{{ firmware_job_skip_msg }}"
       when: not model_status
 
   rescue:
     - name: Firmware update job status
-      debug:
+      ansible.builtin.debug:
         msg: "{{ update_firmware.msg }}"
       when:
         - update_firmware.failed
         - idrac_error_message in update_firmware.msg
 
     - name: Firmware update job failed
-      debug:
+      ansible.builtin.debug:
         msg: "{{ firmware_job_fail_msg }}, Error: {{ update_firmware.msg }}"
       when:
         - update_firmware.failed
