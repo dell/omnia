@@ -58,6 +58,7 @@ These parameters is located in ``input/omnia_config.yml``
 +----------------------------+------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | enable_secure_login_node   | false                              | Boolean   value deciding whether FreeIPA is    enabled on the Login Node.                                                                                                                                                               |
 +----------------------------+------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
 .. note:: When ``ldap_required`` is true, ``login_node_required`` and ``freeipa_required`` have to be false.
 
 
@@ -113,9 +114,9 @@ These parameters is located in ``input/omnia_config.yml``
      * Omnia creates a log file which is available at: ``/var/log/omnia.log``.
      * If only Slurm is being installed on the cluster, docker credentials are not required.
 
-3. To install Omnia:
+3. To install Omnia: ::
 
-       For CentOS, Rocky and RHEL:       ``ansible-playbook omnia.yml -i inventory``
+        ansible-playbook omnia.yml -i inventory
 
 .. note:: To visualize the cluster (Slurm/Kubernetes) metrics on Grafana (On the control plane)  during the run of ``omnia.yml``, add the parameters ``grafana_username`` and ``grafana_password`` (That is ``ansible-playbook omnia.yml -i inventory -e grafana_username="" -e grafana_password=""``). Alternatively, Grafana is not installed by ``omnia.yml`` if it's not available on the Control Plane.
 

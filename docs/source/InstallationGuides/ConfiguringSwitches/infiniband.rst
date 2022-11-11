@@ -95,5 +95,5 @@ If ``enable_split_port`` is **false**, run::
 
     * Passwords should contain at least one of each: Lowercase, uppercase and digits.
 
- * The inventory file should be a list of IPs separated by newlines. Check out the ``device_ip_list.yml`` section in `Sample Files <https://omnia-documentation.readthedocs.io/en/latest/samplefiles.html>`_
+ * The inventory file should be a list of IPs separated by newlines. Check out the ``switch_inventory`` section in `Sample Files <https://omnia-documentation.readthedocs.io/en/latest/samplefiles.html>`_
 
