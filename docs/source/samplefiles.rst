@@ -46,6 +46,14 @@ powervault_inventory
 
 
 
+NFS Server inventory file
+-------------------------
+
+
+::
+
+    [nfs_node]
+    172.29.0.104
 
 
 

@@ -61,15 +61,20 @@ As part of setting up Slurm roles, ``omnia.yml`` handles the following tasks on 
 **Login node**
 
 If a login node is available and mentioned in the inventory file, the following tasks are executed:
+
     * Slurmd is installed.
-    * All required configurations are made to slurm.conf file to enable a slurm login node.
+    * All required configurations are made to ``slurm.conf`` file to enable a slurm login node.
     * FreeIPA (the default authentication system on the login node) is installed to provide centralized authentication.
+
+.. include:: ../../Appendices/hostnamereqs.rst
 
 .. note::
 
     * To enable the login node, ensure that ``login_node_required`` in ``input/omnia_config.yml`` is set to true.
     * To enable security features on the login node, ensure that ``enable_secure_login_node`` in ``input/omnia_config.yml`` is set to true.
+    * To customize the security features on the login node, fill out the parameters in ``input/omnia_security_config.yml``.
 
+.. warning:: No users/groups will be created by Omnia.
 
 **Slurm job based user access**
 
@@ -87,18 +92,10 @@ To ensure security while running jobs on the cluster, users can be assigned perm
 
 **Installing LDAP Client**
 
-Manager and compute nodes will have LDAP client installed and configured if ``ldap_required`` is set to true.
+Manager and compute nodes will have LDAP client installed and configured if ``ldap_required`` is set to true. The login node does not have LDAP client installed.
 
-.. note::
-    * No users/groups will be created by Omnia.
-    * If LeapOS is being deployed, login_common and login_server roles will be skipped.
+.. warning:: No users/groups will be created by Omnia.
 
-
- To skip the installation of:
-
- * The login node: In the ``omnia_config.yml`` file, set the *login_node_required* variable to "false".
-
- * The FreeIPA server and client: Use ``--skip-tags freeipa`` while executing the *omnia.yml* file.
 
 
 

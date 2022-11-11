@@ -55,9 +55,9 @@ When connecting to a new or factory reset switch, the configuration wizard reque
 If the user enters 'yes', they will also be prompted to enter the hostname for the switch, DHCP details, IPv6 details, etc.
 
 .. note::
-    * When initializing a factory reset switch, the user needs to ensure DHCP is enabled and an IPv6 address is not assigned. Omnia will assign an IP address to the Infiniband switch using DHCP with all other configurations.
+    * When initializing a factory reset switch, the user needs to ensure DHCP is enabled and an IPv6 address is not assigned.
 
-    * All ports intended for splitting need to be enabled before running the playbook.
+    * All ports intended for splitting need to be connected to the network before running the playbook.
 
 **Running the playbook**
 

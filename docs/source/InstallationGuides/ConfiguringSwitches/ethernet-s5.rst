@@ -26,7 +26,7 @@ Configuring Ethernet Switches (S5 series)
 |                              |                                                                                                             |           |      WARNING: When set to "true", the startup configuration file is   updated. If incorrect configurations or commands are entered, the Ethernet   switches may not operate as expected.                            |
 +------------------------------+-------------------------------------------------------------------------------------------------------------+-----------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-* When initializing a factory reset switch, the user needs to ensure DHCP is enabled and an IPv6 address is not assigned. Omnia will assign an IP address to the switch using DHCP with all other configurations.
+* When initializing a factory reset switch, the user needs to ensure DHCP is enabled and an IPv6 address is not assigned.
 
 .. note:: The ``breakout_value`` of a port can only be changed after un-splitting the port.
 
@@ -40,7 +40,7 @@ Configuring Ethernet Switches (S5 series)
 
 * The inventory file should be a list of IPs separated by newlines. Check out the switch_inventory section in `Sample Files <https://omnia-documentation.readthedocs.io/en/latest/samplefiles.html>`_
 
-* Where ``ethernet_switch_password`` is the username used to authenticate into the switch.
+* Where ``ethernet_switch_password`` is the password used to authenticate into the switch.
 
 
 
