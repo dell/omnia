@@ -13,38 +13,39 @@
 #  limitations under the License.
 ---
 
-# vars file for provision_idrac
+# vars file for idrac
 
-# Usage: validate_idrac_vars.yml
-idrac_input_filename: input_params/idrac_vars.yml
-base_input_filename: input_params/base_vars.yml
-login_input_filename: input_params/login_vars.yml
-login_vault_filename: input_params/.login_vault_key
-idrac_input_fail_msg: "Please provide all the required parameters in idrac_vars.yml"
+# Usage: validate_idrac_config.yml
+idrac_input_filename: "{{ role_path }}/../../idrac_input.yml"
+idrac_input_fail_msg: "Please provide all the required parameters in idrac_config.yml"
 idrac_system_profile_success_msg: "idrac_system_profile validated"
-idrac_system_profile_fail_msg: "Failed. Incorrect setting input for idrac_system_profile in idrac_vars.yml"
+idrac_system_profile_fail_msg: "Failed. Incorrect setting input for idrac_system_profile in idrac_config.yml"
 firmware_update_success_msg: "firmware_update_required validated"
-firmware_update_fail_msg: "Failed. firmware_update_required accepts only true or false in idrac_vars.yml"
+firmware_update_fail_msg: "Failed. firmware_update_required accepts only true or false in idrac_config.yml"
 firmware_job_skip_msg: "Firmware update task skipped due to missing updates in /var/nfs_repo"
 snmp_community_success_msg: "snmp_community_name validated"
-snmp_community_fail_msg: "Failed. snmp_community_name should not be empty in base_vars.yml"
+snmp_community_fail_msg: "Failed. snmp_community_name should not be empty in idrac_config.yml"
 snmp_trap_dest_success_msg: "snmp_trap_destination validated"
-snmp_trap_dest_fail_msg: "Failed. Incorrect value for snmp_trap_destination in base_vars.yml"
-public_ip_success_msg: "public_ip validated"
-public_ip_fail_msg: "Failed. Incorrect value for public_nic in base_vars.yml"
+snmp_trap_dest_fail_msg: "Failed. Incorrect value for snmp_trap_destination in idrac_config.yml"
+missing_idrac_input_fail_msg: "Failed. Missing input parameters. commmand to execute: Command:ansible-playbook idrac.yml -i inventory -e idrac_username='' -e idrac_password='' -e provision_os=''"
+provision_os_fail_msg: "Failed. Supported provision os are rhel and rocky"
+os_supported_rhel: rhel
+os_supported_rocky: rocky
+
+# Usage: include_provision_config.yml
+provision_config_filename: "{{ role_path }}/../../../input/provision_config.yml"
+provision_vault_path: "{{ role_path }}/../../../input/.provision_vault_key"
+ansible_vault_search_key: "$ANSIBLE_VAULT;"
 
 # Usage: check_prerequisites.yml
-missing_exports_fail_msg: "Failed. Missing network cidr entry of iDRAC IP in /etc/exports file. Add entries if iDRAC IP is not in the management network range provided in base_vars.yml"
+idrac_collections: dellemc.openmanage:4.4.0
+omsdk_package: "omsdk==1.2.488"
 lc_check_fail_msg: "Failed. LC is not ready. Retry again after LC is ready"
-provision_skip_msg_awx: "Skipping remaining tasks for already provisioned servers. To provision server again remove iDRAC IP from the provision_idrac_inventory in awx"
 provision_skip_msg_cli: "Skipping remaining tasks for already provisioned servers. To provision server again remove iDRAC IP from the /opt/omnia/provision_idrac_inventory or delete the file to provision all servers again"
 provisioned_idrac_inventory_name: "provisioned_idrac_inventory"
 provisioned_idrac_inventory_path: /opt/omnia/provisioned_idrac_inventory
-missing_ip_file_fail_msg: "Failed. Missing management_station_ip.txt in provision_idrac/files folder. Please run control_plane.yml to create management_station_ip.txt"
 nfs_check_key: "Failed"
 nfs_check_file: "nfs_check.xml"
-awx_vars_filename: ".tower_cli.cfg"
-awx_vaultname: ".tower_vault_key"
 idrac9_supported_version: "5.00.10.20"
 idrac9_firmware_not_supported_msg: "[WARNING]Firmware version of iDRAC9 less than 5.00.10.20 is not supported for provisioning. Following tasks can be failed due to older firmware version. In case of failure, update firmware manually and re-run the idrac_template"
 idrac8_supported_version: "2.81.81.81"
@@ -77,12 +78,19 @@ boss_drives_count: 2
 boss_drives_count_fail_msg: "Failed. Omnia supports only creating RAID 1 virtual disk using 2 SSD disk. Only 2 SSD disk should be present in BOSS controller."
 non_raid_disk_key: "Non-RAID"
 
+# Usage: set_provision_image.yml
+xcat_root_env: "/opt/xcat"
+xcat_path_env: "/opt/xcat/bin:/opt/xcat/sbin:/opt/xcat/share/xcat/tools"
+xcat_manpath_env: "/opt/xcat/share/man:$MANPATH"
+perl_badlang_env: 0
+set_osimage_warning_msg: "[WARNING] nodeset command is not successful. Error:"
+osimage_search_key: install-compute
+
 # Usage: deploy_os.yml
 expose_duration: 60
 file_permission: 0644
 provision_os_msg: "OS provisioning is initiated. Wait for installation to complete for all servers."
-idrac_provisioning_fail_msg: "OS provisioning using iDRAC is failed. This could be due to older firmware or some internal issues with server. Re-run idrac_template in AWX or idrac.yml in CLI after fixing the issue"
-pxe_provisioning_fail_msg: "OS provisioning using PXE failed. This could be due to outdated NIC firmware. Re-run idrac_template in AWX or idrac.yml in CLI after fixing the issue"
+pxe_provisioning_fail_msg: "OS provisioning using PXE failed. This could be due to outdated NIC firmware. Re-run idrac.yml after fixing the issue"
 add_inventory_fail_msg: "Failed. Unable to add provisioned host to provisioned_idrac_inventory."
 max_delay: 40
 max_retries: 30

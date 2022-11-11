@@ -14,20 +14,20 @@
 ---
 
 - name: Remove the SCP file if exists
-  file:
+  ansible.builtin.file:
     path: "{{ role_path }}/files/{{ scp_filename }}"
     state: absent
   run_once: true
 
 - name: Create SCP file
-  copy:
+  ansible.builtin.copy:
     src: "{{ role_path }}/files/temp_scp.xml"
     dest: "{{ role_path }}/files/{{ scp_filename }}"
     mode: preserve
   run_once: true
 
 - name: Add system profile value to SCP file
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: "{{ role_path }}/files/{{ scp_filename }}"
     line: "{{ item.line }}"
     insertafter: '^(.*)BootSeqRetry'
@@ -40,7 +40,7 @@
   run_once: true
 
 - name: Add PXE attributes to SCP file
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: "{{ role_path }}/files/{{ scp_filename }}"
     line: "{{ item }}"
     insertafter: '^(.*)SysProfile'
@@ -57,31 +57,17 @@
     - '  <Attribute Name="HttpDev2EnDis">Disabled</Attribute>'
     - '  <Attribute Name="HttpDev3EnDis">Disabled</Attribute>'
     - '  <Attribute Name="HttpDev4EnDis">Disabled</Attribute>'
-  when: provision_method == provision_method_pxe
-  run_once: true
-
-- name: Disable PXE attributes to SCP file
-  lineinfile:
-    path: "{{ role_path }}/files/{{ scp_filename }}"
-    line: "{{ item }}"
-    insertafter: '^(.*)SysProfile'
-  with_items:
-    - '  <Attribute Name="PxeDev1EnDis">Disabled</Attribute>'
-    - '  <Attribute Name="PxeDev2EnDis">Disabled</Attribute>'
-    - '  <Attribute Name="PxeDev3EnDis">Disabled</Attribute>'
-    - '  <Attribute Name="PxeDev4EnDis">Disabled</Attribute>'
-  when: provision_method == provision_method_idrac
   run_once: true
 
 - name: Add SNMP community name attribute to SCP file
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: "{{ role_path }}/files/{{ scp_filename }}"
     line: '  <Attribute Name="SNMP.1#AgentCommunity">{{ snmp_community_name }}</Attribute>'
     insertafter: '^(.*)SNMP.1#AgentEnable'
   run_once: true
 
 - name: Add SNMP trap destination attributes to SCP file
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: "{{ role_path }}/files/{{ scp_filename }}"
     line: "{{ item }}"
     insertafter: '^(.*)SNMP.1#AlertPort'
@@ -91,7 +77,8 @@
   when: snmp_trap_status
   run_once: true
 
-- block:
+- name: Import SCP
+  block:
     - name: Import SCP from a local path and wait for this job to get completed
       dellemc.openmanage.idrac_server_config_profile:
         idrac_ip: "{{ inventory_hostname }}"
@@ -108,11 +95,11 @@
       retries: "{{ retries_count }}"
   rescue:
     - name: Import SCP failed
-      fail:
+      ansible.builtin.fail:
         msg: "{{ import_scp_fail_msg }}"
         
 - name: Remove the SCP file
-  file:
+  ansible.builtin.file:
     path: "{{ role_path }}/files/{{ scp_filename }}"
     state: absent
   run_once: true

@@ -13,70 +13,68 @@
 # limitations under the License.
 ---
 
-- name: Include variable file idrac_vars.yml
-  include_vars: "{{ idrac_input_filename }}"
-  run_once: true
+- name: Validate all extra parameters are provided
+  block:
+    - name: Validate all extra parameters are provided
+      ansible.builtin.assert:
+        that:
+          - idrac_username | length > 1
+          - idrac_password | length > 1
+          - provision_os | length > 1
+      no_log: true
+  rescue:
+    - name: idrac credentials validation check
+      ansible.builtin.fail:
+        msg: "{{ missing_idrac_input_fail_msg }}"
 
-- name: Include variable file base_vars.yml
-  include_vars: "{{ base_input_filename }}"
+- name: Validate provision_os
+  ansible.builtin.fail:
+    msg: "{{ provision_os_fail_msg }}"
+  when:
+    - os_supported_rhel not in provision_os
+    - os_supported_rocky not in provision_os
+
+- name: Include variable file idrac_vars.yml
+  ansible.builtin.include_vars: "{{ idrac_input_filename }}"
   run_once: true
 
 - name: Initialize variables
-  set_fact:
+  ansible.builtin.set_fact:
     snmp_trap_status: false
     provision_status: false
   run_once: true
 
 - name: Validate input parameters are not empty
-  fail:
+  ansible.builtin.fail:
     msg: "{{ idrac_input_fail_msg }}"
   register: idrac_config_check
   when:
     - idrac_system_profile | length < 1
 
 - name: Assert idrac_system_profile value
-  assert:
+  ansible.builtin.assert:
     that:
       - idrac_system_profile == "Performance" or idrac_system_profile == "PerformancePerWatt(DAPC)" or idrac_system_profile == "PerformancePerWatt(OS)" or idrac_system_profile == "WorkstationPerformance"
     success_msg: "{{ idrac_system_profile_success_msg }}"
     fail_msg: "{{ idrac_system_profile_fail_msg }}"
 
-- name: Assert firmware_update_required value
-  assert:
-    that:
-      - firmware_update_required | lower == "true" or firmware_update_required | lower == "false"
-    success_msg: "{{ firmware_update_success_msg }}"
-    fail_msg: "{{ firmware_update_fail_msg }}"
-
 - name: Assert snmp_community_name value
-  assert:
+  ansible.builtin.assert:
     that:
       - snmp_community_name | length > 1
     success_msg: "{{ snmp_community_success_msg }}"
     fail_msg: "{{ snmp_community_fail_msg }}"
 
 - name: Set snmp trap destination status
-  set_fact:
+  ansible.builtin.set_fact:
     snmp_trap_status: true
   when: snmp_trap_destination | length > 1
   run_once: true
 
 - name: Assert snmp_trap_destination value
-  assert:
+  ansible.builtin.assert:
     that:
       - snmp_trap_destination | length > 6
     success_msg: "{{ snmp_trap_dest_success_msg }}"
     fail_msg: "{{ snmp_trap_dest_fail_msg }}"
   when: snmp_trap_status
-
-- name: Fetch idrac credentials
-  include_tasks: fetch_idrac_credentials.yml
-  when: not awx_web_support
-
-- name: Set idrac credentials
-  set_fact:
-    idrac_username: "{{ lookup('env','ANSIBLE_NET_USERNAME') }}"
-    idrac_password: "{{ lookup('env','ANSIBLE_NET_PASSWORD') }}"
-  no_log: true
-  when: awx_web_support
-  run_once: true

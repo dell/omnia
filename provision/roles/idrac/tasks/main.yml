@@ -1,4 +1,4 @@
-# Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,30 +13,26 @@
 # limitations under the License.
 ---
 
-# tasks file for provision_idrac
+# tasks file for idrac
 
 - name: Validate idrac parameters
-  include_tasks: validate_idrac_vars.yml
+  ansible.builtin.include_tasks: validate_idrac_config.yml
 
 - name: Check prerequisites
-  include_tasks: check_prerequisites.yml
-
-- name: Update firmware
-  include_tasks: update_firmware.yml
-  when:
-    - not provision_status
-    - firmware_update_required
+  ansible.builtin.include_tasks: check_prerequisites.yml
 
 - name: Import SCP
-  include_tasks: import_scp.yml
+  ansible.builtin.include_tasks: import_scp.yml
   when: not provision_status
 
 - name: Create VD
-  include_tasks: create_vd.yml
-  when: 
-     - not provision_status
-     - provision_state == "stateful"
+  ansible.builtin.include_tasks: create_vd.yml
+  when: not provision_status
+
+- name: Set provision image for PXE boot
+  ansible.builtin.include_tasks: set_provision_image.yml
+  when: not provision_status
 
 - name: Deploy OS
-  include_tasks: deploy_os.yml
+  ansible.builtin.include_tasks: deploy_os.yml
   when: not provision_status

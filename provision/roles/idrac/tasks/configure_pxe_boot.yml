@@ -14,11 +14,11 @@
 ---
 
 - name: Initialize active_nic
-  set_fact:
+  ansible.builtin.set_fact:
     active_nic: []
 
 - name: Set infiniband NIC as active_nic when roce_enabled
-  set_fact:
+  ansible.builtin.set_fact:
     active_nic: "{{ active_nic + [ idrac_info.system_info.PCIDevice[my_idx8].FQDD ] }}"
   with_items: "{{ idrac_info.system_info.PCIDevice }}"
   when:
@@ -28,7 +28,7 @@
     index_var: my_idx8
 
 - name: Set active_nic from NIC details
-  set_fact:
+  ansible.builtin.set_fact:
     active_nic: "{{ active_nic + [ idrac_info.system_info.NIC[my_idx9].FQDD ] }}"
   with_items: "{{ idrac_info.system_info.NIC }}"
   when:
@@ -38,16 +38,17 @@
     index_var: my_idx9
 
 - name: Set unique active_nic and active_nic_count
-  set_fact:
+  ansible.builtin.set_fact:
     active_nic: "{{ active_nic | unique }}"
     active_nic_count: "{{ active_nic | unique | length }}"
 
 - name: No active_nic present for the server
-  fail:
+  ansible.builtin.fail:
     msg: "{{ active_nic_fail_msg }}"
   when: active_nic_count == "0"
 
-- block:
+- name: Configure PXE boot
+  block:
     - name: Configure boot order for PXE booting of 1 active_nic
       dellemc.openmanage.idrac_bios:
         idrac_ip: "{{ inventory_hostname }}"
@@ -122,30 +123,30 @@
           register: deploy_os_pxe_retry
       rescue:
         - name: OS provisioning failed using PXE
-          fail:
+          ansible.builtin.fail:
             msg: "{{ pxe_provisioning_fail_msg }}"
   always:
     - name: Set deploy_os_status when provision_method == PXE for 1 active_nic
-      set_fact:
+      ansible.builtin.set_fact:
         deploy_os_status: "{{ not deploy_os_pxe1.failed }}"
       when: active_nic_count == "1"
 
     - name: Set deploy_os_status when provision_method == PXE for 2 active_nic
-      set_fact:
+      ansible.builtin.set_fact:
         deploy_os_status: "{{ not deploy_os_pxe2.failed }}"
       when: active_nic_count == "2"
     
     - name: Set deploy_os_status when provision_method == PXE for 3 active_nic
-      set_fact:
+      ansible.builtin.set_fact:
         deploy_os_status: "{{ not deploy_os_pxe3.failed }}"
       when: active_nic_count == "3"
 
     - name: Set deploy_os_status when provision_method == PXE for 4 active_nic
-      set_fact:
+      ansible.builtin.set_fact:
         deploy_os_status: "{{ not deploy_os_pxe4.failed }}"
       when: active_nic_count >= "4"
     
     - name: Set deploy_os_status when provision_method == PXE for retry
-      set_fact:
+      ansible.builtin.set_fact:
         deploy_os_status: "{{ not deploy_os_pxe_retry.failed }}"
       when: deploy_os_pxe_retry.failed is defined
