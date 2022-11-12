@@ -13,8 +13,20 @@
 #  limitations under the License.
 ---
 
-amd_gpu_version: "latest"
-amd_rocm_version: "latest"
+# This variable accepts the amd gpu version for the RHEL specific OS version
+# Verify if the version provided is present in the repo for the OS version on your node
+# Verify the url for the compatible version: https://repo.radeon.com/amdgpu/
+# If 'latest' is provided in the variable and the compute os version is rhel 8.5
+# Then the url transforms to https://repo.radeon.com/amdgpu/latest/rhel/8.5/main/x86_64/ 
+amd_gpu_version: "22.20.3"
+
+# This variable accepts the amd rocm version required
+# Make sure the subscription is enabled for rocm installation because rocm packages are present
+# in code ready builder repo for RHEL
+# If 'latest' is provided in the variable, the url transforms to
+# https://repo.radeon.com/rocm/centos8/latest/main/
+# Only single instance is supported by Omnia
+amd_rocm_version: "latest/main"
 
 # This variable is used to download cuda toolkit file.
 # By default latest cuda is installed unless cuda_toolkit_path is specified.
