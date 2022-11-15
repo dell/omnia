@@ -3,7 +3,7 @@ Storage
 
 The storage role allows users to configure PowerVault Storage devices, BeeGFS and NFS services on the cluster.
 
-First, enter all required parameters in ``/storage_config.yml``
+First, enter all required parameters in ``input/storage_config.yml``
 
 +---------------------------------+-------------------------------------------------------------------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Name                            | Default, accepted values                                                            | Required? | Purpose                                                                                                                                                                                        |
@@ -38,7 +38,7 @@ First, enter all required parameters in ``/storage_config.yml``
 |                                 |                                                                                     |           |      - { server_ip: yy.yy.yy.yy, server_share_path: “/mnt/share3”,   client_share_path: “/mnt/client3”, client_mount_options:   “nosuid,rw,sync,hard,intr”}                                    |
 +---------------------------------+-------------------------------------------------------------------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-.. note:: If ``storage.yml`` is run with the ``/storage_config.yml`` filled out, BeeGFS and NFS client will be set up.
+.. note:: If ``storage.yml`` is run with the ``input/storage_config.yml`` filled out, BeeGFS and NFS client will be set up.
 
 **Installing BeeGFS Client**
 

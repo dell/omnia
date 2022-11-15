@@ -31,6 +31,6 @@ To install OFED drivers, enter all required parameters in ``input/network_config
 
 To run the script: ::
 
-    cd omnia/network
+    cd network
     ansible-playbook network.yml
 
