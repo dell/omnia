@@ -1,7 +1,7 @@
 After Running the Provision Tool
-=================================
+--------------------------------
 
-Once the servers are provisioned, run the post provision script to:
+Once the **servers are provisioned**, run the post provision script to:
 
 * Configure iDRAC IP or BMC IP if ``bmc_nic_subnet`` is provided in ``input/provision_config.yml``.
 
@@ -14,10 +14,10 @@ Once the servers are provisioned, run the post provision script to:
 * Create ``node_inventory`` in ``/opt/omnia`` listing provisioned nodes. ::
 
     cat /opt/omnia/node_inventory
-    172.17.0.100 service_tag=XXXXXXX operating_system=RedHat
-    172.17.0.101 service_tag=XXXXXXX operating_system=RedHat
-    172.17.0.102 service_tag=XXXXXXX operating_system=Rocky
-    172.17.0.103 service_tag=XXXXXXX operating_system=Rocky
+    172.29.0.100 service_tag=XXXXXXX operating_system=RedHat
+    172.29.0.101 service_tag=XXXXXXX operating_system=RedHat
+    172.29.0.102 service_tag=XXXXXXX operating_system=Rocky
+    172.29.0.103 service_tag=XXXXXXX operating_system=Rocky
 
 
 .. note:: Before post provision script, verify redhat subscription is enabled using the ``rhsm_subscription.yml`` playbook in utils only if OFED or GPU accelerators are to be installed.

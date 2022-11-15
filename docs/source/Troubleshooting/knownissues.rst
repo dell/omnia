@@ -404,7 +404,7 @@ At any given time only one type of disk group can be created on the system. That
 
 **Resolution**:
 
-1. If SeLinux is enabled, update the file ``/etc/sysconfig/selinux`` and reboot the server.
+1. If SELinux is enabled, update the file ``/etc/sysconfig/selinux`` and reboot the server.
 
 2. Open all ports required by BeeGFS: 8008, 8003, 8004, 8005 and 8006
 
@@ -469,6 +469,16 @@ If you have enabled the option to install the login node in the cluster, set the
 1. Delete Jupyterhub deployment by executing the following command in manager node: ``helm delete jupyterhub -n jupyterhub``
 
 2. Re-execute ``jupyterhub.yml`` after 8-9 hours.
+
+**What to do if NFS clients are unable to access the share after an NFS server reboot?**
+
+Reboot the NFS server (external to the cluster) to bring up the services again: ::
+
+    systemctl disable nfs-server
+    systemctl enable nfs-server
+    systemctl restart nfs-server
+
+
 
 
 

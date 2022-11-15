@@ -1,10 +1,12 @@
 BeeGFS Bolt On
-================
+--------------
 
-BeeGFS is a hardware-independent POSIX parallel file system (a.k.a. Software-defined Parallel Storage) developed with a strong focus on performance and designed for ease of use, simple installation, and management. BeeGFS is created on an Available Source development model (source code is publicly available), offering a self-supported Community Edition and a fully supported Enterprise Edition with additional features and functionalities. BeeGFS is designed for all performance-oriented environments including HPC, AI and Deep Learning, Media & Entertainment, Life Sciences, and Oil & Gas (to name a few).
+BeeGFS is a hardware-independent POSIX parallel file system (a.k.a. Software-defined Parallel Storage) developed with a strong focus on performance and designed for ease of use, simple installation, and management.
 
 .. image:: ../../images/BeeGFS_Structure.jpg
 
+
+**Pre Requisites before installing BeeGFS client**
 
 * If the user intends to use BeeGFS, ensure that a BeeGFS cluster has been set up with beegfs-mgmtd, beegfs-meta, beegfs-storage services running.
 
@@ -129,6 +131,14 @@ To open the ports required, use the following steps:
 +-----------------------------------------+----------------+
 | Rocky Linux 8.4: no OFED, OFED 5.3, 5.4 | 7.2.4          |
 +-----------------------------------------+----------------+
+
+**Installing the BeeGFS client via Omnia**
+
+After the required parameters are filled in ``input/storage_config.yml``, Omnia installs BeeGFS on manager and compute nodes while executing the ``omnia.yml`` playbook. ::
+
+.. note::
+    * BeeGFS client-server communication can take place through TCP or RDMA. If RDMA support is required, set ``beegfs_rdma_support`` should be set to true. Also, OFED should be installed on all target nodes.
+    * For BeeGFS communication happening over RDMA, the ``beegfs_mgmt_server`` should be provided with the Infiniband IP of the management server.
 
 
 

@@ -1,51 +1,63 @@
 NFS Bolt On
-===========
+------------
 
-After an NFS client is configured, if the NFS server is rebooted, the client may not be able to send communications to the server. In those cases, restart the NFS server using the below command:
+* Ensure that an external NFS server is running. NFS clients are mounted using the external NFS server's IP.
 
-::
-    systemctl restart nfs-server
+* Fill out the ``nfs_client_params`` variable in the ``input/storage_config.yml`` file in JSON format using the samples provided below.
+
+* This role runs on manager, compute and login nodes.
+
+* Make sure that ``/etc/exports`` on the NFS server is populated with the same paths listed as ``server_share_path`` in the ``nfs_client_params`` in ``input/storage_config.yml``.
+
+* Post configuration, enable the following services (using this command: ``firewall-cmd --permanent --add-service=<service name>``) and then reload the firewall (using this command: ``firewall-cmd --reload``).
+
+  - nfs
+
+  - rpc-bind
+
+  - mountd
+
+* Omnia supports all NFS mount options. Without user input, the default mount options are nosuid,rw,sync,hard,intr. For a list of mount options, `click here <https://linux.die.net/man/5/nfs>`_.
+
+* The fields listed in ``nfs_client_params`` are:
+
+  - server_ip: IP of NFS server
+
+  - server_share_path: Folder on which NFS server mounted
+
+  - client_share_path: Target directory for the NFS mount on the client. If left empty, respective ``server_share_path value`` will be taken for ``client_share_path``.
+
+  - client_mount_options: The mount options when mounting the NFS export on the client. Default value: nosuid,rw,sync,hard,intr.
 
 
 
-NFS Server
-===========
+* There are 3 ways to configure the feature:
 
-* Ensure that powervault support is enabled by setting ``powervault_support`` to true in ``provision_config.yml``. By default, a volume called 'omnia_home' will be created on the powervault to mount on the nfs_node.
+  1. **Single NFS node** : A single NFS filesystem is mounted from a single NFS server. The value of ``nfs_client_params`` would be::
 
-.. warning:: Powervault will only be available over SAS if the powervault has been configured using `powervault.yml <../ConfiguringStorage>`_.
+        - { server_ip: 172.10.0.101, server_share_path: "/mnt/share", client_share_path: "/mnt/client", client_mount_options: "nosuid,rw,sync,hard,intr" }
 
-* For multiple NFS volumes, enter the following details in JSON list format in ``powervault_input.yml`` under ``powervault_volumes``:
+  2. **Multiple Mount NFS Filesystem**: Multiple filesystems are mounted from a single NFS server. The value of ``nfs_client_params`` would be::
 
-    - name [Mandatory]: The name of the NFS export.
+        - { server_ip: 172.10.0.101, server_share_path: "/mnt/share1", client_share_path: "/mnt/client1", client_mount_options: "nosuid,rw,sync,hard,intr" }
+        - { server_ip: 172.10.0.101, server_share_path: "/mnt/share2", client_share_path: "/mnt/client2", client_mount_options: "nosuid,rw,sync,hard,intr" }
 
-    - server_share_path [Mandatory]: The path at which volume is mounted on nfs_node. This directory will be assigned 755 permissions during NFS server configuration.
+   3. **Multiple NFS Filesystems**: Multiple filesystems are mounted from multiple NFS servers. The value of ``nfs_client_params`` would be::
 
-    - server_export_options: (Default) rw,sync,no_root_squash
+        - { server_ip: 172.10.0.101, server_share_path: "/mnt/server1", client_share_path: "/mnt/client1", client_mount_options: "nosuid,rw,sync,hard,intr" }
+        - { server_ip: 172.10.0.102, server_share_path: "/mnt/server2", client_share_path: "/mnt/client2", client_mount_options: "nosuid,rw,sync,hard,intr" }
+        - { server_ip: 172.10.0.103, server_share_path: "/mnt/server3", client_share_path: "/mnt/client3", client_mount_options: "nosuid,rw,sync,hard,intr" }
 
-    - client_shared_path: The path at which volume is mounted on manager, compute, login node. Unless specified otherwise, the client path will inherit the options from the ``server_export_path``.
 
-    - client_mount_options: Default value is- nosuid,rw,sync,hard,intr (unless specified otherwise)
 
-* Only one NFS server is configured per run of ``omnia.yml``. To configure multiple NFS servers, update the following per execution:
+.. warning::
+    After an NFS client is configured, if the NFS server is rebooted, the client may not be able to reach the server. In those cases, restart the NFS services on the server using the below command:
 
-  * ``powervault_ip`` in ``omnia_config.yml``
+        ::
 
-  * nfs_node group IP in the node inventory
+            systemctl disable nfs-server
+            systemctl enable nfs-server
+            systemctl restart nfs-server
 
-* The default entry for ``powervault_volumes`` will look like this:  ``  - { name: omnia_home, server_share_path: /home/omnia_home, server_export_options: ,client_share_path: , client_mount_options: }``
 
-* Ensure that ``powervault_ip`` is populated. The right powervault IP can be found in ``/opt/omnia/powervault_inventory``. If it's not present, run ``ansible-playbook collect_device_info.yml`` (dedicated NIC) or ``ansible-playbook collect_node_info.yml`` (LOM NIC) from the control_plane directory.
-
-.. note:: In a single run of omnia, only one NFS Server is configured. To configure multiple NFS Servers, add one IP in the nfs_node group and populate the variables accordingly per run of ``omnia.yml``. To configure another nfs node, update variables and run ``nfs_sas.yml``.
-
-* If NFS server configuration is to happen via SAS, the following conditions are to be met:
-
-* There should be multiple network paths available between the NFS server and the Powervault to ensure high availability. For more information, `click here <https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/8/html/configuring_device_mapper_multipath/overview-of-device-mapper-multipathing_configuring-device-mapper-multipath>`_.
-
-.. image:: ../../images/MultipathingOverSAS.png
-
-* Set ``powervault_protocol`` to 'sas' in ``powervault_input.yml``.
-
-* Configuring NFS over ISCSI is only supported on Powervault ME4.
 

@@ -1,5 +1,5 @@
 Running The Provision Tool
-==============================
+--------------------------
 
 1. Edit the ``input/provision_config.yml`` file to update the required variables.
 
@@ -34,25 +34,16 @@ Running The Provision Tool
                     ----+------------+-------------------+--------------------------+--------------+--------+-------
 
 
-                    1 |            | 00:c0:ff:43:f9:44 | node00001.winter.cluster | 172.19.1.253 |        |
-
-                    2 |            | 70:b5:e8:d1:84:22 | node00002.winter.cluster | 172.19.1.254 |        |
-
-                    3 |            | b8:ca:3a:71:25:5c | node00003.winter.cluster | 172.19.1.255 |        |
-
-                    4 |            | 8c:47:be:c7:6f:c1 | node00004.winter.cluster | 172.19.2.0   |        |
-
-                    5 |            | 8c:47:be:c7:6f:c2 | node00005.winter.cluster | 172.19.2.1   |        |
-
-                    6 |            | b0:26:28:5b:80:18 | node00006.winter.cluster | 172.19.2.2   |        |
-
-                    7 |            | b0:7b:25:de:71:de | node00007.winter.cluster | 172.19.2.3   |        |
-
-                    8 |            | b0:7b:25:ee:32:fc | node00008.winter.cluster | 172.19.2.4   |        |
-
-                    9 |            | d0:8e:79:ba:6a:58 | node00009.winter.cluster | 172.19.2.5   |        |
-
-                    10|            | d0:8e:79:ba:6a:5e | node00010.winter.cluster | 172.19.2.6   |        |
+                    1 |            | 00:c0:ff:43:f9:44 | node00001.winter.cluster | 172.29.1.253 |        |
+                    2 |            | 70:b5:e8:d1:84:22 | node00002.winter.cluster | 172.29.1.254 |        |
+                    3 |            | b8:ca:3a:71:25:5c | node00003.winter.cluster | 172.29.1.255 |        |
+                    4 |            | 8c:47:be:c7:6f:c1 | node00004.winter.cluster | 172.29.2.0   |        |
+                    5 |            | 8c:47:be:c7:6f:c2 | node00005.winter.cluster | 172.29.2.1   |        |
+                    6 |            | b0:26:28:5b:80:18 | node00006.winter.cluster | 172.29.2.2   |        |
+                    7 |            | b0:7b:25:de:71:de | node00007.winter.cluster | 172.29.2.3   |        |
+                    8 |            | b0:7b:25:ee:32:fc | node00008.winter.cluster | 172.29.2.4   |        |
+                    9 |            | d0:8e:79:ba:6a:58 | node00009.winter.cluster | 172.29.2.5   |        |
+                    10|            | d0:8e:79:ba:6a:5e | node00010.winter.cluster | 172.29.2.6   |        |
 
    iii. Offline repositories will be created based on the OS being deployed across the cluster.
 
