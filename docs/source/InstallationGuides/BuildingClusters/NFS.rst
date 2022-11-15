@@ -1,5 +1,5 @@
 NFS Bolt On
-===========
+------------
 
 * Ensure that an external NFS server is running. NFS clients are mounted using the external NFS server's IP.
 

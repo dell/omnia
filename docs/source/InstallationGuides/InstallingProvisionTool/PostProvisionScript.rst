@@ -1,5 +1,5 @@
 After Running the Provision Tool
-=================================
+--------------------------------
 
 Once the **servers are provisioned**, run the post provision script to:
 

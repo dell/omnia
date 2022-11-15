@@ -1,5 +1,5 @@
 Running The Provision Tool
-==============================
+--------------------------
 
 1. Edit the ``input/provision_config.yml`` file to update the required variables.
 

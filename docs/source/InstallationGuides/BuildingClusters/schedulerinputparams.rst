@@ -1,5 +1,5 @@
 Input Parameters for the Cluster
-==================================
+-------------------------------
 
 These parameters is located in ``input/omnia_config.yml``
 
