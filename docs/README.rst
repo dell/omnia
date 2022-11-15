@@ -1,7 +1,7 @@
 Omnia Documentation
 -------------------
 
-The xCAT docs are hosted here: https://omnia-documentation.readthedocs.io/en/latest/index.html and are written in reStructuredText (`.rst`).
+The Omnia docs are hosted here: https://omnia-documentation.readthedocs.io/en/latest/index.html and are written in reStructuredText (`.rst`).
 
 Building Docs
 --------------

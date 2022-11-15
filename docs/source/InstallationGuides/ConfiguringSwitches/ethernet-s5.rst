@@ -2,7 +2,7 @@ Configuring Ethernet Switches (S5 series)
 ------------------------------------------------
 
 
-* Edit the ``omnia/network/ethernet_sseries_input.yml`` file for all S5* PowerSwitches such as S5232F-ON.
+* Edit the ``network/ethernet_sseries_input.yml`` file for all S5* PowerSwitches such as S5232F-ON.
 
 +------------------------------+-------------------------------------------------------------------------------------------------------------+-----------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Name                         | Default, accepted values                                                                                    | Required? | Purpose                                                                                                                                                                                                             |

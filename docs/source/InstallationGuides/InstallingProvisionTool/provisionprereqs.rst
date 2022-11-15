@@ -1,32 +1,30 @@
 Before You Run The Provision Tool
 ==================================
 
-* (Recommended) Run ``prereq.sh`` to get the system ready to deploy Omnia. Alternatively, ensure that `Ansible 2.12.9 <https://docs.ansible.com/ansible/latest/reference_appendices/release_and_maintenance.html>`_ and `Python 3.8 <https://www.python.org/downloads/release/python-380/>`_ are installed on the system.
+* (Recommended) Run ``prereq.sh`` to get the system ready to deploy Omnia. Alternatively, ensure that `Ansible 2.12.9 <https://docs.ansible.com/ansible/latest/reference_appendices/release_and_maintenance.html>`_ and `Python 3.8 <https://www.python.org/downloads/release/python-380/>`_ are installed on the system. SELinux should also be disabled.
 * To provision the bare metal servers, download one of the following ISOs for deployment:
 
     1. `Rocky 8 <https://rockylinux.org/>`_
 
     2. `RHEL 8.x <https://www.redhat.com/en/enterprise-linux-8>`_
 
-* If devices (switches, servers and storage) are to be configured and managed by Omnia, ensure that DHCP is enabled on all target devices.
-
-* For DHCP configuration, you can provide a host mapping file. If the mapping file is not provided and the variable is left blank, a default mapping file will be created. The provided details must be in the format: MAC,hostname,IP. For example,  ``10:11:12:13:14:15,server1,100.96.20.66`` and   ``14:15:16:17:18:19,server2,100.96.22.199`` are valid entries.
+* To dictate IP address/MAC mapping, a host mapping file can be provided. If the mapping file is not provided and the variable is left blank, a default mapping file will be created by querying the switch. Use the `pxe_mapping_file.csv <../../Samplefiles.html>`_ to create your own mapping file.
 
 * Ensure that all connection names under the network manager match their corresponding device names. This can be verified using the command  ``nmcli connection``. In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcfg-<nic name>`` using vi editor.
 
-* All target hosts should be set up in PXE mode before running the script.
+* All target hosts should be set up in PXE mode before running the playbook.
 
-* If RHEL is in use on the control plane, enable RedHat subscription. Not only does Omnia not enable RHEL subscription on the control plane, package installation may fail if RHEL subscription is disabled.
+* If RHEL is in use on the control plane, enable RedHat subscription. Not only does Omnia not enable RedHat subscription on the control plane, package installation may fail if RedHat subscription is disabled.
 
-* Users should also ensure that all repos are available on the Red Hat control plane.
+* Users should also ensure that all repos are available on the RHEL control plane.
 
-* Ensure that the pxe_nic and public_nic are in the firewalld zone: public.
+* Ensure that the ``pxe_nic`` and ``public_nic`` are in the firewalld zone: public.
 
  .. Note::
 
-    * After the installation of the Omnia appliance, changing the Omnia host is not supported. If you need to change the Omnia host, you must redeploy the entire cluster.
+    * After configuration and installation of the cluster, changing the control plane is not supported. If you need to change the control plane, you must redeploy the entire cluster.
 
-    * If there are errors while executing any of the Ansible playbook commands, then re-run the commands.
+    * If there are errors while executing any of the Ansible playbook commands, then re-run the playbook.
 
 
 

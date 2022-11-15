@@ -1,5 +1,3 @@
-Scheduler
-==========
 
 The scheduler role sets up `Kubernetes <https://kubernetes.io/>`_ and `Slurm <https://slurm.schedmd.com/documentation.html>`_.
 
@@ -70,7 +68,6 @@ To ensure security while running jobs on the cluster, users can be assigned perm
 
     cd omnia/scheduler
     ansible-playbook job_based_user_access.yml -i inventory
-
 
 .. note::
 

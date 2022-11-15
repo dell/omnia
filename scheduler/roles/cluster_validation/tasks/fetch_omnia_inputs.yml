@@ -163,7 +163,7 @@
       - "groups['login_node'] | length | int == 1"
     fail_msg: "{{ login_node_group_fail_msg }}"
     success_msg: "{{ login_node_group_success_msg }}"
-  when: login_node_required  or freeipa_required
+  when: login_node_required
 
 - name: Validate the domain name
   ansible.builtin.assert:

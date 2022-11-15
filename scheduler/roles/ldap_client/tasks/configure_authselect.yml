@@ -28,3 +28,9 @@
     name: oddjobd
     state: started
     enabled: true
+
+- name: Restart sssd.service
+  ansible.builtin.systemd:
+    name: sssd
+    state: restarted
+    enabled: true
