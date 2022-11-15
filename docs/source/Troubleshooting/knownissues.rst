@@ -404,7 +404,7 @@ At any given time only one type of disk group can be created on the system. That
 
 **Resolution**:
 
-1. If SeLinux is enabled, update the file ``/etc/sysconfig/selinux`` and reboot the server.
+1. If SELinux is enabled, update the file ``/etc/sysconfig/selinux`` and reboot the server.
 
 2. Open all ports required by BeeGFS: 8008, 8003, 8004, 8005 and 8006
 

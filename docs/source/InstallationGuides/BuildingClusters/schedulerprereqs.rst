@@ -6,7 +6,7 @@ Before You Build Clusters
 
 * If the target cluster requires more than 10 kubernetes nodes, use a docker enterprise account to avoid docker pull limits.
 
-* Verify that all nodes are assigned a group. Use the `host_inventory.ini <../../samplefiles.html>`_ as a reference.
+* Verify that all nodes are assigned a group. Use the `inventory <../../samplefiles.html>`_ as a reference.
 
   * The manager group should have exactly 1 manager node.
 
@@ -22,19 +22,19 @@ Before You Build Clusters
 
 **Features enabled by omnia.yml**
 
-* Slurm: Once all the required parameters in `Omnia_config.yml <schedulerinputparams.html>`_ are filled in, ``omnia.yml`` can be used to set up slurm.
+* Slurm: Once all the required parameters in `omnia_config.yml <schedulerinputparams.html>`_ are filled in, ``omnia.yml`` can be used to set up slurm.
 
-* `LDAP client support <Security.html>`_: The manager and compute nodes will have LDAP installed but the login node will be excluded.
+* LDAP client support: The manager and compute nodes will have LDAP installed but the login node will be excluded.
 
-* `FreeIPA support <Security.html>`_
+* FreeIPA support
 
-* `Login Node (Additionally secure login node) <Security.html>`_
+* Login Node (Additionally secure login node)
 
 * Kubernetes: Once all the required parameters in `omnia_config.yml <schedulerinputparams.html>`_ are filled in, ``omnia.yml`` can be used to set up kubernetes.
 
-* `BeeGFS bolt on installation <BeeGFS.html>`_
+* BeeGFS bolt on installation
 
-* `NFS bolt on support <NFS.html>`_
+* NFS bolt on support
 
 
 

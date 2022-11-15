@@ -84,7 +84,7 @@ These parameters is located in ``input/omnia_config.yml``
 
 **Features enabled by scheduler.yml**
 
-* Slurm: Once all the required parameters in ``Omnia_config.yml`` are filled in, ``scheduler.yml`` can be used to set up slurm.
+* Slurm: Once all the required parameters in ``omnia_config.yml`` are filled in, ``scheduler.yml`` can be used to set up slurm.
 
 * LDAP client support: The manager and compute nodes will have LDAP installed but the login node will be excluded.
 

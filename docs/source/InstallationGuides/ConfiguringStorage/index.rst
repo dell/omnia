@@ -24,7 +24,7 @@ Fill out all required parameters in ``storage/powervault_input.yml``:
 +--------------------------------+-----------------------------------+-----------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | powervault_raid_levels         | **raid1**,   raid5, raid6, raid10 | Optional  | Enter   the required RAID levels and the minimum and maximum number of disks for each   RAID levels.                                                                                                                                                    |
 +--------------------------------+-----------------------------------+-----------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| powervault_disk_range          | **0.1-2**                         | Required  | Enter the range of disks in the format   enclosure-number.disk-range,enclosure-number.disk-range. For example, to   select disks 3 to 12 in enclosure 1 and to select disks 5 to 23 in enclosure   2, you must enter 1.3-12, 2.5-23.                    |
+| powervault_disk_range          | **0.1-1**                         | Required  | Enter the range of disks in the format   enclosure-number.disk-range,enclosure-number.disk-range. For example, to   select disks 3 to 12 in enclosure 1 and to select disks 5 to 23 in enclosure   2, you must enter 1.3-12, 2.5-23.                    |
 |                                |                                   |           |                                                                                                                                                                                                                                                         |
 |                                |                                   |           | A RAID 10 or 50 disk group with disks in subgroups are separated by colons   (with no spaces). RAID-10 example:1.1-2:1.3-4:1.7,1.10                                                                                                                     |
 |                                |                                   |           |                                                                                                                                                                                                                                                         |
@@ -50,7 +50,7 @@ Fill out all required parameters in ``storage/powervault_input.yml``:
 
 Run the playbook: ::
 
-    cd omnia/storage
+    cd storage
     ansible-playbook powervault.yml -i inventory -e powervault_username="" -e powervault_password=""
 
 * Where the ``inventory`` refers to a list of all nodes separated by a newline.
@@ -78,7 +78,7 @@ To configure an NFS server, enter the following parameters in ``storage/nfs_serv
 
 Run the playbook: ::
 
-    cd omnia/storage
+    cd storage
     ansible-playbook nfs_sas.yml -i inventory
 
 * Where the ``inventory`` refers to a list of all nodes in the format of `NFS server inventory file <../../samplefiles.html>`_

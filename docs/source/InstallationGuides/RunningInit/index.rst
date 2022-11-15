@@ -8,7 +8,7 @@ Running prereq.sh
 
 
 .. note::
-    * If SeLinux is not disabled, it will be disabled by the script and the user will be prompted to reboot the control plane.
+    * If SELinux is not disabled, it will be disabled by the script and the user will be prompted to reboot the control plane.
 
 
 

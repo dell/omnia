@@ -12,7 +12,7 @@ Configuring Ethernet Switches (S5 series)
 +------------------------------+-------------------------------------------------------------------------------------------------------------+-----------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | breakout_value               | **10g-4x**,  25g-4x, 40g-1x,   50g-2x, 100g-1x                                                              | required  | By default, all ports are configured in the 10g-4x breakout mode in which   a QSFP28 or QSFP+ port is split into four 10G interfaces. For more   information about the breakout modes, see Configure breakout mode. |
 +------------------------------+-------------------------------------------------------------------------------------------------------------+-----------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| snmp_trap_destination                                                                                                                      | optional  |  The trap destination IP address is   the IP address of the SNMP Server where the trap will be sent. Ensure that   the SNMP IP is valid.                                                                            |
+| snmp_trap_destination        |                                                                                                             | optional  |  The trap destination IP address is   the IP address of the SNMP Server where the trap will be sent. Ensure that   the SNMP IP is valid.                                                                            |
 +------------------------------+-------------------------------------------------------------------------------------------------------------+-----------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | snmp_community_string        | public                                                                                                      | optional  |  An SNMP community string is a   means of accessing statistics stored within a router or other device.                                                                                                              |
 +------------------------------+-------------------------------------------------------------------------------------------------------------+-----------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -32,7 +32,7 @@ Configuring Ethernet Switches (S5 series)
 
 **Running the playbook**::
 
-    cd omnia/network
+    cd network
 
     ansible-playbook ethernet_switch_config.yml -i inventory -e ethernet_switch_username=”” -e ethernet_switch_password=””
 

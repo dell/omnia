@@ -36,7 +36,7 @@ Configuring Ethernet Switches (Z series)
 
 **Running the playbook**::
 
-    cd omnia/network
+    cd network
 
     ansible-playbook ethernet_switch_config.yml -i inventory -e ethernet_switch_username=”” -e ethernet_switch_password=””
 

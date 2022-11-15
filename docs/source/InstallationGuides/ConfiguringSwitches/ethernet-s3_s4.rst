@@ -1,7 +1,7 @@
 Configuring Ethernet Switches (S3 and S4 series)
 ------------------------------------------------
 
-* Edit the ``ethernet_tor_input.yml`` file for all S3* and S4* PowerSwitches such as S3048-ON, S4048T-ON, S4112F-ON, S4048-ON, S4048T-ON, S4112F-ON, S4112T-ON, and S4128F-ON.
+* Edit the ``network/ethernet_tor_input.yml`` file for all S3* and S4* PowerSwitches such as S3048-ON, S4048T-ON, S4112F-ON, S4048-ON, S4048T-ON, S4112F-ON, S4112T-ON, and S4128F-ON.
 
 +----------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Name                       | Default, accepted values                                                                                                                                                | Required? | Purpose                                                                                                                                                                                       |
@@ -28,7 +28,7 @@ Configuring Ethernet Switches (S3 and S4 series)
 
 **Running the playbook**::
 
-    cd omnia/network
+    cd network
 
     ansible-playbook ethernet_switch_config.yml -i inventory -e ethernet_switch_username=”” -e ethernet_switch_password=””
 

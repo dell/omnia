@@ -17,6 +17,7 @@ Some of the network features Omnia offers are:
 
 2. Infiniband switch configuration
 
+To install OFED drivers, enter all required parameters in ``input/network_config.yml``:
 
 +------------------------------+--------------------------+-----------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Name                         | Default, accepted values | Required? | Purpose                                                                                                                                                                                 |
