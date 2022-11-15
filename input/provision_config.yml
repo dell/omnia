@@ -73,7 +73,7 @@ bmc_nic_subnet: ""
 # If user wants to assign static IPs, format of csv: MAC,Hostname,IP
 # Only last 16 bits/2 octets of IPv4 can be dynamic
 # Ensure that IPs given in mapping file goes hand in hand witht he pxe_nic ranges provided above
-# Ex. xx:yy:zz:aa:bb,server,172.17.0.5
+# Ex. xx:yy:zz:aa:bb:cc,server,172.17.0.5
 # A templates for mapping file exists in omnia/examples and is named as host_mapping_file_os_provisioning.csv
 # This depicts the path where user has kept the mapping file for DHCP configurations.
 # Optional ( Either pxe_mapping_file_path or PXE switch details should to be provided )
@@ -86,7 +86,6 @@ pxe_switch_ip: ""
 pxe_switch_snmp_community_string: "public"
 
 # The prefix for the node names, if needed to be dynamically allocated.
-# Mandatory, if PXE switch IP given
 # Mandatory, if PXE switch IP given
 node_name: "node"
 
