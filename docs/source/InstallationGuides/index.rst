@@ -32,7 +32,7 @@ Change directory to Omnia using: ::
 Run the script ``prereq.sh`` to verify the system is ready for Omnia deployment.
 
 .. toctree::
-    :hidden:
+
 
     RunningInit/index
     InstallingProvisionTool/index
