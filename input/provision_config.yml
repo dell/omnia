@@ -38,7 +38,7 @@ admin_nic_subnet: "172.29.0.0"
 pxe_nic: "eno1"
 
 # The dhcp range for assigning the IPv4 address while provisioning
-# Examples: 172.29.0.50 - 172.29.0.100, 10.10.1.100 - 10.10.1.200
+# Examples: 172.29.0.50 - 172.29.0.100, 10.10.1.100 - 10.10.2.200
 # If pxe range is 192.12.0.100 - 192.12.0.200 and bmc_subnet is 192.14.0.0 then for a node,
 # Omnia would assign Pxe IP as 192.12.0.101 , bmc IP as 192.14.0.101
 # Default: 172.29.0.100 - 172.29.0.200
@@ -72,9 +72,9 @@ bmc_nic_subnet: ""
 # The mapping file consists of the MAC address and its respective IP address and Hostname.
 # If user wants to assign static IPs, format of csv: MAC,Hostname,IP
 # Only last 16 bits/2 octets of IPv4 can be dynamic
-# Ensure that IPs given in mapping file goes hand in hand witht he pxe_nic ranges provided above
+# Ensure that IPs given in mapping file goes hand in hand with the pxe_nic ranges provided above
 # Ex. xx:yy:zz:aa:bb:cc,server,172.17.0.5
-# A templates for mapping file exists in omnia/examples and is named as host_mapping_file_os_provisioning.csv
+# A templates for mapping file exists in omnia/examples and is named as pxe_mapping_file.csv
 # This depicts the path where user has kept the mapping file for DHCP configurations.
 # Optional ( Either pxe_mapping_file_path or PXE switch details should to be provided )
 pxe_mapping_file_path: ""
