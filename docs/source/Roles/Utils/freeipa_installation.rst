@@ -21,4 +21,4 @@ IPA services are used to provide account management and centralized authenticati
 +-------------------------+-----------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 .. note::
-Use the format specified under `NFS inventory in the Sample Files <../../Samplefiles.html#nfs-server-inventory-file>`_ for inventory.
+Use the format specified under `NFS inventory in the Sample Files <../../samplefiles.html#nfs-server-inventory-file>`_ for inventory.
