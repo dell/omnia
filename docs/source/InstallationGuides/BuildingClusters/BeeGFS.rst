@@ -54,6 +54,8 @@ To open the ports required, use the following steps:
         systemctl status beegfs-storage
 
 
+.. note:: BeeGFS with OFED capability is only supported on RHEL 8.3 and above due to limitations on BeeGFS. When setting up your cluster with RDMA support, check the BeeGFS documentation to provide appropriate values in ``input/storage_config.yml``.
+
 * If the cluster runs Rocky, ensure that versions running are compatible:
 
 +-----------------------------------------+----------------+
