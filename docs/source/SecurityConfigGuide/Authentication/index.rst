@@ -1,0 +1,6 @@
+Authentication
+--------------
+
+.. toctree::
+    FreeIPA
+    LDAP
