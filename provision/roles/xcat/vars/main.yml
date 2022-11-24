@@ -73,7 +73,7 @@ conf_file_mode: 0644
 # Usage: validate_switch_vars.yml
 pxe_switch_ip_valid: "Valid switch ip provided"
 pxe_switch_ip_invalid: " Failed. Provide a valid switch ip"
-fail_switch_or_mapping_file: "Failed.Please provide either PXE mapping file or PXE switch details.If switch details are given,then provide proper nodename too."
+fail_switch_or_mapping_file: "Failed.Please provide either PXE mapping file or PXE switch details.If switch details are given,then provide proper Node_name too."
 pxe_switch_unreachable: "Failed. Given switch is unreachable. Please provide correct switch IP."
 provision_option_fail_msg: "[WARNING]. Ignoring pxe_switch_ip when pxe_mapping_file_path provided"
 
@@ -123,7 +123,7 @@ desired_capacity_fail_msg: "Failed. Provide valid integer value to desired_capac
 
 # Usage: validate_domain_name.yml
 domain_name_success_msg: "domain_name successfully validated"
-domain_name_fail_msg: "Failed. Incorrect format provided for domain_name in provision_config.yml"
+domain_name_fail_msg: "Failed. Check whether domain_name is in proper format in provision_config.yml."
 server_hostname_success_msg: "Hostname in server hostname validated"
 server_hostname_fail_msg: "Failed. Hostname set is not valid"
 server_domain_name_blank_msg: "Failed. domain_name is not set in hostname. It should have hostname.domain_name format"
@@ -131,6 +131,8 @@ server_domain_name_success_msg: "domain_name in server hostname validated"
 server_domain_name_fail_msg: "Failed. domain_name set is not same as domain_name in provision_config.yml"
 hosts_file_path: /etc/hosts
 hosts_file_mode: "0644"
+hostname_success_msg: "Hostname length successfully validated."
+hostname_fail_msg: "Failed. Hostname comprises of domain name, node namde and 6 characters that is used by omnia. Including all its length should be less than 65 characters."
 
 # Usage: firewall_settings.yml
 xcat_ports:
