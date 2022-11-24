@@ -21,6 +21,18 @@
     success_msg: "{{ domain_name_success_msg }}"
     fail_msg: "{{ domain_name_fail_msg }}"
 
+- name: Length of domain name and node name
+  ansible.builtin.set_fact:
+    domain_name_len: "{{ domain_name | length }}"
+    node_name_len: "{{ node_name | length }}"
+
+- name: Assert length of hostname is less than 64 characters
+  ansible.builtin.assert:
+    that:
+      - domain_name_len|int + node_name_len|int < 59
+    success_msg: "{{ hostname_success_msg }}"
+    fail_msg: "{{ hostname_fail_msg }}"
+
 - name: Fetch the short hostname
   ansible.builtin.command: hostname -s
   register: short_hostname
