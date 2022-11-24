@@ -132,7 +132,7 @@ server_domain_name_fail_msg: "Failed. domain_name set is not same as domain_name
 hosts_file_path: /etc/hosts
 hosts_file_mode: "0644"
 hostname_success_msg: "Hostname length successfully validated."
-hostname_fail_msg: "Failed. Hostname comprises of domain name, node namde and 6 characters that is used by omnia. Including all its length should be less than 65 characters."
+hostname_fail_msg: "Failed. Hostname comprises of domain name, node name and 6 characters (00001 and .) that is used by omnia. All these inclusive, the total length should be less than 65 characters."
 
 # Usage: firewall_settings.yml
 xcat_ports:
