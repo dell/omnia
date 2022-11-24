@@ -23,8 +23,8 @@
 
 - name: Length of domain name and node name
   ansible.builtin.set_fact:
-    domain_name_len: domain_name | length
-    node_name_len: node_name | length
+    domain_name_len: "{{ domain_name | length }}"
+    node_name_len: "{{ node_name | length }}"
 
 - name: Assert length of hostname is less than 64 characters
   ansible.builtin.assert:
