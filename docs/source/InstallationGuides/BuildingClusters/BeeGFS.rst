@@ -54,41 +54,7 @@ To open the ports required, use the following steps:
         systemctl status beegfs-storage
 
 
-
-* If the cluster runs RHEL, ensure that versions running are compatible:
-
-+------------+--------------------------------+-----------------+
-| OS version | BeeGFS Client Version          | Status          |
-+============+================================+=================+
-| RHEL-8.0   | 7.2                            | Supported       |
-+------------+--------------------------------+-----------------+
-| RHEL-8.0   | 7.2.6                          | Supported       |
-+------------+--------------------------------+-----------------+
-| RHEL-8.3   | 7.2                            | Not   Supported |
-+------------+--------------------------------+-----------------+
-| RHEL-8.3   | 7.2.1                          | Supported       |
-+------------+--------------------------------+-----------------+
-| RHEL-8.3   | 7.2.4                          | Supported       |
-+------------+--------------------------------+-----------------+
-| RHEL-8.3   | 7.2.1                          | Supported       |
-+------------+--------------------------------+-----------------+
-| RHEL-8.3   | 7.2.2                          | Supported       |
-+------------+--------------------------------+-----------------+
-| RHEL-8.3   | 7.2.5                          | Supported       |
-+------------+--------------------------------+-----------------+
-| RHEL-8.3   | 7.2.6                          | Supported       |
-+------------+--------------------------------+-----------------+
-| RHEL-8.3   | 7.3.0 upgrading from 7.2.x/7.2 | Not Supported   |
-+------------+--------------------------------+-----------------+
-| RHEL-8.3   | 7.x client ,   7.y mgmtd       | Not   Supported |
-+------------+--------------------------------+-----------------+
-| RHEL-8.3   | 7.2.6                          | Supported       |
-+------------+--------------------------------+-----------------+
-| RHEL-8.3   | 7.2.6                          | Supported       |
-+------------+--------------------------------+-----------------+
-| RHEL-8.3   | 7.3.0                          | Supported       |
-+------------+--------------------------------+-----------------+
-
+.. note:: BeeGFS with OFED capability is only supported on RHEL 8.3 and above due to limitations on BeeGFS. When setting up your cluster with RDMA support, check the BeeGFS documentation to provide appropriate values in ``input/storage_config.yml``.
 
 * If the cluster runs Rocky, ensure that versions running are compatible:
 
@@ -137,7 +103,9 @@ To open the ports required, use the following steps:
 After the required parameters are filled in ``input/storage_config.yml``, Omnia installs BeeGFS on manager and compute nodes while executing the ``omnia.yml`` playbook. ::
 
 .. note::
+
     * BeeGFS client-server communication can take place through TCP or RDMA. If RDMA support is required, set ``beegfs_rdma_support`` should be set to true. Also, OFED should be installed on all target nodes.
+
     * For BeeGFS communication happening over RDMA, the ``beegfs_mgmt_server`` should be provided with the Infiniband IP of the management server.
 
 
