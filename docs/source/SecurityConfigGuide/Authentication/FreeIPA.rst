@@ -1,7 +1,7 @@
-FreeIPA on the Login Node
+FreeIPA on the NFS  Node
 ============================
 
-IPA services are used to provide account management and centralized authentication. To set up IPA services for the login node in the target cluster, run the following command from the ``utils/cluster`` folder on the control plane: ::
+IPA services are used to provide account management and centralized authentication. To set up IPA services for the NFS node in the target cluster, run the following command from the ``utils/cluster`` folder on the control plane: ::
 
 
        cd utils/cluster
