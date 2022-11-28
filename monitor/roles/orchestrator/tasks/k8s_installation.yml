@@ -72,7 +72,7 @@
     enabled: true
     gpgcheck: true
     gpgkey:
-        -  "{{ crio_repo2_gpg }}"
+      - "{{ crio_repo2_gpg }}"
   register: crio_repo2_result
   until: crio_repo2_result is not failed
   retries: 20
