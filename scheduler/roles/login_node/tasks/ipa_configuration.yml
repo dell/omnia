@@ -44,3 +44,4 @@
     ipa_host: "{{ hostvars[groups['manager'][0]]['server_hostname'] }}"
     ipa_user: "{{ ipa_admin_username }}"
     ipa_pass: "{{ hostvars['127.0.0.1']['kerberos_admin_password'] }}"
+  failed_when: false
