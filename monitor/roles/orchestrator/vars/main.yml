@@ -67,11 +67,12 @@ k8s_crio_conf_dest: /etc/sysctl.d/
 conf_file_mode: 0644
 crio_repo1_url: https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8/devel:kubic:libcontainers:stable.repo
 crio_repo1_dest: /etc/yum.repos.d/devel:kubic:libcontainers:stable.repo
-crio_repo2_url: https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable:cri-o:1.21/CentOS_8/devel:kubic:libcontainers:stable:cri-o:1.21.repo
+crio_repo2_url: https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/1.21:/1.21.7/CentOS_8/
 crio_repo2_dest: /etc/yum.repos.d/devel:kubic:libcontainers:stable:cri-o:1.21.repo
+crio_repo2_gpg: https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/1.21:/1.21.7/CentOS_8/repodata/repomd.xml.key
 docker_repo_url: https://download.docker.com/linux/centos/docker-ce.repo
 docker_repo_dest: /etc/yum.repos.d/docker-ce.repo
-crio_repo: "devel_kubic_libcontainers_stable_cri-o_1.21,rhel-8-for-x86_64-appstream-rpms,rhel-8-for-x86_64-baseos-rpms"
+crio_repo: "devel:kubic:libcontainers:stable:cri-o:1.21,rhel-8-for-x86_64-appstream-rpms,rhel-8-for-x86_64-baseos-rpms"
 file_mode: 0700
 
 # Usage: k8s_firewalld.yml
