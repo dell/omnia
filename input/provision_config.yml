@@ -93,10 +93,11 @@ pxe_switch_snmp_community_string: "public"
 node_name: "node"
 
 # This variable is used to accept the domain name the user intends to configure
-# Domain name can only contain alphanumerical characters and dots
+# Please provide a valid domain name according to the domain name standards.
 # Hostname = node_name + '0000x' + domain_name
 # Hostname should be less than 65 characters.
 # Example: servernode00001.omnia.test ,where node_name=servernode ,domain_name=omnia.test ,00001 used by omnia
+# Example for domain name: abcd.test, ipa.test
 # Mandatory
 domain_name: ""
 
