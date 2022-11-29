@@ -27,7 +27,7 @@ For a better understanding of what Omnia does, check out our `docs <https://omni
    :width: 60pt
 
 .. image:: https://upload.wikimedia.org/wikipedia/commons/0/0e/Intel_logo_%282020%2C_light_blue%29.svg
-    :width: 60pt.
+    :width: 60pt
 
 .. image:: images/logos/pisa.png
   :width: 60pt
