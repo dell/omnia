@@ -16,6 +16,8 @@ Omnia (Latin: all or everything) is a deployment tool to turn servers with RPM-b
 
 Omnia is made available under the `Apache 2.0 license. <https://opensource.org/licenses/Apache-2.0>`_
 
+.. note:: While Omnia playbooks are licensed by Apache 2.0, Omnia deploys multiple softwares that are licensed separately by their respective developer communities. For a comprehensive list of software and their licenses, `click here <Overview/SupportMatrix/omniainstalledsoftware.html>`_ .
+
 For a better understanding of what Omnia does, check out our `docs <https://omnia-documentation.readthedocs.io/en/latest/index.html>`_!
 
 
@@ -25,7 +27,7 @@ For a better understanding of what Omnia does, check out our `docs <https://omni
    :width: 60pt
 
 .. image:: https://upload.wikimedia.org/wikipedia/commons/0/0e/Intel_logo_%282020%2C_light_blue%29.svg
-    :width: 60pt
+    :width: 60pt.
 
 .. image:: images/logos/pisa.png
   :width: 60pt
@@ -60,7 +62,7 @@ For a better understanding of what Omnia does, check out our `docs <https://omni
 .. |Omnia version| image:: https://img.shields.io/github/v/release/dellhpc/omnia?include_prereleases
 .. |Downloads| image:: https://img.shields.io/github/downloads/dellhpc/omnia/total
 .. |Last Commit| image:: https://img.shields.io/github/last-commit/dellhpc/omnia/devel
-.. |Commits Since 1.4| image:: https://img.shields.io/github/commits-since/dellhpc/omnia/v1.3.1/devel
+.. |Commits Since 1.4| image:: https://img.shields.io/github/commits-since/dellhpc/omnia/v1.4/devel
 .. |Contributors| image:: https://img.shields.io/github/all-contributors/dellhpc/omnia
    :target: docs/CONTRIBUTORS.md
    :alt: Contributors
