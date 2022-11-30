@@ -8,7 +8,7 @@ Omnia: Everything at once!
 
 |Omnia version| |Downloads| |Last Commit| |Commits Since 1.4| |Contributors| |Forks| |License|
 
-Ansible playbook-based deployment of Slurm and Kubernetes on servers running an RPM-based Linux OS
+Ansible playbook-based deployment of Slurm and Kubernetes on servers running an RPM-based Linux OS.
 
 Omnia (Latin: all or everything) is a deployment tool to turn servers with RPM-based Linux images into functioning Slurm/Kubernetes clusters.
 
