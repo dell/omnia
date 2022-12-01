@@ -62,7 +62,7 @@ For a better understanding of what Omnia does, check out our `docs <https://omni
 .. |Omnia version| image:: https://img.shields.io/github/v/release/dellhpc/omnia?include_prereleases
 .. |Downloads| image:: https://img.shields.io/github/downloads/dellhpc/omnia/total
 .. |Last Commit| image:: https://img.shields.io/github/last-commit/dellhpc/omnia/devel
-.. |Commits Since 1.4| image:: https://img.shields.io/github/commits-since/dellhpc/omnia/v1.3.1/devel
+.. |Commits Since 1.4| image:: https://img.shields.io/github/commits-since/dellhpc/omnia/v1.4/devel
 .. |Contributors| image:: https://img.shields.io/github/all-contributors/dellhpc/omnia
    :target: docs/CONTRIBUTORS.md
    :alt: Contributors
