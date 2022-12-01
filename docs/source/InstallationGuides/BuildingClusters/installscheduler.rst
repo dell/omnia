@@ -97,6 +97,8 @@ Manager and compute nodes will have LDAP client installed and configured if ``ld
 
 .. include:: ../../Roles/Utils/freeipa_installation.rst
 
+
+
 Running Slurm MPI jobs on clusters
 -------------------------------------
 
