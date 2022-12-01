@@ -97,6 +97,47 @@ Manager and compute nodes will have LDAP client installed and configured if ``ld
 
 .. include:: ../../Roles/Utils/freeipa_installation.rst
 
+Running Slurm MPI jobs on clusters
+-------------------------------------
+
+To enhance the productivity of the cluster, Slurm allows users to run jobs in a parallel-computing architecture. This is used to efficiently utilize all available computing resources.
+
+.. note::
+
+    * Omnia does not install MPI packages by default. Users hoping to leverage the Slurm-based MPI execution feature are required to install the relevant packages from a source of their choosing.
+
+    * Running jobs as individual users (and not as root) requires that passwordSSH be enabled between compute nodes for the user.
+
+For Intel
+==========
+
+To run an MPI job on an intel processor, set the following environmental variables on the head nodes or within the job script:
+
+    - ``I_MPI_PMI_LIBRARY`` = ``/usr/lib64/pmix/``
+    - ``FI_PROVIDER`` = ``sockets`` (When InfiniBand network is not available, this variable needs to be set)
+    - ``LD_LIBRARY_PATH`` (Use this variable to point to the location of the Intel/Python library folder. For example: ``$LD_LIBRARY_PATH:/mnt/jobs/intelpython/python3.9/envs/2022.2.1/lib/``)
+
+For AMD
+========
+
+To run an MPI job on an AMD processor, set the following environmental variables on the head nodes or within the job script:
+
+    - ``PATH`` (Use this variable to point to the location of the OpenMPI binary folder. For example: ``PATH=$PATH:/appshare/openmpi/bin``)
+    - ``LD_LIBRARY_PATH`` (Use this variable to point to the location of the OpenMPI library folder. For example: ``$LD_LIBRARY_PATH:/appshare/openmpi/lib``)
+    - ``OMPI_ALLOW_RUN_AS_ROOT`` = ``1`` (To run jobs as a root user, set this variable to ``1``)
+    - ``OMPI_ALLOW_RUN_AS_ROOT_CONFIRM`` = ``1`` (To run jobs as a root user, set this variable to ``1``)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
