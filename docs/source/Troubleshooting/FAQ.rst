@@ -70,3 +70,7 @@ After a reboot of the control plane while running ``provision.yml``, to bring up
 **How many IPs are required within the PXE NIC range?**
 
 Ensure that the number of IPs available between ``pxe_nic_start_range`` and ``pxe_nic_end_range`` is double the number of iDRACs available to account for potential stale entries in the mapping DB.
+
+**What are the licenses required when deploying a cluster through Omnia?**
+
+While Omnia playbooks are licensed by Apache 2.0, Omnia deploys multiple softwares that are licensed separately by their respective developer communities. For a comprehensive list of software and their licenses, `click here <../Overview/SupportMatrix/omniainstalledsoftware.html>`_ .
