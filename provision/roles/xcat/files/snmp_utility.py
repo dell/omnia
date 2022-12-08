@@ -115,7 +115,7 @@ def filter_dec_oid():
                 number = format(int(i), 'x')
 
                 # To append 0 as MAC has 00 instead of 0
-                if number == 0 or number == "a" or number == "b" or number == "c" or number == "d" or number == "e" or number == "f":
+                if number == "0" or number == "a" or number == "b" or number == "c" or number == "d" or number == "e" or number == "f":
                     number = "0" + number
                 temp_nos.append(number)
             if key not in dict_hexa_mac:
@@ -133,7 +133,7 @@ def final_hex_mac():
         temp = ""
         for value in row1:
             # To append 0 as MAC has single digit number instead of 0
-            if value.isnumeric() is True and 9 >= int(value) > 0:
+            if value.isnumeric() is True and 9 >= int(value) >= 0:
                 value = "0" + value
             temp = temp + value + ":"
         final_mac[count] = temp[:-1]
@@ -144,7 +144,7 @@ def final_hex_mac():
         for value in dict_hexa_mac[key]:
             temp = ""
             for i in value:
-                if i.isnumeric() is True and 9 >= int(i) > 0:
+                if i.isnumeric() is True and 9 >= int(i) >= 0:
                     i = "0" + i
                 temp = temp + i + ":"
             if key not in dict_final_mac:

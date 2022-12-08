@@ -2,7 +2,7 @@ Enabling Security on the Control Plane
 ========================================
 
 
-Omnia uses `FreeIPA (on RockyOS) <https://www.freeipa.org/page/Documentation>`_ and `389ds(on Leap) <https://doc.opensuse.org/documentation/leap/security/html/book-security/cha-security-ldap.html>`_ to enable security features like authorisation and access control.
+Omnia uses `FreeIPA (on RockyOS) <https://www.freeipa.org/page/Documentation>`_ to enable security features like authorisation and access control.
 
 
 **Enabling Authentication on the Control Plane:**

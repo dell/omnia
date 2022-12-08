@@ -63,7 +63,7 @@ If a login node is available and mentioned in the inventory file, the following 
 
     * Slurmd is installed.
     * All required configurations are made to ``slurm.conf`` file to enable a slurm login node.
-    * FreeIPA (the default authentication system on the login node) is installed to provide centralized authentication.
+    * FreeIPA (the default authentication system on the login node) is installed to provide centralized authentication
 
 .. include:: ../../Appendices/hostnamereqs.rst
 
@@ -94,6 +94,8 @@ To ensure security while running jobs on the cluster, users can be assigned perm
 Manager and compute nodes will have LDAP client installed and configured if ``ldap_required`` is set to true. The login node does not have LDAP client installed.
 
 .. warning:: No users/groups will be created by Omnia.
+
+.. include:: ../../Roles/Utils/freeipa_installation.rst
 
 
 

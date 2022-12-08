@@ -80,7 +80,7 @@ def create_db_table():
         ID SERIAL NOT NULL,
         servicetag VARCHAR(30),
         admin_mac MACADDR PRIMARY KEY,
-        hostname VARCHAR(30) NOT NULL,
+        hostname VARCHAR(65) NOT NULL,
         admin_ip INET,
         bmc_ip INET,
         ib_ip INET )'''
