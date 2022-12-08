@@ -17,7 +17,7 @@
   hosts: localhost
   any_errors_fatal: true
   roles:
-    - validate_inputs
+    - security_validation
   tags: freeipa, ldap
 
 - name: Gather facts from all the nodes
