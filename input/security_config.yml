@@ -12,3 +12,45 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+
+# Boolean indicating whether ldap client is required or not
+# It can be set to true or false
+# By default it is set to false indicating FreeIPA will be installed on all the nodes
+# If ldap_required is set to True, then FreeIPA will not be installed
+ldap_required: false
+
+# Boolean indicating whether FreeIPA is required or not
+# It can be set to true or false
+# By default it is set to true indicating FreeIPA will be installed on all the nodes
+# If freeipa_required is set to false, then FreeIPA will not be installed
+freeipa_required: true
+
+# This variable is used to accept the domain name the user intends to configure
+# This variable is a mandatory requirement of both FreeIPA and LDAP Client
+# Eg: ipa.test
+# This field is mandatory for both LDAP and FreeIPA Authentication
+# For FreeIPA - the format is omnia.test
+# For LDAP - if dc=omnia,dc=test, Provide omnia.test
+# For LDAP - If dc=dell,dc=omnia,dc=com Provide dell.omnia.com
+domain_name: "omnia.test"
+
+# A Kerberos realm is the domain over which a Kerberos authentication server has the authority to authenticate a user, host or service.
+# A realm name is often, but not always the upper case version of the name of the DNS domain over which it presides
+realm_name: "OMNIA.TEST"
+
+# The directory server operations require an administrative user.
+# This user is referred to as the Directory Manager and has full access to the Directory for system management tasks
+# and will be added to the instance of directory server created for IPA.
+# The password must be at least 8 characters long
+# The password must not contain -,\, ',"
+directory_manager_password: ""
+
+# kerberos_admin_password used by IPA admin user in Rocky OS and used by 389-ds for kerberos admin password in leap OS
+# The IPA server requires an administrative user, named 'admin'.
+# This user is a regular system account used for IPA server administration
+kerberos_admin_password: ""
+
+# Boolean indicating whether login node is requires security features or not
+# It can be set to true or false
+# By default it is set to false indicating security features will not be configured
+enable_secure_login_node: false
