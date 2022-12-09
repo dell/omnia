@@ -24,14 +24,6 @@
 - name: Gather facts from all the nodes
   hosts: manager, compute, login_node
 
-- name: Validate hostname
-  hosts: manager, login_node
-  gather_facts: false
-  any_errors_fatal: true
-  roles:
-    - hostname_validation
-  tags: freeipa
-
 - name: Apply common installation and config
   hosts: manager, compute, login_node, nfs_node
   gather_facts: false
@@ -46,27 +38,6 @@
   roles:
     - ldap_client
   tags: ldap
-
-- name: Apply login common installation and config
-  hosts: manager, login_node, compute
-  gather_facts: false
-  roles:
-    - login_common
-  tags: freeipa
-
-- name: Apply login server installation and config
-  hosts: manager
-  gather_facts: false
-  roles:
-    - login_server
-  tags: freeipa
-
-- name: Apply login node installation and config
-  hosts: login_node, compute
-  gather_facts: false
-  roles:
-    - login_node
-  tags: freeipa
 
 - name: Apply common K8s installation and config
   hosts: manager, compute
