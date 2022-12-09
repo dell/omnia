@@ -12,3 +12,48 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+
+- name: Validate input parameters
+  hosts: localhost
+  any_errors_fatal: true
+  roles:
+    - security_validation
+  tags: freeipa, ldap
+
+- name: Gather facts from all the nodes
+  hosts: manager, compute, login_node
+
+- name: Validate hostname
+  hosts: manager, login_node, compute
+  gather_facts: false
+  any_errors_fatal: true
+  roles:
+    - hostname_validation
+  tags: freeipa
+
+- name: Apply login common installation and config
+  hosts: manager, login_node, compute
+  gather_facts: false
+  roles:
+    - login_common
+  tags: freeipa
+
+- name: Apply login server installation and config
+  hosts: manager
+  gather_facts: false
+  roles:
+    - login_server
+  tags: freeipa
+
+- name: Install FreeIPA client on login and compute nodes
+  hosts: login_node, compute
+  gather_facts: false
+  roles:
+    - login_node
+  tags: freeipa
+
+- name: Configure secure login_node
+  hosts: login_node
+  gather_facts: false
+  roles:
+    - secure_login_node
