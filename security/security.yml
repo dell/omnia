@@ -52,6 +52,13 @@
     - login_node
   tags: freeipa
 
+- name: Apply ldap client installation and config
+  hosts: manager, compute
+  gather_facts: false
+  roles:
+    - ldap_client
+  tags: ldap
+
 - name: Configure secure login_node
   hosts: login_node
   gather_facts: false

@@ -13,12 +13,6 @@
 #  limitations under the License.
 ---
 
-# Boolean indicating whether ldap client is required or not
-# It can be set to true or false
-# By default it is set to false indicating FreeIPA will be installed on all the nodes
-# If ldap_required is set to True, then FreeIPA will not be installed
-ldap_required: false
-
 # Boolean indicating whether FreeIPA is required or not
 # It can be set to true or false
 # By default it is set to true indicating FreeIPA will be installed on all the nodes
@@ -54,3 +48,42 @@ kerberos_admin_password: ""
 # It can be set to true or false
 # By default it is set to false indicating security features will not be configured
 enable_secure_login_node: false
+
+# Boolean indicating whether ldap client is required or not
+# It can be set to true or false
+# By default it is set to false indicating FreeIPA will be installed on all the nodes
+# If ldap_required is set to True, then FreeIPA will not be installed
+ldap_required: false
+
+# This field accepts Valid LDAP Server IP
+# This cannot be blank when ldap_reqired is set to true
+ldap_server_ip: ""
+
+# Connection Type can be TLS, SSL
+# If TLS is given, make sure valid server certificate path is provided
+# If SSL is provided, then secure ldap connection occrs on the port 636
+ldap_connection_type: "TLS"
+
+# This variable accepts Server Certificate Path
+# Make sure certificate is present in the path provided
+# The certificate should have .pem or .crt extension.
+# This variable is mandatory if connection type is TLS
+ldap_ca_cert_path: /etc/openldap/certs/omnialdap.pem
+
+# This variable accepts the user home directory path for ldap configuration
+# If nfs mount is created for user home, make sure you provide the
+# LDAP users mount home directory path
+# Default value is /home
+user_home_dir: "/home"
+
+# If LDAP server is configured with bind dn then bind dn user to be provided
+# By default the bind dn user is admin
+# Update this variable if bind dn is different from admin
+# If this value is not provided (when bind is configured in server)
+# then ldap authentication fails
+ldap_bind_username: "admin"
+
+# If LDAP server is configured with bind dn then bind dn password to be provided
+# If this value is not provided (when bind is configured in server)
+# then ldap authentication fails
+ldap_bind_password: ""
