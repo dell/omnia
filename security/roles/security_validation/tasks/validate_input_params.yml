@@ -41,13 +41,6 @@
     - freeipa_required
     - ldap_required
 
-- name: Validate if login node and ldap required are enabled
-  ansible.builtin.fail:
-    msg: "{{ ldap_login_failure_msg }}"
-  when:
-    - login_node_required
-    - ldap_required
-
 - name: Validate the domain name
   ansible.builtin.assert:
     that:
