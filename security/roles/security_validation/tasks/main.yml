@@ -16,11 +16,8 @@
 - name: Include security config file
   ansible.builtin.include_tasks: include_security_config.yml
 
-- name: Include omnia config file
-  ansible.builtin.include_tasks: include_omnia_config.yml
-
-- name: Include security variable file omnia_security_config.yml
-  ansible.builtin.include_vars: "{{ omnia_security_config_file }}"
+- name: Include security variable file login_node_security_config.yml
+  ansible.builtin.include_vars: "{{ login_node_security_config_file }}"
 
 - name: Fetch freeIPA inputs
   ansible.builtin.include_tasks: validate_input_params.yml
