@@ -16,6 +16,27 @@
 - name: Include login_common variables
   ansible.builtin.include_vars: "{{ role_path }}/../login_common/vars/main.yml"
 
+- name: Initialize freeipa_status
+  ansible.builtin.set_fact:
+    freeipa_client_status: false
+
+- name: Include pre-requisite file to fetch ipa client status
+  ansible.builtin.include_tasks: "{{ role_path }}/../login_node/tasks/check_prerequisites.yml"
+  when:
+    - os_leap not in ansible_distribution | lower
+    - hostvars['127.0.0.1']['freeipa_required']
+    - not hostvars['127.0.0.1']['ldap_required']
+
+- name: FreeIPA configuration
+  ansible.builtin.include_tasks: ipa_configuration.yml
+  when:
+    - hostvars['127.0.0.1']['freeipa_required']
+    - freeipa_client_status
+    - os_leap not in ansible_distribution | lower
+    - not hostvars['127.0.0.1']['ldap_required']
+    - hostvars['127.0.0.1']['enable_secure_login_node']
+    - inventory_hostname not in groups['manager'][0]
+
 - name: Configure security features
   block:
     - name: Install Apparmor on Leap
