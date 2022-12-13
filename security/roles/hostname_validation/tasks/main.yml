@@ -19,5 +19,5 @@
 - name: Verify domain name in hostname
   ansible.builtin.include_tasks: validate_hostname.yml
   when:
-    - hostvars['127.0.0.1']['login_node_required'] or
-      hostvars['127.0.0.1']['freeipa_required']
+    - hostvars['127.0.0.1']['freeipa_required'] or
+      hostvars['127.0.0.1']['ldap_required']
