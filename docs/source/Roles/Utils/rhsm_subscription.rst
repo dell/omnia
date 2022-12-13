@@ -62,12 +62,12 @@ Before running ``omnia.yml``, it is mandatory that red hat subscription be set u
     - If ``redhat_subscription_method`` is set to ``portal``, pass the values ``username`` and ``password``. For CLI, run the command: ::
 
         cd utils
-        ansible-playbook rhsm_subscription.yml -i inventory -e redhat_subscription_username= "<username>" -e redhat_subscription_password="<password>"
+        ansible-playbook rhsm_subscription.yml -i inventory -e redhat_subscription_username="<username>" -e redhat_subscription_password="<password>"
 
     - If ``redhat_subscription_method`` is set to ``satellite``, pass the values ``organizational identifier`` and ``activation key``. For CLI, run the command: ::
 
         cd utils
-        ansible-playbook rhsm_subscription.yml -i inventory -e redhat_subscription_activation_key= "<activation-key>" -e redhat_subscription_org_id ="<org-id>"
+        ansible-playbook rhsm_subscription.yml -i inventory -e redhat_subscription_activation_key="<activation-key>" -e redhat_subscription_org_id="<org-id>"
 
 Where the inventory refers to a file listing all manager and compute nodes per the format provided in `inventory file <../samplefiles.html>`_.
 
