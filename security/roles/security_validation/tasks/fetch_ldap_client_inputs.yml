@@ -13,7 +13,7 @@
 #  limitations under the License.
 ---
 
-- name: Validate login node parameters when login_node_reqd is set to true
+- name: Validate ldap parameters
   ansible.builtin.fail:
     msg: "{{ ldap_client_config_failure_msg }}"
   when:
