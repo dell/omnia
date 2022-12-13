@@ -37,7 +37,7 @@
       notify:
         - Restart sshd
       when:
-        - allow_deny == 'Allow'
+        - allow_deny == 'allow'
         - file_content.stdout.find('AllowUsers') == -1
 
     - name: Configure sshd_config file when DenyUsers entry not exists
@@ -47,7 +47,7 @@
       notify:
         - Restart sshd
       when:
-        - allow_deny == 'Deny'
+        - allow_deny == 'deny'
         - file_content.stdout.find('DenyUsers') == -1
 
     - name: Configure sshd_config file when AllowUsers entry exists
@@ -58,7 +58,7 @@
       notify:
         - Restart sshd
       when:
-        - allow_deny == 'Allow'
+        - allow_deny == 'allow'
         - file_content.stdout.find('AllowUsers') != -1
 
     - name: Configure sshd_config file when DenyUsers entry exists
@@ -69,6 +69,6 @@
       notify:
         - Restart sshd
       when:
-        - allow_deny == 'Deny'
+        - allow_deny == 'deny'
         - file_content.stdout.find('DenyUsers') != -1
   when: user | length > 1
