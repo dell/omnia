@@ -15,6 +15,7 @@
 
 # Usage: check_prerequisites.yml
 return_status: 200
+ipa_admin_username: admin
 
 # Usage: install_packages.yml
 ipa_client_package:
@@ -33,13 +34,6 @@ slurmd_udp_port: "6818/udp"
 hosts_file_dest: "/etc/hosts"
 hosts_file_mode: "0644"
 cert_path: /etc/ipa/ca.crt
-
-# Usage: ipa_configuration.yml
-sysadmin_sudo_rule: sysadmin_sudo
-sysadmin_sudo_rule_description: "Allow users to run sudo commands"
-sysadmin_user_group: sysadmin
-sysadmin_group_description: "User group with sudo permission"
-ipa_admin_username: admin
 
 # Usage: install_389ds.yml
 ds389_packages:

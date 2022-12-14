@@ -77,10 +77,14 @@
   when:
     - user | length > 1
 
+- name: Convert case of allow_deny
+  ansible.builtin.set_fact:
+    allow_deny: "{{ allow_deny | lower }}"
+
 - name: Validate allow_deny
   ansible.builtin.assert:
     that:
-      - allow_deny == 'Allow' or allow_deny == 'Deny'
+      - allow_deny == 'allow' or allow_deny == 'deny'
     success_msg: "{{ allow_deny_success_msg }}"
     fail_msg: "{{ allow_deny_fail_msg }}"
 

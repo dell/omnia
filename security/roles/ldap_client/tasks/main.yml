@@ -11,17 +11,20 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
+
 ---
 
 - name: Install and configure Openldap client
+
   block:
-    - name: Install required packages
-      ansible.builtin.include_tasks: configure_ldap_client.yml
+      - name: Install required packages
+        ansible.builtin.include_tasks: configure_ldap_client.yml
 
-    - name: Configure sssd
-      ansible.builtin.include_tasks: configure_sssd_conf.yml
+      - name: Configure sssd
+        ansible.builtin.include_tasks: configure_sssd_conf.yml
 
-    - name: Configure system for authselect with sssd
-      ansible.builtin.include_tasks: configure_authselect.yml
+      - name: Configure system for authselect with sssd
+        ansible.builtin.include_tasks: configure_authselect.yml
   when:
-    - hostvars['127.0.0.1']['ldap_required']
+      - hostvars['127.0.0.1']['ldap_required']
+      
