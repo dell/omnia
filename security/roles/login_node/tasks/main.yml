@@ -32,16 +32,7 @@
     - name: Install 389 directory server
       ansible.builtin.include_tasks: install_389ds.yml
       when: os_leap in ansible_distribution | lower
-
-    - name: FreeIPA configuration
-      ansible.builtin.include_tasks: ipa_configuration.yml
-      when:
-        - os_leap not in ansible_distribution | lower
-        - not hostvars['127.0.0.1']['ldap_required']
-        - hostvars['127.0.0.1']['enable_secure_login_node']
-        - inventory_hostname in groups['login_node'][0]
   when:
-    - hostvars['127.0.0.1']['login_node_required'] or
-      hostvars['127.0.0.1']['freeipa_required']
+    - hostvars['127.0.0.1']['freeipa_required']
     - not hostvars['127.0.0.1']['ldap_required']
     - inventory_hostname not in groups['manager'][0]
