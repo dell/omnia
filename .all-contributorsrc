@@ -513,6 +513,15 @@
         "code",
         "test"
       ]
+    },
+    {
+      "login": "diptiman12",
+      "name": "diptiman12",
+      "avatar_url": "https://avatars.githubusercontent.com/u/117987073?v=4",
+      "profile": "https://github.com/diptiman12",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
