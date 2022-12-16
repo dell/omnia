@@ -86,8 +86,7 @@ To ensure security while running jobs on the cluster, users can be assigned perm
 
 
 
-Running Slurm MPI jobs on clusters
--------------------------------------
+**Running Slurm MPI jobs on clusters**
 
 To enhance the productivity of the cluster, Slurm allows users to run jobs in a parallel-computing architecture. This is used to efficiently utilize all available computing resources.
 
@@ -97,8 +96,8 @@ To enhance the productivity of the cluster, Slurm allows users to run jobs in a 
 
     * Running jobs as individual users (and not as root) requires that passwordSSH be enabled between compute nodes for the user.
 
-For Intel
-==========
+**For Intel**
+
 
 To run an MPI job on an intel processor, set the following environmental variables on the head nodes or within the job script:
 
@@ -106,8 +105,7 @@ To run an MPI job on an intel processor, set the following environmental variabl
     - ``FI_PROVIDER`` = ``sockets`` (When InfiniBand network is not available, this variable needs to be set)
     - ``LD_LIBRARY_PATH`` (Use this variable to point to the location of the Intel/Python library folder. For example: ``$LD_LIBRARY_PATH:/mnt/jobs/intelpython/python3.9/envs/2022.2.1/lib/``)
 
-For AMD
-========
+**For AMD**
 
 To run an MPI job on an AMD processor, set the following environmental variables on the head nodes or within the job script:
 
