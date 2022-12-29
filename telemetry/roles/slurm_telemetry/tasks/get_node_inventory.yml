@@ -14,94 +14,27 @@
 ---
 
 - name: Get inventory details
-  block:
-  - name: Copy slurm telemetry code
-    copy:
-      src: "{{ role_path }}/files/monster"
-      dest: "{{ slurm_telemetry_code_dir }}"
-      mode: "{{ slurm_telemetry_code_dir_mode }}"
-
-  - name: Install sshpass
-    package:
-      name: sshpass
-      state: present
-
-  - name: Install jmepath
-    pip:
-      name: jmespath
-      state: present
-      executable: pip3
-
-  - name: Check the awx status on control plane
-    include_vars: "{{ playbook_dir }}/../control_plane/input_params/base_vars.yml"
-    no_log: true
-
-  - name: Get awx inventory details when awx is installed on control plane
-    block:
-    - name: Get AWX service IP
-      command: kubectl get svc awx-ui -n {{ awx_namespace }} -o=jsonpath='{.spec.clusterIP}'
-      changed_when: false
-      failed_when: false
-      register: awx_svc_ip
-
-    - name: AWX needs to be installed
-      fail:
-        msg: "{{ awx_fail_msg }}"
-      when: not awx_svc_ip.stdout
-
-    - name: Get AWX service port
-      command: kubectl get svc awx-ui -n {{ awx_namespace }} -o=jsonpath='{.spec.ports[0].port}'
-      changed_when: false
-      register: awx_svc_port
-
-    - name: Get AWX secret
-      shell: >
-        set -o pipefail && \
-        kubectl get secret awx-admin-password -n {{ awx_namespace }} -o jsonpath="{.data.password}" | base64 --decode
-      changed_when: false
-      register: awx_secret
-
-    - name: Get node_inventory id
-      shell: >
-        set -o pipefail && \
-        awx --conf.host http://{{ awx_svc_ip.stdout }}:{{ awx_svc_port.stdout }} --conf.username {{ awx_username }} \
-        --conf.password {{ awx_secret.stdout }} --conf.insecure inventory list -f human | grep node_inventory
-      changed_when: false
-      register: inventory_id
-
-    - name: Node inventory not found in AWX
-      fail:
-        msg: "{{ node_inventory_fail_msg }}"
-      when: not inventory_id.stdout
-
-    - name: Get node_inventory
-      command: awx --conf.host http://{{ awx_svc_ip.stdout }}:{{ awx_svc_port.stdout }} --conf.username {{ awx_username }} \
-        --conf.password {{ awx_secret.stdout }} --conf.insecure hosts list --inventory {{ inventory_id.stdout[0] }}
-      changed_when: false
-      register: node_inventory_output
-
-    - name: Save the json data
-      set_fact:
-        node_inventory_jsondata: "{{ node_inventory_output.stdout | from_json }}"
-
-    - name: Add temporary hosts
-      add_host:
-        name: "{{ node_inventory_jsondata['results'][node_index].name }}"
-        groups: "{{ node_inventory_jsondata['results'][node_index].summary_fields.groups.results[0].name }}"
-        ansible_user: "{{ os_username }}"
-        ansible_password: "{{ provision_password }}"
-        ansible_become_pass: "{{ provision_password }}"
-        ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
-      with_items: "{{ node_inventory_jsondata['results'] }}"
-      loop_control:
-        index_var: node_index
-      when: node_inventory_jsondata['results'][node_index].summary_fields.groups.count > 0
-      no_log: true
-    when: awx_web_support
-
-  - name: Copy input_config file
-    copy:
-      src: "{{ role_path }}/files/input_config.yml"
-      dest: "{{ role_path }}/files/monster/config.yml"
-      mode: "{{ monster_config_file_mode }}"
   when: slurm_telemetry_support
+  block:
+    - name: Copy slurm telemetry code
+      ansible.builtin.copy:
+        src: "{{ role_path }}/files/monster"
+        dest: "{{ slurm_telemetry_code_dir }}"
+        mode: "{{ slurm_telemetry_code_dir_mode }}"
+
+    - name: Install sshpass
+      ansible.builtin.package:
+        name: sshpass
+        state: present
+
+    - name: Install jmepath
+      ansible.builtin.pip:
+        name: jmespath
+        state: present
+        executable: pip3
+
+    - name: Copy input_config file
+      ansible.builtin.copy:
+        src: "{{ role_path }}/files/input_config.yml"
+        dest: "{{ role_path }}/files/monster/config.yml"
+        mode: "{{ monster_config_file_mode }}"
