@@ -18,17 +18,17 @@
   connection: local
   gather_facts: true
   roles:
-  - common
-  - timescaledb
-  - idrac_telemetry
-  - grafana_config
+    - common
+    - timescaledb
+    - idrac_telemetry
+    - grafana_config
 
 - name: Get node inventory
   hosts: localhost
   gather_facts: false
   tasks:
     - name: Get node inventory
-      include_role:
+      ansible.builtin.include_role:
         name: slurm_telemetry
         tasks_from: get_node_inventory.yml
       tags: slurm_telemetry
@@ -38,7 +38,7 @@
   gather_facts: false
   tasks:
     - name: Get service tag
-      include_role:
+      ansible.builtin.include_role:
         name: slurm_telemetry
         tasks_from: update_service_tags.yml
       tags: slurm_telemetry
@@ -48,5 +48,5 @@
   connection: local
   gather_facts: false
   roles:
-   - slurm_telemetry
+    - slurm_telemetry
   tags: slurm_telemetry
