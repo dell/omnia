@@ -13,10 +13,28 @@
 # limitations under the License.
 ---
 
-- name: Initiate telemetry for iDRACs present on AWX
+- name: Validate grafana
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Validate create_idrac_inventory playbook
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: validate_grafana.yml
+
+- name: Validate iDRAC inventory
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Validate create_idrac_inventory playbook
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: create_idrac_inventory.yml
+
+- name: Initiate telemetry for iDRACs
   hosts: localhost
   connection: local
   gather_facts: false
   tasks:
-  - name: Initiate telemetry
-    include_tasks: "{{ playbook_dir }}/roles/idrac_telemetry/tasks/initiate_telemetry.yml"
+    - name: Initiate telemetry
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/roles/idrac_telemetry/tasks/initiate_telemetry.yml"
