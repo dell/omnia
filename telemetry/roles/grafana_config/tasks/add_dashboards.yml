@@ -29,7 +29,7 @@
     grafana_password: "{{ grafana_password }}"
     state: present
     folder: "{{ telemetry_folder_name }}"
-    overwrite: yes
+    overwrite: true
     path: "{{ playbook_dir }}/roles/grafana_config/files/{{ item }}"
   with_items: "{{ dashboards }}"
   no_log: true
