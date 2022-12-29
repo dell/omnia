@@ -23,6 +23,30 @@
     msg: "{{ pxe_path_fail_msg }}"
   when: not pxe_stat_result.stat.exists
 
+- name: Delete temp_mapping_file
+  ansible.builtin.file:
+    path: "{{ temp_mapping_file_path }}"
+    state: absent
+
+- name: Remove blank lines in mapping file
+  ansible.builtin.shell: set -o pipefail && awk -F, 'length>NF+1' {{ pxe_mapping_file_path }} > {{ temp_mapping_file_path }}
+  changed_when: false
+
+- name: Copy temp mapping file to pxe_mapping_file_path
+  ansible.builtin.copy:
+    src: "{{ temp_mapping_file_path }}"
+    dest: "{{ pxe_mapping_file_path }}"
+    mode: preserve
+
+- name: Remove blank spaces in mapping file
+  ansible.builtin.shell: set -o pipefail && sed -i.bak -E 's/(^|,)[[:blank:]]+/\1/g; s/[[:blank:]]+(,|$)/\1/g'  {{ pxe_mapping_file_path }}
+  changed_when: false
+
+- name: Delete temp_mapping_file
+  ansible.builtin.file:
+    path: "{{ temp_mapping_file_path }}"
+    state: absent
+
 - name: Read host mapping file from CSV file and return a dictionary
   community.general.read_csv:
     path: "{{ pxe_mapping_file_path }}"
