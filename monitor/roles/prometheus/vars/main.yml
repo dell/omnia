@@ -50,4 +50,6 @@ grafana_dashboard_json_files:
   - Kubernetes_Networking_Workload.json
   - Kubernetes_Scheduler.json
   - Prometheus_Overview.json
+
+# Usage: store_grafana_info.yml
 grafana_conf_path: "/opt/omnia/.data/grafana_svc_details.ini"

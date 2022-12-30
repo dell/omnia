@@ -13,10 +13,20 @@
 #  limitations under the License.
 ---
 
-- name: Replace the rocky os version in dockerfile
+- name: Save grafana svc ip
   ansible.builtin.replace:
-    path: "{{ item.path }}"
-    regexp: '^FROM docker.io/rockylinux/rockylinux:docker_os'
-    replace: 'FROM docker.io/rockylinux/rockylinux:{{ docker_rocky_os }}'
-  with_items:
-    - { path: "{{ slurm_telemetry_dockerfile_path }}"}
+    path: "{{ grafana_conf_path }}"
+    regexp: "ip=.*"
+    replace: "ip={{ grafana_svc_ip.stdout }}"
+
+- name: Save grafana port
+  ansible.builtin.replace:
+    path: "{{ grafana_conf_path }}"
+    regexp: "port=.*"
+    replace: "port={{ grafana_svc_port.stdout }}"
+
+- name: Save grafana mount point
+  ansible.builtin.replace:
+    path: "{{ grafana_conf_path }}"
+    regexp: "mount_point=.*"
+    replace: "mount_point={{ mount_location }}"

@@ -14,42 +14,42 @@
 ---
 
 - name: Get timescaledb service IP
-  command: kubectl get svc {{ timescaledb_k8s_name }} -n {{ namespace }} -o=jsonpath='{.spec.clusterIP}'
+  ansible.builtin.command: kubectl get svc {{ timescaledb_k8s_name }} -n {{ namespace }} -o=jsonpath='{.spec.clusterIP}'
   changed_when: false
   register: timescaledb_svc_ip
 
 - name: Get timescaledb service port
-  command: kubectl get svc {{ timescaledb_k8s_name }} -n {{ namespace }} -o=jsonpath='{.spec.ports[0].port}'
+  ansible.builtin.command: kubectl get svc {{ timescaledb_k8s_name }} -n {{ namespace }} -o=jsonpath='{.spec.ports[0].port}'
   changed_when: false
   register: timescaledb_svc_port
 
 - name: Update timescaledb service IP
-  replace:
+  ansible.builtin.replace:
     path: "{{ role_path }}{{ monster_input_file_path }}"
     regexp: "  host:.*"
     replace: "  host: {{ timescaledb_svc_ip.stdout }}"
 
 - name: Update timescaledb service port
-  replace:
+  ansible.builtin.replace:
     path: "{{ role_path }}{{ monster_input_file_path }}"
     regexp: "  port:.*"
     replace: "  port: {{ timescaledb_svc_port.stdout }}"
     before: "# Slurm REST API Configuration"
 
 - name: Update timescaledb username
-  replace:
+  ansible.builtin.replace:
     path: "{{ role_path }}{{ monster_input_file_path }}"
     regexp: "  username:.*"
     replace: "  username: {{ timescaledb_user }}"
 
 - name: Update timescaledb password
-  replace:
+  ansible.builtin.replace:
     path: "{{ role_path }}{{ monster_input_file_path }}"
     regexp: "  password:.*"
     replace: "  password: {{ timescaledb_password }}"
 
 - name: Update timescaledb database
-  replace:
+  ansible.builtin.replace:
     path: "{{ role_path }}{{ monster_input_file_path }}"
     regexp: "  database:.*"
     replace: "  database: {{ timescaledb_name }}"
