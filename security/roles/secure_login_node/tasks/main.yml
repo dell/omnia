@@ -35,7 +35,6 @@
     - os_leap not in ansible_distribution | lower
     - not hostvars['127.0.0.1']['ldap_required']
     - hostvars['127.0.0.1']['enable_secure_login_node']
-    - inventory_hostname not in groups['manager'][0]
 
 - name: Configure security features
   block:
@@ -62,6 +61,5 @@
       ansible.builtin.include_tasks: restrict_nonessentials.yml
       when: hostvars['127.0.0.1']['restrict_program_status']
   when:
-    - inventory_hostname not in groups['manager'][0]
     - hostvars['127.0.0.1']['enable_secure_login_node']
     - inventory_hostname in groups['login_node'][0]
