@@ -36,6 +36,10 @@ common_packages_xcat:
   - net-snmp-utils
   - createrepo
   - sshpass
+  - wget
+  - unzip
+  - bzip2
+  - tar
 python_version: python3.8
 snmp_python_package: easysnmp
 postgres_python_package: psycopg2-binary
