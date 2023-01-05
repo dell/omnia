@@ -128,9 +128,3 @@
   ansible.builtin.command: kubectl create namespace network-config
   changed_when: true
   when: "'network-config' not in k8s_namespaces.stdout"
-
-- name: Create log folder for startup omnia
-  ansible.builtin.file:
-    path: "{{ startup_omnia_log_path }}"
-    state: directory
-    mode: "{{ vault_file_perm }}"
