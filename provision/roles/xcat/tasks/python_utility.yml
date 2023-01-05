@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,43 +19,8 @@
   register: postgres_status
   changed_when: false
 
-- name: Integrate mapping file with DB
-  ansible.builtin.command: |
-    {{ python_version }} {{ mapping_file_db_path }} {{ pxe_mapping_file_path }} {{ roce_enabled }} {{ domain_name }}
-  when: pxe_mapping_file
+- name: Update db when discovery method is mapping
+  ansible.builtin.include_tasks: mapping/update_db_mapping.yml
 
-- name: Integrate bmc with DB in case mapping file given
-  ansible.builtin.command: |
-    {{ python_version }} {{ mapping_bmc_path }} {{ pxe_mapping_file_path }} {{ bmc_nic_subnet }} {{ roce_enabled }}
-  when:
-    - pxe_mapping_file
-    - bmc_nic_subnet | length > 6
-
-- name: Integrate ib with DB in case mapping file given
-  ansible.builtin.command: |
-    {{ python_version }} {{ mapping_ib_path }} {{ pxe_mapping_file_path }} {{ ib_nic_subnet }} {{ roce_enabled }}
-  when:
-    - pxe_mapping_file
-    - ib_nic_subnet | length > 6
-
-- name: DB files when switch ip given
-  block:
-    - name: Call snmp utility if switch IP provided
-      ansible.builtin.command: |
-         {{ python_version }} {{ snmp_utility_path }} {{ pxe_switch_ip }} {{ pxe_switch_snmp_community_string }}
-          {{ pxe_nic_start_range }} {{ pxe_nic_end_range }} {{ node_name }} {{ pxe_mapping_path }} {{ domain_name }} {{ roce_enabled }} {{ pxe_mac_address }}
-      register: snmp_status
-      when: pxe_switch_ip | length > 6
-
-    - name: Call bmc utility
-      ansible.builtin.command: |
-         {{ python_version }} {{ bmc_utility_path }} {{ bmc_nic_start_range }} {{ bmc_nic_end_range }}
-      when: bmc_nic_subnet | length > 6
-
-    - name: Call ib utility
-      ansible.builtin.command: |
-         {{ python_version }} {{ ib_utility_path }} {{ ib_nic_start_range }} {{ ib_nic_end_range }}
-      when:
-        - ib_nic_subnet | length > 6
-        - not roce_enabled
-  when: switch_ip_pxe
+- name: Update db when discovery method is snmp
+  ansible.builtin.include_tasks: snmp/update_db_snmp.yml
