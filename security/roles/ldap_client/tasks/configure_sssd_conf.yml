@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 - name: Extract the domain name required by LDAP
   ansible.builtin.set_fact:
     reqd_domain_name: "{{ (hostvars['127.0.0.1']['domain_name'].split('.') | map('regex_replace', '^', 'dc=') | list) | join(',') }}"
+    certificate_path: "{{ hostvars['127.0.0.1']['ldap_ca_cert_path'].split('/') | select | list }}"
 
 - name: Update sssd.conf file for TLS connection type
   block:
@@ -49,7 +50,7 @@
       ansible.builtin.replace:
         path: "{{ sssd_conf_dest }}"
         regexp: "ldap_tls_cacert = /etc/openldap/certs/ldapserver.crt"
-        replace: "ldap_tls_cacert = {{ hostvars['127.0.0.1']['ldap_ca_cert_path'] }}"
+        replace: "ldap_tls_cacert = {{ certificate_path[-1] }}"
 
     - name: Update bind dn details if it is provided in input file
       block:
