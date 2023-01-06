@@ -13,14 +13,18 @@
 # limitations under the License.
 ---
 
-- name: Call postgres utility if switch IP provided
-  ansible.builtin.command: |
-     {{ python_version }} {{ postgres_utility_path }}
-  register: postgres_status
-  changed_when: false
+- name: Validate the nic parameters
+  ansible.builtin.include_tasks: validate_public_nic.yml
 
-- name: Update db when discovery method is mapping
-  ansible.builtin.include_tasks: mapping/update_db_mapping.yml
+- name: Validate the switch related parameters
+  ansible.builtin.include_tasks: validate_switch_vars.yml
 
-- name: Update db when discovery method is snmp
-  ansible.builtin.include_tasks: snmp/update_db_snmp.yml
+- name: Validate provision parameters
+  ansible.builtin.include_tasks: validate_provision_vars.yml
+
+- name: Validate disk partition parameters
+  ansible.builtin.include_tasks: validate_disk_partition_vars.yml
+  with_items: "{{ disk_partition }}"
+
+- name: Validate domain_name
+  ansible.builtin.include_tasks: validate_domain_name.yml
