@@ -14,27 +14,27 @@
 ---
 
 - name: Get grafana service IP
-  command: kubectl get svc "{{ grafana_k8s }}" -n "{{ grafana_namespace }}" -o=jsonpath='{.spec.clusterIP}'
+  ansible.builtin.command: kubectl get svc "{{ grafana_k8s }}" -n "{{ grafana_namespace }}" -o=jsonpath='{.spec.clusterIP}'
   changed_when: false
   register: grafana_svc_ip
 
 - name: Get grafana service port
-  command: kubectl get svc "{{ grafana_k8s }}" -n "{{ grafana_namespace }}" -o=jsonpath='{.spec.ports[0].port}'
+  ansible.builtin.command: kubectl get svc "{{ grafana_k8s }}" -n "{{ grafana_namespace }}" -o=jsonpath='{.spec.ports[0].port}'
   changed_when: false
   register: grafana_svc_port
 
 - name: Get timescaleDB svc IP
-  command: kubectl get svc "{{ timescaledb_k8s_name }}" -n "{{ namespace }}" -o=jsonpath='{.spec.clusterIP}'
+  ansible.builtin.command: kubectl get svc "{{ timescaledb_k8s_name }}" -n "{{ namespace }}" -o=jsonpath='{.spec.clusterIP}'
   changed_when: false
   register: timescale_svc_ip
 
 - name: Get timescaleDB svc port
-  command: kubectl get svc "{{ timescaledb_k8s_name }}" -n "{{ namespace }}" -o=jsonpath='{.spec.ports[0].port}'
+  ansible.builtin.command: kubectl get svc "{{ timescaledb_k8s_name }}" -n "{{ namespace }}" -o=jsonpath='{.spec.ports[0].port}'
   changed_when: false
   register: timescale_svc_port
 
 - name: Wait for grafana pod to come to ready state
-  command: kubectl wait --for=condition=ready --timeout=10m -n "{{ grafana_namespace }}" pod -l app="{{ grafana_k8s }}"
+  ansible.builtin.command: kubectl wait --for=condition=ready --timeout=10m -n "{{ grafana_namespace }}" pod -l app="{{ grafana_k8s }}"
   changed_when: false
 
 - name: Add timescale datasource on grafana

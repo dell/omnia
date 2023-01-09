@@ -18,10 +18,7 @@ vault_key_permission: 0644
 ansible_vault_search_key: "$ANSIBLE_VAULT;"
 security_config_file: "{{ role_path }}/../../../input/security_config.yml"
 security_vaultname: "{{ role_path }}/../../../input/.security_vault.key"
-omnia_config_file: "{{ role_path }}/../../../input/omnia_config.yml"
-omnia_vaultname: "{{ role_path }}/../../../input/.omnia_vault_key"
-omnia_security_config_file: "{{ role_path }}/../../../input/omnia_security_config.yml"
-ldap_login_failure_msg: "Failed. Both login_node_required and ldap_required cannot be true"
+login_node_security_config_file: "{{ role_path }}/../../../input/login_node_security_config.yml"
 ldap_freeipa_failure_msg: "Failed. Both ldap_required and freeipa_required cannot be true"
 hosts_file_dest: "/etc/hosts"
 hosts_file_mode: "0644"
@@ -43,24 +40,18 @@ fail_msg_directory_manager_password: "Failed. Incorrect format provided for dire
 success_msg_kerberos_admin_password: "kerberos_admin_password successfully validated"
 fail_msg_kerberos_admin_password: "Failed. Incorrect format provided for kerberos_admin_password"
 input_config_failure_msg: "Input parameters cannot be empty"
-login_node_required_success_msg: "login_node_required successfully validated"
-login_node_required_fail_msg: "Failed. login_node_required should be either true or false"
 secure_login_node_success_msg: "enable_secure_login_node successfully validated"
 secure_login_node_fail_msg: "Failed. enable_secure_login_node should be either true or false"
-login_node_group_fail_msg: "Login node group should contain atleast 1 node when login_node_required is true"
-login_node_group_success_msg: "Login node group check passed when login_node_required is true"
-
 
 # Usage: fetch_security_inputs.yml
-security_vars_filename: "omnia_security_config.yml"
 max_failures_success_msg: "max_failures successfully validated"
-max_failures_fail_msg: "Failed. Incorrect max_failures value in omnia_security_config.yml"
+max_failures_fail_msg: "Failed. Incorrect max_failures value in login_node_security_config.yml"
 failure_reset_interval_success_msg: "failure_reset_interval successfully validated"
-failure_reset_interval_fail_msg: "Failed. Incorrect failure_reset_interval value in omnia_security_config.yml"
+failure_reset_interval_fail_msg: "Failed. Incorrect failure_reset_interval value in login_node_security_config.yml"
 lockout_duration_success_msg: "lockout_duration successfully validated"
-lockout_duration_fail_msg: "Failed. Incorrect lockout_duration value in omnia_security_config.yml"
+lockout_duration_fail_msg: "Failed. Incorrect lockout_duration value in login_node_security_config.yml"
 session_timeout_success_msg: "session_timeout successfully validated"
-session_timeout_fail_msg: "Failed. Incorrect session_timeout value in omnia_security_config.yml"
+session_timeout_fail_msg: "Failed. Incorrect session_timeout value in login_node_security_config.yml"
 max_failures_default_value: 3
 failure_reset_interval_min_value: 30
 failure_reset_interval_max_value: 60
@@ -69,14 +60,14 @@ lockout_duration_max_value: 10
 session_timeout_min_value: 90
 session_timeout_max_value: 180
 alert_email_success_msg: "alert_email_address successfully validated"
-alert_email_fail_msg: "Failed. Incorrect alert_email_address value in omnia_security_config.yml"
+alert_email_fail_msg: "Failed. Incorrect alert_email_address value in login_node_security_config.yml"
 alert_email_warning_msg: "[WARNING] alert_email_address is empty. Authentication failure alerts won't be configured."
 email_max_length: 320
 email_search_key: "@"
 user_success_msg: "user successfully validated"
-user_fail_msg: "Failed. Incorrect user format in omnia_security_config.yml"
+user_fail_msg: "Failed. Incorrect user format in login_node_security_config.yml"
 allow_deny_success_msg: "Access successfully validated"
-allow_deny_fail_msg: "Failed. Incorrect Access format in omnia_security_config.yml"
+allow_deny_fail_msg: "Failed. Incorrect Access format in login_node_security_config.yml"
 restrict_program_support_success_msg: "restrict_program_support successfully validated"
 restrict_program_support_failure_msg: "Failed. Accepted values are true or false."
 restrict_softwares_success_msg: "restrict_softwares successfully validated"

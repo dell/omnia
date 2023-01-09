@@ -43,3 +43,13 @@ acct: acct
 
 # Usage: restrict_nonessentials.yml
 service_status: ['enabled', 'alias', 'static', 'indirect', 'enabled-runtime', 'active', 'inactive']
+
+# Usage: main.yml
+return_status: 200
+
+# Usage: ipa_configuration.yml
+sysadmin_sudo_rule: sysadmin_sudo
+sysadmin_sudo_rule_description: "Allow users to run sudo commands"
+sysadmin_user_group: sysadmin
+sysadmin_group_description: "User group with sudo permission"
+ipa_admin_username: admin

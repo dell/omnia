@@ -13,7 +13,7 @@
 #  limitations under the License.
 ---
 
-- name: Validate login node parameters when login_node_reqd is set to true
+- name: Validate freeIPA parameters
   ansible.builtin.fail:
     msg: "{{ input_config_failure_msg }} for freeipa or login_node"
   when:

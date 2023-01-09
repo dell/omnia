@@ -23,13 +23,24 @@
 - name: Gather facts from all the nodes
   hosts: manager, compute, login_node
 
-- name: Validate hostname
+- name: Add hosts to compute and login nodes
   hosts: manager, login_node, compute
   gather_facts: false
   any_errors_fatal: true
   roles:
     - hostname_validation
   tags: freeipa
+
+- name: Validate hostname
+  hosts: manager, login_node, compute
+  any_errors_fatal: true
+  gather_facts: false
+  tasks:
+    - name: Validate hostname
+      ansible.builtin.include_role:
+        name: hostname_validation
+        tasks_from: validate_hostname.yml
+  tags: freeipa, ldap
 
 - name: Apply login common installation and config
   hosts: manager, login_node, compute
@@ -51,6 +62,13 @@
   roles:
     - login_node
   tags: freeipa
+
+- name: Apply ldap client installation and config
+  hosts: manager, compute, login_node
+  gather_facts: false
+  roles:
+    - ldap_client
+  tags: ldap
 
 - name: Configure secure login_node
   hosts: login_node

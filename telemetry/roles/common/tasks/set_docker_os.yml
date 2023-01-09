@@ -14,7 +14,7 @@
 ---
 
 - name: Replace the rocky os version in dockerfile
-  replace:
+  ansible.builtin.replace:
     path: "{{ item.path }}"
     regexp: '^FROM docker.io/rockylinux/rockylinux:docker_os'
     replace: 'FROM docker.io/rockylinux/rockylinux:{{ docker_rocky_os }}'

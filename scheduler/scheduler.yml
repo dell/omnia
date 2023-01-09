@@ -32,13 +32,6 @@
     - common
   tags: common
 
-- name: Apply ldap client installation and config
-  hosts: manager, compute
-  gather_facts: false
-  roles:
-    - ldap_client
-  tags: ldap
-
 - name: Apply common K8s installation and config
   hosts: manager, compute
   gather_facts: false

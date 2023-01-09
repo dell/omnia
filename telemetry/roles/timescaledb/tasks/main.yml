@@ -14,10 +14,10 @@
 ---
 
 - name: Create persistent volume for timescaledb
-  include_tasks: persistent_volume.yml
+  ansible.builtin.include_tasks: persistent_volume.yml
 
 - name: Create persistent volume claim for timescaledb
-  include_tasks: persistent_volume_claim.yml
+  ansible.builtin.include_tasks: persistent_volume_claim.yml
 
 - name: Checkout iDRAC telemetry github repo
   ansible.builtin.git:
@@ -26,10 +26,10 @@
     version: "{{ reference_tools_stable_commit }}"
 
 - name: Create timescaledb pod
-  include_tasks: timescaledb_pod.yml
+  ansible.builtin.include_tasks: timescaledb_pod.yml
 
 - name: Create service for timescale db
-  include_tasks: service.yml
+  ansible.builtin.include_tasks: service.yml
 
 - name: Create service for timescale db
-  include_tasks: initialize_db.yml
+  ansible.builtin.include_tasks: initialize_db.yml

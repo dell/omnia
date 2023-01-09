@@ -50,7 +50,7 @@
           requests:
             storage: "{{ mysqldb_storage }}"
 
-- name: mysqldb pod definition
+- name: Mysqldb pod definition
   kubernetes.core.k8s:
     state: present
     definition:
