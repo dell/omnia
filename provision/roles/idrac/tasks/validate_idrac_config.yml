@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,19 +20,11 @@
         that:
           - idrac_username | length > 1
           - idrac_password | length > 1
-          - provision_os | length > 1
       no_log: true
   rescue:
     - name: Missing mandatory input parameters
       ansible.builtin.fail:
         msg: "{{ missing_idrac_input_fail_msg }}"
-
-- name: Validate provision_os
-  ansible.builtin.fail:
-    msg: "{{ provision_os_fail_msg }}"
-  when:
-    - os_supported_rhel not in provision_os
-    - os_supported_rocky not in provision_os
 
 - name: Include variable file idrac_vars.yml
   ansible.builtin.include_vars: "{{ idrac_input_filename }}"
@@ -54,7 +46,10 @@
 - name: Assert idrac_system_profile value
   ansible.builtin.assert:
     that:
-      - idrac_system_profile == "Performance" or idrac_system_profile == "PerformancePerWatt(DAPC)" or idrac_system_profile == "PerformancePerWatt(OS)" or idrac_system_profile == "WorkstationPerformance"
+      - idrac_system_profile == "Performance" or
+        idrac_system_profile == "PerformancePerWatt(DAPC)" or
+        idrac_system_profile == "PerformancePerWatt(OS)" or
+        idrac_system_profile == "WorkstationPerformance"
     success_msg: "{{ idrac_system_profile_success_msg }}"
     fail_msg: "{{ idrac_system_profile_fail_msg }}"
 
