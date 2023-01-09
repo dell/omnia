@@ -13,6 +13,10 @@
 #  limitations under the License.
 ---
 
+- name: Initialize supported_os_version_status
+  ansible.builtin.set_fact:
+    supported_os_version_status: false
+
 - name: Validate input parameters of provision vars are not empty
   ansible.builtin.fail:
     msg: "{{ input_provision_fail_msg }}"
@@ -81,8 +85,20 @@
       - result_path_iso_file.stat.exists
       - '".iso" in iso_file_path'
       - provision_os in iso_file_path | lower
+      - provision_os_version | string in iso_file_path
     success_msg: "{{ iso_file_path_success_msg }}"
     fail_msg: "{{ iso_file_path_fail_msg }}"
+
+- name: Set supported_os_version_status to true
+  ansible.builtin.set_fact:
+    supported_os_version_status: true
+  with_items: "{{ supported_rhel_os_version }}"
+  when: provision_os_version | string in item
+
+- name: Validate provision_os_version is supported
+  ansible.builtin.fail:
+    msg: "{{ provision_os_version_fail_msg }}"
+  when: not supported_os_version_status
 
 - name: Warning - waiting for {{ warning_wait_time }} seconds
   ansible.builtin.pause:
