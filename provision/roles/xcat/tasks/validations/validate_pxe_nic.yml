@@ -31,7 +31,7 @@
 
 - name: Gather the MAC address of PXE nic
   ansible.builtin.set_fact:
-    pxe_mac_address: "{{ ansible_facts[pxe_nic]['macaddress']|default(None) }}"
+    pxe_mac_address: "{{ ansible_facts[pxe_nic]['macaddress'] | default(None) }}"
 
 ### PXE nic
 # LOM Configuration

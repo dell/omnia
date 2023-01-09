@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -77,7 +77,8 @@ conf_file_mode: 0644
 # Usage: validate_switch_vars.yml
 pxe_switch_ip_valid: "Valid switch ip provided"
 pxe_switch_ip_invalid: " Failed. Provide a valid switch ip"
-fail_switch_or_mapping_file: "Failed.Please provide either PXE mapping file or PXE switch details.If switch details are given,then provide proper Node_name too."
+fail_switch_or_mapping_file: "Failed. Please provide either PXE mapping file or PXE switch details.
+If switch details are given,then provide proper node_name too."
 pxe_switch_unreachable: "Failed. Given switch is unreachable. Please provide correct switch IP."
 provision_option_fail_msg: "[WARNING]. Ignoring pxe_switch_ip when pxe_mapping_file_path provided"
 
@@ -104,7 +105,8 @@ provision_os_success_msg: "provision_os validated"
 provision_os_fail_msg: "Failed. Incorrect provision_os selected. Supported OS are {{ os_supported_rocky }} or {{ os_supported_rhel }}"
 iso_file_path_missing_msg: "Incorrect iso_file_path provided. Make sure ISO file is present in the provided iso_file_path."
 iso_file_path_success_msg: "iso_file_path validated"
-iso_file_path_fail_msg: "Failed. Invalid iso_file_path provided. Make sure iso_file_path contains value mentioned in provision_os."
+iso_file_path_fail_msg: "Failed. Invalid iso_file_path: {{ iso_file_path }} provided. Make sure iso_file_path variable in provision_config.yml contains value
+mentioned in the variables provision_os: {{ provision_os }} and provision_os_version: {{ provision_os_version }}"
 dns_empty_warning_msg: "[WARNING] primary_dns and secondary_dns is empty. DHCP routing in compute nodes for internet access won't be configured."
 primary_dns_empty_msg: "primary_dns is empty and secondary_dns provided. If one dns entry present, provide primary_dns only."
 primary_dns_success_msg: "primary_dns successfully validated"
@@ -125,6 +127,9 @@ mount_point_success_msg: "mountpoint of disk_partition successfully validated"
 mount_point_fail_msg: "Failed. Supported disk_partition mount_point values are /home, /var, /tmp, /usr, swap"
 desired_capacity_success_msg: "desired_capacity of disk_partition successfully validated"
 desired_capacity_fail_msg: "Failed. Provide valid integer value to desired_capacity of disk_partition"
+supported_rhel_os_version: ["8.0", "8.1", "8.2", "8.3", "8.4", "8.5", "8.6", "8.7", "8.8", "8.9"]
+provision_os_version_fail_msg: "Failed. Invalid provision_os_version: {{ provision_os_version }} provided in provision_config.yml.
+Supported provision_os_version values are 8.0,8.1,8.2,8.3,8.4,8.5,8.6,8.7"
 
 # Usage: validate_domain_name.yml
 domain_name_success_msg: "domain_name successfully validated"
@@ -137,7 +142,8 @@ server_domain_name_fail_msg: "Failed. domain_name set is not same as domain_name
 hosts_file_path: /etc/hosts
 hosts_file_mode: "0644"
 hostname_success_msg: "Hostname length successfully validated."
-hostname_fail_msg: "Failed. Hostname comprises of domain name, node name and 6 characters (00001 and .) that is used by omnia. All these inclusive, the total length should be less than 65 characters."
+hostname_fail_msg: "Failed. Hostname comprises of domain name, node name and 6 characters (00001 and .) that is used by omnia.
+All these inclusive, the total length should be less than 65 characters."
 
 # Usage: firewall_settings.yml
 xcat_ports:

@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,10 +27,6 @@
 
 - name: Create VD
   ansible.builtin.include_tasks: create_vd.yml
-  when: not provision_status
-
-- name: Set provision image for PXE boot
-  ansible.builtin.include_tasks: set_provision_image.yml
   when: not provision_status
 
 - name: Deploy OS

@@ -15,25 +15,26 @@
 
 - name: Initialize variables
   ansible.builtin.set_fact:
-    os_image_status: false
+    diskful_osimage_status: false
 
-- name: Check OS image is created
+- name: Check diskful osimage is created
   ansible.builtin.shell: >
     set -o pipefail && \
-    lsdef -t osimage | grep "{{ provision_os }}"
+    lsdef -t osimage | grep "{{ osimage_search_key }}" | grep "{{ provision_os }}" | grep "{{ provision_os_version }}"
   changed_when: false
   failed_when: false
-  register: os_image_check
+  register: diskful_osimage_check
 
-- name: Set os_image_status to true
+- name: Set diskful_osimage_status to true
   ansible.builtin.set_fact:
-    os_image_status: true
-  when: provision_os in os_image_check.stdout
+    diskful_osimage_status: true
+  when:
+    - provision_os in diskful_osimage_check.stdout
 
-- name: Create OS image
+- name: Create diskful osimage
   ansible.builtin.command: copycds {{ iso_file_path }}
   changed_when: true
-  when: not os_image_status
+  when: not diskful_osimage_status
 
 - name: Copy RHEL8 kickstart files to xcat configuration path
   ansible.builtin.copy:
