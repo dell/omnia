@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,32 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
-- name: Check osimage present or not
-  ansible.builtin.shell: >
-      set -o pipefail && \
-      lsdef -t osimage | grep {{ provision_os }} | grep {{ osimage_search_key }}
-  changed_when: false
-  failed_when: false
-  run_once: true
-  delegate_to: localhost
-  register: osimage_check
-
-- name: Gathering service facts
-  ansible.builtin.service_facts:
-  run_once: true
-  delegate_to: localhost
-
-- name: Set xcat_installation_status to true
-  ansible.builtin.assert:
-    that:
-      - "'xcatd.service' in ansible_facts.services"
-      - "'postgresql.service' in ansible_facts.services"
-      - "'running' in ansible_facts.services['xcatd.service'].state"
-      - "'running' in ansible_facts.services['postgresql.service'].state"
-      - provision_os in osimage_check.stdout
-    success_msg: "{{ xcat_running_success_msg }}"
-    fail_msg: "{{ xcat_running_fail_msg }}"
 
 - name: Install ansible-galaxy modules
   ansible.builtin.command: ansible-galaxy collection install {{ item }}
