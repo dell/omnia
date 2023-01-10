@@ -30,24 +30,7 @@ This error is known to RHEL and is being addressed `here <https://bugzilla.redha
 
 **Why is the Infiniband NIC down after provisioning the server?**
 
-
-1. For servers running Rocky, enable the Infiniband NIC manually, use ``ifup <InfiniBand NIC>``.
-
-2. If your server is running LeapOS, ensure the following pre-requisites are met before manually bringing up the interface:
-
-   1. The following repositories have to be installed:
-
-      * `Leap OSS Repo <http://download.opensuse.org/distribution/leap/15.3/repo/oss/>`_
-
-      * `Leap Non OSS Repo <http://download.opensuse.org/distribution/leap/15.3/repo/non-oss/>`_
-
-   2. Run: ``zypper install -n rdma-core librdmacm1 libibmad5 libibumad3 infiniband-diags`` to install IB NIC drivers.  (If the drivers do not install smoothly, reboot the server to apply the required changes)
-
-   3. Run: ``service network status`` to verify that ``wicked.service`` is running.
-
-   4. Verify that the ifcfg-< InfiniBand NIC > file is present in ``/etc/sysconfig/network``.
-
-   5. Once all the above pre-requisites are met, bring up the interface manually using ``ifup <InfiniBand NIC>``.
+For servers running Rocky, enable the Infiniband NIC manually, use ``ifup <InfiniBand NIC>``.
 
 Alternatively, run ``network.yml`` or  ``post_provision.yml`` (Only if the nodes are provisioned using Omnia) to activate the NIC.
 
