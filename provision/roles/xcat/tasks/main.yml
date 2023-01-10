@@ -47,7 +47,7 @@
 
     - name: Configuration of xcat
       ansible.builtin.include_tasks: configuration/main.yml
-    
+
     - name: Create node object for mapping file
       ansible.builtin.include_tasks: mapping/node_object_creation_mapping.yml
 

@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -107,11 +107,17 @@ domain_name: ""
 # Required field
 provision_os: "rhel"
 
+# OS version of provision_os to be installed
+# Supported values for rhel/rocky are 8.0, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7
+# Required field
+provision_os_version: 8.6
+
 # This is the path where the user has to place the iso image that needs to be provisioned in target nodes.
 # The iso file should be Rocky8-DVD or RHEL-8.x-DVD.
 # Other iso files are not supported.
+# iso_file_path should contain provision_os and provision_os_version values in filename
 # Required field
-iso_file_path: "/home/RHEL-8.4.0-20210503.1-x86_64-dvd1.iso"
+iso_file_path: "/home/RHEL-8.6.0-20220420.3-x86_64-dvd1.iso"
 
 # This is the timezone that will be set during provisioning of OS
 # Available timezones are provided in provision/roles/xcat/files/timezone.txt

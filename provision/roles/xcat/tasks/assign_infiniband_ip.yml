@@ -53,7 +53,7 @@
             nics_avail: "{{ nics_avail + [item.split('-')[1]] }}"
           with_items: "{{ nics_status.stdout_lines }}"
           when: "'ifcfg-ib' in item"
-   
+
         - name: Fetch IB nics
           ansible.builtin.include_tasks: fetch_ib_nics.yml
           with_items: "{{ nics_avail }}"
