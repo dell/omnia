@@ -57,25 +57,6 @@ To correct the issue, run:
 ``json-gw enable`` (To enable the JSON gateway)
 
 
-**While configuring xCAT, why does the ``provision.yml`` fail during the Run import command?**
-
-
-**Cause**:
-
-* The mounted .iso file is corrupt.
-
-
-
-  **Resolution**:
-
-1. Go to  **var** -> **log** -> **xCAT** -> **xCAT.log** to view the error.
-
-2. If the error message is **repo verification failed**, the .iso file is not mounted properly.
-
-3. Verify that the downloaded .iso file is valid and correct.
-
-4. Delete the Cobbler container using ``docker rm -f cobbler`` and rerun ``provision.yml``.
-
 
 **Why does PXE boot fail with tftp timeout or service timeout errors?**
 
