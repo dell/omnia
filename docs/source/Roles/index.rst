@@ -20,3 +20,4 @@ Below is a list of all Omnia's roles:
   Accelerator/index
   Monitor/index
   Utils/index
+  Telemetry/index
