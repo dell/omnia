@@ -13,9 +13,6 @@
 # limitations under the License.
 ---
 
-- name: Include task for assigning hostname
-  ansible.builtin.include_tasks: assign_hostname.yml
-
 - name: Include task for creating provisioned node inventory
   ansible.builtin.include_tasks: provisioned_node_inventory.yml
 
