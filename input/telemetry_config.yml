@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -92,3 +92,13 @@ grafana_password: ""
 # Password of manager node
 # Required only if slurm_telemetry_support is true
 node_password: ""
+
+# Username for Dockerhub account
+# This will be used for Docker login
+# This value is optional but suggested avoiding docker pull limit issues
+docker_username: ""
+
+# Password for Dockerhub account
+# This will be used for Docker login
+# This value is mandatory if docker username is provided
+docker_password: ""
