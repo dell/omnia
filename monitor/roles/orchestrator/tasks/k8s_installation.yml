@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -134,7 +134,6 @@
     url: "{{ docker_repo_url }}"
     dest: "{{ docker_repo_dest }}"
     mode: "{{ file_mode }}"
-  when: docker_username and docker_password
   register: docker_repo
   until: docker_repo is not failed
   retries: "{{ max_retries }}"
@@ -144,7 +143,6 @@
   ansible.builtin.package:
     name: docker-ce-cli
     state: present
-  when: docker_username and docker_password
 
 - name: Start and enable crio
   ansible.builtin.service:
