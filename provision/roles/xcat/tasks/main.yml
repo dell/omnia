@@ -54,6 +54,9 @@
     - name: Create node object for snmp discovery
       ansible.builtin.include_tasks: snmp/node_object_creation_snmp.yml
 
+    - name: Configuration of postbootscripts
+      ansible.builtin.include_tasks: configuration/configure_postbootscripts.yml
+
     - name: Configure DHCP
       ansible.builtin.include_tasks: configure_dhcp.yml
   environment:
