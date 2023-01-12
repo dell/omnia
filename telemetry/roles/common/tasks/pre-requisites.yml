@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -44,3 +44,24 @@
 - name: Install sqldb collection
   ansible.builtin.command: ansible-galaxy collection install "{{ mysqldb_collection_name }}"
   changed_when: false
+
+- name: Login to docker
+  block:
+    - name: Docker login
+      ansible.builtin.command: docker login -u {{ docker_username }} -p {{ docker_password }}
+      changed_when: true
+      register: docker_login_output
+      retries: 10
+      delay: 5
+      until: docker_login_output is not failed
+      when: docker_username or docker_password
+      no_log: true
+  rescue:
+    - name: Warning - docker login failed
+      ansible.builtin.debug:
+        msg: "Warning: {{ docker_login_output.stderr }}"
+
+- name: Docker login check
+  ansible.builtin.fail:
+    msg: "{{ docker_login_fail_msg }}"
+  when: docker_login_output is failed
