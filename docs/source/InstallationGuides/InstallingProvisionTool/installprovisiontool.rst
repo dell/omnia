@@ -55,13 +55,13 @@ Once the playbook execution is complete, ensure that PXE boot and RAID configura
 
     * All ports required for xCAT to run will be opened (For a complete list, check out the `Security Configuration Document <../../SecurityConfigGuide/PortsUsed/xCAT.html>`_).
 
-    * After running ``provision.yml``, the file ``input/provision_config.yml`` will be encrypted. To edit file, use the command: ``ansible-vault edit provision_config.yml --vault-password-file .provision_vault_key``
+    * After running ``provision.yml``, the file ``input/provision_config.yml`` will be encrypted. To edit the file, use the command: ``ansible-vault edit provision_config.yml --vault-password-file .provision_vault_key``
 
-    * To re-provision target servers ``provision.yml`` can be re-run. Alternatively, use the following steps:
+    * To re-provision target servers ``provision.yml`` can be re-run. Alternatively, use the following steps (as an example, we will be re-provisioning rhels8.6.0-x86_64-install-compute):
 
          * Use ``lsdef -t osimage | grep install-compute`` to get a list of all valid OS profiles.
 
-         * Use ``nodeset all osimage=<selected OS image from previous command>`` to provision the OS on the target server.
+         * Use ``nodeset all osimage=rhels8.6.0-x86_64-install-compute`` to provision the OS on the target server.
 
          * PXE boot the target server to bring up the OS.
 
@@ -80,4 +80,12 @@ A new node can be added using one of two ways:
 2. Using the switch IP:
 
     * Run ``provision.yml`` once the switch has discovered the potential new node.
+
+**Using multiple versions of a given OS**
+
+Omnia now supports deploying different versions of the same OS. With each run of ``provision.yml``, a new deployable OS image is created with a distinct type (rocky or RHEL) and version (8.0, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7) depending on the values provided in ``input/provision_config.yml``.
+
+
+
+.. note:: While Omnia deploys the minimal version of the OS, the multiple version feature requires that the Rocky full (DVD) version of the OS be provided.
 

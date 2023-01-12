@@ -8,6 +8,3 @@ Scheduler
 
 .. include:: ../../InstallationGuides/BuildingClusters/installscheduler.rst
 
-.. include:: ../../InstallationGuides/BuildingClusters/BeeGFS.rst
-
-.. include:: ../../InstallationGuides/BuildingClusters/NFS.rst
