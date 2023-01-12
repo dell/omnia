@@ -63,17 +63,12 @@ If a login node is available and mentioned in the inventory file, the following 
 
     * Slurmd is installed.
     * All required configurations are made to ``slurm.conf`` file to enable a slurm login node.
-    * FreeIPA (the default authentication system on the login node) is installed to provide centralized authentication
 
 .. include:: ../../Appendices/hostnamereqs.rst
 
 .. note::
 
     * To enable the login node, ensure that ``login_node_required`` in ``input/omnia_config.yml`` is set to true.
-    * To enable security features on the login node, ensure that ``enable_secure_login_node`` in ``input/omnia_config.yml`` is set to true.
-    * To customize the security features on the login node, fill out the parameters in ``input/omnia_security_config.yml``.
-
-.. warning:: No users/groups will be created by Omnia.
 
 **Slurm job based user access**
 
@@ -89,13 +84,43 @@ To ensure security while running jobs on the cluster, users can be assigned perm
 
     * Only users added to the 'slurm' group can execute slurm jobs. To add users to the group, use the command: ``usermod -a -G slurm <username>``.
 
-**Installing LDAP Client**
 
-Manager and compute nodes will have LDAP client installed and configured if ``ldap_required`` is set to true. The login node does not have LDAP client installed.
 
-.. warning:: No users/groups will be created by Omnia.
+**Running Slurm MPI jobs on clusters**
 
-.. include:: ../../Roles/Utils/freeipa_installation.rst
+To enhance the productivity of the cluster, Slurm allows users to run jobs in a parallel-computing architecture. This is used to efficiently utilize all available computing resources.
+
+.. note::
+
+    * Omnia does not install MPI packages by default. Users hoping to leverage the Slurm-based MPI execution feature are required to install the relevant packages from a source of their choosing.
+
+    * Running jobs as individual users (and not as root) requires that passwordSSH be enabled between compute nodes for the user.
+
+**For Intel**
+
+
+To run an MPI job on an intel processor, set the following environmental variables on the head nodes or within the job script:
+
+    - ``I_MPI_PMI_LIBRARY`` = ``/usr/lib64/pmix/``
+    - ``FI_PROVIDER`` = ``sockets`` (When InfiniBand network is not available, this variable needs to be set)
+    - ``LD_LIBRARY_PATH`` (Use this variable to point to the location of the Intel/Python library folder. For example: ``$LD_LIBRARY_PATH:/mnt/jobs/intelpython/python3.9/envs/2022.2.1/lib/``)
+
+**For AMD**
+
+To run an MPI job on an AMD processor, set the following environmental variables on the head nodes or within the job script:
+
+    - ``PATH`` (Use this variable to point to the location of the OpenMPI binary folder. For example: ``PATH=$PATH:/appshare/openmpi/bin``)
+    - ``LD_LIBRARY_PATH`` (Use this variable to point to the location of the OpenMPI library folder. For example: ``$LD_LIBRARY_PATH:/appshare/openmpi/lib``)
+    - ``OMPI_ALLOW_RUN_AS_ROOT`` = ``1`` (To run jobs as a root user, set this variable to ``1``)
+    - ``OMPI_ALLOW_RUN_AS_ROOT_CONFIRM`` = ``1`` (To run jobs as a root user, set this variable to ``1``)
+
+
+
+
+
+
+
+
 
 
 

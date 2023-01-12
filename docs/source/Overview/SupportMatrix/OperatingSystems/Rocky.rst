@@ -11,7 +11,7 @@ Rocky
 | 8.6        | Yes           | Yes           |
 +------------+---------------+---------------+
 
-.. note:: Always deploy the DVD Edition of the OS on Compute Nodes
+.. note:: Always deploy the DVD (Full) Edition of the OS on Compute Nodes.
 
 
 

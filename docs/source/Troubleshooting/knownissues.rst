@@ -30,26 +30,16 @@ This error is known to RHEL and is being addressed `here <https://bugzilla.redha
 
 **Why is the Infiniband NIC down after provisioning the server?**
 
-
-1. For servers running Rocky, enable the Infiniband NIC manually, use ``ifup <InfiniBand NIC>``.
-
-2. If your server is running LeapOS, ensure the following pre-requisites are met before manually bringing up the interface:
-
-   1. The following repositories have to be installed:
-
-      * `Leap OSS Repo <http://download.opensuse.org/distribution/leap/15.3/repo/oss/>`_
-
-      * `Leap Non OSS Repo <http://download.opensuse.org/distribution/leap/15.3/repo/non-oss/>`_
-
-   2. Run: ``zypper install -n rdma-core librdmacm1 libibmad5 libibumad3 infiniband-diags`` to install IB NIC drivers.  (If the drivers do not install smoothly, reboot the server to apply the required changes)
-
-   3. Run: ``service network status`` to verify that ``wicked.service`` is running.
-
-   4. Verify that the ifcfg-< InfiniBand NIC > file is present in ``/etc/sysconfig/network``.
-
-   5. Once all the above pre-requisites are met, bring up the interface manually using ``ifup <InfiniBand NIC>``.
+For servers running Rocky, enable the Infiniband NIC manually, use ``ifup <InfiniBand NIC>``.
 
 Alternatively, run ``network.yml`` or  ``post_provision.yml`` (Only if the nodes are provisioned using Omnia) to activate the NIC.
+
+
+**Why does the Task [xCAT: Task integrate mapping file with DB] fail while running provision.yml?**
+
+**Potential Cause**: There may be whitespaces in the mapping file.
+
+**Resolution**: Eliminate the whitespaces in the mapping file and re-try the script.
 
 
 **Why does the Task [infiniband_switch_config : Authentication failure response] fail with the message 'Status code was -1 and not [302]: Request failed: <urlopen error [Errno 111] Connection refused>' on Infiniband Switches when running infiniband_switch_config.yml?**
@@ -66,25 +56,6 @@ To correct the issue, run:
 
 ``json-gw enable`` (To enable the JSON gateway)
 
-
-**While configuring xCAT, why does the ``provision.yml`` fail during the Run import command?**
-
-
-**Cause**:
-
-* The mounted .iso file is corrupt.
-
-
-
-  **Resolution**:
-
-1. Go to  **var** -> **log** -> **xCAT** -> **xCAT.log** to view the error.
-
-2. If the error message is **repo verification failed**, the .iso file is not mounted properly.
-
-3. Verify that the downloaded .iso file is valid and correct.
-
-4. Delete the Cobbler container using ``docker rm -f cobbler`` and rerun ``provision.yml``.
 
 
 **Why does PXE boot fail with tftp timeout or service timeout errors?**

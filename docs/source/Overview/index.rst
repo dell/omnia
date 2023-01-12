@@ -5,8 +5,6 @@ Omnia: Overview
 (Latin: all or everything) is a deployment tool to configure Dell PowerEdge servers running standard RPM-based Linux OS images into clusters capable of supporting HPC, AI, and data analytics workloads. It uses Slurm, Kubernetes, and other packages to manage jobs and run diverse workloads on the same converged solution. It is a collection of Ansible playbooks, is open source, and is constantly being extended to enable comprehensive workloads.
 
 .. toctree::
-    :hidden:
-
     architecture
     newfeatures
     releasenotes
