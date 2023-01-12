@@ -40,7 +40,6 @@
   with_items: "{{ default_network.stdout_lines }}"
   when:
     - '"host_network" not in item'
-    - '"-" in item'
 
 - name: Configure site table
   ansible.builtin.shell: >
