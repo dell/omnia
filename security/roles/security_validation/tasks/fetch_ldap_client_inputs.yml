@@ -17,10 +17,10 @@
   ansible.builtin.fail:
     msg: "{{ ldap_client_config_failure_msg }}"
   when:
-    - ( domain_name | length < 1 or
-      ldap_server_ip | length < 1 or
-      ldap_connection_type | length < 1 or
-      ldap_ca_cert_path | length < 1 )
+    - ( domain_name | default("", true) |  length < 1 or
+      ldap_server_ip | default("", true) | length < 1 or
+      ldap_connection_type | default("", true) |  length < 1 or
+      ldap_ca_cert_path | default("", true) | length < 1 )
 
 - name: Test reachablility of LDAP server
   ansible.builtin.command: ping -c3 {{ ldap_server_ip }}
