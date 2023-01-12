@@ -13,42 +13,46 @@
 #  limitations under the License.
 ---
 
-- name: Fetch the hostname
-  ansible.builtin.command: hostname -s
-  register: machine_hostname
-  changed_when: false
+- name: Validate hostname
+  block:
+    - name: Fetch the hostname
+      ansible.builtin.command: hostname -s
+      register: machine_hostname
+      changed_when: false
 
-- name: Verify the hostname is not blank in hostname
-  ansible.builtin.fail:
-    msg: "{{ hostname_blank_msg }}"
-  when: machine_hostname.stdout | length < 1
+    - name: Verify the hostname is not blank in hostname
+      ansible.builtin.fail:
+        msg: "{{ hostname_blank_msg }}"
+      when: machine_hostname.stdout | length < 1
 
-- name: Validate the host name
-  ansible.builtin.assert:
-    that:
-      - machine_hostname.stdout is regex(("^(([a-z]|[a-z][a-z0-9\-]*[a-z0-9])\.)*([a-z]|[a-z][a-z0-9\-]*[a-z0-9])$"))
-      - machine_hostname.stdout != "localhost"
-    success_msg: "{{ server_hostname_success }}"
-    fail_msg: "{{ server_hostname_fail }}"
+    - name: Validate the host name
+      ansible.builtin.assert:
+        that:
+          - machine_hostname.stdout is regex(("^(([a-z]|[a-z][a-z0-9\-]*[a-z0-9])\.)*([a-z]|[a-z][a-z0-9\-]*[a-z0-9])$"))
+          - machine_hostname.stdout != "localhost"
+        success_msg: "{{ server_hostname_success }}"
+        fail_msg: "{{ server_hostname_fail }}"
 
-- name: Fetch the domain name
-  ansible.builtin.command: hostname -d
-  register: domain_name_set
-  changed_when: false
-  failed_when: false
+    - name: Fetch the domain name
+      ansible.builtin.command: hostname -d
+      register: domain_name_set
+      changed_when: false
+      failed_when: false
 
-- name: Verify the domain name is not blank in hostname
-  ansible.builtin.fail:
-    msg: " {{ domain_name_blank_msg }}"
-  when: domain_name_set.stdout | length < 1
+    - name: Verify the domain name is not blank in hostname
+      ansible.builtin.fail:
+        msg: " {{ domain_name_blank_msg }}"
+      when: domain_name_set.stdout | length < 1
 
-- name: Set fact for the domain name in hostname
-  ansible.builtin.set_fact:
-    ms_domain_name: "{{ domain_name_set.stdout }}"
+    - name: Set fact for the domain name in hostname
+      ansible.builtin.set_fact:
+        ms_domain_name: "{{ domain_name_set.stdout }}"
 
-- name: Validate the domain name set on the host
-  ansible.builtin.assert:
-    that:
-      - hostvars['127.0.0.1']['domain_name'] == ms_domain_name
-    success_msg: "{{ server_domain_name_success }}"
-    fail_msg: "{{ server_domain_name_fail }}"
+    - name: Validate the domain name set on the host
+      ansible.builtin.assert:
+        that:
+          - hostvars['127.0.0.1']['domain_name'] == ms_domain_name
+        success_msg: "{{ server_domain_name_success }}"
+        fail_msg: "{{ server_domain_name_fail }}"
+  when: hostvars['127.0.0.1']['ldap_required'] or
+        hostvars['127.0.0.1']['freeipa_required']
