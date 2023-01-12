@@ -24,10 +24,6 @@ Before You Build Clusters
 
 * Slurm: Once all the required parameters in `omnia_config.yml <schedulerinputparams.html>`_ are filled in, ``omnia.yml`` can be used to set up slurm.
 
-* LDAP client support: The manager and compute nodes will have LDAP installed but the login node will be excluded.
-
-* FreeIPA support
-
 * Login Node (Additionally secure login node)
 
 * Kubernetes: Once all the required parameters in `omnia_config.yml <schedulerinputparams.html>`_ are filled in, ``omnia.yml`` can be used to set up kubernetes.
