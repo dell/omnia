@@ -50,7 +50,7 @@
       ansible.builtin.replace:
         path: "{{ sssd_conf_dest }}"
         regexp: "ldap_tls_cacert = /etc/openldap/certs/ldapserver.crt"
-        replace: "ldap_tls_cacert = {{ certificate_path[-1] }}"
+        replace: "ldap_tls_cacert = {{ tls_cert_path + certificate_path[-1] }}"
 
     - name: Update bind dn details if it is provided in input file
       block:
