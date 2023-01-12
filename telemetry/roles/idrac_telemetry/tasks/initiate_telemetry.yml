@@ -96,7 +96,7 @@
 
 # Filter iDRACs matching telemetry pre-requisites
 
-    - name: Add iDRAC nodes and initiate telemetry when awx_web_support is false
+    - name: Add iDRAC nodes and initiate telemetry
       ansible.builtin.include_tasks: filter_idrac.yml
       with_items: "{{ groups['idrac'] }}"
       loop_control:
