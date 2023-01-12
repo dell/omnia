@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -70,7 +70,7 @@
         - (index.MajorVersion | int) > min_firmware_version_reqd
 
   rescue:
-    - name: Set iDRAC check list when awx_web_support is set to false
+    - name: Set iDRAC check list
       ansible.builtin.set_fact:
         failed_idrac: "{{ failed_idrac + [item] }}"
 
@@ -79,7 +79,7 @@
     - datacenter_license is true
     - firmware_version is true
   block:
-    - name: Set iDRAC list when awx_web_support is set to false
+    - name: Set iDRAC list
       ansible.builtin.set_fact:
         telemetry_idrac: "{{ telemetry_idrac + [item] }}"
 
