@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ max_retries: 20
 os_supported_redhat: "redhat"
 rhel_code_ready_repo: codeready-builder-for-rhel-8-x86_64-rpms
 grafana_conf_path: '/opt/omnia/.data/grafana_svc_details.ini'
+docker_login_fail_msg: "Docker login failed! Please check the credentials and re-execute playbook."
 
 # Usage: validate_telemetry_config.yml
 folder_perm: '644'
