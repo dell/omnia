@@ -54,7 +54,7 @@
 
     - name: Configure DHCP
       ansible.builtin.include_tasks: configuration/configure_dhcp.yml
-    
+
     - name: Set provision image for mapping
       ansible.builtin.include_tasks: mapping/set_provision_image_mapping.yml
 
