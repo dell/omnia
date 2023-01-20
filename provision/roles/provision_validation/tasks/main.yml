@@ -13,6 +13,15 @@
 # limitations under the License.
 ---
 
+- name: Common packages installation for provision
+  ansible.builtin.include_tasks: package_installation.yml
+
+- name: Create the provision ini file
+  ansible.builtin.include_tasks: create_provision_ini.yml
+
+- name: Include provision configuration variables
+  ansible.builtin.include_tasks: include_provision_config.yml
+
 - name: Validate the nic parameters
   ansible.builtin.include_tasks: validate_public_nic.yml
 
