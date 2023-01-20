@@ -15,21 +15,16 @@
 
 - name: Install and configure xcat
   block:
+    - name: Include xcat role vars
+      ansible.builtin.include_vars: "{{ item }}"
+      with_items: "{{ xcat_role_vars }}"
+
     - name: Check xcat pre-requisites
       ansible.builtin.include_tasks: pre_requisites.yml
 
-    - name: Common packages installation
+    - name: Common packages installation for xcat
       ansible.builtin.include_tasks: package_installation.yml
       when: not xcat_installation_status
-
-    - name: Create the provision ini file
-      ansible.builtin.include_tasks: create_provision_ini.yml
-
-    - name: Include provision configuration variables
-      ansible.builtin.include_tasks: include_provision_config.yml
-
-    - name: Validate provision parameters
-      ansible.builtin.include_tasks: validations/main.yml
 
     - name: Configure firewall settings
       ansible.builtin.include_tasks: firewall_settings.yml
@@ -40,7 +35,7 @@
       when: not xcat_installation_status
 
     - name: Configure xcat
-      ansible.builtin.include_tasks: configure_xcat.yml
+      ansible.builtin.include_tasks: configuration/configure_xcat.yml
 
     - name: Executing python utilities
       ansible.builtin.include_tasks: python_utility.yml
@@ -58,7 +53,13 @@
       ansible.builtin.include_tasks: configuration/configure_postbootscripts.yml
 
     - name: Configure DHCP
-      ansible.builtin.include_tasks: configure_dhcp.yml
+      ansible.builtin.include_tasks: configuration/configure_dhcp.yml
+    
+    - name: Set provision image for mapping
+      ansible.builtin.include_tasks: mapping/set_provision_image_mapping.yml
+
+    - name: Set provision image for snmp
+      ansible.builtin.include_tasks: snmp/set_provision_image_snmp.yml
   environment:
     XCATROOT: "{{ xcat_root_env }}"
     PATH: "{{ ansible_env.PATH }}:{{ xcat_path_env }}"
