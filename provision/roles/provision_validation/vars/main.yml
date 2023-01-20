@@ -17,6 +17,8 @@
 ansible_galaxy_collection:
   - ansible.utils:2.5.2
   - community.general:4.8.7
+pip_version: pip3.8
+netaddr_pip_package: netaddr
 
 common_packages_provision:
   - python3-netaddr
@@ -25,7 +27,7 @@ common_packages_provision:
   - net-snmp
   - net-snmp-utils
   - sshpass
-  
+
 # Usage: create_provision_ini.yml
 provision_conf_path: "/opt/omnia/.data/provision.ini"
 provision_conf_dest: "/opt/omnia/.data/"
