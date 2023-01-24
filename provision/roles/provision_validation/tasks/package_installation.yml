@@ -13,18 +13,16 @@
 # limitations under the License.
 ---
 
-- name: Validate the nic parameters
-  ansible.builtin.include_tasks: validate_public_nic.yml
+- name: Install common packages for provision
+  ansible.builtin.package:
+    name: "{{ common_packages_provision }}"
+    state: present
 
-- name: Validate the switch related parameters
-  ansible.builtin.include_tasks: validate_switch_vars.yml
+- name: Install netaddr
+  ansible.builtin.command: "{{ pip_version }} install {{ netaddr_pip_package }}"
+  changed_when: true
 
-- name: Validate provision parameters
-  ansible.builtin.include_tasks: validate_provision_vars.yml
-
-- name: Validate disk partition parameters
-  ansible.builtin.include_tasks: validate_disk_partition_vars.yml
-  with_items: "{{ disk_partition }}"
-
-- name: Validate domain_name
-  ansible.builtin.include_tasks: validate_domain_name.yml
+- name: Install ansible galaxy collection ansible.utils
+  ansible.builtin.command: ansible-galaxy collection install "{{ item }}"
+  changed_when: true
+  with_items: "{{ ansible_galaxy_collection }}"

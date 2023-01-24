@@ -28,7 +28,7 @@
 
     - name: Create node object from mapping file provided by user
       ansible.builtin.shell: >
-        mkdef -t node "{{ mapping_file_output.list[idx1].Hostname.split('.')[0] }}" groups={{ provision_os }},all
+        mkdef -t node "{{ mapping_file_output.list[idx1].Hostname.split('.')[0] }}" groups={{ mapping_node_group }},all
         ip="{{ mapping_file_output.list[idx1].IP | trim }}" mac="{{ mapping_file_output.list[idx1].MAC | trim }}"
         hostnames="{{ mapping_file_output.list[idx1].Hostname | trim }}"  netboot=xnba arch=x86_64  -f
       with_items: "{{ mapping_file_output.list }}"

@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -60,19 +60,3 @@
       ansible.builtin.debug:
         msg: "{{ dns_config_warning_msg }} {{ dns_config.stderr }}"
       when: dns_config.stderr is defined
-
-- name: Task for set osimage to node object
-  block:
-    - name: Set osimage to node object
-      ansible.builtin.command: nodeset all osimage={{ provision_os_image }}
-      changed_when: true
-      register: set_osimage
-
-    - name: Installation status - provision.yml
-      ansible.builtin.debug:
-        msg: "{{ xcat_install_success_msg }}"
-  rescue:
-    - name: Verify set node object is successful
-      ansible.builtin.debug:
-        msg: "{{ set_osimage_warning_msg }} {{ set_osimage.stderr }}"
-      when: set_osimage.stderr is defined
