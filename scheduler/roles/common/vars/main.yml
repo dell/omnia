@@ -32,7 +32,6 @@ common_packages:
   - chrony
   - pciutils
   - openssl
-  - singularity
   - python3-pexpect
 common_packages_centos:
   - gcc
