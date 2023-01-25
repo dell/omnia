@@ -46,6 +46,7 @@ Running The Provision Tool
                     10|            | d0:8e:79:ba:6a:5e | node00010.winter.cluster | 172.29.2.6   |        |
 
    iii. Offline repositories will be created based on the OS being deployed across the cluster.
+
     iv. If ``mlnx_ofed_path`` is provided, OFED packages will be deployed during post provisioning without user intervention. Alternatively, OFED can be installed using ` ``network.yml`` <../../Roles/Network/index.html>`_.
 
 Once the playbook execution is complete, ensure that PXE boot and RAID configurations are set up on remote nodes. Users are then expected to reboot target servers to provision the OS.
