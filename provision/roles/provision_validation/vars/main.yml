@@ -126,3 +126,11 @@ hosts_file_mode: "0644"
 hostname_success_msg: "Hostname length successfully validated."
 hostname_fail_msg: "Failed. Hostname comprises of domain name, node name and 6 characters (00001 and .) that is used by omnia.
 All these inclusive, the total length should be less than 65 characters."
+
+# Usage: validate_postscripts_path.yml
+ofed_iso_empty_msg: "[WARNING] mlnx_ofed_path variable empty in provision_config.yml. OFED won't be installed during provisioning."
+mlnx_ofed_path_missing_msg: "Failed. Incorrect mlnx_ofed_path: {{ mlnx_ofed_path }} provided.
+Make sure OFED iso file is present in the provided mlnx_ofed_path variable in provision_config.yml."
+ofed_iso_warning_msg: "[WARNING] Invalid OFED ISO file: {{ mlnx_ofed_path }} for provisioning {{ provision_os }} with version {{ provision_os_version }}
+in provision_config.yml. OFED installation might fail during provisioning"
+ofed_rhel_check: "rhel{{ provision_os_version }}"
