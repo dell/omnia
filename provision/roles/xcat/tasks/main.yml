@@ -52,6 +52,9 @@
     - name: Configuration of postbootscripts
       ansible.builtin.include_tasks: configuration/configure_postbootscripts.yml
 
+    - name: Configuration of postscripts
+      ansible.builtin.include_tasks: configuration/configure_postscripts.yml
+
     - name: Configure DHCP
       ansible.builtin.include_tasks: configuration/configure_dhcp.yml
 
