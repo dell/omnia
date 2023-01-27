@@ -13,9 +13,6 @@
 # limitations under the License.
 ---
 
-- name: Include provision configuration variables
-  ansible.builtin.include_tasks: include_provision_config.yml
-
 - name: Set pxe_nic details
   ansible.builtin.set_fact:
     pxe_nic_netmask: "{{ lookup('vars', 'ansible_' + pxe_nic).ipv4.netmask }}"
