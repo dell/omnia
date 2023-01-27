@@ -122,3 +122,6 @@ idrac_port: 443
 
 # Usage: assign_hostname.yml
 node_inventory_path: /opt/omnia/node_inventory
+
+# Usage: create_mapping_file.yml
+ping_search_key: "100% packet loss"
