@@ -77,6 +77,8 @@
             ip4: '{{ infiniband_ip }}/16'
             method4: manual
             state: present
+            gw4_ignore_auto: true
+            never_default4: true
           when: ib_nics | length > 0
 
         - name: Reactivate ib nic to up
