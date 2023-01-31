@@ -164,3 +164,10 @@ secondary_dns: ""
 #   - { mount_point: "/home", desired_capacity: "102400" }
 disk_partition:
   - { mount_point: "", desired_capacity: "" }
+
+# Absolute path to local copy of .iso file containing Mellanox OFED packages.
+# The iso can be downloaded from https://network.nvidia.com/products/infiniband-drivers/linux/mlnx_ofed/
+# OFED will be installed post provisioning without any user intervention requirement
+# Eg: mlnx_ofed_path: /root/MLNX_OFED_LINUX-5.8-1.1.2.1-rhel8.6-x86_64.iso
+# Optional field
+mlnx_ofed_path:

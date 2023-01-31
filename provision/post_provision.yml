@@ -13,6 +13,16 @@
 # limitations under the License.
 ---
 
+- name: Include provision_config.yml
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  tasks:
+    - name: Include provision_config.yml
+      ansible.builtin.include_role:
+        name: provision_validation
+        tasks_from: include_provision_config.yml
+
 - name: Executing post provision roles
   hosts: localhost
   connection: local
