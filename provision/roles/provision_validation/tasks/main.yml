@@ -41,6 +41,6 @@
 
 - name: Validate domain_name
   ansible.builtin.include_tasks: validate_domain_name.yml
-  
+
 - name: Validate postscripts path
   ansible.builtin.include_tasks: validate_postscripts_path.yml
