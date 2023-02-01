@@ -13,21 +13,19 @@
 # limitations under the License.
 ---
 
-- name: Integrate mapping file with DB
-  ansible.builtin.command: |
-    {{ python_version }} {{ mapping_file_db_path }} {{ pxe_mapping_file_path }} {{ roce_enabled }} {{ domain_name }}
-  when: pxe_mapping_file
+- name: DB updates for mapping
+  block:
+    - name: Integrate mapping file with DB
+      ansible.builtin.command: |
+        {{ python_version }} {{ mapping_file_db_path }} {{ pxe_mapping_file_path }} {{ roce_enabled }} {{ domain_name }}
 
-- name: Integrate bmc with DB in case mapping file given
-  ansible.builtin.command: |
-    {{ python_version }} {{ mapping_bmc_path }} {{ pxe_mapping_file_path }} {{ bmc_nic_subnet }} {{ roce_enabled }}
-  when:
-    - pxe_mapping_file
-    - bmc_nic_subnet | length > 6
+    - name: Integrate bmc with DB in case mapping file given
+      ansible.builtin.command: |
+        {{ python_version }} {{ mapping_bmc_path }} {{ pxe_mapping_file_path }} {{ bmc_nic_subnet }} {{ roce_enabled }}
+      when: bmc_nic_subnet | length > 6
 
-- name: Integrate ib with DB in case mapping file given
-  ansible.builtin.command: |
-    {{ python_version }} {{ mapping_ib_path }} {{ pxe_mapping_file_path }} {{ ib_nic_subnet }} {{ roce_enabled }}
-  when:
-    - pxe_mapping_file
-    - ib_nic_subnet | length > 6
+    - name: Integrate ib with DB in case mapping file given
+      ansible.builtin.command: |
+        {{ python_version }} {{ mapping_ib_path }} {{ pxe_mapping_file_path }} {{ ib_nic_subnet }} {{ roce_enabled }}
+      when: ib_nic_subnet | length > 6
+  when: discovery_mechanism | lower == discovery_method_mapping

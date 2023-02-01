@@ -81,5 +81,3 @@ download_retries_count: 10
 # Usage: configure_postscripts_bmc.yml
 bmc_postscripts_path:
   - { src: "{{ role_path }}/files/postscripts/omnia_bmc_config", dest: "/install/postscripts/omnia_bmc_config", mode: "755" }
-discovery_method_mapping: "mapping"
-discovery_method_snmp: "snmp"
