@@ -22,9 +22,7 @@
     - public_nic | length < 1 or
       admin_nic | length < 1 or
       admin_nic_subnet | length < 1 or
-      pxe_nic | length < 1 or
-      pxe_nic_start_range | length < 1 or
-      pxe_nic_end_range | length < 1
+      pxe_nic | length < 1
 
 - name: Fetch the network interfaces in UP state in the system
   ansible.builtin.shell: set -o pipefail && /usr/sbin/ip a | awk '/state UP/{print $2}'
@@ -51,6 +49,7 @@
   ansible.builtin.set_fact:
     network_interface_type: "dedicated"
     roce_enabled: false
+    ib_status: false
 
 - name: Update roce_enabled value in provision init file
   ansible.builtin.replace:

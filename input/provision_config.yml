@@ -37,6 +37,28 @@ admin_nic_subnet: "172.29.0.0"
 # Mandatory
 pxe_nic: "eno1"
 
+# This will specify the mechanism through which omnia will discover nodes for provisioning.
+# Accepted values: mapping, bmc, snmp
+# mapping indicates that the user has provided a valid mapping file path with details regarding MAC ID of the NIC, IP address and hostname.
+# bmc indicates the servers in the cluster will be discovered by Omnia using BMC. The requirement in this case is user should enable IPMI over LAN in iDRAC settings if the iDRACs are in static mode
+# snmp indicates Omnia will discover the nodes based on the switch IP (to which the cluster servers are connected) provided. SNMP should be enabled on the switch.
+# Default: mapping
+discovery_mechanism: "mapping"
+
+# Discover_mechanism is mapping
+#### PXE provisioned nodes information source
+## PXE mapping file path details
+# The mapping file consists of the MAC address and its respective IP address and Hostname.
+# If user wants to assign static IPs, format of csv: MAC,Hostname,IP
+# Only last 16 bits/2 octets of IPv4 can be dynamic
+# Ensure that IPs given in mapping file goes hand in hand with the pxe_nic ranges provided above
+# Ex. xx:yy:zz:aa:bb:cc,server,172.17.0.5
+# A templates for mapping file exists in omnia/examples and is named as pxe_mapping_file.csv
+# This depicts the path where user has kept the mapping file for DHCP configurations.
+# Optional
+pxe_mapping_file_path: ""
+
+# Mandatory when discovery mechanism is mapping or snmp
 # The dhcp range for assigning the IPv4 address while provisioning
 # Examples: 172.29.0.50 - 172.29.0.100, 10.10.1.100 - 10.10.2.200
 # If pxe range is 192.12.0.100 - 192.12.0.200 and bmc_subnet is 192.14.0.0 then for a node,
@@ -45,17 +67,6 @@ pxe_nic: "eno1"
 # Mandatory
 pxe_nic_start_range: "172.29.0.100"
 pxe_nic_end_range: "172.29.0.200"
-
-### IB NIC Details
-# If provided, omnia will handle and assign static IPs to compute node's IB network.
-# Only last 16 bits/2 octets of IPv4 are dynamic
-# Example: 172.19.0.0 , 10.8.0.0 , 192.18.0.0
-# If provided the db entry will be in parallel with either the pxe_nic ranges
-# Or whatever is provided in mapping file ( only if roce is disabled)
-# Example: If admin_ip: 172.29.0.101 and ib_nic_subnet: 178.30.0.0, then ib_ip: 178.30.0.101
-# Make sure ib nics having ib as prefix
-# Optional
-ib_nic_subnet: ""
 
 ### BMC NIC Details
 # If provided, Omnia will handle and assign static IPs to the iDRACs.
@@ -67,23 +78,55 @@ ib_nic_subnet: ""
 # Optional
 bmc_nic_subnet: ""
 
-#### PXE provisioned nodes information source
-## PXE mapping file path details
-# The mapping file consists of the MAC address and its respective IP address and Hostname.
-# If user wants to assign static IPs, format of csv: MAC,Hostname,IP
-# Only last 16 bits/2 octets of IPv4 can be dynamic
-# Ensure that IPs given in mapping file goes hand in hand with the pxe_nic ranges provided above
-# Ex. xx:yy:zz:aa:bb:cc,server,172.17.0.5
-# A templates for mapping file exists in omnia/examples and is named as pxe_mapping_file.csv
-# This depicts the path where user has kept the mapping file for DHCP configurations.
-# Optional ( Either pxe_mapping_file_path or PXE switch details should to be provided )
-pxe_mapping_file_path: ""
-
 # PXE switch that will be connected to all iDRACs for provisioning
 # Ensure that SNMP is enabled on the mentioned switch.
-# Optional ( Either pxe_mapping_file_path or PXE switch details should to be provided )
+# Mandatory when discovery mechanism is snmp
 pxe_switch_ip: ""
 pxe_switch_snmp_community_string: "public"
+
+# The dhcp range for assigning the IPv4 address while discovery mechanism is BMC
+# If user wants to provide the range 172.30.0.50 to 172.30.0.100 then, bmc_dynamic_start_range: 172.30.0.50, bmc_dynamic_end_range: 172.30.0.100
+bmc_dynamic_start_range: ""
+bmc_dynamic_end_range: ""
+
+# The dhcp range for assigning the IPv4 address while discovery mechanism is BMC
+# If user wants to provide the range 172.40.0.50 to 172.40.0.100 then, bmc_static_start_range: 172.40.0.50, bmc_static_end_range: 172.40.0.100
+bmc_static_start_range: ""
+bmc_static_end_range: ""
+
+# Mandatory when BMC dynamic ranges were provided
+# The dhcp range for assigning the IPv4 address while discovery mechanism is BMC
+# If user wants to provide the range 172.50.0.50 to 172.50.0.100 then, omnia_exclusive_static_start_range: 172.50.0.50, omnia_exclusive_static_end_range: 172.50.0.100
+omnia_exclusive_static_start_range: ""
+omnia_exclusive_static_end_range: ""
+
+# Mandatory when discovery mechanism is BMC
+# The username for idrac
+# The username must not contain -,\, ',"
+# Required only if idrac_support: true
+bmc_username: ""
+
+# Mandatory when discovery mechanism is BMC
+# Password used for idrac
+# The password must not contain -,\, ',"
+# Required only if idrac_support: true
+bmc_password: ""
+
+# The pxe subnet details should be provided.
+# This is required only when discovery mechanism is BMC.
+# For mapping and snmp based discovery provide the pxe_nic_start_range and pxe_nic_end_range.
+pxe_subnet: ""
+
+### IB NIC Details
+# If provided, omnia will handle and assign static IPs to compute node's IB network.
+# Only last 16 bits/2 octets of IPv4 are dynamic
+# Example: 172.19.0.0 , 10.8.0.0 , 192.18.0.0
+# If provided the db entry will be in parallel with either the pxe_nic ranges
+# Or whatever is provided in mapping file ( only if roce is disabled)
+# Example: If admin_ip: 172.29.0.101 and ib_nic_subnet: 178.30.0.0, then ib_ip: 178.30.0.101
+# Make sure ib nics having ib as prefix
+# Optional
+ib_nic_subnet: ""
 
 # The prefix for the node names, if needed to be dynamically allocated.
 # Hostname = node_name + '0000x' + domain_name
