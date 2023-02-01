@@ -139,6 +139,6 @@ cuda_toolkit_path_missing_msg: "Failed. Incorrect cuda_toolkit_path: {{ cuda_too
 Make sure CUDA toolkit rpm file is present in the provided cuda_toolkit_path variable in provision_config.yml."
 
 # Usage: main.yml
-mtms_vars:
+provision_validation_vars:
   - "{{ role_path }}/vars/mtms.yml"
   - "{{ role_path }}/vars/metadata.yml"

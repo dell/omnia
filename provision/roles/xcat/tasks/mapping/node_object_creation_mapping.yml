@@ -36,4 +36,4 @@
       loop_control:
         index_var: idx1
       when: mapping_file_output.list[idx1].MAC | lower not in node_mac_list.stdout | lower
-  when: pxe_mapping_file_path | length > 0
+  when: discovery_mechanism | lower == discovery_method_mapping

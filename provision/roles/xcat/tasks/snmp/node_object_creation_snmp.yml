@@ -41,4 +41,4 @@
       loop_control:
         index_var: idx2
       when: utility_mapping_file_output.list[idx2].MAC | lower not in node_mac_list.stdout | lower
-  when: pxe_mapping_path_status.stat.exists
+  when: discovery_mechanism | lower == discovery_method_snmp
