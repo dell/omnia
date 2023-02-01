@@ -29,6 +29,9 @@
 - name: Validate discovery parameters
   ansible.builtin.include_tasks: validate_discovery_params.yml
 
+- name: Create metadata
+  ansible.builtin.include_tasks: metadata/main.yml
+
 - name: Validate the nic parameters
   ansible.builtin.include_tasks: validate_public_nic.yml
 
