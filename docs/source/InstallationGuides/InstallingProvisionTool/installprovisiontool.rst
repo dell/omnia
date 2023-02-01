@@ -12,39 +12,39 @@ Running The Provision Tool
 
 3. By running ``provision.yml``, the following configurations take place:
 
-    i. All compute nodes in cluster will be enabled for PXE boot with osimage mentioned in ``provision_config.yml``.
+a. All compute nodes in cluster will be enabled for PXE boot with osimage mentioned in ``provision_config.yml``.
 
-    ii. A PostgreSQL database is set up with all relevant cluster information such as MAC IDs, hostname, admin IP, infiniband IPs, BMC IPs etc.
+b. A PostgreSQL database is set up with all relevant cluster information such as MAC IDs, hostname, admin IP, infiniband IPs, BMC IPs etc.
 
-                To access the DB, run: ::
+    To access the DB, run: ::
 
-                            psql -U postgres
+            psql -U postgres
 
-                            \c omniadb
-
-
-                To view the schema being used in the cluster: ``\dn``
-
-                To view the tables in the database: ``\dt``
-
-                To view the contents of the ``nodeinfo`` table: ``select * from cluster.nodeinfo`` ::
+            \c omniadb
 
 
-    				id | serial | node |     hostname     |     admin_mac     |   admin_ip   | bmc_ip | ib_ip | status | bmc_mode
-    				----+--------+------+------------------+-------------------+--------------+--------+-------+--------+----------
-    				  1 |        |      | compute0001.omnia.test | 18:66:da:93:31:6e | 172.29.1.253 |        |       |        |
+    To view the schema being used in the cluster: ``\dn``
+
+    To view the tables in the database: ``\dt``
+
+    To view the contents of the ``nodeinfo`` table: ``select * from cluster.nodeinfo`` ::
+
+
+            id | serial | node |     hostname     |     admin_mac     |   admin_ip   | bmc_ip | ib_ip | status | bmc_mode
+            ----+--------+------+------------------+-------------------+--------------+--------+-------+--------+----------
+              1 |        |      | compute0001.omnia.test | 18:66:da:93:31:6e | 172.29.1.253 |        |       |        |
 
 
 
-    iii. Offline repositories will be created based on the OS being deployed across the cluster.
+c. Offline repositories will be created based on the OS being deployed across the cluster.
 
-    iv. The xCAT post bootscript is configured to assign the hostname (with domain name) on the provisioned servers.
+d. The xCAT post bootscript is configured to assign the hostname (with domain name) on the provisioned servers.
 
-    v. If ``mlnx_ofed_path`` is provided, OFED packages will be deployed post provisioning without user intervention. Alternatively, OFED can be installed using `network.yml <../../Roles/Network/index.html>`_.
+e. If ``mlnx_ofed_path`` is provided, OFED packages will be deployed post provisioning without user intervention. Alternatively, OFED can be installed using `network.yml <../../Roles/Network/index.html>`_.
 
-    vi. If ``cuda_toolkit_path`` is provided, CUDA packages will be deployed post provisioning without user intervention. Alternatively, CUDA can be installed using `accelerator.yml <../../Roles/Accelerator/index.html>`_.
+f. If ``cuda_toolkit_path`` is provided, CUDA packages will be deployed post provisioning without user intervention. Alternatively, CUDA can be installed using `accelerator.yml <../../Roles/Accelerator/index.html>`_.
 
-    vii. If ``bmc_nic_subnet`` is provided, and the ``discovery_mechanism`` is set to ``snmp`` or ``mapping``, the bmc IP address will be assigned post provisioning without user intervention
+g. If ``bmc_nic_subnet`` is provided, and the ``discovery_mechanism`` is set to ``snmp`` or ``mapping``, the bmc IP address will be assigned post provisioning without user intervention
 	
 Once the playbook execution is complete, ensure that PXE boot and RAID configurations are set up on remote nodes. Users are then expected to reboot target servers to provision the OS.
 
