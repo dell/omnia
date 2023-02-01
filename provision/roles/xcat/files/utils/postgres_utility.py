@@ -77,15 +77,19 @@ def create_db_table():
     cursor = conn1.cursor()
 
     sql = '''CREATE TABLE IF NOT EXISTS cluster.nodeinfo(
-        ID SERIAL NOT NULL,
-        servicetag VARCHAR(30),
-        admin_mac MACADDR PRIMARY KEY,
-        hostname VARCHAR(65) NOT NULL,
-        admin_ip INET,
-        bmc_ip INET,
-        ib_ip INET )'''
+        ID SERIAL NOT NULL PRIMARY KEY UNIQUE,
+        serial VARCHAR(30) UNIQUE,
+        node VARCHAR(30) UNIQUE,
+        hostname VARCHAR(65) UNIQUE,
+        admin_mac MACADDR UNIQUE,
+        admin_ip INET UNIQUE,
+        bmc_ip INET UNIQUE,
+        ib_ip INET UNIQUE,
+        status VARCHAR(65),
+        bmc_mode VARCHAR(30))'''
     cursor.execute(sql)
     print(" DB changes are done")
+    cursor.close()
     conn1.close()
 
 
