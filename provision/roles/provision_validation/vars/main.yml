@@ -141,3 +141,4 @@ Make sure CUDA toolkit rpm file is present in the provided cuda_toolkit_path var
 # Usage: main.yml
 mtms_vars:
   - "{{ role_path }}/vars/mtms.yml"
+  - "{{ role_path }}/vars/metadata.yml"

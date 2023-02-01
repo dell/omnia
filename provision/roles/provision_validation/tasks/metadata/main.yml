@@ -13,18 +13,5 @@
 # limitations under the License.
 ---
 
-- name: Executing provision roles
-  hosts: localhost
-  connection: local
-  roles:
-    - role: provision_validation
-    - role: xcat
-
-- name: Update metadata
-  hosts: localhost
-  connection: local
-  tasks:
-    - name: Update metadata file
-      ansible.builtin.include_role:
-        name: provision_validation
-        tasks_from: metadata/update_metadata.yml
+- name: Create metadata file
+  ansible.builtin.include_tasks: create_metadata.yml
