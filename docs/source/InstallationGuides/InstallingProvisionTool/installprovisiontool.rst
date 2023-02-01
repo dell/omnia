@@ -12,9 +12,9 @@ Running The Provision Tool
 
 3. By running ``provision.yml``, the following configurations take place:
 
-    i. All compute nodes in cluster will be enabled for PXE boot with osimage mentioned in ``provision_config.yml``.
+i. All compute nodes in cluster will be enabled for PXE boot with osimage mentioned in ``provision_config.yml``.
 
-    ii. A PostgreSQL database is set up with all relevant cluster information such as MAC IDs, hostname, admin IP, infiniband IPs, BMC IPs etc.
+ii. A PostgreSQL database is set up with all relevant cluster information such as MAC IDs, hostname, admin IP, infiniband IPs, BMC IPs etc.
 
             To access the DB, run: ::
 
@@ -36,15 +36,15 @@ Running The Provision Tool
 				
 
 
-   iii. Offline repositories will be created based on the OS being deployed across the cluster.
+iii. Offline repositories will be created based on the OS being deployed across the cluster.
 
-	iv. The xCAT post bootscript is configured to assign the hostname (with domain name) on the provisioned servers.
+iv. The xCAT post bootscript is configured to assign the hostname (with domain name) on the provisioned servers.
 	
-    v. If ``mlnx_ofed_path`` is provided, OFED packages will be deployed post provisioning without user intervention. Alternatively, OFED can be installed using `network.yml <../../Roles/Network/index.html>`_.
+v. If ``mlnx_ofed_path`` is provided, OFED packages will be deployed post provisioning without user intervention. Alternatively, OFED can be installed using `network.yml <../../Roles/Network/index.html>`_.
 
-	vi. If ``cuda_toolkit_path`` is provided, CUDA packages will be deployed post provisioning without user intervention. Alternatively, CUDA can be installed using `accelerator.yml <../../Roles/Accelerator/index.html>`_.
+vi. If ``cuda_toolkit_path`` is provided, CUDA packages will be deployed post provisioning without user intervention. Alternatively, CUDA can be installed using `accelerator.yml <../../Roles/Accelerator/index.html>`_.
 	
-	vii. If ``bmc_nic_subnet`` is provided, and the ``discovery_mechanism`` is set to ``snmp`` or ``mapping``, the bmc IP address will be assigned post provisioning without user intervention 
+vii. If ``bmc_nic_subnet`` is provided, and the ``discovery_mechanism`` is set to ``snmp`` or ``mapping``, the bmc IP address will be assigned post provisioning without user intervention
 	
 Once the playbook execution is complete, ensure that PXE boot and RAID configurations are set up on remote nodes. Users are then expected to reboot target servers to provision the OS.
 
