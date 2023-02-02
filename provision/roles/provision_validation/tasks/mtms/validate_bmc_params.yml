@@ -112,3 +112,13 @@
     - name: IDRAC credentials validation check
       ansible.builtin.fail:
         msg: "{{ fail_msg_bmc_credentials }}"
+
+- name: Validate bmc_nic_subnet when BMC dynamic entries were provided
+  ansible.builtin.assert:
+    that:
+      - bmc_nic_subnet | default("", true) | length > 1
+      - bmc_nic_subnet | default("", true) | ansible.utils.ipv4
+    success_msg: "{{ bmc_nic_subnet_sucess_msg }}"
+    fail_msg: "{{ bmc_nic_subnet_fail_msg }}"
+  when: bmc_dynamic_status
+
