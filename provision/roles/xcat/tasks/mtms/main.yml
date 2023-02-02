@@ -34,4 +34,4 @@
     - name: Perform BMC Discover on dynamic range
       ansible.builtin.include_tasks: bmc_dynamic_discovery.yml
       when: bmc_dynamic_status
-  when: discovery_mechanism == discovery_method_bmc
+  when: discovery_mechanism | lower == discovery_method_bmc
