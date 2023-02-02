@@ -121,4 +121,3 @@
     success_msg: "{{ bmc_nic_subnet_sucess_msg }}"
     fail_msg: "{{ bmc_nic_subnet_fail_msg }}"
   when: bmc_dynamic_status
-
