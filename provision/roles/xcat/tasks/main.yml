@@ -40,6 +40,9 @@
     - name: Executing python utilities
       ansible.builtin.include_tasks: python_utility.yml
 
+    - name: Update IPMI table and create genesis image
+      ansible.builtin.include_tasks: mtms/main.yml
+
     - name: Configuration of xcat
       ansible.builtin.include_tasks: configuration/main.yml
 

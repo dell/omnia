@@ -134,7 +134,11 @@ Make sure OFED iso file is present in the provided mlnx_ofed_path variable in pr
 ofed_iso_warning_msg: "[WARNING] Invalid OFED ISO file: {{ mlnx_ofed_path }} for provisioning {{ provision_os }} with version {{ provision_os_version }}
 in provision_config.yml. OFED installation might fail during provisioning"
 ofed_rhel_check: "rhel{{ provision_os_version }}"
+cuda_rpm_empty_msg: "[WARNING] cuda_toolkit_path variable empty in provision_config.yml. CUDA won't be installed during provisioning."
+cuda_toolkit_path_missing_msg: "Failed. Incorrect cuda_toolkit_path: {{ cuda_toolkit_path }} provided.
+Make sure CUDA toolkit rpm file is present in the provided cuda_toolkit_path variable in provision_config.yml."
 
 # Usage: main.yml
-mtms_vars:
+provision_validation_vars:
   - "{{ role_path }}/vars/mtms.yml"
+  - "{{ role_path }}/vars/metadata.yml"

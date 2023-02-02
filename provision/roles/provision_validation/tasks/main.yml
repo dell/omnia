@@ -13,9 +13,9 @@
 # limitations under the License.
 ---
 
-- name: Include mtms variable file
+- name: Include provision_validation_vars role vars
   ansible.builtin.include_vars: "{{ item }}"
-  with_items: "{{ mtms_vars }}"
+  with_items: "{{ provision_validation_vars }}"
 
 - name: Common packages installation for provision
   ansible.builtin.include_tasks: package_installation.yml
@@ -28,6 +28,9 @@
 
 - name: Validate discovery parameters
   ansible.builtin.include_tasks: validate_discovery_params.yml
+
+- name: Create metadata
+  ansible.builtin.include_tasks: metadata/main.yml
 
 - name: Validate the nic parameters
   ansible.builtin.include_tasks: validate_public_nic.yml

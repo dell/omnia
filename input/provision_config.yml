@@ -214,3 +214,10 @@ disk_partition:
 # Eg: mlnx_ofed_path: /root/MLNX_OFED_LINUX-5.8-1.1.2.1-rhel8.6-x86_64.iso
 # Optional field
 mlnx_ofed_path:
+
+# Absolute path to local copy of .rpm file containing CUDA packages.
+# The cuda rpm can be downloaded from https://developer.nvidia.com/cuda-downloads
+# CUDA will be installed post provisioning without any user intervention requirement
+# Eg: cuda_toolkit_path: /root/cuda-repo-rhel8-12-0-local-12.0.0_525.60.13-1.x86_64.rpm
+# Optional field
+cuda_toolkit_path: 

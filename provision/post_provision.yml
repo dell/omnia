@@ -33,12 +33,6 @@
         name: xcat
         tasks_from: create_node_inventory.yml
 
-- name: Import playbook to install infiniband support packages
-  ansible.builtin.import_playbook: ../network/network.yml
-
-- name: Import playbook to install accelerator packages for nodes having GPU support
-  ansible.builtin.import_playbook: ../accelerator/accelerator.yml
-
 - name: Executing post provision configuration tasks
   hosts: node_inventory
   tasks:
