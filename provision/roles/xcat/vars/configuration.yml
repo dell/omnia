@@ -51,6 +51,9 @@ hosts_entry_warning_msg: "[WARNING] makehosts all command is not successful. Err
 dhcp_config_apply_fail_msg: "Failed. makedhcp -a command is not successful. Error:"
 dns_config_warning_msg: "[WARNING] makedns -n command is not successful. Error:"
 
+# Usage: configure_postscripts.yml
+cuda_search_key: "cuda"
+
 # Usage: configure_ofed.yml
 ofed_postscripts_path:
   - { src: "{{ role_path }}/files/postscripts/omnia_ofed", dest: "/install/postscripts/omnia_ofed", mode: "755" }
@@ -61,3 +64,20 @@ ofed_install_script_path:
 rhel8_package_path: "/opt/xcat/share/xcat/install/rh/compute.rhels8.pkglist"
 mlnx_ofed_repo: /install/ofed
 repo_permission: "755"
+
+# Usage: configure_cuda.yml
+cuda_tmp_path: /tmp/cuda
+cuda_core_path: /install/cuda/x86_64/cuda-core
+cuda_deps_path: /install/cuda/x86_64/cuda-deps
+dkms_file_permission: "644"
+dkms_url: https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/Packages/d/
+dkms_tmp_file: /tmp/dkms.html
+invalid_cuda_rpm_fail_msg: "Failed. Invalid cuda_toolkit_path: {{ cuda_toolkit_path }} provided in provision_config.yml.
+Make sure cuda rpm file is downloaded completely."
+cuda_postscripts_path:
+  - { src: "{{ role_path }}/files/postscripts/omnia_cuda", dest: "/install/postscripts/omnia_cuda", mode: "755" }
+download_retries_count: 10
+
+# Usage: configure_postscripts_bmc.yml
+bmc_postscripts_path:
+  - { src: "{{ role_path }}/files/postscripts/omnia_bmc_config", dest: "/install/postscripts/omnia_bmc_config", mode: "755" }

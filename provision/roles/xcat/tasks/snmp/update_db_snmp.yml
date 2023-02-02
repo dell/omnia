@@ -33,4 +33,4 @@
       when:
         - ib_nic_subnet | length > 6
         - not roce_enabled
-  when: switch_ip_pxe
+  when: discovery_mechanism | lower == discovery_method_snmp

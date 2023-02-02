@@ -44,6 +44,7 @@
 
 - name: Apply login common installation and config
   hosts: manager, login_node, compute
+  any_errors_fatal: true
   gather_facts: false
   roles:
     - login_common

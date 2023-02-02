@@ -32,4 +32,3 @@ done
 
 dnf clean all
 dnf install srvadmin-argtable2 srvadmin-hapi srvadmin-idracadm7 ipmitool -y
-echo "PATH=$PATH:/opt/dell/srvadmin/sbin:/usr/local/sbin:/usr/local/bin" >> /etc/bashrc

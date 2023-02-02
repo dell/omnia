@@ -45,11 +45,12 @@
     public_nic_ip: "{{ lookup('vars', 'ansible_' + public_nic).ipv4.address }}"
   tags: init
 
-- name: Initialize network interface type
+- name: Initialize variables
   ansible.builtin.set_fact:
     network_interface_type: "dedicated"
     roce_enabled: false
     ib_status: false
+    bmc_postscripts_config_status: false
 
 - name: Update roce_enabled value in provision init file
   ansible.builtin.replace:

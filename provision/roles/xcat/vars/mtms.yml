@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,8 +13,13 @@
 # limitations under the License.
 ---
 
-- name: Include task for creating provisioned node inventory
-  ansible.builtin.include_tasks: provisioned_node_inventory.yml
+# Usage: update_ipmi_table.yml
+ipmi_success_msg: "Successfully updated IPMI table"
+ipmi_fail_msg: "Failed creating genesis image"
 
-- name: Include task for assigning infiniband IP
-  ansible.builtin.include_tasks: assign_infiniband_ip.yml
+# Usage: create_genesis_image.yml
+genesis_path: "/tftpboot/xcat/genesis.kernel.x86_64"
+control_plane_arch: "x86_64"
+
+# Usage: main.yml
+discovery_method_bmc: "bmc"
