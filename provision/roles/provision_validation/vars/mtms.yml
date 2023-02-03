@@ -47,6 +47,8 @@ omnia_range_fail_msg: "Failed. Please provide omnia_exclusive_static_start_range
                       bmc_dynamic_end_range ranges are provided in input/provision_config.yml"
 bmc_static_ranges_overlap_failure_msg: "Range is invalid. Start range should not be equal to end range for bmc_static_start_range, bmc_static_end_range
                                         in input/provision_config.yml"
+bmc_nic_subnet_sucess_msg: "Successfully validated bmc_nic_subnet"
+bmc_nic_subnet_fail_msg: "Failed. Please provide bmc_nic_subnet value ipv4 format in input/provision_config.yml file"
 
 # Usage: Validate_switch_vars.yml
 pxe_ranges_fail_msg: "Failure. Make sure to provide PXE start and end ranges in input/provision_config.yml file"
