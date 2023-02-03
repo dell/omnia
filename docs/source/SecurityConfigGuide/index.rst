@@ -2,5 +2,7 @@ Security Configuration Guide
 =============================
 
 .. toctree::
-    PortsUsed/index
-    Authentication/index
+    Preface
+    SecurityQuickReference
+    ProductSubsystemSecurity
+    MiscellaneousConfigurationManagementElements

@@ -12,48 +12,47 @@ Running The Provision Tool
 
 3. By running ``provision.yml``, the following configurations take place:
 
-    i. All compute nodes in cluster will be enabled for PXE boot with osimage mentioned in ``provision_config.yml``.
+a. All compute nodes in cluster will be enabled for PXE boot with osimage mentioned in ``provision_config.yml``.
 
-    ii. A PostgreSQL database is set up with all relevant cluster information such as MAC IDs, hostname, admin IP, infiniband IPs, BMC IPs etc.
+b. A PostgreSQL database is set up with all relevant cluster information such as MAC IDs, hostname, admin IP, infiniband IPs, BMC IPs etc.
 
-            To access the DB, run: ::
+    To access the DB, run: ::
 
-                        psql -U postgres
+            psql -U postgres
 
-                        \c omniadb
-
-
-            To view the schema being used in the cluster: ``\dn``
-
-            To view the tables in the database: ``\dt``
-
-            To view the contents of the ``nodeinfo`` table: ``select * from cluster.nodeinfo`` ::
-
-                    id | servicetag |     admin_mac     |         hostname         |   admin_ip   | bmc_ip | ib_ip
-
-                    ----+------------+-------------------+--------------------------+--------------+--------+-------
+            \c omniadb
 
 
-                    1 |            | 00:c0:ff:43:f9:44 | node00001.winter.cluster | 172.29.1.253 |        |
-                    2 |            | 70:b5:e8:d1:84:22 | node00002.winter.cluster | 172.29.1.254 |        |
-                    3 |            | b8:ca:3a:71:25:5c | node00003.winter.cluster | 172.29.1.255 |        |
-                    4 |            | 8c:47:be:c7:6f:c1 | node00004.winter.cluster | 172.29.2.0   |        |
-                    5 |            | 8c:47:be:c7:6f:c2 | node00005.winter.cluster | 172.29.2.1   |        |
-                    6 |            | b0:26:28:5b:80:18 | node00006.winter.cluster | 172.29.2.2   |        |
-                    7 |            | b0:7b:25:de:71:de | node00007.winter.cluster | 172.29.2.3   |        |
-                    8 |            | b0:7b:25:ee:32:fc | node00008.winter.cluster | 172.29.2.4   |        |
-                    9 |            | d0:8e:79:ba:6a:58 | node00009.winter.cluster | 172.29.2.5   |        |
-                    10|            | d0:8e:79:ba:6a:5e | node00010.winter.cluster | 172.29.2.6   |        |
+    To view the schema being used in the cluster: ``\dn``
 
-   iii. Offline repositories will be created based on the OS being deployed across the cluster.
+    To view the tables in the database: ``\dt``
 
+    To view the contents of the ``nodeinfo`` table: ``select * from cluster.nodeinfo`` ::
+
+
+            id | serial | node |     hostname     |     admin_mac     |   admin_ip   | bmc_ip | ib_ip | status | bmc_mode
+            ----+--------+------+------------------+-------------------+--------------+--------+-------+--------+----------
+              1 |        |      | compute0001.omnia.test | 18:66:da:93:31:6e | 172.29.1.253 |        |       |        |
+
+
+
+c. Offline repositories will be created based on the OS being deployed across the cluster.
+
+d. The xCAT post bootscript is configured to assign the hostname (with domain name) on the provisioned servers.
+
+e. If ``mlnx_ofed_path`` is provided, OFED packages will be deployed post provisioning without user intervention. Alternatively, OFED can be installed using `network.yml <../../Roles/Network/index.html>`_.
+
+f. If ``cuda_toolkit_path`` is provided, CUDA packages will be deployed post provisioning without user intervention. Alternatively, CUDA can be installed using `accelerator.yml <../../Roles/Accelerator/index.html>`_.
+
+g. If ``bmc_nic_subnet`` is provided, and the ``discovery_mechanism`` is set to ``snmp`` or ``mapping``, the BMC IP address will be assigned post provisioning without user intervention.
+	
 Once the playbook execution is complete, ensure that PXE boot and RAID configurations are set up on remote nodes. Users are then expected to reboot target servers to provision the OS.
 
 .. note::
 
     * If the cluster does not have access to the internet, AppStream will not function.  To provide internet access through the control plane (via the PXE network NIC), update ``primary_dns`` and ``secondary_dns`` in ``provision_config.yml`` and run ``provision.yml``
 
-    * All ports required for xCAT to run will be opened (For a complete list, check out the `Security Configuration Document <../../SecurityConfigGuide/PortsUsed/xCAT.html>`_).
+    * All ports required for xCAT to run will be opened (For a complete list, check out the `Security Configuration Document <../../SecurityConfigGuide/ProductSubsystemSecurity.html#firewall-settings>`_).
 
     * After running ``provision.yml``, the file ``input/provision_config.yml`` will be encrypted. To edit the file, use the command: ``ansible-vault edit provision_config.yml --vault-password-file .provision_vault_key``
 
@@ -64,6 +63,8 @@ Once the playbook execution is complete, ensure that PXE boot and RAID configura
          * Use ``nodeset all osimage=rhels8.6.0-x86_64-install-compute`` to provision the OS on the target server.
 
          * PXE boot the target server to bring up the OS.
+
+    * Post execution of ``provision.yml``, IPs/hostnames cannot be re-assigned by changing the mapping file. However, the addition of new nodes is supported as explained below.
 
 .. warning:: Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect.
 
