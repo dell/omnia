@@ -25,15 +25,22 @@
     - name: Create genesis image
       ansible.builtin.include_tasks: create_genesis_image.yml
 
-    - name: Perform BMC Discover on static range
-      ansible.builtin.include_tasks: bmc_static_discovery.yml
+    - name: Perform operations for static range
+      block:
+        - name: Perform BMC Discover on static range
+          ansible.builtin.include_tasks: bmc_static_discovery.yml
+
+        - name: Create database for static bmc mode
+          ansible.builtin.include_tasks: update_db_static.yml
+
+        - name: Update node objects for static bmc mode
+          ansible.builtin.include_tasks: update_static_node_obj.yml
       when: bmc_static_status
 
     - name: Wait for "{{ dhcp_timeout }}" before starting dynamic discovery
       ansible.builtin.wait_for:
         timeout: "{{ dhcp_timeout }}"
-      when: 
-        - bmc_dynamic_status
+      when: bmc_dynamic_status
 
     - name: Perform BMC Discover on dynamic range
       ansible.builtin.include_tasks: bmc_dynamic_discovery.yml

@@ -40,12 +40,12 @@
     - name: Executing python utilities
       ansible.builtin.include_tasks: python_utility.yml
 
-    - name: Update IPMI table and create genesis image
-      ansible.builtin.include_tasks: mtms/main.yml
-
     - name: Configuration of xcat
       ansible.builtin.include_tasks: configuration/main.yml
 
+    - name: Configuation for discovery using BMC mode
+      ansible.builtin.include_tasks: mtms/main.yml
+      
     - name: Create node object for mapping file
       ansible.builtin.include_tasks: mapping/node_object_creation_mapping.yml
 
