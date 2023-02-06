@@ -27,12 +27,13 @@ b. A PostgreSQL database is set up with all relevant cluster information such as
 
     To view the tables in the database: ``\dt``
 
-    To view the contents of the ``nodeinfo`` table: ``select * from cluster.nodeinfo`` ::
+    To view the contents of the ``nodeinfo`` table: ``select * from cluster.nodeinfo;`` ::
 
 
-            id | serial | node |     hostname     |     admin_mac     |   admin_ip   | bmc_ip | ib_ip | status | bmc_mode
-            ----+--------+------+------------------+-------------------+--------------+--------+-------+--------+----------
-              1 |        |      | compute0001.omnia.test | 18:66:da:93:31:6e | 172.29.1.253 |        |       |        |
+                    id | serial  |   node    |       hostname        | admin_mac |  admin_ip   |   bmc_ip    | ib_ip | status | bmc_mode
+                    ----+---------+-----------+-----------------------+-----------+-------------+-------------+-------+--------+----------
+                      1 | 4FC45X2 | node00001 | node00001.spring.test |           | 172.17.0.25 | 172.29.0.25 | 172.35.0.25 |        | static
+                      2 | FBB65X2 | node00002 | node00002.spring.test |           | 172.17.0.35 | 172.29.0.35 | 172.35.0.35 |        | static
 
 
 
