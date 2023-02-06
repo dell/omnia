@@ -67,6 +67,9 @@
     - name: Set provision image for snmp
       ansible.builtin.include_tasks: snmp/set_provision_image_snmp.yml
       
+    - name: Start provision for bmc
+      ansible.builtin.include_tasks: mtms/set_provision_image_mtms.yml
+      
     - name: Initiate thread to monitor provisioning status
       ansible.builtin.include_tasks: initiate_monitor_status.yml
   environment:
