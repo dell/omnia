@@ -23,6 +23,7 @@ xcat_role_vars:
   - "{{ role_path }}/vars/mapping.yml"
   - "{{ role_path }}/vars/snmp.yml"
   - "{{ role_path }}/vars/mtms.yml"
+  - "{{ role_path }}/vars/reprovision.yml"
 
 # Usage: pre_requisites.yml
 selinux_status_fail_msg: "selinux is not disabled. Disable it in /etc/sysconfig/selinux and reboot the system"
