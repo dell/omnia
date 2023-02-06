@@ -1,61 +1,116 @@
 # Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#      http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
----
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
 
-- name: Initialize variables
-  ansible.builtin.set_fact:
-    nics_dict: {}
-    nics_list: []
+import sys
+import psycopg2
+import warnings
+import re
 
-- name: Fetch the network interfaces in UP state in the system
-  ansible.builtin.shell: set -o pipefail && /usr/sbin/ip a | awk '/state UP/{print $2}'
-  register: nic_addr_up
-  changed_when: false
+static_stanza_path = sys.argv[1]
+serial = []
+bmc = []
+node_name = sys.argv[2]
+bmc_mode = "static"
+domain_name = sys.argv[3]
+pxe_subnet = sys.argv[4]
+ib_status = sys.argv[5]
+ib_subnet = sys.argv[6]
 
-- name: Create a list of NICs
-  ansible.builtin.set_fact:
-    nics_list: "{{ nics_list + [item.split(':')[0]] }}"
-  with_items: "{{ nic_addr_up.stdout.split('\n') }}"
 
-- name: Append NICs and subnets to dictionary
-  ansible.builtin.set_fact:
-    nics_dict: '{{ nics_dict | combine({item: lookup("vars", "ansible_" + item).ipv4.network}) }}'
-  with_items: "{{ nics_list }}"
+def extract_serial_bmc():
+    # Extract the bmc IP and serial of the nodes from the stanza file
+    file = open(static_stanza_path)
+    for line in file:
+        temp = ""
+        if 'serial=' in line:
+            temp = line.split("=")[-1].strip()
+            serial.append(temp)
+        if 'bmc=' in line:
+            bmc.append(line.split("=")[-1].strip())
+    file.close()
+    update_db()
 
-- name: Fetch the BMC NIC
-  ansible.builtin.set_fact:
-    bmc_nic: "{{ item.key }}"
-  when: item.value == bmc_nic_subnet
-  with_dict: "{{ nics_dict }}"
 
-- name: Fetch BMC NIC IP and netmask details
-  ansible.builtin.set_fact:
-    bmc_nic_ip: "{{ lookup('vars', 'ansible_' + bmc_nic).ipv4.address }}"
-    bmc_nic_netmask: "{{ lookup('vars', 'ansible_' + bmc_nic).ipv4.netmask }}"
+def update_stanza_file(service_tag, nodename):
+    # Update the node object name in static stanzas file
+    with open(static_stanza_path, "r+") as file:
+        data = file.read()
+        rep_text = re.sub(f'node-.*-{service_tag}:', f'{nodename}' + ':', data)
+        file.seek(0)
+        file.truncate()
+        file.write(rep_text)
+        file.close()
 
-- name: Configure bmc_network in networks table with static ranges
-  ansible.builtin.shell: >
-    chdef -t network -o bmc_network net={{ bmc_nic_subnet }} mask={{ bmc_nic_netmask }} mgtifname={{ bmc_nic }}
-    gateway={{ bmc_nic_ip }} dhcpserver={{ bmc_nic_ip }} dynamicrange="{{ bmc_dynamic_start_range }}-{{ bmc_dynamic_end_range }}"
-    staticrange="{{ bmc_static_start_range }}-{{ bmc_static_end_range }}"
-  changed_when: true
-  when: bmc_static_status
 
-- name: Configure bmc_network in networks table without static ranges
-  ansible.builtin.shell: >
-    chdef -t network -o bmc_network net={{ bmc_nic_subnet }} mask={{ bmc_nic_netmask }} mgtifname={{ bmc_nic }}
-    gateway={{ bmc_nic_ip }} dhcpserver={{ bmc_nic_ip }} dynamicrange="{{ bmc_dynamic_start_range }}-{{ bmc_dynamic_end_range }}"
-  changed_when: true
-  when: not bmc_static_status
- 
+def update_db():
+    # Establish a connection with omniadb
+    conn = psycopg2.connect(
+        database="omniadb",
+        user='postgres',
+        host='localhost',
+        port='5432')
+    conn.autocommit = True
+    cursor = conn.cursor()
+
+    for key in range(0, len(serial)):
+        sql = '''select exists(select serial,bmc_ip from cluster.nodeinfo where bmc_ip='{key}' and serial='{serial_key}')'''.format(
+            key=bmc[key], serial_key=serial[key])
+        cursor.execute(sql)
+        output = cursor.fetchone()[0]
+
+        if not output:
+            sql = '''select id from cluster.nodeinfo ORDER BY id DESC LIMIT 1'''
+            cursor.execute(sql)
+            temp = cursor.fetchone()
+            if temp is None:
+                temp = [0]
+            count = '%05d' % (int(temp[0]) + 1)
+            node = node_name + str(count)
+            host_name = node_name + str(count) + "." + domain_name
+            admin_ip = pxe_subnet.split('.')[0] + "." + pxe_subnet.split('.')[1] + "." + bmc[key].split('.')[2] + "." + \
+                       bmc[key].split('.')[3]
+            sql = '''select exists(select admin_ip from cluster.nodeinfo where admin_ip='{key}')'''.format(key=admin_ip)
+            cursor.execute(sql)
+
+            update_stanza_file(serial[key].lower(), node)
+
+            admin_output = cursor.fetchone()[0]
+            if admin_output == False and ib_status == "False":
+                sql = '''INSERT INTO cluster.nodeinfo(serial,node,hostname,admin_ip,bmc_ip,bmc_mode) VALUES (
+                    '{serial_key}','{node_name}','{host_name}','{admin_ip}','{bmc_ip}','{bmc_mode}')'''.format(
+                    serial_key=serial[key], node_name=node, host_name=host_name, admin_ip=admin_ip, bmc_ip=bmc[key],
+                    bmc_mode=bmc_mode)
+                cursor.execute(sql)
+
+            if admin_output == False and ib_status == "True":
+                ib_ip = ib_subnet.split('.')[0] + "." + ib_subnet.split('.')[1] + "." + bmc[key].split('.')[
+                    2] + "." + bmc[key].split('.')[3]
+                sql = '''INSERT INTO cluster.nodeinfo(serial,node,hostname,admin_ip,ib_ip,bmc_ip,bmc_mode) VALUES (
+                    '{serial_key}','{node_name}','{host_name}','{admin_ip}','{ib_ip}','{bmc_ip}','{bmc_mode}')'''.format(
+                    serial_key=serial[key], node_name=node, host_name=host_name, admin_ip=admin_ip, ib_ip=ib_ip,
+                    bmc_ip=bmc[key],
+                    bmc_mode=bmc_mode)
+                cursor.execute(sql)
+
+            if admin_output:
+                warnings.warn('Admin IP already present in the database')
+                print(admin_ip)
+        else:
+            warnings.warn('Node already present in the database')
+            print(serial[key])
+    cursor.close()
+    conn.close()
+
+
+extract_serial_bmc()
