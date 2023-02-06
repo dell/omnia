@@ -6,7 +6,15 @@ Security controls map
 
 .. image:: ../images/securityControlsMap.JPG
 
-Omnia performs bare metal configuration to enable AI/HPC workloads. It uses Ansible playbooks to perform installations and configurations. iDRAC is supported for provisioning bare metal servers. Cobbler supports provisioning through pxe. Users with iDRAC enterprise or a datacenter license can use iDRAC provisioning. Omnia can be installed via CLI as well. Slurm and Kubernetes are deployed and configured on the cluster. FreeIPA or LDAP is installed for providing authentication.
+Omnia performs bare metal configuration to enable AI/HPC workloads. It uses Ansible playbooks to perform installations and configurations. iDRAC is supported for provisioning bare metal servers. Omnia installs xCAT to enable provisioning of clusters via PXE in different ways:
+
+    - Mapping file **[default]**: To dictate IP address/MAC mapping, a host mapping file can be provided.
+
+    - BMC discovery **[optional]**: To discover the cluster via BMC (iDRAC), IPMI must be enabled on remote servers. Discovery happens over IPMI. For all security requirements when using this method, `click here! <https://www.dell.com/support/manuals/en-us/idrac9-lifecycle-controller-v5.x-series/idrac9_security_configuration_guide/ipmi-security-best-practices?guid=guid-5d99c30c-294f-4f03-b584-596b43d79089&lang=en-us>`_
+
+.. note:: IPMI is not required on the control plane. However compute nodes (iDRACs in the cluster/private network) require IPMI to be enabled for BMC discovery.
+
+Omnia can be installed via CLI only. Slurm and Kubernetes are deployed and configured on the cluster. FreeIPA or LDAP is installed for providing authentication.
 
 To perform these configurations and installations, a secure SSH channel is established between the management node and the following entities:
 
@@ -76,6 +84,8 @@ Network exposure
 -----------------
 
 Omnia uses port 22 for SSH connections as Ansible uses port 22.
+
+
 
 Firewall settings
 ------------------
