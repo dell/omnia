@@ -39,18 +39,22 @@
 
     - name: Executing python utilities
       ansible.builtin.include_tasks: python_utility.yml
-
-    - name: Update IPMI table and create genesis image
-      ansible.builtin.include_tasks: mtms/main.yml
+      when: not reprovision_status
 
     - name: Configuration of xcat
       ansible.builtin.include_tasks: configuration/main.yml
 
+    - name: Configuation for discovery using BMC mode
+      ansible.builtin.include_tasks: mtms/main.yml
+      when: not reprovision_status
+      
     - name: Create node object for mapping file
       ansible.builtin.include_tasks: mapping/node_object_creation_mapping.yml
+      when: not reprovision_status
 
     - name: Create node object for snmp discovery
       ansible.builtin.include_tasks: snmp/node_object_creation_snmp.yml
+      when: not reprovision_status
 
     - name: Configuration of postbootscripts
       ansible.builtin.include_tasks: configuration/configure_postbootscripts.yml
@@ -60,12 +64,23 @@
 
     - name: Configure DHCP
       ansible.builtin.include_tasks: configuration/configure_dhcp.yml
+      when: not reprovision_status
 
     - name: Set provision image for mapping
       ansible.builtin.include_tasks: mapping/set_provision_image_mapping.yml
+      when: not reprovision_status
 
     - name: Set provision image for snmp
       ansible.builtin.include_tasks: snmp/set_provision_image_snmp.yml
+      when: not reprovision_status
+      
+    - name: Start provision for bmc
+      ansible.builtin.include_tasks: mtms/set_provision_image_mtms.yml
+      when: not reprovision_status
+      
+    - name: Reprovision nodes
+      ansible.builtin.include_tasks: reprovision/reprovision.yml
+      when: reprovision_status
       
     - name: Initiate thread to monitor provisioning status
       ansible.builtin.include_tasks: initiate_monitor_status.yml

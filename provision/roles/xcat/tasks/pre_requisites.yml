@@ -35,6 +35,7 @@
 - name: Initialize variables
   ansible.builtin.set_fact:
     xcat_installation_status: false
+    reprovision_status: false
 
 - name: Check output of network table
   ansible.builtin.command: lsdef -t network
@@ -73,3 +74,11 @@
     - "'running' in ansible_facts.services['xcatd.service'].state"
     - "'running' in ansible_facts.services['postgresql.service'].state"
     - "'#key,value' in site_table_check.stdout"
+    
+- name: Set reprovision_status to true
+  ansible.builtin.set_fact:
+    reprovision_status: true
+  when:
+    - groups['all'] is defined 
+    - (groups['all'] | length > 0)
+    - xcat_installation_status
