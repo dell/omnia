@@ -16,4 +16,3 @@ To run the script, use the below command:::
 
     ansible-playbook post_provision.yml
 
-
