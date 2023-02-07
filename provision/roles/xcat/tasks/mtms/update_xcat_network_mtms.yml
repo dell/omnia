@@ -17,6 +17,8 @@
   ansible.builtin.set_fact:
     nics_dict: {}
     nics_list: []
+    bmc_nic: ""
+    sec_bmc_nic: false
 
 - name: Fetch the network interfaces in UP state in the system
   ansible.builtin.shell: set -o pipefail && /usr/sbin/ip a | awk '/state UP/{print $2}'
@@ -33,16 +35,47 @@
     nics_dict: '{{ nics_dict | combine({item: lookup("vars", "ansible_" + item).ipv4.network}) }}'
   with_items: "{{ nics_list }}"
 
-- name: Fetch the BMC NIC
+- name: Fetch the BMC NIC in case of dedicated
   ansible.builtin.set_fact:
     bmc_nic: "{{ item.key }}"
   when: item.value == bmc_nic_subnet
   with_dict: "{{ nics_dict }}"
 
+- name: Fetch the BMC NIC in case of LOM
+  block:
+    - name: Set fact if bmc is secondary network
+      ansible.builtin.set_fact:
+        sec_bmc_nic: true
+
+    - name: Append NICs and secondary subnets to dictionary
+      ansible.builtin.set_fact:
+        nics_dict: '{{ nics_dict | combine({item: lookup("vars", "ansible_" + item).ipv4_secondaries[0].network}) }}'
+      when: lookup('vars', 'ansible_' + item).ipv4_secondaries[0].network is defined
+      with_items: "{{ nics_list }}"
+
+    - name: Fetch the bmc nic
+      ansible.builtin.set_fact:
+        bmc_nic: "{{ item.key }}"
+      when: item.value == bmc_nic_subnet
+      with_dict: "{{ nics_dict }}"
+  when: bmc_nic == ""
+
+- name: Fail if proper bmc subnet not provided
+  ansible.builtin.fail:
+    msg: "{{ fail_bmc_nic }}"
+  when: bmc_nic == ""
+
 - name: Fetch BMC NIC IP and netmask details
   ansible.builtin.set_fact:
     bmc_nic_ip: "{{ lookup('vars', 'ansible_' + bmc_nic).ipv4.address }}"
     bmc_nic_netmask: "{{ lookup('vars', 'ansible_' + bmc_nic).ipv4.netmask }}"
+  when: not sec_bmc_nic
+
+- name: Fetch BMC NIC IP and netmask details
+  ansible.builtin.set_fact:
+    bmc_nic_ip: "{{ lookup('vars', 'ansible_' + bmc_nic).ipv4_secondaries[0].address }}"
+    bmc_nic_netmask: "{{ lookup('vars', 'ansible_' + bmc_nic).ipv4_secondaries[0].netmask }}"
+  when: sec_bmc_nic
 
 - name: Configure bmc_network in networks table with static ranges
   ansible.builtin.shell: >
