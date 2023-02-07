@@ -13,6 +13,9 @@
 # limitations under the License.
 ---
 
+# Usage: update_xcat_networks_table.yml
+fail_bmc_nic: "Failed. Please provide proper bmc subnet."
+
 # Usage: update_ipmi_table.yml
 ipmi_success_msg: "Successfully updated IPMI table"
 ipmi_fail_msg: "Failed creating genesis image"
