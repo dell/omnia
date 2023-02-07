@@ -64,6 +64,13 @@
     - network_interface_type == "dedicated" or
       admin_nic != pxe_nic
 
+- name: Validate pxe_subnet
+  ansible.builtin.fail:
+    msg: "{{ pxe_subnet_msg }}"
+  when:
+    - discovery_mechanism == discovery_method_bmc
+    - pxe_nic_subnet != pxe_subnet
+
 - name: Validate snmp and mapping parameters
   block:
     - name: Check the subnet of PXE nic start range
