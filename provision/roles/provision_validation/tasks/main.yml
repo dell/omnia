@@ -33,7 +33,7 @@
   ansible.builtin.include_tasks: metadata/main.yml
 
 - name: Validate the nic parameters
-  ansible.builtin.include_tasks: validate_public_nic.yml
+  ansible.builtin.include_tasks: validate_cp_nic.yml
 
 - name: Validate provision parameters
   ansible.builtin.include_tasks: validate_provision_vars.yml
