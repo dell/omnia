@@ -50,7 +50,11 @@ Omnia can query known switches (by IP and community string) for information on t
     - Switches should be SNMP enabled.
     - Servers require a manual PXE boot if iDRAC IPs are not configured.
 
+For more information regarding SNMP, `click here <snmp.html>`_
+
 BMC
 ++++
 
-Omnia can also discover nodes via their iDRAC using IPMI. 
+Omnia can also discover nodes via their iDRAC using IPMI.
+
+For more information regarding BMC, `click here <bmc.html>`_
