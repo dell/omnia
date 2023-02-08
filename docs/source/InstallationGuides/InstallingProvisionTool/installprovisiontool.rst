@@ -44,8 +44,6 @@ d. The xCAT post bootscript is configured to assign the hostname (with domain na
 
 e. If ``mlnx_ofed_path`` is provided, OFED packages will be deployed post provisioning without user intervention. Alternatively, OFED can be installed using `network.yml <../../Roles/Network/index.html>`_.
 
-f. If ``cuda_toolkit_path`` is provided, CUDA packages will be deployed post provisioning without user intervention. Alternatively, CUDA can be installed using `accelerator.yml <../../Roles/Accelerator/index.html>`_.
-
 g. If ``bmc_nic_subnet`` is provided, and the ``discovery_mechanism`` is set to ``snmp`` or ``mapping``, the BMC IP address will be assigned post provisioning without user intervention.
 	
 Once the playbook execution is complete, ensure that PXE boot and RAID configurations are set up on remote nodes. Users are then expected to reboot target servers to provision the OS.
@@ -71,13 +69,35 @@ Once the playbook execution is complete, ensure that PXE boot and RAID configura
 .. warning:: Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect.
 
 
+Installing CUDA
+++++++++++++++++
+
+**Using the provision tool**
+
+* If ``cuda_toolkit_path`` is provided  in ``input/provision_config.yml`` and NVIDIA GPUs are available on the target nodes, CUDA packages will be deployed post provisioning without user intervention.
+
+**Using the Accelerator playbook**
+
+* CUDA can also be installed using `accelerator.yml <../../Roles/Accelerator/index.html>`_ after provisioning the servers (Assuming the provision tool did not install CUDA packages).
 
 
-**Using multiple versions of a given OS**
+Installing OFED
++++++++++++++++++
+
+**Using the provision tool**
+
+* If ``mlnx_ofed_path`` is provided  in ``input/provision_config.yml`` and Mellanox NICs are available on the target nodes, OFED packages will be deployed post provisioning without user intervention.
+
+**Using the Network playbook**
+
+* OFED can also be installed using `network.yml <../../Roles/Network/index.html>`_ after provisioning the servers (Assuming the provision tool did not install OFED packages).
+
+
+
+Using multiple versions of a given OS
++++++++++++++++++++++++++++++++++++++++
 
 Omnia now supports deploying different versions of the same OS. With each run of ``provision.yml``, a new deployable OS image is created with a distinct type (rocky or RHEL) and version (8.0, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7) depending on the values provided in ``input/provision_config.yml``.
-
-
 
 .. note:: While Omnia deploys the minimal version of the OS, the multiple version feature requires that the Rocky full (DVD) version of the OS be provided.
 
