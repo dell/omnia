@@ -74,7 +74,7 @@ hostname_chars_fail_msg: "Failed. Hostname should not contain _ or . or space as
 Make sure the mapping file contains only the hostname, and not the domain_name. Found in: "
 duplicate_ip_fail_msg: "Failed. Duplicate IP exists. Please verify mapping file again."
 duplicate_hostname_fail_msg: "Failed. Duplicate hostname exists. Please verify mapping file again."
-temp_mapping_file_path: "{{ role_path }}/files/temp_mapping_file"
+temp_mapping_file_path: "/opt/omnia/pxe_mapping_file.csv"
 
 # Usage: validate_provision_vars.yml
 input_provision_fail_msg: "Please provide all the required provision parameters"
