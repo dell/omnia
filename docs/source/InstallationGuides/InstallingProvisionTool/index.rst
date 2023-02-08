@@ -2,7 +2,7 @@ Installing The Provision Tool
 =============================
 
 .. toctree::
-    discoverymechanisms
+    DiscoveryMechanisms/index
     provisionparams
     provisionprereqs
     installprovisiontool
