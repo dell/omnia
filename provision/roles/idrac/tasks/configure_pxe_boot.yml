@@ -26,6 +26,7 @@
     - '"infiniband" in idrac_info.system_info.PCIDevice[my_idx8].DeviceDescription | lower'
   loop_control:
     index_var: my_idx8
+  when: roce_enabled
 
 - name: Set active_nic from NIC details
   ansible.builtin.set_fact:

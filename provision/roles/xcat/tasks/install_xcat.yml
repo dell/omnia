@@ -29,9 +29,13 @@
   retries: "{{ max_retries }}"
 
 - name: Untar xcat-core package
-  ansible.builtin.unarchive:
-    src: "{{ xcat_core_dest }}"
-    dest: "{{ xcat_directory }}"
+  ansible.builtin.command: tar xvjf "{{ xcat_core_dest }}" -C "{{ xcat_directory }}"
+  changed_when: true
+  register: untar_xcat_core
+  until: untar_xcat_core is not failed
+  retries: "{{ max_retries }}"
+  args:
+    warn: false
 
 - name: Create xcat-core localrepo
   ansible.builtin.command: "{{ xcat_directory }}/xcat-core/mklocalrepo.sh"
@@ -47,9 +51,13 @@
   retries: "{{ max_retries }}"
 
 - name: Untar xcat-dep package
-  ansible.builtin.unarchive:
-    src: "{{ xcat_dep_dest }}"
-    dest: "{{ xcat_directory }}"
+  ansible.builtin.command: tar xvjf "{{ xcat_dep_dest }}" -C "{{ xcat_directory }}"
+  changed_when: true
+  register: untar_xcat_dep
+  until: untar_xcat_dep is not failed
+  retries: "{{ max_retries }}"
+  args:
+    warn: false
 
 - name: Create xcat-dep localrepo
   ansible.builtin.command: "{{ xcat_directory }}/xcat-dep/rh8/x86_64/mklocalrepo.sh"
