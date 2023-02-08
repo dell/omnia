@@ -55,6 +55,7 @@ success_pxe: "Proper PXE ranges provided"
 fail_pxe: "Failed. Please provide proper PXE ranges"
 success_msg_different_nics: "Validated. Nics are different in case of LOM."
 fail_msg_different_nics: "Failed.Incorrect nic information.Public nic must be different from BMC and PXE nics ."
+pxe_subnet_msg: "Failed. Please provide proper pxe_subnet"
 
 # Usage: validate_switch_vars.yml
 pxe_switch_ip_valid: "Valid switch ip provided"
