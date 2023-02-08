@@ -47,7 +47,7 @@
     - name: Configuation for discovery using BMC mode
       ansible.builtin.include_tasks: mtms/main.yml
       when: not reprovision_status
-      
+
     - name: Create node object for mapping file
       ansible.builtin.include_tasks: mapping/node_object_creation_mapping.yml
       when: not reprovision_status
@@ -73,15 +73,15 @@
     - name: Set provision image for snmp
       ansible.builtin.include_tasks: snmp/set_provision_image_snmp.yml
       when: not reprovision_status
-      
+
     - name: Start provision for bmc
       ansible.builtin.include_tasks: mtms/set_provision_image_mtms.yml
       when: not reprovision_status
-      
+
     - name: Reprovision nodes
       ansible.builtin.include_tasks: reprovision/reprovision.yml
       when: reprovision_status
-      
+
     - name: Initiate thread to monitor provisioning status
       ansible.builtin.include_tasks: initiate_monitor_status.yml
   environment:
