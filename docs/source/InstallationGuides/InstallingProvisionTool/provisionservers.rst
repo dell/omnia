@@ -39,8 +39,7 @@ For pre-configured iDRACs, ``provision/idrac.yml`` can be used to provision the 
 
     ansible-playbook idrac.yml -i idrac_inventory -e idrac_username='' -e idrac_password=''
 
-Where the ``idrac_inventory`` points to the file mentioned above.
-Where the ``idrac_username`` and ``idrac_password`` are the credentials used to authenticate into iDRAC.
+Where the ``idrac_inventory`` points to the file mentioned above and  the ``idrac_username`` and ``idrac_password`` are the credentials used to authenticate into iDRAC.
 
 
 
