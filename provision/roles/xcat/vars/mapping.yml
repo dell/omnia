@@ -18,6 +18,7 @@ mapping_file_db_path: "{{ role_path }}/files/utils/mapping_file_db.py"
 mapping_bmc_path: "{{ role_path }}/files/utils/mapping_bmc.py"
 mapping_ib_path: "{{ role_path }}/files/utils/mapping_ib.py"
 discovery_method_mapping: "mapping"
+temp_mapping_file_path: "/opt/omnia/pxe_mapping_file.csv"
 
 # Usage: node_object_creation_mapping.yml
 mapping_node_group: "mapping"
