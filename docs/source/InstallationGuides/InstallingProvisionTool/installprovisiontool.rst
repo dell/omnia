@@ -36,6 +36,7 @@ b. A PostgreSQL database is set up with all relevant cluster information such as
                       2 | FBB65X2 | node00002 | node00002.spring.test |           | 172.17.0.35 | 172.29.0.35 | 172.35.0.35 |        | static
 
 
+Possible values of status are static, powering-on, installing, booting, post-booting, booted, failed. The status will be updated every 3 minutes.
 
 c. Offline repositories will be created based on the OS being deployed across the cluster.
 
@@ -69,19 +70,8 @@ Once the playbook execution is complete, ensure that PXE boot and RAID configura
 
 .. warning:: Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect.
 
-**Adding a new node**
 
-A new node can be added using one of two ways:
 
-1. Using a mapping file:
-
-    * Update the existing mapping file by appending the new entry (without the disrupting the older entries) or provide a new mapping file by pointing ``pxe_mapping_file_path`` in ``provision_config.yml`` to the new location.
-
-    * Run ``provision.yml``.
-
-2. Using the switch IP:
-
-    * Run ``provision.yml`` once the switch has discovered the potential new node.
 
 **Using multiple versions of a given OS**
 

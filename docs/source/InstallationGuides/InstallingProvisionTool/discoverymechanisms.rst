@@ -6,7 +6,10 @@ Depending on the value of ``discovery_mechanism`` in ``input/provision_config.ym
 Mapping File
 +++++++++++++
 	
-		To dictate IP address/MAC mapping, a host mapping file can be provided. Use the `pxe_mapping_file.csv <../../samplefiles.html>`_ to create your own mapping file. Populate ``bmc_nic_subnet`` as well.
+    To provision via mapping file, the following information has to be provided:
+
+    - ``pxe_mapping_file
+
 BMC
 ++++
 
@@ -15,8 +18,8 @@ BMC
     - ``bmc_dynamic_start_range/bmc_dynamic_end_range``: The dhcp range for assigning the IPv4 address while discovery mechanism is BMC.
     - ``bmc_static_start_range/bmc_static_end_range``: The static range for assigning the IPv4 address while discovery mechanism is BMC.
     - ``omnia_exclusive_static_start_range/omnia_exclusive_static_end_range``: The static range of IPs exclusively leased to Omnia to maintain the BMC DHCP range.
-    - ``bmc_username``: If ``idrac_support`` is true, provide the iDRAC username here.
-    - ``bmc_password``: If ``idrac_support`` is true, provide the iDRAC password here.
+    - ``bmc_username``: Provide the iDRAC username here.
+    - ``bmc_password``: Provide the iDRAC password here.
     - ``pxe_subnet``: The subnet within with PXE provisioning is done.
 
 SNMP
