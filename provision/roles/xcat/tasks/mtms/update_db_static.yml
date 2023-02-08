@@ -20,6 +20,7 @@
 
 - name: Call static db update for BMC
   ansible.builtin.command: |
-     {{ python_version }} {{ update_db_static_path }} {{ static_ip_file }} {{ node_name }} {{ domain_name }} {{ pxe_nic_subnet }} {{ ib_status }} {{ ib_nic_subnet }}
+    {{ python_version }} {{ update_db_static_path }} {{ static_ip_file }} {{ node_name }}
+    {{ domain_name }} {{ pxe_nic_subnet }} {{ ib_status }} {{ ib_nic_subnet }}
   register: bmc_static_status
   changed_when: false
