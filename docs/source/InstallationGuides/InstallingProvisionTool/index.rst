@@ -6,5 +6,6 @@ Installing The Provision Tool
     provisionparams
     provisionprereqs
     installprovisiontool
+    provisionservers
     PostProvisionScript
 
