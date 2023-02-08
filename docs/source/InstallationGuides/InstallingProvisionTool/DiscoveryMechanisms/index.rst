@@ -37,8 +37,7 @@ For more information regarding mapping files, `click here <mappingfile.html>`_
 
 
 
-SNMP
-++++
+**SNMP**
 
 Omnia can query known switches (by IP and community string) for information on target node MAC IDs.
 
@@ -52,8 +51,7 @@ Omnia can query known switches (by IP and community string) for information on t
 
 For more information regarding SNMP, `click here <snmp.html>`_
 
-BMC
-++++
+**BMC**
 
 Omnia can also discover nodes via their iDRAC using IPMI.
 
