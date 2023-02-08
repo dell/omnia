@@ -78,6 +78,7 @@ Installing CUDA
 
 * CUDA can also be installed using `accelerator.yml <../../Roles/Accelerator/index.html>`_ after provisioning the servers (Assuming the provision tool did not install CUDA packages).
 
+.. note:: The CUDA package can be downloaded from `here <https://developer.nvidia.com/cuda-downloads>`_
 
 Installing OFED
 +++++++++++++++++
@@ -90,7 +91,7 @@ Installing OFED
 
 * OFED can also be installed using `network.yml <../../Roles/Network/index.html>`_ after provisioning the servers (Assuming the provision tool did not install OFED packages).
 
-
+.. note:: The OFED package can be downloaded from `here <https://network.nvidia.com/products/infiniband-drivers/linux/mlnx_ofed/>`_ .
 
 Using multiple versions of a given OS
 +++++++++++++++++++++++++++++++++++++++
