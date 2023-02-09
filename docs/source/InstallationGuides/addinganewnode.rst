@@ -1,4 +1,4 @@
-Adding a new node
+Adding new nodes
 +++++++++++++++++
 
 A new node can be added using one of two ways:
