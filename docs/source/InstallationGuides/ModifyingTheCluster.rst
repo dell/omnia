@@ -1,6 +1,3 @@
-Modifying the cluster
----------------------
-
 Adding a new node
 +++++++++++++++++
 
