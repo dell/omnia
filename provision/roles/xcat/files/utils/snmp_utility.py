@@ -221,17 +221,18 @@ def mapping_file_creation():
                 host_name = node_name + str(count)
                 count = '%05d' % (int(count) + 1)
                 host_name = node_name + str(count) + "." + domain_name
+                node = node_name + str(count)
                 # When roce is disabled
                 if output == False and roce_status == "False":
-                    sql = '''INSERT INTO cluster.nodeinfo(admin_mac,hostname,admin_ip,bmc_ip,ib_ip) VALUES (
-                '{key}','{host_name}','{ip_start_addr}',NULL,NULL)'''.format(key=key, host_name=host_name,
+                    sql = '''INSERT INTO cluster.nodeinfo(admin_mac,node,hostname,admin_ip,bmc_ip,ib_ip) VALUES (
+                '{key}','{node}','{host_name}','{ip_start_addr}',NULL,NULL)'''.format(key=key, node=node, host_name=host_name,
                                                                              ip_start_addr=ip_start_addr)
                     cursor.execute(sql)
 
                 # When roce is enabled
                 if output == False and roce_status == "True":
-                    sql = '''INSERT INTO cluster.nodeinfo(admin_mac,hostname,admin_ip,bmc_ip,ib_ip) VALUES (
-                '{key}','{host_name}',NULL,NULL,'{ip_start_addr}')'''.format(key=key, host_name=host_name,
+                    sql = '''INSERT INTO cluster.nodeinfo(admin_mac,node,hostname,admin_ip,bmc_ip,ib_ip) VALUES (
+                '{key}','{node}','{host_name}',NULL,NULL,'{ip_start_addr}')'''.format(key=key, node=node, host_name=host_name,
                                                                              ip_start_addr=ip_start_addr)
                     cursor.execute(sql)
         sql = '''select max(id) from cluster.nodeinfo'''
