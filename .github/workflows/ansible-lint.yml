@@ -30,20 +30,15 @@ jobs:
         targets: |
           /github/workspace/monitor/monitor.yml
           /github/workspace/accelerator/accelerator.yml
-          /github/workspace/logging/logging.yml
           /github/workspace/network/network.yml
           /github/workspace/provision/provision.yml
           /github/workspace/provision/idrac.yml
-          /github/workspace/provision/idrac_input.yml
           /github/workspace/provision/post_provision.yml
           /github/workspace/scheduler/job_based_user_access.yml
-          /github/workspace/scheduler/scheduler.yml
           /github/workspace/security/passwordless_ssh.yml
           /github/workspace/security/security.yml
           /github/workspace/storage/nfs_sas.yml
-          /github/workspace/storage/nfs_server_input.yml
           /github/workspace/storage/powervault.yml
-          /github/workspace/storage/powervault_input.yml
           /github/workspace/storage/storage.yml
           /github/workspace/telemetry/add_node_idrac.yml
           /github/workspace/telemetry/telemetry.yml
