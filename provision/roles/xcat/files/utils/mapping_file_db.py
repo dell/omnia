@@ -50,18 +50,19 @@ def mapping_file():
         sql = '''select exists(select admin_mac from cluster.nodeinfo where admin_mac='{temp}')'''.format(temp=temp)
         cursor.execute(sql)
         output = cursor.fetchone()[0]
-        nodename = hostname[key] + "." + domain_name
+        fqdn_hostname = hostname[key] + "." + domain_name
+        node = hostname[key]
         temp_ip = ip[key]
         # When roce is disabled
         if output is False and roce_status == "False":
-            sql = '''INSERT INTO cluster.nodeinfo(admin_mac,hostname,admin_ip,bmc_ip,ib_ip) VALUES (
-        '{temp}','{nodename}','{temp_ip}',NULL,NULL)'''.format(temp=temp, nodename=nodename, temp_ip=temp_ip)
+            sql = '''INSERT INTO cluster.nodeinfo(admin_mac,node,hostname,admin_ip,bmc_ip,ib_ip) VALUES (
+        '{temp}','{node}','{fqdn_hostname}','{temp_ip}',NULL,NULL)'''.format(temp=temp, node=node, fqdn_hostname=fqdn_hostname, temp_ip=temp_ip)
             cursor.execute(sql)
 
         # When roce is enabled
         if output is False and roce_status == "True":
-            sql = '''INSERT INTO cluster.nodeinfo(admin_mac,hostname,admin_ip,bmc_ip,ib_ip) VALUES (
-        '{temp}','{nodename}',NULL,NULL,'{temp_ip}')'''.format(temp=temp, nodename=nodename, temp_ip=temp_ip)
+            sql = '''INSERT INTO cluster.nodeinfo(admin_mac,node,hostname,admin_ip,bmc_ip,ib_ip) VALUES (
+        '{temp}','{node}','{fqdn_hostname}',NULL,NULL,'{temp_ip}')'''.format(temp=temp, node=node, fqdn_hostname=fqdn_hostname, temp_ip=temp_ip)
             cursor.execute(sql)
     conn.close()
 
