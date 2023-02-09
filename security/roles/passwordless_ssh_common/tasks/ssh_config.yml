@@ -15,16 +15,25 @@
 
 - name: Change sshd config
   ansible.builtin.blockinfile:
-    path: "/etc/ssh/sshd_config"
+    path: "{{ sshd_config_file }}"
     block: "{{ lookup('template', 'ssh_config') }}"
+
+- name: Check sssd config
+  ansible.builtin.lineinfile:
+    path: "{{ sssd_config_file }}"
+    state: absent
+    regexp: '^(services(.*)ssh(.*))'
+  check_mode: true
+  register: sssd_line
 
 - name: Change sssd config
   ansible.builtin.lineinfile:
-    path: /etc/sssd/sssd.conf
+    path: "{{ sssd_config_file }}"
     state: present
     backrefs: true
     regexp: '^(services(.*)$)'
     line: '\1, ssh'
+  when: not sssd_line.found
 
 - name: Restart sssd and sshd
   ansible.builtin.service:
@@ -34,13 +43,7 @@
     - sssd.service
     - sshd.service
 
-- name: Check if user home directory exists
-  ansible.builtin.stat:
-    path: "{{ user_home_path }}"
-  register: user_home_directory
-
 - name: Create SSH key pair if home directory exists
-  when: user_home_directory.stat.exists
   run_once: true
   delegate_to: "{{ groups['manager'][0] }}"
   block:

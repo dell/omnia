@@ -13,7 +13,7 @@
 #  limitations under the License.
 ---
 
-user_home_path: "{{ hostvars['127.0.0.1']['user_home_dir'] }}/{{ hostvars['127.0.0.1']['user_name'] }}"
+user_home_path: "{{ hostvars['127.0.0.1']['user_home_directory'] }}/{{ hostvars['127.0.0.1']['user_name'] }}"
 publickey_file_path: "{{ user_home_path }}/.ssh/id_rsa.pub"
 ipa_admin_username: admin
 fail_msg_ipa_sshpubkey_exists: "IPA Directory already has SSH public key"

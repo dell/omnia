@@ -14,7 +14,6 @@
 ---
 
 # Usage: include_passwordless_ssh.yml
-user_home_path: "{{ hostvars['127.0.0.1']['user_home_dir'] }}/{{ hostvars['127.0.0.1']['user_name'] }}"
 passwordless_ssh_config_file: "{{ role_path }}/../../../input/passwordless_ssh_config.yml"
 folder_perm: '644'
 vault_file_perm: '0644'

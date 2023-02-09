@@ -36,7 +36,7 @@
 - name: Executing post provision configuration tasks
   hosts: node_inventory
   tasks:
-    - name: Post provision configuration of the server
+    - name: Create provisioned node inventory
       ansible.builtin.include_role:
         name: xcat
-        tasks_from: post_provision_config.yml
+        tasks_from: provisioned_node_inventory.yml
