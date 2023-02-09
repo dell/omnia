@@ -57,6 +57,8 @@
     path: "{{ provision_conf_path }}"
     regexp: "roce_enabled=.*"
     replace: "roce_enabled={{ roce_enabled }}"
+  when: discovery_mechanism == discovery_method_snmp or
+        discovery_mechanism == discovery_method_mapping
 
 - name: Validation related to admin nic
   ansible.builtin.include_tasks: validate_admin_nic.yml
@@ -66,7 +68,10 @@
 
 - name: Validation related to BMC nic
   ansible.builtin.include_tasks: validate_bmc_nic.yml
-  when: bmc_nic_subnet | length > 1
+  when:
+    - bmc_nic_subnet | length > 1
+    - discovery_mechanism == discovery_method_snmp or
+      discovery_mechanism == discovery_method_mapping
 
 - name: Validation related to IB nic
   ansible.builtin.include_tasks: validate_ib_nic.yml

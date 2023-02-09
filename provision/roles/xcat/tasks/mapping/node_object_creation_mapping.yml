@@ -23,7 +23,7 @@
 
     - name: Read mapping file provided by user
       ansible.builtin.read_csv:
-        path: "{{ pxe_mapping_file_path }}"
+        path: "{{ temp_mapping_file_path }}"
       register: mapping_file_output
 
     - name: Create node object from mapping file provided by user

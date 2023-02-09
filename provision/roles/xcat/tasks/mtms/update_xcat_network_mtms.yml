@@ -25,10 +25,14 @@
   register: nic_addr_up
   changed_when: false
 
+- name: Create a temporary list of NICs
+  ansible.builtin.set_fact:
+    temp_nics_list: "{{ nic_addr_up.stdout.split('\n') }}"
+
 - name: Create a list of NICs
   ansible.builtin.set_fact:
     nics_list: "{{ nics_list + [item.split(':')[0]] }}"
-  with_items: "{{ nic_addr_up.stdout.split('\n') }}"
+  with_items: "{{ temp_nics_list }}"
 
 - name: Append NICs and subnets to dictionary
   ansible.builtin.set_fact:

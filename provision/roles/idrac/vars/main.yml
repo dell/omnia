@@ -97,3 +97,4 @@ idrac_reset_time: 30
 
 # configure_pxe_boot.yml
 active_nic_fail_msg: "No host active nic present for the device. Please check the host connection for the server and retry again."
+roce_enabled: false

@@ -32,29 +32,23 @@
   ansible.builtin.shell: set -o pipefail && awk -F, 'length>NF+1' {{ pxe_mapping_file_path }} > {{ temp_mapping_file_path }}
   changed_when: false
 
-- name: Copy temp mapping file to pxe_mapping_file_path
-  ansible.builtin.copy:
-    src: "{{ temp_mapping_file_path }}"
-    dest: "{{ pxe_mapping_file_path }}"
-    mode: preserve
-
 - name: Remove blank spaces in mapping file
-  ansible.builtin.shell: set -o pipefail && sed -i.bak -E 's/(^|,)[[:blank:]]+/\1/g; s/[[:blank:]]+(,|$)/\1/g'  {{ pxe_mapping_file_path }}
+  ansible.builtin.shell: set -o pipefail && sed -i.bak -E 's/(^|,)[[:blank:]]+/\1/g; s/[[:blank:]]+(,|$)/\1/g'  {{ temp_mapping_file_path }}
   changed_when: false
 
-- name: Delete temp_mapping_file
+- name: Delete temp_mapping_file.bak
   ansible.builtin.file:
-    path: "{{ temp_mapping_file_path }}"
+    path: "{{ temp_mapping_file_path }}.bak"
     state: absent
 
 - name: Read host mapping file from CSV file and return a dictionary
   community.general.read_csv:
-    path: "{{ pxe_mapping_file_path }}"
+    path: "{{ temp_mapping_file_path }}"
     key: "{{ mapping_file_key }}"
   register: read_mapping_file
 
 - name: Check if header is present in mapping file
-  ansible.builtin.shell: set -o pipefail && awk 'NR==1 { print $1}' "{{ pxe_mapping_file_path }}"
+  ansible.builtin.shell: set -o pipefail && awk 'NR==1 { print $1}' "{{ temp_mapping_file_path }}"
   register: mapping_file_header
   changed_when: false
 
@@ -64,7 +58,7 @@
     fail_msg: "{{ mapping_file_header_fail_msg }}"
 
 - name: Check if mapping file is comma seperated
-  ansible.builtin.shell: awk -F\, '{print NF-1}' "{{ pxe_mapping_file_path }}"
+  ansible.builtin.shell: awk -F\, '{print NF-1}' "{{ temp_mapping_file_path }}"
   register: comma_seperated_check
   changed_when: false
 
