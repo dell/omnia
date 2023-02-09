@@ -50,7 +50,6 @@ jobs:
           /github/workspace/utils/passwordless_ssh.yml
           /github/workspace/utils/rhsm_subscription.yml
           /github/workspace/utils/rhsm_unregister.yml
-          /github/workspace/omnia.yml
         # [optional]
         # Arguments to override a package and its version to be set explicitly.
         # Must follow the example syntax.
