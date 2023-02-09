@@ -27,6 +27,6 @@
     ib_nic_end_range: >-
       {{ ib_nic_subnet.split('.')[0] + '.' + ib_nic_subnet.split('.')[1] + '.' + pxe_nic_end_range.split('.')[-2] + '.' + pxe_nic_end_range.split('.')[-1] }}
 
-- name: Set fact for ib_nic_subnet
+- name: Set fact for ib_status
   ansible.builtin.set_fact:
-    ib_status : true
+    ib_status: true

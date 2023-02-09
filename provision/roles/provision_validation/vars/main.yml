@@ -55,6 +55,7 @@ success_pxe: "Proper PXE ranges provided"
 fail_pxe: "Failed. Please provide proper PXE ranges"
 success_msg_different_nics: "Validated. Nics are different in case of LOM."
 fail_msg_different_nics: "Failed.Incorrect nic information.Public nic must be different from BMC and PXE nics ."
+pxe_subnet_msg: "Failed. Please provide proper pxe_subnet"
 
 # Usage: validate_switch_vars.yml
 pxe_switch_ip_valid: "Valid switch ip provided"
@@ -74,7 +75,7 @@ hostname_chars_fail_msg: "Failed. Hostname should not contain _ or . or space as
 Make sure the mapping file contains only the hostname, and not the domain_name. Found in: "
 duplicate_ip_fail_msg: "Failed. Duplicate IP exists. Please verify mapping file again."
 duplicate_hostname_fail_msg: "Failed. Duplicate hostname exists. Please verify mapping file again."
-temp_mapping_file_path: "{{ role_path }}/files/temp_mapping_file"
+temp_mapping_file_path: "/opt/omnia/pxe_mapping_file.csv"
 
 # Usage: validate_provision_vars.yml
 input_provision_fail_msg: "Please provide all the required provision parameters"

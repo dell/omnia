@@ -17,15 +17,18 @@
   block:
     - name: Integrate mapping file with DB
       ansible.builtin.command: |
-        {{ python_version }} {{ mapping_file_db_path }} {{ pxe_mapping_file_path }} {{ roce_enabled }} {{ domain_name }}
+        {{ python_version }} {{ mapping_file_db_path }} {{ temp_mapping_file_path }} {{ roce_enabled }} {{ domain_name }}
+      changed_when: true
 
     - name: Integrate bmc with DB in case mapping file given
       ansible.builtin.command: |
-        {{ python_version }} {{ mapping_bmc_path }} {{ pxe_mapping_file_path }} {{ bmc_nic_subnet }} {{ roce_enabled }}
+        {{ python_version }} {{ mapping_bmc_path }} {{ temp_mapping_file_path }} {{ bmc_nic_subnet }} {{ roce_enabled }}
+      changed_when: true
       when: bmc_nic_subnet | length > 6
 
     - name: Integrate ib with DB in case mapping file given
       ansible.builtin.command: |
-        {{ python_version }} {{ mapping_ib_path }} {{ pxe_mapping_file_path }} {{ ib_nic_subnet }} {{ roce_enabled }}
+        {{ python_version }} {{ mapping_ib_path }} {{ temp_mapping_file_path }} {{ ib_nic_subnet }} {{ roce_enabled }}
+      changed_when: true
       when: ib_nic_subnet | length > 6
   when: discovery_mechanism | lower == discovery_method_mapping
