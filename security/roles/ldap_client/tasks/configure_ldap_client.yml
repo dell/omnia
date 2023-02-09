@@ -25,14 +25,14 @@
 - name: Update ldap.conf file
   ansible.builtin.replace:
     path: "{{ ldap_conf_dest }}"
-    regexp: "SASL_NOCANON\ton"
-    replace: "SASL_NOCANON\ton\nBASE\t{{ reqd_domain_name }}"
+    regexp: "{{ sasl_nocanon_regxp }}"
+    replace: "{{ sasl_nacanon_replace1 }}"
 
 - name: Update ldap.conf file
   ansible.builtin.replace:
     path: "{{ ldap_conf_dest }}"
-    regexp: "SASL_NOCANON\ton"
-    replace: "SASL_NOCANON\ton\nURI\tldap://{{ hostvars['127.0.0.1']['ldap_server_ip'] }}"
+    regexp: "{{ sasl_nocanon_regxp }}"
+    replace: "{{ sasl_nacanon_replace2 }}"
   when:
     - hostvars['127.0.0.1']['ldap_connection_type'] == 'TLS' or
       hostvars['127.0.0.1']['ldap_connection_type'] == 'tls'
@@ -40,8 +40,8 @@
 - name: Update ldap.conf file
   ansible.builtin.replace:
     path: "{{ ldap_conf_dest }}"
-    regexp: "SASL_NOCANON\ton"
-    replace: "SASL_NOCANON\ton\nTLS_CACERT\t{{ tls_cert_path }}"
+    regexp: "{{ sasl_nocanon_regxp }}"
+    replace: "{{ sasl_nacanon_replace3 }}"
   when:
     - hostvars['127.0.0.1']['ldap_connection_type'] == 'TLS' or
       hostvars['127.0.0.1']['ldap_connection_type'] == 'tls'
@@ -49,8 +49,8 @@
 - name: Update ldap.conf file
   ansible.builtin.replace:
     path: "{{ ldap_conf_dest }}"
-    regexp: "SASL_NOCANON\ton"
-    replace: "SASL_NOCANON\ton\nURI\tldap://{{ hostvars['127.0.0.1']['ldap_server_ip'] }}:636"
+    regexp: "{{ sasl_nocanon_regxp }}"
+    replace: "{{ sasl_nacanon_replace4 }}"
   when:
     - hostvars['127.0.0.1']['ldap_connection_type'] == 'SSL' or
       hostvars['127.0.0.1']['ldap_connection_type'] == 'ssl'

@@ -13,7 +13,7 @@
 #  limitations under the License.
 ---
 
-#Usage: include_passwordless_ssh.yml
+# Usage: include_passwordless_ssh.yml
 user_home_path: "{{ hostvars['127.0.0.1']['user_home_dir'] }}/{{ hostvars['127.0.0.1']['user_name'] }}"
 passwordless_ssh_config_file: "{{ role_path }}/../../../input/passwordless_ssh_config.yml"
 folder_perm: '644'
@@ -23,7 +23,7 @@ min_length: 8
 max_length: 30
 fail_msg_passwordless_ssh_config_file: "passwordless_ssh_config.yml file doesn't exist."
 
-#Usage: validation.yml
+# Usage: validation.yml
 authentication_type_success_msg: "authentication_Type variable successfully validated"
 authentication_type_fail_msg: "Failed. authentication_Type should be either freeipa or ldap"
 user_name_success_msg: "user_name successfully validated"

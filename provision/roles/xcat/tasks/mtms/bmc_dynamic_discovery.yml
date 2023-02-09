@@ -20,7 +20,7 @@
   changed_when: false
 
 - name: Assert dynamic discovery
-  ansible.builtin.assert: 
+  ansible.builtin.assert:
     that:
       - " '{{ no_bmc_found }}' not in dynamic_discovery.stderr"
     fail_msg: "{{ dynamic_discovery_fail_msg }}"

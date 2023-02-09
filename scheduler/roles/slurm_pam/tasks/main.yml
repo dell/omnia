@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,34 +14,34 @@
 ---
 
 - name: Manager group to contain exactly 1 node
-  assert:
+  ansible.builtin.assert:
     that: "groups['manager'] | length | int == 1"
     fail_msg: "{{ manager_group_fail_msg }}"
     success_msg: "{{ manager_group_success_msg }}"
   delegate_to: localhost
 
 - name: Compute group to contain atleast 1 node
-  assert:
+  ansible.builtin.assert:
     that: "groups['compute'] | length | int >= 1"
     fail_msg: "{{ compute_group_fail_msg }}"
     success_msg: "{{ compute_group_success_msg }}"
   delegate_to: localhost
 
 - name: Install slurm-pam_slurm
-  package:
+  ansible.builtin.package:
     name: slurm-pam_slurm
     state: present
 
 - name: Configure slurm pam for compute nodes
-  include_tasks: slurm_pam_compute.yml
+  ansible.builtin.include_tasks: slurm_pam_compute.yml
   when: inventory_hostname in groups['compute']
 
 - name: Configure slurm pam for login node
-  include_tasks: slurm_pam_login_node.yml
+  ansible.builtin.include_tasks: slurm_pam_login_node.yml
   when:
     - groups['login_node'] is defined
     - inventory_hostname in groups['login_node']
 
 - name: Configure slurm pam for manager node
-  include_tasks: slurm_pam_manager.yml
+  ansible.builtin.include_tasks: slurm_pam_manager.yml
   when: inventory_hostname in groups['manager']

@@ -29,4 +29,3 @@
         ansible.builtin.fail:
             msg: "{{ fail_msg_ldap_sshpubkey_exists }}"
         when: "'ldap_modify: Type or value exists' in ldap_modify_output.stderr"
-  
