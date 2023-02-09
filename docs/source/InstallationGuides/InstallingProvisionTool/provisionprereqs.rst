@@ -24,6 +24,8 @@ In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcf
 
 * Ensure that the ``pxe_nic`` and ``public_nic`` are in the firewalld zone: public.
 
+* All shared LOM IPs assigned should follow the convention: xx.yy.zz.1 (ie the last octet of a shared LOM IP should be 1. Eg: If the ``pxe_subnet`` provided is 172.17.0.0, the shared LOM IP assigned should be 172.17.0.1)
+
  .. Note::
 
     * After configuration and installation of the cluster, changing the control plane is not supported. If you need to change the control plane, you must redeploy the entire cluster.

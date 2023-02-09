@@ -29,7 +29,7 @@ Manually collect PXE NIC information for target servers and manually define them
 
 **Cons**
 
-    - Requires additional effort when finding PXE NIC information.
+    - The user needs to be aware of the MAC/IP mapping required in the network.
     - Servers require a manual PXE boot if iDRAC IPs are not configured.
 
 For more information regarding mapping files, `click here <mappingfile.html>`_
@@ -45,14 +45,25 @@ Omnia can query known switches (by IP and community string) for information on t
     - The method can be applied to large clusters.
     - User intervention is minimal.
 **Cons**
-    - IP assignment to the switch should be planned ahead.
     - Switches should be SNMP enabled.
     - Servers require a manual PXE boot if iDRAC IPs are not configured.
+    - PXE NIC ranges should contain IPs that are double the iDRACs present (as NIC and iDRAC MACs may need to be mapped).
 
 For more information regarding SNMP, `click here <snmp.html>`_
 
 **BMC**
 
 Omnia can also discover nodes via their iDRAC using IPMI.
+
+
+**Pros**
+
+    - Discovery is automatic with little user intervention when iDRAC is DHCP enabled.
+    - Provisioning of servers is automatic irrespective of whether DHCP is enabled.
+
+**Cons**
+
+    - For iDRACs that are not DHCP enabled (ie Static), users need to enable IPMI manually.
+
 
 For more information regarding BMC, `click here <bmc.html>`_
