@@ -30,31 +30,15 @@ jobs:
         targets: |
           /github/workspace/monitor/monitor.yml
           /github/workspace/accelerator/accelerator.yml
-          /github/workspace/input/accelerator_config.yml
-          /github/workspace/input/login_node_security_config.yml
-          /github/workspace/input/monitor_config.yml
-          /github/workspace/input/network_config.yml
-          /github/workspace/input/omnia_config.yml
-          /github/workspace/input/passwordless_ssh_config.yml
-          /github/workspace/input/provision_config.yml
-          /github/workspace/input/rhsm_config.yml
-          /github/workspace/input/security_config.yml
-          /github/workspace/input/storage_config.yml
-          /github/workspace/input/telemetry_config.yml
-          /github/workspace/logging/logging.yml
           /github/workspace/network/network.yml
           /github/workspace/provision/provision.yml
           /github/workspace/provision/idrac.yml
-          /github/workspace/provision/idrac_input.yml
           /github/workspace/provision/post_provision.yml
           /github/workspace/scheduler/job_based_user_access.yml
-          /github/workspace/scheduler/scheduler.yml
           /github/workspace/security/passwordless_ssh.yml
           /github/workspace/security/security.yml
           /github/workspace/storage/nfs_sas.yml
-          /github/workspace/storage/nfs_server_input.yml
           /github/workspace/storage/powervault.yml
-          /github/workspace/storage/powervault_input.yml
           /github/workspace/storage/storage.yml
           /github/workspace/telemetry/add_node_idrac.yml
           /github/workspace/telemetry/telemetry.yml
@@ -66,7 +50,6 @@ jobs:
           /github/workspace/utils/passwordless_ssh.yml
           /github/workspace/utils/rhsm_subscription.yml
           /github/workspace/utils/rhsm_unregister.yml
-          /github/workspace/omnia.yml
         # [optional]
         # Arguments to override a package and its version to be set explicitly.
         # Must follow the example syntax.
