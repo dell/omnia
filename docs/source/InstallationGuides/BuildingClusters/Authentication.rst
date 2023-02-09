@@ -41,7 +41,7 @@ Where inventory follows the format defined under inventory file in the provided 
 
 * Alternatively, use the below command with admin credentials: ::
 
-    ipa user-add --homedir=<nfs_dir_path> --password=<user defined password>
+    ipa user-add --homedir=<nfs_dir_path> --password
 
 
 **Setting up Passwordless SSH for FreeIPA**
