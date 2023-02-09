@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -55,7 +55,7 @@
 - name: Set the LUN nos.
   ansible.builtin.set_fact:
     lun_no: "{{ lun_no | default([]) }} + [ '{{ temp1 }}']"
-    temp1: "{{ temp1|int + t1|int }}"
+    temp1: "{{ temp1 | int + t1 | int }}"
   loop: "{{ powervault_volumes }}"
 
 - name: Add the lun numbers to volumes

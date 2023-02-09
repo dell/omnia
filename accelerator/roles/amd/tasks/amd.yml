@@ -28,4 +28,3 @@
   ansible.builtin.include_tasks: amd_leap.yml
   when:
    - os_leap in compute_os
-   

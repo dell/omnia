@@ -42,10 +42,8 @@
 
 - name: Set the BMC start range
   ansible.builtin.set_fact:
-    bmc_nic_start_range: >-
-      {{ bmc_nic_subnet.split('.')[0] + '.' + bmc_nic_subnet.split('.')[1] + '.' + pxe_nic_start_range.split('.')[-2] + '.' + pxe_nic_start_range.split('.')[-1] }}
-    bmc_nic_end_range: >-
-      {{ bmc_nic_subnet.split('.')[0] + '.' + bmc_nic_subnet.split('.')[1] + '.' + pxe_nic_end_range.split('.')[-2] + '.' + pxe_nic_end_range.split('.')[-1] }}
+    bmc_nic_start_range: "{{ bmc_nic_start }}"
+    bmc_nic_end_range: "{{ bmc_nic_end }}"
 
 - name: Set bmc_postscripts_config_status
   ansible.builtin.set_fact:

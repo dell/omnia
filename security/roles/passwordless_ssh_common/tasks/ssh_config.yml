@@ -56,7 +56,7 @@
       ansible.builtin.stat:
         path: "{{ public_key_file }}"
       register: ssh_key_file
-      
+
     - name: Check and create ssh key pair if not exists
       when: not ssh_key_file.stat.exists
       block:

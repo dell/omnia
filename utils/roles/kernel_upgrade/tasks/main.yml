@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
 ---
 
 - name: Prerequisites for kernel upgradation
-  include_tasks: prereq_kernel_upgrade.yml
+  ansible.builtin.include_tasks: prereq_kernel_upgrade.yml
 
 - name: Upgrade kernel
-  include_tasks: manage_rhel_kernel.yml
+  ansible.builtin.include_tasks: manage_rhel_kernel.yml
   when: upgrade_supported

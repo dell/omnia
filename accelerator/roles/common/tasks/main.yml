@@ -35,6 +35,6 @@
       ansible.builtin.pause:
         seconds: "{{ warning_wait_time }}"
         prompt: "{{ subscription_warning_msg }}"
-  when: 
+  when:
     - cuda_node_status
     - ansible_facts['distribution'] | lower == os_supported_rhel
