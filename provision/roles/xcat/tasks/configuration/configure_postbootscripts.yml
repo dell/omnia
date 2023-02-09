@@ -20,3 +20,6 @@
 - name: Configure bmc postbootscripts
   ansible.builtin.include_tasks: configure_postscripts_bmc.yml
   when: bmc_postscripts_config_status
+
+- name: Configure ib postbootscripts
+  ansible.builtin.include_tasks: configure_postscripts_ib.yml
