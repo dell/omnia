@@ -79,4 +79,3 @@
     - ib_nic_subnet | length > 1
     - discovery_mechanism == discovery_method_snmp or
       discovery_mechanism == discovery_method_mapping
-  
