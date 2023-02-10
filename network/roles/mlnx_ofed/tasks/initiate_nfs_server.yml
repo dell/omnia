@@ -20,12 +20,11 @@
 - name: Setup nfs client on nodes with infiniband support
   ansible.builtin.include_tasks: setup_inventories.yml
 
-# Set nfs_mlnx_ofed status to true if atleast one node is present in redhat_inventory
-- name: Set nfs_mlnx_ofed status to true if atleast one node is present in redhat_inventory
+# Set nfs_mlnx_ofed status to true if atleast one node is present in redhat_rocky_inventory
+- name: Set nfs_mlnx_ofed status to true if atleast one node is present in redhat_rocky_inventory
   ansible.builtin.set_fact:
     nfs_mlnx_ofed: true
-  when:
-    - groups['redhat_inventory'] | default("", true) | length | int > 0
+  when: groups['redhat_rocky_inventory'] | default("", true) | length | int > 0
 
 # Setup nfs server when nfs_mlnx_ofed status is set to true
 - name: Setup NFS Server for Rhel compute nodes
