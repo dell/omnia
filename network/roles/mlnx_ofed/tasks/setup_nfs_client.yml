@@ -28,11 +28,17 @@
   register: mounted_share
   failed_when: false
 
+- name: Check if directory exists
+  ansible.builtin.stat:
+    path: "{{ mlnx_ofed_nfs_path }}"
+  register: nfs_directory_stat
+
 - name: Create the directory for mounting NFS client
   ansible.builtin.file:
     path: "{{ mlnx_ofed_nfs_path }}"
     state: directory
     mode: "{{ mlnx_ofed_nfs_permissions }}"
+  when: not nfs_directory_stat.stat.exists
 
 - name: Mount NFS client
   ansible.builtin.command: "mount -o {{ client_mount_options }} -t nfs {{ server_ip }}:{{ mlnx_ofed_nfs_path }} {{ mlnx_ofed_nfs_path }}"
