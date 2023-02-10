@@ -23,6 +23,12 @@
     - hostvars['127.0.0.1']['k8s_cni'] == "calico"
   tags: install
 
+- name: Display warning if calico pod is not in ready state
+  ansible.builtin.debug:
+    msg: "{{ calico_warning_msg }}"
+  when: calico_pod_status.stdout is not defined or calico_ready_state not in calico_pod_status.stdout
+  tags: install  
+
 - name: Wait for flannel pod to come to ready state
   ansible.builtin.command: "kubectl wait --for=condition=ready -n kube-system pod -l app=flannel --timeout=10m"
   changed_when: false
