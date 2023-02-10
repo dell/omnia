@@ -75,3 +75,24 @@
   ansible.builtin.fail:
     msg: "{{ range_mismatch_msg }}"
   when: '"lower bound IP greater than upper bound!" in range_validation_status.stdout'
+
+- name: Validate dynamic ranges count is greater than omnia ranges
+  block:
+    - name: Count dynamic ranges
+      ansible.builtin.command: >-
+        python3 {{ validation_ip_count }} {{ bmc_dynamic_start }} {{ bmc_dynamic_end }}
+      register: dynamic_count
+      changed_when: true
+
+    - name: Count omnia ranges
+      ansible.builtin.command: >-
+        python3 {{ validation_ip_count }} {{ omnia_static_start }} {{ omnia_static_end }}
+      register: omnia_count
+      changed_when: true
+
+    - name: Validate dynamic ranges count is greater than omnia ranges - wait for 5 seconds
+      ansible.builtin.pause:
+        seconds: "{{ warning_wait_time }}"
+        prompt: "{{ range_warning_msg }}"
+      when: dynamic_count.stdout | int < omnia_count.stdout | int
+  when: bmc_dynamic_status

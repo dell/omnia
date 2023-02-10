@@ -1,7 +1,4 @@
-Modifying the cluster
----------------------
-
-Adding a new node
+Adding new nodes
 +++++++++++++++++
 
 A new node can be added using one of two ways:
@@ -15,5 +12,7 @@ A new node can be added using one of two ways:
 2. Using the switch IP:
 
     * Run ``provision.yml`` once the switch has discovered the potential new node.
+
+
 
 
