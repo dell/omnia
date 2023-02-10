@@ -22,32 +22,32 @@
         success_msg: "{{ success_subnet }} for BMC "
         fail_msg: "{{ fail_subnet }} for BMC"
 
-- name: Assert valid values for admin NIC in case of network interface type as LOM
-  ansible.builtin.assert:
-    that:
-      - bmc_nic_subnet != admin_nic_subnet
-    success_msg: "{{ success_lom }}"
-    fail_msg: "{{ fail_lom }}"
-  tags: [validate, bmc-network, admin-network]
+    - name: Assert valid values for admin NIC in case of network interface type as LOM
+      ansible.builtin.assert:
+        that:
+          - bmc_nic_subnet != admin_nic_subnet
+        success_msg: "{{ success_lom }}"
+        fail_msg: "{{ fail_lom }}"
+      tags: [validate, bmc-network, admin-network]
 
-- name: Assert the subnet details of BMC nic
-  ansible.builtin.assert:
-    that:
-      - ipv4_subnet == bmc_nic_subnet or
-        ipv4_sec_subnet == bmc_nic_subnet
-    success_msg: "{{ success_subnet }}"
-    fail_msg: "{{ fail_subnet }} for BMC nic"
-  when: network_interface_type == "lom"
-  tags: validate
+    - name: Assert the subnet details of BMC nic
+      ansible.builtin.assert:
+        that:
+          - ipv4_subnet == bmc_nic_subnet or
+            ipv4_sec_subnet == bmc_nic_subnet
+        success_msg: "{{ success_subnet }}"
+        fail_msg: "{{ fail_subnet }} for BMC nic"
+      when: network_interface_type == "lom"
+      tags: validate
 
-- name: Set the BMC start range
-  ansible.builtin.set_fact:
-    bmc_nic_start_range: "{{ bmc_nic_start }}"
-    bmc_nic_end_range: "{{ bmc_nic_end }}"
+    - name: Set the BMC start range
+      ansible.builtin.set_fact:
+        bmc_nic_start_range: "{{ bmc_nic_start }}"
+        bmc_nic_end_range: "{{ bmc_nic_end }}"
 
-- name: Set bmc_postscripts_config_status
-  ansible.builtin.set_fact:
-    bmc_postscripts_config_status: true
+    - name: Set bmc_postscripts_config_status
+      ansible.builtin.set_fact:
+        bmc_postscripts_config_status: true
   when:
     - bmc_nic_subnet | default("", true) | length > 6
     - discovery_mechanism | lower == discovery_method_mapping or

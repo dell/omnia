@@ -37,6 +37,7 @@
 - name: Append NICs and subnets to dictionary
   ansible.builtin.set_fact:
     nics_dict: '{{ nics_dict | combine({item: lookup("vars", "ansible_" + item).ipv4.network}) }}'
+  when: lookup("vars", "ansible_" + item).ipv4.network is defined
   with_items: "{{ nics_list }}"
 
 - name: Fetch the BMC NIC in case of dedicated
@@ -81,13 +82,15 @@
     bmc_nic_netmask: "{{ lookup('vars', 'ansible_' + bmc_nic).ipv4_secondaries[0].netmask }}"
   when: sec_bmc_nic
 
-- name: Configure bmc_network in networks table with static ranges
+- name: Configure bmc_network in networks table with static and dynamic ranges
   ansible.builtin.shell: >
     chdef -t network -o bmc_network net={{ bmc_nic_subnet }} mask={{ bmc_nic_netmask }} mgtifname={{ bmc_nic }}
     gateway={{ bmc_nic_ip }} dhcpserver={{ bmc_nic_ip }} dynamicrange="{{ bmc_dynamic_start_range }}-{{ bmc_dynamic_end_range }}"
     staticrange="{{ bmc_static_start_range }}-{{ bmc_static_end_range }}"
   changed_when: true
-  when: bmc_static_status
+  when:
+    - bmc_static_status
+    - bmc_dynamic_status
 
 - name: Configure bmc_network in networks table without static ranges
   ansible.builtin.shell: >
@@ -95,3 +98,10 @@
     gateway={{ bmc_nic_ip }} dhcpserver={{ bmc_nic_ip }} dynamicrange="{{ bmc_dynamic_start_range }}-{{ bmc_dynamic_end_range }}"
   changed_when: true
   when: not bmc_static_status
+
+- name: Configure bmc_network in networks table when only static ranges
+  ansible.builtin.shell: >
+    chdef -t network -o bmc_network net={{ bmc_nic_subnet }} mask={{ bmc_nic_netmask }} mgtifname={{ bmc_nic }}
+    gateway={{ bmc_nic_ip }} dhcpserver={{ bmc_nic_ip }} staticrange="{{ bmc_static_start_range }}-{{ bmc_static_end_range }}"
+  changed_when: true
+  when: bmc_static_status
