@@ -35,11 +35,31 @@
     fail_msg: "{{ ldap_organizational_unit_fail_msg }}"
   when: authentication_type == "ldap"
 
-- name: Fail if home directory not exists
-  ansible.builtin.stat:
-    path: "{{ user_home_path }}"
-  register: user_home_directory
-  failed_when: not user_home_directory.stat.exists
+- name: Vailidate ldap home directory
+  when: authentication_type == "ldap"
+  block:
+    - name: Fail if home directory not exists
+      ansible.builtin.stat:
+        path: "{{ user_home_dir }}/{{ user_name }}"
+      register: directory
+      failed_when: not directory.stat.exists
+
+    - name: Set home directory vairable
+      ansible.builtin.set_fact:
+        user_home_directory: "{{ user_home_dir }}"
+
+- name: Vailidate freeIPA home directory
+  when: authentication_type == "freeipa"
+  block:
+    - name: Fail if home directory not exists
+      ansible.builtin.stat:
+        path: "{{ freeipa_user_home_dir }}/{{ user_name }}"
+      register: directory
+      failed_when: not directory.stat.exists
+
+    - name: Set home directory vairable
+      ansible.builtin.set_fact:
+        user_home_directory: "{{ freeipa_user_home_dir }}"
 
 - name: Validate freeIPA parameters
   ansible.builtin.fail:

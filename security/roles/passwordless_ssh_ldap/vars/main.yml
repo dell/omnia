@@ -13,11 +13,11 @@
 #  limitations under the License.
 ---
 
-user_home_path: "{{ hostvars['127.0.0.1']['user_home_dir'] }}/{{ hostvars['127.0.0.1']['user_name'] }}"
+user_home_path: "{{ hostvars['127.0.0.1']['user_home_directory'] }}/{{ hostvars['127.0.0.1']['user_name'] }}"
 publickey_file_path: "{{ user_home_path }}/.ssh/id_rsa.pub"
 ldap_uid: "{{ hostvars['127.0.0.1']['user_name'] }}"
 ldap_ou: "{{ hostvars['127.0.0.1']['ldap_organizational_unit'] }}"
-ldap_dn: "{{ hostvars['127.0.0.1']['reqd_domain_name'] }}"
+ldap_dn: "{{ hostvars['127.0.0.1']['reqd_server_name'] }}"
 get_pub_key: "cat {{ publickey_file_path }}"
 ldap_ssh_ldif_cmd: "changeType{{ ':' }} modify\nadd{{ ':' }}objectClass\nobjectClass{{ ':' }}ldapPublicKey\n-\nadd{{ ':' }} sshPublicKey\nsshPublicKey{{ ':' }}"
 ldap_create_ssh_ldif_cmd: "dn{{ ':' }} uid={{ ldap_uid }},ou={{ ldap_ou }},{{ ldap_dn }}\n{{ ldap_ssh_ldif_cmd }} $({{ get_pub_key }})"
