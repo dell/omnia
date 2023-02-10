@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,20 +13,21 @@
 # limitations under the License.
 ---
 
-- hosts: manager, compute
+- name: Install hpc packages
+  hosts: manager, compute
   vars:
-    - thirdparty_packages:
-        - pdsh
-        - pdsh-rcmd-ssh
-        - clustershell
-  gather_facts: no
+    thirdparty_packages:
+      - pdsh
+      - pdsh-rcmd-ssh
+      - clustershell
+  gather_facts: false
   tasks:
     - name: Dispaly epel release info
-      command: dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm -y
+      ansible.builtin.command: dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm -y
       changed_when: false
       failed_when: false
 
     - name: Install thirdparty packages
-      package:
+      ansible.builtin.package:
         name: "{{ thirdparty_packages }}"
         state: present

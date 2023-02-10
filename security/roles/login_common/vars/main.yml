@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -40,4 +40,5 @@ os_rocky: 'rocky'
 os_leap: 'leap'
 os_redhat: 'redhat'
 os_version: '8.0'
-yum_distro_exclude: "kernel*,NetworkManager*,grub*,systemd*,container*,redhat*,subscription-manager*,openmpi*,mpitests_openmpi*,opensm*,ucx*,rdma*,infiniband*,ibacm*,libibumad*,srp_daemon*,libibverbs*,librdmacm*,perftest*,qperf*"
+yum_distro_exclude: "kernel*,NetworkManager*,grub*,systemd*,container*,redhat*,subscription-manager*,openmpi*,
+mpitests_openmpi*,opensm*,ucx*,rdma*,infiniband*,ibacm*,libibumad*,srp_daemon*,libibverbs*,librdmacm*,perftest*,qperf*"

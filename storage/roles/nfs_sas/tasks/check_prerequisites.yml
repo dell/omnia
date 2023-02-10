@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -20,24 +20,24 @@
 # Check nfs_node_status
 - name: Check NFS Node Status
   block:
-  - name: Initialize variables
-    ansible.builtin.set_fact:
-      nfs_node_status: false
-      nfs_client_support: false
+    - name: Initialize variables
+      ansible.builtin.set_fact:
+        nfs_node_status: false
+        nfs_client_support: false
 
-  - name: Set NFS node status
-    ansible.builtin.set_fact:
-      nfs_node_status: true
-    when:
-      - groups['nfs_node'] is defined
-      - groups['nfs_node'] | length | int > 0
+    - name: Set NFS node status
+      ansible.builtin.set_fact:
+        nfs_node_status: true
+      when:
+        - groups['nfs_node'] is defined
+        - groups['nfs_node'] | length | int > 0
 
-  - name: NFS group to contain exactly 1 node
-    ansible.builtin.assert:
-      that: "groups['nfs_node'] | length | int == 1"
-      fail_msg: "{{ nfs_node_group_fail_msg }}"
-      success_msg: "{{ nfs_node_group_success_msg }}"
-    when: nfs_node_status
+    - name: NFS group to contain exactly 1 node
+      ansible.builtin.assert:
+        that: "groups['nfs_node'] | length | int == 1"
+        fail_msg: "{{ nfs_node_group_fail_msg }}"
+        success_msg: "{{ nfs_node_group_success_msg }}"
+      when: nfs_node_status
 
 # Validate Powervault variables
 

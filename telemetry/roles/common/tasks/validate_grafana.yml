@@ -38,4 +38,4 @@
 
 - name: Fetch grafana mount point
   ansible.builtin.set_fact:
-    mount_location: "{{ lookup('ini', 'mount_point section=grafana_svc file=/opt/omnia/.data/grafana_svc_details.ini') }}"
+    mount_location: "{{ lookup('ini', 'mount_point section=grafana_svc file={{ grafana_conf_path }}') }}"
