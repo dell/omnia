@@ -69,6 +69,6 @@ The following parameters need to be populated in ``input/provision_config.yml`` 
 
 To continue to the next steps:
 
-* `Pre-requisites <provisionprereqs.html>`_
+* `Pre-requisites <../provisionprereqs.html>`_
 
-* `Provisioning the cluster <installprovisiontool.html>`_
+* `Provisioning the cluster <../installprovisiontool.html>`_
