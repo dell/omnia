@@ -1,4 +1,4 @@
-Running The Provision Tool
+Provisioning the cluster
 --------------------------
 
 1. Edit the ``input/provision_config.yml`` file to update the required variables.
@@ -42,13 +42,7 @@ c. Offline repositories will be created based on the OS being deployed across th
 
 d. The xCAT post bootscript is configured to assign the hostname (with domain name) on the provisioned servers.
 
-e. If ``mlnx_ofed_path`` is provided, OFED packages will be deployed post provisioning without user intervention. Alternatively, OFED can be installed using `network.yml <../../Roles/Network/index.html>`_.
-
-f. If ``cuda_toolkit_path`` is provided, CUDA packages will be deployed post provisioning without user intervention. Alternatively, CUDA can be installed using `accelerator.yml <../../Roles/Accelerator/index.html>`_.
-
-g. If ``bmc_nic_subnet`` is provided, and the ``discovery_mechanism`` is set to ``snmp`` or ``mapping``, the BMC IP address will be assigned post provisioning without user intervention.
-	
-Once the playbook execution is complete, ensure that PXE boot and RAID configurations are set up on remote nodes. Users are then expected to reboot target servers to provision the OS.
+Once the playbook execution is complete, ensure that PXE boot and RAID configurations are set up on remote nodes. Users are then expected to reboot target servers discovered via SNMP or mapping to provision the OS.
 
 .. note::
 
@@ -71,13 +65,67 @@ Once the playbook execution is complete, ensure that PXE boot and RAID configura
 .. warning:: Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect.
 
 
+Installing CUDA
+++++++++++++++++
 
+**Using the provision tool**
 
-**Using multiple versions of a given OS**
+* If ``cuda_toolkit_path`` is provided  in ``input/provision_config.yml`` and NVIDIA GPUs are available on the target nodes, CUDA packages will be deployed post provisioning without user intervention.
+
+**Using the Accelerator playbook**
+
+* CUDA can also be installed using `accelerator.yml <../../Roles/Accelerator/index.html>`_ after provisioning the servers (Assuming the provision tool did not install CUDA packages).
+
+.. note:: The CUDA package can be downloaded from `here <https://developer.nvidia.com/cuda-downloads>`_
+
+Installing OFED
++++++++++++++++++
+
+**Using the provision tool**
+
+* If ``mlnx_ofed_path`` is provided  in ``input/provision_config.yml`` and Mellanox NICs are available on the target nodes, OFED packages will be deployed post provisioning without user intervention.
+
+**Using the Network playbook**
+
+* OFED can also be installed using `network.yml <../../Roles/Network/index.html>`_ after provisioning the servers (Assuming the provision tool did not install OFED packages).
+
+.. note:: The OFED package can be downloaded from `here <https://network.nvidia.com/products/infiniband-drivers/linux/mlnx_ofed/>`_ .
+
+Assigning infiniband IPs
++++++++++++++++++++++++++++
+
+When ``ib_nic_subnet`` is provided in ``input/provision_config.yml``, the infiniband NIC on target nodes are assigned IPv4 addresses within the subnet without user intervention. When PXE range and Infiniband subnet are provided, the infiniband NICs will be assigned IPs with the same 3rd and 4th octets as the PXE NIC.
+
+* For example on a target node, when the PXE NIC is assigned 10.17.0.101, and the Infiniband NIC is assigned 10.29.0.101 (where ``ib_nic_subnet`` is 10.29.0.0).
+
+.. note::  The IP is assigned to the interface **ib0** on target nodes only if the interface is present in **active** mode. If no such NIC interface is found, xCAT will list the status of the node object as failed.
+
+Assigning BMC IPs
+++++++++++++++++++
+
+When target nodes are discovered via SNMP or mapping files (ie ``discovery_mechanism`` is set to snmp or mapping in ``input/provision_config.yml``), the ``bmc_nic_subnet`` in ``input/provision_config.yml`` can be used to assign BMC IPs to iDRAC without user intervention. When PXE range and BMC subnet are provided, the iDRAC NICs will be assigned IPs with the same 3rd and 4th octets as the PXE NIC.
+
+* For example on a target node, when the PXE NIC is assigned 10.17.0.101, and the iDRAC NIC is assigned 10.27.0.101 (where ``bmc_nic_subnet`` is 10.27.0.0).
+
+Using multiple versions of a given OS
++++++++++++++++++++++++++++++++++++++++
 
 Omnia now supports deploying different versions of the same OS. With each run of ``provision.yml``, a new deployable OS image is created with a distinct type (rocky or RHEL) and version (8.0, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7) depending on the values provided in ``input/provision_config.yml``.
 
-
-
 .. note:: While Omnia deploys the minimal version of the OS, the multiple version feature requires that the Rocky full (DVD) version of the OS be provided.
 
+DHCP routing for internet access
+++++++++++++++++++++++++++++++++
+
+Omnia now supports DHCP routing via the control plane. To enable routing, update the ``primary_dns`` and ``secondary_dns`` in ``input/provision_config.yml`` with the appropriate IPs (hostnames are currently not supported). For compute nodes that are not directly connected to the internet (ie only PXE network is configured), this configuration allows for internet connectivity.
+
+Disk partitioning
+++++++++++++++++++
+
+Omnia now allows for customization of disk partitions applied to remote servers. The disk partition ``desired_capacity`` has to be provided in MB. Valid ``mount_point`` values accepted for disk partition are ``/home``, ``/var``, ``/tmp``, ``/usr``, ``swap``. Default partition size provided for ``/boot`` is 1024MB, ``/boot/efi`` is 256MB and the remaining space to ``/`` partition.  Values are accepted in the form of JSON list such as:
+
+::
+
+    disk_partition:
+        - { mount_point: "/home", desired_capacity: "102400" }
+        - { mount_point: "swap", desired_capacity: "10240" }
