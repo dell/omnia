@@ -43,7 +43,7 @@ c. Offline repositories will be created based on the OS being deployed across th
 d. The xCAT post bootscript is configured to assign the hostname (with domain name) on the provisioned servers.
 
 e. If ``bmc_nic_subnet`` is provided, and the ``discovery_mechanism`` is set to ``snmp`` or ``mapping``, the BMC IP address will be assigned post provisioning without user intervention.
-	
+
 Once the playbook execution is complete, ensure that PXE boot and RAID configurations are set up on remote nodes. Users are then expected to reboot target servers to provision the OS.
 
 .. note::
@@ -93,6 +93,26 @@ Installing OFED
 
 .. note:: The OFED package can be downloaded from `here <https://network.nvidia.com/products/infiniband-drivers/linux/mlnx_ofed/>`_ .
 
+Assigning infiniband IPs
++++++++++++++++++++++++++++
+
+When ``ib_nic_subnet`` is provided in ``input/provision_config.yml``, the infiniband NIC on target nodes are assigned IPv4 addresses within the subnet without user intervention. When PXE range and Infiniband subnet are provided, the infiniband NICs will be assigned IPs with the same 3rd and 4th octets as the PXE NIC.
+
+* For example on a target node, when the PXE NIC is assigned 10.17.0.101, and the Infiniband NIC is assigned 10.29.0.101 (where ``ib_nic_subnet`` is 10.29.0.0).
+
+.. note::  The IP is assigned to the interface **ib0** on target nodes only if the interface is present in **active** mode. If no such NIC interface is found, xCAT will list the status of the node object as failed.
+
+Assigning BMC IPs
+++++++++++++++++++
+
+When target nodes are discovered via SNMP or mapping files (ie ``discovery_mechanism`` is set to snmp or mapping in ``input/provision_config.yml``), the ``bmc_nic_subnet`` in ``input/provision_config.yml`` can be used to assign BMC IPs to iDRAC without user intervention. When PXE range and BMC subnet are provided, the iDRAC NICs will be assigned IPs with the same 3rd and 4th octets as the PXE NIC.
+
+* For example on a target node, when the PXE NIC is assigned 10.17.0.101, and the iDRAC NIC is assigned 10.27.0.101 (where ``bmc_nic_subnet`` is 10.27.0.0).
+
+
+* For example on a target node, when the PXE NIC is assigned 10.17.0.101, and the Infiniband NIC is assigned 10.29.0.101 (where ``ib_nic_subnet`` is 10.29.0.0).
+
+
 Using multiple versions of a given OS
 +++++++++++++++++++++++++++++++++++++++
 
@@ -100,3 +120,18 @@ Omnia now supports deploying different versions of the same OS. With each run of
 
 .. note:: While Omnia deploys the minimal version of the OS, the multiple version feature requires that the Rocky full (DVD) version of the OS be provided.
 
+DHCP routing for internet access
+++++++++++++++++++++++++++++++++
+
+Omnia now supports DHCP routing via the control plane. To enable routing, update the ``primary_dns`` and ``secondary_dns`` in ``input/provision_config.yml`` with the appropriate IPs (hostnames are currently not supported). For compute nodes that are not directly connected to the internet (ie only PXE network is configured), this configuration allows for internet connectivity.
+
+Disk partitioning
+++++++++++++++++++
+
+Omnia now allows for customization of disk partitions applied to remote servers. The disk partition ``desired_capacity`` has to be provided in MB. Valid ``mount_point`` values accepted for disk partition are ``/home``, ``/var``, ``/tmp``, ``/usr``, ``swap``. Default partition size provided for ``/boot`` is 1024MB, ``/boot/efi`` is 256MB and the remaining space to ``/`` partition.  Values are accepted in the form of JSON list such as:
+
+::
+
+    disk_partition:
+        - { mount_point: "/home", desired_capacity: "102400" }
+        - { mount_point: "swap", desired_capacity: "10240" }

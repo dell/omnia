@@ -1,5 +1,17 @@
 Mapping Files
 --------------
+Manually collect PXE NIC information for target servers and manually define them to Omnia using a mapping file using the below format:
+
+**pxe_mapping_file.csv**
+
+
+::
+
+    MAC,Hostname,IP
+
+    xx:yy:zz:aa:bb:cc,server,172.29.0.101
+
+    aa:bb:cc:dd:ee:ff,server2, 172.29.0.102
 
 The following parameters need to be populated in ``input/provision_config.yml`` to discover target nodes using a mapping file.
 
@@ -55,3 +67,6 @@ The following parameters need to be populated in ``input/provision_config.yml`` 
 | cuda_toolkit_path     |                                                | Absolute path to local copy of   .rpm file containing CUDA packages. The cuda rpm can be downloaded from   https://developer.nvidia.com/cuda-downloads. CUDA will be installed post   provisioning without any user intervention. Eg: cuda_toolkit_path:   "/root/cuda-repo-rhel8-12-0-local-12.0.0_525.60.13-1.x86_64.rpm"                                                                                                                                                                                                                                                                                       | optional          |
 +-----------------------+------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------+
 
+To continue to the next steps:
+* `Pre-requisites <provisionprereqs.html>`_
+* `Provisioning the cluster <installprovisiontool.html>`_
