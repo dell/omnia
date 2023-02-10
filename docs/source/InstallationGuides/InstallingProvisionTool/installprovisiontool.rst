@@ -109,10 +109,6 @@ When target nodes are discovered via SNMP or mapping files (ie ``discovery_mecha
 
 * For example on a target node, when the PXE NIC is assigned 10.17.0.101, and the iDRAC NIC is assigned 10.27.0.101 (where ``bmc_nic_subnet`` is 10.27.0.0).
 
-
-* For example on a target node, when the PXE NIC is assigned 10.17.0.101, and the Infiniband NIC is assigned 10.29.0.101 (where ``ib_nic_subnet`` is 10.29.0.0).
-
-
 Using multiple versions of a given OS
 +++++++++++++++++++++++++++++++++++++++
 
