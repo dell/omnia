@@ -34,7 +34,7 @@
     nics_list: "{{ nics_list + [item.split(':')[0]] }}"
   with_items: "{{ temp_nics_list }}"
 
-    - name: Append NICs and subnets to dictionary
+- name: Append NICs and subnets to dictionary
   ansible.builtin.set_fact:
     nics_dict: '{{ nics_dict | combine({item: lookup("vars", "ansible_" + item).ipv4.network}) }}'
   when:  lookup("vars", "ansible_" + item).ipv4.network is defined
