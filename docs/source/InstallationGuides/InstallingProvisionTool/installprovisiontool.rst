@@ -42,7 +42,7 @@ c. Offline repositories will be created based on the OS being deployed across th
 
 d. The xCAT post bootscript is configured to assign the hostname (with domain name) on the provisioned servers.
 
-Once the playbook execution is complete, ensure that PXE boot and RAID configurations are set up on remote nodes. Users are then expected to reboot target servers to provision the OS.
+Once the playbook execution is complete, ensure that PXE boot and RAID configurations are set up on remote nodes. Users are then expected to reboot target servers discovered via SNMP or mapping to provision the OS.
 
 .. note::
 
