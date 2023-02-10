@@ -3,7 +3,8 @@ Security
 
 The security role allows users to set up FreeIPA and LDAP to help authenticate into HPC clusters.
 
-**Configuring FreeIPA/LDAP security**
+Configuring FreeIPA/LDAP security
+________________________________
 
 Enter the following parameters in ``input/security_config.yml``.
 
@@ -41,7 +42,8 @@ Enter the following parameters in ``input/security_config.yml``.
 
 
 
-**Configuring login node security**
+Configuring login node security
+________________________________
 
 Enter the following parameters in ``input/login_node_security_config.yml``.
 
@@ -67,7 +69,8 @@ Enter the following parameters in ``input/login_node_security_config.yml``.
 | restrict_softwares       | telnet,lpd,bluetooth,rlogin,rexec | List of services to be disabled (Comma-separated). Example:   'telnet,lpd,bluetooth'                                                                                           |
 +--------------------------+-----------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-**Installing LDAP Client**
+Installing LDAP Client
+________________________
 
 Manager and compute nodes will have LDAP client installed and configured if ``ldap_required`` is set to true. The login node does not have LDAP client installed.
 
