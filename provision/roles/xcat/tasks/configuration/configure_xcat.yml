@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -68,6 +68,14 @@
   ansible.builtin.shell: >
     chtab key=system passwd.username=root passwd.password=`openssl passwd -1 {{ provision_password }}`
   changed_when: true
+
+- name: Set fact if pxe start and end range not given
+  ansible.builtin.set_fact:
+    pxe_nic_start_range: >-
+      {{ pxe_subnet.split('.')[0] + '.' + pxe_subnet.split('.')[1] + '.' + '0' + '.' + '1' }}
+    pxe_nic_end_range: >-
+      {{ pxe_subnet.split('.')[0] + '.' + pxe_subnet.split('.')[1] + '.' + '255' + '.' + '253 ' }}
+  when: pxe_subnet | length > 6
 
 - name: Configure host_network in networks table
   ansible.builtin.shell: >
