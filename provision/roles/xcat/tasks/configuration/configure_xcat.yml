@@ -75,7 +75,7 @@
       {{ pxe_subnet.split('.')[0] + '.' + pxe_subnet.split('.')[1] + '.' + '0' + '.' + '1' }}
     pxe_nic_end_range: >-
       {{ pxe_subnet.split('.')[0] + '.' + pxe_subnet.split('.')[1] + '.' + '255' + '.' + '253 ' }}
-  when: 
+  when:
     - discovery_mechanism | lower == discovery_method_bmc
     - pxe_subnet | length > 6
 
