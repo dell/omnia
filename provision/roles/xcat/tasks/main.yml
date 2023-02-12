@@ -74,10 +74,6 @@
       ansible.builtin.include_tasks: snmp/set_provision_image_snmp.yml
       when: not reprovision_status
 
-    - name: Start provision for bmc
-      ansible.builtin.include_tasks: mtms/set_provision_image_mtms.yml
-      when: not reprovision_status
-
     - name: Reprovision nodes
       ansible.builtin.include_tasks: reprovision/reprovision.yml
       when: reprovision_status

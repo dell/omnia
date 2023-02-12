@@ -27,6 +27,7 @@ control_plane_arch: "x86_64"
 # Usage: main.yml
 discovery_method_bmc: "bmc"
 dhcp_timeout: 180
+static_dynamic_fail_msg: "Failed. No BMC found for both static and dynamic IP's. Please check the ranges again."
 
 # Usage: bmc_static_discovery.yml
 static_ip_file: "/opt/omnia/static.stanzas"

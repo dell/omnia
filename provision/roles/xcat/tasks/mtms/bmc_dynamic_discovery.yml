@@ -24,3 +24,4 @@
     that:
       - " '{{ no_bmc_found }}' not in dynamic_discovery.stderr"
     fail_msg: "{{ dynamic_discovery_fail_msg }}"
+  when: not bmc_static_status
