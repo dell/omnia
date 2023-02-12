@@ -28,26 +28,19 @@
   register: mounted_share
   failed_when: false
 
-- name: Check if directory exists
-  ansible.builtin.stat:
-    path: "{{ mlnx_ofed_nfs_path }}"
-  register: nfs_directory_stat
+- name: Unmount if mount exists already
+  ansible.builtin.command: umount "{{ cuda_nfs_path }}"
+  changed_when: false
 
 - name: Create the directory for mounting NFS client
   ansible.builtin.file:
-    path: "{{ mlnx_ofed_nfs_path }}"
+    path: "{{ cuda_nfs_path }}"
     state: directory
-    mode: "{{ mlnx_ofed_nfs_permissions }}"
-  when: not nfs_directory_stat.stat.exists
+    mode: "{{ cuda_nfs_permissions }}"
 
 - name: Mount NFS client
-  ansible.builtin.command: "mount -o {{ client_mount_options }} -t nfs {{ server_ip }}:{{ mlnx_ofed_nfs_path }} {{ mlnx_ofed_nfs_path }}"
+  ansible.builtin.command: "mount -o {{ client_mount_options }} -t nfs {{ server_ip }}:{{ cuda_nfs_path }} {{ cuda_nfs_path }}"
   changed_when: true
   args:
     warn: false
-  when: mlnx_ofed_nfs_path not in mounted_share.stdout
-
-- name: Add mount configuration to /etc/fstab file
-  ansible.builtin.lineinfile:
-    path: "{{ fstab_path }}"
-    line: "{{ server_ip }}:{{ mlnx_ofed_nfs_path }}     {{ mlnx_ofed_nfs_path }}  nfs     {{ client_mount_options }}"
+  when: cuda_nfs_path not in mounted_share.stdout
