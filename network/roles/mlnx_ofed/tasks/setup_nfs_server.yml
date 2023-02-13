@@ -55,7 +55,7 @@
   ansible.builtin.lineinfile:
     path: "{{ exports_file }}"
     line: "{{ mlnx_ofed_nfs_path }} {{ item }}({{ server_export_options }})"
-  with_items: "{{ groups['redhat_inventory'] }}"
+  with_items: "{{ groups['redhat_rocky_inventory'] }}"
 
 - name: Exporting the shared directories
   ansible.builtin.command: exportfs -ra
@@ -64,7 +64,7 @@
 # Check first 2 octets of compute node IP
 - name: Get starting IP octets of node inventory
   ansible.builtin.set_fact:
-    ib_inventory_start_octets: "{{ groups['redhat_inventory'][0].split('.')[0:2] | join('.') }}"
+    ib_inventory_start_octets: "{{ groups['redhat_rocky_inventory'][0].split('.')[0:2] | join('.') }}"
 
 # NFS Server IP (control plane IP) should be in same range as that of NFS Clients(compute nodes IP)
 - name: Find server IP in the range matching with node_inventory
