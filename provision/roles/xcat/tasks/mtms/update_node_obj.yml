@@ -19,8 +19,17 @@
        cat {{ static_ip_file }} | mkdef -z
   failed_when: false
   changed_when: false
+  when: bmc_static_status
 
-- name: Call static node update for BMC
+- name: Create temp node objects
+  ansible.builtin.shell: >
+       set -o pipefail && \
+       cat {{ dynamic_ip_file }} | mkdef -z
+  failed_when: false
+  changed_when: false
+  when: bmc_dynamic_status
+
+- name: Call node update for BMC
   ansible.builtin.command: |
      {{ python_version }} {{ update_static_node_path }} {{ provision_os_image }}
   changed_when: false
