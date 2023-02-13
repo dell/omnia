@@ -37,7 +37,7 @@
   changed_when: false
   failed_when: false
   with_items: "{{ fetch_bmc_ip.stdout_lines }}"
-  
+
 - name: IDRAC IPs
   ansible.builtin.set_fact:
     idrac_dynamic_ip: "{{ idrac_dynamic_ip | default ([]) }} + [ '{{ item.item }}']"
