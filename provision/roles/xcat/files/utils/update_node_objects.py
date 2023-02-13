@@ -61,12 +61,22 @@ def update_node_obj_nm():
         cursor.execute(sql)
         admin_ip = cursor.fetchone()
 
-        sql = '''select bmc_ip from cluster.nodeinfo where serial='{serial_key}' '''.format(
+        sql= '''select bmc_mode from cluster.nodeinfo where serial='{serial_key}' '''.format(
             serial_key=serial_output[i])
         cursor.execute(sql)
-        bmc_ip = cursor.fetchone()
+        mode = cursor.fetchone()[0]
 
-        command = f"chdef {node_name[0]} ip={admin_ip[0]} bmc={bmc_ip[0]} groups={groups} chain={chain_setup},{chain_os}"
+        if mode == "static":
+            command = f"chdef {node_name[0]} ip={admin_ip[0]} groups={groups} chain={chain_setup},{chain_os}"
+        if mode == "dynamic":
+            sql = '''select bmc_ip from cluster.nodeinfo where serial='{serial_key}' '''.format(
+            serial_key=serial_output[i])
+            cursor.execute(sql)
+            bmc_ip = cursor.fetchone()
+            command = f"chdef {node_name[0]} ip={admin_ip[0]} groups={groups} chain={chain_setup},{chain_os}"
+            node_objs = subprocess.run([f'{command}'], shell=True)
+            command= f"chdef {node_name[0]}  bmc={bmc_ip[0]}"
+
         node_objs = subprocess.run([f'{command}'], shell=True)
     cursor.close()
     conn.close()
