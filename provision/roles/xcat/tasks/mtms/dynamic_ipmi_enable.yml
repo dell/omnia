@@ -37,16 +37,16 @@
   changed_when: false
   failed_when: false
   with_items: "{{ fetch_bmc_ip.stdout_lines }}"
-
-- name: iDRAC IPs
+  
+- name: IDRAC IPs
   ansible.builtin.set_fact:
     idrac_dynamic_ip: "{{ idrac_dynamic_ip | default ([]) }} + [ '{{ item.item }}']"
   when:
-    -  item.stderr is defined
-    -  item.stderr == ""
+    - item.stderr is defined
+    - item.stderr == ""
   with_items: "{{ register_ipmi.results }}"
   no_log: true
 
-- name: iDRAC IPs on which IPMI is enabled
+- name: IDRAC IPs on which IPMI is enabled
   ansible.builtin.debug:
     msg: "{{ idrac_dynamic_ip }}"
