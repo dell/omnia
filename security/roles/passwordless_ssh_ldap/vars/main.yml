@@ -13,7 +13,7 @@
 #  limitations under the License.
 ---
 
-user_home_path: "{{ hostvars['127.0.0.1']['user_home_directory'] }}/{{ hostvars['127.0.0.1']['user_name'] }}"
+user_home_path: "{{ hostvars[groups['manager'][0]]['user_home_directory'] }}/{{ hostvars['127.0.0.1']['user_name'] }}"
 publickey_file_path: "{{ user_home_path }}/.ssh/id_rsa.pub"
 ldap_uid: "{{ hostvars['127.0.0.1']['user_name'] }}"
 ldap_ou: "{{ hostvars['127.0.0.1']['ldap_organizational_unit'] }}"

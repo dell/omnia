@@ -16,15 +16,15 @@
 - name: Include input params for mlnx_ofed
   ansible.builtin.include_vars: "{{ role_path }}/../../../input/network_config.yml"
 
-- name: Check if redhat node is present
+- name: Check if redhat/rocky node is present
   ansible.builtin.set_fact:
     redhat_node_ip: "{{ redhat_node_ip | default([]) + [item] }}"
   with_items: "{{ groups['all'] }}"
   when:
     - hostvars[item].ansible_distribution is defined
-    - "'redhat' in hostvars[item].ansible_distribution | lower"
+    - "'redhat' in hostvars[item].ansible_distribution | lower or 'rocky' in hostvars[item].ansible_distribution | lower"
 
-- name: Perform validations when compute nodes have redhat os installed
+- name: Perform validations when compute nodes have redhat/rocky os installed
   block:
     - name: Set Redhat distro
       ansible.builtin.set_fact:
