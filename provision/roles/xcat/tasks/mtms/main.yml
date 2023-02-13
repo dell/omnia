@@ -34,7 +34,7 @@
           ansible.builtin.include_tasks: update_db_static.yml
 
         - name: Update node objects for static bmc mode
-          ansible.builtin.include_tasks: update_static_node_obj.yml
+          ansible.builtin.include_tasks: update_node_obj.yml
           
         - name: Provision static nodes
           ansible.builtin.include_tasks: set_provision_image_mtms.yml
