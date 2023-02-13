@@ -20,7 +20,6 @@
 
     - name: Update network table for BMC network
       ansible.builtin.include_tasks: update_xcat_network_mtms.yml
-      when: bmc_dynamic_status
 
     - name: Create genesis image
       ansible.builtin.include_tasks: create_genesis_image.yml
