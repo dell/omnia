@@ -76,11 +76,13 @@ def add_details_to_db():
         if current_status is not node_details[node][0]:
             sql_update_status = "Update cluster.nodeinfo set status = %s where node = %s"
             cursor.execute(sql_update_status, (node_details[node][0], node))
-            if node_details[node][0] == "booted":
-                sql_mac = "Update cluster.nodeinfo set host_mac = %s where node = %s"
-                cursor.execute(sql_mac, (node_details[node][1], node))
+        sql_check_mac = "Select admin_mac from cluster.nodeinfo where node = %s"
+        cursor.execute(sql_check_mac, (node,))
+        current_mac = cursor.fetchall()
+        if len(current_mac) < 1 and len(node_details[node][1]) > 2:
+            sql_mac = "Update cluster.nodeinfo set admin_mac = %s where node = %s"
+            cursor.execute(sql_mac, (node_details[node][1], node))
     conn.close()
-
 
 MonitoringThreadObject = MonitoringThread()
 MonitoringThreadObject.Daemon = True
