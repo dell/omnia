@@ -27,16 +27,15 @@ chain_os = f"osimage={os_name}"
 def get_node_obj():
     command = "lsdef"
     node_objs = subprocess.run([f'{command}'], shell=True, capture_output = True)
-    print(node_objs.stdout)
     temp = str(node_objs.stdout).split('\n')
     for i in range(0, len(temp) - 1):
         node_obj_nm.append(temp[i].split(' ')[0])
-    print(node_obj_nm)
 
     update_node_obj_nm()
 
 
 def update_node_obj_nm():
+
     # Establish a connection with omniadb
     conn = psycopg2.connect(
         database="omniadb",
@@ -51,7 +50,8 @@ def update_node_obj_nm():
 
     for i in range(0, len(serial_output)):
         serial_output[i] = str(serial_output[i][0]).lower()
-    for i in (0, len(serial_output) - 1):
+    for i in range(0, len(serial_output)):
+        print(serial_output[i])
         serial_output[i] = serial_output[i].upper()
         sql = '''select node from cluster.nodeinfo where serial='{serial_key}' '''.format(serial_key=serial_output[i])
         cursor.execute(sql)
@@ -60,10 +60,16 @@ def update_node_obj_nm():
             serial_key=serial_output[i])
         cursor.execute(sql)
         admin_ip = cursor.fetchone()
-        command = f"chdef {node_name[0]} -p ip={admin_ip[0]} groups={groups} chain={chain_setup},{chain_os}"
-        node_objs = subprocess.run([f'{command}'], shell=True)
 
+        sql = '''select bmc_ip from cluster.nodeinfo where serial='{serial_key}' '''.format(
+            serial_key=serial_output[i])
+        cursor.execute(sql)
+        bmc_ip = cursor.fetchone()
+
+        command = f"chdef {node_name[0]} ip={admin_ip[0]} bmc={bmc_ip[0]} groups={groups} chain={chain_setup},{chain_os}"
+        node_objs = subprocess.run([f'{command}'], shell=True)
     cursor.close()
     conn.close()
+
 
 get_node_obj()
