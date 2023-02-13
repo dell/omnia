@@ -30,7 +30,7 @@
 - name: Enable IPMI on iDRACs
   ansible.builtin.shell: >-
     sshpass -p "{{ bmc_password }}"
-    ssh "{{ bmc_username }}"@"{{ item }}""{{ ipmi_command }}"
+    ssh "{{ bmc_username }}"@"{{ item }}" "{{ ipmi_command }}"
   no_log: true
   timeout: "{{ timeout_ipmi }}"
   register: register_ipmi
