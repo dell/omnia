@@ -46,6 +46,7 @@ update_db_dynamic_path: "{{ role_path }}/files/utils/extract_dynamic_data.py"
 
 # Usage: update_node_obj.yml
 update_static_node_path: "{{ role_path }}/files/utils/update_node_objects.py"
+update_dynamic_node_path: "{{ role_path }}/files/utils/update_dynamic_node_objects.py"
 
 # Usage: set_provision_image_mtms.yml
 bmc_node_group: "bmc"
@@ -56,5 +57,5 @@ mtms_reboot_warning_msg: "[WARNING] Reboot failed for the discoverd nodes using 
 # Usage: dynamic_ipmi_enable.yml
 create_dynamic_ip_path: "{{ role_path }}/files/utils/create_dynamic_ip_list.py"
 dynamic_ip_list_path: "/opt/omnia/dynamic_ip_list"
-ipmi_command: "'racadm set iDRAC.IPMILan.Enable 1'"
+ipmi_command: 'racadm set iDRAC.IPMILan.Enable 1'
 timeout_ipmi: 15
