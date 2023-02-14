@@ -50,6 +50,7 @@ update_dynamic_node_path: "{{ role_path }}/files/utils/update_dynamic_node_objec
 
 # Usage: set_provision_image_mtms.yml
 bmc_node_group: "bmc"
+bmc_static_node_group: "bmc_static"
 mtms_set_pxe_warning_msg: "[WARNING] Setting PXE boot failed for the discoverd nodes using mtms. Error:"
 mtms_xcat_install_success_msg: "provision.yml executed successfully for discoverd nodes using mtms."
 mtms_reboot_warning_msg: "[WARNING] Reboot failed for the discoverd nodes using mtms. Error:"
