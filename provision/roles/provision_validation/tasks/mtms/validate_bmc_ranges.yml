@@ -92,7 +92,7 @@
 
     - name: Validate dynamic ranges count is greater than omnia ranges - wait for 5 seconds
       ansible.builtin.pause:
-        seconds: "{{ warning_wait_time }}"
+        seconds: "{{ warning_wait_time_mtms }}"
         prompt: "{{ range_warning_msg }}"
       when: dynamic_count.stdout | int < omnia_count.stdout | int
   when: bmc_dynamic_status
