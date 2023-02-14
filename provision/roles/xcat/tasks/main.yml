@@ -74,6 +74,16 @@
       ansible.builtin.include_tasks: snmp/set_provision_image_snmp.yml
       when: not reprovision_status
 
+    - name: Provision static nodes
+      ansible.builtin.include_tasks: mtms/set_provision_image_mtms.yml
+      with_items: "{{ bmc_static_node_group }}"
+      when: bmc_static_status
+
+    - name: Provision dynamic nodes
+      ansible.builtin.include_tasks: mtms/set_provision_image_mtms.yml
+      with_items: "{{ dynamic_nodes.stdout_lines }}"
+      when: bmc_dynamic_status
+
     - name: Reprovision nodes
       ansible.builtin.include_tasks: reprovision/reprovision.yml
       when: reprovision_status
