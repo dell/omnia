@@ -13,5 +13,8 @@
 #  limitations under the License.
 ---
 
+- name: Validate if home directory exists
+  ansible.builtin.include_tasks: validation.yml
+
 - name: Common configurations
   ansible.builtin.include_tasks: ssh_config.yml
