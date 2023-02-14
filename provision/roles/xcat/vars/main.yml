@@ -117,3 +117,8 @@ file_perm: 0644
 
 # Usage: provisioned_node_inventory.yml
 node_inventory_path: /opt/omnia/node_inventory
+
+# Usage: initiate_monitor_status.yml
+psql_devel_packages:
+  - postgresql-devel
+  - python3-devel
