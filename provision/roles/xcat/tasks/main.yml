@@ -81,7 +81,7 @@
 
     - name: Provision dynamic nodes
       ansible.builtin.include_tasks: mtms/set_provision_image_mtms.yml
-      with_items: "{{ dynamic_nodes.stdout }}"
+      with_items: "{{ dynamic_nodes.stdout_lines }}"
       when: bmc_dynamic_status
 
     - name: Reprovision nodes
