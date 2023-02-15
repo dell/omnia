@@ -21,7 +21,7 @@
 - name: Call python utility to create the dynamic list of feasible IPs
   ansible.builtin.command: |
     {{ python_version }} {{ create_dynamic_ip_path }} {{ bmc_nic_subnet }} {{ bmc_nic_netmask }}
-    {{ bmc_username }} {{ bmc_password}}
+    {{ bmc_username }} {{ bmc_password }}
   no_log: true
   changed_when: false
 
@@ -46,7 +46,7 @@
 
 - name: IDRAC IPs
   ansible.builtin.set_fact:
-    idrac_dynamic_ip: "{{ idrac_dynamic_ip | default ([]) }} + [ '{{ item.item }}']"
+    idrac_dynamic_ip: "{{ idrac_dynamic_ip | default([]) }} + [ '{{ item.item }}']"
   when:
     - item.stderr is defined
     - item.stderr == ""
