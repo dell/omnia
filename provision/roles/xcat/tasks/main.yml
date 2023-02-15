@@ -79,6 +79,7 @@
       with_items: "{{ bmc_static_node_group }}"
       when:
         - discovery_mechanism == discovery_method_bmc
+        - not reprovision_status
         - bmc_static_status
 
     - name: Provision dynamic nodes
@@ -86,6 +87,7 @@
       with_items: "{{ dynamic_nodes.stdout_lines }}"
       when:
         - discovery_mechanism == discovery_method_bmc
+        - not reprovision_status
         - bmc_dynamic_status
         - dynamic_final_status
 
