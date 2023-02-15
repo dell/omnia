@@ -66,6 +66,7 @@ Use the below command to enable passwordless SSH: ::
 
 Where inventory follows the format defined under inventory file in the provided `Sample Files <../../samplefiles.html>`_
 
+.. caution:: Do not run ssh-keygen commands after passwordless SSH is set up on the nodes.
 
 
 Using LDAP client
@@ -122,7 +123,7 @@ Use the below command to enable passwordless SSH: ::
 
 Where inventory follows the format defined under inventory file in the provided `Sample Files <../../samplefiles.html>`_
 
-
+.. caution:: Do not run ssh-keygen commands after passwordless SSH is set up on the nodes.
 
 
 

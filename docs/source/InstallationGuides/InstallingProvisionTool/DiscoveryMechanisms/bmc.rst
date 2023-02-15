@@ -4,14 +4,15 @@ BMC
 **Pre requisites**
 
 - IP ranges provided to Omnia for BMC discovery (bmc_dynamic_range, bmc_static_range and omnia_exclusive_static_range) should be within the same subnet but not overlap. Sample values:
-    * bmc_dynamic_start_range: 172.39.0.10
-    * bmc_dynamic_end_range: 172.39.0.100
-    * bmc_static_start_range: 172.39.0.101
-    * bmc_static_end_range: 172.39.0.250
-    * omnia_exclusive_static_start_range: 172.39.1.101
-    * omnia_exclusive_static_end_range: 172.39.1.254
+    * ``bmc_dynamic_start_range``: 172.39.0.10
+    * ``bmc_dynamic_end_range``: 172.39.0.100
+    * ``bmc_static_start_range``: 172.39.0.101
+    * ``bmc_static_end_range``: 172.39.0.250
+    * ``omnia_exclusive_static_start_range``: 172.39.1.101
+    * ``omnia_exclusive_static_end_range``: 172.39.1.254
 - BMC discovery and assignment can either be static (provide ``bmc_static_start_range``, ``bmc_static_end_range``) OR dynamic ( provide ``bmc_dynamic_start_range``, ``bmc_dynamic_end_range``, ``omnia_exclusive_static_end_range``, ``omnia_exclusive_static_start_range``)
-- The number of IPs available in the omnia_exclusive_static_range should be at least the same number as what's available in the bmc_dynamic_range.
+- The number of IPs available in the omnia_exclusive_static_range should be at least the same number as what's available in the ``bmc_dynamic_range``.
+- The first PXE device on target nodes should be the designated active NIC for PXE booting.
 
 The following parameters need to be populated in ``input/provision_config.yml`` to discover target nodes using BMC.
 
@@ -80,6 +81,8 @@ The following parameters need to be populated in ``input/provision_config.yml`` 
 +------------------------------------+------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | cuda_toolkit_path                  |                                                | Absolute path to local copy of   .rpm file containing CUDA packages. The cuda rpm can be downloaded from   https://developer.nvidia.com/cuda-downloads. CUDA will be installed post   provisioning without any user intervention. Eg: cuda_toolkit_path:   "/root/cuda-repo-rhel8-12-0-local-12.0.0_525.60.13-1.x86_64.rpm"                                                                                                                                                                                                                                                                                       |
 +------------------------------------+------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+.. warning:: The IP address *192.168.25.x* is used for PowerVault Storage communications. Therefore, do not use this IP address for other configurations.
 
 
 To continue to the next steps:
