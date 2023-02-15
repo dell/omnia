@@ -1,7 +1,11 @@
 Frequently Asked Questions
 ==========================
 
-**How to add a new node for provisioning?**
+**What to do if playbook execution fails due to external (network, hardware etc) failure**
+
+Re-run the playbook whose execution failed once the issue is resolved.
+
+**How to add a new node for provisioning**
 
 
 1. Using a mapping file:
