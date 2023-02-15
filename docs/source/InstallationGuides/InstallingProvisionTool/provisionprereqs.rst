@@ -32,6 +32,8 @@ In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcf
 
     * If there are errors while executing any of the Ansible playbook commands, then re-run the playbook.
 
+    * For servers with an existing OS being discovered via BMC, ensure that the first PXE device on target nodes should be the designated active NIC for PXE booting.
+
 
 
 

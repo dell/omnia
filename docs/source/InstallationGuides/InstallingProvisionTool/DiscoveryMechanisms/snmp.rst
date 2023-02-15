@@ -60,6 +60,9 @@ Omnia can query known switches (by IP and community string) for information on t
 | cuda_toolkit_path                |                                                | Absolute path to local copy of   .rpm file containing CUDA packages. The cuda rpm can be downloaded from   https://developer.nvidia.com/cuda-downloads. CUDA will be installed post   provisioning without any user intervention. Eg: cuda_toolkit_path:   "/root/cuda-repo-rhel8-12-0-local-12.0.0_525.60.13-1.x86_64.rpm"                                                                                                                                                                                                                                                                                       | optional          |
 +----------------------------------+------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-------------------+
 
+.. warning:: The IP address *192.168.25.x* is used for PowerVault Storage communications. Therefore, do not use this IP address for other configurations.
+
+
 To continue to the next steps:
 
 * `Pre-requisites <../provisionprereqs.html>`_
