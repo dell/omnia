@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,13 +13,10 @@
 #  limitations under the License.
 ---
 ## Usage: test_ldap_server_setup.yml
-ldap_package_installation_success_msg: "LDAP packages are successfully installed"
-ldap_package_installation_fail_msg: "LDAP package installation failed"
-slapd_status_success_msg: "slapd process is active and enabled"
-slapd_status_fail_msg: "slapd process is inactive or disbaled. Please check !!"
-slapd_password: "Dell_123$"
-user_olcSuffix: 'dc=dell,dc=com'
+slapd_password: "Dell"
+user_olcSuffix: 'dc=summer,dc=test'
 user_olcRootDN: 'cn=admin'
+user_group: 'ou=people'
 
 ## Usage: test_ldap_authentication.yml
 random_number: "{{ 10000 | random }}"
@@ -31,11 +28,21 @@ ldap_add_user_success_msg: "LDAP user created successfully with cn: "
 ldap_add_user_fail_msg: "LDAP user creation failed"
 ldap_user_search_client_success_msg: "Created user available on client nodes"
 ldap_user_search_client_fail_msg: "Created user is not available on client nodes"
-ldap_client_installation_manager_success_msg: "LDAP client installation is successful on manager"
-ldap_client_installation_manager_fail_msg: "LDAP client installation failed on manager"
-ldap_client_installation_compute_success_msg: "LDAP client installation is successful on compute"
-ldap_client_installation_compute_fail_msg: "LDAP client installation failed on compute"
-ldap_client_installation_login_success_msg: "LDAP client is not installed on login node"
-ldap_client_installation_login_fail_msg: "LDAP client is installed even when login_node_required is false"
-ipa_installation_success_msg: "IPA installation successful on client nodes"
-ipa_installation_fail_msg: "IPA installation failed on client nodes"
+
+##Client Packages Messages and User Creation message
+openldap_success_msg: "Openldap installed successfully"
+openldap_fail_msg: "Openldap not installed"
+sssd_success_msg: "SSSD installed successfully"
+sssd_fail_msg: "SSSD not installed"
+sssd_ldap_success_msg: "SSSD-LDAP installed successfully"
+sssd_ldap_fail_msg: "SSSD-LDAP not installed"
+oddjob_success_msg: "Oddjob-mkdir installed successfully"
+oddjob_fail_msg: "Oddjob-mkdir not installed"
+openssl_success_msg: "Openssl installed successfully"
+openssl_fail_msg: "Openssl not installed"
+sssd_status_success_msg: "sssd Running Actively"
+sssd_status_fail_msg: "sssd not Running Actively"
+oddjob_status_success_msg: "Oddjob Running Actively"
+oddjob_status_fail_msg: "Oddjob not Running Actively"
+user_success_msg: "Ldap User Created successfully"
+user_fail_msg: "Ldap User not Created"

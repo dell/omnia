@@ -3,8 +3,6 @@ Provisioning the cluster
 
 1. Edit the ``input/provision_config.yml`` file to update the required variables.
 
-.. warning:: The IP address *192.168.25.x* is used for PowerVault Storage communications. Therefore, do not use this IP address for other configurations.
-
 2. To deploy the Omnia provision tool, run the following command ::
 
     cd provision
@@ -42,6 +40,7 @@ c. Offline repositories will be created based on the OS being deployed across th
 
 d. The xCAT post bootscript is configured to assign the hostname (with domain name) on the provisioned servers.
 
+
 Once the playbook execution is complete, ensure that PXE boot and RAID configurations are set up on remote nodes. Users are then expected to reboot target servers discovered via SNMP or mapping to provision the OS.
 
 .. note::
@@ -62,8 +61,10 @@ Once the playbook execution is complete, ensure that PXE boot and RAID configura
 
     * Post execution of ``provision.yml``, IPs/hostnames cannot be re-assigned by changing the mapping file. However, the addition of new nodes is supported as explained below.
 
-.. warning:: Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect.
+.. warning::
 
+    * Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect.
+    * To avoid breaking the passwordless SSH channel on the control plane, do not run ``ssh-keygen`` commands post execution of ``provision.yml``.
 
 Installing CUDA
 ++++++++++++++++
