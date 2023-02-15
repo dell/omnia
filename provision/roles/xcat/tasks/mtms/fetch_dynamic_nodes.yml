@@ -13,15 +13,9 @@
 # limitations under the License.
 ---
 
-- name: BMC Discover on Static ranges
+- name: Fetch nodes with dynamic IP's
   ansible.builtin.shell: |
-      bmcdiscover --range '{{ bmc_static_start_range }}'-'{{ bmc_static_end_range.split('.')[-1] }}' -z > '{{ static_ip_file }}'
-  register: static_discovery
+      set -o pipefail && \
+      lsdef | grep "node-" | sed -e 's/\s.*$//'
   changed_when: false
-
-- name: Assert static discovery
-  ansible.builtin.assert:
-    that:
-      - " '{{ no_bmc_found }}' not in static_discovery.stderr"
-    fail_msg: "{{ static_discovery_fail_msg }}"
-  when: not bmc_dynamic_status
+  register: dynamic_nodes

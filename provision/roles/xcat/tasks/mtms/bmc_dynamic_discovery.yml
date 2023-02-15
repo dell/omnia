@@ -24,3 +24,13 @@
     that:
       - " '{{ no_bmc_found }}' not in dynamic_discovery.stderr"
     fail_msg: "{{ dynamic_discovery_fail_msg }}"
+  when: not bmc_static_status
+
+- name: Assert for successful static and dynamic discovery
+  ansible.builtin.assert:
+    that:
+      - "('{{ no_bmc_found }}' not in static_discovery.stderr) or ('{{ no_bmc_found }}' not in dynamic_discovery.stderr)"
+    fail_msg: "{{ static_dynamic_fail_msg }}"
+  when:
+    - bmc_static_status
+    - bmc_dynamic_status

@@ -16,7 +16,7 @@
 - name: Task for set PXE to nodes for mtms
   block:
     - name: Set PXE to node object for mtms
-      ansible.builtin.command: rsetboot {{ bmc_node_group }} net
+      ansible.builtin.command: rsetboot {{ item }} net
       changed_when: true
       register: set_pxe_bmc
   rescue:
@@ -30,7 +30,7 @@
 - name: Task to reboot the nodes for BMC
   block:
     - name: Reboot nodes
-      ansible.builtin.command: rpower {{ bmc_node_group }} on
+      ansible.builtin.command: rpower {{ item }} reset
       changed_when: true
       register: reboot_status
 

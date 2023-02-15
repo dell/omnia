@@ -109,8 +109,8 @@ k8s_config_file_mode: 0644
 k8s_cert_path: /etc/kubernetes/pki/ca.crt
 yaml_repo_dir_path: /root/k8s
 yaml_repo_dir_mode: 0755
-tigera_operator_url: https://docs.projectcalico.org/manifests/tigera-operator.yaml
-calico_yml_url: https://docs.projectcalico.org/manifests/custom-resources.yaml
+tigera_operator_url: https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/tigera-operator.yaml
+calico_yml_url: https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/custom-resources.yaml
 
 # Usage: k8s_services.yml
 metallb_config_file_dest: /root/k8s/metal-config.yaml

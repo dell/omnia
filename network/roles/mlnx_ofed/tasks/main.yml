@@ -36,11 +36,9 @@
 
       when: "'Active: active' not in openibd_status.stdout"
 
-  when: os_supported_rhel in ansible_facts['distribution'] | lower
-
-- name: Install mlnx_ofed on rocky nodes
-  ansible.builtin.include_tasks: install_mlnx_rocky.yml
-  when: os_supported_rocky in ansible_facts['distribution'] | lower
+  when:
+    - os_supported_rhel in ansible_facts['distribution'] | lower
+      or os_supported_rocky in ansible_facts['distribution'] | lower
 
 - name: Install mlnx_ofed on leap nodes
   ansible.builtin.include_tasks: install_mlnx_leap.yml
