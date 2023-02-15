@@ -50,11 +50,14 @@
 
         - name: Update node objects for dynamic bmc_mode
           ansible.builtin.include_tasks: update_db_dynamic.yml
+          when: dynamic_final_status
 
         - name: Update node objects for static bmc mode
           ansible.builtin.include_tasks: update_node_obj.yml
+          when: dynamic_final_status
 
         - name: Fetch all the dhcp enabled nodes
           ansible.builtin.include_tasks: fetch_dynamic_nodes.yml
+          when: dynamic_final_status
       when: bmc_dynamic_status
   when: discovery_mechanism | lower == discovery_method_bmc

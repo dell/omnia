@@ -13,10 +13,15 @@
 #  limitations under the License.
 ---
 
+- name: Set fact for the idrac ip list
+  ansible.builtin.set_fact:
+    idrac_dynamic_ip: []
+    dynamic_final_status: false
+
 - name: Call python utility to create the dynamic list of feasible IPs
   ansible.builtin.command: |
     {{ python_version }} {{ create_dynamic_ip_path }} {{ bmc_nic_subnet }} {{ bmc_nic_netmask }}
-    {{ bmc_username }} {{ bmc_password }}
+    {{ bmc_username }} {{ bmc_password}}
   no_log: true
   changed_when: false
 
@@ -41,13 +46,20 @@
 
 - name: IDRAC IPs
   ansible.builtin.set_fact:
-    idrac_dynamic_ip: "{{ idrac_dynamic_ip | default([]) }} + [ '{{ item.item }}']"
+    idrac_dynamic_ip: "{{ idrac_dynamic_ip | default ([]) }} + [ '{{ item.item }}']"
   when:
     - item.stderr is defined
     - item.stderr == ""
   with_items: "{{ register_ipmi.results }}"
+  failed_when: false
   no_log: true
+
+- name: Set the status of dynamic nodes
+  ansible.builtin.set_fact:
+    dynamic_final_status: true
+  when: idrac_dynamic_ip | length > 0
 
 - name: IDRAC IPs on which IPMI is enabled
   ansible.builtin.debug:
     msg: "{{ idrac_dynamic_ip }}"
+  when: dynamic_final_status
