@@ -79,9 +79,10 @@ def add_details_to_db():
         sql_check_mac = "Select admin_mac from cluster.nodeinfo where node = %s"
         cursor.execute(sql_check_mac, (node,))
         current_mac = cursor.fetchall()
-        if len(current_mac) < 1 and len(node_details[node][1]) > 2:
-            sql_mac = "Update cluster.nodeinfo set admin_mac = %s where node = %s"
-            cursor.execute(sql_mac, (node_details[node][1], node))
+        if len(current_mac) < 2 and len(node_details[node][1]) > 2:
+            if current_mac[0][0] is None:
+                sql_mac = "Update cluster.nodeinfo set admin_mac = %s where node = %s"
+                cursor.execute(sql_mac, (node_details[node][1], node))
     conn.close()
 
 MonitoringThreadObject = MonitoringThread()
