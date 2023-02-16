@@ -13,6 +13,9 @@
 #  limitations under the License.
 ---
 
+# Usage: main.yml
+nic_wait_time: 30
+
 # Usage: assign_admin_nic_config.yml
 omnia_admin_ip: "{{ admin_nic_subnet.split('.')[0] + '.' + admin_nic_subnet.split('.')[1] + '.' + '255' + '.' + '254' }}"
 omnia_admin_netmask: 255.255.0.0
