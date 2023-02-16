@@ -49,6 +49,5 @@
       ansible.builtin.set_fact:
         bmc_postscripts_config_status: true
   when:
-    - bmc_nic_subnet | default("", true) | length > 6
     - discovery_mechanism | lower == discovery_method_mapping or
       discovery_mechanism | lower == discovery_method_snmp

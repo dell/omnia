@@ -77,12 +77,17 @@
     - name: Provision static nodes
       ansible.builtin.include_tasks: mtms/set_provision_image_mtms.yml
       with_items: "{{ bmc_static_node_group }}"
-      when: bmc_static_status
+      when:
+        - discovery_mechanism == discovery_method_bmc
+        - not reprovision_status
+        - bmc_static_status
 
     - name: Provision dynamic nodes
       ansible.builtin.include_tasks: mtms/set_provision_image_mtms.yml
       with_items: "{{ dynamic_nodes.stdout_lines }}"
       when:
+        - discovery_mechanism == discovery_method_bmc
+        - not reprovision_status
         - bmc_dynamic_status
         - dynamic_final_status
 
