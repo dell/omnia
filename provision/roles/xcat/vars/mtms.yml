@@ -16,19 +16,6 @@
 # Usage: update_xcat_networks_table.yml
 fail_bmc_nic: "Failed. Please provide proper bmc subnet."
 
-# Usage: assign_nic_config.yml
-pxe_subnet_msg: "Failed. Please provide proper pxe_subnet"
-omnia_bmc_ip: "{{ bmc_nic_subnet.split('.')[0] + '.' + bmc_nic_subnet.split('.')[1] + '.' + '255' + '.' + '254' }}"
-omnia_admin_ip: "{{ admin_nic_subnet.split('.')[0] + '.' + admin_nic_subnet.split('.')[1] + '.' + '255' + '.' + '254' }}"
-omnia_bmc_netmask: 255.255.0.0
-omnia_admin_netmask: 255.255.0.0
-
-# Usage: enable_nic_configuration.yml
-nic_subnet: 16
-bmc_nic_path: "/etc/sysconfig/network-scripts/ifcfg-{{ admin_nic }}"
-hosts_file_path: /etc/hosts
-hosts_file_mode: "0644"
-
 # Usage: update_ipmi_table.yml
 ipmi_success_msg: "Successfully updated IPMI table"
 ipmi_fail_msg: "Failed creating genesis image"
@@ -64,9 +51,9 @@ update_dynamic_node_path: "{{ role_path }}/files/utils/update_dynamic_node_objec
 # Usage: set_provision_image_mtms.yml
 bmc_node_group: "bmc"
 bmc_static_node_group: "bmc_static"
-mtms_set_pxe_warning_msg: "[WARNING] Setting PXE boot failed for the discovereed nodes using bmc. Error:"
-mtms_xcat_install_success_msg: "provision.yml executed successfully for discoverd nodes using bmc."
-mtms_poweron_warning_msg: "[WARNING] Power on failed for the discovered nodes using bmc. Error:"
+mtms_set_pxe_warning_msg: "[WARNING] Setting PXE boot failed for the discovered nodes using BMC. Error:"
+mtms_xcat_install_success_msg: "provision.yml executed successfully for discovered nodes using BMC."
+mtms_reboot_warning_msg: "[WARNING] Power on failed for the discovered nodes using BMC. Error:"
 
 # Usage: dynamic_ipmi_enable.yml
 create_dynamic_ip_path: "{{ role_path }}/files/utils/create_dynamic_ip_list.py"
