@@ -29,9 +29,6 @@
 - name: Validate discovery parameters
   ansible.builtin.include_tasks: validate_discovery_params.yml
 
-- name: Include variables for configuring NIC
-  ansible.builtin.include_vars: "{{ role_path }}/../xcat/vars/mtms.yml"
-
 - name: Assign nic configuration when discovery mechanism is mapping or snmp
   ansible.builtin.include_tasks: assign_admin_nic_config.yml
   when:
@@ -39,7 +36,7 @@
       discovery_mechanism == discovery_method_mapping
 
 - name: Assign nic configuration when discovery mechanism is bmc
-  ansible.builtin.include_tasks: "{{ role_path }}/../xcat/tasks/mtms/assign_nic_config.yml"
+  ansible.builtin.include_tasks: assign_nic_config.yml
   when: discovery_mechanism == discovery_method_bmc
 
 - name: Validate the nic parameters
