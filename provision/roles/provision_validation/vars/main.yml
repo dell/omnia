@@ -13,6 +13,12 @@
 #  limitations under the License.
 ---
 
+# Usage: assign_admin_nic_config.yml
+omnia_admin_ip: "{{ admin_nic_subnet.split('.')[0] + '.' + admin_nic_subnet.split('.')[1] + '.' + '255' + '.' + '254' }}"
+omnia_admin_netmask: 255.255.0.0
+nic_subnet: 16
+admin_nic_path: "/etc/sysconfig/network-scripts/ifcfg-{{ admin_nic }}"
+
 # Usage: package_installation.yml
 ansible_galaxy_collection:
   - ansible.utils:2.5.2
