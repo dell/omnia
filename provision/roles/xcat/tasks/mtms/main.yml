@@ -34,6 +34,10 @@
 
         - name: Update node objects for static bmc mode
           ansible.builtin.include_tasks: update_node_obj.yml
+
+        - name: Power off the nodes for static
+          ansible.builtin.include_tasks: power_off_nodes.yml
+          with_items: "{{ bmc_static_node_group }}"
       when: bmc_static_status
 
     - name: Perform operations for dynamic range
@@ -58,6 +62,11 @@
 
         - name: Fetch all the dhcp enabled nodes
           ansible.builtin.include_tasks: fetch_dynamic_nodes.yml
+          when: dynamic_final_status
+
+        - name: Power off the nodes for dynamic
+          ansible.builtin.include_tasks: power_off_nodes.yml
+          with_items: "{{ dynamic_nodes.stdout_lines }}"
           when: dynamic_final_status
       when: bmc_dynamic_status
   when: discovery_mechanism | lower == discovery_method_bmc
