@@ -55,7 +55,7 @@
 - name: Validate disk partition parameters
   ansible.builtin.include_tasks: validate_disk_partition_vars.yml
   with_items: "{{ disk_partition }}"
-  
+
 - name: Validate domain_name
   ansible.builtin.include_tasks: validate_domain_name.yml
 
