@@ -41,7 +41,7 @@ def fetch_nodes(conn,host_ip):
 
     cur = conn.cursor()
 
-    sql = '''select node, bmc_ip from cluster.nodeinfo where bmc_ip = inet('{host_ip}')'''.format(host_ip=host_ip)
+    sql = '''select node, admin_ip from cluster.nodeinfo where admin_ip = inet('{host_ip}')'''.format(host_ip=host_ip)
     cur.execute(sql)
     rows = cur.fetchall()
 
@@ -60,7 +60,7 @@ def fetch_group(rows):
         grps, err, out = run_cmd(cmd)
 
         if grps:
-            return str(out).strip(),rows
+            return out.split(','),rows
         else:
             print(f" No group found for the node {rows[0]}, error : {err}")
 
@@ -102,12 +102,12 @@ def node_set(node,osimage):
         print(f"Setting the osimage for snmp/mapping node : boot on {nodename} having IP Address : {nodeip}. Failed with error : {err} ")
 
 
-def set_image(node,osimage):
+def set_image_bmc(node,osimage):
 
     nodename = node[0]
     nodeip = node[1]
 
-    cmd = ''' chdef {node} chain=runcmd=bmcsetup,osimage={osimage}'''.format(node=nodename,osimage=osimage)
+    cmd = ''' nodeset {node} osimage = {os}'''.format(node=nodename,os=osimage)
     img, err, out = run_cmd(cmd)
 
     if not img:
@@ -120,14 +120,14 @@ def reprovision_nodes(grp,node,osimage):
     nodename = node[0]
     nodeip = node[1]
 
-    if grp == 'snmp':
+    if 'snmp' in grp:
         node_set(node,osimage)
 
-    elif grp == 'bmc':
-        img = set_image(node,osimage)
+    elif 'bmc' in grp:
+        img = set_image_bmc(node,osimage)
         rset_boot(node,osimage)
 
-    elif grp == 'mapping':
+    elif 'mapping' in grp:
         node_set(node,osimage)
 
     else:
@@ -155,7 +155,7 @@ def main():
 
         if group != None and node != None:
             reprovision_nodes(group,node,osimage)
-    
+
     conn.close()
 
 if __name__ == '__main__':
