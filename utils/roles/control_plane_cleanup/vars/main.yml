@@ -1,35 +1,42 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
----
+  # Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+  #
+  # Licensed under the Apache License, Version 2.0 (the "License");
+  # you may not use this file except in compliance with the License.
+  # You may obtain a copy of the License at
+  #
+  #     http://www.apache.org/licenses/LICENSE-2.0
+  #
+  # Unless required by applicable law or agreed to in writing, software
+  # distributed under the License is distributed on an "AS IS" BASIS,
+  # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  # See the License for the specific language governing permissions and
+  # limitations under the License.
+  ---
 
-# Usage: To cleanup provision setup
-xcat_packages_path: "/opt/xcat/share/xcat/tools/go-xcat"
-xcat_cert_path: "/root/.xcat"
-xcat_data_files_path: "/etc/xcat"
-xcat_del_files:
-  - "/install"
-  - "/tftpboot"
-  - "/etc/yum.repos.d/xCAT-*"
-  - "/etc/sysconfig/xcat"
-  - "/etc/apache2/conf.d/xCAT-*"
-  - "/etc/logrotate.d/xCAT-*"
-  - "/etc/rsyslogd.d/xCAT-*"
-  - "/var/log/xcat"
-  - "/opt/xcat/"
-  - "/mnt/xcat"
-  - "{{ playbook_dir }}/../provision/roles/xcat/files/pxe_mapping_file.csv"
-  - /root/xcat
-  - /root/xcat-dbback
-  - /opt/racadm
-pg_dir_path: "/var/lib/pgsql"
+  # Usage: To cleanup provision setup
+  xcat_packages_path: "/opt/xcat/share/xcat/tools/go-xcat"
+  xcat_cert_path: "/root/.xcat"
+  xcat_data_files_path: "/etc/xcat"
+  xcat_del_files:
+    - "/install"
+    - "/tftpboot"
+    - "/etc/yum.repos.d/xCAT-*"
+    - "/etc/sysconfig/xcat"
+    - "/etc/apache2/conf.d/xCAT-*"
+    - "/etc/logrotate.d/xCAT-*"
+    - "/etc/rsyslogd.d/xCAT-*"
+    - "/var/log/xcat"
+    - "/opt/xcat/"
+    - "/mnt/xcat"
+    - "{{ playbook_dir }}/../provision/roles/xcat/files/pxe_mapping_file.csv"
+    - /root/xcat
+    - /root/xcat-dbback
+    - /opt/racadm
+    - /opt/omnia/
+    - /etc/yum.repos.d/xcat-core.repo
+    - /etc/yum.repos.d/xcat-dep.repo
+    - /var/lib/dhcpd/dhcpd6.leases
+    - /var/lib/dhcpd/dhcpd.leases~
+    - /var/lib/dhcpd/dhcpd.leases.rpmsave
+  pg_dir_path: "/var/lib/pgsql"
+  omnia_dir: "/opt/omnia"
