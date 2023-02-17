@@ -47,3 +47,12 @@
         state: present
         line: 'md_bmc_static_end_range: {{ bmc_static_end_range }}'
   when: discovery_mechanism == 'bmc'
+
+- name: Update md_bmc_nic_subnet
+  ansible.builtin.lineinfile:
+    path: "{{ meta_path }}"
+    regexp: '^md_bmc_nic_subnet:(.*)$'
+    insertafter: "EOF"
+    state: present
+    line: 'md_bmc_nic_subnet: {{ bmc_nic_subnet }}'
+  when: bmc_nic_subnet | default("", true) | length > 1
