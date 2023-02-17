@@ -88,7 +88,7 @@
   ansible.builtin.pause:
     seconds: "{{ warning_wait_time }}"
     prompt: "{{ reprovision_warning_msg }}"
-  when: 
+  when:
     - groups['all'] is defined
     - (groups['all'] | length > 0)
     - not reprovision_status
