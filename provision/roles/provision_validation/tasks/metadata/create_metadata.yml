@@ -31,22 +31,3 @@
   ansible.builtin.stat:
     path: "{{ meta_path }}"
   register: metadata_status
-
-- name: If metadata.yml file exists
-  block:
-    - name: Validate discovery_mechanism
-      ansible.builtin.include_tasks: validate_discovery_mechanism.yml
-
-    - name: Fetch params of snmp discovery_mechanism
-      ansible.builtin.include_tasks: validate_discovery_mech_params.yml
-      when: discovery_mech_state
-  when: metadata_status.stat.exists
-
-- name: Create metadata.yml file if it doesn't exists
-  ansible.builtin.file:
-    path: "{{ meta_path }}"
-    state: touch
-    mode: "{{ conf_file_mode }}"
-    group: root
-    owner: root
-  when: not metadata_status.stat.exists
