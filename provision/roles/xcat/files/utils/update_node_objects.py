@@ -67,9 +67,11 @@ def update_node_obj_nm():
         cursor.execute(sql)
         mode = cursor.fetchone()[0]
 
-        if mode == "static":
+        if mode is None:
+            print("No device is found!")
+        elif mode == "static":
             command = f"chdef {node_name[0]} ip={admin_ip[0]} groups={groups_static} chain={chain_setup},{chain_os}"
-        if mode == "dynamic":
+        elif mode == "dynamic":
             sql = '''select bmc_ip from cluster.nodeinfo where serial='{serial_key}' '''.format(
             serial_key=serial_output[i])
             cursor.execute(sql)
