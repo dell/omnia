@@ -51,11 +51,11 @@
             seconds: "{{ dhcp_timeout }}"
             prompt: "{{ dhcp_timeout_msg }}"
 
-        - name: Perform BMC Discover on dynamic range
-          ansible.builtin.include_tasks: bmc_dynamic_discovery.yml
-
         - name: Enable IPMI on dynamic iDRACs
           ansible.builtin.include_tasks: dynamic_ipmi_enable.yml
+
+        - name: Perform BMC Discover on dynamic range
+          ansible.builtin.include_tasks: bmc_dynamic_discovery.yml
 
         - name: Update node objects for dynamic bmc_mode
           ansible.builtin.include_tasks: update_db_dynamic.yml
