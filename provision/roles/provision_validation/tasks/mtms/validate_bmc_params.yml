@@ -13,55 +13,32 @@
 # limitations under the License.
 ---
 
-- name: Validate if BMC params of provision config are not empty
+- name: Validate bmc_nic_subnet
   ansible.builtin.assert:
     that:
-      - ((bmc_dynamic_start_range | default("", true) | length > 1 and bmc_dynamic_end_range | default("", true) | length > 1) and
-        (omnia_exclusive_static_start_range | default("", true) | length > 1 and omnia_exclusive_static_end_range | default("", true) | length > 1)) or
-        (bmc_static_start_range | default("", true) | length > 1 and bmc_static_end_range | default("", true) | length > 1)
+      - bmc_nic_subnet | default("", true) | length > 1
+      - bmc_nic_subnet | default("", true) | ansible.utils.ipv4
+    success_msg: "{{ bmc_nic_subnet_sucess_msg }}"
+    fail_msg: "{{ bmc_nic_subnet_fail_msg }}"
+
+- name: Set fact default bmc ranges for omnia
+  ansible.builtin.set_fact:
+    bmc_dynamic_start_range: "{{ bmc_dynamic_start_range }}"
+    bmc_dynamic_end_range: "{{ bmc_dynamic_end_range }}"
+    omnia_static_start_range: "{{ omnia_static_start_range }}"
+    omnia_static_end_range: "{{ omnia_static_end_range }}"
+
+- name: Validate if bmc static ranges are empty
+  ansible.builtin.assert:
+    that:
+      - bmc_static_start_range | default("", true) | length > 1
+      - bmc_static_end_range | default("", true) | length > 1
+      - bmc_static_start_range | default("", true) | ansible.utils.ipv4
+      - bmc_static_end_range | default("", true) | ansible.utils.ipv4
     success_msg: "{{ bmc_params_success_msg }}"
     fail_msg: "{{ bmc_params_failure_msg }}"
 
-- name: Validate if pxe_subnet of provision config is not empty
-  ansible.builtin.fail:
-    msg: "{{ pxe_subnet_failure_msg }}"
-  when:
-    - pxe_subnet | default("", true) | length < 1
-    - not pxe_subnet | default("", true) | ansible.utils.ipv4
-
-- name: Assert BMC parameters
-  ansible.builtin.assert:
-    that:
-      - (bmc_dynamic_start_range | default("", true) | ansible.utils.ipv4 and bmc_dynamic_end_range | default("", true) | ansible.utils.ipv4) and
-        (omnia_exclusive_static_start_range | default("", true) | ansible.utils.ipv4 and
-        omnia_exclusive_static_end_range | default("", true) | ansible.utils.ipv4) or
-        (bmc_static_start_range | default("", true) | ansible.utils.ipv4 and bmc_static_end_range | default("", true) | ansible.utils.ipv4)
-    success_msg: "{{ bmc_valid_sucess_msg }}"
-    fail_msg: "{{ bmc_valid_fail_msg }}"
-
-- name: Assert omnia range when dynamic range is given
-  ansible.builtin.assert:
-    that:
-      - omnia_exclusive_static_start_range | default("", true) | length > 1
-      - omnia_exclusive_static_end_range | default("", true) | length > 1
-    success_msg: "{{ omnia_range_sucess_msg }}"
-    fail_msg: "{{ omnia_range_fail_msg }}"
-  when:
-    - bmc_dynamic_start_range | default("", true) | length > 1
-    - bmc_dynamic_end_range | default("", true) | length > 1
-
-- name: Validate start and ranges of provision config are equal or not for dynamic ranges
-  ansible.builtin.fail:
-    msg: "{{ bmc_ranges_overlap_failure_msg }}"
-  when:
-    - bmc_dynamic_start_range | default("", true) | length > 1
-    - bmc_dynamic_end_range | default("", true) | length > 1
-    - omnia_exclusive_static_start_range | default("", true) | length > 1
-    - omnia_exclusive_static_end_range | default("", true) | length > 1
-    - bmc_dynamic_start_range | default("", true) == bmc_dynamic_end_range | default("", true)
-    - omnia_exclusive_static_start_range | default("", true) == omnia_exclusive_static_end_range | default("", true)
-
-- name: Validate start and ranges of provision config are equal or not for static ranges
+- name: Validate start and end ranges of provision config are equal or not for static ranges
   ansible.builtin.fail:
     msg: "{{ bmc_static_ranges_overlap_failure_msg }}"
   when:
@@ -71,17 +48,8 @@
 
 - name: Initialize variables
   ansible.builtin.set_fact:
-    bmc_dynamic_status: false
-    bmc_static_status: false
-
-- name: Update bmc_dynamic_status when dynamic range is provided
-  ansible.builtin.set_fact:
     bmc_dynamic_status: true
-  when:
-    - bmc_dynamic_start_range | default("", true) | length > 1
-    - bmc_dynamic_end_range | default("", true) | length > 1
-    - omnia_exclusive_static_start_range | default("", true) | length > 1
-    - omnia_exclusive_static_end_range | default("", true) | length > 1
+    bmc_static_status: false
 
 - name: Update bmc_static_status when static range is provided
   ansible.builtin.set_fact:
@@ -112,12 +80,3 @@
     - name: IDRAC credentials validation check
       ansible.builtin.fail:
         msg: "{{ fail_msg_bmc_credentials }}"
-
-- name: Validate bmc_nic_subnet when BMC dynamic entries were provided
-  ansible.builtin.assert:
-    that:
-      - bmc_nic_subnet | default("", true) | length > 1
-      - bmc_nic_subnet | default("", true) | ansible.utils.ipv4
-    success_msg: "{{ bmc_nic_subnet_sucess_msg }}"
-    fail_msg: "{{ bmc_nic_subnet_fail_msg }}"
-  when: bmc_dynamic_status

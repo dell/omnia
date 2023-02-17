@@ -29,9 +29,21 @@
     fail_msg: "{{ fail_msg_different_nics }}"
   tags: [validate, bmc-network, pxe-network]
 
+- name: Validate if pxe_subnet of provision config is not empty
+  ansible.builtin.fail:
+    msg: "{{ pxe_subnet_failure_msg }}"
+  when:
+    - pxe_subnet | default("", true) | length < 1
+    - not pxe_subnet | default("", true) | ansible.utils.ipv4
+
 - name: Gather the MAC address of PXE nic
   ansible.builtin.set_fact:
     pxe_mac_address: "{{ ansible_facts[pxe_nic]['macaddress'] | default(None) }}"
+
+- name: Set default pxe start and end ranges
+  ansible.builtin.set_fact:
+    pxe_nic_start_range: "{{ pxe_nic_start }}"
+    pxe_nic_end_range: "{{ pxe_nic_end }}"
 
 ### PXE nic
 # LOM Configuration
@@ -67,60 +79,10 @@
 - name: Validate pxe_subnet
   ansible.builtin.fail:
     msg: "{{ pxe_subnet_msg }}"
-  when:
-    - discovery_mechanism == discovery_method_bmc
-    - pxe_nic_subnet != pxe_subnet
+  when: pxe_nic_subnet != pxe_subnet
 
 - name: Validate snmp and mapping parameters
   block:
-    - name: Check the subnet of PXE nic start range
-      ansible.builtin.shell: |
-        IFS=. read -r i1 i2 i3 i4 <<< "{{ pxe_nic_start_range }}"
-        IFS=. read -r m1 m2 m3 m4 <<< "{{ pxe_nic_netmask }}"
-        printf "%d.%d.%d.%d\n" "$((i1 & m1))" "$((i2 & m2))" "$((i3 & m3))" "$((i4 & m4))"
-      args:
-        warn: false
-      register: calc_pxe_start_subnet
-      changed_when: false
-      tags: init
-
-    - name: Set the calculated PXE network subnet
-      ansible.builtin.set_fact:
-        pxe_start_subnet: "{{ calc_pxe_start_subnet.stdout }}"
-      tags: init
-
-    - name: Check the subnet of PXE nic end range
-      ansible.builtin.shell: |
-        IFS=. read -r i1 i2 i3 i4 <<< "{{ pxe_nic_end_range }}"
-        IFS=. read -r m1 m2 m3 m4 <<< "{{ pxe_nic_netmask }}"
-        printf "%d.%d.%d.%d\n" "$((i1 & m1))" "$((i2 & m2))" "$((i3 & m3))" "$((i4 & m4))"
-      args:
-        warn: false
-      register: calc_pxe_end_subnet
-      changed_when: false
-      tags: init
-
-    - name: Set the calculated PXE network subnet
-      ansible.builtin.set_fact:
-        pxe_end_subnet: "{{ calc_pxe_end_subnet.stdout }}"
-      tags: init
-
-    - name: Assert pxe nic start and end ranges
-      ansible.builtin.assert:
-        that:
-          - pxe_nic_start_range |  length > 6
-          - pxe_nic_end_range |  length > 6
-          - pxe_nic_start_range != pxe_nic_ip
-          - pxe_nic_end_range != pxe_nic_ip
-          - pxe_nic_start_range != pxe_nic_subnet
-          - pxe_nic_end_range != pxe_nic_subnet
-          - pxe_nic_start_range != pxe_nic_end_range
-          - pxe_start_subnet == pxe_nic_subnet
-          - pxe_end_subnet == pxe_nic_subnet
-        success_msg: "{{ success_pxe }} for PXE nic"
-        fail_msg: "{{ fail_pxe }} for PXE nic"
-      tags: [validate, pxe-network]
-
     - name: Set fact if roce is enabled or not
       ansible.builtin.set_fact:
         roce_enabled: true

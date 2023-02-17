@@ -16,12 +16,13 @@
 # Usage: create_metadata.yml
 meta_path: "/opt/omnia/.data/metadata.yml"
 meta_dest: "/opt/omnia/.data/"
-discovery_mech_fail_msg: "snmp over anything wont be allowed, please change discover mechanism and re-run the playbook"
+discovery_mech_fail_msg: "snmp over any other discovery_mechanism wont be allowed,
+please change rhe discovery_mechanism in provision_config.yml and re-run the provision.yml"
 discovery_method_bmc: "bmc"
 discovery_method_snmp: "snmp"
 discovery_method_mapping: "mapping"
 
 # Usage: validate_discovery_mech_params.yml
 ranges_success_msg: "Successfully validated {{ discovery_mechanism }} ranges with earlier execution ranges"
-ranges_fail_msg: "The dhcp/static ranges provided during previous execution is different from the ones provided in current execution.
-                  Omnia does not support different IP ranges in consecutive executions."
+ranges_fail_msg: "bmc static ranges provided during previous execution is different from the value provided in current execution.
+Omnia does not support different IP ranges in consecutive executions."

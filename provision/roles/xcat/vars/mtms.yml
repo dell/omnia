@@ -27,6 +27,7 @@ control_plane_arch: "x86_64"
 # Usage: main.yml
 discovery_method_bmc: "bmc"
 dhcp_timeout: 300
+dhcp_timeout_msg: "[WARNING] Waiting for 5 minutes before starting dynamic discovery"
 static_dynamic_fail_msg: "Failed. No BMC found for both static and dynamic IP's. Please check the ranges again."
 
 # Usage: bmc_static_discovery.yml

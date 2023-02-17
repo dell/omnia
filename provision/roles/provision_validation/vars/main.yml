@@ -14,7 +14,38 @@
 ---
 
 # Usage: main.yml
+provision_validation_vars:
+  - "{{ role_path }}/vars/mtms.yml"
+  - "{{ role_path }}/vars/metadata.yml"
 nic_wait_time: 30
+
+# Usage: package_installation.yml
+ansible_galaxy_collection:
+  - ansible.utils:2.5.2
+  - community.general:4.8.7
+pip_version: pip3.8
+netaddr_pip_package: netaddr
+pexpect_pip_package: pexpect
+
+common_packages_provision:
+  - python3-netaddr
+  - openssl
+  - dos2unix
+  - net-snmp
+  - net-snmp-utils
+  - sshpass
+  - python3-pexpect
+
+# Usage: create_provision_ini.yml
+provision_conf_path: "/opt/omnia/.data/provision.ini"
+provision_conf_dest: "/opt/omnia/.data/"
+mount_dir_perm: 0775
+conf_file_mode: 0644
+
+# Usage: include_provision_config.yml
+provision_config_filename: "{{ role_path }}/../../../input/provision_config.yml"
+provision_vault_path: "{{ role_path }}/../../../input/.provision_vault_key"
+ansible_vault_search_key: "$ANSIBLE_VAULT;"
 
 # Usage: assign_admin_nic_config.yml
 omnia_admin_ip: "{{ admin_nic_subnet.split('.')[0] + '.' + admin_nic_subnet.split('.')[1] + '.' + '255' + '.' + '254' }}"
@@ -29,32 +60,6 @@ omnia_bmc_netmask: 255.255.0.0
 # Usage: enable_nic_configuration.yml
 nic_subnet: 16
 bmc_nic_path: "/etc/sysconfig/network-scripts/ifcfg-{{ admin_nic }}"
-
-# Usage: package_installation.yml
-ansible_galaxy_collection:
-  - ansible.utils:2.5.2
-  - community.general:4.8.7
-pip_version: pip3.8
-netaddr_pip_package: netaddr
-
-common_packages_provision:
-  - python3-netaddr
-  - openssl
-  - dos2unix
-  - net-snmp
-  - net-snmp-utils
-  - sshpass
-
-# Usage: create_provision_ini.yml
-provision_conf_path: "/opt/omnia/.data/provision.ini"
-provision_conf_dest: "/opt/omnia/.data/"
-mount_dir_perm: 0775
-conf_file_mode: 0644
-
-# Usage: include_provision_config.yml
-provision_config_filename: "{{ role_path }}/../../../input/provision_config.yml"
-provision_vault_path: "{{ role_path }}/../../../input/.provision_vault_key"
-ansible_vault_search_key: "$ANSIBLE_VAULT;"
 
 # Usage: validate_public_nic.yml
 input_provision_failure_msg: "Please provide all the required parameters in provision_config.yml"
@@ -72,6 +77,9 @@ success_pxe: "Proper PXE ranges provided"
 fail_pxe: "Failed. Please provide proper PXE ranges"
 success_msg_different_nics: "Validated. Nics are different in case of LOM."
 fail_msg_different_nics: "Failed.Incorrect nic information.Public nic must be different from BMC and PXE nics ."
+pxe_subnet_failure_msg: "Failed. Please provide pxe_subnet value in input/provision_config.yml"
+pxe_nic_start: "{{ pxe_subnet.split('.')[0] + '.' + pxe_subnet.split('.')[1] + '.' + '0' + '.' + '1' }}"
+pxe_nic_end: "{{ pxe_subnet.split('.')[0] + '.' + pxe_subnet.split('.')[1] + '.' + '255' + '.' + '253' }}"
 
 # Usage: validate_ib_nic.yml
 ib_nic_start: "{{ ib_nic_subnet.split('.')[0] + '.' + ib_nic_subnet.split('.')[1] + '.'
@@ -166,8 +174,3 @@ ofed_rhel_check: "rhel{{ provision_os_version }}"
 cuda_rpm_empty_msg: "[WARNING] cuda_toolkit_path variable empty in provision_config.yml. CUDA won't be installed during provisioning."
 cuda_toolkit_path_missing_msg: "Failed. Incorrect cuda_toolkit_path: {{ cuda_toolkit_path }} provided.
 Make sure CUDA toolkit rpm file is present in the provided cuda_toolkit_path variable in provision_config.yml."
-
-# Usage: main.yml
-provision_validation_vars:
-  - "{{ role_path }}/vars/mtms.yml"
-  - "{{ role_path }}/vars/metadata.yml"

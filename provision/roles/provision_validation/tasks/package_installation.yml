@@ -18,9 +18,12 @@
     name: "{{ common_packages_provision }}"
     state: present
 
-- name: Install netaddr
-  ansible.builtin.command: "{{ pip_version }} install {{ netaddr_pip_package }}"
+- name: Install netaddr and pexpect
+  ansible.builtin.command: "{{ pip_version }} install {{ item }}"
   changed_when: true
+  with_items:
+    - "{{ netaddr_pip_package }}"
+    - "{{ pexpect_pip_package }}"
 
 - name: Install ansible galaxy collection ansible.utils
   ansible.builtin.command: ansible-galaxy collection install "{{ item }}"

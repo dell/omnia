@@ -16,35 +16,19 @@
 - name: Validate BMC parameters
   ansible.builtin.assert:
     that:
-      - (bmc_dynamic_start_range == md_bmc_dynamic_start_range) or (bmc_dynamic_start_range == "" and md_bmc_dynamic_start_range is none)
-      - (bmc_dynamic_end_range == md_bmc_dynamic_end_range) or (bmc_dynamic_end_range == "" and md_bmc_dynamic_end_range is none)
       - (bmc_static_start_range == md_bmc_static_start_range) or (bmc_static_start_range == "" and md_bmc_static_start_range is none)
       - (bmc_static_end_range == md_bmc_static_end_range) or (bmc_static_end_range == "" and md_bmc_static_end_range is none)
-      - (omnia_exclusive_static_start_range == md_omnia_exclusive_static_start_range) or
-        (omnia_exclusive_static_start_range == "" and md_omnia_exclusive_static_start_range is none)
-      - (omnia_exclusive_static_end_range == md_omnia_exclusive_static_end_range) or
-        (omnia_exclusive_static_end_range == "" and md_omnia_exclusive_static_end_range is none)
-      - (pxe_subnet == md_pxe_subnet) or (pxe_subnet == "" and md_pxe_subnet is none)
     success_msg: "{{ ranges_success_msg }}"
     fail_msg: "{{ ranges_fail_msg }}"
   when:
     - discovery_mechanism == discovery_method_bmc
-    - md_bmc_dynamic_start_range is defined
-    - md_bmc_dynamic_end_range is defined
     - md_bmc_static_start_range is defined
     - md_bmc_static_end_range is defined
-    - md_omnia_exclusive_static_start_range is defined
-    - md_omnia_exclusive_static_end_range is defined
 
-- name: Validate SNMP and mapping parameters
+- name: Validate pxe_subnet
   ansible.builtin.assert:
     that:
-      - pxe_nic_start_range == md_pxe_nic_start_range
-      - pxe_nic_end_range == md_pxe_nic_end_range
+      - pxe_subnet == md_pxe_subnet
     success_msg: "{{ ranges_success_msg }}"
     fail_msg: "{{ ranges_fail_msg }}"
-  when:
-    - discovery_mechanism == discovery_method_snmp or
-      discovery_mechanism == discovery_method_mapping
-    - md_pxe_nic_start_range is defined
-    - md_pxe_nic_end_range is defined
+  when: md_pxe_subnet is defined

@@ -13,21 +13,19 @@
 # limitations under the License.
 ---
 
-- name: Check for data folder existsence
-  ansible.builtin.stat:
-    path: "{{ meta_dest }}"
-  register: data_folder_status
+- name: Initialize bmc_static_node_status
+  ansible.builtin.set_fact:
+    bmc_static_node_status: false
 
-- name: Create data folder if it doesn't exists
-  ansible.builtin.file:
-    path: "{{ meta_dest }}"
-    state: directory
-    mode: "{{ mount_dir_perm }}"
-    group: root
-    owner: root
-  when: not data_folder_status.stat.exists
+- name: Fetch nodes with group {{ bmc_static_node_group }}
+  ansible.builtin.command: lsdef {{ bmc_static_node_group }}
+  changed_when: false
+  register: check_static_nodes
+  failed_when: false
 
-- name: Check metadata.yml file existence
-  ansible.builtin.stat:
-    path: "{{ meta_path }}"
-  register: metadata_status
+- name: Set bmc_static_node_status
+  ansible.builtin.set_fact:
+    bmc_static_node_status: true
+  when:
+    - check_static_nodes.stderr is defined
+    - '"error" not in check_static_nodes.stderr | lower'
