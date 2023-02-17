@@ -81,6 +81,7 @@
         - discovery_mechanism == discovery_method_bmc
         - not reprovision_status
         - bmc_static_status
+        - bmc_static_node_status
 
     - name: Provision dynamic nodes
       ansible.builtin.include_tasks: mtms/set_provision_image_mtms.yml
