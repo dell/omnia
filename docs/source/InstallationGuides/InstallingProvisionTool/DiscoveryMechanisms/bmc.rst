@@ -9,7 +9,7 @@ For automatic provisioning of servers and discovery, the BMC method can be used.
 
 - The first PXE device on target nodes should be the designated active NIC for PXE booting.
 
-.. image:: ../../images/BMC_PXE_Settings.png
+.. image:: ../../../images/BMC_PXE_Settings.png
 
 - All iDRACs should be reachable from the ``admin_nic``.
 
@@ -18,7 +18,7 @@ For automatic provisioning of servers and discovery, the BMC method can be used.
 
 - The control plane NIC connected to remote servers (through the switch) should be configured with two IPs in a shared LOM set up. This NIC is configured by Omnia with the IP xx.yy.255.254, aa.bb.255.254 (where xx.yy are taken from ``bmc_nic_subnet`` and aa.bb are taken from ``admin_nic_subnet``) when ``discovery_mechanism`` is set to ``bmc``.
 
-.. image:: ../../images/ControlPlaneNic.png
+.. image:: ../../../images/ControlPlaneNic.png
 
 The following parameters need to be populated in ``input/provision_config.yml`` to discover target nodes using BMC.
 

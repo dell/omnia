@@ -11,10 +11,11 @@ inventory file
     10.5.0.101
 
     [compute]
-    10.5.0.101
+    10.5.0.102
+    10.5.0.103
 
     [login_node]
-    10.5.0.101
+    10.5.0.104
 
 
 pxe_mapping_file.csv

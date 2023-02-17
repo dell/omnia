@@ -69,6 +69,4 @@ Fill in all provision-specific parameters in ``input/provision_config.yml``
 .. warning::
 
     * The IP address *192.168.25.x* is used for PowerVault Storage communications. Therefore, do not use this IP address for other configurations.
-    * The following IP addresses (where x and y are provided by the first two octets of ``bmc_nic_subnet``) are reserved by Omnia  when ``discovery_mechanism`` is set to ``bmc``.:
-        * *x.y.246.1* - *x.y.250.253* : This range is used for DHCP IP assignment on target nodes.
-        * *x.y.251.1* - *x.y.255.253* : This range is used for converting DHCP enabled nodes to static.
+    * The IP range *x.y.246.1* - *x.y.255.253* (where x and y are provided by the first two octets of ``bmc_nic_subnet``) are reserved by Omnia.
