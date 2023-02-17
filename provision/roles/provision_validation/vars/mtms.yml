@@ -27,32 +27,26 @@ validation_range_file: "{{ role_path }}/files/validate_input_ranges.py"
 validation_ip_count: "{{ role_path }}/files/validate_ips_count.py"
 
 # Usage: validate_bmc_params.yml
-bmc_params_failure_msg: "Failure. Please provide input parameters in input/provision_config.yml for bmc_dynamic_start_range, bmc_dynamic_end_range,
-                        bmc_static_start_range,bmc_static_end_range, omnia_exclusive_static_start_range, omnia_exclusive_static_end_range"
-bmc_valid_sucess_msg: "All parameters successfully validated for BMC discovery mechanism"
-bmc_valid_fail_msg: "Failed. Make sure input parameters provided in valid IPV4 format in input/provision_config.yml"
-fail_msg_bmc_credentials: "Failure. bmc_username, bmc_password are invalid in input/provision_config.yml"
+bmc_params_success_msg: "Successfully valisted bmc params in input/provision_config.yml"
+bmc_params_failure_msg: "Failed. Please provide input parameters in input/provision_config.yml for bmc_static_start_range,bmc_static_end_range"
+fail_msg_bmc_credentials: "Failed. bmc_username, bmc_password are invalid in input/provision_config.yml"
 max_length: 30
 min_username_length: 4
-ranges_fail_msg: "bmc_dynamic_start_range, bmc_dynamic_end_range, bmc_static_start_range, bmc_static_end_range,
-                  omnia_exclusive_static_start_range, omnia_exclusive_static_end_range shouldn't overlap in input/provision_config.yml"
-range_mismatch_msg: "Range is invalid. start range should be less than end range for bmc_dynamic_start_range, bmc_dynamic_end_range, bmc_static_start_range,
-                     bmc_static_end_range, omnia_exclusive_static_start_range, omnia_exclusive_static_end_range in input/provision_config.yml"
-ranges_success_msg: "Successfully validated input ranges provided in input/provision_config.yml"
-bmc_ranges_overlap_failure_msg: "Range is invalid. Start range should not be equal to end range for bmc_dynamic_start_range, bmc_dynamic_end_range,
-                                omnia_exclusive_static_start_range, omnia_exclusive_static_end_range in input/provision_config.yml"
-pxe_subnet_failure_msg: "Failure. Please provide pxe_subnet value in input/provision_config.yml"
-bmc_params_success_msg: "Successfully valisted bmc params in input/provision_config.yml"
-omnia_range_sucess_msg: "Successfully validated omnia exclusive static ranges"
-omnia_range_fail_msg: "Failed. Please provide omnia_exclusive_static_start_range and omnia_exclusive_static_end_range when bmc_dynamic_start_range,
-                      bmc_dynamic_end_range ranges are provided in input/provision_config.yml"
 bmc_static_ranges_overlap_failure_msg: "Range is invalid. Start range should not be equal to end range for bmc_static_start_range, bmc_static_end_range
-                                        in input/provision_config.yml"
+in input/provision_config.yml"
 bmc_nic_subnet_sucess_msg: "Successfully validated bmc_nic_subnet"
 bmc_nic_subnet_fail_msg: "Failed. Please provide bmc_nic_subnet value ipv4 format in input/provision_config.yml file"
-range_warning_msg: "[Warning]. Please provide count of bmc_dynamic_start_range, bmc_dynamic_end_range ranges grater than
-                omnia_exclusive_static_start_range, omnia_exclusive_static_end_range in input/provision_config.yml file"
-warning_wait_time_mtms: 5
+bmc_dynamic_start_range: "{{ bmc_nic_subnet.split('.')[0] + '.' + bmc_nic_subnet.split('.')[1] + '.' + '246' + '.' + '1' }}"
+bmc_dynamic_end_range: "{{ bmc_nic_subnet.split('.')[0] + '.' + bmc_nic_subnet.split('.')[1] + '.' + '250' + '.' + '253' }}"
+omnia_static_start_range: "{{ bmc_nic_subnet.split('.')[0] + '.' + bmc_nic_subnet.split('.')[1] + '.' + '251' + '.' + '1' }}"
+omnia_static_end_range: "{{ bmc_nic_subnet.split('.')[0] + '.' + bmc_nic_subnet.split('.')[1] + '.' + '255' + '.' + '253' }}"
 
-# Usage: Validate_switch_vars.yml
-pxe_ranges_fail_msg: "Failure. Make sure to provide PXE start and end ranges in input/provision_config.yml file"
+# Usage: validate_bmc_ranges.yml
+bmc_static_ranges_fail_msg: "bmc_static_start_range, bmc_static_end_range variables in input/provision_config.yml shouldn't overlap with default omnia ranges
+{{ bmc_nic_subnet.split('.')[0] + '.' + bmc_nic_subnet.split('.')[1] + '.' + '246' + '.' + '1' }} to
+{{ bmc_nic_subnet.split('.')[0] + '.' + bmc_nic_subnet.split('.')[1] + '.' + '255' + '.' + '253' }}"
+bmc_static_ranges_success_msg: "Successfully validated input ranges provided in input/provision_config.yml"
+bmc_static_range_mismatch_msg: "Range is invalid. Start range should be less than end range for bmc_static_start_range, bmc_static_end_range variables
+in input/provision_config.yml"
+range_mismatch_key: "lower bound IP greater than upper bound!"
+python_version: python3.8
