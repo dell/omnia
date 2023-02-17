@@ -15,6 +15,7 @@
 import psycopg2 as pg
 import sys
 import subprocess
+import time
 
 def connection():
 
@@ -70,21 +71,28 @@ def rset_boot(node,osimage):
     nodename = node[0]
     nodeip = node[1]
 
-    cmd = ''' rsetboot {} net'''.format(nodename)
+    cmd = '''rpower {} off'''.format(nodename)
+    power_off, power_off_err, power_off_out = run_cmd(cmd)
+    time.sleep(10)
 
-    set_boot, err ,out = run_cmd(cmd)
+    if power_off:
 
-    if set_boot:
+        cmd = '''rsetboot {} net'''.format(nodename)
+        set_boot, err ,out = run_cmd(cmd)
 
-        cmd = ''' rpower {} reset '''.format(nodename)
-        boot_node, er, ou = run_cmd(cmd)
+        if set_boot:
 
-        if boot_node:
-            print(f"Started provisioning node : {nodename} having IP Address : {nodeip} with {osimage} using bmc")
+            cmd = '''rpower {} on'''.format(nodename)
+            boot_node, er, ou = run_cmd(cmd)
+
+            if boot_node:
+                print(f"Started provisioning node : {nodename} having IP Address : {nodeip} with {osimage} using bmc")
+            else:
+                print(f" Failed to power on the node {nodename} having IP Address : {nodeip}. Please check the connection. Error : {er}")
         else:
-            print(f" Failed to power on the node {nodename} having IP Address : {nodeip}. Please check the connection. Error : {er}")
+            print(f"Setting PXE boot on {nodename} having IP Address : {nodeip}. Failed with error : {err} ")
     else:
-        print(f"Setting PXE boot on {nodename} having IP Address : {nodeip}. Failed with error : {err} ")
+        print(f" Failed to power off the node {nodename} having IP Address : {nodeip}. Please check the connection. Error : {power_off_err}")
 
 
 def node_set(node,osimage):
@@ -92,7 +100,7 @@ def node_set(node,osimage):
     nodename = node[0]
     nodeip = node[1]
 
-    cmd = ''' nodeset {node} osimage = {os}'''.format(node=nodename,os=osimage)
+    cmd = '''nodeset {node} osimage={os}'''.format(node=nodename,os=osimage)
 
     set_boot, err, out = run_cmd(cmd)
 
@@ -107,7 +115,7 @@ def set_image_bmc(node,osimage):
     nodename = node[0]
     nodeip = node[1]
 
-    cmd = ''' nodeset {node} osimage = {os}'''.format(node=nodename,os=osimage)
+    cmd = '''nodeset {node} osimage={os}'''.format(node=nodename,os=osimage)
     img, err, out = run_cmd(cmd)
 
     if not img:

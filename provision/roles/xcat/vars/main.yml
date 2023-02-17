@@ -28,6 +28,8 @@ xcat_role_vars:
 # Usage: pre_requisites.yml
 selinux_status_fail_msg: "selinux is not disabled. Disable it in /etc/sysconfig/selinux and reboot the system"
 xcat_connection_search_key: "connection failure"
+warning_wait_time: 30
+reprovision_warning_msg: "[WARNING] xcatd services are not running in the server. Re-provisioning of nodes will be skipped for the given inventory."
 
 # Usage: package_installation.yml
 ansible_galaxy_collection:
