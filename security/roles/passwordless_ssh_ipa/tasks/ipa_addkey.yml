@@ -17,11 +17,6 @@
   ansible.builtin.shell: set -o pipefail && echo $'{{ hostvars['127.0.0.1']['kerberos_admin_password'] }}' | kinit {{ ipa_admin_username }}
   changed_when: false
 
-- name: Check if user home directory exists
-  ansible.builtin.stat:
-      path: "{{ user_home_path }}"
-  register: user_home_directory
-
 - name: Exceute IPA block
   block:
       - name: Add ssh key in IPA User details

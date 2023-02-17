@@ -52,7 +52,7 @@ bmc_nic_subnet_sucess_msg: "Successfully validated bmc_nic_subnet"
 bmc_nic_subnet_fail_msg: "Failed. Please provide bmc_nic_subnet value ipv4 format in input/provision_config.yml file"
 range_warning_msg: "[Warning]. Please provide count of bmc_dynamic_start_range, bmc_dynamic_end_range ranges grater than
                 omnia_exclusive_static_start_range, omnia_exclusive_static_end_range in input/provision_config.yml file"
-warning_wait_time: 5
+warning_wait_time_mtms: 5
 
 # Usage: Validate_switch_vars.yml
 pxe_ranges_fail_msg: "Failure. Make sure to provide PXE start and end ranges in input/provision_config.yml file"

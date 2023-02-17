@@ -105,3 +105,27 @@
     gateway={{ bmc_nic_ip }} dhcpserver={{ bmc_nic_ip }} staticrange="{{ bmc_static_start_range }}-{{ bmc_static_end_range }}"
   changed_when: true
   when: bmc_static_status
+
+- name: Task for creating DHCP configuration
+  block:
+    - name: Create DHCP configuration
+      ansible.builtin.command: makedhcp -n
+      changed_when: true
+      register: create_dhcp_config
+  rescue:
+    - name: DHCP configuration failed
+      ansible.builtin.fail:
+        msg: "{{ dhcp_config_fail_msg }} {{ create_dhcp_config.stderr }}"
+      when: create_dhcp_config.stderr is defined
+
+- name: Task for applying DHCP configuration
+  block:
+    - name: Apply DHCP Configuration
+      ansible.builtin.command: makedhcp -a
+      changed_when: true
+      register: apply_dhcp_config
+  rescue:
+    - name: Verify DHCP configuration applied is successfully
+      ansible.builtin.fail:
+        msg: "{{ dhcp_config_apply_fail_msg }} {{ apply_dhcp_config.stderr }}"
+      when: apply_dhcp_config.stderr is defined

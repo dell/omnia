@@ -13,6 +13,15 @@
 # limitations under the License.
 ---
 
+- name: Install development packages
+  ansible.builtin.package:
+    name: "{{ psql_devel_packages }}"
+    state: present
+
+- name: Install psycopg2 module
+  ansible.builtin.command: python3 -m pip install psycopg2-binary
+  changed_when: false
+
 - name: Check if monitor_status.py is already running
   ansible.builtin.shell: |
     set -o pipefail
@@ -22,4 +31,4 @@
 
 - name: Initiate script if not running
   ansible.builtin.shell: nohup python3 {{ role_path }}/files/utils/monitor_status.py &
-  when: "'python3 monitor_status.py' not in ps_output.stdout"
+  when: "'monitor_status.py' not in ps_output.stdout"

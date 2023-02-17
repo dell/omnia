@@ -23,11 +23,11 @@
   when:
     - hostvars[item].ib_node_status is true
 
-- name: Filter ib_inventory with redhat os installed
+- name: Filter ib_inventory with redhat/rocky os installed
   ansible.builtin.add_host:
     name: "{{ item }}"
-    groups: "redhat_inventory"
+    groups: "redhat_rocky_inventory"
   with_items: "{{ groups.ib_inventory }}"
   when:
     - groups.ib_inventory is defined
-    - hostvars[item].redhat_status is true
+    - hostvars[item].redhat_status is true or hostvars[item].rocky_status is true

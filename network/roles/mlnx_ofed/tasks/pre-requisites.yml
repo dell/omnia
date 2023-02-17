@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+    # Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -17,9 +17,15 @@
   ansible.builtin.set_fact:
     ib_node_status: false
 
-- name: Initialise redhat status
+- name: Initialise redhat/rocky status
   ansible.builtin.set_fact:
     redhat_status: false
+    rocky_status: false
+
+- name: Install lspci tool
+  ansible.builtin.package:
+    name: pciutils
+    state: present
 
 - name: Check Mellanox card status
   ansible.builtin.shell: >
@@ -39,7 +45,15 @@
     redhat_status: true
   when: ansible_facts['distribution'] | lower == os_supported_rhel
 
+- name: Update OS name if Rocky node
+  ansible.builtin.set_fact:
+    rocky_status: true
+  when: ansible_facts['distribution'] | lower == os_supported_rocky
+
 - name: Validate rhsm status on redhat nodes having ib connectivity
+  when:
+    - redhat_status
+    - ib_node_status
   block:
     - name: Validate redhat subscription status
       ansible.builtin.include_tasks: validate_rhsm.yml
@@ -48,6 +62,3 @@
       ansible.builtin.pause:
         seconds: "{{ warning_wait_time }}"
         prompt: "{{ subscription_warning_msg }}"
-  when:
-    - redhat_status
-    - ib_node_status
