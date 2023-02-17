@@ -125,3 +125,18 @@
     path: "{{ omnia_dir }}"
     state: directory
     mode: 0755
+
+- name: Exit monitoring thread
+  block:
+  - name: Check monitoring thread id
+    ansible.builtin.shell: |
+      set -o pipefail
+      ps aux | grep -v grep | grep "python.*monitor_status.py" | awk '{print $2}'
+    register: process_id
+    changed_when: false
+    failed_when: false
+
+  - name: Kill monitoring thread
+    ansible.builtin.shell: kill -9 "{{ process_id.stdout }}"
+    when: process_id.stdout != ""
+  tags: monitoring_thread
