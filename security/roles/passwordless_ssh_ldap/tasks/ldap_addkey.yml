@@ -20,7 +20,7 @@
 - name: Check if SSH key updated in ldap user entry
   block:
       - name: Add public key to ldap
-        ansible.builtin.shell: set -o pipefail && ldapmodify -D {{ ldap_add_key_cmd }} -f "{{ user_home_path }}"/sshpubkey.ldif
+        ansible.builtin.shell: set -o pipefail && ldapmodify -Y EXTERNAL -H ldapi:/// -f "{{ user_home_path }}"/sshpubkey.ldif
         changed_when: false
         register: ldap_modify_output
 
