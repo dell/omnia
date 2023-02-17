@@ -18,4 +18,5 @@
       set -o pipefail && \
       lsdef | grep "node-" | sed -e 's/\s.*$//'
   changed_when: false
+  failed_when: false
   register: dynamic_nodes
