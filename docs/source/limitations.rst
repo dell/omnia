@@ -3,6 +3,7 @@ Limitations
 
 -  Once ``provision.yml`` is used to configure devices, it is
    recommended to avoid rebooting the control plane.
+-  Omnia supports adding only 1000 nodes when discovered via BMC.
 -  Removal of Slurm and Kubernetes component roles are not supported.
    However, skip tags can be provided at the start of installation to
    select the component roles.

@@ -5,6 +5,34 @@ Frequently Asked Questions
 
 Re-run the playbook whose execution failed once the issue is resolved.
 
+**Why is the provisioning status of my node object stuck at 'powering-on'?**
+
+Cause:
+
+    * Hardware issues (Auto-reboot may fail due to hardware tests failing)
+
+Resolution:
+
+    * Resolve/replace the faulty hardware and PXE boot the node.
+
+**Why is the provisioning status of my node object stuck at 'installing'?**
+
+Cause:
+
+    * Disk partition may not have enough storage space per the requirements specified in ``input/provision_config`` (under ``disk_partition``)
+
+    * The provided ISO may be corrupt.
+
+    * Hardware issues
+
+Resolution:
+
+    * Add more space to the server or modify the requirements specified in ``input/provision_config`` (under ``disk_partition``)
+
+    * Download the ISO again, verify the checksum and re-run the provision tool.
+
+    * Resolve/replace the faulty hardware and PXE boot the node.
+
 **How to add a new node for provisioning**
 
 

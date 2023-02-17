@@ -30,11 +30,13 @@ b. A PostgreSQL database is set up with all relevant cluster information such as
 
                     id | serial  |   node    |       hostname        | admin_mac |  admin_ip   |   bmc_ip    | ib_ip | status | bmc_mode
                     ----+---------+-----------+-----------------------+-----------+-------------+-------------+-------+--------+----------
-                      1 | 4FC45X2 | node00001 | node00001.spring.test |           | 172.17.0.25 | 172.29.0.25 | 172.35.0.25 |        | static
-                      2 | FBB65X2 | node00002 | node00002.spring.test |           | 172.17.0.35 | 172.29.0.35 | 172.35.0.35 |        | static
+                      1 | XXXXXXX | node00001 | node00001.omnia.test |           | 10.5.0.25 | 10.3.0.25 | 10.10.0.25 |        | static
+                      2 | XXXXXXX | node00002 | node00002.omnia.test |           | 10.5.0.35 | 10.3.0.35 | 10.10.0.35 |        | static
 
 
 Possible values of status are static, powering-on, installing, booting, post-booting, booted, failed. The status will be updated every 3 minutes.
+
+.. note:: For nodes listing status as 'failed', provisioning logs can be viewed in ``/var/log/xcat/xcat.log`` on the target nodes.
 
 c. Offline repositories will be created based on the OS being deployed across the cluster.
 

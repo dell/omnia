@@ -14,14 +14,14 @@ Manually collect PXE NIC information for target servers and manually define them
 
 **pxe_mapping_file.csv**
 
-
 ::
 
     MAC,Hostname,IP
 
-    xx:yy:zz:aa:bb:cc,server,172.29.0.101
+    xx:yy:zz:aa:bb:cc,server,10.5.0.101
 
-    aa:bb:cc:dd:ee:ff,server2, 172.29.0.102
+    aa:bb:cc:dd:ee:ff,server2, 10.5.0.102
+
 
 **Pros**
 
