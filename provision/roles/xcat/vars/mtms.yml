@@ -64,3 +64,6 @@ timeout_ipmi: 15
 
 # Usage: power_off_nodes.yml
 mtms_poweroff_warning_msg: "[WARNING] Power off failed for the discoverd nodes using bmc. Error:"
+
+# Usage: fetch_static_nodes.yml
+check_status_bmc_file: "{{ role_path }}/files/utils/check_static_nodes_status.py"

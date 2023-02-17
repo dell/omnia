@@ -40,7 +40,7 @@
 
         - name: Power off the nodes for static
           ansible.builtin.include_tasks: power_off_nodes.yml
-          with_items: "{{ bmc_static_node_group }}"
+          with_items: "{{ bmc_static_nodes }}"
           when: bmc_static_node_status
       when: bmc_static_status
 
