@@ -1,0 +1,63 @@
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Include provision_validation_vars role vars
+  ansible.builtin.include_vars: "{{ item }}"
+  with_items: "{{ provision_validation_vars }}"
+
+- name: Common packages installation for provision
+  ansible.builtin.include_tasks: package_installation.yml
+
+- name: Create the provision ini file
+  ansible.builtin.include_tasks: create_provision_ini.yml
+
+- name: Include provision configuration variables
+  ansible.builtin.include_tasks: include_provision_config.yml
+
+- name: Validate discovery parameters
+  ansible.builtin.include_tasks: validate_discovery_params.yml
+
+- name: Create metadata
+  ansible.builtin.include_tasks: metadata/main.yml
+
+- name: Assign nic configuration when discovery mechanism is mapping or snmp
+  ansible.builtin.include_tasks: assign_admin_nic_config.yml
+  when:
+    - discovery_mechanism == discovery_method_snmp or
+      discovery_mechanism == discovery_method_mapping
+
+- name: Assign nic configuration when discovery mechanism is bmc
+  ansible.builtin.include_tasks: assign_nic_config.yml
+  when: discovery_mechanism == discovery_method_bmc
+
+- name: Wait for 30 sec for nic configuations to take place
+  ansible.builtin.wait_for:
+    timeout: "{{ nic_wait_time }}"
+
+- name: Validate the nic parameters
+  ansible.builtin.include_tasks: validate_cp_nic.yml
+
+- name: Validate provision parameters
+  ansible.builtin.include_tasks: validate_provision_vars.yml
+
+- name: Validate disk partition parameters
+  ansible.builtin.include_tasks: validate_disk_partition_vars.yml
+  with_items: "{{ disk_partition }}"
+
+- name: Validate domain_name
+  ansible.builtin.include_tasks: validate_domain_name.yml
+
+- name: Validate postscripts path
+  ansible.builtin.include_tasks: validate_postscripts_path.yml

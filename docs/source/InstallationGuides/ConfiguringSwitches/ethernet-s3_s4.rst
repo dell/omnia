@@ -1,7 +1,7 @@
 Configuring Ethernet Switches (S3 and S4 series)
 ------------------------------------------------
 
-* Edit the ``ethernet_tor_input.yml`` file for all S3* and S4* PowerSwitches such as S3048-ON, S4048T-ON, S4112F-ON, S4048-ON, S4048T-ON, S4112F-ON, S4112T-ON, and S4128F-ON.
+* Edit the ``network/ethernet_tor_input.yml`` file for all S3* and S4* PowerSwitches such as S3048-ON, S4048T-ON, S4112F-ON, S4048-ON, S4048T-ON, S4112F-ON, S4112T-ON, and S4128F-ON.
 
 +----------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Name                       | Default, accepted values                                                                                                                                                | Required? | Purpose                                                                                                                                                                                       |
@@ -23,20 +23,20 @@ Configuring Ethernet Switches (S3 and S4 series)
 +----------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------+-----------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 
-* When initializing a factory reset switch, the user needs to ensure DHCP is enabled and an IPv6 address is not assigned. Omnia will assign an IP address to the switch using DHCP with all other configurations.
+* When initializing a factory reset switch, the user needs to ensure DHCP is enabled and an IPv6 address is not assigned.
 
 
 **Running the playbook**::
 
-    cd omnia/network
+    cd network
 
     ansible-playbook ethernet_switch_config.yml -i inventory -e ethernet_switch_username=”” -e ethernet_switch_password=””
 
 * Where ``ethernet_switch_username`` is the username used to authenticate into the switch.
 
-* The inventory file should be a list of IPs separated by newlines. Check out the device_ip_list.yml section in `Sample Files <https://omnia-documentation.readthedocs.io/en/latest/samplefiles.html>`_
+* The inventory file should be a list of IPs separated by newlines. Check out the switch_inventory section in `Sample Files <https://omnia-documentation.readthedocs.io/en/latest/samplefiles.html>`_
 
-* Where ``ethernet_switch_password`` is the username used to authenticate into the switch.
+* Where ``ethernet_switch_password`` is the password used to authenticate into the switch.
 
 
 

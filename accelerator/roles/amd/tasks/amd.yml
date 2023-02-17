@@ -28,4 +28,3 @@
   ansible.builtin.include_tasks: amd_leap.yml
   when:
    - os_leap in compute_os
-   # - ansible_distribution_version >= os_supported_leap_version

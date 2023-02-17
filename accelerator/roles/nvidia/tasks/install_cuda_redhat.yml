@@ -85,19 +85,16 @@
 - name: Perform Post Installation steps
   block:
     - name: Check current environment variables
-      ansible.builtin.command: cat /etc/environment
+      ansible.builtin.shell: echo $PATH
       changed_when: false
       register: environment_output
 
-    - name: Set environment variable in /etc/environment
-      ansible.builtin.shell: echo "PATH=$PATH:/usr/local/cuda/bin" > /etc/environment
-      when: "'cuda' not in environment_output.stdout"
-
-    - name: Refresh environment variable
-      ansible.builtin.shell: source /etc/environment && echo $PATH
-      changed_when: false
-      args:
-        executable: /bin/bash
+    - name: Replace PATH variable
+      ansible.builtin.lineinfile:
+        path: /etc/bashrc
+        regexp: '^PATH=*'
+        insertafter: EOF
+        line: 'PATH={{ environment_output.stdout }}:/usr/local/cuda/bin'
 
   when: "'cuda' not in path_output.stdout"
 

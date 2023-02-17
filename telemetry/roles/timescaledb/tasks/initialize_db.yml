@@ -15,16 +15,16 @@
 
 
 - name: Wait for timescale pod to come to ready state
-  command: kubectl wait --for=condition=ready --timeout=10m -n "{{ namespace }}" pod -l app="{{ timescaledb_k8s_name }}"
+  ansible.builtin.command: kubectl wait --for=condition=ready --timeout=10m -n "{{ namespace }}" pod -l app="{{ timescaledb_k8s_name }}"
   changed_when: false
 
 - name: Get timescaledb pod name
-  command: kubectl get pod -n "{{ namespace }}" -l app="{{ timescaledb_k8s_name }}" -o jsonpath="{.items[0].metadata.name}"
+  ansible.builtin.command: kubectl get pod -n "{{ namespace }}" -l app="{{ timescaledb_k8s_name }}" -o jsonpath="{.items[0].metadata.name}"
   register: timescaledb_pod_name
   changed_when: false
 
 - name: Initialize database
-  command: kubectl exec -it "{{ timescaledb_pod_name.stdout }}" -n "{{ namespace }}" ./cmd/initialize_timescaledb.sh
+  ansible.builtin.command: kubectl exec -it "{{ timescaledb_pod_name.stdout }}" -n "{{ namespace }}" ./cmd/initialize_timescaledb.sh
   changed_when: false
   register: status
   until: status is not failed

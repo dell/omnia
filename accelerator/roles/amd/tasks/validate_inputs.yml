@@ -31,7 +31,7 @@
 
 - name: Fetch the amd ROCm url
   ansible.builtin.uri:
-    url: "https://repo.radeon.com/amdgpu/{{ amd_rocm_version }}/rhel/{{ compute_os_version }}/main/x86_64"
+    url: "https://repo.radeon.com/rocm/centos8/{{ amd_rocm_version }}"
     method: HEAD
   register: rocm_url_status
   failed_when: false

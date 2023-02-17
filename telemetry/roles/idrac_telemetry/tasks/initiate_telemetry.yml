@@ -13,333 +13,188 @@
 # limitations under the License.
 ---
 
+- name: Initialize variables
+  ansible.builtin.set_fact:
+    vault_filename: "{{ playbook_dir }}/../input/.telemetry_vault_key"
+    telemetry_config_file: "{{ playbook_dir }}/../input/telemetry_config.yml"
+
+- name: Check telemetry_config.yml file is encrypted
+  ansible.builtin.command: cat {{ telemetry_config_file }}
+  changed_when: false
+  register: config_content
+  no_log: true
+
+- name: Decrpyt telemetry_config.yml
+  ansible.builtin.command: >-
+    ansible-vault decrypt {{ telemetry_config_file }}
+    --vault-password-file {{ vault_filename }}
+  changed_when: false
+  when: "'$ANSIBLE_VAULT;' in config_content.stdout"
+
+- name: Include telemetry_config.yml
+  ansible.builtin.include_vars: "{{ telemetry_config_file }}"
+  no_log: true
+
+- name: Create ansible vault key
+  ansible.builtin.set_fact:
+    vault_key: "{{ lookup('password', '/dev/null chars=ascii_letters') }}"
+  when: "'$ANSIBLE_VAULT;' not in config_content.stdout"
+
+- name: Save vault key
+  ansible.builtin.lineinfile:
+    path: "{{ vault_filename }}"
+    line: "{{ vault_key }}"
+    mode: "{{ vault_file_perm }}"
+    owner: root
+    create: true
+  when: "'$ANSIBLE_VAULT;' not in config_content.stdout"
+
+- name: Encrypt telemetry_config.yml file
+  ansible.builtin.command: >-
+    ansible-vault encrypt {{ telemetry_config_file }}
+    --vault-password-file {{ vault_filename }}
+  changed_when: false
+
 # Include and initialize variables
-
-- name: Include telemetry_base_vars.yml
-  include_vars: "{{ playbook_dir }}/input_params/telemetry_base_vars.yml"
-  no_log: true
-
-- name: Include control_plane base_vars.yml file
-  include_vars: "{{ playbook_dir }}/../control_plane/input_params/base_vars.yml"
-  no_log: true
-
 - name: Initiate telemetry process if idrac_support is enabled
+  when: idrac_telemetry_support is true
   block:
-  - name: Include telemetry common vars
-    include_vars: "{{ playbook_dir }}/roles/common/vars/main.yml"
-    no_log: true
-
-  - name: Include idrac-telemetry vars
-    include_vars: "{{ playbook_dir }}/roles/idrac_telemetry/vars/main.yml"
-    no_log: true
-
-  - name: Include timescaledb vars
-    include_vars: "{{ playbook_dir }}/roles/timescaledb/vars/main.yml"
-    no_log: true
-
-  - name: Initialize variables
-    set_fact:
-      tower_config_file: "{{ playbook_dir }}/../control_plane/roles/webui_awx/files/.tower_cli.cfg"
-      tower_vault_file: "{{ playbook_dir }}/../control_plane/roles/webui_awx/files/.tower_vault_key"
-      idrac_telemetry_scripting_repo: "https://github.com/dell/iDRAC-Telemetry-Scripting.git"
-      idrac_telemetry_scripting_stable_commit: "1f4bb26"
-      idrac_telemetry_scripting_folder: iDRAC-Telemetry-Scripting
-      idrac_login_input_filename: "{{ playbook_dir }}/../control_plane/input_params/login_vars.yml"
-      idrac_login_vault_filename: "{{ playbook_dir }}/../control_plane/input_params/.login_vault_key"
-      login_vars_file: "{{ playbook_dir }}/input_params/telemetry_login_vars.yml"
-      vault_filename: "{{ playbook_dir }}/input_params/.login_vault_key"
-      idrac_inventory_filename: "/opt/omnia/idrac_inventory"
-      idrac_file_existence: "iDRAC inventory file does not exist. Check /opt/omnia/idrac_inventory."
-      idrac_inventory_cli_status: false
-      min_firmware_version_reqd: 3
-      datacenter_license: false
-      firmware_version: false
-      file_perm: '0644'
-      telemetry_idrac: []
-      service_type: 3
-      auth_type: 1
-      idrac_awx_count: 0
-      filtered_idrac_count: 0
-      failed_idrac: []
-      awx_idrac: []
-
-# When awx_web_support is set to true
-  - name: Get iDRAC IP list when awx_web_support is set to true
-    block: 
-  # Get AWX Credentials from tower_config file 
-    - name: Check if tower_config file is encrypted
-      command: cat {{ tower_config_file }}
-      changed_when: false
-      no_log: true
-      register: config_content
-
-    - name: Decrpyt tower_config
-      command: >-
-        ansible-vault decrypt {{ tower_config_file }}
-        --vault-password-file {{ tower_vault_file }}
-      when: "'$ANSIBLE_VAULT;' in config_content.stdout"
-      changed_when: false
-
-    - name: Change file permissions
-      file:
-        path: "{{ tower_config_file }}"
-        mode: "{{ file_perm }}"
-
-    - name: Fetch awx host
-      command: grep "host:" "{{ tower_config_file }}"
-      changed_when: false
-      register: fetch_awx_host
-
-    - name: Fetch awx username
-      command: grep "username:" "{{ tower_config_file }}"
-      register: fetch_awx_username
-      changed_when: false
+    - name: Include telemetry common vars
+      ansible.builtin.include_vars: "{{ playbook_dir }}/roles/common/vars/main.yml"
       no_log: true
 
-    - name: Fetch awx password
-      command: grep "password:" "{{ tower_config_file }}"
-      changed_when: false
-      no_log: true
-      register: fetch_awx_password
-
-    - name: Set awx variables
-      set_fact:
-        awx_host: "{{ fetch_awx_host.stdout | regex_replace('host: ','') }}"
-        awx_username: "{{ fetch_awx_username.stdout | regex_replace('username: ','') }}"
-        awx_password: "{{ fetch_awx_password.stdout | regex_replace('password: ','') }}"
+    - name: Include idrac-telemetry vars
+      ansible.builtin.include_vars: "{{ playbook_dir }}/roles/idrac_telemetry/vars/main.yml"
       no_log: true
 
-    - name: Encrypt tower_config_file
-      command: >-
-        ansible-vault encrypt {{ tower_config_file }}
-        --vault-password-file {{ tower_vault_file }}
-      changed_when: false
-
-    - name: Change file permissions
-      file:
-        path: "{{ tower_config_file }}"
-        mode: "{{ file_perm }}"
-
-  # Get iDRAC inventory from AWX
-    - name: Get idrac-inventory id
-      shell: >-
-        awx --conf.host "{{ awx_host }}" --conf.username "{{ awx_username }}" --conf.password "{{ awx_password }}" --conf.insecure
-        inventory list -f human | grep idrac_inventory
-      register: inventory_id
-      changed_when: false
-
-    - name: Get idrac host list
-      command: >-
-        awx --conf.host "{{ awx_host }}" --conf.username "{{ awx_username }}" --conf.password "{{ awx_password }}" --conf.insecure
-        hosts list --inventory "{{ inventory_id.stdout[0] }}"
-      register: idrac_inventory_output
-      changed_when: false
-
-    - name: Save the json data
-      set_fact:
-        idrac_inventory_jsondata: "{{ idrac_inventory_output.stdout | from_json }}"
-
-    when: awx_web_support
-
-  - name: Get iDRAC IP list when awx_web_support is set to false
-    block:
-    - name: Register file status
-      stat:
-        path: "{{ idrac_inventory_filename }}"
-      register: file_status
-    
-    - name: Fetch IP list
-      command: awk NF=1 "{{ idrac_inventory_filename }}"
-      register: idrac_inventory_output
-      when: file_status.stat.exists
-
-    - name: Set empty idrac_inventory
-      set_fact:
-        idrac_inventory_cli_status: true
-      when: file_status.stat.exists 
-
-    when: not awx_web_support
-
-# Get iDRAC Credentials
-  - name: Get iDRAC credentials
-    block:
-    - name: Check if {{ idrac_login_input_filename }} file is encrypted
-      command: cat {{ idrac_login_input_filename }}
-      changed_when: false
-      # no_log: true
-      register: config_content
-
-    - name: Decrpyt login_vars.yml
-      command: >-
-        ansible-vault decrypt {{ idrac_login_input_filename }}
-        --vault-password-file {{ idrac_login_vault_filename }}
-      when: "'$ANSIBLE_VAULT;' in config_content.stdout"
-      changed_when: false
-
-    - name: Include variable file {{ idrac_login_input_filename }}
-      include_vars: "{{ idrac_login_input_filename }}"
+    - name: Include timescaledb vars
+      ansible.builtin.include_vars: "{{ playbook_dir }}/roles/timescaledb/vars/main.yml"
       no_log: true
 
-    - name: Encrypt login_vars.yml
-      command: >-
-        ansible-vault encrypt {{ idrac_login_input_filename }}
-        --vault-password-file {{ idrac_login_vault_filename }}
-      changed_when: false
-      when: "'$ANSIBLE_VAULT;' in config_content.stdout"
-
-    - name: Update login_vars.yml permission
-      file:
-        path: "{{ idrac_login_input_filename }}"
-        mode: "{{ file_perm }}"
-
-    when: ( idrac_inventory_jsondata['results'] is defined and (idrac_inventory_jsondata['results'] |length>0) ) or
-          idrac_inventory_cli_status
-
-# Get mysqldb credentials
-  - name: Get mysqldb credentials
-    block:
-    - name: Check telemetry_login_vars file is encrypted
-      command: cat {{ login_vars_file }}
-      changed_when: false
-      register: config_content
-      no_log: true
-
-    - name: Decrpyt telemetry_login_vars.yml
-      command: >-
-        ansible-vault decrypt {{ login_vars_file }}
-        --vault-password-file {{ vault_filename }}
-      changed_when: false
-      when: "'$ANSIBLE_VAULT;' in config_content.stdout"
-
-    - name: Include variable file telemetry_login_vars.yml
-      include_vars: "{{ login_vars_file }}"
-      no_log: true
-
-    - name: Encrypt input config file
-      command: >-
-        ansible-vault encrypt {{ login_vars_file }}
-        --vault-password-file {{ vault_filename }}
-      changed_when: false
-
-    - name: Update telemetry_login_vars.yml permission
-      file:
-        path: "{{ login_vars_file }}"
-        mode: "{{ file_perm }}"
-
-    when: ( idrac_inventory_jsondata['results'] is defined and (idrac_inventory_jsondata['results'] |length>0) ) or
-          idrac_inventory_cli_status
+    - name: Initialize variables
+      ansible.builtin.set_fact:
+        idrac_telemetry_scripting_repo: "https://github.com/dell/iDRAC-Telemetry-Scripting.git"
+        idrac_telemetry_scripting_stable_commit: "1f4bb26"
+        idrac_telemetry_scripting_folder: iDRAC-Telemetry-Scripting
+        login_vars_file: "{{ playbook_dir }}/input_params/telemetry_login_vars.yml"
+        vault_filename: "{{ playbook_dir }}/input_params/.login_vault_key"
+        idrac_inventory_filename: "/opt/omnia/idrac_inventory"
+        idrac_file_existence: "iDRAC inventory file does not exist. Check /opt/omnia/idrac_inventory."
+        monitor_config_file: "{{ playbook_dir }}/../input/monitor_config.yml"
+        monitor_config_vault_filename: "{{ playbook_dir }}/../input/.monitor_vault_key"
+        min_firmware_version_reqd: 3
+        datacenter_license: false
+        firmware_version: false
+        file_perm: '0644'
+        telemetry_idrac: []
+        service_type: 3
+        auth_type: 1
+        idrac_awx_count: 0
+        filtered_idrac_count: 0
+        failed_idrac: []
+        awx_idrac: []
 
 # Filter iDRACs matching telemetry pre-requisites
 
-  - name: Add iDRAC nodes and initiate telemetry when awx_web_support is true
-    include_tasks: filter_idrac.yml
-    with_items: "{{ idrac_inventory_jsondata['results'] }}"
-    loop_control:
-      index_var: idrac_index
-    no_log: true
-    when: awx_web_support
-
-  - name: Add iDRAC nodes and initiate telemetry when awx_web_support is false
-    include_tasks: filter_idrac.yml
-    with_items: "{{ idrac_inventory_output.stdout_lines }}"
-    loop_control:
-      index_var: idrac_index
-    no_log: true
-    when: not awx_web_support and idrac_inventory_cli_status
+    - name: Add iDRAC nodes and initiate telemetry
+      ansible.builtin.include_tasks: filter_idrac.yml
+      with_items: "{{ groups['idrac'] }}"
+      loop_control:
+        index_var: idrac_index
+ #     no_log: true
 
 # Add iDRAC Credentials in DB and enable telemetry fetching
 
-  - name: Enable telemetry collection on iDRAC
-    block:
-    - name: Git clone telemetry initialization repo
-      ansible.builtin.git:
-        repo: "{{ idrac_telemetry_scripting_repo }}"
-        dest: "{{ mount_location + idrac_telemetry_scripting_folder }}"
-        version: "{{ idrac_telemetry_scripting_stable_commit }}"
-      register: telemetry_collection
+    - name: Enable telemetry collection on iDRAC
+      when: telemetry_idrac is defined and (telemetry_idrac | length > 0)
+      block:
+        - name: Git clone telemetry initialization repo
+          ansible.builtin.git:
+            repo: "{{ idrac_telemetry_scripting_repo }}"
+            dest: "{{ mount_location + idrac_telemetry_scripting_folder }}"
+            version: "{{ idrac_telemetry_scripting_stable_commit }}"
+          register: telemetry_collection
 
-    - name: Enable telemetry collection on iDRACs
-      command: python3 ./ConfigurationScripts/EnableOrDisableAllTelemetryReports.py -ip "{{ item }}" -u "{{ idrac_username }}" -p "{{ idrac_password }}" -s Enabled
-      args:
-        chdir: "{{ mount_location + idrac_telemetry_scripting_folder }}"
-      with_items: "{{ telemetry_idrac }}"
-      changed_when: false
-      no_log: true
-    when: telemetry_idrac is defined and (telemetry_idrac |length>0)
-    rescue:
-      - name: Show failure msg
-        debug:
-          msg: "Enabling telemetry on an iDRAC failed"
+        - name: Enable telemetry collection on iDRACs
+          ansible.builtin.command: >-
+            python3 ./ConfigurationScripts/EnableOrDisableAllTelemetryReports.py -ip "{{ item }}"
+            -u "{{ idrac_username }}" -p "{{ idrac_password }}" -s Enabled
+          args:
+            chdir: "{{ mount_location + idrac_telemetry_scripting_folder }}"
+          with_items: "{{ telemetry_idrac }}"
+          changed_when: false
+          no_log: true
 
-  - name: Add iDRAC details in mysqldb
-    block:
-    - name: Wait for mysqldb pod to come to ready state
-      command: kubectl wait --for=condition=ready --timeout=10m -n "{{ namespace }}" pod -l app="{{ mysqldb_k8s_name }}"
-      changed_when: false
+      rescue:
+        - name: Show failure msg
+          ansible.builtin.debug:
+            msg: "Enabling telemetry on an iDRAC failed"
 
-    - name: Get mysqlDB svc IP
-      command: kubectl get svc "{{ mysqldb_k8s_name }}" -n "{{ namespace }}" -o=jsonpath='{.spec.clusterIP}'
-      changed_when: false
-      register: mysql_svc_ip
+    - name: Add iDRAC details in mysqldb
+      when: telemetry_idrac is defined and (telemetry_idrac | length > 0)
+      block:
+        - name: Wait for mysqldb pod to come to ready state
+          ansible.builtin.command: kubectl wait --for=condition=ready --timeout=10m -n "{{ namespace }}" pod -l app="{{ mysqldb_k8s_name }}"
+          changed_when: false
 
-    - name: Get mysqlDB svc port
-      command: kubectl get svc "{{ mysqldb_k8s_name }}" -n "{{ namespace }}" -o=jsonpath='{.spec.ports[0].port}'
-      changed_when: false
-      register: mysql_svc_port
+        - name: Get mysqlDB svc IP
+          ansible.builtin.command: kubectl get svc "{{ mysqldb_k8s_name }}" -n "{{ namespace }}" -o=jsonpath='{.spec.clusterIP}'
+          changed_when: false
+          register: mysql_svc_ip
 
-    - name: Add iDRAC host in mysqlDB
-      community.mysql.mysql_query:
-        login_host: "{{ mysql_svc_ip.stdout }}"
-        login_port: "{{ mysql_svc_port.stdout }}"
-        login_user: "{{ mysqldb_user }}"
-        login_password: "{{ mysqldb_password }}"
-        login_db: "{{ mysqldb_name }}"
-        query: INSERT IGNORE INTO {{ mysqldb_name + '.services' }} (ip, serviceType, authType, auth) VALUES (%s, %s, %s ,'{"password":"{{ idrac_password | quote }}","username":"{{ idrac_username | quote }}"}')
-        positional_args:
-          - "{{ item }}"
-          - "{{ service_type }}"
-          - "{{ auth_type }}"
-      with_items: "{{ telemetry_idrac }}"
-      no_log: true
-    when: telemetry_idrac is defined and (telemetry_idrac |length>0)
-    rescue:
-      - name: Show failure msg
-        fail:
-          msg: "Adding iDRAC credential details to mysqldb failed."
+        - name: Get mysqlDB svc port
+          ansible.builtin.command: kubectl get svc "{{ mysqldb_k8s_name }}" -n "{{ namespace }}" -o=jsonpath='{.spec.ports[0].port}'
+          changed_when: false
+          register: mysql_svc_port
+
+        - name: Add iDRAC host in mysqlDB
+          community.mysql.mysql_query:
+            login_host: "{{ mysql_svc_ip.stdout }}"
+            login_port: "{{ mysql_svc_port.stdout }}"
+            login_user: "{{ mysqldb_user }}"
+            login_password: "{{ mysqldb_password }}"
+            login_db: "{{ mysqldb_name }}"
+            query: INSERT IGNORE INTO {{ mysqldb_name + '.services' }} (ip, serviceType, authType, auth)
+                  VALUES (%s, %s, %s ,'{"password":"{{ idrac_password | quote }}","username":"{{ idrac_username | quote }}"}')
+            positional_args:
+              - "{{ item }}"
+              - "{{ service_type }}"
+              - "{{ auth_type }}"
+          with_items: "{{ telemetry_idrac }}"
+          no_log: true
+
+      rescue:
+        - name: Show failure msg
+          ansible.builtin.fail:
+            msg: "Adding iDRAC credential details to mysqldb failed."
 
 # Initiate iDRAC collection
-  - name: Initiate telemetry collection
-    block:
-    - name: Wait for idrac-telemetry pod to come to ready state
-      command: kubectl wait --for=condition=ready --timeout=10m -n "{{ namespace }}" pod -l app="{{ idrac_telemetry_k8s_name }}"
-      changed_when: false
+    - name: Initiate telemetry collection
+      when: telemetry_idrac is defined and (telemetry_idrac | length > 0)
+      block:
+        - name: Wait for idrac-telemetry pod to come to ready state
+          ansible.builtin.command: kubectl wait --for=condition=ready --timeout=10m -n "{{ namespace }}" pod -l app="{{ idrac_telemetry_k8s_name }}"
+          changed_when: false
 
-    - name: Get idrac-telemetry pod name
-      command: kubectl get pods -n "{{ namespace }}" -l app="{{ idrac_telemetry_k8s_name }}" -o jsonpath="{.items[0].metadata.name}"
-      changed_when: false
-      register: idrac_telemetry_pod
+        - name: Get idrac-telemetry pod name
+          ansible.builtin.command: kubectl get pods -n "{{ namespace }}" -l app="{{ idrac_telemetry_k8s_name }}" -o jsonpath="{.items[0].metadata.name}"
+          changed_when: false
+          register: idrac_telemetry_pod
 
-    - name: Wait for 15 sec for mysqldb to be ready with updated values
-      pause:
-        seconds: 15
+        - name: Wait for 15 sec for mysqldb to be ready with updated values
+          ansible.builtin.pause:
+            seconds: 15
 
-    - name: Initiate telemetry-collector
-      shell: kubectl exec --stdin --tty "{{ idrac_telemetry_pod.stdout }}" -n "{{ namespace }}" -c telemetry-receiver -- nohup go run cmd/redfishread/redfishread.go &
-      changed_when: false
+        - name: Initiate telemetry-collector
+          ansible.builtin.shell: >-
+            kubectl exec --stdin --tty "{{ idrac_telemetry_pod.stdout }}" -n "{{ namespace }}"
+            -c telemetry-receiver -- nohup go run cmd/redfishread/redfishread.go &
+          changed_when: false
 
-    when: telemetry_idrac is defined and (telemetry_idrac |length>0)
-
-  - name: Telemetry report
-    debug:
-      msg:
-        - "Count of iDRAC IPs found: {{ idrac_awx_count }}"
-        - "List of iDRAC IPs found: {{ awx_idrac }}"
-        - "Count of iDRAC IPs where telemetry is initiated: {{ filtered_idrac_count }}"
-        - "List of iDRAC IPs where telemetry is initiated: {{ telemetry_idrac }}"
-
-  - name: iDRAC inventory not found
-    debug:
-      msg: "{{ idrac_file_existence }}"
-    when: not awx_web_support and not idrac_inventory_cli_status
-
-  when: idrac_telemetry_support is true
+    - name: Telemetry report
+      ansible.builtin.debug:
+        msg:
+          - "Count of iDRAC IPs found: {{ idrac_awx_count }}"
+          - "List of iDRAC IPs found: {{ awx_idrac }}"
+          - "Count of iDRAC IPs where telemetry is initiated: {{ filtered_idrac_count }}"
+          - "List of iDRAC IPs where telemetry is initiated: {{ telemetry_idrac }}"

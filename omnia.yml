@@ -16,6 +16,9 @@
 - name: Gather facts from all the nodes
   hosts: manager, compute, login_node, nfs_node
 
+- name: Configure security on nodes
+  ansible.builtin.import_playbook: security/security.yml
+
 - name: Execute slurm/kubernetes
   ansible.builtin.import_playbook: scheduler/scheduler.yml
 

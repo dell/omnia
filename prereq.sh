@@ -40,5 +40,5 @@ then
  echo "DISABLING SELINUX:"
  echo "------------------"
  sed -i 's/^SELINUX=.*/SELINUX=disabled/g' /etc/selinux/config
- echo "SELinux is disabled. Reboot system to notice the change in status before executing control_plane!!"
+ echo "SELinux is disabled. Reboot system to notice the change in status before executing playbooks in control plane!!"
 fi

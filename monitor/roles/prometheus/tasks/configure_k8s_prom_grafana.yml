@@ -59,15 +59,3 @@
     - name: Import K8s grafana dashboards failed
       ansible.builtin.fail:
         msg: "Error: {{ import_prom_dashboards.msg }}"
-
-- name: Save grafana svc ip
-  ansible.builtin.replace:
-    path: "{{ grafana_conf_path }}"
-    regexp: "ip=.*"
-    replace: "ip={{ grafana_svc_ip.stdout }}"
-
-- name: Save grafana port
-  ansible.builtin.replace:
-    path: "{{ grafana_conf_path }}"
-    regexp: "port=.*"
-    replace: "port={{ grafana_svc_port.stdout }}"

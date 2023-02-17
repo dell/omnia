@@ -1,196 +1,128 @@
 Building Clusters
-=================
+------------------
 
-1. In the ``omnia_config.yml`` file, provide the `required details <schedulerinputparams.html>`_.
+1. In the ``input/omnia_config.yml`` file, provide the `required details <schedulerinputparams.html>`_.
 
 .. note::  Without the login node, Slurm jobs can be scheduled only through the manager node.
 
-2. Create an inventory file in the *omnia* folder. Add login node IP address under the *[login_node]* group, manager node IP address under the *[manager]* group, compute node IP addresses under the *[compute]* group, and NFS node IP address under the *[nfs_node]* group. A template file named INVENTORY is provided in the *omnia\docs* folder.
+2. Create an inventory file in the *omnia* folder. Add login node IP address under the manager node IP address under the *[manager]* group, compute node IP addresses under the *[compute]* group, and Login node IP under the *[login_node]* group,. Check out the `sample inventory for more information <../samplefiles.html>`_.
 
 .. note::
      * Omnia checks for `red hat subscription being enabled on RedHat nodes as a pre-requisite <../../Roles/Utils/rhsm_subscription.html>`_. Not having Red Hat subscription enabled on the manager node will cause ``omnia.yml`` to fail. If compute nodes do not have Red Hat subscription enabled, ``omnia.yml`` will skip the node entirely.
-     * Ensure that all the four groups (login_node, manager, compute, nfs_node) are present in the template, even if the IP addresses are not updated under login_node and nfs_node groups.
      * Omnia creates a log file which is available at: ``/var/log/omnia.log``.
      * If only Slurm is being installed on the cluster, docker credentials are not required.
 
-3. To install Omnia:
+3. To run ``omnia.yml``: ::
 
-       For CentOS, Rocky and RHEL:       ``ansible-playbook omnia.yml -e grafana_username="" -e grafana_password=""``
+ ansible-playbook omnia.yml -i inventory
 
-.. note:: To skip installing Grafana during the run of ``omnia.yml``, omit the parameters ``grafana_username`` and ``grafana_password``. Alternatively, Grafana is not installed by ``omnia.yml`` if it's not available on the Control Plane.
-
+.. note::
+    * To visualize the cluster (Slurm/Kubernetes) metrics on Grafana (On the control plane)  during the run of ``omnia.yml``, add the parameters ``grafana_username`` and ``grafana_password`` (That is ``ansible-playbook omnia.yml -i inventory -e grafana_username="" -e grafana_password=""``). Alternatively, Grafana is not installed by ``omnia.yml`` if it's not available on the Control Plane.
+    * Having the same node in the manager and login_node groups in the inventory is not recommended by Omnia.
 
 **Using Skip Tags**
 
-Using skip tags, certain parts of the ``omnia.yml`` script can be left out to avoid the installation/set up of:
+Using skip tags, the scheduler running on the cluster can be set to Slurm or Kubernetes while running the ``omnia.yml`` playbook. This choice can be made  depending on the expected HPC/AI workloads.
 
-    * Kubernetes: ``ansible-playbook omnia.yml -i inventory --skip-tags "kubernetes"``
+    * Kubernetes: ``ansible-playbook omnia.yml -i inventory --skip-tags "kubernetes"``  (To set Slurm as the scheduler)
 
-    * Slurm: ``ansible-playbook omnia.yml -i inventory --skip-tags "slurm"``
-
-    * NFS client: ``ansible-playbook omnia.yml -i inventory --skip-tags "nfs_client"``
-
-The default path of the Ansible configuration file is ``/etc/ansible/``. If the file is not present in the default path, then edit the ``ansible_config_file_path`` variable to update the configuration path.
-
-To provide passwords for mariaDB Database (for Slurm accounting), Kubernetes Pod Network CIDR, and Kubernetes CNI, edit the ``omnia_config.yml`` file.
+    * Slurm: ``ansible-playbook omnia.yml -i inventory --skip-tags "slurm"`` (To set Kubernetes as the scheduler)
 
 .. note::
+        * If you want to view or edit the ``omnia_config.yml`` file, run the following command:
 
-* Supported values for Kubernetes CNI are calico and flannel. The default value of CNI considered by Omnia is calico.
+                - ``ansible-vault view omnia_config.yml --vault-password-file .omnia_vault_key`` -- To view the file.
 
-* The default value of Kubernetes Pod Network CIDR is 10.244.0.0/16. If 10.244.0.0/16 is already in use within your network, select a different Pod Network CIDR. For more information, `see here. <https://docs.projectcalico.org/getting-started/kubernetes/quickstart>`_.
+                - ``ansible-vault edit omnia_config.yml --vault-password-file .omnia_vault_key`` -- To edit the file.
 
-* If you want to view or edit the ``omnia_config.yml`` file, run the following command:
-
-        - ``ansible-vault view omnia_config.yml --vault-password-file .omnia_vault_key`` -- To view the file.
-
-        - ``ansible-vault edit omnia_config.yml --vault-password-file .omnia_vault_key`` -- To edit the file.
-
-* It is suggested that you use the ansible-vault view or edit commands and that you do not use the ansible-vault decrypt or encrypt commands. If you have used the ansible-vault decrypt or encrypt commands, provide 644 permission to ``omnia_config.yml``.
+        * It is suggested that you use the ansible-vault view or edit commands and that you do not use the ansible-vault decrypt or encrypt commands. If you have used the ansible-vault decrypt or encrypt commands, provide 644 permission to ``omnia_config.yml``.
 
 **Kubernetes Roles**
 
+As part of setting up Kubernetes roles, ``omnia.yml`` handles the following tasks on the manager and compute nodes:
 
-
-The following **kubernetes** roles are provided by Omnia when **omnia.yml** file is run:
-
-- **common** role:
-
-    - Install common packages on manager and compute nodes
-
-    - Docker is installed
-
-.. note:: Due to lack of availability, the CentOS docker repository is installed on target nodes running Redhat.
-
-    - Deploy time ntp/chrony
-
-    - Install Nvidia drivers and software components
-
-.. warning:: If the target node is running Rocky, Nvidia drivers will only be installed if kernel package upgrades are available. If not, the installation is skipped with a warning message.
-
-- **k8s_common** role:
-
-	- Required Kubernetes packages are installed
-
-	- Starts the docker and Kubernetes services.
-
-- **k8s_manager** role:
-
-	- **helm** package for Kubernetes is installed.
-
-- **k8s_firewalld** role: This role is used to enable the required ports to be used by Kubernetes.
-
-	- For **head-node-ports**: 6443,2379-2380,10251,10250,10252
-
-	- For **compute-node-ports**: 10250,30000-32767
-
-	- For **calico-udp-ports**: 4789
-
-	- For **calico-tcp-ports**: 5473,179
-
-	- For **flanel-udp-ports**: 8285,8472
-
-- **k8s_nfs_server_setup** role:
-
-	- A **nfs-share** directory, ``/home/k8snfs``, is created. Using this directory, compute nodes share the common files.
-
-- **k8s_nfs_client_setup** role
-
-- **k8s_start_manager** role:
-
-	- Runs the **/bin/kubeadm init** command to initialize the Kubernetes services on manager node.
-
-	- Initialize the Kubernetes services in the manager node and create service account for Kubernetes Dashboard
-
-- **k8s_start_workers** role:
-
-	- The compute nodes are initialized and joined to the Kubernetes cluster with the manager node.
-
-- **k8s_start_services** role
-
-	- Kubernetes' services are deployed such as Kubernetes Dashboard, Prometheus, MetalLB and NFS client provisioner
-
-
-
-
-
-* Whenever k8s_version, k8s_cni or k8s_pod_network_cidr needs to be modified after the HPC cluster is set up, the OS in the manager and compute nodes in the cluster must be re-flashed before executing omnia.yml again.
-
-* After Kubernetes is installed and configured, few Kubernetes and calico/flannel related ports are opened in the manager and compute nodes. This is required for Kubernetes Pod-to-Pod and Pod-to-Service communications. Calico/flannel provides a full networking stack for Kubernetes pods.
-
-* If Kubernetes Pods are unable to communicate with the servers (i.e., unable to access the Internet) when the DNS servers are not responding, then the Kubernetes Pod Network CIDR may be overlapping with the host network which is DNS issue. To resolve this issue:
-
-	1. Disable firewalld.service.
-
-	2. If the issue persists, then perform the following actions:
-
-		a. Format the OS on manager and compute nodes.
-
-		b. In the control plane, edit the *omnia_config.yml* file to change the Kubernetes Pod Network CIDR or CNI value. Suggested IP range is 192.168.0.0/16 and ensure you provide an IP which is not in use in your host network.
-
-		c. Execute ``omnia.yml`` and skip slurm using ``--skip-tags slurm``.
+    * Docker is installed.
+    * Kubernetes is installed.
+    * Helm package manager is installed.
+    * All required services are started (Such as kubelet).
+    * Different operators are configured via Helm.
+    * Prometheus is installed.
 
 **Slurm Roles**
 
+As part of setting up Slurm roles, ``omnia.yml`` handles the following tasks on the manager and compute nodes:
 
-The following **Slurm** roles are provided by Omnia when ``omnia.yml`` file is run:
+    * Slurm is installed.
+    * All required services are started (Such as slurmd, slurmctld, slurmdbd).
+    * Prometheus is installed to visualize slurm metrics.
+    * Lua and Lmod are installed as slurm modules.
+    * Slurm restd is set up.
 
-- **slurm_common** role:
+**Login node**
 
-	- Installs the common packages on manager node and compute node.
+If a login node is available and mentioned in the inventory file, the following tasks are executed:
 
-- **slurm_manager** role:
+    * Slurmd is installed.
+    * All required configurations are made to ``slurm.conf`` file to enable a slurm login node.
 
-	- Installs the packages only related to manager node
+.. include:: ../../Appendices/hostnamereqs.rst
 
-	- This role also enables the required ports to be used by Slurm.
+.. note::
 
-	    **tcp_ports**: 6817,6818,6819
+    * To enable the login node, ensure that ``login_node_required`` in ``input/omnia_config.yml`` is set to true.
 
-		**udp_ports**: 6817,6818,6819
+**Slurm job based user access**
 
-	- Creating and updating the Slurm configuration files based on the manager node requirements.
+To ensure security while running jobs on the cluster, users can be assigned permissions to access compute nodes only while their jobs are running. To enable the feature: ::
 
-- **slurm_workers** role:
-
-	- Installs the Slurm packages into all compute nodes as per the compute node requirements.
-
-- **slurm_start_services** role:
-
-	- Starting the Slurm services so that compute node communicates with manager node.
-
-- **slurm_exporter** role:
-
-	- Slurm exporter is a package for exporting metrics collected from Slurm resource scheduling system to Prometheus.
-
-	- Slurm exporter is installed on the host like Slurm, and Slurm exporter will be successfully installed only if Slurm is installed.
-
-**Login node roles**
+    cd scheduler
+    ansible-playbook job_based_user_access.yml -i inventory
 
 
-To enable the login node, the *login_node_required* variable must be set to "true" in the *omnia_config.yml* file.
+.. note::
 
-- **login_common** role: The firewall ports are opened on the manager and login nodes.
+    * The inventory queried in the above command is to be created by the user prior to running ``omnia.yml`` as ``scheduler.yml`` is invoked by ``omnia.yml``
 
-- **login_server** role: FreeIPA server is installed and configured on the manager node to provide authentication using LDAP and Kerberos principles.
-
-- **login_node** role: For Rocky, FreeIPA client is installed and configured on the login node and is integrated with the server running on the manager node. For LeapOS, 389ds will be installed instead.
+    * Only users added to the 'slurm' group can execute slurm jobs. To add users to the group, use the command: ``usermod -a -G slurm <username>``.
 
 
 
-.. note:: If LeapOS is being deployed, login_common and login_server roles will be skipped.
+**Running Slurm MPI jobs on clusters**
 
- To skip the installation of:
+To enhance the productivity of the cluster, Slurm allows users to run jobs in a parallel-computing architecture. This is used to efficiently utilize all available computing resources.
 
- * The login node: In the ``omnia_config.yml`` file, set the *login_node_required* variable to "false".
+.. note::
 
- * The FreeIPA server and client: Use ``--skip-tags freeipa`` while executing the *omnia.yml* file.
+    * Omnia does not install MPI packages by default. Users hoping to leverage the Slurm-based MPI execution feature are required to install the relevant packages from a source of their choosing.
 
-**Using BeeGFS on the cluster**
+    * Running jobs as individual users (and not as root) requires that passwordSSH be enabled between compute nodes for the user.
 
-BeeGFS is a hardware-independent POSIX parallel file system (a.k.a. Software-defined Parallel Storage) developed with a strong focus on performance and designed for ease of use, simple installation, and management. BeeGFS is created on an Available Source development model (source code is publicly available), offering a self-supported Community Edition and a fully supported Enterprise Edition with additional features and functionalities. BeeGFS is designed for all performance-oriented environments including HPC, AI and Deep Learning, Media & Entertainment, Life Sciences, and Oil & Gas (to name a few).
+**For Intel**
 
-.. image:: ../../images/BeeGFS_Structure.jpg
 
-For a list of pre-requisites to setting up BeeGFS, check out the `Omnia Pre-requisites <schedulerprepreqs.html>`_
+To run an MPI job on an intel processor, set the following environmental variables on the head nodes or within the job script:
+
+    - ``I_MPI_PMI_LIBRARY`` = ``/usr/lib64/pmix/``
+    - ``FI_PROVIDER`` = ``sockets`` (When InfiniBand network is not available, this variable needs to be set)
+    - ``LD_LIBRARY_PATH`` (Use this variable to point to the location of the Intel/Python library folder. For example: ``$LD_LIBRARY_PATH:/mnt/jobs/intelpython/python3.9/envs/2022.2.1/lib/``)
+
+**For AMD**
+
+To run an MPI job on an AMD processor, set the following environmental variables on the head nodes or within the job script:
+
+    - ``PATH`` (Use this variable to point to the location of the OpenMPI binary folder. For example: ``PATH=$PATH:/appshare/openmpi/bin``)
+    - ``LD_LIBRARY_PATH`` (Use this variable to point to the location of the OpenMPI library folder. For example: ``$LD_LIBRARY_PATH:/appshare/openmpi/lib``)
+    - ``OMPI_ALLOW_RUN_AS_ROOT`` = ``1`` (To run jobs as a root user, set this variable to ``1``)
+    - ``OMPI_ALLOW_RUN_AS_ROOT_CONFIRM`` = ``1`` (To run jobs as a root user, set this variable to ``1``)
+
+
+
+
+
+
+
+
+
+
+
 

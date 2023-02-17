@@ -108,3 +108,7 @@ opensuse_os_name: "openSUSE Leap"
 nginx_listen_port: 3200
 
 nginx_install_msg: "Skipping installation of nginx as required details of grafana are not provided"
+
+calico_warning_msg: "Warning: Calico pod is not in ready state, please check"
+
+calico_ready_state: "Ready"

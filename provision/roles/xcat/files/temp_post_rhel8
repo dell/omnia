@@ -31,7 +31,4 @@ do
 done
 
 dnf clean all
-dnf groupinstall "Infiniband Support" -y
-dnf install infiniband-diags perftest qperf -y
 dnf install srvadmin-argtable2 srvadmin-hapi srvadmin-idracadm7 ipmitool -y
-echo "PATH=$PATH:/opt/dell/srvadmin/sbin" >> /etc/bashrc

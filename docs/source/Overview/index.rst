@@ -5,13 +5,12 @@ Omnia: Overview
 (Latin: all or everything) is a deployment tool to configure Dell PowerEdge servers running standard RPM-based Linux OS images into clusters capable of supporting HPC, AI, and data analytics workloads. It uses Slurm, Kubernetes, and other packages to manage jobs and run diverse workloads on the same converged solution. It is a collection of Ansible playbooks, is open source, and is constantly being extended to enable comprehensive workloads.
 
 .. toctree::
-    :hidden:
-
     architecture
     newfeatures
     releasenotes
     SupportMatrix/index
     NetworkTopologies/index
+
 
 Blogs about Omnia
 -----------------
@@ -29,10 +28,9 @@ Blogs about Omnia
 What Omnia does
 ----------------
 
-Omnia can deploy and configure devices, and build clusters that use Slurm or Kubernetes (or both!) for workload management. Omnia will install software from a variety of sources, including:
+Omnia can deploy and configure devices, and build clusters that use Slurm or Kubernetes (or both) for workload management. Omnia will install software from a variety of sources, including:
 
     * Helm repositories
 
     * Source code repositories
 
-    * `OperatorHub <https://operatorhub.io/>`_

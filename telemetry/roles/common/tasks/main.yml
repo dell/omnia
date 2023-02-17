@@ -13,17 +13,21 @@
 # limitations under the License.
 ---
 
+- name: Validate grafana
+  ansible.builtin.include_tasks: validate_grafana.yml
+
+- name: Validate telemetry_config.yml
+  ansible.builtin.include_tasks: validate_telemetry_config.yml
+
 - name: Check pre-requisites for telemetry and visualizations
-  include_tasks: pre-requisites.yml
+  ansible.builtin.include_tasks: pre-requisites.yml
 
-- name: Validate telemetry_base_vars.yml
-  include_tasks: validate_base_vars.yml
-
-- name: Validate telemetry_login_vars.yml
-  include_tasks: validate_login_vars.yml
+- name: Create iDRAC inventory
+  ansible.builtin.include_tasks: create_idrac_inventory.yml
+  when: idrac_telemetry_support
 
 - name: Create k8s secrets for database credentials
-  include_tasks: k8s_secrets.yml
-  
+  ansible.builtin.include_tasks: k8s_secrets.yml
+
 - name: Set the docker version for slurm telemetry
-  include_tasks: set_docker_os.yml
+  ansible.builtin.include_tasks: set_docker_os.yml

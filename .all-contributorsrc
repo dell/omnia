@@ -56,7 +56,8 @@
         "maintenance",
         "projectManagement",
         "mentoring",
-        "talk"
+        "talk",
+        "question"
       ]
     },
     {
@@ -500,6 +501,43 @@
       "name": "fasongan",
       "avatar_url": "https://avatars.githubusercontent.com/u/16153657?v=4",
       "profile": "https://github.com/fasongan",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "rahuldell21",
+      "name": "rahuldell21",
+      "avatar_url": "https://avatars.githubusercontent.com/u/117621375?v=4",
+      "profile": "https://github.com/rahuldell21",
+      "contributions": [
+        "code",
+        "test"
+      ]
+    },
+    {
+      "login": "diptiman12",
+      "name": "diptiman12",
+      "avatar_url": "https://avatars.githubusercontent.com/u/117987073?v=4",
+      "profile": "https://github.com/diptiman12",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "Aditya-DP",
+      "name": "Aditya-DP",
+      "avatar_url": "https://avatars.githubusercontent.com/u/115771515?v=4",
+      "profile": "https://github.com/Aditya-DP",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "Katakam-Rakesh",
+      "name": "Katakam Rakesh Naga Sai",
+      "avatar_url": "https://avatars.githubusercontent.com/u/125246792?v=4",
+      "profile": "https://github.com/Katakam-Rakesh",
       "contributions": [
         "code"
       ]

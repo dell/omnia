@@ -1,12 +1,17 @@
 Quick Installation Guide
 ========================
 
-Choose a compute outside your intended cluster to provision and configure it. This compute needs to be internet-capable with Github and a full OS (Rocky or RedHat) installed. ::
+Choose a server outside your intended cluster to function as your control plane.
 
-    dnf install epel-release -y (For computes running Rocky)
+The control plane needs to be internet-capable with Github and a full OS installed.
+
+.. note:: Omnia can be run on control planes running RHEL and Rocky. For a complete list of versions supported, check out the `Support Matrix <../Overview/SupportMatrix/OperatingSystems/index.html>`_ .
+
+::
+
     dnf install git -y
 
-If you intend to provision the cluster via Infiniband NICs, install the required drivers using: ::
+If the control plane  has an Infiniband NIC installed, run the below ::
 
     yum groupinstall "Infiniband Support" -y
 
@@ -15,26 +20,25 @@ Use the image below to set up your network:
 .. image:: ../images/SharedLomRoceNIC.png
 
 
-Once the Omnia repository has been cloned on to the compute node: ::
+Once the Omnia repository has been cloned on to the control plane: ::
 
     git clone https://github.com/dellhpc/omnia.git
 
 Change directory to Omnia using: ::
 
     cd omnia
-    chmod +x prereq.sh
-    sh prereqs.sh
+    sh prereq.sh
 
-Run the script ``prereqs.sh`` to verify the system is ready for Omnia deployment.
+Run the script ``prereq.sh`` to verify the system is ready for Omnia deployment.
 
 .. toctree::
-    :hidden:
-
     RunningInit/index
     InstallingProvisionTool/index
     BuildingClusters/index
     ConfiguringSwitches/index
     ConfiguringStorage/index
+    addinganewnode
+    reprovisioningthecluster
 
 
 

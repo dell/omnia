@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,68 +14,59 @@
 ---
 
 # Usage: pre-requisites.yml
-installation_required_web_support: "AWX and grafana installation through control_plane.yml is mandatory for telemetry.yml when awx_web_support is set to true"
-installation_required: "Grafana installation through control_plane.yml is mandatory for telemetry.yml"
-
+installation_required: "Grafana installation through monitor.yml is mandatory for telemetry.yml"
 os_supported_leap: "leap"
 selinux_warning: "Warning! SELinux status is disabled by user. No SELinux policy is loaded"
-
-base_vars_file: "{{ role_path }}/../../input_params/telemetry_base_vars.yml"
-login_vars_file: "{{ role_path }}/../../input_params/telemetry_login_vars.yml"
-control_plane_base_vars_file: "{{ role_path }}/../../../control_plane/input_params/base_vars.yml"
-ctrl_plane_login_vars_filename: "{{ role_path }}/../../../control_plane/input_params/login_vars.yml"
-
-fail_msg_base_vars: "telemetry_base_vars.yml file doesn't exist."
-fail_msg_login_vars: "telemetry_login_vars.yml file doesn't exist."
-ctrl_plane_fail_msg_login_vars: "control_plane/login_vars.yml file doesn't exist"
+telemetry_config_file: "{{ role_path }}/../../../input/telemetry_config.yml"
+fail_msg_telemetry_config_file: "telemetry_config.yml file doesn't exist."
 pip_packages:
   - openshift
   - omsdk
   - PyMySQL
 mysqldb_collection_name: community.mysql:3.1.0
-
 rhel_epel_repo8: https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
 max_retries: 20
 os_supported_redhat: "redhat"
 rhel_code_ready_repo: codeready-builder-for-rhel-8-x86_64-rpms
+grafana_conf_path: '/opt/omnia/.data/grafana_svc_details.ini'
+docker_login_fail_msg: "Docker login failed! Please check the credentials and re-execute playbook."
 
-#Usage: validate_base_vars.yml
+# Usage: validate_telemetry_config.yml
 folder_perm: '644'
 vault_file_perm: '0644'
-
 idrac_telemetry_support_success_msg: "idrac_telemetry_support validated"
 idrac_telemetry_support_fail_msg: "Failed. idrac_telemetry_support only accepts boolean
                                     values true or false"
-
 slurm_telemetry_support_success_msg: "slurm_telemetry_support validated"
 slurm_telemetry_support_fail_msg: "Failed. slurm_telemetry_support only accepts boolean
                                     values true or false"
-
 slurm_telemetry_idrac_support_success_msg: "slurm and idrac telemetry are supported"
 slurm_telemetry_idrac_support_fail_msg: "slurm telemetry is supported only when
                                       idrac_telemetry_support is true"
-
 timescaledb_success_msg: "Timescale DB name validated successfully"
 timescaledb_fail_msg: "Timescale DB name should have minimum length of 2"
-
 mysqldb_success_msg: "MySQL DB name validated successfully"
 mysqldb_fail_msg: "MySQL DB name should have minimum length of 2"
-
+fail_timezone_msg: "Failed. Incorrect timezone provided. Please check the file timezone.txt in telemetry/roles/common/files/ folder"
+idrac_group_fail_msg: "Failed. idrac group should contain atleast 1 node in inventory for iDRAC telemetry"
+idrac_group_success_msg: "idrac group validated in inventory for iDRAC telemetry"
 telemetry_manager_group_fail_msg: "Failed. manager group should contain only 1 node in inventory for slurm telemetry"
 telemetry_manager_group_success_msg: "Manager group validated in inventory for slurm telemetry"
 telemetry_compute_group_fail_msg: "compute group should contain atleast 1 node in inventory for slurm telemetry"
 telemetry_compute_group_success_msg: "Compute group validated in inventory for slurm telemetry"
-inventory_absent_message: "Failed. Inventory file absent for slurm telemetry / manager or compute group not present in inventory"
-
-# Usage: validate_login_vars.yml
-vault_filename: "{{ role_path }}/../../input_params/.login_vault_key"
-login_vars_fail_msg: "Username/password validation in telemetry_login_vars.yml failed. Please check the requirements."
-
-ctrl_plane_login_vault_filename: "{{ role_path }}/../../../control_plane/input_params/.login_vault_key"
+inventory_absent_message: "Failed. Inventory file absent for telemetry. manager or compute group not present in inventory"
+vault_filename: "{{ role_path }}/../../../input/.telemetry_vault_key"
+login_vars_fail_msg: "Username/password validation in telemetry_config.yml failed. Please check the requirements."
+min_length_idrac: 3
 min_length_grafana: 5
 max_length: 30
-ctrl_plane_login_vars_fail_msg: "Incorrect grafana_username or grafana_password format provided
-                                  in control_plane/login_vars.yml"
+idrac_credentials_fail_msg: "idrac_username and idrac_password must be provided as extra variables."
+idrac_inventory_msg: "idrac group is not present in inventory file. Playbook will check for /opt/omnia/provisioned_idrac_inventory"
+idarc_inventory_path: "/opt/omnia/provisioned_idrac_inventory"
+idrac_file_status: "There is no inventory present under /opt/omnia/provisioned_idrac_inventory.
+                    Please provide inventory with idrac group or create an inventory /opt/omnia/provisioned_idrac_inventory"
+idrac_exec_msg: "Since the absence of idrac group in inventory and existence of /opt/omnia/provisioned_idrac_inventory file.
+                   iDRAC telemetry execution will be skipped"
 
 # Usage: k8s_secrets.yml
 namespace: telemetry-and-visualizations

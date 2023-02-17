@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,90 +13,14 @@
 # limitations under the License.
 ---
 
-- name: Include provision configuration variables
-  ansible.builtin.include_tasks: include_provision_config.yml
-
-- name: Set pxe_nic details
-  ansible.builtin.set_fact:
-    pxe_nic_netmask: "{{ lookup('vars', 'ansible_' + pxe_nic).ipv4.netmask }}"
-
-- name: Configure bmc_gateway when LOM
-  block:
-    - name: Set the admin_nic_subnet and admin_nic_sec_subnet
-      ansible.builtin.set_fact:
-        admin_nic_subnet: "{{ lookup('vars', 'ansible_' + admin_nic).ipv4.network }}"
-        admin_nic_sec_subnet: "{{ lookup('vars', 'ansible_' + admin_nic).ipv4_secondaries[0].network }}"
-
-    - name: Set the bmc_gateway when admin_nic_subnet equal to bmc_nic_subnet
-      ansible.builtin.set_fact:
-        bmc_gateway: "{{ lookup('vars', 'ansible_' + admin_nic).ipv4.address }}"
-      when: admin_nic_subnet == bmc_nic_subnet
-
-    - name: Set the bmc_gateway when admin_nic_sec_subnet equal to bmc_nic_subnet
-      ansible.builtin.set_fact:
-        bmc_gateway: "{{ lookup('vars', 'ansible_' + admin_nic).ipv4_secondaries[0].address }}"
-      when: admin_nic_sec_subnet == bmc_nic_subnet
-  when: lookup('vars', 'ansible_' + admin_nic).ipv4_secondaries[0].network is defined
-
-- name: Initialize variables
-  ansible.builtin.set_fact:
-    db_result: []
-    empty_ib_ip: 0
-    empty_bmc_ip: 0
-
-- name: Check for mapping file existence
-  ansible.builtin.stat:
-    path: "{{ mapping_file_dest }}"
-  register: mapping_status
-
-- name: Delete mapping file if exists
-  ansible.builtin.file:
-    path: "{{ mapping_file_dest }}"
-    state: absent
-  when: mapping_status.stat.exists
-
-- name: Fetch admin_ip and ib_ip from DB
+- name: Fetch admin_ip from DB
   ansible.builtin.postgresql_query:
     db: omniadb
     login_user: postgres
-    query: SELECT admin_ip,ib_ip,bmc_ip,hostname FROM cluster.nodeinfo;
+    query: SELECT admin_ip FROM cluster.nodeinfo;
   become_user: postgres
   register: query_status
 
-- name: Save admin and ib IP results
-  ansible.builtin.set_fact:
-    db_result: "{{ db_result + query_status.query_result }}"
-
-- name: Fetch records from DB when ib_ip is null
-  ansible.builtin.postgresql_query:
-    db: omniadb
-    login_user: postgres
-    query: SELECT admin_ip,ib_ip FROM cluster.nodeinfo where ib_ip is null;
-  become_user: postgres
-  register: ib_ip_count
-
-- name: Fetch records from DB when bmc_ip is null
-  ansible.builtin.postgresql_query:
-    db: omniadb
-    login_user: postgres
-    query: SELECT admin_ip,bmc_ip FROM cluster.nodeinfo where bmc_ip is null;
-  become_user: postgres
-  register: bmc_ip_count
-
-- name: Update count of empty_bmc_ip and empty_ib_ip
-  ansible.builtin.set_fact:
-    empty_bmc_ip: "{{ bmc_ip_count.rowcount | int }}"
-    empty_ib_ip: "{{ ib_ip_count.rowcount | int }}"
-
-- name: Create mapping file and set header
-  ansible.builtin.lineinfile:
-    dest: "{{ mapping_file_dest }}"
-    line:
-      admin_ip,ib_ip,bmc_ip,hostname
-    create: true
-    state: present
-    mode: "{{ file_perm }}"
-
-- name: Include task to create mapping file
-  ansible.builtin.include_tasks: create_mapping_file.yml
-  with_items: "{{ db_result }}"
+- name: Check IP is host or not
+  ansible.builtin.include_tasks: host_ip_check.yml
+  with_items: "{{ query_status.query_result }}"

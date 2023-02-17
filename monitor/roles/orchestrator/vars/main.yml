@@ -67,11 +67,12 @@ k8s_crio_conf_dest: /etc/sysctl.d/
 conf_file_mode: 0644
 crio_repo1_url: https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/CentOS_8/devel:kubic:libcontainers:stable.repo
 crio_repo1_dest: /etc/yum.repos.d/devel:kubic:libcontainers:stable.repo
-crio_repo2_url: https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable:cri-o:1.21/CentOS_8/devel:kubic:libcontainers:stable:cri-o:1.21.repo
+crio_repo2_url: https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/1.21:/1.21.7/CentOS_8/
 crio_repo2_dest: /etc/yum.repos.d/devel:kubic:libcontainers:stable:cri-o:1.21.repo
+crio_repo2_gpg: https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/1.21:/1.21.7/CentOS_8/repodata/repomd.xml.key
 docker_repo_url: https://download.docker.com/linux/centos/docker-ce.repo
 docker_repo_dest: /etc/yum.repos.d/docker-ce.repo
-crio_repo: "devel_kubic_libcontainers_stable_cri-o_1.21,rhel-8-for-x86_64-appstream-rpms,rhel-8-for-x86_64-baseos-rpms"
+crio_repo: "devel:kubic:libcontainers:stable:cri-o:1.21,rhel-8-for-x86_64-appstream-rpms,rhel-8-for-x86_64-baseos-rpms"
 file_mode: 0700
 
 # Usage: k8s_firewalld.yml
@@ -108,8 +109,8 @@ k8s_config_file_mode: 0644
 k8s_cert_path: /etc/kubernetes/pki/ca.crt
 yaml_repo_dir_path: /root/k8s
 yaml_repo_dir_mode: 0755
-tigera_operator_url: https://docs.projectcalico.org/manifests/tigera-operator.yaml
-calico_yml_url: https://docs.projectcalico.org/manifests/custom-resources.yaml
+tigera_operator_url: https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/tigera-operator.yaml
+calico_yml_url: https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/custom-resources.yaml
 
 # Usage: k8s_services.yml
 metallb_config_file_dest: /root/k8s/metal-config.yaml
@@ -137,9 +138,7 @@ k8s_dashboard_yaml_url: https://raw.githubusercontent.com/kubernetes/dashboard/v
 k8s_dashboard_admin_file_dest: /root/k8s/k8s_dashboard_admin.yaml
 k8s_dashboard_admin_file_mode: 0655
 nfs_path: /var/nfs_repo
-startup_omnia_log_path: /var/log/omnia/startup_omnia
 vault_file_perm: '0644'
-startup_omnia_log: "{{ startup_omnia_log_path }}/startup_omnia_`/usr/bin/date +\\%F-\\%H\\%M\\%S`.log"
 
 # Usage: nfs_server_setup.yml
 nfs_share_offline_repo: /var/nfs_repo

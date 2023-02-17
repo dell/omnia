@@ -24,6 +24,8 @@ Releases
 
 *	Infiniband switch configuration and split port functionality
 
+*   Added support for Ethernet Z series switches.
+
 1.3
 -----
 

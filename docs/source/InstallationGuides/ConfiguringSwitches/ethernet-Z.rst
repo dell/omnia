@@ -2,7 +2,7 @@ Configuring Ethernet Switches (Z series)
 -----------------------------------------
 
 
-* Edit the ``omnia/network/ethernet_zseries_input.yml`` file for all Z series PowerSwitches such as Z9332F-ON, Z9262-ON and Z9264F-ON. The default configuration is written for Z9264F-ON.
+* Edit the ``network/ethernet_zseries_input.yml`` file for all Z series PowerSwitches such as Z9332F-ON, Z9262-ON and Z9264F-ON. The default configuration is written for Z9264F-ON.
 
 +------------------------------+-------------------------------------------------------------------------------------------------------------+-----------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Name                         | Default, accepted values                                                                                    | Required? | Purpose                                                                                                                                                                                                             |
@@ -26,7 +26,7 @@ Configuring Ethernet Switches (Z series)
 |                              |                                                                                                             |           |      WARNING: When set to "true", the startup configuration file is   updated. If incorrect configurations or commands are entered, the Ethernet   switches may not operate as expected.                            |
 +------------------------------+-------------------------------------------------------------------------------------------------------------+-----------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-* When initializing a factory reset switch, the user needs to ensure DHCP is enabled and an IPv6 address is not assigned. Omnia will assign an IP address to the switch using DHCP with all other configurations.
+* When initializing a factory reset switch, the user needs to ensure DHCP is enabled and an IPv6 address is not assigned.
 
 * The 65th port on a Z series switch cannot be split.
 
@@ -36,15 +36,15 @@ Configuring Ethernet Switches (Z series)
 
 **Running the playbook**::
 
-    cd omnia/network
+    cd network
 
     ansible-playbook ethernet_switch_config.yml -i inventory -e ethernet_switch_username=”” -e ethernet_switch_password=””
 
 * Where ``ethernet_switch_username`` is the username used to authenticate into the switch.
 
-* The inventory file should be a list of IPs separated by newlines. Check out the device_ip_list.yml section in `Sample Files <https://omnia-documentation.readthedocs.io/en/latest/samplefiles.html>`_
+* The inventory file should be a list of IPs separated by newlines. Check out the switch_inventory section in `Sample Files <https://omnia-documentation.readthedocs.io/en/latest/samplefiles.html>`_
 
-* Where ``ethernet_switch_password`` is the username used to authenticate into the switch.
+* Where ``ethernet_switch_password`` is the password used to authenticate into the switch.
 
 
 

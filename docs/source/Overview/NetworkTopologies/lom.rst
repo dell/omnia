@@ -6,35 +6,3 @@ A LOM port could be shared with the host operating system production traffic. Al
 
 .. image:: ../../images/SharedLomRoceNIC.png
 
-
-
-Depending on the availability of a dedicated high speed network for data and provisioning, there are two ways to set up a shared LOM environment:
-
-1. With a dedicated high speed network: When there's a dedicated data path, the variables   ``roce_network_nic``,   ``roce_network_dhcp_start_range`` and   ``roce_network_dhcp_end_range`` are required to set up the data path and route provisioning information appropriately.
-
-2. Without a dedicated high speed network: The variables   ``roce_network_nic``,   ``roce_network_dhcp_start_range`` and   ``roce_network_dhcp_end_range`` are left blank to indicate that all provisioning data is to be routed through the host network.
-
-
-
-Control plane configuration
-
-
-
-Depending on the user input in   ``base_vars.yml``, the below table explains the outcomes of running   ``provision.yml`` to configure the network:
-
-+--------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------+
-| High speed data   network available? | Outcome                                                                                                                                                                                                                                                                                                                                  | One Touch Configuration Support |
-+======================================+==========================================================================================================================================================================================================================================================================================================================================+=================================+
-| Yes                                  | When roce_network_nic is populated, management network container will   come up, and it will be used to assign the management and data port IPs. This   will provide internet connection if DNS settings are filled in base_vars.yml.   Along with this , Cobbler PXE provisioning will be done over the high speed   data path or roce. | No                              |
-+--------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------+
-| No                                   | When roce_network_nic is not populated, cobbler container will come up   and will be responsible for mgmt. and data IP assignment as well as for   providing the DNS configurations( if the parameters are given)                                                                                                                        | No                              |
-+--------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+---------------------------------+
-
-
-.. Note::
-
-    * When   ``network interface`` type is   ``lom``,   ``idrac_support`` is assumed to be true irrespective of user input.
-
-    * Omnia will not automatically assign IPs to all devices (powervault or ethernet/Infiniband switches) when   ``network_interface_type`` is lom. However, if required, users can follow the `linked steps <../../EnablingOptionalFeatures/lomstaticips.html>`_ .
-
-    * Despite the value of   ``mgmt_network_nic`` and   ``host_network_nic`` being the same in LOM environments, the IPs assigned for management and data should not be in the same range. The start and end values of the management IP range and the host IP range cannot be the same.

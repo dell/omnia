@@ -14,5 +14,5 @@
 ---
 
 os_supported_rhel: "redhat"
-inactive_msg1: "1. Host {{ ansible_ssh_host }} is not subscribed to redhat"
-inactive_msg2: "2. Host {{ ansible_ssh_host }} didnt have baseos and appstream repos enabled."
+subscription_warning_msg: "[WARNING] redhat subscription not enabled. Playbook may fail during package installation"
+warning_wait_time: 2

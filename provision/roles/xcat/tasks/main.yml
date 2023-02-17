@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,34 +15,16 @@
 
 - name: Install and configure xcat
   block:
+    - name: Include xcat role vars
+      ansible.builtin.include_vars: "{{ item }}"
+      with_items: "{{ xcat_role_vars }}"
+
     - name: Check xcat pre-requisites
       ansible.builtin.include_tasks: pre_requisites.yml
 
-    - name: Common packages installation
+    - name: Common packages installation for xcat
       ansible.builtin.include_tasks: package_installation.yml
       when: not xcat_installation_status
-
-    - name: Create the provision ini file
-      ansible.builtin.include_tasks: create_provision_ini.yml
-
-    - name: Include provision configuration variables
-      ansible.builtin.include_tasks: include_provision_config.yml
-
-    - name: Validate the nic parameters
-      ansible.builtin.include_tasks: validate_public_nic.yml
-
-    - name: Validate the switch related parameters
-      ansible.builtin.include_tasks: validate_switch_vars.yml
-
-    - name: Validate provision parameters
-      ansible.builtin.include_tasks: validate_provision_vars.yml
-
-    - name: Validate disk partition parameters
-      ansible.builtin.include_tasks: validate_disk_partition_vars.yml
-      with_items: "{{ disk_partition }}"
-
-    - name: Validate domain_name
-      ansible.builtin.include_tasks: validate_domain_name.yml
 
     - name: Configure firewall settings
       ansible.builtin.include_tasks: firewall_settings.yml
@@ -53,29 +35,69 @@
       when: not xcat_installation_status
 
     - name: Configure xcat
-      ansible.builtin.include_tasks: configure_xcat.yml
+      ansible.builtin.include_tasks: configuration/configure_xcat.yml
 
     - name: Executing python utilities
       ansible.builtin.include_tasks: python_utility.yml
+      when: not reprovision_status
 
-    - name: Create xcat osimage
-      ansible.builtin.include_tasks: create_osimage.yml
+    - name: Configuration of xcat
+      ansible.builtin.include_tasks: configuration/main.yml
 
-    - name: User defined disk partition configuration
-      ansible.builtin.include_tasks: disk_partition.yml
-      when: disk_partition_configuration
+    - name: Configuation for discovery using BMC mode
+      ansible.builtin.include_tasks: mtms/main.yml
+      when: not reprovision_status
 
-    - name: Enable internet access
-      ansible.builtin.include_tasks: internet_access.yml
+    - name: Create node object for mapping file
+      ansible.builtin.include_tasks: mapping/node_object_creation_mapping.yml
+      when: not reprovision_status
 
-    - name: Create racadm repo
-      ansible.builtin.include_tasks: racadm_config.yml
+    - name: Create node object for snmp discovery
+      ansible.builtin.include_tasks: snmp/node_object_creation_snmp.yml
+      when: not reprovision_status
 
-    - name: Create node object
-      ansible.builtin.include_tasks: node_object_creation.yml
+    - name: Configuration of postbootscripts
+      ansible.builtin.include_tasks: configuration/configure_postbootscripts.yml
+
+    - name: Configuration of postscripts
+      ansible.builtin.include_tasks: configuration/configure_postscripts.yml
 
     - name: Configure DHCP
-      ansible.builtin.include_tasks: configure_dhcp.yml
+      ansible.builtin.include_tasks: configuration/configure_dhcp.yml
+      when: not reprovision_status
+
+    - name: Set provision image for mapping
+      ansible.builtin.include_tasks: mapping/set_provision_image_mapping.yml
+      when: not reprovision_status
+
+    - name: Set provision image for snmp
+      ansible.builtin.include_tasks: snmp/set_provision_image_snmp.yml
+      when: not reprovision_status
+
+    - name: Provision static nodes
+      ansible.builtin.include_tasks: mtms/set_provision_image_mtms.yml
+      with_items: "{{ bmc_static_node_group }}"
+      when:
+        - discovery_mechanism == discovery_method_bmc
+        - not reprovision_status
+        - bmc_static_status
+        - bmc_static_node_status
+
+    - name: Provision dynamic nodes
+      ansible.builtin.include_tasks: mtms/set_provision_image_mtms.yml
+      with_items: "{{ dynamic_nodes.stdout_lines }}"
+      when:
+        - discovery_mechanism == discovery_method_bmc
+        - not reprovision_status
+        - bmc_dynamic_status
+        - dynamic_final_status
+
+    - name: Reprovision nodes
+      ansible.builtin.include_tasks: reprovision/reprovision.yml
+      when: reprovision_status
+
+    - name: Initiate thread to monitor provisioning status
+      ansible.builtin.include_tasks: initiate_monitor_status.yml
   environment:
     XCATROOT: "{{ xcat_root_env }}"
     PATH: "{{ ansible_env.PATH }}:{{ xcat_path_env }}"

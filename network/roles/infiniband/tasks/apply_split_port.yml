@@ -32,12 +32,11 @@
     - name: Configure Json, HTTP, SSL on IB switch
       ansible.builtin.include_tasks: configure_services.yml
 
+    - name: Update login password of ib_switch
+      ansible.builtin.set_fact:
+        ib_login_password: "{{ ib_admin_password }}"
+      no_log: true
   when: not split_ready_status
-
-- name: Update login password of ib_switch
-  ansible.builtin.set_fact:
-    ib_login_password: "{{ ib_admin_password }}"
-  no_log: true
 
 - name: Fetch split status of IB switch # Check for "Split Ready: yes/no".
   ansible.builtin.include_tasks: ib_split_mode.yml

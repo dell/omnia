@@ -18,10 +18,6 @@
     name: "{{ common_packages_xcat }}"
     state: present
 
-- name: Install netaddr
-  ansible.builtin.command: pip3.8 install netaddr
-  changed_when: true
-
 - name: Install python snmp
   ansible.builtin.command: "{{ python_version }} -m pip install {{ snmp_python_package }}"
   changed_when: true
@@ -37,8 +33,3 @@
 - name: Install python pandas
   ansible.builtin.command: "{{ python_version }} -m pip install {{ pandas_python_package }}"
   changed_when: true
-
-- name: Install ansible galaxy collection ansible.utils
-  ansible.builtin.command: ansible-galaxy collection install "{{ item }}"
-  changed_when: true
-  with_items: "{{ ansible_galaxy_collection }}"

@@ -1,0 +1,25 @@
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+user_home_path: "{{ hostvars[groups['manager'][0]]['user_home_directory'] }}/{{ hostvars['127.0.0.1']['user_name'] }}"
+publickey_file_path: "{{ user_home_path }}/.ssh/id_rsa.pub"
+ldap_uid: "{{ hostvars['127.0.0.1']['user_name'] }}"
+ldap_ou: "{{ hostvars['127.0.0.1']['ldap_organizational_unit'] }}"
+ldap_dn: "{{ hostvars['127.0.0.1']['reqd_server_name'] }}"
+get_pub_key: "cat {{ publickey_file_path }}"
+ldap_ssh_ldif_cmd: "changeType{{ ':' }} modify\nadd{{ ':' }}objectClass\nobjectClass{{ ':' }}ldapPublicKey\n-\nadd{{ ':' }} sshPublicKey\nsshPublicKey{{ ':' }}"
+ldap_create_ssh_ldif_cmd: "dn{{ ':' }} uid={{ ldap_uid }},ou={{ ldap_ou }},{{ ldap_dn }}\n{{ ldap_ssh_ldif_cmd }} $({{ get_pub_key }})"
+ldap_add_key_cmd: "cn={{ hostvars['127.0.0.1']['ldap_bind_username'] }},{{ ldap_dn }} -w {{ hostvars['127.0.0.1']['ldap_bind_password'] }}"
+fail_msg_ldap_sshpubkey_exists: "LDAP Directory already has SSH public key"

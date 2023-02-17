@@ -13,6 +13,16 @@
 # limitations under the License.
 ---
 
+- name: Include provision_config.yml
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  tasks:
+    - name: Include provision_config.yml
+      ansible.builtin.include_role:
+        name: provision_validation
+        tasks_from: include_provision_config.yml
+
 - name: Executing post provision roles
   hosts: localhost
   connection: local
@@ -23,16 +33,10 @@
         name: xcat
         tasks_from: create_node_inventory.yml
 
-- name: Import playbook to install infiniband support packages
-  ansible.builtin.import_playbook: ../network/network.yml
-
-- name: Import playbook to install accelerator packages for nodes having GPU support
-  ansible.builtin.import_playbook: ../accelerator/accelerator.yml
-
 - name: Executing post provision configuration tasks
   hosts: node_inventory
   tasks:
-    - name: Post provision configuration of the server
+    - name: Create provisioned node inventory
       ansible.builtin.include_role:
         name: xcat
-        tasks_from: post_provision_config.yml
+        tasks_from: provisioned_node_inventory.yml

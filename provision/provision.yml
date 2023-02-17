@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,4 +17,14 @@
   hosts: localhost
   connection: local
   roles:
+    - role: provision_validation
     - role: xcat
+
+- name: Update metadata
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Update metadata file
+      ansible.builtin.include_role:
+        name: provision_validation
+        tasks_from: metadata/update_metadata.yml

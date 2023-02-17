@@ -1,0 +1,176 @@
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Usage: main.yml
+provision_validation_vars:
+  - "{{ role_path }}/vars/mtms.yml"
+  - "{{ role_path }}/vars/metadata.yml"
+nic_wait_time: 30
+
+# Usage: package_installation.yml
+ansible_galaxy_collection:
+  - ansible.utils:2.5.2
+  - community.general:4.8.7
+pip_version: pip3.8
+netaddr_pip_package: netaddr
+pexpect_pip_package: pexpect
+
+common_packages_provision:
+  - python3-netaddr
+  - openssl
+  - dos2unix
+  - net-snmp
+  - net-snmp-utils
+  - sshpass
+  - python3-pexpect
+
+# Usage: create_provision_ini.yml
+provision_conf_path: "/opt/omnia/.data/provision.ini"
+provision_conf_dest: "/opt/omnia/.data/"
+mount_dir_perm: 0775
+conf_file_mode: 0644
+
+# Usage: include_provision_config.yml
+provision_config_filename: "{{ role_path }}/../../../input/provision_config.yml"
+provision_vault_path: "{{ role_path }}/../../../input/.provision_vault_key"
+ansible_vault_search_key: "$ANSIBLE_VAULT;"
+
+# Usage: assign_admin_nic_config.yml
+omnia_admin_ip: "{{ admin_nic_subnet.split('.')[0] + '.' + admin_nic_subnet.split('.')[1] + '.' + '255' + '.' + '254' }}"
+omnia_admin_netmask: 255.255.0.0
+admin_nic_path: "/etc/sysconfig/network-scripts/ifcfg-{{ admin_nic }}"
+
+# Usage: assign_nic_config.yml
+pxe_subnet_msg: "Failed. Please provide proper pxe_subnet"
+omnia_bmc_ip: "{{ bmc_nic_subnet.split('.')[0] + '.' + bmc_nic_subnet.split('.')[1] + '.' + '255' + '.' + '254' }}"
+omnia_bmc_netmask: 255.255.0.0
+
+# Usage: enable_nic_configuration.yml
+nic_subnet: 16
+bmc_nic_path: "/etc/sysconfig/network-scripts/ifcfg-{{ admin_nic }}"
+
+# Usage: validate_public_nic.yml
+input_provision_failure_msg: "Please provide all the required parameters in provision_config.yml"
+success_msg_nic: "nic successfully validated"
+fail_msg_nic: "Failed. Provide proper values"
+
+# Usage: validate_admin_nic.yml
+success_subnet: "The subnet provided is validated"
+fail_subnet: " Please provide proper subnet"
+success_lom: " Network interface type is LOM"
+fail_lom: "Failed. In case of LOM, admin_nic_subnet and bmc_nic_subnet can't be same. Please provide proper input"
+
+# Usage: validate_pxe_nic.yml
+success_pxe: "Proper PXE ranges provided"
+fail_pxe: "Failed. Please provide proper PXE ranges"
+success_msg_different_nics: "Validated. Nics are different in case of LOM."
+fail_msg_different_nics: "Failed.Incorrect nic information.Public nic must be different from BMC and PXE nics ."
+pxe_subnet_failure_msg: "Failed. Please provide pxe_subnet value in input/provision_config.yml"
+pxe_nic_start: "{{ pxe_subnet.split('.')[0] + '.' + pxe_subnet.split('.')[1] + '.' + '0' + '.' + '1' }}"
+pxe_nic_end: "{{ pxe_subnet.split('.')[0] + '.' + pxe_subnet.split('.')[1] + '.' + '255' + '.' + '253' }}"
+
+# Usage: validate_ib_nic.yml
+ib_nic_start: "{{ ib_nic_subnet.split('.')[0] + '.' + ib_nic_subnet.split('.')[1] + '.'
++ pxe_nic_start_range.split('.')[-2] + '.' + pxe_nic_start_range.split('.')[-1] }}"
+ib_nic_end: "{{ ib_nic_subnet.split('.')[0] + '.' + ib_nic_subnet.split('.')[1] + '.'
++ pxe_nic_end_range.split('.')[-2] + '.' + pxe_nic_end_range.split('.')[-1] }}"
+
+# Usage: validate_bmc_nic.yml
+bmc_nic_start: "{{ bmc_nic_subnet.split('.')[0] + '.' + bmc_nic_subnet.split('.')[1] + '.'
++ pxe_nic_start_range.split('.')[-2] + '.' + pxe_nic_start_range.split('.')[-1] }}"
+bmc_nic_end: "{{ bmc_nic_subnet.split('.')[0] + '.' + bmc_nic_subnet.split('.')[1] + '.'
++ pxe_nic_end_range.split('.')[-2] + '.' + pxe_nic_end_range.split('.')[-1] }}"
+
+# Usage: validate_switch_vars.yml
+pxe_switch_ip_valid: "Valid switch ip provided"
+pxe_switch_ip_invalid: " Failed. Provide a valid switch ip"
+fail_switch_or_mapping_file: "Failed. Please provide PXE switch details.
+If switch details are given,then provide proper node_name too."
+pxe_switch_unreachable: "Failed. Given switch is unreachable. Please provide correct switch IP."
+provision_option_fail_msg: "[WARNING]. Ignoring pxe_switch_ip when pxe_mapping_file_path provided"
+
+# Usage: validate_mapping_file.yml
+pxe_path_fail_msg: "Failed. Please provide a valid pxe_mapping_file_path"
+mapping_file_key: "MAC"
+mapping_file_header_fail_msg: "Failed. Header of csv file is not in correct format. It should be of the format: MAC,Hostname,IP"
+host_mapping_header_format: "MAC,Hostname,IP"
+mapping_file_seperation_fail_msg: "Failed. Mapping file should be comma separated and all fields must be filled."
+hostname_chars_fail_msg: "Failed. Hostname should not contain _ or . or space as it might result in issues with authentication tools like FreeIPA.
+Make sure the mapping file contains only the hostname, and not the domain_name. Found in: "
+duplicate_ip_fail_msg: "Failed. Duplicate IP exists. Please verify mapping file again."
+duplicate_hostname_fail_msg: "Failed. Duplicate hostname exists. Please verify mapping file again."
+temp_mapping_file_path: "/opt/omnia/pxe_mapping_file.csv"
+
+# Usage: validate_provision_vars.yml
+input_provision_fail_msg: "Please provide all the required provision parameters"
+default_lease_time_success_msg: "default_lease_time validated"
+default_lease_time_fail_msg: "Failed. Please provide a valid default_lease_time"
+timezone_success_msg: "timezone validated"
+timezone_fail_msg: "Failed. Incorrect timezone provided. Please check the file timezone.txt in files folder"
+language_fail_msg: "Failed. Only en-US language supported"
+provision_os_success_msg: "provision_os validated"
+provision_os_fail_msg: "Failed. Incorrect provision_os selected. Supported OS are {{ os_supported_rocky }} or {{ os_supported_rhel }}"
+iso_file_path_missing_msg: "Incorrect iso_file_path provided. Make sure ISO file is present in the provided iso_file_path."
+iso_file_path_success_msg: "iso_file_path validated"
+iso_file_path_fail_msg: "Failed. Invalid iso_file_path: {{ iso_file_path }} provided. Make sure iso_file_path variable in provision_config.yml contains value
+mentioned in the variables provision_os: {{ provision_os }} and provision_os_version: {{ provision_os_version }}"
+dns_empty_warning_msg: "[WARNING] primary_dns and secondary_dns is empty. DHCP routing in compute nodes for internet access won't be configured."
+primary_dns_empty_msg: "primary_dns is empty and secondary_dns provided. If one dns entry present, provide primary_dns only."
+primary_dns_success_msg: "primary_dns successfully validated"
+primary_dns_fail_msg: "Failed. Incorrect primary_dns provided"
+primary_dns_not_reachable_msg: "Failed. primary_dns is not reachable. Provide valid dns"
+secondary_dns_success_msg: "secondary_dns successfully validated"
+secondary_dns_fail_msg: "Failed. Incorrect secondary_dns provided"
+secondary_dns_not_reachable_msg: "[WARNING] secondary_dns is not reachable"
+ping_search_key: "100% packet loss"
+provision_password_fail_msg: "Failed. Incorrect provision_password format in provision_config.yml"
+min_length: 8
+max_length: 30
+warning_wait_time: 30
+postgresdb_password_fail_msg: "Failed. postgresdb_password should contain only alphanumeric characters in provision_config.yml"
+os_supported_rocky: rocky
+os_supported_rhel: rhel
+mount_point_success_msg: "mountpoint of disk_partition successfully validated"
+mount_point_fail_msg: "Failed. Supported disk_partition mount_point values are /home, /var, /tmp, /usr, swap"
+desired_capacity_success_msg: "desired_capacity of disk_partition successfully validated"
+desired_capacity_fail_msg: "Failed. Provide valid integer value to desired_capacity of disk_partition"
+supported_rhel_os_version: ["8.0", "8.1", "8.2", "8.3", "8.4", "8.5", "8.6", "8.7", "8.8", "8.9"]
+provision_os_version_fail_msg: "Failed. Invalid provision_os_version: {{ provision_os_version }} provided in provision_config.yml.
+Supported provision_os_version values are 8.0,8.1,8.2,8.3,8.4,8.5,8.6,8.7"
+
+# Usage: validate_domain_name.yml
+domain_name_success_msg: "domain_name successfully validated"
+domain_name_fail_msg: "Failed. Check whether domain_name is in proper format in provision_config.yml."
+server_hostname_success_msg: "Hostname in server hostname validated"
+server_hostname_fail_msg: "Failed. Hostname set is not valid"
+server_domain_name_blank_msg: "Failed. domain_name is not set in hostname. It should have hostname.domain_name format"
+server_domain_name_success_msg: "domain_name in server hostname validated"
+server_domain_name_fail_msg: "Failed. domain_name set is not same as domain_name in provision_config.yml"
+hosts_file_path: /etc/hosts
+hosts_file_mode: "0644"
+hostname_success_msg: "Hostname length successfully validated."
+hostname_fail_msg: "Failed. Hostname comprises of domain name, node name and 6 characters (00001 and .) that is used by omnia.
+All these inclusive, the total length should be less than 65 characters."
+
+# Usage: validate_postscripts_path.yml
+ofed_iso_empty_msg: "[WARNING] mlnx_ofed_path variable empty in provision_config.yml. OFED won't be installed during provisioning."
+mlnx_ofed_path_missing_msg: "Failed. Incorrect mlnx_ofed_path: {{ mlnx_ofed_path }} provided.
+Make sure OFED iso file is present in the provided mlnx_ofed_path variable in provision_config.yml."
+ofed_iso_warning_msg: "[WARNING] Invalid OFED ISO file: {{ mlnx_ofed_path }} for provisioning {{ provision_os }} with version {{ provision_os_version }}
+in provision_config.yml. OFED installation might fail during provisioning"
+ofed_rhel_check: "rhel{{ provision_os_version }}"
+cuda_rpm_empty_msg: "[WARNING] cuda_toolkit_path variable empty in provision_config.yml. CUDA won't be installed during provisioning."
+cuda_toolkit_path_missing_msg: "Failed. Incorrect cuda_toolkit_path: {{ cuda_toolkit_path }} provided.
+Make sure CUDA toolkit rpm file is present in the provided cuda_toolkit_path variable in provision_config.yml."

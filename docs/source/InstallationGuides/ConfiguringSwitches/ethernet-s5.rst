@@ -2,7 +2,7 @@ Configuring Ethernet Switches (S5 series)
 ------------------------------------------------
 
 
-* Edit the ``omnia/network/ethernet_sseries_input.yml`` file for all S5* PowerSwitches such as S5232F-ON.
+* Edit the ``network/ethernet_sseries_input.yml`` file for all S5* PowerSwitches such as S5232F-ON.
 
 +------------------------------+-------------------------------------------------------------------------------------------------------------+-----------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Name                         | Default, accepted values                                                                                    | Required? | Purpose                                                                                                                                                                                                             |
@@ -12,7 +12,7 @@ Configuring Ethernet Switches (S5 series)
 +------------------------------+-------------------------------------------------------------------------------------------------------------+-----------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | breakout_value               | **10g-4x**,  25g-4x, 40g-1x,   50g-2x, 100g-1x                                                              | required  | By default, all ports are configured in the 10g-4x breakout mode in which   a QSFP28 or QSFP+ port is split into four 10G interfaces. For more   information about the breakout modes, see Configure breakout mode. |
 +------------------------------+-------------------------------------------------------------------------------------------------------------+-----------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| snmp_trap_destination                                                                                                                      | optional  |  The trap destination IP address is   the IP address of the SNMP Server where the trap will be sent. Ensure that   the SNMP IP is valid.                                                                            |
+| snmp_trap_destination        |                                                                                                             | optional  |  The trap destination IP address is   the IP address of the SNMP Server where the trap will be sent. Ensure that   the SNMP IP is valid.                                                                            |
 +------------------------------+-------------------------------------------------------------------------------------------------------------+-----------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | snmp_community_string        | public                                                                                                      | optional  |  An SNMP community string is a   means of accessing statistics stored within a router or other device.                                                                                                              |
 +------------------------------+-------------------------------------------------------------------------------------------------------------+-----------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -26,21 +26,21 @@ Configuring Ethernet Switches (S5 series)
 |                              |                                                                                                             |           |      WARNING: When set to "true", the startup configuration file is   updated. If incorrect configurations or commands are entered, the Ethernet   switches may not operate as expected.                            |
 +------------------------------+-------------------------------------------------------------------------------------------------------------+-----------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-* When initializing a factory reset switch, the user needs to ensure DHCP is enabled and an IPv6 address is not assigned. Omnia will assign an IP address to the switch using DHCP with all other configurations.
+* When initializing a factory reset switch, the user needs to ensure DHCP is enabled and an IPv6 address is not assigned.
 
 .. note:: The ``breakout_value`` of a port can only be changed after un-splitting the port.
 
 **Running the playbook**::
 
-    cd omnia/network
+    cd network
 
     ansible-playbook ethernet_switch_config.yml -i inventory -e ethernet_switch_username=”” -e ethernet_switch_password=””
 
 * Where ``ethernet_switch_username`` is the username used to authenticate into the switch.
 
-* The inventory file should be a list of IPs separated by newlines. Check out the device_ip_list.yml section in `Sample Files <https://omnia-documentation.readthedocs.io/en/latest/samplefiles.html>`_
+* The inventory file should be a list of IPs separated by newlines. Check out the switch_inventory section in `Sample Files <https://omnia-documentation.readthedocs.io/en/latest/samplefiles.html>`_
 
-* Where ``ethernet_switch_password`` is the username used to authenticate into the switch.
+* Where ``ethernet_switch_password`` is the password used to authenticate into the switch.
 
 
 

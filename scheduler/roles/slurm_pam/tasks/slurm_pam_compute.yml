@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,38 +14,38 @@
 ---
 
 - name: Modify sshd file for slurm pam configuration
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: "{{ pam_sshd_path }}"
     insertafter: "{{ pam_sshd_regexp }}"
     line: "{{ pam_sshd_config_compute }}"
 
 - name: Modify password-auth file for slurm pam configuration
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: "{{ pam_password_auth_path }}"
     regexp: "{{ item.regexp }}"
     line: "{{ item.line }}"
   with_items: "{{ password_auth_config }}"
 
 - name: Modify system-auth file for slurm pam configuration
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: "{{ pam_system_auth_path }}"
     insertafter: "{{ system_auth_regexp }}"
     line: "{{ system_auth_config }}"
 
 - name: Modify slurm.conf configuration for TaskPlugin
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: "{{ slurm_confpth }}"
     regexp: "{{ task_plugin_regexp }}"
     line: "{{ task_plugin_compute }}"
 
 - name: Modify slurm.conf configuration for PrologFlags
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: "{{ slurm_confpth }}"
     insertafter: "^{{ task_plugin_compute }}"
     line: "{{ prolog_flag_content }}"
 
 - name: Start slurmd on compute nodes
-  systemd:
+  ansible.builtin.systemd:
     name: slurmd.service
     state: restarted
-    enabled: yes
+    enabled: true

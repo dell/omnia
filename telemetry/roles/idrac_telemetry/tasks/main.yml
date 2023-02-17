@@ -14,14 +14,13 @@
 ---
 
 - name: Deploy idrac-telemetry
-  block:
-  - name: Deploy mysqldb pod for idrac credentials
-    include_tasks: mysqldb_deployment.yml
-
-  - name: Deploy idrac_telemetry pods
-    include_tasks: idrac_telemetry_deployment.yml
-
-  - name: Collect iDRAC IP from AWX and initiate telemetry collection
-    include_tasks: initiate_telemetry.yml
-
   when: idrac_telemetry_support is true
+  block:
+    - name: Deploy mysqldb pod for idrac credentials
+      ansible.builtin.include_tasks: mysqldb_deployment.yml
+
+    - name: Deploy idrac_telemetry pods
+      ansible.builtin.include_tasks: idrac_telemetry_deployment.yml
+
+    - name: Collect iDRAC IP from AWX and initiate telemetry collection
+      ansible.builtin.include_tasks: initiate_telemetry.yml

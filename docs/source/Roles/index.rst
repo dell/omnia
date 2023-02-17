@@ -11,13 +11,13 @@ From Omnia 1.4, all of Omnia's many features are available via collections. Coll
 Below is a list of all Omnia's roles:
 
 .. toctree::
-
+    :hidden:
   Provision/index
   Network/index
   Scheduler/index
-  Storage/index
-  Logging/index
-  Accelerator/index
   Security/index
+  Storage/index
+  Accelerator/index
   Monitor/index
   Utils/index
+  Telemetry/index

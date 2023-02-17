@@ -1,0 +1,31 @@
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Create ldif file to add ssh public key to LDAP user invetory
+  ansible.builtin.shell: set -o pipefail && echo -e "{{ ldap_create_ssh_ldif_cmd }}" > "{{ user_home_path }}"/sshpubkey.ldif
+  changed_when: false
+
+- name: Check if SSH key updated in ldap user entry
+  block:
+      - name: Add public key to ldap
+        ansible.builtin.shell: set -o pipefail && ldapmodify -D {{ ldap_add_key_cmd }} -f "{{ user_home_path }}"/sshpubkey.ldif
+        changed_when: false
+        register: ldap_modify_output
+
+  rescue:
+      - name: Print when error
+        ansible.builtin.fail:
+            msg: "{{ fail_msg_ldap_sshpubkey_exists }}"
+        when: "'ldap_modify: Type or value exists' in ldap_modify_output.stderr"

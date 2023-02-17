@@ -13,6 +13,11 @@
 #  limitations under the License.
 ---
 
+- name: Delete NFS Share Directory if present already
+  ansible.builtin.file:
+    state: absent
+    path: "{{ cuda_nfs_path }}"
+
 - name: Create NFS Share directory
   ansible.builtin.file:
     path: "{{ cuda_nfs_path }}"

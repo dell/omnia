@@ -14,38 +14,38 @@
 ---
 
 - name: Get all images
-  command: "buildah images"
+  ansible.builtin.command: "buildah images"
   register: images_result
   failed_when: false
   changed_when: false
 
 - name: Update the permission of init_k8s_pod.sh
-  file:
+  ansible.builtin.file:
     path: "{{ role_path }}/files/init_k8s_pod.sh"
     mode: "{{ slurm_telemetry_code_dir_mode }}"
   when: slurm_telemetry_image not in images_result.stdout
 
-- name: Create slurm_telemetry image
-  command: buildah bud -t {{ slurm_telemetry_image }}:{{ slurm_telemetry_image_tag }} -f {{ role_path }}/files/Dockerfile
+- name: Create slurm_telemetry image - This might take 5 mins
+  ansible.builtin.command: buildah bud -t {{ slurm_telemetry_image }}:{{ slurm_telemetry_image_tag }} -f {{ role_path }}/files/Dockerfile
   args:
     chdir: "{{ role_path }}/files/"
   changed_when: true
   when: slurm_telemetry_image not in images_result.stdout
 
 - name: Deploy slurm_telemetry pod
-  command: kubectl apply -f {{ role_path }}/files/k8s_slurm_telemetry.yml
+  ansible.builtin.command: kubectl apply -f {{ role_path }}/files/k8s_slurm_telemetry.yml
   changed_when: true
 
 - name: Wait for slurm_telemetry pod to come to ready state
-  command: kubectl wait --for=condition=ready -n {{ namespace }} pod -l app=slurm-telemetry --timeout=4m
+  ansible.builtin.command: kubectl wait --for=condition=ready -n {{ namespace }} pod -l app=slurm-telemetry --timeout=4m
   changed_when: true
 
 - name: Delete input config file
-  file:
+  ansible.builtin.file:
     path: "{{ role_path }}/files/monster/config.yml"
     state: absent
 
 - name: Delete init k8s pod file
-  file:
+  ansible.builtin.file:
     path: "{{ role_path }}/files/init_k8s_pod.sh"
     state: absent

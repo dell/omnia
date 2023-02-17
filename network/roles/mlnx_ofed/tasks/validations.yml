@@ -16,15 +16,15 @@
 - name: Include input params for mlnx_ofed
   ansible.builtin.include_vars: "{{ role_path }}/../../../input/network_config.yml"
 
-- name: Check if redhat node is present
+- name: Check if redhat/rocky node is present
   ansible.builtin.set_fact:
     redhat_node_ip: "{{ redhat_node_ip | default([]) + [item] }}"
   with_items: "{{ groups['all'] }}"
   when:
     - hostvars[item].ansible_distribution is defined
-    - "'redhat' in hostvars[item].ansible_distribution | lower"
+    - "'redhat' in hostvars[item].ansible_distribution | lower or 'rocky' in hostvars[item].ansible_distribution | lower"
 
-- name: Perform validations when compute nodes have redhat os installed
+- name: Perform validations when compute nodes have redhat/rocky os installed
   block:
     - name: Set Redhat distro
       ansible.builtin.set_fact:
@@ -89,12 +89,10 @@
         - name: Validate redhat subscription status
           ansible.builtin.include_tasks: validate_rhsm.yml
       rescue:
-        - name: Control plane doesn't have proper redhat subscription
-          ansible.builtin.fail:
-            msg:
-              - "Execution failed because of one of the following reasons:"
-              - "{{ inactive_msg1 }}"
-              - "{{ inactive_msg2 }}"
+        - name: Warning - redhat subscription not enabled
+          ansible.builtin.pause:
+            seconds: "{{ warning_wait_time }}"
+            prompt: "{{ subscription_warning_msg }}"
       when: ansible_facts['distribution'] | lower == os_supported_rhel
 
   when: redhat_node_ip | default([]) | length > 0

@@ -19,8 +19,8 @@ os_supported_rocky: "rocky"
 os_supported_rhel: "redhat"
 
 # Usage: validations.yml
-inactive_msg1: "1. Host {{ ansible_ssh_host }} is not subscribed to redhat"
-inactive_msg2: "2. Host {{ ansible_ssh_host }} didnt have baseos and appstream repos enabled."
+subscription_warning_msg: "[WARNING] redhat subscription not enabled. Playbook may fail during package installation"
+warning_wait_time: 2
 fail_mlnx_file_type: "The given file is not a .tgz file."
 fail_mlnx_file: "File doesn't exist at given path: "
 uri_status_code: 200
@@ -96,10 +96,3 @@ infiniband_leap:
   - libibmad5
   - libibumad3
   - infiniband-diags
-
-# Usage: install_mlnx_rocky.yml
-infiniband_rocky:
-  - "@Infiniband Support"
-  - infiniband-diags
-  - perftest
-  - qperf

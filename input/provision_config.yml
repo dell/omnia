@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -26,10 +26,9 @@ public_nic: "eno2"
 admin_nic: "eno1"
 
 # Only last 16 bits/2 octets of IPv4 are dynamic
-# Example: 172.29.0.0 , 10.10.0.0 , 192.15.0.0
-# Default value: "172.29.0.0"
+# Default value: "10.5.0.0"
 # Mandatory
-admin_nic_subnet: "172.29.0.0"
+admin_nic_subnet: "10.5.0.0"
 
 ### PXE NIC Details
 # This NIC will provide provisioning route information
@@ -37,60 +36,89 @@ admin_nic_subnet: "172.29.0.0"
 # Mandatory
 pxe_nic: "eno1"
 
-# The dhcp range for assigning the IPv4 address while provisioning
-# Examples: 172.29.0.50 - 172.29.0.100, 10.10.1.100 - 10.10.1.200
-# If pxe range is 192.12.0.100 - 192.12.0.200 and bmc_subnet is 192.14.0.0 then for a node,
-# Omnia would assign Pxe IP as 192.12.0.101 , bmc IP as 192.14.0.101
-# Default: 172.29.0.100 - 172.29.0.200
+# Only last 16 bits/2 octets of IPv4 are dynamic
+# Default value: "10.5.0.0"
 # Mandatory
-pxe_nic_start_range: "172.29.0.100"
-pxe_nic_end_range: "172.29.0.200"
+pxe_subnet: "10.5.0.0"
 
-### IB NIC Details
-# If provided, omnia will handle and assign static IPs to compute node's IB network.
-# Only last 16 bits/2 octets of IPv4 are dynamic
-# Example: 172.19.0.0 , 10.8.0.0 , 192.18.0.0
-# If provided the db entry will be in parallel with either the pxe_nic ranges
-# Or whatever is provided in mapping file ( only if roce is disabled)
-# Example: If admin_ip: 172.29.0.101 and ib_nic_subnet: 178.30.0.0, then ib_ip: 178.30.0.101
-# Make sure ib nics having ib as prefix
-# Optional
-ib_nic_subnet: ""
+# This will specify the mechanism through which omnia will discover nodes for provisioning.
+# Accepted values: mapping, bmc, snmp
+# mapping indicates that the user has provided a valid mapping file path with details regarding MAC ID of the NIC, IP address and hostname.
+# bmc indicates the servers in the cluster will be discovered by Omnia using BMC. The requirement in this case is user should enable IPMI over LAN in iDRAC settings if the iDRACs are in static mode
+# snmp indicates Omnia will discover the nodes based on the switch IP (to which the cluster servers are connected) provided. SNMP should be enabled on the switch.
+# Default: mapping
+discovery_mechanism: "mapping"
 
-### BMC NIC Details
-# If provided, Omnia will handle and assign static IPs to the iDRACs.
-# Only last 16 bits/2 octets of IPv4 are dynamic
-# Example: 172.30.0.0 , 10.11.0.0 , 192.14.0.0
-# If provided the db entry will be in parallel with either the pxe_nic ranges
-# Or whatever is provided in mapping file.
-# Example: If admin_ip: 172.29.0.101 and bmc_nic_subnet: 172.27.0.0, then bmc_ip: 172.27.0.101
-# Optional
-bmc_nic_subnet: ""
-
+# Discover_mechanism is mapping
 #### PXE provisioned nodes information source
 ## PXE mapping file path details
 # The mapping file consists of the MAC address and its respective IP address and Hostname.
 # If user wants to assign static IPs, format of csv: MAC,Hostname,IP
 # Only last 16 bits/2 octets of IPv4 can be dynamic
-# Ensure that IPs given in mapping file goes hand in hand witht he pxe_nic ranges provided above
-# Ex. xx:yy:zz:aa:bb,server,172.17.0.5
-# A templates for mapping file exists in omnia/examples and is named as host_mapping_file_os_provisioning.csv
+# Ensure that IPs given in mapping file goes hand in hand with the pxe_nic ranges provided above
+# Ex. xx:yy:zz:aa:bb:cc,server,172.17.0.5
+# A templates for mapping file exists in omnia/examples and is named as pxe_mapping_file.csv
 # This depicts the path where user has kept the mapping file for DHCP configurations.
-# Optional ( Either pxe_mapping_file_path or PXE switch details should to be provided )
+# Optional
 pxe_mapping_file_path: ""
 
 # PXE switch that will be connected to all iDRACs for provisioning
 # Ensure that SNMP is enabled on the mentioned switch.
-# Optional ( Either pxe_mapping_file_path or PXE switch details should to be provided )
+# Mandatory when discovery mechanism is snmp
 pxe_switch_ip: ""
 pxe_switch_snmp_community_string: "public"
 
+### BMC NIC Details
+# If provided, Omnia will handle and assign static IPs to the iDRACs.
+# Only last 16 bits/2 octets of IPv4 are dynamic
+# Example: 10.3.0.0
+# If provided the db entry will be in parallel with either the pxe_nic ranges
+# Or whatever is provided in mapping file.
+# Example: If admin_ip: 10.5.0.101 and bmc_nic_subnet: 10.3.0.0 then bmc_ip: 10.3.0.101
+# Optional
+bmc_nic_subnet: "10.3.0.0"
+
+# The dhcp range for discovering the static IP assigned BMCs within the given range while discovery mechanism is BMC
+# If user wants to provide the range 172.40.0.50 to 172.40.0.100 then, bmc_static_start_range: 172.40.0.50, bmc_static_end_range: 172.40.0.100
+bmc_static_start_range: ""
+bmc_static_end_range: ""
+
+# Mandatory when discovery mechanism is BMC
+# The username for idrac
+# The username must not contain -,\, ',"
+# Required only if idrac_support: true
+bmc_username: ""
+
+# Mandatory when discovery mechanism is BMC
+# Password used for idrac
+# The password must not contain -,\, ',"
+# Required only if idrac_support: true
+bmc_password: ""
+
+### IB NIC Details
+# If provided, omnia will handle and assign static IPs to compute node's IB network.
+# Only last 16 bits/2 octets of IPv4 are dynamic
+# Example: 10.10.0.0
+# If provided the db entry will be in parallel with either the pxe_nic ranges
+# Or whatever is provided in mapping file ( only if roce is disabled)
+# Example: If admin_ip: 10.3.0.101 and ib_nic_subnet: 10.10.0.0, then ib_ip: 10.10.0.101
+# Make sure ib nics having ib as prefix
+# Optional
+ib_nic_subnet: ""
+
 # The prefix for the node names, if needed to be dynamically allocated.
-# Mandatory, if PXE switch IP given
+# Hostname = node_name + '0000x' + domain_name
+# Hostname should be less than 65 characters.
+# Example: servernode00001.omnia.test , where node_name=servernode, domain_name=omnia.test , 00001 used by omnia
 # Mandatory, if PXE switch IP given
 node_name: "node"
 
 # This variable is used to accept the domain name the user intends to configure
+# Please provide a valid domain name according to the domain name standards.
+# Hostname = node_name + '0000x' + domain_name
+# Hostname should be less than 65 characters.
+# Example: servernode00001.omnia.test ,where node_name=servernode ,domain_name=omnia.test ,00001 used by omnia
+# Example for domain name: abcd.test, ipa.test
 # Mandatory
 domain_name: ""
 
@@ -100,11 +128,17 @@ domain_name: ""
 # Required field
 provision_os: "rhel"
 
+# OS version of provision_os to be installed
+# Supported values for rhel/rocky are 8.0, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7
+# Required field
+provision_os_version: 8.6
+
 # This is the path where the user has to place the iso image that needs to be provisioned in target nodes.
 # The iso file should be Rocky8-DVD or RHEL-8.x-DVD.
 # Other iso files are not supported.
+# iso_file_path should contain provision_os and provision_os_version values in filename
 # Required field
-iso_file_path: "/home/RHEL-8.4.0-20210503.1-x86_64-dvd1.iso"
+iso_file_path: "/home/RHEL-8.6.0-20220420.3-x86_64-dvd1.iso"
 
 # This is the timezone that will be set during provisioning of OS
 # Available timezones are provided in provision/roles/xcat/files/timezone.txt
@@ -151,3 +185,17 @@ secondary_dns: ""
 #   - { mount_point: "/home", desired_capacity: "102400" }
 disk_partition:
   - { mount_point: "", desired_capacity: "" }
+
+# Absolute path to local copy of .iso file containing Mellanox OFED packages.
+# The iso can be downloaded from https://network.nvidia.com/products/infiniband-drivers/linux/mlnx_ofed/
+# OFED will be installed post provisioning without any user intervention requirement
+# Eg: mlnx_ofed_path: /root/MLNX_OFED_LINUX-5.8-1.1.2.1-rhel8.6-x86_64.iso
+# Optional field
+mlnx_ofed_path:
+
+# Absolute path to local copy of .rpm file containing CUDA packages.
+# The cuda rpm can be downloaded from https://developer.nvidia.com/cuda-downloads
+# CUDA will be installed post provisioning without any user intervention requirement
+# Eg: cuda_toolkit_path: /root/cuda-repo-rhel8-12-0-local-12.0.0_525.60.13-1.x86_64.rpm
+# Optional field
+cuda_toolkit_path: 

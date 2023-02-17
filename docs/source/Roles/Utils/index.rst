@@ -8,3 +8,4 @@ The Utilities role allows users to set up certain tasks such as
     kernel_upgrade
     rhsm_subscription
     configuringPXE
+    freeipa_installation

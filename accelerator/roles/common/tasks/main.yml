@@ -31,10 +31,10 @@
     - name: Validate redhat subscription status
       ansible.builtin.include_tasks: validate_rhsm.yml
   rescue:
-    - name: Removing host as it's redhat subscription is not proper
-      ansible.builtin.fail:
-        msg:
-          - "Execution skipped for this host because of one of the following reasons:"
-          - "{{ inactive_msg1 }}"
-          - "{{ inactive_msg2 }}"
-  when: ansible_facts['distribution'] | lower == os_supported_rhel
+    - name: Warning - redhat subscription not enabled
+      ansible.builtin.pause:
+        seconds: "{{ warning_wait_time }}"
+        prompt: "{{ subscription_warning_msg }}"
+  when:
+    - cuda_node_status
+    - ansible_facts['distribution'] | lower == os_supported_rhel

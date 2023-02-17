@@ -36,27 +36,15 @@ fail_msg_k8s_cni: "Kubernetes CNI not correct."
 success_msg_k8s_pod_network_cidr: "Kubernetes pod network cidr validated"
 fail_msg_k8s_pod_network_cidr: "Kubernetes pod network cidr not given in correct format"
 file_perm: '0755'
-domain_name_length: '63'
-domain_name_success_msg: "domain name successfully validated"
-domain_name_fail_msg: "Failed. Incorrect format provided for domain name in omnia_config.yml"
-realm_name_success_msg: "realm_name successfully validated"
-realm_name_fail_msg: "Failed. Incorrect realm_name formate in omnia_config.yml"
-success_msg_directory_manager_password: "directory_manager_password successfully validated"
-fail_msg_directory_manager_password: "Failed. Incorrect format provided for directory_manager_password"
-success_msg_kerberos_admin_password: "kerberos_admin_password successfully validated"
-fail_msg_kerberos_admin_password: "Failed. Incorrect format provided for kerberos_admin_password"
-input_config_failure_msg: "Input parameters cannot be empty"
-login_node_required_success_msg: "login_node_required successfully validated"
-login_node_required_fail_msg: "Failed. login_node_required should be either true or false"
-secure_login_node_success_msg: "enable_secure_login_node successfully validated"
-secure_login_node_fail_msg: "Failed. enable_secure_login_node should be either true or false"
-ipa_secret_file: "{{ playbook_dir }}/control_plane/roles/control_plane_security/files/.ipavars.yml"
 ldap_required_success_msg: "ldap_required variable successfully validated"
 ldap_required_fail_msg: "Failed. ldap_required should be either true or false"
 freeipa_required_success_msg: "freeipa_required variable sccessfully validated"
 freeipa_required_fail_msg: "Failed. freeipa_required should be either true or false"
 ldap_login_failure_msg: "Failed. Both login_node_required and ldap_required cannot be true"
 ldap_freeipa_failure_msg: "Failed. Both ldap_required and freeipa_required cannot be true"
+login_node_required_success_msg: "login_node_required successfully validated"
+login_node_required_fail_msg: "Failed. login_node_required should be either true or false"
+login_node_group_success_msg: "Login node group check passed when login_node_required is true"
 
 # Usage: validations.yml
 skip_tag_fail_msg: "Can't skip both slurm and kubernetes"
@@ -70,37 +58,6 @@ login_node_group_fail_msg: "Login node group should contain atleast 1 node when 
 login_node_group_success_msg: "Login node group check passed when login_node_required is true"
 nfs_node_group_fail_msg: "nfs_node group should contain exactly 1 node"
 nfs_node_group_success_msg: "nfs_node group check passed"
-
-# Usage: fetch_security_inputs.yml
-security_vars_filename: "omnia_security_config.yml"
-max_failures_success_msg: "max_failures successfully validated"
-max_failures_fail_msg: "Failed. Incorrect max_failures value in omnia_security_config.yml"
-failure_reset_interval_success_msg: "failure_reset_interval successfully validated"
-failure_reset_interval_fail_msg: "Failed. Incorrect failure_reset_interval value in omnia_security_config.yml"
-lockout_duration_success_msg: "lockout_duration successfully validated"
-lockout_duration_fail_msg: "Failed. Incorrect lockout_duration value in omnia_security_config.yml"
-session_timeout_success_msg: "session_timeout successfully validated"
-session_timeout_fail_msg: "Failed. Incorrect session_timeout value in omnia_security_config.yml"
-max_failures_default_value: 3
-failure_reset_interval_min_value: 30
-failure_reset_interval_max_value: 60
-lockout_duration_min_value: 5
-lockout_duration_max_value: 10
-session_timeout_min_value: 90
-session_timeout_max_value: 180
-alert_email_success_msg: "alert_email_address successfully validated"
-alert_email_fail_msg: "Failed. Incorrect alert_email_address value in omnia_security_config.yml"
-alert_email_warning_msg: "[WARNING] alert_email_address is empty. Authentication failure alerts won't be configured."
-email_max_length: 320
-email_search_key: "@"
-user_success_msg: "user successfully validated"
-user_fail_msg: "Failed. Incorrect user format in omnia_security_config.yml"
-allow_deny_success_msg: "Access successfully validated"
-allow_deny_fail_msg: "Failed. Incorrect Access format in omnia_security_config.yml"
-restrict_program_support_success_msg: "restrict_program_support successfully validated"
-restrict_program_support_failure_msg: "Failed. Accepted values are true or false."
-restrict_softwares_success_msg: "restrict_softwares successfully validated"
-restrict_softwares_failure_msg: "Warning. Values should be comma separated. The supported services are telnet, lpd, bluetooth, rlogin, rexec. Please check restrict_softwares variable"
 
 # Usage: install_packages.yml
 ansible_base_version: '2.9'

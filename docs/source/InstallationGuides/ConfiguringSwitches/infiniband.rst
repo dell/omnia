@@ -5,7 +5,7 @@ Depending on the number of ports available on your Infiniband switch, they can b
     - EDR Switches (36 ports)
     - HDR Switches (40 ports)
 
-Input the configuration variables into the ``infiniband_edr_input.yml`` or ``infiniband_hdr_input.yml`` as appropriate:
+Input the configuration variables into the ``network/infiniband_edr_input.yml`` or ``network/infiniband_hdr_input.yml`` as appropriate:
 
 +-------------------------+--------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Name                    | Default, Accepted values | Required? | Purpose                                                                                                                                                                |
@@ -36,7 +36,7 @@ Input the configuration variables into the ``infiniband_edr_input.yml`` or ``inf
 
 **Before you run the playbook**
 
-Before running ``infiniband.yml``, ensure that SSL Secure Cookies are disabled. Also, HTTP and JSON Gateway need to be enabled on your switch. This can be verified by running: ::
+Before running ``network/infiniband_switch_config.yml``, ensure that SSL Secure Cookies are disabled. Also, HTTP and JSON Gateway need to be enabled on your switch. This can be verified by running: ::
 
     show web (To check if SSL Secure Cookies is disabled and HTTP is enabled)
     show json-gw (To check if JSON Gateway is enabled)
@@ -55,19 +55,21 @@ When connecting to a new or factory reset switch, the configuration wizard reque
 If the user enters 'yes', they will also be prompted to enter the hostname for the switch, DHCP details, IPv6 details, etc.
 
 .. note::
-    * When initializing a factory reset switch, the user needs to ensure DHCP is enabled and an IPv6 address is not assigned. Omnia will assign an IP address to the Infiniband switch using DHCP with all other configurations.
+    * When initializing a factory reset switch, the user needs to ensure DHCP is enabled and an IPv6 address is not assigned.
 
-    * All ports intended for splitting need to be enabled before running the playbook.
+    * All ports intended for splitting need to be connected to the network before running the playbook.
 
 **Running the playbook**
 
-If ``enable_split_port`` is **TRUE**, run::
+If ``enable_split_port`` is **true**, run::
 
+   cd network
     ansible-playbook infiniband_switch_config.yml -i inventory -e ib_username="" -e ib_password="" -e ib_admin_password="" -e ib_monitor_password=""  -e ib_default_password="" -e ib_switch_type=""
 
 
-If ``enable_split_port`` is **FALSE**, run::
+If ``enable_split_port`` is **false**, run::
 
+    cd network
     ansible-playbook infiniband_switch_config.yml -i inventory -e ib_username="" -e ib_password=""  -e ib_switch_type=""
 
 
@@ -95,5 +97,5 @@ If ``enable_split_port`` is **FALSE**, run::
 
     * Passwords should contain at least one of each: Lowercase, uppercase and digits.
 
- * The inventory file should be a list of IPs separated by newlines. Check out the ``device_ip_list.yml`` section in `Sample Files <https://omnia-documentation.readthedocs.io/en/latest/samplefiles.html>`_
+ * The inventory file should be a list of IPs separated by newlines. Check out the ``switch_inventory`` section in `Sample Files <https://omnia-documentation.readthedocs.io/en/latest/samplefiles.html>`_
 

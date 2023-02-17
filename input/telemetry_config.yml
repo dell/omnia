@@ -1,0 +1,104 @@
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# This variable is used to enable iDRAC telemetry support and visualizations
+# Accepted values:  "true" or "false"
+idrac_telemetry_support: true
+
+# This variable is used to enable slurm telemetry support and visualizations
+# Pre-requisite: idrac_telemetry_support should be set to true
+# Accepted values:  "true" or "false"
+slurm_telemetry_support: true
+
+# Postgres DB with timescale extension is used for storing iDRAC and slurm telemetry metrics
+# This is the database name which stores these metrics.
+timescaledb_name: telemetry_metrics
+
+# MySQL DB is used to store IPs and credentials of iDRACs having datacenter license
+# This is the database name which stores this information
+mysqldb_name: idrac_telemetrysource_services_db
+
+# This is the timezone that will be set during provisioning of OS
+# Available timezones are provided in telemetry/common/files/timezone.txt
+# Default timezone will be "GMT"
+# Some of the other available timezones are EST,CET,MST,CST6CDT,PST8PDT
+timezone: "GMT"
+
+# Username used for connecting to timescale db
+# The username must not contain -,\, ',"
+# The Length of the username should be at least 2 characters.
+# Mandatory field
+timescaledb_user: ""
+
+# Password used for connecting to timescale db
+# The password must not contain -,\, ',",@
+# The Length of the password should be at least 2 characters.
+# Mandatory field
+timescaledb_password: ""
+
+# Username used for connecting to mysql db
+# The username must not contain -,\, ',"
+# The Length of the username should be at least 2 characters.
+# Mandatory field
+mysqldb_user: ""
+
+# Password used for connecting to mysql db
+# The password must not contain -,\, ',"
+# The Length of the password should be at least 2 characters.
+# Mandatory field
+mysqldb_password: ""
+
+# Password used for connecting to timescale db for root user
+# The password must not contain -,\, ',"
+# The Length of the password should be at least 2 characters.
+# Mandatory field
+mysqldb_root_password: ""
+
+# The username for idrac
+# The username must not contain -,\, ',"
+# Required only if idrac_telemetry_support is true
+idrac_username: ""
+
+# Password used for idrac
+# The password must not contain -,\, ',"
+# Required only if idrac_telemetry_support is true
+idrac_password: ""
+
+# The username for grafana UI
+# The length of username should be at least 5
+# The username must not contain -,\, ',"
+# Mandatory field
+grafana_username: ""
+
+# Password used for grafana UI
+# The length of the password should be at least 5
+# The password must not contain -,\, ',"
+# The password should not be kept 'admin'
+# Mandatory field
+grafana_password: ""
+
+# Password of manager node
+# Required only if slurm_telemetry_support is true
+node_password: ""
+
+# Username for Dockerhub account
+# This will be used for Docker login
+# This value is optional but suggested avoiding docker pull limit issues
+docker_username: ""
+
+# Password for Dockerhub account
+# This will be used for Docker login
+# This value is mandatory if docker username is provided
+docker_password: ""

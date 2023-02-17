@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,18 +14,18 @@
 ---
 
 - name: Deploy slurm-telemetry
-  block:
-  - name: Include common variables
-    include_vars: ../../common/vars/main.yml
-
-  - name: Include timescaledb variables
-    include_vars: ../../timescaledb/vars/main.yml
-
-  - name: Prepare MonSter input file
-    include_tasks: update_timescaledb_details.yml
-    when: hostvars[groups['manager'][0]]['slurm_service']
-
-  - name: Deploy slurm telemetry
-    include_tasks: deploy_slurm_telemetry.yml
-    when: hostvars[groups['manager'][0]]['slurm_service']
   when: slurm_telemetry_support
+  block:
+    - name: Include common variables
+      ansible.builtin.include_vars: ../../common/vars/main.yml
+
+    - name: Include timescaledb variables
+      ansible.builtin.include_vars: ../../timescaledb/vars/main.yml
+
+    - name: Prepare MonSter input file
+      ansible.builtin.include_tasks: update_timescaledb_details.yml
+      when: hostvars[groups['manager'][0]]['slurm_service']
+
+    - name: Deploy slurm telemetry
+      ansible.builtin.include_tasks: deploy_slurm_telemetry.yml
+      when: hostvars[groups['manager'][0]]['slurm_service']

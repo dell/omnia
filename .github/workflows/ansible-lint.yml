@@ -29,6 +29,27 @@ jobs:
         #   playbook_2.yml
         targets: |
           /github/workspace/monitor/monitor.yml
+          /github/workspace/accelerator/accelerator.yml
+          /github/workspace/network/network.yml
+          /github/workspace/provision/provision.yml
+          /github/workspace/provision/idrac.yml
+          /github/workspace/provision/post_provision.yml
+          /github/workspace/scheduler/job_based_user_access.yml
+          /github/workspace/security/passwordless_ssh.yml
+          /github/workspace/security/security.yml
+          /github/workspace/storage/nfs_sas.yml
+          /github/workspace/storage/powervault.yml
+          /github/workspace/storage/storage.yml
+          /github/workspace/telemetry/add_node_idrac.yml
+          /github/workspace/telemetry/telemetry.yml
+          /github/workspace/utils/configure_pxe_static.yml
+          /github/workspace/utils/control_plane_cleanup.yml
+          /github/workspace/utils/destroy.yml
+          /github/workspace/utils/install_hpc_thirdparty_packages.yml
+          /github/workspace/utils/kernel_upgrade.yml
+          /github/workspace/utils/passwordless_ssh.yml
+          /github/workspace/utils/rhsm_subscription.yml
+          /github/workspace/utils/rhsm_unregister.yml
         # [optional]
         # Arguments to override a package and its version to be set explicitly.
         # Must follow the example syntax.

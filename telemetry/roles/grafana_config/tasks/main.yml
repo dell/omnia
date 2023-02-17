@@ -14,10 +14,10 @@
 ---
 
 - name: Configure grafana for telemetry
-  block:
-  - name: Add telemetry datasource on grafana
-    include_tasks: add_datasource.yml
-
-  - name: Add dashboards on grafana
-    include_tasks: add_dashboards.yml
   when: idrac_telemetry_support is true
+  block:
+    - name: Add telemetry datasource on grafana
+      ansible.builtin.include_tasks: add_datasource.yml
+
+    - name: Add dashboards on grafana
+      ansible.builtin.include_tasks: add_dashboards.yml
