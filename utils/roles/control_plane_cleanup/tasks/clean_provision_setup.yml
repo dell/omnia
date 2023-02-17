@@ -19,18 +19,19 @@
       ansible.builtin.command: systemctl status xcatd
       register: xcat_status
       no_log: true
-      ignore_errors: true
+      failed_when: false
       changed_when: false
 
     - name: Cleanup node info from dhcp
       ansible.builtin.command: makedhcp -d -a
       when: ("running" in xcat_status.stdout)
+      failed_when: false
       changed_when: false
 
     - name: List all the os image files
       ansible.builtin.command: lsdef -t osimage
       register: os_image_list
-      ignore_errors: true
+      failed_when: false
       changed_when: false
 
     - name: Remove the OS images
@@ -38,21 +39,25 @@
       with_items:
         - "{{ os_image_list.stdout_lines }}"
       when: ("osimage" in os_image_list.stdout_lines)
+      failed_when: false
       changed_when: false
 
     - name: Cleanup node info from tftpboot
-      ansible.builtin.command: nodeset all offline
+      ansible.builtin.command: rmdef all
       when: ("running" in xcat_status.stdout)
+      failed_when: false
       changed_when: false
 
     - name: Clean host entries in /etc/hosts
       ansible.builtin.command: makehosts -d all
       when: ("running" in xcat_status.stdout)
+      failed_when: false
       changed_when: false
 
     - name: Cleanup node info from DNS
       ansible.builtin.command: makedns -n
       when: ("running" in xcat_status.stdout)
+      failed_when: false
       changed_when: false
 
     - name: Stop xcat service
@@ -60,11 +65,13 @@
         name: xcatd
         state: stopped
       when: ("running" in xcat_status.stdout)
+      failed_when: false
       no_log: true
 
     - name: Remove xcat files
       ansible.builtin.command: "{{ xcat_packages_path }} -y uninstall"
       no_log: true
+      failed_when: false
       changed_when: false
 
     - name: Remove xCAT certificate
@@ -87,13 +94,22 @@
         state: absent
       with_items:
         - "{{ xcat_del_files }}"
+
+    - name: Remove xCAT
+      ansible.builtin.package:
+        name: xCAT
+        state: absent
+      failed_when: false
+      no_log: true
   tags: xcat
+
 - name: Uninstall postgres
   block:
     - name: Remove postgres
-      ansible.builtin.yum:
+      ansible.builtin.package:
         name: postgresql
         state: absent
+      failed_when: false
       no_log: true
 
     - name: Remove postgres directory
@@ -103,3 +119,24 @@
       with_items:
         - "{{ pg_dir_path }}"
   tags: postgres
+
+- name: Create omnia folder in opt folder
+  ansible.builtin.file:
+    path: "{{ omnia_dir }}"
+    state: directory
+    mode: 0755
+
+- name: Exit monitoring thread
+  block:
+    - name: Check monitoring thread id
+      ansible.builtin.shell: |
+        set -o pipefail
+        ps aux | grep -v grep | grep "python.*monitor_status.py" | awk '{print $2}'
+      register: process_id
+      changed_when: false
+      failed_when: false
+
+    - name: Kill monitoring thread
+      ansible.builtin.shell: kill -9 "{{ process_id.stdout }}"
+      when: process_id.stdout != ""
+  tags: monitoring_thread

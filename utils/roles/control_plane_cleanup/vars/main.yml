@@ -32,4 +32,11 @@ xcat_del_files:
   - /root/xcat
   - /root/xcat-dbback
   - /opt/racadm
+  - /opt/omnia/
+  - /etc/yum.repos.d/xcat-core.repo
+  - /etc/yum.repos.d/xcat-dep.repo
+  - /var/lib/dhcpd/dhcpd6.leases
+  - /var/lib/dhcpd/dhcpd.leases~
+  - /var/lib/dhcpd/dhcpd.leases.rpmsave
 pg_dir_path: "/var/lib/pgsql"
+omnia_dir: "/opt/omnia"

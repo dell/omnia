@@ -17,6 +17,7 @@ import time
 import os
 import subprocess
 import psycopg2
+import re
 
 node_details = {}
 
@@ -60,7 +61,8 @@ def get_node_details():
 # add_details_to_db() function will connect to database and update database using following checks:
 # It will check the status of node in DB. If status of node and current status is 'booted', nothing will be updated.
 # Else, status of node in DB will be updated to current status.
-# MAC of node will also be updated in DB if status is 'booted'.
+# MAC of node will also be updated in DB if MAC address given by XCAT is a valid MAC address 
+# and if current mac address is None. 
 def add_details_to_db():
     conn = psycopg2.connect(
         database="omniadb",
@@ -80,11 +82,20 @@ def add_details_to_db():
         cursor.execute(sql_check_mac, (node,))
         current_mac = cursor.fetchall()
         if len(current_mac) < 2 and len(node_details[node][1]) > 2:
-            if current_mac[0][0] is None:
+            if current_mac[0][0] is None and re.match("[0-9a-f]{2}([-:]?)[0-9a-f]{2}(\\1[0-9a-f]{2}){4}$", node_details[node][1].lower()):
                 sql_mac = "Update cluster.nodeinfo set admin_mac = %s where node = %s"
                 cursor.execute(sql_mac, (node_details[node][1], node))
     conn.close()
 
-MonitoringThreadObject = MonitoringThread()
-MonitoringThreadObject.Daemon = True
-MonitoringThreadObject.start()
+def main():
+    try:
+        MonitoringThreadObject = MonitoringThread()
+        MonitoringThreadObject.Daemon = True
+        MonitoringThreadObject.start()
+    except Exception as e:
+        print("Exception thrown by the monitoring thread:", e)
+        sys.exit(1)
+
+# Driver code
+if __name__ == '__main__':
+    main()
