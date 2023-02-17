@@ -12,10 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+- name: Create ranges
+  ansible.builtin.set_fact:
+    third_octet: "{{ bmc_static_start_range.split('.')[-2] }}-{{ bmc_static_end_range.split('.')[-2] }}"
+    fourth_octet: "{{ bmc_static_start_range.split('.')[-1] }}-{{ bmc_static_end_range.split('.')[-1] }}"
+    range_subnet: "{{ bmc_static_start_range.split('.')[0] }}.{{ bmc_static_start_range.split('.')[1] }}"
 
 - name: BMC Discover on Static ranges
-  ansible.builtin.shell: |
-      bmcdiscover --range '{{ bmc_static_start_range }}'-'{{ bmc_static_end_range.split('.')[-1] }}' -z > '{{ static_ip_file }}'
+  ansible.builtin.shell: >-
+    set -o pipefail && \
+    bmcdiscover --range {{ range_subnet }}.{{ third_octet }}.{{ fourth_octet }} -z > {{ static_ip_file }}
   register: static_discovery
   changed_when: false
 

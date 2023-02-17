@@ -13,21 +13,15 @@
 # limitations under the License.
 ---
 
-- name: Check for data folder existsence
-  ansible.builtin.stat:
-    path: "{{ meta_dest }}"
-  register: data_folder_status
-
-- name: Create data folder if it doesn't exists
-  ansible.builtin.file:
-    path: "{{ meta_dest }}"
-    state: directory
-    mode: "{{ mount_dir_perm }}"
-    group: root
-    owner: root
-  when: not data_folder_status.stat.exists
-
-- name: Check metadata.yml file existence
-  ansible.builtin.stat:
-    path: "{{ meta_path }}"
-  register: metadata_status
+- name: Task to power off the nodes for BMC
+  block:
+    - name: Power off the nodes
+      ansible.builtin.command: rpower {{ item }} off
+      changed_when: true
+      register: power_off_status
+  rescue:
+    - name: Verify power off is successful for bmc
+      ansible.builtin.debug:
+        msg: "{{ mtms_poweroff_warning_msg }} {{ power_off_status.stderr }}"
+      when: power_off_status.stderr is defined
+  when: discovery_mechanism | lower == discovery_method_bmc

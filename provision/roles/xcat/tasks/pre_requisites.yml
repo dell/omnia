@@ -81,4 +81,14 @@
   when:
     - groups['all'] is defined
     - (groups['all'] | length > 0)
-    - xcat_installation_status
+    - "'xcatd.service' in ansible_facts.services"
+    - "'running' in ansible_facts.services['xcatd.service'].state"
+
+- name: Warning - reprovision will be ignored
+  ansible.builtin.pause:
+    seconds: "{{ warning_wait_time }}"
+    prompt: "{{ reprovision_warning_msg }}"
+  when:
+    - groups['all'] is defined
+    - (groups['all'] | length > 0)
+    - not reprovision_status

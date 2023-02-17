@@ -21,11 +21,12 @@
 - name: Call python utility to create the dynamic list of feasible IPs
   ansible.builtin.command: |
     {{ python_version }} {{ create_dynamic_ip_path }} {{ bmc_nic_subnet }} {{ bmc_nic_netmask }}
-    {{ bmc_username }} {{ bmc_password}}
+    {{ bmc_username }} {{ bmc_password }}
   no_log: true
+  failed_when: false
   changed_when: false
 
-- name: Fetch record from mapping file
+- name: Fetch record from dynamic IP file
   ansible.builtin.shell: >
     set -o pipefail && \
     cat "{{ dynamic_ip_list_path }}"
@@ -46,10 +47,10 @@
 
 - name: IDRAC IPs
   ansible.builtin.set_fact:
-    idrac_dynamic_ip: "{{ idrac_dynamic_ip | default ([]) }} + [ '{{ item.item }}']"
+    idrac_dynamic_ip: "{{ idrac_dynamic_ip | default([]) }} + [ '{{ item.item }}']"
   when:
-    - item.stderr is defined
-    - item.stderr == ""
+    - item.stdout is defined
+    - "'Object value modified successfully' in item.stdout"
   with_items: "{{ register_ipmi.results }}"
   failed_when: false
   no_log: true

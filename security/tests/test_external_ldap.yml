@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -12,33 +12,159 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-# Testcase to validate LDAP client installation on client nodes when
-# login_node_required and ldap_required is true
-- name: OMNIA_1.4_LDAP_TC_001
-  hosts: login_node, manager, compute
+# Validate Openldap, Sssd, SSSD-LDAP, Oddjobmkdir, Openssl After execution of seciurity.yml with Ldap true
+- name: Validate Openldap, Sssd, SSSD-LDAP, Oddjobmkdir, Openssl After execution of seciurity.yml with Ldap true
+  hosts: all
   vars_files:
-    - /root/omnia/security/tests/test_vars/test_ldap_vars.yml
+    - "{{ playbook_dir }}/test_vars/test_ldap_vars.yml"
   tasks:
-    - name: Validate LDAP client installation on client nodes
+    - name: To validate Openldap, Sssd, SSSD-LDAP, Oddjobmkdir, Openssl
       block:
-        - name: Identify presence of LDAP client installation
-          ansible.legacy.shell: "rpm -qa | grep -i openldap"
-          register: lclient_installed_msg
+        - name: Find Openldap Installation
+          ansible.legacy.shell: "rpm -qa | grep openldap*"
+          register: openldap
           changed_when: false
-
-        - name: Validate presence of LDAP client installation
+        - name: Validate Openldap instalaltion
           ansible.legacy.assert:
             that:
-              - '"openldap" in lclient_installed_msg.stdout'
-            success_msg: "{{ ldap_client_installation_success_msg }}"
-            fail_msg: "{{ ldap_client_installation_fail_msg }}"
-      tags: LDAP_TC_001
+              - "'openldap' in openldap.stdout"
+            success_msg: "{{ openldap_success_msg }}"
+            fail_msg: "{{ openldap_success_msg }}"
+        - name: Find sssd Installation
+          ansible.legacy.shell: "rpm -qa | grep sssd"
+          register: sssd
+          changed_when: false
+        - name: Validate sssd instalaltion
+          ansible.legacy.assert:
+            that:
+              - "'sssd' in sssd.stdout"
+            success_msg: "{{ sssd_success_msg }}"
+            fail_msg: "{{ sssd_fail_msg }}"
+        - name: Find sssd-ldap Installation
+          ansible.legacy.shell: "rpm -qa | grep sssd-ldap"
+          register: sssd_ldap
+          changed_when: false
+        - name: Validate sssd-ldap instalaltion
+          ansible.legacy.assert:
+            that:
+              - "'sssd-ldap' in sssd_ldap.stdout"
+            success_msg: "{{ sssd_ldap_success_msg }}"
+            fail_msg: "{{ sssd_ldap_fail_msg }}"
+        - name: Find Oddjob-Mkhomedir Installation
+          ansible.legacy.shell: "rpm -qa | grep oddjob-mkhomedir"
+          register: oddjob
+          changed_when: false
+        - name: Validate Oddjob-Mkhomedir instalaltion
+          ansible.legacy.assert:
+            that:
+              - "'oddjob-mkhomedir' in oddjob.stdout"
+            success_msg: "{{ oddjob_success_msg }}"
+            fail_msg: "{{ oddjob_fail_msg }}"
+        - name: Find Openssl Installation
+          ansible.legacy.shell: "rpm -qa | grep openssl*"
+          register: openssl
+          changed_when: false
+        - name: Validate Openssl instalaltion
+          ansible.legacy.assert:
+            that:
+              - "'openssl' in openssl.stdout"
+            success_msg: "{{ openssl_success_msg }}"
+            fail_msg: "{{ openssl_fail_msg }}"
+      tags: TC_001
+# Checking Services Status For Ldap server
+- name: Validate SSSD and Oddjob-Mkdir Status
+  hosts: manager,compute,login
+  vars_files:
+    - "{{ playbook_dir }}/test_vars/test_ldap_vars.yml"
+  tasks:
+    - name: To validate user creation on manager,compute and Login node
+      block:
+        - name: Oddjobmaker service status
+          ansible.legacy.shell: "systemctl status oddjob-mkhomedir.service"
+          register: oddjob
+          changed_when: false
+        - name: Validate oddjob-mkdie.service Status
+          ansible.legacy.assert:
+            that:
+              - "'Active: active (running)' in oddjob.stdout"
+            success_msg: "{{ oddjob_status_success_msg }}"
+            fail_msg: "{{ oddjob_status_fail_msg }}"
+        - name: Sssd service status
+          ansible.legacy.shell: "systemctl status sssd.service"
+          register: sssd
+          changed_when: false
+        - name: Validate sssd.service Status
+          ansible.legacy.assert:
+            that:
+              - "'Active: active (running)' in sssd.stdout"
+            success_msg: "{{ sssd_status_success_msg }}"
+            fail_msg: "{{ sssd_status_fail_msg }}"
+      tags: TC_002
+# Testcase to validate presence of created user in LDAP clients when
+# login_node_required and ldap_required is true
+- name: OMNIA_1.4_LDAP_TC_003
+  hosts: login_node, manager, compute
+  vars_files:
+    - "{{ playbook_dir }}/test_vars/test_ldap_vars.yml"
+  tasks:
+    - name: Validate presence of user created in server on clients
+      block:
+        - name: Identify presence of created user on LDAP clients
+          ansible.legacy.shell: "ldapsearch -x -D {{ user_olcRootDN }},{{ user_olcSuffix }} -w {{ slapd_password }} -s onelevel -b 'uid={{ user }},{{ user_group }},{{ user_olcSuffix }}'"
+          register: ldap_user_search_msg
+          changed_when: false
 
+        - name: Validate presence of LDAP user on clients
+          ansible.legacy.assert:
+            that:
+              - '"{{ user }}" in ldap_user_search_msg.stdout'
+            success_msg: "{{ ldap_user_search_client_success_msg }}"
+            fail_msg: "{{ ldap_user_search_client_fail_msg }}"
+      tags: LDAP_TC_003
+- name: Validate user Creation on login compute and manager node
+  hosts: manager,compute,login
+  vars_files:
+    - "{{ playbook_dir }}/test_vars/test_ldap_vars.yml"
+  tasks:
+    - name: To validate user creation on manager,compute and Login node
+      block:
+        - name: Find Openldap Installation
+          ansible.legacy.shell: "getent passwd {{ user }}"
+          register: usr
+          changed_when: false
+        - name: Validate user Creation
+          ansible.legacy.assert:
+            that:
+              - "'{{ user }}' in usr.stdout"
+            success_msg: "{{ user_success_msg }}"
+            fail_msg: "{{ user_fail_msg }}"
+      tags: TC_003
+- name: Check user Login
+  hosts: all
+  vars_files:
+    - "{{ playbook_dir }}/test_vars/test_ldap_vars.yml"
+  tasks:
+    - name: To validate user creation on manager,compute and Login node
+      block:
+        - name: Find User Creation Installation
+          ansible.legacy.shell: "getent passwd {{ user }}"
+          register: usr
+          changed_when: false
+        - name: Validate user Creation
+          ansible.legacy.assert:
+            that:
+              - "'{{ user }}' in usr.stdout"
+            success_msg: "{{ user_success_msg }}"
+            fail_msg: "{{ user_fail_msg }}"
+      
+
+# Testcase to validate LDAP client installation on client nodes when
+# login_node_required and ldap_required is true
 # Testcase to create LDAP user in server
 - name: OMNIA_1.4_LDAP_TC_002
   hosts: ldap_server
   vars_files:
-    - /root/omnia/security/tests/test_vars/test_ldap_vars.yml
+    - "{{ playbook_dir }}/test_vars/test_ldap_vars.yml"
   tasks:
     - name: Create a user in LDAP server
       block:
@@ -94,95 +220,3 @@
             success_msg: "{{ ldap_add_user_success_msg }} {{ ldap_user_cn.stdout }}"
             fail_msg: "{{ ldap_add_user_fail_msg }}"
       tags: LDAP_TC_002, LDAP_TC_003
-
-# Testcase to validate presence of created user in LDAP clients when
-# login_node_required and ldap_required is true
-- name: OMNIA_1.4_LDAP_TC_003
-  hosts: login_node, manager, compute
-  vars_files:
-    - /root/omnia/security/tests/test_vars/test_ldap_vars.yml
-  tasks:
-    - name: Validate presence of user created in server on clients
-      block:
-        - name: Identify presence of created user on LDAP clients
-          ansible.legacy.shell: "ldapsearch -x -b '{{ user_olcSuffix }}' '(cn={{ ldap_user_cn.stdout }})'"
-          register: ldap_user_search_msg
-          changed_when: false
-
-        - name: Validate presence of LDAP user on clients
-          ansible.legacy.assert:
-            that:
-              - '"{{ ldap_user_cn.stdout }}" in ldap_user_search_msg.stdout'
-            success_msg: "{{ ldap_user_search_client_success_msg }}"
-            fail_msg: "{{ ldap_user_search_client_fail_msg }}"
-      tags: LDAP_TC_003
-
-# Testcase to validate LDAP client installation on client nodes  when
-# login_node_required: false
-# ldap_required: true and omnia_inventory has login_node
-- name: OMNIA_1.4_LDAP_TC_004
-  hosts: login_node, manager, compute
-  vars_files:
-    - /root/omnia/security/tests/test_vars/test_ldap_vars.yml
-  tasks:
-    - name: Validate presence of client installation on client nodes
-      block:
-        - name: Identify presence of LDAP client installation on manager and compute node
-          ansible.legacy.shell: "rpm -qa | grep -i openldap"
-          register: lclient_installed_msg_mc
-          with_items:
-            - "{{ groups['manager'] }}"
-            - "{{ groups['compute'] }}"
-          changed_when: false
-
-        - name: Identify presence of LDAP client installation on login node
-          ansible.legacy.shell: "rpm -qa | grep -i openldap"
-          register: lclient_installed_msg_ln
-          with_items:
-            - "{{ groups['login_node'] }}"
-          changed_when: false
-
-        - name: Validate presence of LDAP client installation on manager node
-          ansible.legacy.assert:
-            that:
-              - '"openldap" in lclient_installed_msg_mc.results[0].stdout'
-            success_msg: "{{ ldap_client_installation_manager_success_msg }}"
-            fail_msg: "{{ ldap_client_installation_manager_fail_msg }}"
-
-        - name: Validate presence of LDAP client installation on manager node
-          ansible.legacy.assert:
-            that:
-              - '"openldap" in lclient_installed_msg_mc.results[1].stdout'
-            success_msg: "{{ ldap_client_installation_compute_success_msg }}"
-            fail_msg: "{{ ldap_client_installation_compute_fail_msg }}"
-
-        - name: Validate presence of LDAP client installation on login node
-          ansible.legacy.assert:
-            that:
-              - '"openldap" not in lclient_installed_msg_ln.results[0].stdout'
-            success_msg: "{{ ldap_client_installation_login_success_msg }}"
-            fail_msg: "{{ ldap_client_installation_login_fail_msg }}"
-      tags: LDAP_TC_004
-
-# Testcase to validate free IPA installation on client nodes when
-# ldap_required: false
-# login_node_required: true
-- name: OMNIA_1.4_LDAP_TC_005
-  hosts: login_node, manager, compute
-  vars_files:
-    - /root/omnia/security/tests/test_vars/test_ldap_vars.yml
-  tasks:
-    - name: Validate presence of IPA client installation on client nodes
-      block:
-        - name: Identify presence of IPA clietn installation on client nodes
-          ansible.legacy.shell: "ipa help topics | wc -l"
-          register: ipa_help_topics_count
-          changed_when: false
-
-        - name: Verify the presence of IPA client installation on client nodes
-          ansible.legacy.assert:
-            that:
-              - '"{{ ipa_help_topics_count.stdout }}" | int > 1'
-            success_msg: "{{ ipa_installation_success_msg }}"
-            fail_msg: "{{ ipa_installation_fail_msg }}"
-      tags: LDAP_TC_005

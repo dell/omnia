@@ -27,6 +27,7 @@ control_plane_arch: "x86_64"
 # Usage: main.yml
 discovery_method_bmc: "bmc"
 dhcp_timeout: 300
+dhcp_timeout_msg: "[WARNING] Waiting for 5 minutes before starting dynamic discovery"
 static_dynamic_fail_msg: "Failed. No BMC found for both static and dynamic IP's. Please check the ranges again."
 
 # Usage: bmc_static_discovery.yml
@@ -51,12 +52,15 @@ update_dynamic_node_path: "{{ role_path }}/files/utils/update_dynamic_node_objec
 # Usage: set_provision_image_mtms.yml
 bmc_node_group: "bmc"
 bmc_static_node_group: "bmc_static"
-mtms_set_pxe_warning_msg: "[WARNING] Setting PXE boot failed for the discoverd nodes using mtms. Error:"
-mtms_xcat_install_success_msg: "provision.yml executed successfully for discoverd nodes using mtms."
-mtms_reboot_warning_msg: "[WARNING] Reboot failed for the discoverd nodes using mtms. Error:"
+mtms_set_pxe_warning_msg: "[WARNING] Setting PXE boot failed for the discovered nodes using BMC. Error:"
+mtms_xcat_install_success_msg: "provision.yml executed successfully for discovered nodes using BMC."
+mtms_poweron_warning_msg: "[WARNING] Power on failed for the discovered nodes using BMC. Error:"
 
 # Usage: dynamic_ipmi_enable.yml
 create_dynamic_ip_path: "{{ role_path }}/files/utils/create_dynamic_ip_list.py"
 dynamic_ip_list_path: "/opt/omnia/dynamic_ip_list"
 ipmi_command: 'racadm set iDRAC.IPMILan.Enable 1'
 timeout_ipmi: 15
+
+# Usage: power_off_nodes.yml
+mtms_poweroff_warning_msg: "[WARNING] Power off failed for the discoverd nodes using bmc. Error:"

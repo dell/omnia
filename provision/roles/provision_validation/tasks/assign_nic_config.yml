@@ -13,15 +13,23 @@
 #  limitations under the License.
 ---
 
-- name: Initialize ib subnet when ib status is false
+- name: Set fact for BMC NIC IP and netmask details
   ansible.builtin.set_fact:
-    ib_nic_subnet: 0.0.0.0
-  when: not ib_status
+    bmc_nic: "{{ admin_nic }}"
+    bmc_nic_ip: "{{ omnia_bmc_ip }}"
+    bmc_nic_netmask: "{{ omnia_bmc_netmask }}"
 
-- name: Call dynamic db update for BMC
-  ansible.builtin.command: |
-    {{ python_version }} {{ update_db_dynamic_path }} {{ dynamic_ip_file }} {{ node_name }}
-    {{ domain_name }} {{ pxe_nic_subnet }} {{ ib_status }} {{ ib_nic_subnet }} {{ omnia_static_start_range }}
-    {{ omnia_static_end_range }}
-  register: bmc_dynamic_status
-  changed_when: false
+- name: Set fact for BMC NIC IP and netmask details
+  ansible.builtin.set_fact:
+    admin_nic_ip: "{{ omnia_admin_ip }}"
+    admin_nic_netmask: "{{ omnia_admin_netmask }}"
+
+- name: Validate pxe_subnet
+  ansible.builtin.fail:
+    msg: "{{ pxe_subnet_msg }}"
+  when:
+    - discovery_mechanism == discovery_method_bmc
+    - admin_nic_subnet != pxe_subnet
+
+- name: Configure the admin and bmc nic
+  ansible.builtin.include_tasks: enable_nic_configuration.yml
