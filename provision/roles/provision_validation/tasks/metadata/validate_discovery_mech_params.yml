@@ -29,6 +29,14 @@
   ansible.builtin.assert:
     that:
       - pxe_subnet == md_pxe_subnet
-    success_msg: "{{ ranges_success_msg }}"
-    fail_msg: "{{ ranges_fail_msg }}"
+    success_msg: "{{ pxe_subnet_success_msg }}"
+    fail_msg: "{{ pxe_subnet_fail_msg }}"
   when: md_pxe_subnet is defined
+
+- name: Validate bmc_nic_subnet
+  ansible.builtin.assert:
+    that:
+      - bmc_nic_subnet == md_bmc_nic_subnet
+    success_msg: "{{ bmc_nic_subnet_success_msg }}"
+    fail_msg: "{{ bmc_nic_subnet_fail_msg }}"
+  when: md_bmc_nic_subnet is defined
