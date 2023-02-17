@@ -29,3 +29,13 @@
   when:
     - check_static_nodes.stderr is defined
     - '"error" not in check_static_nodes.stderr | lower'
+
+- name: Check bmc nodes status
+  ansible.builtin.command: "{{ python_version }} {{ check_status_bmc_file }}"
+  register: check_status
+  when: bmc_static_node_status
+
+- name: Set bmc_static_nodes
+  ansible.builtin.set_fact:
+    bmc_static_nodes: "{{ check_status.stdout.split(' ') }}"
+  when: bmc_static_node_status
