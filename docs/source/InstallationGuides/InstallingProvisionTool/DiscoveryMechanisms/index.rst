@@ -59,6 +59,7 @@ Omnia can also discover nodes via their iDRAC using IPMI.
 **Pros**
 
     - Discovery and provisioning of servers is automatic.
+    - Admin and BMC IP address configuration is automatic on the control plane.
 
 **Cons**
 
