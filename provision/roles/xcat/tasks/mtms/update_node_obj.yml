@@ -13,7 +13,7 @@
 #  limitations under the License.
 ---
 
-- name: Create temp node objects
+- name: Create static temp node objects
   ansible.builtin.shell: >
        set -o pipefail && \
        cat {{ static_ip_file }} | mkdef -z
@@ -21,7 +21,7 @@
   changed_when: false
   when: bmc_static_status
 
-- name: Create temp node objects
+- name: Create dynamic temp node objects
   ansible.builtin.shell: >
        set -o pipefail && \
        cat {{ dynamic_ip_file }} | mkdef -z
