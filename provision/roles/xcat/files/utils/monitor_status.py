@@ -94,6 +94,7 @@ def main():
         MonitoringThreadObject.start()
     except Exception as e:
         print("Exception thrown by the monitoring thread:", e)
+        sys.exit(1)
 
 # Driver code
 if __name__ == '__main__':
