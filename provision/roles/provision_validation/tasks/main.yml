@@ -32,6 +32,20 @@
 - name: Create metadata
   ansible.builtin.include_tasks: metadata/main.yml
 
+- name: Assign nic configuration when discovery mechanism is mapping or snmp
+  ansible.builtin.include_tasks: assign_admin_nic_config.yml
+  when:
+    - discovery_mechanism == discovery_method_snmp or
+      discovery_mechanism == discovery_method_mapping
+
+- name: Assign nic configuration when discovery mechanism is bmc
+  ansible.builtin.include_tasks: assign_nic_config.yml
+  when: discovery_mechanism == discovery_method_bmc
+
+- name: Wait for 30 sec for nic configuations to take place
+  ansible.builtin.wait_for:
+    timeout: "{{ nic_wait_time }}"
+
 - name: Validate the nic parameters
   ansible.builtin.include_tasks: validate_cp_nic.yml
 
