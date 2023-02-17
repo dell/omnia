@@ -99,7 +99,7 @@ Assigning infiniband IPs
 
 When ``ib_nic_subnet`` is provided in ``input/provision_config.yml``, the infiniband NIC on target nodes are assigned IPv4 addresses within the subnet without user intervention. When PXE range and Infiniband subnet are provided, the infiniband NICs will be assigned IPs with the same 3rd and 4th octets as the PXE NIC.
 
-* For example on a target node, when the PXE NIC is assigned 10.17.0.101, and the Infiniband NIC is assigned 10.29.0.101 (where ``ib_nic_subnet`` is 10.29.0.0).
+* For example on a target node, when the PXE NIC is assigned 10.5.0.101, and the Infiniband NIC is assigned 10.10.0.101 (where ``ib_nic_subnet`` is 10.10.0.0).
 
 .. note::  The IP is assigned to the interface **ib0** on target nodes only if the interface is present in **active** mode. If no such NIC interface is found, xCAT will list the status of the node object as failed.
 
@@ -108,7 +108,7 @@ Assigning BMC IPs
 
 When target nodes are discovered via SNMP or mapping files (ie ``discovery_mechanism`` is set to snmp or mapping in ``input/provision_config.yml``), the ``bmc_nic_subnet`` in ``input/provision_config.yml`` can be used to assign BMC IPs to iDRAC without user intervention. When PXE range and BMC subnet are provided, the iDRAC NICs will be assigned IPs with the same 3rd and 4th octets as the PXE NIC.
 
-* For example on a target node, when the PXE NIC is assigned 10.17.0.101, and the iDRAC NIC is assigned 10.27.0.101 (where ``bmc_nic_subnet`` is 10.27.0.0).
+* For example on a target node, when the PXE NIC is assigned 10.5.0.101, and the iDRAC NIC is assigned 10.3.0.101 (where ``bmc_nic_subnet`` is 10.3.0.0).
 
 Using multiple versions of a given OS
 +++++++++++++++++++++++++++++++++++++++

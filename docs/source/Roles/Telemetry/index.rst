@@ -55,6 +55,9 @@ After initiation, new nodes can be added to telemetry by running the following c
     * ``telemetry_config.yml``  is encrypted upon executing ``telemetry.yml``. View and edit instructions are provided in the `Troubleshooting Guide <../../Troubleshooting/troubleshootingguide.html>`_
     * If ``idrac_telemetry`` is ``true`` while executing ``telemetry.yml``, **or** while running ``add_idrac_node.yml``, if the inventory passed does not contain an idrac group, idrac telemetry will run on IP’s present under ``/opt/omnia/provisioned_idrac_inventory`` of control plane.
 
+.. toctree::
+
+
 
 
 

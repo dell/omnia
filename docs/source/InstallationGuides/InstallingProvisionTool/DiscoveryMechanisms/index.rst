@@ -58,8 +58,7 @@ Omnia can also discover nodes via their iDRAC using IPMI.
 
 **Pros**
 
-    - Discovery is automatic when iDRAC is DHCP enabled.
-    - Provisioning of servers is automatic irrespective of whether DHCP is enabled.
+    - Discovery and provisioning of servers is automatic.
 
 **Cons**
 

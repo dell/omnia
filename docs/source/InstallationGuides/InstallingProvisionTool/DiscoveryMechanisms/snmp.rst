@@ -64,6 +64,4 @@ Omnia can query known switches (by IP and community string) for information on t
 
 To continue to the next steps:
 
-* `Pre-requisites <../provisionprereqs.html>`_
-
 * `Provisioning the cluster <../installprovisiontool.html>`_

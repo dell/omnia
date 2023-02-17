@@ -35,18 +35,18 @@ NFS Bolt On
 
   1. **Single NFS node** : A single NFS filesystem is mounted from a single NFS server. The value of ``nfs_client_params`` would be::
 
-        - { server_ip: 172.10.0.101, server_share_path: "/mnt/share", client_share_path: "/mnt/client", client_mount_options: "nosuid,rw,sync,hard,intr" }
+        - { server_ip: 10.5.0.101, server_share_path: "/mnt/share", client_share_path: "/mnt/client", client_mount_options: "nosuid,rw,sync,hard,intr" }
 
   2. **Multiple Mount NFS Filesystem**: Multiple filesystems are mounted from a single NFS server. The value of ``nfs_client_params`` would be::
 
-        - { server_ip: 172.10.0.101, server_share_path: "/mnt/share1", client_share_path: "/mnt/client1", client_mount_options: "nosuid,rw,sync,hard,intr" }
-        - { server_ip: 172.10.0.101, server_share_path: "/mnt/share2", client_share_path: "/mnt/client2", client_mount_options: "nosuid,rw,sync,hard,intr" }
+        - { server_ip: 10.5.0.101, server_share_path: "/mnt/share1", client_share_path: "/mnt/client1", client_mount_options: "nosuid,rw,sync,hard,intr" }
+        - { server_ip: 10.5.0.101, server_share_path: "/mnt/share2", client_share_path: "/mnt/client2", client_mount_options: "nosuid,rw,sync,hard,intr" }
 
    3. **Multiple NFS Filesystems**: Multiple filesystems are mounted from multiple NFS servers. The value of ``nfs_client_params`` would be::
 
-        - { server_ip: 172.10.0.101, server_share_path: "/mnt/server1", client_share_path: "/mnt/client1", client_mount_options: "nosuid,rw,sync,hard,intr" }
-        - { server_ip: 172.10.0.102, server_share_path: "/mnt/server2", client_share_path: "/mnt/client2", client_mount_options: "nosuid,rw,sync,hard,intr" }
-        - { server_ip: 172.10.0.103, server_share_path: "/mnt/server3", client_share_path: "/mnt/client3", client_mount_options: "nosuid,rw,sync,hard,intr" }
+        - { server_ip: 10.5.0.101, server_share_path: "/mnt/server1", client_share_path: "/mnt/client1", client_mount_options: "nosuid,rw,sync,hard,intr" }
+        - { server_ip: 10.5.0.102, server_share_path: "/mnt/server2", client_share_path: "/mnt/client2", client_mount_options: "nosuid,rw,sync,hard,intr" }
+        - { server_ip: 10.5.0.103, server_share_path: "/mnt/server3", client_share_path: "/mnt/client3", client_mount_options: "nosuid,rw,sync,hard,intr" }
 
 
 

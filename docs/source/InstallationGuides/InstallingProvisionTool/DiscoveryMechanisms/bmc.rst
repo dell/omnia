@@ -1,17 +1,24 @@
 BMC
 ---
 
+For automatic provisioning of servers and discovery, the BMC method can be used.
+
 **Pre requisites**
 
 - IP ranges (``bmc_static_start_range``, ``bmc_static_start_range``) provided to Omnia for BMC discovery should be within the same subnet.
 
 - The first PXE device on target nodes should be the designated active NIC for PXE booting.
 
-.. note::
+.. image:: ../../images/BMC_PXE_Settings.png
 
-    The following IP addresses (where x and y are provided by the first two octets of ``bmc_nic_subnet``) are reserved by Omnia  when ``discovery_mechanism`` is set to ``bmc``.:
-        * *x.y.246.1* - *x.y.250.253* : This range is used for DHCP IP assignment on target nodes.
-        * *x.y.251.1* - *x.y.255.253* : This range is used for converting DHCP enabled nodes to static.
+- All iDRACs should be reachable from the ``admin_nic``.
+
+.. note::
+    The IP range *x.y.246.1* - *x.y.255.253* (where x and y are provided by the first two octets of ``bmc_nic_subnet``) are reserved by Omnia.
+
+- The control plane NIC connected to remote servers (through the switch) should be configured with two IPs in a shared LOM set up. This NIC is configured by Omnia with the IP xx.yy.255.254, aa.bb.255.254 (where xx.yy are taken from ``bmc_nic_subnet`` and aa.bb are taken from ``admin_nic_subnet``) when ``discovery_mechanism`` is set to ``bmc``.
+
+.. image:: ../../images/ControlPlaneNic.png
 
 The following parameters need to be populated in ``input/provision_config.yml`` to discover target nodes using BMC.
 
@@ -75,7 +82,5 @@ The following parameters need to be populated in ``input/provision_config.yml`` 
 
 
 To continue to the next steps:
-
-* `Pre-requisites <../provisionprereqs.html>`_
 
 * `Provisioning the cluster <../installprovisiontool.html>`_
