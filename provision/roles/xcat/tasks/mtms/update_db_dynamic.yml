@@ -21,7 +21,7 @@
 - name: Call dynamic db update for BMC
   ansible.builtin.command: |
     {{ python_version }} {{ update_db_dynamic_path }} {{ dynamic_ip_file }} {{ node_name }}
-    {{ domain_name }} {{ pxe_nic_subnet }} {{ ib_status }} {{ ib_nic_subnet }} {{ omnia_exclusive_static_start_range }}
-    {{ omnia_exclusive_static_end_range }}
+    {{ domain_name }} {{ pxe_nic_subnet }} {{ ib_status }} {{ ib_nic_subnet }} {{ omnia_static_start_range }}
+    {{ omnia_static_end_range }}
   register: bmc_dynamic_status
   changed_when: false
