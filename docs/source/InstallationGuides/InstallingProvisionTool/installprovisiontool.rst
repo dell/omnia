@@ -53,13 +53,7 @@ Once the playbook execution is complete, ensure that PXE boot and RAID configura
 
     * After running ``provision.yml``, the file ``input/provision_config.yml`` will be encrypted. To edit the file, use the command: ``ansible-vault edit provision_config.yml --vault-password-file .provision_vault_key``
 
-    * To re-provision target servers ``provision.yml`` can be re-run. Alternatively, use the following steps (as an example, we will be re-provisioning rhels8.6.0-x86_64-install-compute):
-
-         * Use ``lsdef -t osimage | grep install-compute`` to get a list of all valid OS profiles.
-
-         * Use ``nodeset all osimage=rhels8.6.0-x86_64-install-compute`` to provision the OS on the target server.
-
-         * PXE boot the target server to bring up the OS.
+    * To re-provision target servers ``provision.yml`` can be re-run with a new inventory file that contains a list of admin (PXE) IPs. For more information, `click here <../reprovisioningthecluster.rst>`_
 
     * Post execution of ``provision.yml``, IPs/hostnames cannot be re-assigned by changing the mapping file. However, the addition of new nodes is supported as explained below.
 
