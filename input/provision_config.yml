@@ -98,10 +98,10 @@ bmc_password: ""
 ### IB NIC Details
 # If provided, omnia will handle and assign static IPs to compute node's IB network.
 # Only last 16 bits/2 octets of IPv4 are dynamic
-# Example: 10.9.0.0
+# Example: 10.10.0.0
 # If provided the db entry will be in parallel with either the pxe_nic ranges
 # Or whatever is provided in mapping file ( only if roce is disabled)
-# Example: If admin_ip: 10.3.0.101 and ib_nic_subnet: 10.9.0.0, then ib_ip: 10.9.0.101
+# Example: If admin_ip: 10.3.0.101 and ib_nic_subnet: 10.10.0.0, then ib_ip: 10.10.0.101
 # Make sure ib nics having ib as prefix
 # Optional
 ib_nic_subnet: ""
