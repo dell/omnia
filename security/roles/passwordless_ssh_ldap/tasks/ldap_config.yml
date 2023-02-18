@@ -22,5 +22,5 @@
   when: schema_output is not search("ssh")
   block:
       - name: Modify schema
-        ansible.builtin.command: ldapadd -Y EXTERNAL -H ldapi:/// -f "{{ role_path }}/files/addpubkeys.ldif"
+        ansible.builtin.command: ldapadd -Y EXTERNAL -H ldapi:/// -f addpubkeys.ldif
         changed_when: false
