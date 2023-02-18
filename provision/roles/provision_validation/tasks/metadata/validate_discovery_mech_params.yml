@@ -37,6 +37,6 @@
   ansible.builtin.assert:
     that:
       - bmc_nic_subnet == md_bmc_nic_subnet
-    success_msg: "{{ bmc_nic_subnet_success_msg }}"
-    fail_msg: "{{ bmc_nic_subnet_fail_msg }}"
+    success_msg: "{{ md_bmc_nic_subnet_success_msg }}"
+    fail_msg: "{{ md_bmc_nic_subnet_fail_msg }}"
   when: md_bmc_nic_subnet is defined
