@@ -28,6 +28,6 @@ ranges_fail_msg: "bmc static ranges provided during previous execution is differ
 Omnia does not support different IP ranges in consecutive executions."
 pxe_subnet_success_msg: "Validated pxe_subnet with earlier execution"
 pxe_subnet_fail_msg: "Failed. pxe_subnet provided in provision_config.yml during previous execution is different from the value provided in current execution"
-bmc_nic_subnet_success_msg: "Validated bmc_nic_subnet with earlier execution"
-bmc_nic_subnet_fail_msg: "Failed. bmc_nic_subnet provided in provision_config.yml during previous execution is different
+md_bmc_nic_subnet_success_msg: "Validated bmc_nic_subnet with earlier execution"
+md_bmc_nic_subnet_fail_msg: "Failed. bmc_nic_subnet provided in provision_config.yml during previous execution is different
 from the value provided in current execution"
