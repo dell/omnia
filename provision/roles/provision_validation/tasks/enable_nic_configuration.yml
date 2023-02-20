@@ -38,3 +38,7 @@
     path: "{{ bmc_nic_path }}"
     regexp: "^ONBOOT=no"
     replace: "ONBOOT=yes"
+
+- name: Gather facts
+  ansible.builtin.gather_facts:
+  register: cp_lom_gather_facts

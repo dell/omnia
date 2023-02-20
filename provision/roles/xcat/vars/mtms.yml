@@ -26,7 +26,7 @@ control_plane_arch: "x86_64"
 
 # Usage: main.yml
 discovery_method_bmc: "bmc"
-dhcp_timeout: 300
+dhcp_timeout: 600
 dhcp_timeout_msg: "[WARNING] Waiting for 5 minutes before starting dynamic discovery"
 static_dynamic_fail_msg: "Failed. No BMC found for both static and dynamic IP's. Please check the ranges again."
 
@@ -64,3 +64,6 @@ timeout_ipmi: 15
 
 # Usage: power_off_nodes.yml
 mtms_poweroff_warning_msg: "[WARNING] Power off failed for the discoverd nodes using bmc. Error:"
+
+# Usage: fetch_static_nodes.yml
+check_status_bmc_file: "{{ role_path }}/files/utils/check_static_nodes_status.py"
