@@ -6,6 +6,8 @@ To enable centralized authentication in the cluster, Omnia installs either:
  - FreeIPA
  - LDAP Client
 
+.. note:: For RedHat clusters, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription.
+
 Using FreeIPA
 --------------
 
@@ -123,9 +125,8 @@ Use the below command to enable passwordless SSH: ::
 
     ansible-playbook user_passwordless_ssh.yml -i inventory
 
-Where inventory follows the format defined under inventory file.
+Where inventory follows the format defined under inventory file. ::
 
-::
     [manager]
     10.5.0.101
 

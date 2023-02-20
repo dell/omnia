@@ -18,7 +18,7 @@ Before You Build Clusters
 
 .. note:: The inventory file accepts both IPs and FQDNs as long as they can be resolved by DNS.
 
-* For RedHat clusters, ensure that RedHat subscription is enabled on all target nodes.
+* For RedHat clusters, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription.
 
 **Features enabled by omnia.yml**
 

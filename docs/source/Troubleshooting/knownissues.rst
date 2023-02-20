@@ -1,6 +1,10 @@
 Known Issues
 ==========================
 
+**Why doesn't my newly discovered server list a MAC ID in the cluster.nodeinfo table?**
+
+Due to internal MAC ID conflicts on the target nodes, the MAC address will be listed against the target node using this format ``MAC ADDRESS 1 | MAC ADDRESS 2! *NOIP*`` in the xCAT node object.
+
 **Why are some target servers not reachable after running PXE booting them?**
 
 

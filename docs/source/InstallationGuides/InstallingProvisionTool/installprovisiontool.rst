@@ -28,10 +28,14 @@ b. A PostgreSQL database is set up with all relevant cluster information such as
     To view the contents of the ``nodeinfo`` table: ``select * from cluster.nodeinfo;`` ::
 
 
-                    id | serial  |   node    |       hostname        | admin_mac |  admin_ip   |   bmc_ip    | ib_ip | status | bmc_mode
-                    ----+---------+-----------+-----------------------+-----------+-------------+-------------+-------+--------+----------
-                      1 | XXXXXXX | node00001 | node00001.omnia.test |           | 10.5.0.25 | 10.3.0.25 | 10.10.0.25 |        | static
-                      2 | XXXXXXX | node00002 | node00002.omnia.test |           | 10.5.0.35 | 10.3.0.35 | 10.10.0.35 |        | static
+                    id | serial |   node    |      hostname       |     admin_mac     |   admin_ip   |    bmc_ip    |    ib_ip    | status | bmc_mode
+                    ----+--------+-----------+---------------------+-------------------+--------------+--------------+-------------+--------+----------
+                      1 |        | XXXXXXXXX | XXXXXXXXX.omnia.test | ec:2a:72:32:c6:98 | 10.5.0.111 | 10.3.0.111 | 10.10.0.111 |        |
+                      2 |        | XXXXXXXXX | XXXXXXXXX.omnia.test | f4:02:70:b8:cc:80 | 10.5.0.112 | 10.3.0.112 | 10.10.0.112 |        |
+                      3 |        | XXXXXXXXX | XXXXXXXXX.omnia.test | 70:b5:e8:d1:19:b6 | 10.5.0.113 | 10.3.0.113 | 10.10.0.113 |        |
+                      4 |        | XXXXXXXXX | XXXXXXXXX.omnia.test | b0:7b:25:dd:e8:4a | 10.5.0.114 | 10.3.0.114 | 10.10.0.114 |        |
+                      5 |        | XXXXXXXXX | XXXXXXXXX.omnia.test | f4:02:70:b8:bc:2a | 10.5.0.115 | 10.3.0.115 | 10.10.0.115 |        |
+
 
 
 Possible values of status are static, powering-on, installing, booting, post-booting, booted, failed. The status will be updated every 3 minutes.
@@ -56,6 +60,8 @@ Once the playbook execution is complete, ensure that PXE boot and RAID configura
     * To re-provision target servers ``provision.yml`` can be re-run with a new inventory file that contains a list of admin (PXE) IPs. For more information, `click here <../reprovisioningthecluster.rst>`_
 
     * Post execution of ``provision.yml``, IPs/hostnames cannot be re-assigned by changing the mapping file. However, the addition of new nodes is supported as explained below.
+
+    * Once the cluster is provisioned, enable RedHat subscription on all RHEL target nodes to ensure smooth execution of Omnia playbooks to configure the cluster with Slurm, Kubernetes.
 
 .. warning::
 

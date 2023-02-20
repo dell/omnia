@@ -15,6 +15,18 @@ Resolution:
 
     * Resolve/replace the faulty hardware and PXE boot the node.
 
+**Why are the status and admin_mac fields not populated for specific target nodes in the cluster.nodeinfo table?**
+
+Causes:
+
+ * Nodes do not have their first PXE device set as designated active NIC for PXE booting.
+ * Nodes that have been discovered via SNMP or mapping file have not been PXE booted.
+
+Resolution:
+
+ * Configure the first PXE device to be active for PXE booting.
+ * PXE boot the target node manually.
+
 **Why is the provisioning status of my node object stuck at 'installing'?**
 
 Cause:
