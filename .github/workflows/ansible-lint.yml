@@ -35,7 +35,7 @@ jobs:
           /github/workspace/provision/idrac.yml
           /github/workspace/provision/post_provision.yml
           /github/workspace/scheduler/job_based_user_access.yml
-          /github/workspace/security/passwordless_ssh.yml
+          /github/workspace/security/user_passwordless_ssh.yml
           /github/workspace/security/security.yml
           /github/workspace/storage/nfs_sas.yml
           /github/workspace/storage/powervault.yml
