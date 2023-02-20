@@ -5,6 +5,8 @@ Known Issues
 
 Due to internal MAC ID conflicts on the target nodes, the MAC address will be listed against the target node using this format ``MAC ADDRESS 1 | MAC ADDRESS 2! *NOIP*`` in the xCAT node object.
 
+.. image:: ../images/MACConflict.png
+
 **Why are some target servers not reachable after running PXE booting them?**
 
 
