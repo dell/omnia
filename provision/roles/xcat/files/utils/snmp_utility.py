@@ -162,20 +162,14 @@ def identify_device_type():
     for key in final_mac:
         # Use get method to fetch details
         response = requests.get(url + final_mac[key])
-        if response.status_code != 200:
-            raise Exception("[!] Invalid MAC Address!")
-        else:
-            valid_mac.append(final_mac[key])
-            print(response.content.decode())
+        valid_mac.append(final_mac[key])
+        print(response.content.decode())
 
     for key in dict_final_mac:
         temp_dict = {}
         for value in dict_final_mac[key]:
             response = requests.get(url + value)
-            if response.status_code != 200:
-                raise Exception("[!] Invalid MAC Address!")
-            else:
-                temp_dict[value] = response.content.decode()
+            temp_dict[value] = response.content.decode()
         temp_valid_mac[key] = temp_dict
 
     for key in temp_valid_mac:
