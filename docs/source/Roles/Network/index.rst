@@ -9,7 +9,6 @@ In your HPC cluster, connect the Mellanox InfiniBand switches using the Fat-Tree
 
     * When ``ib_nic_subnet`` is provided in ``input/provision_config.yml``, the infiniband NIC on target nodes are assigned IPv4 addresses within the subnet without user intervention during the execution of ``provision.yml``.
 
-Omnia uses the server-based Subnet Manager (SM). SM runs in a Kubernetes namespace on the control plane. To enable the SM, Omnia configures the required parameters in the ``opensm.conf`` file. Based on the requirement, the parameters can be edited.
 
 Some of the network features Omnia offers are:
 
