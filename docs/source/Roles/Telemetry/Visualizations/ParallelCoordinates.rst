@@ -6,7 +6,7 @@ Parallel coordinates are a great way to visualize multiple metric dimensions sim
 Interacting with the graph
 ++++++++++++++++++++++++++
 
- .. image:: ../../../images/Visualization/ParallelCoordinates_InitialView_Collapsed.png
+.. image:: ../../../images/Visualization/ParallelCoordinates_InitialView_Collapsed.png
 
 In the above image, both left-hand panels are collapsed to allow for a better view of the graph. They can be expanded by clicking on the arrows highlighted in the picture. The expanded panels can be used to customize the graph.
 
@@ -25,7 +25,7 @@ In the above image, the metric **Power Consumption** has been assigned a color t
 
 In the above image, data has been filtered by **Node** to get insights into different metrics about specific nodes.
 
-.. image:: ../../../images/Visualization/ParallelCoordinates_NodeHighlight.png
+.. image:: ../../../images/Visualization/ParallelCoordinates_TopLeftPanel_NodeHighlight.png
 
 In the above image, data for a single node has been highlighted using the top-left panel.
 
