@@ -14,8 +14,9 @@ All your data in a glance
 Using the following graphs, data can be visualized to gather correlational information.
 
 .. toctree::
-    Parallel Coordinates
-    Sankey Layout
-    Spiral Layout
-    Power Map
+    ParallelCoordinates
+    SankeyLayout
+    SpiralLayout
+    PowerMap
 
+.. note:: The timestamps used for the time metric are based on the timezone set in ``input/provision_config.yml``. In the event of a mismatch between the timezone on the browser being used to access Grafana UI and the timezone in ``input/provision_config.yml``, the time range being used to filter information on the Grafana UI will have to be adjusted per the timezone in ``input/provision_config.yml``.
