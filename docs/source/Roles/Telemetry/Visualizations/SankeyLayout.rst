@@ -22,10 +22,10 @@ Nodes/Jobs/Users.
 
 In the above image, the left panel is expanded to
 view customization options like:
-1. Nodes vs Cores
-2. Color Coding
-3. Sankey Thickness
-4. Zoom
+* Nodes vs Cores
+* Color Coding
+* Sankey Thickness
+* Zoom
 
 |image2|
 

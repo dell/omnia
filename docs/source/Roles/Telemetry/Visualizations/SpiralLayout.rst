@@ -17,9 +17,9 @@ In the above image, behaviour of the Spiral Layout view can be updated using the
 
 |image4|
 In the above image, the edit panel offers the option to:
-1. Change the order type
-2. Change the number of rings displayed
-3. Change the Node size on the graph
+* Change the order type
+* Change the number of rings displayed
+* Change the Node size on the graph
 
 .. |img.png| image:: ../../../images/Visualization/SpiralLayout_InitialView.png
 .. |image1| image:: ../../../images/Visualization/SpiralLayout_SelectMetric.png
