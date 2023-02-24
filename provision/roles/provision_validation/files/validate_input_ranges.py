@@ -16,12 +16,12 @@ import pexpect
 import sys
 from netaddr import IPRange
 
-bmc_dynamic_start_range=sys.argv[1]
-bmc_dynamic_end_range=sys.argv[2]
-bmc_static_start_range=sys.argv[3]
-bmc_static_end_range=sys.argv[4]
-omnia_exclusive_static_start_range=sys.argv[5]
-omnia_exclusive_static_end_range = sys.argv[5]
+bmc_dynamic_start_range = sys.argv[1]
+bmc_dynamic_end_range = sys.argv[2]
+bmc_static_start_range = sys.argv[3]
+bmc_static_end_range = sys.argv[4]
+omnia_exclusive_static_start_range = sys.argv[5]
+omnia_exclusive_static_end_range = sys.argv[6]
 ranges_overlap = False
 
 try:
@@ -29,13 +29,20 @@ try:
     bmc_static_range = IPRange(bmc_static_start_range, bmc_static_end_range)
     omnia_exclusive_static_range = IPRange(omnia_exclusive_static_start_range, omnia_exclusive_static_end_range)
 
-    if (bmc_dynamic_range.first >= bmc_static_range.first and bmc_dynamic_range.first <= bmc_static_range.last) or (bmc_dynamic_range.last >= bmc_static_range.first and bmc_dynamic_range.last <= bmc_static_range.last):
+    if (bmc_static_range.first <= bmc_dynamic_range.first <= bmc_static_range.last) or (
+            bmc_static_range.first <= bmc_dynamic_range.last <= bmc_static_range.last):
         ranges_overlap = True
-    if (bmc_dynamic_range.first >= omnia_exclusive_static_range.first and bmc_dynamic_range.first <= omnia_exclusive_static_range.last) or (bmc_dynamic_range.last >= omnia_exclusive_static_range.first and bmc_dynamic_range.last <= omnia_exclusive_static_range.last):
+    if (omnia_exclusive_static_range.first <= bmc_dynamic_range.first <= omnia_exclusive_static_range.last) or (
+            omnia_exclusive_static_range.first <= bmc_dynamic_range.last <= omnia_exclusive_static_range.last):
         ranges_overlap = True
-    if (bmc_static_range.first >= bmc_dynamic_range.first and bmc_static_range.first <= bmc_dynamic_range.last) or (bmc_static_range.last >= bmc_dynamic_range.first and bmc_static_range.last <= bmc_dynamic_range.last):
+    if (bmc_dynamic_range.first <= bmc_static_range.first <= bmc_dynamic_range.last) or (
+            bmc_dynamic_range.first <= bmc_static_range.last <= bmc_dynamic_range.last):
+        ranges_overlap = True
+    if (omnia_exclusive_static_range.first <= bmc_static_range.first <= omnia_exclusive_static_range.last) or (
+            omnia_exclusive_static_range.first <= bmc_static_range.last <= omnia_exclusive_static_range.last):
         ranges_overlap = True
     print(ranges_overlap)
+
 
 except:
     print("lower bound IP greater than upper bound!")
