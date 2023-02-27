@@ -34,7 +34,6 @@
 - name: Create diskful osimage
   ansible.builtin.command: copycds {{ iso_file_path }}
   changed_when: true
-  when: not diskful_osimage_status
 
 - name: Copy RHEL8 kickstart files to xcat configuration path
   ansible.builtin.copy:
