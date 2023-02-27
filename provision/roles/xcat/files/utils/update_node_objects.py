@@ -48,39 +48,41 @@ def update_node_obj_nm():
     sql = '''select serial from cluster.nodeinfo'''
     cursor.execute(sql)
     serial_output = cursor.fetchall()
-
     for i in range(0, len(serial_output)):
-        serial_output[i] = str(serial_output[i][0]).lower()
+        if serial_output[i][0] is not None:
+            serial_output[i] = str(serial_output[i][0]).lower()
+
     for i in range(0, len(serial_output)):
         print(serial_output[i])
-        serial_output[i] = serial_output[i].upper()
-        sql = '''select node from cluster.nodeinfo where serial='{serial_key}' '''.format(serial_key=serial_output[i])
-        cursor.execute(sql)
-        node_name = cursor.fetchone()
-        sql = '''select admin_ip from cluster.nodeinfo where serial='{serial_key}' '''.format(
-            serial_key=serial_output[i])
-        cursor.execute(sql)
-        admin_ip = cursor.fetchone()
-
-        sql= '''select bmc_mode from cluster.nodeinfo where serial='{serial_key}' '''.format(
-            serial_key=serial_output[i])
-        cursor.execute(sql)
-        mode = cursor.fetchone()[0]
-
-        if mode is None:
-            print("No device is found!")
-        elif mode == "static":
-            command = f"chdef {node_name[0]} ip={admin_ip[0]} groups={groups_static} chain={chain_setup},{chain_os}"
-        elif mode == "dynamic":
-            sql = '''select bmc_ip from cluster.nodeinfo where serial='{serial_key}' '''.format(
-            serial_key=serial_output[i])
+        if serial_output[i][0] is not None:
+            serial_output[i] = serial_output[i].upper()
+            sql = '''select node from cluster.nodeinfo where serial='{serial_key}' '''.format(serial_key=serial_output[i])
             cursor.execute(sql)
-            bmc_ip = cursor.fetchone()
-            command = f"chdef {node_name[0]} ip={admin_ip[0]} groups={groups_dynamic} chain={chain_setup},{chain_os}"
-            node_objs = subprocess.run([f'{command}'], shell=True)
-            command= f"chdef {node_name[0]}  bmc={bmc_ip[0]}"
+            node_name = cursor.fetchone()
+            sql = '''select admin_ip from cluster.nodeinfo where serial='{serial_key}' '''.format(
+                serial_key=serial_output[i])
+            cursor.execute(sql)
+            admin_ip = cursor.fetchone()
 
-        node_objs = subprocess.run([f'{command}'], shell=True)
+            sql = '''select bmc_mode from cluster.nodeinfo where serial='{serial_key}' '''.format(
+                serial_key=serial_output[i])
+            cursor.execute(sql)
+            mode = cursor.fetchone()[0]
+
+            if mode is None:
+                print("No device is found!")
+            elif mode == "static":
+                command = f"chdef {node_name[0]} ip={admin_ip[0]} groups={groups_static} chain={chain_setup},{chain_os}"
+            elif mode == "dynamic":
+                sql = '''select bmc_ip from cluster.nodeinfo where serial='{serial_key}' '''.format(
+                serial_key=serial_output[i])
+                cursor.execute(sql)
+                bmc_ip = cursor.fetchone()
+                command = f"chdef {node_name[0]} ip={admin_ip[0]} groups={groups_dynamic} chain={chain_setup},{chain_os}"
+                node_objs = subprocess.run([f'{command}'], shell=True)
+                command= f"chdef {node_name[0]}  bmc={bmc_ip[0]}"
+
+            node_objs = subprocess.run([f'{command}'], shell=True)
     cursor.close()
     conn.close()
 

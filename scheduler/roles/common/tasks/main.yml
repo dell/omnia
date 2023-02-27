@@ -62,7 +62,7 @@
         state: present
       tags: install
       when: os_supported_redhat not in compute_os
-    
+
     - name: Add elrepo GPG key
       rpm_key:
         state: present
@@ -84,7 +84,7 @@
       delay: "{{ max_delay }}"
       tags: install
       when: os_supported_redhat not in compute_os
-    
+
     - name: Add docker community edition repository
       get_url:
         url: "{{ docker_repo_url }}"
@@ -153,7 +153,7 @@
       with_items:
         - "{{ leap_repo }}"
       tags: install
-      
+
     - name: Installing python-xml
       package:
         name: python-xml
@@ -287,3 +287,15 @@
   when:
     - hostvars["127.0.0.1"]["login_node_required"]
     - '"login_node" in group_names'
+
+- name: Add compute info in /etc/hosts of compute nodes
+  lineinfile:
+    dest: "{{ hosts_file_dest }}"
+    line: "{{ hostvars[item.1].node_ip }} {{ hostvars[item.1].node_hostname }}"
+    state: present
+    create: yes
+    mode: "{{ hosts_file_mode }}"
+  with_nested:
+     - "{{ groups['compute'] }}"
+     - "{{ groups['compute'] }}"
+  when: '"compute" in group_names'

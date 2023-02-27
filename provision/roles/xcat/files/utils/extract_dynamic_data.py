@@ -75,6 +75,8 @@ def update_db():
          temp = [0]
     initial_id = temp[0]
     for key in range(0, len(serial)):
+
+        # Fetch max id
         sql = '''select exists(select serial from cluster.nodeinfo where serial='{serial_key}')'''.format( serial_key=serial[key])
         cursor.execute(sql)
         output = cursor.fetchone()[0]
@@ -84,6 +86,13 @@ def update_db():
             temp = cursor.fetchone()
             if temp[0] is None:
                 temp = [0]
+
+           # Fetch max bmc IP
+            sql = '''select max(bmc_ip) from cluster.nodeinfo where bmc_mode='{bmc_mode}' '''.format(bmc_mode=bmc_mode)
+            cursor.execute(sql)
+            temp_bmc = cursor.fetchone()
+            if temp_bmc[0] is None:
+                temp_bmc = [omnia_exclusive_start_ip -1]
             ip_count = int(temp[0]) - int(initial_id)
             count = '%05d' % (int(temp[0]) + 1)
             node = node_name + str(count)
@@ -92,19 +101,18 @@ def update_db():
             update_stanza_file(serial[key].lower(), node)
 
             if ib_status == "False":
-                sql = '''INSERT INTO cluster.nodeinfo(serial,node,hostname,admin_ip,bmc_ip,bmc_mode) VALUES (
-                    '{serial_key}','{node_name}','{host_name}',NULL,'{bmc_ip}','{bmc_mode}')'''.format(serial_key=serial[key], node_name=node, host_name=host_name, bmc_ip=omnia_exclusive_start_ip,bmc_mode=bmc_mode)
-                cursor.execute(sql)
 
                 if omnia_exclusive_start_ip + ip_count > omnia_exclusive_end_ip:
                      print(" PXE ip range has exceeded the provided range. Please provide proper range")
                      sys.exit('PXE ip range has exceeded the provided range. Please provide proper range')
 
-                sql = '''Update cluster.nodeinfo set bmc_ip = inet '{temp_ip}' + ('{ip_count}') where serial=('{serial_key}')'''.format(temp_ip=omnia_exclusive_start_ip,ip_count = ip_count,serial_key=serial[key])
+                temp_bmc = ipaddress.IPv4Address(temp_bmc[0]) + 1
+                sql = '''INSERT INTO cluster.nodeinfo(serial,node,hostname,admin_ip,bmc_ip,bmc_mode) VALUES (
+                    '{serial_key}','{node_name}','{host_name}',NULL,'{bmc_ip}','{bmc_mode}')'''.format(serial_key=serial[key], node_name=node, host_name=host_name, bmc_ip=temp_bmc,bmc_mode=bmc_mode)
                 cursor.execute(sql)
 
 
-                sql= ''' Select bmc_ip from cluster.nodeinfo where serial=('{serial_key}')'''.format(serial_key=serial[key])
+                sql = ''' Select bmc_ip from cluster.nodeinfo where serial=('{serial_key}')'''.format(serial_key=serial[key])
                 cursor.execute(sql)
                 bmc_temp = cursor.fetchone()
                 admin_ip = pxe_subnet.split('.')[0] + "." + pxe_subnet.split('.')[1] + "." + bmc_temp[0].split('.')[2] + "." + \
@@ -121,19 +129,18 @@ def update_db():
                 cursor.execute(sql)
 
             if ib_status == "True":
-                sql = '''INSERT INTO cluster.nodeinfo(serial,node,hostname,admin_ip,bmc_ip,ib_ip,bmc_mode) VALUES (
-                    '{serial_key}','{node_name}','{host_name}',NULL,'{bmc_ip}',NULL,'{bmc_mode}')'''.format(serial_key=serial[key], node_name=node, host_name=host_name, bmc_ip=omnia_exclusive_start_ip,bmc_mode=bmc_mode)
-                cursor.execute(sql)
 
                 if omnia_exclusive_start_ip + ip_count > omnia_exclusive_end_ip:
                      print(" PXE ip range has exceeded the provided range. Please provide proper range")
                      sys.exit('PXE ip range has exceeded the provided range. Please provide proper range')
 
-                sql = '''Update cluster.nodeinfo set bmc_ip = inet '{temp_ip}' + ('{ip_count}') where serial=('{serial_key}')'''.format(temp_ip=omnia_exclusive_start_ip,ip_count = ip_count,serial_key=serial[key])
+                temp_bmc= ipaddress.IPv4Address(temp_bmc[0]) + 1
+
+                sql = '''INSERT INTO cluster.nodeinfo(serial,node,hostname,admin_ip,bmc_ip,ib_ip,bmc_mode) VALUES (
+                    '{serial_key}','{node_name}','{host_name}',NULL,'{bmc_ip}',NULL,'{bmc_mode}')'''.format(serial_key=serial[key], node_name=node, host_name=host_name, bmc_ip=temp_bmc,  bmc_mode=bmc_mode)
                 cursor.execute(sql)
 
-
-                sql= ''' Select bmc_ip from cluster.nodeinfo where serial=('{serial_key}')'''.format(serial_key=serial[key])
+                sql = ''' Select bmc_ip from cluster.nodeinfo where serial=('{serial_key}')'''.format(serial_key=serial[key])
                 cursor.execute(sql)
                 bmc_temp = cursor.fetchone()
 

@@ -33,6 +33,12 @@
   register: fetch_bmc_ip
   changed_when: false
 
+- name: Host key identification
+  ansible.builtin.command: ssh-keygen -R {{ item }}
+  changed_when: false
+  failed_when: false
+  with_items: "{{ fetch_bmc_ip.stdout_lines }}"
+
 - name: Enable IPMI on iDRACs
   ansible.builtin.shell: >
     set -o pipefail && \
