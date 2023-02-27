@@ -56,7 +56,7 @@ admin_nic_path: "/etc/sysconfig/network-scripts/ifcfg-{{ admin_nic }}"
 pxe_subnet_msg: "Failed. Please provide proper pxe_subnet"
 omnia_bmc_ip: "{{ bmc_nic_subnet.split('.')[0] + '.' + bmc_nic_subnet.split('.')[1] + '.' + '255' + '.' + '254' }}"
 omnia_bmc_netmask: 255.255.0.0
-ail_mapping_bmc_dedicated: "Failed. In 1st run discovery mechanism was mapping and in 2nd run it is bmc.But, this is a dedicated setup and bmc is not supported in dedicated setup. It is only supported in shared LOM."
+fail_mapping_bmc_dedicated: "Failed. In 1st run discovery mechanism was mapping and in 2nd run it is bmc.But, this is a dedicated setup and bmc is not supported in dedicated setup. It is only supported in shared LOM."
 
 # Usage: enable_nic_configuration.yml
 nic_subnet: 16
