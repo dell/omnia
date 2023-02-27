@@ -28,4 +28,6 @@
       ansible.builtin.debug:
         msg: "{{ mapping_set_osimage_warning_msg }} {{ set_osimage_mapping.stderr }}"
       when: set_osimage_mapping.stderr is defined
-  when: discovery_mechanism | lower == discovery_method_mapping
+  when:
+    - discovery_mechanism | lower == discovery_method_mapping
+    - mapping_node_status

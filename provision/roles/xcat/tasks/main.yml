@@ -56,6 +56,12 @@
       ansible.builtin.include_tasks: snmp/node_object_creation_snmp.yml
       when: not reprovision_status
 
+    - name: Check mapping node group status
+      ansible.builtin.include_tasks: mapping/check_nodes_mapping.yml
+
+    - name: Check snmp node group status
+      ansible.builtin.include_tasks: snmp/check_nodes_snmp.yml
+
     - name: Configuration of postbootscripts
       ansible.builtin.include_tasks: configuration/configure_postbootscripts.yml
 
