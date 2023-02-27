@@ -16,6 +16,10 @@
 - name: Create metadata file
   ansible.builtin.include_tasks: create_metadata.yml
 
+- name: Set fact if multiple run for omnia
+  ansible.builtin.set_fact:
+    mapping_bmc_state: false
+
 - name: Validate input parameters if metadata exits
   block:
     - name: Validate discovery_mechanism
