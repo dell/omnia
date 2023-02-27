@@ -51,3 +51,10 @@
       md_discovery_mechanism == discovery_method_bmc and discovery_mechanism == discovery_method_mapping or
       md_discovery_mechanism == discovery_method_mapping and discovery_mechanism == discovery_method_mapping or
       md_discovery_mechanism == discovery_method_snmp and discovery_mechanism == discovery_method_snmp
+
+- name: Check if mapping + bmc case
+  ansible.builtin.set_fact:
+     mapping_bmc_state: true
+  when:
+    - md_discovery_mechanism == discovery_method_mapping
+    - discovery_mechanism == discovery_method_bmc
