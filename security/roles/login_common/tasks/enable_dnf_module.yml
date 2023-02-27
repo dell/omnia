@@ -22,7 +22,7 @@
     - ( ansible_distribution_version >= os_version )
 
 - name: Switch to the RPMs delivered through the idm:DL1 stream(It may take 5-10 mins)
-  ansible.builtin.command: yum distro-sync --skip-broken --nobest --exclude={{ yum_distro_exclude }} -y
+  ansible.builtin.command: yum distro-sync --skip-broken --nobest --exclude={{ yum_distro_exclude1 }},{{ yum_distro_exclude2 }} -y
   changed_when: true
   failed_when: false
   args:
