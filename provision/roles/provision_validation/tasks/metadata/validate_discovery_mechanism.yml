@@ -54,7 +54,7 @@
 
 - name: Check if mapping + bmc case
   ansible.builtin.set_fact:
-     mapping_bmc_state: true
+    mapping_bmc_state: true
   when:
     - md_discovery_mechanism == discovery_method_mapping
     - discovery_mechanism == discovery_method_bmc
