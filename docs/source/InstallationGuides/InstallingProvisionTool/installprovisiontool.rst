@@ -3,6 +3,10 @@ Provisioning the cluster
 
 1. Edit the ``input/provision_config.yml`` file to update the required variables.
 
+.. note:: The first PXE device on target nodes should be the designated active NIC for PXE booting.
+
+    .. image:: ../../images/BMC_PXE_Settings.png
+
 2. To deploy the Omnia provision tool, run the following command ::
 
     cd provision
