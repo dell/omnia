@@ -13,28 +13,50 @@
 # limitations under the License.
 ---
 
-- name: Create metadata file
-  ansible.builtin.include_tasks: create_metadata.yml
+- name: Include provision_validation_vars role vars
+  ansible.builtin.include_vars: "{{ item }}"
+  with_items: "{{ provision_validation_vars }}"
 
-- name: Set fact if multiple run for omnia
-  ansible.builtin.set_fact:
-    mapping_bmc_state: false
+- name: Common packages installation for provision
+  ansible.builtin.include_tasks: package_installation.yml
 
-- name: Validate input parameters if metadata exits
-  block:
-    - name: Validate discovery_mechanism
-      ansible.builtin.include_tasks: validate_discovery_mechanism.yml
+- name: Create the provision ini file
+  ansible.builtin.include_tasks: create_provision_ini.yml
 
-    - name: Fetch params of snmp discovery_mechanism
-      ansible.builtin.include_tasks: validate_discovery_mech_params.yml
-      when: discovery_mech_state
-  when: metadata_status.stat.exists
+- name: Include provision configuration variables
+  ansible.builtin.include_tasks: include_provision_config.yml
 
-- name: Create metadata.yml file if it doesn't exists
-  ansible.builtin.file:
-    path: "{{ meta_path }}"
-    state: touch
-    mode: "{{ conf_file_mode }}"
-    group: root
-    owner: root
-  when: not metadata_status.stat.exists
+- name: Validate discovery parameters
+  ansible.builtin.include_tasks: validate_discovery_params.yml
+
+- name: Create metadata
+  ansible.builtin.include_tasks: metadata/main.yml
+
+- name: Assign nic configuration when discovery mechanism is mapping or snmp
+  ansible.builtin.include_tasks: assign_admin_nic_config.yml
+  when:
+    - discovery_mechanism == discovery_method_snmp or
+      discovery_mechanism == discovery_method_mapping
+    - not metadata_status.stat.exists
+
+- name: Assign nic configuration when discovery mechanism is bmc
+  ansible.builtin.include_tasks: assign_nic_config.yml
+  when:
+    - discovery_mechanism == discovery_method_bmc
+    - ( mapping_bmc_state ) or ( not metadata_status.stat.exists )
+
+- name: Validate the nic parameters
+  ansible.builtin.include_tasks: validate_cp_nic.yml
+
+- name: Validate provision parameters
+  ansible.builtin.include_tasks: validate_provision_vars.yml
+
+- name: Validate disk partition parameters
+  ansible.builtin.include_tasks: validate_disk_partition_vars.yml
+  with_items: "{{ disk_partition }}"
+
+- name: Validate domain_name
+  ansible.builtin.include_tasks: validate_domain_name.yml
+
+- name: Validate postscripts path
+  ansible.builtin.include_tasks: validate_postscripts_path.yml
