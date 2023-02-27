@@ -62,6 +62,9 @@ To correct the issue, run:
 
 ``json-gw enable`` (To enable the JSON gateway)
 
+**Why does BeeGFS client installation fail on RHEL 8.6?**
+
+RHEL 8.6 does not support BeeGFS client installation currently. For more info, `click here <https://access.redhat.com/solutions/6964004>`_.
 
 
 **Why does PXE boot fail with tftp timeout or service timeout errors?**

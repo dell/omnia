@@ -15,4 +15,4 @@ OS Version Control Plane Compute Nodes
 .. note::
     * Always deploy the DVD Edition of the OS on compute nodes to access offline repos.
     * While Omnia may work with RHEL 8.4 and above, all Omnia testing was done with RHEL 8.4 on the control plane. All minor versions of RHEL 8 are supported on the compute nodes.
-
+    * RHEL 8.6 does not support BEEGFS client installation. For more info, `click here <https://access.redhat.com/solutions/6964004>`_

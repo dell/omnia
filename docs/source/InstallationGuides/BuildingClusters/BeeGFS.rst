@@ -100,6 +100,8 @@ To open the ports required, use the following steps:
 | Rocky Linux 8.4: no OFED, OFED 5.3, 5.4 | 7.2.4          |
 +-----------------------------------------+----------------+
 
+* Servers running all versions of RHEL support BeeGFS **except 8.6**. For more info, `click here <https://access.redhat.com/solutions/6964004>`_
+
 **Installing the BeeGFS client via Omnia**
 
 After the required parameters are filled in ``input/storage_config.yml``, Omnia installs BeeGFS on manager and compute nodes while executing the ``omnia.yml`` playbook.
