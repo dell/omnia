@@ -27,3 +27,7 @@ snmp_node_group: "snmp"
 snmp_xcat_install_success_msg: "provision.yml executed successfully for discoverd nodes using snmp.
 Configure PXE and reboot the cluster nodes manually for provisioning servers."
 snmp_set_osimage_warning_msg: "[WARNING] nodeset command is not successful for discoverd nodes using snmp. Error:"
+
+# Usage: check_nodes_mapping.yml
+snmp_nodes_warning_msg: "[WARNING] Nodes discovered using snmp were already provisioned by omnia using other discovery mechanism.
+Alternatively execute provision.yml by providing inventory of host ips for reprovisioning."
