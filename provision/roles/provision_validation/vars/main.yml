@@ -56,6 +56,7 @@ admin_nic_path: "/etc/sysconfig/network-scripts/ifcfg-{{ admin_nic }}"
 pxe_subnet_msg: "Failed. Please provide proper pxe_subnet"
 omnia_bmc_ip: "{{ bmc_nic_subnet.split('.')[0] + '.' + bmc_nic_subnet.split('.')[1] + '.' + '255' + '.' + '254' }}"
 omnia_bmc_netmask: 255.255.0.0
+fail_mapping_bmc_dedicated: "Failed.BMC is only supported in shared LOM. Check the configuration once."
 
 # Usage: enable_nic_configuration.yml
 nic_subnet: 16

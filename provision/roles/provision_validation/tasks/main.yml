@@ -37,10 +37,13 @@
   when:
     - discovery_mechanism == discovery_method_snmp or
       discovery_mechanism == discovery_method_mapping
+    - not metadata_status.stat.exists
 
 - name: Assign nic configuration when discovery mechanism is bmc
   ansible.builtin.include_tasks: assign_nic_config.yml
-  when: discovery_mechanism == discovery_method_bmc
+  when:
+    - discovery_mechanism == discovery_method_bmc
+    - ( mapping_bmc_state ) or ( not metadata_status.stat.exists )
 
 - name: Validate the nic parameters
   ansible.builtin.include_tasks: validate_cp_nic.yml
