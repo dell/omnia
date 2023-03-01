@@ -34,11 +34,11 @@ b. A PostgreSQL database is set up with all relevant cluster information such as
 
                     id | serial |   node    |      hostname       |     admin_mac     |   admin_ip   |    bmc_ip    |    ib_ip    | status | bmc_mode
                     ----+--------+-----------+---------------------+-------------------+--------------+--------------+-------------+--------+----------
-                      1 |   XXXXXXX | node00001 | node00001.omnia.test | ec:2a:72:32:c6:98 | 10.5.0.111 | 10.3.0.111 | 10.10.0.111 | powering-on |
-                      2 |   XXXXXXX | node00002 | node00002.omnia.test | f4:02:70:b8:cc:80 | 10.5.0.112 | 10.3.0.112 | 10.10.0.112 | booted    |
-                      3 |   XXXXXXX | node00003 | node00003.omnia.test | 70:b5:e8:d1:19:b6 | 10.5.0.113 | 10.3.0.113 | 10.10.0.113 | post-booting  |
-                      4 |   XXXXXXX | node00004 | node00004.omnia.test | b0:7b:25:dd:e8:4a | 10.5.0.114 | 10.3.0.114 | 10.10.0.114 | booted    |
-                      5 |   XXXXXXX | node00005 | node00005.omnia.test | f4:02:70:b8:bc:2a | 10.5.0.115 | 10.3.0.115 | 10.10.0.115 | booted    |
+                      1 |   XXXXXXX | node00001 | node00001.omnia.test | ec:2a:72:32:c6:98 | 10.5.0.111 | 10.3.0.111 | 10.10.0.111 | powering-on |  static
+                      2 |   XXXXXXX | node00002 | node00002.omnia.test | f4:02:70:b8:cc:80 | 10.5.0.112 | 10.3.0.112 | 10.10.0.112 | booted    |    dhcp
+                      3 |   XXXXXXX | node00003 | node00003.omnia.test | 70:b5:e8:d1:19:b6 | 10.5.0.113 | 10.3.0.113 | 10.10.0.113 | post-booting  |    static
+                      4 |   XXXXXXX | node00004 | node00004.omnia.test | b0:7b:25:dd:e8:4a | 10.5.0.114 | 10.3.0.114 | 10.10.0.114 | booted    |    static
+                      5 |   XXXXXXX | node00005 | node00005.omnia.test | f4:02:70:b8:bc:2a | 10.5.0.115 | 10.3.0.115 | 10.10.0.115 | booted    |    static
 
 
 
