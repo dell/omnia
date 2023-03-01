@@ -20,7 +20,9 @@
 - name: Set fact if bmc nic is already configured in a dedicated manner
   ansible.builtin.set_fact:
     bmc_nic_present: true
-  when: lookup('vars', 'ansible_' + admin_nic).ipv4_secondaries[0].network is defined
+  when:
+    - (lookup('vars', 'ansible_' + admin_nic).ipv4_secondaries[0].network is defined) or
+      (discovery_mechanism == discovery_method_bmc)
 
 - name: Fail if discovery mechanism is bmc but it is not shared lom
   ansible.builtin.fail:
