@@ -42,7 +42,7 @@ b. A PostgreSQL database is set up with all relevant cluster information such as
 
 
 
-Possible values of status are static, powering-on, installing, booting, post-booting, booted, failed. The status will be updated every 3 minutes.
+Possible values of status are static, powering-on, installing, bmcready, booting, post-booting, booted, failed. The status will be updated every 3 minutes.
 
 .. note:: For nodes listing status as 'failed', provisioning logs can be viewed in ``/var/log/xcat/xcat.log`` on the target nodes.
 
