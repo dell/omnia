@@ -26,6 +26,7 @@ ansible_galaxy_collection:
 pip_version: pip3.8
 netaddr_pip_package: netaddr
 pexpect_pip_package: pexpect
+max_retries: 10
 
 common_packages_provision:
   - python3-netaddr
