@@ -15,7 +15,7 @@
 
 - name: Validate freeIPA parameters
   ansible.builtin.fail:
-    msg: "{{ input_config_failure_msg }} for freeipa or login_node"
+    msg: "{{ input_config_failure_msg }}"
   when:
     - ( domain_name | length < 1 or
       realm_name | length < 1 or

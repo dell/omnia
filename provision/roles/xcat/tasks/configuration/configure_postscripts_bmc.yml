@@ -41,9 +41,13 @@
 - name: Configure postbootscripts for bmc script for mapping
   ansible.builtin.command: chdef {{ mapping_node_group }} -p postbootscripts=omnia_bmc_config
   changed_when: true
-  when: discovery_mechanism | lower == discovery_method_mapping
+  when:
+    - discovery_mechanism | lower == discovery_method_mapping
+    - mapping_node_status
 
 - name: Configure postbootscripts for bmc script for snmp
   ansible.builtin.command: chdef {{ snmp_node_group }} -p postbootscripts=omnia_bmc_config
   changed_when: true
-  when: discovery_mechanism | lower == discovery_method_snmp
+  when:
+    - discovery_mechanism | lower == discovery_method_snmp
+    - snmp_node_status

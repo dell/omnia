@@ -13,23 +13,42 @@
 #  limitations under the License.
 ---
 
-- name: Set fact for BMC NIC IP and netmask details
+- name: Set fact for bmc nic if mapping + bmc
   ansible.builtin.set_fact:
-    bmc_nic: "{{ admin_nic }}"
-    bmc_nic_ip: "{{ omnia_bmc_ip }}"
-    bmc_nic_netmask: "{{ omnia_bmc_netmask }}"
+    bmc_nic_present: false
 
-- name: Set fact for BMC NIC IP and netmask details
+- name: Set fact if bmc nic is already configured in a dedicated manner
   ansible.builtin.set_fact:
-    admin_nic_ip: "{{ omnia_admin_ip }}"
-    admin_nic_netmask: "{{ omnia_admin_netmask }}"
-
-- name: Validate pxe_subnet
-  ansible.builtin.fail:
-    msg: "{{ pxe_subnet_msg }}"
+    bmc_nic_present: true
   when:
-    - discovery_mechanism == discovery_method_bmc
-    - admin_nic_subnet != pxe_subnet
+    - (lookup('vars', 'ansible_' + admin_nic).ipv4_secondaries[0].network is defined) or
+      (discovery_mechanism == discovery_method_bmc)
 
-- name: Configure the admin and bmc nic
-  ansible.builtin.include_tasks: enable_nic_configuration.yml
+- name: Fail if discovery mechanism is bmc but it is not shared lom
+  ansible.builtin.fail:
+    msg: "{{ fail_mapping_bmc_dedicated }}"
+  when: not bmc_nic_present
+
+- name: Set the nic configuration for BMC
+  block:
+    - name: Set fact for BMC NIC IP and netmask details
+      ansible.builtin.set_fact:
+        bmc_nic: "{{ admin_nic }}"
+        bmc_nic_ip: "{{ omnia_bmc_ip }}"
+        bmc_nic_netmask: "{{ omnia_bmc_netmask }}"
+
+    - name: Set fact for BMC NIC IP and netmask details
+      ansible.builtin.set_fact:
+        admin_nic_ip: "{{ omnia_admin_ip }}"
+        admin_nic_netmask: "{{ omnia_admin_netmask }}"
+
+    - name: Validate pxe_subnet
+      ansible.builtin.fail:
+        msg: "{{ pxe_subnet_msg }}"
+      when:
+        - discovery_mechanism == discovery_method_bmc
+        - admin_nic_subnet != pxe_subnet
+
+    - name: Configure the admin and bmc nic
+      ansible.builtin.include_tasks: enable_nic_configuration.yml
+  when: bmc_nic_present
