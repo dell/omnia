@@ -6,6 +6,8 @@ To enable centralized authentication in the cluster, Omnia installs either:
  - FreeIPA
  - LDAP Client
 
+.. note:: For RedHat clusters, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription.
+
 Using FreeIPA
 --------------
 
@@ -27,11 +29,11 @@ Enter the following parameters in ``input/security_config.yml``.
 
 Omnia installs a FreeIPA server on the manager node and FreeIPA clients on the compute and login node using one of the below commands: ::
 
-    ansible-playbook -i inventory security.yml
+    ansible-playbook security.yml -i inventory
 
 Where inventory follows the format defined under inventory file in the provided `Sample Files <../../samplefiles.html>`_ ::
 
-    ansible-playbook -i inventory omnia.yml
+    ansible-playbook omnia.yml -i inventory
 
 Where inventory follows the format defined under inventory file in the provided `Sample Files <../../samplefiles.html>`_ The ``omnia.yml`` playbook installs Slurm, BeeFGS Client, NFS Client in addition to freeIPA.
 
@@ -62,7 +64,7 @@ To customize your setup of passwordless ssh, input parameters in ``input/passwor
 
 Use the below command to enable passwordless SSH: ::
 
-    ansible-playbook -i inventory passwordless_ssh.yml
+    ansible-playbook user_passwordless_ssh.yml -i inventory
 
 Where inventory follows the format defined under inventory file in the provided `Sample Files <../../samplefiles.html>`_
 
@@ -102,16 +104,18 @@ To customize your LDAP client installation, input parameters in ``input/security
 
 **Setting up Passwordless SSH for LDAP**
 
-To add the cluster to an external LDAP server, Omnia enables the installation of LDAP client on the manager, compute and login nodes.
+Once user accounts are created, admins can enable passwordless SSH for users to run HPC jobs.
 
-To customize your LDAP client installation, input parameters in ``input/security_config.yml``.
+.. note:: Ensure that the control plane can reach the designated LDAP server
+
+To customize your setup of passwordless ssh, input parameters in ``input/passwordless_ssh_config.yml``
 
 +--------------------------+--------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Parameter                | Default, Accepted values | Additional information                                                                                                                                                                                                                                                                        |
 +==========================+==========================+===============================================================================================================================================================================================================================================================================================+
 | user_name                |                          | The user that requires passwordless SSH                                                                                                                                                                                                                                                       |
 +--------------------------+--------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| authentication_type      | freeipa, ldap            | Indicates whether LDAP or FreeIPA is in use on the cluster                                                                                                                                                                                                                                    |
+| authentication_type      | **freeipa**, ldap        | Indicates whether LDAP or FreeIPA is in use on the cluster                                                                                                                                                                                                                                    |
 +--------------------------+--------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | ldap_organizational_unit |                          | Distinguished name i.e dn in ldap is used to identify an entity in a   LDAP. This variable includes the organizational unit (ou) which is used to   identifies user in the LDAP. Only provide ou details i.e ou=people, as domain   name and userid is accepted already. By default ou=People |
 +--------------------------+--------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -119,9 +123,20 @@ To customize your LDAP client installation, input parameters in ``input/security
 
 Use the below command to enable passwordless SSH: ::
 
-    ansible-playbook -i inventory passwordless_ssh.yml
+    ansible-playbook user_passwordless_ssh.yml -i inventory
 
-Where inventory follows the format defined under inventory file in the provided `Sample Files <../../samplefiles.html>`_
+Where inventory follows the format defined under inventory file. ::
+
+    [manager]
+    10.5.0.101
+
+    [compute]
+    10.5.0.102
+    10.5.0.103
+
+    [ldap_server]
+    10.5.0.105
+
 
 .. caution:: Do not run ssh-keygen commands after passwordless SSH is set up on the nodes.
 

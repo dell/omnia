@@ -16,8 +16,8 @@ Where the inventory contains a list of host IPs as shown below:
 
 ::
 
-    172.19.0.101
-    172.19.0.102
+    10.5.0.101
+    10.5.0.102
 
 .. note::
     * The host IPs passed in the inventory should be assigned by Omnia.

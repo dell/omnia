@@ -13,6 +13,8 @@ A new node can be added using one of two ways:
 
     * Run ``provision.yml`` once the switch has discovered the potential new node.
 
+3.
+
 
 
 

@@ -23,7 +23,7 @@ Enter all required parameters in ``input/accelerator_config.yml``.
 
     * For target nodes running RedHat, ensure that redhat subscription is enabled before running ``accelerator.yml``
 
-    * The post-provision script calls ``accelerator.yml`` to install CUDA and ROCm drivers.
+    * If ``cuda_toolkit_path`` is provided in ``input/provision_config.yml`` and NVIDIA GPUs are available on the target nodes, CUDA packages will be deployed post provisioning without user intervention during the execution of ``provision.yml``.
 
 To install all the latest GPU drivers and toolkits, run: ::
 

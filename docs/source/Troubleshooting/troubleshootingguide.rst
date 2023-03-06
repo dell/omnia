@@ -63,6 +63,10 @@ Below is a list of all logs available to Loki and can be accessed on the dashboa
 | BeeGFS   Logs          | /var/log/beegfs-client.log                  | BeeGFS Logs                  | This log is configured on   BeeGFS client nodes.                                                                               |
 +------------------------+---------------------------------------------+------------------------------+--------------------------------------------------------------------------------------------------------------------------------+
 
+Provisioning logs
+--------------------
+
+Logs pertaining to provisioning can be viewed in ``/var/log/xcat/xcat.log`` on the target nodes.
 
 Logs of individual containers
 --------------------------------------------

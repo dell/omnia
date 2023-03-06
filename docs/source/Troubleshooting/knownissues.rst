@@ -1,6 +1,12 @@
 Known Issues
 ==========================
 
+**Why doesn't my newly discovered server list a MAC ID in the cluster.nodeinfo table?**
+
+Due to internal MAC ID conflicts on the target nodes, the MAC address will be listed against the target node using this format ``MAC ADDRESS 1 | MAC ADDRESS 2! *NOIP*`` in the xCAT node object.
+
+.. image:: ../images/MACConflict.png
+
 **Why are some target servers not reachable after running PXE booting them?**
 
 
@@ -56,6 +62,9 @@ To correct the issue, run:
 
 ``json-gw enable`` (To enable the JSON gateway)
 
+**Why does BeeGFS client installation fail on RHEL 8.6?**
+
+RHEL 8.6 does not support BeeGFS client installation currently. For more info, `click here <https://access.redhat.com/solutions/6964004>`_.
 
 
 **Why does PXE boot fail with tftp timeout or service timeout errors?**

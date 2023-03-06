@@ -14,14 +14,14 @@ Manually collect PXE NIC information for target servers and manually define them
 
 **pxe_mapping_file.csv**
 
-
 ::
 
     MAC,Hostname,IP
 
-    xx:yy:zz:aa:bb:cc,server,172.29.0.101
+    xx:yy:zz:aa:bb:cc,server,10.5.0.101
 
-    aa:bb:cc:dd:ee:ff,server2, 172.29.0.102
+    aa:bb:cc:dd:ee:ff,server2, 10.5.0.102
+
 
 **Pros**
 
@@ -58,8 +58,8 @@ Omnia can also discover nodes via their iDRAC using IPMI.
 
 **Pros**
 
-    - Discovery is automatic when iDRAC is DHCP enabled.
-    - Provisioning of servers is automatic irrespective of whether DHCP is enabled.
+    - Discovery and provisioning of servers is automatic.
+    - Admin and BMC IP address configuration is automatic on the control plane.
 
 **Cons**
 

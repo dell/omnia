@@ -3,6 +3,10 @@ Provisioning the cluster
 
 1. Edit the ``input/provision_config.yml`` file to update the required variables.
 
+.. note:: The first PXE device on target nodes should be the designated active NIC for PXE booting.
+
+    .. image:: ../../images/BMC_PXE_Settings.png
+
 2. To deploy the Omnia provision tool, run the following command ::
 
     cd provision
@@ -28,13 +32,19 @@ b. A PostgreSQL database is set up with all relevant cluster information such as
     To view the contents of the ``nodeinfo`` table: ``select * from cluster.nodeinfo;`` ::
 
 
-                    id | serial  |   node    |       hostname        | admin_mac |  admin_ip   |   bmc_ip    | ib_ip | status | bmc_mode
-                    ----+---------+-----------+-----------------------+-----------+-------------+-------------+-------+--------+----------
-                      1 | 4FC45X2 | node00001 | node00001.spring.test |           | 172.17.0.25 | 172.29.0.25 | 172.35.0.25 |        | static
-                      2 | FBB65X2 | node00002 | node00002.spring.test |           | 172.17.0.35 | 172.29.0.35 | 172.35.0.35 |        | static
+                    id | serial |   node    |      hostname       |     admin_mac     |   admin_ip   |    bmc_ip    |    ib_ip    | status | bmc_mode
+                    ----+--------+-----------+---------------------+-------------------+--------------+--------------+-------------+--------+----------
+                      1 |   XXXXXXX | node00001 | node00001.omnia.test | ec:2a:72:32:c6:98 | 10.5.0.111 | 10.3.0.111 | 10.10.0.111 | powering-on | static
+                      2 |   XXXXXXX | node00002 | node00002.omnia.test | f4:02:70:b8:cc:80 | 10.5.0.112 | 10.3.0.112 | 10.10.0.112 | booted    | dhcp
+                      3 |   XXXXXXX | node00003 | node00003.omnia.test | 70:b5:e8:d1:19:b6 | 10.5.0.113 | 10.3.0.113 | 10.10.0.113 | post-booting  | static
+                      4 |   XXXXXXX | node00004 | node00004.omnia.test | b0:7b:25:dd:e8:4a | 10.5.0.114 | 10.3.0.114 | 10.10.0.114 | booted    | static
+                      5 |   XXXXXXX | node00005 | node00005.omnia.test | f4:02:70:b8:bc:2a | 10.5.0.115 | 10.3.0.115 | 10.10.0.115 | booted    | static
 
 
-Possible values of status are static, powering-on, installing, booting, post-booting, booted, failed. The status will be updated every 3 minutes.
+
+Possible values of status are static, powering-on, installing, bmcready, booting, post-booting, booted, failed. The status will be updated every 3 minutes.
+
+.. note:: For nodes listing status as 'failed', provisioning logs can be viewed in ``/var/log/xcat/xcat.log`` on the target nodes.
 
 c. Offline repositories will be created based on the OS being deployed across the cluster.
 
@@ -51,15 +61,11 @@ Once the playbook execution is complete, ensure that PXE boot and RAID configura
 
     * After running ``provision.yml``, the file ``input/provision_config.yml`` will be encrypted. To edit the file, use the command: ``ansible-vault edit provision_config.yml --vault-password-file .provision_vault_key``
 
-    * To re-provision target servers ``provision.yml`` can be re-run. Alternatively, use the following steps (as an example, we will be re-provisioning rhels8.6.0-x86_64-install-compute):
-
-         * Use ``lsdef -t osimage | grep install-compute`` to get a list of all valid OS profiles.
-
-         * Use ``nodeset all osimage=rhels8.6.0-x86_64-install-compute`` to provision the OS on the target server.
-
-         * PXE boot the target server to bring up the OS.
+    * To re-provision target servers ``provision.yml`` can be re-run with a new inventory file that contains a list of admin (PXE) IPs. For more information, `click here <../reprovisioningthecluster.rst>`_
 
     * Post execution of ``provision.yml``, IPs/hostnames cannot be re-assigned by changing the mapping file. However, the addition of new nodes is supported as explained below.
+
+    * Once the cluster is provisioned, enable RedHat subscription on all RHEL target nodes to ensure smooth execution of Omnia playbooks to configure the cluster with Slurm, Kubernetes.
 
 .. warning::
 
@@ -97,7 +103,7 @@ Assigning infiniband IPs
 
 When ``ib_nic_subnet`` is provided in ``input/provision_config.yml``, the infiniband NIC on target nodes are assigned IPv4 addresses within the subnet without user intervention. When PXE range and Infiniband subnet are provided, the infiniband NICs will be assigned IPs with the same 3rd and 4th octets as the PXE NIC.
 
-* For example on a target node, when the PXE NIC is assigned 10.17.0.101, and the Infiniband NIC is assigned 10.29.0.101 (where ``ib_nic_subnet`` is 10.29.0.0).
+* For example on a target node, when the PXE NIC is assigned 10.5.0.101, and the Infiniband NIC is assigned 10.10.0.101 (where ``ib_nic_subnet`` is 10.10.0.0).
 
 .. note::  The IP is assigned to the interface **ib0** on target nodes only if the interface is present in **active** mode. If no such NIC interface is found, xCAT will list the status of the node object as failed.
 
@@ -106,7 +112,7 @@ Assigning BMC IPs
 
 When target nodes are discovered via SNMP or mapping files (ie ``discovery_mechanism`` is set to snmp or mapping in ``input/provision_config.yml``), the ``bmc_nic_subnet`` in ``input/provision_config.yml`` can be used to assign BMC IPs to iDRAC without user intervention. When PXE range and BMC subnet are provided, the iDRAC NICs will be assigned IPs with the same 3rd and 4th octets as the PXE NIC.
 
-* For example on a target node, when the PXE NIC is assigned 10.17.0.101, and the iDRAC NIC is assigned 10.27.0.101 (where ``bmc_nic_subnet`` is 10.27.0.0).
+* For example on a target node, when the PXE NIC is assigned 10.5.0.101, and the iDRAC NIC is assigned 10.3.0.101 (where ``bmc_nic_subnet`` is 10.3.0.0).
 
 Using multiple versions of a given OS
 +++++++++++++++++++++++++++++++++++++++

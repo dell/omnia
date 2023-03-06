@@ -24,9 +24,11 @@ In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcf
 
 * Ensure that the ``pxe_nic`` and ``public_nic`` are in the firewalld zone: public.
 
-* All shared LOM IPs assigned should follow the convention: xx.yy.zz.1 (ie the last octet of a shared LOM IP should be 1. Eg: If the ``pxe_subnet`` provided is 172.17.0.0, the shared LOM IP assigned should be 172.17.0.1)
+* The control plane NIC connected to remote servers (through the switch) should be configured with two IPs in a shared LOM set up. This NIC is configured by Omnia with the IP xx.yy.255.254, aa.bb.255.254 (where xx.yy are taken from ``bmc_nic_subnet`` and aa.bb are taken from ``admin_nic_subnet``) when ``discovery_mechanism`` is set to ``bmc``. For other discovery mechanisms, only the admin NIC is configured with aa.bb.255.254 (Where aa.bb is taken from ``admin_nic_subnet``).
 
- .. Note::
+.. image:: ../../images/ControlPlaneNic.png
+
+ .. note::
 
     * After configuration and installation of the cluster, changing the control plane is not supported. If you need to change the control plane, you must redeploy the entire cluster.
 

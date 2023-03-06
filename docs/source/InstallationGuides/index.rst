@@ -17,7 +17,7 @@ If the control plane  has an Infiniband NIC installed, run the below ::
 
 Use the image below to set up your network:
 
-.. image:: ../images/SharedLomRoceNIC.png
+.. image:: ../images/SharedLomRoceNIC.jpg
 
 
 Once the Omnia repository has been cloned on to the control plane: ::

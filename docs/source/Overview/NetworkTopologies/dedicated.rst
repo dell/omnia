@@ -15,7 +15,7 @@ When all compute nodes have their own public network access, ``primary_dns`` and
 
 
 
-.. image:: ../../images/Omnia_NetworkConfig_Inet.png
+.. image:: ../../images/Dedicated_with_daisy_chain.jpg
 
 
 
@@ -27,5 +27,5 @@ When all compute nodes rely on the control plane for public network access, the 
 
 
 
-.. image:: ../../images/Omnia_NetworkConfig_NoInet.png
+.. image:: ../../images/Dedicated.jpg
 
