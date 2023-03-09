@@ -1,0 +1,25 @@
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Usage: xcat_status_check.yml
+metadata_path: "/opt/omnia/.data/metadata.yml"
+missing_metadata_fail_msg: "xCAT services are running and metadata file not found.
+Please re-run provision.yml and verify all the tasks are executed without any errors."
+
+# Usage: create_repo.yml
+omnia_cluster_xcat_repo: /install/omnia-cluster/x86_64/RHEL8/
+repo_permission: "755"
+login_node_repo_packages: "mailx postfix gcc gzip make procps-ng socat tar wget psacct python38"
+ldap_repo_packages: "oddjob-mkhomedir openldap-clients openssl-perl sssd sssd-ldap sssd-kcm"
