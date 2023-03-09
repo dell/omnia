@@ -3,8 +3,11 @@ name: Ansible Lint  # feel free to pick your own name
 on:
   pull_request:
     branches:
-      - release
-      - devel
+      - main
+      - release-1.4
+      - release-1.4.0.1
+      - release-1.4.1
+      - release-1.4.2
 
 jobs:
   ansible-lint:
