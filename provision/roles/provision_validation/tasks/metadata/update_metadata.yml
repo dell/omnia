@@ -70,3 +70,11 @@
     state: present
     line: 'md_bmc_nic_subnet: {{ bmc_nic_subnet }}'
   when: bmc_nic_subnet | default("", true) | length > 1
+
+- name: Update pxe_nic_ip
+  ansible.builtin.lineinfile:
+    path: "{{ meta_path }}"
+    regexp: '^md_pxe_nic_ip:(.*)$'
+    insertafter: "EOF"
+    state: present
+    line: 'md_pxe_nic_ip: {{ pxe_nic_ip }}'
