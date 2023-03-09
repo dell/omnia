@@ -17,7 +17,7 @@
   ansible.builtin.set_fact:
     bmc_nic_present: false
 
-- name: Set fact if bmc nic is already configured in a dedicated manner
+- name: Set fact if bmc nic is already configured in a dedicated way
   ansible.builtin.set_fact:
     bmc_nic_present: true
   when:
@@ -42,13 +42,15 @@
         admin_nic_ip: "{{ omnia_admin_ip }}"
         admin_nic_netmask: "{{ omnia_admin_netmask }}"
 
-    - name: Validate pxe_subnet
-      ansible.builtin.fail:
-        msg: "{{ pxe_subnet_msg }}"
-      when:
-        - discovery_mechanism == discovery_method_bmc
-        - admin_nic_subnet != pxe_subnet
+    - name: Run only when mapping+bmc is present
+      block:
+        - name: Validate pxe_subnet
+          ansible.builtin.fail:
+            msg: "{{ pxe_subnet_msg }}"
+          when: admin_nic_subnet != pxe_subnet
 
-    - name: Configure the admin and bmc nic
-      ansible.builtin.include_tasks: enable_nic_configuration.yml
+        - name: Configure the admin and bmc nic
+          ansible.builtin.include_tasks: enable_nic_configuration.yml
+      when: (mapping_bmc_state) or (not metadata_status.stat.exists)
+
   when: bmc_nic_present
