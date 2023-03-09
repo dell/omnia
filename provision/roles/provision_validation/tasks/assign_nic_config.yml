@@ -17,7 +17,7 @@
   ansible.builtin.set_fact:
     bmc_nic_present: false
 
-- name: Set fact if bmc nic is already configured in a dedicated manner
+- name: Set fact if bmc nic is already configured in a dedicated way
   ansible.builtin.set_fact:
     bmc_nic_present: true
   when:
