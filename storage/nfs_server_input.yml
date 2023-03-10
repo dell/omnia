@@ -29,7 +29,7 @@ powervault_ip:
 # client_mount_options: Default value is- nosuid,rw,sync,hard,intr (unless specified otherwise)
 # Must specify atleast 1 volume
 # Example:
-#   - { name: omnia_home, server_share_path: /home/omnia_home, server_export_options: rw,sync,no_root_squash }
+#   - { name: omnia_home, server_share_path: /home/omnia_home, server_export_options: "rw,sync,no_root_squash" }
 # Required field
 powervault_volumes:
   - { name: omnia_home, server_share_path: /home/omnia_home, server_export_options: }
