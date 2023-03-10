@@ -6,7 +6,11 @@ To enable centralized authentication in the cluster, Omnia installs either:
  - FreeIPA
  - LDAP Client
 
-.. note:: For RedHat clusters, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription.
+.. note:: 
+	* Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to run ``security.yml`` on RHEL target nodes.
+	* For RHEL target nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription. 
+
+
 
 Using FreeIPA
 --------------
