@@ -27,3 +27,7 @@ mapping_node_group: "mapping"
 mapping_xcat_install_success_msg: "provision.yml executed successfully for discoverd nodes using mapping.
 Configure PXE and reboot the cluster nodes manually for provisioning servers."
 mapping_set_osimage_warning_msg: "[WARNING] nodeset command is not successful for discoverd nodes using mapping. Error:"
+
+# Usage: check_nodes_mapping.yml
+mapping_nodes_warning_msg: "[WARNING] Nodes provided in mapping file were already provisioned by omnia using other discovery mechanism.
+Alternatively execute provision.yml by providing inventory of host ips for reprovisioning."

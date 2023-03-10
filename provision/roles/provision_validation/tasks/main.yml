@@ -37,6 +37,7 @@
   when:
     - discovery_mechanism == discovery_method_snmp or
       discovery_mechanism == discovery_method_mapping
+    - not metadata_status.stat.exists
 
 - name: Assign nic configuration when discovery mechanism is bmc
   ansible.builtin.include_tasks: assign_nic_config.yml

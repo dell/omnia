@@ -39,7 +39,7 @@ success_msg_directory_manager_password: "directory_manager_password successfully
 fail_msg_directory_manager_password: "Failed. Incorrect format provided for directory_manager_password"
 success_msg_kerberos_admin_password: "kerberos_admin_password successfully validated"
 fail_msg_kerberos_admin_password: "Failed. Incorrect format provided for kerberos_admin_password"
-input_config_failure_msg: "Input parameters cannot be empty"
+input_config_failure_msg: "Failed. Since, freeipa_required is true,please provide few additional parameters in input/security_config.yml."
 secure_login_node_success_msg: "enable_secure_login_node successfully validated"
 secure_login_node_fail_msg: "Failed. enable_secure_login_node should be either true or false"
 
