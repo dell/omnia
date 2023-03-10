@@ -23,5 +23,8 @@
 - name: Enable internet access
   ansible.builtin.include_tasks: internet_access.yml
 
-- name: Create racadm repo
-  ansible.builtin.include_tasks: racadm_config.yml
+- name: Fetch osimage name
+  ansible.builtin.include_tasks: fetch_osimage.yml
+
+- name: Create omnia-common repo
+  ansible.builtin.include_tasks: common_repo_config.yml
