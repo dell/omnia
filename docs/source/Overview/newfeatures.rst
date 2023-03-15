@@ -1,52 +1,20 @@
 New Features
 ===========
 
-Control Plane
----------------
-
-* Omnia Prerequisites Installation
-
-* Provision Tool - xCAT installation
-
-* Node Discovery using Switch IP Address
-
-* Provisioning of remote nodes using
-
-        - Mapping File
-        - Auto discovery of nodes from Switch IP
-
-* Database Update of remote nodes info that includes,
-
-    - Host or Admin IP
-
-    - iDRAC IP
-
-    - InfiniBand IP
-
-    - Hostname
-
-* Inventory creation on Control Plane
-
-Cluster
---------
-
-* iDRAC and InfiniBand IP Assignment on remote nodes (nodes in the cluster)
-
-* Installation and Configuration of:
-
-    - NVIDIA Accelerator and CUDA Toolkit
-
-    - AMD Accelerator and ROCm
-
-    - OFED
-
-    - LDAP Client
-
-Device Support
----------------
-
-* InfiniBand Switch Configuration with port split functionality
-
-* Ethernet Z-Series Switch Configuration with port split functionality
++---------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Feature             | Description                                                                                                                                                       |
++---------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Server support      | R660, R6625 and C6620 platforms are now supported as control planes or   target nodes.                                                                            |
++---------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Provisioning        | * One touch provisioning now allows for OFED installation, NVIDIA   CUDA-toolkit installation along with iDRAC and InfiniBand IP configuration on   target nodes. |
+|                     | * Potential servers can now be discovered via iDRAC.                                                                                                              |
+|                     | * Servers can be provisioned automatically without manual intervention for   booting/PXE settings.                                                                |
++---------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Target node status  | Target node provisioning status can now be checked on the control plane   by viewing the OmniaDB.                                                                 |
++---------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Passwordless SSH    | Omnia clusters can be configured with passwordless SSH for seamless   execution of HPC jobs run by non-root users.                                                |
++---------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Accelerator support | Accelerator drivers can be installed on Rocky target nodes in addition to   RHEL.                                                                                 |
++---------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 
