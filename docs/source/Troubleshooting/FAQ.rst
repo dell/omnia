@@ -103,6 +103,8 @@ After a reboot of the control plane while running ``provision.yml``, to bring up
 
     systemctl restart xcatd.service
 
+Alternatively, re-run the ``provision.yml`` playbook.
+
 **How to re-provision a server once it's been set up by xCAT**
 
 * Use ``lsdef -t osimage | grep install-compute`` to get a list of all valid OS profiles.
