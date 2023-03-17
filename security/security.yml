@@ -13,15 +13,23 @@
 # limitations under the License.
 ---
 
-- name: Validate input parameters
+- name: Validate input parameters and create offline repo
   hosts: localhost
   any_errors_fatal: true
   roles:
     - security_validation
+    - security_repo
   tags: freeipa, ldap
 
 - name: Gather facts from all the nodes
   hosts: manager, compute, login_node
+
+- name: Configure repo file and validate subscription
+  hosts: manager, login_node, compute
+  gather_facts: false
+  roles:
+    - repo_config
+  tags: freeipa, ldap
 
 - name: Add hosts to compute and login nodes
   hosts: manager, login_node, compute
