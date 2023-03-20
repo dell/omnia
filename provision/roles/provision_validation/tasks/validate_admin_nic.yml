@@ -76,3 +76,20 @@
         admin_nic_ip: "{{ lookup('vars', 'ansible_' + admin_nic).ipv4.address }}"
         admin_nic_netmask: "{{ lookup('vars', 'ansible_' + admin_nic).ipv4.netmask }}"
   when: network_interface_type == "dedicated"
+
+- name: Assign values to pxe nic
+  ansible.builtin.set_fact:
+    pxe_nic: "{{ admin_nic }}"
+    pxe_nic_ip: "{{ admin_nic_ip }}"
+    pxe_nic_subnet: "{{ admin_nic_subnet }}"
+    pxe_subnet: "{{ admin_nic_subnet }}"
+    pxe_nic_netmask: "{{ admin_nic_netmask }}"
+
+- name: Gather the MAC address of admin nic
+  ansible.builtin.set_fact:
+    pxe_mac_address: "{{ ansible_facts[pxe_nic]['macaddress'] | default(None) }}"
+
+- name: Set default pxe start and end ranges
+  ansible.builtin.set_fact:
+    pxe_nic_start_range: "{{ pxe_nic_start }}"
+    pxe_nic_end_range: "{{ pxe_nic_end }}"
