@@ -44,11 +44,6 @@
 
     - name: Run only when mapping+bmc is present
       block:
-        - name: Validate pxe_subnet
-          ansible.builtin.fail:
-            msg: "{{ pxe_subnet_msg }}"
-          when: admin_nic_subnet != pxe_subnet
-
         - name: Configure the admin and bmc nic
           ansible.builtin.include_tasks: enable_nic_configuration.yml
       when: (mapping_bmc_state) or (not metadata_status.stat.exists)
