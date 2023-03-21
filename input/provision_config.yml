@@ -105,17 +105,6 @@ admin_nic: "eno1"
 # Default value: "10.5.0.0"
 admin_nic_subnet: "10.5.0.0"
 
-#### Mandatory, discovery_mechanism: mapping or snmp or bmc
-### PXE NIC of Control Plane
-# This NIC will provide provisioning route information
-# Default value: "eno1"
-pxe_nic: "eno1"
-
-#### Mandatory, discovery_mechanism: mapping or snmp or bmc
-# The pxe subnet details should be provided.
-# Default value: "10.5.0.0"
-pxe_subnet: "10.5.0.0"
-
 #### Mandatory, discovery_mechanism: mapping
 ## PXE mapping file path details
 # The mapping file consists of the MAC address and its respective IP address and Hostname.

@@ -25,14 +25,6 @@
     - md_bmc_static_start_range is defined
     - md_bmc_static_end_range is defined
 
-- name: Validate pxe_subnet
-  ansible.builtin.assert:
-    that:
-      - pxe_subnet == md_pxe_subnet
-    success_msg: "{{ pxe_subnet_success_msg }}"
-    fail_msg: "{{ pxe_subnet_fail_msg }}"
-  when: md_pxe_subnet is defined
-
 - name: Validate bmc_nic_subnet
   ansible.builtin.assert:
     that:
