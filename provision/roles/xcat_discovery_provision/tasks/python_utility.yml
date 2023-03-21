@@ -13,11 +13,8 @@
 # limitations under the License.
 ---
 
-- name: Prepare control plane for provisioning
-  ansible.builtin.import_playbook: prepare_cp.yml
-
-- name: Create and update repositories
-  ansible.builtin.import_playbook: repo_manipulate.yml
-
-- name: Discover and provision nodes
-  ansible.builtin.import_playbook: discovery_provision.yml
+- name: Create omniadb database
+  ansible.builtin.command: |
+     {{ python_version }} {{ postgres_utility_path }}
+  register: postgres_status
+  changed_when: false

@@ -13,11 +13,25 @@
 # limitations under the License.
 ---
 
-- name: Prepare control plane for provisioning
-  ansible.builtin.import_playbook: prepare_cp.yml
+- name: Initialize all_node_status
+  ansible.builtin.set_fact:
+    all_node_status: false
 
-- name: Create and update repositories
-  ansible.builtin.import_playbook: repo_manipulate.yml
+- name: Fetch nodes with group all
+  ansible.builtin.command: lsdef all
+  changed_when: false
+  register: check_all_nodes
+  failed_when: false
 
-- name: Discover and provision nodes
-  ansible.builtin.import_playbook: discovery_provision.yml
+- name: Set all_node_status
+  ansible.builtin.set_fact:
+    all_node_status: true
+  when:
+    - check_all_nodes.stderr is defined
+    - '"error" not in check_all_nodes.stderr | lower'
+
+- name: Warning - not found any nodes
+  ansible.builtin.pause:
+    seconds: "{{ warning_wait_time }}"
+    prompt: "{{ all_nodes_warning_msg }}"
+  when: not all_node_status

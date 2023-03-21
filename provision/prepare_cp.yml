@@ -14,10 +14,8 @@
 ---
 
 - name: Prepare control plane for provisioning
-  ansible.builtin.import_playbook: prepare_cp.yml
-
-- name: Create and update repositories
-  ansible.builtin.import_playbook: repo_manipulate.yml
-
-- name: Discover and provision nodes
-  ansible.builtin.import_playbook: discovery_provision.yml
+  hosts: localhost
+  connection: local
+  roles:
+    - role: provision_validation
+    - role: xcat_prepare_cp
