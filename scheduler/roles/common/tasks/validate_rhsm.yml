@@ -78,3 +78,20 @@
           - "{{ compute_inactive_msg2 }}"
 
   when: "'manager' not in group_names"
+
+- name: Subscrbe for code ready builder repo in RHEL
+  command: subscription-manager repos --enable "{{ rhel_code_ready_repo }}"
+  changed_when: false
+
+- name: Install epel repo 8
+  command: dnf install "{{ rhel_epel_repo8 }}" -y
+  changed_when: false
+
+- name: Install libmodulemd
+  ansible.builtin.package:
+    name: libmodulemd
+    state: present
+
+- name: Upgrade libmodulemd
+  command: dnf upgrade libmodulemd -y
+  changed_when: false
