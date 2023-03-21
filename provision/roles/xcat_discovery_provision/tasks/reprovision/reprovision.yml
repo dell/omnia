@@ -13,11 +13,17 @@
 # limitations under the License.
 ---
 
-- name: Prepare control plane for provisioning
-  ansible.builtin.import_playbook: prepare_cp.yml
+- name: Extracting IP's
+  ansible.builtin.set_fact:
+    host_list: "{{ groups['all'] | join(' ') }}"
 
-- name: Create and update repositories
-  ansible.builtin.import_playbook: repo_manipulate.yml
+- name: Run python file
+  ansible.builtin.command: |
+       {{ python_version }} {{ re_prov_python_file }} {{ host_list }} {{ provision_os_image }}
+  register: py_output
+  changed_when: false
+  run_once: true
 
-- name: Discover and provision nodes
-  ansible.builtin.import_playbook: discovery_provision.yml
+- name: Reprovision Report
+  ansible.builtin.debug:
+    var=py_output.stdout_lines

@@ -13,11 +13,10 @@
 # limitations under the License.
 ---
 
-- name: Prepare control plane for provisioning
-  ansible.builtin.import_playbook: prepare_cp.yml
-
-- name: Create and update repositories
-  ansible.builtin.import_playbook: repo_manipulate.yml
-
-- name: Discover and provision nodes
-  ansible.builtin.import_playbook: discovery_provision.yml
+- name: Create offline repositories
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  roles:
+    - airgap_validation
+    - rhel
