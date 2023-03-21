@@ -13,11 +13,6 @@
 #  limitations under the License.
 ---
 
-- name: Set the network interface type if lom
-  ansible.builtin.set_fact:
-    network_interface_type: "lom"
-  when: lookup('vars', 'ansible_' + admin_nic).ipv4_secondaries[0].network is defined
-
 - name: Assert admin nic value
   ansible.builtin.assert:
     that:
@@ -93,3 +88,4 @@
   ansible.builtin.set_fact:
     pxe_nic_start_range: "{{ pxe_nic_start }}"
     pxe_nic_end_range: "{{ pxe_nic_end }}"
+  when: discovery_mechanism != discovery_method_switch_based

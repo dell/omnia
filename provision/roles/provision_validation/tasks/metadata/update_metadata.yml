@@ -35,13 +35,29 @@
     state: present
     line: 'md_discovery_mechanism: {{ discovery_mechanism }}'
 
-- name: Update md_pxe_subnet
+- name: Update md_network_interface_type
   ansible.builtin.lineinfile:
     path: "{{ meta_path }}"
-    regexp: '^md_pxe_subnet:(.*)$'
+    regexp: '^md_network_interface_type:(.*)$'
     insertafter: "EOF"
     state: present
-    line: 'md_pxe_subnet: {{ pxe_subnet }}'
+    line: 'md_network_interface_type: {{ network_interface_type }}'
+
+- name: Update md_admin_subnet
+  ansible.builtin.lineinfile:
+    path: "{{ meta_path }}"
+    regexp: '^md_admin_subnet:(.*)$'
+    insertafter: "EOF"
+    state: present
+    line: 'md_admin_subnet: {{ admin_nic_subnet }}'
+
+- name: Update md_pxe_nic_ip
+  ansible.builtin.lineinfile:
+    path: "{{ meta_path }}"
+    regexp: '^md_pxe_nic_ip:(.*)$'
+    insertafter: "EOF"
+    state: present
+    line: 'md_pxe_nic_ip: {{ admin_nic_ip }}'
 
 - name: Update metadata.yml file for bmc discovery_mechanism
   block:
@@ -70,11 +86,3 @@
     state: present
     line: 'md_bmc_nic_subnet: {{ bmc_nic_subnet }}'
   when: bmc_nic_subnet | default("", true) | length > 1
-
-- name: Update pxe_nic_ip
-  ansible.builtin.lineinfile:
-    path: "{{ meta_path }}"
-    regexp: '^md_pxe_nic_ip:(.*)$'
-    insertafter: "EOF"
-    state: present
-    line: 'md_pxe_nic_ip: {{ pxe_nic_ip }}'

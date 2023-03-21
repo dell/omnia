@@ -26,25 +26,25 @@
 - name: Include provision configuration variables
   ansible.builtin.include_tasks: include_provision_config.yml
 
-- name: Validate discovery parameters
-  ansible.builtin.include_tasks: validate_discovery_params.yml
-
 - name: Create metadata
   ansible.builtin.include_tasks: metadata/main.yml
 
+- name: Validate network interface type
+  ansible.builtin.include_tasks: validate_network_interface.yml
+
 - name: Assign nic configuration when discovery mechanism is mapping or snmp
   ansible.builtin.include_tasks: assign_admin_nic_config.yml
-  when:
-    - discovery_mechanism == discovery_method_snmp or
-      discovery_mechanism == discovery_method_mapping
-    - not metadata_status.stat.exists
+  when: network_interface_type == "dedicated"
 
 - name: Assign nic configuration when discovery mechanism is bmc
   ansible.builtin.include_tasks: assign_nic_config.yml
-  when: discovery_mechanism == discovery_method_bmc
+  when: network_interface_type == "lom"
 
 - name: Validate the nic parameters
   ansible.builtin.include_tasks: validate_cp_nic.yml
+
+- name: Validate discovery parameters
+  ansible.builtin.include_tasks: validate_discovery_params.yml
 
 - name: Validate provision parameters
   ansible.builtin.include_tasks: validate_provision_vars.yml

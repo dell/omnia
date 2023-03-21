@@ -13,16 +13,15 @@
 #  limitations under the License.
 ---
 
-- name: Set fact for BMC NIC IP and netmask details
+- name: Initialize variables
   ansible.builtin.set_fact:
-    bmc_nic: "{{ admin_nic }}"
-    bmc_nic_ip: "{{ omnia_bmc_ip }}"
-    bmc_nic_netmask: "{{ omnia_bmc_netmask }}"
+    network_interface_type: "{{ network_interface_type | lower }}"
 
-- name: Set fact for BMC NIC IP and netmask details
-  ansible.builtin.set_fact:
-    admin_nic_ip: "{{ omnia_admin_ip }}"
-    admin_nic_netmask: "{{ omnia_admin_netmask }}"
-
-- name: Configure the admin and bmc nic
-  ansible.builtin.include_tasks: enable_nic_configuration.yml
+- name: Assert network_interface_type
+  ansible.builtin.assert:
+    that:
+      - network_interface_type | length > 1
+      - network_interface_type == "lom" or
+        network_interface_type == "dedicated"
+    success_msg: "{{ network_interface_success_msg }}"
+    fail_msg: "{{ network_interface_fail_msg }}"

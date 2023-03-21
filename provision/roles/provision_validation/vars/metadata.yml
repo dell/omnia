@@ -19,8 +19,9 @@ meta_dest: "/opt/omnia/.data/"
 discovery_mech_fail_msg: "snmp over any other discovery_mechanism wont be allowed,
 please change rhe discovery_mechanism in provision_config.yml and re-run the provision.yml"
 discovery_method_bmc: "bmc"
-discovery_method_snmp: "snmp"
+discovery_method_snmp: "snmpwalk"
 discovery_method_mapping: "mapping"
+discovery_method_switch_based: "switch_based"
 
 # Usage: validate_discovery_mech_params.yml
 ranges_success_msg: "Successfully validated {{ discovery_mechanism }} ranges with earlier execution ranges"
@@ -28,6 +29,9 @@ ranges_fail_msg: "bmc static ranges provided during previous execution is differ
 Omnia does not support different IP ranges in consecutive executions."
 pxe_subnet_success_msg: "Validated pxe_subnet with earlier execution"
 pxe_subnet_fail_msg: "Failed. pxe_subnet provided in provision_config.yml during previous execution is different from the value provided in current execution"
+admin_nic_subnet_success_msg: "Validated admin_nic_subnet with earlier execution"
+admin_nic_subnet_fail_msg: "Failed. admin_nic_subnet provided in provision_config.yml during previous execution is different from the value provided in current execution"
 md_bmc_nic_subnet_success_msg: "Validated bmc_nic_subnet with earlier execution"
 md_bmc_nic_subnet_fail_msg: "Failed. bmc_nic_subnet provided in provision_config.yml during previous execution is different
 from the value provided in current execution"
+network_interface_type_fail_msg: "Failed.Network interface type should be constant for all the runs of Omnia."
