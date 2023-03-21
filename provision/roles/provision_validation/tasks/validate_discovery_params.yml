@@ -23,18 +23,42 @@
       - discovery_mechanism | default("", true)  | length < 1 or
         discovery_mechanism == discovery_method_bmc or
         discovery_mechanism == discovery_method_snmp or
-        discovery_mechanism == discovery_method_mapping
+        discovery_mechanism == discovery_method_mapping or
+        discovery_mechanism == discovery_method_switch_based
     success_msg: "{{ discovery_success_msg }}"
     fail_msg: "{{ discovery_fail_msg }}"
+
+- name: Assert discovery_mechanism
+  ansible.builtin.assert:
+    that:
+      - discovery_mechanism == discovery_method_bmc or
+        discovery_mechanism == discovery_method_mapping or
+        discovery_mechanism == discovery_method_switch_based
+    success_msg: "{{ lom_discovery_success_msg }}"
+    fail_msg: "{{ lom_discovery_fail_msg }}"
+  when: network_interface_type == "lom"
+
+- name: Assert discovery_mechanism
+  ansible.builtin.assert:
+    that:
+      - discovery_mechanism == discovery_method_mapping or
+        discovery_mechanism == discovery_method_snmp
+    success_msg: "{{ dedicated_discovery_success_msg }}"
+    fail_msg: "{{ dedicated_discovery_fail_msg }}"
+  when: network_interface_type == "dedicated"
 
 - name: Validate the BMC parameters
   ansible.builtin.include_tasks: mtms/main.yml
   when: discovery_mechanism == discovery_method_bmc
 
-- name: Validate the switch related parameters
-  ansible.builtin.include_tasks: validate_switch_vars.yml
+- name: Validate the snmpwalk related parameters
+  ansible.builtin.include_tasks: snmp/validate_switch_vars.yml
   when: discovery_mechanism == discovery_method_snmp
 
-- name: Validate the switch related parameters
-  ansible.builtin.include_tasks: validate_mapping_file.yml
+- name: Validate the mapping related parameters
+  ansible.builtin.include_tasks: mapping/validate_mapping_file.yml
   when: discovery_mechanism == discovery_method_mapping
+
+- name: Validate the switch based related parameters
+  ansible.builtin.include_tasks: switch_based/main.yml
+  when: discovery_mechanism == discovery_method_switch_based

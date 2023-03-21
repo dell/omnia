@@ -25,6 +25,19 @@
     - md_bmc_static_start_range is defined
     - md_bmc_static_end_range is defined
 
+- name: Fail if md_network_interface_type and network_interface_type do not match
+  ansible.builtin.fail:
+    msg: "{{ network_interface_type_fail_msg }}"
+  when: md_network_interface_type != network_interface_type
+
+- name: Validate admin_nic_subnet
+  ansible.builtin.assert:
+    that:
+      - admin_nic_subnet == md_admin_nic_subnet
+    success_msg: "{{ admin_nic_subnet_success_msg }}"
+    fail_msg: "{{ admin_nic_subnet_fail_msg }}"
+  when: md_admin_nic_subnet is defined
+
 - name: Validate bmc_nic_subnet
   ansible.builtin.assert:
     that:

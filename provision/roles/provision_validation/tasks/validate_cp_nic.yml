@@ -46,7 +46,6 @@
 
 - name: Initialize variables
   ansible.builtin.set_fact:
-    network_interface_type: "dedicated"
     roce_enabled: false
     ib_status: false
     bmc_postscripts_config_status: false
