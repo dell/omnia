@@ -23,8 +23,11 @@ ip_ranges_fail_msg: "Failed. Please provide proper IP ranges."
 pxe_nic_start: "{{ pxe_subnet.split('.')[0] + '.' + pxe_subnet.split('.')[1] + '.' + ip_start_range.split('.')[-2] + '.' + ip_start_range.split('.')[-1] }}"
 pxe_nic_end: "{{ pxe_subnet.split('.')[0] + '.' + pxe_subnet.split('.')[1] + '.' + ip_end_range.split('.')[-2] + '.' +  ip_end_range.split('.')[-1] }}"
 
-ib_nic_start: "{{ ib_nic_subnet.split('.')[0] + '.' + ib_nic_subnet.split('.')[1] + '.' + ip_start_range.split('.')[-2] + '.' +  ip_start_range.split('.')[-1] }}"
+ib_nic_start: "{{ ib_nic_subnet.split('.')[0] + '.' + ib_nic_subnet.split('.')[1] + '.'
++ ip_start_range.split('.')[-2] + '.' +  ip_start_range.split('.')[-1] }}"
 ib_nic_end: "{{ ib_nic_subnet.split('.')[0] + '.' + ib_nic_subnet.split('.')[1] + '.' + ip_end_range.split('.')[-2] + '.' +  ip_end_range.split('.')[-1] }}"
 
-bmc_nic_start: "{{ bmc_nic_subnet.split('.')[0] + '.' + bmc_nic_subnet.split('.')[1] + '.' + ip_start_range.split('.')[-2] + '.' +  ip_start_range.split('.')[-1] }}"
-bmc_nic_end: "{{ bmc_nic_subnet.split('.')[0] + '.' + bmc_nic_subnet.split('.')[1] + '.' + ip_end_range.split('.')[-2] + '.' +  ip_end_range.split('.')[-1] }}"
+bmc_nic_start: "{{ bmc_nic_subnet.split('.')[0] + '.' + bmc_nic_subnet.split('.')[1] + '.'
++ ip_start_range.split('.')[-2] + '.' +  ip_start_range.split('.')[-1] }}"
+bmc_nic_end: "{{ bmc_nic_subnet.split('.')[0] + '.' + bmc_nic_subnet.split('.')[1] + '.'
++ ip_end_range.split('.')[-2] + '.' +  ip_end_range.split('.')[-1] }}"
