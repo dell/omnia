@@ -4,11 +4,17 @@ Discovery Mechanisms
 Depending on the value of ``discovery_mechanism`` in ``input/provision_config.yml``, potential target servers can be discovered one of three ways:
 
 .. toctree::
+    switch-based
     mappingfile
     snmp
     bmc
 
-**Mapping File**
+
+**Switch-based**
+
+
+
+**Mapping file**
 
 Manually collect PXE NIC information for target servers and manually define them to Omnia using a mapping file using the below format:
 
