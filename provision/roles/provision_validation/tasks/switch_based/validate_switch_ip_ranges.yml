@@ -22,9 +22,15 @@
     fail_msg: "{{ ip_ranges_fail_msg }}"
 
 - name: Validate proper ip start and end ranges are provided
-  ansible.builtin.set_fact:
-    ip_start_split: "{{ ip_start_range | split('.') }}"
-    ip_end_split: "{{ ip_end_range | split('.') }}"
+  block:
+    - name: Validate ip ranges
+      ansible.builtin.set_fact:
+        ip_start_split: "{{ ip_start_range | split('.') }}"
+        ip_end_split: "{{ ip_end_range | split('.') }}"
+  rescue:
+    - name: Assert proper IP ranges
+      ansible.builtin.fail:
+        msg: "{{ ip_ranges_fail_msg }}"
 
 - name: Fail if proper ip start and end ranges not provided
   ansible.builtin.fail:
