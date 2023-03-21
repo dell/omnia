@@ -13,7 +13,7 @@
 #  limitations under the License.
 ---
 
-- name: Set fact for BMC NIC IP and netmask details
+- name: Set fact for Admin NIC IP and netmask details
   ansible.builtin.set_fact:
     admin_nic_ip: "{{ omnia_admin_ip }}"
     admin_nic_netmask: "{{ omnia_admin_netmask }}"

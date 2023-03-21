@@ -14,45 +14,56 @@
 ---
 
 # Mandatory
+# This variable is used to depict the network type for the omnia cluster
+# Lom is supported by discovery_mechanism: mapping, bmc and switch_based
+# Dedicated is supported by discovery_mechanism: mapping and snmpwalk
+# Accepted values: lom, dedicated
+# Default value: lom
+network_interface_type: "lom"
+
+# Mandatory
+# If lom, discovery_mechanism can be switch_based or mapping or bmc
+# If dedicated, discovery_mechanism can be mapping or snmpwalk.
 # This will specify the mechanism through which Omnia will discover nodes for provisioning.
-# Accepted values: mapping, bmc, snmp
 # mapping indicates that the user has provided a valid mapping file path with details regarding MAC ID of the NIC, IP address and hostname.
 # bmc indicates the servers in the cluster will be discovered by Omnia using BMC.
 # bmc requirement is user should enable IPMI over LAN in iDRAC settings if the iDRACs are in static mode.
-# snmp indicates Omnia will discover the nodes based on the switch IP (to which the cluster servers are connected) provided. SNMP should be enabled on the switch.
-# Default: mapping
-discovery_mechanism: "mapping"
+# snmpwalk indicates Omnia will discover the nodes based on the switch IP (to which the cluster servers are connected) provided. SNMP should be enabled on the switch.
+# switch_based uses snmp v3 to find and provision servers connected on particular ports of a switch.SNMPv3 should be enabled on switches.
+# Accepted values: mapping, bmc, snmpwalk, switch_based
+# Default: switch_based
+discovery_mechanism: "switch_based"
 
-#### Mandatory, discovery_mechanism: mapping or snmp or bmc
+#### Mandatory, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
 # This is the operating system image that will be used for provisioning compute nodes in the cluster.
 # Accepted values: rocky, rhel
 # Default value: "rhel"
 provision_os: "rhel"
 
-#### Mandatory, discovery_mechanism: mapping or snmp or bmc
+#### Mandatory, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
 # OS version of provision_os to be installed
 # Supported values for rhel/rocky: 8.0, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7
 provision_os_version: 8.6
 
-#### Mandatory, discovery_mechanism: mapping or snmp or bmc
+#### Mandatory, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
 # Path where user has placed the iso image that needs to be provisioned on target nodes.
 # The iso file should be Rocky8-DVD or RHEL-8.x-DVD (full OS).
 # iso_file_path should contain provision_os and provision_os_version values in filename
 iso_file_path: "/home/RHEL-8.6.0-20220420.3-x86_64-dvd1.iso"
 
-#### Mandatory, discovery_mechanism: mapping or snmp or bmc
+#### Mandatory, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
 # Timezone that needs to be set during OS provisioning.
 # Available timezones are provided in provision/roles/provision_validation/files/timezone.txt
 # Default: "GMT"
 # Few accepted values: EST,CET,MST,CST6CDT,PST8PDT
 timezone: "GMT"
 
-#### Mandatory, discovery_mechanism: mapping or snmp or bmc
+#### Mandatory, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
 # Language that needs to be set during OS provisioning.
 # Default language supported is "en-US"
 language: "en-US"
 
-#### Mandatory, discovery_mechanism: mapping or snmp or bmc
+#### Mandatory, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
 # Default lease time needs to be used by DHCP
 # Unit: seconds
 # Min: 21600
@@ -60,19 +71,19 @@ language: "en-US"
 # Max: 31536000
 default_lease_time: "86400"
 
-#### Mandatory, discovery_mechanism: mapping or snmp or bmc
+#### Mandatory, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
 # Password that needs to be set during OS provisioning for root users.
 # Length >= 8 characters
 # Password must not contain -,\, ',"
 provision_password: ""
 
-#### Mandatory, discovery_mechanism: mapping or snmp or bmc
+#### Mandatory, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
 # Password that needs to be set for postgres database.
 # Length >= 8 characters
 # Password should contain only alphanumeric characters
 postgresdb_password: ""
 
-#### Mandatory, discovery_mechanism: snmp or bmc
+#### Mandatory, discovery_mechanism: switch_based or bmc or snmpwalk
 # If, discovery_mechanism: mapping , the hostname is part of mapping file (pxe_mapping_file_path).
 # Prefix for the node names, if needed to be dynamically allocated.
 # Hostname = node_name + '0000x' + domain_name
@@ -80,7 +91,7 @@ postgresdb_password: ""
 # Example: servernode00001.Omnia.test , where node_name=servernode, domain_name=Omnia.test , 00001 used by Omnia
 node_name: "node"
 
-#### Mandatory, discovery_mechanism: mapping or snmp or bmc
+#### Mandatory, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
 # Domain name the user intends to configure on the cluster.
 # Please provide a valid domain name according to the domain name standards.
 # Hostname = node_name + '0000x' + domain_name
@@ -89,18 +100,18 @@ node_name: "node"
 # Examples: abcd.test, ipa.test
 domain_name: ""
 
-#### Mandatory, discovery_mechanism: mapping or snmp or bmc
+#### Mandatory, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
 ### Public NIC of Control Plane
 # The nic/ethernet card that is connected to the public internet.
 public_nic: "eno2"
 
-#### Mandatory, discovery_mechanism: mapping or snmp or bmc
+#### Mandatory, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
 ### Admin NIC of Control Plane
 # This is the shared LOM nic.
 # Default value: "eno1"
 admin_nic: "eno1"
 
-#### Mandatory, discovery_mechanism: mapping or snmp or bmc
+#### Mandatory, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
 # Only last 16 bits/2 octets of IPv4 are dynamic
 # Default value: "10.5.0.0"
 admin_nic_subnet: "10.5.0.0"
@@ -116,13 +127,32 @@ admin_nic_subnet: "10.5.0.0"
 # Example: xx:yy:zz:aa:bb:cc,server,172.17.0.5
 pxe_mapping_file_path: ""
 
-#### Mandatory, discovery_mechanism: snmp
-# PXE switch that will be connected to all iDRACs for provisioning
-# Ensure that SNMP is enabled on the mentioned switch.
-pxe_switch_ip: ""
-pxe_switch_snmp_community_string: "public"
+#### Mandatory, discovery_mechanism: switch_based
+# Ports indicates where port no. where the servers are connected.
+# If split port is needed, use colon (:) as shown in example below.
+# Example1:
+#   - { ip: 172.96.28.12, ports: '1-48,49:3,50' }
+# Example2 with 2 switches:
+#   - { ip: 172.96.28.12, ports: '1-48,49:3,50' }
+#   - { ip: 172.96.28.14, ports: '1,2,3,5' }
+switch_based_details:
+  - { ip: , ports: '' }
 
-#### Optional, discovery_mechanism: mapping or snmp or bmc
+#### Mandatory, discovery_mechanism: switch_based
+# If multiple switches are provided, these credentials should be same across all the switches.
+# The username and password must not contain -,\, ',"
+switch_snmp3_username: ""
+switch_snmp3_password: ""
+
+#### Mandatory, discovery_mechanism: switch_based
+# This indicated the IP ranges for all the NICs (Admin, BMC, IB).
+# Example:
+# If ip_start_range: "x.y.0.1" and ip_end_range: "x.y.0.255" and admin_nic_subnet: "10.5.0.0",
+# admin_nic_start_range: "10.5.0.1" and admin_nic_end_range: "10.5.0.255"
+ip_start_range: "x.y.0.1"
+ip_end_range: "x.y.0.255"
+
+#### Optional, discovery_mechanism: mapping or snmpwalk or bmc
 ## IB NIC Details
 # If provided, Omnia will handle and assign static IPs to compute node's IB network.
 # Only last 16 bits/2 octets of IPv4 are dynamic
@@ -132,7 +162,7 @@ pxe_switch_snmp_community_string: "public"
 # Example: 10.10.0.0
 ib_nic_subnet: ""
 
-#### Optional, discovery_mechanism: mapping or snmp
+#### Optional, discovery_mechanism: mapping or switch_based or snmpwalk
 #### Mandatory, discovery_mechanism: bmc
 ## BMC NIC of Control Plane
 # If provided, Omnia will handle and assign IPs to the iDRACs.
@@ -142,6 +172,16 @@ ib_nic_subnet: ""
 # Example: 10.3.0.0
 bmc_nic_subnet: ""
 
+#### Mandatory, discovery_mechanism: bmc, switch_based
+# The username for idrac
+# The username must not contain -,\, ',"
+bmc_username: ""
+
+#### Mandatory, discovery_mechanism: bmc, switch_based
+# Password used for idrac
+# The password must not contain -,\, ',"
+bmc_password: ""
+
 #### Mandatory, discovery_mechanism: bmc
 # The dhcp range for discovering the static IP assigned iDRACs within the given range.
 # For the range 10.3.0.50 to 10.3.4.100 then, bmc_static_start_range: 10.3.0.50, bmc_static_end_range: 10.3.4.100
@@ -150,23 +190,19 @@ bmc_nic_subnet: ""
 bmc_static_start_range: ""
 bmc_static_end_range: ""
 
-#### Mandatory, discovery_mechanism: bmc
-# The username for idrac
-# The username must not contain -,\, ',"
-bmc_username: ""
+#### Mandatory, discovery_mechanism: snmpwalk
+# PXE switch that will be connected to all iDRACs for provisioning
+# Ensure that SNMP is enabled on the mentioned switch.
+pxe_switch_ip: ""
+pxe_switch_snmp_community_string: "public"
 
-#### Mandatory, discovery_mechanism: bmc
-# Password used for idrac
-# The password must not contain -,\, ',"
-bmc_password: ""
-
-#### Optional, discovery_mechanism: mapping or snmp or bmc
+#### Optional, discovery_mechanism:mapping or switch_based or bmc or snmpwalk
 # The DNS servers IP addresses for internet access on compute nodes(through DHCP routing)
 # If empty, a separate public internet nic should be present in compute nodes for internet access.
 primary_dns: ""
 secondary_dns: ""
 
-#### Optional, discovery_mechanism: mapping or snmp or bmc
+#### Optional, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
 # User defined disk partition applied to remote servers
 # Unit: MB
 # Accepted mount_point: /home, /var, /tmp, /usr, swap
@@ -177,7 +213,7 @@ secondary_dns: ""
 disk_partition:
   - { mount_point: "", desired_capacity: "" }
 
-#### Optional, discovery_mechanism: mapping or snmp or bmc
+#### Optional, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
 # Absolute path to local copy of .iso file containing Mellanox OFED packages.
 # The iso can be downloaded from https://network.nvidia.com/products/infiniband-drivers/linux/mlnx_ofed/
 # OFED will be installed post provisioning without any user intervention requirement
@@ -185,7 +221,7 @@ disk_partition:
 # mlnx_ofed_path: /root/MLNX_OFED_LINUX-5.8-1.1.2.1-rhel8.6-x86_64.iso
 mlnx_ofed_path:
 
-#### Optional, discovery_mechanism: mapping or snmp or bmc
+#### Optional, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
 # Absolute path to local copy of .rpm file containing CUDA packages.
 # The cuda rpm can be downloaded from https://developer.nvidia.com/cuda-downloads
 # CUDA will be installed post provisioning without any user intervention requirement
