@@ -13,11 +13,20 @@
 # limitations under the License.
 ---
 
-- name: Prepare control plane for provisioning
-  ansible.builtin.import_playbook: prepare_cp.yml
-
-- name: Create and update repositories
-  ansible.builtin.import_playbook: repo_manipulate.yml
-
 - name: Discover and provision nodes
-  ansible.builtin.import_playbook: discovery_provision.yml
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Verify validation_status
+      ansible.builtin.include_role:
+        name: provision_validation
+        tasks_from: validation_status_check.yml
+
+    - name: Discover and provision nodes
+      ansible.builtin.include_role:
+        name: xcat_discovery_provision
+
+    - name: Update metadata file
+      ansible.builtin.include_role:
+        name: provision_validation
+        tasks_from: metadata/update_metadata.yml

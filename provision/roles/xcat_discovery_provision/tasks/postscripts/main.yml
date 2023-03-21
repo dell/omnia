@@ -13,11 +13,13 @@
 # limitations under the License.
 ---
 
-- name: Prepare control plane for provisioning
-  ansible.builtin.import_playbook: prepare_cp.yml
+- name: Check all node group status
+  ansible.builtin.include_tasks: check_nodes_all.yml
 
-- name: Create and update repositories
-  ansible.builtin.import_playbook: repo_manipulate.yml
+- name: Configuration of postbootscripts
+  ansible.builtin.include_tasks: configure_postbootscripts.yml
+  when: all_node_status
 
-- name: Discover and provision nodes
-  ansible.builtin.import_playbook: discovery_provision.yml
+- name: Configuration of postscripts
+  ansible.builtin.include_tasks: configure_postscripts.yml
+  when: all_node_status

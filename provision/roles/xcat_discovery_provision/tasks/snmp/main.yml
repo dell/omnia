@@ -13,11 +13,13 @@
 # limitations under the License.
 ---
 
-- name: Prepare control plane for provisioning
-  ansible.builtin.import_playbook: prepare_cp.yml
+- name: Update db when discovery method is snmp
+  ansible.builtin.include_tasks: update_db_snmp.yml
+  when: not reprovision_status
 
-- name: Create and update repositories
-  ansible.builtin.import_playbook: repo_manipulate.yml
+- name: Create node object for snmp discovery
+  ansible.builtin.include_tasks: node_object_creation_snmp.yml
+  when: not reprovision_status
 
-- name: Discover and provision nodes
-  ansible.builtin.import_playbook: discovery_provision.yml
+- name: Check snmp node group status
+  ansible.builtin.include_tasks: check_nodes_snmp.yml

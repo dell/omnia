@@ -13,30 +13,17 @@
 # limitations under the License.
 ---
 
-- name: Include provision_config.yml
-  hosts: localhost
-  connection: local
-  gather_facts: true
-  tasks:
-    - name: Include provision_config.yml
-      ansible.builtin.include_role:
-        name: provision_validation
-        tasks_from: include_provision_config.yml
-
 - name: Executing post provision roles
   hosts: localhost
   connection: local
   gather_facts: true
-  tasks:
-    - name: Create node inventory
-      ansible.builtin.include_role:
-        name: xcat
-        tasks_from: create_node_inventory.yml
+  roles:
+    - post_provision
 
 - name: Executing post provision configuration tasks
   hosts: node_inventory
   tasks:
     - name: Create provisioned node inventory
       ansible.builtin.include_role:
-        name: xcat
+        name: post_provision
         tasks_from: provisioned_node_inventory.yml
