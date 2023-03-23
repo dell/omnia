@@ -12,11 +12,16 @@ Provisioning the cluster
     cd provision
     ansible-playbook provision.yml
 
-3. By running ``provision.yml``, the following configurations take place:
+3. The provision tool runs in three stages that can be called individually:
 
-a. All compute nodes in cluster will be enabled for PXE boot with osimage mentioned in ``provision_config.yml``.
+**prepare_cp.yml**
 
-b. A PostgreSQL database is set up with all relevant cluster information such as MAC IDs, hostname, admin IP, infiniband IPs, BMC IPs etc.
+a. Verifies pre-requisites such as SeLinux and xCat services status.
+b. Installs required packages.
+c. Verifies and updates firewall settings.
+d. Installs xCAT (from tarball).
+e. Configures xCAT (pxe nic, postgresdb pwd, disk partition for remote servers, dns servers for internet access, DHCP leases time, timezone).
+f. PostgreSQL database is set up with all relevant cluster information such as MAC IDs, hostname, admin IP, infiniband IPs, BMC IPs etc.
 
     To access the DB, run: ::
 
@@ -46,15 +51,27 @@ Possible values of status are static, powering-on, installing, bmcready, booting
 
 .. note:: For nodes listing status as 'failed', provisioning logs can be viewed in ``/var/log/xcat/xcat.log`` on the target nodes.
 
-c. Offline repositories will be created based on the OS being deployed across the cluster.
+To call this playbook individually, ensure that ``input/provision_config.yml`` is updated and then run::
 
-d. The xCAT post bootscript is configured to assign the hostname (with domain name) on the provisioned servers.
+    ansible-playbook prepare_cp.yml
 
-e. A repository of commonly used packages will be installed by default on target nodes during provisioning. ::
+**repo_manipulate.yml**
 
-    wget, tar, zip, firewalld, sshpass, nfs-utils, gcc, make, ipmitool, racadm
+Creates and updates all repositories required locally.
 
-Once the playbook execution is complete, ensure that PXE boot and RAID configurations are set up on remote nodes. Users are then expected to reboot target servers discovered via SNMP or mapping to provision the OS.
+To call this playbook individually, ensure that ``prepare_cp.yml`` has run at least once and then run::
+
+    ansible-playbook repo_manipulate.yml
+
+**discovery_provision.yml**
+
+Assigns and provisions all target servers specified in ``input/provision_config.yml``.
+
+To call this playbook individually, ensure that ``repo_manipulate.yml`` has run at least once and then run::
+
+    ansible-playbook discovery_provision.yml
+
+
 
 .. note::
 
