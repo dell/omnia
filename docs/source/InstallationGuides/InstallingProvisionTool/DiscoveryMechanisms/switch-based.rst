@@ -20,6 +20,10 @@ Switch-Based
 
 * Target servers should be configured to boot in PXE mode with appropriate NIC as the first boot device.
 
+.. warning:: Do not use daisy chain ports in ``switch_based_details`` in ``input/provision_config.yml``. This can cause IP conflicts on servers attached to potential target ports.
+
+.. note:: The IP range *x.y.246.1* - *x.y.255.253* (where x and y are provided by the first two octets of ``bmc_nic_subnet``) are reserved by Omnia.
+
 The following parameters need to be populated in ``input/provision_config.yml`` to discover target nodes using a mapping file.
 
 +------------------------+--------------------------------------------------------+-------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+

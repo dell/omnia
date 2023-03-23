@@ -1,4 +1,4 @@
-BMC
+bmc
 ---
 
 For automatic provisioning of servers and discovery, the BMC method can be used.

@@ -10,7 +10,7 @@ Edit the ``input/provision_config.yml`` file to update the required variables.
 Optional configurations managed by the provision tool
 +++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-***Installing CUDA**
+**Installing CUDA**
 
 **Using the provision tool**
 

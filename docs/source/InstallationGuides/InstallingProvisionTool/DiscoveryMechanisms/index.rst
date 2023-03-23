@@ -12,7 +12,7 @@ Depending on the value of ``discovery_mechanism`` in ``input/provision_config.ym
 
 **Switch-based**
 
-Omnia can query known switches (by username/password) for information on target node MAC IDs.
+Omnia can query known switches (by SNMPv3 username/password) for information on target node MAC IDs.
 
 **Pros**
 
@@ -22,11 +22,14 @@ Omnia can query known switches (by username/password) for information on target 
 
 - Re-provisioning of servers will be automatic.
 
+- PXE booting servers is supported via split ports on the swtich.
+
 **Cons**
 
 - Users need to enable IPMI on target servers.
 - Servers require a manual PXE boot after the first run of the provision tool
 
+For more information regarding BMC, `click here <switch-based.html>`_
 
 **Mapping file**
 
@@ -79,7 +82,7 @@ Omnia can also discover nodes via their iDRAC using IPMI.
 **Pros**
 
     - Discovery and provisioning of servers is automatic.
-    - Admin and BMC IP address configuration is automatic on the control plane.
+    - Admin, BMC and Infiniband IP address configuration is automatic on the control plane.
 
 **Cons**
 
