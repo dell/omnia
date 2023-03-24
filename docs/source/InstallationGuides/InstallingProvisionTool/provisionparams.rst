@@ -9,7 +9,7 @@ Fill in all provision-specific parameters in ``input/provision_config.yml``
    :file: Provision_confg.csv
    :header-rows: 1
    :class: longtable
-   :widths: 2 1 2 2
+   :widths: 1 1 1 1
 
 .. warning::
 
