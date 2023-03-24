@@ -11,20 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
----
 
-- name: Create and update repositories
-  hosts: localhost
-  connection: local
-  tasks:
-    - name: Verify validation_status
-      ansible.builtin.include_role:
-        name: provision_validation
-        tasks_from: validation_status_check.yml
-
-    - name: Create and update repositories
-      ansible.builtin.include_role:
-        name: xcat_repo_manipulate
-
-- name: Create offline repositories
-  ansible.builtin.import_playbook: ../airgap/airgap.yml
+os_supported_rhel: "redhat"
+subscription_warning_msg: "[WARNING] redhat subscription not enabled. Please enable the subscription and proceed."
+rhsm_release_file_path: "/opt/omnia/.data/rhsm_release"
