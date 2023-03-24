@@ -33,3 +33,6 @@
 - name: Fetch LDAP client inputs
   ansible.builtin.include_tasks: fetch_ldap_client_inputs.yml
   when: ldap_required
+
+- name: Check xcat installation status
+  ansible.builtin.include_tasks: xcat_status_check.yml

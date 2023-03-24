@@ -18,17 +18,16 @@
   any_errors_fatal: true
   roles:
     - security_validation
-    - security_repo
   tags: freeipa, ldap
 
 - name: Gather facts from all the nodes
   hosts: manager, compute, login_node
 
-- name: Configure repo file and validate subscription
+- name: Validate repo file and subscription
   hosts: manager, login_node, compute
   gather_facts: false
   roles:
-    - repo_config
+    - repo_validation
   tags: freeipa, ldap
 
 - name: Add hosts to compute and login nodes
