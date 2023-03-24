@@ -13,13 +13,18 @@
 #  limitations under the License.
 ---
 
-# Usage: xcat_status_check.yml
-metadata_path: "/opt/omnia/.data/metadata.yml"
-missing_metadata_fail_msg: "xCAT services are running and metadata file not found.
-Please re-run provision.yml and verify all the tasks are executed without any errors."
+- name: Saving distribution of os
+  ansible.builtin.set_fact:
+    compute_os: "{{ ansible_facts['distribution'] | lower }}"
 
-# Usage: create_repo.yml
-omnia_cluster_xcat_repo: /install/omnia-cluster/x86_64/RHEL8/
-repo_permission: "755"
-login_node_repo_packages: "mailx postfix gcc gzip make procps-ng socat tar wget psacct python38"
-ldap_repo_packages: "oddjob-mkhomedir openldap-clients openssl-perl sssd sssd-ldap sssd-kcm"
+- name: Check repo file configured in nodes
+  ansible.builtin.include_tasks: repo_check.yml
+  when:
+    - hostvars['127.0.0.1']['xcat_installation_status']
+    - compute_os == os_supported_redhat
+
+- name: Validate subscription if xcat not installed
+  ansible.builtin.include_tasks: validate_rhsm.yml
+  when:
+    - not hostvars['127.0.0.1']['xcat_installation_status']
+    - compute_os == os_supported_redhat
