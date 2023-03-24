@@ -13,12 +13,6 @@
 #  limitations under the License.
 ---
 
-# Usage: configure_dhcp.yml
-dhcp_config_fail_msg: "Failed. makedhcp -n command is not successful. Error:"
-hosts_entry_warning_msg: "[WARNING] makehosts all command is not successful. Error:"
-dhcp_config_apply_fail_msg: "Failed. makedhcp -a command is not successful. Error:"
-dns_config_warning_msg: "[WARNING] makedns -n command is not successful. Error:"
-
 # Usage: configure_postscripts_bmc.yml
 bmc_postscripts_path:
   - { src: "{{ role_path }}/files/postscripts/omnia_bmc_config", dest: "/install/postscripts/omnia_bmc_config", mode: "755" }
