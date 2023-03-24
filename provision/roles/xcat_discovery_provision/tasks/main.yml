@@ -29,6 +29,10 @@
       ansible.builtin.include_tasks: python_utility.yml
       when: not reprovision_status
 
+    - name: Configuation for discovery using switch_based mode
+      ansible.builtin.include_tasks: switch_based/main.yml
+      when: not reprovision_status
+
     - name: Configuation for discovery using BMC mode
       ansible.builtin.include_tasks: mtms/main.yml
       when: not reprovision_status

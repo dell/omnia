@@ -116,14 +116,14 @@ bmc_nic_end: "{{ bmc_nic_subnet.split('.')[0] + '.' + bmc_nic_subnet.split('.')[
 
 # Usage: validate_switch_vars.yml
 pxe_switch_ip_valid: "Valid switch ip provided"
-pxe_switch_ip_invalid: " Failed. Provide a valid switch ip"
+pxe_switch_ip_invalid: " Failed. Provide a valid switch ip in provision_config.yml"
 fail_switch_or_mapping_file: "Failed. Please provide PXE switch details.
 If switch details are given,then provide proper node_name too."
-pxe_switch_unreachable: "Failed. Given switch is unreachable. Please provide correct switch IP."
+pxe_switch_unreachable: "Failed. Given switch is unreachable. Please provide correct switch IP in provision_config.yml."
 provision_option_fail_msg: "[WARNING]. Ignoring pxe_switch_ip when pxe_mapping_file_path provided"
 
 # Usage: validate_mapping_file.yml
-pxe_path_fail_msg: "Failed. Please provide a valid pxe_mapping_file_path"
+pxe_path_fail_msg: "Failed. Please provide a valid pxe_mapping_file_path in provision_config.yml"
 mapping_file_key: "MAC"
 mapping_file_header_fail_msg: "Failed. Header of csv file is not in correct format. It should be of the format: MAC,Hostname,IP"
 host_mapping_header_format: "MAC,Hostname,IP"
@@ -135,7 +135,7 @@ duplicate_hostname_fail_msg: "Failed. Duplicate hostname exists. Please verify m
 temp_mapping_file_path: "/opt/omnia/pxe_mapping_file.csv"
 
 # Usage: validate_provision_vars.yml
-input_provision_fail_msg: "Please provide all the required provision parameters"
+input_provision_fail_msg: "Please provide all the required provision parameters in provision_config.yml"
 default_lease_time_success_msg: "default_lease_time validated"
 default_lease_time_fail_msg: "Failed. Please provide a valid default_lease_time"
 timezone_success_msg: "timezone validated"
