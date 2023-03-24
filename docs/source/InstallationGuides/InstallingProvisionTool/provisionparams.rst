@@ -8,6 +8,7 @@ Fill in all provision-specific parameters in ``input/provision_config.yml``
 .. csv-table:: provision_config
    :file: Provision_confg.csv
    :header-rows: 1
+   :stub-columns: 1
    :class: longtable
    :widths: 1 1 1 1
 
