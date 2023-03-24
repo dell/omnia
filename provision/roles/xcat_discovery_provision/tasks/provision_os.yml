@@ -13,6 +13,9 @@
 # limitations under the License.
 ---
 
+- name: Set provision image for switch_based
+  ansible.builtin.include_tasks: switch_based/set_provision_image_switch_based.yml
+
 - name: Set provision image for mapping
   ansible.builtin.include_tasks: mapping/set_provision_image_mapping.yml
 
