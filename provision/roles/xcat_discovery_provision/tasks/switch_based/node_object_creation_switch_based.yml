@@ -13,18 +13,7 @@
 # limitations under the License.
 ---
 
-- name: Create and update repositories
-  hosts: localhost
-  connection: local
-  tasks:
-    - name: Verify validation_status
-      ansible.builtin.include_role:
-        name: provision_validation
-        tasks_from: validation_status_check.yml
-
-    - name: Create and update repositories
-      ansible.builtin.include_role:
-        name: xcat_repo_manipulate
-
-- name: Create offline repositories
-  ansible.builtin.import_playbook: ../airgap/airgap.yml
+- name: Create node object for switch_based discovery
+  ansible.builtin.command: |
+    {{ python_version }} {{ create_node_object_path_switch_based }}
+  changed_when: true

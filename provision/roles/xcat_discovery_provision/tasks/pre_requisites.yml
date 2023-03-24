@@ -17,6 +17,7 @@
   ansible.builtin.set_fact:
     xcat_installation_status: false
     reprovision_status: false
+    switch_based_node_status: false
 
 - name: Check output of network table
   ansible.builtin.command: lsdef -t network

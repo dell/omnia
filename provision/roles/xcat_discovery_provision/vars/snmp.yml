@@ -18,7 +18,7 @@ snmp_utility_path: "{{ role_path }}/files/utils/snmp_utility.py"
 bmc_utility_path: "{{ role_path }}/files/utils/bmc_utility.py"
 ib_utility_path: "{{ role_path }}/files/utils/ib_utility.py"
 pxe_mapping_path: "{{ role_path }}/files/pxe_mapping_file.csv"
-discovery_method_snmp: "snmp"
+discovery_method_snmp: "snmpwalk"
 
 # Usage: node_object_creation_snmp.yml
 snmp_node_group: "snmp"
