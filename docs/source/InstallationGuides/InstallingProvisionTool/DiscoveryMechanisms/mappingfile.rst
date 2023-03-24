@@ -1,4 +1,4 @@
-Mapping Files
+mapping
 --------------
 Manually collect PXE NIC information for target servers and manually define them to Omnia using a mapping file using the below format:
 

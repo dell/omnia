@@ -8,6 +8,12 @@ Before You Run The Provision Tool
 
     2. `RHEL 8.x <https://www.redhat.com/en/enterprise-linux-8>`_
 
+* To set up CUDA and OFED, download the required repositories from here:
+
+    1. `CUDA <https://developer.nvidia.com/cuda-downloads/>`_
+
+    2. `OFED <https://network.nvidia.com/products/infiniband-drivers/linux/mlnx_ofed/>`_
+
 * To dictate IP address/MAC mapping, a host mapping file can be provided. Use the `pxe_mapping_file.csv <../../Samplefiles.html>`_ to create your own mapping file.
 
 * Ensure that all connection names under the network manager match their corresponding device names. ::

@@ -10,7 +10,7 @@ Depending on the value of ``discovery_mechanism`` in ``input/provision_config.ym
     bmc
 
 
-**Switch-based**
+**switch_based**
 
 Omnia can query known switches (by SNMPv3 username/password) for information on target node MAC IDs.
 
@@ -31,7 +31,7 @@ Omnia can query known switches (by SNMPv3 username/password) for information on 
 
 For more information regarding BMC, `click here <switch-based.html>`_
 
-**Mapping file**
+**mapping**
 
 Manually collect PXE NIC information for target servers and manually define them to Omnia using a mapping file using the below format:
 
@@ -60,7 +60,7 @@ For more information regarding mapping files, `click here <mappingfile.html>`_
 
 
 
-**SNMP**
+**snmpwalk**
 
 Omnia can query known switches (by IP and community string) for information on target node MAC IDs.
 
@@ -71,10 +71,10 @@ Omnia can query known switches (by IP and community string) for information on t
     - Switches should be SNMP enabled.
     - Servers require a manual PXE boot if iDRAC IPs are not configured.
     - PXE NIC ranges should contain IPs that are double the iDRACs present (as NIC and iDRAC MACs may need to be mapped).
-
+    - LOM architecture is not supported.
 For more information regarding SNMP, `click here <snmp.html>`_
 
-**BMC**
+**bmc**
 
 Omnia can also discover nodes via their iDRAC using IPMI.
 
