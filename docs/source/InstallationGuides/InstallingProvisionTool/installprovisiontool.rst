@@ -74,16 +74,41 @@ Omnia now allows for customization of disk partitions applied to remote servers.
 Running the provision tool
 ++++++++++++++++++++++++++++
 
-The provision tool runs in three stages that can be called individually:
+To deploy the Omnia provision tool, run the following command ::
+
+    cd provision
+    ansible-playbook provision.yml
+
+
+``provision.yml`` runs in three stages that can be called individually:
 
 **prepare_cp.yml**
 
-a. Verifies pre-requisites such as SeLinux and xCat services status.
-b. Installs required packages.
+a. Verifies pre-requisites such as SELinux and xCAT services status.
+b. Installs required tool packages.
 c. Verifies and updates firewall settings.
-d. Installs xCAT (from tarball).
-e. Configures xCAT (pxe nic, postgresdb pwd, disk partition for remote servers, dns servers for internet access, DHCP leases time, timezone).
-f. PostgreSQL database is set up with all relevant cluster information such as MAC IDs, hostname, admin IP, infiniband IPs, BMC IPs etc.
+d. Installs xCAT.
+e. Configures xCAT databases basis ``input/provision_config.yml``.
+
+To call this playbook individually, ensure that ``input/provision_config.yml`` is updated and then run::
+
+    ansible-playbook prepare_cp.yml
+
+**repo_manipulate.yml**
+
+Creates and updates all repositories required locally.
+
+To call this playbook individually, ensure that ``prepare_cp.yml`` has run at least once and then run::
+
+    ansible-playbook repo_manipulate.yml
+
+**discovery_provision.yml**
+
+a. Discovers all target servers based on specifications in ``input/provision_config.yml``.
+
+b. Provisions all discovered servers.
+
+b. PostgreSQL database is set up with all relevant cluster information such as MAC IDs, hostname, admin IP, infiniband IPs, BMC IPs etc.
 
     To access the DB, run: ::
 
@@ -113,21 +138,6 @@ Possible values of status are static, powering-on, installing, bmcready, booting
 
 .. note:: For nodes listing status as 'failed', provisioning logs can be viewed in ``/var/log/xcat/xcat.log`` on the target nodes.
 
-To call this playbook individually, ensure that ``input/provision_config.yml`` is updated and then run::
-
-    ansible-playbook prepare_cp.yml
-
-**repo_manipulate.yml**
-
-Creates and updates all repositories required locally.
-
-To call this playbook individually, ensure that ``prepare_cp.yml`` has run at least once and then run::
-
-    ansible-playbook repo_manipulate.yml
-
-**discovery_provision.yml**
-
-Assigns and provisions all target servers specified in ``input/provision_config.yml``.
 
 To call this playbook individually, ensure that ``repo_manipulate.yml`` has run at least once and then run::
 
@@ -154,9 +164,4 @@ To call this playbook individually, ensure that ``repo_manipulate.yml`` has run 
     * Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect.
     * To avoid breaking the passwordless SSH channel on the control plane, do not run ``ssh-keygen`` commands post execution of ``provision.yml``.
 
-
-To deploy the Omnia provision tool, run the following command ::
-
-    cd provision
-    ansible-playbook provision.yml
 

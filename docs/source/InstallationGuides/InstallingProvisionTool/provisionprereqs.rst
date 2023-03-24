@@ -8,7 +8,7 @@ Before You Run The Provision Tool
 
     2. `RHEL 8.x <https://www.redhat.com/en/enterprise-linux-8>`_
 
-* To set up CUDA and OFED, download the required repositories from here:
+* To set up CUDA and OFED using the provisioning tool, download the required repositories from here:
 
     1. `CUDA <https://developer.nvidia.com/cuda-downloads/>`_
 

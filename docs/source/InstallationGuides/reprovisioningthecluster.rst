@@ -15,7 +15,7 @@ Omnia can re-provision the cluster by running the following command: ::
 Alternatively, if a re-deployment with no modifcations are required  ::
 
     cd provision
-    ansible-playbook provision.yml -i inventory
+    ansible-playbook discovery_provision.yml -i inventory
 
 
 Where the inventory contains a list of host IPs as shown below:
