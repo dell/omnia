@@ -24,6 +24,7 @@ xcat_discovery_role_vars:
   - "{{ role_path }}/vars/snmp.yml"
   - "{{ role_path }}/vars/mtms.yml"
   - "{{ role_path }}/vars/reprovision.yml"
+  - "{{ role_path }}/vars/switch_based.yml"
 
 # Usage: pre_requisites.yml
 xcat_connection_search_key: "connection failure"
@@ -36,6 +37,12 @@ osimage_search_key: install-compute
 
 # Usage: python_utility.yml
 postgres_utility_path: "{{ role_path }}/files/utils/postgres_utility.py"
+
+# Usage: configure_dhcp.yml
+dhcp_config_fail_msg: "Failed. makedhcp -n command is not successful. Error:"
+hosts_entry_warning_msg: "[WARNING] makehosts command is not successful. Error:"
+dhcp_config_apply_fail_msg: "Failed. makedhcp -a command is not successful. Error:"
+dns_config_warning_msg: "[WARNING] makedns -n command is not successful. Error:"
 
 # Usage: initiate_monitor_status.yml
 psql_devel_packages:
