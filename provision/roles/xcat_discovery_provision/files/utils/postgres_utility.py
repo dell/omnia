@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -12,8 +12,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+import omniadb_connection
 import psycopg2
-
 
 def create_db():
     conn = None
@@ -46,35 +46,17 @@ def create_db():
             print("Database created successfully !!");
 
         conn.close()
-        create_db_schema()
 
+def create_db_schema(conn):
 
-def create_db_schema():
-    # Define the basic connection with omniadb which will be used with all the rest queries
-    conn1 = psycopg2.connect(
-        database="omniadb",
-        user='postgres',
-        host='localhost',
-        port='5432')
+    cursor = conn.cursor()
+    sql = ''' CREATE SCHEMA IF NOT EXISTS cluster'''
+    cursor.execute(sql)
+    cursor.close()
 
-    if conn1 is not None:
-        conn1.autocommit = True
-        cursor = conn1.cursor()
-        sql = ''' CREATE SCHEMA IF NOT EXISTS cluster'''
-        cursor.execute(sql)
+def create_db_table(conn):
 
-    conn1.close()
-    create_db_table()
-
-
-def create_db_table():
-    conn1 = psycopg2.connect(
-        database="omniadb",
-        user='postgres',
-        host='localhost',
-        port='5432')
-    conn1.autocommit = True
-    cursor = conn1.cursor()
+    cursor = conn.cursor()
 
     sql = '''CREATE TABLE IF NOT EXISTS cluster.nodeinfo(
         ID SERIAL NOT NULL PRIMARY KEY UNIQUE,
@@ -86,11 +68,20 @@ def create_db_table():
         bmc_ip INET,
         ib_ip INET,
         status VARCHAR(65),
-        bmc_mode VARCHAR(30))'''
+        bmc_mode VARCHAR(30),
+        switch_name VARCHAR(30),
+        switch_port VARCHAR(10))'''
     cursor.execute(sql)
     print(" DB changes are done")
     cursor.close()
-    conn1.close()
 
+def main():
 
-create_db()
+   create_db()
+   conn = omniadb_connection.create_connection()
+   create_db_schema(conn)
+   create_db_table(conn)
+   conn.close()
+
+if __name__ == '__main__':
+    main()
