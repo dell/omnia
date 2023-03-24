@@ -6,7 +6,7 @@ Fill in all provision-specific parameters in ``input/provision_config.yml``
 .. tabularcolumns:: |p{7cm}|p{3.5cm}| p{7cm}| p{7cm}|
 
 .. csv-table:: provision_config
-   :file: ../Tables/Provision_config.csv
+   :file: Provision_confg.csv
    :header-rows: 1
    :class: longtable
    :widths: 2 1 2 2
