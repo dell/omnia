@@ -42,7 +42,9 @@ To open the ports required, use the following steps:
 
 * Ensure that the nodes in the inventory have been assigned **only** these roles: manager and compute.
 
-* For RedHat clusters, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription.
+* Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to set up BeeGFS on RHEL target nodes.
+
+* For RHEL target nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription.
 
  .. note::
 

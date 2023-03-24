@@ -29,7 +29,9 @@ NFS Bolt On
 
   - client_mount_options: The mount options when mounting the NFS export on the client. Default value: nosuid,rw,sync,hard,intr.
 
-* For RedHat clusters, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription.
+* Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to set up NFS on RHEL target nodes.
+
+* For RHEL target nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription.
 
 * There are 3 ways to configure the feature:
 
