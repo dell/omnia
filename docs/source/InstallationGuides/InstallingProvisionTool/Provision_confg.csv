@@ -1,4 +1,4 @@
-﻿Variable,Required/Optional,"Default, Choices",Description
+﻿Variable,Required(?),"Default, Choices",Description
 network_interface_type,Required,"**lom**, dedicated",The network type used on the Omnia cluster.
 discovery_mechanism,Required,"**switch_based**, mapping, bmc, snmpwalk","The mechanism through which Omnia will discover nodes for provisioning. For more information on how the mechanisms work, go to `DiscoveryMechanisms <DiscoveryMechanisms/index>`_."
 provision_os,Required,"**rhel**, rocky",The operating system to be provisioned on target nodes in the cluster.
