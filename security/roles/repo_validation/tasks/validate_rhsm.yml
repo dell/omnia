@@ -13,10 +13,6 @@
 #  limitations under the License.
 ---
 
-- name: Saving distribution of os
-  ansible.builtin.set_fact:
-    compute_os: "{{ ansible_facts['distribution'] | lower }}"
-
 - name: Validate rhsm status on manager node
   block:
     - name: Fetch redhat subscription status
@@ -51,10 +47,7 @@
       changed_when: false
       run_once: true
 
-  when:
-    - not hostvars['127.0.0.1']['xcat_installation_status']
-    - compute_os == os_supported_redhat
-    - "'manager' in group_names"
+  when: "'manager' in group_names"
 
 - name: Validate rhsm status on all remaining nodes
   block:
@@ -85,7 +78,4 @@
           - "{{ compute_inactive_msg1 }}"
           - "{{ compute_inactive_msg2 }}"
 
-  when:
-    - not hostvars['127.0.0.1']['xcat_installation_status']
-    - compute_os == os_supported_redhat
-    - "'manager' not in group_names"
+  when: "'manager' not in group_names"

@@ -13,14 +13,13 @@
 #  limitations under the License.
 ---
 
+# Usage: repo_check.yml
+xcat_repo_success_msg: "BaseOS and AppStream repos validated successfully"
+xcat_repo_fail_msg: "Failed. BaseOS and AppStream repos not enabled. Provision servers using omnia provision tool"
+
 # Usage: validate_rhsm.yml
 os_supported_redhat: "redhat"
 manager_inactive_msg1: "1. Manager node didnt have active subscription."
 manager_inactive_msg2: "2. Manager node didnt have baseos and appstream repos enabled."
 compute_inactive_msg1: "1. Host {{ ansible_ssh_host }} in group {{ group_names }} is not subscribed to redhat"
 compute_inactive_msg2: "2. Host {{ ansible_ssh_host }} didnt have baseos and appstream repos enabled."
-
-# Usage: configure_repo.yml
-omnia_cluster_repo_template: "{{ role_path }}/templates/omnia-cluster-rhel8.repo.j2"
-omnia_cluster_repo_path: /etc/yum.repos.d/omnia-cluster.repo
-dnf_repo_permission: "644"
