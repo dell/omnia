@@ -12,21 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import psycopg2 as pg
+import omniadb_connection
 import sys
 import subprocess
 import time
-
-def connection():
-
-    conn = pg.connect(
-        database = "omniadb",
-        user = "postgres",
-        host = "localhost",
-        port = "5432",
-    )
-
-    return conn
 
 
 def run_cmd(cmd):
@@ -138,8 +127,12 @@ def reprovision_nodes(grp,node,osimage):
     elif 'mapping' in grp:
         node_set(node,osimage)
 
+    elif 'switch_based' in grp:
+        img = set_image_bmc(node,osimage)
+        rset_boot(node,osimage)
+
     else:
-        print(f"Node : {nodename} having IP Address : {nodeip} doesn't belong to any group[snmp,bmc,mapping], please check whether the node was added using Omnia")
+        print(f"Node : {nodename} having IP Address : {nodeip} doesn't belong to any group[snmp,bmc,mapping,switch_based], please check whether the node was added using Omnia")
 
 
 def main():
@@ -148,7 +141,7 @@ def main():
     host_ip = sys.argv[1:-1]
     osimage = sys.argv[-1]
 
-    conn = connection()
+    conn = omniadb_connection.create_connection()
 
     for ip in host_ip:
         group = ''
