@@ -34,32 +34,25 @@
   rescue:
     - name: Switch based details not proper
       ansible.builtin.fail:
-        msg: "{{ fail_switch_details }}"
+         msg: "{{ fail_switch_details }}"
 
 - name: Create list of switch IPs
   ansible.builtin.set_fact:
-    switch_ip_list: "{{ switch_ip_list | default([]) }} + [ '{{ item.ip }}']"
+    switch_based_ip_list: "{{ switch_based_ip_list | default([]) }} + [ '{{ item.ip }}']"
   with_items: "{{ switch_based_details }}"
 
 - name: Create list of switch IPs
   ansible.builtin.set_fact:
-    switch_ip_list: "{{ switch_ip_list | unique }}"
+    switch_based_ip_list: "{{ switch_based_ip_list | unique }}"
 
 - name: Fail if unique IPs are not present
   ansible.builtin.fail:
     msg: "{{ fail_unique_switch_v3_ip }}"
   when:
-    - switch_ip_list | length != switch_based_details | length
+    - switch_based_ip_list | length != switch_based_details | length
 
 - name: Test using ping
-  block:
-    - name: Test the switch using ping
-      ansible.builtin.command: |
-        {{ python_version }} {{ role_path }}/files/switch_v3_ping.py {{ item.ip }}
-      register: ping_switchv3
-      with_items: "{{ switch_based_details }}"
-      changed_when: false
-  rescue:
-    - name: Fail if pingable not successful
-      ansible.builtin.fail:
-        msg: "{{ fail_switch_ping }}"
+  ansible.builtin.command: {{ python_version }} {{ role_path }}/files/switch_v3_ping.py {{ item.ip }}
+  register: ping_switchv3
+  with_items: "{{ switch_based_details }}"
+  changed_when: false
