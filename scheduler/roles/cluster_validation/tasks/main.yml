@@ -28,3 +28,6 @@
 
 - name: Include gather_facts playbook
   ansible.builtin.include_tasks: gather_fact_resolution.yml
+
+- name: Check xcat installation status
+  ansible.builtin.include_tasks: xcat_status_check.yml

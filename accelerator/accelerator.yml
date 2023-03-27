@@ -13,6 +13,20 @@
 # limitations under the License.
 ---
 
+- name: Validate xcat status on control plane
+  hosts: localhost
+  gather_facts: true
+  roles:
+    - accelerator_validation
+  tags: amd, nvidia
+
+- name: Validate repo file and subscription
+  hosts: all
+  gather_facts: true
+  roles:
+    - repo_validation
+  tags: amd, nvidia
+
 - name: Gather Cluster Facts
   hosts: all
   gather_facts: true
