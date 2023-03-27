@@ -47,7 +47,7 @@ racadm_url: "https://dl.dell.com/FOLDER05920767M/1/DellEMC-iDRACTools-Web-LX-9.4
 racadm_file: "{{ xcat_directory }}/racadm.tar.gz"
 racadm_path: /opt/racadm
 omnia_common_xcat_repo: /install/omnia-common/x86_64/RHEL8
-common_repo_packages: "wget tar zip firewalld sshpass nfs-utils gcc make"
+common_repo_packages: sshpass
 racadm_rhel8_file_path: /opt/racadm/iDRACTools/racadm/RHEL8/x86_64/
 ipmitool_rhel8_file_path: /opt/racadm/iDRACTools/ipmitool/RHEL8_x86_64/
 omnia_common_repo_template: /install/postscripts/repos/install/omnia-common/x86_64/RHEL8/local-repository.tmpl
