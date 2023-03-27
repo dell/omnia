@@ -46,8 +46,8 @@ root_doc = 'index'
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'bizstyle'
-html_logo = "images/omnia-logo-transparent.png"
+html_theme = "sphinx_rtd_theme"
+html_logo = "images/omnia-logo.png"
 html_title = 'Omnia'
 #html_style = 'css/override.css'
 
