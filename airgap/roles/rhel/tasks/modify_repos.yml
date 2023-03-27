@@ -15,7 +15,7 @@
 
 # Restructure Appstream and BaseOS folder
 - name: Execute python script
-  ansible.builtin.command: python3 "{{ role_path }}/files/restructure_rpms_folder.py" {{ item }}
+  ansible.builtin.command: python3.8 "{{ role_path }}/files/restructure_rpms_folder.py" {{ item }}
   changed_when: false
   with_items:
     - "{{ rhel_repo_folder_path }}/AppStream/Packages"
