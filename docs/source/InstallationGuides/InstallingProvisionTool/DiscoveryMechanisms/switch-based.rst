@@ -18,12 +18,11 @@ switch_based
     - To create the SNMP group: ``snmp-server group testgroup auth read test_view``
     - To create the SNMP users: ``snmp-server user authuser1 testgroup 3 auth sha authpasswd1``
 * To verify the changes made, use the following commands: ::
-    ``show snmp view``
-    ``show snmp group``
-   ``show snmp user``
-
-For more information on SNMP on S series switch `click here <https://www.dell.com/support/manuals/en-cr/dell-emc-os-9/s3048-on-9.14.2.6-cli-pub/snmp-server-user?guid=guid-dbed1721-656a-4ad4-821c-589dbd371bf9&lang=en-us>`_
-For more information on SNMP on N series switch `click here <https://www.dell.com/support/kbdoc/en-us/000133707/how-to-configure-snmpv3-on-dell-emc-networking-n-series-switches>`_
+   show snmp view
+   show snmp group
+   show snmp user
+* For more information on SNMP on S series switch `click here <https://www.dell.com/support/manuals/en-cr/dell-emc-os-9/s3048-on-9.14.2.6-cli-pub/snmp-server-user?guid=guid-dbed1721-656a-4ad4-821c-589dbd371bf9&lang=en-us>`_
+* For more information on SNMP on N series switch `click here <https://www.dell.com/support/kbdoc/en-us/000133707/how-to-configure-snmpv3-on-dell-emc-networking-n-series-switches>`_
 
 
 
