@@ -25,6 +25,7 @@ extensions = []
 
 templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+html_static_path = ['_static']
 
 root_doc = 'index'
 
@@ -48,6 +49,7 @@ root_doc = 'index'
 html_theme = 'bizstyle'
 html_logo = "images/omnia-logo-transparent.png"
 html_title = 'Omnia'
+#html_style = 'css/override.css'
 
 html_theme_options = {
     'logo_only': True,
@@ -55,7 +57,7 @@ html_theme_options = {
 }
 
 html_sidebars = {
-   '**': ['globaltoc.html', 'sourcelink.html', 'searchbox.html'],
+   '**': ['globaltoc.html', 'sourcelink.html', 'searchbox.html']
 }
 
 
