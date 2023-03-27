@@ -15,7 +15,9 @@
 
 - name: Subscribe for code ready builder repo in RHEL
   ansible.builtin.command: subscription-manager repos --enable=codeready-builder-for-rhel-8-x86_64-rpms
-  when: os_supported_rhel in ansible_facts['distribution'] | lower
+  when: 
+    - os_supported_rhel in ansible_facts['distribution'] | lower
+    - not hostvars['127.0.0.1']['xcat_installation_status']
 
 - name: Download development packages
   ansible.builtin.package:

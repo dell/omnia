@@ -38,28 +38,6 @@
     msg: "{{ selinux_fail_msg }}"
   when: '"SELinux status:                 disabled" not in selinux_status.stdout_lines'
 
-- name: Check for subscription and enable code ready repo
-  block:
-    - name: Check whether subscription is enabled or not
-      ansible.builtin.command: subscription-manager list
-      changed_when: false
-      register: rhsm_status
-
-    - name: Show status message
-      ansible.builtin.debug:
-        msg: "Subscription successful"
-      when: "'Subscribed' in rhsm_status.stdout"
-
-    - name: Show status message
-      ansible.builtin.fail:
-        msg: "Subscription failed can't proceed"
-      when: "'Subscribed' not in rhsm_status.stdout"
-
-    - name: Subscrbe for code ready builder repo in RHEL
-      ansible.builtin.command: subscription-manager repos --enable "{{ rhel_code_ready_repo }}"
-      changed_when: false
-  when: os_supported_redhat in compute_os
-
 - name: Unmount previous existence of BeeGFS client
   block:
     - name: BeeGFS client mount config file

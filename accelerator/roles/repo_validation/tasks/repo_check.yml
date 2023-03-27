@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,15 +13,16 @@
 #  limitations under the License.
 ---
 
-- name: Saving distribution of os
-  ansible.builtin.set_fact:
-    compute_os: "{{ ansible_distribution | lower }}"
-    compute_os_version: "{{ ansible_distribution_version }}"
+- name: Fetch xcat enabled repo list
+  ansible.builtin.command: dnf repolist
+  changed_when: false
+  register: dnf_repo_list
 
-- name: Set the OS to RHEL
-  ansible.builtin.set_fact:
-    rhel_compute_os: 'rhel'
-  when: '"redhat" == compute_os'
-
-- name: Check if nvidia accelerator is present on compute node
-  ansible.builtin.include_tasks: pre_requisites_cuda.yml
+- name: Check xcat enabled repos
+  ansible.builtin.assert:
+    that:
+      - "'appstream' in dnf_repo_list.stdout | lower"
+      - "'baseos' in dnf_repo_list.stdout | lower"
+      - "'codeready' in dnf_repo_list.stdout | lower"
+    success_msg: "{{ xcat_repo_success_msg }}"
+    fail_msg: "{{ xcat_repo_fail_msg }}"
