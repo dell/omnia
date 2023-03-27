@@ -48,7 +48,7 @@
       when: not result_rhel_repo_folder_path.stat.exists
   when: compute_os_rhel_status
 
-- name: Install yum-utils
+- name: Install required packages
   ansible.builtin.package:
-    name: yum-utils
+    name: "{{ reposync_package }}"
     state: present
