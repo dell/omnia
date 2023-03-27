@@ -47,3 +47,8 @@
         msg: "{{ rhel_repo_folder_path_missing_msg }}"
       when: not result_rhel_repo_folder_path.stat.exists
   when: compute_os_rhel_status
+
+- name: Install yum-utils
+  ansible.builtin.package:
+    name: yum-utils
+    state: present
