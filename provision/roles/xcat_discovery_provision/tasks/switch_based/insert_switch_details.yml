@@ -19,7 +19,7 @@
   when: ib_nic_subnet | length < 7
 
 - name: Insertion for switch ports
-  command: |
+  ansible.builtin.command: |
     {{ python_version }} {{ switch_db_update }} {{ item.ip }} {{ item.ports }}
     {{ bmc_nic_start }} {{ bmc_nic_end }} {{ pxe_nic_start }} {{ pxe_nic_end }}
     {{ ib_status }} {{ ib_nic_start }} {{ ib_nic_end }} {{ node_name }} {{ domain_name }}
