@@ -8,7 +8,6 @@ import datetime
 import io
 import os
 import subprocess
-import autodoc
 
 
 # -- Project information -----------------------------------------------------
@@ -22,10 +21,7 @@ release = '1.4.2'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = [
-    "sphinx.ext.autodoc",
-
-]
+extensions = []
 
 templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
