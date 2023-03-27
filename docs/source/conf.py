@@ -9,7 +9,7 @@ import io
 import os
 import subprocess
 import autodoc
-import myst_parser
+
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
@@ -24,8 +24,7 @@ release = '1.4.2'
 
 extensions = [
     "sphinx.ext.autodoc",
-    "sphinx.ext.intersphinx",
-    "myst_parser"
+
 ]
 
 templates_path = ['_templates']
@@ -44,15 +43,13 @@ root_doc = 'index'
 # to get the output from using the "--generate-config" and "--help-all" CLI
 # flags respectively.
 #
-def setup(app):
-    app.add_css_file("custom.css")
 
 
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'sphinx_rtd_theme'
+html_theme = 'bizstyle'
 html_logo = "images/omnia-logo.png"
 html_title = 'Omnia'
 
