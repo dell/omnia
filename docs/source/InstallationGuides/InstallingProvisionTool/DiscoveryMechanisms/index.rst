@@ -29,7 +29,7 @@ Omnia can query known switches (by SNMPv3 username/password) for information on 
 - Users need to enable IPMI on target servers.
 - Servers require a manual PXE boot after the first run of the provision tool
 
-For more information regarding BMC, `click here <switch-based.html>`_
+For more information regarding switch-based discovery, `click here <switch-based.html>`_
 
 **mapping**
 
