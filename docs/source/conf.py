@@ -46,14 +46,6 @@ def setup(app):
     app.add_css_file("custom.css")
 
 
-# -- Read The Docs -----------------------------------------------------------
-#
-# Since RTD runs sphinx-build directly without running "make html", we run the
-# pre-requisite steps for "make html" from here if needed.
-#
-if os.environ.get("READTHEDOCS"):
-    docs = os.path.dirname(os.path.dirname(__file__))
-    subprocess.check_call(["make", "metrics", "scopes"], cwd=docs)
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
