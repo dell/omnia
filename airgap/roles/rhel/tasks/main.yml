@@ -13,7 +13,14 @@
 # limitations under the License.
 ---
 
-# Will be updated later in each PR
-- name: Pass
-  debug:
-    msg: "Pass"
+- name: Modify Rhel repos for airgap solution
+  block:
+    - name: Setup subscription-manager on control plane
+      ansible.builtin.include_tasks: setup_subscription_manager.yml
+
+    - name: modify AppStream, BaseOS and CodeReadyBuilder repos
+      ansible.builtin.include_tasks: modify_repos.yml
+
+    - name: Reset release version for subscription-manager
+      ansible.builtin.include_tasks: reset_subscription_manager.yml
+  when: compute_os_rhel_status

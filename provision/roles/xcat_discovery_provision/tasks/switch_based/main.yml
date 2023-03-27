@@ -21,6 +21,9 @@
     - name: Create switch objects
       ansible.builtin.include_tasks: switch_object_creation.yml
 
+    - name: Update db when discovery method is switch_based
+      ansible.builtin.include_tasks: insert_switch_details.yml
+
     - name: Create node objects
       ansible.builtin.include_tasks: node_object_creation_switch_based.yml
 

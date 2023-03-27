@@ -11,19 +11,28 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
----
 
-- name: Validate proper BMC related information provided
-  ansible.builtin.include_tasks: validate_switch_bmc_params.yml
+import platform
+import subprocess
+import sys
 
-- name: Validate proper switch details
-  ansible.builtin.include_tasks: validate_switch_based_details.yml
+host = sys.argv[1]
 
-- name: Validate switch snmp v3 details
-  ansible.builtin.include_tasks: validate_switch_snmp_params.yml
 
-- name: Validate proper IP ranges given
-  ansible.builtin.include_tasks: validate_switch_ip_ranges.yml
+def ping():
+    """
+    Returns True if host (str) responds to a ping request.
+    """
+    # Option for the number of packets as a function of
+    param = '-n' if platform.system().lower()=='windows' else '-c'
 
-- name: Assign IP ranges to different nics for switch based discovery
-  ansible.builtin.include_tasks: assign_nic_ranges.yml
+    # Building the command. Ex: "ping -c 1 google.com"
+    command = ['ping', param, '1', host]
+
+    return subprocess.call(command) == 0
+
+
+ping_op = ping()
+if not ping_op:
+    print (host)
+    sys.exit(" is not pingable. Please provide reachable switches in switch based discovery.")

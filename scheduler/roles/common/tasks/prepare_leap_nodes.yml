@@ -13,6 +13,51 @@
 #  limitations under the License.
 ---
 
+- name: Add leap repos
+  zypper_repository:
+    name: "{{ item.name }}"
+    repo: "{{ item.repo }}"
+    state: present
+    autorefresh: yes
+  with_items:
+    - "{{ leap_repo }}"
+  tags: install
+
+- name: Installing python-xml
+  package:
+    name: python-xml
+    state: present
+  tags: install
+
+- name: Add nvidia repo
+  zypper_repository:
+    name: NVIDIA
+    repo: "{{ nvidia_repo }}"
+    state: present
+    disable_gpg_check: yes
+    auto_import_keys: yes
+    autorefresh: yes
+  tags: install
+
+- name: Install nvidia(This might take 10-15 minutes)
+  command: zypper --gpg-auto-import-keys install -l -y x11-video-nvidiaG06
+  changed_when: true
+  tags: install
+
+- name: Permanently Disable swap
+  mount:
+    name: "swap"
+    fstype: swap
+    state: absent
+  tags: install
+
+- name: Install common packages
+  package:
+    name: "{{ common_packages }}"
+    state: present
+  tags: install
+
+
 - name: Installing dkms
   package:
     name: dkms

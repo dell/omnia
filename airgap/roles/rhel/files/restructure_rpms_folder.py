@@ -11,20 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
----
 
-- name: Create and update repositories
-  hosts: localhost
-  connection: local
-  tasks:
-    - name: Verify validation_status
-      ansible.builtin.include_role:
-        name: provision_validation
-        tasks_from: validation_status_check.yml
+import sys
+import os
+import shutil
 
-    - name: Create and update repositories
-      ansible.builtin.include_role:
-        name: xcat_repo_manipulate
+path= sys.argv[1]
 
-- name: Create offline repositories
-  ansible.builtin.import_playbook: ../airgap/airgap.yml
+for file in os.listdir(path):
+    if file.endswith('.rpm'):
+        subFolder = os.path.join(path, file[0].lower())
+        if not os.path.isdir(subFolder):
+            os.makedirs(subFolder)
+        shutil.move(os.path.join(path, file), subFolder)
