@@ -16,6 +16,7 @@
   ansible.builtin.set_fact:
     ib_start_range: 0.0.0.0
     ib_end_range: 0.0.0.0
+    ib_nic_subnet: 0.0.0.0
   when: ib_nic_subnet | length < 7
 
 - name: Insertion for switch ports
