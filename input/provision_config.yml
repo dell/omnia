@@ -162,8 +162,8 @@ ip_end_range: "x.y.0.255"
 # Example: 10.10.0.0
 ib_nic_subnet: ""
 
-#### Optional, discovery_mechanism: mapping or switch_based or snmpwalk
-#### Mandatory, discovery_mechanism: bmc
+#### Optional, discovery_mechanism: mapping or switch_based
+#### Mandatory, discovery_mechanism: bmc or switch_based
 ## BMC NIC of Control Plane
 # If provided, Omnia will handle and assign IPs to the iDRACs.
 # Only last 16 bits/2 octets of IPv4 are dynamic
