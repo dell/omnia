@@ -8,6 +8,8 @@ import datetime
 import io
 import os
 import subprocess
+import autodoc
+import myst_parser
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
