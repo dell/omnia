@@ -24,3 +24,4 @@
     {{ bmc_nic_start }} {{ bmc_nic_end }} {{ pxe_nic_start }} {{ pxe_nic_end }}
     {{ ib_status }} {{ ib_nic_start }} {{ ib_nic_end }} {{ node_name }} {{ domain_name }}
   with_items: "{{ switch_based_details }}"
+  changed_when: false
