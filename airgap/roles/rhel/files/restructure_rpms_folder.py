@@ -18,7 +18,8 @@ import shutil
 
 path= sys.argv[1]
 
-for file in os.listdir(path):
+files = [f for f in os.listdir(path) if os.path.isfile(f)]
+for file in files:
     if file.endswith('.rpm'):
         subFolder = os.path.join(path, file[0].lower())
         if not os.path.isdir(subFolder):
