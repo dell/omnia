@@ -33,5 +33,8 @@ switch_based_nodes_warning_msg: "[WARNING] switch_based node objects not found. 
 # Usage: set_provision_image_switch_based.yml
 switch_based_node_group: "switch_based"
 switch_based_xcat_install_success_msg: "Provision tasks executed successfully for discoverd nodes using switch_based.
+
+# Usage: insert_switch_based_details.yml
+switch_db_update: "{{ role_path }}/files/utils/switch_db_update.py"
 Configure PXE and reboot the cluster nodes manually for provisioning servers."
 switch_based_set_osimage_warning_msg: "[WARNING] Command to set osimage to nodes is not successful for discoverd nodes using switch_based. Error:"
