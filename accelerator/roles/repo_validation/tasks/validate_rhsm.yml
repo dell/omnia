@@ -36,7 +36,7 @@
           - "'baseos' in rhsm_repo_list.stdout"
   rescue:
     - name: Redhat subscription is not enabled
-      fail:
+      ansible.builtin.fail:
         msg:
           - "Execution skipped for this host because of one of the following reasons:"
           - "{{ compute_inactive_msg1 }}"
