@@ -7,20 +7,47 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'Omnia'
-copyright = '2022, Cassey Goveas'
-author = 'Cassey Goveas'
-release = '1.4'
+copyright = '2023, Dell Technologies'
+author = 'dellhpc/omnia'
+release = '1.4.2'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = []
+extensions = [
+    "sphinx.ext.autodoc",
+    "sphinx.ext.intersphinx",
+    "myst_parser"
+]
 
 templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 root_doc = 'index'
 
+# -- Custom directives to generate documentation -----------------------------
+# ref: https://myst-parser.readthedocs.io/en/latest/syntax/roles-and-directives.html
+#
+# We define custom directives to help us generate documentation using Python on
+# demand when referenced from our documentation files.
+#
+
+# Create a temp instance of JupyterHub for use by two separate directive classes
+# to get the output from using the "--generate-config" and "--help-all" CLI
+# flags respectively.
+#
+def setup(app):
+    app.add_css_file("custom.css")
+
+
+# -- Read The Docs -----------------------------------------------------------
+#
+# Since RTD runs sphinx-build directly without running "make html", we run the
+# pre-requisite steps for "make html" from here if needed.
+#
+if os.environ.get("READTHEDOCS"):
+    docs = os.path.dirname(os.path.dirname(__file__))
+    subprocess.check_call(["make", "metrics", "scopes"], cwd=docs)
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output

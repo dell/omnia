@@ -26,8 +26,7 @@ public_nic,Required,eno2,The nic/ethernet card that is connected to the public i
 admin_nic,Required,eno1,Admin NIC of Control Plane. This is the shared LOM NIC.
 admin_nic_subnet *,Required,10.5.0.0,The subnet within which all Admin IPs are assigned.
 pxe_mapping_file_path,Optional,,"The path where the mapping file resides. The mapping file consists of the MAC address and its respective IP address and hostname. If static IPs are required, create a csv file in the format MAC,Hostname,IP. A sample file is provided here: examples/pxe_mapping_file.csv. "
-switch_based_details,Optional,"  - { ip: 100.96.28.139"", ports: ""1-48,49,50”}
-  - { ip: ""100.96.28.138"", ports: ""1-48,49,50”}",JSON list of switches to query for target nodes
+switch_based_details,Optional,,JSON list of switches to query for target nodes
 switch_snmp3_username,Optional,,Switch username
 switch_snmp3_password,Optional,,Switch password
 ip_start_range,Optional,,"* The IP start range for all the NICs within the subnets mentioned above.(Admin, BMC, IB).
