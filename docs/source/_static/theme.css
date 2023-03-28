@@ -4,7 +4,7 @@
 
 .wy-side-nav-search a:before {
     display: block;
-    content: url('../images/omnia-logo.png');
+    content: url(https://raw.githubusercontent.com/dellhpc/omnia/main/docs/source/images/omnia-logo.png);
     visibility: visible;
     transform: scale(.46);
     transform-origin: left;
