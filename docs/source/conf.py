@@ -47,6 +47,7 @@ html_logo = "images/omnia-logo.png"
 html_title = 'Omnia'
 #html_static_path = ['_static']
 html_use_smartypants = True
+sphinx_rtd_size_width = "90%"
 
 #html_context = {
 #    'css_files': [
