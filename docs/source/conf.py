@@ -103,11 +103,11 @@ html_theme = "sphinx_rtd_theme"
 html_title = "Omnia"
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
- html_short_title = "Omnia"
+html_short_title = "Omnia"
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
- html_logo = "images/omnia-logo.png"
+html_logo = "images/omnia-logo.png"
 
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
