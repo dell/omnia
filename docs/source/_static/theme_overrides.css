@@ -1,4 +1,5 @@
-@import url("theme.css");
+@import 'theme.css';
+
 /* override table width restrictions */
 .wy-table-responsive table td, .wy-table-responsive table th {
     /* !important prevents the common CSS stylesheets from
