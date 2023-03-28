@@ -6,7 +6,7 @@ then
   echo "Starting OFED installation"
   dnf groupinstall "Infiniband Support" -y
   dnf install infiniband-diags perftest qperf -y
-  mlnxofed_ib_install -p /install/ofed/OFED_ISO
+  mlnxofed_ib_install -p /install/ofed/OFED_ISO -m --add-kernel-support --force -end-
   echo "OFED installation completed"
 else
   echo "Mellanox cards not found"
