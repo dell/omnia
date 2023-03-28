@@ -20,7 +20,7 @@
 .wy-menu-vertical header,
 .wy-menu-vertical p.caption,
 .rst-versions a {
-    color: rgb(3, 148, 117);
+    color: rgb(255, 255, 255);
 }
 
 .wy-menu-vertical a.reference:hover,
@@ -48,8 +48,8 @@
 
 .wy-nav-content .highlight,
 .wy-nav-content .rst-content .warning {
-    background: #D2F3E6;
-    /* light green */
+    background: #c9dff2;
+
 }
 
 .wy-nav-content .rst-content .warning .admonition-title {
@@ -65,7 +65,7 @@
 .wy-nav-content a.fa,
 .rst-content dl:not(.docutils) dt,
 .wy-nav-content .admonition.warning a {
-    color: rgb(255, 119, 0);
+    color: rgb(7, 7, 7);
 }
 
 .wy-nav-content a.reference {
@@ -76,7 +76,6 @@
 .wy-nav-content .rst-content dl:not(.docutils) dt {
     background: #c9dff2;
     border-top: solid 3px #c9dff2;
-    /* dark green */
 ;
 }
 /* Footer
