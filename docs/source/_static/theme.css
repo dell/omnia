@@ -85,6 +85,11 @@
     color: rgb(41, 128, 185);
 }
 
+.wy-nav-content {
+    margin:0;
+    padding:0;
+}
+
 .keep-us-sustainable {
     background-color: #333333;
 }
