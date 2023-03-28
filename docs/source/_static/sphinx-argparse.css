@@ -1,6 +1,12 @@
 .wy-table-responsive table td {
     white-space: normal !important;
+    width: 100%;
+}
+.wy-table-responsive table th {
+    background-color: #2980b9;
+    color: white;
 }
 .wy-table-responsive {
     overflow: visible !important;
+    width: 100%;
 }
