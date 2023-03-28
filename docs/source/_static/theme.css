@@ -6,7 +6,7 @@
     display: block;
     content: url(https://raw.githubusercontent.com/dellhpc/omnia/main/docs/source/images/omnia-logo.png);
     visibility: visible;
-    transform: scale(.46);
+    transform: scale(.20);
     transform-origin: left;
     margin: -30px 0 -60px 0;
 }
