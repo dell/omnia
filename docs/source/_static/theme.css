@@ -1,9 +1,10 @@
 .wy-side-nav-search {
-    background-color: #002221;
+    background-color: #2980B9;
 }
 
 .wy-side-nav-search a:before {
     display: block;
+    content: url('../images/omnia-logo.png');
     visibility: visible;
     transform: scale(.46);
     transform-origin: left;
@@ -95,15 +96,4 @@ ul.simple li {
 
 ul.simple p {
     margin-bottom: 0;
-}
-
-/* override table width restrictions */
-.wy-table-responsive table td, .wy-table-responsive table th {
-    /* !important prevents the common CSS stylesheets from
-       overriding this as on RTD they are loaded after this stylesheet */
-    white-space: normal !important;
-}
-
-.wy-table-responsive {
-    overflow: visible !important;
 }
