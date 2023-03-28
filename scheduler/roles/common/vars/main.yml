@@ -59,9 +59,9 @@ common_packages_rhel:
 elrepo_gpg_key_url: https://www.elrepo.org/RPM-GPG-KEY-elrepo.org
 elrepo_rpm_url: "https://www.elrepo.org/elrepo-release-{{ ansible_facts['distribution_major_version'] }}.el{{ ansible_facts['distribution_major_version'] }}.elrepo.noarch.rpm" 
 os_name: "CentOS"
-rhel_code_ready_repo: codeready-builder-for-rhel-8-x86_64-rpms
 rhel_epel_repo8: https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
 os_supported_centos: "centos"
+os_supported_redhat: "redhat"
 
 # Usage: tasks/prepare_hosts_file.yml
 hosts_file_dest: "/etc/hosts"
@@ -87,10 +87,3 @@ ntp_servers:
   - 2.centos.pool.ntp.org
 chrony_servers:
   - 2.centos.pool.ntp.org
-
-# Usage: validate_rhsm.yml
-os_supported_redhat: "redhat"
-manager_inactive_msg1: "1. Manager node didnt have active subscription."
-manager_inactive_msg2: "2. Manager node didnt have baseos and appstream repos enabled."
-compute_inactive_msg1: "1. Host {{ ansible_ssh_host }} in group {{ group_names }} is not subscribed to redhat"
-compute_inactive_msg2: "2. Host {{ ansible_ssh_host }} didnt have baseos and appstream repos enabled."

@@ -23,7 +23,6 @@ max_retries: 20
 beegfs_unmount_client_fail_msg: "Failed, beegfs_unmount_client should be true when there is a change in beegfs mount location or in version"
 beegfs_mount_status_msg: "Failed, Make sure there is an active beegfs file system running, which is not in busy state"
 os_supported_redhat: "redhat"
-rhel_code_ready_repo: codeready-builder-for-rhel-8-x86_64-rpms
 fail_msg_beegfs_ofed_path: "Please make sure {{ beegfs_ofed_kernel_modules_path }} path exists"
 
 # Usage: remove_client.yml

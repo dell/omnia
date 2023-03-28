@@ -17,10 +17,6 @@
   set_fact:
     compute_os: "{{ ansible_facts['distribution'] | lower }}"
 
-- name: Check for redhat subscription if compute os is redhat
-  include_tasks: validate_rhsm.yml
-  when: compute_os == os_supported_redhat
-
 - name: Prepare RHEL and Rocky nodes
   include_tasks: prepare_rhel_nodes.yml
   when: ( os_supported_leap not in compute_os )

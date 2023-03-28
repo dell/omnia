@@ -84,15 +84,4 @@
       ansible.builtin.set_fact:
         mlnx_ofed_args: "{{ '--add-kernel-support' if mlnx_ofed_add_kernel_support else '' }}"
 
-    - name: Validate rhsm status if RedHat OS on control_plane
-      block:
-        - name: Validate redhat subscription status
-          ansible.builtin.include_tasks: validate_rhsm.yml
-      rescue:
-        - name: Warning - redhat subscription not enabled
-          ansible.builtin.pause:
-            seconds: "{{ warning_wait_time }}"
-            prompt: "{{ subscription_warning_msg }}"
-      when: ansible_facts['distribution'] | lower == os_supported_rhel
-
   when: redhat_node_ip | default([]) | length > 0

@@ -21,6 +21,7 @@
 - name: Subscribe for code ready builder repo in RHEL
   ansible.builtin.command: subscription-manager repos --enable "{{ rhel_code_ready_repo }}"
   changed_when: false
+  when: not hostvars['127.0.0.1']['xcat_installation_status']
 
 - name: Add AMD GPU Repo for RHEL 8.x
   ansible.builtin.yum_repository:

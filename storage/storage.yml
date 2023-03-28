@@ -13,6 +13,23 @@
 # limitations under the License.
 ---
 
+- name: Validate xcat status on control plane
+  hosts: localhost
+  any_errors_fatal: true
+  roles:
+    - storage_validation
+  tags: beegfs
+
+- name: Gather facts from all the nodes
+  hosts: manager, compute
+
+- name: Validate repo file and subscription
+  hosts: manager, compute
+  gather_facts: false
+  roles:
+    - repo_validation
+  tags: beegfs
+
 - name: Validate input parameters for BeeGFS
   hosts: localhost
   connection: local

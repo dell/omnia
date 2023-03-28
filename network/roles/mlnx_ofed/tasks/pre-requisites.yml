@@ -49,16 +49,3 @@
   ansible.builtin.set_fact:
     rocky_status: true
   when: ansible_facts['distribution'] | lower == os_supported_rocky
-
-- name: Validate rhsm status on redhat nodes having ib connectivity
-  when:
-    - redhat_status
-    - ib_node_status
-  block:
-    - name: Validate redhat subscription status
-      ansible.builtin.include_tasks: validate_rhsm.yml
-  rescue:
-    - name: Warning - redhat subscription not enabled
-      ansible.builtin.pause:
-        seconds: "{{ warning_wait_time }}"
-        prompt: "{{ subscription_warning_msg }}"
