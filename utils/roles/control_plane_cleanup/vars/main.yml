@@ -13,7 +13,7 @@
 # limitations under the License.
 ---
 
-# Usage: To cleanup provision setup
+# Usage: clean_provision_setup.yml
 xcat_packages_path: "/opt/xcat/share/xcat/tools/go-xcat"
 xcat_cert_path: "/root/.xcat"
 xcat_data_files_path: "/etc/xcat"
@@ -28,15 +28,21 @@ xcat_del_files:
   - "/var/log/xcat"
   - "/opt/xcat/"
   - "/mnt/xcat"
-  - "{{ playbook_dir }}/../provision/roles/xcat/files/pxe_mapping_file.csv"
-  - /root/xcat
+  - "{{ playbook_dir }}/../provision/roles/xcat_repo_manipulate/files/pxe_mapping_file.csv"
   - /root/xcat-dbback
   - /opt/racadm
   - /opt/omnia/
-  - /etc/yum.repos.d/xcat-core.repo
-  - /etc/yum.repos.d/xcat-dep.repo
   - /var/lib/dhcpd/dhcpd6.leases
   - /var/lib/dhcpd/dhcpd.leases~
   - /var/lib/dhcpd/dhcpd.leases.rpmsave
 pg_dir_path: "/var/lib/pgsql"
 omnia_dir: "/opt/omnia"
+file_permission: "754"
+xcat_download_files:
+  - /root/xcat
+  - /etc/yum.repos.d/xcat-core.repo
+  - /etc/yum.repos.d/xcat-dep.repo
+xcat_package: xCAT
+postgres_packages:
+  - postgresql*
+  - perl-DBD-Pg
