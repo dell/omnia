@@ -6,7 +6,12 @@
     display: block;
     content: url(https://raw.githubusercontent.com/dellhpc/omnia/main/docs/source/images/omnia-logo.png);
     visibility: visible;
-    margin: 3px;
+    margin: 0 auto;
+    height: auto;
+    width: auto;
+    border-radius: 0;
+    max-width: 100%;
+    background: transparent;
     transform: scale(.30);
     transform-origin: left;
 }
@@ -86,7 +91,7 @@
 }
 
 .wy-nav-content {
-    margin:0;
+    margin:10px;
     padding:0;
 }
 
