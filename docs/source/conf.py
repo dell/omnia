@@ -49,7 +49,13 @@ root_doc = 'index'
 html_theme = "sphinx_rtd_theme"
 html_logo = "images/omnia-logo.png"
 html_title = 'Omnia'
-#html_style = 'css/override.css'
+html_static_path = ['_static']
+
+html_context = {
+    'css_files': [
+        '_static/theme_overrides.css',  # overrides for wide tables in RTD theme
+        ],
+    }
 
 html_theme_options = {
     'logo_only': True,
