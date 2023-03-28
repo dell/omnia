@@ -2,9 +2,9 @@ Before You Run The Provision Tool
 ---------------------------------
 
 * (Recommended) Run ``prereq.sh`` to get the system ready to deploy Omnia. Alternatively, ensure that `Ansible 2.12.9 <https://docs.ansible.com/ansible/latest/reference_appendices/release_and_maintenance.html>`_ and `Python 3.8 <https://www.python.org/downloads/release/python-380/>`_ are installed on the system. SELinux should also be disabled.
-* Set the hostname of the control plane using the ``hostname``.``domain name`` format. Create an entry in the ``/etc/hosts`` file on the control plane.
+* Set the hostname of the control plane using the ``hostname``. ``domain name`` format. Create an entry in the ``/etc/hosts`` file on the control plane.
 
-    .. include:: ../Appendices/hostnamereqs.rst
+    .. include:: ../../Appendices/hostnamereqs.rst
 
     For example, ``controlplane.omnia.test`` is acceptable.
 
