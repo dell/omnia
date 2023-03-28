@@ -3,12 +3,6 @@
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
-import contextlib
-import datetime
-import io
-import os
-import subprocess
-
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
@@ -53,8 +47,8 @@ html_static_path = ['_static']
 
 html_context = {
     'css_files': [
-        '_static/theme_overrides.css',  # overrides for wide tables in RTD theme
-        ],
+        '_static/theme_overrides.css'  # overrides for wide tables in RTD theme
+        ]
     }
 
 html_theme_options = {
