@@ -1,6 +1,5 @@
 .wy-table-responsive table td {
     white-space: normal !important;
-    width: 100%;
     word-wrap: break-word;
     max-width: 300px;
 }
@@ -10,5 +9,4 @@
 }
 .wy-table-responsive {
     overflow: visible !important;
-    width: 100%;
 }
