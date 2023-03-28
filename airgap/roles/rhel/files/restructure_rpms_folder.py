@@ -24,4 +24,7 @@ for file in files:
         subFolder = os.path.join(path, file[0].lower())
         if not os.path.isdir(subFolder):
             os.makedirs(subFolder)
-        shutil.move(os.path.join(path, file), subFolder)
+        if os.path.exists(os.path.join(subFolder, file)):
+            os.remove(os.path.join(path, file))
+        else:
+            shutil.move(os.path.join(path, file), subFolder)
