@@ -15,9 +15,7 @@ release = '1.4.2'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = [
-    'sphinx_rtd_size'
-]
+extensions = []
 
 templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
@@ -47,13 +45,13 @@ html_logo = "images/omnia-logo.png"
 html_title = 'Omnia'
 #html_static_path = ['_static']
 html_use_smartypants = True
-sphinx_rtd_size_width = "90%"
+# sphinx_rtd_size_width = "90%"
 
-#html_context = {
-#    'css_files': [
-#        '_static/theme_overrides.css'  # overrides for wide tables in RTD theme
-#        ]
-#    }
+html_context = {
+    'css_files': [
+        '_static/theme_overrides.css'  # overrides for wide tables in RTD theme
+        ]
+    }
 
 html_theme_options = {
     'logo_only': True,
