@@ -2,6 +2,14 @@ Before You Run The Provision Tool
 ---------------------------------
 
 * (Recommended) Run ``prereq.sh`` to get the system ready to deploy Omnia. Alternatively, ensure that `Ansible 2.12.9 <https://docs.ansible.com/ansible/latest/reference_appendices/release_and_maintenance.html>`_ and `Python 3.8 <https://www.python.org/downloads/release/python-380/>`_ are installed on the system. SELinux should also be disabled.
+* Set the hostname of the control plane using the ``hostname``.``domain name`` format. Create an entry in the ``/etc/hosts`` file on the control plane.
+
+    .. include:: ../Appendices/hostnamereqs.rst
+
+    For example, ``controlplane.omnia.test`` is acceptable.
+
+.. note:: The domain name specified for the control plane should be the same as the one specified under ``domain_name`` in ``input/provision_config.rst``.
+
 * To provision the bare metal servers, download one of the following ISOs for deployment:
 
     1. `Rocky 8 <https://rockylinux.org/>`_

@@ -1,7 +1,20 @@
 snmpwalk
------
+----------
 
 Omnia can query known switches (by IP and community string) for information on target node MAC IDs. The following parameters need to be populated in ``input/provision_config.yml`` to discover target nodes using SNMP.
+
+**Pre requisites**
+
+SNMPv2 should be enabled on the switch specified using ``pxe_switch_ip`` in ``input/provision_config``.
+
+To enable SNMPv2, log in to the switch and run the following commands: ::
+    configure terminal
+    snmp-server community public ro
+    exit
+
+Use ``show snmp community`` to verify your changes.
+
+.. note:: The commands provided above sets the SNMP community string of the switch to ``public``. Ensure that the community string set above matches the value provided in ``pxe_switch_snmp_community_string`` in ``input/provision_config.yml``
 
 .. warning:: Target servers with LOM architecture is not supported.
 
