@@ -25,7 +25,7 @@
 
 .wy-menu-vertical a.reference:hover,
 .wy-menu-vertical a.reference.internal:hover {
-    background: #039475;
+    background: #2980B9;
     color: #fff;
 }
 
@@ -40,8 +40,8 @@
 .rst-versions .rst-current-version,
 .wy-nav-top,
 .wy-menu-vertical li.toctree-l2.current li.toctree-l3>a:hover {
-    background: #002221;
-    /* dark green */
+    background: #2980B9;
+
 }
 /* Main content
   ==================================================== */
@@ -57,8 +57,8 @@
 }
 
 .wy-nav-content .highlight .kn {
-    color: #002221;
-    /* dark green */
+    color: #2980B9;
+
 }
 
 .wy-nav-content .highlight .nn,
@@ -74,8 +74,8 @@
 }
 
 .wy-nav-content .rst-content dl:not(.docutils) dt {
-    background: #D2F3E6;
-    border-top: solid 3px #039475;
+    background: #c9dff2;
+    border-top: solid 3px #c9dff2;
     /* dark green */
 ;
 }
