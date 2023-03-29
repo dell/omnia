@@ -1,12 +1,7 @@
 Input Parameters for the Cluster
 -------------------------------
 
-These parameters is located in ``input/omnia_config.yml``
-
-Input Parameters for the Cluster
--------------------------------
-
-These parameters is located in ``input/omnia_config.yml``
+These parameters are located in ``input/omnia_config.yml``
 
 +--------------------------+--------------+-------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Variable                 | Required (?) | Default, Choices        | Description                                                                                                                                                                |
