@@ -46,7 +46,7 @@ jobs:
           /github/workspace/storage/storage.yml
           /github/workspace/telemetry/add_node_idrac.yml
           /github/workspace/telemetry/telemetry.yml
-          /github/workspace/utils/configure_pxe_static.yml
+          /github/workspace/utils/provision/configure_pxe_static.yml
           /github/workspace/utils/control_plane_cleanup.yml
           /github/workspace/utils/destroy.yml
           /github/workspace/utils/install_hpc_thirdparty_packages.yml
