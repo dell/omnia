@@ -29,6 +29,6 @@
   register: ps_output
   changed_when: false
 
-- name: Initiate script if not running
+- name: Initiate monitor_status script if not running
   ansible.builtin.shell: nohup {{ python_version }} {{ role_path }}/files/utils/monitor_status.py &
   when: "'monitor_status.py' not in ps_output.stdout"
