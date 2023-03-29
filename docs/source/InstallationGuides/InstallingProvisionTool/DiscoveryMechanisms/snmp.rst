@@ -98,6 +98,18 @@ Use ``show snmp community`` to verify your changes.
 
 .. warning:: The IP address *192.168.25.x* is used for PowerVault Storage communications. Therefore, do not use this IP address for other configurations.
 
+.. note::
+
+    The ``input/provision_config.yml`` file is encrypted on the first run of the provision tool:
+        To view the encrypted parameters: ::
+
+            ansible-vault view provision_config.yml --vault-password-file .provision_vault_key
+
+        To edit the encrypted parameters: ::
+
+            ansible-vault edit provision_config.yml --vault-password-file .provision_vault_key
+
+
 
 To continue to the next steps:
 

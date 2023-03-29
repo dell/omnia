@@ -125,3 +125,15 @@ The following parameters need to be populated in ``input/provision_config.yml`` 
 +------------------------+--------------+-------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | cuda_toolkit_path      | [ Optional]  |                                                 | Absolute path to local copy of   .rpm file containing CUDA packages. The cuda rpm can be downloaded from   https://developer.nvidia.com/cuda-downloads. CUDA will be installed post   provisioning without any user intervention. Eg: cuda_toolkit_path:   "/root/cuda-repo-rhel8-12-0-local-12.0.0_525.60.13-1.x86_64.rpm"                                                                                                                              |
 +------------------------+--------------+-------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+.. note::
+
+    The ``input/provision_config.yml`` file is encrypted on the first run of the provision tool:
+        To view the encrypted parameters: ::
+
+            ansible-vault view provision_config.yml --vault-password-file .provision_vault_key
+
+        To edit the encrypted parameters: ::
+
+            ansible-vault edit provision_config.yml --vault-password-file .provision_vault_key
+
