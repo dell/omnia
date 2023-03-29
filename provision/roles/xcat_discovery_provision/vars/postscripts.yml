@@ -19,6 +19,8 @@ bmc_postscripts_path:
 
 # Usage: configure_postscripts.yml
 mlnx_ofed_repo: /install/ofed
+
+# Usage: configure_postbootscripts.yml
 cuda_core_path: /install/cuda/x86_64/cuda-core
 
 # Usage: check_nodes_all.yml
