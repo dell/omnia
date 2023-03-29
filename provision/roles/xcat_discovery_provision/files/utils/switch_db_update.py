@@ -25,11 +25,11 @@ ib_end_range = ipaddress.IPv4Address(ib_end_range)
 def check_switch_table():
     conn = omniadb_connection.create_connection()
     cursor = conn.cursor()
-    sql = '''select max(id) from cluster.nodeinfo'''
+    sql = '''select max(id) from cluster.nodeinfo where switch_port is not NULL'''
     cursor.execute(sql)
     switch_op = cursor.fetchone()
-    if switch_op is None:
-        sys.exit("Switch table doesnt contain any input")
+    if switch_op[0] is None:
+        sys.exit("Nodeinfo table doesnt contain any input related to switch_based discovery")
     conn.close()
     return "true"
 
