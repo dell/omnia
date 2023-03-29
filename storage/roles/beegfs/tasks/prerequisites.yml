@@ -14,6 +14,9 @@
 ---
 
 - name: Check for beegfs_ofed_kernel_modules_path
+  when:
+    - beegfs_rdma_support
+    - beegfs_ofed_kernel_modules_path | length > 1
   block:
     - name: Verify beegfs_ofed_kernel_modules_path existence
       ansible.builtin.stat:
@@ -24,9 +27,6 @@
       ansible.builtin.fail:
         msg: "{{ fail_msg_beegfs_ofed_path }}"
       when: not beegfs_ofed_path.stat.exists
-  when:
-    - beegfs_rdma_support
-    - beegfs_ofed_kernel_modules_path | length > 1
 
 - name: Fetch SElinux mode
   ansible.builtin.command: sestatus
@@ -61,6 +61,7 @@
   when: os_supported_redhat in compute_os
 
 - name: Unmount previous existence of BeeGFS client
+  when: beegfs_unmount_client
   block:
     - name: BeeGFS client mount config file
       ansible.builtin.command: cat "{{ beegfs_mount_file }}"
@@ -92,7 +93,6 @@
     - name: Status of unmounting
       ansible.builtin.fail:
         msg: "{{ beegfs_mount_status_msg }}"
-  when: beegfs_unmount_client
 
 - name: Fetch kernel version
   ansible.builtin.command: uname -r
