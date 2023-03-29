@@ -8,9 +8,10 @@
     visibility: visible;
     height: auto;
     width: auto;
+    padding-top: 10px;
+    padding-bottom: 10px;
     border-radius: 0;
     max-width: 100%;
-    background: transparent;
     transform: scale(.30);
     transform-origin: left;
 }
