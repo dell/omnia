@@ -27,7 +27,15 @@
 .rst-versions a {
     color: rgb(255, 255, 255);
 }
-
+.rst-content .sidebar .sidebar-title {
+    display: block;
+    font-family: Roboto Slab,ff-tisa-web-pro,Georgia,Arial,sans-serif;
+    font-weight: 700;
+    background: #ffffff;
+    padding: 6px 12px;
+    margin: -24px -24px 24px;
+    font-size: 100%
+}
 .wy-menu-vertical a.reference:hover,
 .wy-menu-vertical a.reference.internal:hover {
     background: #2980B9;
