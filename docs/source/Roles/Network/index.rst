@@ -32,9 +32,11 @@ To install OFED drivers, enter all required parameters in ``input/network_config
 +------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | mlnx_ofed_add_kernel_support | Indicates whether the kernel   needs to be upgraded to be compatible with mlnx_ofed.                                                                                                    |
 |      [required]              |                                                                                                                                                                                         |
-|      ``boolean``             | **Default value**: false                                                                                                                                                                |
+|      ``boolean``             | **Choices**:                                                                                                                                                                            |
+|                              |                                                                                                                                                                                         |
+|                              |      * ``false`` <- Default                                                                                                                                                             |
+|                              |      * ``true``                                                                                                                                                                         |
 +------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-
 
 To run the script: ::
 
