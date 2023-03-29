@@ -38,8 +38,8 @@ class MonitoringThread(threading.Thread):
 # value corresponding to each key is an array comprising of node status and mac address
 def get_node_details():
     node_status_cmd = 'nodels all nodelist.status'
-    temp = subprocess.Popen([node_status_cmd], stdout = subprocess.PIPE, shell= True)
-    output = temp.communicate()[0].decode("utf-8")
+    temp = subprocess.run([node_status_cmd], shell=True,capture_output=True,text=True)
+    output = temp.stdout
     output = output.split("\n")
     for line in output:
         line = line.split(':')
@@ -48,9 +48,18 @@ def get_node_details():
             node_details[line[0]].append(line[1].strip())
             
     for node in node_details.keys():
-        node_details_cmd = 'lsdef' + ' ' + node + ' | grep mac'
-        temp = subprocess.Popen([node_details_cmd], stdout = subprocess.PIPE, shell= True)
-        output = temp.communicate()[0].decode("utf-8")
+        node_details_cmd = 'lsdef' + ' ' + node + ' | grep mac='
+        temp = subprocess.run([node_details_cmd], shell=True,capture_output=True,text=True)
+        output = temp.stdout
+        if len(output) > 0:
+            node_details[node].append(output.split('=')[1].strip('\n'))
+        else:
+            node_details[node].append("")
+
+    for node in node_details.keys():
+        node_details_cmd = 'lsdef' + ' ' + node + ' | grep serial='
+        temp = subprocess.run([node_details_cmd], shell=True,capture_output=True,text=True)
+        output = temp.stdout
         if len(output) > 0:
             node_details[node].append(output.split('=')[1].strip('\n'))
         else:
@@ -85,6 +94,13 @@ def add_details_to_db():
             if current_mac[0][0] is None and re.match("[0-9a-f]{2}([-:]?)[0-9a-f]{2}(\\1[0-9a-f]{2}){4}$", node_details[node][1].lower()):
                 sql_mac = "Update cluster.nodeinfo set admin_mac = %s where node = %s"
                 cursor.execute(sql_mac, (node_details[node][1], node))
+        sql_check_serial = "Select serial from cluster.nodeinfo where node = %s"
+        cursor.execute(sql_check_serial, (node,))
+        current_serial = cursor.fetchall()
+        if len(current_serial) < 2 and len(node_details[node][2]) > 2:
+            if current_serial[0][0] is None:
+                sql_serial = "Update cluster.nodeinfo set serial = %s where node = %s"
+                cursor.execute(sql_serial, (node_details[node][2], node))
     conn.close()
 
 def main():
