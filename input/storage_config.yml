@@ -78,3 +78,11 @@ beegfs_client_version: "7.2.6"
 # Default value: false
 # If there is a need for installing different version of BeeGFS client then make this variable to true
 beegfs_version_change: false
+
+# Beegfs secret storage file or authentication file
+# Required for Beegfs version >= 7.2.7
+# Default value is /home/connauthfile
+# Accepted value: Path along with filename for secret stoarge file configured
+# on beegfs server
+# If this is not provided, beegfs installation will fail
+beegfs_secret_storage_filepath: /home/connauthfile
