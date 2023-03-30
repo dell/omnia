@@ -1,7 +1,7 @@
 .wy-side-nav-search {
     background-color: #2980B9;
 }
-
+/*
 .wy-side-nav-search a:before {
     display: block;
     content: url(https://raw.githubusercontent.com/dellhpc/omnia/main/docs/source/images/omnia-logo.png);
@@ -15,7 +15,7 @@
     transform: scale(.30);
     transform-origin: left;
 }
-
+*/
 
 .wy-side-nav-search a {
     visibility: hidden;
