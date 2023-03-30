@@ -19,7 +19,7 @@
     state: present
 
 - name: Install psycopg2 module
-  ansible.builtin.command: python3 -m pip install psycopg2-binary
+  ansible.builtin.command: "{{ python_version }} -m pip install psycopg2-binary"
   changed_when: false
 
 - name: Check if monitor_status.py is already running
@@ -29,6 +29,6 @@
   register: ps_output
   changed_when: false
 
-- name: Initiate script if not running
-  ansible.builtin.shell: nohup python3 {{ role_path }}/files/utils/monitor_status.py &
+- name: Initiate monitor_status script if not running
+  ansible.builtin.shell: "nohup {{ python_version }} {{ role_path }}/files/utils/monitor_status.py &"
   when: "'monitor_status.py' not in ps_output.stdout"

@@ -48,3 +48,4 @@ dns_config_warning_msg: "[WARNING] makedns -n command is not successful. Error:"
 psql_devel_packages:
   - postgresql-devel
   - python3-devel
+python_version: python3.8
