@@ -39,8 +39,8 @@ In the above image, hovering over the graph has displayed user, job id, compute 
 
 In the above image, the view is zoomed into using a mouse scroll forward. The graph has been customized using the left panel to display the number of cores used by user11.
 
-.. |img.png| image:: ../../../images/Visualization/SankeyLayout_InitialView.png
-.. |image1| image:: ../../../images/Visualization/SankeyLayout_LeftPanel.png
-.. |image2| image:: ../../../images/Visualization/SankeyLayout_EditMode.png
-.. |image3| image:: ../../../images/Visualization/SankeyLayout_HoverFreeze.png
-.. |image4| image:: ../../../images/Visualization/SankeyLayout_Zoom.png
+.. |img.png| image:: ../../images/Visualization/SankeyLayout_InitialView.png
+.. |image1| image:: ../../images/Visualization/SankeyLayout_LeftPanel.png
+.. |image2| image:: ../../images/Visualization/SankeyLayout_EditMode.png
+.. |image3| image:: ../../images/Visualization/SankeyLayout_HoverFreeze.png
+.. |image4| image:: ../../images/Visualization/SankeyLayout_Zoom.png

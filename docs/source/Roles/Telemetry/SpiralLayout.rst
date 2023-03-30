@@ -21,8 +21,8 @@ In the above image, the edit panel offers the option to:
 * Change the number of rings displayed
 * Change the Node size on the graph
 
-.. |img.png| image:: ../../../images/Visualization/SpiralLayout_InitialView.png
-.. |image1| image:: ../../../images/Visualization/SpiralLayout_SelectMetric.png
-.. |image2| image:: ../../../images/Visualization/SpiralLayout_HeatMaps.png
-.. |image3| image:: ../../../images/Visualization/SpiralLayout_EditPanel.png
-.. |image4| image:: ../../../images/Visualization/SpiralLayout_EditBehaviourPanel.png
+.. |img.png| image:: ../../images/Visualization/SpiralLayout_InitialView.png
+.. |image1| image:: ../../images/Visualization/SpiralLayout_SelectMetric.png
+.. |image2| image:: ../../images/Visualization/SpiralLayout_HeatMaps.png
+.. |image3| image:: ../../images/Visualization/SpiralLayout_EditPanel.png
+.. |image4| image:: ../../images/Visualization/SpiralLayout_EditBehaviourPanel.png
