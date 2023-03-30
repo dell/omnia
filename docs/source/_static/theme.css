@@ -1,6 +1,15 @@
 .wy-side-nav-search {
     background-color: #2980B9;
 }
+.wy-side-nav-search img {
+    display: block;
+    margin: auto auto .809em;
+    height: 45px;
+    width: 45px;
+    background-color: #2980b9;
+    padding: 5px;
+    border-radius: 100%
+}
 /*
 .wy-side-nav-search a:before {
     display: block;
