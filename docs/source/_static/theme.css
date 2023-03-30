@@ -10,6 +10,21 @@
     padding: 5px;
     border-radius: 100%
 }
+.wy-side-nav-search .wy-dropdown>a img.logo,
+.wy-side-nav-search>a img.logo {
+    display: block;
+    margin: 0 auto;
+    height: auto;
+    width: auto;
+    border-radius: 0;
+    max-width: 100%;
+    background: transparent
+}
+
+.wy-side-nav-search .wy-dropdown>a.icon img.logo,
+.wy-side-nav-search>a.icon img.logo {
+    margin-top: .85em
+}
 /*
 .wy-side-nav-search a:before {
     display: block;
