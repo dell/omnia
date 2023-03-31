@@ -40,7 +40,7 @@ powervault_token_me5: DellEMC,ME5
 powervault_vars_filename: powervault_vars.yml
 
 # Usage: mount_volume.yml
-mount_dir_permissions: 0755
+mount_dir_permissions: 0777
 lvm_size: 100%FREE
 exports_file: "/etc/exports"
 default_server_options: "rw,sync,no_root_squash"
