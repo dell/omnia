@@ -1,3 +1,17 @@
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
 import sys
 import omniadb_connection
 import ipaddress
@@ -14,6 +28,7 @@ ib_end_range = sys.argv[9]
 node_name = sys.argv[10]
 domain_name = sys.argv[11]
 
+switch_v3_ip = ipaddress.IPv4Address(switch_v3_ip)
 bmc_start_range = ipaddress.IPv4Address(bmc_start_range)
 bmc_end_range = ipaddress.IPv4Address(bmc_end_range)
 admin_start_range = ipaddress.IPv4Address(admin_start_range)
@@ -34,7 +49,7 @@ def check_switch_table():
     return "true"
 
 
-def switch_based_bmc_details( ip_count):
+def switch_based_bmc_details(ip_count):
     conn = omniadb_connection.create_connection()
     cursor = conn.cursor()
     sql = '''select max(bmc_ip) from cluster.nodeinfo where switch_port is not NULL'''
@@ -82,7 +97,7 @@ def insert_switch_details():
     conn = omniadb_connection.create_connection()
     cursor = conn.cursor()
     ports = switch_v3_ports.split(',')
-    sql = '''select switch_name from cluster.switchinfo where switch_ip= '{switch_v3_ip}' '''.format(switch_v3_ip=switch_v3_ip)
+    sql = '''select switch_name from cluster.switchinfo where switch_ip= '{switch_v3_ip}' '''.format(switch_v3_ip = switch_v3_ip)
     cursor.execute(sql)
     switch_v3_name = cursor.fetchone()[0]
     if switch_op == "true":
@@ -125,7 +140,7 @@ def insert_switch_details():
                             temp_ib = None
 
                         # Insert details in DB
-                        omniadb_connection.insert_switch_based_server(cursor, temp_bmc, temp_admin, temp_ib, node, host_name, switch_v3_name, j,ib_status)
+                        omniadb_connection.insert_switch_based_server(cursor, temp_bmc, temp_admin, temp_ib, node, host_name, switch_v3_ip, switch_v3_name, j,ib_status)
 
                     if output:
                         existing_ports.append(j)
@@ -171,7 +186,7 @@ def insert_switch_details():
                         temp_ib = None
 
                     # Insert details in DB
-                    omniadb_connection.insert_switch_based_server(cursor, temp_bmc, temp_admin, temp_ib, node, host_name, switch_v3_name, port, ib_status)
+                    omniadb_connection.insert_switch_based_server(cursor, temp_bmc, temp_admin, temp_ib, node, host_name, switch_v3_ip, switch_v3_name, port, ib_status)
 
                     if output:
                         existing_ports.append(ports[i])

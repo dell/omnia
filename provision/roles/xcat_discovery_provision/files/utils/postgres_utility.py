@@ -69,6 +69,7 @@ def create_db_table(conn):
         ib_ip INET,
         status VARCHAR(65),
         bmc_mode VARCHAR(30),
+        switch_ip INET,
         switch_name VARCHAR(30),
         switch_port VARCHAR(10))'''
     cursor.execute(sql)

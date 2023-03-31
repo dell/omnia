@@ -16,35 +16,36 @@ import psycopg2 as pg
 
 
 def create_connection():
-
     # Create database connection
     conn = pg.connect(
-        database = "omniadb",
-        user = "postgres",
-        host = "localhost",
-        port = "5432",
+        database="omniadb",
+        user="postgres",
+        host="localhost",
+        port="5432",
     )
     conn.autocommit = True
     return conn
 
 
-def insert_switch(cursor,switch_name,switch_ip):
-
+def insert_switch(cursor, switch_name, switch_ip):
     # Insert switch details to cluster.switchinfo table
     sql = '''INSERT INTO cluster.switchinfo(switch_name,switch_ip) VALUES ('{switch_name}','{switch_ip}')'''.format(
         switch_name=switch_name, switch_ip=switch_ip)
     cursor.execute(sql)
 
     print(f"Inserted switch_ip: {switch_ip} with switch_name: {switch_name} into cluster.switchinfo table")
-    
 
-def insert_switch_based_server(cursor, bmc_ip, admin_ip, ib_ip, node, hostname, switch_name, switch_port, ib_status):
+
+def insert_switch_based_server(cursor, bmc_ip, admin_ip, ib_ip, node, hostname, switch_ip, switch_name, switch_port,
+                               ib_status):
     if ib_status == "False":
-        sql = '''INSERT INTO cluster.nodeinfo(bmc_ip, admin_ip, ib_ip, node, hostname, switch_name, switch_port) VALUES ('{bmc_ip}','{admin_ip}',NULL, '{node}', '{hostname}' , '{switch_name}' , '{switch_port}')'''.format(
-            bmc_ip=bmc_ip, admin_ip=admin_ip, node=node, hostname=hostname, switch_name=switch_name,
+        sql = '''INSERT INTO cluster.nodeinfo(bmc_ip, admin_ip, ib_ip, node, hostname, switch_ip, switch_name, switch_port) VALUES ('{bmc_ip}','{admin_ip}',NULL, '{node}', '{hostname}' ,'{switch_ip}' ,'{switch_name}', '{switch_port}')'''.format(
+            bmc_ip=bmc_ip, admin_ip=admin_ip, node=node, hostname=hostname, switch_ip=switch_ip,
+            switch_name=switch_name,
             switch_port=switch_port)
         cursor.execute(sql)
     elif ib_status == "True":
-        sql = '''INSERT INTO cluster.nodeinfo(bmc_ip, admin_ip, ib_ip, node, hostname, switch_name, switch_port) VALUES ('{bmc_ip}','{admin_ip}','{ib_ip}', '{node}', '{hostname}' , '{switch_name}' , '{switch_port}')'''.format(
-            bmc_ip=bmc_ip, admin_ip=admin_ip, ib_ip=ib_ip, node=node, hostname=hostname, switch_name=switch_name, switch_port=switch_port)
+        sql = '''INSERT INTO cluster.nodeinfo(bmc_ip, admin_ip, ib_ip, node, hostname, switch_ip, switch_name, switch_port) VALUES ('{bmc_ip}','{admin_ip}','{ib_ip}', '{node}', '{hostname}' , '{switch_ip}', '{switch_name}', '{switch_port}')'''.format(
+            bmc_ip=bmc_ip, admin_ip=admin_ip, ib_ip=ib_ip, node=node, hostname=hostname, switch_ip=switch_ip,
+            switch_name=switch_name, switch_port=switch_port)
         cursor.execute(sql)
