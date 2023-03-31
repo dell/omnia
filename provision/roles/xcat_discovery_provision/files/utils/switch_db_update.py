@@ -14,6 +14,7 @@ ib_end_range = sys.argv[9]
 node_name = sys.argv[10]
 domain_name = sys.argv[11]
 
+switch_v3_ip = ipaddress.IPv4Address(switch_v3_ip)
 bmc_start_range = ipaddress.IPv4Address(bmc_start_range)
 bmc_end_range = ipaddress.IPv4Address(bmc_end_range)
 admin_start_range = ipaddress.IPv4Address(admin_start_range)
@@ -34,7 +35,7 @@ def check_switch_table():
     return "true"
 
 
-def switch_based_bmc_details( ip_count):
+def switch_based_bmc_details(ip_count):
     conn = omniadb_connection.create_connection()
     cursor = conn.cursor()
     sql = '''select max(bmc_ip) from cluster.nodeinfo where switch_port is not NULL'''
@@ -125,7 +126,7 @@ def insert_switch_details():
                             temp_ib = None
 
                         # Insert details in DB
-                        omniadb_connection.insert_switch_based_server(cursor, temp_bmc, temp_admin, temp_ib, node, host_name, switch_v3_name, j,ib_status)
+                        omniadb_connection.insert_switch_based_server(cursor, temp_bmc, temp_admin, temp_ib, node, host_name, switch_v3_ip, switch_v3_name, j,ib_status)
 
                     if output:
                         existing_ports.append(j)
@@ -171,7 +172,7 @@ def insert_switch_details():
                         temp_ib = None
 
                     # Insert details in DB
-                    omniadb_connection.insert_switch_based_server(cursor, temp_bmc, temp_admin, temp_ib, node, host_name, switch_v3_name, port, ib_status)
+                    omniadb_connection.insert_switch_based_server(cursor, temp_bmc, temp_admin, temp_ib, node, host_name, switch_v3_ip, switch_v3_name, port, ib_status)
 
                     if output:
                         existing_ports.append(ports[i])
