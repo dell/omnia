@@ -41,7 +41,11 @@
       md_discovery_mechanism == discovery_method_snmp and discovery_mechanism == discovery_method_mapping or
       md_discovery_mechanism == discovery_method_mapping and discovery_mechanism == discovery_method_snmp or
       md_discovery_mechanism == discovery_method_switch_based and discovery_mechanism == discovery_method_snmp or
-      md_discovery_mechanism == discovery_method_snmp and discovery_mechanism == discovery_method_switch_based
+      md_discovery_mechanism == discovery_method_snmp and discovery_mechanism == discovery_method_switch_based or
+      md_discovery_mechanism == discovery_method_mapping and discovery_mechanism == discovery_method_switch_based or
+      md_discovery_mechanism == discovery_method_bmc and discovery_mechanism == discovery_method_switch_based or
+      md_discovery_mechanism == discovery_method_switch_based and discovery_mechanism == discovery_method_bmc or
+      md_discovery_mechanism == discovery_method_switch_based and discovery_mechanism == discovery_method_mapping
 
 - name: Update discovery_mech_state variable
   ansible.builtin.set_fact:

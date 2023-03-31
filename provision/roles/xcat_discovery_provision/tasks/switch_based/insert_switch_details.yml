@@ -14,15 +14,15 @@
 ---
 - name: Set fact for vars
   ansible.builtin.set_fact:
-    ib_start_range: 0.0.0.0
-    ib_end_range: 0.0.0.0
+    ib_nic_start_range: 0.0.0.0
+    ib_nic_end_range: 0.0.0.0
     ib_nic_subnet: 0.0.0.0
   when: ib_nic_subnet | length < 7
 
 - name: Insertion for switch ports
   ansible.builtin.command: |
     {{ python_version }} {{ switch_db_update }} {{ item.ip }} {{ item.ports }}
-    {{ bmc_nic_start }} {{ bmc_nic_end }} {{ pxe_nic_start }} {{ pxe_nic_end }}
-    {{ ib_status }} {{ ib_nic_start }} {{ ib_nic_end }} {{ node_name }} {{ domain_name }}
+    {{ bmc_nic_start_range }} {{ bmc_nic_end_range }} {{ pxe_nic_start_range }} {{ pxe_nic_end_range }}
+    {{ ib_status }} {{ ib_nic_start_range }} {{ ib_nic_end_range }} {{ node_name }} {{ domain_name }}
   with_items: "{{ switch_based_details }}"
   changed_when: false
