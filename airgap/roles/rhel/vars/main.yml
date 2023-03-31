@@ -17,3 +17,4 @@ subscription_warning_msg: "[WARNING] redhat subscription not enabled. Please ena
 rhsm_release_file_path: "/opt/omnia/.data/rhsm_release"
 codereadybuilder_path: "/install/CodeReadyBuilder{{ provision_os_version }}/x86_64"
 osimage_search_key: install-compute
+directory_permissions: 0755
