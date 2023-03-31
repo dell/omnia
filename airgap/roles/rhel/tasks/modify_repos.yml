@@ -36,9 +36,7 @@
     mode: "{{ directory_permissions }}"
 
 - name: Initiate reposync of CodeReadyBuilder (This might take 10 mins)
-  ansible.builtin.command: >-
-  reposync -p {{ codereadybuilder_path }} --download-metadata
-  --repo=codeready-builder-for-rhel-8-x86_64-rpms -a x86_64,noarch --norepopath -n
+  ansible.builtin.command: "reposync -p {{ codereadybuilder_path }} --download-metadata --repo={{ codeready_repo_name }} -a x86_64,noarch --norepopath -n"
   changed_when: false
 
 # Modify xcat osimage
