@@ -22,9 +22,51 @@
     - "{{ rhel_repo_folder_path }}/BaseOS/Packages"
 
 # Reposync of AppStream and BaseOS
-- name: Initiate reposync of AppStream, BaseOS and CodeReadyBuilder Repos (This might take 20-25 mins)
+- name: Initiate reposync of AppStream, BaseOS (This might take 20-25 mins)
   ansible.builtin.command: "reposync -p {{ rhel_repo_folder_path }}/{{ item.0 }} --download-metadata --repo={{ item.1 }} -a x86_64,noarch --norepopath -n"
   changed_when: false
   with_together:
-    - ['AppStream', 'BaseOS', 'CodeReadyBuilder']
-    - ['rhel-8-for-x86_64-appstream-rpms', 'rhel-8-for-x86_64-baseos-rpms', 'codeready-builder-for-rhel-8-x86_64-rpms']
+    - ['AppStream', 'BaseOS']
+    - ['rhel-8-for-x86_64-appstream-rpms', 'rhel-8-for-x86_64-baseos-rpms']
+
+- name: Create folder for CodeReadyBuilder
+  ansible.builtin.file:
+    path: "{{ codereadybuilder_path }}"
+    state: directory
+    mode: "{{ directory_permissions }}"
+
+- name: Initiate reposync of CodeReadyBuilder (This might take 10 mins)
+  ansible.builtin.command: "reposync -p {{ codereadybuilder_path }} --download-metadata --repo={{ codeready_repo_name }} -a x86_64,noarch --norepopath -n"
+  changed_when: false
+
+# Modify xcat osimage
+
+- name: Fetch xcat osimage name for provision_os
+  ansible.builtin.shell: >
+    set -o pipefail && \
+    lsdef -t osimage | grep "{{ osimage_search_key }}" | grep "{{ provision_os }}" | grep "{{ provision_os_version }}"
+  changed_when: false
+  register: fetch_osimage
+  failed_when: false
+
+- name: Set provision_os_image
+  ansible.builtin.set_fact:
+    provision_os_image: "{{ fetch_osimage.stdout.split(' ')[0] }}"
+  when: fetch_osimage.rc == 0
+
+- name: Retry fetching xcat osimage name for provision_os
+  ansible.builtin.shell: >
+    set -o pipefail && \
+    lsdef -t osimage | grep "{{ osimage_search_key }}" | grep "{{ provision_os }}"
+  changed_when: false
+  register: retry_fetch_osimage
+  when: fetch_osimage.rc != 0
+
+- name: Set provision_os_image
+  ansible.builtin.set_fact:
+    provision_os_image: "{{ retry_fetch_osimage.stdout.split(' ')[0] }}"
+  when: fetch_osimage.rc != 0
+
+- name: Configure CodeReadyBuilder repo to osimage
+  ansible.builtin.command: chdef -t osimage -o {{ provision_os_image }} -p pkgdir={{ codereadybuilder_path }}
+  changed_when: true

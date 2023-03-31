@@ -11,11 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+---
 
-os_supported_rhel: "redhat"
-subscription_warning_msg: "[WARNING] redhat subscription not enabled. Please enable the subscription and proceed."
-rhsm_release_file_path: "/opt/omnia/.data/rhsm_release"
-codereadybuilder_path: "/install/CodeReadyBuilder{{ provision_os_version }}/x86_64"
-osimage_search_key: install-compute
-directory_permissions: 0755
-codeready_repo_name: codeready-builder-for-rhel-8-x86_64-rpms
+- name: Include variable file package_update_config.yml
+  ansible.builtin.include_vars: "{{ package_update_config_file }}"
+  no_log: true
+
+- name: Validate input
+  ansible.builtin.include_tasks: validate_input.yml
+
+- name: Update Packages
+  ansible.builtin.include_tasks: update.yml
+
+- name: Reboot nodes if required
+  ansible.builtin.include_tasks: reboot_nodes.yml
+  when: reboot_required
