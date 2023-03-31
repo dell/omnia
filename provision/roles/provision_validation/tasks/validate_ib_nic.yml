@@ -24,6 +24,10 @@
   ansible.builtin.set_fact:
     ib_nic_start_range: "{{ ib_nic_start }}"
     ib_nic_end_range: "{{ ib_nic_end }}"
+  when:
+    - discovery_mechanism == discovery_method_snmp or
+      discovery_mechanism == discovery_method_mapping or
+      discovery_mechanism == discovery_method_bmc
 
 - name: Set fact for ib_status
   ansible.builtin.set_fact:

@@ -16,7 +16,7 @@
 # Usage: create_metadata.yml
 meta_path: "/opt/omnia/.data/metadata.yml"
 meta_dest: "/opt/omnia/.data/"
-discovery_mech_fail_msg: "snmp over any other discovery_mechanism wont be allowed,
+discovery_mech_fail_msg: "snmpwalk or switch_based over any other discovery_mechanism wont be allowed,
 please change rhe discovery_mechanism in provision_config.yml and re-run the provision.yml"
 discovery_method_bmc: "bmc"
 discovery_method_snmp: "snmpwalk"
