@@ -25,25 +25,6 @@
 .wy-side-nav-search>a.icon img.logo {
     margin-top: .85em
 }
-/*
-.wy-side-nav-search a:before {
-    display: block;
-    content: url(https://raw.githubusercontent.com/dellhpc/omnia/main/docs/source/images/omnia-logo.png);
-    visibility: visible;
-    height: auto;
-    width: auto;
-    padding-top: 1px;
-    padding-bottom: 1px;
-    border-radius: 0;
-    max-width: 100%;
-    transform: scale(.30);
-    transform-origin: left;
-}
-
-.wy-side-nav-search a {
-    visibility: hidden;
-}
-*/
 
 /* Vertical navigation
   ==================================================== */
