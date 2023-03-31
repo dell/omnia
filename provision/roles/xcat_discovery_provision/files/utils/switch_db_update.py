@@ -1,3 +1,17 @@
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
 import sys
 import omniadb_connection
 import ipaddress
@@ -83,7 +97,7 @@ def insert_switch_details():
     conn = omniadb_connection.create_connection()
     cursor = conn.cursor()
     ports = switch_v3_ports.split(',')
-    sql = '''select switch_name from cluster.switchinfo where switch_ip= '{switch_v3_ip}' '''.format(switch_v3_ip=switch_v3_ip)
+    sql = '''select switch_name from cluster.switchinfo where switch_ip= '{switch_v3_ip}' '''.format(switch_v3_ip = switch_v3_ip)
     cursor.execute(sql)
     switch_v3_name = cursor.fetchone()[0]
     if switch_op == "true":
