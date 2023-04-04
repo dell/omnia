@@ -13,7 +13,7 @@ switch_based
 * Non-admin user credentials for the switch need to be provided.
 
 .. note::
-    * To create an SNMPv3 user on switch, use the following commands:
+    * To create an SNMPv3 user on S series switches (running  OS10), use the following commands:
         - To create SNMP view: ``snmp-server view test_view internet included``
         - To create SNMP group: ``snmp-server group testgroup auth read test_view``
         - To create SNMP users: ``snmp-server user authuser1 testgroup 3 auth sha authpasswd1``

@@ -45,6 +45,16 @@ Resolution:
 
     * Resolve/replace the faulty hardware and PXE boot the node.
 
+**What to do if PXE boot fails when discovering target nodes via switch_based discovery**
+
+1. Rectify any probable causes like incorrect credentials, network glitches or incorrect switch IP/port details.
+2. Run the clean up script by: ::
+
+     cd utils
+     ansible-playbook control_plane_cleanup.yml
+
+3. Re-run the provision tool (``ansible-playbook provision.yml``).
+
 **How to add a new node for provisioning**
 
 
