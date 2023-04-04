@@ -7,16 +7,9 @@ on:
       - release-1.4
       - release-1.4.0.1
       - release-1.4.1
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 5acc6a93 (Update ansible-lint.yml)
       - release-1.4.2
       - devel-1.4.2
       - devel-1.5
-=======
-      - devel-1.4.2
->>>>>>> 904a51ca (Update ansible-lint.yml)
 
 jobs:
   ansible-lint:
