@@ -13,6 +13,11 @@
 #  limitations under the License.
 ---
 
+- name: Fail if BMC nic subent is not present
+  ansible.builtin.fail:
+    msg: "Failed.{{ fail_subnet }} for BMC."
+  when: bmc_nic_subnet | length < 7
+
 - name: Set fact for BMC NIC IP and netmask details
   ansible.builtin.set_fact:
     bmc_nic: "{{ admin_nic }}"
