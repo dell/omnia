@@ -31,6 +31,7 @@ xcat_connection_search_key: "connection failure"
 warning_wait_time: 30
 reprovision_warning_msg: "[WARNING] xcatd services are not running in the server. Re-provisioning of nodes will be skipped for the given inventory."
 xcat_status_fail_msg: "Failed. xCAT services are not running. Please run provision.yml or prepare_cp.yml to install xCAT."
+repo_precheck: "Failed. Please run provision/repo_manipulate.yml."
 
 # Usage: fetch_osimage.yml
 osimage_search_key: install-compute
