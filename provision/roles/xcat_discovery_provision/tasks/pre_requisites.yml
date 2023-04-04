@@ -55,6 +55,21 @@
     msg: "{{ xcat_status_fail_msg }}"
   when: not xcat_installation_status
 
+- name: Check diskful osimage is created
+  ansible.builtin.shell: >
+      set -o pipefail && \
+      lsdef -t osimage | grep "{{ osimage_search_key }}" | grep "{{ provision_os }}" | grep "{{ provision_os_version }}"
+  changed_when: false
+  failed_when: false
+  register: diskful_osimage_precheck
+
+- name: Fail if osimage not present
+  ansible.builtin.fail:
+    msg: "{{ repo_precheck }}"
+  when:
+    - diskful_osimage_precheck.stdout == ""
+    - diskful_osimage_precheck.stderr == ""
+
 - name: Set reprovision_status to true
   ansible.builtin.set_fact:
     reprovision_status: true
