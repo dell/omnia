@@ -37,7 +37,7 @@ The monitor role sets up `Grafana <https://grafana.com/>`_ ,  `Prometheus <https
 +----------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 
-.. note:: After running ``monitor.yml``, the file ``input/monitor_config.yml`` will be encrypted. To edit the file, use ``ansible-vault edit monitor_config.yml --vault-password-file .monitor_vault_key``.
+.. note::  After running ``monitor.yml``, the file ``input/monitor_config.yml`` will be encrypted. To edit the file, use ``ansible-vault edit monitor_config.yml --vault-password-file .monitor_vault_key``.
 
 2. Run the playbook using the following command: ::
 

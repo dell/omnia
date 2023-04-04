@@ -85,7 +85,7 @@ After initiation, new nodes can be added to telemetry by running the following c
 
 .. note::
     * The passed inventory should have an idrac group.
-    * ``telemetry_config.yml``  is encrypted upon executing ``telemetry.yml``. View and edit instructions are provided in the `Troubleshooting Guide <../../Troubleshooting/troubleshootingguide.html>`_
+    * ``telemetry_config.yml``  is encrypted upon executing ``telemetry.yml``. To edit the file, use ``ansible-vault edit telemetry_config.yml --vault-password-file .telemetry_vault_key``.
     * If ``idrac_telemetry`` is ``true`` while executing ``telemetry.yml``, **or** while running ``add_idrac_node.yml``, if the inventory passed does not contain an idrac group, idrac telemetry will run on IP’s present under ``/opt/omnia/provisioned_idrac_inventory`` of control plane.
 
 Viewing Performance Stats on Grafana
