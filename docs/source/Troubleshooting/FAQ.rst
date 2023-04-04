@@ -47,6 +47,8 @@ Resolution:
 
 **What to do if PXE boot fails when discovering target nodes via switch_based discovery**
 
+.. image:: ../images/PXEBootFail.png
+
 1. Rectify any probable causes like incorrect credentials, network glitches or incorrect switch IP/port details.
 2. Run the clean up script by: ::
 
