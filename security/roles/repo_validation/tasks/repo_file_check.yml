@@ -1,0 +1,83 @@
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Get all config files if repo list not valid
+  ansible.builtin.command: ls "{{ repo_path }}"
+  register: repos
+  changed_when: false
+
+- name: Initiallize variable
+  ansible.builtin.set_fact:
+    repo_found: false
+
+- name: Check config files for AppStream
+  any_errors_fatal: true
+  when: not repo_list_status
+  block:
+    - name: Check Appstream
+      ansible.builtin.lineinfile:
+        path: "{{ repo_path }}{{ item }}"
+        search_string: "{{ search_string[0] }}"
+        line: "{{ search_string[0] }}"
+        state: absent
+      with_items:
+        - "{{ repos.stdout_lines }}"
+      check_mode: true
+      no_log: true
+      register: conf
+      failed_when: (conf.changed)
+  rescue:
+    - name: Repo found
+      ansible.builtin.set_fact:
+        repo_found: true
+      when: conf.changed
+  always:
+    - name: Repo not found
+      ansible.builtin.assert:
+        that: repo_found
+        success_msg: "{{ appstream_success_msg }}"
+        fail_msg: "{{ appstream_fail_msg }}"
+
+- name: Initiallize variable
+  ansible.builtin.set_fact:
+    repo_found: false
+
+- name: Check config files for BaseOS
+  any_errors_fatal: true
+  when: not repo_list_status
+  block:
+    - name: Check baseos
+      ansible.builtin.lineinfile:
+        path: "{{ repo_path }}{{ item }}"
+        search_string: "{{ search_string[1] }}"
+        line: "{{ search_string[1] }}"
+        state: absent
+      with_items:
+        - "{{ repos.stdout_lines }}"
+      check_mode: true
+      no_log: true
+      register: conf
+      failed_when: (conf.changed)
+  rescue:
+    - name: Repo found
+      ansible.builtin.set_fact:
+        repo_found: true
+      when: conf.changed
+  always:
+    - name: Repo not found
+      ansible.builtin.assert:
+        that: repo_found
+        success_msg: "{{ baseos_success_msg }}"
+        fail_msg: "{{ baseos_fail_msg }}"

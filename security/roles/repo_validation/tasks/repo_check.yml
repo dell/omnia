@@ -13,15 +13,27 @@
 #  limitations under the License.
 ---
 
+- name: Initiallize variable
+  ansible.builtin.set_fact:
+    repo_list_status: true
+
 - name: Fetch xcat enabled repo list
   ansible.builtin.command: dnf repolist
   changed_when: false
   register: dnf_repo_list
 
-- name: Check xcat enabled repos
-  ansible.builtin.assert:
-    that:
-      - "'appstream' in dnf_repo_list.stdout | lower"
-      - "'baseos' in dnf_repo_list.stdout | lower"
-    success_msg: "{{ xcat_repo_success_msg }}"
-    fail_msg: "{{ xcat_repo_fail_msg }}"
+- name: Check if repo list is valid
+  ansible.builtin.set_fact:
+    repo_list_status: false
+  when: not dnf_repo_list is search("local_rhel")
+
+- name: Check enabled repos using repo list
+  when: repo_list_status
+  block:
+    - name: Check xcat enabled repos
+      ansible.builtin.assert:
+        that:
+          - "'appstream' in dnf_repo_list.stdout | lower"
+          - "'baseos' in dnf_repo_list.stdout | lower"
+        success_msg: "{{ xcat_repo_success_msg }}"
+        fail_msg: "{{ xcat_repo_fail_msg }}"
