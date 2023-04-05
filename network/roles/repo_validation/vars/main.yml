@@ -27,4 +27,4 @@ appstream_success_msg: "AppStream repo is enabaled"
 appstream_fail_msg: "Failed, AppStream repo not available"
 baseos_success_msg: "BaseOS repo is enabled"
 baseos_fail_msg: "Failed, BaseOS repo is not available"
-search_string: ['AppStream','BaseOS']
+search_string: ['AppStream', 'BaseOS']

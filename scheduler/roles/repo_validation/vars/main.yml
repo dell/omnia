@@ -31,4 +31,4 @@ baseos_success_msg: "BaseOS repo is enabled"
 baseos_fail_msg: "Failed, BaseOS repo is not available"
 codereadybuilder_success_msg: "CodeReady-Builder repo is enabled"
 codereadybuilder_fail_msg: "Failed, CodeReady-Builder repo is not available"
-search_string: ['AppStream','BaseOS','CodeReadyBuilder']
+search_string: ['AppStream', 'BaseOS', 'CodeReadyBuilder']
