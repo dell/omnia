@@ -139,6 +139,7 @@ switch_based_details:
   - { ip: , ports: '' }
 
 #### Mandatory, discovery_mechanism: switch_based
+# Non-admin SNMPv3 credentials of the PXE switch
 # If multiple switches are provided, these credentials should be same across all the switches.
 # The username and password must not contain -,\, ',"
 switch_snmp3_username: ""
@@ -152,7 +153,7 @@ switch_snmp3_password: ""
 ip_start_range: "x.y.0.1"
 ip_end_range: "x.y.0.255"
 
-#### Optional, discovery_mechanism: mapping or snmpwalk or bmc
+#### Optional, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
 ## IB NIC Details
 # If provided, Omnia will handle and assign static IPs to compute node's IB network.
 # Only last 16 bits/2 octets of IPv4 are dynamic
@@ -162,7 +163,7 @@ ip_end_range: "x.y.0.255"
 # Example: 10.10.0.0
 ib_nic_subnet: ""
 
-#### Optional, discovery_mechanism: mapping or switch_based
+#### Optional, discovery_mechanism: mapping or snmpwalk
 #### Mandatory, discovery_mechanism: bmc or switch_based
 ## BMC NIC of Control Plane
 # If provided, Omnia will handle and assign IPs to the iDRACs.
@@ -196,7 +197,7 @@ bmc_static_end_range: ""
 pxe_switch_ip: ""
 pxe_switch_snmp_community_string: "public"
 
-#### Optional, discovery_mechanism:mapping or switch_based or bmc or snmpwalk
+#### Optional, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
 # The DNS servers IP addresses for internet access on compute nodes(through DHCP routing)
 # If empty, a separate public internet nic should be present in compute nodes for internet access.
 primary_dns: ""
