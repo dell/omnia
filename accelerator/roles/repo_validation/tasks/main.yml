@@ -17,16 +17,22 @@
   ansible.builtin.set_fact:
     compute_os: "{{ ansible_facts['distribution'] | lower }}"
 
-- name: Check the repo file configured on the cluster nodes
+- name: Check the repos configured on the cluster nodes
   ansible.builtin.include_tasks: repo_check.yml
   when:
     - hostvars['127.0.0.1']['xcat_installation_status']
     - compute_os == os_supported_redhat
 
+- name: Check the repo files configured after update node is applied
+  ansible.builtin.include_tasks: repo_file_check.yml
+  when:
+    - not repo_list_status
+    - compute_os == os_supported_redhat
+
 - name: Validate subscription when xcat is not installed
-  block:
-    - name: Validate redhat subscription status
-      ansible.builtin.include_tasks: validate_rhsm.yml
   when:
     - not hostvars['127.0.0.1']['xcat_installation_status']
     - compute_os == os_supported_redhat
+  block:
+    - name: Validate redhat subscription status
+      ansible.builtin.include_tasks: validate_rhsm.yml
