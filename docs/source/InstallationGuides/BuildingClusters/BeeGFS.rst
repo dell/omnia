@@ -8,9 +8,12 @@ BeeGFS is a hardware-independent POSIX parallel file system (a.k.a. Software-def
 
 **Pre Requisites before installing BeeGFS client**
 
-* If the user intends to use BeeGFS, ensure that a BeeGFS cluster has been set up with beegfs-mgmtd, beegfs-meta, beegfs-storage services running.
+* Ensure that the BeeGFS server is set up using the `linked steps <../../Appendices/BeeGFSServer.html>`_.
+* Ensure that a ``connAuthFile`` is configured on the server as explained `here <../../Appendices/BeeGFSServer.html>`_
 
-  Ensure that the following ports are open for TCP and UDP connectivity:
+.. warning:: Configuring a ``connAuthFile`` is now mandatory. Services will no longer start if a ``connAuthFile`` is not configured
+
+* Ensure that the following ports are open for TCP and UDP connectivity:
 
         +------+-----------------------------------+
         | Port | Service                           |
@@ -46,71 +49,76 @@ To open the ports required, use the following steps:
 
 * For RHEL target nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription.
 
- .. note::
+.. note:: BeeGFS services over RDMA is only supported on RHEL 8.3 and above due to limitations on BeeGFS. When setting up your cluster with RDMA support, check the BeeGFS documentation to provide appropriate values in ``input/storage_config.yml``.
 
-    * If the BeeGFS server (MGMTD, Meta, or storage) is running BeeGFS version 7.3.1 or higher, the security feature on the server should be disabled. Change the value of ``connDisableAuthentication`` to ``true`` in /etc/beegfs/beegfs-mgmtd.conf, /etc/beegfs/beegfs-meta.conf and /etc/beegfs/beegfs-storage.conf. Restart the services to complete the task: ::
-
-        systemctl restart beegfs-mgmtd
-        systemctl restart beegfs-meta
-        systemctl restart beegfs-storage
-        systemctl status beegfs-mgmtd
-        systemctl status beegfs-meta
-        systemctl status beegfs-storage
-
-
-.. note:: BeeGFS with OFED capability is only supported on RHEL 8.3 and above due to limitations on BeeGFS. When setting up your cluster with RDMA support, check the BeeGFS documentation to provide appropriate values in ``input/storage_config.yml``.
-
-* If the cluster runs Rocky, ensure that versions running are compatible:
-
-+-----------------------------------------+----------------+
-| Rocky OS version                        | BeeGFS version |
-+=========================================+================+
-| Rocky Linux 8.4: no OFED, OFED 5.3, 5.4 | 7.3.2          |
-+-----------------------------------------+----------------+
-| Rocky Linux 8.5: no OFED, OFED 5.5      | 7.3.2          |
-+-----------------------------------------+----------------+
-| Rocky Linux 8.6: no OFED, OFED 5.6      | 7.3.2          |
-+-----------------------------------------+----------------+
-| Rocky Linux 8.4: no OFED, OFED 5.3, 5.4 | 7.3.1          |
-+-----------------------------------------+----------------+
-| Rocky Linux 8.5: no OFED, OFED 5.5      | 7.3.1          |
-+-----------------------------------------+----------------+
-| Rocky Linux 8.6: no OFED, OFED 5.6      | 7.3.1          |
-+-----------------------------------------+----------------+
-| Rocky Linux 8.4: no OFED, OFED 5.3, 5.4 | 7.3.0          |
-+-----------------------------------------+----------------+
-| Rocky Linux 8.5: no OFED, OFED 5.5      | 7.3.0          |
-+-----------------------------------------+----------------+
-| Rocky Linux 8.4: no OFED, OFED 5.3, 5.4 | 7.2.8          |
-+-----------------------------------------+----------------+
-| Rocky Linux 8.5: no OFED, OFED 5.5      | 7.2.8          |
-+-----------------------------------------+----------------+
-| Rocky Linux 8.6: no OFED, OFED 5.6      | 7.2.8          |
-+-----------------------------------------+----------------+
-| Rocky Linux 8.4: no OFED, OFED 5.3, 5.4 | 7.2.7          |
-+-----------------------------------------+----------------+
-| Rocky Linux 8.5: no OFED, OFED 5.5      | 7.2.7          |
-+-----------------------------------------+----------------+
-| Rocky Linux 8.6: no OFED, OFED 5.6      | 7.2.7          |
-+-----------------------------------------+----------------+
-| Rocky Linux 8.5: no OFED, OFED 5.5      | 7.2.6          |
-+-----------------------------------------+----------------+
-| Rocky Linux 8.6: no OFED, OFED 5.6      | 7.2.6          |
-+-----------------------------------------+----------------+
-| Rocky Linux 8.4: no OFED, OFED 5.3, 5.4 | 7.2.5          |
-+-----------------------------------------+----------------+
-| Rocky Linux 8.4: no OFED, OFED 5.3, 5.4 | 7.2.4          |
-+-----------------------------------------+----------------+
+* If the cluster runs Rocky, ensure that versions running are compatible by checking our `support matrix <../../Overview/SupportMatrix/OperatingSystems/Rocky.html>`_.
 
 * Servers running all versions of RHEL support BeeGFS **except 8.6**. For more info, `click here <https://access.redhat.com/solutions/6964004>`_
 
-**Installing the BeeGFS client via Omnia**
+Installing the BeeGFS client via Omnia
+--------------------------------------
 
 After the required parameters are filled in ``input/storage_config.yml``, Omnia installs BeeGFS on manager and compute nodes while executing the ``omnia.yml`` playbook.
 
-.. note::
-    * BeeGFS client-server communication can take place through TCP or RDMA. If RDMA support is required, set ``beegfs_rdma_support`` should be set to true. Also, OFED should be installed on all target nodes.
-    * For BeeGFS communication happening over RDMA, the ``beegfs_mgmt_server`` should be provided with the Infiniband IP of the management server.
++---------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Name                            | Details                                                                                                                                                                                                                                              |
++=================================+======================================================================================================================================================================================================================================================+
+| beegfs_support                  | This variable is used to install beegfs-client on compute and manager   nodes                                                                                                                                                                        |
+|      ``boolean``                |                                                                                                                                                                                                                                                      |
+|      Optional                   |      Choices                                                                                                                                                                                                                                         |
+|                                 |      * ``false`` <- Default                                                                                                                                                                                                                          |
+|                                 |      * ``true``                                                                                                                                                                                                                                      |
++---------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| beegfs_rdma_support             | This variable is used if user has RDMA-capable network hardware (e.g.,   InfiniBand)                                                                                                                                                                 |
+|      ``boolean``                |                                                                                                                                                                                                                                                      |
+|      Optional                   |      Choices                                                                                                                                                                                                                                         |
+|                                 |      * ``false`` <- Default                                                                                                                                                                                                                          |
+|                                 |      * ``true``                                                                                                                                                                                                                                      |
++---------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| beegfs_ofed_kernel_modules_path | The path where separate OFED kernel modules are installed.                                                                                                                                                                                           |
+|      ``string``                 |                                                                                                                                                                                                                                                      |
+|      Optional                   |      **Default value**: ``"/usr/src/ofa_kernel/default/include"``                                                                                                                                                                                    |
++---------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| beegfs_mgmt_server              | BeeGFS management server IP. Note: The provided IP should have an   explicit BeeGFS management server running .                                                                                                                                      |
+|      ``string``                 |                                                                                                                                                                                                                                                      |
+|      Required                   |                                                                                                                                                                                                                                                      |
++---------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| beegfs_mounts                   | Beegfs-client file system mount location. If ``storage_yml`` is being   used to change the BeeGFS mounts location, set beegfs_unmount_client to   true                                                                                               |
+|      ``string``                 |                                                                                                                                                                                                                                                      |
+|      Optional                   | **Default value**: "/mnt/beegfs"                                                                                                                                                                                                                     |
++---------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| beegfs_unmount_client           | Changing this value to true will unmount running instance of BeeGFS   client and should only be used when decommisioning BeeGFS, changing the mount   location or changing the BeeGFS version.                                                       |
+|      ``boolean``                |                                                                                                                                                                                                                                                      |
+|      Optional                   |      Choices                                                                                                                                                                                                                                         |
+|                                 |      * ``false`` <- Default                                                                                                                                                                                                                          |
+|                                 |      * ``true``                                                                                                                                                                                                                                      |
++---------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| beegfs_client_version           | Beegfs client version needed on compute and manager nodes.                                                                                                                                                                                           |
+|      ``string``                 |                                                                                                                                                                                                                                                      |
+|      Optional                   |      **Default value**: 7.2.6                                                                                                                                                                                                                        |
++---------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| beegfs_version_change           | Use this variable to change the BeeGFS version on the target nodes.                                                                                                                                                                                  |
+|      ``boolean``                |      Choices                                                                                                                                                                                                                                         |
+|      Optional                   |      * ``false`` <- Default                                                                                                                                                                                                                          |
+|                                 |      * ``true``                                                                                                                                                                                                                                      |
++---------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| beegfs_secret_storage_filepath  | * The filepath (including the filename) where the ``connauthfile`` is   placed.                                                                                                                                                                      |
+|      ``string``                 | * Required for Beegfs version >= 7.2.7                                                                                                                                                                                                               |
+|      Required                   |                                                                                                                                                                                                                                                      |
+|                                 |                                                                                                                                                                                                                                                      |
+|                                 |      **Default values**: ``/home/connauthfile``                                                                                                                                                                                                      |
++---------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
+.. note::
+    * BeeGFS client-server communication can take place over TCP or RDMA. If RDMA support is required, set ``beegfs_rdma_support`` should be set to true. Also, OFED should be installed on all target nodes.
+    * For BeeGFS communication happening over RDMA, the ``beegfs_mgmt_server`` should be provided with the Infiniband IP of the management server.
+    * The parameter inventory refers to the `inventory file <../../samplefiles.html>`_ listing manager, login_node and compute nodes.)
+
+If ``input/storage_config.yml`` is populated before running ``omnia.yml``, BeeGFS client will be set up during the run of ``omnia.yml``.
+
+If ``omnia.yml`` is not leveraged to set up BeeGFS, run the ``storage.yml`` playbook : ::
+
+    cd storage
+    ansible-playbook storage.yml -i inventory
 
 
