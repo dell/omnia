@@ -7,6 +7,9 @@ To install multiple packages on target nodes in a bulk operation, the ``package_
 
     * All target nodes should be running RHEL 8.4, RHEL 8.5 or RHEL 8.6.
     * Download the packages (RPMs) for the target nodes and place them in an empty folder:  ``/install/<custom folder>``.
+
+        .. note:: Do not use ISO files for updates or package installations.
+
     * Create a package list by creating the following text file (For packages that are not in RHEL repos, name the file ``update.otherpkgs.pkglist``. For OS packages, ``xxxx.pkglist``) and placing it with the RPMs: ::
 
         <package1>-<version1>
