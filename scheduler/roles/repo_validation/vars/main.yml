@@ -25,10 +25,13 @@ manager_inactive_msg1: "1. Manager node does not have an active RedHat subscript
 manager_inactive_msg2: "2. Manager node does not have baseos and appstream repos enabled."
 compute_inactive_msg1: "1. Host {{ ansible_ssh_host }} in group {{ group_names }} is not subscribed to redhat"
 compute_inactive_msg2: "2. Baseos and appstream repos are not enabled on host {{ ansible_ssh_host }}."
+
+# Usage: repo_file_check.yml
 appstream_success_msg: "AppStream repo is enabaled"
 appstream_fail_msg: "Failed, AppStream repo not available"
 baseos_success_msg: "BaseOS repo is enabled"
 baseos_fail_msg: "Failed, BaseOS repo is not available"
 codereadybuilder_success_msg: "CodeReady-Builder repo is enabled"
 codereadybuilder_fail_msg: "Failed, CodeReady-Builder repo is not available"
-search_string: ['AppStream','BaseOS','CodeReadyBuilder']
+search_string: ['AppStream', 'BaseOS', 'CodeReadyBuilder']
+repo_path: "/etc/yum.repos.d/"

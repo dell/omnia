@@ -14,7 +14,7 @@
 ---
 
 - name: Get all config files if repo list not valid
-  ansible.builtin.command: ls /etc/yum.repos.d/
+  ansible.builtin.command: ls "{{ repo_path }}"
   register: repos
   changed_when: false
 
@@ -28,7 +28,7 @@
   block:
     - name: Check Appstream
       ansible.builtin.lineinfile:
-        path: "/etc/yum.repos.d/{{ item }}"
+        path: "{{ repo_path }}{{ item }}"
         search_string: "{{ search_string[0] }}"
         line: "{{ search_string[0] }}"
         state: absent
@@ -60,7 +60,7 @@
   block:
     - name: Check baseos
       ansible.builtin.lineinfile:
-        path: "/etc/yum.repos.d/{{ item }}"
+        path: "{{ repo_path }}{{ item }}"
         search_string: "{{ search_string[1] }}"
         line: "{{ search_string[1] }}"
         state: absent
