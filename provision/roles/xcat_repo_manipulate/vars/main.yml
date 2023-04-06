@@ -54,3 +54,7 @@ omnia_common_repo_template: /install/postscripts/repos/install/omnia-common/x86_
 file_permission: "755"
 xcat_directory: /root/xcat
 max_retries: 10
+
+# Usage: manage_subscription_manager.yml
+rhsm_release_file_path: "/opt/omnia/.data/rhsm_release"
+conf_file_mode: 0644
