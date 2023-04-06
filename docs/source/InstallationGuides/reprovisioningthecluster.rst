@@ -27,4 +27,4 @@ Where the inventory contains a list of host IPs as shown below:
 
 .. note::
     * The host IPs passed in the inventory should be assigned by Omnia.
-    * If the nodes were discovered via SNMP or mapping, users will be required to manually reboot target nodes.
+    * If the nodes were discovered via snmpwalk or mapping, users will be required to manually reboot target nodes.
