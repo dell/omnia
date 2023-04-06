@@ -230,4 +230,4 @@ The following parameters need to be populated in ``input/provision_config.yml`` 
 
             ansible-vault edit provision_config.yml --vault-password-file .provision_vault_key
 
-.. include:: ../../../Roles/Utils/portcleanup.rst
+To clear the configuration on Omnia provisioned switches and ports, `click here <../../../Roles/Utils/portcleanup.html>`_.
