@@ -11,3 +11,4 @@ The Utilities role allows users to set up certain tasks such as
     freeipa_installation
     cleanupscript
     OSPackageUpdate
+    portcleanup

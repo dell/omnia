@@ -30,7 +30,7 @@ Before You Run The Provision Tool
 
 In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcfg-<nic name>`` using vi editor.
 
-* When discovering nodes via SNMP or a mapping file, all target nodes should be set up in PXE mode before running the playbook.
+* When discovering nodes via snmpwalk or a mapping file, all target nodes should be set up in PXE mode before running the playbook.
 
 * Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to run ``provision.yml`` on RHEL target nodes.
 
@@ -40,7 +40,7 @@ In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcf
 
 * Ensure that the ``pxe_nic`` and ``public_nic`` are in the firewalld zone: public.
 
-* The control plane NIC connected to remote servers (through the switch) should be configured with two IPs in a shared LOM set up. This NIC is configured by Omnia with the IP xx.yy.255.254, aa.bb.255.254 (where xx.yy are taken from ``bmc_nic_subnet`` and aa.bb are taken from ``admin_nic_subnet``) when ``discovery_mechanism`` is set to ``bmc``. For other discovery mechanisms, only the admin NIC is configured with aa.bb.255.254 (Where aa.bb is taken from ``admin_nic_subnet``).
+* The control plane NIC connected to remote servers (through the switch) should be configured with two IPs in a shared LOM set up. This NIC is configured by Omnia with the IP xx.yy.255.254, aa.bb.255.254 (where xx.yy are taken from ``bmc_nic_subnet`` and aa.bb are taken from ``admin_nic_subnet``) when ``network_interface_type`` is set to ``lom``. For other discovery mechanisms, only the admin NIC is configured with aa.bb.255.254 (Where aa.bb is taken from ``admin_nic_subnet``).
 
 .. image:: ../../images/ControlPlaneNic.png
 
