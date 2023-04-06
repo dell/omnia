@@ -45,9 +45,9 @@
     - name: Clean osimage object definition before failing
       ansible.builtin.command: chdef -t osimage "{{ xcat_os_image_details }}" -m otherpkgdir="{{ package_dir }}" -m otherpkglist="{{ package_list }}"
       changed_when: true
-    
+
     - name: Failed. Update package Execution failed.
-      ansible.builtin.fail: 
+      ansible.builtin.fail:
         msg: "{{ updatenode_fail_msg }}"
 
 - name: Modify osimage if pkg_type is os
@@ -71,5 +71,5 @@
       changed_when: true
 
     - name: Failed. Update package Execution failed.
-      ansible.builtin.fail: 
+      ansible.builtin.fail:
         msg: "{{ updatenode_fail_msg }}"
