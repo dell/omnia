@@ -35,6 +35,9 @@
     - name: Fetch osimage name
       ansible.builtin.include_tasks: fetch_osimage.yml
 
+    - name: Manage subscription-manager
+      ansible.builtin.include_tasks: manage_subscription_manager.yml
+
     - name: Create omnia-common repo
       ansible.builtin.include_tasks: common_repo_config.yml
 
