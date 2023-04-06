@@ -124,14 +124,20 @@ c. PostgreSQL database is set up with all relevant cluster information such as M
     To view the contents of the ``nodeinfo`` table: ``select * from cluster.nodeinfo;`` ::
 
 
-                    id | serial |   node    |      hostname       |     admin_mac     |   admin_ip   |    bmc_ip    |    ib_ip    | status | bmc_mode
-                    ----+--------+-----------+---------------------+-------------------+--------------+--------------+-------------+--------+----------
-                      1 |   XXXXXXX | node00001 | node00001.omnia.test | ec:2a:72:32:c6:98 | 10.5.0.111 | 10.3.0.111 | 10.10.0.111 | powering-on | static
-                      2 |   XXXXXXX | node00002 | node00002.omnia.test | f4:02:70:b8:cc:80 | 10.5.0.112 | 10.3.0.112 | 10.10.0.112 | booted    | dhcp
-                      3 |   XXXXXXX | node00003 | node00003.omnia.test | 70:b5:e8:d1:19:b6 | 10.5.0.113 | 10.3.0.113 | 10.10.0.113 | post-booting  | static
-                      4 |   XXXXXXX | node00004 | node00004.omnia.test | b0:7b:25:dd:e8:4a | 10.5.0.114 | 10.3.0.114 | 10.10.0.114 | booted    | static
-                      5 |   XXXXXXX | node00005 | node00005.omnia.test | f4:02:70:b8:bc:2a | 10.5.0.115 | 10.3.0.115 | 10.10.0.115 | booted    | static
-
+                    id  | serial  |        node        |            hostname            |     admin_mac     |   admin_ip   |    bmc_ip    |    ib_ip     |   status   | bmc_mode |   switch_ip    | switch_name | switch_port
+                    ----+---------+--------------------+--------------------------------+-------------------+--------------+--------------+--------------+------------+----------+---------------+-------------+-------------
+                      1 | XXXXXXX | omnia-node00001    | omnia-node00001.omnia.test     | ec:2a:72:34:f7:26 |  10.5.0.101  | 10.19.0.101   | 10.10.0.101  | booted     |          | 10.96.28.132   | switch1     | 2
+                      2 | XXXXXXX | omnia-node00002    | omnia-node00002.omnia.test     |                   |  10.5.0.102  | 10.19.0.102   | 10.10.0.102  |            |          | 10.96.28.132   | switch1     | 3
+                      3 | XXXXXXX | omnia-node00003    | omnia-node00003.omnia.test     |                   |  10.5.0.103  | 10.19.0.103   | 10.10.0.103  |            |          | 10.96.28.132   | switch1     | 4
+                      4 | XXXXXXX | omnia-node00004    | omnia-node00004.omnia.test     | 2c:ea:7f:3d:6b:98 |  10.5.0.104  | 10.19.0.104   | 10.10.0.104  | installing |          | 10.96.28.132   | switch1     | 5
+                      5 | XXXXXXX | omnia-node00005    | omnia-node00005.omnia.test     |                   |  10.5.0.105  | 10.19.0.105   | 10.10.0.105  |            |          | 10.96.28.132   | switch1     | 6
+                      6 | XXXXXXX | omnia-node00006    | omnia-node00006.omnia.test     |                   |  10.5.0.106  | 10.19.0.106   | 10.10.0.106  |            |          | 10.96.28.132   | switch1     | 7
+                      7 | XXXXXXX | omnia-node00007    | omnia-node00007.omnia.test     | 4c:d9:8f:76:48:2e |  10.5.0.107  | 10.19.0.107   | 10.10.0.107  | booted     |          | 10.96.28.132   | switch1     | 8
+                      8 | XXXXXXX | omnia-node00008    | omnia-node00008.omnia.test     |                   |  10.5.0.108  | 10.19.0.108   | 10.10.0.108  |            |          | 10.96.28.132   | switch1     | 1
+                      9 | XXXXXXX | omnia-node00009    | omnia-node00009.omnia.test     |                   |  10.5.0.109  | 10.19.0.109   | 10.10.0.109  | failed     |          | 10.96.28.132   | switch1     | 10
+                    10  | XXXXXXX | omnia-node00010    | omnia-node00010.omnia.test     |                   |  10.5.0.110  | 10.19.0.110   | 10.10.0.110  |            |          | 10.96.28.132   | switch1     | 12
+                    11  | XXXXXXX | omnia-node00011    | omnia-node00011.omnia.test     |                   |  10.5.0.111  | 10.19.0.111   | 10.10.0.111  | failed     |          | 10.96.28.132   | switch1     | 13
+                    12  | XXXXXXX | omnia-node00012    | omnia-node00012.omnia.test     |                   |  10.5.0.112  | 10.19.0.112   | 10.10.0.112  |            |          | 10.96.28.132   | switch1     | 14
 
 
 Possible values of status are static, powering-on, installing, bmcready, booting, post-booting, booted, failed. The status will be updated every 3 minutes.
