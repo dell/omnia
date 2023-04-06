@@ -24,6 +24,6 @@ Enter the required details in ``utils/provision/switch_based_deletion_config.yml
 
 To run the playbook, use the below commands: ::
 
-    cd utils
+    cd utils/provision
     ansible-playbook delete_switch_ports.yml
 
