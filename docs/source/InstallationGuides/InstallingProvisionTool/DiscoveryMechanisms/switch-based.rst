@@ -38,22 +38,7 @@ switch_based
 
 .. image:: ../../../images/ControlPlaneNic.png
 
-* IP ranges (``bmc_static_start_range``, ``bmc_static_start_range``) provided to Omnia for BMC discovery should be within the same subnet.
-
-.. note:: To create a meaningful range of discovery, ensure that the last two octets of   ``bmc_static_end_range`` are equal to or greater than the last two octets of   the ``bmc_static_start_range``. That is, for the range a.b.c.d - a.b.e.f, e   and f should be greater than or equal to c and d. *Ex: 172.20.0.50 -   172.20.1.101 is a valid range however,    172.20.0.101 - 172.20.1.50 is not.*
-
 * All iDRACs should be reachable from the ``admin_nic``.
-
-.. note::
-    *When iDRACs are in DHCP mode**
-        *  The IP range *x.y.246.1* - *x.y.255.253* (where x and y are provided by the first two octets of ``bmc_nic_subnet``) are reserved by Omnia.
-        * *x.y.246.1* - *x.y.250.253* will be the range of IPs reserved for dynamic assignment by Omnia.
-        * During provisioning, Omnia updates servers to static mode and assigns IPs from *x.y.251.1* - *x.y.255.253*.
-        * Users can see the IPs (that have been assigned from *x.y.251.1* - *x.y.255.253*) in the DB after provisioning the servers.
-        * For example:
-            If the provided ``bmc_subnet`` is ``10.3.0.0`` and there are two iDRACs in DHCP mode, the IPs assigned will be ``10.3.251.1`` and ``10.3.251.2``.
-
-
 
 .. warning::
     * Do not use daisy chain ports or the port used to connect to the control plane in ``switch_based_details`` in ``input/provision_config.yml``. This can cause IP conflicts on servers attached to potential target ports.
