@@ -108,7 +108,7 @@ a. Discovers all target servers based on specifications in ``input/provision_con
 
 b. Provisions all discovered servers.
 
-b. PostgreSQL database is set up with all relevant cluster information such as MAC IDs, hostname, admin IP, infiniband IPs, BMC IPs etc.
+c. PostgreSQL database is set up with all relevant cluster information such as MAC IDs, hostname, admin IP, infiniband IPs, BMC IPs etc.
 
     To access the DB, run: ::
 
