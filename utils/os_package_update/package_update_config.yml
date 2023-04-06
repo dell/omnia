@@ -18,13 +18,19 @@
 os_version: ""
 
 # This variable accepts the directory in which the package RPMs are downloaded
+# The packages should be .rpm files only
+# Other file types are not supported
 # eg: /install/custom/rhels8.6.0/x86_64/
 package_dir: ""
 
-# This variable accepts the location path for package list file 
-# For other packagelist, file type should be - (xxx.otherpkgs.pkglist)
-# For os packagelist, file type should be - (xxx.pkglist)
-# All packages in this list will be installed/updated on remote nodes 
+# This variable accepts the path along with filename of the package list file
+# The packages mentioned in this file will be installed/updated on the cluster
+# The packages should be .rpm files only
+# Other file types are not supported
+# For OS packagelist, file name should be xxx.pkglist, where xxx is the custom name
+# Eg: "ospkgs.pkglist"
+# For packages other than OS Packages, file name should be - xxx.otherpkgs.pkglist, where xxx is the custom name
+# Eg: "upgradepkgs.otherpkgs.pkglist" 
 package_list: ""
 
 # This variable accepts type of package that must be installed/updated on remote nodes
@@ -34,9 +40,10 @@ package_list: ""
 package_type: ""
 
 # This variable will contain list of all nodes on which packages must installed/updated
-# Node names can be fetched from postgres db
+# If node list is not provided, all nodes provisioned by Omnia will be updated with the package list 
+# Node name can be fetched from postgres DB, nodeinfo table
 # By default packages will be installed/updated on all nodes
-# eg: node1,node2,node3,node4 or node1-node5
+# eg: "node1,node2,node3,node4" or "node1-node5"
 # Default: all
 nodelist: "all"
 
