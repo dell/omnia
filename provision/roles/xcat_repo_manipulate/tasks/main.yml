@@ -37,6 +37,7 @@
 
     - name: Manage subscription-manager
       ansible.builtin.include_tasks: manage_subscription_manager.yml
+      when: os_supported_rhel in ansible_facts['distribution'] | lower
 
     - name: Create omnia-common repo
       ansible.builtin.include_tasks: common_repo_config.yml

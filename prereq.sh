@@ -32,6 +32,7 @@ echo "-------------------"
 echo "INSTALLING ANSIBLE:"
 echo "-------------------"
 python3.8 -m pip install ansible==5.10.0
+python3.8 -m pip install jinja2==3.1.2
 
 selinux_count="$(grep "^SELINUX=disabled" /etc/selinux/config | wc -l)"
 if [[ $selinux_count == 0 ]];
