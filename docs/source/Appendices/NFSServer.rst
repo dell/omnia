@@ -6,9 +6,10 @@ Setting up an NFS server
     sudo dnf install -y nfs-utils
 
 2. Create an NFS share using the following commands:
-    a. Creating a shared folder: ``mkdir /nfs-share``
+
+    a. Create a shared folder: ``mkdir /nfs-share``
     b. Move all the files to be shared here. (Use the ``mv`` or ``cp`` command)
-    c. Change the permissions on this file: ``sudo chmod -R 777 /nfs-share``
+    c. Change the permissions on these files: ``sudo chmod -R 777 /nfs-share``
 
         - For ease, we use ``chmod -R 777``, which sets the local file permissions to read/write/execute for everyone. This minimalizes the need for additional NFS share options in this exercise where the UID/GUID of the client user does not match the server and defaults to the nobody account on the server.
 
