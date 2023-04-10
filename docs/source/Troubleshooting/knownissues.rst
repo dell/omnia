@@ -40,14 +40,6 @@ For servers running Rocky, enable the Infiniband NIC manually, use ``ifup <Infin
 
 Alternatively, run ``network.yml`` or  ``post_provision.yml`` (Only if the nodes are provisioned using Omnia) to activate the NIC.
 
-
-**Why does the Task [xCAT: Task integrate mapping file with DB] fail while running provision.yml?**
-
-**Potential Cause**: There may be whitespaces in the mapping file.
-
-**Resolution**: Eliminate the whitespaces in the mapping file and re-try the script.
-
-
 **Why does the Task [infiniband_switch_config : Authentication failure response] fail with the message 'Status code was -1 and not [302]: Request failed: <urlopen error [Errno 111] Connection refused>' on Infiniband Switches when running infiniband_switch_config.yml?**
 
 To configure a new Infiniband Switch, it is required that HTTP and JSON gateway be enabled. To verify that they are enabled, run:
@@ -61,11 +53,6 @@ To correct the issue, run:
 ``web http enable`` (To enable the HTTP gateway)
 
 ``json-gw enable`` (To enable the JSON gateway)
-
-**Why does BeeGFS client installation fail on RHEL 8.6?**
-
-RHEL 8.6 does not support BeeGFS client installation currently. For more info, `click here <https://access.redhat.com/solutions/6964004>`_.
-
 
 **Why does PXE boot fail with tftp timeout or service timeout errors?**
 
