@@ -53,8 +53,6 @@ To open the ports required, use the following steps:
 
 * If the cluster runs Rocky, ensure that versions running are compatible by checking our `support matrix <../../Overview/SupportMatrix/OperatingSystems/Rocky.html>`_.
 
-* Servers running all versions of RHEL support BeeGFS **except 8.6**. For more info, `click here <https://access.redhat.com/solutions/6964004>`_
-
 Installing the BeeGFS client via Omnia
 --------------------------------------
 

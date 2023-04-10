@@ -163,7 +163,6 @@ To call this playbook individually, ensure that ``repo_manipulate.yml`` has run 
 
     * Post execution of ``provision.yml``, IPs/hostnames cannot be re-assigned by changing the mapping file. However, the addition of new nodes is supported as explained below.
 
-    * Once the cluster is provisioned, enable RedHat subscription on all RHEL target nodes to ensure smooth execution of Omnia playbooks to configure the cluster with Slurm, Kubernetes.
 
 .. warning::
 
