@@ -1,7 +1,7 @@
 NFS bolt on
 ------------
 
-* Ensure that an external NFS server is set up using the `linked steps <../../Appendices/NFSServer.html>`_. NFS clients are mounted using the external NFS server's IP.
+* Ensure that an external NFS server is set up using the `linked steps <../../Appendices/NFSServer.html>`_ alternatively, ```nfs_sas.yml`` <../ConfiguringStorage/index.html>`_ can be leveraged. NFS clients are mounted using the external NFS server's IP.
 
 * Fill out the ``nfs_client_params`` variable in the ``input/storage_config.yml`` file in JSON format using the samples provided below.
 
@@ -17,7 +17,7 @@ NFS bolt on
 
   - mountd
 
-* Omnia supports all NFS mount options. Without user input, the default mount options are nosuid,rw,sync,hard,intr. For a list of mount options, `click here <https://linux.die.net/man/5/nfs>`_.
+* Omnia supports all NFS mount options. Without user input, the default mount options are nosuid,rw,sync,hard,intr.
 
 * The fields listed in ``nfs_client_params`` are:
 
@@ -27,7 +27,7 @@ NFS bolt on
 
   - client_share_path: Target directory for the NFS mount on the client. If left empty, respective ``server_share_path value`` will be taken for ``client_share_path``.
 
-  - client_mount_options: The mount options when mounting the NFS export on the client. Default value: nosuid,rw,sync,hard,intr.
+  - client_mount_options: The mount options when mounting the NFS export on the client. Default value: nosuid,rw,sync,hard,intr. For a list of mount options, `click here <https://man7.org/linux/man-pages/man8/mount.8.html>`_.
 
 * Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to set up NFS on RHEL target nodes.
 
@@ -61,5 +61,11 @@ NFS bolt on
             systemctl enable nfs-server
             systemctl restart nfs-server
 
+
+
+If ``omnia.yml`` is not leveraged to set up BeeGFS, run the ``storage.yml`` playbook : ::
+
+    cd storage
+    ansible-playbook storage.yml -i inventory
 
 
