@@ -1,4 +1,4 @@
-Installing The Provision Tool
+Installing the provision tool
 =============================
 
 .. toctree::

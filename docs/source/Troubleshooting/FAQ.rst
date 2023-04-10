@@ -1,4 +1,4 @@
-Frequently Asked Questions
+Frequently asked questions
 ==========================
 
 **What to do if playbook execution fails due to external (network, hardware etc) failure**

@@ -1,4 +1,4 @@
-Configuring Ethernet Switches (Z series)
+Configuring ethernet switches (Z series)
 -----------------------------------------
 
 

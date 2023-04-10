@@ -1,4 +1,4 @@
-NFS Bolt On
+NFS bolt on
 ------------
 
 * Ensure that an external NFS server is set up using the `linked steps <../../Appendices/NFSServer.html>`_. NFS clients are mounted using the external NFS server's IP.

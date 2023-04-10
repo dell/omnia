@@ -1,4 +1,4 @@
-Configuring Servers with Out-of-Band Management
+Configuring servers with out-of-band management
 +++++++++++++++++++++++++++++++++++++++++++++++
 
 For pre-configured iDRACs, ``provision/idrac.yml`` can be used to provision the servers.

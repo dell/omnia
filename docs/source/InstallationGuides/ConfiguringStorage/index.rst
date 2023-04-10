@@ -1,7 +1,7 @@
-Configuring Storage
+Configuring storage
 =====================
 
-**Configuring Powervault Storage**
+**Configuring Powervault storage**
 
 To configure powervault ME4 and ME5 storage arrays, follow the below steps:
 

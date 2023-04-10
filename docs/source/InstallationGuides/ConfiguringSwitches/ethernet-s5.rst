@@ -1,4 +1,4 @@
-Configuring Ethernet Switches (S5 series)
+Configuring ethernet switches (S5 series)
 ------------------------------------------------
 
 

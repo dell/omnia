@@ -1,4 +1,4 @@
-Configuring Ethernet Switches (S3 and S4 series)
+Configuring ethernet switches (S3 and S4 series)
 ------------------------------------------------
 
 * Edit the ``network/ethernet_tor_input.yml`` file for all S3* and S4* PowerSwitches such as S3048-ON, S4048T-ON, S4112F-ON, S4048-ON, S4048T-ON, S4112F-ON, S4112T-ON, and S4128F-ON.

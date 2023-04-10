@@ -1,6 +1,3 @@
-Appendix
-----------
-
 Timezones
 +++++++++
 

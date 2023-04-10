@@ -1,4 +1,4 @@
-Configuring Infiniband Switches
+Configuring infiniband switches
 --------------------------------
 
 Depending on the number of ports available on your Infiniband switch, they can be classified into:

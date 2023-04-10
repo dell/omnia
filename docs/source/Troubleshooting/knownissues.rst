@@ -1,4 +1,4 @@
-Known Issues
+Known issues
 ==========================
 
 **Why doesn't my newly discovered server list a MAC ID in the cluster.nodeinfo table?**

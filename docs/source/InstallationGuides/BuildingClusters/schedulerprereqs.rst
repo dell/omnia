@@ -1,4 +1,4 @@
-Before You Build Clusters
+Before you build clusters
 --------------------------
 
 

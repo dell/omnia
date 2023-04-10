@@ -1,4 +1,4 @@
-Troubleshooting Guide
+Troubleshooting guide
 ============================
 
 Control plane logs

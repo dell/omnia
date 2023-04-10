@@ -1,4 +1,4 @@
-Building Clusters
+Building clusters
 ------------------
 
 1. In the ``input/omnia_config.yml`` file, provide the `required details <schedulerinputparams.html>`_.
