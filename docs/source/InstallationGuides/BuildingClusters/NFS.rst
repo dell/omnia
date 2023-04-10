@@ -1,7 +1,7 @@
 NFS bolt on
 ------------
 
-* Ensure that an external NFS server is set up using the `linked steps <../../Appendices/NFSServer.html>`_ alternatively, ```nfs_sas.yml`` <../ConfiguringStorage/index.html>`_ can be leveraged. NFS clients are mounted using the external NFS server's IP.
+* Ensure that an external NFS server is set up using the `linked steps <../../Appendices/NFSServer.html>`_ alternatively, `nfs_sas.yml <../ConfiguringStorage/index.html>`_ can be leveraged. NFS clients are mounted using the external NFS server's IP.
 
 * Fill out the ``nfs_client_params`` variable in the ``input/storage_config.yml`` file in JSON format using the samples provided below.
 
