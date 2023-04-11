@@ -39,3 +39,4 @@ Limitations
 -  Slurm Telemetry is supported only on a single cluster.
 -  Omnia might contain some unused MACs since LOM switch have both iDRAC MACs as well as ethernet MACs, PXE NIC ranges should contain IPs that are double the iDRACs present.
 - FreeIPA authentication is not supported on the control plane.
+- The multiple OS feature is only available with Rocky 8.7 when xCAT 2.16.5 is in use. Currently, Omnia uses 2.16.4.

@@ -12,27 +12,27 @@ Optional configurations managed by the provision tool
 
 **Installing CUDA**
 
-**Using the provision tool**
+    **Using the provision tool**
 
-* If ``cuda_toolkit_path`` is provided  in ``input/provision_config.yml`` and NVIDIA GPUs are available on the target nodes, CUDA packages will be deployed post provisioning without user intervention.
+        * If ``cuda_toolkit_path`` is provided  in ``input/provision_config.yml`` and NVIDIA GPUs are available on the target nodes, CUDA packages will be deployed post provisioning without user intervention.
 
-**Using the Accelerator playbook**
+    **Using the Accelerator playbook**
 
-* CUDA can also be installed using `accelerator.yml <../../Roles/Accelerator/index.html>`_ after provisioning the servers (Assuming the provision tool did not install CUDA packages).
+        * CUDA can also be installed using `accelerator.yml <../../Roles/Accelerator/index.html>`_ after provisioning the servers (Assuming the provision tool did not install CUDA packages).
 
-.. note:: The CUDA package can be downloaded from `here <https://developer.nvidia.com/cuda-downloads>`_
+        .. note:: The CUDA package can be downloaded from `here <https://developer.nvidia.com/cuda-downloads>`_
 
 **Installing OFED**
 
-**Using the provision tool**
+    **Using the provision tool**
 
-* If ``mlnx_ofed_path`` is provided  in ``input/provision_config.yml`` and Mellanox NICs are available on the target nodes, OFED packages will be deployed post provisioning without user intervention.
+        * If ``mlnx_ofed_path`` is provided  in ``input/provision_config.yml`` and Mellanox NICs are available on the target nodes, OFED packages will be deployed post provisioning without user intervention.
 
-**Using the Network playbook**
+    **Using the Network playbook**
 
-* OFED can also be installed using `network.yml <../../Roles/Network/index.html>`_ after provisioning the servers (Assuming the provision tool did not install OFED packages).
+        * OFED can also be installed using `network.yml <../../Roles/Network/index.html>`_ after provisioning the servers (Assuming the provision tool did not install OFED packages).
 
-.. note:: The OFED package can be downloaded from `here <https://network.nvidia.com/products/infiniband-drivers/linux/mlnx_ofed/>`_ .
+        .. note:: The OFED package can be downloaded from `here <https://network.nvidia.com/products/infiniband-drivers/linux/mlnx_ofed/>`_ .
 
 **Assigning infiniband IPs**
 
@@ -53,7 +53,10 @@ When target nodes are discovered via SNMP or mapping files (ie ``discovery_mecha
 
 Omnia now supports deploying different versions of the same OS. With each run of ``provision.yml``, a new deployable OS image is created with a distinct type (rocky or RHEL) and version (8.0, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7) depending on the values provided in ``input/provision_config.yml``.
 
-.. note:: While Omnia deploys the minimal version of the OS, the multiple version feature requires that the Rocky full (DVD) version of the OS be provided.
+.. note::
+    * While Omnia deploys the minimal version of the OS, the multiple version feature requires that the Rocky full (DVD) version of the OS be provided.
+    * The multiple OS feature is only available with Rocky 8.7 when xCAT 2.16.5 is in use. [Currently, Omnia uses 2.16.4]
+
 
 **DHCP routing for internet access**
 
@@ -82,7 +85,7 @@ To deploy the Omnia provision tool, run the following command ::
 
 ``provision.yml`` runs in three stages that can be called individually:
 
-**prepare_cp.yml**
+**Preparing the control plane**
 
 a. Verifies pre-requisites such as SELinux and xCAT services status.
 b. Installs required tool packages.
@@ -94,7 +97,7 @@ To call this playbook individually, ensure that ``input/provision_config.yml`` i
 
     ansible-playbook prepare_cp.yml
 
-**repo_manipulate.yml**
+**Creating/updating the repositories**
 
 Creates and updates all repositories required locally.
 
@@ -102,7 +105,7 @@ To call this playbook individually, ensure that ``prepare_cp.yml`` has run at le
 
     ansible-playbook repo_manipulate.yml
 
-**discovery_provision.yml**
+**Discovering/provisioning the nodes**
 
 a. Discovers all target servers based on specifications in ``input/provision_config.yml``.
 
