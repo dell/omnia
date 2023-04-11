@@ -14,7 +14,7 @@ Building clusters
 
 3. To run ``omnia.yml``: ::
 
- ansible-playbook omnia.yml -i inventory
+        ansible-playbook omnia.yml -i inventory
 
 
 .. note::
