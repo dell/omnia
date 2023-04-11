@@ -63,12 +63,21 @@
   failed_when: false
   register: diskful_osimage_precheck
 
+- name: Retry fetching xcat osimage name for provision_os
+  ansible.builtin.shell: >
+    set -o pipefail && \
+    lsdef -t osimage | grep "{{ osimage_search_key }}" | grep "{{ provision_os }}"
+  changed_when: false
+  failed_when: false
+  register: preretry_fetch_osimage
+  when: diskful_osimage_precheck.rc !=0
+
 - name: Fail if osimage not present
   ansible.builtin.fail:
     msg: "{{ repo_precheck }}"
   when:
-    - diskful_osimage_precheck.stdout == ""
-    - diskful_osimage_precheck.stderr == ""
+    - preretry_fetch_osimage.rc is defined
+    - preretry_fetch_osimage.rc != 0
 
 - name: Set reprovision_status to true
   ansible.builtin.set_fact:
