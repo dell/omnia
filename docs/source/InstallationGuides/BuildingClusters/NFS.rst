@@ -63,7 +63,7 @@ NFS bolt on
 
 
 
-If ``omnia.yml`` is not leveraged to set up BeeGFS, run the ``storage.yml`` playbook : ::
+If ``omnia.yml`` is not leveraged to set up NFS, run the ``storage.yml`` playbook : ::
 
     cd storage
     ansible-playbook storage.yml -i inventory
