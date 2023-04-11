@@ -8,7 +8,7 @@ Building clusters
 2. Create an inventory file in the *omnia* folder. Add login node IP address under the manager node IP address under the *[manager]* group, compute node IP addresses under the *[compute]* group, and Login node IP under the *[login_node]* group,. Check out the `sample inventory for more information <../samplefiles.html>`_.
 
 .. note::
-     * RedHat nodes that are not configured by Omnia need to have a valid subscription. To set up a subscription, `click here <https://omnia-documentation.readthedocs.io/en/latest/Roles/Utils/rhsm_subscription.html`_.
+     * RedHat nodes that are not configured by Omnia need to have a valid subscription. To set up a subscription, `click here <https://omnia-documentation.readthedocs.io/en/latest/Roles/Utils/rhsm_subscription.html>`_.
      * Omnia creates a log file which is available at: ``/var/log/omnia.log``.
      * If only Slurm is being installed on the cluster, docker credentials are not required.
 
