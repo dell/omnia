@@ -16,6 +16,25 @@ Before you run the provision tool
 
     2. `RHEL 8.x <https://www.redhat.com/en/enterprise-linux-8>`_
 
+Note the compatibility between cluster OS and control plane OS below:
+
+        +---------------------+--------------------+------------------+
+        |                     |                    |                  |
+        | Control Plane OS    | Compute Node OS    | Compatibility    |
+        +=====================+====================+==================+
+        |                     |                    |                  |
+        | RHEL                | RHEL               | Yes              |
+        +---------------------+--------------------+------------------+
+        |                     |                    |                  |
+        | RHEL                | Rocky              | Yes              |
+        +---------------------+--------------------+------------------+
+        |                     |                    |                  |
+        | Rocky               | RHEL               | No               |
+        +---------------------+--------------------+------------------+
+        |                     |                    |                  |
+        | Rocky               | Rocky              | Yes              |
+        +---------------------+--------------------+------------------+
+
 * To set up CUDA and OFED using the provisioning tool, download the required repositories from here:
 
     1. `CUDA <https://developer.nvidia.com/cuda-downloads/>`_

@@ -1,7 +1,7 @@
 Provisioning the cluster
 --------------------------
 
-**Edit the ``input/provision_config.yml`` file to update the required variables. A list of the variables required is available by `discovery mechanism <DiscoveryMechanisms/index.html>`_.**
+Edit the ``input/provision_config.yml`` file to update the required variables. A list of the variables required is available by `discovery mechanism <DiscoveryMechanisms/index.html>`_.
 
 .. note:: The first PXE device on target nodes should be the designated active NIC for PXE booting.
 
