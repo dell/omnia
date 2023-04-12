@@ -118,7 +118,7 @@ Provisioning server using BOSS controller is now supported by Omnia 1.2.1.
 
 **How to re-launch services after a control-plane reboot while running provision.yml**
 
-After a reboot of the control plane while running ``provision.yml``, to bring up ``xcatd`` services, please run either of the below commands: ::
+After a reboot of the control plane while running ``provision.yml``, to bring up ``xcatd`` services, please run the below command: ::
 
     ansible-playbook discovery_provision.yml
 
