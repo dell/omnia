@@ -1,4 +1,4 @@
-Configuring Switches
+Configuring switches
 =====================
 
 .. toctree::

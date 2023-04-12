@@ -31,6 +31,20 @@ Enter the following parameters in ``input/security_config.yml``.
 | domain_name                | omnia.test                        | Sets the intended domain name                                                                                                                                                                                                            |
 +----------------------------+-----------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
+
+.. note::
+
+    The ``input/omnia_config.yml`` file is encrypted on the first run of the provision tool:
+        To view the encrypted parameters: ::
+
+            ansible-vault view security_config.yml --vault-password-file .security_vault_key
+
+        To edit the encrypted parameters: ::
+
+            ansible-vault edit security_config.yml --vault-password-file .security_vault_key
+
+
+
 Omnia installs a FreeIPA server on the manager node and FreeIPA clients on the compute and login node using one of the below commands: ::
 
     ansible-playbook security.yml -i inventory

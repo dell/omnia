@@ -1,4 +1,4 @@
-Frequently Asked Questions
+Frequently asked questions
 ==========================
 
 **What to do if playbook execution fails due to external (network, hardware etc) failure**
@@ -44,6 +44,27 @@ Resolution:
     * Download the ISO again, verify the checksum and re-run the provision tool.
 
     * Resolve/replace the faulty hardware and PXE boot the node.
+
+**Why does the 'Verify primary_dns is  reachable' task fail during provision.yml?**
+
+.. image:: ../images/primarydns_verify_failure.png
+
+Currently, the ``primary_dns`` value stored in ``input/provision_config.yml`` cannot be part of any of the subnets (``admin_nic_subnet``, ``ib_nic_subnet`` and ``bmc_nic_subnet``) also defined in ``input/provision_config.yml``.
+
+Ex: If the ``primary_dns`` is set to 10.15.0.7, the subnet ``10.15.0.0`` cannot be used for ``admin_nic_subnet``, ``ib_nic_subnet`` or ``bmc_nic_subnet``.
+
+
+**What to do if PXE boot fails when discovering target nodes via switch_based discovery**
+
+.. image:: ../images/PXEBootFail.png
+
+1. Rectify any probable causes like incorrect credentials, network glitches or incorrect switch IP/port details.
+2. Run the clean up script by: ::
+
+     cd utils
+     ansible-playbook control_plane_cleanup.yml
+
+3. Re-run the provision tool (``ansible-playbook provision.yml``).
 
 **How to add a new node for provisioning**
 

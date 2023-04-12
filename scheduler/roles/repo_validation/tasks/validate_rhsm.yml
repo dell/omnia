@@ -65,7 +65,7 @@
       register: rhsm_repo_list
 
     - name: Check redhat enabled repos
-      ansible.builtin.assertansible.builtin.command:
+      ansible.builtin.assert:
         that: 
           - "'appstream' in rhsm_repo_list.stdout"
           - "'baseos' in rhsm_repo_list.stdout"
