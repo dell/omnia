@@ -10,6 +10,6 @@ Use the below playbook to optionally set all PXE NICs on provisioned nodes to 's
 
 Where inventory refers to a list of IPs separated by newlines: ::
 
-    xxx.xxx.xxx.xxx
-    yyy.yyy.yyy.yyy
+    10.5.0.102
+    10.5.0.103
 
