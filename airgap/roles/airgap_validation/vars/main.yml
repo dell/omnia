@@ -28,3 +28,7 @@ xcat_status_failed: xCAT must be running for airgap solution to work. Please run
 rhel_repo_folder_path: "/install/rhels{{ provision_os_version }}.0/x86_64"
 rhel_repo_folder_path_missing_msg: "/install directory is not created by copycds command. Please check the execution flow and proceed."
 reposync_package: yum-utils
+
+# Usage: validate_cp_compatibility.yml
+os_supported_rhel: "redhat"
+compatibility_msg: "Control Plane should be RHEL when nodes are to be provisioned with RHEL OS."
