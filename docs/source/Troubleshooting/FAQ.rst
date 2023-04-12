@@ -120,11 +120,7 @@ Provisioning server using BOSS controller is now supported by Omnia 1.2.1.
 
 After a reboot of the control plane while running ``provision.yml``, to bring up ``xcatd`` services, please run either of the below commands: ::
 
-    ansible-playbook provision.yml
-
-::
-
-    ansible-playbook discovery-provision.yml
+    ansible-playbook discovery_provision.yml
 
 **How to re-provision a server once it's been set up by xCAT**
 
