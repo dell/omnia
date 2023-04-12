@@ -20,6 +20,7 @@ xcat_manpath_env: "/opt/xcat/share/man:$MANPATH"
 perl_badlang_env: 0
 create_repo_role_vars:
   - "{{ role_path }}/vars/postscripts.yml"
+os_supported_rhel: "redhat"
 
 # Usage: pre_requisites.yml
 xcat_connection_search_key: "connection failure"

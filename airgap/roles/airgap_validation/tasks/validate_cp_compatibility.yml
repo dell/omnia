@@ -13,12 +13,9 @@
 # limitations under the License.
 ---
 
-
-- name: Include provision configuration variables and validate them
-  ansible.builtin.include_tasks: validate_provision_config.yml
-
-- name: Verify if all pre-requisite conditions are met
-  ansible.builtin.include_tasks: check_prerequisites.yml
-
-- name: Validate control plane compatibility
-  ansible.builtin.include_tasks: validate_cp_compatibility.yml
+- name: Check control plane OS when compute node is rhel
+  ansible.builtin.fail:
+    msg: "{{ compatibility_msg }}"
+  when:
+    - compute_os_rhel_status
+    - not os_supported_rhel in ansible_facts['distribution'] | lower
