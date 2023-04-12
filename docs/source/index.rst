@@ -57,6 +57,7 @@ For a better understanding of what Omnia does, check out our `docs <https://omni
    limitations
    bestpractices
    Contributing/index
+   appendix
 
 
 .. |Omnia version| image:: https://img.shields.io/github/v/release/dellhpc/omnia?include_prereleases

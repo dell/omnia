@@ -1,4 +1,4 @@
-Building Clusters
+Building clusters
 ------------------
 
 1. In the ``input/omnia_config.yml`` file, provide the `required details <schedulerinputparams.html>`_.
@@ -8,13 +8,14 @@ Building Clusters
 2. Create an inventory file in the *omnia* folder. Add login node IP address under the manager node IP address under the *[manager]* group, compute node IP addresses under the *[compute]* group, and Login node IP under the *[login_node]* group,. Check out the `sample inventory for more information <../samplefiles.html>`_.
 
 .. note::
-     * Omnia checks for `red hat subscription being enabled on RedHat nodes as a pre-requisite <../../Roles/Utils/rhsm_subscription.html>`_. Not having Red Hat subscription enabled on the manager node will cause ``omnia.yml`` to fail. If compute nodes do not have Red Hat subscription enabled, ``omnia.yml`` will skip the node entirely.
+     * RedHat nodes that are not configured by Omnia need to have a valid subscription. To set up a subscription, `click here <https://omnia-documentation.readthedocs.io/en/latest/Roles/Utils/rhsm_subscription.html>`_.
      * Omnia creates a log file which is available at: ``/var/log/omnia.log``.
      * If only Slurm is being installed on the cluster, docker credentials are not required.
 
 3. To run ``omnia.yml``: ::
 
- ansible-playbook omnia.yml -i inventory
+        ansible-playbook omnia.yml -i inventory
+
 
 .. note::
     * To visualize the cluster (Slurm/Kubernetes) metrics on Grafana (On the control plane)  during the run of ``omnia.yml``, add the parameters ``grafana_username`` and ``grafana_password`` (That is ``ansible-playbook omnia.yml -i inventory -e grafana_username="" -e grafana_password=""``). Alternatively, Grafana is not installed by ``omnia.yml`` if it's not available on the Control Plane.

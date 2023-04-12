@@ -9,3 +9,6 @@ The Utilities role allows users to set up certain tasks such as
     rhsm_subscription
     configuringPXE
     freeipa_installation
+    cleanupscript
+    OSPackageUpdate
+    portcleanup
