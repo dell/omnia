@@ -81,7 +81,7 @@ helperd_location: "/etc/beegfs/beegfs-helperd.conf"
 beegfs_client_secret_path: "/etc/beegfs/"
 beegfs_secretfile_mode: "0400"
 beegfs_client_secret_conf_file: "/etc/beegfs/beegfs-client.conf"
-beegfs_secretfile_regexp: "^connAuthFile                           = "
+beegfs_secretfile_regexp: "^connAuthFile(\\s*)=$"
 beegfs_secretfile_regexp_update: "connAuthFile                           = /etc/beegfs/connauthfile"
 
 # Usage: validate_beegfs_vars.yml
