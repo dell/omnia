@@ -13,106 +13,38 @@
 #  limitations under the License.
 ---
 
-- name: Get all config files if repo list not valid
-  ansible.builtin.command: ls "{{ repo_path }}"
-  register: repos
+- name: Check for AppStream
+  ansible.builtin.command: grep -r "{{ search_string[0] }}" "{{ repo_path }}"
+  register: check_appstream
   changed_when: false
 
-- name: Initiallize variable
-  ansible.builtin.set_fact:
-    repo_found: false
+- name: Repo validation for AppStream
+  ansible.builtin.assert:
+    that: search_string[0] in check_appstream.stdout
+    success_msg: "{{ appstream_success_msg }}"
+    fail_msg: "{{ appstream_fail_msg }}"
 
-- name: Check config files for AppStream
-  any_errors_fatal: true
-  when: not repo_list_status
-  block:
-    - name: Check Appstream
-      ansible.builtin.lineinfile:
-        path: "{{ repo_path }}{{ item }}"
-        search_string: "{{ search_string[0] }}"
-        line: "{{ search_string[0] }}"
-        state: absent
-      with_items:
-        - "{{ repos.stdout_lines }}"
-      check_mode: true
-      no_log: true
-      register: conf
-      failed_when: (conf.changed)
-  rescue:
-    - name: Repo found
-      ansible.builtin.set_fact:
-        repo_found: true
-      when: conf.changed
-  always:
-    - name: Repo not found
-      ansible.builtin.assert:
-        that: repo_found
-        success_msg: "{{ appstream_success_msg }}"
-        fail_msg: "{{ appstream_fail_msg }}"
+- name: Check for BaseOS
+  ansible.builtin.command: grep -r "{{ search_string[1] }}" "{{ repo_path }}"
+  register: check_baseos
+  changed_when: false
 
-- name: Initiallize variable
-  ansible.builtin.set_fact:
-    repo_found: false
+- name: Repo validation for BaseOS
+  ansible.builtin.assert:
+    that: search_string[1] in check_baseos.stdout
+    success_msg: "{{ baseos_success_msg }}"
+    fail_msg: "{{ baseos_fail_msg }}"
 
-- name: Check config files for BaseOS
-  any_errors_fatal: true
-  when: not repo_list_status
-  block:
-    - name: Check baseos
-      ansible.builtin.lineinfile:
-        path: "{{ repo_path }}{{ item }}"
-        search_string: "{{ search_string[1] }}"
-        line: "{{ search_string[1] }}"
-        state: absent
-      with_items:
-        - "{{ repos.stdout_lines }}"
-      check_mode: true
-      no_log: true
-      register: conf
-      failed_when: (conf.changed)
-  rescue:
-    - name: Repo found
-      ansible.builtin.set_fact:
-        repo_found: true
-      when: conf.changed
-  always:
-    - name: Repo not found
-      ansible.builtin.assert:
-        that: repo_found
-        success_msg: "{{ baseos_success_msg }}"
-        fail_msg: "{{ baseos_fail_msg }}"
+- name: Check for CodeReadyBuilder
+  ansible.builtin.command: grep -r "{{ search_string[2] }}" "{{ repo_path }}"
+  register: check_codereadybuilder
+  changed_when: false
 
-- name: Initiallize variable
-  ansible.builtin.set_fact:
-    repo_found: false
-
-- name: Check config files for CodeReadyBuilder
-  any_errors_fatal: true
-  when: not repo_list_status
-  block:
-    - name: Check codereadybuilder
-      ansible.builtin.lineinfile:
-        path: "{{ repo_path }}{{ item }}"
-        search_string: "{{ search_string[2] }}"
-        line: "{{ search_string[2] }}"
-        state: absent
-      with_items:
-        - "{{ repos.stdout_lines }}"
-      check_mode: true
-      no_log: true
-      register: conf
-      failed_when: (conf.changed)
-  rescue:
-    - name: Repo found
-      ansible.builtin.set_fact:
-        repo_found: true
-      when: conf.changed
-  always:
-    - name: Repo not found
-      ansible.builtin.assert:
-        that: repo_found
-        success_msg: "{{ codereadybuilder_success_msg }}"
-        fail_msg: "{{ codereadybuilder_fail_msg }}"
+- name: Repo validation for CodeReadyBuilder
+  ansible.builtin.assert:
+    that: search_string[2] in check_codereadybuilder.stdout
+    success_msg: "{{ codereadybuilder_success_msg }}"
+    fail_msg: "{{ codereadybuilder_fail_msg }}"
 
 - name: Install epel repo 8 and other Packages
   block:

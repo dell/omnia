@@ -70,7 +70,7 @@
   changed_when: false
   failed_when: false
   register: preretry_fetch_osimage
-  when: diskful_osimage_precheck.rc !=0
+  when: diskful_osimage_precheck.rc != 0
 
 - name: Fail if osimage not present
   ansible.builtin.fail:
