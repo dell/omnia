@@ -13,22 +13,55 @@
 # limitations under the License.
 ---
 
-- name: Validate os version
+- name: Validate os and os version
   ansible.builtin.assert:
     that:
+      - os_type | length > 1
       - os_version | length > 1
     success_msg: "{{ os_version_success_msg }}"
     fail_msg: "{{ os_version_fail_msg }}"
 
-- name: Get the OS image details
-  ansible.builtin.shell: set -o pipefail && lsdef -t osimage
-  register: xcat_osimage_output
-  changed_when: true
+- name: Initiallize os_image
+  ansible.builtin.set_fact:
+    os_image: ""
 
-- name: Validate if input os_version object image is available
+- name: Fetch xcat osimage name
+  ansible.builtin.shell: >
+    set -o pipefail && \
+    lsdef -t osimage | grep "{{ osimage_search_key }}" | grep "{{ os_type }}" | grep "{{ os_version }}"
+  changed_when: false
+  register: fetch_osimage
+  failed_when: false
+
+- name: Set os_image
+  ansible.builtin.set_fact:
+    os_image: "{{ fetch_osimage.stdout.split(' ')[0] }}"
+  when: fetch_osimage.rc == 0
+
+- name: Retry fetching xcat osimage name
+  ansible.builtin.shell: >
+    set -o pipefail && \
+    lsdef -t osimage | grep "{{ osimage_search_key }}" | grep "{{ os_type }}"
+  changed_when: false
+  register: retry_fetch_osimage
+  when: 
+  - fetch_osimage.rc != 0
+  - os_type == "rocky"
+  - os_version == "8.7"
+
+- name: Set os_image
+  ansible.builtin.set_fact:
+    os_image: "{{ retry_fetch_osimage.stdout.split(' ')[0] }}"
+  when: 
+  - fetch_osimage.rc != 0
+  - os_type == "rocky"
+  - os_version == "8.7"
+  
+- name: Validate os_version exists
   ansible.builtin.fail:
-    msg: OS Version is invalid or not avaiable.
-  when: os_version not in xcat_osimage_output.stdout
+    msg: "{{ os_version_fail_msg }}"
+  when: 
+   - osimage_search_key not in os_image
 
 - name: Validate package directory
   ansible.builtin.assert:
