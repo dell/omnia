@@ -44,24 +44,24 @@
     lsdef -t osimage | grep "{{ osimage_search_key }}" | grep "{{ os_type }}"
   changed_when: false
   register: retry_fetch_osimage
-  when: 
-  - fetch_osimage.rc != 0
-  - os_type == "rocky"
-  - os_version == "8.7"
+  when:
+    - fetch_osimage.rc != 0
+    - os_type == "rocky"
+    - os_version == "8.7"
 
 - name: Set os_image
   ansible.builtin.set_fact:
     os_image: "{{ retry_fetch_osimage.stdout.split(' ')[0] }}"
-  when: 
-  - fetch_osimage.rc != 0
-  - os_type == "rocky"
-  - os_version == "8.7"
-  
+  when:
+    - fetch_osimage.rc != 0
+    - os_type == "rocky"
+    - os_version == "8.7"
+
 - name: Validate os_version exists
   ansible.builtin.fail:
     msg: "{{ os_version_fail_msg }}"
-  when: 
-   - osimage_search_key not in os_image
+  when:
+    - osimage_search_key not in os_image
 
 - name: Validate package directory
   ansible.builtin.assert:

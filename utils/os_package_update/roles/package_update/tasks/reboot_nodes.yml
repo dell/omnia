@@ -18,7 +18,7 @@
     - name: Reboot nodes
       ansible.builtin.command: rpower "{{ nodelist }}" reset
       changed_when: true
-  rescue: 
+  rescue:
     - name: Node reboot failed
       ansible.builtin.fail:
         msg: "{{ reboot_fail_msg }}"
