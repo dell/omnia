@@ -13,9 +13,13 @@
 #  limitations under the License.
 ---
 
+# Usage: repo_check.yml, repo_file_check.yml
+search_string: ['AppStream', 'BaseOS', 'CodeReadyBuilder']
+
 # Usage: repo_check.yml
 xcat_repo_success_msg: "BaseOS and AppStream repos validated successfully."
 xcat_repo_fail_msg: "Failed. BaseOS and AppStream repos not enabled. Provision servers using omnia provision tool."
+repo_search_string: "local-rhel"
 
 # Usage: validate_rhsm.yml
 os_supported_redhat: "redhat"
@@ -25,9 +29,8 @@ compute_inactive_msg1: "1. Host {{ ansible_ssh_host }} in group {{ group_names }
 compute_inactive_msg2: "2. Baseos and appstream repos are not enabled on host {{ ansible_ssh_host }}."
 
 # Usage: repo_file_check.yml
-appstream_success_msg: "AppStream repo is enabaled"
+appstream_success_msg: "AppStream repo is enabled"
 appstream_fail_msg: "Failed, AppStream repo not available"
 baseos_success_msg: "BaseOS repo is enabled"
 baseos_fail_msg: "Failed, BaseOS repo is not available"
-search_string: ['AppStream', 'BaseOS', 'CodeReadyBuilder']
 repo_path: "/etc/yum.repos.d/"
