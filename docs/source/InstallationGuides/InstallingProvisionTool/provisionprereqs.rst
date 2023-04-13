@@ -61,7 +61,7 @@ In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcf
 
 * The control plane NIC connected to remote servers (through the switch) should be configured with two IPs in a shared LOM set up. This NIC is configured by Omnia with the IP xx.yy.255.254, aa.bb.255.254 (where xx.yy are taken from ``bmc_nic_subnet`` and aa.bb are taken from ``admin_nic_subnet``) when ``network_interface_type`` is set to ``lom``. For other discovery mechanisms, only the admin NIC is configured with aa.bb.255.254 (Where aa.bb is taken from ``admin_nic_subnet``).
 
-.. image:: ../../../images/ControlPlaneNic.png
+.. image:: ../../images/ControlPlaneNic.png
 
  .. note::
 

@@ -53,6 +53,11 @@ Currently, the ``primary_dns`` value stored in ``input/provision_config.yml`` ca
 
 Ex: If the ``primary_dns`` is set to 10.15.0.7, the subnet ``10.15.0.0`` cannot be used for ``admin_nic_subnet``, ``ib_nic_subnet`` or ``bmc_nic_subnet``.
 
+**Why is the node status stuck at 'powering-on' or 'powering-off' after a control plane reboot?**
+
+Cause: The nodes were powering off or powering on during the control plane reboot.
+
+Resolution: In the case of a planned shutdown, ensure that the control plane is shut down before the compute nodes. When powering back up, the control plane should be powered on and xCAT services resumed before bringing up the compute nodes.
 
 **What to do if PXE boot fails when discovering target nodes via switch_based discovery**
 
