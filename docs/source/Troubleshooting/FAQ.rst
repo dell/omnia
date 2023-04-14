@@ -63,7 +63,7 @@ Resolution: In the case of a planned shutdown, ensure that the control plane is 
 
 .. image:: ../images/PXEBootFail.png
 
-1. Rectify any probable causes like incorrect credentials (``switch_snmp3_username`` and ``switch_snmp3_password`` provided in ``input/provision_config.yml``), network glitches or incorrect switch IP/port details.
+1. Rectify any probable causes like incorrect/unavailable credentials (``switch_snmp3_username`` and ``switch_snmp3_password`` provided in ``input/provision_config.yml``), network glitches or incorrect switch IP/port details.
 2. Run the clean up script by: ::
 
      cd utils
