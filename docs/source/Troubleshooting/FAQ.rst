@@ -27,25 +27,6 @@ Resolution:
  * Configure the first PXE device to be active for PXE booting.
  * PXE boot the target node manually.
 
-**Why does provision fail after successful discovery of servers using switch-based discovery?**
-
-Cause:
-
-The ``switch_snmp3_username`` and ``switch_snmp3_password`` provided in ``input/provision_config.yml`` may be inaccurate or unavailable.
-
-Resolution:
-
-1. Run the clean up script to undo all changes made by ``provision.yml``: ::
-
-    cd utils
-    ansible-playbook control_plane_cleanup.yml
-
-2. Update ``switch_snmp3_username`` and ``switch_snmp3_password`` in ``input/provision_config.yml``.
-3. Re-run ``provision.yml``: ::
-
-    cd provision
-    ansible-playbook provision.yml
-
 **Why is the provisioning status of my node object stuck at 'installing'?**
 
 Cause:
@@ -82,7 +63,7 @@ Resolution: In the case of a planned shutdown, ensure that the control plane is 
 
 .. image:: ../images/PXEBootFail.png
 
-1. Rectify any probable causes like incorrect credentials, network glitches or incorrect switch IP/port details.
+1. Rectify any probable causes like incorrect credentials (``switch_snmp3_username`` and ``switch_snmp3_password`` provided in ``input/provision_config.yml``), network glitches or incorrect switch IP/port details.
 2. Run the clean up script by: ::
 
      cd utils
