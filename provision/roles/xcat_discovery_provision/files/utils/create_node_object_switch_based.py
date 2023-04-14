@@ -21,14 +21,14 @@ groups_switch_based = '"switch_based,all"'
 def create_node_object(conn):
 
     cursor = conn.cursor()
-    sql = '''select switch_port from cluster.nodeinfo'''
+    sql = '''select switch_name,switch_port from cluster.nodeinfo where switch_port is not NULL'''
     cursor.execute(sql)
     switch_port_output = cursor.fetchall()
 
     for i in range(0, len(switch_port_output)):
         if switch_port_output[i][0] is not None:
 
-            sql = '''select node,admin_ip,bmc_ip,switch_name,switch_port from cluster.nodeinfo where switch_port='{switch_port}' '''.format(switch_port=switch_port_output[i][0])
+            sql = '''select node,admin_ip,bmc_ip,switch_name,switch_port from cluster.nodeinfo where switch_port='{switch_port}' and switch_name='{switch_name}' '''.format(switch_name=switch_port_output[i][0],switch_port=switch_port_output[i][1])
             cursor.execute(sql)
             row_output = cursor.fetchone()
 
