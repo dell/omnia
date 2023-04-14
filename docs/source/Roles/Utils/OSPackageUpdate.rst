@@ -5,7 +5,7 @@ To install multiple packages on target nodes in a bulk operation, the ``package_
 
 **Prerequisites**
 
-    * All target nodes should be running RHEL 8.4, RHEL 8.5 or RHEL 8.6.
+    * All target nodes should be running RHEL or Rocky (Versions 8.4, 8.5 or 8.6).
     * Download the packages (RPMs) for the target nodes and place them in an empty folder:  ``/install/<custom folder>``.
 
         .. note:: Do not use ISO files for updates or package installations.
@@ -22,7 +22,15 @@ To customize the package update, enter the following parameters in ``utils/packa
 +------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Parameter        | Details                                                                                                                                                                                   |
 +==================+===========================================================================================================================================================================================+
-| os_version       | RHEL version of target nodes in the cluster.                                                                                                                                              |
+| os_type          | The operating system in use on the target compute nodes.                                                                                                                                  |
+|      ``string``  |                                                                                                                                                                                           |
+|      Required    |      Choices:                                                                                                                                                                             |
+|                  |                                                                                                                                                                                           |
+|                  |      * ``rhel``                                                                                                                                                                           |
+|                  |                                                                                                                                                                                           |
+|                  |      * ``rocky``                                                                                                                                                                          |
++------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| os_version       | OS version of target nodes in the cluster.                                                                                                                                                |
 |      ``string``  |                                                                                                                                                                                           |
 |      Required    |                                                                                                                                                                                           |
 +------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -36,8 +44,9 @@ To customize the package update, enter the following parameters in ``utils/packa
 |                  | * All packages in this list will be installed/updated on remote nodes                                                                                                                     |
 +------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | package_type     | Indicates whether the packages to be installed are ``os`` packages (ie   they are available in baseos or appstream) or ``other`` (ie they're not part   of os repos, appstream or baseos) |
-|      ``string``  |      Choices:                                                                                                                                                                             |
-|      Required    |                                                                                                                                                                                           |
+|      ``string``  |                                                                                                                                                                                           |
+|      Required    | Choices:                                                                                                                                                                                  |
+|                  |                                                                                                                                                                                           |
 |                  |      * ``os``                                                                                                                                                                             |
 |                  |      * ``other``                                                                                                                                                                          |
 +------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -47,12 +56,11 @@ To customize the package update, enter the following parameters in ``utils/packa
 +------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | reboot_required  | Indicates whether the remote nodes listed will be rebooted.                                                                                                                               |
 |      ``boolean`` |                                                                                                                                                                                           |
-|      Required    |      Choices:                                                                                                                                                                             |
+|      Required    | Choices:                                                                                                                                                                                  |
 |                  |                                                                                                                                                                                           |
 |                  |      * ``true`` <- Default                                                                                                                                                                |
 |                  |      * ``false``                                                                                                                                                                          |
 +------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-
 
 To run the playbook, run the following commands: ::
 
