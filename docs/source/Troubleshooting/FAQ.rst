@@ -31,7 +31,7 @@ Resolution:
 
 Cause:
 
-The ``switch_snmp3_username`` and ``switch_snmp3_password`` provided in ``input/provision_config.yml`` may be inaccurate or incomplete.
+The ``switch_snmp3_username`` and ``switch_snmp3_password`` provided in ``input/provision_config.yml`` may be inaccurate or unavailable.
 
 Resolution:
 
