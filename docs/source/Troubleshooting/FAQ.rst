@@ -41,7 +41,7 @@ Resolution:
     ansible-playbook control_plane_cleanup.yml
 
 2. Update ``switch_snmp3_username`` and ``switch_snmp3_password`` in ``input/provision_config.yml``.
-3. Re-run the ``provision.yml``: ::
+3. Re-run ``provision.yml``: ::
 
     cd provision
     ansible-playbook provision.yml
