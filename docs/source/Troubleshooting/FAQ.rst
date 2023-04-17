@@ -53,12 +53,17 @@ Currently, the ``primary_dns`` value stored in ``input/provision_config.yml`` ca
 
 Ex: If the ``primary_dns`` is set to 10.15.0.7, the subnet ``10.15.0.0`` cannot be used for ``admin_nic_subnet``, ``ib_nic_subnet`` or ``bmc_nic_subnet``.
 
+**Why is the node status stuck at 'powering-on' or 'powering-off' after a control plane reboot?**
+
+Cause: The nodes were powering off or powering on during the control plane reboot.
+
+Resolution: In the case of a planned shutdown, ensure that the control plane is shut down before the compute nodes. When powering back up, the control plane should be powered on and xCAT services resumed before bringing up the compute nodes.
 
 **What to do if PXE boot fails when discovering target nodes via switch_based discovery**
 
 .. image:: ../images/PXEBootFail.png
 
-1. Rectify any probable causes like incorrect credentials, network glitches or incorrect switch IP/port details.
+1. Rectify any probable causes like incorrect/unavailable credentials (``switch_snmp3_username`` and ``switch_snmp3_password`` provided in ``input/provision_config.yml``), network glitches or incorrect switch IP/port details.
 2. Run the clean up script by: ::
 
      cd utils
@@ -118,13 +123,9 @@ Provisioning server using BOSS controller is now supported by Omnia 1.2.1.
 
 **How to re-launch services after a control-plane reboot while running provision.yml**
 
-After a reboot of the control plane while running ``provision.yml``, to bring up ``xcatd`` services, please run the below commands: ::
+After a reboot of the control plane while running ``provision.yml``, to bring up ``xcatd`` services, please run the below command: ::
 
-    systemctl restart postgresql.service
-
-    systemctl restart xcatd.service
-
-Alternatively, re-run the ``provision.yml`` playbook.
+    ansible-playbook discovery_provision.yml
 
 **How to re-provision a server once it's been set up by xCAT**
 
