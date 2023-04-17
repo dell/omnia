@@ -15,7 +15,7 @@
 
 - name: Initiallize variable
   ansible.builtin.set_fact:
-    repo_list_status: true
+    repo_list_status: false
 
 - name: Fetch xcat enabled repo list
   ansible.builtin.command: dnf repolist
@@ -24,8 +24,8 @@
 
 - name: Check if repo list is valid
   ansible.builtin.set_fact:
-    repo_list_status: false
-  when: not dnf_repo_list is search("local_rhel")
+    repo_list_status: true
+  when: 'repo_search_string in dnf_repo_list.stdout'
 
 - name: Check enabled repos using repo list
   when: repo_list_status
@@ -33,7 +33,8 @@
     - name: Check xcat enabled repos
       ansible.builtin.assert:
         that:
-          - "'appstream' in dnf_repo_list.stdout | lower"
-          - "'baseos' in dnf_repo_list.stdout | lower"
+          - "'{{ item }}'| lower in dnf_repo_list.stdout | lower"
         success_msg: "{{ xcat_repo_success_msg }}"
         fail_msg: "{{ xcat_repo_fail_msg }}"
+      with_items:
+        - "{{ search_string }}"

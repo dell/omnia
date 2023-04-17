@@ -51,6 +51,12 @@
         remote_src: false
         mode: "{{ beegfs_secretfile_mode }}"
 
+    - name: Update the beegfs-helperd.conf file
+      ansible.builtin.lineinfile:
+        path: "{{ helperd_location }}"
+        regexp: "{{ beegfs_secretfile_regexp }}"
+        line: "{{ beegfs_secretfile_regexp_update }}"
+
     - name: Update the beegfs-client.conf file
       ansible.builtin.lineinfile:
         path: "{{ beegfs_client_secret_conf_file }}"
