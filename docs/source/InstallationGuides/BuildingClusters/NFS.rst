@@ -1,7 +1,7 @@
-NFS Bolt On
+NFS bolt on
 ------------
 
-* Ensure that an external NFS server is running. NFS clients are mounted using the external NFS server's IP.
+* Ensure that an external NFS server is set up using the `linked steps <../../Appendices/NFSServer.html>`_ alternatively, `nfs_sas.yml <../ConfiguringStorage/index.html>`_ can be leveraged. NFS clients are mounted using the external NFS server's IP.
 
 * Fill out the ``nfs_client_params`` variable in the ``input/storage_config.yml`` file in JSON format using the samples provided below.
 
@@ -17,7 +17,7 @@ NFS Bolt On
 
   - mountd
 
-* Omnia supports all NFS mount options. Without user input, the default mount options are nosuid,rw,sync,hard,intr. For a list of mount options, `click here <https://linux.die.net/man/5/nfs>`_.
+* Omnia supports all NFS mount options. Without user input, the default mount options are nosuid,rw,sync,hard,intr.
 
 * The fields listed in ``nfs_client_params`` are:
 
@@ -27,26 +27,28 @@ NFS Bolt On
 
   - client_share_path: Target directory for the NFS mount on the client. If left empty, respective ``server_share_path value`` will be taken for ``client_share_path``.
 
-  - client_mount_options: The mount options when mounting the NFS export on the client. Default value: nosuid,rw,sync,hard,intr.
+  - client_mount_options: The mount options when mounting the NFS export on the client. Default value: nosuid,rw,sync,hard,intr. For a list of mount options, `click here <https://man7.org/linux/man-pages/man8/mount.8.html>`_.
 
-* For RedHat clusters, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription.
+* Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to set up NFS on RHEL target nodes.
+
+* For RHEL target nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription.
 
 * There are 3 ways to configure the feature:
 
   1. **Single NFS node** : A single NFS filesystem is mounted from a single NFS server. The value of ``nfs_client_params`` would be::
 
-        "- { server_ip: 10.5.0.101, server_share_path: "/mnt/share", client_share_path: "/mnt/client", client_mount_options: "nosuid,rw,sync,hard,intr" }"
+        - { server_ip: 10.5.0.101, server_share_path: "/mnt/share", client_share_path: "/mnt/client", client_mount_options: "nosuid,rw,sync,hard,intr" }
 
   2. **Multiple Mount NFS Filesystem**: Multiple filesystems are mounted from a single NFS server. The value of ``nfs_client_params`` would be::
 
-        "- { server_ip: 10.5.0.101, server_share_path: "/mnt/share1", client_share_path: "/mnt/client1", client_mount_options: "nosuid,rw,sync,hard,intr" }
-        - { server_ip: 10.5.0.101, server_share_path: "/mnt/share2", client_share_path: "/mnt/client2", client_mount_options: "nosuid,rw,sync,hard,intr" }"
+        - { server_ip: 10.5.0.101, server_share_path: "/mnt/share1", client_share_path: "/mnt/client1", client_mount_options: "nosuid,rw,sync,hard,intr" }
+        - { server_ip: 10.5.0.101, server_share_path: "/mnt/share2", client_share_path: "/mnt/client2", client_mount_options: "nosuid,rw,sync,hard,intr" }
 
    3. **Multiple NFS Filesystems**: Multiple filesystems are mounted from multiple NFS servers. The value of ``nfs_client_params`` would be::
 
-        "- { server_ip: 10.5.0.101, server_share_path: "/mnt/server1", client_share_path: "/mnt/client1", client_mount_options: "nosuid,rw,sync,hard,intr" }
+        - { server_ip: 10.5.0.101, server_share_path: "/mnt/server1", client_share_path: "/mnt/client1", client_mount_options: "nosuid,rw,sync,hard,intr" }
         - { server_ip: 10.5.0.102, server_share_path: "/mnt/server2", client_share_path: "/mnt/client2", client_mount_options: "nosuid,rw,sync,hard,intr" }
-        - { server_ip: 10.5.0.103, server_share_path: "/mnt/server3", client_share_path: "/mnt/client3", client_mount_options: "nosuid,rw,sync,hard,intr" }"
+        - { server_ip: 10.5.0.103, server_share_path: "/mnt/server3", client_share_path: "/mnt/client3", client_mount_options: "nosuid,rw,sync,hard,intr" }
 
 
 
@@ -59,5 +61,11 @@ NFS Bolt On
             systemctl enable nfs-server
             systemctl restart nfs-server
 
+
+
+If ``omnia.yml`` is not leveraged to set up NFS, run the ``storage.yml`` playbook : ::
+
+    cd storage
+    ansible-playbook storage.yml -i inventory
 
 

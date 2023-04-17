@@ -14,6 +14,9 @@
 ---
 
 - name: Check for beegfs_ofed_kernel_modules_path
+  when:
+    - beegfs_rdma_support
+    - beegfs_ofed_kernel_modules_path | length > 1
   block:
     - name: Verify beegfs_ofed_kernel_modules_path existence
       ansible.builtin.stat:
@@ -24,9 +27,6 @@
       ansible.builtin.fail:
         msg: "{{ fail_msg_beegfs_ofed_path }}"
       when: not beegfs_ofed_path.stat.exists
-  when:
-    - beegfs_rdma_support
-    - beegfs_ofed_kernel_modules_path | length > 1
 
 - name: Fetch SElinux mode
   ansible.builtin.command: sestatus
@@ -38,29 +38,8 @@
     msg: "{{ selinux_fail_msg }}"
   when: '"SELinux status:                 disabled" not in selinux_status.stdout_lines'
 
-- name: Check for subscription and enable code ready repo
-  block:
-    - name: Check whether subscription is enabled or not
-      ansible.builtin.command: subscription-manager list
-      changed_when: false
-      register: rhsm_status
-
-    - name: Show status message
-      ansible.builtin.debug:
-        msg: "Subscription successful"
-      when: "'Subscribed' in rhsm_status.stdout"
-
-    - name: Show status message
-      ansible.builtin.fail:
-        msg: "Subscription failed can't proceed"
-      when: "'Subscribed' not in rhsm_status.stdout"
-
-    - name: Subscrbe for code ready builder repo in RHEL
-      ansible.builtin.command: subscription-manager repos --enable "{{ rhel_code_ready_repo }}"
-      changed_when: false
-  when: os_supported_redhat in compute_os
-
 - name: Unmount previous existence of BeeGFS client
+  when: beegfs_unmount_client
   block:
     - name: BeeGFS client mount config file
       ansible.builtin.command: cat "{{ beegfs_mount_file }}"
@@ -92,7 +71,6 @@
     - name: Status of unmounting
       ansible.builtin.fail:
         msg: "{{ beegfs_mount_status_msg }}"
-  when: beegfs_unmount_client
 
 - name: Fetch kernel version
   ansible.builtin.command: uname -r

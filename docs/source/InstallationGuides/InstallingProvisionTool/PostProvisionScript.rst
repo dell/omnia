@@ -1,4 +1,4 @@
-After Running the Provision Tool
+After running the provision tool
 --------------------------------
 
 Once the **servers are provisioned**, run the post provision script to:

@@ -25,16 +25,3 @@
 
 - name: Check if nvidia accelerator is present on compute node
   ansible.builtin.include_tasks: pre_requisites_cuda.yml
-
-- name: Validate rhsm status on redhat nodes
-  block:
-    - name: Validate redhat subscription status
-      ansible.builtin.include_tasks: validate_rhsm.yml
-  rescue:
-    - name: Warning - redhat subscription not enabled
-      ansible.builtin.pause:
-        seconds: "{{ warning_wait_time }}"
-        prompt: "{{ subscription_warning_msg }}"
-  when:
-    - cuda_node_status
-    - ansible_facts['distribution'] | lower == os_supported_rhel

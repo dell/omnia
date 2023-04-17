@@ -13,17 +13,21 @@
 #  limitations under the License.
 ---
 
-# Usage: tasks/main.yml
+# Usage: tasks/prepare_leap_nodes.yml
 leap_repo:
   - { name: repo-non-oss, repo: "http://download.opensuse.org/distribution/leap/15.3/repo/non-oss/" }
   - { name: repo-oss, repo: "http://download.opensuse.org/distribution/leap/15.3/repo/oss/" }
   - { name: repo-update-oss, repo: "http://download.opensuse.org/update/leap/15.3/oss/" }
   - { name: repo-update-non-oss, repo: "http://download.opensuse.org/update/leap/15.3/non-oss/" }
 nvidia_repo: https://download.nvidia.com/opensuse/leap/15.3/
-docker_repo_url_leap: https://download.docker.com/linux/sles/docker-ce.repo
-docker_repo_dest_leap: /etc/YaST2/docker-ce.repo
+amd_gpu_dest: /etc/modprobe.d/10-unsupported-modules.conf
+gpg_key_amd: 'https://repo.radeon.com/rocm/rocm.gpg.key'
+amd_repo: 'https://repo.radeon.com/rocm/zyp/zypper/'
+conf_file_mode: 0644
 os_supported_leap: "leap"
 os_supported_leap_version: "15.3"
+
+# Usage: tasks/prepare_rhel_nodes.yml
 common_packages:
   - gcc
   - nfs-utils
@@ -48,40 +52,20 @@ max_delay: 20
 common_packages_non_leap:
   - yum-plugin-versionlock
   - nvidia-detect
-  - docker-ce-cli-20.10.2
-  - docker-ce-20.10.2
   - network-scripts
 common_packages_rhel:
   - yum-plugin-versionlock
-  - docker-ce-cli-20.10.2
-  - docker-ce-20.10.2
   - network-scripts
-docker_packages:
-  - docker-ce-cli-20.10.2
-  - docker-ce-20.10.2
-custom_fact_dir: /etc/ansible/facts.d
-custom_fact_dir_mode: 0755
-accelerator_discovery_script_dest: /etc/ansible/facts.d/inventory.fact
-accelerator_discovery_script_mode: 0755
 elrepo_gpg_key_url: https://www.elrepo.org/RPM-GPG-KEY-elrepo.org
 elrepo_rpm_url: "https://www.elrepo.org/elrepo-release-{{ ansible_facts['distribution_major_version'] }}.el{{ ansible_facts['distribution_major_version'] }}.elrepo.noarch.rpm" 
-docker_repo_url: https://download.docker.com/linux/centos/docker-ce.repo
-docker_repo_dest: /etc/yum.repos.d/docker-ce.repo
 os_name: "CentOS"
-rhel_code_ready_repo: codeready-builder-for-rhel-8-x86_64-rpms
 rhel_epel_repo8: https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
 os_supported_centos: "centos"
+os_supported_redhat: "redhat"
+
+# Usage: tasks/prepare_hosts_file.yml
 hosts_file_dest: "/etc/hosts"
 hosts_file_mode: "0644"
-
-# Usage: amd_leap.yml
-amd_gpu_dest: /etc/modprobe.d/10-unsupported-modules.conf
-gpg_key_amd: 'https://repo.radeon.com/rocm/rocm.gpg.key'
-amd_repo: 'https://repo.radeon.com/rocm/zyp/zypper/'
-conf_file_mode: 0644
-
-# Usage: nvidia_leap.yml
-nvidia_docker_repo: 'https://nvidia.github.io/nvidia-docker/opensuse-leap15.1/nvidia-docker.repo'
 
 # Usage: ntp.yml
 chrony_path: "/etc/chrony.conf"
@@ -103,63 +87,3 @@ ntp_servers:
   - 2.centos.pool.ntp.org
 chrony_servers:
   - 2.centos.pool.ntp.org
-
-# Usage: validate_rhsm.yml
-os_supported_redhat: "redhat"
-manager_inactive_msg1: "1. Manager node didnt have active subscription."
-manager_inactive_msg2: "2. Manager node didnt have baseos and appstream repos enabled."
-compute_inactive_msg1: "1. Host {{ ansible_ssh_host }} in group {{ group_names }} is not subscribed to redhat"
-compute_inactive_msg2: "2. Host {{ ansible_ssh_host }} didnt have baseos and appstream repos enabled."
-
-# Usage: nvidia_centos.yml
-nvidia_packages:
-  - kmod-nvidia
-  - nvidia-docker2
-centos_libnvidia_url: "https://nvidia.github.io/libnvidia-container/stable/centos7/$basearch"
-centos_libnvidia_gpg: "https://nvidia.github.io/libnvidia-container/gpgkey"
-centos_ssl_cert: "/etc/pki/tls/certs/ca-bundle.crt"
-centos_libexp_url: "https://nvidia.github.io/nvidia-container-runtime/stable/centos7/$basearch"
-centos_libexp_gpg: "https://nvidia.github.io/nvidia-container-runtime/gpgkey"
-centos_nvidia_docker_url: "https://nvidia.github.io/nvidia-docker/centos7/$basearch"
-centos_nvidia_docker_gpg: "https://nvidia.github.io/nvidia-docker/gpgkey"
-
-# Usage: nvidia.yml
-daemon_file_dest: /etc/docker/
-daemon_file_mode: 0644
-os_supported_rocky: "rocky"
-
-# Usage: nvidia_rhel.yml
-nvidia_rhel_packages:
-  - nvidia-container-toolkit
-  - nvidia-docker2
-  - nvidia-container-runtime
-rhel_libnvidia_curl_url: "https://nvidia.github.io/libnvidia-container/{{ os_distribution }}/libnvidia-container.repo"
-rhel_libnvidia_url: "https://nvidia.github.io/libnvidia-container/stable/{{ os_distribution }}/$basearch"
-rhel_libnvidia_gpg: "https://nvidia.github.io/libnvidia-container/gpgkey"
-rhel_ssl_cert: "/etc/pki/tls/certs/ca-bundle.crt"
-rhle_libexp_curl_url: "https://nvidia.github.io/nvidia-container-runtime/{{ os_distribution }}/nvidia-container-runtime.repo"
-rhle_libexp_url: "https://nvidia.github.io/nvidia-container-runtime/stable/{{ os_distribution }}/$basearch"
-rhel_libexp_gpg: "https://nvidia.github.io/nvidia-container-runtime/gpgkey"
-rhel_nvidia_docker_curl_url: "https://nvidia.github.io/nvidia-docker/{{ os_distribution }}/nvidia-docker.repo"
-rhel_nvidia_docker_url: "https://nvidia.github.io/nvidia-docker/{{ os_distribution }}/$basearch"
-rhel_nvidia_docker_gpg: "https://nvidia.github.io/nvidia-docker/gpgkey"
-return_code: 200
-nvidia_packages_status: "Nvidia packages are not installed as repositories are not available for {{ os_distribution }}."
-
-# Usage: amd_rhel.yml
-amd_rhel_url: "https://repo.radeon.com/rocm/centos8/4.3.1"
-amd_rhel_gpg: "https://repo.radeon.com/rocm/rocm.gpg.key"
-
-# Usage: amd_centos.yml
-centos7_rocm_url: "https://repo.radeon.com/rocm/yum/rpm"
-centos_rocm_gpg: "https://repo.radeon.com/rocm/rocm.gpg.key"
-centos8_rocm_url: " https://repo.radeon.com/rocm/centos8/rpm"
-
-# Usage: nvidia_rocky.yml
-nvidia_rocky_pkgs:
-    - nvidia-driver
-    - nvidia-settings
-    - cuda-driver
-cuda_rocky_url: "https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64"
-cuda_rocky_gpg: "https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64/D42D0685.pub"
-nvidia_status: "[WARNING] NVIDIA for rocky won't be supported, due to required kernel packages are not available"

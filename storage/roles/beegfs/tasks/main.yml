@@ -21,6 +21,9 @@
     compute_os: "{{ ansible_distribution | lower }}"
 
 - name: Install BeeGFS client
+  when:
+    - beegfs_support
+    - os_supported_leap not in compute_os
   block:
     - name: Check prerequisites
       ansible.builtin.include_tasks: prerequisites.yml
@@ -34,6 +37,3 @@
 
     - name: Install BeeGFS client
       ansible.builtin.include_tasks: beegfs_client.yml
-  when:
-    - beegfs_support
-    - os_supported_leap not in compute_os

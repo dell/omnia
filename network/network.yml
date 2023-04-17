@@ -17,6 +17,18 @@
   hosts: all
   gather_facts: true
 
+- name: Validate xcat status on control plane
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - network_validation
+
+- name: Validate repo file and subscription
+  hosts: all
+  gather_facts: false
+  roles:
+    - repo_validation
+
 - name: Validate input parameters for mlnx_ofed
   hosts: localhost
   connection: local

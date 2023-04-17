@@ -28,6 +28,7 @@
     fail_msg: "{{ beegfs_mgmt_server_fail_msg }}"
 
 - name: Validate beegfs_mgmt_server inputs
+  when: beegfs_mgmt_server | length > 1
   block:
     - name: Test reachability of beegfs_mgmt_server
       ansible.builtin.command: ping -c3 {{ beegfs_mgmt_server }}
@@ -39,7 +40,6 @@
       ansible.builtin.fail:
         msg: "{{ beegfs_mgmt_server_not_reachable_msg }}"
       when: ping_msg in beegfs_mgmt_server_reachablility.stdout
-  when: beegfs_mgmt_server | length > 1
 
 - name: Verify beegfs_mounts is not empty
   ansible.builtin.fail:
@@ -70,6 +70,19 @@
     - name: BeeGFS version reachability status
       ansible.builtin.fail:
         msg: "{{ beegfs_repo_status_msg }}"
+
+- name: Validate shared secret file for beegfs version >= 7.2.7
+  when: beegfs_client_version >= '7.2.7'
+  block:
+    - name: Validate the shared secret file
+      ansible.builtin.stat:
+        path: "{{ beegfs_secret_storage_filepath }}"
+      register: file_result
+
+    - name: Validate the shared secret file existence
+      ansible.builtin.fail:
+        msg: "{{ beegfs_shared_secret_failure_msg }}"
+      when: not file_result.stat.exists
 
 - name: Assert beegfs_version_change
   ansible.builtin.assert:

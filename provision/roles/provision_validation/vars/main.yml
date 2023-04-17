@@ -17,6 +17,7 @@
 provision_validation_vars:
   - "{{ role_path }}/vars/mtms.yml"
   - "{{ role_path }}/vars/metadata.yml"
+  - "{{ role_path }}/vars/switch_based.yml"
 nic_wait_time: 30
 
 # Usage: package_installation.yml
@@ -47,6 +48,24 @@ conf_file_mode: 0644
 provision_config_filename: "{{ role_path }}/../../../input/provision_config.yml"
 provision_vault_path: "{{ role_path }}/../../../input/.provision_vault_key"
 ansible_vault_search_key: "$ANSIBLE_VAULT;"
+
+# Usage: validate_network_interface.yml
+network_interface_success_msg: "Success! Network interface type is correct"
+network_interface_fail_msg: "Failed. Please provide a valid network interface type."
+
+# Usage: validate_discovery_params.yml
+discovery_success_msg: "Successfully validated discovery_mechanism"
+discovery_fail_msg: "Failed. Please provide valid value for discovery_mechanism."
+discovery_method_snmp: "snmpwalk"
+discovery_method_mapping: "mapping"
+discovery_method_bmc: "bmc"
+discovery_method_switch_based: "switch_based"
+validation_range_file: "{{ role_path }}/files/validate_input_ranges.py"
+validation_ip_count: "{{ role_path }}/files/validate_ips_count.py"
+lom_discovery_success_msg: "Success.Discovery mechanism validated in case of lom network interface type."
+lom_discovery_fail_msg: "Failed.If network interface type is lom, only mapping, bmc and switch_based values are supported in discovery_mechanism"
+dedicated_discovery_success_msg: "Success.Discovery mechanism validated in case of dedictaed network interface type."
+dedicated_discovery_fail_msg: "Failed.If network interface type is dedicated, only mapping and snmpwalk values are supported in discovery_mechanism"
 
 # Usage: assign_admin_nic_config.yml
 omnia_admin_ip: "{{ admin_nic_subnet.split('.')[0] + '.' + admin_nic_subnet.split('.')[1] + '.' + '255' + '.' + '254' }}"
@@ -97,14 +116,14 @@ bmc_nic_end: "{{ bmc_nic_subnet.split('.')[0] + '.' + bmc_nic_subnet.split('.')[
 
 # Usage: validate_switch_vars.yml
 pxe_switch_ip_valid: "Valid switch ip provided"
-pxe_switch_ip_invalid: " Failed. Provide a valid switch ip"
+pxe_switch_ip_invalid: " Failed. Provide a valid switch ip in provision_config.yml"
 fail_switch_or_mapping_file: "Failed. Please provide PXE switch details.
 If switch details are given,then provide proper node_name too."
-pxe_switch_unreachable: "Failed. Given switch is unreachable. Please provide correct switch IP."
+pxe_switch_unreachable: "Failed. Given switch is unreachable. Please provide correct switch IP in provision_config.yml."
 provision_option_fail_msg: "[WARNING]. Ignoring pxe_switch_ip when pxe_mapping_file_path provided"
 
 # Usage: validate_mapping_file.yml
-pxe_path_fail_msg: "Failed. Please provide a valid pxe_mapping_file_path"
+pxe_path_fail_msg: "Failed. Please provide a valid pxe_mapping_file_path in provision_config.yml"
 mapping_file_key: "MAC"
 mapping_file_header_fail_msg: "Failed. Header of csv file is not in correct format. It should be of the format: MAC,Hostname,IP"
 host_mapping_header_format: "MAC,Hostname,IP"
@@ -116,7 +135,7 @@ duplicate_hostname_fail_msg: "Failed. Duplicate hostname exists. Please verify m
 temp_mapping_file_path: "/opt/omnia/pxe_mapping_file.csv"
 
 # Usage: validate_provision_vars.yml
-input_provision_fail_msg: "Please provide all the required provision parameters"
+input_provision_fail_msg: "Please provide all the required provision parameters in provision_config.yml"
 default_lease_time_success_msg: "default_lease_time validated"
 default_lease_time_fail_msg: "Failed. Please provide a valid default_lease_time"
 timezone_success_msg: "timezone validated"

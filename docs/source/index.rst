@@ -12,6 +12,8 @@ Ansible playbook-based deployment of Slurm and Kubernetes on servers running an 
 
 Omnia (Latin: all or everything) is a deployment tool to turn servers with RPM-based Linux images into functioning Slurm/Kubernetes clusters.
 
+**Omnia** is an open source project hosted on `GitHub <https://github.com/dellhpc/omnia>`_. Go to `GitHub <https://github.com/dellhpc/omnia>`_ to view the source, open issues, ask questions, and participate in the project.
+
 **Licensing**
 
 Omnia is made available under the `Apache 2.0 license. <https://opensource.org/licenses/Apache-2.0>`_
@@ -57,6 +59,7 @@ For a better understanding of what Omnia does, check out our `docs <https://omni
    limitations
    bestpractices
    Contributing/index
+   appendix
 
 
 .. |Omnia version| image:: https://img.shields.io/github/v/release/dellhpc/omnia?include_prereleases

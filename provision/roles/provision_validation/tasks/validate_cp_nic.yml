@@ -21,8 +21,7 @@
   when:
     - public_nic | length < 1 or
       admin_nic | length < 1 or
-      admin_nic_subnet | length < 1 or
-      pxe_nic | length < 1
+      admin_nic_subnet | length < 1
 
 - name: Fetch the network interfaces in UP state in the system
   ansible.builtin.shell: set -o pipefail && /usr/sbin/ip a | awk '/state UP/{print $2}'
@@ -47,7 +46,6 @@
 
 - name: Initialize variables
   ansible.builtin.set_fact:
-    network_interface_type: "dedicated"
     roce_enabled: false
     ib_status: false
     bmc_postscripts_config_status: false
@@ -62,9 +60,6 @@
 
 - name: Validation related to admin nic
   ansible.builtin.include_tasks: validate_admin_nic.yml
-
-- name: Validation related to PXE nic
-  ansible.builtin.include_tasks: validate_pxe_nic.yml
 
 - name: Validation related to BMC nic
   ansible.builtin.include_tasks: validate_bmc_nic.yml

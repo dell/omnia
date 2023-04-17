@@ -23,7 +23,6 @@ max_retries: 20
 beegfs_unmount_client_fail_msg: "Failed, beegfs_unmount_client should be true when there is a change in beegfs mount location or in version"
 beegfs_mount_status_msg: "Failed, Make sure there is an active beegfs file system running, which is not in busy state"
 os_supported_redhat: "redhat"
-rhel_code_ready_repo: codeready-builder-for-rhel-8-x86_64-rpms
 fail_msg_beegfs_ofed_path: "Please make sure {{ beegfs_ofed_kernel_modules_path }} path exists"
 
 # Usage: remove_client.yml
@@ -79,6 +78,11 @@ beegfs_rebuild_status:
 beegfs_rebuild_tcp_msg:
    - "Make sure that beegfs-client and beegfs other server's versions are compatible"
 helperd_location: "/etc/beegfs/beegfs-helperd.conf"
+beegfs_client_secret_path: "/etc/beegfs/"
+beegfs_secretfile_mode: "0400"
+beegfs_client_secret_conf_file: "/etc/beegfs/beegfs-client.conf"
+beegfs_secretfile_regexp: "^connAuthFile(\\s*)=$"
+beegfs_secretfile_regexp_update: "connAuthFile                           = /etc/beegfs/connauthfile"
 
 # Usage: validate_beegfs_vars.yml
 selinux_fail_msg: "SELinux should be in disabled mode, for installing beegfs client. Please diasbled selinux and reboot the system"
@@ -106,3 +110,4 @@ unmount_failure_msg: "beegfs_unmount_client should be true only when beegfs_vers
 latest_version: 7.3.0
 compatability_msg: "Upgradation to 7.3.0 is not possible, as it is not supported by beegfs, try upgrading to some other versions"
 storage_config_vars: "{{ role_path }}/../../../input/storage_config.yml"
+beegfs_shared_secret_failure_msg: "Failed. Shared secret file should be configured in server, meta and storage should be provioded for client"

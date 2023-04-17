@@ -17,19 +17,47 @@ Using FreeIPA
 
 Enter the following parameters in ``input/security_config.yml``.
 
-+----------------------------+-----------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Parameter Name             | Values                            | Additional Information                                                                                                                                                                                                                   |
-+============================+===================================+==========================================================================================================================================================================================================================================+
-| freeipa_required           | **true**, false                   | Boolean indicating whether FreeIPA is required or not.                                                                                                                                                                                   |
-+----------------------------+-----------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| realm_name                 | OMNIA.TEST                        | Sets the intended realm name                                                                                                                                                                                                             |
-+----------------------------+-----------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| directory_manager_password |                                   | Password authenticating admin level   access to the Directory for system management tasks. It will be added to the   instance of directory server created for IPA.Required Length: 8 characters.   The password must not contain -,, ‘,” |
-+----------------------------+-----------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| kerberos_admin_password    |                                   | “admin” user password for the IPA   server on RockyOS.                                                                                                                                                                                   |
-+----------------------------+-----------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| domain_name                | omnia.test                        | Sets the intended domain name                                                                                                                                                                                                            |
-+----------------------------+-----------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
++----------------------------+----------------------------------------------------------------------------------------------+
+| Parameter                  | Details                                                                                      |
++============================+==============================================================================================+
+| freeipa_required           | Boolean indicating whether FreeIPA is required or not.                                       |
+|      ``boolean``           |                                                                                              |
+|      Required              |      Choices:                                                                                |
+|                            |                                                                                              |
+|                            |      * ``true`` <- Default                                                                   |
+|                            |                                                                                              |
+|                            |      * ``false``                                                                             |
++----------------------------+----------------------------------------------------------------------------------------------+
+| realm_name                 | Sets the intended realm name.                                                                |
+|      ``string``            |                                                                                              |
+|      Required              |      **Default value**: ``OMNIA.TEST``                                                       |
++----------------------------+----------------------------------------------------------------------------------------------+
+| directory_manager_password | * Password authenticating admin level access to the Directory for system   management tasks. |
+|      ``string``            |      * It will be added to the instance of directory server created for   IPA.               |
+|      Required              |      * Required Length: 8 characters.                                                        |
+|                            |      * The password must not contain -,, ‘,”                                                 |
++----------------------------+----------------------------------------------------------------------------------------------+
+| kerberos_admin_password    | “admin”   user password for the IPA server on RockyOS.                                       |
+|      ``string``            |                                                                                              |
+|      Required              |                                                                                              |
++----------------------------+----------------------------------------------------------------------------------------------+
+| domain_name                | Sets the intended domain   name                                                              |
+|      ``string``            |                                                                                              |
+|      Required              |      **Default value**: ``omnia.test``                                                       |
++----------------------------+----------------------------------------------------------------------------------------------+
+
+.. note::
+
+    The ``input/omnia_config.yml`` file is encrypted on the first run of the provision tool:
+        To view the encrypted parameters: ::
+
+            ansible-vault view security_config.yml --vault-password-file .security_vault_key
+
+        To edit the encrypted parameters: ::
+
+            ansible-vault edit security_config.yml --vault-password-file .security_vault_key
+
+
 
 Omnia installs a FreeIPA server on the manager node and FreeIPA clients on the compute and login node using one of the below commands: ::
 
@@ -56,15 +84,27 @@ Once user accounts are created, admins can enable passwordless SSH for users to 
 
 To customize your setup of passwordless ssh, input parameters in ``input/passwordless_ssh_config.yml``
 
-+-----------------------+--------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Parameter             | Default, Accepted values | Required? | Additional information                                                                                                                                                                               |
-+=======================+==========================+===========+======================================================================================================================================================================================================+
-| user_name             |                          | Required  | The user that requires passwordless SSH                                                                                                                                                              |
-+-----------------------+--------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| authentication_type   | freeipa, ldap            | Required  | Indicates whether LDAP or FreeIPA is in use on the cluster                                                                                                                                           |
-+-----------------------+--------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| freeipa_user_home_dir | "/home"                  | Required  | This variable accepts the user home     directory path for freeipa configuration.    If nfs mount is created for user home,   make sure you provide the freeipa     users mount home directory path. |
-+-----------------------+--------------------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
++-----------------------+--------------------------------------------------------------------------------------------------------------------+
+| Parameter             | Details                                                                                                            |
++=======================+====================================================================================================================+
+| user_name             | The user that requires passwordless SSH                                                                            |
+|      ``string``       |                                                                                                                    |
+|      Required         |                                                                                                                    |
++-----------------------+--------------------------------------------------------------------------------------------------------------------+
+| authentication_type   | Indicates whether LDAP or FreeIPA is in use on the cluster.                                                        |
+|      ``string``       |                                                                                                                    |
+|      Required         |      Choices:                                                                                                      |
+|                       |                                                                                                                    |
+|                       |      * ``freeipa`` <- Default                                                                                      |
+|                       |                                                                                                                    |
+|                       |      * ``ldap``                                                                                                    |
++-----------------------+--------------------------------------------------------------------------------------------------------------------+
+| freeipa_user_home_dir | * This variable accepts the user home directory path for freeipa   configuration.                                  |
+|      ``string``       |      * If nfs mount is created for user home, make sure you provide the freeipa   users mount home directory path. |
+|      Required         |                                                                                                                    |
+|                       |      **Default value**: ``"/home"``                                                                                |
++-----------------------+--------------------------------------------------------------------------------------------------------------------+
+
 
 Use the below command to enable passwordless SSH: ::
 
@@ -82,26 +122,60 @@ To add the cluster to an external LDAP server, Omnia enables the installation of
 
 To customize your LDAP client installation, input parameters in ``input/security_config.yml``
 
-+----------------------+-----------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Parameter Name       | Values                            | Additional Information                                                                                                                                                                                                                                          |
-+======================+===================================+=================================================================================================================================================================================================================================================================+
-| ldap_required        |  **false**, true                  |  Boolean indicating whether ldap client is   required or not                                                                                                                                                                                                    |
-+----------------------+-----------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| domain_name          | omnia.test                        | Sets the intended domain name                                                                                                                                                                                                                                   |
-+----------------------+-----------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| ldap_server_ip       |                                   | LDAP server IP. Required if   ``ldap_required`` is true. There should be an explicit LDAP server running on   this IP.                                                                                                                                          |
-+----------------------+-----------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| ldap_connection_type | TLS                               | For a TLS connection, provide a valid   certification path. For an SSL connection, ensure port 636 is open.                                                                                                                                                     |
-+----------------------+-----------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| ldap_ca_cert_path    | /etc/openldap/certs/omnialdap.pem | This variable accepts Server   Certificate Path. Make sure certificate is present in the path provided. The   certificate should have .pem or .crt extension. This variable is mandatory if   connection type is TLS.                                           |
-+----------------------+-----------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| user_home_dir        | /home                             |  This variable accepts the user home   directory path for ldap configuration.    If nfs mount is created for user home, make sure you provide the LDAP   users mount home directory path.                                                                       |
-+----------------------+-----------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| ldap_bind_username   | admin                             | If LDAP server is configured with bind   dn then bind dn user to be provided. If this value is not provided (when bind   is configured in server) then ldap authentication fails. Omnia does not   validate this input. Ensure that it is valid and proper.     |
-+----------------------+-----------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| ldap_bind_password   |                                   | If LDAP server is configured with bind   dn then bind dn password to be provided. If this value is not provided (when   bind is configured in server) then ldap authentication fails. Omnia does not   validate this input. Ensure that it is valid and proper. |
-+----------------------+-----------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-
++----------------------+----------------------------------------------------------------------------------------------------------------------+
+| Parameter            | Details                                                                                                              |
++======================+======================================================================================================================+
+| ldap_required        | Boolean indicating whether LDAP is required or not.                                                                  |
+|      ``boolean``     |                                                                                                                      |
+|      Required        |      Choices:                                                                                                        |
+|                      |                                                                                                                      |
+|                      |      * ``true`` <- Default                                                                                           |
+|                      |                                                                                                                      |
+|                      |      * ``false``                                                                                                     |
++----------------------+----------------------------------------------------------------------------------------------------------------------+
+| domain_name          | Sets the intended domain name                                                                                        |
+|      ``string``      |                                                                                                                      |
+|      Required        |      **Default value**: ``omnia.test``                                                                               |
++----------------------+----------------------------------------------------------------------------------------------------------------------+
+| ldap_server_ip       | LDAP server IP. Required if ``ldap_required`` is true. There should be an   explicit LDAP server running on this IP. |
+|      ``string``      |                                                                                                                      |
+|      Optional        |                                                                                                                      |
++----------------------+----------------------------------------------------------------------------------------------------------------------+
+| ldap_connection_type | * For a TLS connection, provide a valid certification path.                                                          |
+|      ``string``      | * For an SSL connection, ensure port 636 is open.                                                                    |
+|      Required        |                                                                                                                      |
+|                      |      Choices:                                                                                                        |
+|                      |                                                                                                                      |
+|                      |      * ``TLS`` <- Default                                                                                            |
+|                      |                                                                                                                      |
+|                      |      * ``SSL``                                                                                                       |
++----------------------+----------------------------------------------------------------------------------------------------------------------+
+| ldap_ca_cert_path    | * This variable accepts Server Certificate Path.                                                                     |
+|      ``string``      | * Make sure certificate is present in the path provided.                                                             |
+|      Required        | * The certificate should have .pem or .crt extension.                                                                |
+|                      | * This variable is mandatory if connection type is TLS.                                                              |
+|                      |                                                                                                                      |
+|                      |      **Default value**: ``/etc/openldap/certs/omnialdap.pem``                                                        |
++----------------------+----------------------------------------------------------------------------------------------------------------------+
+| user_home_dir        | * This variable accepts the user home directory path for LDAP   configuration.                                       |
+|      ``string``      | * If nfs mount is created for user home, make sure you provide the freeipa   users mount home directory path.        |
+|      Required        |                                                                                                                      |
+|                      |      **Default value**: ``"/home"``                                                                                  |
++----------------------+----------------------------------------------------------------------------------------------------------------------+
+| ldap_bind_username   | * If LDAP server is configured with bind dn then bind dn user to be   provided.                                      |
+|      ``string``      | * If this value is not provided (when bind is configured in server) then   ldap authentication fails.                |
+|      Required        | * Omnia does not validate this input.                                                                                |
+|                      | * Ensure that it is valid and proper.                                                                                |
+|                      |                                                                                                                      |
+|                      |      **Default value**: ``admin``                                                                                    |
++----------------------+----------------------------------------------------------------------------------------------------------------------+
+| ldap_bind_password   | * If LDAP server is configured with bind dn then bind dn password to be   provided.                                  |
+|      ``string``      | * If this value is not provided (when bind is configured in server) then   ldap authentication fails.                |
+|      Required        | * Omnia does not validate this input.                                                                                |
+|                      | * Ensure that it is valid and proper.                                                                                |
+|                      |                                                                                                                      |
+|                      |      **Default value**: ``admin``                                                                                    |
++----------------------+----------------------------------------------------------------------------------------------------------------------+
 
 .. note:: Omnia does not create any accounts (HPC users) on LDAP. To create a user, check out `LDAP documentation. <https://docs.oracle.com/cd/E19857-01/820-7651/bhacc/index.html>`_
 
@@ -114,15 +188,26 @@ Once user accounts are created, admins can enable passwordless SSH for users to 
 
 To customize your setup of passwordless ssh, input parameters in ``input/passwordless_ssh_config.yml``
 
-+--------------------------+--------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Parameter                | Default, Accepted values | Additional information                                                                                                                                                                                                                                                                        |
-+==========================+==========================+===============================================================================================================================================================================================================================================================================================+
-| user_name                |                          | The user that requires passwordless SSH                                                                                                                                                                                                                                                       |
-+--------------------------+--------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| authentication_type      | **freeipa**, ldap        | Indicates whether LDAP or FreeIPA is in use on the cluster                                                                                                                                                                                                                                    |
-+--------------------------+--------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| ldap_organizational_unit |                          | Distinguished name i.e dn in ldap is used to identify an entity in a   LDAP. This variable includes the organizational unit (ou) which is used to   identifies user in the LDAP. Only provide ou details i.e ou=people, as domain   name and userid is accepted already. By default ou=People |
-+--------------------------+--------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
++--------------------------+-------------------------------------------------------------------------------------------------------+
+| Parameter                | Details                                                                                               |
++==========================+=======================================================================================================+
+| user_name                | The user that requires passwordless SSH                                                               |
+|      ``string``          |                                                                                                       |
+|      Required            |                                                                                                       |
++--------------------------+-------------------------------------------------------------------------------------------------------+
+| authentication_type      | Indicates whether LDAP or FreeIPA is in use on the cluster.                                           |
+|      ``string``          |                                                                                                       |
+|      Required            |      Choices:                                                                                         |
+|                          |                                                                                                       |
+|                          |      * ``freeipa`` <- Default                                                                         |
+|                          |                                                                                                       |
+|                          |      * ``ldap``                                                                                       |
++--------------------------+-------------------------------------------------------------------------------------------------------+
+| ldap_organizational_unit | * Distinguished name i.e dn in ldap is used to identify an entity in a   LDAP.                        |
+|      ``string``          | * This variable includes the organizational unit (ou) which is used to   identifies user in the LDAP. |
+|      Required            | * Only provide ou details i.e ou=people, as domain name and userid is   accepted already.             |
+|                          | * By default ou=People                                                                                |
++--------------------------+-------------------------------------------------------------------------------------------------------+
 
 
 Use the below command to enable passwordless SSH: ::

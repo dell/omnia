@@ -1,0 +1,57 @@
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# This is the operating system image that was used for provisioning compute nodes in the cluster.
+# Accepted values: rocky, rhel
+os_type: ""
+
+# OS version of installed operating system
+# Supported values for rhel/rocky: 8.0, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7
+os_version: ""
+
+# This variable accepts the directory in which the package RPMs are downloaded
+# The packages should be .rpm files only
+# Other file types are not supported
+# eg: /install/custom/rhels8.6.0/x86_64/
+package_dir: ""
+
+# This variable accepts the path along with filename of the package list file
+# The packages mentioned in this file will be installed/updated on the cluster
+# The packages should be .rpm files only
+# Other file types are not supported
+# For OS packagelist, file name should be xxx.pkglist, where xxx is the custom name
+# Eg: "ospkgs.pkglist"
+# For packages other than OS Packages, file name should be - xxx.otherpkgs.pkglist, where xxx is the custom name
+# Eg: "upgradepkgs.otherpkgs.pkglist" 
+package_list: ""
+
+# This variable accepts type of package that must be installed/updated on remote nodes
+# This value can be "os" or "other"
+# "os" - If packages to be installed/updated are os packages which are available in appstream or baseos
+# "other" - If packages to be installed/updated are not part of os repos appstream or baseos
+package_type: ""
+
+# This variable will contain list of all nodes on which packages must installed/updated
+# If node list is not provided, all nodes provisioned by Omnia will be updated with the package list 
+# Node name can be fetched from postgres DB, nodeinfo table
+# By default packages will be installed/updated on all nodes
+# eg: "node1,node2,node3,node4" or "node1-node5"
+# Default: all
+nodelist: "all"
+
+# This boolean variable determines if remote nodes are required to be rebooted
+# If true then all node in node_list will get rebooted
+# Default: true
+reboot_required: true

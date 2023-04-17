@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -41,7 +41,30 @@
     replace: "connDisableAuthentication     = true"
   when: beegfs_client_version >= '7.3.1'
 
+- name: Copy and update the shared secret file configuration
+  when: beegfs_client_version >= '7.2.7'
+  block:
+    - name: Copy the shared secret file to the cluster
+      ansible.builtin.copy:
+        src: "{{ beegfs_secret_storage_filepath }}"
+        dest: "{{ beegfs_client_secret_path }}"
+        remote_src: false
+        mode: "{{ beegfs_secretfile_mode }}"
+
+    - name: Update the beegfs-helperd.conf file
+      ansible.builtin.lineinfile:
+        path: "{{ helperd_location }}"
+        regexp: "{{ beegfs_secretfile_regexp }}"
+        line: "{{ beegfs_secretfile_regexp_update }}"
+
+    - name: Update the beegfs-client.conf file
+      ansible.builtin.lineinfile:
+        path: "{{ beegfs_client_secret_conf_file }}"
+        regexp: "{{ beegfs_secretfile_regexp }}"
+        line: "{{ beegfs_secretfile_regexp_update }}"
+
 - name: Modify configuration files to support rdma
+  when: beegfs_rdma_support
   block:
     - name: Modify BeeGFS client autobuild file for infiniband support
       ansible.builtin.lineinfile:
@@ -70,7 +93,6 @@
           ansible.builtin.assert:
             that: false
             fail_msg: "{{ beegfs_rebuild_status }}"
-  when: beegfs_rdma_support
 
 - name: Modify BeeGFS client autobuild file for without RDMA
   ansible.builtin.lineinfile:

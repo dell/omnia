@@ -39,6 +39,7 @@ Run the script ``prereq.sh`` to verify the system is ready for Omnia deployment.
     ConfiguringStorage/index
     addinganewnode
     reprovisioningthecluster
+    CleanUpScript
 
 
 

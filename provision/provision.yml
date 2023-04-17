@@ -13,18 +13,11 @@
 # limitations under the License.
 ---
 
-- name: Executing provision roles
-  hosts: localhost
-  connection: local
-  roles:
-    - role: provision_validation
-    - role: xcat
+- name: Prepare control plane for provisioning
+  ansible.builtin.import_playbook: prepare_cp.yml
 
-- name: Update metadata
-  hosts: localhost
-  connection: local
-  tasks:
-    - name: Update metadata file
-      ansible.builtin.include_role:
-        name: provision_validation
-        tasks_from: metadata/update_metadata.yml
+- name: Create and update repositories
+  ansible.builtin.import_playbook: repo_manipulate.yml
+
+- name: Discover and provision nodes
+  ansible.builtin.import_playbook: discovery_provision.yml
