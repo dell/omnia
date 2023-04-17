@@ -20,9 +20,16 @@
 - name: Validate input
   ansible.builtin.include_tasks: validate_input.yml
 
-- name: Update Packages
-  ansible.builtin.include_tasks: update.yml
+- name: Execute update node
+  block:
+    - name: Update Packages
+      ansible.builtin.include_tasks: update.yml
 
-- name: Reboot nodes if required
-  ansible.builtin.include_tasks: reboot_nodes.yml
-  when: reboot_required
+    - name: Reboot nodes if required
+      ansible.builtin.include_tasks: reboot_nodes.yml
+      when: reboot_required
+  environment:
+    XCATROOT: "{{ xcat_root_env }}"
+    PATH: "{{ ansible_env.PATH }}:{{ xcat_path_env }}"
+    MANPATH: "{{ xcat_manpath_env }}"
+    PERL_BADLANG: "{{ perl_badlang_env }}"
