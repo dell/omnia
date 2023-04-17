@@ -23,6 +23,7 @@ architecture_x86_64: "x86_64"
 # Usage: switch_object_creation.yml
 create_switch_object_path: "{{ role_path }}/files/utils/create_switch_object.py"
 switch_group: switch
+dns_config_switch_warning_msg: "[WARNING] makedns -n command is not successful for switch_based discovery. Error:"
 
 # Usage: node_object_creation_switch_based.yml
 create_node_object_path_switch_based: "{{ role_path }}/files/utils/create_node_object_switch_based.py"
