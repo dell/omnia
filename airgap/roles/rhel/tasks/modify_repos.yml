@@ -25,6 +25,9 @@
 - name: Initiate reposync of AppStream, BaseOS (This might take 20-25 mins)
   ansible.builtin.command: "reposync -p {{ rhel_repo_folder_path }}/{{ item.0 }} --download-metadata --repo={{ item.1 }} -a x86_64,noarch --norepopath -n"
   changed_when: false
+  retries: "{{ retry_count }}"
+  register: result
+  until: result.rc == 0
   with_together:
     - ['AppStream', 'BaseOS']
     - ['rhel-8-for-x86_64-appstream-rpms', 'rhel-8-for-x86_64-baseos-rpms']
@@ -38,6 +41,9 @@
 - name: Initiate reposync of CodeReadyBuilder (This might take 10 mins)
   ansible.builtin.command: "reposync -p {{ codereadybuilder_path }} --download-metadata --repo={{ codeready_repo_name }} -a x86_64,noarch --norepopath -n"
   changed_when: false
+  retries: "{{ retry_count }}"
+  register: result
+  until: result.rc == 0
 
 # Modify xcat osimage
 
