@@ -63,7 +63,7 @@ In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcf
 
 .. image:: ../../images/ControlPlaneNic.png
 
- .. note::
+.. note::
 
     * After configuration and installation of the cluster, changing the control plane is not supported. If you need to change the control plane, you must redeploy the entire cluster.
 

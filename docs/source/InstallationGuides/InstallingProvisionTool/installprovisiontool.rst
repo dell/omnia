@@ -20,7 +20,10 @@ Optional configurations managed by the provision tool
 
         * CUDA can also be installed using `accelerator.yml <../../Roles/Accelerator/index.html>`_ after provisioning the servers (Assuming the provision tool did not install CUDA packages).
 
-        .. note:: The CUDA package can be downloaded from `here <https://developer.nvidia.com/cuda-downloads>`_
+    .. note::
+        * The CUDA package can be downloaded from `here <https://developer.nvidia.com/cuda-downloads>`_
+        * CUDA requires an additional reboot while being installed. While this is taken care of by Omnia, users are required to wait an additional few minutes when running the provision tool with CUDA installation for the target nodes to come up.
+
 
 **Installing OFED**
 
