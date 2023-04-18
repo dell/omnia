@@ -21,7 +21,7 @@ xcat_manpath_env: "/opt/xcat/share/man:$MANPATH"
 perl_badlang_env: 0
 
 # Usage: reboot_nodes.yml
-reboot_fail_msg: "Failed. Nodes need be rebooted manually."
+reboot_fail_msg: "Failed. Nodes should be rebooted manually for snmpwalk and/or mapping discovery mechanisms."
 
 # Usage: validate_input.yml
 pkg_dir_success_msg: "Package directory successfully validated"
