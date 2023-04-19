@@ -86,7 +86,9 @@ Resolution: In the case of a planned shutdown, ensure that the control plane is 
 
 **Why does the task: 'BeeGFS: Rebuilding BeeGFS client module' fail?**
 
-Possible cause: Outdated BeeGFS version (<7.3.0).
+.. image:: ../images/BeeGFSFailure.png
+
+Possible cause: BeeGFS version 7.3.0 is in use.
 
 Resolution: Use BeeGFS client version 7.3.1 when setting up BeeGFS on the cluster.
 
