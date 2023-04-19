@@ -84,7 +84,7 @@ Resolution: In the case of a planned shutdown, ensure that the control plane is 
 
     * Run ``provision.yml`` once the switch has discovered the potential new node.
 
-**Why does the task: 'BeeGFS: Rebuilding BeeGFS client module' fail?
+**Why does the task: 'BeeGFS: Rebuilding BeeGFS client module' fail?**
 
 Possible cause: Outdated BeeGFS version (<7.3.0).
 
