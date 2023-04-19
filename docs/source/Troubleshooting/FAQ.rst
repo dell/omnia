@@ -84,6 +84,11 @@ Resolution: In the case of a planned shutdown, ensure that the control plane is 
 
     * Run ``provision.yml`` once the switch has discovered the potential new node.
 
+**Why does the task: 'BeeGFS: Rebuilding BeeGFS client module' fail?
+
+Possible cause: Outdated BeeGFS version (<7.3.0).
+
+Resolution: Use BeeGFS client version 7.3.1 when setting up BeeGFS on the cluster.
 
 
 **Why does splitting an ethernet Z series port fail with "Failed. Either port already split with different breakout value or port is not available on ethernet switch"?**
