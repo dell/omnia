@@ -12,6 +12,9 @@ Omnia performs bare metal configuration to enable AI/HPC workloads. It uses Ansi
 
     - BMC discovery **[optional]**: To discover the cluster via BMC (iDRAC), IPMI must be enabled on remote servers. Discovery happens over IPMI. For security best practices when using this method, `click here! <https://www.dell.com/support/manuals/en-us/idrac9-lifecycle-controller-v5.x-series/idrac9_security_configuration_guide/ipmi-security-best-practices?guid=guid-5d99c30c-294f-4f03-b584-596b43d79089&lang=en-us>`_
 
+    -
+
+    -
 .. note:: IPMI is not required on the control plane. However compute nodes (iDRACs in the cluster/private network) require IPMI to be enabled for BMC discovery.
 
 Omnia can be installed via CLI only. Slurm and Kubernetes are deployed and configured on the cluster. FreeIPA or LDAP is installed for providing authentication.
@@ -77,6 +80,11 @@ For setting up authentication on the cluster, the following credentials have to 
     2. LDAP (ldap_bind_username, ldap_bind_password)
 
 After the installation of Omnia is initialized, these files are encrypted using Ansible Vault and are hidden from external visibility and access.
+
+Authentication to external systems
+-----------------------------------
+
+Third party software installed by Omnia are responsible for supporting and maintaining manufactured-unique or installation-unique secrets.
 
 Configuring remote connections
 ==============================
