@@ -83,12 +83,12 @@ For setting up authentication on the cluster, the following credentials have to 
 After the installation of Omnia is initialized, these files are encrypted using Ansible Vault and are hidden from external visibility and access.
 
 Authentication to external systems
------------------------------------
+==================================
 
 Third party software installed by Omnia are responsible for supporting and maintaining manufactured-unique or installation-unique secrets.
 
 Configuring remote connections
-==============================
+-------------------------------
 
 When setting up BeeGFS client services on the cluster, a connection authentication file is used to maintain the security of the communications between server and client.
 
