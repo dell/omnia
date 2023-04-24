@@ -13,12 +13,15 @@
 # limitations under the License.
 ---
 
-- name: Check and reboot nodes
-  block:
-    - name: Reboot nodes
-      ansible.builtin.command: rpower "{{ nodelist }}" reset
-      changed_when: true
-  rescue:
-    - name: Node reboot failed
-      ansible.builtin.fail:
-        msg: "{{ reboot_fail_msg }}"
+- name: Reboot nodes
+  ansible.builtin.command: rpower "{{ nodelist }}" reset
+  changed_when: true
+  failed_when: false
+  register: reboot_node
+
+- name: Node reboot failed
+  ansible.builtin.debug:
+    msg: "{{ reboot_fail_msg }} Error: {{ reboot_node.stderr }}"
+  when: 
+    - reboot_node.stderr is defined
+    - reboot_node.stderr | length > 1
