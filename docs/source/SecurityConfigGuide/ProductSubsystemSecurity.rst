@@ -8,9 +8,13 @@ Security controls map
 
 Omnia performs bare metal configuration to enable AI/HPC workloads. It uses Ansible playbooks to perform installations and configurations. iDRAC is supported for provisioning bare metal servers. Omnia installs xCAT to enable provisioning of clusters via PXE in different ways:
 
-    - Mapping file **[default]**: To dictate IP address/MAC mapping, a host mapping file can be provided.
+    - Mapping file **[optional]**: To dictate IP address/MAC mapping, a host mapping file can be provided.
 
     - BMC discovery **[optional]**: To discover the cluster via BMC (iDRAC), IPMI must be enabled on remote servers. Discovery happens over IPMI. For security best practices when using this method, `click here! <https://www.dell.com/support/manuals/en-us/idrac9-lifecycle-controller-v5.x-series/idrac9_security_configuration_guide/ipmi-security-best-practices?guid=guid-5d99c30c-294f-4f03-b584-596b43d79089&lang=en-us>`_
+
+    - SNMP **[optional]**: To discover the cluster by querying switches, SNMPv2 must be enabled.
+
+    - Switch **[default]**: To discovery the cluster by routing communication through particular switch ports over SNMPv3, non-admin switch credentials must be provided.
 
 .. note:: IPMI is not required on the control plane. However compute nodes (iDRACs in the cluster/private network) require IPMI to be enabled for BMC discovery.
 
@@ -78,8 +82,13 @@ For setting up authentication on the cluster, the following credentials have to 
 
 After the installation of Omnia is initialized, these files are encrypted using Ansible Vault and are hidden from external visibility and access.
 
+Authentication to external systems
+==================================
+
+Third party software installed by Omnia are responsible for supporting and maintaining manufactured-unique or installation-unique secrets.
+
 Configuring remote connections
-==============================
+-------------------------------
 
 When setting up BeeGFS client services on the cluster, a connection authentication file is used to maintain the security of the communications between server and client.
 
