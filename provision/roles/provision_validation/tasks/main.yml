@@ -58,3 +58,6 @@
 
 - name: Validate postscripts path
   ansible.builtin.include_tasks: validate_postscripts_path.yml
+
+- name: Validate rhel_repo_path
+  ansible.builtin.include_tasks: validate_repo_path.yml
