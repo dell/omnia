@@ -55,6 +55,8 @@ omnia_common_repo_template: /install/postscripts/repos/install/omnia-common/x86_
 file_permission: "755"
 xcat_directory: /root/xcat
 max_retries: 10
+download_common_package_warn_msg: "[WARNING] Failed to download omnia common package sshpass from the repos configured in control plane.
+Enable repos which contains sshpass in control plane and re-run the playbook to install sshpass during provisioning"
 
 # Usage: manage_subscription_manager.yml
 rhsm_release_file_path: "/opt/omnia/.data/rhsm_release"
