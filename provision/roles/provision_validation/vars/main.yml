@@ -48,6 +48,7 @@ conf_file_mode: 0644
 provision_config_filename: "{{ role_path }}/../../../input/provision_config.yml"
 provision_vault_path: "{{ role_path }}/../../../input/.provision_vault_key"
 ansible_vault_search_key: "$ANSIBLE_VAULT;"
+provision_config_syntax_fail_msg: "Failed. Syntax errors present in provision_config.yml. Fix errors and re-run playbook again."
 
 # Usage: validate_network_interface.yml
 network_interface_success_msg: "Success! Network interface type is correct"
@@ -195,3 +196,22 @@ ofed_rhel_check: "rhel{{ provision_os_version }}"
 cuda_rpm_empty_msg: "[WARNING] cuda_toolkit_path variable empty in provision_config.yml. CUDA won't be installed during provisioning."
 cuda_toolkit_path_missing_msg: "Failed. Incorrect cuda_toolkit_path: {{ cuda_toolkit_path }} provided.
 Make sure CUDA toolkit rpm file is present in the provided cuda_toolkit_path variable in provision_config.yml."
+
+# Usage: validate_repo_path.yml
+update_repos_success_msg: "Validated update_repos"
+update_repos_fail_msg: "Failed. update_repos variable in provision_config.yml should be either of true or false"
+control_plane_os_redhat: "redhat"
+repo_path_count_success_msg: "Validated rhel_repo_path count"
+repo_path_count_fail_msg: "Failed. Count of rhel_repo_path variable in provision_config.yml should be 3 including AppStream,BaseOS and CRB"
+repo_path_success_msg: "Validated repo,repo_url and repo_name in rhel_repo_path"
+repo_path_fail_msg: "Failed. repo, repo_url and repo_name parameters of rhel_repo_path varible in provision_config.yml should not be empty.
+repo_url should contain .repo extension and repo should be either of AppStream,BaseOS and CRB"
+rhel_repo_search_key: ['AppStream', 'BaseOS', 'CRB']
+subscription_repo_success_msg: "Validated subscription repos"
+subscription_repo_fail_msg: "Failed. AppStream and BaseOS repos not enabled on the subscription. Please enable the repos and proceed."
+rhel_subscription_warning_msg: "[WARNING] RedHat subscription not enabled. Proceeding execution with rhel_repo_path input provided.
+Make sure the repos given are valid."
+rhel_subscription_fail_msg: "Failed. RedHat subscription not enabled.
+Enable RedHat subscription or provide repos details in rhel_repo_path variable in provision_config.yml"
+subscription_check_key: "Subscribed"
+warning_wait_time_repo: 10
