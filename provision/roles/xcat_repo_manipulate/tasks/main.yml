@@ -37,7 +37,9 @@
 
     - name: Manage subscription-manager
       ansible.builtin.include_tasks: manage_subscription_manager.yml
-      when: os_supported_rhel in ansible_facts['distribution'] | lower
+      when:
+        - os_supported_rhel in control_plane_os
+        - not rhel_repo_path_status
 
     - name: Create omnia-common repo
       ansible.builtin.include_tasks: common_repo_config.yml
