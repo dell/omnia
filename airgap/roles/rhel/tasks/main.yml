@@ -34,3 +34,6 @@
     - name: Modify Rhel repos for airgap solution when control plane rhel subscription is not active
       ansible.builtin.include_tasks: update_repos_non_subscription.yml
       when: rhel_repo_path_status
+
+    - name: Configure repos to osimage
+      ansible.builtin.include_tasks: configure_repo.yml
