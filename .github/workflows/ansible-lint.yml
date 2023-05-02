@@ -9,6 +9,7 @@ on:
       - release-1.4.1
       - release-1.4.2
       - devel-1.4.2
+      - devel-1.4.2.1
       - devel-1.5
 
 jobs:
