@@ -13,13 +13,13 @@
 # limitations under the License.
 ---
 
-- name: Include provision configuration variables and validate them
-  ansible.builtin.include_tasks: validate_provision_config.yml
-
-- name: Verify if all pre-requisite conditions are met
-  ansible.builtin.include_tasks: check_prerequisites.yml
-  when: reposync_status
-
-- name: Validate control plane compatibility
-  ansible.builtin.include_tasks: validate_cp_compatibility.yml
-  when: reposync_status
+# Reposync of AppStream, BaseOS and CodeReadyBuilder
+- name: Initiate reposync of AppStream, BaseOS and CRB (This might take 20-25 mins)
+  ansible.builtin.command: >-
+    reposync -p {{ merged_dir }}/x86_64/{{ item['repo'] }} --download-metadata -c {{ item['repo_url'] }}
+    --repo={{ item['repo_name'] }}  -a x86_64,noarch --norepopath -n
+  changed_when: false
+  retries: "{{ retry_count }}"
+  register: result
+  until: result.rc == 0
+  with_items: "{{ rhel_repo_path }}"
