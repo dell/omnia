@@ -5,7 +5,7 @@ From Omnia 1.4, all of Omnia's many features are available via collections. Coll
 
 1. `provision.yml <../InstallationGuides/InstallingProvisionTool/index.html>`_
 
-2. `Omnia.yml <../InstallationGuides/BuildingClusters/index.html>`_
+2. `omnia.yml <../InstallationGuides/BuildingClusters/index.html>`_
 
 
 Below is a list of all Omnia's roles:
