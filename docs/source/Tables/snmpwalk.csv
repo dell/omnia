@@ -121,11 +121,11 @@ Required","* If provided, Omnia will assign static IPs to IB NICs on the compute
 * When the PXE range and BMC subnet are provided, corresponding NICs will be assigned IPs with the same 3rd and 4th octets."
 "pxe_switch_ip
 ``string``
-Required: snmpwalk","* PXE switch that will be connected to all iDRACs for provisioning
+Required","* PXE switch that will be connected to all iDRACs for provisioning
 * Ensure that SNMP is enabled on the mentioned switch."
 "pxe_switch_snmp_community_string
 ``string``
-Required: snmpwalk","The SNMP community string used to access statistics, MAC addresses and IPs stored within a router or other device.
+Required","The SNMP community string used to access statistics, MAC addresses and IPs stored within a router or other device.
 
 **Default values**: ``public``"
 "update_repos
