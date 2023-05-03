@@ -13,12 +13,13 @@
 # limitations under the License.
 ---
 
-
 - name: Include provision configuration variables and validate them
   ansible.builtin.include_tasks: validate_provision_config.yml
 
 - name: Verify if all pre-requisite conditions are met
   ansible.builtin.include_tasks: check_prerequisites.yml
+  when: reposync_status
 
 - name: Validate control plane compatibility
   ansible.builtin.include_tasks: validate_cp_compatibility.yml
+  when: reposync_status
