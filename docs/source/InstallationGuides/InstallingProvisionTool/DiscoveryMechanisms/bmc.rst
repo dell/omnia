@@ -29,7 +29,7 @@ The following parameters need to be populated in ``input/provision_config.yml`` 
 .. csv-table:: Parameters
    :file: ../../../Tables/bmc.csv
    :header-rows: 1
-   :stub-columns: 1
+   :keepspace:
 
 .. note::
 
