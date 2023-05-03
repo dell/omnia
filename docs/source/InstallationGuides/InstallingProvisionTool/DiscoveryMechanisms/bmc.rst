@@ -27,7 +27,6 @@ For automatic provisioning of servers and discovery, the BMC method can be used.
 The following parameters need to be populated in ``input/provision_config.yml`` to discover target nodes using BMC.
 
 .. csv-table:: Parameters
-    :widths: 25, 75
    :file: ../../../Tables/bmc.csv
    :header-rows: 1
    :stub-columns: 1
