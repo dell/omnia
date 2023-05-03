@@ -198,7 +198,7 @@ Choices:
 
 Optional","* For RHEL control planes with no subscription available, users are required to add a list of repositories to be maintained offline. Currently, it is recommended to download AppStream, BaseOS and CRB only.
 * Ensure ``repo_url``  and ``repo_name`` are provided.
-
+* Provide the repo data file path, which ends with .repo extension in ``repo_url`` parameter.
 
 **Default value**: ::
 
