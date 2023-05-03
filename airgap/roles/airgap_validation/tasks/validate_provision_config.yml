@@ -25,30 +25,27 @@
 - name: Set reposync_status for downloading repos
   ansible.builtin.include_tasks: set_reposync_status.yml
 
-- name: Validate provision parameters when reposync_status is true
-  when: reposync_status
-  block:
-    - name: Validate rhel_repo_path
-      ansible.builtin.include_tasks: validate_repo_path.yml
-      when: not validation_status
+- name: Validate rhel_repo_path
+  ansible.builtin.include_tasks: validate_repo_path.yml
+  when: not validation_status
 
-    - name: Initialise variables
-      ansible.builtin.set_fact:
-        compute_os_rhel_status: false
-        supported_os_version_status: false
+- name: Initialise variables
+  ansible.builtin.set_fact:
+    compute_os_rhel_status: false
+    supported_os_version_status: false
 
-    - name: Check if operating system is rhel
-      ansible.builtin.set_fact:
-        compute_os_rhel_status: true
-      when: provision_os | lower == provision_os_rhel
+- name: Check if operating system is rhel
+  ansible.builtin.set_fact:
+    compute_os_rhel_status: true
+  when: provision_os | lower == provision_os_rhel
 
-    - name: Set supported_os_version_status to true
-      ansible.builtin.set_fact:
-        supported_os_version_status: true
-      with_items: "{{ supported_rhel_os_version }}"
-      when: provision_os_version | string in item
+- name: Set supported_os_version_status to true
+  ansible.builtin.set_fact:
+    supported_os_version_status: true
+  with_items: "{{ supported_rhel_os_version }}"
+  when: provision_os_version | string in item
 
-    - name: Validate provision_os_version is supported
-      ansible.builtin.fail:
-        msg: "{{ provision_os_version_fail_msg }}"
-      when: not supported_os_version_status
+- name: Validate provision_os_version is supported
+  ansible.builtin.fail:
+    msg: "{{ provision_os_version_fail_msg }}"
+  when: not supported_os_version_status
