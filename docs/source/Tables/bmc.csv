@@ -185,7 +185,12 @@ Required","* The dhcp range for discovering the static IP assigned iDRACs within
 
 ``boolean``
 
-Required","Indicates whether provision.yml will update offline RHEL repos (applicable from the second run of provision.yml)
+Required","* Indicates whether ``provision.yml`` will update offline RHEL repos (applicable from the second run of ``provision.yml``)
+* In the first exection of ``provision.yml``, Omnia updates the BaseOS, Appstream and CRB repos.
+* If ``update_repos``: false, none of the repos required for compute nodes will be updated provided the repos are already updated.
+* If ``update_repos``: true, BaseOS, Appstream and CRB repos created for compute nodes will be updated
+
+
 
 Choices:
 
@@ -196,10 +201,10 @@ Choices:
 
 ``JSON list``
 
-Optional","* For RHEL control planes with no subscription available, users are required to add a list of repositories to be maintained offline. Currently, it is recommended to download AppStream, BaseOS and CRB only.
-* Ensure ``repo_url``  and ``repo_name`` are provided.
-* Provide the repo data file path, which ends with .repo extension in ``repo_url`` parameter.
-
+Optional","* The repo path and names of the software repository to be configured on the compute nodes
+* Provide the repo data file path, which ends with .repo extension in repo_url parameter
+* Provide the url for BaseOS, Appstream and CRB repositories
+* This variable should be filled if control plane OS is RHEL and subscription is not activated.
 **Default value**: ::
 
 	- { repo: ""AppStream"", repo_url: """", repo_name: """" }
