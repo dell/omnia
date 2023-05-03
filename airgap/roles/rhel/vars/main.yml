@@ -22,7 +22,7 @@ codeready_repo_name: codeready-builder-for-rhel-8-x86_64-rpms
 
 # Usage: create_mount_overlay.yml
 base_dir: "/install/rhels{{ provision_os_version }}.0"
-updates_dir: "/install/updates/rhels{{ provision_os_version }}.0"
+updates_dir: "/install/rhels{{ provision_os_version }}.0_updates"
 merged_dir: "/install/rhels{{ provision_os_version }}.0_merged"
 work_dir: "/work"
 codereadybuilder_path: "{{ merged_dir }}/x86_64/CRB"
