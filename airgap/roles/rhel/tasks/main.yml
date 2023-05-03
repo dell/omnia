@@ -35,5 +35,6 @@
       ansible.builtin.include_tasks: update_repos_non_subscription.yml
       when: rhel_repo_path_status
 
-    - name: Configure repos to osimage
-      ansible.builtin.include_tasks: configure_repo.yml
+- name: Configure repos to osimage
+  ansible.builtin.include_tasks: configure_repo.yml
+  when: compute_os_rhel_status
