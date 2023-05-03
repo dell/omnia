@@ -37,7 +37,7 @@
 - name: Mount directory if not present already
   when: merged_dir not in mount_status.stdout
   block:
-    - name: Mount multipath to nfs_server share path
+    - name: Create mount overlay
       ansible.posix.mount:
         path: "{{ merged_dir }}"
         fstype: overlay
