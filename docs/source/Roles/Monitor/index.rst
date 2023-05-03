@@ -37,7 +37,9 @@ The monitor role sets up `Grafana <https://grafana.com/>`_ ,  `Prometheus <https
 +----------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 
-.. note::  After running ``monitor.yml``, the file ``input/monitor_config.yml`` will be encrypted. To edit the file, use ``ansible-vault edit monitor_config.yml --vault-password-file .monitor_vault_key``.
+.. note::
+* After running ``monitor.yml``, the file ``input/monitor_config.yml`` will be encrypted. To edit the file, use ``ansible-vault edit monitor_config.yml --vault-password-file .monitor_vault_key``.
+* Rocky 8.7 is not compatible with the Kubernetes installed by ``monitor.yml`` due to known issues with cri-o. For more information, `click here <https://github.com/cri-o/cri-o/issues/6197>`_.
 
 2. Run the playbook using the following command: ::
 
