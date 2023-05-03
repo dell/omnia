@@ -51,9 +51,15 @@
     dest: "{{ omnia_common_xcat_repo }}"
     mode: "{{ file_permission }}"
 
-- name: Download omnia common repo packages
-  ansible.builtin.command: dnf download {{ common_repo_packages }} --resolve --destdir="{{ omnia_common_xcat_repo }}"
-  changed_when: true
+- name: Downloading omnia common repo packages
+  block:
+    - name: Download omnia common repo packages
+      ansible.builtin.command: dnf download {{ common_repo_packages }} --resolve --destdir="{{ omnia_common_xcat_repo }}"
+      changed_when: true
+  rescue:
+    - name: Warning - Downloading omnia common repo packages failed
+      ansible.builtin.debug:
+        msg: "{{ download_common_package_warn_msg }}"
 
 - name: Build omnia-common repo
   ansible.builtin.command: createrepo {{ omnia_common_xcat_repo }}

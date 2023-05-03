@@ -13,60 +13,21 @@
 # limitations under the License.
 ---
 
-- name: Fetch ansible-vault path
-  ansible.builtin.command: whereis ansible-vault
-  changed_when: false
-  register: ansible_vault_path
-  tags: init
-
-- name: Check provision_config.yml file is encrypted
-  ansible.builtin.command: cat {{ provision_config_filename }}
-  changed_when: false
-  register: provision_config_content
-  no_log: true
-  tags: init
-
-- name: Decrpyt provision_config.yml
-  ansible.builtin.command: >-
-    {{ ansible_vault_path.stdout.split(' ')[1] }} decrypt {{ provision_config_filename }}
-    --vault-password-file {{ provision_vault_path }}
-  changed_when: false
-  when: ansible_vault_search_key in provision_config_content.stdout
-  tags: init
-
-- name: Include provision_config.yml
-  ansible.builtin.include_vars: "{{ provision_config_filename }}"
-  no_log: true
-  tags: init
-
-- name: Create ansible vault key
+- name: Set validation_status
   ansible.builtin.set_fact:
-    provision_vault_key: "{{ lookup('password', '/dev/null chars=ascii_letters') }}"
-  when: ansible_vault_search_key not in provision_config_content.stdout
-  tags: init
+    validation_status: false
+  when: validation_status is not defined
 
-- name: Save vault key to provision_vault_path
-  ansible.builtin.lineinfile:
-    path: "{{ provision_vault_path }}"
-    line: "{{ provision_vault_key }}"
-    mode: "{{ conf_file_mode }}"
-    owner: root
-    create: true
-  when: ansible_vault_search_key not in provision_config_content.stdout
-  tags: init
+- name: Include provision configuration variables
+  ansible.builtin.include_tasks: include_provision_config.yml
+  when: not validation_status
 
-- name: Encrypt provision_config.yml
-  ansible.builtin.command: >-
-    {{ ansible_vault_path.stdout.split(' ')[1] }} encrypt {{ provision_config_filename }}
-    --vault-password-file {{ provision_vault_path }}
-  changed_when: false
-  tags: init
+- name: Set reposync_status for downloading repos
+  ansible.builtin.include_tasks: set_reposync_status.yml
 
-- name: Update provision_config.yml permission
-  ansible.builtin.file:
-    path: "{{ provision_config_filename }}"
-    mode: "{{ conf_file_mode }}"
-  tags: init
+- name: Validate rhel_repo_path
+  ansible.builtin.include_tasks: validate_repo_path.yml
+  when: not validation_status
 
 - name: Initialise variables
   ansible.builtin.set_fact:
