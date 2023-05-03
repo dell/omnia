@@ -161,34 +161,6 @@ Required","* If provided, Omnia will assign static IPs to IB NICs on the compute
 * If ``network_interface_type``: ``dedicated``, optional for discovery_mechanism: mapping, switch_based.
 * Note that since the last 16 bits/2 octets of IPv4 are dynamic, please ensure that the parameter value is set to x.x.0.0.
 * When the PXE range and BMC subnet are provided, corresponding NICs will be assigned IPs with the same 3rd and 4th octets."
-"update_repos
-
-``boolean``
-
-Required","Indicates whether provision.yml will update offline RHEL repos (applicable from the second run of provision.yml)
-
-Choices:
-
-* ``false`` <- Default
-
-* ``true``"
-"rhel_repo_path
-
-``JSON list``
-
-Optional","* For RHEL control planes with no subscription available, users are required to add a list of repositories to be maintained offline. Currently, it is recommended to download AppStream, BaseOS and CRB only.
-* Ensure ``repo_url``  and ``repo_name`` are provided.
-* Provide the repo data file path, which ends with .repo extension in ``repo_url`` parameter.
-
-**Default value**: ::
-
-	- { repo: ""AppStream"", repo_url: """", repo_name: """" }
-	
-	- { repo: ""BaseOS"", repo_url: """", repo_name: """" }
-	
-	- { repo: ""CRB"", repo_url: """", repo_name: """" }
-
-	"
 "primary_dns
 
 ``string``

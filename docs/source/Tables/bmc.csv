@@ -181,34 +181,6 @@ Required","* The dhcp range for discovering the static IP assigned iDRACs within
 * For the range 10.3.0.50 to 10.3.4.100 then, bmc_static_start_range: 10.3.0.50, bmc_static_end_range: 10.3.4.100
 * To create a meaningful range of discovery, ensure that the last two octets of ``bmc_static_end_range`` are equal to or greater than the last two octets of the ``bmc_static_start_range``. That is, for the range a.b.c.d - a.b.e.f, e and f should be greater than or equal to c and d.
 * Ex: 172.20.0.50 - 172.20.1.101 is a valid range however, 172.20.0.101 - 172.20.1.50 is not."
-"update_repos
-
-``boolean``
-
-Required","Indicates whether provision.yml will update offline RHEL repos (applicable from the second run of provision.yml)
-
-Choices:
-
-* ``false`` <- Default
-
-* ``true``"
-"rhel_repo_path
-
-``JSON list``
-
-Optional","* For RHEL control planes with no subscription available, users are required to add a list of repositories to be maintained offline. Currently, it is recommended to download AppStream, BaseOS and CRB only.
-* Ensure ``repo_url``  and ``repo_name`` are provided.
-* Provide the repo data file path, which ends with .repo extension in ``repo_url`` parameter.
-
-**Default value**: ::
-
-	- { repo: ""AppStream"", repo_url: """", repo_name: """" }
-	
-	- { repo: ""BaseOS"", repo_url: """", repo_name: """" }
-	
-	- { repo: ""CRB"", repo_url: """", repo_name: """" }
-
-	"
 "primary_dns
 
 ``string``

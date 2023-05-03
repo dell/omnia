@@ -204,34 +204,6 @@ Required","* The username for iDRAC.
 
 Required","* The password for iDRAC.
 * The password must not contain -,\, ',"""
-"update_repos
-
-``boolean``
-
-Required","Indicates whether provision.yml will update offline RHEL repos (applicable from the second run of provision.yml)
-
-Choices:
-
-* ``false`` <- Default
-
-* ``true``"
-"rhel_repo_path
-
-``JSON list``
-
-Optional","* For RHEL control planes with no subscription available, users are required to add a list of repositories to be maintained offline. Currently, it is recommended to download AppStream, BaseOS and CRB only.
-* Ensure ``repo_url``  and ``repo_name`` are provided.
-* Provide the repo data file path, which ends with .repo extension in ``repo_url`` parameter.
-
-**Default value**: ::
-
-	- { repo: ""AppStream"", repo_url: """", repo_name: """" }
-	
-	- { repo: ""BaseOS"", repo_url: """", repo_name: """" }
-	
-	- { repo: ""CRB"", repo_url: """", repo_name: """" }
-
-	"
 "primary_dns
 
 ``string``

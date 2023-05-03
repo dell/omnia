@@ -103,9 +103,6 @@ To call this playbook individually, ensure that ``input/provision_config.yml`` i
 **Creating/updating the repositories**
 
 * Creates and updates all repositories required locally.
-
-* This playbook also invokes the ``airgap.yml`` playbook for creating offline repositories. For more information on this, `click here <../../Roles/Airgap/index.html>`_.
-
 * To call this playbook individually, ensure that ``prepare_cp.yml`` has run at least once and then run::
 
     ansible-playbook repo_manipulate.yml
