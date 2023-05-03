@@ -104,7 +104,7 @@ To call this playbook individually, ensure that ``input/provision_config.yml`` i
 
 * Creates and updates all repositories required locally.
 
-* This playbook also calls the ``airgap.yml`` script for RHEL repository requirements. For more information on this, `click here <../../Roles/Airgap/index.html>`_.
+* This playbook also invokes the ``airgap.yml`` playbook for creating offline repositories. For more information on this, `click here <../../Roles/Airgap/index.html>`_.
 
 * To call this playbook individually, ensure that ``prepare_cp.yml`` has run at least once and then run::
 
