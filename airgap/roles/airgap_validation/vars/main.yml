@@ -39,7 +39,7 @@ compatibility_msg: "Control Plane should be RHEL when nodes are to be provisione
 # Usage: set_reposync_status.yml
 update_repos_success_msg: "Validated update_repos"
 update_repos_fail_msg: "Failed. update_repos variable in provision_config.yml should be either true or false"
-crb_dir: "/install/updates/rhels{{ provision_os_version }}.0/x86_64/CRB"
+crb_dir: "/install/rhels{{ provision_os_version }}.0_updates/x86_64/CRB"
 reposync_execution_msg: "Reposync will be executed on the repos AppStream,BaseOS and CRB by default."
 reposync_skip_msg: "[WARNING] Skipping remaining reposync tasks due to update_repos variable in provision_config.yml is false and CRB repos already created."
 
