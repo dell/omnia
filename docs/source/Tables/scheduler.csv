@@ -1,0 +1,90 @@
+﻿Variables,Details
+"**mariadb_password**
+
+     ``string``
+
+     Optional    ","* Password used for Slurm database.               
+* The password must not contain -,\, ',""          
+* The Length of the password should be at least 8.
+                                                  
+     **Default values**: ``""password""``           "
+"**k8s_version**
+
+     ``string``
+
+     Optional  ","Kubernetes version.              
+                                 
+     Choices:                    
+                                 
+     * ``""1.19.3""``  <-   default
+     * ``"" 1.16.7""``             "
+"**k8s_cni**
+
+     ``string``
+
+     Optional  ","Kubernetes SDN network.          
+                                 
+     Choices:                    
+                                 
+     * ``""calico""``  <-   default
+     * ``""flannel""``             "
+"**k8s_pod_network_cidr**
+
+     ``string``
+
+     Optional       ","* Kubernetes pod network CIDR.                                          
+* Make sure this value does not overlap with any of the host   networks.
+                                                                        
+     **Default values**: ``""10.244.0.0/16""``                            "
+"**docker_username**
+
+     ``string``
+
+     Optional  ","* Username for Dockerhub account                                                                                                                                          
+* A kubernetes secret will be created and patched to service account in   default namespace. This kubernetes secret can be used to pull images from   private repositories
+* This value is optional but suggested avoiding docker pull limit issues                                                                                                  "
+"**docker_password**
+
+     ``string``
+
+     Optional  ","* Password for Dockerhub account                        
+* This value is mandatory if docker username is provided"
+"**ansible_config_file_path**
+
+     ``string``
+
+     Optional           ","* Path to directory hosting ansible config file (ansible.cfg file)                  
+* This directory is on the host running ansible, if ansible is installed   using dnf
+* If ansible is installed using pip, this path should be set                        
+                                                                                    
+     **Default values**: ``/etc/ansible``                                           "
+"**login_node_required**
+
+     ``boolean``
+
+     Optional      ","Boolean indicating whether login node is required or not.
+                                                         
+     Choices:                                            
+                                                         
+     * ``false``  <- default                             
+     * ``true``                                          "
+,
+,
+,
+,
+,
+,
+,
+,
+,
+,
+,
+,
+,
+,
+,
+,
+,
+,
+,
+,
