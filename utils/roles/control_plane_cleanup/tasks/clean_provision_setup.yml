@@ -78,6 +78,29 @@
       failed_when: false
       changed_when: false
 
+    # Check how many mount overlays exist on /install directories
+    - name: Check if mount overlay exists
+      ansible.builtin.shell: >
+        set -o pipefail && \
+        mount | grep /install* | awk '{print $3}'
+      changed_when: false
+      register: mount_status
+      failed_when: false
+
+    # Umount overlays on merged directories
+    - name: Unmount mount overlay
+      ansible.builtin.shell: >
+        set -o pipefail && \
+        umount "{{ item }}"
+      changed_when: false
+      with_items: "{{ mount_status.stdout_lines }}"
+
+    - name: Remove /etc/fstab entries
+      ansible.builtin.lineinfile:
+        path: "{{ fstab_path }}"
+        regexp: "/install*"
+        state: absent
+
     - name: Remove xCAT files
       ansible.builtin.file:
         path: "{{ item }}"

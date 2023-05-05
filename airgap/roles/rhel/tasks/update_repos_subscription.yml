@@ -13,14 +13,6 @@
 # limitations under the License.
 ---
 
-# Restructure Appstream and BaseOS folder
-- name: Execute python script
-  ansible.builtin.command: python3.8 "{{ role_path }}/files/restructure_rpms_folder.py" {{ item }}
-  changed_when: false
-  with_items:
-    - "{{ merged_dir }}/x86_64/AppStream/Packages"
-    - "{{ merged_dir }}/x86_64/BaseOS/Packages"
-
 # Reposync of AppStream and BaseOS
 - name: Initiate reposync of AppStream, BaseOS (This might take 20-25 mins)
   ansible.builtin.command: "reposync -p {{ merged_dir }}/x86_64/{{ item.0 }} --download-metadata --repo={{ item.1 }} -a x86_64,noarch --norepopath -n"
