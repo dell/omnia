@@ -6,31 +6,50 @@ Airgap
 
 ``airgap.yml`` runs based on the following parameters in ``input/provision_config.yml``:
 
-+--------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Parameter          | Details                                                                                                                                                                                                             |
-+====================+=====================================================================================================================================================================================================================+
-| update_repos       | Indicates whether airgap.yml will update offline RHEL repos.                                                                                                                                                        |
-|      ``boolean``   |                                                                                                                                                                                                                     |
-|      Required      |      Choices:                                                                                                                                                                                                       |
-|                    |                                                                                                                                                                                                                     |
-|                    |      * ``false`` <- Default                                                                                                                                                                                         |
-|                    |                                                                                                                                                                                                                     |
-|                    |      * ``true``                                                                                                                                                                                                     |
-+--------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| rhel_repo_path     | * For RHEL control planes with   no subscription available, users are required to add a list of repositories   to be maintained offline. Currently, it is recommended to download AppStream,   BaseOS and CRB only. |
-|      ``JSON list`` | * Ensure ``repo_url``  and   ``repo_name`` are provided.                                                                                                                                                            |
-|      Optional      |                                                                                                                                                                                                                     |
-|                    |                                                                                                                                                                                                                     |
-|                    |      **Default value**: ::                                                                                                                                                                                          |
-|                    |                                                                                                                                                                                                                     |
-|                    |      	- { repo: "AppStream", repo_url: "", repo_name:   "" }                                                                                                                                                     |
-|                    |      	                                                                                                                                                                                                           |
-|                    |      	- { repo: "BaseOS", repo_url: "", repo_name:   "" }                                                                                                                                                        |
-|                    |      	                                                                                                                                                                                                           |
-|                    |      	- { repo: "CRB", repo_url: "", repo_name: ""   }                                                                                                                                                           |
-|                    |                                                                                                                                                                                                                     |
-+--------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-
++------------------------------------+------------------------------------------------------------------------------------------------------------------------------------+
+| Parameter                          | Details                                                                                                                            |
++====================================+====================================================================================================================================+
+| **update_repos**                   | * Indicates whether ``provision.yml`` will update offline RHEL repos (applicable from the second run of ``provision.yml``)         |
+|                                    |                                                                                                                                    |
+| ``boolean``                        | * In the first exection of ``provision.yml``, Omnia updates the BaseOS, Appstream and CRB repos.                                   |
+|                                    |                                                                                                                                    |
+| Required                           | * If ``update_repos``: false, none of the repos required for compute nodes will be updated provided the repos are already updated. |
+|                                    |                                                                                                                                    |
+|                                    | * If ``update_repos``: true, BaseOS, Appstream and CRB repos created for compute nodes will be updated                             |
+|                                    |                                                                                                                                    |
+|                                    | Choices:                                                                                                                           |
+|                                    |                                                                                                                                    |
+|                                    | ``false`` <- Default                                                                                                               |
+|                                    |                                                                                                                                    |
+|                                    | ``true``                                                                                                                           |
++------------------------------------+------------------------------------------------------------------------------------------------------------------------------------+
+| **rhel_repo_alphabetical_folders** | * Indicates whether the packages in local or subscription repos should be ordered in alphabetical directories.                     |
+|                                    |                                                                                                                                    |
+| ``boolean``                        | * For clusters running RHEL 8 with an active subscription, rhel_repo_alphabetical_folders should be set to true.                   |
+|                                    |                                                                                                                                    |
+| Required                           |                                                                                                                                    |
+|                                    | Choices:                                                                                                                           |
+|                                    |                                                                                                                                    |
+|                                    | ``false`` <- Default                                                                                                               |
+|                                    |                                                                                                                                    |
+|                                    | ``true``                                                                                                                           |
++------------------------------------+------------------------------------------------------------------------------------------------------------------------------------+
+| **rhel_repo_path**                 | * The repo path and names of the software repository to be configured on the compute nodes                                         |
+|                                    |                                                                                                                                    |
+| ``JSON list``                      | * Provide the repo data file path, which ends with .repo extension in repo_url parameter                                           |
+|                                    |                                                                                                                                    |
+| Optional                           | * Provide the url for BaseOS, Appstream and CRB repositories                                                                       |
+|                                    |                                                                                                                                    |
+|                                    | * This variable should be filled if control plane OS is RHEL and subscription is not activated.                                    |
+|                                    |                                                                                                                                    |
+|                                    | Default value:                                                                                                                     |
+|                                    |                                                                                                                                    |
+|                                    | - { repo: “AppStream”, repo_url: “”, repo_name: “” }                                                                               |
+|                                    |                                                                                                                                    |
+|                                    | - { repo: “BaseOS”, repo_url: “”, repo_name: “” }                                                                                  |
+|                                    |                                                                                                                                    |
+|                                    | - { repo: “CRB”, repo_url: “”, repo_name: “” }                                                                                     |
++------------------------------------+------------------------------------------------------------------------------------------------------------------------------------+
 
 ``airgap.yml`` is internally called when ``provision.yml`` is executed.
 Alternatively, run the following commands: ::
