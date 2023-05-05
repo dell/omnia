@@ -13,7 +13,7 @@
 # limitations under the License.
 ---
 
-- name: Check control plane OS when compute node is rhel
+- name: Check control plane OS when provision_os is rhel
   ansible.builtin.fail:
     msg: "{{ compatibility_msg }}"
   when:
