@@ -63,6 +63,8 @@ For more information, `click here <https://github.com/xcat2/xcat-core/issues/737
 
 **Why do subscription errors occur on RHEL control planes when rhel_repo_local_path (in input/provision_config.yml) is not provided & control plane does not have an active subscription?
 
+.. image:: ../images/SubscriptionErrors.png
+
 For many of Omnia's features to work, RHEL control planes need access to the following repositories:
 
     1. AppStream
