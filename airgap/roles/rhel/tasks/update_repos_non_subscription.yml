@@ -22,4 +22,4 @@
   retries: "{{ retry_count }}"
   register: result
   until: result.rc == 0
-  with_items: "{{ rhel_repo_path }}"
+  with_items: "{{ rhel_repo_local_path }}"
