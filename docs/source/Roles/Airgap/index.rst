@@ -29,6 +29,7 @@ Airgap
 |                                    | * This variable should be filled if control plane OS is RHEL and local RHEL repository is available.                                 |
 | Required                           |                                                                                                                                      |
 |                                    |                                                                                                                                      |
+|                                    |                                                                                                                                      |
 |                                    | Choices:                                                                                                                             |
 |                                    |                                                                                                                                      |
 |                                    | ``false`` <- Default                                                                                                                 |
@@ -42,6 +43,8 @@ Airgap
 | Optional                           | * Provide the url for BaseOS, Appstream and CRB repositories                                                                         |
 |                                    |                                                                                                                                      |
 |                                    | * This variable should be filled if control plane OS is RHEL and subscription is not activated.                                      |
+|                                    |                                                                                                                                      |
+|                                    | * This variable should be filled if the control plane OS is Rocky and the ``provision_os`` is rhel.                                  |
 |                                    |                                                                                                                                      |
 |                                    | Default value:                                                                                                                       |
 |                                    |                                                                                                                                      |
