@@ -35,7 +35,7 @@ Airgap
 |                                    |                                                                                                                                      |
 |                                    | ``true``                                                                                                                             |
 +------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------+
-| **rhel_repo_path**                 | * The repo path and names of the software repository to be configured on the compute nodes                                           |
+| **rhel_repo_local_path**           | * The repo path and names of the software repository to be configured on the compute nodes                                           |
 |                                    |                                                                                                                                      |
 | ``JSON list``                      | * Provide the repo data file path, which ends with .repo extension in repo_url parameter                                             |
 |                                    |                                                                                                                                      |
@@ -51,6 +51,7 @@ Airgap
 |                                    |                                                                                                                                      |
 |                                    | - { repo: “CRB”, repo_url: “”, repo_name: “” }                                                                                       |
 +------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------+
+
 
 ``airgap.yml`` is internally called when ``provision.yml`` is executed.
 Alternatively, run the following commands: ::
