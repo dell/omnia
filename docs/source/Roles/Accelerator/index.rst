@@ -33,17 +33,17 @@ Enter all required parameters in ``input/accelerator_config.yml``.
 .. note::
 	* Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to run ``accelerator.yml`` on RHEL target nodes.
 	* For RHEL target nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription.
-    * If ``cuda_toolkit_path`` is provided in ``input/provision_config.yml`` and NVIDIA GPUs are available on the target nodes, CUDA packages will be deployed post provisioning without user intervention during the execution of ``provision.yml``.
+	* If ``cuda_toolkit_path`` is provided in ``input/provision_config.yml`` and NVIDIA GPUs are available on the target nodes, CUDA packages will be deployed post provisioning without user intervention during the execution of ``provision.yml``.
 
 To install all the latest GPU drivers and toolkits, run: ::
 
-    cd accelerator
-    ansible-playbook accelerator.yml -i inventory
+	cd accelerator
+	ansible-playbook accelerator.yml -i inventory
 
 (where inventory consists of manager, compute and login nodes)
 
 The following configurations take place when running ``accelerator.yml``
-    i. Servers with AMD GPUs are identified and the latest GPU drivers and ROCm platforms are downloaded and installed.
-    ii. Servers with NVIDIA GPUs are identified and the specified CUDA toolkit is downloaded and installed.
-    iii. For the rare servers with both NVIDIA and AMD GPUs installed, all the above mentioned download-ables are installed to the server.
-    iv. Servers with neither GPU are skipped.
+	i. Servers with AMD GPUs are identified and the latest GPU drivers and ROCm platforms are downloaded and installed.
+	ii. Servers with NVIDIA GPUs are identified and the specified CUDA toolkit is downloaded and installed.
+	iii. For the rare servers with both NVIDIA and AMD GPUs installed, all the above mentioned download-ables are installed to the server.
+	iv. Servers with neither GPU are skipped.

@@ -1,5 +1,5 @@
 Airgap
------
+-----------
 
 * The airgap role will help create offline repositories on control plane which all the compute nodes will access. This will remove the overhead of subscribing all the compute nodes to RHEL.
 * Currently, ``airgap.yml`` only updates RHEL repositories.
