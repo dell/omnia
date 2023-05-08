@@ -97,17 +97,29 @@
 
 - name: Install and configure crio for RHEL
   block:
+    - name: Fetch redhat subscription status
+      ansible.builtin.command: subscription-manager list
+      changed_when: false
+      register: rhsm_status
+
     - name: Install packages for RHEL
       ansible.builtin.package:
         name: "{{ k8s_common_packages_rhel }}"
         state: present
 
-    - name: Install cri-o for RHEL
+    - name: Install cri-o for RHEL with repos
       ansible.builtin.yum:
         name: cri-o
         enablerepo: "{{ crio_repo }}"
         disablerepo: "*"
         state: present
+      when: "'Subscribed' in rhsm_status.stdout"
+
+    - name: Install cri-o for RHEL
+      ansible.builtin.yum:
+        name: cri-o
+        state: present
+      when: "'Subscribed' not in rhsm_status.stdout"
 
     - name: Add versionlock cri-o
       ansible.builtin.command: yum versionlock cri-o

@@ -17,6 +17,7 @@
 xcat_packages_path: "/opt/xcat/share/xcat/tools/go-xcat"
 xcat_cert_path: "/root/.xcat"
 xcat_data_files_path: "/etc/xcat"
+fstab_path: "/etc/fstab"
 xcat_del_files:
   - "/install"
   - "/tftpboot"

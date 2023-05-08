@@ -13,16 +13,10 @@
 # limitations under the License.
 ---
 
-- name: Fetch admin_ip from DB
-  ansible.builtin.postgresql_query:
-    db: omniadb
-    login_user: postgres
-    query: SELECT admin_ip FROM cluster.nodeinfo where STATUS in ( 'booted', 'failed' );
-  become_user: postgres
-  register: query_status
-
-- name: Create group node_inventory with admin_ip - {{ item.admin_ip }}
-  ansible.builtin.add_host:
-    name: "{{ item.admin_ip }}"
-    groups: "node_inventory"
-  with_items: "{{ query_status.query_result }}"
+# Restructure Appstream and BaseOS folder
+- name: Execute python script
+  ansible.builtin.command: python3.8 "{{ role_path }}/files/restructure_rpms_folder.py" {{ item }}
+  changed_when: false
+  with_items:
+    - "{{ merged_dir }}/x86_64/AppStream/Packages"
+    - "{{ merged_dir }}/x86_64/BaseOS/Packages"

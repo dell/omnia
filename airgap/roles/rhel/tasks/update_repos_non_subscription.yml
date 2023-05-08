@@ -13,16 +13,13 @@
 # limitations under the License.
 ---
 
-- name: Fetch admin_ip from DB
-  ansible.builtin.postgresql_query:
-    db: omniadb
-    login_user: postgres
-    query: SELECT admin_ip FROM cluster.nodeinfo where STATUS in ( 'booted', 'failed' );
-  become_user: postgres
-  register: query_status
-
-- name: Create group node_inventory with admin_ip - {{ item.admin_ip }}
-  ansible.builtin.add_host:
-    name: "{{ item.admin_ip }}"
-    groups: "node_inventory"
-  with_items: "{{ query_status.query_result }}"
+# Reposync of AppStream, BaseOS and CodeReadyBuilder
+- name: Initiate reposync of AppStream, BaseOS and CRB (This might take 20-25 mins)
+  ansible.builtin.command: >-
+    reposync -p {{ merged_dir }}/x86_64/{{ item['repo'] }} --download-metadata -c {{ item['repo_url'] }}
+    --repo={{ item['repo_name'] }}  -a x86_64,noarch --norepopath -n
+  changed_when: false
+  retries: "{{ retry_count }}"
+  register: result
+  until: result.rc == 0
+  with_items: "{{ rhel_repo_local_path }}"

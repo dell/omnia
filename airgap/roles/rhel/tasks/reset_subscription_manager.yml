@@ -13,7 +13,7 @@
 # limitations under the License.
 ---
 
-# Set subscription release to previous set release
+# Set subscription release to previous set release when rhel_repo_path_status is false
 - name: Read the contents of rhsm_release file
   ansible.builtin.command: cat /opt/omnia/.data/rhsm_release
   register: rhsm_release_file_output
