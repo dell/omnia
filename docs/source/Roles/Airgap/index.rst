@@ -11,7 +11,7 @@ Airgap
 +====================================+======================================================================================================================================+
 | **update_repos**                   | * Indicates whether ``provision.yml`` will update offline RHEL repos (applicable from the second run of ``provision.yml``)           |
 |                                    |                                                                                                                                      |
-| ``boolean``                        | * In the first exection of ``provision.yml``, Omnia updates the BaseOS, Appstream and CRB repos.                                     |
+| ``boolean``                        | * In the first execution of ``provision.yml``, Omnia updates the BaseOS, Appstream and CRB repos.                                    |
 |                                    |                                                                                                                                      |
 | Required                           | * If ``update_repos``: false, none of the repos required for compute nodes will be updated provided the repos are already available. |
 |                                    |                                                                                                                                      |
@@ -36,11 +36,11 @@ Airgap
 |                                    |                                                                                                                                      |
 |                                    | ``true``                                                                                                                             |
 +------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------+
-| **rhel_repo_local_path**           | * The repo path and names of the software repository to be configured on the compute nodes                                           |
+| **rhel_repo_local_path**           | * The repo path and names of the software repository to be configured on the compute nodes.                                          |
 |                                    |                                                                                                                                      |
-| ``JSON list``                      | * Provide the repo data file path, which ends with .repo extension in repo_url parameter                                             |
+| ``JSON list``                      | * Provide the repo data file path, which ends with .repo extension in repo_url parameter.                                            |
 |                                    |                                                                                                                                      |
-| Optional                           | * Provide the url for BaseOS, Appstream and CRB repositories                                                                         |
+| Optional                           | * Provide the url for BaseOS, Appstream and CRB repositories.                                                                        |
 |                                    |                                                                                                                                      |
 |                                    | * This variable should be filled if control plane OS is RHEL and subscription is not activated.                                      |
 |                                    |                                                                                                                                      |
