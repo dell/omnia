@@ -79,7 +79,10 @@ This can only be achieved using local repos specified in rhel_repo_local_path  (
 
 Potential cause: The ``repo_url``, ``repo_name`` or ``repo`` provided in ``rhel_repo_local_path`` (``input/provision_config.yml``) may not be valid.
 
-Omnia does not validate the input of ``rhel_repo_local_path``. Ensure the correct values are passed before running ``provision.yml`` or ``airgap.yml``.
+Omnia does not validate the input of ``rhel_repo_local_path``.
+
+Resolution: Ensure the correct values are passed before re-running ``provision.yml``.
+
 
 **What to do if PXE boot fails when discovering target nodes via switch_based discovery**
 
