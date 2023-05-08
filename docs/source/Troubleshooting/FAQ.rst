@@ -61,7 +61,7 @@ Resolution: In the case of a planned shutdown, ensure that the control plane is 
 
 For more information, `click here <https://github.com/xcat2/xcat-core/issues/7374>`_
 
-**Why do subscription errors occur on RHEL control planes when rhel_repo_local_path (in input/provision_config.yml) is not provided & control plane does not have an active subscription?
+**Why do subscription errors occur on RHEL control planes when rhel_repo_local_path (in input/provision_config.yml) is not provided & control plane does not have an active subscription?**
 
 .. image:: ../images/SubscriptionErrors.png
 
