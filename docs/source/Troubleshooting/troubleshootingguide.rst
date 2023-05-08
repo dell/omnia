@@ -81,13 +81,13 @@ Logs of individual containers
 Connecting to internal databases
 ------------------------------------
 * TimescaleDB
-	* Go inside the pod: ``kubectl exec -it pod/timescaledb-0 -n telemetry-and-visualizations -- /bin/bash``
-	* Connect to psql: ``psql -U <postgres_username>``
-	* Connect to database: ``< timescaledb_name >``
+    * Go inside the pod: ``kubectl exec -it pod/timescaledb-0 -n telemetry-and-visualizations -- /bin/bash``
+    * Connect to psql: ``psql -U <postgres_username>``
+    * Connect to database: ``< timescaledb_name >``
 * MySQL DB
-	* Go inside the pod: ``kubectl exec -it pod/mysqldb-n telemetry-and-visualizations -- /bin/bash``
-	* Connect to psql: ``psql -U <mysqldb_username> -p <mysqldb_password>``
-	* Connect to database: ``USE <mysqldb_name>``
+    * Go inside the pod: ``kubectl exec -it pod/mysqldb-n telemetry-and-visualizations -- /bin/bash``
+    * Connect to psql: ``psql -U <mysqldb_username> -p <mysqldb_password>``
+    * Connect to database: ``USE <mysqldb_name>``
 
 Checking and updating encrypted parameters
 -----------------------------------------------
