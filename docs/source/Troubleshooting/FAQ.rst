@@ -73,6 +73,14 @@ For many of Omnia's features to work, RHEL control planes need access to the fol
 
 This can only be achieved using local repos specified in rhel_repo_local_path  (``input/provision_config.yml``) OR having an active, available RedHat subscription.
 
+**Why does the task: Initiate reposync of AppStream, BaseOS and CRB fail?**
+
+.. image::  ../images/RepoURLError.png
+
+Potential cause: The ``repo_url``, ``repo_name`` or ``repo`` provided in ``rhel_repo_local_path`` (``input/provision_config.yml``) may not be valid.
+
+Omnia does not validate the input of ``rhel_repo_local_path``. Ensure the correct values are passed before running ``provision.yml`` or ``airgap.yml``.
+
 **What to do if PXE boot fails when discovering target nodes via switch_based discovery**
 
 .. image:: ../images/PXEBootFail.png
