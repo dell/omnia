@@ -1,1 +1,1 @@
-.. include:: ../../InstallationGuides/CleanUpScript
+.. include:: ../../InstallationGuides/CleanUpScript.rst

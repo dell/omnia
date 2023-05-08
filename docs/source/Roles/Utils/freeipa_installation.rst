@@ -26,5 +26,4 @@ To set up IPA services for the NFS node in the target cluster, run the following
 
 .. include:: ../../Appendices/hostnamereqs.rst
 
-.. note::
-Use the format specified under `NFS inventory in the Sample Files <../../samplefiles.html#nfs-server-inventory-file>`_ for inventory.
+.. note:: Use the format specified under `NFS inventory in the Sample Files <../../samplefiles.html#nfs-server-inventory-file>`_ for inventory.

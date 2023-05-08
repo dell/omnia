@@ -61,6 +61,29 @@ Resolution: In the case of a planned shutdown, ensure that the control plane is 
 
 For more information, `click here <https://github.com/xcat2/xcat-core/issues/7374>`_
 
+**Why do subscription errors occur on RHEL control planes when rhel_repo_local_path (in input/provision_config.yml) is not provided & control plane does not have an active subscription?**
+
+.. image:: ../images/SubscriptionErrors.png
+
+For many of Omnia's features to work, RHEL control planes need access to the following repositories:
+
+    1. AppStream
+    2. BaseOS
+    3. CRB
+
+This can only be achieved using local repos specified in rhel_repo_local_path  (``input/provision_config.yml``) OR having an active, available RedHat subscription.
+
+**Why does the task: Initiate reposync of AppStream, BaseOS and CRB fail?**
+
+.. image::  ../images/RepoURLError.png
+
+Potential cause: The ``repo_url``, ``repo_name`` or ``repo`` provided in ``rhel_repo_local_path`` (``input/provision_config.yml``) may not be valid.
+
+Omnia does not validate the input of ``rhel_repo_local_path``.
+
+Resolution: Ensure the correct values are passed before re-running ``provision.yml``.
+
+
 **What to do if PXE boot fails when discovering target nodes via switch_based discovery**
 
 .. image:: ../images/PXEBootFail.png

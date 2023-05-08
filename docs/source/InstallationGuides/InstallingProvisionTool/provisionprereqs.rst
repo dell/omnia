@@ -29,11 +29,14 @@ Note the compatibility between cluster OS and control plane OS below:
         | RHEL                | Rocky              | Yes              |
         +---------------------+--------------------+------------------+
         |                     |                    |                  |
-        | Rocky               | RHEL               | No               |
+        | Rocky               | RHEL               | Yes^             |
         +---------------------+--------------------+------------------+
         |                     |                    |                  |
         | Rocky               | Rocky              | Yes              |
         +---------------------+--------------------+------------------+
+
+^ For a Rocky control plane and RHEL compute nodes, it is mandatory to populate ``rhel_repo_local_path`` in ``input/provision_config.yml``.
+
 
 * To set up CUDA and OFED using the provisioning tool, download the required repositories from here:
 
