@@ -13,9 +13,10 @@
 # limitations under the License.
 ---
 
-- name: Initialize reposync_status
+- name: Initialize reposync_status and set update_repos to lowercase
   ansible.builtin.set_fact:
     reposync_status: false
+    update_repos: "{{ update_repos | lower }}"
 
 - name: Verify the value of update_repos
   ansible.builtin.assert:

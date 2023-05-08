@@ -13,13 +13,10 @@
 # limitations under the License.
 ---
 
-# Reposync of AppStream, BaseOS and CodeReadyBuilder
-- name: Initiate reposync of AppStream, BaseOS and CRB (This might take 20-25 mins)
-  ansible.builtin.command: >-
-    reposync -p {{ merged_dir }}/x86_64/{{ item['repo'] }} --download-metadata -c {{ item['repo_url'] }}
-    --repo={{ item['repo_name'] }}  -a x86_64,noarch --norepopath -n
+# Restructure Appstream and BaseOS folder
+- name: Execute python script
+  ansible.builtin.command: python3.8 "{{ role_path }}/files/restructure_rpms_folder.py" {{ item }}
   changed_when: false
-  retries: "{{ retry_count }}"
-  register: result
-  until: result.rc == 0
-  with_items: "{{ rhel_repo_local_path }}"
+  with_items:
+    - "{{ merged_dir }}/x86_64/AppStream/Packages"
+    - "{{ merged_dir }}/x86_64/BaseOS/Packages"

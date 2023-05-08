@@ -19,6 +19,10 @@
     - name: Create mount overlay for ISO packages
       ansible.builtin.include_tasks: create_mount_overlay.yml
 
+    - name: Restructure rpm directories when rhel_repo_order is true
+      ansible.builtin.include_tasks: restructure_rpm_dir.yml
+      when: rhel_repo_alphabetical_folders
+
     - name: Modify Rhel repos for airgap solution when control plane rhel subscription is active
       when: not rhel_repo_path_status
       block:
