@@ -179,9 +179,7 @@ Choices:
                                                                                                                                     
 ``true``                                                                                                                            "
 " **rhel_repo_alphabetical_folders**
-
  ``boolean``
-
  Required   ","* Indicates whether the packages in local or subscription repos should be ordered in alphabetical directories.
                                                                                                               
                                                                                                               
