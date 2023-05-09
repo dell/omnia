@@ -174,3 +174,12 @@ Ensure that the number of IPs available between ``pxe_nic_start_range`` and ``px
 **What are the licenses required when deploying a cluster through Omnia?**
 
 While Omnia playbooks are licensed by Apache 2.0, Omnia deploys multiple softwares that are licensed separately by their respective developer communities. For a comprehensive list of software and their licenses, `click here <../Overview/SupportMatrix/omniainstalledsoftware.html>`_ .
+
+
+**Why does monitor.yml fail during 'task: Unzip plugins at grafana-plugins folder'?**
+
+.. image:: ../images/MonitorFailure.png
+
+Possible cause: The cleanup script (``control_plane_cleanup.yml``) was used recently.
+
+Resolution: Clear the Kubernetes and ``monitor.yml`` associated configurations manually and re-attempt ``monitor.yml``.
