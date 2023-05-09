@@ -14,5 +14,9 @@
 ---
 
 - name: Cleanup provision setup
-  import_tasks: clean_provision_setup.yml
+  ansible.builtin.import_tasks: clean_provision_setup.yml
   tags: provision
+
+- name: Cleanup monitor setup
+  ansible.builtin.import_tasks: clean_monitor_setup.yml
+  tags: monitor
