@@ -47,3 +47,11 @@ xcat_package: xCAT
 postgres_packages:
   - postgresql*
   - perl-DBD-Pg
+
+# Usage: cleanup_monitor_setup.yml
+monitor_namespace: monitoring
+exports_path: /etc/exports
+exports_regexp:
+  - "/install"
+  - "/tftpboot"
+  - "/var/nfs_repo"
