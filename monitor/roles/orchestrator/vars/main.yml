@@ -148,3 +148,9 @@ nfs_services:
   - mountd
   - rpc-bind
   - nfs
+
+# Usage: prerequisites.yml
+rocky_version: rocky8.7
+redhat_version: redhat8.7
+keypath_str: '"keyPath": "/etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release"'
+policy_file_path: "/etc/containers/policy.json"
