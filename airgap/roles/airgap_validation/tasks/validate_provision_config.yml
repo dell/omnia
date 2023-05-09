@@ -18,16 +18,25 @@
     validation_status: false
   when: validation_status is not defined
 
+- name: Set repo_validation_status
+  ansible.builtin.set_fact:
+    repo_validation_status: false
+  when: repo_validation_status is not defined
+
 - name: Include provision configuration variables
   ansible.builtin.include_tasks: include_provision_config.yml
-  when: not validation_status
+  when:
+    - not validation_status
+    - not repo_validation_status
 
 - name: Set reposync_status for downloading repos
   ansible.builtin.include_tasks: set_reposync_status.yml
 
 - name: Validate rhel_repo_path
   ansible.builtin.include_tasks: validate_repo_path.yml
-  when: not validation_status
+  when:
+    - not validation_status
+    - not repo_validation_status
 
 - name: Initialise variables
   ansible.builtin.set_fact:
