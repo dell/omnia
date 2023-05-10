@@ -15,12 +15,12 @@
 
 - name: Fetch control plane OS version
   ansible.builtin.set_fact:
-    control_plane_version: "{{ ansible_facts['distribution'] | lower + ansible_facts['distribution_version'] }}"
+    control_plane_version: "{{ ansible_facts['distribution_version'] | float }}"
 
 - name: Update containers policy
   ansible.builtin.replace:
     path: "{{ policy_file_path }}"
     regexp: '"keyPaths": (.*)$'
     replace: "{{ keypath_str }}"
-  when: rocky_version in control_plane_version or
-        redhat_version in control_plane_version
+  when: (os_supported_rocky in mgmt_os and control_plane_version >= rocky_version) or
+        (os_supported_rhel in mgmt_os and control_plane_version >= redhat_version)
