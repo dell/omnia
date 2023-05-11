@@ -14,7 +14,6 @@ release = '1.4.2'
 
 import sys
 import os
-from datetime import datetime
 
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -33,6 +32,10 @@ sys.path.insert(0, os.path.abspath("../"))
 extensions = []
 
 html_css_files = ["theme.css"]
+html_js_files = [
+    'https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js',
+    '_static/flyout.js'
+]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
