@@ -4,6 +4,14 @@ Releases
 1.4.2
 -------
 
+*  XE9680, R760, R7625, R6615, R7615 are now supported as control planes or taget nodes
+
+* Added ability for switch based discovery of remote servers and PXE provisioning.
+
+* Active RedHat subscription is no longer required on the control plane and the compute nodes. Users can configure and use local RHEL repositories.
+
+* IP ranges can be defined for assignment to remote nodes when discovered via the switch.
+
 
 1.4.1
 ------
@@ -18,7 +26,7 @@ Releases
 
 * Target node provisioning status can now be checked on the control plane by viewing the OmniaDB.
 
-* Omnia clusters can be configured with passwordless SSH for seamless execution of HPC jobs run by non-root users.
+* Omnia clusters can be configured with password-less SSH for seamless execution of HPC jobs run by non-root users.
 
 * Accelerator drivers can be installed on Rocky target nodes in addition to RHEL.
 
