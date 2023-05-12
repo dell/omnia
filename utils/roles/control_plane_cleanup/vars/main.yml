@@ -17,6 +17,7 @@
 xcat_packages_path: "/opt/xcat/share/xcat/tools/go-xcat"
 xcat_cert_path: "/root/.xcat"
 xcat_data_files_path: "/etc/xcat"
+fstab_path: "/etc/fstab"
 xcat_del_files:
   - "/install"
   - "/tftpboot"
@@ -46,3 +47,11 @@ xcat_package: xCAT
 postgres_packages:
   - postgresql*
   - perl-DBD-Pg
+
+# Usage: cleanup_monitor_setup.yml
+monitor_namespace: monitoring
+exports_path: /etc/exports
+exports_regexp:
+  - "/install"
+  - "/tftpboot"
+  - "/var/nfs_repo"

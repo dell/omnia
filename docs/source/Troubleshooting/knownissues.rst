@@ -54,6 +54,10 @@ To correct the issue, run:
 
 ``json-gw enable`` (To enable the JSON gateway)
 
+**Why does the task 'Initialize kubeadm' fail while running monitor.yml?**
+
+This issue is caused by incompatibility between Rocky 8.7 and kubernetes due to cri-o. For more information, `click here <https://github.com/cri-o/cri-o/issues/6197>`_.
+
 **Why does PXE boot fail with tftp timeout or service timeout errors?**
 
 

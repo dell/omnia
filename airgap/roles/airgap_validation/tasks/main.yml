@@ -13,7 +13,6 @@
 # limitations under the License.
 ---
 
-
 - name: Include provision configuration variables and validate them
   ansible.builtin.include_tasks: validate_provision_config.yml
 

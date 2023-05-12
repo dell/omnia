@@ -17,10 +17,12 @@
   ansible.builtin.postgresql_query:
     db: omniadb
     login_user: postgres
-    query: SELECT admin_ip FROM cluster.nodeinfo;
+    query: SELECT admin_ip FROM cluster.nodeinfo where STATUS in ( 'booted', 'failed' );
   become_user: postgres
   register: query_status
 
-- name: Check IP is host or not
-  ansible.builtin.include_tasks: host_ip_check.yml
+- name: Create group node_inventory with admin_ip - {{ item.admin_ip }}
+  ansible.builtin.add_host:
+    name: "{{ item.admin_ip }}"
+    groups: "node_inventory"
   with_items: "{{ query_status.query_result }}"
