@@ -7,8 +7,8 @@ To enable centralized authentication in the cluster, Omnia installs either:
  - LDAP Client
 
 .. note:: 
-	* Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to run ``security.yml`` on RHEL target nodes.
-	* For RHEL target nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription. 
+    * Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to run ``security.yml`` on RHEL target nodes.
+    * For RHEL target nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription.
 
 
 
@@ -71,9 +71,9 @@ Where inventory follows the format defined under inventory file in the provided 
 
 .. note::
 
-* Omnia does not create any accounts (HPC users) on FreeIPA. To create a user, check out FreeIPA documentation.
+    * Omnia does not create any accounts (HPC users) on FreeIPA. To create a user, check out FreeIPA documentation.
 
-* Alternatively, use the below command with admin credentials: ::
+    * Alternatively, use the below command with admin credentials: ::
 
     ipa user-add --homedir=<nfs_dir_path> --password
 

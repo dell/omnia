@@ -12,7 +12,7 @@ RUN dnf install sshpass -y
 
 COPY requirements.txt requirements.txt
 
-RUN ln -s /usr/pgsql-13/bin/pg_config /usr/bin/pg_config
+RUN ln -s /usr/pgsql-14/bin/pg_config /usr/bin/pg_config
 RUN pip3 install psycopg2-binary
 RUN pip3 install -r requirements.txt
 RUN mkdir /MonSter/

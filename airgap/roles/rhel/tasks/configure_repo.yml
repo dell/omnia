@@ -13,40 +13,6 @@
 # limitations under the License.
 ---
 
-# Restructure Appstream and BaseOS folder
-- name: Execute python script
-  ansible.builtin.command: python3.8 "{{ role_path }}/files/restructure_rpms_folder.py" {{ item }}
-  changed_when: false
-  with_items:
-    - "{{ rhel_repo_folder_path }}/AppStream/Packages"
-    - "{{ rhel_repo_folder_path }}/BaseOS/Packages"
-
-# Reposync of AppStream and BaseOS
-- name: Initiate reposync of AppStream, BaseOS (This might take 20-25 mins)
-  ansible.builtin.command: "reposync -p {{ rhel_repo_folder_path }}/{{ item.0 }} --download-metadata --repo={{ item.1 }} -a x86_64,noarch --norepopath -n"
-  changed_when: false
-  retries: "{{ retry_count }}"
-  register: result
-  until: result.rc == 0
-  with_together:
-    - ['AppStream', 'BaseOS']
-    - ['rhel-8-for-x86_64-appstream-rpms', 'rhel-8-for-x86_64-baseos-rpms']
-
-- name: Create folder for CodeReadyBuilder
-  ansible.builtin.file:
-    path: "{{ codereadybuilder_path }}"
-    state: directory
-    mode: "{{ directory_permissions }}"
-
-- name: Initiate reposync of CodeReadyBuilder (This might take 10 mins)
-  ansible.builtin.command: "reposync -p {{ codereadybuilder_path }} --download-metadata --repo={{ codeready_repo_name }} -a x86_64,noarch --norepopath -n"
-  changed_when: false
-  retries: "{{ retry_count }}"
-  register: result
-  until: result.rc == 0
-
-# Modify xcat osimage
-
 - name: Create and update codereadybuilder repo
   block:
     - name: Fetch xcat osimage name for provision_os
@@ -75,8 +41,8 @@
         provision_os_image: "{{ retry_fetch_osimage.stdout.split(' ')[0] }}"
       when: fetch_osimage.rc != 0
 
-    - name: Configure CodeReadyBuilder repo to osimage
-      ansible.builtin.command: chdef -t osimage -o {{ provision_os_image }} -p pkgdir={{ codereadybuilder_path }}
+    - name: Configure repos to osimage
+      ansible.builtin.command: chdef -t osimage -o {{ provision_os_image }} -p pkgdir={{ updates_appstream_dir }},{{ updates_baseos_dir }},{{ updates_crb_dir }}
       changed_when: true
   environment:
     XCATROOT: "{{ xcat_root_env }}"

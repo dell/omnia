@@ -16,6 +16,7 @@
 - name: Initialize variables
   ansible.builtin.set_fact:
     xcat_installation_status: false
+    repo_validation_status: true
 
 - name: Check output of network table
   ansible.builtin.command: lsdef -t network

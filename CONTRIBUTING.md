@@ -44,7 +44,7 @@ Contributions to Omnia are made through [Pull Requests (PRs)](https://help.githu
 ## Omnia Branches and Contribution Flow
 The diagram below describes the contribution flow. Omnia has two lifetime branches: `devel` and `release`. The `release` branch is reserved for releases and their associated tags. The `devel` branch is where all development work occurs. The `devel` branch is also the default branch for the project.
 
-![Omnia Branch Flowchart](docs/images/omnia-branch-structure.png "Flowchart of Omnia branches")
+![Omnia Branch Flowchart](docs/source/images/omnia-branch-structure.png "Flowchart of Omnia branches")
 
 ## Developer Certificate of Origin
 Contributions to Omnia must be signed with the [Developer Certificate of Origin (DCO)](https://developercertificate.org/):

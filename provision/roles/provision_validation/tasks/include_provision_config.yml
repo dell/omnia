@@ -35,9 +35,16 @@
   tags: init
 
 - name: Include provision_config.yml
-  ansible.builtin.include_vars: "{{ provision_config_filename }}"
-  no_log: true
-  tags: init
+  block:
+    - name: Include provision_config.yml
+      ansible.builtin.include_vars: "{{ provision_config_filename }}"
+      register: include_provision_config
+      no_log: true
+      tags: init
+  rescue:
+    - name: Failed to include_provision_config.yml
+      ansible.builtin.fail:
+        msg: "{{ provision_config_syntax_fail_msg }} Error: {{ include_provision_config.message }}"
 
 - name: Create ansible vault key
   ansible.builtin.set_fact:

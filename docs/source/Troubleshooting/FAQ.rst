@@ -55,9 +55,34 @@ Ex: If the ``primary_dns`` is set to 10.15.0.7, the subnet ``10.15.0.0`` cannot 
 
 **Why is the node status stuck at 'powering-on' or 'powering-off' after a control plane reboot?**
 
-Cause: The nodes were powering off or powering on during the control plane reboot.
+Cause: The nodes were powering off or powering on during the control plane reboot/shutdown.
 
-Resolution: In the case of a planned shutdown, ensure that the control plane is shut down before the compute nodes. When powering back up, the control plane should be powered on and xCAT services resumed before bringing up the compute nodes.
+Resolution: In the case of a planned shutdown, ensure that the control plane is shut down after the compute nodes. When powering back up, the control plane should be powered on and xCAT services resumed before bringing up the compute nodes. In short, have the control plane as the first node up and the last node down.
+
+For more information, `click here <https://github.com/xcat2/xcat-core/issues/7374>`_
+
+**Why do subscription errors occur on RHEL control planes when rhel_repo_local_path (in input/provision_config.yml) is not provided & control plane does not have an active subscription?**
+
+.. image:: ../images/SubscriptionErrors.png
+
+For many of Omnia's features to work, RHEL control planes need access to the following repositories:
+
+    1. AppStream
+    2. BaseOS
+    3. CRB
+
+This can only be achieved using local repos specified in rhel_repo_local_path  (``input/provision_config.yml``) OR having an active, available RedHat subscription.
+
+**Why does the task: Initiate reposync of AppStream, BaseOS and CRB fail?**
+
+.. image::  ../images/RepoURLError.png
+
+Potential cause: The ``repo_url``, ``repo_name`` or ``repo`` provided in ``rhel_repo_local_path`` (``input/provision_config.yml``) may not be valid.
+
+Omnia does not validate the input of ``rhel_repo_local_path``.
+
+Resolution: Ensure the correct values are passed before re-running ``provision.yml``.
+
 
 **What to do if PXE boot fails when discovering target nodes via switch_based discovery**
 

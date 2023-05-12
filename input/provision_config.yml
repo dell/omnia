@@ -197,6 +197,27 @@ bmc_static_end_range: ""
 pxe_switch_ip: ""
 pxe_switch_snmp_community_string: "public"
 
+#### Mandatory, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
+# In the first execution of provision.yml, Omnia updates the BaseOS, Appstream and CRB repos.
+# If update_repos: false, none of the repos will be updated provided the repos are already available.
+# If update_repos: true, BaseOS, Appstream and CRB repos created for compute nodes will be updated
+update_repos: false
+
+#### Mandatory, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
+# rhel_repo_alphabetical_folders variable indicates whether the packages in the local repos or subscription repos are ordered in alphabetical directories.
+# For RHEL 8, when subscription is activated this variable rhel_repo_alphabetical_folders should be set to true
+rhel_repo_alphabetical_folders: false
+
+#### Optional, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
+# The local RHEL repository path and names of the software repository to be configured on the compute nodes
+# Provide the repo data file path, which ends with .repo extension in repo_url parameter
+# Provide the url for BaseOS, Appstream and CRB repositories
+# This variable should be filled if control plane OS is RHEL and local RHEL repository is available.
+rhel_repo_local_path: 
+  - { repo: "AppStream", repo_url: "", repo_name: "" }
+  - { repo: "BaseOS", repo_url: "", repo_name: "" }
+  - { repo: "CRB", repo_url: "", repo_name: "" }
+
 #### Optional, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
 # The DNS servers IP addresses for internet access on compute nodes(through DHCP routing)
 # If empty, a separate public internet nic should be present in compute nodes for internet access.

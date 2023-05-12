@@ -13,16 +13,7 @@
 # limitations under the License.
 ---
 
-- name: Validate rhsm status on control plane
-  block:
-    - name: Validate redhat subscription status
-      ansible.builtin.include_tasks: validate_rhsm.yml
-  rescue:
-    - name: Warning - redhat subscription not enabled
-      ansible.builtin.fail:
-        msg: "{{ subscription_warning_msg }}"
-
-# Set subscription manager as needed.
+# Set subscription manager as needed when rhel_repo_path_status is false
 - name: Take backup of current subscription manager release version.
   ansible.builtin.command: subscription-manager release --show
   changed_when: false

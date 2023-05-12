@@ -115,6 +115,7 @@ After the required parameters are filled in ``input/storage_config.yml``, Omnia 
 |                                 |                                                                                                                                                                                                                                                      |
 |                                 |      **Default values**: ``/home/connauthfile``                                                                                                                                                                                                      |
 +---------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
 .. note::
     * BeeGFS client-server communication can take place over TCP or RDMA. If RDMA support is required, set ``beegfs_rdma_support`` should be set to true. Also, OFED should be installed on all target nodes.
     * For BeeGFS communication happening over RDMA, the ``beegfs_mgmt_server`` should be provided with the Infiniband IP of the management server.

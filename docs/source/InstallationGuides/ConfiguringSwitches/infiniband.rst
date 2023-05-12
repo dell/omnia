@@ -97,7 +97,7 @@ If ``enable_split_port`` is **false**, run::
 
 * Where ``ib_admin_password`` is the intended password to authenticate into the switch after ``infiniband_switch_config.yml`` has run.
 
-* Where ``ib_monitor_password`` is the mandatory password required while running the initial configuration wizard on the Inifiniband switch.
+* Where ``ib_monitor_password`` is the mandatory password required while running the initial configuration wizard on the Infiniband switch.
 
 * Where ``ib_default_password`` is the password used to authenticate into factory reset/fresh-install switches.
 
