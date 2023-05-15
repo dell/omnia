@@ -62,7 +62,7 @@
 .wy-nav-top,
 .wy-menu-vertical li.toctree-l2.current li.toctree-l3>a:hover {
     background: #2980B9;
-
+    color: rgb(240, 240, 240);
 }
 /* Main content
   ==================================================== */

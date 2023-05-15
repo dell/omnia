@@ -222,10 +222,9 @@ Choices:
                                                                                                                                     
 ``true``                                                                                                                            "
 " **rhel_repo_alphabetical_folders**
-                                   
- ``boolean``                       
-                                   
- Required                          ","* Indicates whether the packages in local or subscription repos should be ordered in alphabetical directories.
+ ``boolean``
+ 
+ Required   ","* Indicates whether the packages in local or subscription repos should be ordered in alphabetical directories.
                                                                                                               
                                                                                                               
 * This variable should be filled if control plane OS is RHEL and local RHEL repository is available.          
