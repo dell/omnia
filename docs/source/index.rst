@@ -61,6 +61,7 @@ For a better understanding of what Omnia does, check out our `docs <https://omni
    Contributing/index
    appendix
 
+.. footer:: If you have any feedback about Omnia documentation, please reach out at `omnia.readme@dell.com <mailto:omnia.readme@dell.com>`_.
 
 .. |Omnia version| image:: https://img.shields.io/github/v/release/dellhpc/omnia?include_prereleases
 .. |Downloads| image:: https://img.shields.io/github/downloads/dellhpc/omnia/total
