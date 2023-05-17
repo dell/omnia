@@ -1,0 +1,72 @@
+---
+- block:
+    - name: "Check current version of kubeadm, kubelet and kubectl"
+      shell: |
+        rpm -qa | grep -E 'kubeadm|kubelet|kubectl'
+      register: version
+
+    - debug:
+        var: version.stdout_lines
+
+    - name: "Clear version lock"
+      shell: yum versionlock clear
+
+    - name: "Drain cluster master node -> {{ inventory_hostname }}"
+      shell: |
+        kubectl drain {{ inventory_hostname }} --ignore-daemonsets --delete-local-data
+      ignore_errors: True
+    - name: "Verify the upgrade plan"
+      shell: |
+        kubeadm upgrade plan --allow-experimental-upgrades --ignore-preflight-errors=all
+      ignore_errors: True
+    - name: "Upgrade Master Node Packages with version {{ item }}"
+      yum:
+        name: "{{ item }}"
+        disable_excludes: kubernetes
+      with_items: "{{ upgrade_k8s_packages }}"
+      ignore_errors: True
+
+    - name: "Pull kubeadm config images"
+      shell: |
+        kubeadm config images pull
+      ignore_errors: True
+    - name: "Upgrading k8s cluster to {{ item }} version"
+      shell: |
+        kubeadm upgrade apply v"{{ item }}" --allow-experimental-upgrades --ignore-preflight-errors=all --force --yes
+      ignore_errors: True
+    - name: "Reload Daemon and kubelet"
+      shell: |
+        systemctl daemon-reload
+        systemctl restart kubelet
+    - name: "Uncordon Master Node"
+      shell: kubectl uncordon {{ inventory_hostname }}
+
+    - name: Wait for all control-plane pods become created
+      shell: "kubectl get po --namespace=kube-system --selector tier=control-plane --output=jsonpath='{.items[*].metadata.name}'"
+      register: control_plane_pods_created
+      until: item in control_plane_pods_created.stdout
+      retries: 10
+      delay: 30
+      with_items:
+        - etcd
+        - kube-apiserver
+        - kube-controller-manager
+        - kube-scheduler
+
+    - name: "Check Updated version of kubeadm, kubelet and kubectl"
+      shell: |
+        rpm -qa | grep -E 'kubeadm|kubelet|kubectl'
+      register: version
+
+    - debug:
+        var: version.stdout_lines
+
+    - name: "Put version lock back on packages"
+      shell: |
+        yum versionlock "{{ item }}"
+      with_items: "{{ upgrade_k8s_packages }}"
+      changed_when: true
+
+    - debug:
+        msg: "SUCCESS! Your cluster are upgraded to {{ item }}. Enjoy!"
+  when: inventory_hostname in groups["k8s-master"]

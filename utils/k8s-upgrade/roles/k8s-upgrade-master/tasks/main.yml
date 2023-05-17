@@ -1,0 +1,7 @@
+---
+#Upgrade k8s master cluster
+- name: "Upgrading k8s cluster version to {{ k8s_upgrade_version }}, process started"
+  include_tasks: k8s-master-upgrade.yml
+  loop: "{{ k8s_versions }}"
+  when:
+    - "{{ item <= k8s_upgrade_version }}"
