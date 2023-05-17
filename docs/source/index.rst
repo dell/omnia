@@ -20,7 +20,7 @@ Omnia is made available under the `Apache 2.0 license. <https://opensource.org/l
 
 .. note:: Omnia playbooks are licensed under the Apache 2.0 license.  Once an end-user initiates Omnia, that end-user will enable deployment of other open source software that is licensed separately by their respective developer communities. For a comprehensive list of software and their licenses, `click here <Overview/SupportMatrix/omniainstalledsoftware.html>`_ . Dell (or any other contributors) shall have no liability regarding and no responsibility to provide support for an end-users use of any open source software and end-users are encouraged to ensure that they are complying with all such licenses.  Omnia is provided “as is” without any warranty, express or implied.  Dell (or any other contributors) shall have no liability for any direct, indirect, incidental, punitive, special, or consequential damages for an end-users use of Omnia.
 
-For a better understanding of what Omnia does, check out our `docs <https://omnia-documentation.readthedocs.io/en/latest/index.html>`_!
+For a better understanding of what Omnia does, check out our `docs <https://omnia-doc.readthedocs.io/en/latest/index.html>`_!
 
 
 **Omnia Community Members**
