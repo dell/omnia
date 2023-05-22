@@ -94,8 +94,8 @@
         - not rhel_repo_path_status
       block:
         - name: Subscription is not enabled
-          ansible.builtin.fail:
-            msg: "{{ rhel_subscription_fail_msg }}"
+          ansible.builtin.debug:
+            msg: "{{ rhel_subscription_warn_msg }}"
           when: subscription_check_key not in rhsm_status.stdout
 
         - name: Fetch redhat enabled repo list
