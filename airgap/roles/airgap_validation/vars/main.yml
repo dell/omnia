@@ -56,7 +56,7 @@ subscription_repo_fail_msg: "Failed. AppStream and BaseOS repos are not enabled 
 warning_wait_time: 10
 rhel_subscription_warning_msg: "[WARNING] RedHat subscription not enabled. Proceeding execution with local repo details provided in provision_config.yml.
 Make sure the repos given are valid."
-rhel_subscription_fail_msg: "Failed. RedHat subscription not active.
+rhel_subscription_warn_msg: "[WARNING] RedHat subscription not active.
 Activate RedHat subscription or provide repos details in rhel_repo_local_path variable in provision_config.yml"
 subscription_check_key: "Subscribed"
 control_plane_os_redhat: "redhat"
