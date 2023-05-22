@@ -11,10 +11,10 @@ project = 'Omnia'
 copyright = '2023, Dell Technologies'
 author = 'dellhpc/omnia'
 release = '1.4.2'
+rst_epilog = "If you have any feedback about Omnia documentation, please reach out at `omnia.readme@dell.com <mailto:omnia.readme@dell.com>`_."
 
 import sys
 import os
-from datetime import datetime
 
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -33,6 +33,10 @@ sys.path.insert(0, os.path.abspath("../"))
 extensions = []
 
 html_css_files = ["theme.css"]
+html_js_files = [
+    'https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js',
+    '_static/flyout.js'
+]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]

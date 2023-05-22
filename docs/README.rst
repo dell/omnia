@@ -3,7 +3,7 @@ Omnia Documentation
 
 **Omnia** is an open source project hosted on `GitHub <https://github.com/dellhpc/omnia>`_. Go to `GitHub <https://github.com/dellhpc/omnia>`_ to view the source, open issues, ask questions, and participate in the project.
 
-The Omnia docs are hosted here: https://omnia-documentation.readthedocs.io/en/latest/index.html and are written in reStructuredText (`.rst`).
+The Omnia docs are hosted here: https://omnia-doc.readthedocs.io/en/latest/index.html and are written in reStructuredText (`.rst`).
 
 Building Docs
 --------------
