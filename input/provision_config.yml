@@ -13,6 +13,10 @@
 #  limitations under the License.
 ---
 
+# Do NOT remove or comment out any lines in this file. Simply append the required values against the parameters of your choice.
+
+---
+
 # Mandatory
 # This variable is used to depict the network type for the omnia cluster
 # Lom is supported by discovery_mechanism: mapping, bmc and switch_based

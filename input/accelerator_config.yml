@@ -13,6 +13,10 @@
 #  limitations under the License.
 ---
 
+# Do NOT remove or comment out any lines in this file. Simply append the required values against the parameters of your choice.
+
+---
+
 # This variable accepts the amd gpu version for the RHEL specific OS version
 # Verify if the version provided is present in the repo for the OS version on your node
 # Verify the url for the compatible version: https://repo.radeon.com/amdgpu/
