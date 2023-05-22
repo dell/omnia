@@ -15,6 +15,8 @@ Manually collect PXE NIC information for target servers and manually define them
 
 The following parameters need to be populated in ``input/provision_config.yml`` to discover target nodes using a mapping file.
 
+.. warning:: Do not remove or comment any lines in the ``input/provision_config.yml`` file.
+
 .. csv-table:: Parameters
    :file: ../../../Tables/mapping.csv
    :header-rows: 1

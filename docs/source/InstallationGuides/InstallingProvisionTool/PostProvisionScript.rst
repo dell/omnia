@@ -1,9 +1,7 @@
 After running the provision tool
 --------------------------------
 
-
-**This script is optional. To skip over to Slurm, Kubernetes, NFS, BeeGFS and Authentication setup, `click here <../BuildingClusters/index.html>`_.**
-
+This script is optional. To skip over to Slurm, Kubernetes, NFS, BeeGFS and Authentication setup, `click here <../BuildingClusters/index.html>`_.
 
 
 Once the **servers are provisioned**, run the post provision script to:
