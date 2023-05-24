@@ -13,6 +13,10 @@
 #  limitations under the License.
 ---
 
+# Do NOT remove or comment out any lines in this file. Simply append the required values against the parameters of your choice.
+
+---
+
 # Username for Dockerhub account
 # This will be used for Docker login and a kubernetes secret will be created and patched to service account in default namespace.
 # This kubernetes secret can be used to pull images from private repositories

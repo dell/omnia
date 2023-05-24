@@ -13,6 +13,10 @@
 #  limitations under the License.
 ---
 
+# Do NOT remove or comment out any lines in this file. Simply append the required values against the parameters of your choice.
+
+---
+
 # ---------SUBSCRIPTION MANAGER OPTIONS-----------
 
 # Method to use for activation: portal or satellite.

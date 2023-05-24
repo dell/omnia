@@ -13,6 +13,10 @@
 #  limitations under the License.
 ---
 
+# Do NOT remove or comment out any lines in this file. Simply append the required values against the parameters of your choice.
+
+---
+
 ### Usage: powervault ###
 
 # This variable indicates the protocol used by powervault to connect to NFS node.
