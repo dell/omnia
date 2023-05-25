@@ -19,7 +19,7 @@ Omnia (Latin: all or everything) is a deployment tool to turn servers with RPM-b
 
 Omnia Documentation is hosted on [Read The Docs](https://omnia-doc.readthedocs.io/en/latest/index.html).
 
-Current Status: ![GitHub](https://readthedocs.org/projects/omnia-documentation/badge/?version=latest)
+Current Status: ![GitHub](https://readthedocs.org/projects/omnia-doc/badge/?version=latest)
 
 ## Licensing
 
