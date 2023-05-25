@@ -15,8 +15,6 @@
 
 # Do NOT remove or comment out any lines in this file. Simply append the required values against the parameters of your choice.
 
----
-
 # This variable is used to enable iDRAC telemetry support and visualizations
 # Accepted values:  "true" or "false"
 idrac_telemetry_support: true
