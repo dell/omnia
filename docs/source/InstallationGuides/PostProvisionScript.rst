@@ -1,5 +1,5 @@
-Create node inventory
----------------------
+Creating node inventory
+-----------------------
 
 This script is optional. To skip over to Slurm, Kubernetes, NFS, BeeGFS and Authentication setup, `click here <../BuildingClusters/index.html>`_.
 

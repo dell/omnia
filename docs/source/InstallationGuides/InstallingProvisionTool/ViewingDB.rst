@@ -1,5 +1,5 @@
-Check node status
-------------------
+Checking node status
+----------------------
 
 1. To access the DB, run: ::
 
