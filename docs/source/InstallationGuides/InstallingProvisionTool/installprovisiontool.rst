@@ -124,7 +124,9 @@ To call this playbook individually, ensure that ``repo_manipulate.yml`` has run 
     ansible-playbook discovery_provision.yml
 
 
-
+ -----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| After successfully running ``provision.yml``, go to `Building Clusters <../BuildingClusters/index.html>`_ to setup Slurm, Kubernetes, NFS, BeeGFS and Authentication. |
+ -----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 .. note::
 
     * If the cluster does not have access to the internet, AppStream will not function.  To provide internet access through the control plane (via the PXE network NIC), update ``primary_dns`` and ``secondary_dns`` in ``provision_config.yml`` and run ``provision.yml``
