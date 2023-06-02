@@ -125,7 +125,7 @@ To call this playbook individually, ensure that ``repo_manipulate.yml`` has run 
 
 
 
-**After successfully running ``provision.yml``, go to `Building Clusters <../BuildingClusters/index.html>`_ to setup Slurm, Kubernetes, NFS, BeeGFS and Authentication.**
+<mark>After successfully running ``provision.yml``, go to `Building Clusters <../BuildingClusters/index.html>`_ to setup Slurm, Kubernetes, NFS, BeeGFS and Authentication.</mark>
 
 .. note::
 
