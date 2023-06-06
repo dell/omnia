@@ -139,7 +139,7 @@ After successfully running ``provision.yml``, go to `Building Clusters <../Build
 
     * To re-provision target servers ``provision.yml`` can be re-run with a new inventory file that contains a list of admin (PXE) IPs. For more information, `click here <../reprovisioningthecluster.rst>`_
 
-    * Post execution of ``provision.yml``, IPs/hostnames cannot be re-assigned by changing the mapping file. However, the addition of new nodes is supported as explained below.
+    * Post execution of ``provision.yml``, IPs/hostnames cannot be re-assigned by changing the mapping file. However, the addition of new nodes is supported as explained `here <../addinganewnode.html>`_.
 
 
 .. warning::
