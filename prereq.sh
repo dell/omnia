@@ -49,4 +49,4 @@ echo "Please set the hostname for the control plane in the format hostname.domai
 echo ""
 echo "Once hostname is set, provide inputs in input/provision_config.yml and execute the playbook provision/provision.yml"
 echo ""
-echo "For more information: https://omnia-documentation.readthedocs.io/en/latest/InstallationGuides/InstallingProvisionTool/index.html"
+echo "For more information: https://omnia-doc.readthedocs.io/en/latest/InstallationGuides/InstallingProvisionTool/index.html"
