@@ -53,11 +53,11 @@ Enter the following parameters in ``input/security_config.yml``.
     The ``input/omnia_config.yml`` file is encrypted on the first run of the provision tool:
         To view the encrypted parameters: ::
 
-            ansible-vault view security_config.yml --vault-password-file .security_vault_key
+            ansible-vault view security_config.yml --vault-password-file .security_vault.key
 
         To edit the encrypted parameters: ::
 
-            ansible-vault edit security_config.yml --vault-password-file .security_vault_key
+            ansible-vault edit security_config.yml --vault-password-file .security_vault.key
 
 
 
@@ -75,9 +75,11 @@ Where inventory follows the format defined under inventory file in the provided 
 
     * Omnia does not create any accounts (HPC users) on FreeIPA. To create a user, check out FreeIPA documentation.
 
-    * Alternatively, use the below command with admin credentials: ::
+    * Alternatively, use the below commands with admin credentials: ::
 
-    ipa user-add --homedir=<nfs_dir_path> --password
+            kinit admin  (When prompted, provide kerberos_admin_password as entered in security_config.yml)
+            ipa user-add --homedir=<nfs_dir_path> --password
+
 
 
 **Setting up Passwordless SSH for FreeIPA**
