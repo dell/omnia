@@ -3,13 +3,12 @@
 **command to run the playbook:**
 
 ```
-ansible-playbook -i inventory.ini k8s-upgrade.yml -e "k8s_upgrade_version=1.22.15"
+ansible-playbook -i inventory.yml k8s-upgrade.yml -e "k8s_upgrade_version=1.22.15"
 ```
 
 **avaliable options for k8s-versions:**
 
-- "1.19.3"
 - "1.20.15"
 - "1.21.14"
 - "1.22.15"
-- "1.23.12"
+- "1.23.17"
