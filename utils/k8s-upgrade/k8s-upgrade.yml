@@ -6,6 +6,7 @@
   serial: 1
   roles:
     - role: upgrade-manager
+      tags: manager
 
 - name: "Upgrade k8s Compute Nodes "
   hosts: compute
@@ -15,3 +16,4 @@
 
   roles:
     - role: upgrade-compute
+      tags: compute

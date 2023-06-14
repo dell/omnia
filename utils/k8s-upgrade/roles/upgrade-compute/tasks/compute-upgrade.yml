@@ -33,6 +33,7 @@
         kubeadm upgrade node --ignore-preflight-errors=all
       register: upgrade_plan_register
       changed_when: upgrade_plan_register.rc != 0
+      failed_when: "'FAILED' in upgrade_plan_register.stderr"
 
     - name: "Upgrade Compute Node Packages with version {{ item }}"
       ansible.builtin.yum:
