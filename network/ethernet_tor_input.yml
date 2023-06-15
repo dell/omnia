@@ -12,7 +12,10 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-# Do NOT remove or comment out any lines in this file. Simply append the required values against the parameters of your choice.
+#***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.                  
+# SIMPLY APPEND THE REQUIRD VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
+#***********************************************************************
 
 # ---Default configurations written for Dell PowerSwitch S3048-ON---
 # ---Change the configurations as per the switch model to avoid failures---

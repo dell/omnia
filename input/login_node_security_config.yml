@@ -13,7 +13,10 @@
 #  limitations under the License.
 ---
 
-# Do NOT remove or comment out any lines in this file. Simply append the required values against the parameters of your choice.
+#***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.                  
+# SIMPLY APPEND THE REQUIRD VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
+#***********************************************************************
 
 # Maximum number of consecutive failures before lockout
 # The default value of this variable can't be changed
@@ -46,7 +49,7 @@ alert_email_address: ""
 # This variable mentions the users to whom the access will be provided
 # format of user shall be username@ip or username 
 # Ex1- root@1.2.3.4 Ex2- root Ex3- root@1.2.3.4 root (if multiple user, provide space seperated values) by default empty
-user: ''
+user: ""
 
 # This variable provides the type of access
 # Accepted values: "allow" or "deny"
@@ -62,5 +65,5 @@ restrict_program_support: false
 
 # The below-mentioned services can be disabled, by adding values in comma separated values format for restrict_softwares variable
 # Services: telnet,lpd,bluetooth,rlogin,rexec
-# Ex: restrict_softwares: 'telnet,lpd,bluetooth' ( This disables 3 services, to disable more services, add services with comma separation. )
-restrict_softwares: ''
+# Ex: restrict_softwares: "telnet,lpd,bluetooth" ( This disables 3 services, to disable more services, add services with comma separation. )
+restrict_softwares: ""

@@ -13,12 +13,15 @@
 #  limitations under the License.
 ---
 
-# Do NOT remove or comment out any lines in this file. Simply append the required values against the parameters of your choice.
+#***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.                  
+# SIMPLY APPEND THE REQUIRD VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
+#***********************************************************************
 
 # Absolute path to local copy of .tgz file containing mlnx_ofed package.
 # The package can be downloaded from https://network.nvidia.com/products/infiniband-drivers/linux/mlnx_ofed/
 # Optional variable.
-mlnx_ofed_offline_path: 
+mlnx_ofed_offline_path: ""
 
 # If mlnx_ofed_offline_path is not given, declaring this variable is mandatory.
 # The mlnx_ofed package is downloaded as per version mentioned in this variable.
