@@ -49,4 +49,4 @@ grafana_password: ""
 # If using telemetry, all telemetry related files will also be stored and
 # both timescale and mysql databases will be mounted to this location.
 # '/' is mandatory at the end of the path.
-mount_location: /opt/omnia/telemetry/
+mount_location: "/opt/omnia/telemetry/"

@@ -36,12 +36,12 @@ amd_rocm_version: "latest/main"
 # This variable is used to download cuda toolkit file.
 # By default latest cuda is installed unless cuda_toolkit_path is specified.
 # Default: latest (11.8.0)
-cuda_toolkit_version: latest
+cuda_toolkit_version: "latest"
 
 # This variable is used to give offline rpm file for cuda toolkit.
 # If cuda_toolkit_version is not latest, giving cuda_toolkit_path is mandatory.
-cuda_toolkit_path: 
+cuda_toolkit_path: ""
 
 # This variable is used to set stream for nvidia drivers
 # Default: latest-dkms
-cuda_stream: latest-dkms
+cuda_stream: "latest-dkms"

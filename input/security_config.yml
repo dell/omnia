@@ -70,7 +70,7 @@ ldap_connection_type: "TLS"
 # Make sure certificate is present in the path provided
 # The certificate should have .pem or .crt extension.
 # This variable is mandatory if connection type is TLS
-ldap_ca_cert_path: /etc/openldap/certs/omnialdap.pem
+ldap_ca_cert_path: "/etc/openldap/certs/omnialdap.pem"
 
 # This variable accepts the user home directory path for ldap configuration
 # If nfs mount is created for user home, make sure you provide the

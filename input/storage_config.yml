@@ -89,4 +89,4 @@ beegfs_version_change: false
 # Accepted value: Path along with filename for secret stoarge file configured
 # on beegfs server
 # If this is not provided, beegfs installation will fail
-beegfs_secret_storage_filepath: /home/connauthfile
+beegfs_secret_storage_filepath: "/home/connauthfile"

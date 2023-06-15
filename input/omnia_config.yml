@@ -53,7 +53,7 @@ docker_password: ""
 # Default value is "/etc/ansible"
 # This directory is on the host running ansible, if ansible is installed using dnf
 # If ansible is installed using pip, this path should be set
-ansible_config_file_path: /etc/ansible
+ansible_config_file_path: "/etc/ansible"
 
 # Boolean indicating whether login node is required or not
 # It can be set to true or false
