@@ -255,4 +255,3 @@ mlnx_ofed_path: ""
 # Example:
 # cuda_toolkit_path: "/root/cuda-repo-rhel8-12-0-local-12.0.0_525.60.13-1.x86_64.rpm"
 cuda_toolkit_path: ""
-

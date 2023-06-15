@@ -101,7 +101,7 @@ redhat_subscription_proxy_hostname: ""
 
 # Set this to a non-blank value if subscription-manager should use a reverse proxy
 # to access the subscription service. This sets the port for the reverse proxy.
-redhat_subscription_proxy_port: 
+redhat_subscription_proxy_port:
 
 # Set this to a non-blank value if subscription-manager should use an authenticated
 # reverse proxy to access the subscription service. This sets the username for the reverse proxy.
