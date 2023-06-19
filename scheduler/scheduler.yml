@@ -23,17 +23,17 @@
   tags: validation
 
 - name: Gather facts from all the nodes
-  hosts: manager, compute, login_node
+  hosts: manager, compute, login
 
 - name: Validate repo file and subscription
-  hosts: manager, compute, login_node
+  hosts: manager, compute, login
   gather_facts: false
   roles:
     - repo_validation
   tags: common
 
 - name: Apply common installation and config
-  hosts: manager, compute, login_node, nfs_node
+  hosts: manager, compute, login, nfs
   gather_facts: false
   any_errors_fatal: true
   roles:
@@ -97,7 +97,7 @@
   tags: kubernetes
 
 - name: Apply common Slurm installation and config
-  hosts: manager, compute, login_node
+  hosts: manager, compute, login
   gather_facts: false
   roles:
     - slurm_common
@@ -111,7 +111,7 @@
   tags: slurm
 
 - name: Configure Slurm workers
-  hosts: compute, login_node
+  hosts: compute, login
   serial: 1
   gather_facts: false
   roles:
@@ -119,7 +119,7 @@
   tags: slurm
 
 - name: Start Slurm workers
-  hosts: compute, login_node
+  hosts: compute, login
   gather_facts: false
   roles:
     - slurm_workers_service

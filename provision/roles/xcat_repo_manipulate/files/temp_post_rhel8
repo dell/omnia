@@ -15,6 +15,7 @@ do
         "1"|"2")
             msgutil_r "$MASTER_IP" "info" "set NIC $nicname to be activated on system boot" "/var/log/xcat/xcat.log"
             ;;
+            nmcli connection modify $nicname ipv4.route-metric 100
         esac
         sed -i 's/ONBOOT=no/ONBOOT=yes/' "$i"
     fi
