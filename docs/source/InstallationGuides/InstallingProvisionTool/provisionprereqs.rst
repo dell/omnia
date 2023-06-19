@@ -61,14 +61,13 @@ In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcf
 
 * Users should also ensure that all repos (AppStream, BaseOS and CRB) are available on the RHEL control plane.
 .. note::
-
-         To enable the repositories, run the following commands: ::
+    To enable the repositories, run the following commands: ::
 
             subscription-manager repos --enable=codeready-builder-for-rhel-8-x86_64-rpms
             subscription-manager repos --enable=rhel-8-for-x86_64-appstream-rpms
             subscription-manager repos --enable=rhel-8-for-x86_64-baseos-rpms
 
-        Verify your changes by running: ::
+    Verify your changes by running: ::
 
             yum repolist enabled
 
