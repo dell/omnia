@@ -13,6 +13,8 @@
 #  limitations under the License.
 ---
 
+# Do NOT remove or comment out any lines in this file. Simply append the required values against the parameters of your choice.
+
 # Maximum number of consecutive failures before lockout
 # The default value of this variable can't be changed
 # Default value: 3

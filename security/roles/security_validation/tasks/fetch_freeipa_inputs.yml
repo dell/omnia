@@ -32,7 +32,7 @@
 - name: Validate the realm name
   ansible.builtin.assert:
     that:
-      - realm_name is regex("^(?!-)[A-Z0-9-]+([\\-\\.]{1}[a-z0-9]+)*\\.[A-Z]{2,}$")
+      - realm_name is regex("^(?!-)[A-Z0-9-]+([\\-\\.]{1}[A-Z0-9]+)*\\.[A-Z]{2,}$")
       - '"." in realm_name'
     success_msg: "{{ realm_name_success_msg }}"
     fail_msg: "{{ realm_name_fail_msg }}"

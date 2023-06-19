@@ -7,6 +7,8 @@ Depending on the number of ports available on your Infiniband switch, they can b
 
 Input the configuration variables into the ``network/infiniband_edr_input.yml`` or ``network/infiniband_hdr_input.yml`` as appropriate:
 
+.. warning:: Do not remove or comment any lines in the ``network/infiniband_edr_input.yml`` or ``network/infiniband_hdr_input.yml``  file.
+
 +-------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Parameters              | Details                                                                                                                                                                |
 +=========================+========================================================================================================================================================================+

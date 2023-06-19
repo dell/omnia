@@ -17,7 +17,9 @@ Use ``show snmp community`` to verify your changes.
 
 .. note:: The commands provided above sets the SNMP community string of the switch to ``public``. Ensure that the community string set above matches the value provided in ``pxe_switch_snmp_community_string`` in ``input/provision_config.yml``
 
-.. warning:: Target servers with LOM architecture is not supported.
+.. warning::
+    * Target servers with LOM architecture is not supported.
+    * Do not remove or comment any lines in the ``input/provision_config.yml`` file.
 
 .. csv-table:: Parameters
    :file: ../../../Tables/snmpwalk.csv

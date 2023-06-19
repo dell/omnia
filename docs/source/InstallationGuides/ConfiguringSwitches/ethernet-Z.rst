@@ -4,6 +4,8 @@ Configuring ethernet switches (Z series)
 
 * Edit the ``network/ethernet_zseries_input.yml`` file for all Z series PowerSwitches such as Z9332F-ON, Z9262-ON and Z9264F-ON. The default configuration is written for Z9264F-ON.
 
+.. warning:: Do not remove or comment any lines in the ``network/ethernet_zseries_input.yml`` file.
+
 +----------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Name                       | Details                                                                                                                                                                             |
 +============================+=====================================================================================================================================================================================+
