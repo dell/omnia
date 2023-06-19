@@ -83,6 +83,19 @@ For many of Omnia's features to work, RHEL control planes need access to the fol
 
 This can only be achieved using local repos specified in rhel_repo_local_path  (``input/provision_config.yml``) OR having an active, available RedHat subscription.
 
+.. note::
+    To enable the repositories, run the following commands: ::
+
+            subscription-manager repos --enable=codeready-builder-for-rhel-8-x86_64-rpms
+            subscription-manager repos --enable=rhel-8-for-x86_64-appstream-rpms
+            subscription-manager repos --enable=rhel-8-for-x86_64-baseos-rpms
+
+    Verify your changes by running: ::
+
+            yum repolist enabled
+
+
+
 **Why does the task: Initiate reposync of AppStream, BaseOS and CRB fail?**
 
 .. image::  ../images/RepoURLError.png
