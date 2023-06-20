@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -112,3 +112,5 @@ nginx_install_msg: "Skipping installation of nginx as required details of grafan
 calico_warning_msg: "Warning: Calico pod is not in ready state, please check"
 
 calico_ready_state: "Ready"
+
+nfs_dir_mode: 0777
