@@ -3,6 +3,7 @@ Input parameters for the provision tool
 
 Fill in all provision-specific parameters in ``input/provision_config.yml``
 
+.. warning:: Do not remove or comment any lines in the ``input/provision_config.yml`` file.
 
 +----------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Parameter                        | Details                                                                                                                                                                                                                                                                                                                   |

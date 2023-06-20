@@ -15,6 +15,16 @@ Resolution:
 
     * Resolve/replace the faulty hardware and PXE boot the node.
 
+**Why don't IPA commands work after setting up FreeIPA on the cluster?**
+
+Cause:
+
+    Kerberos authentication may be missing on the target node.
+
+Resolution:
+
+    Run ``kinit admin`` on the node and provide the ``kerberos_admin_password`` when prompted. (This password is also entered in ``input/security_config.yml``.)
+
 **Why are the status and admin_mac fields not populated for specific target nodes in the cluster.nodeinfo table?**
 
 Causes:
@@ -72,6 +82,19 @@ For many of Omnia's features to work, RHEL control planes need access to the fol
     3. CRB
 
 This can only be achieved using local repos specified in rhel_repo_local_path  (``input/provision_config.yml``) OR having an active, available RedHat subscription.
+
+.. note::
+    To enable the repositories, run the following commands: ::
+
+            subscription-manager repos --enable=codeready-builder-for-rhel-8-x86_64-rpms
+            subscription-manager repos --enable=rhel-8-for-x86_64-appstream-rpms
+            subscription-manager repos --enable=rhel-8-for-x86_64-baseos-rpms
+
+    Verify your changes by running: ::
+
+            yum repolist enabled
+
+
 
 **Why does the task: Initiate reposync of AppStream, BaseOS and CRB fail?**
 

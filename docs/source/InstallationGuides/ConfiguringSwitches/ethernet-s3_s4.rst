@@ -3,6 +3,8 @@ Configuring ethernet switches (S3 and S4 series)
 
 * Edit the ``network/ethernet_tor_input.yml`` file for all S3* and S4* PowerSwitches such as S3048-ON, S4048T-ON, S4112F-ON, S4048-ON, S4048T-ON, S4112F-ON, S4112T-ON, and S4128F-ON.
 
+.. warning:: Do not remove or comment any lines in the ``network/ethernet_tor_input.yml`` file.
+
 +----------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Name                       | Details                                                                                                                                                                             |
 +============================+=====================================================================================================================================================================================+
@@ -68,7 +70,7 @@ Configuring ethernet switches (S3 and S4 series)
 
 * Where ``ethernet_switch_username`` is the username used to authenticate into the switch.
 
-* The inventory file should be a list of IPs separated by newlines. Check out the switch_inventory section in `Sample Files <https://omnia-documentation.readthedocs.io/en/latest/samplefiles.html>`_
+* The inventory file should be a list of IPs separated by newlines. Check out the switch_inventory section in `Sample Files <https://omnia-doc.readthedocs.io/en/latest/samplefiles.html>`_
 
 * Where ``ethernet_switch_password`` is the password used to authenticate into the switch.
 

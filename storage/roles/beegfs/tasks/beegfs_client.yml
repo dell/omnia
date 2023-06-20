@@ -42,7 +42,9 @@
   when: beegfs_client_version >= '7.3.1'
 
 - name: Copy and update the shared secret file configuration
-  when: beegfs_client_version >= '7.2.7'
+  when:
+    - beegfs_client_version >= '7.2.7'
+    - hostvars['127.0.0.1']['beegfs_connauth_status']
   block:
     - name: Copy the shared secret file to the cluster
       ansible.builtin.copy:

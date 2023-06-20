@@ -6,6 +6,6 @@ Installing the provision tool
     provisionprereqs
     DiscoveryMechanisms/index
     installprovisiontool
+    ViewingDB
     provisionservers
-    PostProvisionScript
 

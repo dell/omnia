@@ -7,6 +7,8 @@ Depending on the number of ports available on your Infiniband switch, they can b
 
 Input the configuration variables into the ``network/infiniband_edr_input.yml`` or ``network/infiniband_hdr_input.yml`` as appropriate:
 
+.. warning:: Do not remove or comment any lines in the ``network/infiniband_edr_input.yml`` or ``network/infiniband_hdr_input.yml``  file.
+
 +-------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Parameters              | Details                                                                                                                                                                |
 +=========================+========================================================================================================================================================================+
@@ -115,5 +117,5 @@ If ``enable_split_port`` is **false**, run::
 
     * Passwords should contain at least one of each: Lowercase, uppercase and digits.
 
- * The inventory file should be a list of IPs separated by newlines. Check out the ``switch_inventory`` section in `Sample Files <https://omnia-documentation.readthedocs.io/en/latest/samplefiles.html>`_
+ * The inventory file should be a list of IPs separated by newlines. Check out the ``switch_inventory`` section in `Sample Files <https://omnia-doc.readthedocs.io/en/latest/samplefiles.html>`_
 

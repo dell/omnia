@@ -16,6 +16,7 @@ Before you run the provision tool
 
     2. `RHEL 8.x <https://www.redhat.com/en/enterprise-linux-8>`_
 
+
 Note the compatibility between cluster OS and control plane OS below:
 
         +---------------------+--------------------+------------------+
@@ -23,20 +24,20 @@ Note the compatibility between cluster OS and control plane OS below:
         | Control Plane OS    | Compute Node OS    | Compatibility    |
         +=====================+====================+==================+
         |                     |                    |                  |
-        | RHEL                | RHEL               | Yes              |
+        | RHEL [2]_           | RHEL               | Yes              |
         +---------------------+--------------------+------------------+
         |                     |                    |                  |
-        | RHEL                | Rocky              | Yes              |
+        | RHEL [2]_           | Rocky              | Yes              |
         +---------------------+--------------------+------------------+
         |                     |                    |                  |
-        | Rocky               | RHEL               | Yes[1]_          |
+        | Rocky               | RHEL               | Yes [1]_         |
         +---------------------+--------------------+------------------+
         |                     |                    |                  |
         | Rocky               | Rocky              | Yes              |
         +---------------------+--------------------+------------------+
 
 .. [1] For a Rocky control plane and RHEL compute nodes, it is mandatory to populate ``rhel_repo_local_path`` in ``input/provision_config.yml``.
-
+.. [2] Ensure that control planes running RHEL have an active subscription or are configured to access local repositories. The following repositories should be enabled on the control plane: **AppStream**, **Code Ready Builder (CRB)**, **BaseOS**.
 
 * To set up CUDA and OFED using the provisioning tool, download the required repositories from here:
 
@@ -59,6 +60,16 @@ In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcf
 * For RHEL target nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription.
 
 * Users should also ensure that all repos (AppStream, BaseOS and CRB) are available on the RHEL control plane.
+.. note::
+    To enable the repositories, run the following commands: ::
+
+            subscription-manager repos --enable=codeready-builder-for-rhel-8-x86_64-rpms
+            subscription-manager repos --enable=rhel-8-for-x86_64-appstream-rpms
+            subscription-manager repos --enable=rhel-8-for-x86_64-baseos-rpms
+
+    Verify your changes by running: ::
+
+            yum repolist enabled
 
 * Ensure that the ``pxe_nic`` and ``public_nic`` are in the firewalld zone: public.
 
