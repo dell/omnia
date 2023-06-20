@@ -58,7 +58,7 @@
   tags: nfs_client
 
 - name: Install NFS client
-  hosts: manager, compute, login_node
+  hosts: manager, compute, login
   gather_facts: false
   roles:
     - nfs

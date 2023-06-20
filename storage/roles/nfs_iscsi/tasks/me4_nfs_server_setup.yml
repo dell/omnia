@@ -60,10 +60,10 @@
     line: "{{ item.0.location }} {{ item.1 }}(rw,sync,no_root_squash)"
   with_nested:
       - "{{ pv_volumes }}"
-      - "{{ groups['login_node'] }}"
+      - "{{ groups['login'] }}"
   when:
-    - groups['login_node'] is defined
-    - groups['login_node'] | length | int > 0
+    - groups['login'] is defined
+    - groups['login'] | length | int > 0
 
 - name: Exporting the shared directories
   command: exportfs -ra
