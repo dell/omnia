@@ -14,7 +14,7 @@
 ---
 
 # Usage: main.yml
-login_node_group: login_node
+login_node_group: login
 
 # Usage: set_fqdn.yml
 etc_hosts_file_dest: /etc/hosts
