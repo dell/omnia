@@ -22,7 +22,7 @@ Input the configuration variables into the ``network/infiniband_edr_input.yml`` 
 +-------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | ib_split_ports          | Stores the split configuration of the ports. Accepted formats are   comma-separated (EX: "1,2"), ranges (EX: "1-10"),   comma-separated ranges (EX: "1,2,3-8,9,10-12") |
 |      ``string``         |                                                                                                                                                                        |
-|      Optional           | .. note:: For NDR switches, only comma-separated values are currently supported. Ex: "1,2".                                                                            |
+|      Optional           | .. note:: For NDR switches, only comma-separated values are currently supported. Ex: "1/1,2/1".                                                                        |
 +-------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | snmp_community_name     | The “SNMP community string” is like a user ID or password that allows   access to a router's or other device's statistics.                                             |
 |      ``string``         |                                                                                                                                                                        |
