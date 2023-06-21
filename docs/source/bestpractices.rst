@@ -2,7 +2,7 @@ Best Practices
 ==============
 
 * Ensure that PowerCap policy is disabled and the BIOS system profile is set to 'Performance' on the Control Plane.
-* Ensure that there is at least 50% (~35%)free space on the Control Plane before running Omnia.
+* Ensure that there is at least 50% (~35%) free space on the Control Plane before running Omnia (Place required ISO and any other larger files in the home directory ``/home`` to maintain the ~35% free space required in the root directory).
 * Disable SElinux on the Control Plane.
 * Use a `PXE mapping file <samplefiles.html>`_  even when using DHCP configuration to ensure that IP assignments remain persistent across Control Plane reboots.
 * Avoid rebooting the Control Plane as much as possible to ensure that all network configuration does not get disturbed.
