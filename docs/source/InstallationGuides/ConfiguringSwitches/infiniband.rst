@@ -4,6 +4,7 @@ Configuring infiniband switches
 Depending on the number of ports available on your Infiniband switch, they can be classified into:
     - EDR Switches (36 ports)
     - HDR Switches (40 ports)
+    - NDR Switches (32 ports)
 
 Input the configuration variables into the ``network/infiniband_edr_input.yml`` or ``network/infiniband_hdr_input.yml`` as appropriate:
 
@@ -20,7 +21,7 @@ Input the configuration variables into the ``network/infiniband_edr_input.yml`` 
 |                         |      * ``true``                                                                                                                                                        |
 +-------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | ib_split_ports          | Stores the split configuration of the ports. Accepted formats are   comma-separated (EX: "1,2"), ranges (EX: "1-10"),   comma-separated ranges (EX: "1,2,3-8,9,10-12") |
-|      ``string``         |                                                                                                                                                                        |
+|      ``string``         | .. note:: For NDR switches, only comma-separated values are currently supported. Ex: "1,2".                                                                            |
 |      Optional           |                                                                                                                                                                        |
 +-------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | snmp_community_name     | The “SNMP community string” is like a user ID or password that allows   access to a router's or other device's statistics.                                             |
@@ -103,7 +104,7 @@ If ``enable_split_port`` is **false**, run::
 
 * Where ``ib_default_password`` is the password used to authenticate into factory reset/fresh-install switches.
 
-* Where ``ib_switch_type`` refers to the model of the switch: HDR/EDR
+* Where ``ib_switch_type`` refers to the model of the switch: HDR/EDR/NDR
 
 .. note::
 
