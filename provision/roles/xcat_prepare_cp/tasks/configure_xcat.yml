@@ -89,3 +89,21 @@
     state: started
     enabled: true
   with_items: "{{ xcat_services }}"
+
+- name: Create conf directory for postgresql
+  ansible.builtin.file:
+    path: "{{ postgresql_conf_dir }}"
+    state: directory
+    mode: "{{ file_permission }}"
+
+- name: Copy postgresql.conf
+  ansible.builtin.copy:
+    src: "{{ postgresql_conf_src }}"
+    dest: "{{ postgresql_conf_dest }}"
+    mode: preserve
+
+- name: Reload systemd
+  ansible.builtin.command: systemctl daemon-reload
+  changed_when: true
+  args:
+    warn: false

@@ -13,22 +13,10 @@
 # limitations under the License.
 ---
 
-- name: Configure default postscripts
-  ansible.builtin.command: chdef all postscripts="syslog,remoteshell,syncfiles"
+- name: Setup ntp
+  ansible.builtin.command: makentp
   changed_when: true
 
-- name: Configure ntp postscripts
-  ansible.builtin.include_tasks: configure_postscripts_ntp.yml
-
-- name: Verify OFED repo created
-  ansible.builtin.stat:
-    path: "{{ mlnx_ofed_repo }}/{{ mlnx_ofed_path.split('/')[-1] }}"
-  register: ofed_repo_stat
-  when: ofed_config_status
-
-- name: Configure postscripts for OFED
-  ansible.builtin.command: chdef all -p postscripts=omnia_ofed
+- name: Configure postscripts for ntp
+  ansible.builtin.command: chdef all -p postscripts=setupntp
   changed_when: true
-  when:
-    - ofed_config_status
-    - ofed_repo_stat.stat.exists
