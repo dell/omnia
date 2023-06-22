@@ -94,8 +94,6 @@ This can only be achieved using local repos specified in rhel_repo_local_path  (
 
             yum repolist enabled
 
-
-
 **Why does the task: Initiate reposync of AppStream, BaseOS and CRB fail?**
 
 .. image::  ../images/RepoURLError.png
@@ -174,13 +172,6 @@ To enable routing, update the ``primary_dns`` and ``secondary_dns`` in ``provisi
 **Is provisioning servers using BOSS controller supported by Omnia?**
 
 Provisioning server using BOSS controller is now supported by Omnia 1.2.1.
-
-
-**How to re-launch services after a control-plane reboot while running provision.yml**
-
-After a reboot of the control plane while running ``provision.yml``, to bring up ``xcatd`` services, please run the below command: ::
-
-    ansible-playbook discovery_provision.yml
 
 **How to re-provision a server once it's been set up by xCAT**
 
