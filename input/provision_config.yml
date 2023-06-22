@@ -13,7 +13,10 @@
 #  limitations under the License.
 ---
 
-# Do NOT remove or comment out any lines in this file. Simply append the required values against the parameters of your choice.
+#***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.                  
+# SIMPLY APPEND THE REQUIRD VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
+#***********************************************************************
 
 # Mandatory
 # This variable is used to depict the network type for the omnia cluster
@@ -242,13 +245,13 @@ disk_partition:
 # The iso can be downloaded from https://network.nvidia.com/products/infiniband-drivers/linux/mlnx_ofed/
 # OFED will be installed post provisioning without any user intervention requirement
 # Example:
-# mlnx_ofed_path: /root/MLNX_OFED_LINUX-5.8-1.1.2.1-rhel8.6-x86_64.iso
-mlnx_ofed_path:
+# mlnx_ofed_path: "/root/MLNX_OFED_LINUX-5.8-1.1.2.1-rhel8.6-x86_64.iso"
+mlnx_ofed_path: ""
 
 #### Optional, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
 # Absolute path to local copy of .rpm file containing CUDA packages.
 # The cuda rpm can be downloaded from https://developer.nvidia.com/cuda-downloads
 # CUDA will be installed post provisioning without any user intervention requirement
 # Example:
-# cuda_toolkit_path: /root/cuda-repo-rhel8-12-0-local-12.0.0_525.60.13-1.x86_64.rpm
-cuda_toolkit_path:
+# cuda_toolkit_path: "/root/cuda-repo-rhel8-12-0-local-12.0.0_525.60.13-1.x86_64.rpm"
+cuda_toolkit_path: ""

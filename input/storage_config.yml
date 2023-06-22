@@ -13,10 +13,13 @@
 #  limitations under the License.
 ---
 
-# Do NOT remove or comment out any lines in this file. Simply append the required values against the parameters of your choice.
+#***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.                  
+# SIMPLY APPEND THE REQUIRD VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
+#***********************************************************************
 
 # NFS bolt-on support, USER have to mount EXTERNAL NFS server, omnia will mount NFS client
-# This variable is used for supporting NFS bolt-on on login_node, compute, and manager nodes
+# This variable is used for supporting NFS bolt-on on login, compute, and manager nodes
 # Values should be entered in JSON format only.
 # If mount_option values are empty, NFS client will be mounted with these values "nosuid,rw,sync,hard,intr"
 # For enabling NFS bolt-on support, at least one list of valid values should be provided.
@@ -86,4 +89,4 @@ beegfs_version_change: false
 # Accepted value: Path along with filename for secret stoarge file configured
 # on beegfs server
 # If this is not provided, beegfs installation will fail
-beegfs_secret_storage_filepath: /home/connauthfile
+beegfs_secret_storage_filepath: "/home/connauthfile"

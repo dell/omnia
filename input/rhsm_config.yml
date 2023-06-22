@@ -13,7 +13,10 @@
 #  limitations under the License.
 ---
 
-# Do NOT remove or comment out any lines in this file. Simply append the required values against the parameters of your choice.
+#***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.                  
+# SIMPLY APPEND THE REQUIRD VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
+#***********************************************************************
 
 # ---------SUBSCRIPTION MANAGER OPTIONS-----------
 
@@ -21,7 +24,7 @@
 # Default value: portal
 # If satellite, the role will determine the Satellite Server version (5 or 6)
 # and take the appropriate registration actions.
-redhat_subscription_method: portal
+redhat_subscription_method: "portal"
 
 # Whether or not to autosubscribe to available repositories on successful subscription.
 # Accepted values: true, false
@@ -68,7 +71,7 @@ redhat_subscription_repos_purge: false
 
 # FQDN of subscription server
 # Default value: subscription.rhn.redhat.com
-redhat_subscription_server_hostname: subscription.rhn.redhat.com
+redhat_subscription_server_hostname: "subscription.rhn.redhat.com"
 
 # Port to use when connecting to subscription server.
 # Must be 8443 if a capsule is used otherwise 443 for Satellite or RHN.
@@ -90,11 +93,11 @@ redhat_subscription_ssl_verify_depth: 3
 # to access the subscription service. This sets the protocol for the reverse proxy.
 # Accepted values: http, https
 # Default value: http
-redhat_subscription_proxy_proto: http
+redhat_subscription_proxy_proto: "http"
 
 # Set this to a non-blank value if subscription-manager should use a reverse proxy
 # to access the subscription service. This sets the host for the reverse proxy.
-redhat_subscription_proxy_hostname:
+redhat_subscription_proxy_hostname: ""
 
 # Set this to a non-blank value if subscription-manager should use a reverse proxy
 # to access the subscription service. This sets the port for the reverse proxy.
@@ -102,11 +105,11 @@ redhat_subscription_proxy_port:
 
 # Set this to a non-blank value if subscription-manager should use an authenticated
 # reverse proxy to access the subscription service. This sets the username for the reverse proxy.
-redhat_subscription_proxy_user:
+redhat_subscription_proxy_user: ""
 
 # Set this to a non-blank value if subscription-manager should use an authenticated
 # reverse proxy to access the subscription service. This sets the password for the reverse proxy.
-redhat_subscription_proxy_password:
+redhat_subscription_proxy_password: ""
 
 # ---------RHSM OPTIONS-----------
 
@@ -114,7 +117,7 @@ redhat_subscription_proxy_password:
 # This should be the hostname for the Red Hat CDN, the local Satellite or Capsule
 # depending on your deployment.
 # Default value: https://cdn.redhat.com
-redhat_subscription_baseurl: https://cdn.redhat.com
+redhat_subscription_baseurl: "https://cdn.redhat.com"
 
 # Set this to true if subscription manager should manage a yum repos file.
 # If set, it will manage the file /etc/yum.repos.d/redhat.repo.

@@ -113,7 +113,7 @@
 - name: Login node to contain exactly 1 node
   ansible.builtin.assert:
     that:
-      - "groups['login_node'] | length | int == 1"
+      - "groups['login'] | length | int == 1"
     fail_msg: "{{ login_node_group_fail_msg }}"
     success_msg: "{{ login_node_group_success_msg }}"
   when: login_node_required
