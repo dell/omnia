@@ -57,6 +57,20 @@ In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcf
 
 * Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to run ``provision.yml`` on RHEL target nodes.
 
+* For RHEL target nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription.
+
+* Users should also ensure that all repos (AppStream, BaseOS and CRB) are available on the RHEL control plane.
+.. note::
+    To enable the repositories, run the following commands: ::
+
+            subscription-manager repos --enable=codeready-builder-for-rhel-8-x86_64-rpms
+            subscription-manager repos --enable=rhel-8-for-x86_64-appstream-rpms
+            subscription-manager repos --enable=rhel-8-for-x86_64-baseos-rpms
+
+    Verify your changes by running: ::
+
+            yum repolist enabled
+
 * Ensure that the ``pxe_nic`` and ``public_nic`` are in the firewalld zone: public.
 
 * The control plane NIC connected to remote servers (through the switch) should be configured with two IPs in a shared LOM set up. This NIC is configured by Omnia with the IP xx.yy.255.254, aa.bb.255.254 (where xx.yy are taken from ``bmc_nic_subnet`` and aa.bb are taken from ``admin_nic_subnet``) when ``network_interface_type`` is set to ``lom``. For other discovery mechanisms, only the admin NIC is configured with aa.bb.255.254 (Where aa.bb is taken from ``admin_nic_subnet``).

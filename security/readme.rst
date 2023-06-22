@@ -155,7 +155,7 @@ Run: ::
 	cd security
 	ansible-playbook security.yml -i inventory
 
-The inventory should contain compute, manager, login_node as per the inventory file in `samplefiles <https://omnia-documentation.readthedocs.io/en/latest/samplefiles.html>`_.
+The inventory should contain compute, manager, login_node as per the inventory file in `samplefiles <https://omnia-doc.readthedocs.io/en/latest/samplefiles.html>`_.
 
 	* To enable security features on the login node, ensure that ``enable_secure_login_node`` in ``input/security_config.yml`` is set to true.
 	* To customize the security features on the login node, fill out the parameters in ``input/login_node_security_config.yml``.

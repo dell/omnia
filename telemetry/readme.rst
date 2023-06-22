@@ -102,10 +102,10 @@ All your data in a glance
 
 Using the following graphs, data can be visualized to gather correlational information.
 
-* `ParallelCoordinates <https://omnia-documentation.readthedocs.io/en/latest/Roles/Telemetry/ParallelCoordinates.html>`_
-* `SankeyLayout <https://omnia-documentation.readthedocs.io/en/latest/Roles/Telemetry/SankeyLayout.html>`_
-* `SpiralLayout <https://omnia-documentation.readthedocs.io/en/latest/Roles/Telemetry/SpiralLayout.html>`_
-* `PowerMap <https://omnia-documentation.readthedocs.io/en/latest/Roles/Telemetry/PowerMap.html>`_
+* `ParallelCoordinates <https://omnia-doc.readthedocs.io/en/latest/Roles/Telemetry/ParallelCoordinates.html>`_
+* `SankeyLayout <https://omnia-doc.readthedocs.io/en/latest/Roles/Telemetry/SankeyLayout.html>`_
+* `SpiralLayout <https://omnia-doc.readthedocs.io/en/latest/Roles/Telemetry/SpiralLayout.html>`_
+* `PowerMap <https://omnia-doc.readthedocs.io/en/latest/Roles/Telemetry/PowerMap.html>`_
 
 .. note:: The timestamps used for the time metric are based on the timezone set in ``input/provision_config.yml``. In the event of a mismatch between the timezone on the browser being used to access Grafana UI and the timezone in ``input/provision_config.yml``, the time range being used to filter information on the Grafana UI will have to be adjusted per the timezone in ``input/provision_config.yml``.
 
