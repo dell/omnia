@@ -134,10 +134,10 @@
     create: yes
     mode: "{{ slurm_mode }}"
   with_items:
-    - "{{ groups['login_node'] }}"
+    - "{{ groups['login'] }}"
   when:
     - hostvars["127.0.0.1"]["login_node_required"]
-    - '"login_node" in group_names'
+    - '"login" in group_names'
   delegate_to: "{{ item }}"
   with_items:
     - "{{ play_hosts }}"

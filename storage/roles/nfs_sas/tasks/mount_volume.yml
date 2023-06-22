@@ -144,9 +144,9 @@
     path: "{{ exports_file }}"
     line: "{{ server_share_path }} {{ node }}({{ server_export_options }})"
   with_items:
-    - "{{ groups['login_node'] }}"
+    - "{{ groups['login'] }}"
   loop_control:
     loop_var: node
   when:
-    - groups['login_node'] is defined
-    - groups['login_node'] | length | int > 0
+    - groups['login'] is defined
+    - groups['login'] | length | int > 0
