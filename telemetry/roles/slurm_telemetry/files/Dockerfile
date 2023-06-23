@@ -6,8 +6,7 @@ RUN yum install python3.8 -y
 RUN echo 1 | update-alternatives --config python3
 RUN dnf -y install https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm
 RUN dnf -qy module disable postgresql
-RUN dnf install -y postgresql14
-RUN yum install python38-devel libpq-devel -y
+RUN dnf install -y postgresql14-14.7-1PGDG.rhel8.x86_64 postgresql14-devel-14.7-1PGDG.rhel8.x86_64 python38-devel
 RUN dnf install sshpass -y
 
 COPY requirements.txt requirements.txt
