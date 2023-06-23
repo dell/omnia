@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -40,6 +40,20 @@
     - common
   tags: common
 
+- name: Apply NFS server setup on manager node
+  hosts: manager
+  gather_facts: false
+  roles:
+    - nfs_server_setup
+  tags: common
+
+- name: Apply NFS client setup on compute nodes
+  hosts: compute, login
+  gather_facts: false
+  roles:
+    - nfs_client_setup
+  tags: common
+
 - name: Apply common K8s installation and config
   hosts: manager, compute
   gather_facts: false
@@ -59,20 +73,6 @@
   gather_facts: false
   roles:
     - k8s_firewalld
-  tags: kubernetes
-
-- name: Apply NFS server setup on manager node
-  hosts: manager
-  gather_facts: false
-  roles:
-    - k8s_nfs_server_setup
-  tags: kubernetes
-
-- name: Apply NFS client setup on compute nodes
-  hosts: compute
-  gather_facts: false
-  roles:
-    - k8s_nfs_client_setup
   tags: kubernetes
 
 - name: Start K8s on manager server

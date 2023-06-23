@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -45,6 +45,9 @@ ldap_freeipa_failure_msg: "Failed. Both ldap_required and freeipa_required canno
 login_node_required_success_msg: "login_node_required successfully validated"
 login_node_required_fail_msg: "Failed. login_node_required should be either true or false"
 login_node_group_success_msg: "Login node group check passed when login_node_required is true"
+enable_omnia_nfs_success_msg: "enable_omnia_nfs successfully validated"
+enable_omnia_nfs_fail_msg: "Failed. enable_omnia_nfs should be either true or false"
+input_config_failure_msg: "None of the parameters in omnia_config.yml should be empty."
 
 # Usage: validations.yml
 skip_tag_fail_msg: "Can't skip both slurm and kubernetes"
