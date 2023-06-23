@@ -18,3 +18,4 @@
   block:
       - name: Include FreeIPA add key tasks
         ansible.builtin.include_tasks: ipa_addkey.yml
+        with_items: "{{ hostvars['127.0.0.1']['user_list'] }}"

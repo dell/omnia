@@ -13,15 +13,16 @@
 # limitations under the License.
 ---
 
-- name: Reboot nodes
-  ansible.builtin.command: rpower "{{ nodelist }}" reset
-  changed_when: true
-  failed_when: false
-  register: reboot_node
+- name: Setup nfs_client on all nodes when enable_omnia_nfs is set to true
+  when: hostvars['127.0.0.1']['enable_omnia_nfs']
+  block:
+    - name: Include tasks for compute nodes
+      ansible.builtin.include_tasks: create_nfs_mount.yml
+      when:
+        - groups['manager'][0] != groups['compute'][0] and groups['compute']|length >= 1
+        - "'compute' in group_names"
 
-- name: Node reboot failed
-  ansible.builtin.debug:
-    msg: "{{ reboot_fail_msg }} Error: {{ reboot_node.stderr }}"
-  when:
-    - reboot_node.stderr is defined
-    - reboot_node.stderr | length > 1
+    - name: Include tasks for login nodes
+      ansible.builtin.include_tasks: create_nfs_mount.yml
+      when:
+        - "'login' in group_names"

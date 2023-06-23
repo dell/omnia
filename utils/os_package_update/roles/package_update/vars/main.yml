@@ -25,13 +25,15 @@ reboot_fail_msg: "Failed. Nodes should be rebooted manually for snmpwalk and/or 
 
 # Usage: validate_input.yml
 pkg_dir_success_msg: "Package directory successfully validated"
-pkg_dir_fail_msg: "Failed. Check whether valid package directory is provided in package_update_config.yml."
+pkg_dir_fail_msg: "Failed. Check whether valid os details are provided in package_update_config.yml."
 pkg_list_success_msg: "Package list successfully validated"
 pkg_list_fail_msg: "Failed. Check whether valid package list is provided in package_update_config.yml."
 pkg_type_success_msg: "Package type successfully validated"
 pkg_type_fail_msg: "Failed. Check whether valid package type is provided in package_update_config.yml."
 os_version_success_msg: "OS version successfully validated"
 os_version_fail_msg: "Failed. Check whether valid os_version is provided in package_update_config.yml."
+list_format_success_msg: "Package list format validated."
+list_format_fail_msg: "Failed, Package list format incorrect, follow 'custom_software/<package>' format in package list."
 
 # Usage: update.yml
 updatenode_fail_msg: "Updatenode execution failed."
