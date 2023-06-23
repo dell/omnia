@@ -32,3 +32,16 @@
   when:
     - ofed_config_status
     - ofed_repo_stat.stat.exists
+
+- name: Verify CUDA repo created
+  ansible.builtin.stat:
+    path: "{{ cuda_core_path }}"
+  register: cuda_repo_stat
+  when: cuda_config_status
+
+- name: Configure postscripts for CUDA
+  ansible.builtin.command: chdef all -p postscripts=omnia_cuda
+  changed_when: true
+  when:
+    - cuda_config_status
+    - cuda_repo_stat.stat.exists

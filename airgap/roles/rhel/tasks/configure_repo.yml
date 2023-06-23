@@ -13,7 +13,7 @@
 # limitations under the License.
 ---
 
-- name: Create and update codereadybuilder repo
+- name: Configure updates repo to osimage
   block:
     - name: Fetch xcat osimage name for provision_os
       ansible.builtin.shell: >
@@ -42,7 +42,7 @@
       when: fetch_osimage.rc != 0
 
     - name: Configure repos to osimage
-      ansible.builtin.command: chdef -t osimage -o {{ provision_os_image }} -p pkgdir={{ updates_appstream_dir }},{{ updates_baseos_dir }},{{ updates_crb_dir }}
+      ansible.builtin.command: chdef -t osimage -o {{ provision_os_image }} -p pkgdir={{ updates_appstream_dir }},{{ updates_baseos_dir }}
       changed_when: true
   environment:
     XCATROOT: "{{ xcat_root_env }}"

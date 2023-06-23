@@ -14,11 +14,11 @@
 ---
 
 # Usage: repo_check.yml, repo_file_check.yml
-search_string: ['AppStream', 'BaseOS', 'CRB']
+search_string: ['AppStream', 'BaseOS']
 
 # Usage: repo_check.yml
-xcat_repo_success_msg: "BaseOS, AppStream and CodeReady Builder repos validated successfully."
-xcat_repo_fail_msg: "Failed. BaseOS, AppStream and CodeReady Builder repos not enabled."
+xcat_repo_success_msg: "AppStream and BaseOS repos validated successfully."
+xcat_repo_fail_msg: "Failed. AppStream and BaseOS repos not enabled."
 repo_search_string: "local-rhel"
 
 # Usage: validate_rhsm.yml
@@ -33,6 +33,4 @@ appstream_success_msg: "AppStream repo is enabled"
 appstream_fail_msg: "Failed, AppStream repo not available"
 baseos_success_msg: "BaseOS repo is enabled"
 baseos_fail_msg: "Failed, BaseOS repo is not available"
-codereadybuilder_success_msg: "CodeReady-Builder repo is enabled"
-codereadybuilder_fail_msg: "Failed, CodeReady-Builder repo is not available"
 repo_path: "/etc/yum.repos.d/"

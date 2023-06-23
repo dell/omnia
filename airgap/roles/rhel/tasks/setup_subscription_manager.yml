@@ -41,7 +41,3 @@
 - name: Set subscription release to provision nodes release
   ansible.builtin.command: subscription-manager release --set "{{ provision_os_version }}"
   changed_when: false
-
-- name: Subscribe for code ready builder repo in RHEL
-  ansible.builtin.command: subscription-manager repos --enable=codeready-builder-for-rhel-8-x86_64-rpms
-  changed_when: false
