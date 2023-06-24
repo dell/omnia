@@ -27,6 +27,10 @@
     success_msg: "{{ user_name_success_msg }}"
     fail_msg: "{{ user_name_fail_msg }}"
 
+- name: Create a list of user
+  ansible.builtin.set_fact:
+    user_list: "{{ user_name.split(',') }}"
+
 - name: Validate the ldap_organizational_unit
   ansible.builtin.assert:
     that:
