@@ -90,11 +90,12 @@ To deploy the Omnia provision tool, run the following command ::
 
 **Preparing the control plane**
 
-a. Verifies pre-requisites such as SELinux and xCAT services status.
-b. Installs required tool packages.
-c. Verifies and updates firewall settings.
-d. Installs xCAT.
-e. Configures xCAT databases basis ``input/provision_config.yml``.
+* Verifies pre-requisites such as SELinux and xCAT services status.
+* Installs required tool packages.
+* Verifies and updates firewall settings.
+* Installs xCAT.
+* Configures xCAT databases basis ``input/provision_config.yml``.
+* Configures the control plane with NTP services for compute node synchronization.
 
 To call this playbook individually, ensure that ``input/provision_config.yml`` is updated and then run::
 
