@@ -29,9 +29,6 @@
     - not validation_status
     - not repo_validation_status
 
-- name: Set reposync_status for downloading repos
-  ansible.builtin.include_tasks: set_reposync_status.yml
-
 - name: Validate rhel_repo_path
   ansible.builtin.include_tasks: validate_repo_path.yml
   when:
