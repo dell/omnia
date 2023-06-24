@@ -22,6 +22,6 @@
 - name: Node reboot failed
   ansible.builtin.debug:
     msg: "{{ reboot_fail_msg }} Error: {{ reboot_node.stderr }}"
-  when: 
+  when:
     - reboot_node.stderr is defined
     - reboot_node.stderr | length > 1

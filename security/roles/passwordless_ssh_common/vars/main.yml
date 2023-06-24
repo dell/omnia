@@ -13,7 +13,7 @@
 #  limitations under the License.
 ---
 
-user_home_path: "{{ hostvars[groups['manager'][0]]['user_home_directory'] }}/{{ hostvars['127.0.0.1']['user_name'] }}"
+user_home_path: "{{ hostvars[groups['manager'][0]]['user_home_directory'] }}/{{ user }}"
 ssh_directory: "{{ user_home_path }}/.ssh/"
 public_key_file: "{{ user_home_path }}/.ssh/id_rsa"
 publickey_file_path: "{{ user_home_path }}/.ssh/id_rsa.pub"

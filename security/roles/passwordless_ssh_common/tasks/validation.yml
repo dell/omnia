@@ -13,6 +13,10 @@
 #  limitations under the License.
 ---
 
+- name: Initialize username
+  ansible.builtin.set_fact:
+    user: "{{ item }}"
+
 - name: Vailidate ldap home directory
   delegate_to: "{{ groups['manager'][0] }}"
   run_once: true
@@ -20,7 +24,7 @@
   block:
     - name: Fail if home directory not exists
       ansible.builtin.stat:
-        path: "{{ hostvars['127.0.0.1']['user_home_dir'] }}/{{ hostvars['127.0.0.1']['user_name'] }}"
+        path: "{{ hostvars['127.0.0.1']['user_home_dir'] }}/{{ user }}"
       register: directory
       failed_when: not directory.stat.exists
 
@@ -35,7 +39,7 @@
   block:
     - name: Fail if home directory not exists
       ansible.builtin.stat:
-        path: "{{ hostvars['127.0.0.1']['freeipa_user_home_dir'] }}/{{ hostvars['127.0.0.1']['user_name'] }}"
+        path: "{{ hostvars['127.0.0.1']['freeipa_user_home_dir'] }}/{{ user }}"
       register: directory
       failed_when: not directory.stat.exists
 
