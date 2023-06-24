@@ -15,7 +15,9 @@
 
 # Reposync of AppStream and BaseOS
 - name: Initiate reposync of AppStream, BaseOS (This might take 20-25 mins)
-  ansible.builtin.command: "reposync -p {{ merged_dir }}/x86_64/{{ item.0 }} --download-metadata --repo={{ item.1 }} -a x86_64,noarch --norepopath -n"
+  ansible.builtin.command: >-
+    reposync -p {{ merged_dir }}/x86_64/{{ item.0 }} --download-metadata --repo={{ item.1 }} --exclude kernel*
+    -a x86_64,noarch --norepopath -n
   changed_when: false
   retries: "{{ retry_count }}"
   register: result
@@ -24,16 +26,9 @@
     - ['AppStream', 'BaseOS']
     - ['rhel-8-for-x86_64-appstream-rpms', 'rhel-8-for-x86_64-baseos-rpms']
 
-# Reposync of code-ready builder
-- name: Create folder for CodeReadyBuilder
-  ansible.builtin.file:
-    path: "{{ codereadybuilder_path }}"
-    state: directory
-    mode: "{{ directory_permissions }}"
-
-- name: Initiate reposync of CodeReadyBuilder (This might take 10 mins)
-  ansible.builtin.command: "reposync -p {{ codereadybuilder_path }} --download-metadata --repo={{ codeready_repo_name }} -a x86_64,noarch --norepopath -n"
-  changed_when: false
-  retries: "{{ retry_count }}"
-  register: result
-  until: result.rc == 0
+- name: Createrepo for AppStream and BaseOS
+  ansible.builtin.command: createrepo {{ merged_dir }}/x86_64/{{ item }}
+  changed_when: true
+  with_items:
+    - "AppStream"
+    - "BaseOS"

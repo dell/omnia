@@ -14,7 +14,7 @@
 ---
 
 # Usage: repo_check.yml, repo_file_check.yml
-search_string: ['AppStream', 'BaseOS', 'CRB']
+search_string: ['AppStream', 'BaseOS']
 
 # Usage: repo_check.yml
 xcat_repo_success_msg: "BaseOS and AppStream repos validated successfully."
@@ -22,7 +22,6 @@ xcat_repo_fail_msg: "Failed. BaseOS and AppStream repos not enabled. Provision s
 repo_search_string: "local-rhel"
 
 # Usage: validate_rhsm.yml
-rhel_code_ready_repo: codeready-builder-for-rhel-8-x86_64-rpms
 os_supported_redhat: "redhat"
 manager_inactive_msg1: "1. Manager node does not have an active RedHat subscription."
 manager_inactive_msg2: "2. Manager node does not have baseos and appstream repos enabled."

@@ -39,14 +39,8 @@
       with_items:
         - "{{ search_string }}"
 
-- name: Install epel repo 8 and other Packages
+- name: Install libmodulemd
+  ansible.builtin.package:
+    name: libmodulemd
+    state: present
   when: repo_list_status
-  block:
-    - name: Install epel repo 8
-      ansible.builtin.command: dnf install "{{ rhel_epel_repo8 }}" -y
-      changed_when: false
-
-    - name: Install libmodulemd
-      ansible.builtin.package:
-        name: libmodulemd
-        state: present
