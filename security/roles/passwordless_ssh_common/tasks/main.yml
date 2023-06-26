@@ -15,6 +15,8 @@
 
 - name: Validate if home directory exists
   ansible.builtin.include_tasks: validation.yml
+  with_items: "{{ hostvars['127.0.0.1']['user_list'] }}"
 
 - name: Common configurations
   ansible.builtin.include_tasks: ssh_config.yml
+  with_items: "{{ hostvars['127.0.0.1']['user_list'] }}"

@@ -64,7 +64,8 @@
       k8s_version | length < 1 or
       k8s_cni | length < 1 or
       k8s_pod_network_cidr | length < 1 or
-      ansible_config_file_path | length < 1
+      ansible_config_file_path | length < 1 or
+      omnia_usrhome_share | length < 1
 
 - name: Assert mariadb_password
   ansible.builtin.assert:
@@ -108,6 +109,7 @@
     docker_username: "{{ docker_username }}"
     docker_password: "{{ docker_password }}"
     ansible_conf_file_path: "{{ ansible_config_file_path }}"
+    omnia_usrhome_share: "{{ omnia_usrhome_share }}"
   no_log: true
 
 - name: Login node to contain exactly 1 node
@@ -117,6 +119,13 @@
     fail_msg: "{{ login_node_group_fail_msg }}"
     success_msg: "{{ login_node_group_success_msg }}"
   when: login_node_required
+
+- name: Verify the value of enable_omnia_nfs
+  ansible.builtin.assert:
+    that:
+      - enable_omnia_nfs == true or enable_omnia_nfs == false
+    success_msg: "{{ enable_omnia_nfs_success_msg }}"
+    fail_msg: "{{ enable_omnia_nfs_fail_msg }}"
 
 - name: Encrypt input config file
   ansible.builtin.command: >-

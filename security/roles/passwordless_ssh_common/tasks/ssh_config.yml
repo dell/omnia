@@ -13,6 +13,10 @@
 #  limitations under the License.
 ---
 
+- name: Initialize username
+  ansible.builtin.set_fact:
+    user: "{{ item }}"
+
 - name: Change sshd config
   ansible.builtin.blockinfile:
     path: "{{ sshd_config_file }}"
@@ -52,8 +56,8 @@
         path: "{{ ssh_directory }}"
         state: directory
         mode: "{{ ssh_directory_perm }}"
-        owner: "{{ hostvars['127.0.0.1']['user_name'] }}"
-        group: "{{ hostvars['127.0.0.1']['user_name'] }}"
+        owner: "{{ user }}"
+        group: "{{ user }}"
 
     - name: Check is ssh key pair available
       ansible.builtin.stat:
@@ -64,12 +68,12 @@
       when: not ssh_key_file.stat.exists
       block:
         - name: Create ssh key pair
-          ansible.builtin.command: ssh-keygen -C "{{ hostvars['127.0.0.1']['user_name'] }}" -q -N '' -f "{{ keygen_path }}"
+          ansible.builtin.command: ssh-keygen -C "{{ user }}" -q -N '' -f "{{ keygen_path }}"
           changed_when: false
 
         - name: Change SSH key pair ownership
           ansible.builtin.file:
             path: "{{ ssh_directory }}"
-            owner: "{{ hostvars['127.0.0.1']['user_name'] }}"
-            group: "{{ hostvars['127.0.0.1']['user_name'] }}"
+            owner: "{{ user }}"
+            group: "{{ user }}"
             recurse: true

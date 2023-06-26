@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -59,3 +59,13 @@ ansible_config_file_path: "/etc/ansible"
 # It can be set to true or false
 # By default it is set to false indicating login node will not be configured
 login_node_required: false
+
+# Set this to false if a parallel file system is running in the environment
+# and a share file system (NFS/BeeGFS) will be used to create home directory/ Kubernetes share directory on it.
+# When this variable is true Omnia will create its own NFS share and mount omnia_usrhome_share on all the nodes.
+enable_omnia_nfs: true
+
+# Path to directory which will be shared across all nodes in the cluster.
+# If enable_omnia_nfs: true, NFS share will be created at path mentioned below.
+# If enable_omnia_nfs: false, set this variable as path to parallel file system(NFS/BeeGFS) running in the system.
+omnia_usrhome_share: "/home/omnia-share"

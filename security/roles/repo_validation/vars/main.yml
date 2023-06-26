@@ -14,7 +14,7 @@
 ---
 
 # Usage: repo_check.yml, repo_file_check.yml
-search_string: ['AppStream', 'BaseOS', 'CRB']
+search_string: ['AppStream', 'BaseOS']
 
 # Usage: repo_check.yml
 xcat_repo_success_msg: "BaseOS and AppStream repos validated successfully."
