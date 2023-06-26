@@ -210,17 +210,17 @@ Required","* The password for iDRAC.
 
 Required","* Indicates whether ``provision.yml`` will update offline RHEL repos.          
                                                                                                                                                                                                                                                                        
-* If ``update_repos``: false, the update repos for BaseOS and AppStream will not be enabled on the target nodes.
-                                                                                                                                    
-* If ``update_repos``: true, the update repos for BaseOS and AppStream will be enabled on the target nodes.                              
+* If ``update_repos``: false, the update repos for BaseOS and AppStream will not be updated to the latest versions available.
 
-.. note:: Irrespective of the value of ``update_repos``, the BaseOS and AppStream repos will be created from the provided ISO files.
-                                                                                                                                  
-Choices:                                                                                                                            
-                                                                                                                                    
-``false`` <- Default                                                                                                                
-                                                                                                                                    
-``true``                                                                                                                            "
+* If ``update_repos``: true, the update repos for BaseOS and AppStream will be updated to the latest versions available.
+
+.. note:: By default, AppSteam and BaseOS repos will be configured from the given ISO file.
+
+Choices:
+
+``false`` <- Default
+
+``true``    "
 " **rhel_repo_alphabetical_folders**
  ``boolean``
  
