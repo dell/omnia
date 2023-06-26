@@ -37,6 +37,5 @@ AMD servers
 .. versionadded:: 1.4.1
     Intel 16G servers
 
-.. versionsadded:: 1.4.3
-    Intel: R760 XE9680 XE8640 R760xa R760xd2
-    AMD 16G servers
+.. versionadded:: 1.4.3
+    Intel: R760 XE9680 XE8640 R760xa R760xd2; AMD 16G servers
