@@ -110,3 +110,7 @@ xcat_services:
   - postgresql
   - firewalld
   - snmpd
+  
+postgresql_conf_dir: /etc/systemd/system/postgresql.service.d
+postgresql_conf_src: "{{ role_path }}/files/postgresql.conf"
+postgresql_conf_dest: "{{ postgresql_conf_dir }}/postgresql.conf"
