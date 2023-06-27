@@ -98,6 +98,7 @@ xcat_packages:
   - xCAT
   - postgresql*
   - perl-DBD-Pg
+package_retry: 3
 file_permission: 0755
 xcat_env_path: "/etc/profile.d/xcat.sh"
 xcat_env_msg: "Saving xcat enviornment variables"
@@ -109,6 +110,3 @@ xcat_services:
   - postgresql
   - firewalld
   - snmpd
-postgresql_conf_dir: /etc/systemd/system/postgresql.service.d
-postgresql_conf_src: "{{ role_path }}/files/postgresql.conf"
-postgresql_conf_dest: "{{ postgresql_conf_dir }}/postgresql.conf"
