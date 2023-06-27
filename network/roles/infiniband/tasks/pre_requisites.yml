@@ -19,7 +19,7 @@
       - ib_switch_type is defined
       - ib_username is defined
       - ib_password is defined
-      - ib_switch_type | lower == 'edr' or ib_switch_type | lower == 'hdr'
+      - ib_switch_type | lower == 'edr' or ib_switch_type | lower == 'hdr' or ib_switch_type | lower == 'ndr'
       - ib_username | length >= min_username_length
       - ib_username | length < max_length
       - '"-" not in ib_username '
@@ -55,6 +55,16 @@
     msg: "{{ fail_msg_edr_config_file }}"
   when: not edr_stat.stat.exists
 
+- name: Check if infiniband_ndr_input.yml exists
+  ansible.builtin.stat:
+    path: "{{ ndr_config_file }}"
+  register: ndr_stat
+
+- name: Fail if infiniband_ndr_input.yml file doesn't exist
+  ansible.builtin.fail:
+    msg: "{{ fail_msg_ndr_config_file }}"
+  when: not ndr_stat.stat.exists
+
 - name: Include infiniband_hdr_input.yml file
   ansible.builtin.include_vars: "{{ hdr_config_file }}"
   when: ib_switch_type | lower == 'hdr'
@@ -62,6 +72,10 @@
 - name: Include infiniband_edr_input.yml file
   ansible.builtin.include_vars: "{{ edr_config_file }}"
   when: ib_switch_type | lower == 'edr'
+
+- name: Include infiniband_ndr_input.yml file
+  ansible.builtin.include_vars: "{{ ndr_config_file }}"
+  when: ib_switch_type | lower == 'ndr'
 
 - name: Validate save_changes_to_startup variable
   ansible.builtin.assert:
