@@ -22,13 +22,28 @@
   ansible.builtin.command: "{{ python_version }} -m pip install psycopg2-binary"
   changed_when: false
 
-- name: Check if monitor_status.py is already running
-  ansible.builtin.shell: |
-    set -o pipefail
-    ps aux | grep python
-  register: ps_output
-  changed_when: false
+- name: Check omnia.service file
+  ansible.builtin.copy:
+    dest: "{{ omnia_service_path }}"
+    force: false
+    content: |
+      [Unit]
+      Description=Service to monitor provisioning
+      
+      [Service]
+      Type=simple
+      ExecStart=python3.8 {{ role_path }}/files/utils/monitor_status.py
+      RemainAfterExit=yes
+      
+      [Install]
+      WantedBy=multi-user.target
 
-- name: Initiate monitor_status script if not running
-  ansible.builtin.shell: "nohup {{ python_version }} {{ role_path }}/files/utils/monitor_status.py &"
-  when: "'monitor_status.py' not in ps_output.stdout"
+- name: Enable omnia service
+  ansible.builtin.service:
+    name: omnia.service
+    enabled: true
+
+- name: Start omnia service
+  ansible.builtin.service:
+    name: omnia.service
+    state: started
