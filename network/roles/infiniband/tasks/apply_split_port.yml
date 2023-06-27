@@ -50,8 +50,16 @@
     - name: Authenticate to IB switch
       ansible.builtin.include_tasks: authenticate.yml
 
-    - name: Split ports provided by user
-      ansible.builtin.include_tasks: split_port.yml
-      with_items: "{{ ib_ports_list }}"
+    - name: Split ports
+      block:
+        - name: Split ports for ndr switch
+          ansible.builtin.include_tasks: split_port_ndr.yml
+          with_items: "{{ ib_ports_list }}"
+          when: ib_switch_type | lower == 'ndr'
+
+        - name: Split ports for edr or hdr switch
+          ansible.builtin.include_tasks: split_port.yml
+          with_items: "{{ ib_ports_list }}"
+          when: ib_switch_type | lower == 'hdr' or ib_switch_type | lower == 'edr'
       when: ib_ports_list | default("", true) | length >= 1
   when: split_ready_status

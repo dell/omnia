@@ -36,27 +36,30 @@ pip_version: pip3.8
 success_valid_msg: "Success, Input parameters validated successfully"
 fail_valid_msg:
   - '|____________________________________________________________________________________________________________________________________|'
-  - '| Command: ansible-playbook infiniband_switch_config.yml -i inventory -e ib_username="" -e ib_password="" -e ib_switch_type="" |'
+  - '| Command: ansible-playbook infiniband_switch_config.yml -i inventory -e ib_username="" -e ib_password="" -e ib_switch_type=""       |'
   - '| ib_username:         This is the username used to authenticate into the switch.                                                    |'
   - '| ib_password:         This is the password used to authenticate into the switch.                                                    |'
   - '| ib_switch_type:      This refers to the model of the switch: HDR/EDR                                                               |'
   - '| inventory:           This should contain list of IPs  of IB switch                                                                 |'
   - '|____________________________________________________________________________________________________________________________________|'
+ndr_config_file: "{{ role_path }}/../../infiniband_ndr_input.yml"
+fail_msg_ndr_config_file: "infiniband_ndr_input.yml file doesn't exist."
 
 # Usage: pre_requisites_split_ports.yml
 ib_usr_admin_passwd_fail_msg: "ib_admin_password should not be same as ib_username"
 ib_usr_monitor_passwd_fail_msg: "ib_monitor_password should not be same as ib_username"
 fail_validation_msg:
   - '|____________________________________________________________________________________________________________________________________'
-  - '| Command: ansible-playbook infiniband_switch_config.yml -i inventory -e ib_username="" -e ib_password="" -e ib_admin_password="" -e ib_monitor_password=""  -e ib_default_password="" -e ib_switch_type="" |'
-  - '| ib_username:         This is the username used to authenticate into the switch.                                                   '
-  - '| ib_password:         This is the password used to authenticate into the switch.                                                   '
-  - '| ib_admin_password:   This is the intended password to authenticate into the switch after infiniband_switch_config.yml has run.    '
-  - '| ib_monitor_password: This is the mandatory password required while running the initial configuration wizard on the IB switch.     '
-  - '| ib_default_password: This is the password used to authenticate into factory reset/fresh-install switches.                         '
-  - '| ib_switch_type:      This refers to the model of the switch: HDR/EDR                                                              '
-  - '| inventory:           This should contain list of IPs  of IB switch                                                                '
-  - '|___________________________________________________________________________________________________________________________________'
+  - '| Command: ansible-playbook infiniband_switch_config.yml -i inventory -e ib_username="" -e ib_password="" -e ib_admin_password=""   |'
+  - '|          -e ib_monitor_password=""  -e ib_default_password="" -e ib_switch_type=""                                                |'
+  - '| ib_username:         This is the username used to authenticate into the switch.                                                   |'
+  - '| ib_password:         This is the password used to authenticate into the switch.                                                   |'
+  - '| ib_admin_password:   This is the intended password to authenticate into the switch after infiniband_switch_config.yml has run.    |'
+  - '| ib_monitor_password: This is the mandatory password required while running the initial configuration wizard on the IB switch.     |'
+  - '| ib_default_password: This is the password used to authenticate into factory reset/fresh-install switches.                         |'
+  - '| ib_switch_type:      This refers to the model of the switch: HDR/EDR                                                              |'
+  - '| inventory:           This should contain list of IPs  of IB switch                                                                |'
+  - '|___________________________________________________________________________________________________________________________________|'
 
 # Usage: configure_split_ready.yml
 ib_not_reachable_msg: "{{ inventory_hostname }} IB switch is not reachable at this point"
