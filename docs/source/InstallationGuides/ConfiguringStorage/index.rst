@@ -104,6 +104,7 @@ Run the playbook: ::
 
 * ``powervault_username`` and ``powervault_password`` are the credentials used to administrate the array.
 
+.. note:: Once the storage is successfully set up, set ``enable_omnia_nfs`` (``input/omnia_config.yml``) to false and  ``omnia_usrhome_share`` (``input/omnia_config.yml``) to an accessible share path in BeeGFS to use the path across the cluster for deployments.
 
 **Configuring NFS servers**
 
@@ -136,7 +137,6 @@ Run the playbook: ::
 
 * Where the ``inventory`` refers to a list of all nodes in the format of `NFS server inventory file <../../samplefiles.html>`_
 * To set up NFS client services, `click here <../BuildingClusters/NFS.html>`_
-
 
 
 
