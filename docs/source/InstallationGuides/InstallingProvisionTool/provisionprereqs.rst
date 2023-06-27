@@ -24,20 +24,16 @@ Note the compatibility between cluster OS and control plane OS below:
         | Control Plane OS    | Compute Node OS    | Compatibility    |
         +=====================+====================+==================+
         |                     |                    |                  |
-        | RHEL [2]_           | RHEL               | Yes              |
+        | RHEL [1]_           | RHEL               | Yes              |
         +---------------------+--------------------+------------------+
         |                     |                    |                  |
-        | RHEL [2]_           | Rocky              | Yes              |
-        +---------------------+--------------------+------------------+
-        |                     |                    |                  |
-        | Rocky               | RHEL               | Yes [1]_         |
+        | RHEL [1]_           | Rocky              | Yes              |
         +---------------------+--------------------+------------------+
         |                     |                    |                  |
         | Rocky               | Rocky              | Yes              |
         +---------------------+--------------------+------------------+
 
-.. [1] For a Rocky control plane and RHEL compute nodes, it is mandatory to populate ``rhel_repo_local_path`` in ``input/provision_config.yml``.
-.. [2] Ensure that control planes running RHEL have an active subscription or are configured to access local repositories. The following repositories should be enabled on the control plane: **AppStream**, **Code Ready Builder (CRB)**, **BaseOS**.
+.. [1] Ensure that control planes running RHEL have an active subscription or are configured to access local repositories. The following repositories should be enabled on the control plane: **AppStream**, **Code Ready Builder (CRB)**, **BaseOS**.
 
 * To set up CUDA and OFED using the provisioning tool, download the required repositories from here:
 
