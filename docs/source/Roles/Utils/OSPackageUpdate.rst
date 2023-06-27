@@ -12,9 +12,9 @@ To install multiple packages on target nodes in a bulk operation, the ``package_
 
     * Create a package list by creating the following text file (For packages that are not in RHEL repos, name the file ``update.otherpkgs.pkglist``. For OS packages, ``xxxx.pkglist``) and placing it with the RPMs: ::
 
-        <package1>-<version1>
-        <package2>-<version2>
-        <package3>-<version3>
+        custom_software/<package1>-<version1>
+        custom_software/<package2>-<version2>
+        custom_software/<package3>-<version3>
 
 
 To customize the package update, enter the following parameters in ``utils/package_update_config.yml``:
@@ -32,10 +32,6 @@ To customize the package update, enter the following parameters in ``utils/packa
 +------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | os_version       | OS version of target nodes in the cluster.                                                                                                                                                |
 |      ``string``  |                                                                                                                                                                                           |
-|      Required    |                                                                                                                                                                                           |
-+------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| package_dir      | * Path in which the package RPMs   are stored. It should be a subfolder in ``/install``.                                                                                                  |
-|      ``string``  | * Example: ``/install/custom/``                                                                                                                                                           |
 |      Required    |                                                                                                                                                                                           |
 +------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | package_list     | * Location path for the package list file                                                                                                                                                 |

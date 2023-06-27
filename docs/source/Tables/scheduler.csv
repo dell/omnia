@@ -68,3 +68,24 @@
                                                          
      * ``false``  <- default                             
      * ``true``                                          "
+"**enable_omnia_nfs**
+
+     ``boolean``
+
+     Optional      ","* Boolean indicating whether a parallel file system is **not** running in the environment and a share file system (NFS/BeeGFS) will be used to create home directory/ Kubernetes share directory on it.
+
+* When this variable is ``true``, Omnia will create its own NFS share and mount ``omnia_usrhome_share`` on all the nodes.
+
+     Choices:
+
+     * ``true``  <- default
+     * ``false``                                          "
+"**omnia_usrhome_share**
+
+     ``string``
+
+     Optional      ","* Path to directory which will be shared across all nodes in the cluster.
+* If ``enable_omnia_nfs``: true, NFS share will be created at path mentioned below.
+* If ``enable_omnia_nfs``: false, set this variable as path to parallel file system(NFS/BeeGFS) running in the system.
+
+Default value:  ""/home/omnia-share"""

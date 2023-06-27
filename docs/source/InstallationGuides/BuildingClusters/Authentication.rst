@@ -91,8 +91,8 @@ To customize your setup of passwordless ssh, input parameters in ``input/passwor
 +-----------------------+--------------------------------------------------------------------------------------------------------------------+
 | Parameter             | Details                                                                                                            |
 +=======================+====================================================================================================================+
-| user_name             | The user that requires passwordless SSH                                                                            |
-|      ``string``       |                                                                                                                    |
+| user_name             | The list of users that requires passwordless SSH. Separate the list of users using a comma.                        |
+|      ``string``       |  Eg: ``user1,user2,user3``                                                                                         |
 |      Required         |                                                                                                                    |
 +-----------------------+--------------------------------------------------------------------------------------------------------------------+
 | authentication_type   | Indicates whether LDAP or FreeIPA is in use on the cluster.                                                        |
@@ -195,8 +195,8 @@ To customize your setup of passwordless ssh, input parameters in ``input/passwor
 +--------------------------+-------------------------------------------------------------------------------------------------------+
 | Parameter                | Details                                                                                               |
 +==========================+=======================================================================================================+
-| user_name                | The user that requires passwordless SSH                                                               |
-|      ``string``          |                                                                                                       |
+| user_name                | The list of users that requires passwordless SSH. Separate the list of users using a comma.           |
+|      ``string``          |  Eg: ``user1,user2,user3``                                                                            |
 |      Required            |                                                                                                       |
 +--------------------------+-------------------------------------------------------------------------------------------------------+
 | authentication_type      | Indicates whether LDAP or FreeIPA is in use on the cluster.                                           |
