@@ -148,18 +148,16 @@
     state: directory
     mode: "{{ file_permission }}"
 
-- name: Exit monitoring thread
+# Exit monitoring thread
+- name: Stop and disable monitoring service
   block:
-    - name: Check monitoring thread id
-      ansible.builtin.shell: |
-        set -o pipefail
-        ps aux | grep -v grep | grep "python.*monitor_status.py" | awk '{print $2}'
-      register: process_id
-      changed_when: false
-      failed_when: false
+    - name: Stop omnia service, if started
+      ansible.builtin.service:
+        name: omnia.service
+        state: stopped
 
-    - name: Kill monitoring thread
-      ansible.builtin.command: kill -9 "{{ process_id.stdout }}"
-      changed_when: true
-      when: process_id.stdout != ""
+    - name: Disable omnia service, if enabled
+      ansible.builtin.service:
+        name: omnia.service
+        enabled: false
   tags: monitoring_thread
