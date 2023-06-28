@@ -6,7 +6,7 @@ To install multiple packages on target nodes in a bulk operation, the ``package_
 **Prerequisites**
 
     * All target nodes should be running RHEL or Rocky (Versions 8.4, 8.5 or 8.6).
-    * Download the packages (RPMs) for the target nodes and place them in an empty folder:  ``/install/<custom folder>``.
+    * Download the packages (RPMs) for the target nodes and place them in this folder:  ``/install/post/otherpkgs/<os>/<arch>/custom_software``.
 
         .. note:: Do not use ISO files for updates or package installations.
 
