@@ -61,16 +61,3 @@
     create: true
   when: ansible_vault_search_key not in provision_config_content.stdout
   tags: init
-
-- name: Encrypt provision_config.yml
-  ansible.builtin.command: >-
-    {{ ansible_vault_path.stdout.split(' ')[1] }} encrypt {{ provision_config_filename }}
-    --vault-password-file {{ provision_vault_path }}
-  changed_when: false
-  tags: init
-
-- name: Update provision_config.yml permission
-  ansible.builtin.file:
-    path: "{{ provision_config_filename }}"
-    mode: "{{ conf_file_mode }}"
-  tags: init
