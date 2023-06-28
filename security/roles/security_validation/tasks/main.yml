@@ -34,5 +34,17 @@
   ansible.builtin.include_tasks: fetch_ldap_client_inputs.yml
   when: ldap_required
 
+- name: Encrypt config file once validations are successful
+  block:
+    - name: Encrypt input config file
+      ansible.builtin.command: >-
+        {{ ansible_vault_path.stdout.split(' ')[1] }} encrypt {{ security_config_file }} --vault-password-file {{ security_vaultname }}
+      changed_when: false
+
+    - name: Update config_content permission
+      ansible.builtin.file:
+        path: "{{ security_config_file }}"
+        mode: "{{ vault_key_permission }}"
+
 - name: Check xcat installation status
   ansible.builtin.include_tasks: xcat_status_check.yml
