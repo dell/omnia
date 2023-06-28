@@ -217,8 +217,7 @@ subscription_check_key: "Subscribed"
 warning_wait_time_repo: 10
 rhel_repo_folders_success_msg: "Validated rhel_repo_alphabetical_folders"
 rhel_repo_folders_fail_msg: "Failed. rhel_repo_alphabetical_folders variable in provision_config.yml should be either true or false"
-compatibility_msg: "Failed. Control Plane should be RHEL when nodes are to be provisioned with RHEL OS.
-To provision RHEL nodes from other OS provide repos details in rhel_repo_local_path variable in provision_config.yml"
+compatibility_msg: "Failed. Control Plane OS should be RHEL when nodes are to be provisioned with RHEL OS."
 tmp_crb_dir: /opt/omnia/crb
 crb_repo_packages: "libaec lua-posix lua-filesystem munge-devel perl-Switch rrdtool-devel lua-devel hwloc-devel http-parser-devel
 perl-File-BaseDir opencl-headers ocl-icd-devel"

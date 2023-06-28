@@ -38,6 +38,15 @@ Using skip tags, the scheduler running on the cluster can be set to Slurm or Kub
 
         * It is suggested that you use the ansible-vault view or edit commands and that you do not use the ansible-vault decrypt or encrypt commands. If you have used the ansible-vault decrypt or encrypt commands, provide 644 permission to ``omnia_config.yml``.
 
+**Setting up a shared home directory**
+
+.. image:: ../../images/UserHomeDirectory.jpg
+
+Users wanting to set up a shared home directory for the cluster can do it in one of two ways:
+    1. **Using the head node as an NFS host**: Set ``enable_omnia_nfs`` (``input/omnia_config.yml``) to true and provide a share path which will be configured on all nodes in ``omnia_usrhome_share`` (``input/omnia_config.yml``). During the execution of ``omnia.yml``, the NFS share will be set up for access by all compute nodes.
+    2. **Using an external filesystem**: Configure the external file storage using ``storage.yml``. Set ``enable_omnia_nfs`` (``input/omnia_config.yml``) to false and provide the external share path in ``omnia_usrhome_share`` (``input/omnia_config.yml``). Run ``omnia.yml`` to configure access to the external share for deployments.
+
+
 **Kubernetes Roles**
 
 As part of setting up Kubernetes roles, ``omnia.yml`` handles the following tasks on the manager and compute nodes:
@@ -115,16 +124,6 @@ To run an MPI job on an AMD processor, set the following environmental variables
     - ``LD_LIBRARY_PATH`` (Use this variable to point to the location of the OpenMPI library folder. For example: ``$LD_LIBRARY_PATH:/appshare/openmpi/lib``)
     - ``OMPI_ALLOW_RUN_AS_ROOT`` = ``1`` (To run jobs as a root user, set this variable to ``1``)
     - ``OMPI_ALLOW_RUN_AS_ROOT_CONFIRM`` = ``1`` (To run jobs as a root user, set this variable to ``1``)
-
-**Setting up a shared home directory**
-
-.. image:: ../../images/UserHomeDirectory.jpg
-
-Users wanting to set up a shared home directory for the cluster can do it in one of two ways:
-    1. **Using the head node as an NFS host**: Set ``enable_omnia_nfs`` (``input/omnia_config.yml``) to true and provide a share path which will be configured on all nodes in ``omnia_usrhome_share`` (``input/omnia_config.yml``). During the execution of ``omnia.yml``, the NFS share will be set up for access by all compute nodes.
-    2. **Using an external filesystem**: Configure the external file storage using ``storage.yml``. Set ``enable_omnia_nfs`` (``input/omnia_config.yml``) to false and provide the external share path in ``omnia_usrhome_share`` (``input/omnia_config.yml``). Run ``omnia.yml`` to configure access to the external share for deployments.
-
-
 
 
 

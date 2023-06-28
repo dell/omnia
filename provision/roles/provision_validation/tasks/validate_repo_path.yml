@@ -114,10 +114,8 @@
   ansible.builtin.fail:
     msg: "{{ compatibility_msg }}"
   when:
-    - update_repos
     - provision_os | lower == os_supported_rhel
     - control_plane_os_redhat not in control_plane_os
-    - not rhel_repo_path_status
 
 - name: Validate crb repos are configured
   when: control_plane_os_redhat in control_plane_os
