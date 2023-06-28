@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -175,12 +175,6 @@
     create: true
   when: "'$ANSIBLE_VAULT;' not in config_content.stdout"
 
-- name: Encrypt telemetry_config.yml file
-  ansible.builtin.command: >-
-    ansible-vault encrypt {{ telemetry_config_file }}
-    --vault-password-file {{ vault_filename }}
-  changed_when: false
-
 - name: Assert grafana credentials
   block:
     - name: Assert grafana_username and grafana_username
@@ -264,3 +258,9 @@
     - name: Validation status of node_password
       ansible.builtin.fail:
         msg: "{{ node_password_fail_msg }}"
+
+- name: Encrypt telemetry_config.yml file
+  ansible.builtin.command: >-
+    ansible-vault encrypt {{ telemetry_config_file }}
+    --vault-password-file {{ vault_filename }}
+  changed_when: false
