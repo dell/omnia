@@ -67,7 +67,7 @@
   ansible.builtin.package:
     name: "{{ xcat_packages }}"
     state: present
-    retries: "{{ package_retry }}"
+  retries: "{{ package_retry }}"
 
 - name: Save xcat enviornment variables
   ansible.builtin.shell: source {{ xcat_env_path }} && echo "{{ xcat_env_msg }}"
