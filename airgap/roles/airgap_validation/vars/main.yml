@@ -34,9 +34,7 @@ reposync_package: yum-utils
 
 # Usage: validate_cp_compatibility.yml
 os_supported_rhel: "redhat"
-compatibility_msg: "Failed. Control Plane should be RHEL when nodes are to be provisioned with RHEL OS.
-To provision RHEL nodes from other OS provide repos details in rhel_repo_local_path variable in provision_config.yml"
-
+compatibility_msg: "Failed. Control Plane OS should be RHEL when nodes are to be provisioned with RHEL OS."
 
 # Usage: validate_repo_path.yml
 update_repos_success_msg: "Validated update_repos"
