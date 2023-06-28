@@ -74,3 +74,9 @@
     success_msg: "{{ domain_name_success_msg }}"
     fail_msg: "{{ domain_name_fail_msg }}"
   when: authentication_type == "ldap" or authentication_type == "freeipa"
+
+- name: Encrypt passwordless_ssh_config.yml file
+  ansible.builtin.command: >-
+    ansible-vault encrypt {{ passwordless_ssh_config_file }}
+    --vault-password-file {{ vault_filename }}
+  changed_when: false
