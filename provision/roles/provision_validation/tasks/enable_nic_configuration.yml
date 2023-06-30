@@ -18,26 +18,37 @@
     - name: Get IPs in case of LOM
       ansible.builtin.shell: ip addr show {{ admin_nic }} | grep -Po 'inet \K[\d.]+'
       changed_when: false
+      failed_when: false
       register: lom_nic
+
+    - name: Set fact for Admin NIC IP and netmask details
+      ansible.builtin.set_fact:
+         temp_subnet1: "{{ lom_nic.stdout_lines[0].split('.')[0] + '.' + lom_nic.stdout_lines[0].split('.')[1] + '.' + '0' + '.' + '0' }}"
+         temp_subnet2: "{{ lom_nic.stdout_lines[1].split('.')[0] + '.' + lom_nic.stdout_lines[1].split('.')[1] + '.' + '0' + '.' + '0' }}"
+      failed_when: false
+      when: lom_nic is defined
 
   rescue:
     - name: Failed - Assign admin and bmc IP
       ansible.builtin.fail:
         msg: "{{ fail_admin_nic_lom }}"
 
-- name: Set fact for Admin NIC IP and netmask details
-  ansible.builtin.set_fact:
-     temp_subnet1: "{{ lom_nic.stdout_lines[0].split('.')[0] + '.' + lom_nic.stdout_lines[0].split('.')[1] + '.' + '0' + '.' + '0' }}"
-     temp_subnet2: "{{ lom_nic.stdout_lines[1].split('.')[0] + '.' + lom_nic.stdout_lines[1].split('.')[1] + '.' + '0' + '.' + '0' }}"
+    - name: Set the bmc nic IP
+      ansible.builtin.set_fact:
+        bmc_nic_ip: "{{ lom_nic.stdout_lines[0] }}"
+        admin_nic_ip: "{{ lom_nic.stdout_lines[1] }}"
+      when:
+        - lom_nic is defined
+        - temp_subnet1 is defined
+        - temp_subnet1 == bmc_nic_subnet
+      failed_when: false
 
-- name: Set the bmc nic IP
-  ansible.builtin.set_fact:
-    bmc_nic_ip: "{{ lom_nic.stdout_lines[0] }}"
-    admin_nic_ip: "{{ lom_nic.stdout_lines[1] }}"
-  when: temp_subnet1 == bmc_nic_subnet
-
-- name: Set the bmc nic IP
-  ansible.builtin.set_fact:
-    bmc_nic_ip: "{{ lom_nic.stdout_lines[1] }}"
-    admin_nic_ip: "{{ lom_nic.stdout_lines[0] }}"
-  when: temp_subnet2 == bmc_nic_subnet
+    - name: Set the bmc nic IP
+      ansible.builtin.set_fact:
+        bmc_nic_ip: "{{ lom_nic.stdout_lines[1] }}"
+        admin_nic_ip: "{{ lom_nic.stdout_lines[0] }}"
+      when:
+        - lom_nic is defined
+        - temp_subnet2 is defined
+        - temp_subnet2 == bmc_nic_subnet
+      failed_when: false
