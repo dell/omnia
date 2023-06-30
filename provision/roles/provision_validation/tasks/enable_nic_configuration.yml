@@ -13,10 +13,17 @@
 #  limitations under the License.
 ---
 
-- name: Assign IP to Admin NIC in case of LOM
-  ansible.builtin.shell: ip addr show {{ admin_nic }} | grep -Po 'inet \K[\d.]+'
-  changed_when: false
-  register: lom_nic
+- name: Get IP to Admin NIC in case of LOM
+  block:
+    - name: Get IPs in case of LOM
+      ansible.builtin.shell: ip addr show {{ admin_nic }} | grep -Po 'inet \K[\d.]+'
+      changed_when: false
+      register: lom_nic
+
+  rescue:
+    - name: Failed - Assign admin and bmc IP
+      ansible.builtin.fail:
+        msg: "{{ fail_admin_nic_lom }}"
 
 - name: Set fact for Admin NIC IP and netmask details
   ansible.builtin.set_fact:
