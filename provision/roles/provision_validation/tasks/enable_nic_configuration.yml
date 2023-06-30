@@ -14,31 +14,23 @@
 ---
 
 - name: Assign IP to Admin NIC in case of LOM
-  ansible.builtin.command: nmcli connection modify {{ admin_nic }} IPv4.address {{ admin_nic_ip }}/{{ nic_subnet }}
+  ansible.builtin.shell: ip addr show {{ admin_nic }} | grep -Po 'inet \K[\d.]+'
   changed_when: false
+  register: lom_nic
 
-- name: Assign bootproto mode to Admin NIC in case of LOM
-  ansible.builtin.command: nmcli con mod {{ admin_nic }} ipv4.method manual
-  changed_when: false
+- name: Set fact for Admin NIC IP and netmask details
+  ansible.builtin.set_fact:
+     temp_subnet1: "{{ lom_nic.stdout_lines[0].split('.')[0] + '.' + lom_nic.stdout_lines[0].split('.')[1] + '.' + '0' + '.' + '0' }}"
+     temp_subnet2: "{{ lom_nic.stdout_lines[1].split('.')[0] + '.' + lom_nic.stdout_lines[1].split('.')[1] + '.' + '0' + '.' + '0' }}"
 
-- name: Assign gateway to Admin NIC in case of LOM
-  ansible.builtin.command: nmcli con up {{ admin_nic }}
-  changed_when: false
+- name: Set the bmc nic IP
+  ansible.builtin.set_fact:
+    bmc_nic_ip: "{{ lom_nic.stdout_lines[0] }}"
+    admin_nic_ip: "{{ lom_nic.stdout_lines[1] }}"
+  when: temp_subnet1 == bmc_nic_subnet
 
-- name: Assign IP to BMC NIC in case of LOM
-  ansible.builtin.command: nmcli connection modify {{ bmc_nic }} +IPv4.address {{ bmc_nic_ip }}/{{ nic_subnet }}
-  changed_when: false
-
-- name: Assign gateway to BMC NIC in case of LOM
-  ansible.builtin.command: nmcli con up {{ bmc_nic }}
-  changed_when: false
-
-- name: Add onboot options
-  ansible.builtin.replace:
-    path: "{{ bmc_nic_path }}"
-    regexp: "^ONBOOT=no"
-    replace: "ONBOOT=yes"
-
-- name: Gather facts
-  ansible.builtin.gather_facts:
-  register: cp_lom_gather_facts
+- name: Set the bmc nic IP
+  ansible.builtin.set_fact:
+    bmc_nic_ip: "{{ lom_nic.stdout_lines[1] }}"
+    admin_nic_ip: "{{ lom_nic.stdout_lines[0] }}"
+  when: temp_subnet2 == bmc_nic_subnet
