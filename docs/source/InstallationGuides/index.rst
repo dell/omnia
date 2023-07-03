@@ -35,6 +35,7 @@ Run the script ``prereq.sh`` to verify the system is ready for Omnia deployment.
     RunningInit/index
     InstallingProvisionTool/index
     BuildingClusters/index
+    OneAPI
     addinganewnode
     reprovisioningthecluster
     ConfiguringSwitches/index
