@@ -15,18 +15,13 @@
 
 - name: Fail if BMC nic subent is not present
   ansible.builtin.fail:
-    msg: "Failed.{{ fail_subnet }} for BMC."
+    msg: "Failed.{{ fail_subnet }} for BMC. Please provide bmc_nic_subnet in case of network_interface_type as LOM"
   when: bmc_nic_subnet | length < 7
 
 - name: Set fact for BMC NIC IP and netmask details
   ansible.builtin.set_fact:
     bmc_nic: "{{ admin_nic }}"
-    bmc_nic_ip: "{{ omnia_bmc_ip }}"
     bmc_nic_netmask: "{{ omnia_bmc_netmask }}"
-
-- name: Set fact for BMC NIC IP and netmask details
-  ansible.builtin.set_fact:
-    admin_nic_ip: "{{ omnia_admin_ip }}"
     admin_nic_netmask: "{{ omnia_admin_netmask }}"
 
 - name: Configure the admin and bmc nic
