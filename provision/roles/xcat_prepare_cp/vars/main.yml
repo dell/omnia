@@ -98,6 +98,7 @@ xcat_packages:
   - xCAT
   - postgresql*
   - perl-DBD-Pg
+package_retry: 3
 file_permission: 0755
 xcat_env_path: "/etc/profile.d/xcat.sh"
 xcat_env_msg: "Saving xcat enviornment variables"
