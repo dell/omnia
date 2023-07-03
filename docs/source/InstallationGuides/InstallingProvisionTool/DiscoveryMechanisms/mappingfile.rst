@@ -35,7 +35,7 @@ The following parameters need to be populated in ``input/provision_config.yml`` 
             ansible-vault edit provision_config.yml --vault-password-file .provision_vault_key
 
 
-
+    Nodes provisioned via the mapping method will have blank installation statuses in the `Omnia node status database <../ViewingDB.html>`_.
 
 To continue to the next steps:
 
