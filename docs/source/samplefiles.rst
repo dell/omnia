@@ -14,7 +14,7 @@ inventory file
     10.5.0.102
     10.5.0.103
 
-    [login_node]
+    [login]
     10.5.0.104
 
 
@@ -54,7 +54,7 @@ NFS Server inventory file
 
 ::
 
-    [nfs_node]
+    [nfs]
     10.5.0.104
 
 
