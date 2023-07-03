@@ -2,6 +2,7 @@ Install oneAPI for MPI jobs
 ___________________________
 
 **Pre-requisites**
+
 * An Omnia **slurm** cluster running with at least 2 nodes: 1 manager and 1 compute.
 
 1. Download Intel oneAPI Base Toolkit & Intel oneAPI HPC Toolkit to the control plane.
