@@ -38,6 +38,7 @@ osimage_search_key: install-compute
 
 # Usage: python_utility.yml
 postgres_utility_path: "{{ role_path }}/files/utils/postgres_utility.py"
+cp_db_utility_path: "{{ role_path }}/files/utils/add_cp_db.py"
 
 # Usage: configure_dhcp.yml
 dhcp_config_fail_msg: "Failed. makedhcp -n command is not successful. Error:"
