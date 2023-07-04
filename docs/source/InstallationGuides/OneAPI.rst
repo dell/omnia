@@ -37,8 +37,9 @@ ___________________________
 
 8. Go to ``/root/omnia/utils/os_package_update`` and edit ``package_update_config.yml``.
 9. Run ``package_update.yml`` using : ``ansible-playbook package_update.yml``
-10. After execution is completed, you can check the existence of ``intelhpckit`` and ``basekit`` packages on the nodes using: ::
+10. After execution is completed, you can check the existence of ``intelhpckit`` and ``basekit`` packages on the nodes using:
 
+::
     rpm -qa | grep intel*
 
 
