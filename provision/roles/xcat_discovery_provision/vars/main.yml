@@ -50,4 +50,6 @@ psql_devel_packages:
   - postgresql-devel
   - python3-devel
 python_version: python3.8
+omnia_service_shell_file_path: /opt/omnia/omnia_service_script.sh
+omnia_service_shell_file_permissions: 0777
 omnia_service_path: /etc/systemd/system/omnia.service
