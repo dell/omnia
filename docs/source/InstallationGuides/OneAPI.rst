@@ -24,12 +24,15 @@ ___________________________
     sudo mv /tmp/oneAPI.repo /etc/yum.repos.d
 
 4. Create a folder in ``/install`` directory. eg., ``intelhpc``.
-5. Switch to the ``/install/oneAPI`` folder and execute: ::
+5. Switch to the ``/install/intelhpc`` folder and execute: ::
 
-    dnf download intel-basekit --resolve --alldeps -y && dnf download intel-hpckit --resolve --alldeps -y
+    dnf download intel-basekit --resolve --alldeps -y
+    dnf download intel-hpckit --resolve --alldeps -y
+
+.. note:: Use ``alldeps -y`` to download **all** dependencies related to OneAPI.
 
 6. Once downloaded, make sure there are >=270~ rpm packages in the ``intelhpc`` directory.
-7. Inside the ``intelhpc`` folder, create a file named ``update.otherpkgs.pkglist`` with the contents : ::
+7. Inside the ``intelhpc`` folder, create a file named ``update.otherpkgs.pkglist`` with the contents: ::
 
     intel-basekit
 
@@ -37,9 +40,8 @@ ___________________________
 
 8. Go to ``/root/omnia/utils/os_package_update`` and edit ``package_update_config.yml``.
 9. Run ``package_update.yml`` using : ``ansible-playbook package_update.yml``
-10. After execution is completed, you can check the existence of ``intelhpckit`` and ``basekit`` packages on the nodes using:
+10. After execution is completed, you can check the existence of ``intelhpckit`` and ``basekit`` packages on the nodes using: ::
 
-::
     rpm -qa | grep intel*
 
 
