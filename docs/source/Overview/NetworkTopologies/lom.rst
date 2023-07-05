@@ -8,7 +8,3 @@ A LOM port could be shared with the host operating system production traffic. Al
 
 .. warning:: Target nodes using LOM ports cannot be discovered via snmpwalk.
 
-.. image:: ../../images/SharedLomRoceNIC.jpg
-
-.. image:: ../../images/Shared_LOM.jpg
-
