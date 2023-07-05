@@ -38,4 +38,3 @@
       ansible.builtin.fail:
         msg: "{{ fail_admin_nic_dedicated }}"
       when: dedicated_admin_nic.stdout == ""
-
