@@ -11,7 +11,9 @@ For automatic provisioning of servers and discovery, the BMC method can be used.
 
 - IP ranges (``bmc_static_start_range``, ``bmc_static_start_range``) provided to Omnia for BMC discovery should be within the same subnet.
 
-.. note:: To create a meaningful range of discovery, ensure that the last two octets of   ``bmc_static_end_range`` are equal to or greater than the last two octets of   the ``bmc_static_start_range``. That is, for the range a.b.c.d - a.b.e.f, e   and f should be greater than or equal to c and d. *Ex: 172.20.0.50 -   172.20.1.101 is a valid range however,    172.20.0.101 - 172.20.1.50 is not.*
+.. caution::
+    * To create a meaningful range of discovery, ensure that the last two octets of   ``bmc_static_end_range`` are equal to or greater than the last two octets of   the ``bmc_static_start_range``. That is, for the range a.b.c.d - a.b.e.f, e   and f should be greater than or equal to c and d. *Ex: 172.20.0.50 -   172.20.1.101 is a valid range however,    172.20.0.101 - 172.20.1.50 is not.*
+    * If you are re-provisioning your cluster (that is, re-running the ``provision.yml`` playbook) after a `clean-up <../../CleanUpScript.html>`_, ensure to use a different ``admin_nic_subnet`` in ``input/provision_config.yml`` to avoid a conflict with newly assigned servers. Alternatively, disable any OS available in the ``Boot Option Enable/Disable`` section of your BIOS settings (``Configuration`` > ``BIOS Settings`` > ``Boot Settings`` > ``UEFI Boot Settings``) on all target nodes.
 
 - All iDRACs should be reachable from the ``admin_nic``.
 
