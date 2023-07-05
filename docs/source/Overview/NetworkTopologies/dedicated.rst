@@ -5,6 +5,7 @@ Network Topology: Dedicated Setup
 
 Depending on internet access for host nodes, there are two ways to achieve a dedicated NIC setup:
 
+.. image:: ../../images/omnia_network_Dedicated.png
 
 
 1. Dedicated Setup with dedicated public NIC on compute nodes
