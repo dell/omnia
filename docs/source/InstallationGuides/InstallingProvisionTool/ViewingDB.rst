@@ -31,7 +31,5 @@ Checking node status
 
 Possible values of status are static, powering-on, installing, bmcready, booting, post-booting, booted, failed. The status will be updated every 3 minutes.
 
-.. note::
-    * For nodes listing status as 'failed', provisioning logs can be viewed in ``/var/log/xcat/xcat.log`` on the target nodes.
-    * Nodes provisioned via the mapping method will have blank installation statuses in this database.
+.. note:: For nodes listing status as 'failed', provisioning logs can be viewed in ``/var/log/xcat/xcat.log`` on the target nodes.
 
