@@ -4,9 +4,9 @@ def run_cmd(cmd):
     run = subprocess.run(cmd,shell=True,capture_output=True,text=True)
 
     if 'ERROR' in run.stderr:
-        return False,run.stderr,run.stdout
+        return False,run.stderr,run.stdout.rstrip()
     else:
-        return True,run.stderr,run.stdout
+        return True,run.stderr,run.stdout.rstrip()
 
 def get_static_nodes():
     cmd = 'lsdef -t group -o bmc_static | grep members | sed -n "/members=/s/    members=//p"'

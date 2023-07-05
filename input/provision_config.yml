@@ -22,9 +22,9 @@
 # This variable is used to depict the network type for the omnia cluster
 # Lom is supported by discovery_mechanism: mapping, bmc and switch_based
 # Dedicated is supported by discovery_mechanism: mapping and snmpwalk
-# Accepted values: lom, dedicated
-# Default value: lom
-network_interface_type: "lom"
+# Accepted values: dedicated, lom
+# Default value: dedicated
+network_interface_type: "dedicated"
 
 # Mandatory
 # If lom, discovery_mechanism can be switch_based or mapping or bmc
@@ -33,11 +33,11 @@ network_interface_type: "lom"
 # mapping indicates that the user has provided a valid mapping file path with details regarding MAC ID of the NIC, IP address and hostname.
 # bmc indicates the servers in the cluster will be discovered by Omnia using BMC.
 # bmc requirement is user should enable IPMI over LAN in iDRAC settings if the iDRACs are in static mode.
-# snmpwalk indicates Omnia will discover the nodes based on the switch IP (to which the cluster servers are connected) provided. SNMP should be enabled on the switch.
 # switch_based uses snmp v3 to find and provision servers connected on particular ports of a switch.SNMPv3 should be enabled on switches.
-# Accepted values: mapping, bmc, snmpwalk, switch_based
-# Default: switch_based
-discovery_mechanism: "switch_based"
+# snmpwalk indicates Omnia will discover the nodes based on the switch IP (to which the cluster servers are connected) provided. SNMP should be enabled on the switch.
+# Accepted values: mapping, bmc, switch_based, snmpwalk
+# Default: mapping
+discovery_mechanism: "mapping"
 
 #### Mandatory, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
 # This is the operating system image that will be used for provisioning compute nodes in the cluster.

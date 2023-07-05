@@ -22,21 +22,17 @@
   ansible.builtin.command: "{{ python_version }} -m pip install psycopg2-binary"
   changed_when: false
 
-- name: Check omnia.service file
-  ansible.builtin.copy:
+- name: Copy the shell script to /home directory
+  ansible.builtin.template:
+    src: templates/omnia_service_script.sh.j2
+    dest: "{{ omnia_service_shell_file_path }}"
+    mode: "{{ omnia_service_shell_file_permissions }}"
+
+- name: Copy the systemd service file
+  ansible.builtin.template:
+    src: templates/omnia_service.j2
     dest: "{{ omnia_service_path }}"
-    force: false
-    content: |
-      [Unit]
-      Description=Service to monitor provisioning
-      
-      [Service]
-      Type=simple
-      ExecStart=python3.8 {{ role_path }}/files/utils/monitor_status.py
-      RemainAfterExit=yes
-      
-      [Install]
-      WantedBy=multi-user.target
+    mode: "{{ omnia_service_file_permissions }}"
 
 - name: Enable omnia service
   ansible.builtin.service:
