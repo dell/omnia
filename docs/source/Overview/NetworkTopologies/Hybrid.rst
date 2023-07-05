@@ -3,7 +3,7 @@ Network Topology: Hybrid setup
 
 For an environment containing both LOM and dedicated ports, the provision tool needs to be run twice to correctly manage all ports in the network.
 
-.. images:: ../../images/omnia_network_Hybrid.png
+.. image:: ../../images/omnia_network_Hybrid.png
 
 The first time the provision tool is run, ensure that the following variables are set in ``input/provision_config.yml``:
 
