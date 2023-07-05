@@ -35,5 +35,5 @@ def cp_details_db():
     if pxe_mac_op is None:
         omniadb_connection.insert_cp_details_db(cursor, node_name, network_interface_type, bmc_nic_ip, admin_nic_ip, pxe_mac_address)
 
-
+    conn.close()
 cp_details_db()

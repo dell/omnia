@@ -62,3 +62,4 @@ def insert_cp_details_db(cursor, node_name, network_interface_type, bmc_nic_ip, 
         sql = '''INSERT INTO cluster.nodeinfo(node, admin_ip, admin_mac) VALUES ('{node}','{admin_ip}','{admin_mac}')'''.format(
              node=node_name, admin_ip=admin_nic_ip, admin_mac=pxe_mac_address)
         cursor.execute(sql)
+    cursor.close()
