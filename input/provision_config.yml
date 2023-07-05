@@ -22,7 +22,7 @@
 # This variable is used to depict the network type for the omnia cluster
 # Lom is supported by discovery_mechanism: mapping, bmc and switch_based
 # Dedicated is supported by discovery_mechanism: mapping and snmpwalk
-# Accepted values: lom, dedicated
+# Accepted values: dedicated, lom
 # Default value: dedicated
 network_interface_type: "dedicated"
 
