@@ -13,5 +13,6 @@ The first time the provision tool is run, ensure that the following variables ar
 .. caution:: Leave the variables ``bmc_nic_subnet``, ``bmc_static_start_range``, ``bmc_static_end_range``, ``primary_dns`` and ``secondary_dns`` blank in ``input/provision_config.yml``. Entering these variables will cause IP reassignment and can interfere with the availability of ports on your target servers.
 
 Once all the dedicated NICs are discovered, re-run the provisioning tool with the following variables in ``input/provision_config.yml``:
+
     * ``network_interface_type``: ``LOM``
     * ``discovery_mechanism``: ``bmc``
