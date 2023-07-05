@@ -23,8 +23,8 @@
 
     - name: Set fact for Admin NIC IP and netmask details
       ansible.builtin.set_fact:
-         temp_subnet1: "{{ lom_nic.stdout_lines[0].split('.')[0] + '.' + lom_nic.stdout_lines[0].split('.')[1] + '.' + '0' + '.' + '0' }}"
-         temp_subnet2: "{{ lom_nic.stdout_lines[1].split('.')[0] + '.' + lom_nic.stdout_lines[1].split('.')[1] + '.' + '0' + '.' + '0' }}"
+        temp_subnet1: "{{ lom_nic.stdout_lines[0].split('.')[0] + '.' + lom_nic.stdout_lines[0].split('.')[1] + '.' + '0' + '.' + '0' }}"
+        temp_subnet2: "{{ lom_nic.stdout_lines[1].split('.')[0] + '.' + lom_nic.stdout_lines[1].split('.')[1] + '.' + '0' + '.' + '0' }}"
       failed_when: false
       when: lom_nic is defined
 

@@ -32,6 +32,7 @@
   ansible.builtin.template:
     src: templates/omnia_service.j2
     dest: "{{ omnia_service_path }}"
+    mode: "{{ omnia_service_file_permissions }}"
 
 - name: Enable omnia service
   ansible.builtin.service:
