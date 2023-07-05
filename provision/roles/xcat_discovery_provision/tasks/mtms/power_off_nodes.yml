@@ -15,12 +15,12 @@
 
 - name: Task to power off the nodes for BMC
   block:
-    - name: Power off the nodes
+    - name: Power off the node - {{ item }}
       ansible.builtin.command: rpower {{ item }} off
       changed_when: true
       register: power_off_status
   rescue:
-    - name: Verify power off is successful for bmc
+    - name: Verify power off is successful for bmc - {{ item }}
       ansible.builtin.debug:
         msg: "{{ mtms_poweroff_warning_msg }} {{ power_off_status.stderr }}"
       when: power_off_status.stderr is defined

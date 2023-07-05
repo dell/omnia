@@ -25,10 +25,8 @@ node_details = {}
 # and updates the same to postgresSQL database.
 class MonitoringThread(threading.Thread):
     def run(self):
-        while(True):
-            node_details = get_node_details()
-            add_details_to_db()
-            time.sleep(180)
+        node_details = get_node_details()
+        add_details_to_db()
 
 # get_node_details() function runs 2 commands on management station:
 # nodels all nodelist.status : to check status of all nodes
@@ -37,7 +35,7 @@ class MonitoringThread(threading.Thread):
 # where node_details is the dictionary name, nodename is the key to dictionary
 # value corresponding to each key is an array comprising of node status and mac address
 def get_node_details():
-    node_status_cmd = 'nodels all nodelist.status'
+    node_status_cmd = '/opt/xcat/bin/nodels all nodelist.status'
     temp = subprocess.run([node_status_cmd], shell=True,capture_output=True,text=True)
     output = temp.stdout
     output = output.split("\n")
@@ -48,7 +46,7 @@ def get_node_details():
             node_details[line[0]].append(line[1].strip())
             
     for node in node_details.keys():
-        node_details_cmd = 'lsdef' + ' ' + node + ' | grep mac='
+        node_details_cmd = '/opt/xcat/bin/lsdef' + ' ' + node + ' | grep mac='
         temp = subprocess.run([node_details_cmd], shell=True,capture_output=True,text=True)
         output = temp.stdout
         if len(output) > 0:
@@ -57,7 +55,7 @@ def get_node_details():
             node_details[node].append("")
 
     for node in node_details.keys():
-        node_details_cmd = 'lsdef' + ' ' + node + ' | grep serial='
+        node_details_cmd = '/opt/xcat/bin/lsdef' + ' ' + node + ' | grep serial='
         temp = subprocess.run([node_details_cmd], shell=True,capture_output=True,text=True)
         output = temp.stdout
         if len(output) > 0:
