@@ -7,8 +7,8 @@ Required","The network type used on the Omnia cluster.
 
 Choices:
 
-* ``lom`` <- default
-* ``dedicated``"
+* ``dedicated`` <- default
+* ``lom``"
 "**discovery_mechanism**
 
 ``string``
@@ -17,8 +17,8 @@ Required","The mechanism through which Omnia will discover nodes for provisionin
 
 Choices:
 
-* ``switch_based`` <-default
-* ``mapping``
+* ``switch_based``
+* ``mapping``  <-default
 * ``bmc``
 * ``snmpwalk``"
 "**provision_os**

@@ -145,7 +145,7 @@ ________________________
 
 Manager and compute nodes will have LDAP client installed and configured if ``ldap_required`` is set to true. The login node does not have LDAP client installed.
 
-.. warning:: No users/groups will be created by Omnia.
+.. caution:: No users/groups will be created by Omnia.
 
 
 **Running the security role**
@@ -160,4 +160,4 @@ The inventory should contain compute, manager, login_node as per the inventory f
 	* To enable security features on the login node, ensure that ``enable_secure_login_node`` in ``input/security_config.yml`` is set to true.
 	* To customize the security features on the login node, fill out the parameters in ``input/login_node_security_config.yml``.
 
-.. warning:: No users/groups will be created by Omnia.
+.. caution:: No users/groups will be created by Omnia.

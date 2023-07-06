@@ -4,7 +4,7 @@ Configuring ethernet switches (S5 series)
 
 * Edit the ``network/ethernet_sseries_input.yml`` file for all S5* PowerSwitches such as S5232F-ON.
 
-.. warning:: Do not remove or comment any lines in the ``network/ethernet_sseries_input.yml`` file.
+.. caution:: Do not remove or comment any lines in the ``network/ethernet_sseries_input.yml`` file.
 
 +----------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Name                       | Details                                                                                                                                                                             |

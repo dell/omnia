@@ -6,7 +6,7 @@ To install multiple packages on target nodes in a bulk operation, the ``package_
 **Prerequisites**
 
     * All target nodes should be running RHEL or Rocky (Versions 8.4, 8.5 or 8.6).
-    * Download the packages (RPMs) for the target nodes and place them in this folder:  ``/install/post/otherpkgs/<os>/<arch>/custom_software``.
+    * Download the packages (RPMs) for the target nodes and place them in this folder:  ``/install/post/otherpkgs/<os>/x86_64/custom_software/Packages``.
 
         .. note:: Do not use ISO files for updates or package installations.
 
@@ -39,8 +39,8 @@ To customize the package update, enter the following parameters in ``utils/packa
 |      Required    | * For os packagelist, file name should be - (xxx.pkglist)                                                                                                                                 |
 |                  | * All packages in this list will be installed/updated on remote nodes                                                                                                                     |
 +------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| package_type     | Indicates whether the packages to be installed are ``os`` packages (ie   they are available in baseos or appstream) or ``other`` (ie they're not part   of os repos, appstream or baseos) |
-|      ``string``  |                                                                                                                                                                                           |
+| package_type     | * Indicates whether the packages to be installed are ``os`` packages (ie   they are available in baseos or appstream) or ``other`` (ie they're not part of os repos, appstream or baseos).|
+|      ``string``  | * If the package is being downloaded to ``/install/post/otherpkgs/<Provision OS.Version>/x86_64/custom_software/Packages/``, use the value ``other``.                                     |
 |      Required    | Choices:                                                                                                                                                                                  |
 |                  |                                                                                                                                                                                           |
 |                  |      * ``os``                                                                                                                                                                             |
