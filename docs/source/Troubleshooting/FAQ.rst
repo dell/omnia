@@ -37,7 +37,7 @@ Resolution:
     * Configure the first PXE device to be active for PXE booting.
     * PXE boot the target node manually.
 
-**Why does provisioning fail on RHEL nodes running 8.5 or earlier?**
+**Why does the provision.yml fail at 'provision validation: Install common packages for provision' on RHEL nodes running 8.5 or earlier?**
 
 .. image:: ../images/RedHat_provisionerror_sshpass.PNG
 

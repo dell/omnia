@@ -85,7 +85,9 @@ Where inventory follows the format defined under inventory file in the provided 
 
 **Setting up Passwordless SSH for FreeIPA**
 
-Once user accounts are created, admins can enable passwordless SSH for users to run HPC jobs.
+Once user accounts are created, admins can enable passwordless SSH for users to run HPC jobs on the cluster nodes.
+
+.. note:: Once user accounts are created on FreeIPA, use the accounts to login to the target nodes to reset the password and create a corresponding home directory.
 
 To customize your setup of passwordless ssh, input parameters in ``input/passwordless_ssh_config.yml``
 
@@ -187,9 +189,9 @@ To customize your LDAP client installation, input parameters in ``input/security
 
 **Setting up Passwordless SSH for LDAP**
 
-Once user accounts are created, admins can enable passwordless SSH for users to run HPC jobs.
+Once user accounts are created, admins can enable passwordless SSH for users to run HPC jobs on the cluster nodes.
 
-.. note:: Ensure that the control plane can reach the designated LDAP server
+.. note:: Ensure that the control plane can reach the designated LDAP server.
 
 To customize your setup of passwordless ssh, input parameters in ``input/passwordless_ssh_config.yml``
 
