@@ -7,7 +7,7 @@ then
   dnf groupinstall "Infiniband Support" -y
   dnf install infiniband-diags perftest qperf -y
   mlnxofed_ib_install -p /install/ofed/OFED_ISO -m --add-kernel-support --force -end-
-  echo "exclude=dapl* libib* ibacm infiniband* libmlx* librdma* opensm* ibutils* perftest* openmpi*" >> /etc/yum.conf
+  echo "exclude=dapl* ibacm infiniband* libmlx* librdma* opensm* ibutils* perftest* openmpi*" >> /etc/yum.conf
   echo "OFED installation completed"
 else
   echo "Mellanox cards not found"
