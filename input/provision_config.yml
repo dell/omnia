@@ -48,8 +48,6 @@ provision_os: "rhel"
 #### Mandatory, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
 # OS version of provision_os to be installed
 # Supported values for rhel/rocky: 8.0, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7
-# For RHEL 8.6 and below, ensure that RHEL subscription is enabled OR
-# sshpass is available to install or download to the control plane (from any local repository).
 provision_os_version: 8.6
 
 #### Mandatory, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
