@@ -17,7 +17,7 @@ Using FreeIPA
 
 Enter the following parameters in ``input/security_config.yml``.
 
-.. warning:: Do not remove or comment any lines in the ``input/security_config.yml`` file.
+.. caution:: Do not remove or comment any lines in the ``input/security_config.yml`` file.
 
 +----------------------------+----------------------------------------------------------------------------------------------+
 | Parameter                  | Details                                                                                      |

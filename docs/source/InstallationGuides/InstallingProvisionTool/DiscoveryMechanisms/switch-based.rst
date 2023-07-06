@@ -39,7 +39,7 @@ switch_based
 .. image:: ../../../images/ControlPlaneNic.png
 
 
-.. warning::
+.. caution::
     * Do not use daisy chain ports or the port used to connect to the control plane in ``switch_based_details`` in ``input/provision_config.yml``. This can cause IP conflicts on servers attached to potential target ports.
     * Omnia does not validate SNMP switch credentials, if the provision tool is run with incorrect credentials, use the clean-up script and re-run the provision tool with the correct credentials.
     * If you are re-provisioning your cluster (that is, re-running the ``provision.yml`` playbook) after a `clean-up <../../CleanUpScript.html>`_, ensure to use a different ``admin_nic_subnet`` in ``input/provision_config.yml`` to avoid a conflict with newly assigned servers. Alternatively, disable any OS available in the ``Boot Option Enable/Disable`` section of your BIOS settings (``BIOS Settings`` > ``Boot Settings`` > ``UEFI Boot Settings``) on all target nodes.
@@ -51,7 +51,7 @@ switch_based
 
 The following parameters need to be populated in ``input/provision_config.yml`` to discover target nodes using a mapping file.
 
-.. warning:: Do not remove or comment any lines in the ``input/provision_config.yml`` file.
+.. caution:: Do not remove or comment any lines in the ``input/provision_config.yml`` file.
 
 .. csv-table:: Parameters
    :file: ../../../Tables/switch-based.csv

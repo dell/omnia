@@ -28,7 +28,7 @@ For automatic provisioning of servers and discovery, the BMC method can be used.
 
 The following parameters need to be populated in ``input/provision_config.yml`` to discover target nodes using BMC.
 
-.. warning:: Do not remove or comment any lines in the ``input/provision_config.yml`` file.
+.. caution:: Do not remove or comment any lines in the ``input/provision_config.yml`` file.
 
 .. csv-table:: Parameters
    :file: ../../../Tables/bmc.csv
@@ -49,7 +49,7 @@ The following parameters need to be populated in ``input/provision_config.yml`` 
 
 
 
-.. warning:: The IP address *192.168.25.x* is used for PowerVault Storage communications. Therefore, do not use this IP address for other configurations.
+.. caution:: The IP address *192.168.25.x* is used for PowerVault Storage communications. Therefore, do not use this IP address for other configurations.
 
 
 To continue to the next steps:

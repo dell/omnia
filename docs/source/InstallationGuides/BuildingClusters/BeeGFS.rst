@@ -11,7 +11,7 @@ BeeGFS is a hardware-independent POSIX parallel file system (a.k.a. Software-def
 * Ensure that the BeeGFS server is set up using the `linked steps <../../Appendices/BeeGFSServer.html>`_.
 * Ensure that a ``connAuthFile`` is configured on the server as explained `here <../../Appendices/BeeGFSServer.html>`_
 
-.. warning:: Configuring a ``connAuthFile`` is now mandatory. Services will no longer start if a ``connAuthFile`` is not configured
+.. caution:: Configuring a ``connAuthFile`` is now mandatory. Services will no longer start if a ``connAuthFile`` is not configured
 
 * Ensure that the following ports are open for TCP and UDP connectivity:
 
@@ -58,7 +58,7 @@ Installing the BeeGFS client via Omnia
 
 After the required parameters are filled in ``input/storage_config.yml``, Omnia installs BeeGFS on manager and compute nodes while executing the ``omnia.yml`` playbook.
 
-.. warning:: Do not remove or comment any lines in the ``input/storage_config.yml`` file.
+.. caution:: Do not remove or comment any lines in the ``input/storage_config.yml`` file.
 
 +---------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Name                            | Details                                                                                                                                                                                                                                              |

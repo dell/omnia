@@ -7,7 +7,7 @@ To configure powervault ME4 and ME5 storage arrays, follow the below steps:
 
 Fill out all required parameters in ``storage/powervault_input.yml``:
 
-.. warning:: Do not remove or comment any lines in the ``storage/powervault_input.yml`` file.
+.. caution:: Do not remove or comment any lines in the ``storage/powervault_input.yml`` file.
 
 +--------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Parameter                      | Details                                                                                                                                                                                                                                                   |
