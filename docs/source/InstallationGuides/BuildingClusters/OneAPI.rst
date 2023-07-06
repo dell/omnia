@@ -5,8 +5,9 @@ ___________________________
 
 * An Omnia **slurm** cluster running with at least 2 nodes: 1 manager and 1 compute.
 
-1. Download Intel oneAPI Base Toolkit & Intel oneAPI HPC Toolkit to the control plane.
-2. Create the DNF repository file in the ``/temp directory`` as a normal user. ::
+**Download and install Intel oneAPI base toolkit & Intel oneAPI HPC toolkit to control plane**
+
+1. Create the DNF repository file in the ``/temp`` directory as a normal user. ::
 
         tee > /tmp/oneAPI.repo << EOF
         [oneAPI]
@@ -18,26 +19,25 @@ ___________________________
         gpgkey=https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
         EOF
 
-3. Move the newly created oneAPI.repo file to the YUM configuration directory. ::
+2. Move the newly created ``oneAPI.repo`` file to the YUM configuration directory. ::
 
     /etc/yum.repos.d:
     sudo mv /tmp/oneAPI.repo /etc/yum.repos.d
 
-4. Create a folder in ``/install`` directory. eg., ``intelhpc``.
-5. Switch to the ``/install/intelhpc`` folder and execute: ::
+3. Switch to the ``/install/post/otherpkgs/<Provision OS.Version>/x86_64/custom_software/Packages/`` folder and execute:
+For example: ``cd /install/post/otherpkgs/rhels8.6.0/x86_64/custom_software/Packages/``. ::
 
     dnf download intel-basekit --resolve --alldeps -y
     dnf download intel-hpckit --resolve --alldeps -y
 
 .. note:: Use ``alldeps -y`` to download **all** dependencies related to OneAPI.
 
-6. Once downloaded, make sure there are >=270~ rpm packages in the ``intelhpc`` directory.
-7. Inside the ``intelhpc`` folder, create a file named ``update.otherpkgs.pkglist`` with the contents: ::
+4. Once downloaded, make sure there are >=270~ rpm packages in the ``/install/post/otherpkgs/rhels8.6.0/x86_64/custom_software/Packages/`` directory.
+5. Inside the ``/install/post/otherpkgs/<Provision OS.Version>/x86_64/custom_software`` folder, create a file named ``update.otherpkgs.pkglist`` with the contents: ::
 
-    intel-basekit
+    custom_software/intel-basekit
+    custom_software/intel-hpckit
 
-    intel-hpckit
-
-8. Go to ``/root/omnia/utils/os_package_update`` and edit ``package_update_config.yml``.
-9. Run ``package_update.yml`` using : ``ansible-playbook package_update.yml``
-10. After execution is completed, you can check the existence of ``intelhpckit`` and ``basekit`` packages on the nodes using: ``rpm -qa | grep intel*``
+6. Go to ``utils/os_package_update`` and edit ``package_update_config.yml``. For more information on the input parameters, `click here <../../Roles/Utils/OSPackageUpdate.html>`_.
+7. Run ``package_update.yml`` using : ``ansible-playbook package_update.yml``
+8. After execution is completed, verify that ``intelhpckit`` and ``basekit`` packages are on the nodes using: ``rpm -qa | grep intel*``
