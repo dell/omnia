@@ -107,7 +107,7 @@ To customize your setup of passwordless ssh, input parameters in ``input/passwor
 | freeipa_user_home_dir | * This variable accepts the user home directory path for freeipa   configuration.                                  |
 |      ``string``       |      * If nfs mount is created for user home, make sure you provide the freeipa   users mount home directory path. |
 |      Required         |                                                                                                                    |
-|                       |      **Default value**: ``"/home"``                                                                                |
+|                       |      **Default value**: ``"/home/omnia-share"``                                                                    |
 +-----------------------+--------------------------------------------------------------------------------------------------------------------+
 
 

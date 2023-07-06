@@ -29,13 +29,24 @@ Resolution:
 
 Causes:
 
- * Nodes do not have their first PXE device set as designated active NIC for PXE booting.
- * Nodes that have been discovered via SNMP or mapping file have not been PXE booted.
+    * Nodes do not have their first PXE device set as designated active NIC for PXE booting.
+    * Nodes that have been discovered via SNMP or mapping file have not been PXE booted.
 
 Resolution:
 
- * Configure the first PXE device to be active for PXE booting.
- * PXE boot the target node manually.
+    * Configure the first PXE device to be active for PXE booting.
+    * PXE boot the target node manually.
+
+**Why does provisioning fail on RHEL nodes running 8.5 or earlier?**
+
+.. image:: ../images/RedHat_provisionerror_sshpass.PNG
+
+Cause:
+    * sshpass is not available in any of the repositories on the control plane.
+
+Resolution:
+
+   * Enable RedHat subscription or ensure that sshpass is available to install or download to the control plane (from any local repository).
 
 **Why is the provisioning status of my node object stuck at 'installing'?**
 
