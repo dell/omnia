@@ -5,6 +5,7 @@ Configuring the cluster
     schedulerprereqs
     installscheduler
     Authentication
+    OneAPI
     BeeGFS
     NFS
 

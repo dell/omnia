@@ -17,7 +17,7 @@ Using FreeIPA
 
 Enter the following parameters in ``input/security_config.yml``.
 
-.. warning:: Do not remove or comment any lines in the ``input/security_config.yml`` file.
+.. caution:: Do not remove or comment any lines in the ``input/security_config.yml`` file.
 
 +----------------------------+----------------------------------------------------------------------------------------------+
 | Parameter                  | Details                                                                                      |
@@ -80,6 +80,7 @@ Where inventory follows the format defined under inventory file in the provided 
             kinit admin  (When prompted, provide kerberos_admin_password as entered in security_config.yml)
             ipa user-add --homedir=<nfs_dir_path> --password
 
+    For example: ``ipa user-add FirstName_LastName --first=FirstName --last=LastName --password  --homedir=/home/omnia-share/FirstName_LastName``
 
 
 **Setting up Passwordless SSH for FreeIPA**
