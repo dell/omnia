@@ -13,7 +13,7 @@ Below is a list of all logs available to Loki and can be accessed on the dashboa
    :header-rows: 1
    :keepspace:
 
-.. images:: ../images/Grafana_Loki_TG.png
+.. image:: ../images/Grafana_Loki_TG.png
 
 Provisioning logs
 --------------------
