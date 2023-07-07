@@ -48,13 +48,6 @@
   ansible.builtin.include_vars: "{{ role_path }}/../../../input/{{ config_filename }}"
   no_log: true
 
-- name: Verify the value of login_node_required
-  ansible.builtin.assert:
-    that:
-      - login_node_required == true or login_node_required == false
-    success_msg: "{{ login_node_required_success_msg }}"
-    fail_msg: "{{ login_node_required_fail_msg }}"
-
 - name: Validate input parameters are not empty
   ansible.builtin.fail:
     msg: "{{ input_config_failure_msg }}"
@@ -111,14 +104,6 @@
     ansible_conf_file_path: "{{ ansible_config_file_path }}"
     omnia_usrhome_share: "{{ omnia_usrhome_share }}"
   no_log: true
-
-- name: Login node to contain exactly 1 node
-  ansible.builtin.assert:
-    that:
-      - "groups['login'] | length | int == 1"
-    fail_msg: "{{ login_node_group_fail_msg }}"
-    success_msg: "{{ login_node_group_success_msg }}"
-  when: login_node_required
 
 - name: Verify the value of enable_omnia_nfs
   ansible.builtin.assert:

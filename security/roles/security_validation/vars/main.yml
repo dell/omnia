@@ -80,3 +80,9 @@ ping_msg: "100% packet loss"
 ldap_connection_type_success_msg: "LDAP Connection type successfully validated"
 ldap_connection_type_fail_msg: "Failed. LDAP Connection type must be: SSL, TLS, ssl or tls"
 ldap_ca_cert_path_failure_msg: "Failed. The mentioned certificate does not exist"
+
+# Usage: set_login_node_status.yml
+multiple_login_node_fail_msg: "Failed. Currently only one login node supported in inventory"
+warning_wait_time: 10
+login_node_warning_msg: "[WARNING] login group with ip for login node not present in the inventory.
+Proceeding execution with manager and compute nodes"

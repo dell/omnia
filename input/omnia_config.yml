@@ -55,11 +55,6 @@ docker_password: ""
 # If ansible is installed using pip, this path should be set
 ansible_config_file_path: "/etc/ansible"
 
-# Boolean indicating whether login node is required or not
-# It can be set to true or false
-# By default it is set to false indicating login node will not be configured
-login_node_required: false
-
 # Set this to false if a parallel file system is running in the environment
 # and a share file system (NFS/BeeGFS) will be used to create home directory/ Kubernetes share directory on it.
 # When this variable is true Omnia will create its own NFS share and mount omnia_usrhome_share on all the nodes.

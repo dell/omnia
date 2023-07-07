@@ -17,7 +17,7 @@
 omnia_log_path: /var/log/omnia
 cp_path: "/root/.ansible/cp/"
 ansible_cfg_src: "{{ playbook_dir }}/ansible.cfg"
-ansible_cfg_dest: 
+ansible_cfg_dest:
   - { path: "{{ playbook_dir }}/telemetry/ansible.cfg", log_path: "/var/log/omnia/omnia_telemetry.log", regexp: "/var/log/omnia.log" }
   - { path: "{{ playbook_dir }}/platforms/ansible.cfg", log_path: "/var/log/omnia/omnia_platforms.log", regexp: "/var/log/omnia.log" }
 
@@ -42,9 +42,7 @@ freeipa_required_success_msg: "freeipa_required variable sccessfully validated"
 freeipa_required_fail_msg: "Failed. freeipa_required should be either true or false"
 ldap_login_failure_msg: "Failed. Both login_node_required and ldap_required cannot be true"
 ldap_freeipa_failure_msg: "Failed. Both ldap_required and freeipa_required cannot be true"
-login_node_required_success_msg: "login_node_required successfully validated"
-login_node_required_fail_msg: "Failed. login_node_required should be either true or false"
-login_node_group_success_msg: "Login node group check passed when login_node_required is true"
+
 enable_omnia_nfs_success_msg: "enable_omnia_nfs successfully validated"
 enable_omnia_nfs_fail_msg: "Failed. enable_omnia_nfs should be either true or false"
 input_config_failure_msg: "None of the parameters in omnia_config.yml should be empty."
@@ -57,8 +55,6 @@ compute_group_fail_msg: "compute group should contain atleast 1 node"
 compute_group_success_msg: "compute group check passed"
 disjoint_fail_msg: "manager and compute groups should be disjoint"
 disjoint_success_msg: "manager and compute groups are disjoint"
-login_node_group_fail_msg: "Login node group should contain atleast 1 node when login_node_required is true"
-login_node_group_success_msg: "Login node group check passed when login_node_required is true"
 nfs_node_group_fail_msg: "nfs_node group should contain exactly 1 node"
 nfs_node_group_success_msg: "nfs_node group check passed"
 
@@ -67,10 +63,16 @@ ansible_base_version: '2.9'
 ipaddr_collection: ansible.utils:2.5.2
 ansible_collection_nfs: ansible.posix:1.4.0
 
-#Usage: fetch_ldap_client_inputs.yml
+# Usage: fetch_ldap_client_inputs.yml
 ldap_client_config_failure_msg: "LDAP Client Input parameters cannot be empty when ldap_reqired is set to true"
 ldap_server_failure_msg: "LDAP server is not reachable. Please check the reachability from cluster"
 ping_msg: "100% packet loss"
 ldap_connection_type_success_msg: "LDAP Connection type successfully validated"
 ldap_connection_type_fail_msg: "Failed. LDAP Connection type must be: SSL, TLS, ssl or tls"
 ldap_ca_cert_path_failure_msg: "Failed. The mentioned certificate does not exist"
+
+# Usage: set_login_node_status.yml
+multiple_login_node_fail_msg: "Failed. Currently only one login node supported in inventory"
+warning_wait_time: 10
+login_node_warning_msg: "[WARNING] login group with ip for login node not present in the inventory.
+Proceeding execution with manager and compute nodes"
