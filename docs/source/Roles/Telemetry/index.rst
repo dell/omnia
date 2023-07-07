@@ -103,7 +103,7 @@ Once ``provision.yml`` is executed and Grafana is set up, use ``telemetry.yml`` 
 
     .. image:: ../../images/grafanaIP.png
 
-    ii. Login to the Grafana UI by connecting to the IP obtained above via port 5000. That is ``http://xx.xx.xx.xx:5000/login``
+    ii. Login to the Grafana UI by connecting to the cluster IP of grafana service obtained above via port 5000. That is ``http://xx.xx.xx.xx:5000/login``
 
     .. image:: ../../images/Grafana_login.png
 
