@@ -121,7 +121,7 @@ After the required parameters are filled in ``input/storage_config.yml``, Omnia 
 .. note::
     * BeeGFS client-server communication can take place over TCP or RDMA. If RDMA support is required, set ``beegfs_rdma_support`` should be set to true. Also, OFED should be installed on all target nodes.
     * For BeeGFS communication happening over RDMA, the ``beegfs_mgmt_server`` should be provided with the Infiniband IP of the management server.
-    * The parameter inventory refers to the `inventory file <../../samplefiles.html>`_ listing manager, login_node and compute nodes.)
+    * The parameter inventory refers to the `inventory file <../../samplefiles.html>`_ listing manager, login and compute nodes.)
 
 If ``input/storage_config.yml`` is populated before running ``omnia.yml``, BeeGFS client will be set up during the run of ``omnia.yml``.
 

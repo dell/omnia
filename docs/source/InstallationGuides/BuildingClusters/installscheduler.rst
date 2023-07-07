@@ -5,7 +5,7 @@ Building clusters
 
 .. note::  Without the login node, Slurm jobs can be scheduled only through the manager node.
 
-2. Create an inventory file in the *omnia* folder. Add login node IP address under the manager node IP address under the *[manager]* group, compute node IP addresses under the *[compute]* group, and Login node IP under the *[login_node]* group,. Check out the `sample inventory for more information <../samplefiles.html>`_.
+2. Create an inventory file in the *omnia* folder. Add login node IP address under the manager node IP address under the *[manager]* group, compute node IP addresses under the *[compute]* group, and Login node IP under the *[login]* group,. Check out the `sample inventory for more information <../samplefiles.html>`_.
 
 .. note::
      * RedHat nodes that are not configured by Omnia need to have a valid subscription. To set up a subscription, `click here <https://omnia-doc.readthedocs.io/en/latest/Roles/Utils/rhsm_subscription.html>`_.
@@ -19,7 +19,7 @@ Building clusters
 
 .. note::
     * To visualize the cluster (Slurm/Kubernetes) metrics on Grafana (On the control plane)  during the run of ``omnia.yml``, add the parameters ``grafana_username`` and ``grafana_password`` (That is ``ansible-playbook omnia.yml -i inventory -e grafana_username="" -e grafana_password=""``). Alternatively, Grafana is not installed by ``omnia.yml`` if it's not available on the Control Plane.
-    * Having the same node in the manager and login_node groups in the inventory is not recommended by Omnia.
+    * Having the same node in the manager and login groups in the inventory is not recommended by Omnia.
 
 **Using Skip Tags**
 
