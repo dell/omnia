@@ -66,5 +66,8 @@ The monitor role sets up `Grafana <https://grafana.com/>`_ ,  `Prometheus <https
     Loki log collections and telemetry/kubernetes dashboards can viewed on the explore section of the grafana UI.
 
     .. image:: ../../images/Grafana_Loki.png
+
+    Datasources configured by Omnia can be viewed as seen below.
+
     .. image:: ../../images/Grafana_DataSources.png
 
