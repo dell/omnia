@@ -14,7 +14,7 @@
 ---
 
 - name: Collect cp files from ansible directory
-  find:
+  ansible.builtin.find:
     paths: "{{ cp_path }}"
     hidden: true
     recurse: true
@@ -24,7 +24,7 @@
   delegate_to: localhost
 
 - name: Remove cp files from ansible directory
-  file:
+  ansible.builtin.file:
     path: "{{ item.path }}"
     state: absent
   with_items: "{{ collected_files.files }}"
