@@ -48,3 +48,23 @@ The monitor role sets up `Grafana <https://grafana.com/>`_ ,  `Prometheus <https
     cd monitor
     ansible-playbook monitor.yml
 
+
+3. To access the grafana UI:
+
+    i. Find the IP address of the Grafana service using ``kubectl get svc -n grafana``
+
+    .. image:: ../../images/grafanaIP.png
+
+    ii. Login to the Grafana UI by connecting to the cluster IP of grafana service obtained above via port 5000. That is ``http://xx.xx.xx.xx:5000/login``
+
+    .. image:: ../../images/Grafana_login.png
+
+    iii. Enter the ``grafana_username`` and ``grafana_password`` as mentioned in ``monitor/monitor_config.yml``.
+
+    .. image:: ../../images/Grafana_Dashboards.png
+
+    Loki log collections and telemetry/kubernetes dashboards can viewed on the explore section of the grafana UI.
+
+    .. image:: ../../images/Grafana_Loki.png
+    .. image:: ../../images/Grafana_DataSources.png
+

@@ -31,6 +31,8 @@ Optional configurations managed by the provision tool
 
         * If ``mlnx_ofed_path`` is provided  in ``input/provision_config.yml`` and Mellanox NICs are available on the target nodes, OFED packages will be deployed post provisioning without user intervention.
 
+        .. note:: When leveraging the provision tool to install OFED, Omnia prevents the following packages from being upgraded: dapl* ibacm infiniband* libmlx* librdma* opensm* ibutils* perftest* openmpi by appending ``exclude=dapl* ibacm infiniband* libmlx* librdma* opensm* ibutils* perftest* openmpi`` to ``/etc/yum.conf``. For more information on this, `click here <https://xcat-docs.readthedocs.io/en/stable/advanced/networks/infiniband/mlnxofed_ib_known_issue.html>`_.
+
     **Using the Network playbook**
 
         * OFED can also be installed using `network.yml <../../Roles/Network/index.html>`_ after provisioning the servers (Assuming the provision tool did not install OFED packages).

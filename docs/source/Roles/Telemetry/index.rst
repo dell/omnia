@@ -95,10 +95,24 @@ Using `Texas Technical University data visualization lab <https://idatavisualiza
 
 Once ``provision.yml`` is executed and Grafana is set up, use ``telemetry.yml`` to initiate the Graphs. Data polled via Slurm and iDRAC is streamed into internal databases. This data is processed to create the 4 graphs listed below.
 
-
 .. note:: This feature only works on Nodes using iDRACs with a datacenter license running a minimum firmware of 4.0.
 
-All your data in a glance
+**To access the grafana UI:**
+
+    i. Find the IP address of the Grafana service using ``kubectl get svc -n grafana``
+
+    .. image:: ../../images/grafanaIP.png
+
+    ii. Login to the Grafana UI by connecting to the cluster IP of grafana service obtained above via port 5000. That is ``http://xx.xx.xx.xx:5000/login``
+
+    .. image:: ../../images/Grafana_login.png
+
+    iii. Enter the ``grafana_username`` and ``grafana_password`` as mentioned in ``monitor/monitor_config.yml``.
+
+    .. image:: ../../images/Grafana_Dashboards.png
+
+
+**All your data in a glance**:
 
 Using the following graphs, data can be visualized to gather correlational information.
 

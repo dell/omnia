@@ -34,7 +34,7 @@ Note the compatibility between cluster OS and control plane OS below:
         | Rocky               | Rocky              | Yes              |
         +---------------------+--------------------+------------------+
 
-.. [1] Ensure that control planes running RHEL have an active subscription or are configured to access local repositories. The following repositories should be enabled on the control plane: **AppStream**, **Code Ready Builder (CRB)**, **BaseOS**.
+.. [1] Ensure that control planes running RHEL have an active subscription or are configured to access local repositories. The following repositories should be enabled on the control plane: **AppStream**, **Code Ready Builder (CRB)**, **BaseOS**. For RHEL control planes running 8.5 and below, ensure that sshpass is additionally available to install or download to the control plane (from any local repository).
 
 * To set up CUDA and OFED using the provisioning tool, download the required repositories from here:
 
