@@ -4,7 +4,7 @@ Troubleshooting guide
 Control plane logs
 ---------------------------
 
-All log files can be viewed via the Dashboard tab ( |Dashboard| ). The Default Dashboard displays ``omnia.log`` and ``syslog``. Custom dashboards can be created per user requirements.
+All log files can be viewed via the Dashboard tab ( |Dashboard| ) on the grafana UI. The Default Dashboard displays ``omnia.log`` and ``syslog``. Custom dashboards can be created per user requirements.
 
 Below is a list of all logs available to Loki and can be accessed on the dashboard:
 
