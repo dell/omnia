@@ -79,7 +79,7 @@ If a login node is available and mentioned in the inventory file, the following 
 
 .. note::
 
-    * To enable the login node, ensure that ``login_node_required`` in ``input/omnia_config.yml`` is set to true.
+    * To enable the login node, ensure that the ``login`` group in the inventory has the intended IP populated.
 
 **Slurm job based user access**
 
