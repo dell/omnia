@@ -58,16 +58,6 @@
 * If ansible is installed using pip, this path should be set                        
                                                                                     
      **Default values**: ``/etc/ansible``                                           "
-"**login_node_required**
-
-     ``boolean``
-
-     Optional      ","Boolean indicating whether login node is required or not.
-                                                         
-     Choices:                                            
-                                                         
-     * ``false``  <- default                             
-     * ``true``                                          "
 "**enable_omnia_nfs**
 
      ``boolean``

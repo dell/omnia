@@ -11,7 +11,7 @@ Before you build clusters
 
   * The compute group should have at least 1 node.
 
-  * The login_node group is optional. If present, it should have exactly 1 node.
+  * The login group is optional. If present, it should have exactly 1 node.
 
   * Users should also ensure that all repos are available on the target nodes running RHEL.
 
