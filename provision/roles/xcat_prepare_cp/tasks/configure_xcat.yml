@@ -50,21 +50,21 @@
 
 - name: Make node object for control plane
   ansible.builtin.command: >-
-    mkdef -t node cp1 groups=control_plane mgt=ipmi cons=ipmi ip={{ admin_nic_ip }} bmc={{ bmc_nic_ip }} primarynic=mac mac={{ pxe_mac_address }}
+    mkdef -t node control_plane groups=control_plane mgt=ipmi cons=ipmi ip={{ admin_nic_ip }} bmc={{ bmc_nic_ip }} primarynic=mac mac={{ pxe_mac_address }}
   changed_when: false
   failed_when: false
   when: network_interface_type == "lom"
 
 - name: Make node object for control plane
   ansible.builtin.command: >-
-    mkdef -t node cp1 groups=control_plane mgt=ipmi cons=ipmi ip={{ admin_nic_ip }} primarynic=mac mac={{ pxe_mac_address }}
+    mkdef -t node control_plane groups=control_plane mgt=ipmi cons=ipmi ip={{ admin_nic_ip }} primarynic=mac mac={{ pxe_mac_address }}
   changed_when: false
   failed_when: false
   when: network_interface_type == "dedicated"
 
 - name: Update the site table
   ansible.builtin.shell: >
-    chdef -t site excludenodes="cp1"
+    chdef -t site excludenodes="control_plane"
   changed_when: true
 
 - name: Configure DHCP routing settings

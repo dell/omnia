@@ -20,6 +20,7 @@ admin_nic_ip = sys.argv[1]
 network_interface_type = sys.argv[2]
 pxe_mac_address = sys.argv[3]
 bmc_nic_ip = sys.argv[4]
+cp_hostname = sys.argv[5]
 node_name = "control_plane"
 admin_nic_ip = ipaddress.IPv4Address(admin_nic_ip)
 bmc_nic_ip = ipaddress.IPv4Address(bmc_nic_ip)
@@ -33,7 +34,7 @@ def cp_details_db():
     cursor.execute(sql)
     pxe_mac_op = cursor.fetchone()
     if pxe_mac_op is None:
-        omniadb_connection.insert_cp_details_db(cursor, node_name, network_interface_type, bmc_nic_ip, admin_nic_ip, pxe_mac_address)
+        omniadb_connection.insert_cp_details_db(cursor, node_name, network_interface_type, bmc_nic_ip, admin_nic_ip, pxe_mac_address, cp_hostname)
 
     conn.close()
 cp_details_db()
