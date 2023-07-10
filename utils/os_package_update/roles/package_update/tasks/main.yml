@@ -15,13 +15,12 @@
 
 - name: Include variable file package_update_config.yml
   ansible.builtin.include_vars: "{{ package_update_config_file }}"
-  no_log: true
-
-- name: Validate input
-  ansible.builtin.include_tasks: validate_input.yml
 
 - name: Execute update node
   block:
+    - name: Validate input
+      ansible.builtin.include_tasks: validate_input.yml
+
     - name: Update Packages
       ansible.builtin.include_tasks: update.yml
 
