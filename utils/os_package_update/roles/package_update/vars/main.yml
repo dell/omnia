@@ -34,7 +34,11 @@ os_version_success_msg: "OS version successfully validated"
 os_version_fail_msg: "Failed. Check whether valid os_version is provided in package_update_config.yml."
 list_format_success_msg: "Package list format validated."
 list_format_fail_msg: "Failed, Package list format incorrect, follow 'custom_software/<package>' format in package list."
+pkg_list_missing_msg: "Failed. Package list not present in the given path {{ package_list }}.
+Please provide correct path in package_update_config.yml."
 
 # Usage: update.yml
 updatenode_fail_msg: "Updatenode execution failed."
 osimage_search_key: install-compute
+update_node_status_msg: "Update package task completed. If updatestatus mentioned as failed for the node in below task output,
+please search with key 'updatenode {{ nodelist }}'' in /var/log/xcat/commands.log and check node provision or boot status to debug the failure"

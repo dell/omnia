@@ -27,6 +27,7 @@
     - name: Execute updatenode command
       ansible.builtin.command: updatenode "{{ nodelist }}" -P "otherpkgs"
       changed_when: true
+      failed_when: false
 
     - name: Clean osimage object definition
       ansible.builtin.command: chdef -t osimage "{{ os_image }}" -m otherpkglist="{{ package_list }}"
@@ -36,10 +37,6 @@
     - name: Clean osimage object definition before failing
       ansible.builtin.command: chdef -t osimage "{{ os_image }}" -m otherpkglist="{{ package_list }}"
       changed_when: true
-
-    - name: Failed. Update package Execution failed.
-      ansible.builtin.fail:
-        msg: "{{ updatenode_fail_msg }}"
 
 - name: Modify osimage if pkg_type is os
   when: package_type == 'os'
@@ -51,6 +48,7 @@
     - name: Execute updatenode command
       ansible.builtin.command: updatenode "{{ nodelist }}" -P "ospkgs --keeprepo"
       changed_when: true
+      failed_when: false
 
     - name: Clean osimage object definition
       ansible.builtin.command: chdef -t osimage "{{ os_image }}" -m pkglist="{{ package_list }}"
@@ -61,6 +59,19 @@
       ansible.builtin.command: chdef -t osimage "{{ os_image }}" -m pkglist="{{ package_list }}"
       changed_when: true
 
-    - name: Failed. Update package Execution failed.
-      ansible.builtin.fail:
-        msg: "{{ updatenode_fail_msg }}"
+- name: Fetch update status successful nodes
+  ansible.builtin.postgresql_query:
+    db: xcatdb
+    login_user: postgres
+    query: select node,updatestatus,updatestatustime from nodelist where groups like '%all%';
+  become_user: postgres
+  register: update_status_nodes
+
+- name: Update package status message
+  ansible.builtin.debug:
+    msg: "{{ update_node_status_msg }}"
+
+- name: Update package status for all nodes
+  ansible.builtin.debug:
+    msg: "{{ update_status_nodes.query_result }}"
+  when: update_status_nodes.query_result | length >= 1
