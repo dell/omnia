@@ -16,8 +16,8 @@ Checking node status
 
         id  | serial  |        node        |            hostname            |     admin_mac     |   admin_ip   |    bmc_ip    |    ib_ip     |   status   | bmc_mode |   switch_ip   | switch_name | switch_port
         ----+---------+--------------------+--------------------------------+-------------------+--------------+--------------+--------------+------------+----------+---------------+-------------+-------------
-          1 | XXXXXXX | omnia-node00001    | omnia-node00001.omnia.test     | ec:2a:72:34:f7:26 |  10.5.0.101  | 10.19.0.101  | 10.10.0.101  | booted     |          | 10.96.28.132  | switch1     | 2
-          2 | XXXXXXX | omnia-node00002    | omnia-node00002.omnia.test     |                   |  10.5.0.102  | 10.19.0.102  | 10.10.0.102  |            |          | 10.96.28.132  | switch1     | 3
+          1 | XXXXXXX | control_plane      |   control_plane.omnia.test     | ec:2a:72:34:f7:26 |  10.5.255.254| 10.19.255.254|              |            |          |               |             |
+          2 | XXXXXXX | omnia-node00002    | omnia-node00002.omnia.test     |                   |  10.5.0.102  | 10.19.0.102  | 10.10.0.102  | booted     |          | 10.96.28.132  | switch1     | 3
           3 | XXXXXXX | omnia-node00003    | omnia-node00003.omnia.test     |                   |  10.5.0.103  | 10.19.0.103  | 10.10.0.103  |            |          | 10.96.28.132  | switch1     | 4
           4 | XXXXXXX | omnia-node00004    | omnia-node00004.omnia.test     | 2c:ea:7f:3d:6b:98 |  10.5.0.104  | 10.19.0.104  | 10.10.0.104  | installing |          | 10.96.28.132  | switch1     | 5
           5 | XXXXXXX | omnia-node00005    | omnia-node00005.omnia.test     |                   |  10.5.0.105  | 10.19.0.105  | 10.10.0.105  |            |          | 10.96.28.132  | switch1     | 6
@@ -31,5 +31,5 @@ Checking node status
 
 Possible values of status are static, powering-on, installing, bmcready, booting, post-booting, booted, failed. The status will be updated every 3 minutes.
 
-.. note:: For nodes listing status as 'failed', provisioning logs can be viewed in ``/var/log/xcat/xcat.log`` on the target nodes.
+.. note:: For nodes listing status as 'failed', provisioning logs can be viewed in ``/var/log/xcat/cluster.log`` on the target nodes.
 

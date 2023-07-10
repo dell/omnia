@@ -18,7 +18,7 @@ Below is a list of all logs available to Loki and can be accessed on the dashboa
 Provisioning logs
 --------------------
 
-Logs pertaining to provisioning can be viewed in ``/var/log/xcat/xcat.log`` on the target nodes.
+Logs pertaining to provisioning can be viewed in ``/var/log/xcat/cluster.log`` on the target nodes.
 
 Logs of individual containers
 --------------------------------------------

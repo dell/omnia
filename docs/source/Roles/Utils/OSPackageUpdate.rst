@@ -26,36 +26,37 @@ To customize the package update, enter the following parameters in ``utils/packa
 |      ``string``  |                                                                                                                                                                                           |
 |      Required    |      Choices:                                                                                                                                                                             |
 |                  |                                                                                                                                                                                           |
-|                  |      * ``rhel``                                                                                                                                                                           |
+|                  |      * ``rhel``    <- Default                                                                                                                                                             |
 |                  |                                                                                                                                                                                           |
 |                  |      * ``rocky``                                                                                                                                                                          |
 +------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | os_version       | OS version of target nodes in the cluster.                                                                                                                                                |
 |      ``string``  |                                                                                                                                                                                           |
-|      Required    |                                                                                                                                                                                           |
+|      Required    | **Default value**: 8.6                                                                                                                                                                    |
 +------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | package_list     | * Location path for the package list file                                                                                                                                                 |
 |      ``string``  | * For other packagelist, file name should be -   (xxx.otherpkgs.pkglist)                                                                                                                  |
 |      Required    | * For os packagelist, file name should be - (xxx.pkglist)                                                                                                                                 |
 |                  | * All packages in this list will be installed/updated on remote nodes                                                                                                                     |
+|                  | **Default value**: "/install/post/otherpkgs/rhels8.6.0/x86_64/custom_software/update.otherpkgs.pkglist"                                                                                   |
 +------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | package_type     | * Indicates whether the packages to be installed are ``os`` packages (ie   they are available in baseos or appstream) or ``other`` (ie they're not part of os repos, appstream or baseos).|
 |      ``string``  | * If the package is being downloaded to ``/install/post/otherpkgs/<Provision OS.Version>/x86_64/custom_software/Packages/``, use the value ``other``.                                     |
 |      Required    | Choices:                                                                                                                                                                                  |
 |                  |                                                                                                                                                                                           |
 |                  |      * ``os``                                                                                                                                                                             |
-|                  |      * ``other``                                                                                                                                                                          |
+|                  |      * ``other`` <- Default                                                                                                                                                               |
 +------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | nodelist         | Comma separated list of all target nodes in the cluster.                                                                                                                                  |
 |      ``string``  |                                                                                                                                                                                           |
-|      Required    |      **Default values**: ``all``                                                                                                                                                          |
+|      Required    |      **Default value**: ``all``                                                                                                                                                           |
 +------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | reboot_required  | Indicates whether the remote nodes listed will be rebooted.                                                                                                                               |
 |      ``boolean`` |                                                                                                                                                                                           |
 |      Required    | Choices:                                                                                                                                                                                  |
 |                  |                                                                                                                                                                                           |
-|                  |      * ``true`` <- Default                                                                                                                                                                |
-|                  |      * ``false``                                                                                                                                                                          |
+|                  |      * ``true``                                                                                                                                                                           |
+|                  |      * ``false`` <- Default                                                                                                                                                               |
 +------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 To run the playbook, run the following commands: ::
@@ -63,3 +64,4 @@ To run the playbook, run the following commands: ::
     cd utils
     ansible-playbook package_update.yml
 
+.. note:: At the end of the playbook, the package update status is displayed by target node. If the update status of any node is ``failed``, use the command log (``/var/log/xcat/commands.log``) to debug the issue. Alternatively, verify that the node is reachable post provisioning.
