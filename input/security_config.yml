@@ -75,8 +75,8 @@ ldap_ca_cert_path: "/etc/openldap/certs/omnialdap.pem"
 # This variable accepts the user home directory path for ldap configuration
 # If nfs mount is created for user home, make sure you provide the
 # LDAP users mount home directory path
-# Default value is /home
-user_home_dir: "/home"
+# Default value is /home/omnia-share
+user_home_dir: "/home/omnia-share"
 
 # If LDAP server is configured with bind dn then bind dn user to be provided
 # By default the bind dn user is admin

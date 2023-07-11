@@ -25,6 +25,7 @@ sssd_config_file: "/etc/sssd/sssd.conf"
 
 # Usage: validation.yml
 ldap_home_dir_fail_msg: "Failed. ldap home directory {{ hostvars['127.0.0.1']['user_home_dir'] }}/{{ user }} not created for the user {{ user }}.
-Login to one of the nodes as the user so that home directory is created."
+Login to one of the nodes other than ldap server as the user so that home directory is created.
+Make sure ldap home directory {{ hostvars['127.0.0.1']['user_home_dir'] }} mounted as nfs share in ldap server."
 ipa_home_dir_fail_msg: "Failed. ipa home directory {{ hostvars['127.0.0.1']['freeipa_user_home_dir'] }}/{{ user }} not created for the user {{ user }}.
 Login to one of the nodes as the user so that home directory is created."
