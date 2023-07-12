@@ -241,9 +241,9 @@ def mapping_file_creation():
                 sys.exit('PXE ip range has exceeded the provided range. Please provide proper range')
             else:
                 sql = '''Update cluster.nodeinfo set admin_ip=inet'{ip_start_addr}' + id
-                   where admin_ip - id <> inet ('{ip_start_addr}') '''.format(ip_start_addr=ip_start_addr)
+                   where admin_ip - id <> inet ('{ip_start_addr}') and node!='control_plane';'''.format(ip_start_addr=ip_start_addr)
                 cursor.execute(sql)
-            sql = '''select admin_mac,hostname,admin_ip from cluster.nodeinfo'''
+            sql = '''select admin_mac,hostname,admin_ip from cluster.nodeinfo where node!='control_plane';'''
             cursor.execute(sql)
             result = cursor.fetchall()
             with open(filename, 'w') as csvfile:
@@ -260,9 +260,9 @@ def mapping_file_creation():
                 sys.exit('PXE ip range has exceeded the provided range. Please provide proper range')
             else:
                 sql = '''Update cluster.nodeinfo set ib_ip=inet'{ip_start_addr}' + id
-                   where ib_ip - id <> inet ('{ip_start_addr}') '''.format(ip_start_addr=ip_start_addr)
+                   where ib_ip - id <> inet ('{ip_start_addr}') and node!='control_plane';'''.format(ip_start_addr=ip_start_addr)
                 cursor.execute(sql)
-            sql = '''select admin_mac,hostname,ib_ip from cluster.nodeinfo'''
+            sql = '''select admin_mac,hostname,ib_ip from cluster.nodeinfo where node!='control_plane';'''
             cursor.execute(sql)
             result = cursor.fetchall()
             with open(filename, 'w') as csvfile:

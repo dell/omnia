@@ -111,7 +111,11 @@
   ansible.builtin.stat:
     path: "{{ package_list }}"
   register: pkg_list
-  failed_when: not pkg_list.stat.exists
+
+- name: Fail when package list not exist
+  ansible.builtin.fail:
+    msg: "{{ pkg_list_missing_msg }}"
+  when: not pkg_list.stat.exists
 
 - name: Check list format
   ansible.builtin.assert:
