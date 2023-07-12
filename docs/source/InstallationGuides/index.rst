@@ -11,9 +11,9 @@ The control plane needs to be internet-capable with Github and a full OS install
 
     dnf install git -y
 
-.. note:: If the control plane  has an Infiniband NIC installed, run the below ::
+.. note:: If the control plane  has an Infiniband NIC installed, run the below:
 
-    yum groupinstall "Infiniband Support" -y
+    ``yum groupinstall "Infiniband Support" -y``
 
 
 Once the Omnia repository has been cloned on to the control plane: ::
