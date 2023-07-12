@@ -13,6 +13,10 @@
 #  limitations under the License.
 ---
 
+- name: Set control_plane_os
+  ansible.builtin.set_fact:
+    control_plane_os: "{{ ansible_distribution | lower }}"
+
 - name: Uninstall xCAT
   block:
     - name: Validate xCAT service
@@ -161,3 +165,9 @@
         name: omnia.service
         enabled: false
   tags: monitoring_thread
+
+- name: Remove epel-release
+  ansible.builtin.command: dnf remove epel-release -y
+  changed_when: true
+  failed_when: false
+  when: control_plane_os_redhat in control_plane_os
