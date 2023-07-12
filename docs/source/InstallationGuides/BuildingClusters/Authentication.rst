@@ -198,7 +198,7 @@ Once user accounts are created, admins can enable passwordless SSH for users to 
             1. Add the LDAP server IP address to ``/etc/exports``.
             2. Run ``exports -ra`` to enable the NFS configuration.
         - From the LDAP server:
-            1. Add the required fstab entries in ``etc/fstab``.
+            1. Add the required fstab entries in ``/etc/fstab``.
             2. Mount the NFS share using ``mount manager_ip: /home/omnia-share /home/omnia-share``.
     * If ``enable_omnia_nfs`` is false in ``input/omnia_config.yml``, ensure the user-configured NFS share is mounted on the LDAP server.
 
