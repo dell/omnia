@@ -57,6 +57,12 @@ In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcf
 * For RHEL target nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription.
 
 * Users should also ensure that all repos (AppStream, BaseOS and CRB) are available on the RHEL control plane.
+
+* Uninstall epel-release if installed on the control plane as Omnia configures epel-release on the control plane. To uninstall epel-release, use the following commands: ::
+
+    dnf remove epel-release -y
+
+
 .. note::
     To enable the repositories, run the following commands: ::
 

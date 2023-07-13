@@ -66,6 +66,30 @@ Resolution:
 
     * Resolve/replace the faulty hardware and PXE boot the node.
 
+**Why does the 'Fail if LDAP home directory exists' task fail during user_passwordless_ssh.yml?**
+
+.. image:: ../images/nfssharecheckfail.png
+
+Cause: The required NFS share is not set up on the control plane.
+
+Resolution:
+
+If ``enable_omnia_nfs`` is true in ``input/omnia_config.yml``, follow the below steps to configure an NFS share on your LDAP server:
+    - From the manager node:
+        1. Add the LDAP server IP address to ``/etc/exports``.
+        2. Run ``exports -ra`` to enable the NFS configuration.
+    - From the LDAP server:
+        1. Add the required fstab entries in ``/etc/fstab``
+        2. Mount the NFS share using ``mount manager_ip: /home/omnia-share /home/omnia-share``
+
+**Why does the 'Import SCP from a local path' task fail during idrac.yml?**
+
+.. image:: ../images/ImportSCPiDRAC_fail.png
+
+Cause: The target server may be hung during the booting process.
+
+Resolution: Bring the target node up and re-run the script.
+
 **Why does the 'Verify primary_dns is  reachable' task fail during provision.yml?**
 
 .. image:: ../images/primarydns_verify_failure.png

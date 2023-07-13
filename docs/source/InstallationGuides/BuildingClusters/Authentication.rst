@@ -167,7 +167,7 @@ To customize your LDAP client installation, input parameters in ``input/security
 | user_home_dir        | * This variable accepts the user home directory path for LDAP   configuration.                                       |
 |      ``string``      | * If nfs mount is created for user home, make sure you provide the freeipa   users mount home directory path.        |
 |      Required        |                                                                                                                      |
-|                      |      **Default value**: ``"/home"``                                                                                  |
+|                      |      **Default value**: ``"/home/omnia-share"``                                                                      |
 +----------------------+----------------------------------------------------------------------------------------------------------------------+
 | ldap_bind_username   | * If LDAP server is configured with bind dn then bind dn user to be   provided.                                      |
 |      ``string``      | * If this value is not provided (when bind is configured in server) then   ldap authentication fails.                |
@@ -191,7 +191,17 @@ To customize your LDAP client installation, input parameters in ``input/security
 
 Once user accounts are created, admins can enable passwordless SSH for users to run HPC jobs on the cluster nodes.
 
-.. note:: Ensure that the control plane can reach the designated LDAP server.
+.. note::
+    * Ensure that the control plane can reach the designated LDAP server.
+    * If ``enable_omnia_nfs`` is true in ``input/omnia_config.yml``, follow the below steps to configure an NFS share on your LDAP server:
+        - From the manager node:
+            1. Add the LDAP server IP address to ``/etc/exports``.
+            2. Run ``exports -ra`` to enable the NFS configuration.
+        - From the LDAP server:
+            1. Add the required fstab entries in ``/etc/fstab``.
+            2. Mount the NFS share using ``mount manager_ip: /home/omnia-share /home/omnia-share``.
+    * If ``enable_omnia_nfs`` is false in ``input/omnia_config.yml``, ensure the user-configured NFS share is mounted on the LDAP server.
+
 
 To customize your setup of passwordless ssh, input parameters in ``input/passwordless_ssh_config.yml``
 
@@ -213,7 +223,7 @@ To customize your setup of passwordless ssh, input parameters in ``input/passwor
 | ldap_organizational_unit | * Distinguished name i.e dn in ldap is used to identify an entity in a   LDAP.                        |
 |      ``string``          | * This variable includes the organizational unit (ou) which is used to   identifies user in the LDAP. |
 |      Required            | * Only provide ou details i.e ou=people, as domain name and userid is   accepted already.             |
-|                          | * By default ou=People                                                                                |
+|                          | **Default value**: ``people``                                                                         |
 +--------------------------+-------------------------------------------------------------------------------------------------------+
 
 
