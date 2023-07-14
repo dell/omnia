@@ -111,6 +111,6 @@ nginx_install_msg: "Skipping installation of nginx as required details of grafan
 
 calico_warning_msg: "Warning: Calico pod is not in ready state, please check"
 
-calico_ready_state: "Ready"
+calico_ready_state: "condition met"
 
 nfs_dir_mode: 0777
