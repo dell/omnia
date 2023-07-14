@@ -23,6 +23,7 @@ ipa_server_packages:
   - bind-dyndb-ldap
   - ipa-server-dns
   - freeipa-server
+  - ipa-server-common
 
 resolv_conf_path: /etc/resolv.conf
 temp_resolv_conf_path: /tmp/resolv.conf
