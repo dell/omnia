@@ -13,21 +13,34 @@
 #  limitations under the License.
 ---
 
-- name: Wait for calico pod to come to ready state
-  ansible.builtin.command: "kubectl wait --for=condition=ready -n kube-system pod -l k8s-app=calico-node --timeout=10m"
-  changed_when: false
-  register: calico_pod_status
-  failed_when: false
+- name: Calico node configuration
   when:
     - "'manager' in group_names"
     - hostvars['127.0.0.1']['k8s_cni'] == "calico"
-  tags: install
+  block:
+    - name: Fetch host nic from ip
+      ansible.builtin.shell: ip a | grep {{ inventory_hostname }}
+      changed_when: false
+      register: fetch_nic
+      failed_when: false
 
-- name: Display warning if calico pod is not in ready state
-  ansible.builtin.debug:
-    msg: "{{ calico_warning_msg }}"
-  when: calico_pod_status.stdout is not defined or calico_ready_state not in calico_pod_status.stdout
-  tags: install  
+    - name: Set calico pod env
+      ansible.builtin.command: kubectl set env daemonset/calico-node -n kube-system IP_AUTODETECTION_METHOD=interface={{ fetch_nic.stdout.split(' ')[-1] }}
+      changed_when: true
+      failed_when: false
+
+    - name: Wait for calico pod to come to ready state
+      ansible.builtin.command: "kubectl wait --for=condition=ready -n kube-system pod -l k8s-app=calico-node --timeout=10m"
+      changed_when: false
+      register: calico_pod_status
+      failed_when: false
+      tags: install
+
+    - name: Display warning if calico pod is not in ready state
+      ansible.builtin.debug:
+        msg: "{{ calico_warning_msg }}"
+      when: calico_pod_status.stdout is not defined or calico_ready_state not in calico_pod_status.stdout
+      tags: install
 
 - name: Wait for flannel pod to come to ready state
   ansible.builtin.command: "kubectl wait --for=condition=ready -n kube-system pod -l app=flannel --timeout=10m"
