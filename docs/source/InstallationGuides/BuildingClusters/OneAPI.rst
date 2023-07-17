@@ -27,6 +27,7 @@ ___________________________
     sudo mv /tmp/oneAPI.repo /etc/yum.repos.d
 
 3. Switch to the ``/install/post/otherpkgs/<Provision OS.Version>/x86_64/custom_software/Packages/`` folder and execute:
+
 For example: ``cd /install/post/otherpkgs/rhels8.6.0/x86_64/custom_software/Packages/``. ::
 
     dnf download intel-basekit --resolve --alldeps -y
