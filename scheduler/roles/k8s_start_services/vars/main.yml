@@ -65,7 +65,7 @@ helm_stable_repo_url: https://charts.helm.sh/stable
 
 nfs_server_manager_node: "{{ ansible_host }}"
 
-mpi_operator_yaml_url: https://raw.githubusercontent.com/kubeflow/mpi-operator/v0.3.0/deploy/v1alpha2/mpi-operator.yaml
+mpi_operator_yaml_url: https://raw.githubusercontent.com/kubeflow/mpi-operator/v0.4.0/deploy/v2beta1/mpi-operator.yaml
 
 nvidia_k8s_device_plugin_repo_url: https://nvidia.github.io/k8s-device-plugin
 
