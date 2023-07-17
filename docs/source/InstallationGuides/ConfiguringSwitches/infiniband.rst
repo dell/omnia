@@ -6,9 +6,9 @@ Depending on the number of ports available on your Infiniband switch, they can b
     - HDR Switches (40 ports)
     - NDR Switches (32 ports)
 
-Input the configuration variables into the ``network/infiniband_edr_input.yml`` or ``network/infiniband_hdr_input.yml`` as appropriate:
+Input the configuration variables into the ``network/infiniband_edr_input.yml``, ``network/infiniband_hdr_input.yml`` or ``network/infiniband_ndr_input.yml`` as appropriate:
 
-.. caution:: Do not remove or comment any lines in the ``network/infiniband_edr_input.yml`` or ``network/infiniband_hdr_input.yml``  file.
+.. caution:: Do not remove or comment any lines in the ``network/infiniband_edr_input.yml``, ``network/infiniband_hdr_input.yml`` or ``network/infiniband_ndr_input.yml``  file.
 
 +-------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Parameters              | Details                                                                                                                                                                |
