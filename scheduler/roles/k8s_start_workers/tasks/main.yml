@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,39 +13,42 @@
 #  limitations under the License.
 ---
 
-- name: Disable swap (if not already disabled)
-  command: /usr/sbin/swapoff -a
-  changed_when: true
-  tags: init
+- name: Tasks for k8s_start_workers role
+  when: hostvars['127.0.0.1']['k8s_support']
+  block:
+    - name: Disable swap (if not already disabled)
+      command: /usr/sbin/swapoff -a
+      changed_when: true
+      tags: init
 
-- name: Get hostname
-  command: hostname
-  changed_when: true
-  register: node_hostname
-  tags: init
+    - name: Get hostname
+      command: hostname
+      changed_when: true
+      register: node_hostname
+      tags: init
 
-- name: Reset kubeadm
-  command: kubeadm reset -f
-  changed_when: true
-  failed_when: false
-  when:
-    - groups['manager'][0] != groups['compute'][0]
-    - groups['compute']|length >= 1
-    - node_hostname.stdout in hostvars['K8S_TOKEN_HOLDER']['k8s_nodes_not_ready']
-  tags: init
-
-- block:
-    - name: Execute kubeadm join command
-      shell: >
-        kubeadm join --token={{ hostvars['K8S_TOKEN_HOLDER']['token'] }}
-        --discovery-token-ca-cert-hash sha256:{{ hostvars['K8S_TOKEN_HOLDER']['hash'] }}
-        {{ hostvars['K8S_TOKEN_HOLDER']['ip'] }}:{{ apiserver_bind_port }}
+    - name: Reset kubeadm
+      command: kubeadm reset -f
+      changed_when: true
+      failed_when: false
       when:
         - groups['manager'][0] != groups['compute'][0]
         - groups['compute']|length >= 1
-        - node_hostname.stdout not in hostvars['K8S_TOKEN_HOLDER']['k8s_nodes_ready']
+        - node_hostname.stdout in hostvars['K8S_TOKEN_HOLDER']['k8s_nodes_not_ready']
       tags: init
-  rescue:
-    - name: Execute kubeadm join command failed
-      fail:
-        msg: "{{ kubeadm_join_fail_msg }}"
+
+    - block:
+        - name: Execute kubeadm join command
+          shell: >
+            kubeadm join --token={{ hostvars['K8S_TOKEN_HOLDER']['token'] }}
+            --discovery-token-ca-cert-hash sha256:{{ hostvars['K8S_TOKEN_HOLDER']['hash'] }}
+            {{ hostvars['K8S_TOKEN_HOLDER']['ip'] }}:{{ apiserver_bind_port }}
+          when:
+            - groups['manager'][0] != groups['compute'][0]
+            - groups['compute']|length >= 1
+            - node_hostname.stdout not in hostvars['K8S_TOKEN_HOLDER']['k8s_nodes_ready']
+          tags: init
+      rescue:
+        - name: Execute kubeadm join command failed
+          fail:
+            msg: "{{ kubeadm_join_fail_msg }}"

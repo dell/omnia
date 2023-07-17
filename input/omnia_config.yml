@@ -18,6 +18,13 @@
 # SIMPLY APPEND THE REQUIRD VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
 #***********************************************************************
 
+# Job scheduler to be installed across all nodes in the cluster
+# To install slurm provide scheduler_type: "slurm"
+# To install k8s provide scheduler_type: "k8s" 
+# To install slurm and k8s provide scheduler_type: "slurm,k8s"
+# Default value is "slurm"
+scheduler_type: "slurm"
+
 # Password used for Slurm database.
 # The Length of the password should be at least 8.
 # The password must not contain -,\, ',"

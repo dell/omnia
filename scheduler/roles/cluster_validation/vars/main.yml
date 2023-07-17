@@ -42,10 +42,14 @@ freeipa_required_success_msg: "freeipa_required variable sccessfully validated"
 freeipa_required_fail_msg: "Failed. freeipa_required should be either true or false"
 ldap_login_failure_msg: "Failed. Both login_node_required and ldap_required cannot be true"
 ldap_freeipa_failure_msg: "Failed. Both ldap_required and freeipa_required cannot be true"
-
 enable_omnia_nfs_success_msg: "enable_omnia_nfs successfully validated"
 enable_omnia_nfs_fail_msg: "Failed. enable_omnia_nfs should be either true or false"
 input_config_failure_msg: "None of the parameters in omnia_config.yml should be empty."
+
+# Usage: validate_scheduler_type.yml
+scheduler_type_success_msg: "scheduler_type successfully validated"
+scheduler_type_fail_msg: "Failed. Invalid scheduler_type in omnia_config.yml. To install slurm provide scheduler_type: slurm
+To install k8s provide scheduler_type: k8s. To install slurm and k8s provide scheduler_type: slurm,k8s"
 
 # Usage: validations.yml
 skip_tag_fail_msg: "Can't skip both slurm and kubernetes"
