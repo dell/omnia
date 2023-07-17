@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,15 +13,18 @@
 #  limitations under the License.
 ---
 
-- name: Install jansson
-  include_tasks: install_jansson.yml
+- name: Tasks for slurm_restd role
+  when: hostvars['127.0.0.1']['slurm_support']
+  block:
+    - name: Install jansson
+      include_tasks: install_jansson.yml
 
-- name: Install libjwt
-  include_tasks: install_libjwt.yml
+    - name: Install libjwt
+      include_tasks: install_libjwt.yml
 
-- name: Configure slurm restd in leap
-  include_tasks: configure_restd_leap.yml
-  when: os_supported_leap in compute_os
+    - name: Configure slurm restd in leap
+      include_tasks: configure_restd_leap.yml
+      when: os_supported_leap in compute_os
 
-- name: Generate Token
-  include_tasks: generate_token.yml
+    - name: Generate Token
+      include_tasks: generate_token.yml
