@@ -8,5 +8,6 @@ Configuring the cluster
     OneAPI
     BeeGFS
     NFS
+    KernelUpdateRHEL
 
 

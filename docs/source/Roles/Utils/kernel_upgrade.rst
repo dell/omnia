@@ -1,11 +1,11 @@
-Updating Kernels on RHEL
-=============================
+Updating kernels on RHEL (with subscription)
+============================================
 
 **Pre-requisites**
 
-1. Subscription should be available on nodes
+1. Subscription should be available on nodes.
 
-2. Kernels to be upgraded should be available. To verify the status of the kernels, use ``yum list kernel``
+2. Kernels to be upgraded should be available. To verify the status of the kernels, use ``yum list kernel``.
 
 3. The input kernel revision cannot be a RHEL 7.x supported kernel version. e.g. “3.10.0-54.0.1” to “3.10.0-1160”.
 
