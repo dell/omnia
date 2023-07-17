@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,37 +13,40 @@
 #  limitations under the License.
 ---
 
-- name: Create directory for helm installer file
-  file:
-    path: "{{ helm_installer_file_directory }}"
-    state: directory
-    mode: "{{ helm_installer_file_directory_mode }}"
-
-- name: Get helm installer
-  get_url:
-    url: "{{ helm_installer_url }}"
-    dest: "{{ helm_installer_file_dest }}"
-    mode: "{{ helm_installer_file_mode }}"
-  register: helm_installer
-  until: helm_installer is not failed
-  retries: 20
-  delay: 10
-  tags: manager
-
-- name: Install helm
+- name: Tasks for k8s_manager role
+  when: hostvars['127.0.0.1']['k8s_support']
   block:
-    - name: Install helm
-      ansible.builtin.command: "/bin/bash {{ helm_installer_file_dest }}"
-      changed_when: true
-      register: install_helm
-      until: install_helm is not failed
+    - name: Create directory for helm installer file
+      file:
+        path: "{{ helm_installer_file_directory }}"
+        state: directory
+        mode: "{{ helm_installer_file_directory_mode }}"
+
+    - name: Get helm installer
+      get_url:
+        url: "{{ helm_installer_url }}"
+        dest: "{{ helm_installer_file_dest }}"
+        mode: "{{ helm_installer_file_mode }}"
+      register: helm_installer
+      until: helm_installer is not failed
       retries: 20
+      delay: 10
       tags: manager
-  rescue:
+
     - name: Install helm
-      ansible.builtin.shell: "export PATH=/usr/local/bin:$PATH && /bin/bash {{ helm_installer_file_dest }}"
-      changed_when: true
-      register: install_helm
-      until: install_helm is not failed
-      retries: 20
-      tags: manager
+      block:
+        - name: Install helm
+          ansible.builtin.command: "/bin/bash {{ helm_installer_file_dest }}"
+          changed_when: true
+          register: install_helm
+          until: install_helm is not failed
+          retries: 20
+          tags: manager
+      rescue:
+        - name: Install helm
+          ansible.builtin.shell: "export PATH=/usr/local/bin:$PATH && /bin/bash {{ helm_installer_file_dest }}"
+          changed_when: true
+          register: install_helm
+          until: install_helm is not failed
+          retries: 20
+          tags: manager
