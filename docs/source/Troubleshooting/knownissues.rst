@@ -154,7 +154,7 @@ Wait for 15 minutes after the Kubernetes cluster reboots. Next, verify the statu
 
 2. On the management node, edit the ``omnia_config.yml`` file to change the Kubernetes Pod Network CIDR. The suggested IP range is 192.168.0.0/16. Ensure that the IP provided is not in use on your host network.
 
-3. Execute omnia.yml and skip slurm ``ansible-playbook omnia.yml  --skip-tags slurm``
+3. Set ``scheduler_type: "k8s"`` in ``input/omnia_config.yml`` and run ``omnia.yml``.
 
 **Why does pulling images to create the Kubeflow timeout causing the 'Apply Kubeflow Configuration' task to fail?**
 

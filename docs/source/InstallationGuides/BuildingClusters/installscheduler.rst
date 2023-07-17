@@ -3,7 +3,9 @@ Building clusters
 
 1. In the ``input/omnia_config.yml`` file, provide the `required details <schedulerinputparams.html>`_.
 
-.. note::  Without the login node, Slurm jobs can be scheduled only through the manager node.
+.. note::
+    * Use the parameter ``scheduler_type`` in ``input/omnia_config.yml`` to customize what schedulers are installed in the cluster.
+    * Without the login node, Slurm jobs can be scheduled only through the manager node.
 
 2. Create an inventory file in the *omnia* folder. Add login node IP address under the manager node IP address under the *[manager]* group, compute node IP addresses under the *[compute]* group, and Login node IP under the *[login]* group,. Check out the `sample inventory for more information <../samplefiles.html>`_.
 
@@ -20,17 +22,7 @@ Building clusters
 .. note::
     * To visualize the cluster (Slurm/Kubernetes) metrics on Grafana (On the control plane)  during the run of ``omnia.yml``, add the parameters ``grafana_username`` and ``grafana_password`` (That is ``ansible-playbook omnia.yml -i inventory -e grafana_username="" -e grafana_password=""``). Alternatively, Grafana is not installed by ``omnia.yml`` if it's not available on the Control Plane.
     * Having the same node in the manager and login groups in the inventory is not recommended by Omnia.
-
-**Using Skip Tags**
-
-Using skip tags, the scheduler running on the cluster can be set to Slurm or Kubernetes while running the ``omnia.yml`` playbook. This choice can be made  depending on the expected HPC/AI workloads.
-
-    * Kubernetes: ``ansible-playbook omnia.yml -i inventory --skip-tags "kubernetes"``  (To set Slurm as the scheduler)
-
-    * Slurm: ``ansible-playbook omnia.yml -i inventory --skip-tags "slurm"`` (To set Kubernetes as the scheduler)
-
-.. note::
-        * If you want to view or edit the ``omnia_config.yml`` file, run the following command:
+    * If you want to view or edit the ``omnia_config.yml`` file, run the following command:
 
                 - ``ansible-vault view omnia_config.yml --vault-password-file .omnia_vault_key`` -- To view the file.
 
