@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -19,6 +19,9 @@
 
 - name: Perform validations
   ansible.builtin.include_tasks: validations.yml
+
+- name: Set login_node_required status
+  ansible.builtin.include_tasks: set_login_node_status.yml
 
 - name: Fetch omnia_config.yml inputs
   ansible.builtin.include_tasks: fetch_omnia_inputs.yml

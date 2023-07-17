@@ -4,8 +4,11 @@ Configuring infiniband switches
 Depending on the number of ports available on your Infiniband switch, they can be classified into:
     - EDR Switches (36 ports)
     - HDR Switches (40 ports)
+    - NDR Switches (32 ports)
 
-Input the configuration variables into the ``network/infiniband_edr_input.yml`` or ``network/infiniband_hdr_input.yml`` as appropriate:
+Input the configuration variables into the ``network/infiniband_edr_input.yml``, ``network/infiniband_hdr_input.yml`` or ``network/infiniband_ndr_input.yml`` as appropriate:
+
+.. caution:: Do not remove or comment any lines in the ``network/infiniband_edr_input.yml``, ``network/infiniband_hdr_input.yml`` or ``network/infiniband_ndr_input.yml``  file.
 
 +-------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Parameters              | Details                                                                                                                                                                |
@@ -19,7 +22,7 @@ Input the configuration variables into the ``network/infiniband_edr_input.yml`` 
 +-------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | ib_split_ports          | Stores the split configuration of the ports. Accepted formats are   comma-separated (EX: "1,2"), ranges (EX: "1-10"),   comma-separated ranges (EX: "1,2,3-8,9,10-12") |
 |      ``string``         |                                                                                                                                                                        |
-|      Optional           |                                                                                                                                                                        |
+|      Optional           | .. note:: For NDR switches, only comma-separated values are currently supported. Ex: "1/1,2/1".                                                                        |
 +-------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | snmp_community_name     | The “SNMP community string” is like a user ID or password that allows   access to a router's or other device's statistics.                                             |
 |      ``string``         |                                                                                                                                                                        |
@@ -73,6 +76,8 @@ When connecting to a new or factory reset switch, the configuration wizard reque
 If the user enters 'yes', they will also be prompted to enter the hostname for the switch, DHCP details, IPv6 details, etc.
 
 .. note::
+    * Currently, Omnia only supports the splitting of switch ports. Switch ports cannot be un-split using this script. For information on manually un-splitting ports, `click here <https://docs.nvidia.com/networking/display/MLNXOSv3101110/InfiniBand+Interface+Commands#heading-interfaceibport-typesplit-2>`_.
+
     * When initializing a factory reset switch, the user needs to ensure DHCP is enabled and an IPv6 address is not assigned.
 
     * All ports intended for splitting need to be connected to the network before running the playbook.
@@ -101,7 +106,7 @@ If ``enable_split_port`` is **false**, run::
 
 * Where ``ib_default_password`` is the password used to authenticate into factory reset/fresh-install switches.
 
-* Where ``ib_switch_type`` refers to the model of the switch: HDR/EDR
+* Where ``ib_switch_type`` refers to the model of the switch: HDR/EDR/NDR
 
 .. note::
 
@@ -115,5 +120,5 @@ If ``enable_split_port`` is **false**, run::
 
     * Passwords should contain at least one of each: Lowercase, uppercase and digits.
 
- * The inventory file should be a list of IPs separated by newlines. Check out the ``switch_inventory`` section in `Sample Files <https://omnia-documentation.readthedocs.io/en/latest/samplefiles.html>`_
+ * The inventory file should be a list of IPs separated by newlines. Check out the ``switch_inventory`` section in `Sample Files <https://omnia-doc.readthedocs.io/en/latest/samplefiles.html>`_
 

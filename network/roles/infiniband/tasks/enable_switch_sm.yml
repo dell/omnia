@@ -15,10 +15,10 @@
 
 - name: Ensure Subnet Manager is enable on switch
   block:
-  - name: Set parameters to disable sm
-    ansible.builtin.set_fact:
-      sm_config: "ib sm"
+      - name: Set parameters to disable sm
+        ansible.builtin.set_fact:
+            sm_config: "ib sm"
 
-  - name: Enable subnet manager on switch
-    ansible.builtin.include_tasks: global_config.yml
-    with_items: "{{ sm_config }}"
+      - name: Enable subnet manager on switch
+        ansible.builtin.include_tasks: global_config.yml
+        with_items: "{{ sm_config }}"

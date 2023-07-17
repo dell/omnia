@@ -13,6 +13,11 @@
 # limitations under the License.
 ---
 
+#***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.                  
+# SIMPLY APPEND THE REQUIRD VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
+#***********************************************************************
+
 # delete_ports indicates which port no. to delete from the DB.
 # If split port is needed, use colon (:) as shown in example below.
 # Example1:

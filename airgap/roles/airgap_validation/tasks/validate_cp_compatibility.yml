@@ -19,4 +19,3 @@
   when:
     - compute_os_rhel_status
     - os_supported_rhel not in control_plane_os
-    - not rhel_repo_path_status

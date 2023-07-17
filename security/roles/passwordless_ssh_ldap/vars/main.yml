@@ -13,13 +13,21 @@
 #  limitations under the License.
 ---
 
-user_home_path: "{{ hostvars[groups['manager'][0]]['user_home_directory'] }}/{{ hostvars['127.0.0.1']['user_name'] }}"
+# Usage: ldap_config.yml
+user_home_path: "{{ hostvars[groups['manager'][0]]['user_home_directory'] }}/{{ user }}"
 publickey_file_path: "{{ user_home_path }}/.ssh/id_rsa.pub"
-ldap_uid: "{{ hostvars['127.0.0.1']['user_name'] }}"
+ldap_uid: "{{ user }}"
 ldap_ou: "{{ hostvars['127.0.0.1']['ldap_organizational_unit'] }}"
 ldap_dn: "{{ reqd_domain_name }}"
 get_pub_key: "cat {{ publickey_file_path }}"
 ldap_ssh_ldif_cmd: "changeType{{ ':' }} modify\nadd{{ ':' }}objectClass\nobjectClass{{ ':' }}ldapPublicKey\n-\nadd{{ ':' }} sshPublicKey\nsshPublicKey{{ ':' }}"
-ldap_create_ssh_ldif_cmd: "dn{{ ':' }} uid={{ ldap_uid }},ou={{ ldap_ou }},{{ ldap_dn }}\n{{ ldap_ssh_ldif_cmd }} $({{ get_pub_key }})"
-fail_msg_ldap_sshpubkey_exists: "LDAP Directory already has SSH public key"
 ldif_file_mode: '0644'
+
+# Usage: ldap_addkey.yml
+ldap_create_ssh_ldif_cmd: "dn{{ ':' }} uid={{ ldap_uid }},ou={{ ldap_ou }},{{ ldap_dn }}\n{{ ldap_ssh_ldif_cmd }} $({{ get_pub_key }})"
+fail_msg_ldap_sshpubkey: "Failed to add SSH public key to LDAP user Directory.
+Verify ldap_organizational_unit '{{ ldap_ou }}' in passwordless_ssh_config.yml is valid. Error: "
+ldap_key_command_fail_search: "ldap_modify: No such object"
+ldap_home_dir_fail_msg: "Failed. ldap home directory {{ user_home_path }} not present for the user {{ user }} in ldap server.
+Login to one of the nodes other than ldap server as the user so that home directory is created.
+Make sure ldap home directory {{ hostvars[groups['manager'][0]]['user_home_directory'] }} mounted as nfs share in ldap server."

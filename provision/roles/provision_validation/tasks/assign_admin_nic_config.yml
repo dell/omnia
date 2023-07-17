@@ -13,29 +13,28 @@
 #  limitations under the License.
 ---
 
-- name: Set fact for Admin NIC IP and netmask details
-  ansible.builtin.set_fact:
-    admin_nic_ip: "{{ omnia_admin_ip }}"
-    admin_nic_netmask: "{{ omnia_admin_netmask }}"
+- name: Get IP to Admin NIC in case of dedicated
+  block:
+    - name: Get admin NIC IP in case of dedicated
+      ansible.builtin.shell: ip addr show {{ admin_nic }} | grep -Po 'inet \K[\d.]+'
+      changed_when: false
+      failed_when: false
+      register: dedicated_admin_nic
 
-- name: Assign IP to Admin NIC in case of LOM
-  ansible.builtin.command: nmcli connection modify {{ admin_nic }} IPv4.address {{ admin_nic_ip }}/{{ nic_subnet }}
-  changed_when: false
 
-- name: Assign bootproto mode to Admin NIC in case of LOM
-  ansible.builtin.command: nmcli con mod {{ admin_nic }} ipv4.method manual
-  changed_when: false
+    - name: Failed - Assign admin nic IP
+      ansible.builtin.fail:
+        msg: "{{ fail_admin_nic_dedicated }}"
+      when: dedicated_admin_nic.stdout == ""
 
-- name: Assign gateway to Admin NIC in case of LOM
-  ansible.builtin.command: nmcli con up {{ admin_nic }}
-  changed_when: false
+    - name: Set fact for Admin NIC IP and netmask details
+      ansible.builtin.set_fact:
+        admin_nic_ip: "{{ dedicated_admin_nic.stdout }}"
+        admin_nic_netmask: "{{ omnia_admin_netmask }}"
+      when: dedicated_admin_nic.stdout != ""
 
-- name: Add onboot options
-  ansible.builtin.replace:
-    path: "{{ admin_nic_path }}"
-    regexp: "^ONBOOT=no"
-    replace: "ONBOOT=yes"
-
-- name: Gather facts
-  ansible.builtin.gather_facts:
-  register: cp_gather_facts
+  rescue:
+    - name: Failed - Assign admin nic IP
+      ansible.builtin.fail:
+        msg: "{{ fail_admin_nic_dedicated }}"
+      when: dedicated_admin_nic.stdout == ""

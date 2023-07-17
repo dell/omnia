@@ -13,18 +13,24 @@
 #  limitations under the License.
 ---
 
+- name: Initialize username
+  ansible.builtin.set_fact:
+    user: "{{ item }}"
+
 - name: Generate admin kerberos ticket
   ansible.builtin.shell: set -o pipefail && echo $'{{ hostvars['127.0.0.1']['kerberos_admin_password'] }}' | kinit {{ ipa_admin_username }}
   changed_when: false
 
-- name: Exceute IPA block
-  block:
-      - name: Add ssh key in IPA User details
-        ansible.builtin.shell: set -o pipefail && ipa user-mod {{ hostvars['127.0.0.1']['user_name'] }} --sshpubkey="$(cat {{ publickey_file_path }})"
-        changed_when: false
-        register: ipa_modify_output
-  rescue:
-      - name: Print when error
-        ansible.builtin.fail:
-            msg: "{{ fail_msg_ipa_sshpubkey_exists }}"
-        when: "'ERROR: no modifications' in ipa_modify_output.stderr"
+- name: Add ssh key in IPA User details - {{ user }}
+  ansible.builtin.shell: set -o pipefail && ipa user-mod {{ user }} --sshpubkey="$(cat {{ publickey_file_path }})"
+  changed_when: false
+  register: ipa_modify_output
+  failed_when: false
+
+- name: Fail if add ssh key task not successful
+  ansible.builtin.fail:
+    msg: "{{ fail_msg_ipa_sshpubkey }} {{ ipa_modify_output.stderr }}"
+  when:
+    - ipa_modify_output.stderr is defined
+    - ipa_modify_output.stderr | length > 1
+    - ssh_key_command_fail_search not in ipa_modify_output.stderr

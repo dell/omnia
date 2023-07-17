@@ -37,6 +37,8 @@ common_packages:
   - pciutils
   - openssl
   - python3-pexpect
+  - pdsh
+  - pdsh-rcmd-ssh
 common_packages_centos:
   - gcc
   - nfs-utils

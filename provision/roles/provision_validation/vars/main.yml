@@ -72,12 +72,14 @@ dedicated_discovery_fail_msg: "Failed.If network interface type is dedicated, on
 omnia_admin_ip: "{{ admin_nic_subnet.split('.')[0] + '.' + admin_nic_subnet.split('.')[1] + '.' + '255' + '.' + '254' }}"
 omnia_admin_netmask: 255.255.0.0
 admin_nic_path: "/etc/sysconfig/network-scripts/ifcfg-{{ admin_nic }}"
+fail_admin_nic_dedicated: "Failed. Please assign admin nic IP. "
 
 # Usage: assign_nic_config.yml
 pxe_subnet_msg: "Failed. Please provide proper pxe_subnet"
 omnia_bmc_ip: "{{ bmc_nic_subnet.split('.')[0] + '.' + bmc_nic_subnet.split('.')[1] + '.' + '255' + '.' + '254' }}"
 omnia_bmc_netmask: 255.255.0.0
 fail_mapping_bmc_dedicated: "Failed.BMC is only supported in shared LOM. Check the configuration once."
+fail_admin_nic_lom: "Failed. Please assign admin and bmc IP to the given nic in provision_config.yml."
 
 # Usage: enable_nic_configuration.yml
 nic_subnet: 16
@@ -202,20 +204,26 @@ update_repos_success_msg: "Validated update_repos"
 update_repos_fail_msg: "Failed. update_repos variable in provision_config.yml should be either true or false"
 control_plane_os_redhat: "redhat"
 repo_path_count_success_msg: "Validated rhel_repo_local_path count"
-repo_path_count_fail_msg: "Failed. rhel_repo_local_path variable in provision_config.yml does not have details of repositories AppStream,BaseOS and CRB"
+repo_path_count_fail_msg: "Failed. rhel_repo_local_path variable in provision_config.yml does not have details of repositories AppStream and BaseOS"
 repo_path_success_msg: "Validated repo,repo_url and repo_name in rhel_repo_local_path"
 repo_path_fail_msg: "Failed. rhel_repo_local_path variable in provision_config.yml should have input regarding repo, repo_url and repo_name.
-repo_url should contain .repo extension and repo should be AppStream,BaseOS and CRB"
-rhel_repo_search_key: ['AppStream', 'BaseOS', 'CRB']
+repo_url should contain .repo extension and repo should be AppStream and BaseOS"
+rhel_repo_search_key: ['AppStream', 'BaseOS']
 subscription_repo_success_msg: "Validated subscription repos"
 subscription_repo_fail_msg: "Failed. AppStream and BaseOS repos are not enabled during subscription activation. Please enable the repos and proceed."
 rhel_subscription_warning_msg: "[WARNING] RedHat subscription not enabled. Proceeding execution with local repo details provided in provision_config.yml.
 Make sure the repos given are valid."
-rhel_subscription_fail_msg: "Failed. RedHat subscription not active.
+rhel_subscription_warn_msg: "[WARNING] RedHat subscription not active.
 Activate RedHat subscription or provide repos details in rhel_repo_local_path variable in provision_config.yml"
 subscription_check_key: "Subscribed"
 warning_wait_time_repo: 10
 rhel_repo_folders_success_msg: "Validated rhel_repo_alphabetical_folders"
 rhel_repo_folders_fail_msg: "Failed. rhel_repo_alphabetical_folders variable in provision_config.yml should be either true or false"
-compatibility_msg: "Failed. Control Plane should be RHEL when nodes are to be provisioned with RHEL OS.
-To provision RHEL nodes from other OS provide repos details in rhel_repo_local_path variable in provision_config.yml"
+compatibility_msg: "Failed. Control Plane OS should be RHEL when nodes are to be provisioned with RHEL OS."
+tmp_crb_dir: /opt/omnia/crb
+crb_repo_packages: "libaec lua-posix lua-filesystem munge-devel perl-Switch rrdtool-devel lua-devel hwloc-devel http-parser-devel
+perl-File-BaseDir opencl-headers ocl-icd-devel"
+download_crb_package_fail_msg: "Failed. Unable to download required crb packages libaec, lua-posix, lua-filesystem,
+munge-devel, perl-Switch, rrdtool-devel, lua-devel, hwloc-devel, http-parser-devel, perl-File-BaseDir, opencl-headers and ocl-icd-devel.
+Make sure crb repos configured in control plane and re-run provision.yml"
+file_permission: 0755

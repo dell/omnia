@@ -18,14 +18,12 @@ os_supported_rhel: "redhat"
 rhsm_release_file_path: "/opt/omnia/.data/rhsm_release"
 osimage_search_key: install-compute
 directory_permissions: 0755
-codeready_repo_name: codeready-builder-for-rhel-8-x86_64-rpms
 
 # Usage: create_mount_overlay.yml
 base_dir: "/install/rhels{{ provision_os_version }}.0"
 updates_dir: "/install/rhels{{ provision_os_version }}.0_updates"
 merged_dir: "/install/rhels{{ provision_os_version }}.0_merged"
 work_dir: "/work"
-codereadybuilder_path: "{{ merged_dir }}/x86_64/CRB"
 fstab_file: "/etc/fstab"
 
 # Usage: update_repos_subscription.yml
@@ -34,7 +32,6 @@ retry_count: 3
 # Usage: configure_repo.yml
 updates_appstream_dir: "{{ updates_dir }}/x86_64/AppStream"
 updates_baseos_dir: "{{ updates_dir }}/x86_64/BaseOS"
-updates_crb_dir: "{{ updates_dir }}/x86_64/CRB"
 xcat_root_env: "/opt/xcat"
 xcat_path_env: "/opt/xcat/bin:/opt/xcat/sbin:/opt/xcat/share/xcat/tools"
 xcat_manpath_env: "/opt/xcat/share/man:$MANPATH"

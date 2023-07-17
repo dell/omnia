@@ -38,6 +38,29 @@
     os_image: "{{ fetch_osimage.stdout.split(' ')[0] }}"
   when: fetch_osimage.rc == 0
 
+- name: Fetch otherpkgdir path
+  ansible.builtin.shell: >
+    set -o pipefail && \
+    lsdef -t osimage -o {{ os_image }} -i otherpkgdir | grep otherpkgdir
+  changed_when: false
+  register: fetch_otherpkgdir
+
+- name: Set provision_os_image
+  ansible.builtin.set_fact:
+    package_dir: "{{ fetch_otherpkgdir.stdout.split('=')[1] }}/custom_software"
+
+- name: Check if package_dir exists
+  ansible.builtin.stat:
+    path: "{{ package_dir }}"
+  register: directory
+
+- name: Assert package_dir path
+  ansible.builtin.assert:
+    that:
+      - directory.stat.exists
+    success_msg: "{{ pkg_dir_success_msg }}"
+    fail_msg: "{{ pkg_dir_fail_msg }}"
+
 - name: Retry fetching xcat osimage name
   ansible.builtin.shell: >
     set -o pipefail && \
@@ -63,13 +86,6 @@
   when:
     - osimage_search_key not in os_image
 
-- name: Validate package directory
-  ansible.builtin.assert:
-    that:
-      - package_dir | length > 1
-    success_msg: "{{ pkg_dir_success_msg }}"
-    fail_msg: "{{ pkg_dir_fail_msg }}"
-
 - name: Validate package list
   ansible.builtin.assert:
     that:
@@ -91,15 +107,20 @@
     success_msg: "{{ pkg_type_success_msg }}"
     fail_msg: "{{ pkg_type_fail_msg }}"
 
-- name: Fail if package directory not exists
-  ansible.builtin.stat:
-    path: "{{ item }}"
-  register: pkg_dir
-  loop: "{{ package_dir.split(',') }}"
-  failed_when: not pkg_dir.stat.exists
-
-- name: Check is package_list exists
+- name: Check if package_list exists
   ansible.builtin.stat:
     path: "{{ package_list }}"
   register: pkg_list
-  failed_when: not pkg_list.stat.exists
+
+- name: Fail when package list not exist
+  ansible.builtin.fail:
+    msg: "{{ pkg_list_missing_msg }}"
+  when: not pkg_list.stat.exists
+
+- name: Check list format
+  ansible.builtin.assert:
+    that:
+      - "'custom_software/' in item"
+    success_msg: "{{ list_format_success_msg }}"
+    fail_msg: "{{ list_format_fail_msg }}"
+  with_lines: "cat {{ package_list }}"

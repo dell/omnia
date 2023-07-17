@@ -1,4 +1,4 @@
-# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,13 +13,8 @@
 # limitations under the License.
 ---
 
-nfs_share_dir: /home/k8snfs
+mounthost: "{{ groups['manager'][0] }}"
 
-nfs_share_dir_mode: 0777
+nfs_mnt_dir_mode: 0777
 
-exports_file_path: /etc/exports
-
-nfs_services:
-  - mountd
-  - rpc-bind
-  - nfs
+fstab_file_path: /etc/fstab

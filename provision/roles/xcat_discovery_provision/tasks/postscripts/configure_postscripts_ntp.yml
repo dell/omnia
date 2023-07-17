@@ -1,4 +1,4 @@
-# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,12 +13,10 @@
 # limitations under the License.
 ---
 
-nfs_mnt_dir: /home/k8snfs
+- name: Setup ntp
+  ansible.builtin.command: makentp
+  changed_when: true
 
-nfs_share_dir: /home/k8snfs
-
-mounthost: "{{ groups['manager'][0] }}"
-
-nfs_mnt_dir_mode: 0777
-
-fstab_file_path: /etc/fstab
+- name: Configure postscripts for ntp
+  ansible.builtin.command: chdef all -p postscripts=setupntp
+  changed_when: true

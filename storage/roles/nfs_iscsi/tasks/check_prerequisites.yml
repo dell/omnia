@@ -27,12 +27,12 @@
     set_fact:
       nfs_node_status: true
     when:
-      - groups['nfs_node'] is defined
-      - groups['nfs_node'] | length | int > 0
+      - groups['nfs'] is defined
+      - groups['nfs'] | length | int > 0
 
   - name: NFS group to contain exactly 1 node
     assert:
-      that: "groups['nfs_node'] | length | int == 1"
+      that: "groups['nfs'] | length | int == 1"
       fail_msg: "{{ nfs_node_group_fail_msg }}"
       success_msg: "{{ nfs_node_group_success_msg }}"
     when: nfs_node_status

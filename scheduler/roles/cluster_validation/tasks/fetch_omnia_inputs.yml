@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -48,27 +48,22 @@
   ansible.builtin.include_vars: "{{ role_path }}/../../../input/{{ config_filename }}"
   no_log: true
 
-- name: Verify the value of login_node_required
-  ansible.builtin.assert:
-    that:
-      - login_node_required == true or login_node_required == false
-    success_msg: "{{ login_node_required_success_msg }}"
-    fail_msg: "{{ login_node_required_fail_msg }}"
-
 - name: Validate input parameters are not empty
   ansible.builtin.fail:
     msg: "{{ input_config_failure_msg }}"
   register: input_config_check
   when:
-    - mariadb_password | length < 1 or
-      k8s_version | length < 1 or
-      k8s_cni | length < 1 or
-      k8s_pod_network_cidr | length < 1 or
-      ansible_config_file_path | length < 1
+    - ansible_config_file_path | default("", true) | length < 1 or
+      omnia_usrhome_share | default("", true) | length < 1 or
+      scheduler_type | default("", true) | length < 1
+
+- name: Validate scheduler_type
+  ansible.builtin.include_tasks: validate_scheduler_type.yml
 
 - name: Assert mariadb_password
   ansible.builtin.assert:
     that:
+      - mariadb_password | default("", true) | length > 1
       - mariadb_password | length > min_length | int - 1
       - mariadb_password | length < max_length | int + 1
       - '"-" not in mariadb_password '
@@ -77,27 +72,34 @@
       - " \"'\" not in mariadb_password "
     success_msg: "{{ success_msg_mariadb_password }}"
     fail_msg: "{{ fail_msg_mariadb_password }}"
+  when: slurm_support
 
-- name: Assert kubernetes version
-  ansible.builtin.assert:
-    that: "('1.16.7' in k8s_version) or ('1.19.3' in k8s_version)"
-    success_msg: "{{ success_msg_k8s_version }}"
-    fail_msg: "{{ fail_msg_k8s_version }}"
+- name: Validate k8s_support variable
+  when: k8s_support
+  block:
+    - name: Assert kubernetes version
+      ansible.builtin.assert:
+        that: 
+          - k8s_version | default("", true) | length > 1
+          - "('1.16.7' in k8s_version) or ('1.19.3' in k8s_version)"
+        success_msg: "{{ success_msg_k8s_version }}"
+        fail_msg: "{{ fail_msg_k8s_version }}"
 
-- name: Assert kubernetes cni
-  ansible.builtin.assert:
-    that:
-      - "('calico' in k8s_cni) or ('flannel' in k8s_cni)"
-    success_msg: "{{ success_msg_k8s_cni }}"
-    fail_msg: "{{ fail_msg_k8s_cni }}"
+    - name: Assert kubernetes cni
+      ansible.builtin.assert:
+        that:
+          - k8s_cni | default("", true) | length > 1
+          - "('calico' in k8s_cni) or ('flannel' in k8s_cni)"
+        success_msg: "{{ success_msg_k8s_cni }}"
+        fail_msg: "{{ fail_msg_k8s_cni }}"
 
-- name: Assert kubernetes pod network CIDR
-  ansible.builtin.assert:
-    that:
-      - k8s_pod_network_cidr | length > 9
-      - '"/" in k8s_pod_network_cidr '
-    success_msg: "{{ success_msg_k8s_pod_network_cidr }}"
-    fail_msg: "{{ fail_msg_k8s_pod_network_cidr }}"
+    - name: Assert kubernetes pod network CIDR
+      ansible.builtin.assert:
+        that:
+          - k8s_pod_network_cidr | default("", true) | length > 9
+          - '"/" in k8s_pod_network_cidr '
+        success_msg: "{{ success_msg_k8s_pod_network_cidr }}"
+        fail_msg: "{{ fail_msg_k8s_pod_network_cidr }}"
 
 - name: Save input variables from file
   ansible.builtin.set_fact:
@@ -108,15 +110,15 @@
     docker_username: "{{ docker_username }}"
     docker_password: "{{ docker_password }}"
     ansible_conf_file_path: "{{ ansible_config_file_path }}"
+    omnia_usrhome_share: "{{ omnia_usrhome_share }}"
   no_log: true
 
-- name: Login node to contain exactly 1 node
+- name: Verify the value of enable_omnia_nfs
   ansible.builtin.assert:
     that:
-      - "groups['login_node'] | length | int == 1"
-    fail_msg: "{{ login_node_group_fail_msg }}"
-    success_msg: "{{ login_node_group_success_msg }}"
-  when: login_node_required
+      - enable_omnia_nfs == true or enable_omnia_nfs == false
+    success_msg: "{{ enable_omnia_nfs_success_msg }}"
+    fail_msg: "{{ enable_omnia_nfs_fail_msg }}"
 
 - name: Encrypt input config file
   ansible.builtin.command: >-

@@ -31,6 +31,8 @@ Optional configurations managed by the provision tool
 
         * If ``mlnx_ofed_path`` is provided  in ``input/provision_config.yml`` and Mellanox NICs are available on the target nodes, OFED packages will be deployed post provisioning without user intervention.
 
+        .. note:: When leveraging the provision tool to install OFED, Omnia prevents the following packages from being upgraded: dapl* ibacm infiniband* libmlx* librdma* opensm* ibutils* perftest* openmpi by appending ``exclude=dapl* ibacm infiniband* libmlx* librdma* opensm* ibutils* perftest* openmpi`` to ``/etc/yum.conf``. For more information on this, `click here <https://xcat-docs.readthedocs.io/en/stable/advanced/networks/infiniband/mlnxofed_ib_known_issue.html>`_.
+
     **Using the Network playbook**
 
         * OFED can also be installed using `network.yml <../../Roles/Network/index.html>`_ after provisioning the servers (Assuming the provision tool did not install OFED packages).
@@ -90,11 +92,12 @@ To deploy the Omnia provision tool, run the following command ::
 
 **Preparing the control plane**
 
-a. Verifies pre-requisites such as SELinux and xCAT services status.
-b. Installs required tool packages.
-c. Verifies and updates firewall settings.
-d. Installs xCAT.
-e. Configures xCAT databases basis ``input/provision_config.yml``.
+* Verifies pre-requisites such as SELinux and xCAT services status.
+* Installs required tool packages.
+* Verifies and updates firewall settings.
+* Installs xCAT.
+* Configures xCAT databases basis ``input/provision_config.yml``.
+* Configures the control plane with NTP services for compute node synchronization.
 
 To call this playbook individually, ensure that ``input/provision_config.yml`` is updated and then run::
 
@@ -119,44 +122,15 @@ b. Provisions all discovered servers.
 
 c. PostgreSQL database is set up with all relevant cluster information such as MAC IDs, hostname, admin IP, infiniband IPs, BMC IPs etc.
 
-    To access the DB, run: ::
-
-            psql -U postgres
-
-            \c omniadb
-
-
-    To view the schema being used in the cluster: ``\dn``
-
-    To view the tables in the database: ``\dt``
-
-    To view the contents of the ``nodeinfo`` table: ``select * from cluster.nodeinfo;`` ::
-
-        id  | serial  |        node        |            hostname            |     admin_mac     |   admin_ip   |    bmc_ip    |    ib_ip     |   status   | bmc_mode |   switch_ip   | switch_name | switch_port
-        ----+---------+--------------------+--------------------------------+-------------------+--------------+--------------+--------------+------------+----------+---------------+-------------+-------------
-          1 | XXXXXXX | omnia-node00001    | omnia-node00001.omnia.test     | ec:2a:72:34:f7:26 |  10.5.0.101  | 10.19.0.101  | 10.10.0.101  | booted     |          | 10.96.28.132  | switch1     | 2
-          2 | XXXXXXX | omnia-node00002    | omnia-node00002.omnia.test     |                   |  10.5.0.102  | 10.19.0.102  | 10.10.0.102  |            |          | 10.96.28.132  | switch1     | 3
-          3 | XXXXXXX | omnia-node00003    | omnia-node00003.omnia.test     |                   |  10.5.0.103  | 10.19.0.103  | 10.10.0.103  |            |          | 10.96.28.132  | switch1     | 4
-          4 | XXXXXXX | omnia-node00004    | omnia-node00004.omnia.test     | 2c:ea:7f:3d:6b:98 |  10.5.0.104  | 10.19.0.104  | 10.10.0.104  | installing |          | 10.96.28.132  | switch1     | 5
-          5 | XXXXXXX | omnia-node00005    | omnia-node00005.omnia.test     |                   |  10.5.0.105  | 10.19.0.105  | 10.10.0.105  |            |          | 10.96.28.132  | switch1     | 6
-          6 | XXXXXXX | omnia-node00006    | omnia-node00006.omnia.test     |                   |  10.5.0.106  | 10.19.0.106  | 10.10.0.106  |            |          | 10.96.28.132  | switch1     | 7
-          7 | XXXXXXX | omnia-node00007    | omnia-node00007.omnia.test     | 4c:d9:8f:76:48:2e |  10.5.0.107  | 10.19.0.107  | 10.10.0.107  | booted     |          | 10.96.28.132  | switch1     | 8
-          8 | XXXXXXX | omnia-node00008    | omnia-node00008.omnia.test     |                   |  10.5.0.108  | 10.19.0.108  | 10.10.0.108  |            |          | 10.96.28.132  | switch1     | 1
-          9 | XXXXXXX | omnia-node00009    | omnia-node00009.omnia.test     |                   |  10.5.0.109  | 10.19.0.109  | 10.10.0.109  | failed     |          | 10.96.28.132  | switch1     | 10
-        10  | XXXXXXX | omnia-node00010    | omnia-node00010.omnia.test     |                   |  10.5.0.110  | 10.19.0.110  | 10.10.0.110  |            |          | 10.96.28.132  | switch1     | 12
-        11  | XXXXXXX | omnia-node00011    | omnia-node00011.omnia.test     |                   |  10.5.0.111  | 10.19.0.111  | 10.10.0.111  | failed     |          | 10.96.28.132  | switch1     | 13
-        12  | XXXXXXX | omnia-node00012    | omnia-node00012.omnia.test     |                   |  10.5.0.112  | 10.19.0.112  | 10.10.0.112  |            |          | 10.96.28.132  | switch1     | 14
-
-Possible values of status are static, powering-on, installing, bmcready, booting, post-booting, booted, failed. The status will be updated every 3 minutes.
-
-.. note:: For nodes listing status as 'failed', provisioning logs can be viewed in ``/var/log/xcat/xcat.log`` on the target nodes.
-
-
 To call this playbook individually, ensure that ``repo_manipulate.yml`` has run at least once and then run::
 
     ansible-playbook discovery_provision.yml
 
 
+
+----
+After successfully running ``provision.yml``, go to `Building Clusters <../BuildingClusters/index.html>`_ to setup Slurm, Kubernetes, NFS, BeeGFS and Authentication.
+----
 
 .. note::
 
@@ -168,10 +142,10 @@ To call this playbook individually, ensure that ``repo_manipulate.yml`` has run 
 
     * To re-provision target servers ``provision.yml`` can be re-run with a new inventory file that contains a list of admin (PXE) IPs. For more information, `click here <../reprovisioningthecluster.rst>`_
 
-    * Post execution of ``provision.yml``, IPs/hostnames cannot be re-assigned by changing the mapping file. However, the addition of new nodes is supported as explained below.
+    * Post execution of ``provision.yml``, IPs/hostnames cannot be re-assigned by changing the mapping file. However, the addition of new nodes is supported as explained `here <../addinganewnode.html>`_.
 
 
-.. warning::
+.. caution::
 
     * Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect.
     * To avoid breaking the passwordless SSH channel on the control plane, do not run ``ssh-keygen`` commands post execution of ``provision.yml``.

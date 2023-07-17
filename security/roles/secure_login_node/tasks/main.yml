@@ -62,4 +62,4 @@
       when: hostvars['127.0.0.1']['restrict_program_status']
   when:
     - hostvars['127.0.0.1']['enable_secure_login_node']
-    - inventory_hostname in groups['login_node'][0]
+    - inventory_hostname in groups['login'][0]

@@ -47,6 +47,7 @@ xcat_package: xCAT
 postgres_packages:
   - postgresql*
   - perl-DBD-Pg
+control_plane_os_redhat: "redhat"
 
 # Usage: cleanup_monitor_setup.yml
 monitor_namespace: monitoring

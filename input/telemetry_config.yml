@@ -13,6 +13,11 @@
 # limitations under the License.
 ---
 
+#***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.                  
+# SIMPLY APPEND THE REQUIRD VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
+#***********************************************************************
+
 # This variable is used to enable iDRAC telemetry support and visualizations
 # Accepted values:  "true" or "false"
 idrac_telemetry_support: true
@@ -24,11 +29,11 @@ slurm_telemetry_support: true
 
 # Postgres DB with timescale extension is used for storing iDRAC and slurm telemetry metrics
 # This is the database name which stores these metrics.
-timescaledb_name: telemetry_metrics
+timescaledb_name: "telemetry_metrics"
 
 # MySQL DB is used to store IPs and credentials of iDRACs having datacenter license
 # This is the database name which stores this information
-mysqldb_name: idrac_telemetrysource_services_db
+mysqldb_name: "idrac_telemetrysource_services_db"
 
 # This is the timezone that will be set during provisioning of OS
 # Available timezones are provided in telemetry/common/files/timezone.txt

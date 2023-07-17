@@ -13,12 +13,16 @@
 #  limitations under the License.
 ---
 
-- name: Change sshd config
+- name: Initialize username
+  ansible.builtin.set_fact:
+    user: "{{ item }}"
+
+- name: Change sshd config - {{ user }}
   ansible.builtin.blockinfile:
     path: "{{ sshd_config_file }}"
     block: "{{ lookup('template', 'ssh_config') }}"
 
-- name: Check sssd config
+- name: Check sssd config - {{ user }}
   ansible.builtin.lineinfile:
     path: "{{ sssd_config_file }}"
     state: absent
@@ -26,7 +30,7 @@
   check_mode: true
   register: sssd_line
 
-- name: Change sssd config
+- name: Change sssd config - {{ user }}
   ansible.builtin.lineinfile:
     path: "{{ sssd_config_file }}"
     state: present
@@ -35,7 +39,7 @@
     line: '\1, ssh'
   when: not sssd_line.found
 
-- name: Restart sssd and sshd
+- name: Restart sssd and sshd - {{ user }}
   ansible.builtin.service:
     name: "{{ item }}"
     state: restarted
@@ -47,15 +51,15 @@
   run_once: true
   delegate_to: "{{ groups['manager'][0] }}"
   block:
-    - name: Create ssh directory if it does not exist
+    - name: Create ssh directory if it does not exist - {{ user }}
       ansible.builtin.file:
         path: "{{ ssh_directory }}"
         state: directory
         mode: "{{ ssh_directory_perm }}"
-        owner: "{{ hostvars['127.0.0.1']['user_name'] }}"
-        group: "{{ hostvars['127.0.0.1']['user_name'] }}"
+        owner: "{{ user }}"
+        group: "{{ user }}"
 
-    - name: Check is ssh key pair available
+    - name: Check is ssh key pair available - {{ user }}
       ansible.builtin.stat:
         path: "{{ public_key_file }}"
       register: ssh_key_file
@@ -63,13 +67,13 @@
     - name: Check and create ssh key pair if not exists
       when: not ssh_key_file.stat.exists
       block:
-        - name: Create ssh key pair
-          ansible.builtin.command: ssh-keygen -C "{{ hostvars['127.0.0.1']['user_name'] }}" -q -N '' -f "{{ keygen_path }}"
+        - name: Create ssh key pair - {{ user }}
+          ansible.builtin.command: ssh-keygen -C "{{ user }}" -q -N '' -f "{{ keygen_path }}"
           changed_when: false
 
-        - name: Change SSH key pair ownership
+        - name: Change SSH key pair ownership - {{ user }}
           ansible.builtin.file:
             path: "{{ ssh_directory }}"
-            owner: "{{ hostvars['127.0.0.1']['user_name'] }}"
-            group: "{{ hostvars['127.0.0.1']['user_name'] }}"
+            owner: "{{ user }}"
+            group: "{{ user }}"
             recurse: true

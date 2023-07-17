@@ -18,3 +18,19 @@
      {{ python_version }} {{ postgres_utility_path }}
   register: postgres_status
   changed_when: false
+
+- name: Set fact for bmc_nic_ip in case of dedicated
+  ansible.builtin.set_fact:
+    bmc_nic_ip: 0.0.0.0
+  when: network_interface_type == "dedicated"
+
+- name: Fetch control_plane hostname
+  ansible.builtin.command: hostname
+  changed_when: false
+  register: cp_hostname
+
+- name: Create control_plane entry in cluster_info table
+  ansible.builtin.command: |
+     {{ python_version }} {{ cp_db_utility_path }} {{ admin_nic_ip }} {{ network_interface_type }} {{ pxe_mac_address }} {{ bmc_nic_ip }}
+     {{ cp_hostname.stdout }}
+  changed_when: false

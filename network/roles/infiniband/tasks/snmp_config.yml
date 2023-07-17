@@ -15,15 +15,15 @@
 
 - name: Set parameters for SNMP configuration
   block:
-  - name: Setting parameters for SNMP configuration
-    ansible.builtin.set_fact:
-      snmp_config:
-        - "snmp-server enable"
-        - "snmp-server enable notify"
-        - "snmp-server community {{ snmp_community_name }} ro"
-        - "snmp-server host {{ snmp_trap_destination }} traps version 1 {{ snmp_community_name }}"
+      - name: Setting parameters for SNMP configuration
+        ansible.builtin.set_fact:
+            snmp_config:
+                - "snmp-server enable"
+                - "snmp-server enable notify"
+                - "snmp-server community {{ snmp_community_name }} ro"
+                - "snmp-server host {{ snmp_trap_destination }} traps version 1 {{ snmp_community_name }}"
 
-  - name: Configure SNMP on Switch
-    ansible.builtin.include_tasks: global_config.yml
-    with_items: "{{ snmp_config }}"
+      - name: Configure SNMP on Switch
+        ansible.builtin.include_tasks: global_config.yml
+        with_items: "{{ snmp_config }}"
   when: snmp_trap_destination | length > 1

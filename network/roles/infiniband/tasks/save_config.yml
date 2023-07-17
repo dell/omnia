@@ -15,11 +15,11 @@
 
 - name: Set parameters to save configuration
   block:
-  - name: Setting parameters to save configuration
-    ansible.builtin.set_fact:
-      save_config: "configuration write"
+      - name: Setting parameters to save configuration
+        ansible.builtin.set_fact:
+            save_config: "configuration write"
 
-  - name: Save current switch configuration to startup-configuration
-    ansible.builtin.include_tasks: global_config.yml
-    with_items: "{{ save_config }}"
+      - name: Save current switch configuration to startup-configuration
+        ansible.builtin.include_tasks: global_config.yml
+        with_items: "{{ save_config }}"
   when: save_changes_to_startup

@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,128 +20,110 @@
   gather_facts: false
   roles:
     - cluster_validation
-  tags: validation
 
 - name: Gather facts from all the nodes
-  hosts: manager, compute, login_node
+  hosts: manager, compute, login
 
 - name: Validate repo file and subscription
-  hosts: manager, compute, login_node
+  hosts: manager, compute, login
   gather_facts: false
   roles:
     - repo_validation
-  tags: common
 
 - name: Apply common installation and config
-  hosts: manager, compute, login_node, nfs_node
+  hosts: manager, compute, login, nfs
   gather_facts: false
   any_errors_fatal: true
   roles:
     - common
-  tags: common
+
+- name: Apply NFS server setup on manager node
+  hosts: manager
+  gather_facts: false
+  roles:
+    - nfs_server_setup
+
+- name: Apply NFS client setup on compute nodes
+  hosts: compute, login
+  gather_facts: false
+  roles:
+    - nfs_client_setup
 
 - name: Apply common K8s installation and config
   hosts: manager, compute
   gather_facts: false
   roles:
     - k8s_common
-  tags: kubernetes
-
+  
 - name: Apply K8s manager config
   hosts: manager
   gather_facts: true
   roles:
     - k8s_manager
-  tags: kubernetes
 
 - name: Apply K8s firewalld config on manager and compute nodes
   hosts: manager, compute
   gather_facts: false
   roles:
     - k8s_firewalld
-  tags: kubernetes
-
-- name: Apply NFS server setup on manager node
-  hosts: manager
-  gather_facts: false
-  roles:
-    - k8s_nfs_server_setup
-  tags: kubernetes
-
-- name: Apply NFS client setup on compute nodes
-  hosts: compute
-  gather_facts: false
-  roles:
-    - k8s_nfs_client_setup
-  tags: kubernetes
 
 - name: Start K8s on manager server
   hosts: manager
   gather_facts: true
   roles:
     - k8s_start_manager
-  tags: kubernetes
 
 - name: Start K8s worker servers on compute nodes
   hosts: compute
   gather_facts: false
   roles:
     - k8s_start_workers
-  tags: kubernetes
 
 - name: Start K8s worker servers on manager nodes
   hosts: manager, compute
   gather_facts: false
   roles:
     - k8s_start_services
-  tags: kubernetes
 
 - name: Apply common Slurm installation and config
-  hosts: manager, compute, login_node
+  hosts: manager, compute, login
   gather_facts: false
   roles:
     - slurm_common
-  tags: slurm
 
 - name: Apply Slurm manager config
   hosts: manager
   gather_facts: false
   roles:
     - slurm_manager
-  tags: slurm
 
 - name: Configure Slurm workers
-  hosts: compute, login_node
+  hosts: compute, login
   serial: 1
   gather_facts: false
   roles:
     - slurm_workers
-  tags: slurm
 
 - name: Start Slurm workers
-  hosts: compute, login_node
+  hosts: compute, login
   gather_facts: false
   roles:
     - slurm_workers_service
-  tags: slurm
 
 - name: Start Slurm services
   hosts: manager
   gather_facts: false
   roles:
     - slurm_start_services
-  tags: slurm
 
 - name: Install slurm exporter
   hosts: manager
   gather_facts: false
   roles:
     - slurm_exporter
-  tags: slurm
 
 - name: Install slurm restd
   hosts: manager
   gather_facts: false
   roles:
     - slurm_restd
-  tags: slurm

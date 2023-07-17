@@ -15,12 +15,12 @@
 
 - name: Task for set PXE to nodes for bmc
   block:
-    - name: Set PXE to node object for bmc
+    - name: Set PXE to node object for bmc - {{ item }}
       ansible.builtin.command: rsetboot {{ item }} net
       changed_when: true
       register: set_pxe_bmc
   rescue:
-    - name: Verify set node object is successful for bmc
+    - name: Verify set node object is successful for bmc - {{ item }}
       ansible.builtin.debug:
         msg: "{{ mtms_set_pxe_warning_msg }} {{ set_pxe_bmc.stderr }}"
       when: set_pxe_bmc.stderr is defined
@@ -29,16 +29,16 @@
 
 - name: Task to power on the nodes for bmc
   block:
-    - name: Power on the nodes
+    - name: Power on the node - {{ item }}
       ansible.builtin.command: rpower {{ item }} on
       changed_when: true
       register: power_on_status
 
-    - name: Installation status for bmc - provision.yml
+    - name: Installation status for bmc node - {{ item }}
       ansible.builtin.debug:
         msg: "{{ mtms_xcat_install_success_msg }}"
   rescue:
-    - name: Verify power on is successful for bmc
+    - name: Verify power on is successful for bmc node - {{ item }}
       ansible.builtin.debug:
         msg: "{{ mtms_poweron_warning_msg }} {{ power_on_status.stderr }}"
       when: power_on_status.stderr is defined
