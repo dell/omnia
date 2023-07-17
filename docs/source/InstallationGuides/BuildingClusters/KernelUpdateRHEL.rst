@@ -2,6 +2,7 @@ Updating kernels
 =================
 
 **Pre requisites**:
+
 * Verify that the BaseOS repo version on the control plane matches the target kernel version for the target nodes. ::
 
     dnf repolist
