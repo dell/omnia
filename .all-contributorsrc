@@ -556,6 +556,15 @@
       "contributions": [
         "ideas"
       ]
+    },
+    {
+      "login": "SajithDas",
+      "name": "SajithDas",
+      "avatar_url": "https://avatars.githubusercontent.com/u/78676226?v=4",
+      "profile": "https://github.com/SajithDas",
+      "contributions": [
+        "projectManagement"
+      ]
     }
   ],
   "contributorsPerLine": 7,
