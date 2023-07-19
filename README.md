@@ -110,6 +110,7 @@ Our thanks go to everyone who makes Omnia possible ([emoji key](https://allcontr
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/prasoon-sinha"><img src="https://avatars.githubusercontent.com/u/5362594?v=4?s=100" width="100px;" alt="Prasoon Kumar Sinha"/><br /><sub><b>Prasoon Kumar Sinha</b></sub></a><br /><a href="#ideas-prasoon-sinha" title="Ideas, Planning, & Feedback">🤔</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/SajithDas"><img src="https://avatars.githubusercontent.com/u/78676226?v=4?s=100" width="100px;" alt="SajithDas"/><br /><sub><b>SajithDas</b></sub></a><br /><a href="#projectManagement-SajithDas" title="Project Management">📆</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/SupriyaParthasarathy"><img src="https://avatars.githubusercontent.com/u/139955493?v=4?s=100" width="100px;" alt="Supriya Parthasarathy"/><br /><sub><b>Supriya Parthasarathy</b></sub></a><br /><a href="#projectManagement-SupriyaParthasarathy" title="Project Management">📆</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/i3igpete"><img src="https://avatars.githubusercontent.com/u/33877827?v=4?s=100" width="100px;" alt="i3igpete"/><br /><sub><b>i3igpete</b></sub></a><br /><a href="#business-i3igpete" title="Business development">💼</a> <a href="#talk-i3igpete" title="Talks">📢</a></td>
     </tr>
   </tbody>
 </table>
