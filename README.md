@@ -108,6 +108,7 @@ Our thanks go to everyone who makes Omnia possible ([emoji key](https://allcontr
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Aditya-DP"><img src="https://avatars.githubusercontent.com/u/115771515?v=4?s=100" width="100px;" alt="Aditya-DP"/><br /><sub><b>Aditya-DP</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=Aditya-DP" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Katakam-Rakesh"><img src="https://avatars.githubusercontent.com/u/125246792?v=4?s=100" width="100px;" alt="Katakam Rakesh Naga Sai"/><br /><sub><b>Katakam Rakesh Naga Sai</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=Katakam-Rakesh" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/prasoon-sinha"><img src="https://avatars.githubusercontent.com/u/5362594?v=4?s=100" width="100px;" alt="Prasoon Kumar Sinha"/><br /><sub><b>Prasoon Kumar Sinha</b></sub></a><br /><a href="#ideas-prasoon-sinha" title="Ideas, Planning, & Feedback">🤔</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/SajithDas"><img src="https://avatars.githubusercontent.com/u/78676226?v=4?s=100" width="100px;" alt="SajithDas"/><br /><sub><b>SajithDas</b></sub></a><br /><a href="#projectManagement-SajithDas" title="Project Management">📆</a></td>
     </tr>
   </tbody>
 </table>
