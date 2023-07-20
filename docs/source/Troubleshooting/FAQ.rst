@@ -7,32 +7,32 @@ Re-run the playbook whose execution failed once the issue is resolved.
 
 **Why is the provisioning status of my node object stuck at 'powering-on'?**
 
-Cause:
+**Resolution**:
 
     * Hardware issues (Auto-reboot may fail due to hardware tests failing)
 
-Resolution:
+**Resolution**:
 
     * Resolve/replace the faulty hardware and PXE boot the node.
 
 **Why don't IPA commands work after setting up FreeIPA on the cluster?**
 
-Cause:
+**Resolution**:
 
     Kerberos authentication may be missing on the target node.
 
-Resolution:
+**Resolution**:
 
     Run ``kinit admin`` on the node and provide the ``kerberos_admin_password`` when prompted. (This password is also entered in ``input/security_config.yml``.)
 
 **Why are the status and admin_mac fields not populated for specific target nodes in the cluster.nodeinfo table?**
 
-Causes:
+**Causes**:
 
     * Nodes do not have their first PXE device set as designated active NIC for PXE booting.
     * Nodes that have been discovered via SNMP or mapping file have not been PXE booted.
 
-Resolution:
+**Resolution**:
 
     * Configure the first PXE device to be active for PXE booting.
     * PXE boot the target node manually.
@@ -41,10 +41,10 @@ Resolution:
 
 .. image:: ../images/RedHat_provisionerror_sshpass.PNG
 
-Cause:
+**Resolution**:
     * sshpass is not available in any of the repositories on the control plane.
 
-Resolution:
+**Resolution**:
 
    * Enable RedHat subscription or ensure that sshpass is available to install or download to the control plane (from any local repository).
 
@@ -54,7 +54,7 @@ Resolution:
 
 .. image:: ../images/InstallCorruptISO.png
 
-Cause:
+**Resolution**:
 
     * Disk partition may not have enough storage space per the requirements specified in ``input/provision_config`` (under ``disk_partition``)
 
@@ -64,7 +64,7 @@ Cause:
 
     * A virtual disk may not be created
 
-Resolution:
+**Resolution**:
 
     * Add more space to the server or modify the requirements specified in ``input/provision_config`` (under ``disk_partition``)
 
@@ -78,9 +78,9 @@ Resolution:
 
 .. image:: ../images/nfssharecheckfail.png
 
-Cause: The required NFS share is not set up on the control plane.
+**Resolution**: The required NFS share is not set up on the control plane.
 
-Resolution:
+**Resolution**:
 
 If ``enable_omnia_nfs`` is true in ``input/omnia_config.yml``, follow the below steps to configure an NFS share on your LDAP server:
     - From the manager node:
@@ -94,9 +94,9 @@ If ``enable_omnia_nfs`` is true in ``input/omnia_config.yml``, follow the below 
 
 .. image:: ../images/ImportSCPiDRAC_fail.png
 
-Cause: The target server may be hung during the booting process.
+**Resolution**: The target server may be hung during the booting process.
 
-Resolution: Bring the target node up and re-run the script.
+**Resolution**: Bring the target node up and re-run the script.
 
 **Why does the 'Verify primary_dns is  reachable' task fail during provision.yml?**
 
@@ -108,9 +108,9 @@ Ex: If the ``primary_dns`` is set to 10.15.0.7, the subnet ``10.15.0.0`` cannot 
 
 **Why is the node status stuck at 'powering-on' or 'powering-off' after a control plane reboot?**
 
-Cause: The nodes were powering off or powering on during the control plane reboot/shutdown.
+**Resolution**: The nodes were powering off or powering on during the control plane reboot/shutdown.
 
-Resolution: In the case of a planned shutdown, ensure that the control plane is shut down after the compute nodes. When powering back up, the control plane should be powered on and xCAT services resumed before bringing up the compute nodes. In short, have the control plane as the first node up and the last node down.
+**Resolution**: In the case of a planned shutdown, ensure that the control plane is shut down after the compute nodes. When powering back up, the control plane should be powered on and xCAT services resumed before bringing up the compute nodes. In short, have the control plane as the first node up and the last node down.
 
 For more information, `click here <https://github.com/xcat2/xcat-core/issues/7374>`_
 
@@ -141,11 +141,11 @@ This can only be achieved using local repos specified in rhel_repo_local_path  (
 
 .. image::  ../images/RepoURLError.png
 
-Potential cause: The ``repo_url``, ``repo_name`` or ``repo`` provided in ``rhel_repo_local_path`` (``input/provision_config.yml``) may not be valid.
+**Resolution**: The ``repo_url``, ``repo_name`` or ``repo`` provided in ``rhel_repo_local_path`` (``input/provision_config.yml``) may not be valid.
 
 Omnia does not validate the input of ``rhel_repo_local_path``.
 
-Resolution: Ensure the correct values are passed before re-running ``provision.yml``.
+**Resolution**: Ensure the correct values are passed before re-running ``provision.yml``.
 
 
 **What to do if PXE boot fails when discovering target nodes via switch_based discovery**
@@ -177,21 +177,21 @@ Resolution: Ensure the correct values are passed before re-running ``provision.y
 
 .. image:: ../images/BeeGFSFailure.png
 
-Potential cause: BeeGFS version 7.3.0 is in use.
+**Resolution**: BeeGFS version 7.3.0 is in use.
 
-Resolution: Use BeeGFS client version 7.3.1 when setting up BeeGFS on the cluster.
+**Resolution**: Use BeeGFS client version 7.3.1 when setting up BeeGFS on the cluster.
 
 
 **Why does splitting an ethernet Z series port fail with "Failed. Either port already split with different breakout value or port is not available on ethernet switch"?**
 
 
-Potential Cause:
+**Resolution**:
 
     1. The port is already split.
 
     2. It is an even-numbered port.
 
-Resolution:
+**Resolution**:
 
     Changing the ``breakout_value`` on a split port is currently not supported. Ensure the port is un-split before assigning a new ``breakout_value``.
 
