@@ -72,7 +72,7 @@ Resolution:
 
     * Resolve/replace the faulty hardware and PXE boot the node.
 
-    * Create a virtual disk and re-try ``provision.yml``.
+    * Create a virtual disk and PXE boot the node.
 
 **Why does the 'Fail if LDAP home directory exists' task fail during user_passwordless_ssh.yml?**
 
