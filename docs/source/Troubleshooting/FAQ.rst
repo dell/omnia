@@ -220,14 +220,6 @@ To enable routing, update the ``primary_dns`` and ``secondary_dns`` in ``provisi
 
 Provisioning server using BOSS controller is now supported by Omnia 1.2.1.
 
-**How to re-provision a server once it's been set up by xCAT**
-
-* Use ``lsdef -t osimage | grep install-compute`` to get a list of all valid OS profiles.
-
-* Use ``nodeset all osimage=<selected OS image from previous command>`` to provision the OS on the target server.
-
-* PXE boot the target server to bring up the OS.
-
 **How many IPs are required within the PXE NIC range?**
 
 Ensure that the number of IPs available between ``pxe_nic_start_range`` and ``pxe_nic_end_range`` is double the number of iDRACs available to account for potential stale entries in the mapping DB.
