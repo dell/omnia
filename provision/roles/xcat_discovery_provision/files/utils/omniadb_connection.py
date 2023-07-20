@@ -49,3 +49,17 @@ def insert_switch_based_server(cursor, bmc_ip, admin_ip, ib_ip, node, hostname, 
             bmc_ip=bmc_ip, admin_ip=admin_ip, ib_ip=ib_ip, node=node, hostname=hostname, switch_ip=switch_ip,
             switch_name=switch_name, switch_port=switch_port)
         cursor.execute(sql)
+
+
+def insert_cp_details_db(cursor, node_name, network_interface_type, bmc_nic_ip, admin_nic_ip, pxe_mac_address, hostname):
+
+    if network_interface_type == "lom":
+        sql = '''INSERT INTO cluster.nodeinfo(node, bmc_ip, admin_ip, admin_mac, hostname) VALUES ('{node}','{bmc_ip}','{admin_ip}', '{admin_mac}', '{hostname}')'''.format(
+            node=node_name, bmc_ip=bmc_nic_ip, admin_ip=admin_nic_ip, admin_mac=pxe_mac_address, hostname=hostname)
+        cursor.execute(sql)
+
+    if network_interface_type == "dedicated":
+        sql = '''INSERT INTO cluster.nodeinfo(node, admin_ip, admin_mac, hostname) VALUES ('{node}','{admin_ip}','{admin_mac}', '{hostname}')'''.format(
+             node=node_name, admin_ip=admin_nic_ip, admin_mac=pxe_mac_address, hostname=hostname)
+        cursor.execute(sql)
+    cursor.close()

@@ -61,7 +61,7 @@
     create: yes
     mode: "{{ hosts_file_mode }}"
   with_items:
-    - "{{ groups['login_node'] }}"
+    - "{{ groups['login'] }}"
   when:
     - '"manager" in group_names'
     - hostvars["127.0.0.1"]["login_node_required"]
@@ -76,7 +76,7 @@
   with_items:
     - "{{ groups['manager'] }}"
   when:
-    - '"login_node" in group_names'
+    - '"login" in group_names'
     - hostvars["127.0.0.1"]["login_node_required"]
 
 - name: Add compute info in /etc/hosts of login node
@@ -90,7 +90,7 @@
     - "{{ groups['compute'] }}"
   when:
     - hostvars["127.0.0.1"]["login_node_required"]
-    - '"login_node" in group_names'
+    - '"login" in group_names'
 
 - name: Add compute info in /etc/hosts of compute nodes
   lineinfile:

@@ -5,8 +5,7 @@ Limitations
    recommended to avoid rebooting the control plane.
 -  Omnia supports adding only 1000 nodes when discovered via BMC.
 -  Removal of Slurm and Kubernetes component roles are not supported.
-   However, skip tags can be provided at the start of installation to
-   select the component roles.
+   However, the scheduler type can be customized by setting ``scheduler_type`` in ``input/omnia_config.yml`` prior to running ``omnia.yml``.
 -  After installing the Omnia control plane, changing the manager node
    is not supported. If you need to change the manager node, you must
    redeploy the entire cluster.
@@ -16,8 +15,7 @@ Limitations
 -  To change the Kubernetes single node cluster to a multi-node cluster
    or change a multi-node cluster to a single node cluster, you must
    either redeploy the entire cluster or run ``kubeadm reset -f`` on all
-   the nodes of the cluster. You then need to run the ``omnia.yml`` file
-   and skip the installation of Slurm using the skip tags.
+   the nodes of the cluster. Then set ``scheduler_type:k8s`` in ``input/omnia_config.yml`` prior to running ``omnia.yml``.
 -  In a single node cluster, the login node and Slurm functionalities
    are not applicable. However, Omnia installs FreeIPA Server and Slurm
    on the single node.
@@ -29,7 +27,6 @@ Limitations
    nodes as part of omnia.yml execution.
 -  Only one storage instance (Powervault) is currently supported in the
    HPC cluster.
--  Cobbler web support has been discontinued from Omnia 1.2 onwards.
 -  Omnia supports only basic telemetry configurations. Changing data
    fetching time intervals for telemetry is not supported.
 -  Slurm cluster metrics will only be fetched from clusters configured
@@ -40,3 +37,4 @@ Limitations
 -  Omnia might contain some unused MACs since LOM switch have both iDRAC MACs as well as ethernet MACs, PXE NIC ranges should contain IPs that are double the iDRACs present.
 - FreeIPA authentication is not supported on the control plane.
 - The multiple OS feature is only available with Rocky 8.7 when xCAT 2.16.5 is in use. Currently, Omnia uses 2.16.4.
+- Currently, Omnia only supports the splitting of switch ports. Switch ports cannot be un-split using this script.

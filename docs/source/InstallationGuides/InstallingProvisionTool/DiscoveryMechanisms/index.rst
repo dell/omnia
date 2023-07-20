@@ -1,13 +1,13 @@
 Discovery Mechanisms
 -----------------------
 
-Depending on the value of ``discovery_mechanism`` in ``input/provision_config.yml``, potential target servers can be discovered one of three ways:
+Depending on the value of ``discovery_mechanism`` in ``input/provision_config.yml``, potential target servers can be discovered one of four ways:
 
 .. toctree::
-    switch-based
     mappingfile
-    snmp
+    switch-based
     bmc
+    snmp
 
 
 1. **switch_based**

@@ -34,14 +34,3 @@
     that: search_string[1] in check_baseos.stdout
     success_msg: "{{ baseos_success_msg }}"
     fail_msg: "{{ baseos_fail_msg }}"
-
-- name: Check for CodeReadyBuilder
-  ansible.builtin.command: grep -r "{{ search_string[2] }}" "{{ repo_path }}"
-  register: check_codereadybuilder
-  changed_when: false
-
-- name: Repo validation for CodeReadyBuilder
-  ansible.builtin.assert:
-    that: search_string[2] in check_codereadybuilder.stdout
-    success_msg: "{{ codereadybuilder_success_msg }}"
-    fail_msg: "{{ codereadybuilder_fail_msg }}"

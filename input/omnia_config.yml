@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,6 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+
+#***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.                  
+# SIMPLY APPEND THE REQUIRD VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
+#***********************************************************************
+
+# Job scheduler to be installed across all nodes in the cluster
+# To install slurm provide scheduler_type: "slurm"
+# To install k8s provide scheduler_type: "k8s" 
+# To install slurm and k8s provide scheduler_type: "slurm,k8s"
+# Default value is "slurm"
+scheduler_type: "slurm"
 
 # Password used for Slurm database.
 # The Length of the password should be at least 8.
@@ -48,9 +60,14 @@ docker_password: ""
 # Default value is "/etc/ansible"
 # This directory is on the host running ansible, if ansible is installed using dnf
 # If ansible is installed using pip, this path should be set
-ansible_config_file_path: /etc/ansible
+ansible_config_file_path: "/etc/ansible"
 
-# Boolean indicating whether login node is required or not
-# It can be set to true or false
-# By default it is set to false indicating login node will not be configured
-login_node_required: false
+# Set this to false if a parallel file system is running in the environment
+# and a share file system (NFS/BeeGFS) will be used to create home directory/ Kubernetes share directory on it.
+# When this variable is true Omnia will create its own NFS share and mount omnia_usrhome_share on all the nodes.
+enable_omnia_nfs: true
+
+# Path to directory which will be shared across all nodes in the cluster.
+# If enable_omnia_nfs: true, NFS share will be created at path mentioned below.
+# If enable_omnia_nfs: false, set this variable as path to parallel file system(NFS/BeeGFS) running in the system.
+omnia_usrhome_share: "/home/omnia-share"

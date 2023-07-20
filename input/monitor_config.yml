@@ -13,6 +13,11 @@
 #  limitations under the License.
 ---
 
+#***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.                  
+# SIMPLY APPEND THE REQUIRD VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
+#***********************************************************************
+
 # Username for Dockerhub account
 # This will be used for Docker login and a kubernetes secret will be created and patched to service account in default namespace.
 # This kubernetes secret can be used to pull images from private repositories
@@ -44,4 +49,4 @@ grafana_password: ""
 # If using telemetry, all telemetry related files will also be stored and
 # both timescale and mysql databases will be mounted to this location.
 # '/' is mandatory at the end of the path.
-mount_location: /opt/omnia/telemetry/
+mount_location: "/opt/omnia/telemetry/"

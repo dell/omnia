@@ -18,13 +18,13 @@
   connection: local
   gather_facts: false
   tasks:
-    - name: Validate nfs_node config
+    - name: Validate nfs config
       ansible.builtin.include_role:
         name: nfs_sas
         tasks_from: check_prerequisites.yml
 
 - name: Configure NFS node for SAS protocol
-  hosts: nfs_node
+  hosts: nfs
   gather_facts: true
   vars:
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'

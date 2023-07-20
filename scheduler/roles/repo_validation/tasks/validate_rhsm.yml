@@ -79,7 +79,7 @@
 
   when: "'manager' not in group_names"
 
-- name: Subscrbe for code ready builder repo in RHEL
+- name: Subscribe for codeready-builder repo in RHEL
   ansible.builtin.command: subscription-manager repos --enable "{{ rhel_code_ready_repo }}"
   changed_when: false
 

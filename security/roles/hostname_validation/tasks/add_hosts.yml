@@ -52,4 +52,4 @@
   with_items:
     - "{{ groups['manager'] }}"
   when:
-    - '"login_node" in group_names'
+    - '"login" in group_names'

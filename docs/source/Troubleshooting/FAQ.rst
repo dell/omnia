@@ -15,17 +15,38 @@ Resolution:
 
     * Resolve/replace the faulty hardware and PXE boot the node.
 
+**Why don't IPA commands work after setting up FreeIPA on the cluster?**
+
+Cause:
+
+    Kerberos authentication may be missing on the target node.
+
+Resolution:
+
+    Run ``kinit admin`` on the node and provide the ``kerberos_admin_password`` when prompted. (This password is also entered in ``input/security_config.yml``.)
+
 **Why are the status and admin_mac fields not populated for specific target nodes in the cluster.nodeinfo table?**
 
 Causes:
 
- * Nodes do not have their first PXE device set as designated active NIC for PXE booting.
- * Nodes that have been discovered via SNMP or mapping file have not been PXE booted.
+    * Nodes do not have their first PXE device set as designated active NIC for PXE booting.
+    * Nodes that have been discovered via SNMP or mapping file have not been PXE booted.
 
 Resolution:
 
- * Configure the first PXE device to be active for PXE booting.
- * PXE boot the target node manually.
+    * Configure the first PXE device to be active for PXE booting.
+    * PXE boot the target node manually.
+
+**Why does the provision.yml fail at 'provision validation: Install common packages for provision' on RHEL nodes running 8.5 or earlier?**
+
+.. image:: ../images/RedHat_provisionerror_sshpass.PNG
+
+Cause:
+    * sshpass is not available in any of the repositories on the control plane.
+
+Resolution:
+
+   * Enable RedHat subscription or ensure that sshpass is available to install or download to the control plane (from any local repository).
 
 **Why is the provisioning status of my node object stuck at 'installing'?**
 
@@ -44,6 +65,30 @@ Resolution:
     * Download the ISO again, verify the checksum and re-run the provision tool.
 
     * Resolve/replace the faulty hardware and PXE boot the node.
+
+**Why does the 'Fail if LDAP home directory exists' task fail during user_passwordless_ssh.yml?**
+
+.. image:: ../images/nfssharecheckfail.png
+
+Cause: The required NFS share is not set up on the control plane.
+
+Resolution:
+
+If ``enable_omnia_nfs`` is true in ``input/omnia_config.yml``, follow the below steps to configure an NFS share on your LDAP server:
+    - From the manager node:
+        1. Add the LDAP server IP address to ``/etc/exports``.
+        2. Run ``exports -ra`` to enable the NFS configuration.
+    - From the LDAP server:
+        1. Add the required fstab entries in ``/etc/fstab``
+        2. Mount the NFS share using ``mount manager_ip: /home/omnia-share /home/omnia-share``
+
+**Why does the 'Import SCP from a local path' task fail during idrac.yml?**
+
+.. image:: ../images/ImportSCPiDRAC_fail.png
+
+Cause: The target server may be hung during the booting process.
+
+Resolution: Bring the target node up and re-run the script.
 
 **Why does the 'Verify primary_dns is  reachable' task fail during provision.yml?**
 
@@ -72,6 +117,17 @@ For many of Omnia's features to work, RHEL control planes need access to the fol
     3. CRB
 
 This can only be achieved using local repos specified in rhel_repo_local_path  (``input/provision_config.yml``) OR having an active, available RedHat subscription.
+
+.. note::
+    To enable the repositories, run the following commands: ::
+
+            subscription-manager repos --enable=codeready-builder-for-rhel-8-x86_64-rpms
+            subscription-manager repos --enable=rhel-8-for-x86_64-appstream-rpms
+            subscription-manager repos --enable=rhel-8-for-x86_64-baseos-rpms
+
+    Verify your changes by running: ::
+
+            yum repolist enabled
 
 **Why does the task: Initiate reposync of AppStream, BaseOS and CRB fail?**
 
@@ -151,13 +207,6 @@ To enable routing, update the ``primary_dns`` and ``secondary_dns`` in ``provisi
 **Is provisioning servers using BOSS controller supported by Omnia?**
 
 Provisioning server using BOSS controller is now supported by Omnia 1.2.1.
-
-
-**How to re-launch services after a control-plane reboot while running provision.yml**
-
-After a reboot of the control plane while running ``provision.yml``, to bring up ``xcatd`` services, please run the below command: ::
-
-    ansible-playbook discovery_provision.yml
 
 **How to re-provision a server once it's been set up by xCAT**
 

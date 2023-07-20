@@ -16,7 +16,15 @@
 - name: Set control_plane_os and rhel_repo_alphabetical_folders to lowercase
   ansible.builtin.set_fact:
     control_plane_os: "{{ ansible_distribution | lower }}"
+    update_repos: "{{ update_repos | lower }}"
     rhel_repo_alphabetical_folders: "{{ rhel_repo_alphabetical_folders | lower }}"
+
+- name: Verify the value of update_repos
+  ansible.builtin.assert:
+    that:
+      - update_repos == true or update_repos == false
+    success_msg: "{{ update_repos_success_msg }}"
+    fail_msg: "{{ update_repos_fail_msg }}"
 
 - name: Verify the value of rhel_repo_alphabetical_folders
   ansible.builtin.assert:
@@ -30,7 +38,9 @@
     rhel_repo_path_status: false
 
 - name: Validate rhel_repo_local_path when provision os is rhel
-  when: provision_os | lower == provision_os_rhel
+  when:
+    - update_repos
+    - provision_os | lower == provision_os_rhel
   block:
     - name: Fetch redhat subscription status
       ansible.builtin.command: subscription-manager list
@@ -44,20 +54,17 @@
       when:
         - rhel_repo_local_path[0].repo | default("", true) | length > 1
         - rhel_repo_local_path[1].repo | default("", true) | length > 1
-        - rhel_repo_local_path[2].repo | default("", true) | length > 1
         - rhel_repo_local_path[0].repo_url | default("", true) | length > 1
         - rhel_repo_local_path[1].repo_url | default("", true) | length > 1
-        - rhel_repo_local_path[2].repo_url | default("", true) | length > 1
         - rhel_repo_local_path[0].repo_name | default("", true) | length > 1
         - rhel_repo_local_path[1].repo_name | default("", true) | length > 1
-        - rhel_repo_local_path[2].repo_name | default("", true) | length > 1
 
     - name: Validate rhel_repo_local_path
       when: rhel_repo_path_status
       block:
         - name: Validate rhel_repo_local_path
           ansible.builtin.assert:
-            that: rhel_repo_local_path | length == 3
+            that: rhel_repo_local_path | length == 2
             success_msg: "{{ repo_path_count_success_msg }}"
             fail_msg: "{{ repo_path_count_fail_msg }}"
 
@@ -65,7 +72,7 @@
           ansible.builtin.assert:
             that:
               - item.repo | default("", true) | length > 1
-              - item.repo == rhel_repo_search_key[0] or item.repo == rhel_repo_search_key[1] or item.repo == rhel_repo_search_key[2]
+              - item.repo == rhel_repo_search_key[0] or item.repo == rhel_repo_search_key[1]
               - item.repo_url | default("", true) | length > 1
               - item.repo_name | default("", true) | length > 1
               - '".repo" in item.repo_url'
@@ -87,8 +94,8 @@
         - not rhel_repo_path_status
       block:
         - name: Subscription is not enabled
-          ansible.builtin.fail:
-            msg: "{{ rhel_subscription_fail_msg }}"
+          ansible.builtin.debug:
+            msg: "{{ rhel_subscription_warn_msg }}"
           when: subscription_check_key not in rhsm_status.stdout
 
         - name: Fetch redhat enabled repo list

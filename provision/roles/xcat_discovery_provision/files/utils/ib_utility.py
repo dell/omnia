@@ -40,7 +40,7 @@ def ib_db_insertion():
         port='5432')
     conn.autocommit = True
     cursor = conn.cursor()
-    sql = '''Update cluster.nodeinfo set ib_ip=inet '{ip_start_addr}'+ id'''.format(ip_start_addr=ip_start_addr)
+    sql = '''Update cluster.nodeinfo set ib_ip=inet '{ip_start_addr}'+ id where node!='control_plane';'''.format(ip_start_addr=ip_start_addr)
     cursor.execute(sql)
     conn.close()
 

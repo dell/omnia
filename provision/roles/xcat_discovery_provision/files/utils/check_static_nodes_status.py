@@ -19,6 +19,7 @@ def get_static_nodes():
 def check_static_nodes(nodelist):
     bmc_list = list()
     for node in nodelist:
+        node=node.strip()
         cmd = '''lsdef {node} -i status -c | sed -n "/{node}: status=/s/{node}: status=//p"'''.format(node=node)
         status,err,out = run_cmd(cmd)
         if status:

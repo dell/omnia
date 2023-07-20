@@ -7,8 +7,8 @@ Required","The network type used on the Omnia cluster.
 
 Choices:
 
-* ``lom`` <- default
-* ``dedicated``"
+* ``dedicated`` <- default
+* ``lom``"
 "**discovery_mechanism**
 
 ``string``
@@ -17,8 +17,8 @@ Required","The mechanism through which Omnia will discover nodes for provisionin
 
 Choices:
 
-* ``switch_based`` <-default
-* ``mapping``
+* ``switch_based``
+* ``mapping``  <-default
 * ``bmc``
 * ``snmpwalk``"
 "**provision_os**
@@ -208,19 +208,19 @@ Required","* The password for iDRAC.
 
 ``boolean``
 
-Required","* Indicates whether ``provision.yml`` will update offline RHEL repos (applicable from the second run of ``provision.yml``)          
-                                                                                                                                    
-* In the first execution of ``provision.yml``, Omnia updates the BaseOS, Appstream and CRB repos.                                   
-                                                                                                                                    
-* If ``update_repos``: false, none of the repos required for compute nodes will be updated provided the repos are already available.
-                                                                                                                                    
-* If ``update_repos``: true, BaseOS, Appstream and CRB repos created for compute nodes will be updated                              
-                                                                                                                                    
-Choices:                                                                                                                            
-                                                                                                                                    
-``false`` <- Default                                                                                                                
-                                                                                                                                    
-``true``                                                                                                                            "
+Required","* Indicates whether ``provision.yml`` will update offline RHEL repos.          
+                                                                                                                                                                                                                                                                       
+* If ``update_repos``: false, the update repos for BaseOS and AppStream will not be updated to the latest versions available.
+
+* If ``update_repos``: true, the update repos for BaseOS and AppStream will be updated to the latest versions available.
+
+.. note:: By default, AppSteam and BaseOS repos will be configured from the given ISO file.
+
+Choices:
+
+``false`` <- Default
+
+``true``    "
 " **rhel_repo_alphabetical_folders**
  ``boolean``
  
@@ -244,7 +244,7 @@ Optional                ","* The repo path and names of the software repository 
                                                                                                    
 * Provide the repo data file path, which ends with .repo extension in repo_url parameter.          
                                                                                                    
-* Provide the url for BaseOS, Appstream and CRB repositories.                                      
+* Provide the url for BaseOS and AppStream repositories.                                      
                                                                                                    
 * This variable should be filled if control plane OS is RHEL and subscription is not activated.    
                                                                                                    
@@ -256,7 +256,7 @@ Default value:
                                                                                                    
 - { repo: “BaseOS”, repo_url: “”, repo_name: “” }                                                  
                                                                                                    
-- { repo: “CRB”, repo_url: “”, repo_name: “” }                                                     "
+                                                     "
 "**primary_dns**
 
 ``string``

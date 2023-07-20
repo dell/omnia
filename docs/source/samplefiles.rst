@@ -14,7 +14,7 @@ inventory file
     10.5.0.102
     10.5.0.103
 
-    [login_node]
+    [login]
     10.5.0.104
 
 
@@ -29,6 +29,7 @@ pxe_mapping_file.csv
 
     aa:bb:cc:dd:ee:ff,server2, 10.5.0.102
 
+.. note:: To skip the provisioning of a particular node in the list, simply append a '#' to the beginning of the line pertaining to that node.
 
 switch_inventory
 ------------------
@@ -53,7 +54,7 @@ NFS Server inventory file
 
 ::
 
-    [nfs_node]
+    [nfs]
     10.5.0.104
 
 

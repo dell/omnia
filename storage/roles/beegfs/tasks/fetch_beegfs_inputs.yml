@@ -13,6 +13,10 @@
 #  limitations under the License.
 ---
 
+- name: Initialize beegfs_connauth_status
+  ansible.builtin.set_fact:
+    beegfs_connauth_status: false
+
 - name: Assert beegfs_rdma_support
   ansible.builtin.assert:
     that:
@@ -80,9 +84,15 @@
       register: file_result
 
     - name: Validate the shared secret file existence
-      ansible.builtin.fail:
-        msg: "{{ beegfs_shared_secret_failure_msg }}"
+      ansible.builtin.pause:
+        seconds: "{{ warning_wait_time }}"
+        prompt: "{{ beegfs_shared_secret_failure_msg }}"
       when: not file_result.stat.exists
+
+    - name: Set beegfs_connauth_status
+      ansible.builtin.set_fact:
+        beegfs_connauth_status: true
+      when: file_result.stat.exists
 
 - name: Assert beegfs_version_change
   ansible.builtin.assert:

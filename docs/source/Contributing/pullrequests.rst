@@ -46,7 +46,7 @@ Make sure you have your user name and e-mail set. The ``--signoff | -s`` option 
 
     * `Setting up your e-mail address <https://help.github.com/articles/setting-your-commit-email-address-in-git/>`_
 
-.. warning::
+.. caution::
     When preparing a pull request it is important to stay up-to-date with the project repository. We recommend that you rebase against the upstream repo frequently. ::
 
         git pull --rebase upstream devel #upstream is dellhpc/omnia
