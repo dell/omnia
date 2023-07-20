@@ -1,13 +1,13 @@
 Frequently asked questions
 ==========================
 
-**What to do if playbook execution fails due to external (network, hardware etc) failure**
+**What to do if playbook execution fails due to external (network, hardware etc) failure:**
 
 Re-run the playbook whose execution failed once the issue is resolved.
 
 **Why is the provisioning status of my node object stuck at 'powering-on'?**
 
-**Resolution**:
+**Potential Cause**:
 
     * Hardware issues (Auto-reboot may fail due to hardware tests failing)
 
@@ -17,7 +17,7 @@ Re-run the playbook whose execution failed once the issue is resolved.
 
 **Why don't IPA commands work after setting up FreeIPA on the cluster?**
 
-**Resolution**:
+**Potential Cause**:
 
     Kerberos authentication may be missing on the target node.
 
@@ -41,7 +41,7 @@ Re-run the playbook whose execution failed once the issue is resolved.
 
 .. image:: ../images/RedHat_provisionerror_sshpass.PNG
 
-**Resolution**:
+**Potential Cause**:
     * sshpass is not available in any of the repositories on the control plane.
 
 **Resolution**:
@@ -54,7 +54,7 @@ Re-run the playbook whose execution failed once the issue is resolved.
 
 .. image:: ../images/InstallCorruptISO.png
 
-**Resolution**:
+**Potential Causes**:
 
     * Disk partition may not have enough storage space per the requirements specified in ``input/provision_config`` (under ``disk_partition``)
 
@@ -78,7 +78,7 @@ Re-run the playbook whose execution failed once the issue is resolved.
 
 .. image:: ../images/nfssharecheckfail.png
 
-**Resolution**: The required NFS share is not set up on the control plane.
+**Potential Cause**: The required NFS share is not set up on the control plane.
 
 **Resolution**:
 
@@ -94,7 +94,7 @@ If ``enable_omnia_nfs`` is true in ``input/omnia_config.yml``, follow the below 
 
 .. image:: ../images/ImportSCPiDRAC_fail.png
 
-**Resolution**: The target server may be hung during the booting process.
+**Potential Cause**: The target server may be hung during the booting process.
 
 **Resolution**: Bring the target node up and re-run the script.
 
@@ -108,7 +108,7 @@ Ex: If the ``primary_dns`` is set to 10.15.0.7, the subnet ``10.15.0.0`` cannot 
 
 **Why is the node status stuck at 'powering-on' or 'powering-off' after a control plane reboot?**
 
-**Resolution**: The nodes were powering off or powering on during the control plane reboot/shutdown.
+**Potential Cause**: The nodes were powering off or powering on during the control plane reboot/shutdown.
 
 **Resolution**: In the case of a planned shutdown, ensure that the control plane is shut down after the compute nodes. When powering back up, the control plane should be powered on and xCAT services resumed before bringing up the compute nodes. In short, have the control plane as the first node up and the last node down.
 
@@ -141,14 +141,14 @@ This can only be achieved using local repos specified in rhel_repo_local_path  (
 
 .. image::  ../images/RepoURLError.png
 
-**Resolution**: The ``repo_url``, ``repo_name`` or ``repo`` provided in ``rhel_repo_local_path`` (``input/provision_config.yml``) may not be valid.
+**Potential Cause**: The ``repo_url``, ``repo_name`` or ``repo`` provided in ``rhel_repo_local_path`` (``input/provision_config.yml``) may not be valid.
 
 Omnia does not validate the input of ``rhel_repo_local_path``.
 
 **Resolution**: Ensure the correct values are passed before re-running ``provision.yml``.
 
 
-**What to do if PXE boot fails when discovering target nodes via switch_based discovery**
+**What to do if PXE boot fails when discovering target nodes via switch_based discovery:**
 
 .. image:: ../images/PXEBootFail.png
 
@@ -177,7 +177,7 @@ Omnia does not validate the input of ``rhel_repo_local_path``.
 
 .. image:: ../images/BeeGFSFailure.png
 
-**Resolution**: BeeGFS version 7.3.0 is in use.
+**Potential Cause**: BeeGFS version 7.3.0 is in use.
 
 **Resolution**: Use BeeGFS client version 7.3.1 when setting up BeeGFS on the cluster.
 
@@ -185,7 +185,7 @@ Omnia does not validate the input of ``rhel_repo_local_path``.
 **Why does splitting an ethernet Z series port fail with "Failed. Either port already split with different breakout value or port is not available on ethernet switch"?**
 
 
-**Resolution**:
+**Potential Cause**:
 
     1. The port is already split.
 

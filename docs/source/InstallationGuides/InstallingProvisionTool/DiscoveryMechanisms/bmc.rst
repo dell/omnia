@@ -5,8 +5,7 @@ For automatic provisioning of servers and discovery, the BMC method can be used.
 
 **Pre requisites**
 
-- The control plane NIC connected to remote servers (through the switch) should be configured with two IPs in a shared LOM set up. This NIC is configured by Omnia with the IP xx.yy.255.254, aa.bb.255.254 (where xx.yy are taken from ``bmc_nic_subnet`` and aa.bb are taken from ``admin_nic_subnet``) when ``discovery_mechanism`` is set to ``bmc``.
-
+* Set the IP address of the control plane with a /16 subnet mask. The control plane NIC connected to remote servers (through the switch) should be configured with two IPs (BMC IP and admin IP) in a shared LOM or hybrid set up. In the case dedicated network topology, a single IP (admin IP) is required.
 .. image:: ../../../images/ControlPlaneNic.png
 
 - IP ranges (``bmc_static_start_range``, ``bmc_static_start_range``) provided to Omnia for BMC discovery should be within the same subnet.
@@ -14,6 +13,7 @@ For automatic provisioning of servers and discovery, the BMC method can be used.
 .. caution::
     * To create a meaningful range of discovery, ensure that the last two octets of   ``bmc_static_end_range`` are equal to or greater than the last two octets of   the ``bmc_static_start_range``. That is, for the range a.b.c.d - a.b.e.f, e   and f should be greater than or equal to c and d. *Ex: 172.20.0.50 -   172.20.1.101 is a valid range however,    172.20.0.101 - 172.20.1.50 is not.*
     * If you are re-provisioning your cluster (that is, re-running the ``provision.yml`` playbook) after a `clean-up <../../CleanUpScript.html>`_, ensure to use a different ``admin_nic_subnet`` in ``input/provision_config.yml`` to avoid a conflict with newly assigned servers. Alternatively, disable any OS available in the ``Boot Option Enable/Disable`` section of your BIOS settings (``BIOS Settings`` > ``Boot Settings`` > ``UEFI Boot Settings``) on all target nodes.
+    * ``admin_nic_subnet``, ``ib_nic_subnet`` and ``bmc_nic_subnet`` should have the same subnet mask (Omnia only supports /16 subnet masks currently).
 
 - All iDRACs should be reachable from the ``admin_nic``.
 

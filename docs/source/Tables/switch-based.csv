@@ -187,9 +187,9 @@ Optional","* If provided, Omnia will handle and assign static IPs to compute nod
 
 ``string``
 
-Required","* If provided, Omnia will assign static IPs to IB NICs on the compute nodes within the provided subnet.
+Required","* If provided, Omnia will assign static IPs to BMC NICs on the compute nodes within the provided subnet.
 * If ``network_interface_type``: ``lom``, mandatory for discovery_mechanism: mapping, switch_based and bmc.
-* If ``network_interface_type``: ``dedicated``, optional for discovery_mechanism: mapping, switch_based.
+* If ``network_interface_type``: ``dedicated``, optional for discovery_mechanism: mapping, snmpwalk.
 * Note that since the last 16 bits/2 octets of IPv4 are dynamic, please ensure that the parameter value is set to x.x.0.0.
 * When the PXE range and BMC subnet are provided, corresponding NICs will be assigned IPs with the same 3rd and 4th octets."
 "**bmc_username**
