@@ -149,5 +149,5 @@ After successfully running ``provision.yml``, go to `Building Clusters <../Build
 
     * Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect.
     * To avoid breaking the passwordless SSH channel on the control plane, do not run ``ssh-keygen`` commands post execution of ``provision.yml``.
-
+    * Omnia installs xcat in the directory ``/root/xcat`` and sets up a DB backup in ``/root/xcat-dbback``. Do not delete these folders.
 
