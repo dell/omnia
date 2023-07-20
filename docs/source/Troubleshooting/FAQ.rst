@@ -1,10 +1,6 @@
 Frequently asked questions
 ==========================
 
-**What to do if playbook execution fails due to external (network, hardware etc) failure:**
-
-Re-run the playbook whose execution failed once the issue is resolved.
-
 **Why is the provisioning status of my node object stuck at 'powering-on'?**
 
 **Potential Cause**:
@@ -14,6 +10,53 @@ Re-run the playbook whose execution failed once the issue is resolved.
 **Resolution**:
 
     * Resolve/replace the faulty hardware and PXE boot the node.
+
+**Why is the provisioning status of the target servers stuck at 'installing' in cluster.nodeinfo (omniadb)?**
+
+.. image:: ../images/InstallingStuckDB.png
+
+.. image:: ../images/InstallCorruptISO.png
+
+**Potential Causes**:
+
+    * Disk partition may not have enough storage space per the requirements specified in ``input/provision_config`` (under ``disk_partition``)
+
+    * The provided ISO may be corrupt/incomplete.
+
+    * Hardware issues (Auto reboot may fail at POST)
+
+    * A virtual disk may not be created
+
+    * The target node may already have an OS and the first boot PXE device is not configured correctly.
+
+**Resolution**:
+
+    * Add more space to the server or modify the requirements specified in ``input/provision_config`` (under ``disk_partition``)
+
+    * Download the ISO again, verify the checksum/ download size and re-run the provision tool.
+
+    * Resolve/replace the faulty hardware and PXE boot the node.
+
+    * Create a virtual disk and PXE boot the node.
+
+    * Target servers should be configured to boot in PXE mode with the appropriate NIC as the first boot device.
+
+**What to do if PXE boot fails when discovering target nodes via switch_based discovery:**
+
+.. image:: ../images/PXEBootFail.png
+
+1. Rectify any probable causes like incorrect/unavailable credentials (``switch_snmp3_username`` and ``switch_snmp3_password`` provided in ``input/provision_config.yml``), network glitches or incorrect switch IP/port details.
+2. Run the clean up script by: ::
+
+     cd utils
+     ansible-playbook control_plane_cleanup.yml
+
+3. Re-run the provision tool (``ansible-playbook provision.yml``).
+
+
+**What to do if playbook execution fails due to external (network, hardware etc) failure:**
+
+Re-run the playbook whose execution failed once the issue is resolved.
 
 **Why don't IPA commands work after setting up FreeIPA on the cluster?**
 
@@ -47,32 +90,6 @@ Re-run the playbook whose execution failed once the issue is resolved.
 **Resolution**:
 
    * Enable RedHat subscription or ensure that sshpass is available to install or download to the control plane (from any local repository).
-
-**Why is the provisioning status of the target servers stuck at 'installing' in cluster.nodeinfo (omniadb)?**
-
-.. image:: ../images/InstallingStuckDB.png
-
-.. image:: ../images/InstallCorruptISO.png
-
-**Potential Causes**:
-
-    * Disk partition may not have enough storage space per the requirements specified in ``input/provision_config`` (under ``disk_partition``)
-
-    * The provided ISO may be corrupt/incomplete.
-
-    * Hardware issues
-
-    * A virtual disk may not be created
-
-**Resolution**:
-
-    * Add more space to the server or modify the requirements specified in ``input/provision_config`` (under ``disk_partition``)
-
-    * Download the ISO again, verify the checksum/ download size and re-run the provision tool.
-
-    * Resolve/replace the faulty hardware and PXE boot the node.
-
-    * Create a virtual disk and PXE boot the node.
 
 **Why does the 'Fail if LDAP home directory exists' task fail during user_passwordless_ssh.yml?**
 
@@ -146,19 +163,6 @@ This can only be achieved using local repos specified in rhel_repo_local_path  (
 Omnia does not validate the input of ``rhel_repo_local_path``.
 
 **Resolution**: Ensure the correct values are passed before re-running ``provision.yml``.
-
-
-**What to do if PXE boot fails when discovering target nodes via switch_based discovery:**
-
-.. image:: ../images/PXEBootFail.png
-
-1. Rectify any probable causes like incorrect/unavailable credentials (``switch_snmp3_username`` and ``switch_snmp3_password`` provided in ``input/provision_config.yml``), network glitches or incorrect switch IP/port details.
-2. Run the clean up script by: ::
-
-     cd utils
-     ansible-playbook control_plane_cleanup.yml
-
-3. Re-run the provision tool (``ansible-playbook provision.yml``).
 
 **How to add a new node for provisioning**
 
