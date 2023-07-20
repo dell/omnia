@@ -48,13 +48,17 @@ Resolution:
 
    * Enable RedHat subscription or ensure that sshpass is available to install or download to the control plane (from any local repository).
 
-**Why is the provisioning status of my node object stuck at 'installing'?**
+**Why is the provisioning status of the target servers stuck at 'installing' in cluster.nodeinfo (omniadb)?**
+
+.. image:: ../images/InstallingStuckDB.png
+
+.. image:: ../images/InstallCorruptISO.png
 
 Cause:
 
     * Disk partition may not have enough storage space per the requirements specified in ``input/provision_config`` (under ``disk_partition``)
 
-    * The provided ISO may be corrupt.
+    * The provided ISO may be corrupt/incomplete.
 
     * Hardware issues
 
@@ -62,7 +66,7 @@ Resolution:
 
     * Add more space to the server or modify the requirements specified in ``input/provision_config`` (under ``disk_partition``)
 
-    * Download the ISO again, verify the checksum and re-run the provision tool.
+    * Download the ISO again, verify the checksum/ download size and re-run the provision tool.
 
     * Resolve/replace the faulty hardware and PXE boot the node.
 
