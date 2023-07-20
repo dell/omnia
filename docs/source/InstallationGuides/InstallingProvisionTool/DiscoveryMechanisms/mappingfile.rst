@@ -16,8 +16,8 @@ Manually collect PXE NIC information for target servers and manually define them
 The following parameters need to be populated in ``input/provision_config.yml`` to discover target nodes using a mapping file.
 
 .. caution::
-* ``admin_nic_subnet``, ``ib_nic_subnet`` and ``bmc_nic_subnet`` should have the same subnet mask (Omnia only supports /16 subnet masks currently).
-* Do not remove or comment any lines in the ``input/provision_config.yml`` file.
+    * ``admin_nic_subnet``, ``ib_nic_subnet`` and ``bmc_nic_subnet`` should have the same subnet mask (Omnia only supports /16 subnet masks currently).
+    * Do not remove or comment any lines in the ``input/provision_config.yml`` file.
 
 .. csv-table:: Parameters
    :file: ../../../Tables/mapping.csv
