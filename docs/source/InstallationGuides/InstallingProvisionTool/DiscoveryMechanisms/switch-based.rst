@@ -26,7 +26,10 @@ switch_based
 
 
 
-* IPMI over LAN needs to be enabled for the BMC.
+* IPMI over LAN needs to be enabled for the BMC. ::
+
+    racadm set iDRAC.IPMILan.Enable 1
+    racadm get iDRAC.IPMILan
 
 * BMC NICs should have a static IP assigned or be configured in DHCP mode.
 
