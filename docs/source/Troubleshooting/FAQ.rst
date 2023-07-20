@@ -1,16 +1,6 @@
 Frequently asked questions
 ==========================
 
-**Why is the provisioning status of my node object stuck at 'powering-on'?**
-
-**Potential Cause**:
-
-    * Hardware issues (Auto-reboot may fail due to hardware tests failing)
-
-**Resolution**:
-
-    * Resolve/replace the faulty hardware and PXE boot the node.
-
 **Why is the provisioning status of the target servers stuck at 'installing' in cluster.nodeinfo (omniadb)?**
 
 .. image:: ../images/InstallingStuckDB.png
@@ -27,7 +17,6 @@ Frequently asked questions
 
     * A virtual disk may not be created
 
-    * The target node may already have an OS and the first boot PXE device is not configured correctly.
 
 **Resolution**:
 
@@ -39,9 +28,20 @@ Frequently asked questions
 
     * Create a virtual disk and PXE boot the node.
 
+
+**Why is the provisioning status of my target servers stuck at ‘powering-on’ in the cluster.info (omniadb)?**
+
+**Potential Cause**:
+
+    * Hardware issues (Auto-reboot may fail due to hardware tests failing)
+    * The target node may already have an OS and the first boot PXE device is not configured correctly.
+
+**Resolution**:
+
+    * Resolve/replace the faulty hardware and PXE boot the node.
     * Target servers should be configured to boot in PXE mode with the appropriate NIC as the first boot device.
 
-**What to do if PXE boot fails when discovering target nodes via switch_based discovery:**
+**What to do if PXE boot fails while discovering target nodes via switch_based discovery with provisioning status stuck at 'powering-on' in cluster.nodeinfo (omniadb):**
 
 .. image:: ../images/PXEBootFail.png
 
