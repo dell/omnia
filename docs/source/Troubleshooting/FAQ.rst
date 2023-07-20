@@ -62,6 +62,8 @@ Cause:
 
     * Hardware issues
 
+    * A virtual disk may not be created
+
 Resolution:
 
     * Add more space to the server or modify the requirements specified in ``input/provision_config`` (under ``disk_partition``)
@@ -69,6 +71,8 @@ Resolution:
     * Download the ISO again, verify the checksum/ download size and re-run the provision tool.
 
     * Resolve/replace the faulty hardware and PXE boot the node.
+
+    * Create a virtual disk and re-try ``provision.yml``.
 
 **Why does the 'Fail if LDAP home directory exists' task fail during user_passwordless_ssh.yml?**
 
