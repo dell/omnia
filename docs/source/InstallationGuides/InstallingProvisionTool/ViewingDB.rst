@@ -49,7 +49,7 @@ Via omniadb
 Possible values of node status are powering-off, powering-on, bmcready, installing, booting, post-booting, booted, failed.
 
 .. note::
-* For nodes listing status as 'failed', provisioning logs can be viewed in ``/var/log/xcat/cluster.log`` on the target nodes.
-* Information on debugging nodes stuck at 'bmcready' or 'installing' for longer than expected is available `here <../../Troubleshooting/FAQ.html>`_
-* A blank node status indicates that no attempt to provision has taken place.
+    * For nodes listing status as 'failed', provisioning logs can be viewed in ``/var/log/xcat/cluster.log`` on the target nodes.
+    * Information on debugging nodes stuck at 'bmcready' or 'installing' for longer than expected is available `here <../../Troubleshooting/FAQ.html>`_
+    * A blank node status indicates that no attempt to provision has taken place.
 
