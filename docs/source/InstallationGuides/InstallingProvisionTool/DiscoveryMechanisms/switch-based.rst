@@ -31,8 +31,6 @@ switch_based
     racadm set iDRAC.IPMILan.Enable 1
     racadm get iDRAC.IPMILan
 
-* BMC NICs should have a static IP assigned or be configured in DHCP mode.
-
 * BMC credentials should be the same across all servers and provided as input to Omnia.
 
 * Target servers should be configured to boot in PXE mode with appropriate NIC as the first boot device.
