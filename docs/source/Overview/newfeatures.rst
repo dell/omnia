@@ -1,10 +1,16 @@
 New Features
 ===========
 
-*  XE9680, R760, R7625, R6615, R7615 are now supported as control planes or target nodes.
+*  XE 9640, R760 XA, R760 XD2 are now supported as control planes or target nodes with Nvidia H100 accelerators.
 
-* Added ability for switch-based discovery of remote servers and PXE provisioning.
+* Added ability for split port configuration on NVIDIA Quantum-2-based QM9700 (Nvidia InfiniBand NDR400 switches).
 
-* Active RedHat subscription is no longer required on the control plane and the compute nodes. Users can configure and use local RHEL repositories.
+* Extended password-less SSH support for multiple user configuration in a single execution.
 
-* IP ranges can be defined for assignment to remote nodes when discovered via the switch.
+* Input mapping files and inventory files now support commented entries for customized playbook execution.
+
+* NFS share is now available for hosting user home directories within the cluster.
+
+
+
+
