@@ -2,7 +2,10 @@ Before you run the provision tool
 ---------------------------------
 
 * (Recommended) Run ``prereq.sh`` to get the system ready to deploy Omnia. Alternatively, ensure that `Ansible 2.12.10 <https://docs.ansible.com/ansible/latest/reference_appendices/release_and_maintenance.html>`_ and `Python 3.8 <https://www.python.org/downloads/release/python-380/>`_ are installed on the system. SELinux should also be disabled.
-* Set the IP address of the control plane.
+* Set the IP address of the control plane with a /16 subnet mask. The control plane NIC connected to remote servers (through the switch) should be configured with two IPs (BMC IP and admin IP) in a shared LOM or hybrid set up. In the case dedicated network topology, a single IP (admin IP) is required.
+
+.. image:: ../../images/ControlPlaneNic.png
+
 * Set the hostname of the control plane using the ``hostname``. ``domain name`` format.
 
     .. include:: ../../Appendices/hostnamereqs.rst
@@ -17,6 +20,7 @@ Before you run the provision tool
 
     2. `RHEL 8.x <https://www.redhat.com/en/enterprise-linux-8>`_
 
+.. note:: Ensure the ISO provided has downloaded seamlessly (No corruption). Verify the SHA checksum/ download size of the ISO file before provisioning to avoid future failures.
 
 Note the compatibility between cluster OS and control plane OS below:
 
@@ -75,10 +79,6 @@ In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcf
             yum repolist enabled
 
 * Ensure that the ``pxe_nic`` and ``public_nic`` are in the firewalld zone: public.
-
-* The control plane NIC connected to remote servers (through the switch) should be configured with two IPs in a shared LOM set up. This NIC is configured by Omnia with the IP xx.yy.255.254, aa.bb.255.254 (where xx.yy are taken from ``bmc_nic_subnet`` and aa.bb are taken from ``admin_nic_subnet``) when ``network_interface_type`` is set to ``lom``. For other discovery mechanisms, only the admin NIC is configured with aa.bb.255.254 (Where aa.bb is taken from ``admin_nic_subnet``).
-
-.. image:: ../../images/ControlPlaneNic.png
 
 .. note::
 

@@ -20,6 +20,8 @@ Use ``show snmp community`` to verify your changes.
 .. caution::
     * Target servers with LOM architecture is not supported.
     * Do not remove or comment any lines in the ``input/provision_config.yml`` file.
+    * ``admin_nic_subnet``, ``ib_nic_subnet`` and ``bmc_nic_subnet`` should have the same subnet mask (Omnia only supports /16 subnet masks currently).
+
 
 .. csv-table:: Parameters
    :file: ../../../Tables/snmpwalk.csv
