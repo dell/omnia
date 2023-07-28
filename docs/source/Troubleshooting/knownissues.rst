@@ -36,8 +36,6 @@ The manager and compute nodes should have connectivity over the same admin NIC.
 
    * Enable RedHat subscription or ensure that sshpass is available to install or download to the control plane (from any local repository).
 
-
-
 **Why are some target servers not reachable after running PXE booting them?**
 
 
