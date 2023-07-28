@@ -1,23 +1,23 @@
 Known issues
 ==============
 
-**Why doesn't my newly discovered server list a MAC ID in the cluster.nodeinfo table?**
+⦾ **Why doesn't my newly discovered server list a MAC ID in the cluster.nodeinfo table?**
 
 Due to internal MAC ID conflicts on the target nodes, the MAC address will be listed against the target node using this format ``MAC ADDRESS 1 | MAC ADDRESS 2! *NOIP*`` in the xCAT node object.
 
 .. image:: ../images/MACConflict.png
 
-**Hostname assignment by Omnia is not sequential (that is from 1-xx) when discovering nodes via BMC or switch-based methods**
+⦾ **Hostname assignment by Omnia is not sequential (that is from 1-xx) when discovering nodes via BMC or switch-based methods**
 
 Omnia does not maintain any order when assigning hostnames to target nodes.
 
-**Compute nodes get updated to Rocky 8.8 automatically irrespective of the input parameters provided to provision_config.yml when provision_os is Rocky.**
+⦾ **Compute nodes get updated to Rocky 8.8 automatically irrespective of the input parameters provided to provision_config.yml when provision_os is Rocky.**
 
 **Potential Cause:** In Rocky Linux, online repos are enabled by default, and they always point to the latest Rocky repository (currently Rocky Linux 8.8).
 
 **Resolution**: This will be addressed in a later release.
 
-**Kubernetes pods on the manager node are in CreateContainerConfigError and Calico Pods are in CrashLoopBackoff error after running omnia.yml.**
+⦾ **Kubernetes pods on the manager node are in CreateContainerConfigError and Calico Pods are in CrashLoopBackoff error after running omnia.yml.**
 
 **Potential Cause:**
 
@@ -27,7 +27,7 @@ Calico pods are configured with the NIC name of the manager node. If the NIC nam
 
 The manager and compute nodes should have connectivity over the same admin NIC.
 
-**Why does the task ``cluster_preperation : Install sshpass`` fail during ``omnia.yml`` on compute nodes running RHEL 8.5 and below versions.**
+⦾ **Why does the task ``cluster_preperation : Install sshpass`` fail during ``omnia.yml`` on compute nodes running RHEL 8.5 and below versions.**
 
 **Potential Cause**:
     * sshpass is not available in any of the repositories on the control plane.
@@ -36,7 +36,7 @@ The manager and compute nodes should have connectivity over the same admin NIC.
 
    * Enable RedHat subscription or ensure that sshpass is available to install or download to the control plane (from any local repository).
 
-**Why are some target servers not reachable after running PXE booting them?**
+⦾ **Why are some target servers not reachable after running PXE booting them?**
 
 
 **Potential Causes**:
@@ -51,7 +51,7 @@ The manager and compute nodes should have connectivity over the same admin NIC.
 
 2. Hard-reboot the server to bring up the server and verify that the boot process runs smoothly. (If it gets stuck again, disable PXE and try provisioning the server via iDRAC.)
 
-**Why does the task 'Provision: Fetch the available subnets and netmasks' fail with 'no ipv4_secondaries present'?**
+⦾ **Why does the task 'Provision: Fetch the available subnets and netmasks' fail with 'no ipv4_secondaries present'?**
 
 .. image:: ../images/SharedLomError.png
 
@@ -59,17 +59,17 @@ The manager and compute nodes should have connectivity over the same admin NIC.
 
 **Resolution**: Ensure that the NIC used for host and data connections has 2 IPs assigned to it.
 
-**Why does provisioning RHEL 8.3 fail on some nodes with "dasbus.error.DBusError: 'NoneType' object has no attribute 'set_property'"?**
+⦾ **Why does provisioning RHEL 8.3 fail on some nodes with "dasbus.error.DBusError: 'NoneType' object has no attribute 'set_property'"?**
 
 This error is known to RHEL and is being addressed `here <https://bugzilla.redhat.com/show_bug.cgi?id=1912898>`_. Red Hat has offered a user intervention `here <https://access.redhat.com/solutions/5872751>`_. Omnia recommends that in the event of this failure, any OS other than RHEL 8.3.
 
-**Why is the Infiniband NIC down after provisioning the server?**
+⦾ **Why is the Infiniband NIC down after provisioning the server?**
 
 For servers running Rocky, enable the Infiniband NIC manually, use ``ifup <InfiniBand NIC>``.
 
 Alternatively, run ``network.yml`` or  ``post_provision.yml`` (Only if the nodes are provisioned using Omnia) to activate the NIC.
 
-**Why does the Task [infiniband_switch_config : Authentication failure response] fail with the message 'Status code was -1 and not [302]: Request failed: <urlopen error [Errno 111] Connection refused>' on Infiniband Switches when running infiniband_switch_config.yml?**
+⦾ **Why does the Task [infiniband_switch_config : Authentication failure response] fail with the message 'Status code was -1 and not [302]: Request failed: <urlopen error [Errno 111] Connection refused>' on Infiniband Switches when running infiniband_switch_config.yml?**
 
 To configure a new Infiniband Switch, it is required that HTTP and JSON gateway be enabled. To verify that they are enabled, run:
 
@@ -83,11 +83,11 @@ To correct the issue, run:
 
 ``json-gw enable`` (To enable the JSON gateway)
 
-**Why does the task 'Initialize kubeadm' fail while running monitor.yml?**
+⦾ **Why does the task 'Initialize kubeadm' fail while running monitor.yml?**
 
 This issue is caused by incompatibility between Rocky 8.7 and kubernetes due to cri-o. For more information, `click here <https://github.com/cri-o/cri-o/issues/6197>`_.
 
-**Why does PXE boot fail with tftp timeout or service timeout errors?**
+⦾ **Why does PXE boot fail with tftp timeout or service timeout errors?**
 
 
 **Potential Causes**:
@@ -109,7 +109,7 @@ This issue is caused by incompatibility between Rocky 8.7 and kubernetes due to 
 3. On the server, go to ``BIOS Setup -> Network Settings -> PXE Device``. For each listed device (typically 4), configure an active NIC under ``PXE device settings``
 
 
-**Why do Kubernetes Pods show "ImagePullBack" or "ErrPullImage" errors in their status?**
+⦾ **Why do Kubernetes Pods show "ImagePullBack" or "ErrPullImage" errors in their status?**
 
 **Potential Cause**:
 
@@ -121,7 +121,7 @@ This issue is caused by incompatibility between Rocky 8.7 and kubernetes due to 
     * For HPC cluster, during ``omnia.yml execution``, a kubernetes secret 'dockerregcred' will be created in default namespace and patched to service account. User needs to patch this secret in their respective namespace while deploying custom applications and use the secret as imagePullSecrets in yaml file to avoid ErrImagePull. [Click here for more info](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/)
 .. note:: If the playbook is already executed and the pods are in **ImagePullBack** state, then run ``kubeadm reset -f`` in all the nodes before re-executing the playbook with the docker credentials.
 
-**Why does the task 'Gather facts from all the nodes' stuck when re-running ``omnia.yml``?**
+⦾ **Why does the task 'Gather facts from all the nodes' stuck when re-running ``omnia.yml``?**
 
 **Potential Cause**: Corrupted entries in the ``/root/.ansible/cp/`` folder. For more information on this issue, `check this out <https://github.com/ansible/ansible/issues/17349>`_!
 
@@ -136,7 +136,7 @@ Alternatively, run the task manually: ::
     cd omnia/utils/cluster
     ansible-playbook gather_facts_resolution.yml
 
-**What to do after a reboot if kubectl commands return: ``The connection to the server head_node_ip:port was refused - did you specify the right host or port?``**
+⦾ **What to do after a reboot if kubectl commands return: ``The connection to the server head_node_ip:port was refused - did you specify the right host or port?``**
 
 
 On the control plane or the manager node, run the following commands: ::
@@ -147,7 +147,7 @@ On the control plane or the manager node, run the following commands: ::
 
 
 
-**What to do if the nodes in a Kubernetes cluster reboot:**
+⦾ **What to do if the nodes in a Kubernetes cluster reboot:**
 
 
 Wait for 15 minutes after the Kubernetes cluster reboots. Next, verify the status of the cluster using the following commands:
@@ -159,7 +159,7 @@ Wait for 15 minutes after the Kubernetes cluster reboots. Next, verify the statu
 * ``kubectl cluster-info`` on the manager node to verify that both the k8s master and kubeDNS are in the **Running** state.
 
 
-**What to do when the Kubernetes services are not in the  Running  state:**
+⦾ **What to do when the Kubernetes services are not in the  Running  state:**
 
 
 1. Run ``kubectl get pods  all-namespaces`` to verify that all pods are in the **Running** state.
@@ -170,7 +170,7 @@ Wait for 15 minutes after the Kubernetes cluster reboots. Next, verify the statu
 
 
 
-**Why do Kubernetes Pods stop communicating with the servers when the DNS servers are not responding?**
+⦾ **Why do Kubernetes Pods stop communicating with the servers when the DNS servers are not responding?**
 
 
 **Potential Cause**: The host network is faulty causing DNS to be unresponsive
@@ -185,7 +185,7 @@ Wait for 15 minutes after the Kubernetes cluster reboots. Next, verify the statu
 
 3. Set ``scheduler_type: "k8s"`` in ``input/omnia_config.yml`` and run ``omnia.yml``.
 
-**Why does pulling images to create the Kubeflow timeout causing the 'Apply Kubeflow Configuration' task to fail?**
+⦾ **Why does pulling images to create the Kubeflow timeout causing the 'Apply Kubeflow Configuration' task to fail?**
 
 
 **Potential Cause**: Unstable or slow Internet connectivity.
@@ -200,7 +200,7 @@ Wait for 15 minutes after the Kubernetes cluster reboots. Next, verify the statu
 
 
 
-**Why does the 'Initialize Kubeadm' task fail with 'nnode.Registration.name: Invalid value: \"<Host name>\"'?**
+⦾ **Why does the 'Initialize Kubeadm' task fail with 'nnode.Registration.name: Invalid value: \"<Host name>\"'?**
 
 **Potential Cause**: The control_plane playbook does not support hostnames with an underscore in it such as 'mgmt_station'.
 
@@ -212,7 +212,7 @@ As defined in RFC 822, the only legal characters are the following:
 3. Period (.): The period should be used only to delimit fields in a hostname (e.g., dvader.empire.gov)
 
 
-**What to do when Kubeflow pods are in 'ImagePullBackOff' or 'ErrImagePull' status after executing kubeflow.yml:**
+⦾ **What to do when Kubeflow pods are in 'ImagePullBackOff' or 'ErrImagePull' status after executing kubeflow.yml:**
 
 
 **Potential Cause**: Your Docker pull limit has been exceeded. For more information, click [here](https://www.docker.com/increase-rate-limits)
@@ -221,14 +221,14 @@ As defined in RFC 822, the only legal characters are the following:
 
 2. Re-execute ``kubeflow.yml`` after 8-9 hours
 
-**What to do when omnia.yml fail with 'Error: kinit: Connection refused while getting default ccache' while completing the security role?**
+⦾ **What to do when omnia.yml fail with 'Error: kinit: Connection refused while getting default ccache' while completing the security role?**
 
 1. Start the sssd-kcm.socket: ``systemctl start sssd-kcm.socket``
 
 2. Re-run ``omnia.yml``
 
 
-**What to do when Slurm services do not start automatically after the cluster reboots:**
+⦾ **What to do when Slurm services do not start automatically after the cluster reboots:**
 
 * Manually restart the slurmd services on the manager node by running the following commands: ::
 
@@ -238,7 +238,7 @@ As defined in RFC 822, the only legal characters are the following:
 
 * Run ``systemctl status slurmd`` to manually restart the following service on all the compute nodes.
 
-**Why do Slurm services fail?**
+⦾ **Why do Slurm services fail?**
 
 **Potential Cause**: The ``slurm.conf`` is not configured properly.
 
@@ -251,7 +251,7 @@ Recommended Actions:
 
 2. Refer the ``/var/lib/log/slurmctld.log`` file for more information.
 
-**What causes the "Ports are Unavailable" error?**
+⦾ **What causes the "Ports are Unavailable" error?**
 
 
 **Potential Cause:** Slurm database connection fails.
