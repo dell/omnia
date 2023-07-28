@@ -12,8 +12,12 @@ Rocky
 +------------+---------------+---------------+
 | 8.7        | Yes           | Yes           |
 +------------+---------------+---------------+
+| 8.8        | Yes           | Yes           |
++------------+---------------+---------------+
 
-.. note:: Always deploy the DVD (Full) Edition of the OS on Compute Nodes.
+.. note::
+    * Always deploy the DVD (Full) Edition of the OS on Compute Nodes.
+    * AMD ROCm driver installation is not supported by Omnia on Rocky compute nodes.
 
 **BeeGFS client support**
 
