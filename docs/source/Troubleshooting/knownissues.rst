@@ -7,6 +7,37 @@ Due to internal MAC ID conflicts on the target nodes, the MAC address will be li
 
 .. image:: ../images/MACConflict.png
 
+**Hostname assignment by Omnia is not sequential (that is from 1-xx) when discovering nodes via BMC or switch-based methods**
+
+Omnia does not maintain any order when assigning hostnames to target nodes.
+
+**Compute nodes get updated to Rocky 8.8 automatically irrespective of the input parameters provided to provision_config.yml when provision_os is Rocky.**
+
+**Potential Cause:** In Rocky Linux, online repos are enabled by default, and they always point to the latest Rocky repository (currently Rocky Linux 8.8).
+
+**Resolution**: This will be addressed in a later release.
+
+**Kubernetes pods on the manager node are in CreateContainerConfigError and Calico Pods are in CrashLoopBackoff error after running omnia.yml.**
+
+**Potential Cause:**
+
+Calico pods are configured with the NIC name of the manager node. If the NIC name of the other nodes are not the same, the pods will throw an error and retry later.
+
+**Workaround:**
+
+The manager and compute nodes should have connectivity over the same admin NIC.
+
+**Why does the task ``cluster_preperation : Install sshpass`` fail during ``omnia.yml`` on compute nodes running RHEL 8.5 and below versions.**
+
+**Potential Cause**:
+    * sshpass is not available in any of the repositories on the control plane.
+
+**Resolution**:
+
+   * Enable RedHat subscription or ensure that sshpass is available to install or download to the control plane (from any local repository).
+
+
+
 **Why are some target servers not reachable after running PXE booting them?**
 
 

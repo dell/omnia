@@ -91,6 +91,8 @@ Re-run the playbook whose execution failed once the issue is resolved.
 
    * Enable RedHat subscription or ensure that sshpass is available to install or download to the control plane (from any local repository).
 
+.. note:: This error can also take place when task ``cluster_preperation : Install sshpass`` is executed during ``omnia.yml``.
+
 **Why does the 'Fail if LDAP home directory exists' task fail during user_passwordless_ssh.yml?**
 
 .. image:: ../images/nfssharecheckfail.png
