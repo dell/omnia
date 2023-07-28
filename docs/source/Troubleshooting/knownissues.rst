@@ -287,7 +287,7 @@ Recommended Actions:
 
 
 
-**Why does the task 'nfs_client: Mount NFS client' fail with ``Failed to mount NFS client. Make sure NFS Server is running on IP xx.xx.xx.xx``?**
+⦾ **Why does the task 'nfs_client: Mount NFS client' fail with ``Failed to mount NFS client. Make sure NFS Server is running on IP xx.xx.xx.xx``?**
 
 **Potential Cause**:
 
@@ -301,7 +301,7 @@ Recommended Actions:
 
 * Enable the required services using ``firewall-cmd  --permanent  --add-service=<service name>`` and then reload the firewall using ``firewall-cmd  --reload``.
 
-**What to do when omnia.yml fails with nfs-server.service might not be running on NFS Server. Please check or start services``?**
+⦾ **What to do when omnia.yml fails with nfs-server.service might not be running on NFS Server. Please check or start services``?**
 
 **Potential Cause**: nfs-server.service is not running on the target node.
 
@@ -315,7 +315,7 @@ Recommended Actions:
 
 
 
-**Why does the task 'Install Packages' fail on the NFS node with the message: ``Failure in talking to yum: Cannot find a valid baseurl for repo: base/7/x86_64.``**
+⦾ **Why does the task 'Install Packages' fail on the NFS node with the message: ``Failure in talking to yum: Cannot find a valid baseurl for repo: base/7/x86_64.``**
 
 
 **Potential Cause**:
@@ -333,7 +333,7 @@ Recommended Actions:
                 3. For connecting to PowerVault (Data Connection)
 
 
-**Why do pods and images appear to get deleted automatically?**
+⦾ **Why do pods and images appear to get deleted automatically?**
 
 
 **Potential Cause**:
@@ -349,25 +349,25 @@ Lack of space in the root partition (/) causes Linux to clear files automaticall
 * Re-run ``monitor.yml``
 
 
-**What to do when the JupyterHub or Prometheus UI is not accessible:**
+⦾ **What to do when the JupyterHub or Prometheus UI is not accessible:**
 
 Run the command ``kubectl get pods  namespace default`` to ensure **nfs-client** pod and all Prometheus server pods are in the **Running** state.
 
 
 
 
-**What to do if PowerVault throws the error: ``Error: The specified disk is not available. - Unavailable disk (0.x) in disk range '0.x-x'``:**
+⦾ **What to do if PowerVault throws the error: ``Error: The specified disk is not available. - Unavailable disk (0.x) in disk range '0.x-x'``:**
 
 1. Verify that the disk in question is not part of any pool: ``show disks``
 
 2. If the disk is part of a pool, remove it and try again.
 
-**Why does PowerVault throw the error: ``You cannot create a linear disk group when a virtual disk group exists on the system.``?**
+⦾ **Why does PowerVault throw the error: ``You cannot create a linear disk group when a virtual disk group exists on the system.``?**
 
 At any given time only one type of disk group can be created on the system. That is, all disk groups on the system have to exclusively be linear or virtual. To fix the issue, either delete the existing disk group or change the type of pool you are creating.
 
 
-**Why does the task 'nfs_client: Mount NFS client' fail with ``No route to host``?**
+⦾ **Why does the task 'nfs_client: Mount NFS client' fail with ``No route to host``?**
 
 **Potential Cause**:
 
@@ -378,7 +378,7 @@ At any given time only one type of disk group can be created on the system. That
 * Ensure that the input paths are a perfect match down to the character to avoid any errors.
 
 
-**Why is my NFS mount not visible on the client?**
+⦾ **Why is my NFS mount not visible on the client?**
 
 
 **Potential Cause**: The directory being used by the client as a mount point is already in use by a different NFS export.
@@ -390,7 +390,7 @@ At any given time only one type of disk group can be created on the system. That
 
 
 
-**Why does the ``BeeGFS-client`` service fail?**
+⦾ **Why does the ``BeeGFS-client`` service fail?**
 
 **Potential Causes**:
 
@@ -414,7 +414,7 @@ At any given time only one type of disk group can be created on the system. That
 
 
 
-**Why does the task 'security: Authenticate as admin' fail?**
+⦾ **Why does the task 'security: Authenticate as admin' fail?**
 
 **Potential Cause**:
 The required services are not running on the node. Verify the service status using:::
@@ -435,7 +435,7 @@ The required services are not running on the node. Verify the service status usi
     ansible-playbook omnia.yml
 
 
-**Why does installing FreeIPA fail on RHEL servers?**
+⦾ **Why does installing FreeIPA fail on RHEL servers?**
 
 .. image:: ../images/FreeIPA_RHEL_Error.png
 
@@ -444,7 +444,7 @@ The required services are not running on the node. Verify the service status usi
 **Resolution**: Enable all required repositories via your red hat subscription.
 
 
-**Why would FreeIPA server/client installation fail?**
+⦾ **Why would FreeIPA server/client installation fail?**
 
 
 **Potential Cause**:
@@ -455,14 +455,14 @@ The hostnames of the manager and login nodes are not set in the correct format.
 
 If you have enabled the option to install the login node in the cluster, set the hostnames of the nodes in the format: *hostname.domainname*. For example, *manager.omnia.test* is a valid hostname for the login node. **Note**: To find the cause for the failure of the FreeIPA server and client installation, see *ipaserver-install.log* in the manager node or */var/log/ipaclient-install.log* in the login node.
 
-**Why does FreeIPA installation fail on the control plane when the public NIC provided is static?**
+⦾ **Why does FreeIPA installation fail on the control plane when the public NIC provided is static?**
 
 **Potential Cause**: The network config file for the public NIC on the control plane does not define any DNS entries.
 
 **Resolution**: Ensure the fields ``DNS1`` and ``DNS2`` are updated appropriately in the file ``/etc/sysconfig/network-scripts/ifcfg-<NIC name>``.
 
 
-**What to do when JupyterHub pods are in 'ImagePullBackOff' or 'ErrImagePull' status after executing jupyterhub.yml:**
+⦾ **What to do when JupyterHub pods are in 'ImagePullBackOff' or 'ErrImagePull' status after executing jupyterhub.yml:**
 
 **Potential Cause**: Your Docker pull limit has been exceeded. For more information, `click here <https://www.docker.com/increase-rate-limits>`_.
 
@@ -470,7 +470,7 @@ If you have enabled the option to install the login node in the cluster, set the
 
 2. Re-execute ``jupyterhub.yml`` after 8-9 hours.
 
-**What to do if NFS clients are unable to access the share after an NFS server reboot?**
+⦾ **What to do if NFS clients are unable to access the share after an NFS server reboot?**
 
 Reboot the NFS server (external to the cluster) to bring up the services again: ::
 
