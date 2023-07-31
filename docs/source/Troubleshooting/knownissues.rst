@@ -478,7 +478,3 @@ Reboot the NFS server (external to the cluster) to bring up the services again: 
     systemctl enable nfs-server
     systemctl restart nfs-server
 
-
-
-
-

@@ -92,3 +92,11 @@
 * If ``enable_omnia_nfs``: false, set this variable as path to parallel file system(NFS/BeeGFS) running in the system.
 
 Default value:  ""/home/omnia-share"""
+"**apptainer_support**
+
+``boolean``
+
+Required","* Indicates whether the apptainer environment is to be configured on compute nodes.
+* If ``apptainer_support``: false, apptainer environment won't be configured in compute nodes.
+* If ``apptainer_support``: true, apptainer environment will be configured in compute nodes.
+* **Default value**: false"
