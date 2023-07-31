@@ -269,11 +269,3 @@ Optional",Absolute path to a  local copy of the .iso file containing Mellanox OF
 ``string``
 
 Optional","Absolute path to local copy of .rpm file containing CUDA packages. The cuda rpm can be downloaded from https://developer.nvidia.com/cuda-downloads. CUDA will be installed post provisioning without any user intervention. Eg: cuda_toolkit_path: ""/root/cuda-repo-rhel8-12-0-local-12.0.0_525.60.13-1.x86_64.rpm"""
-"**apptainer_support**
-
-``boolean``
-
-Required","* Indicates whether the apptainer environment is to be configured on compute nodes.
-* If ``apptainer_support``: false, apptainer environment won't be configured in compute nodes.
-* If ``apptainer_support``: true, apptainer environment will be configured in compute nodes.
-* **Default value**: false"
