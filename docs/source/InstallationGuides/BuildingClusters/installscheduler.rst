@@ -14,7 +14,13 @@ Building clusters
      * Omnia creates a log file which is available at: ``/var/log/omnia.log``.
      * If only Slurm is being installed on the cluster, docker credentials are not required.
 
-3. To run ``omnia.yml``: ::
+
+3. ``omnia.yml`` is a wrapper playbook comprising of:
+    i. ``security.yml``: This playbook sets up centralized authentication (LDAP/FreeIPA) on the cluster. For more information, `click here. <Authentication.html>`_
+    ii. ``scheduler.yml``: This playbook sets up job schedulers (Slurm or Kuberenetes) on the cluster.
+    iii. ``storage.yml``: This playbook sets up storage tools like `BeeGFS <BeeGFS.html>`_ and `NFS <NFS.html>`_.
+
+To run ``omnia.yml``: ::
 
         ansible-playbook omnia.yml -i inventory
 
