@@ -19,6 +19,8 @@ Omnia does not maintain any order when assigning hostnames to target nodes.
 
 ⦾ **Why does the task Assign admin nic IP fail during provision.yml with 2 error messages?**
 
+.. image:: ../images/AdminNICErrors.png
+
 **Potential Cause:** Omnia validates the admin nic IP on the control plane. If the user has not assigned an admin nic IP in case of dedicated network interface type, an error message is returned. There is a parsing logic that is being applied on the blank IP and hence, the error displays twice.
 
 **Resolution**: Ensure a control plane IP is assigned to the admin NIC.
