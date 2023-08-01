@@ -18,7 +18,8 @@ The following parameters need to be populated in ``input/provision_config.yml`` 
 .. caution::
     * ``admin_nic_subnet``, ``ib_nic_subnet`` and ``bmc_nic_subnet`` should have the same subnet mask (Omnia only supports /16 subnet masks currently).
     * Do not remove or comment any lines in the ``input/provision_config.yml`` file.
-    * Irrespective of the Rocky OS ISO, provision OS version or any other input, all Rocky compute nodes will be upgraded to run the latest version of Rocky available.
+    * THE ROCKY LINUX OS VERSION ON THE CLUSTER WILL BE UPGRADED TO THE LATEST 8.x VERSION AVAILABLE IRRESPECTIVE OF THE PROVISION_OS_VERSION PROVIDED IN PROVISION_CONFIG.YML.
+
 
 .. csv-table:: Parameters
    :file: ../../../Tables/mapping.csv

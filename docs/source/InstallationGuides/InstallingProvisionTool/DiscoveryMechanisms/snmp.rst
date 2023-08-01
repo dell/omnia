@@ -21,7 +21,8 @@ Use ``show snmp community`` to verify your changes.
     * Target servers with LOM architecture is not supported.
     * Do not remove or comment any lines in the ``input/provision_config.yml`` file.
     * ``admin_nic_subnet``, ``ib_nic_subnet`` and ``bmc_nic_subnet`` should have the same subnet mask (Omnia only supports /16 subnet masks currently).
-    * Irrespective of the Rocky OS ISO, provision OS version or any other input, all Rocky compute nodes will be upgraded to run the latest version of Rocky available.
+    * THE ROCKY LINUX OS VERSION ON THE CLUSTER WILL BE UPGRADED TO THE LATEST 8.x VERSION AVAILABLE IRRESPECTIVE OF THE PROVISION_OS_VERSION PROVIDED IN PROVISION_CONFIG.YML.
+
 
 
 .. csv-table:: Parameters

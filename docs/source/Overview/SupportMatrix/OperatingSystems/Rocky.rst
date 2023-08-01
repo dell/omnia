@@ -1,7 +1,8 @@
 Rocky
 =====
 
-.. caution:: Irrespective of the Rocky OS ISO, provision OS version or any other input, all Rocky compute nodes will be upgraded to run the latest version of Rocky available.
+.. caution:: THE ROCKY LINUX OS VERSION ON THE CLUSTER WILL BE UPGRADED TO THE LATEST 8.x VERSION AVAILABLE IRRESPECTIVE OF THE PROVISION_OS_VERSION PROVIDED IN PROVISION_CONFIG.YML.
+
 
 +------------+---------------+---------------+
 | OS Version | Control Plane | Compute Nodes |
