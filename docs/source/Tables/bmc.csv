@@ -30,7 +30,10 @@ Required","The operating system to be provisioned on target nodes in the cluster
 Choices:
 
 * ``rhel`` <-default
-* ``rocky``"
+* ``rocky``
+
+.. caution:: Irrespective of the Rocky OS ISO, provision OS version or any other input, all Rocky compute nodes will be upgraded to run the latest version of Rocky available.
+"
 "**provision_os_version**
 
 ``string``

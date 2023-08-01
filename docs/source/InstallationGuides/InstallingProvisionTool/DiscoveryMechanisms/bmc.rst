@@ -39,7 +39,9 @@ For automatic provisioning of servers and discovery, the BMC method can be used.
 
 The following parameters need to be populated in ``input/provision_config.yml`` to discover target nodes using BMC.
 
-.. caution:: Do not remove or comment any lines in the ``input/provision_config.yml`` file.
+.. caution::
+* Do not remove or comment any lines in the ``input/provision_config.yml`` file.
+* Irrespective of the Rocky OS ISO, provision OS version or any other input, all Rocky compute nodes will be upgraded to run the latest version of Rocky available.
 
 .. csv-table:: Parameters
    :file: ../../../Tables/bmc.csv
