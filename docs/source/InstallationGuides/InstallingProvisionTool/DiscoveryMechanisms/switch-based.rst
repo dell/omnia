@@ -53,9 +53,8 @@ switch_based
 The following parameters need to be populated in ``input/provision_config.yml`` to discover target nodes using a mapping file.
 
 .. caution::
-* Do not remove or comment any lines in the ``input/provision_config.yml`` file.
-* THE ROCKY LINUX OS VERSION ON THE CLUSTER WILL BE UPGRADED TO THE LATEST 8.x VERSION AVAILABLE IRRESPECTIVE OF THE PROVISION_OS_VERSION PROVIDED IN PROVISION_CONFIG.YML.
-
+    * Do not remove or comment any lines in the ``input/provision_config.yml`` file.
+    * **THE ROCKY LINUX OS VERSION ON THE CLUSTER WILL BE UPGRADED TO THE LATEST 8.x VERSION AVAILABLE IRRESPECTIVE OF THE PROVISION_OS_VERSION PROVIDED IN PROVISION_CONFIG.YML.**
 
 .. csv-table:: Parameters
    :file: ../../../Tables/switch-based.csv

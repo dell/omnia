@@ -5,9 +5,12 @@ Before you run the provision tool
 * Set the IP address of the control plane with a /16 subnet mask. The control plane NIC connected to remote servers (through the switch) should be configured with two IPs (BMC IP and admin IP) in a shared LOM or hybrid set up. In the case dedicated network topology, a single IP (admin IP) is required.
 
 .. image:: ../../images/ControlPlaneNic.png
-    :name: LOM NIC setup
-.. image:: ../../images/ControlPlane_DedicatedNIC
-    :name: Dedicated NIC setup
+
+    *LOM NIC setup*
+
+.. image:: ../../images/ControlPlane_DedicatedNIC.PNG
+
+    *Dedicated NIC setup*
 
 * Set the hostname of the control plane using the ``hostname``. ``domain name`` format.
 
@@ -23,8 +26,7 @@ Before you run the provision tool
 
     2. `RHEL 8.x <https://www.redhat.com/en/enterprise-linux-8>`_
 
-.. caution:: THE ROCKY LINUX OS VERSION ON THE CLUSTER WILL BE UPGRADED TO THE LATEST 8.x VERSION AVAILABLE IRRESPECTIVE OF THE PROVISION_OS_VERSION PROVIDED IN PROVISION_CONFIG.YML.
-
+.. caution:: **THE ROCKY LINUX OS VERSION ON THE CLUSTER WILL BE UPGRADED TO THE LATEST 8.x VERSION AVAILABLE IRRESPECTIVE OF THE PROVISION_OS_VERSION PROVIDED IN PROVISION_CONFIG.YML.**
 
 .. note:: Ensure the ISO provided has downloaded seamlessly (No corruption). Verify the SHA checksum/ download size of the ISO file before provisioning to avoid future failures.
 
