@@ -6,11 +6,9 @@ Before you run the provision tool
 
 .. image:: ../../images/ControlPlaneNic.png
 
-            *LOM NIC setup*
 
 .. image:: ../../images/ControlPlane_DedicatedNIC.png
 
-            *Dedicated NIC setup*
 
 * Set the hostname of the control plane using the ``hostname``. ``domain name`` format.
 
