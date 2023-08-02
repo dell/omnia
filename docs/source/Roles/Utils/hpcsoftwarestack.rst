@@ -22,18 +22,19 @@ Use this playbook to download docker images and pull images onto cluster nodes u
 |                         |                                                                                                           |
 |                         | * Example (for multiple images): ::                                                                       |
 |                         |                                                                                                           |
-|                         | hpc_apptainer_image:                                                                                      |
+|                         |     hpc_apptainer_image:                                                                                  |
 |                         |                                                                                                           |
-|                         |    - { image_url: "docker.io/intel/oneapi-hpckit:latest" }                                                |
+|                         |        - { image_url: "docker.io/intel/oneapi-hpckit:latest" }                                            |
 |                         |                                                                                                           |
-|                         |    - { image_url: "docker.io/tensorflow/tensorflow:latest" }                                              |
+|                         |        - { image_url: "docker.io/tensorflow/tensorflow:latest" }                                          |
 |                         |                                                                                                           |
 |                         | * If provided, docker credentials in ``omnia_config.yml``, it will be used for downloading docker images. |
 |                         |                                                                                                           |
 |                         | * **Default value:** ::                                                                                   |
-|                         | 	hpc_apptainer_image:                                                                                  |
+|                         |                                                                                                           |
+|                         | 	    hpc_apptainer_image:                                                                              |
 |                         | 	                                                                                                      |
-|                         | 	- { image_url: "docker.io/intel/oneapi-hpckit:latest" }                                               |
+|                         | 	    - { image_url: "docker.io/intel/oneapi-hpckit:latest" }                                           |
 |                         |                                                                                                           |
 +-------------------------+-----------------------------------------------------------------------------------------------------------+
 
