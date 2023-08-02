@@ -65,7 +65,7 @@ Omnia now supports deploying different versions of the same OS. With each run of
 
 **DHCP routing for internet access**
 
-Omnia now supports DHCP routing via the control plane. To enable routing, update the ``primary_dns`` and ``secondary_dns`` in ``input/provision_config.yml`` with the appropriate IPs (hostnames are currently not supported). For compute nodes that are not directly connected to the internet (ie only PXE network is configured), this configuration allows for internet connectivity.
+Omnia now supports DHCP routing via the control plane. To enable routing, update the ``primary_dns`` and ``secondary_dns`` in ``input/provision_config.yml`` with the appropriate IPs (hostnames are currently not supported). For cluster  nodes that are not directly connected to the internet (ie only PXE network is configured), this configuration allows for internet connectivity.
 
 **Disk partitioning**
 
@@ -97,7 +97,7 @@ To deploy the Omnia provision tool, run the following command ::
 * Verifies and updates firewall settings.
 * Installs xCAT.
 * Configures xCAT databases basis ``input/provision_config.yml``.
-* Configures the control plane with NTP services for compute node synchronization.
+* Configures the control plane with NTP services for cluster  node synchronization.
 
 To call this playbook individually, ensure that ``input/provision_config.yml`` is updated and then run::
 

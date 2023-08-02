@@ -1,7 +1,7 @@
 Airgap
 -----------
 
-* The airgap role will help create offline repositories on control plane which all the compute nodes will access. This will remove the overhead of subscribing all the compute nodes to RHEL.
+* The airgap role will help create offline repositories on control plane which all the cluster  nodes will access. This will remove the overhead of subscribing all the cluster  nodes to RHEL.
 * Currently, ``airgap.yml`` only updates RHEL repositories.
 
 ``airgap.yml`` runs based on the following parameters in ``input/provision_config.yml``:
@@ -13,9 +13,9 @@ Airgap
 |                                            |                                                                                                                                             |
 |      ``boolean``                           | * In the first execution of ``provision.yml``, Omnia updates the BaseOS,   Appstream and CRB repos.                                         |
 |                                            |                                                                                                                                             |
-|      Required                              | * If ``update_repos``: false, none of the repos required for compute nodes   will be updated provided the repos are already available.      |
+|      Required                              | * If ``update_repos``: false, none of the repos required for cluster  nodes   will be updated provided the repos are already available.      |
 |                                            |                                                                                                                                             |
-|                                            | * If ``update_repos``: true, BaseOS, Appstream and CRB repos created for   compute nodes will be updated                                    |
+|                                            | * If ``update_repos``: true, BaseOS, Appstream and CRB repos created for   cluster  nodes will be updated                                    |
 |                                            |                                                                                                                                             |
 |                                            |      Choices:                                                                                                                               |
 |                                            |                                                                                                                                             |
@@ -34,7 +34,7 @@ Airgap
 |                                            |                                                                                                                                             |
 |                                            |      ``true``                                                                                                                               |
 +--------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------+
-| **rhel_repo_local_path**                   | * The repo path and names of the software repository to be configured on   the compute nodes.                                               |
+| **rhel_repo_local_path**                   | * The repo path and names of the software repository to be configured on   the cluster nodes.                                               |
 |                                            |                                                                                                                                             |
 |      ``JSON list``                         | * Provide the repo data file path, which ends with .repo extension in   repo_url parameter.                                                 |
 |                                            |                                                                                                                                             |

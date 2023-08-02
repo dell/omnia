@@ -35,7 +35,7 @@ Note the compatibility between cluster OS and control plane OS below:
 
         +---------------------+--------------------+------------------+
         |                     |                    |                  |
-        | Control Plane OS    | Compute Node OS    | Compatibility    |
+        | Control Plane OS    | cluster  Node OS    | Compatibility    |
         +=====================+====================+==================+
         |                     |                    |                  |
         | RHEL [1]_           | RHEL               | Yes              |

@@ -1,7 +1,7 @@
 Sankey Layout
 =============
 
-Sankey layout is a multi-factor visualization that incorporates compute
+Sankey layout is a multi-factor visualization that incorporates cluster
 node and hardware telemetry metrics with related job and user
 information from the slurm job scheduler. The horizontal Sankey graph
 displays relative user usage of the compute or core (selectable)

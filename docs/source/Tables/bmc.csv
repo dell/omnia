@@ -143,7 +143,7 @@ Required","The subnet within which all Admin IPs are assigned.
 
 ``string``
 
-Optional","* If provided, Omnia will handle and assign static IPs to compute node's IB network.
+Optional","* If provided, Omnia will handle and assign static IPs to cluster node's IB network.
 * Only the last 16 bits/2 octets of IPv4 are dynamic
 * If provided, the DB entry will be in parallel with the pxe_subnet.
 * Example: If ``admin_ip``: 10.5.0.50 and ``ib_nic_subnet``: 10.10.0.0, then ``ib_ip``: 10.10.0.50"
@@ -151,7 +151,7 @@ Optional","* If provided, Omnia will handle and assign static IPs to compute nod
 
 ``string``
 
-Required","* If provided, Omnia will assign static IPs to BMC NICs on the compute nodes within the provided subnet.
+Required","* If provided, Omnia will assign static IPs to BMC NICs on the cluster nodes within the provided subnet.
 * If ``network_interface_type``: ``lom``, mandatory for discovery_mechanism: mapping, switch_based and bmc.
 * If ``network_interface_type``: ``dedicated``, optional for discovery_mechanism: mapping, snmpwalk.
 * Note that since the last 16 bits/2 octets of IPv4 are dynamic, please ensure that the parameter value is set to x.x.0.0.
@@ -220,7 +220,7 @@ Choices:
                         
 ``JSON list``           
                         
-Optional                ","* The repo path and names of the software repository to be configured on the compute nodes.        
+Optional                ","* The repo path and names of the software repository to be configured on the cluster nodes.
                                                                                                    
 * Provide the repo data file path, which ends with .repo extension in repo_url parameter.          
                                                                                                    
@@ -241,7 +241,7 @@ Default value:
 
 ``string``
 
-Optional","* The primary DNS host IP queried to provide Internet access to Compute Node (through DHCP routing).
+Optional","* The primary DNS host IP queried to provide Internet access to cluster Node (through DHCP routing).
 * Currently, the ``primary_dns`` value stored in ``input/provision_config.yml`` cannot be part of any of the subnets (``admin_nic_subnet``, ``ib_nic_subnet`` and ``bmc_nic_subnet``) also defined in ``input/provision_config.yml``.
 
 Ex: If the ``primary_dns`` is set to 10.15.0.7, the subnet ``10.15.0.0`` cannot be used for ``admin_nic_subnet``, ``ib_nic_subnet`` or ``bmc_nic_subnet``."
@@ -249,7 +249,7 @@ Ex: If the ``primary_dns`` is set to 10.15.0.7, the subnet ``10.15.0.0`` cannot 
 
 ``string``
 
-Optional",The secondary DNS host IP queried to provide Internet access to Compute Node (through DHCP routing)
+Optional",The secondary DNS host IP queried to provide Internet access to cluster Node (through DHCP routing)
 "**disk_partition**
 
 ``JSON list``

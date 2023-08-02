@@ -1,7 +1,7 @@
 Spiral Layout
 =============
 
-Spiral Layouts are best for viewing the change in a single metric over time. The spiral organization of node representation can represent a large number (100s to 1000s) of compute nodes in a compact visual. Nodes can be ordered on the spiral by rank per metric value or by metric value. Hovering over a node will display a heatmap of the node metric value over the dataset time-range.
+Spiral Layouts are best for viewing the change in a single metric over time. The spiral organization of node representation can represent a large number (100s to 1000s) of cluster nodes in a compact visual. Nodes can be ordered on the spiral by rank per metric value or by metric value. Hovering over a node will display a heatmap of the node metric value over the dataset time-range.
 
 |img.png|
 In the above image, the spiral visualization displays compute nodes on a spiral graphing layout. This example orders the compute nodes by **Power Consumption** at the time indicated by the time range slider.
