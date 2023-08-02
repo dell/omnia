@@ -1,6 +1,8 @@
 Adding new nodes
 +++++++++++++++++
 
+**Provisioning the new node**
+
 While adding a new node to the cluster, users can modify the following:
 
     - The operating system
@@ -41,6 +43,15 @@ Alternatively, if a new node is to be added with no change in configuration, run
             ansible-playbook discovery_provision.yml
 
 
+**Adding the new node to the cluster**
+
+1. Update the existing inventory file with the new node details following the example `provided here. <../samplefiles.html>`_
+
+.. note:: Do not change the manager node in the existing inventory.
+
+2. To install security, job scheduler and storage tools on the node, run ``omnia.yml``: ::
+
+   ansible-playbook omnia.yml -i inventory
 
 
 
