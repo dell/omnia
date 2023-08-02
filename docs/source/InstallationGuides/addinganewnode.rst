@@ -35,7 +35,7 @@ A new node can be added using the following ways:
     * Run ``provision.yml`` once the node has joined the cluster using an IP that exists within the provided range.
 
 
-Alternatively, if a new mode is to be added with no change in configuration, run the following commands: ::
+Alternatively, if a new node is to be added with no change in configuration, run the following commands: ::
 
             cd provision
             ansible-playbook discovery_provision.yml

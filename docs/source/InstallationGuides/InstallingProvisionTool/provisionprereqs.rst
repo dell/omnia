@@ -8,7 +8,7 @@ Before you run the provision tool
 
     *LOM NIC setup*
 
-.. image:: ../../images/ControlPlane_DedicatedNIC.PNG
+.. image:: ../../images/ControlPlane_DedicatedNIC.png
 
     *Dedicated NIC setup*
 
