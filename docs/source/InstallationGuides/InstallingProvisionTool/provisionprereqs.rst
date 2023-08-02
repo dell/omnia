@@ -4,11 +4,11 @@ Before you run the provision tool
 * (Recommended) Run ``prereq.sh`` to get the system ready to deploy Omnia. Alternatively, ensure that `Ansible 2.12.10 <https://docs.ansible.com/ansible/latest/reference_appendices/release_and_maintenance.html>`_ and `Python 3.8 <https://www.python.org/downloads/release/python-380/>`_ are installed on the system. SELinux should also be disabled.
 * Set the IP address of the control plane with a /16 subnet mask. The control plane NIC connected to remote servers (through the switch) should be configured with two IPs (BMC IP and admin IP) in a shared LOM or hybrid set up. In the case dedicated network topology, a single IP (admin IP) is required.
 
-    .. image:: ../../images/ControlPlaneNic.png
+.. image:: ../../images/ControlPlaneNic.png
 
             *LOM NIC setup*
 
-    .. image:: ../../images/ControlPlane_DedicatedNIC.png
+.. image:: ../../images/ControlPlane_DedicatedNIC.png
 
             *Dedicated NIC setup*
 

@@ -1,7 +1,7 @@
 Building clusters
 ------------------
 
-1. In the ``input/omnia_config.yml`` file, provide the `required details <schedulerinputparams.html>`_.
+1. In the ``input/omnia_config.yml``, ``input/security_config.yml`` and [optional] ``input/storage_config.yml`` files, provide the `required details <schedulerinputparams.html>`_.
 
 .. note::
     * Use the parameter ``scheduler_type`` in ``input/omnia_config.yml`` to customize what schedulers are installed in the cluster.
@@ -17,7 +17,7 @@ Building clusters
 
 3. ``omnia.yml`` is a wrapper playbook comprising of:
     i. ``security.yml``: This playbook sets up centralized authentication (LDAP/FreeIPA) on the cluster. For more information, `click here. <Authentication.html>`_
-    ii. ``scheduler.yml``: This playbook sets up job schedulers (Slurm or Kuberenetes) on the cluster.
+    ii. ``scheduler.yml``: This playbook sets up job schedulers (Slurm or Kubernetes) on the cluster.
     iii. ``storage.yml``: This playbook sets up storage tools like `BeeGFS <BeeGFS.html>`_ and `NFS <NFS.html>`_.
 
 To run ``omnia.yml``: ::
