@@ -172,7 +172,8 @@ desired_capacity_success_msg: "desired_capacity of disk_partition successfully v
 desired_capacity_fail_msg: "Failed. Provide valid integer value to desired_capacity of disk_partition"
 supported_rhel_os_version: ["8.0", "8.1", "8.2", "8.3", "8.4", "8.5", "8.6", "8.7", "8.8", "8.9"]
 provision_os_version_fail_msg: "Failed. Invalid provision_os_version: {{ provision_os_version }} provided in provision_config.yml.
-Supported provision_os_version values are 8.0,8.1,8.2,8.3,8.4,8.5,8.6,8.7"
+Supported provision_os_version values are 8.0,8.1,8.2,8.3,8.4,8.5,8.6,8.7,8.8"
+rocky_update_warning_msg: "[WARNING] Rocky Linux OS version on the cluster will be upgraded to the latest 8.x irrespective of provision_os_version provided in provision_config.yml"
 
 # Usage: validate_domain_name.yml
 domain_name_success_msg: "domain_name successfully validated"
