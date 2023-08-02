@@ -12,7 +12,7 @@ Use this playbook to download docker images and pull images onto cluster nodes u
 +=========================+===========================================================================================================+
 | **hpc_apptainer_image** | * Docker image details to be downloaded in to cluster nodes using apptainer to create a sif file.         |
 | ``JSON list``           |                                                                                                           |
-| Required                | * All sif files will be stored in the``/root/apptainer`` folder on cluster nodes.                         |
+| Required                | * All sif files will be stored in the ``/root/apptainer`` folder on cluster nodes.                        |
 |                         |                                                                                                           |
 |                         | * Example (for single image): ::                                                                          |
 |                         |                                                                                                           |
@@ -45,5 +45,5 @@ To run the playbook: ::
     ansible-playbook hpc_apptainer_job_execution.yml -i inventory
 
 .. note::
-    * Use the format specified under `NFS inventory in the Sample Files <../../samplefiles.html#nfs-server-inventory-file>`_ for inventory.
+    * Use the format specified under `Sample Files <../../samplefiles.html>`_ for inventory.
     * On execution, apptainer sif files will be stored in ``/root/apptainer`` on the cluster nodes.
