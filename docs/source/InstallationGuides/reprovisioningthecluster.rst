@@ -36,7 +36,7 @@ Where the inventory contains a list of host IPs as shown below:
 
 2. To install `security <BuildingClusters/Authentication.html>`_, `job scheduler <BuildingClusters/installscheduler.html>`_ and storage tools (`NFS <BuildingClusters/NFS.html>`_, `BeeGFS <BuildingClusters/BeeGFS.html>`_) on the node, run ``omnia.yml``: ::
 
-   ansible-playbook omnia.yml -i inventory
+    ansible-playbook omnia.yml -i inventory
 
 
 
