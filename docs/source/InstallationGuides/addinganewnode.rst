@@ -49,7 +49,7 @@ Alternatively, if a new node is to be added with no change in configuration, run
 
 .. note:: Do not change the manager node in the existing inventory.
 
-2. To install `security <BuildingClusters/Authentication.html>`_, `job scheduler<BuildingClusters/installscheduler.html>`_ and storage tools (`NFS <BuildingClusters/NFS.html>`_, `BeeGFS <BuildingClusters/BeeGFS.html>`_) on the node, run ``omnia.yml``: ::
+2. To install `security <BuildingClusters/Authentication.html>`_, `job scheduler <BuildingClusters/installscheduler.html>`_ and storage tools (`NFS <BuildingClusters/NFS.html>`_, `BeeGFS <BuildingClusters/BeeGFS.html>`_) on the node, run ``omnia.yml``: ::
 
    ansible-playbook omnia.yml -i inventory
 
