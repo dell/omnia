@@ -16,6 +16,7 @@ Building clusters
 
 
 3. ``omnia.yml`` is a wrapper playbook comprising of:
+
     i. ``security.yml``: This playbook sets up centralized authentication (LDAP/FreeIPA) on the cluster. For more information, `click here. <Authentication.html>`_
     ii. ``scheduler.yml``: This playbook sets up job schedulers (Slurm or Kubernetes) on the cluster.
     iii. ``storage.yml``: This playbook sets up storage tools like `BeeGFS <BeeGFS.html>`_ and `NFS <NFS.html>`_.
