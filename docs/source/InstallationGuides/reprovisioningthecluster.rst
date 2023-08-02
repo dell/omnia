@@ -25,6 +25,18 @@ Where the inventory contains a list of host IPs as shown below:
     10.5.0.101
     10.5.0.102
 
+
 .. note::
     * The host IPs passed in the inventory should be assigned by Omnia.
     * If the nodes were discovered via snmpwalk or mapping, users will be required to manually reboot target nodes.
+
+**Setting up the cluster**
+
+1. Update the inventory file with the required node details following the example `provided here. <../samplefiles.html>`_
+
+2. To install `security <BuildingClusters/Authentication.html>`_, `job scheduler<BuildingClusters/installscheduler.html>`_ and storage tools (`NFS <BuildingClusters/NFS.html>`_, `BeeGFS <BuildingClusters/BeeGFS.html>`_) on the node, run ``omnia.yml``: ::
+
+   ansible-playbook omnia.yml -i inventory
+
+
+
