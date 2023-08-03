@@ -27,12 +27,12 @@ Open MPI AOCC HPL benchmark for AMD processors
 
 4. Job execution can now be initiated. Provide the host list using ``srun`` and ``sbatch``. For example:
 
-For a job to run on multiple nodes (``omnianode00001.omnia.test``,``omnianode00006.omnia.test`` and,``omnianode00005.omnia.test``) and OpenMPI is compiled and installed on the NFS share (``/home/omnia-share/openmpi/bin/mpirun``), the job can be initiated as below: ::
+For a job to run on multiple nodes (``omnianode00001.omnia.test``, ``omnianode00006.omnia.test`` and, ``omnianode00005.omnia.test``) and OpenMPI is compiled and installed on the NFS share (``/home/omnia-share/openmpi/bin/mpirun``), the job can be initiated as below: ::
 
 
     srun -N 3 --partition=mpiexectrial /home/omnia-share/openmpi/bin/mpirun -host omnianode00001.omnia.test,omnianode00006.omnia.test,omnianode00005.omnia.test ./amd-zen-hpl-2023_07_18/xhpl
 
-For a batch job using the same parameters, the command would be: ::
+For a batch job using the same parameters, the script would be: ::
 
 
 
