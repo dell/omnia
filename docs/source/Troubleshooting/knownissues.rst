@@ -17,6 +17,14 @@ Omnia does not maintain any order when assigning hostnames to target nodes.
 
 **Resolution**: This will be addressed in a later release.
 
+⦾ **Why does the task Assign admin NIC IP fail during provision.yml with errors?**
+
+.. image:: ../images/AdminNICErrors.png
+
+**Potential Cause:** Omnia validates the admin NIC IP on the control plane. If the user has not assigned an admin NIC IP in case of dedicated network interface type, an error message is returned. There is a parsing logic that is being applied on the blank IP and hence, the error displays twice.
+
+**Resolution**: Ensure a control plane IP is assigned to the admin NIC.
+
 ⦾ **Kubernetes pods on the manager node are in CreateContainerConfigError and Calico Pods are in CrashLoopBackoff error after running omnia.yml.**
 
 **Potential Cause:**
@@ -477,8 +485,4 @@ Reboot the NFS server (external to the cluster) to bring up the services again: 
     systemctl disable nfs-server
     systemctl enable nfs-server
     systemctl restart nfs-server
-
-
-
-
 

@@ -63,11 +63,20 @@ The monitor role sets up `Grafana <https://grafana.com/>`_ ,  `Prometheus <https
 
     .. image:: ../../images/Grafana_Dashboards.png
 
-    Loki log collections and telemetry/kubernetes dashboards can viewed on the explore section of the grafana UI.
-
     .. image:: ../../images/Grafana_Loki.png
 
     Datasources configured by Omnia can be viewed as seen below.
 
     .. image:: ../../images/Grafana_DataSources.png
+
+4. To use Loki for log filtering
+    i. Login to the Grafana UI by connecting to the cluster IP of grafana service obtained above via port 5000. That is ``http://xx.xx.xx.xx:5000/login``
+    ii. In the Explore page, select **control-plane-loki**.
+    .. image:: ../../images/Grafana_ControlPlaneLoki.png
+    iii. The log browser allows users to filter logs by job, node and/or user.
+        Ex: ::
+
+            (job= "cluster deployment logs") |= "nodename"
+            (job="compute log messages") |= "nodename" |="node_username"
+
 

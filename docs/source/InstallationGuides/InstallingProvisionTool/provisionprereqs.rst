@@ -4,7 +4,14 @@ Before you run the provision tool
 * (Recommended) Run ``prereq.sh`` to get the system ready to deploy Omnia. Alternatively, ensure that `Ansible 2.12.10 <https://docs.ansible.com/ansible/latest/reference_appendices/release_and_maintenance.html>`_ and `Python 3.8 <https://www.python.org/downloads/release/python-380/>`_ are installed on the system. SELinux should also be disabled.
 * Set the IP address of the control plane with a /16 subnet mask. The control plane NIC connected to remote servers (through the switch) should be configured with two IPs (BMC IP and admin IP) in a shared LOM or hybrid set up. In the case dedicated network topology, a single IP (admin IP) is required.
 
-.. image:: ../../images/ControlPlaneNic.png
+.. figure:: ../../images/ControlPlaneNic.png
+
+            *Control plane NIC IP configuration in a LOM setup*
+
+.. figure:: ../../images/ControlPlane_DedicatedNIC.png
+
+            *Control plane NIC IP configuration in a dedicated setup*
+
 
 * Set the hostname of the control plane using the ``hostname``. ``domain name`` format.
 
@@ -19,6 +26,8 @@ Before you run the provision tool
     1. `Rocky 8 <https://rockylinux.org/>`_
 
     2. `RHEL 8.x <https://www.redhat.com/en/enterprise-linux-8>`_
+
+.. caution:: **THE ROCKY LINUX OS VERSION ON THE CLUSTER WILL BE UPGRADED TO THE LATEST 8.x VERSION AVAILABLE IRRESPECTIVE OF THE PROVISION_OS_VERSION PROVIDED IN PROVISION_CONFIG.YML.**
 
 .. note:: Ensure the ISO provided has downloaded seamlessly (No corruption). Verify the SHA checksum/ download size of the ISO file before provisioning to avoid future failures.
 

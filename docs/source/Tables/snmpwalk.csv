@@ -30,7 +30,10 @@ Required","The operating system to be provisioned on target nodes in the cluster
 Choices:
 
 * ``rhel`` <-default
-* ``rocky``"
+* ``rocky``
+
+.. caution:: **THE ROCKY LINUX OS VERSION ON THE CLUSTER WILL BE UPGRADED TO THE LATEST 8.x VERSION AVAILABLE IRRESPECTIVE OF THE PROVISION_OS_VERSION PROVIDED IN PROVISION_CONFIG.YML.**
+"
 "**provision_os_version**
 
 ``string``

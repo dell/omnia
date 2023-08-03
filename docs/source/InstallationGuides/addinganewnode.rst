@@ -1,6 +1,8 @@
 Adding new nodes
 +++++++++++++++++
 
+**Provisioning the new node**
+
 While adding a new node to the cluster, users can modify the following:
 
     - The operating system
@@ -35,12 +37,21 @@ A new node can be added using the following ways:
     * Run ``provision.yml`` once the node has joined the cluster using an IP that exists within the provided range.
 
 
-Alternatively, if a new mode is to be added with no change in configuration, run the following commands: ::
+Alternatively, if a new node is to be added with no change in configuration, run the following commands: ::
 
             cd provision
             ansible-playbook discovery_provision.yml
 
 
+**Adding the new node to the cluster**
+
+1. Update the existing inventory file with the new node details following the example `provided here. <../samplefiles.html>`_
+
+.. note:: Do not change the manager node in the existing inventory.
+
+2. To install `security <BuildingClusters/Authentication.html>`_, `job scheduler <BuildingClusters/installscheduler.html>`_ and storage tools (`NFS <BuildingClusters/NFS.html>`_, `BeeGFS <BuildingClusters/BeeGFS.html>`_) on the node, run ``omnia.yml``: ::
+
+    ansible-playbook omnia.yml -i inventory
 
 
 

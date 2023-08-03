@@ -18,22 +18,9 @@ Before you build clusters
 .. note:: The inventory file accepts both IPs and FQDNs as long as they can be resolved by DNS.
 
 
-* Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to run ``scheduler.yml`` on RHEL target nodes.
+* Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to run ``omnia.yml`` on RHEL target nodes.
 
 * For RHEL target nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription.
-
-**Features enabled by omnia.yml**
-
-* Slurm: Once all the required parameters in `omnia_config.yml <schedulerinputparams.html>`_ are filled in, ``omnia.yml`` can be used to set up slurm.
-
-* Login Node (Additionally secure login node)
-
-* Kubernetes: Once all the required parameters in `omnia_config.yml <schedulerinputparams.html>`_ are filled in, ``omnia.yml`` can be used to set up kubernetes.
-
-* BeeGFS bolt on installation
-
-* NFS bolt on support
-
 
 
 
