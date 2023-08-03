@@ -1,5 +1,5 @@
-Install oneAPI for MPI jobs
-___________________________
+Install oneAPI for MPI jobs on Intel processors
+________________________________________________
 
 **Pre-requisites**
 
