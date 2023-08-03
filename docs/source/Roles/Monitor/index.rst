@@ -80,5 +80,3 @@ The monitor role sets up `Grafana <https://grafana.com/>`_ ,  `Prometheus <https
             (job="compute log messages") |= "nodename" |="node_username"
 
 
-
-
