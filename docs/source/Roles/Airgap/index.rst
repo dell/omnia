@@ -13,9 +13,9 @@ Airgap
 |                                            |                                                                                                                                             |
 |      ``boolean``                           | * In the first execution of ``provision.yml``, Omnia updates the BaseOS,   Appstream and CRB repos.                                         |
 |                                            |                                                                                                                                             |
-|      Required                              | * If ``update_repos``: false, none of the repos required for cluster  nodes   will be updated provided the repos are already available.      |
+|      Required                              | * If ``update_repos``: false, none of the repos required for cluster  nodes   will be updated provided the repos are already available.     |
 |                                            |                                                                                                                                             |
-|                                            | * If ``update_repos``: true, BaseOS, Appstream and CRB repos created for   cluster  nodes will be updated                                    |
+|                                            | * If ``update_repos``: true, BaseOS, Appstream and CRB repos created for   cluster  nodes will be updated                                   |
 |                                            |                                                                                                                                             |
 |                                            |      Choices:                                                                                                                               |
 |                                            |                                                                                                                                             |
@@ -50,7 +50,7 @@ Airgap
 |                                            |                                                                                                                                             |
 |                                            |      - { repo: “BaseOS”, repo_url: “”, repo_name: “” }                                                                                      |
 |                                            |                                                                                                                                             |
-|                                            |      - { repo: “CRB”, repo_url: “”, repo_name: “” }                                                                                         |
+|                                            |                                                                                                                                             |
 +--------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------+
 
 

@@ -97,7 +97,8 @@ To deploy the Omnia provision tool, run the following command ::
 * Verifies and updates firewall settings.
 * Installs xCAT.
 * Configures xCAT databases basis ``input/provision_config.yml``.
-* Configures the control plane with NTP services for cluster  node synchronization.
+* Configures a docker registry to pull images from the internet and store them locally. These images will then be pulled by cluster nodes locally. For more information, `click here. <../../Roles/Utils/hpcsoftwarestack.html>`_
+
 
 To call this playbook individually, ensure that ``input/provision_config.yml`` is updated and then run::
 
@@ -116,11 +117,13 @@ To call this playbook individually, ensure that ``input/provision_config.yml`` i
 
 **Discovering/provisioning the nodes**
 
-a. Discovers all target servers based on specifications in ``input/provision_config.yml``.
+* Discovers all target servers based on specifications in ``input/provision_config.yml``.
 
-b. Provisions all discovered servers.
+* PostgreSQL database is set up with all relevant cluster information such as MAC IDs, hostname, admin IP, infiniband IPs, BMC IPs etc.
 
-c. PostgreSQL database is set up with all relevant cluster information such as MAC IDs, hostname, admin IP, infiniband IPs, BMC IPs etc.
+* Configures the control plane with NTP services for cluster  node synchronization.
+
+* Provisions all discovered servers.
 
 To call this playbook individually, ensure that ``repo_manipulate.yml`` has run at least once and then run::
 
@@ -144,10 +147,14 @@ After successfully running ``provision.yml``, go to `Building Clusters <../Build
 
     * Post execution of ``provision.yml``, IPs/hostnames cannot be re-assigned by changing the mapping file. However, the addition of new nodes is supported as explained `here <../addinganewnode.html>`_.
 
-
 .. caution::
 
     * Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect.
     * To avoid breaking the passwordless SSH channel on the control plane, do not run ``ssh-keygen`` commands post execution of ``provision.yml``.
-    * Omnia installs xcat in the directory ``/root/xcat`` and sets up a DB backup in ``/root/xcat-dbback``. Do not delete these folders.
+    * Do not delete the following directories:
+        - ``/root/xcat``
+        - ``/root/xcat-dbback``
+        - ``/docker-registry``
+        - ``/opt/omnia``
+        - ``/var/log/omnia``
 
