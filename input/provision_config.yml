@@ -42,6 +42,7 @@ discovery_mechanism: "mapping"
 #### Mandatory, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
 # This is the operating system image that will be used for provisioning compute nodes in the cluster.
 # Accepted values: rocky, rhel
+# Note: When provision_os is rocky, Rocky Linux OS version on the cluster will be upgraded to the latest 8.x version available irrespective of provision_os_version provided
 # Default value: "rhel"
 provision_os: "rhel"
 

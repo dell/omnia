@@ -69,6 +69,12 @@
     success_msg: "{{ provision_os_success_msg }}"
     fail_msg: "{{ provision_os_fail_msg }}"
 
+- name: Warning - Rocky version will be updated to latest
+  ansible.builtin.pause:
+    seconds: "{{ warning_wait_time_repo }}"
+    prompt: "{{ rocky_update_warning_msg }}"
+  when: provision_os | lower == os_supported_rocky
+
 - name: Verify the iso_file_path
   ansible.builtin.stat:
     path: "{{ iso_file_path }}"
