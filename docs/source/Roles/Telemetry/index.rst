@@ -10,7 +10,6 @@ To initiate telemetry support, fill out the following parameters in ``omnia/inpu
    :header-rows: 1
    :keepspace:
 
-
 Once ``control_plane.yml`` and ``omnia.yml`` are executed, run the following commands from ``omnia/telemetry``: ::
 
     ansible-playbook telemetry.yml -i inventory
@@ -53,15 +52,20 @@ Once ``provision.yml`` is executed and Grafana is set up, use ``telemetry.yml`` 
 **All your data in a glance**:
 
 Using the following graphs, data can be visualized to gather correlational information.
+    * `Parallel Coordinates <ParallelCoordinates.html>`_
+    * `Sankey Layout <SankeyLayout.html>`_
+    * `Spiral Layout <SpiralLayout.html>`_
+    * `Power Map <PowerMap>`_
+
+
+.. note:: The timestamps used for the time metric are based on the timezone set in ``input/provision_config.yml``. In the event of a mismatch between the timezone on the browser being used to access Grafana UI and the timezone in ``input/provision_config.yml``, the time range being used to filter information on the Grafana UI will have to be adjusted per the timezone in ``input/provision_config.yml``.
 
 .. toctree::
+    :hidden:
     ParallelCoordinates
     SankeyLayout
     SpiralLayout
     PowerMap
-
-.. note:: The timestamps used for the time metric are based on the timezone set in ``input/provision_config.yml``. In the event of a mismatch between the timezone on the browser being used to access Grafana UI and the timezone in ``input/provision_config.yml``, the time range being used to filter information on the Grafana UI will have to be adjusted per the timezone in ``input/provision_config.yml``.
-
 
 
 

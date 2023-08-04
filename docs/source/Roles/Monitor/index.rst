@@ -37,6 +37,7 @@ The monitor role sets up `Grafana <https://grafana.com/>`_ ,  `Prometheus <https
 +----------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 
+
 .. note::
 
     * After running ``monitor.yml``, the file ``input/monitor_config.yml`` will be encrypted. To edit the file, use ``ansible-vault edit monitor_config.yml --vault-password-file .monitor_vault_key``.
@@ -70,4 +71,14 @@ The monitor role sets up `Grafana <https://grafana.com/>`_ ,  `Prometheus <https
     Datasources configured by Omnia can be viewed as seen below.
 
     .. image:: ../../images/Grafana_DataSources.png
+
+4. To use Loki for log filtering
+    i. Login to the Grafana UI by connecting to the cluster IP of grafana service obtained above via port 5000. That is ``http://xx.xx.xx.xx:5000/login``
+    ii. In the Explore page, select **control-plane-loki**.
+    .. image:: ../../images/Grafana_ControlPlaneLoki.png
+    iii. The log browser allows users to filter logs by job, node and/or user.
+        Ex: ::
+
+            (job= "cluster deployment logs") |= "nodename"
+            (job="compute log messages") |= "nodename" |="node_username"
 

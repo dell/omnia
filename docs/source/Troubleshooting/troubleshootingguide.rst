@@ -1,35 +1,6 @@
 Troubleshooting guide
 ============================
 
-Control plane logs
----------------------------
-
-All log files can be viewed via the Dashboard tab ( |Dashboard| ) on the grafana UI. The default dashboard displays ``omnia.log`` and ``syslog``. Custom dashboards can be created per user requirements.
-
-Below is a list of all logs available to Loki and can be accessed on the dashboard:
-
-.. csv-table:: Parameters
-   :file: ../Tables/ControlPlaneLogs.csv
-   :header-rows: 1
-   :keepspace:
-
-.. image:: ../images/Grafana_Loki_TG.png
-
-Provisioning logs
---------------------
-
-Logs pertaining to provisioning can be viewed in ``/var/log/xcat/cluster.log`` on the control plane.
-
-Logs of individual containers
---------------------------------------------
-   1. A list of namespaces and their corresponding pods can be obtained using:
-      ``kubectl get pods -A``
-   2. Get a list of containers for the pod in question using:
-      ``kubectl get pods <pod_name> -o jsonpath='{.spec.containers[*].name}'``
-   3. Once you have the namespace, pod and container names, run the below command to get the required logs:
-      ``kubectl logs pod <pod_name> -n <namespace> -c <container_name>``
-
-
 Connecting to internal databases
 ------------------------------------
 * TimescaleDB
