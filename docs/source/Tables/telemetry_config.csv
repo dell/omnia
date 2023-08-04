@@ -71,7 +71,7 @@ Optional	","* Password used to authenticate to mysqldb as a root user.
 
 ``boolean``
 
-Optional	","* This variable is used to start or stop omnia telemetry
+Required	","* This variable is used to start or stop omnia telemetry
 * If ``omnia_telemetry_support`` is true, then at least one of ``collect_regular_metrics`` or ``collect_health_check_metrics`` or ``collect_gpu_metrics`` should be true, to collect metrics.
 * If ``omnia_telemetry_support`` is false, telemetry acquisition will be stopped
 * **Values:** 
@@ -82,13 +82,13 @@ Optional	","* This variable is used to start or stop omnia telemetry
 
 ``integer``
 
-Optional	","* This variable denotes the time interval of telemerey data collection from required computue nodes.
+Required	","* This variable denotes the time interval of telemerey data collection from required computue nodes.
 * **Range (seconds):** 60-3600"
 "**collect_regular_metrics**
 
 ``boolean``
 
-Optional	","* This variable is used to enable metric collection part of the regular metric group
+Required	","* This variable is used to enable metric collection part of the regular metric group
 * **Values:** 
 	* ``false`` <- **Default**
 
@@ -97,7 +97,7 @@ Optional	","* This variable is used to enable metric collection part of the regu
 
 ``boolean``
 
-Optional	","* This variable is used to enable metric collection part of the regular metric group
+Required	","* This variable is used to enable metric collection part of the regular metric group
 * **Values:** 
 	* ``true`` <- **Default**
 
@@ -106,7 +106,7 @@ Optional	","* This variable is used to enable metric collection part of the regu
 
 ``boolean``
 
-Optional	","* This variable is used to enable metric collection related to GPU.
+Required	","* This variable is used to enable metric collection related to GPU.
 * **Values:** 
 	* ``true`` <- **Default**
 
@@ -115,7 +115,7 @@ Optional	","* This variable is used to enable metric collection related to GPU.
 
 ``integer``
 
-Optional	","* This variable is used to set an appropriate time interval in seconds for all cluster nodes so that they do not congest the admin network.
+Required	","* This variable is used to set an appropriate time interval in seconds for all cluster nodes so that they do not congest the admin network.
 * A random rumber between 0 and ``fuzzy_offset`` gets added with ``omnia_telemetry_collection_interval`` value to decide individual cluster node's telemetry data collection interval.
 * **Default value**: 60
 * For large clusters, a higher value is recommended.
@@ -124,6 +124,6 @@ Optional	","* This variable is used to set an appropriate time interval in secon
 
 ``integer``
 
-Optional	","* This variable is used to define data collection timeout period.
+Required	","* This variable is used to define data collection timeout period.
 * **Default value**: 5
 * This value should be less than the value of ``omnia_telemetry_collection_interval``."
