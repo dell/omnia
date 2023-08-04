@@ -1,0 +1,126 @@
+"Parameter	",Details
+"**appliance_k8s_pod_net_cidr**
+
+``string``
+
+Required	","* Kubernetes pod network CIDR for appliance k8s network.
+* Make sure this value does not overlap with any of the host networks.
+* **Default value:** ``""192.168.0.0/16""``"
+"**idrac_telemetry_support **
+
+``boolean``
+
+Required	","* Enables iDRAC telemetry support and visualizations. 
+* **Values:** 
+	* ``true`` <- **Default**
+	* ``false``"
+"**timescaledb_user **
+
+``string``
+
+Required	","* Username used to authenticate to timescale db.
+* The username must not   contain -,\, ',"".
+* The Length of the username should be at least 2   characters."
+"**timescaledb_password **
+
+``string``
+
+Required	","* Password used to authenticate to timescale db.
+* The password must not   contain -,\, ',"".
+* The length of the password should be at least 2   characters."
+"**idrac_username **
+
+``string``
+
+Optional	","* Username used to authenticate to iDRAC.
+* The username must not   contain -,\, ',"".
+* Required if ``idrac_telemetry_support`` is true."
+"**idrac_password **
+
+``string``
+
+Optional	","* Password used to authenticate to iDRAC.
+* The password must not   contain -,\, ',"".
+* Required if ``idrac_telemetry_support`` is true."
+"**mysqldb_user **
+
+``string``
+
+Optional	","* Username used to authenticate to mysqldb.
+* The username must not   contain -,\, ',"".
+* The length of the username should be at least 2 characters.
+* Required if ``idrac_telemetry_support`` is true."
+"**mysqldb_password **
+
+``string``
+
+Optional	","* Password used to authenticate to mysqldb.
+* The password must not   contain -,\, ',"".
+* The length of the password should be at least 2 characters.
+* Required if ``idrac_telemetry_support`` is true."
+"**mysqldb_root_password **
+
+``string``
+
+Optional	","* Password used to authenticate to mysqldb as a root user.
+* The password must not   contain -,\, ',"".
+* The length of the password should be at least 2 characters.
+* Required if ``idrac_telemetry_support`` is true."
+"**omnia_telemetry_support **
+
+``boolean``
+
+Optional	","* This variable is used to start or stop omnia telemetry
+* If ``omnia_telemetry_support`` is true, then at least one of ``collect_regular_metrics`` or ``collect_health_check_metrics`` or ``collect_gpu_metrics`` should be true, to collect metrics.
+* If ``omnia_telemetry_support`` is false, telemetry acquisition will be stopped
+* **Values:** 
+	* ``true`` <- **Default**
+	* ``false``"
+"**omnia_telemetry_collection_interval**
+
+``integer``
+
+Optional	","* This variable denotes the time interval of telemerey data collection from required computue nodes.
+* **Range (seconds):** 60-3600"
+"**collect_regular_metrics **
+
+``boolean``
+
+Optional	","* This variable is used to enable metric collection part of the regular metric group
+* **Values:** 
+	* ``false`` <- **Default**
+	* ``true``"
+"**collect_health_check_metrics **
+
+``boolean``
+
+Optional	","* This variable is used to enable metric collection part of the regular metric group
+* **Values:** 
+	* ``true`` <- **Default**
+	* ``false`"
+"**collect_gpu_metrics **
+
+``boolean``
+
+Optional	","* This variable is used to enable metric collection related to GPU.
+* **Values:** 
+	* ``true`` <- **Default**
+	* ``false`"
+"**fuzzy_offset **
+
+``integer``
+
+Optional	","* This variable is used to set an appropriate time interval in seconds for all cluster nodes so that they do not congest the admin network.
+* A random rumber between 0 and ``fuzzy_offset`` gets added with ``omnia_telemetry_collection_interval`` value to decide individual cluster node's telemetry data collection interval.
+* **Default value**: 60
+* For large clusters, a higher value is recommended.
+* This value should be less than the value of ``omnia_telemetry_collection_interval``."
+"**metric_collection_timeout **
+
+``integer``
+
+Optional	","* This variable is used to define data collection timeout period.
+* **Default value**: 5
+* This value should be less than the value of ``omnia_telemetry_collection_interval``."
+,
+,
