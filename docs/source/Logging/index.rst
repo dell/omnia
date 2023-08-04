@@ -33,10 +33,14 @@ Grafana Loki
 --------------
 
     i. Get the Grafana IP using ``kubectl get svc -n grafana``.
-    i. Login to the Grafana UI by connecting to the cluster IP of grafana service via port 5000. That is ``http://xx.xx.xx.xx:5000/login``.
-    ii. In the Explore page, select **control-plane-loki**.
+
+    ii. Login to the Grafana UI by connecting to the cluster IP of grafana service via port 5000. That is ``http://xx.xx.xx.xx:5000/login``.
+
+    iii. In the Explore page, select **control-plane-loki**.
+
     .. image:: ../../images/Grafana_ControlPlaneLoki.png
-    iii. The log browser allows users to filter logs by job, node, user, etc.
+
+    iv. The log browser allows users to filter logs by job, node, user, etc.
         Ex: ::
 
             (job= "cluster deployment logs") |= "nodename"
