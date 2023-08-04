@@ -38,7 +38,7 @@ Grafana Loki
 
     iii. In the Explore page, select **control-plane-loki**.
 
-    .. image:: ../images/Grafana_ControlPlaneLoki.png
+    .. image:: ../images/Grafana_Loki.png
 
     iv. The log browser allows users to filter logs by job, node, user, etc.
         Ex: ::
