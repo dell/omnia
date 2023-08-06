@@ -8,7 +8,7 @@ All log files can be viewed via the Dashboard tab ( |Dashboard| ) on the grafana
 
 Below is a list of all logs available to Loki and can be accessed on the dashboard:
 
-.. csv-table:: Parameters
+.. csv-table:: Log files
    :file: ../Tables/ControlPlaneLogs.csv
    :header-rows: 1
    :keepspace:
