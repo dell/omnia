@@ -4,11 +4,11 @@ Open MPI AOCC HPL benchmark for AMD processors
 **Prerequisites**
 
 1. Provision the cluster and install slurm on all cluster nodes.
-2. Dependent packages have to be installed on the cluster nodes using the following steps:
+2. Dependent packages have to be installed on the cluster nodes using the following steps.:
 
-    i. Download the dependent packages on the control plane:
+    i. Download the dependent packages on the control plane.:
 
-        a. Create a package list::
+        a. Create a package list.::
 
             cd /install/post/otherpkgs/<os_version>/x86_64/custom_software/
             cat openmpi.pkglist
@@ -30,7 +30,7 @@ Open MPI AOCC HPL benchmark for AMD processors
 
                 package_list: "/install/post/otherpkgs/<os_version>/x86_64/custom_software/openmpi.pkglist"
 
-        b. Update the cluster nodes by running the ``package_update.yml`` playbook* ::
+        b. Update the cluster nodes by running the ``package_update.yml`` playbook. ::
 
             ansible-playbook package_update.yml
 
