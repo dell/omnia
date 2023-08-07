@@ -30,7 +30,7 @@ Open MPI AOCC HPL benchmark for AMD processors
 
                 package_list: "/install/post/otherpkgs/<os_version>/x86_64/custom_software/openmpi.pkglist"
 
-        b.Update the cluster nodes by running the ``package_update.yml`` playbook* ::
+        b. Update the cluster nodes by running the ``package_update.yml`` playbook* ::
 
             ansible-playbook package_update.yml
 
