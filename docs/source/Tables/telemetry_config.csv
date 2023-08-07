@@ -82,8 +82,9 @@ Required	","* This variable is used to start or stop omnia telemetry
 
 ``integer``
 
-Required	","* This variable denotes the time interval of telemerey data collection from required computue nodes.
-* **Range (seconds):** 60-3600"
+Required	","* This variable denotes the time interval (seconds) of telemetry data collection from required compute nodes.
+* **Range (seconds):** 60-3600  [1 minute to 1 hour]
+* **Default value:** 300"
 "**collect_regular_metrics**
 
 ``boolean``
@@ -116,14 +117,14 @@ Required	","* This variable is used to enable metric collection related to GPU.
 ``integer``
 
 Required	","* This variable is used to set an appropriate time interval in seconds for all cluster nodes so that they do not congest the admin network.
-* A random rumber between 0 and ``fuzzy_offset`` gets added with ``omnia_telemetry_collection_interval`` value to decide individual cluster node's telemetry data collection interval.
-* **Default value**: 60
+* A random number between 0 and ``fuzzy_offset`` gets added with ``omnia_telemetry_collection_interval`` value to decide individual cluster node's telemetry data collection interval.
+* **Default value (seconds)**: 60
 * For large clusters, a higher value is recommended.
 * This value should be less than the value of ``omnia_telemetry_collection_interval``."
 "**metric_collection_timeout**
 
 ``integer``
 
-Required	","* This variable is used to define data collection timeout period.
+Required	","* This variable is used to define data collection timeout period in seconds.
 * **Default value**: 5
 * This value should be less than the value of ``omnia_telemetry_collection_interval``."
