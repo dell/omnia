@@ -89,7 +89,7 @@ Required	","* This variable denotes the time interval (seconds) of telemetry dat
 
 ``boolean``
 
-Required	","* This variable is used to enable metric collection part of the regular metric group
+Required	","* This variable is used to enable metric collection part of the regular metric group.
 * **Values:** 
 	* ``true`` <- **Default**
 
@@ -98,7 +98,7 @@ Required	","* This variable is used to enable metric collection part of the regu
 
 ``boolean``
 
-Required	","* This variable is used to enable metric collection part of the regular metric group
+Required	","* This variable is used to enable metric collection part of the health check metric group
 * **Values:** 
 	* ``true`` <- **Default**
 
