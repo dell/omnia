@@ -65,7 +65,7 @@ Open MPI AOCC HPL benchmark for AMD processors
 4. Job execution can now be initiated. To initiate a job use the following sample commands.
 
 For a job to run on multiple nodes (10.5.0.4 and 10.5.0.5) where OpenMPI is compiled and installed on the NFS share (``/home/omnia-share/openmpi/bin/mpirun``), the job can be initiated as below:
-.. note:: Ensure ``amd-zen-hpl-2023_07_18`` and ``aocc-compiler-*`` is downloaded before running this command.
+.. note:: Ensure ``amd-zen-hpl-2023_07_18`` is downloaded before running this command.
 
 ::
 
