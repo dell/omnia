@@ -22,9 +22,11 @@ Configuring the cluster
     schedulerprereqs
     installscheduler
     Authentication
-    OneAPI
     BeeGFS
     NFS
+    OneAPI
+    OpenMPI_AOCC
     KernelUpdateRHEL
+
 
 
