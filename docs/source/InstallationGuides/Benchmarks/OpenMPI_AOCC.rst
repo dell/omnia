@@ -6,7 +6,8 @@ Open MPI AOCC HPL benchmark for AMD processors
 1. Provision the cluster and install slurm on all cluster nodes.
 2. Dependent packages have to be installed on the cluster nodes using the following steps:
 
-    i.Download the dependent packages on the control plane:
+    i. Download the dependent packages on the control plane:
+
         a. Create a package list::
 
             cd /install/post/otherpkgs/<os_version>/x86_64/custom_software/
@@ -24,6 +25,7 @@ Open MPI AOCC HPL benchmark for AMD processors
             dnf download libevent-devel --resolve --alldeps
 
     ii. Push the packages to the cluster nodes:
+
         a. Update the ``package_list`` variable in the ``os_package_update/os_package_update.conf`` file and save it. ::
 
                 package_list: "/install/post/otherpkgs/<os_version>/x86_64/custom_software/openmpi.pkglist"
