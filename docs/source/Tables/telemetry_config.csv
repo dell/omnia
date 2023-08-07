@@ -91,9 +91,9 @@ Required	","* This variable denotes the time interval (seconds) of telemetry dat
 
 Required	","* This variable is used to enable metric collection part of the regular metric group
 * **Values:** 
-	* ``false`` <- **Default**
+	* ``true`` <- **Default**
 
-	* ``true``"
+	* ``false``"
 "**collect_health_check_metrics**
 
 ``boolean``
