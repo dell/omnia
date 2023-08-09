@@ -1,5 +1,5 @@
-HPC software stack
-------------------
+Containerized HPC benchmark execution
+--------------------------------------
 
 Use this playbook to download docker images and pull images onto cluster nodes using `apptainer <https://apptainer.org/docs/user/main/index.html/>`_.
 
