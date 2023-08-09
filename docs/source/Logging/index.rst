@@ -4,7 +4,11 @@ Logging
 Control plane logs
 ---------------------------
 
-Most log files can be viewed via the Dashboard tab ( |Dashboard| ) on the grafana UI. Alternatively, all log files can be viewed via CLI. Custom dashboards can be created per user requirements.
+All log files can be viewed via CLI. Alternatively, most log files can be viewed via the Dashboard tab ( |Dashboard| ) on the grafana UI.
+
+.. caution:: It is not recommended to delete the below log files.
+
+.. note:: Log files are rotated periodically as a storage consideration. The operating system in use decides how often the logs are rotated.
 
 Below is a list of all logs available to Loki and can be accessed on the dashboard:
 
@@ -32,6 +36,8 @@ Logs of individual containers
 Grafana Loki
 --------------
 
+After `monitor.yml <../monitor.html>`_ is run, Grafana services are installed on the control plane.
+
     i. Get the Grafana IP using ``kubectl get svc -n grafana``.
 
     ii. Login to the Grafana UI by connecting to the cluster IP of grafana service via port 5000. That is ``http://xx.xx.xx.xx:5000/login``.
@@ -46,7 +52,7 @@ Grafana Loki
             (job= "cluster deployment logs") |= "nodename"
             (job="compute log messages") |= "nodename" |="node_username"
 
-
+Custom dashboards can be created per user requirement.
 
 .. |Dashboard| image:: ../images/Visualization/DashBoardIcon.png
     :height: 25px

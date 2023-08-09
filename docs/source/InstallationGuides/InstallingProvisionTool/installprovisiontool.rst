@@ -97,7 +97,7 @@ To deploy the Omnia provision tool, run the following command ::
 * Verifies and updates firewall settings.
 * Installs xCAT.
 * Configures xCAT databases basis ``input/provision_config.yml``.
-* Configures a docker registry to pull images from the internet and store them locally. These images will then be pulled by cluster nodes locally. For more information, `click here. <../../Roles/Utils/hpcsoftwarestack.html>`_
+* Configures a docker registry to pull images from the internet and store them locally. These images will then be pulled by cluster nodes locally. For more information, `click here. <../Benchmarks/hpcsoftwarestack.html>`_
 
 
 To call this playbook individually, ensure that ``input/provision_config.yml`` is updated and then run::

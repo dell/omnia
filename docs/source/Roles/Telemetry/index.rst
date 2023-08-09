@@ -1,5 +1,5 @@
-Telemetry
-----------
+Telemetry and visualizations
+------------------------------
 
 The telemetry role allows users to set up iDRAC telemetry support and visualizations.
 

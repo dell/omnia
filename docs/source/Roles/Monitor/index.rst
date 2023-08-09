@@ -1,5 +1,5 @@
-Monitor
-==========
+Monitoring the cluster
+=======================
 
 The monitor role sets up `Grafana <https://grafana.com/>`_ ,  `Prometheus <https://prometheus.io/>`_ and `Loki <https://grafana.com/oss/loki/>`_ as Kubernetes pods.
 

@@ -1,7 +1,7 @@
-Airgap
------------
+Offline repositories for the  cluster
+=====================================
 
-* The airgap role will help create offline repositories on control plane which all the cluster  nodes will access. This will remove the overhead of subscribing all the cluster  nodes to RHEL.
+* The airgap feature will help create offline repositories on control plane which all the cluster  nodes will access. This will remove the overhead of subscribing all the cluster  nodes to RHEL.
 * Currently, ``airgap.yml`` only updates RHEL repositories.
 
 ``airgap.yml`` runs based on the following parameters in ``input/provision_config.yml``:
