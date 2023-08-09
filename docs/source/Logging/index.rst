@@ -36,7 +36,7 @@ Logs of individual containers
 Grafana Loki
 --------------
 
-After `monitor.yml <../monitor.html>`_ is run, Grafana services are installed on the control plane.
+After `monitor.yml <../Roles/Monitor/index.html>`_ is run, Grafana services are installed on the control plane.
 
     i. Get the Grafana IP using ``kubectl get svc -n grafana``.
 
