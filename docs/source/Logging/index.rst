@@ -6,7 +6,7 @@ Control plane logs
 
 All log files can be viewed via CLI. Alternatively, most log files can be viewed via the Dashboard tab ( |Dashboard| ) on the grafana UI.
 
-.. caution:: It is not recommended to delete the below log files.
+.. caution:: It is not recommended to delete the below log files or the directories they reside in.
 
 .. note:: Log files are rotated periodically as a storage consideration. The operating system in use decides how often the logs are rotated.
 
