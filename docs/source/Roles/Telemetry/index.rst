@@ -25,8 +25,8 @@ After initiation, new nodes can be added to telemetry by running the following c
     * ``telemetry_config.yml``  is encrypted upon executing ``telemetry.yml``. To edit the file, use ``ansible-vault edit telemetry_config.yml --vault-password-file .telemetry_vault_key``.
     * If ``idrac_telemetry`` is ``true`` while executing ``telemetry.yml``, **or** while running ``add_idrac_node.yml``, if the inventory passed does not contain an idrac group, idrac telemetry will run on IP’s present under ``/opt/omnia/provisioned_idrac_inventory`` of control plane.
 
-Viewing Performance Stats on Grafana
-++++++++++++++++++++++++++++++++++++
+Acquiring telemetry data for iDRAC and Omnia
++++++++++++++++++++++++++++++++++++++++++++++
 
 Using `Texas Technical University data visualization lab <https://idatavisualizationlab.github.io/HPCC>`_, data polled from iDRAC and Slurm can be processed to generate live graphs. These Graphs can be accessed on the Grafana UI.
 
