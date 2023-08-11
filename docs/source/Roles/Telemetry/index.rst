@@ -27,7 +27,6 @@ After initiation, new nodes can be added to telemetry by running the following c
 
 
 .. toctree::
-    :hidden:
     Visualizations/index
 
 
