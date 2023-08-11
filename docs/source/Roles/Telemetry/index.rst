@@ -10,13 +10,19 @@ To initiate telemetry support, fill out the following parameters in ``omnia/inpu
    :header-rows: 1
    :keepspace:
 
-Once you have executed ``provision.yml`` and has also provisioned the cluster, initiate telemetry on the cluster along with ``omnia.yml``, which configures the cluster with scheduler, storage and authentication. Optionally, you can initiate only telemetry using the below command: ::
+Once you have executed ``provision.yml`` and has also provisioned the cluster, initiate telemetry on the cluster as part of ``omnia.yml``, which configures the cluster with scheduler, storage and authentication using the below command. ::
+
+    ansible-playbook omnia.yml -i inventory
+
+Optionally, you can initiate only telemetry using the below command: ::
 
     ansible-playbook telemetry.yml -i inventory
 
-.. note:: The passed inventory should have 3 groups: idrac, manager, compute.
+.. note:: Depending on the type of telemetry initiated, the following groups are required. :
+    omnia_telemetry: manager, compute
+    idrac_telemetry: idrac
 
-After initiation, new nodes can be added to telemetry by running the following commands from ``omnia/telemetry``: ::
+After initiation, new iDRACs can be added for ``idrac_telemetry`` acquisition by running the following commands: ::
 
     ansible-playbook add_idrac_node.yml -i inventory
 
@@ -27,6 +33,7 @@ After initiation, new nodes can be added to telemetry by running the following c
 
 
 .. toctree::
+
     Visualizations/index
 
 
