@@ -47,7 +47,7 @@ Alternatively, if a new node is to be added with no change in configuration, run
 
 1. Update the existing inventory file with the new node details following the example `provided here. <../samplefiles.html>`_
 
-.. note:: Do not change the manager node in the existing inventory.
+.. note:: Do not change the manager node in the existing inventory. Simply add the new node information in the compute group.
 
 2. To install `security <BuildingClusters/Authentication.html>`_, `job scheduler <BuildingClusters/installscheduler.html>`_ and storage tools (`NFS <BuildingClusters/NFS.html>`_, `BeeGFS <BuildingClusters/BeeGFS.html>`_) on the node, run ``omnia.yml``: ::
 
