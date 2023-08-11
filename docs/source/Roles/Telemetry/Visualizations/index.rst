@@ -11,15 +11,15 @@ Once ``provision.yml`` is executed and Grafana is set up, use ``telemetry.yml`` 
 
     i. Find the IP address of the Grafana service using ``kubectl get svc -n grafana``
 
-    .. image:: ../../images/grafanaIP.png
+    .. image:: ../../../images/grafanaIP.png
 
     ii. Login to the Grafana UI by connecting to the cluster IP of grafana service obtained above via port 5000. That is ``http://xx.xx.xx.xx:5000/login``
 
-    .. image:: ../../images/Grafana_login.png
+    .. image:: ../../../images/Grafana_login.png
 
     iii. Enter the ``grafana_username`` and ``grafana_password`` as mentioned in ``monitor/monitor_config.yml``.
 
-    .. image:: ../../images/Grafana_Dashboards.png
+    .. image:: ../../../images/Grafana_Dashboards.png
 
 
 **All your data in a glance**:
