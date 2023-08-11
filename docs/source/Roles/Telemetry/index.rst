@@ -31,6 +31,7 @@ After initiation, new iDRACs can be added for ``idrac_telemetry`` acquisition by
     * The passed inventory should have an idrac group, if ``idrac_telemetry_support`` is true.
     * If ``omnia_telemetry_support`` is true, then the inventory should have manager and compute groups along with optional login group.
 
+**Visualizations**
 
 .. toctree::
 
