@@ -115,6 +115,7 @@ Our thanks go to everyone who makes Omnia possible ([emoji key](https://allcontr
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Subhankar-Adak"><img src="https://avatars.githubusercontent.com/u/140381176?v=4?s=100" width="100px;" alt="Subhankar-Adak"/><br /><sub><b>Subhankar-Adak</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=Subhankar-Adak" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/priti-parate"><img src="https://avatars.githubusercontent.com/u/140157516?v=4?s=100" width="100px;" alt="priti-parate"/><br /><sub><b>priti-parate</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=priti-parate" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/lavanya5899"><img src="https://avatars.githubusercontent.com/u/140372459?v=4?s=100" width="100px;" alt="Lavanya Adhikari"/><br /><sub><b>Lavanya Adhikari</b></sub></a><br /><a href="https://github.com/dellhpc/omnia/commits?author=lavanya5899" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
