@@ -613,6 +613,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "preeti-thankachan",
+      "name": "preeti-thankachan",
+      "avatar_url": "https://avatars.githubusercontent.com/u/141405483?v=4",
+      "profile": "https://github.com/preeti-thankachan",
+      "contributions": [
+        "test"
+      ]
     }
   ],
   "contributorsPerLine": 7,
