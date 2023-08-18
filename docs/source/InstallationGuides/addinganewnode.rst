@@ -77,7 +77,7 @@ Alternatively, if a new node is to be added with no change in configuration, run
     [login]
     10.5.0.104
 
-In the above example, nodes 10.5.0.105 and 10.5.0.106 have been added to the cluster as a compute nodes.
+In the above example, nodes 10.5.0.105 and 10.5.0.106 have been added to the cluster as compute nodes.
 
 .. note::
     * Do not change the manager node in the existing inventory. Simply add the new node information in the compute group.
