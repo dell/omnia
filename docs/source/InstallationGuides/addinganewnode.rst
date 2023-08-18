@@ -45,11 +45,45 @@ Alternatively, if a new node is to be added with no change in configuration, run
 
 **Adding the new node to the cluster**
 
-1. Update the existing inventory file with the new node details following the example `provided here. <../samplefiles.html>`_
+1. Insert the new IPs in the existing inventory file following the below example.
 
-.. note:: Do not change the manager node in the existing inventory. Simply add the new node information in the compute group.
+*Existing inventory*
 
-2. To install `security <BuildingClusters/Authentication.html>`_, `job scheduler <BuildingClusters/installscheduler.html>`_ and storage tools (`NFS <BuildingClusters/NFS.html>`_, `BeeGFS <BuildingClusters/BeeGFS.html>`_) on the node, run ``omnia.yml``: ::
+::
+
+    [manager]
+    10.5.0.101
+
+    [compute]
+    10.5.0.102
+    10.5.0.103
+
+    [login]
+    10.5.0.104
+
+*Updated inventory with the new node information*
+
+::
+
+    [manager]
+    10.5.0.101
+
+    [compute]
+    10.5.0.102
+    10.5.0.103
+    10.5.0.105
+    10.5.0.106
+
+    [login]
+    10.5.0.104
+
+In the above example, nodes 10.5.0.105 and 10.5.0.106 have been added to the cluster as a compute nodes.
+
+.. note::
+    * Do not change the manager node in the existing inventory. Simply add the new node information in the compute group.
+    * Only the ``scheduler_type`` in ``input/omnia_config.yml`` and the variables in ``input/storage_config.yml`` can be updated while re-running ``omnia.yml`` to add the new node. All other variables in the files ``input/omnia_config.yml`` and ``input/security_config.yml`` must be unedited.
+
+3. To install `security <BuildingClusters/Authentication.html>`_, `job scheduler <BuildingClusters/installscheduler.html>`_ and storage tools (`NFS <BuildingClusters/NFS.html>`_, `BeeGFS <BuildingClusters/BeeGFS.html>`_) on the node, run ``omnia.yml``: ::
 
     ansible-playbook omnia.yml -i inventory
 
