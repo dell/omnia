@@ -83,7 +83,7 @@ In the above example, nodes 10.5.0.105 and 10.5.0.106 have been added to the clu
     * Do not change the manager node in the existing inventory. Simply add the new node information in the compute group.
     * Only the ``scheduler_type`` in ``input/omnia_config.yml`` and the variables in ``input/storage_config.yml`` can be updated while re-running ``omnia.yml`` to add the new node. All other variables in the files ``input/omnia_config.yml`` and ``input/security_config.yml`` must be unedited.
 
-3. To install `security <BuildingClusters/Authentication.html>`_, `job scheduler <BuildingClusters/installscheduler.html>`_ and storage tools (`NFS <BuildingClusters/NFS.html>`_, `BeeGFS <BuildingClusters/BeeGFS.html>`_) on the node, run ``omnia.yml``: ::
+2. To install `security <BuildingClusters/Authentication.html>`_, `job scheduler <BuildingClusters/installscheduler.html>`_ and storage tools (`NFS <BuildingClusters/NFS.html>`_, `BeeGFS <BuildingClusters/BeeGFS.html>`_) on the node, run ``omnia.yml``: ::
 
     ansible-playbook omnia.yml -i inventory
 
