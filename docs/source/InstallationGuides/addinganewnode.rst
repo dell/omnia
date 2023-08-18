@@ -24,7 +24,7 @@ A new node can be added using the following ways:
 
 2. When the discovery mechanism is ``mapping``:
 
-    * Update the existing mapping file by appending the new entry (without the disrupting the older entries) or provide a new mapping file by pointing ``pxe_mapping_file_path`` in ``provision_config.yml`` to the new location.
+    * Update the existing mapping file by appending the new entry (without disrupting the older entries) or provide a new mapping file by pointing ``pxe_mapping_file_path`` in ``provision_config.yml`` to the new location.
 
     * Run ``provision.yml``.
 
