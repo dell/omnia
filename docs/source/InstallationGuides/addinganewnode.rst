@@ -24,7 +24,7 @@ A new node can be added using the following ways:
 
 2. When the discovery mechanism is ``mapping``:
 
-    * Update the existing mapping file by appending the new entry (without the disrupting the older entries) or provide a new mapping file by pointing ``pxe_mapping_file_path`` in ``provision_config.yml`` to the new location.
+    * Update the existing mapping file by appending the new entry (without disrupting the older entries) or provide a new mapping file by pointing ``pxe_mapping_file_path`` in ``provision_config.yml`` to the new location.
 
     * Run ``provision.yml``.
 
@@ -44,12 +44,53 @@ Alternatively, if a new node is to be added with no change in configuration, run
 
 
 **Adding the new node to the cluster**
+1. Get the IPs of the new nodes using the following commands: ::
 
-1. Update the existing inventory file with the new node details following the example `provided here. <../samplefiles.html>`_
+    psql -U postgres
+     \c omniadb
+     select * from cluster.nodeinfo;
 
-.. note:: Do not change the manager node in the existing inventory.
+2. Insert the new IPs in the existing inventory file following the below example.
 
-2. To install `security <BuildingClusters/Authentication.html>`_, `job scheduler <BuildingClusters/installscheduler.html>`_ and storage tools (`NFS <BuildingClusters/NFS.html>`_, `BeeGFS <BuildingClusters/BeeGFS.html>`_) on the node, run ``omnia.yml``: ::
+*Existing inventory*
+
+::
+
+    [manager]
+    10.5.0.101
+
+    [compute]
+    10.5.0.102
+    10.5.0.103
+
+    [login]
+    10.5.0.104
+
+*Updated inventory with the new node information*
+
+::
+
+    [manager]
+    10.5.0.101
+
+    [compute]
+    10.5.0.102
+    10.5.0.103
+    10.5.0.105
+    10.5.0.106
+
+    [login]
+    10.5.0.104
+
+In the above example, nodes 10.5.0.105 and 10.5.0.106 have been added to the cluster as compute nodes.
+
+.. note::
+    * Do not change the manager node in the existing inventory. Simply add the new node information in the compute group.
+    * Do not change the parameters present in ``/input/omnia_config.yml`` except ``scheduler_type``.
+    * Do not change the  parameters in ``/input/security_config.yml``.
+    * New storage mount points can be added by updating ``input/storage_config.yml``. However, if the existing configuration is required to be replicated, do not remove the values in ``input/storage_config.yml``.
+
+3. To install `security <BuildingClusters/Authentication.html>`_, `job scheduler <BuildingClusters/installscheduler.html>`_ and storage tools (`NFS <BuildingClusters/NFS.html>`_, `BeeGFS <BuildingClusters/BeeGFS.html>`_) on the node, run ``omnia.yml``: ::
 
     ansible-playbook omnia.yml -i inventory
 
