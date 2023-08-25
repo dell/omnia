@@ -24,7 +24,7 @@ Provisioning logs
 
 Logs pertaining to provisioning can be viewed in ``/var/log/xcat/cluster.log`` and ``/var/log/xcat/computes.log`` on the control plane.
 
-.. note:: As long as a node has been added to a cluster by Omnia, events taking place on the node will be updated in ``/var/log/xcat/cluster.log``.
+.. note:: As long as a node has been added to a cluster by Omnia, deployment events taking place on the node will be updated in ``/var/log/xcat/cluster.log``.
 
 Logs of individual containers
 -------------------------------
