@@ -106,7 +106,7 @@ If ``enable_omnia_nfs`` is true in ``input/omnia_config.yml``, follow the below 
         1. Add the LDAP server IP address to ``/etc/exports``.
         2. Run ``exportfs -ra`` to enable the NFS configuration.
     - From the LDAP server:
-        1. Add the required fstab entries in ``/etc/fstab`` (The corresponding entry will be available on the compute nodes in ``/etc/fstab``)
+        1. Add the required fstab entries in ``/etc/fstab`` (The corresponding entry will be available on the cluster nodes in ``/etc/fstab``)
         2. Mount the NFS share using ``mount manager_ip: /home/omnia-share /home/omnia-share``
 
 ⦾ **Why does the 'Import SCP from a local path' task fail during idrac.yml?**
@@ -129,7 +129,7 @@ Ex: If the ``primary_dns`` is set to 10.15.0.7, the subnet ``10.15.0.0`` cannot 
 
 **Potential Cause**: The nodes were powering off or powering on during the control plane reboot/shutdown.
 
-**Resolution**: In the case of a planned shutdown, ensure that the control plane is shut down after the compute nodes. When powering back up, the control plane should be powered on and xCAT services resumed before bringing up the compute nodes. In short, have the control plane as the first node up and the last node down.
+**Resolution**: In the case of a planned shutdown, ensure that the control plane is shut down after the cluster nodes. When powering back up, the control plane should be powered on and xCAT services resumed before bringing up the cluster nodes. In short, have the control plane as the first node up and the last node down.
 
 For more information, `click here <https://github.com/xcat2/xcat-core/issues/7374>`_
 
@@ -202,9 +202,9 @@ Omnia does not validate the input of ``rhel_repo_local_path``.
     Changing the ``breakout_value`` on a split port is currently not supported. Ensure the port is un-split before assigning a new ``breakout_value``.
 
 
-⦾ **How to enable DHCP routing on Compute Nodes:**
+⦾ **How to enable DHCP routing on cluster Nodes:**
 
-To enable routing, update the ``primary_dns`` and ``secondary_dns`` in ``provision_config.yml`` with the appropriate IPs (hostnames are currently not supported). For compute nodes that are not directly connected to the internet (ie only host network is configured), this configuration allows for internet connectivity.
+To enable routing, update the ``primary_dns`` and ``secondary_dns`` in ``provision_config.yml`` with the appropriate IPs (hostnames are currently not supported). For cluster nodes that are not directly connected to the internet (ie only host network is configured), this configuration allows for internet connectivity.
 
 
 ⦾ **What to do if the LC is not ready:**

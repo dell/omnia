@@ -1,5 +1,5 @@
-Monitor
-==========
+Monitoring the cluster
+=======================
 
 The monitor role sets up `Grafana <https://grafana.com/>`_ ,  `Prometheus <https://prometheus.io/>`_ and `Loki <https://grafana.com/oss/loki/>`_ as Kubernetes pods.
 
@@ -37,6 +37,7 @@ The monitor role sets up `Grafana <https://grafana.com/>`_ ,  `Prometheus <https
 +----------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 
+
 .. note::
 
     * After running ``monitor.yml``, the file ``input/monitor_config.yml`` will be encrypted. To edit the file, use ``ansible-vault edit monitor_config.yml --vault-password-file .monitor_vault_key``.
@@ -63,6 +64,8 @@ The monitor role sets up `Grafana <https://grafana.com/>`_ ,  `Prometheus <https
 
     .. image:: ../../images/Grafana_Dashboards.png
 
+    Loki log collections and telemetry/kubernetes dashboards can viewed on the explore section of the grafana UI.
+
     .. image:: ../../images/Grafana_Loki.png
 
     Datasources configured by Omnia can be viewed as seen below.
@@ -78,5 +81,4 @@ The monitor role sets up `Grafana <https://grafana.com/>`_ ,  `Prometheus <https
 
             (job= "cluster deployment logs") |= "nodename"
             (job="compute log messages") |= "nodename" |="node_username"
-
 

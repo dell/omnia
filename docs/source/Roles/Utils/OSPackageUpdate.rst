@@ -22,7 +22,7 @@ To customize the package update, enter the following parameters in ``utils/packa
 +------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Parameter        | Details                                                                                                                                                                                   |
 +==================+===========================================================================================================================================================================================+
-| os_type          | The operating system in use on the target compute nodes.                                                                                                                                  |
+| os_type          | The operating system in use on the target cluster nodes.                                                                                                                                  |
 |      ``string``  |                                                                                                                                                                                           |
 |      Required    |      Choices:                                                                                                                                                                             |
 |                  |                                                                                                                                                                                           |

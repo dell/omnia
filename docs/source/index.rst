@@ -53,6 +53,7 @@ For a better understanding of what Omnia does, check out our `docs <https://omni
    Overview/index
    InstallationGuides/index
    Roles/index
+   Logging/index
    Troubleshooting/index
    SecurityConfigGuide/index
    samplefiles
