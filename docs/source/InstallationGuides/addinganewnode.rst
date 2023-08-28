@@ -61,6 +61,7 @@ Alternatively, if a new node is to be added with no change in configuration, run
     [login]
     10.5.0.104
 
+
 *Updated inventory with the new node information*
 
 ::
