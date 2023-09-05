@@ -10,7 +10,7 @@ Required	","* Enables iDRAC telemetry support and visualizations.
 	* ``false``"
 "**omnia_telemetry_support**
 
-``string``
+``boolean``
 
 Required	","* Starts or stops Omnia telemetry
 
@@ -18,6 +18,15 @@ Required	","* Starts or stops Omnia telemetry
 
 * If omnia_telemetry_support is false, telemetry acquisition will be stopped.
 
+* **Values:** 
+	* ``false`` <- **Default**
+
+	* ``true``"
+"**visualization_support**
+
+``boolean``
+
+Required	","* Enables visualizations. 
 * **Values:** 
 	* ``false`` <- **Default**
 

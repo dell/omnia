@@ -26,7 +26,7 @@ Open MPI AOCC HPL benchmark for AMD processors
 
     ii. Push the packages to the cluster nodes:
 
-        a. Update the ``package_list`` variable in the ``os_package_update/os_package_update.conf`` file and save it. ::
+        a. Update the ``package_list`` variable in the ``utils/os_package_update/package_update_config.yml`` file and save it. ::
 
                 package_list: "/install/post/otherpkgs/<os_version>/x86_64/custom_software/openmpi.pkglist"
 
