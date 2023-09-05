@@ -34,7 +34,7 @@ Required	","* Kubernetes pod network CIDR for appliance k8s network.
 ``string``
 
 Required	","* The start of the range that will be used by Loadbalancer for assigning External IPs to K8s services(Timescaledb and Grafana)
-* If ``pod_external_ip_start_range``: ""x.y.240.100"" and `pod_external_ip_end_range``: ""x.y.240.105"" and 
+* If ``pod_external_ip_start_range``: ""x.y.240.100"" and ``pod_external_ip_end_range``: ""x.y.240.105"" and
 * If ``admin_nic_subnet`` provided in provision_config.yml is 10.5.0.0, ``pod_external_ip_start_range`` will be 10.5.240.100 and ``pod_external_ip_end_range`` will be 10.5.240.105
 * Make sure the IP range is not assigned to any node in the cluster.
 
@@ -44,7 +44,7 @@ Required	","* The start of the range that will be used by Loadbalancer for assig
 ``string``
 
 Required	","* The end of the range that will be used by Loadbalancer for assigning External IPs to K8s services(Timescaledb and Grafana)
-* If ``pod_external_ip_start_range``: ""x.y.240.100"" and `pod_external_ip_end_range``: ""x.y.240.105"" and 
+* If ``pod_external_ip_start_range``: ""x.y.240.100"" and ``pod_external_ip_end_range``: ""x.y.240.105"" and
 * If ``admin_nic_subnet`` provided in provision_config.yml is 10.5.0.0, ``pod_external_ip_start_range`` will be 10.5.240.100 and ``pod_external_ip_end_range`` will be 10.5.240.105
 * Make sure the IP range is not assigned to any node in the cluster.
 
@@ -162,3 +162,28 @@ Required	","* This variable is used to set an appropriate time interval in secon
 Required	","* This variable is used to define data collection timeout period in seconds.
 * **Default value**: 5
 * This value should be less than the value of ``omnia_telemetry_collection_interval`` but greater than 0."
+"**grafana_username**
+
+``string``
+
+Optional","* The username for grafana UI
+* The length of username should be at least 5
+* The username must not contain -,\, ',""
+* Mandatory when ``visualization_support`` is true."
+"**grafana_password**
+
+``string``
+
+Optional","* The password for grafana UI
+* The length of password should be at least 5
+* The password must not contain -,\, ',""
+* The password cannot be set to 'admin'
+* Mandatory when ``visualization_support`` is true."
+"**mount_location**
+
+``string``
+
+Optional","* At this location grafana persistent volume will be created.
+* If using telemetry, all telemetry related files will also be stored and both timescale and mysql databases will be mounted to this location.
+* '/' is mandatory at the end of the path.
+* **Default value:** ""/opt/omnia/telemetry/"""

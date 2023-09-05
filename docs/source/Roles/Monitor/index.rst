@@ -5,7 +5,7 @@ The monitor role sets up `Grafana <https://grafana.com/>`_ ,  `Prometheus <https
 
 **Setting Up Monitoring**
 
-1. To set up monitoring, enter all required variables in ``monitor/monitor_config.yml``.
+1. To set up monitoring, enter all required variables in ``input/telemetry_config.yml``.
 
 
 +----------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -38,11 +38,7 @@ The monitor role sets up `Grafana <https://grafana.com/>`_ ,  `Prometheus <https
 
 
 
-.. note::
-
-    * After running ``monitor.yml``, the file ``input/monitor_config.yml`` will be encrypted. To edit the file, use ``ansible-vault edit monitor_config.yml --vault-password-file .monitor_vault_key``.
-
-    * Rocky 8.7 is not compatible with the Kubernetes installed by ``monitor.yml`` due to known issues with cri-o. For more information, `click here <https://github.com/cri-o/cri-o/issues/6197>`_.
+.. note:: Rocky 8.7 is not compatible with the Kubernetes installed by ``monitor.yml`` due to known issues with cri-o. For more information, `click here <https://github.com/cri-o/cri-o/issues/6197>`_.
 
 2. Run the playbook using the following command: ::
 
@@ -60,7 +56,7 @@ The monitor role sets up `Grafana <https://grafana.com/>`_ ,  `Prometheus <https
 
     .. image:: ../../images/Grafana_login.png
 
-    iii. Enter the ``grafana_username`` and ``grafana_password`` as mentioned in ``monitor/monitor_config.yml``.
+    iii. Enter the ``grafana_username`` and ``grafana_password`` as mentioned in ``input/telemetry_config.yml``.
 
     .. image:: ../../images/Grafana_Dashboards.png
 
