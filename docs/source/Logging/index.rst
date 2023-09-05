@@ -8,7 +8,7 @@ All log files can be viewed via CLI. Alternatively, most log files can be viewed
 
 .. caution:: It is not recommended to delete the below log files or the directories they reside in.
 
-.. note:: Log files are rotated periodically as a storage consideration. The operating system in use decides how often the logs are rotated.
+.. note:: Log files are rotated periodically as a storage consideration. To customize how often logs are rotated, edit the ``/etc/logrotate.conf`` file on the node.
 
 Below is a list of all logs available to Loki and can be accessed on the dashboard:
 
@@ -24,7 +24,7 @@ Provisioning logs
 
 Logs pertaining to provisioning can be viewed in ``/var/log/xcat/cluster.log`` and ``/var/log/xcat/computes.log`` on the control plane.
 
-.. note:: As long as a node has been added to a cluster by Omnia, deployment events taking place on the node will be updated in ``/var/log/xcat/cluster.log``.
+.. note::  As long as a node has been added to a cluster by Omnia, deployment events taking place on the node will be updated in ``/var/log/xcat/cluster.log``.
 
 Logs of individual containers
 -------------------------------
@@ -38,7 +38,7 @@ Logs of individual containers
 Grafana Loki
 --------------
 
-After `monitor.yml <../Roles/Monitor/index.html>`_ is run, Grafana services are installed on the control plane.
+After `telemetry.yml <../Roles/Telemetry/index.html>`_ is run, Grafana services are installed on the control plane.
 
     i. Get the Grafana IP using ``kubectl get svc -n grafana``.
 
