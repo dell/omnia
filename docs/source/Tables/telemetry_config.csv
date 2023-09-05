@@ -1,11 +1,4 @@
 "Parameter	",Details
-"**appliance_k8s_pod_net_cidr**
-
-``string``
-
-Required	","* Kubernetes pod network CIDR for appliance k8s network.
-* Make sure this value does not overlap with any of the host networks.
-* **Default value:** ``""192.168.0.0/16""``"
 "**idrac_telemetry_support**
 
 ``boolean``
@@ -15,6 +8,47 @@ Required	","* Enables iDRAC telemetry support and visualizations.
 	* ``true`` <- **Default**
 
 	* ``false``"
+"**omnia_telemetry_support**
+
+``string``
+
+Required	","* Starts or stops Omnia telemetry
+
+* If omnia_telemetry_support is true, then at least one of ``collect_regular_metrics`` or ``collect_health_check_metrics or collect_gpu_metrics`` should be true, to collect metrics.
+
+* If omnia_telemetry_support is false, telemetry acquisition will be stopped.
+
+* **Values:** 
+	* ``false`` <- **Default**
+
+	* ``true``"
+"**appliance_k8s_pod_net_cidr**
+
+``string``
+
+Required	","* Kubernetes pod network CIDR for appliance k8s network.
+* Make sure this value does not overlap with any of the host networks.
+* **Default value:** ``""192.168.0.0/16""``"
+"**pod_external_ip_start_range**
+
+``string``
+
+Required	","* The start of the range that will be used by Loadbalancer for assigning External IPs to K8s services(Timescaledb and Grafana)
+* If ``pod_external_ip_start_range``: ""x.y.240.100"" and `pod_external_ip_end_range``: ""x.y.240.105"" and 
+* If ``admin_nic_subnet`` provided in provision_config.yml is 10.5.0.0, ``pod_external_ip_start_range`` will be 10.5.240.100 and ``pod_external_ip_end_range`` will be 10.5.240.105
+* Make sure the IP range is not assigned to any node in the cluster.
+
+* **Default value**: ``""x.y.240.105""``"
+"**pod_external_ip_end_range**
+
+``string``
+
+Required	","* The end of the range that will be used by Loadbalancer for assigning External IPs to K8s services(Timescaledb and Grafana)
+* If ``pod_external_ip_start_range``: ""x.y.240.100"" and `pod_external_ip_end_range``: ""x.y.240.105"" and 
+* If ``admin_nic_subnet`` provided in provision_config.yml is 10.5.0.0, ``pod_external_ip_start_range`` will be 10.5.240.100 and ``pod_external_ip_end_range`` will be 10.5.240.105
+* Make sure the IP range is not assigned to any node in the cluster.
+
+* **Default value**: ``""x.y.240.100""``"
 "**timescaledb_user**
 
 ``string``
