@@ -42,3 +42,7 @@
     k8s_support: true
   when: item | lower == 'k8s'
   with_items: "{{ scheduler_type }}"
+
+- name: Installing scheduler
+  ansible.builtin.debug:
+    msg: "{{ install_scheduler_msg }} {{ scheduler_type }}"

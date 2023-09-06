@@ -13,28 +13,21 @@
 #  limitations under the License.
 ---
 
-- name: Get IP to Admin NIC in case of dedicated
-  block:
-    - name: Get admin NIC IP in case of dedicated
-      ansible.builtin.shell: ip addr show {{ admin_nic }} | grep -Po 'inet \K[\d.]+'
-      changed_when: false
-      failed_when: false
-      register: dedicated_admin_nic
+- name: Get admin NIC IP in case of dedicated
+  ansible.builtin.shell: |
+    set -o pipefail
+    ip addr show {{ admin_nic }} | grep -Po 'inet \K[\d.]+'
+  changed_when: false
+  failed_when: false
+  register: dedicated_admin_nic
 
+- name: Failed - Assign admin nic IP
+  ansible.builtin.fail:
+    msg: "{{ fail_admin_nic_dedicated }}"
+  when: dedicated_admin_nic.stdout == ""
 
-    - name: Failed - Assign admin nic IP
-      ansible.builtin.fail:
-        msg: "{{ fail_admin_nic_dedicated }}"
-      when: dedicated_admin_nic.stdout == ""
-
-    - name: Set fact for Admin NIC IP and netmask details
-      ansible.builtin.set_fact:
-        admin_nic_ip: "{{ dedicated_admin_nic.stdout }}"
-        admin_nic_netmask: "{{ omnia_admin_netmask }}"
-      when: dedicated_admin_nic.stdout != ""
-
-  rescue:
-    - name: Failed - Assign admin nic IP
-      ansible.builtin.fail:
-        msg: "{{ fail_admin_nic_dedicated }}"
-      when: dedicated_admin_nic.stdout == ""
+- name: Set fact for Admin NIC IP and netmask details
+  ansible.builtin.set_fact:
+    admin_nic_ip: "{{ dedicated_admin_nic.stdout }}"
+    admin_nic_netmask: "{{ omnia_admin_netmask }}"
+  when: dedicated_admin_nic.stdout != ""
