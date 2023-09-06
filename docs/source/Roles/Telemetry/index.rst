@@ -27,10 +27,9 @@ After initiation, new iDRACs can be added for ``idrac_telemetry`` acquisition by
     ansible-playbook add_idrac_node.yml -i inventory
 
 .. note::
-    * The passed inventory should have an idrac group.
     * The passed inventory should have an idrac group, if ``idrac_telemetry_support`` is true.
     * If ``omnia_telemetry_support`` is true, then the inventory should have manager and compute groups along with optional login group.
-    * Rocky 8.7 is not compatible with the Kubernetes installed by ``monitor.yml`` due to known issues with cri-o. For more information, `click here <https://github.com/cri-o/cri-o/issues/6197>`_.
+    * Rocky 8.7 is not compatible with the Kubernetes installed by ``telemetry.yml`` due to known issues with cri-o. For more information, `click here <https://github.com/cri-o/cri-o/issues/6197>`_.
 
 **To access the Grafana UI**
 
