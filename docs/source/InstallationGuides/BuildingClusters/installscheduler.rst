@@ -7,7 +7,10 @@ Building clusters
     * Use the parameter ``scheduler_type`` in ``input/omnia_config.yml`` to customize what schedulers are installed in the cluster.
     * Without the login node, Slurm jobs can be scheduled only through the manager node.
 
-2. Create an inventory file in the *omnia* folder. Add login node IP address under the manager node IP address under the *[manager]* group, compute node IP addresses under the *[compute]* group, and Login node IP under the *[login]* group,. Check out the `sample inventory for more information <../../samplefiles.html>`_.
+2. Create an inventory file in the *omnia* folder. Check out the `sample inventory for more information <../../samplefiles.html>`_.
+    * *[Manager]* group should contain the manager node IP address followed by the login node IP address.
+    * *[compute]* group should contain all compute node IP addresses.
+    * *[login]* group should contain the login node IP.
 
 .. note::
      * RedHat nodes that are not configured by Omnia need to have a valid subscription. To set up a subscription, `click here <https://omnia-doc.readthedocs.io/en/latest/Roles/Utils/rhsm_subscription.html>`_.

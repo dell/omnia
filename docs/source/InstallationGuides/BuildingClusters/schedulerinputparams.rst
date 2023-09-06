@@ -159,14 +159,3 @@ These parameters are located in ``input/omnia_config.yml``, ``input/security_con
 
 Click here for more information on `FreeIPA, LDAP <Authentication.html>`_, `BeeGFS <BeeGFS.html>`_ or, `NFS <NFS.html>`_.
 
-.. note::
-
-    The ``input/omnia_config.yml`` file is encrypted on the first run of the provision tool:
-        To view the encrypted parameters: ::
-
-            ansible-vault view omnia_config.yml --vault-password-file .omnia_vault_key
-
-        To edit the encrypted parameters: ::
-
-            ansible-vault edit omnia_config.yml --vault-password-file .omnia_vault_key
-
