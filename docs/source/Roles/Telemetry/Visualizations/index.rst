@@ -24,13 +24,10 @@ Once ``provision.yml`` is executed and Grafana is set up, use ``telemetry.yml`` 
 
 **All your data in a glance**:
 
-Using the following graphs, data can be visualized to gather correlational information.
+If ``idrac_telemetry_support`` and ``visualisation_support`` is set to true, Parallel Coordinate graphs can be used to view system statistics.
 
 .. toctree::
     ParallelCoordinates
-    SankeyLayout
-    SpiralLayout
-    PowerMap
 
 
 .. note:: The timestamps used for the time metric are based on the timezone set in ``input/provision_config.yml``. In the event of a mismatch between the timezone on the browser being used to access Grafana UI and the timezone in ``input/provision_config.yml``, the time range being used to filter information on the Grafana UI will have to be adjusted per the timezone in ``input/provision_config.yml``.

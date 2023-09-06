@@ -33,25 +33,39 @@ After initiation, new iDRACs can be added for ``idrac_telemetry`` acquisition by
 
 **To access the Grafana UI**
 
-    i. Find the IP address of the Grafana service using ``kubectl get svc -n grafana``
+*Pre requisites*
 
-    .. image:: ../../images/grafanaIP.png
+    * ``visualisation_support`` should be set to true when running ``telemetry.yml`` or ``omnia.yml``.
 
-    ii. Login to the Grafana UI by connecting to the cluster IP of grafana service obtained above via port 5000. That is ``http://xx.xx.xx.xx:5000/login``
 
-    .. image:: ../../images/Grafana_login.png
+i. Find the IP address of the Grafana service using ``kubectl get svc -n grafana``
 
-    iii. Enter the ``grafana_username`` and ``grafana_password`` as mentioned in ``monitor/monitor_config.yml``.
 
-    .. image:: ../../images/Grafana_Dashboards.png
+.. image:: ../../images/grafanaIP.png
 
-    Loki log collections and telemetry/kubernetes dashboards can viewed on the explore section of the grafana UI.
 
-    .. image:: ../../images/Grafana_Loki.png
+ii. Login to the Grafana UI by connecting to the cluster IP of grafana service obtained above via port 5000. That is ``http://xx.xx.xx.xx:5000/login``
 
-    Datasources configured by Omnia can be viewed as seen below.
 
-    .. image:: ../../images/Grafana_DataSources.png
+.. image:: ../../images/Grafana_login.png
+
+
+iii. Enter the ``grafana_username`` and ``grafana_password`` as mentioned in ``monitor/monitor_config.yml``.
+
+
+.. image:: ../../images/Grafana_Dashboards.png
+
+
+Loki log collections and telemetry/kubernetes dashboards can viewed on the explore section of the grafana UI.
+
+
+.. image:: ../../images/Grafana_Loki.png
+
+
+Datasources configured by Omnia can be viewed as seen below.
+
+
+.. image:: ../../images/Grafana_DataSources.png
 
 **To use Loki for log filtering**
 
@@ -71,6 +85,8 @@ Ex: ::
 
 
 **Visualizations**
+
+If ``idrac_telemetry_support`` and ``visualisation_support`` is set to true, Parallel Coordinate graphs can be used to view system statistics.
 
 .. toctree::
 
