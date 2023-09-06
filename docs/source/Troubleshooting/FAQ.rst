@@ -232,7 +232,7 @@ While Omnia playbooks are licensed by Apache 2.0, Omnia deploys multiple softwar
 
 ⦾ **What to do if telemetry fails to initiate when running omnia.yml or telemetry.yml**
 
-Review the screen output for ``omnia.yml`` or ``telemetry.yml``. Under **TASK [idrac telemetry : Telemetry report], check the messages logged:
+Review the screen output for ``omnia.yml`` or ``telemetry.yml``. Under **TASK [idrac telemetry : Telemetry report]**, check the messages logged:
 
 .. image:: ../images/idrac_telemetry_report.png
 
