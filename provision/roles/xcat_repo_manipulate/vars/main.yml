@@ -55,8 +55,8 @@ ipmitool_rhel8_file_path: /opt/racadm/iDRACTools/ipmitool/RHEL8_x86_64/
 file_permission: "755"
 xcat_directory: /root/xcat
 max_retries: 10
-download_common_package_warn_msg: "[WARNING] Failed to download omnia common package sshpass from the repos configured in control plane.
-Enable repos which contains sshpass in control plane and re-run the playbook to install sshpass during provisioning"
+download_common_package_fail_msg: "Failed. Unable to download package sshpass from the repos configured in control plane.
+Enable repos which can be used to download sshpass and re-run the provision.yml to install sshpass during provisioning"
 other_pkg_list_dir: "/install/post/custom/{{ provision_os }}{{ provision_os_version }}"
 other_pkg_list_src: "{{ role_path }}/files/postscripts//omnia.pkglist"
 other_pkg_list_dest: "/install/post/custom/{{ provision_os }}{{ provision_os_version }}/omnia.pkglist"
@@ -68,7 +68,7 @@ munge-devel, perl-Switch, rrdtool-devel, lua-devel, hwloc-devel, http-parser-dev
 Make sure crb repos configured in control plane and re-run provision.yml"
 epel_repo_packages: "slurm-slurmd slurm-pmi slurm-slurmctld slurm-slurmdbd slurm-slurmrestd man2html Lmod hdf5 libjwt lua-term slurm slurm-libs man2html-core
 dkms perl-URI-Encode rocm-comgr rocm-opencl rocm-opencl-devel pdsh pdsh-rcmd-ssh"
-download_epel_package_warn_msg: "[WARNING] Failed to download epel packages from the repos configured in control plane."
+download_epel_package_fail_msg: "Failed. Unable to download packages from the epel repo configured in control plane."
 rhel_epel_repo8: https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
 custom_software_repo: "{{ other_pkg_dir }}/custom_software/Packages"
 control_plane_os_redhat: "redhat"
