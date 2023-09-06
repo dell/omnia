@@ -230,3 +230,18 @@ Ensure that the number of IPs available between ``pxe_nic_start_range`` and ``px
 
 While Omnia playbooks are licensed by Apache 2.0, Omnia deploys multiple softwares that are licensed separately by their respective developer communities. For a comprehensive list of software and their licenses, `click here <../Overview/SupportMatrix/omniainstalledsoftware.html>`_ .
 
+⦾ **What to do if telemetry fails to initiate when running omnia.yml or telemetry.yml**
+
+Review the screen output for ``omnia.yml`` or ``telemetry.yml``. Under **TASK [idrac telemetry : Telemetry report], check the messages logged:
+
+.. image:: ../images/idrac_telemetry_report.png
+
+iDRAC telemetry may not initiate on a node for the following reasons:
+
+    * iDRAC may not be running a firmware version higher than 4.
+    * iDRAC may not have a datacenter license.
+    * The IP may not be accessible
+    * The credentials provided for the node may be incorrect.
+
+Identify the issue(s) on your node, rectify them and retry running ``telemetry.yml``.
+
