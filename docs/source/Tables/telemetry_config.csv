@@ -55,7 +55,7 @@ Required	","* The start of the range that will be used by Loadbalancer for assig
 
 Required	","* The end of the range that will be used by Loadbalancer for assigning IPs to K8s services in admin NIC subnet configured on the control plane.
 * The first and second octets (x,y) are not used/validated by Omnia. These values are internally calculated based on the value of ``admin_nic_subnet`` in ``input/provision_config.yml``.
-* To create a meaningful range, the third and forth octets of ``pod_external_ip_end_range`` should equal or exceed the third and forth octets of ``pod_external_ip_start_range`` respectively.
+* To create a meaningful range, the third octet of ``pod_external_ip_end_range`` should equal or exceed the third octet of ``pod_external_ip_start_range``. If the third octets are equal, the forth octet of ``pod_external_ip_end_range`` should exceed the forth octet of ``pod_external_ip_start_range``.
 * If ``pod_external_ip_start_range``: ""x.y.240.100"" and ``pod_external_ip_end_range``: ""x.y.240.105"" and
 * If ``admin_nic_subnet`` provided in provision_config.yml is 10.5.0.0, ``pod_external_ip_start_range`` will be 10.5.240.100 and ``pod_external_ip_end_range`` will be 10.5.240.105
 .. note:: Make sure the IP range is not assigned to any node in the cluster.
