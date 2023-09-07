@@ -65,11 +65,11 @@ Omnia installs a FreeIPA server on the manager node and FreeIPA clients on the c
 
     ansible-playbook security.yml -i inventory
 
-Where inventory follows the format defined under inventory file in the provided `Sample Files <../../samplefiles.html>`_ ::
-
     ansible-playbook omnia.yml -i inventory
 
-Where inventory follows the format defined under inventory file in the provided `Sample Files <../../samplefiles.html>`_ The ``omnia.yml`` playbook installs Slurm, BeeFGS Client, NFS Client in addition to freeIPA.
+Where inventory follows the format defined under inventory file in the provided `Sample Files. <../../samplefiles.html>`_  The inventory file is case-sensitive. Follow the casing provided in the sample file link.
+
+The ``omnia.yml`` playbook installs Slurm, BeeFGS Client, NFS Client in addition to freeIPA.
 
 .. note::
 
@@ -117,7 +117,7 @@ Use the below command to enable passwordless SSH: ::
 
     ansible-playbook user_passwordless_ssh.yml -i inventory
 
-Where inventory follows the format defined under inventory file in the provided `Sample Files <../../samplefiles.html>`_
+Where inventory follows the format defined under inventory file in the provided `Sample Files. <../../samplefiles.html>`_ The inventory file is case-sensitive. Follow the casing provided in the sample file link.
 
 .. caution:: Do not run ssh-keygen commands after passwordless SSH is set up on the nodes.
 

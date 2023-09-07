@@ -11,7 +11,7 @@ The control plane needs to be internet-capable with Github and a full OS install
 
     dnf install git -y
 
-.. note:: If the control plane  has an Infiniband NIC installed, run the below:
+.. note:: Optionally, if the control plane  has an Infiniband NIC installed, run the below command:
 
     ``yum groupinstall "Infiniband Support" -y``
 

@@ -17,7 +17,9 @@ Before you run the provision tool
 
     .. include:: ../../Appendices/hostnamereqs.rst
 
-    For example, ``controlplane.omnia.test`` is acceptable.
+    For example, to set the hostname to ``controlplane.omnia.test``: ::
+
+        hostnamectl set-hostname controlplane.omnia.test
 
 .. note:: The domain name specified for the control plane should be the same as the one specified under ``domain_name`` in ``input/provision_config.yml``.
 
@@ -49,13 +51,15 @@ Note the compatibility between cluster OS and control plane OS below:
 
 .. [1] Ensure that control planes running RHEL have an active subscription or are configured to access local repositories. The following repositories should be enabled on the control plane: **AppStream**, **Code Ready Builder (CRB)**, **BaseOS**. For RHEL control planes running 8.5 and below, ensure that sshpass is additionally available to install or download to the control plane (from any local repository).
 
-* To set up CUDA and OFED using the provisioning tool, download the required repositories from here:
+* To **optionally** set up CUDA and OFED using the provisioning tool, download the required repositories from here:
 
     1. `CUDA <https://developer.nvidia.com/cuda-downloads/>`_
 
     2. `OFED <https://network.nvidia.com/products/infiniband-drivers/linux/mlnx_ofed/>`_
 
 * To dictate IP address/MAC mapping, a host mapping file can be provided. Use the `pxe_mapping_file.csv <../../samplefiles.html>`_ to create your own mapping file.
+
+.. caution:: The header of the mapping file provided is case-sensitive. Ensure that the header provided matches the sample file linked above.
 
 * Ensure that all connection names under the network manager match their corresponding device names. ::
 

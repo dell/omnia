@@ -22,7 +22,7 @@ Omnia can query known switches (by SNMPv3 username/password) for information on 
 
 - Re-provisioning of servers will be automatic.
 
-- PXE booting servers is supported via split ports on the swtich.
+- PXE booting servers is supported via split ports on the switch.
 
 **Cons**
 
@@ -58,9 +58,26 @@ Manually collect PXE NIC information for target servers and manually define them
 For more information regarding mapping files, `click here <mappingfile.html>`_
 
 
+3. **bmc**
+
+Omnia can also discover nodes via their iDRAC using IPMI.
 
 
-3. **snmpwalk**
+**Pros**
+
+    - Discovery and provisioning of servers is automatic.
+    - Admin, BMC and Infiniband IP address configuration is automatic on the control plane.
+    - Supports cloud enclosures (C6420, C6520, C6620).
+
+**Cons**
+
+    - For iDRACs that are not DHCP enabled (ie Static), users need to enable IPMI manually.
+
+
+For more information regarding BMC, `click here <bmc.html>`_
+
+
+4. **snmpwalk**
 
 Omnia can query known switches (by IP and community string) for information on target node MAC IDs.
 
@@ -71,22 +88,6 @@ Omnia can query known switches (by IP and community string) for information on t
     - Switches should be SNMP enabled.
     - Servers require a manual PXE boot if iDRAC IPs are not configured.
     - PXE NIC ranges should contain IPs that are double the iDRACs present (as NIC and iDRAC MACs may need to be mapped).
-    - LOM architecture is not supported.
+    - LOM architecture is not supported (including cloud enclosures).
+
 For more information regarding snmpwalk, `click here <snmp.html>`_
-
-4. **bmc**
-
-Omnia can also discover nodes via their iDRAC using IPMI.
-
-
-**Pros**
-
-    - Discovery and provisioning of servers is automatic.
-    - Admin, BMC and Infiniband IP address configuration is automatic on the control plane.
-
-**Cons**
-
-    - For iDRACs that are not DHCP enabled (ie Static), users need to enable IPMI manually.
-
-
-For more information regarding BMC, `click here <bmc.html>`_

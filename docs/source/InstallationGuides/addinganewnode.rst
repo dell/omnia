@@ -89,6 +89,8 @@ In the above example, nodes 10.5.0.105 and 10.5.0.106 have been added to the clu
     * Do not change the parameters present in ``/input/omnia_config.yml`` except ``scheduler_type``.
     * Do not change the  parameters in ``/input/security_config.yml``.
     * New storage mount points can be added by updating ``input/storage_config.yml``. However, if the existing configuration is required to be replicated, do not remove the values in ``input/storage_config.yml``.
+    * The inventory file is case sensitive. Do not edit the group names.
+
 
 3. To install `security <BuildingClusters/Authentication.html>`_, `job scheduler <BuildingClusters/installscheduler.html>`_ and storage tools (`NFS <BuildingClusters/NFS.html>`_, `BeeGFS <BuildingClusters/BeeGFS.html>`_) on the node, run ``omnia.yml``: ::
 
