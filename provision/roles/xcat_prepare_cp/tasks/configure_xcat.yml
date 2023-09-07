@@ -37,6 +37,7 @@
 - name: Delete default network table entries
   ansible.builtin.command: rmdef -t network {{ item.split(' ')[0] }}
   changed_when: true
+  failed_when: false
   with_items: "{{ default_network.stdout_lines }}"
   when:
     - '"host_network" not in item'
