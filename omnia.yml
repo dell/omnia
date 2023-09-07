@@ -14,7 +14,7 @@
 ---
 
 - name: Gather facts from all the nodes
-  hosts: manager, compute, login, nfs
+  hosts: manager, compute, login
 
 - name: Configure security on nodes
   ansible.builtin.import_playbook: security/security.yml

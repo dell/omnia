@@ -26,3 +26,4 @@ os_leap: leap
 # Usage: add_hosts.yml
 hosts_file_dest: "/etc/hosts"
 hosts_file_mode: "0644"
+manager_information_update_fail_msg: "Failed to update manager node information. Verify manager node is reachable and re-run the playbook."

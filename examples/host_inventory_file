@@ -1,11 +1,9 @@
 [manager]
-manager.omnia.local
-
-[nfs]
-manager.omnia.local
-
-[login]
-login1.omnia.local
+10.5.0.101
 
 [compute]
-compute[000:064]
+10.5.0.102
+10.5.0.103
+
+[login]
+10.5.0.104
