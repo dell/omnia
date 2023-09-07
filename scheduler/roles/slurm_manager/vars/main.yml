@@ -92,3 +92,4 @@ os_centos: 'centos'
 os_rocky: 'rocky'
 os_supported_leap: "leap"
 os_supported_redhat: "redhat"
+max_retries: 10

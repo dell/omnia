@@ -28,7 +28,8 @@ pip_version: pip3.8
 netaddr_pip_package: netaddr
 pexpect_pip_package: pexpect
 max_retries: 10
-
+provision_package_fail_msg: "Failed. Unable to install {{ common_packages_provision }} packages.
+Please make sure all required repos are reachable. Remove or Update unreachable repos configured."
 common_packages_provision:
   - python3-netaddr
   - openssl
@@ -136,6 +137,9 @@ Make sure the mapping file contains only the hostname, and not the domain_name. 
 duplicate_ip_fail_msg: "Failed. Duplicate IP exists. Please verify mapping file again."
 duplicate_hostname_fail_msg: "Failed. Duplicate hostname exists. Please verify mapping file again."
 temp_mapping_file_path: "/opt/omnia/pxe_mapping_file.csv"
+admin_subnet_missing_msg: "Failed. Invalid IP {{ item }}. Missing admin subnet for IP {{ item }} provided in mapping file"
+capital_hostname_fail_msg: "Failed. Invalid hostname {{ item }}. Hostname should be in lower case and should not start with numbers.
+Refer documentation for more details."
 
 # Usage: validate_provision_vars.yml
 input_provision_fail_msg: "Please provide all the required provision parameters in provision_config.yml"
@@ -163,7 +167,7 @@ provision_password_fail_msg: "Failed. Incorrect provision_password format in pro
 min_length: 8
 max_length: 30
 warning_wait_time: 30
-postgresdb_password_fail_msg: "Failed. postgresdb_password should contain only alphanumeric characters in provision_config.yml"
+postgresdb_password_fail_msg: "Failed. postgresdb_password should contain only alphanumeric characters and minimum length 8 in provision_config.yml"
 os_supported_rocky: rocky
 os_supported_rhel: rhel
 mount_point_success_msg: "mountpoint of disk_partition successfully validated"

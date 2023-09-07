@@ -113,3 +113,19 @@
   ansible.builtin.fail:
     msg: "{{ duplicate_hostname_fail_msg }}"
   when: not (count_unique_hostnames | int == count_total_items | int)
+
+- name: Set first 2 octect of admin_subnet
+  ansible.builtin.set_fact:
+    admin_subnet_octect: "{{ admin_nic_subnet.split('.')[0] }}.{{ admin_nic_subnet.split('.')[1] }}"
+
+- name: Validate admin nic subnet present in IP
+  ansible.builtin.assert:
+    that: admin_subnet_octect in "{{ item.split('.')[0] }}.{{ item.split('.')[1] }}"
+    fail_msg: "{{ admin_subnet_missing_msg }}"
+  with_items: "{{ list_of_ips }}"
+
+- name: Validate capital case in hostname
+  ansible.builtin.assert:
+    that: item is regex(("^(([a-z]|[a-z][a-z0-9\-]*[a-z0-9])\.)*([a-z]|[a-z][a-z0-9\-]*[a-z0-9])$"))
+    fail_msg: "{{ capital_hostname_fail_msg }}"
+  with_items: "{{ list_of_hostnames }}"
