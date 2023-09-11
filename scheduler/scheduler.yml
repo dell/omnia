@@ -31,7 +31,7 @@
     - repo_validation
 
 - name: Apply common installation and config
-  hosts: manager, compute, login, nfs
+  hosts: manager, compute, login
   gather_facts: false
   any_errors_fatal: true
   roles:
