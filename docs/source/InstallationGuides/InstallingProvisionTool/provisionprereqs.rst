@@ -35,19 +35,18 @@ Before you run the provision tool
 
 Note the compatibility between cluster OS and control plane OS below:
 
-        +---------------------+--------------------+------------------+
-        |                     |                    |                  |
-        | Control Plane OS    | Compute Node OS    | Compatibility    |
-        +=====================+====================+==================+
-        |                     |                    |                  |
-        | RHEL [1]_           | RHEL               | Yes              |
-        +---------------------+--------------------+------------------+
-        |                     |                    |                  |
-        | RHEL [1]_           | Rocky              | Yes              |
-        +---------------------+--------------------+------------------+
-        |                     |                    |                  |
-        | Rocky               | Rocky              | Yes              |
-        +---------------------+--------------------+------------------+
+        +------------------+-----------------+---------------+
+        | Control Plane OS | Compute Node OS | Compatibility |
+        +==================+=================+===============+
+        | RHEL             | RHEL            | Yes           |
+        | [1]_             |                 |               |
+        +------------------+-----------------+---------------+
+        | RHEL             | Rocky           | Yes           |
+        | [1]_             |                 |               |
+        +------------------+-----------------+---------------+
+        | Rocky            | Rocky           | Yes           |
+        +------------------+-----------------+---------------+
+
 
 .. [1] Ensure that control planes running RHEL have an active subscription or are configured to access local repositories. The following repositories should be enabled on the control plane: **AppStream**, **Code Ready Builder (CRB)**, **BaseOS**. For RHEL control planes running 8.5 and below, ensure that sshpass is additionally available to install or download to the control plane (from any local repository).
 
