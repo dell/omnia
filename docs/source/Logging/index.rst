@@ -22,7 +22,7 @@ Below is a list of all logs available to Loki and can be accessed on the dashboa
 Provisioning logs
 --------------------
 
-Logs pertaining to provisioning can be viewed in ``/var/log/xcat/cluster.log`` and ``/var/log/xcat/computes.log`` on the control plane.
+Logs pertaining to actions taken during ``provision.yml``  can be viewed in ``/var/log/xcat/cluster.log`` and ``/var/log/xcat/computes.log`` on the control plane.
 
 .. note::  As long as a node has been added to a cluster by Omnia, deployment events taking place on the node will be updated in ``/var/log/xcat/cluster.log``.
 

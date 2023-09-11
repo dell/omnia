@@ -23,7 +23,7 @@
 
      ``string``
 
-     Optional  ","* Kubernetes version.
+     Required  ","* Kubernetes version.
 * Required when ``scheduler_type: ""k8s""``
      Choices:                    
                                  
@@ -33,7 +33,7 @@
 
      ``string``
 
-     Optional  ","* Kubernetes SDN network.
+     Required  ","* Kubernetes SDN network.
 * Required when ``scheduler_type: ""k8s""``
                                  
      Choices:                    
@@ -44,7 +44,7 @@
 
      ``string``
 
-     Optional       ","* Kubernetes pod network CIDR.                                          
+     Required       ","* Kubernetes pod network CIDR.                                          
 * Make sure this value does not overlap with any of the host   networks.
 * Required when ``scheduler_type: ""k8s""``
 

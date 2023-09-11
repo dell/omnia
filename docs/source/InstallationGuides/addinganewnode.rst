@@ -11,7 +11,29 @@ While adding a new node to the cluster, users can modify the following:
 
 A new node can be added using the following ways:
 
-1. When the discovery mechanism is ``switch-based``:
+* When the discovery mechanism is ``mapping``:
+
+    * Update the existing mapping file by appending the new entry (without the disrupting the older entries) or provide a new mapping file by pointing ``pxe_mapping_file_path`` in ``provision_config.yml`` to the new location.
+
+    * Run ``provision.yml``.::
+
+        cd provision
+        ansible-playbook provision.yml
+
+    *  Manually PXE boot the target servers after the ``provision.yml`` playbook is executed and the target node lists as **booted** `in the node table <PostProvisionScript.html>`_
+
+
+* When the discovery mechanism is ``bmc``:
+
+    * Run ``provision.yml`` once the node has joined the cluster using an IP that exists within the provided range. ::
+
+        cd provision
+        ansible-playbook provision.yml
+
+
+
+
+* When the discovery mechanism is ``switch-based``:
 
     * Edit or append JSON list stored in ``switch-based-details`` in ``input/provision_config.yml``.
 
@@ -20,21 +42,21 @@ A new node can be added using the following ways:
         * Ports configured via Omnia should be not be removed from ``switch-based-details`` in ``input/provision_config.yml``.
 
 
-    * Run ``provision.yml``.
+    * Run ``provision.yml``. ::
 
-2. When the discovery mechanism is ``mapping``:
+        cd provision
+        ansible-playbook provision.yml
 
-    * Update the existing mapping file by appending the new entry (without the disrupting the older entries) or provide a new mapping file by pointing ``pxe_mapping_file_path`` in ``provision_config.yml`` to the new location.
+    * Manually PXE boot the target servers after the ``provision.yml`` playbook is executed and the target node lists as **booted** `in the node table <PostProvisionScript.html>`_
 
-    * Run ``provision.yml``.
+* When the discovery mechanism is ``snmpwalk``:
 
-3. When the discovery mechanism is ``snmpwalk``:
+    * Run ``provision.yml`` after the switch as discovered the new node. ::
 
-    * Run ``provision.yml`` once the switch has discovered the potential new node.
+        cd provision
+        ansible-playbook provision.yml
 
-4. When the discovery mechanism is ``bmc``:
-
-    * Run ``provision.yml`` once the node has joined the cluster using an IP that exists within the provided range.
+    * Manually PXE boot the target servers after the ``provision.yml`` playbook is executed and the target node lists as **booted** `in the node table <PostProvisionScript.html>`_
 
 
 Alternatively, if a new node is to be added with no change in configuration, run the following commands: ::
@@ -42,6 +64,7 @@ Alternatively, if a new node is to be added with no change in configuration, run
             cd provision
             ansible-playbook discovery_provision.yml
 
+Verify that the node has been provisioned successfully by `checking the Omnia node table. <InstallingProvsionTool/ViewingDB.html>`_
 
 **Adding the new node to the cluster**
 

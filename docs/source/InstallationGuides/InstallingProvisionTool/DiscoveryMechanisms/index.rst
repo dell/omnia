@@ -1,7 +1,7 @@
 Discovery Mechanisms
 -----------------------
 
-Depending on the value of ``discovery_mechanism`` in ``input/provision_config.yml``, potential target servers can be discovered one of four ways:
+Typically, the choice of discovery mechanism depends on the `Network Topology <../../Overview/NetworkTopologies/index.html>`_ in your setup. Depending on the value of ``discovery_mechanism`` in ``input/provision_config.yml``, potential target servers can be discovered one of four ways:
 
 .. toctree::
     mappingfile
@@ -10,7 +10,7 @@ Depending on the value of ``discovery_mechanism`` in ``input/provision_config.ym
     snmp
 
 
-1. **switch_based**
+**switch_based**
 
 Omnia can query known switches (by SNMPv3 username/password) for information on target node MAC IDs.
 
@@ -22,7 +22,7 @@ Omnia can query known switches (by SNMPv3 username/password) for information on 
 
 - Re-provisioning of servers will be automatic.
 
-- PXE booting servers is supported via split ports on the swtich.
+- PXE booting servers is supported via split ports on the switch.
 
 **Cons**
 
@@ -31,7 +31,7 @@ Omnia can query known switches (by SNMPv3 username/password) for information on 
 
 For more information regarding switch-based discovery, `click here <switch-based.html>`_
 
-2. **mapping**
+**mapping**
 
 Manually collect PXE NIC information for target servers and manually define them to Omnia using a mapping file using the below format:
 
@@ -60,7 +60,7 @@ For more information regarding mapping files, `click here <mappingfile.html>`_
 
 
 
-3. **snmpwalk**
+**snmpwalk**
 
 Omnia can query known switches (by IP and community string) for information on target node MAC IDs.
 
@@ -74,7 +74,7 @@ Omnia can query known switches (by IP and community string) for information on t
     - LOM architecture is not supported.
 For more information regarding snmpwalk, `click here <snmp.html>`_
 
-4. **bmc**
+**bmc**
 
 Omnia can also discover nodes via their iDRAC using IPMI.
 

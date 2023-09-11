@@ -1,6 +1,8 @@
 Before you build clusters
 --------------------------
 
+* Ensure that all target nodes are up and running.
+
 * Verify that all inventory files are updated.
 
 * If the target cluster requires more than 10 kubernetes nodes, use a docker enterprise account to avoid docker pull limits.

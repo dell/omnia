@@ -137,6 +137,10 @@ After successfully running ``provision.yml``, go to `Building Clusters <../Build
 
 .. note::
 
+    * Ansible playbooks can run concurrently on 5 nodes at any given time.
+
+    * If the target nodes were discovered using switch-based or mapping mechanisms, manually PXE boot the target servers after the ``provision.yml`` playbook is executed and the target node lists as **booted** `in the node table <../PostProvisionScript.html>`_.
+
     * If the cluster does not have access to the internet, AppStream will not function.  To provide internet access through the control plane (via the PXE network NIC), update ``primary_dns`` and ``secondary_dns`` in ``provision_config.yml`` and run ``provision.yml``
 
     * All ports required for xCAT to run will be opened (For a complete list, check out the `Security Configuration Document <../../SecurityConfigGuide/ProductSubsystemSecurity.html#firewall-settings>`_).
@@ -150,11 +154,15 @@ After successfully running ``provision.yml``, go to `Building Clusters <../Build
 .. caution::
 
     * Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect.
-    * To avoid breaking the passwordless SSH channel on the control plane, do not run ``ssh-keygen`` commands post execution of ``provision.yml``.
+    * To avoid breaking the passwordless SSH channel on the control plane, do not run ``ssh-keygen`` commands post execution of ``provision.yml`` to create a new key.
     * Do not delete the following directories:
         - ``/root/xcat``
         - ``/root/xcat-dbback``
         - ``/docker-registry``
         - ``/opt/omnia``
         - ``/var/log/omnia``
+    * On subsequent runs of ``provision.yml``, if users are unable to log into the server, refresh the ssh key manually and retry. ::
 
+        ssh-keygen -R <node IP>
+
+To create a node inventory in ``/opt/omnia``, `click here <../PostProvisionScript.html>`_.
