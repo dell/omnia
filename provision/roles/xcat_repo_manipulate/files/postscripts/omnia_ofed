@@ -1,3 +1,9 @@
+#!/bin/bash
+################################################################################################################
+#  omnia_ofed:
+#      Install OFED on all the cluster nodes using OFED ISO file provided
+#
+#################################################################################################################
 echo "---------------------------"
 echo "Checking for Mellanox cards"
 mellanox_check=`lspci | grep -i Mellanox`

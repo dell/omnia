@@ -42,8 +42,4 @@
       changed_when: true
       when: item.node in node_list.stdout
       with_items: "{{ ib_query_status.query_result }}"
-
-    - name: Configure node objects with ib postscripts
-      ansible.builtin.command: chdef all -p postbootscripts="confignetwork --ibaports=1"
-      changed_when: true
   when: ib_status
