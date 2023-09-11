@@ -1,6 +1,8 @@
 Before you run the provision tool
 ---------------------------------
 
+*Verify that the chosen control plane
+
 * (Recommended) Run ``prereq.sh`` to get the system ready to deploy Omnia. Alternatively, ensure that `Ansible 2.12.10 <https://docs.ansible.com/ansible/latest/reference_appendices/release_and_maintenance.html>`_ and `Python 3.8 <https://www.python.org/downloads/release/python-380/>`_ are installed on the system. SELinux should also be disabled.
 * Set the IP address of the control plane with a /16 subnet mask. The control plane NIC connected to remote servers (through the switch) should be configured with two IPs (BMC IP and admin IP) in a shared LOM or hybrid set up. In the case dedicated network topology, a single IP (admin IP) is required.
 
@@ -17,13 +19,13 @@ Before you run the provision tool
 
     .. include:: ../../Appendices/hostnamereqs.rst
 
-    For example, to set the hostname to ``controlplane.omnia.test``: ::
+    For example, ``controlplane.omnia.test`` is acceptable. ::
 
         hostnamectl set-hostname controlplane.omnia.test
 
 .. note:: The domain name specified for the control plane should be the same as the one specified under ``domain_name`` in ``input/provision_config.yml``.
 
-* To provision the bare metal servers, download one of the following ISOs for deployment:
+* To provision the bare metal servers, download one of the following ISOs to the control plane:
 
     1. `Rocky 8 <https://rockylinux.org/>`_
 
@@ -37,7 +39,7 @@ Note the compatibility between cluster OS and control plane OS below:
 
         +---------------------+--------------------+------------------+
         |                     |                    |                  |
-        | Control Plane OS    | Compute Node OS    | Compatibility    |
+        | Control Plane OS    | cluster  Node OS    | Compatibility   |
         +=====================+====================+==================+
         |                     |                    |                  |
         | RHEL [1]_           | RHEL               | Yes              |
@@ -51,19 +53,20 @@ Note the compatibility between cluster OS and control plane OS below:
 
 .. [1] Ensure that control planes running RHEL have an active subscription or are configured to access local repositories. The following repositories should be enabled on the control plane: **AppStream**, **Code Ready Builder (CRB)**, **BaseOS**. For RHEL control planes running 8.5 and below, ensure that sshpass is additionally available to install or download to the control plane (from any local repository).
 
-* To **optionally** set up CUDA and OFED using the provisioning tool, download the required repositories from here:
+* To **optionally** set up CUDA and OFED using the provisioning tool, download the required repositories to the control plane from here to deploy on the target nodes:
 
-    1. `CUDA <https://developer.nvidia.com/cuda-downloads/>`_
+    1. `For NVIDIA GPUs: <https://developer.nvidia.com/cuda-downloads/>`_: CUDA is a parallel computing platform and application programming interface that allows software to use certain types of graphics processing units for general purpose processing, an approach called general-purpose computing on GPUs.
 
-    2. `OFED <https://network.nvidia.com/products/infiniband-drivers/linux/mlnx_ofed/>`_
+    2. `For Mellanox <https://network.nvidia.com/products/infiniband-drivers/linux/mlnx_ofed/>`_: OFED (OpenFabrics Enterprise Distribution) is open-source software for RDMA and kernel bypass applications. OFED can be used in business, research and scientific environments that require highly efficient networks, storage connectivity and parallel computing.
 
-* To dictate IP address/MAC mapping, a host mapping file can be provided. Use the `pxe_mapping_file.csv <../../samplefiles.html>`_ to create your own mapping file.
+* Ensure that all connection names under the network manager match their corresponding device names.
+    To verify network connection names: ::
 
-.. caution:: The header of the mapping file provided is case-sensitive. Ensure that the header provided matches the sample file linked above.
+            nmcli connection
 
-* Ensure that all connection names under the network manager match their corresponding device names. ::
+    To verify the device name: ::
 
-    nmcli connection
+    ip link show
 
 In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcfg-<nic name>`` using vi editor.
 
@@ -75,11 +78,6 @@ In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcf
 
 * Users should also ensure that all repos (AppStream, BaseOS and CRB) are available on the RHEL control plane.
 
-* Uninstall epel-release if installed on the control plane as Omnia configures epel-release on the control plane. To uninstall epel-release, use the following commands: ::
-
-    dnf remove epel-release -y
-
-
 .. note::
     To enable the repositories, run the following commands: ::
 
@@ -90,14 +88,24 @@ In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcf
     Verify your changes by running: ::
 
             yum repolist enabled
+            Updating Subscription Management repositories.
+            Unable to read consumer identity
+            This system is not registered with an entitlement server. You can use subscription-manager to register.
+                repo id                                                           repo name
+                RHEL-8-appstream-partners                                         Red Hat Enterprise Linux 8.6.0 Partners (AppStream)
+                RHEL-8-baseos-partners                                            Red Hat Enterprise Linux 8.6.0 Partners (BaseOS)
+                RHEL-8-crb-partners                                               Red Hat Enterprise Linux 8.6.0 Partners (CRB)
+
+
+* Uninstall epel-release if installed on the control plane as Omnia configures epel-release on the control plane. To uninstall epel-release, use the following commands: ::
+
+        dnf remove epel-release -y
 
 * Ensure that the ``pxe_nic`` and ``public_nic`` are in the firewalld zone: public.
 
 .. note::
 
     * After configuration and installation of the cluster, changing the control plane is not supported. If you need to change the control plane, you must redeploy the entire cluster.
-
-    * If there are errors while executing any of the Ansible playbook commands, then re-run the playbook.
 
     * For servers with an existing OS being discovered via BMC, ensure that the first PXE device on target nodes should be the designated active NIC for PXE booting.
 
