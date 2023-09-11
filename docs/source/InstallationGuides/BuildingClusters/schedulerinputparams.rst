@@ -20,14 +20,16 @@ These parameters are located in ``input/omnia_config.yml``, ``input/security_con
 **security_config.yml**
 
 .. csv-table:: Parameters for freeipa
-   :file: ../../Tables/scheduler_freeipa.csv
+   :file: ../../Tables/security_config_freeipa.csv
    :header-rows: 1
    :keepspace:
 
 .. csv-table:: Parameters for LDAP
-   :file: ../../Tables/scheduler_ldap.csv
+   :file: ../../Tables/security_config_ldap.csv
    :header-rows: 1
    :keepspace:
+
+
 **storage_config.yml**
 
 
