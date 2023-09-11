@@ -1,7 +1,7 @@
 Re-provisioning the cluster
 ++++++++++++++++++++++++++++
 
-While re-provisioning the cluster, users can modify the following:
+In the event that an existing Omnia cluster needs a different OS version or a fresh installation, the cluster can be re-provisioned. While re-provisioning the cluster, users can modify the following:
 
     - The operating system
     - CUDA
@@ -18,7 +18,7 @@ Alternatively, if a re-deployment with no modifcations are required  ::
     ansible-playbook discovery_provision.yml -i inventory
 
 
-Where the inventory contains a list of host IPs as shown below:
+Where the inventory contains a list of host IPs (Sourced from `the nodetable <InstallingProvisionTool/ViewingDB.html>`_) as shown below:
 
 ::
 
@@ -27,8 +27,9 @@ Where the inventory contains a list of host IPs as shown below:
 
 
 .. note::
-    * The host IPs passed in the inventory should be assigned by Omnia.
+    * The host IPs passed in the inventory should be assigned by Omnia. They will not be changed during the re-provisioning.
     * If the nodes were discovered via snmpwalk or mapping, users will be required to manually reboot target nodes.
+    * Do not include groups like *manager*, *compute* and *login* in the passed inventory.
 
 **Setting up the cluster**
 
