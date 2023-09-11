@@ -1,10 +1,10 @@
 Before you run the provision tool
 ---------------------------------
 
+*Verify that the chosen control plane
+
 * (Recommended) Run ``prereq.sh`` to get the system ready to deploy Omnia. Alternatively, ensure that `Ansible 2.12.10 <https://docs.ansible.com/ansible/latest/reference_appendices/release_and_maintenance.html>`_ and `Python 3.8 <https://www.python.org/downloads/release/python-380/>`_ are installed on the system. SELinux should also be disabled.
 * Set the IP address of the control plane with a /16 subnet mask. The control plane NIC connected to remote servers (through the switch) should be configured with two IPs (BMC IP and admin IP) in a shared LOM or hybrid set up. In the case dedicated network topology, a single IP (admin IP) is required.
-
-To verify, run ``ip 4a``
 
 .. figure:: ../../images/ControlPlaneNic.png
 
@@ -37,17 +37,19 @@ To verify, run ``ip 4a``
 
 Note the compatibility between cluster OS and control plane OS below:
 
-                +------------------+-----------------+---------------+
-                | Control Plane OS | Compute Node OS | Compatibility |
-                +==================+=================+===============+
-                | RHEL             | RHEL            | Yes           |
-                | [1]_             |                 |               |
-                +------------------+-----------------+---------------+
-                | RHEL             | Rocky           | Yes           |
-                | [1]_             |                 |               |
-                +------------------+-----------------+---------------+
-                | Rocky            | Rocky           | Yes           |
-                +------------------+-----------------+---------------+
+        +---------------------+--------------------+------------------+
+        |                     |                    |                  |
+        | Control Plane OS    | cluster  Node OS    | Compatibility   |
+        +=====================+====================+==================+
+        |                     |                    |                  |
+        | RHEL [1]_           | RHEL               | Yes              |
+        +---------------------+--------------------+------------------+
+        |                     |                    |                  |
+        | RHEL [1]_           | Rocky              | Yes              |
+        +---------------------+--------------------+------------------+
+        |                     |                    |                  |
+        | Rocky               | Rocky              | Yes              |
+        +---------------------+--------------------+------------------+
 
 .. [1] Ensure that control planes running RHEL have an active subscription or are configured to access local repositories. The following repositories should be enabled on the control plane: **AppStream**, **Code Ready Builder (CRB)**, **BaseOS**. For RHEL control planes running 8.5 and below, ensure that sshpass is additionally available to install or download to the control plane (from any local repository).
 
@@ -64,7 +66,7 @@ Note the compatibility between cluster OS and control plane OS below:
 
     To verify the device name: ::
 
-        ip link show
+    ip link show
 
 In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcfg-<nic name>`` using vi editor.
 

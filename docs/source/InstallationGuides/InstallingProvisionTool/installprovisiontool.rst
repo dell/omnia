@@ -65,7 +65,7 @@ Omnia now supports deploying different versions of the same OS. With each run of
 
 **DHCP routing for internet access**
 
-Omnia now supports DHCP routing via the control plane. To enable routing, update the ``primary_dns`` and ``secondary_dns`` in ``input/provision_config.yml`` with the appropriate IPs (hostnames are currently not supported). For compute nodes that are not directly connected to the internet (ie only PXE network is configured), this configuration allows for internet connectivity.
+Omnia now supports DHCP routing via the control plane. To enable routing, update the ``primary_dns`` and ``secondary_dns`` in ``input/provision_config.yml`` with the appropriate IPs (hostnames are currently not supported). For cluster  nodes that are not directly connected to the internet (ie only PXE network is configured), this configuration allows for internet connectivity.
 
 **Disk partitioning**
 
@@ -97,7 +97,8 @@ To deploy the Omnia provision tool, run the following command ::
 * Verifies and updates firewall settings.
 * Installs xCAT.
 * Configures xCAT databases basis ``input/provision_config.yml``.
-* Configures the control plane with NTP services for compute node synchronization.
+* Configures a docker registry to pull images from the internet and store them locally. These images will then be pulled by cluster nodes locally. For more information, `click here. <../Benchmarks/hpcsoftwarestack.html>`_
+
 
 To call this playbook individually, ensure that ``input/provision_config.yml`` is updated and then run::
 
@@ -116,11 +117,13 @@ To call this playbook individually, ensure that ``input/provision_config.yml`` i
 
 **Discovering/provisioning the nodes**
 
-a. Discovers all target servers based on specifications in ``input/provision_config.yml``.
+* Discovers all target servers based on specifications in ``input/provision_config.yml``.
 
-b. Provisions all discovered servers.
+* PostgreSQL database is set up with all relevant cluster information such as MAC IDs, hostname, admin IP, infiniband IPs, BMC IPs etc.
 
-c. PostgreSQL database is set up with all relevant cluster information such as MAC IDs, hostname, admin IP, infiniband IPs, BMC IPs etc.
+* Configures the control plane with NTP services for cluster  node synchronization.
+
+* Provisions all discovered servers.
 
 To call this playbook individually, ensure that ``repo_manipulate.yml`` has run at least once and then run::
 
@@ -134,6 +137,10 @@ After successfully running ``provision.yml``, go to `Building Clusters <../Build
 
 .. note::
 
+    * Ansible playbooks can run concurrently on 5 nodes at any given time.
+
+    * If the target nodes were discovered using switch-based or mapping mechanisms, manually PXE boot the target servers after the ``provision.yml`` playbook is executed and the target node lists as **booted** `in the node table <../PostProvisionScript.html>`_.
+
     * If the cluster does not have access to the internet, AppStream will not function.  To provide internet access through the control plane (via the PXE network NIC), update ``primary_dns`` and ``secondary_dns`` in ``provision_config.yml`` and run ``provision.yml``
 
     * All ports required for xCAT to run will be opened (For a complete list, check out the `Security Configuration Document <../../SecurityConfigGuide/ProductSubsystemSecurity.html#firewall-settings>`_).
@@ -144,10 +151,18 @@ After successfully running ``provision.yml``, go to `Building Clusters <../Build
 
     * Post execution of ``provision.yml``, IPs/hostnames cannot be re-assigned by changing the mapping file. However, the addition of new nodes is supported as explained `here <../addinganewnode.html>`_.
 
-
 .. caution::
 
     * Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect.
-    * To avoid breaking the passwordless SSH channel on the control plane, do not run ``ssh-keygen`` commands post execution of ``provision.yml``.
-    * Omnia installs xcat in the directory ``/root/xcat`` and sets up a DB backup in ``/root/xcat-dbback``. Do not delete these folders.
+    * To avoid breaking the passwordless SSH channel on the control plane, do not run ``ssh-keygen`` commands post execution of ``provision.yml`` to create a new key.
+    * Do not delete the following directories:
+        - ``/root/xcat``
+        - ``/root/xcat-dbback``
+        - ``/docker-registry``
+        - ``/opt/omnia``
+        - ``/var/log/omnia``
+    * On subsequent runs of ``provision.yml``, if users are unable to log into the server, refresh the ssh key manually and retry. ::
 
+        ssh-keygen -R <node IP>
+
+To create a node inventory in ``/opt/omnia``, `click here <../PostProvisionScript.html>`_.
