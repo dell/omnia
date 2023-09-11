@@ -136,7 +136,8 @@ Required","Admin NIC of Control Plane. This is the shared LOM NIC.
 
 ``string``
 
-Required","The subnet within which all Admin IPs are assigned.
+Required","* The subnet within which all Admin IPs are assigned.
+* The value of this variable cannot be changed after successfully running ``provision.yml``.
 
 **Default values**: ``10.5.0.0``"
 "**ib_nic_subnet**
@@ -155,7 +156,9 @@ Required","* If provided, Omnia will assign static IPs to BMC NICs on the cluste
 * If ``network_interface_type``: ``lom``, mandatory for discovery_mechanism: mapping, switch_based and bmc.
 * If ``network_interface_type``: ``dedicated``, optional for discovery_mechanism: mapping, snmpwalk.
 * Note that since the last 16 bits/2 octets of IPv4 are dynamic, please ensure that the parameter value is set to x.x.0.0.
-* When the PXE range and BMC subnet are provided, corresponding NICs will be assigned IPs with the same 3rd and 4th octets."
+* When the PXE range and BMC subnet are provided, corresponding NICs will be assigned IPs with the same 3rd and 4th octets.
+* The value of this variable cannot be changed after successfully running ``provision.yml``.
+"
 "**bmc_username**
 
 ``string``
@@ -175,6 +178,7 @@ Required","* The password for iDRAC.
 Required","* The dhcp range for discovering the static IP assigned iDRACs within the given range.
 * For the range 10.3.0.50 to 10.3.4.100 then, bmc_static_start_range: 10.3.0.50, bmc_static_end_range: 10.3.4.100
 * To create a meaningful range of discovery, ensure that the last two octets of ``bmc_static_end_range`` are equal to or greater than the last two octets of the ``bmc_static_start_range``. That is, for the range a.b.c.d - a.b.e.f, e and f should be greater than or equal to c and d.
+* The  value of this variable cannot be changed after successfully running ``provision.yml``.
 * Ex: 172.20.0.50 - 172.20.1.101 is a valid range however, 172.20.0.101 - 172.20.1.50 is not."
 "**bmc_static_end_range**
 
@@ -183,6 +187,7 @@ Required","* The dhcp range for discovering the static IP assigned iDRACs within
 Required","* The dhcp range for discovering the static IP assigned iDRACs within the given range.
 * For the range 10.3.0.50 to 10.3.4.100 then, bmc_static_start_range: 10.3.0.50, bmc_static_end_range: 10.3.4.100
 * To create a meaningful range of discovery, ensure that the last two octets of ``bmc_static_end_range`` are equal to or greater than the last two octets of the ``bmc_static_start_range``. That is, for the range a.b.c.d - a.b.e.f, e and f should be greater than or equal to c and d.
+* The value of this variable cannot be changed after successfully running ``provision.yml``.
 * Ex: 172.20.0.50 - 172.20.1.101 is a valid range however, 172.20.0.101 - 172.20.1.50 is not."
 "**update_repos**
 

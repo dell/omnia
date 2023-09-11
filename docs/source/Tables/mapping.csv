@@ -136,7 +136,8 @@ Required","Admin NIC of Control Plane. This is the shared LOM NIC.
 
 ``string``
 
-Required","The subnet within which all Admin IPs are assigned.
+Required","* The subnet within which all Admin IPs are assigned.
+* The value of this variable cannot be changed after successfully running ``provision.yml``.
 
 **Default values**: ``10.5.0.0``"
 "**pxe_mapping_file_path**
@@ -163,7 +164,9 @@ Required","* If provided, Omnia will assign static IPs to IB NICs on the cluster
 * If ``network_interface_type``: ``lom``, mandatory for discovery_mechanism: mapping, switch_based and bmc.
 * If ``network_interface_type``: ``dedicated``, optional for discovery_mechanism: mapping, switch_based.
 * Note that since the last 16 bits/2 octets of IPv4 are dynamic, please ensure that the parameter value is set to x.x.0.0.
-* When the PXE range and BMC subnet are provided, corresponding NICs will be assigned IPs with the same 3rd and 4th octets."
+* When the PXE range and BMC subnet are provided, corresponding NICs will be assigned IPs with the same 3rd and 4th octets.
+* The value of this variable cannot be changed after successfully running ``provision.yml``.
+"
 "**update_repos**
 
 ``boolean``

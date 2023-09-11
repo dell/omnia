@@ -34,6 +34,7 @@ Enter all required parameters in ``input/accelerator_config.yml``.
 	* Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to run ``accelerator.yml`` on RHEL target nodes.
 	* For RHEL target nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription.
 	* If ``cuda_toolkit_path`` is provided in ``input/provision_config.yml`` and NVIDIA GPUs are available on the target nodes, CUDA packages will be deployed post provisioning without user intervention during the execution of ``provision.yml``.
+	* The inventory file is case sensitive. Keep all group names lower case.
 
 To install all the latest GPU drivers and toolkits, run: ::
 

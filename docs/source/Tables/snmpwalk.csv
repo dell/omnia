@@ -129,7 +129,8 @@ Required","The nic/ethernet card that is connected to the public internet.
 
 ``string``
 
-Required","Admin NIC of Control Plane. This is the shared LOM NIC.
+Required","* Admin NIC of Control Plane. This is the shared LOM NIC.
+* The value of this variable cannot be changed after successfully running ``provision.yml``.
 
 **Default values**: ``eno1``"
 "**admin_nic_subnet**
@@ -155,7 +156,9 @@ Required","* If provided, Omnia will assign static IPs to BMC NICs on the cluste
 * If ``network_interface_type``: ``lom``, mandatory for discovery_mechanism: mapping, switch_based and bmc.
 * If ``network_interface_type``: ``dedicated``, optional for discovery_mechanism: mapping, snmpwalk.
 * Note that since the last 16 bits/2 octets of IPv4 are dynamic, please ensure that the parameter value is set to x.x.0.0.
-* When the PXE range and BMC subnet are provided, corresponding NICs will be assigned IPs with the same 3rd and 4th octets."
+* When the PXE range and BMC subnet are provided, corresponding NICs will be assigned IPs with the same 3rd and 4th octets.
+* The value of this variable cannot be changed after successfully running ``provision.yml``.
+"
 "**pxe_switch_ip**
 
 ``string``
