@@ -7,7 +7,10 @@ Building clusters
     * Use the parameter ``scheduler_type`` in ``input/omnia_config.yml`` to customize what schedulers are installed in the cluster.
     * Without the login node, Slurm jobs can be scheduled only through the manager node.
 
-2. Create an inventory file in the *omnia* folder. Add login node IP address under the manager node IP address under the *[manager]* group, compute node IP addresses under the *[compute]* group, and Login node IP under the *[login]* group,. Check out the `sample inventory for more information <../../samplefiles.html>`_.
+2. Create an inventory file in the *omnia* folder. Check out the `sample inventory for more information <../../samplefiles.html>`_.
+    * *[Manager]* group should contain the manager node IP address followed by the login node IP address.
+    * *[compute]* group should contain all compute node IP addresses.
+    * *[login]* group should contain the login node IP.
 
 .. include:: ../../Appendices/hostnamereqs.rst
 
@@ -44,12 +47,12 @@ To run ``omnia.yml``: ::
 .. image:: ../../images/UserHomeDirectory.jpg
 
 Users wanting to set up a shared home directory for the cluster can do it in one of two ways:
-    1. **Using the head node as an NFS host**: Set ``enable_omnia_nfs`` (``input/omnia_config.yml``) to true and provide a share path which will be configured on all nodes in ``omnia_usrhome_share`` (``input/omnia_config.yml``). During the execution of ``omnia.yml``, the NFS share will be set up for access by all compute nodes.
+    1. **Using the head node as an NFS host**: Set ``enable_omnia_nfs`` (``input/omnia_config.yml``) to true and provide a share path which will be configured on all nodes in ``omnia_usrhome_share`` (``input/omnia_config.yml``). During the execution of ``omnia.yml``, the NFS share will be set up for access by all cluster  nodes.
     2. **Using an external filesystem**: Configure the external file storage using ``storage.yml``. Set ``enable_omnia_nfs`` (``input/omnia_config.yml``) to false and provide the external share path in ``omnia_usrhome_share`` (``input/omnia_config.yml``). Run ``omnia.yml`` to configure access to the external share for deployments.
 
 **Slurm job based user access**
 
-To ensure security while running jobs on the cluster, users can be assigned permissions to access compute nodes only while their jobs are running. To enable the feature: ::
+To ensure security while running jobs on the cluster, users can be assigned permissions to access cluster  nodes only while their jobs are running. To enable the feature: ::
 
     cd scheduler
     ansible-playbook job_based_user_access.yml -i inventory
@@ -71,7 +74,7 @@ To enhance the productivity of the cluster, Slurm allows users to run jobs in a 
 
     * Omnia does not install MPI packages by default. Users hoping to leverage the Slurm-based MPI execution feature are required to install the relevant packages from a source of their choosing. For information on setting up Intel OneAPI on the cluster, `click here <../OneAPI.html>`_.
     * Ensure there is an NFS node on which to host slurm scripts to run.
-    * Running jobs as individual users (and not as root) requires that passwordSSH be enabled between compute nodes for the user.
+    * Running jobs as individual users (and not as root) requires that passwordSSH be enabled between cluster  nodes for the user.
 
 
 
