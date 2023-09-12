@@ -66,7 +66,7 @@ Omnia can also discover nodes via their iDRAC using IPMI.
 
     - Discovery and provisioning of servers is automatic.
     - Admin, BMC and Infiniband IP address configuration is automatic on the control plane.
-
+    - LOM architecture is supported (including cloud enclosures: C6420, C6520, C6620).
 **Cons**
 
     - For iDRACs that are not DHCP enabled (ie Static), users need to enable IPMI manually.
@@ -86,6 +86,6 @@ Omnia can query known switches (by IP and community string) for information on t
     - Switches should be SNMP enabled.
     - Servers require a manual PXE boot if iDRAC IPs are not configured.
     - PXE NIC ranges should contain IPs that are double the iDRACs present (as NIC and iDRAC MACs may need to be mapped).
-     - LOM architecture is not supported (including cloud enclosures).
+    - LOM architecture is not supported (including cloud enclosures: C6420, C6520, C6620).
 For more information regarding snmpwalk, `click here <snmp.html>`_
 
