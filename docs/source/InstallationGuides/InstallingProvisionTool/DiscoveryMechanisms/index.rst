@@ -86,6 +86,6 @@ Omnia can query known switches (by IP and community string) for information on t
     - Switches should be SNMP enabled.
     - Servers require a manual PXE boot if iDRAC IPs are not configured.
     - PXE NIC ranges should contain IPs that are double the iDRACs present (as NIC and iDRAC MACs may need to be mapped).
-    - LOM architecture is not supported.
+     - LOM architecture is not supported (including cloud enclosures).
 For more information regarding snmpwalk, `click here <snmp.html>`_
 
