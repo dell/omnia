@@ -30,9 +30,6 @@ A new node can be added using the following ways:
         cd provision
         ansible-playbook provision.yml
 
-
-
-
 * When the discovery mechanism is ``switch-based``:
 
     * Edit or append JSON list stored in ``switch-based-details`` in ``input/provision_config.yml``.
@@ -64,7 +61,7 @@ Alternatively, if a new node is to be added with no change in configuration, run
             cd provision
             ansible-playbook discovery_provision.yml
 
-Verify that the node has been provisioned successfully by `checking the Omnia node table. <InstallingProvsionTool/ViewingDB.html>`_
+Verify that the node has been provisioned successfully by `checking the Omnia node table. <InstallingProvisionTool/ViewingDB.html>`_
 
 **Adding the new node to the cluster**
 

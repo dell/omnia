@@ -18,7 +18,7 @@ Alternatively, if a re-deployment with no modifcations are required  ::
     ansible-playbook discovery_provision.yml -i inventory
 
 
-Where the inventory contains a list of host IPs (Sourced from checkingDB<>) as shown below:
+Where the inventory contains a list of host IPs (Sourced from the `node table <InstallingProvisionTool/ViewingDB.html>`_) as shown below:
 
 ::
 

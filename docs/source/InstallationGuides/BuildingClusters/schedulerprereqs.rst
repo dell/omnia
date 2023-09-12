@@ -1,7 +1,7 @@
 Before you build clusters
 --------------------------
 
-* Ensure that all target nodes are up and running.
+* `Ensure that all target nodes are up and running <../InstallingProvisionTool/ViewingDB.html>`_.
 
 * Verify that all inventory files are updated.
 

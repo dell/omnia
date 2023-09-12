@@ -95,7 +95,7 @@ Re-run the playbook whose execution failed once the issue is resolved.
 
 ⦾ What to do if user login fails when accessing a cluster node:
 
-.. image:: ../images/User.png
+.. image:: ../images/UserLoginError.png
 
 **Potential Cause**:
     * ssh key on the control plane may be outdated.
