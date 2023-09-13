@@ -28,8 +28,6 @@ These parameters are located in ``input/omnia_config.yml``, ``input/security_con
    :file: ../../Tables/security_config_ldap.csv
    :header-rows: 1
    :keepspace:
-
-
 **storage_config.yml**
 
 

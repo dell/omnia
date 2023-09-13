@@ -73,7 +73,7 @@ To enhance the productivity of the cluster, Slurm allows users to run jobs in a 
 
 .. note::
 
-    * Omnia does not install MPI packages by default. Users hoping to leverage the Slurm-based MPI execution feature are required to install the relevant packages from a source of their choosing. For information on setting up Intel OneAPI on the cluster, `click here <../OneAPI.html>`_.
+    * Omnia does not install MPI packages by default. Users hoping to leverage the Slurm-based MPI execution feature are required to install the relevant packages from a source of their choosing. For information on setting up Intel OneAPI on the cluster, `click here <../Benchmarks/OneAPI.html>`_.
     * Ensure there is an NFS node on which to host slurm scripts to run.
     * Running jobs as individual users (and not as root) requires that passwordSSH be enabled between cluster  nodes for the user.
 

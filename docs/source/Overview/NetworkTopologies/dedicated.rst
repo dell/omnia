@@ -20,7 +20,7 @@ When all cluster  nodes have their own public network access, ``primary_dns`` an
 
 When all cluster  nodes rely on the control plane for public network access, the variables ``primary_dns`` and ``secondary_dns`` in ``provision_config.yml`` are used to indicate that the control plane is the gateway for all cluster  nodes to get internet access. Since all public network traffic will be routed through the control plane, the user may have to take precautions to avoid bottlenecks in such a set-up.
 
-** Recommended discovery mechanism**
+**Recommended discovery mechanism**
 
 * `mapping <../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/mapping.html>`_
 * `snmpwalk <../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/snmpwalk.html>`_

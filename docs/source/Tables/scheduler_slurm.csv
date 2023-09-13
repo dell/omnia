@@ -19,19 +19,6 @@
 * Required when ``scheduler_type: ""slurm""``.
 
      **Default value**: ``""password""``           "
-"**docker_username**
-
-     ``string``
-
-     Optional  ","* Username for Dockerhub account
-* A kubernetes secret will be created and patched to service account in   default namespace. This kubernetes secret can be used to pull images from   private repositories
-* This value is optional but suggested avoiding docker pull limit issues                                                                                                  "
-"**docker_password**
-
-     ``string``
-
-     Optional  ","* Password for Dockerhub account                        
-* This value is mandatory if docker username is provided"
 "**ansible_config_file_path**
 
      ``string``

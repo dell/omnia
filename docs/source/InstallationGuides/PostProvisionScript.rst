@@ -1,7 +1,5 @@
 Creating node inventory
------------------------
-
-This script is optional. To skip over to Slurm, Kubernetes, NFS, BeeGFS and Authentication setup, `click here <../BuildingClusters/index.html>`_.
+------------------------
 
 Once the **servers are provisioned**, a list of reachable nodes can be fetched using the below command: ::
 
@@ -17,4 +15,4 @@ This creates a node inventory in ``/opt/omnia``.  ::
     10.5.0.103 service_tag=XXXXXXX operating_system=Rocky
 
 
-To create an inventory when `Building Clusters <../BuildingClusters/index.html>`_, use the reachable nodes' IP addresses from the above output to assign manager, compute and login groups. For more information on the inventory file used, click here <samplefiles>.
+To create an inventory when `Building Clusters <BuildingClusters/index.html>`_, use the reachable nodes' IP addresses from the above output to assign manager, compute and login groups. For more information on the inventory file used, `click here <../samplefiles.html>`_.

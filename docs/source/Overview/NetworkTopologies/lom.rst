@@ -8,7 +8,7 @@ A LOM port could be shared with the host operating system production traffic. Al
 
 .. caution:: Target nodes using LOM ports cannot be discovered via snmpwalk.
 
-** Recommended discovery mechanism**
+**Recommended discovery mechanism**
 
 * `mapping <../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/mapping.html>`_
 * `bmc <../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/bmc.html>`_

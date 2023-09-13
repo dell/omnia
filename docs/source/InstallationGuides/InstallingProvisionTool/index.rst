@@ -15,7 +15,6 @@ This playbook achieves the following tasks:
 
     * Optionally installs OFED and CUDA
 
-
 .. toctree::
 
     provisionprereqs

@@ -20,7 +20,7 @@ A new node can be added using the following ways:
         cd provision
         ansible-playbook provision.yml
 
-    *  Manually PXE boot the target servers after the ``provision.yml`` playbook is executed and the target node lists as **booted** `in the node table <PostProvisionScript.html>`_
+    *  Manually PXE boot the target servers after the ``provision.yml`` playbook is executed and the target node lists as **booted** `in the nodeinfo table <InstallingProvisionTool/ViewingDB.html>`_
 
 
 * When the discovery mechanism is ``bmc``:
@@ -29,9 +29,6 @@ A new node can be added using the following ways:
 
         cd provision
         ansible-playbook provision.yml
-
-
-
 
 * When the discovery mechanism is ``switch-based``:
 
@@ -47,7 +44,7 @@ A new node can be added using the following ways:
         cd provision
         ansible-playbook provision.yml
 
-    * Manually PXE boot the target servers after the ``provision.yml`` playbook is executed and the target node lists as **booted** `in the node table <PostProvisionScript.html>`_
+    * Manually PXE boot the target servers after the ``provision.yml`` playbook is executed and the target node lists as **booted** `in the nodeinfo table <InstallingProvsionTool/ViewingDB.html>`_
 
 * When the discovery mechanism is ``snmpwalk``:
 
@@ -56,7 +53,7 @@ A new node can be added using the following ways:
         cd provision
         ansible-playbook provision.yml
 
-    * Manually PXE boot the target servers after the ``provision.yml`` playbook is executed and the target node lists as **booted** `in the node table <PostProvisionScript.html>`_
+    * Manually PXE boot the target servers after the ``provision.yml`` playbook is executed and the target node lists as **booted** `in the Omnia nodeinfo table. <InstallingProvisionTool/ViewingDB.html>`_
 
 
 Alternatively, if a new node is to be added with no change in configuration, run the following commands: ::
@@ -64,7 +61,7 @@ Alternatively, if a new node is to be added with no change in configuration, run
             cd provision
             ansible-playbook discovery_provision.yml
 
-Verify that the node has been provisioned successfully by `checking the Omnia node table. <InstallingProvsionTool/ViewingDB.html>`_
+Verify that the node has been provisioned successfully by `checking the Omnia nodeinfo table. <InstallingProvisionTool/ViewingDB.html>`_
 
 **Adding the new node to the cluster**
 
