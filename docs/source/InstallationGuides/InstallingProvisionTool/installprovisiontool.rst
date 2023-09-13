@@ -139,7 +139,7 @@ After successfully running ``provision.yml``, go to `Building Clusters <../Build
 
     * Ansible playbooks by default run concurrently on 5 nodes. To change this, update the ``forks`` value in ``ansible.cfg`` present in the respective playbook directory.
 
-    * If the target nodes were discovered using switch-based, mapping or snmpwalk mechanisms, manually PXE boot the target servers after the ``provision.yml`` playbook is executed and the target node lists as **booted** `in the nodeinfo table <../PostProvisionScript.html>`_.
+    * If the target nodes were discovered using switch-based, mapping or snmpwalk mechanisms, manually PXE boot the target servers after the ``provision.yml`` playbook is executed and the target node lists as **booted** `in the nodeinfo table <ViewingDB.html>`_.
 
     * If the cluster does not have access to the internet, AppStream will not function.  To provide internet access through the control plane (via the PXE network NIC), update ``primary_dns`` and ``secondary_dns`` in ``provision_config.yml`` and run ``provision.yml``
 
@@ -147,7 +147,7 @@ After successfully running ``provision.yml``, go to `Building Clusters <../Build
 
     * After running ``provision.yml``, the file ``input/provision_config.yml`` will be encrypted. To edit the file, use the command: ``ansible-vault edit provision_config.yml --vault-password-file .provision_vault_key``
 
-    * To re-provision target servers ``provision.yml`` can be re-run with a new inventory file that contains a list of admin (PXE) IPs. For more information, `click here <../reprovisioningthecluster.rst>`_
+    * To re-provision target servers ``provision.yml`` can be re-run with a new inventory file that contains a list of admin (PXE) IPs. For more information, `click here <../reprovisioningthecluster.html>`_
 
     * Post execution of ``provision.yml``, IPs/hostnames cannot be re-assigned by changing the mapping file. However, the addition of new nodes is supported as explained `here <../addinganewnode.html>`_.
 

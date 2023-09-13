@@ -15,4 +15,4 @@ This creates a node inventory in ``/opt/omnia``.  ::
     10.5.0.103 service_tag=XXXXXXX operating_system=Rocky
 
 
-To create an inventory when `Building Clusters <BuildingClusters/index.html>`_, use the reachable nodes' IP addresses from the above output to assign manager, compute and login groups. For more information on the inventory file used, `click here <samplefiles.html>`_.
+To create an inventory when `Building Clusters <BuildingClusters/index.html>`_, use the reachable nodes' IP addresses from the above output to assign manager, compute and login groups. For more information on the inventory file used, `click here <../samplefiles.html>`_.
