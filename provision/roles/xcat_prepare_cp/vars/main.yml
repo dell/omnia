@@ -113,3 +113,14 @@ xcat_services:
 postgresql_conf_dir: /etc/systemd/system/postgresql.service.d
 postgresql_conf_src: "{{ role_path }}/files/postgresql.conf"
 postgresql_conf_dest: "{{ postgresql_conf_dir }}/postgresql.conf"
+
+# Usage: install_genesis.yml
+control_plane_arch: x86_64
+xcat_git_version: 2.16.4
+xcat_genesis_tar_file: "{{ role_path }}/files/xcat-genesis-base-x86_64.tar.gz"
+xcat_genesis_rpm_file: "{{ role_path }}/files/xCAT-genesis-base-x86_64-2.16.4-snap202308211541.noarch.rpm"
+xcat_bin_path: /opt/xcat/share/xcat/netboot/genesis/x86_64/fs/usr/bin
+doxcat_script_path: "{{ xcat_bin_path }}/doxcat"
+doxcat_check_key: 'ipmitool raw 0x00 0x08 0x03 0x08'
+doxcat_patch_path:
+  - { src: "{{ role_path }}/files/doxcat.patch", dest: "{{ xcat_bin_path }}/doxcat.patch", mode: "755" }
