@@ -155,7 +155,7 @@ Required	","* This variable is used to set an appropriate time interval in secon
 * A random number between 0 and ``fuzzy_offset`` gets added with ``omnia_telemetry_collection_interval`` value to decide individual cluster node's telemetry data collection interval.
 * **Default value (seconds)**: 60
 * For large clusters, a higher value is recommended.
-* This value should be less than the value of ``omnia_telemetry_collection_interval`` but greater than 60."
+* This value should be less than or equal to the value of ``omnia_telemetry_collection_interval`` but greater than or equal to 60."
 "**metric_collection_timeout**
 
 ``integer``
