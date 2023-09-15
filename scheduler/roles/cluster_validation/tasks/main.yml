@@ -16,6 +16,7 @@
 - name: Initialize variables
   ansible.builtin.set_fact:
     ansible_collection_used: false
+    scheduler_validation_status: true
 
 - name: Perform validations
   ansible.builtin.include_tasks: validations.yml
