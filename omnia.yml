@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,6 +15,15 @@
 
 - name: Gather facts from all the nodes
   hosts: manager, compute, login
+
+- name: Validate all input parameters
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - scheduler/roles/cluster_validation
+    - security/roles/security_validation
+    - storage/roles/storage_validation
 
 - name: Configure security on nodes
   ansible.builtin.import_playbook: security/security.yml
