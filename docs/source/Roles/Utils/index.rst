@@ -1,5 +1,5 @@
-Utils
-=====
+Additional utilities
+=====================
 
 The Utilities role allows users to set up certain tasks such as
 

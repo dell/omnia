@@ -74,9 +74,9 @@
       ansible.builtin.command: dnf download {{ common_repo_packages }} --resolve --destdir="{{ omnia_common_xcat_repo }}"
       changed_when: true
   rescue:
-    - name: Warning - Downloading omnia common repo packages failed
-      ansible.builtin.debug:
-        msg: "{{ download_common_package_warn_msg }}"
+    - name: Failed - Downloading omnia common repo packages failed
+      ansible.builtin.fail:
+        msg: "{{ download_common_package_fail_msg }}"
 
 - name: Download crb and epel packages for rhel
   block:
@@ -100,9 +100,9 @@
           ansible.builtin.command: dnf download {{ epel_repo_packages }} --arch=x86_64,noarch --destdir="{{ omnia_common_xcat_repo }}"
           changed_when: true
       rescue:
-        - name: Warning - Downloading epel repo packages failed
-          ansible.builtin.debug:
-            msg: "{{ download_epel_package_warn_msg }}"
+        - name: Failed - Downloading epel repo packages failed
+          ansible.builtin.fail:
+            msg: "{{ download_epel_package_fail_msg }}"
   when: control_plane_os_redhat in control_plane_os
 
 - name: Create custom_software directory

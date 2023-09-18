@@ -136,14 +136,15 @@ Required","Admin NIC of Control Plane. This is the shared LOM NIC.
 
 ``string``
 
-Required","The subnet within which all Admin IPs are assigned.
+Required","* The subnet within which all Admin IPs are assigned.
+* The value of this variable cannot be changed after successfully running ``provision.yml``.
 
 **Default values**: ``10.5.0.0``"
 "**ib_nic_subnet**
 
 ``string``
 
-Optional","* If provided, Omnia will handle and assign static IPs to compute node's IB network.
+Optional","* If provided, Omnia will handle and assign static IPs to cluster node's IB network.
 * Only the last 16 bits/2 octets of IPv4 are dynamic
 * If provided, the DB entry will be in parallel with the pxe_subnet.
 * Example: If ``admin_ip``: 10.5.0.50 and ``ib_nic_subnet``: 10.10.0.0, then ``ib_ip``: 10.10.0.50"
@@ -151,11 +152,13 @@ Optional","* If provided, Omnia will handle and assign static IPs to compute nod
 
 ``string``
 
-Required","* If provided, Omnia will assign static IPs to BMC NICs on the compute nodes within the provided subnet.
+Required","* If provided, Omnia will assign static IPs to BMC NICs on the cluster nodes within the provided subnet.
 * If ``network_interface_type``: ``lom``, mandatory for discovery_mechanism: mapping, switch_based and bmc.
 * If ``network_interface_type``: ``dedicated``, optional for discovery_mechanism: mapping, snmpwalk.
 * Note that since the last 16 bits/2 octets of IPv4 are dynamic, please ensure that the parameter value is set to x.x.0.0.
-* When the PXE range and BMC subnet are provided, corresponding NICs will be assigned IPs with the same 3rd and 4th octets."
+* When the PXE range and BMC subnet are provided, corresponding NICs will be assigned IPs with the same 3rd and 4th octets.
+* The value of this variable cannot be changed after successfully running ``provision.yml``.
+"
 "**bmc_username**
 
 ``string``
@@ -175,6 +178,7 @@ Required","* The password for iDRAC.
 Required","* The dhcp range for discovering the static IP assigned iDRACs within the given range.
 * For the range 10.3.0.50 to 10.3.4.100 then, bmc_static_start_range: 10.3.0.50, bmc_static_end_range: 10.3.4.100
 * To create a meaningful range of discovery, ensure that the last two octets of ``bmc_static_end_range`` are equal to or greater than the last two octets of the ``bmc_static_start_range``. That is, for the range a.b.c.d - a.b.e.f, e and f should be greater than or equal to c and d.
+* The  value of this variable cannot be changed after successfully running ``provision.yml``.
 * Ex: 172.20.0.50 - 172.20.1.101 is a valid range however, 172.20.0.101 - 172.20.1.50 is not."
 "**bmc_static_end_range**
 
@@ -183,6 +187,7 @@ Required","* The dhcp range for discovering the static IP assigned iDRACs within
 Required","* The dhcp range for discovering the static IP assigned iDRACs within the given range.
 * For the range 10.3.0.50 to 10.3.4.100 then, bmc_static_start_range: 10.3.0.50, bmc_static_end_range: 10.3.4.100
 * To create a meaningful range of discovery, ensure that the last two octets of ``bmc_static_end_range`` are equal to or greater than the last two octets of the ``bmc_static_start_range``. That is, for the range a.b.c.d - a.b.e.f, e and f should be greater than or equal to c and d.
+* The value of this variable cannot be changed after successfully running ``provision.yml``.
 * Ex: 172.20.0.50 - 172.20.1.101 is a valid range however, 172.20.0.101 - 172.20.1.50 is not."
 "**update_repos**
 
@@ -220,7 +225,7 @@ Choices:
                         
 ``JSON list``           
                         
-Optional                ","* The repo path and names of the software repository to be configured on the compute nodes.        
+Optional                ","* The repo path and names of the software repository to be configured on the cluster nodes.
                                                                                                    
 * Provide the repo data file path, which ends with .repo extension in repo_url parameter.          
                                                                                                    
@@ -241,7 +246,7 @@ Default value:
 
 ``string``
 
-Optional","* The primary DNS host IP queried to provide Internet access to Compute Node (through DHCP routing).
+Optional","* The primary DNS host IP queried to provide Internet access to cluster Node (through DHCP routing).
 * Currently, the ``primary_dns`` value stored in ``input/provision_config.yml`` cannot be part of any of the subnets (``admin_nic_subnet``, ``ib_nic_subnet`` and ``bmc_nic_subnet``) also defined in ``input/provision_config.yml``.
 
 Ex: If the ``primary_dns`` is set to 10.15.0.7, the subnet ``10.15.0.0`` cannot be used for ``admin_nic_subnet``, ``ib_nic_subnet`` or ``bmc_nic_subnet``."
@@ -249,7 +254,7 @@ Ex: If the ``primary_dns`` is set to 10.15.0.7, the subnet ``10.15.0.0`` cannot 
 
 ``string``
 
-Optional",The secondary DNS host IP queried to provide Internet access to Compute Node (through DHCP routing)
+Optional",The secondary DNS host IP queried to provide Internet access to cluster Node (through DHCP routing)
 "**disk_partition**
 
 ``JSON list``
@@ -272,3 +277,10 @@ Optional",Absolute path to a  local copy of the .iso file containing Mellanox OF
 ``string``
 
 Optional","Absolute path to local copy of .rpm file containing CUDA packages. The cuda rpm can be downloaded from https://developer.nvidia.com/cuda-downloads. CUDA will be installed post provisioning without any user intervention. Eg: cuda_toolkit_path: ""/root/cuda-repo-rhel8-12-0-local-12.0.0_525.60.13-1.x86_64.rpm"""
+"**apptainer_support**
+
+``boolean``
+
+Required","* Indicates whether apptainer will be installed on the cluster to enable execution of HPC benchmarks in a containeraized environment.
+* If ``apptainer_support``: false, apptainer will not be installed on the cluster.
+* If ``apptainer_support``: true, apptainer will be installed on the cluster."

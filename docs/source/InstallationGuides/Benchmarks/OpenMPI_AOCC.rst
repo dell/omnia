@@ -26,7 +26,7 @@ Open MPI AOCC HPL benchmark for AMD processors
 
     ii. Push the packages to the cluster nodes:
 
-        a. Update the ``package_list`` variable in the ``os_package_update/os_package_update.conf`` file and save it. ::
+        a. Update the ``package_list`` variable in the ``utils/os_package_update/package_update_config.yml`` file and save it. ::
 
                 package_list: "/install/post/otherpkgs/<os_version>/x86_64/custom_software/openmpi.pkglist"
 
@@ -62,7 +62,7 @@ Open MPI AOCC HPL benchmark for AMD processors
         systemctl stop slurmctld.service
         systemctl start slurmctld.service
 
-4. Job execution can now be initiated. To initiate a job use the following sample commands.
+4. Job execution can now be initiated.
 
 For a job to run on multiple nodes (10.5.0.4 and 10.5.0.5) where OpenMPI is compiled and installed on the NFS share (``/home/omnia-share/openmpi/bin/mpirun``), the job can be initiated as below:
 .. note:: Ensure ``amd-zen-hpl-2023_07_18`` is downloaded before running this command.

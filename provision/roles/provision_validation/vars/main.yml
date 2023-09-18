@@ -72,14 +72,14 @@ dedicated_discovery_fail_msg: "Failed.If network interface type is dedicated, on
 omnia_admin_ip: "{{ admin_nic_subnet.split('.')[0] + '.' + admin_nic_subnet.split('.')[1] + '.' + '255' + '.' + '254' }}"
 omnia_admin_netmask: 255.255.0.0
 admin_nic_path: "/etc/sysconfig/network-scripts/ifcfg-{{ admin_nic }}"
-fail_admin_nic_dedicated: "Failed. Please assign admin nic IP. "
+fail_admin_nic_dedicated: "Failed. Please assign admin nic IP to the admin_nic {{ admin_nic }} provided in provision_config.yml."
 
 # Usage: assign_nic_config.yml
 pxe_subnet_msg: "Failed. Please provide proper pxe_subnet"
 omnia_bmc_ip: "{{ bmc_nic_subnet.split('.')[0] + '.' + bmc_nic_subnet.split('.')[1] + '.' + '255' + '.' + '254' }}"
 omnia_bmc_netmask: 255.255.0.0
 fail_mapping_bmc_dedicated: "Failed.BMC is only supported in shared LOM. Check the configuration once."
-fail_admin_nic_lom: "Failed. Please assign admin and bmc IP to the given nic in provision_config.yml."
+fail_admin_nic_lom: "Failed. Please assign admin and bmc IP to the the admin_nic {{ admin_nic }} provided in provision_config.yml."
 
 # Usage: enable_nic_configuration.yml
 nic_subnet: 16
