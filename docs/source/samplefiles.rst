@@ -1,6 +1,8 @@
 Sample Files
 =============
 
+.. caution:: All the file contents mentioned below are case sensitive. The casing of words like ``[manager]``, ``[compute]``,  etc should be consistent with the samples below when creating inventory or mapping files.
+
 inventory file
 -----------------
 

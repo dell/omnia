@@ -19,49 +19,6 @@
 * Required when ``scheduler_type: ""slurm""``.
 
      **Default value**: ``""password""``           "
-"**k8s_version**
-
-     ``string``
-
-     Optional  ","* Kubernetes version.
-* Required when ``scheduler_type: ""k8s""``
-     Choices:                    
-                                 
-     * ``""1.19.3""``  <-   default
-     * ``"" 1.16.7""``             "
-"**k8s_cni**
-
-     ``string``
-
-     Optional  ","* Kubernetes SDN network.
-* Required when ``scheduler_type: ""k8s""``
-                                 
-     Choices:                    
-                                 
-     * ``""calico""``  <-   default
-     * ``""flannel""``             "
-"**k8s_pod_network_cidr**
-
-     ``string``
-
-     Optional       ","* Kubernetes pod network CIDR.                                          
-* Make sure this value does not overlap with any of the host   networks.
-* Required when ``scheduler_type: ""k8s""``
-
-     **Default values**: ``""10.244.0.0/16""``                            "
-"**docker_username**
-
-     ``string``
-
-     Optional  ","* Username for Dockerhub account
-* A kubernetes secret will be created and patched to service account in   default namespace. This kubernetes secret can be used to pull images from   private repositories
-* This value is optional but suggested avoiding docker pull limit issues                                                                                                  "
-"**docker_password**
-
-     ``string``
-
-     Optional  ","* Password for Dockerhub account                        
-* This value is mandatory if docker username is provided"
 "**ansible_config_file_path**
 
      ``string``

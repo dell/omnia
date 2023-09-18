@@ -93,6 +93,18 @@ Re-run the playbook whose execution failed once the issue is resolved.
 
 .. note:: This error can also take place when task ``cluster_preperation : Install sshpass`` is executed during ``omnia.yml``.
 
+⦾ What to do if user login fails when accessing a cluster node:
+
+.. image:: ../images/UserLoginError.png
+
+**Potential Cause**:
+    * ssh key on the control plane may be outdated.
+
+**Resolution**:
+
+   * Refresh the key using ``ssh-keygen -R <hostname/server IP>``.
+   * Retry login.
+
 ⦾ **Why does the 'Fail if LDAP home directory exists' task fail during user_passwordless_ssh.yml?**
 
 .. image:: ../images/nfssharecheckfail.png

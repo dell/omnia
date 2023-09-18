@@ -187,6 +187,6 @@ To open the ports required, use the following steps:
     cd omnia/storage
     ansible-playbook storage.yml -i inventory
 
-(Where inventory refers to the `inventory file <../../samplefiles.html>`_ listing manager, login_node and compute nodes.)
+(Where inventory refers to the `inventory file <../../samplefiles.html>`_ listing manager, login_node and compute nodes. The inventory file is case-sensitive. Follow the casing provided in the sample file link.)
 
 

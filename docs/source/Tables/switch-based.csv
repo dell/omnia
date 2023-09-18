@@ -126,7 +126,8 @@ Required","The nic/ethernet card that is connected to the public internet.
 
 ``string``
 
-Required","Admin NIC of Control Plane. This is the shared LOM NIC.
+Required","* Admin NIC of Control Plane. This is the shared LOM NIC.
+* The value of this variable cannot be changed after successfully running ``provision.yml``.
 
 **Default values**: ``eno1``"
 "**admin_nic_subnet**

@@ -9,21 +9,11 @@
 * To install slurm and k8s provide ``scheduler_type: ""slurm,k8s""``
 
 **Default value**: ``""slurm""``"
-"**mariadb_password**
-
-     ``string``
-
-     Optional    ","* Password used for Slurm database.               
-* The password must not contain -,\, ',""          
-* The length of the password should be at least 8.
-* Required when ``scheduler_type: ""slurm""``.
-
-     **Default value**: ``""password""``           "
 "**k8s_version**
 
      ``string``
 
-     Optional  ","* Kubernetes version.
+     Required  ","* Kubernetes version.
 * Required when ``scheduler_type: ""k8s""``
      Choices:                    
                                  
@@ -33,7 +23,7 @@
 
      ``string``
 
-     Optional  ","* Kubernetes SDN network.
+     Required  ","* Kubernetes SDN network.
 * Required when ``scheduler_type: ""k8s""``
                                  
      Choices:                    
@@ -44,7 +34,7 @@
 
      ``string``
 
-     Optional       ","* Kubernetes pod network CIDR.                                          
+     Required       ","* Kubernetes pod network CIDR.                                          
 * Make sure this value does not overlap with any of the host   networks.
 * Required when ``scheduler_type: ""k8s""``
 

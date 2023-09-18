@@ -65,23 +65,24 @@ Omnia installs a FreeIPA server on the manager node and FreeIPA clients on the c
 
     ansible-playbook security.yml -i inventory
 
-Where inventory follows the format defined under inventory file in the provided `Sample Files <../../samplefiles.html>`_ ::
-
     ansible-playbook omnia.yml -i inventory
 
-Where inventory follows the format defined under inventory file in the provided `Sample Files <../../samplefiles.html>`_ The ``omnia.yml`` playbook installs Slurm, BeeFGS Client, NFS Client in addition to freeIPA.
+Where inventory follows the format defined under inventory file in the provided `Sample Files. <../../samplefiles.html>`_  The inventory file is case-sensitive. Follow the casing provided in the sample file link.
+
+The ``omnia.yml`` playbook installs Slurm, BeeFGS Client, NFS Client in addition to freeIPA.
 
 .. note::
 
-    * Omnia does not create any accounts (HPC users) on FreeIPA. To create a user, check out FreeIPA documentation.
+    * Omnia does not create any accounts (HPC users) on FreeIPA. To create a user, check out *FreeIPA documentation*.
 
-    * Alternatively, use the below commands with admin credentials: ::
+    * Alternatively, use the below commands with admin credentials on the login/head node: ::
 
             kinit admin  (When prompted, provide kerberos_admin_password as entered in security_config.yml)
             ipa user-add --homedir=<nfs_dir_path> --password
 
     For example: ``ipa user-add FirstName_LastName --first=FirstName --last=LastName --password  --homedir=/home/omnia-share/FirstName_LastName``
 
+    After the new user account logs in for the first time, you will be prompted to change the password to the account.
 
 **Setting up Passwordless SSH for FreeIPA**
 
@@ -89,7 +90,7 @@ Once user accounts are created, admins can enable passwordless SSH for users to 
 
 .. note:: Once user accounts are created on FreeIPA, use the accounts to login to the target nodes to reset the password and create a corresponding home directory.
 
-To customize your setup of passwordless ssh, input parameters in ``input/passwordless_ssh_config.yml``
+To customize your setup of passwordless ssh, input parameters in ``input/passwordless_ssh_config.yml``.
 
 +-----------------------+--------------------------------------------------------------------------------------------------------------------+
 | Parameter             | Details                                                                                                            |
@@ -117,7 +118,7 @@ Use the below command to enable passwordless SSH: ::
 
     ansible-playbook user_passwordless_ssh.yml -i inventory
 
-Where inventory follows the format defined under inventory file in the provided `Sample Files <../../samplefiles.html>`_
+Where inventory follows the format defined under inventory file in the provided `Sample Files. <../../samplefiles.html>`_ The inventory file is case-sensitive. Follow the casing provided in the sample file link.
 
 .. caution:: Do not run ssh-keygen commands after passwordless SSH is set up on the nodes.
 
