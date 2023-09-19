@@ -20,6 +20,17 @@
 - name: Configure ntp postscripts
   ansible.builtin.include_tasks: configure_postscripts_ntp.yml
 
+- name: Copy hostname script to postscripts
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  with_items: "{{ hostname_postscripts_path }}"
+
+- name: Configure postscripts to configure hostname and admin ip in static
+  ansible.builtin.command: chdef all -p postscripts=omnia_hostname
+  changed_when: true
+
 - name: Verify OFED repo created
   ansible.builtin.stat:
     path: "{{ mlnx_ofed_repo }}/{{ mlnx_ofed_path.split('/')[-1] }}"
