@@ -139,6 +139,8 @@ After successfully running ``provision.yml``, go to `Building Clusters <../Build
 
     * Ansible playbooks by default run concurrently on 5 nodes. To change this, update the ``forks`` value in ``ansible.cfg`` present in the respective playbook directory.
 
+    * While the ``admin_nic`` on cluster nodes is configured by Omnia to be static, the public NIC IP address should be configured by user.
+
     * If the target nodes were discovered using switch-based, mapping or snmpwalk mechanisms, manually PXE boot the target servers after the ``provision.yml`` playbook is executed and the target node lists as **booted** `in the nodeinfo table <ViewingDB.html>`_.
 
     * If the cluster does not have access to the internet, AppStream will not function.  To provide internet access through the control plane (via the PXE network NIC), update ``primary_dns`` and ``secondary_dns`` in ``provision_config.yml`` and run ``provision.yml``
@@ -164,5 +166,7 @@ After successfully running ``provision.yml``, go to `Building Clusters <../Build
     * On subsequent runs of ``provision.yml``, if users are unable to log into the server, refresh the ssh key manually and retry. ::
 
         ssh-keygen -R <node IP>
+
+    * If a second run of ``provision.yml`` fails, the ``input/provision_config.yml`` file will be unencrypted. 
 
 To create a node inventory in ``/opt/omnia``, `click here <../PostProvisionScript.html>`_.
