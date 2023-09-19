@@ -1,11 +1,11 @@
 Before you build clusters
 --------------------------
 
-* `Ensure that all target nodes are up and running <../InstallingProvisionTool/ViewingDB.html>`_.
+* `Ensure that all cluster nodes are up and running <../InstallingProvisionTool/ViewingDB.html>`_.
 
 * Verify that all inventory files are updated.
 
-* If the target cluster requires more than 10 kubernetes nodes, use a docker enterprise account to avoid docker pull limits.
+* If the cluster cluster requires more than 10 kubernetes nodes, use a docker enterprise account to avoid docker pull limits.
 
 * Verify that all nodes are assigned a group. Use the `inventory <../../samplefiles.html>`_ as a reference. The inventory file is case-sensitive. Follow the casing provided in the sample file link.
 
@@ -15,14 +15,14 @@ Before you build clusters
 
   * The login group is optional. If present, it should have exactly 1 node.
 
-  * Users should also ensure that all repos are available on the target nodes running RHEL.
+  * Users should also ensure that all repos are available on the cluster nodes running RHEL.
 
 .. note:: The inventory file accepts both IPs and FQDNs as long as they can be resolved by DNS.
 
 
-* Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to run ``omnia.yml`` on RHEL target nodes.
+* Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to run ``omnia.yml`` on RHEL cluster nodes.
 
-* For RHEL target nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription.
+* For RHEL cluster nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription.
 
 
 

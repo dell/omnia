@@ -7,8 +7,8 @@ To enable centralized authentication in the cluster, Omnia installs either:
  - LDAP Client
 
 .. note:: 
-    * Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to run ``security.yml`` on RHEL target nodes.
-    * For RHEL target nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription.
+    * Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to run ``security.yml`` on RHEL cluster nodes.
+    * For RHEL cluster nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all cluster nodes. Every cluster node will require a RedHat subscription.
 
 
 
@@ -88,7 +88,7 @@ The ``omnia.yml`` playbook installs Slurm, BeeFGS Client, NFS Client in addition
 
 Once user accounts are created, admins can enable passwordless SSH for users to run HPC jobs on the cluster nodes.
 
-.. note:: Once user accounts are created on FreeIPA, use the accounts to login to the target nodes to reset the password and create a corresponding home directory.
+.. note:: Once user accounts are created on FreeIPA, use the accounts to login to the cluster nodes to reset the password and create a corresponding home directory.
 
 To customize your setup of passwordless ssh, input parameters in ``input/passwordless_ssh_config.yml``.
 

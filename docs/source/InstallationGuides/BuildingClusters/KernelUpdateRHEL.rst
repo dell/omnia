@@ -3,13 +3,13 @@ Updating kernels
 
 **Pre requisites**:
 
-* Verify that the BaseOS repo version on the control plane matches the target kernel version for the target nodes. ::
+* Verify that the BaseOS repo version on the control plane matches the cluster kernel version for the cluster nodes. ::
 
     dnf repolist
 
-* Verify that the target nodes are in the ``booted`` state. For more information, `click here <../InstallingProvisionTool/ViewingDB.html>`_.
+* Verify that the cluster nodes are in the ``booted`` state. For more information, `click here <../InstallingProvisionTool/ViewingDB.html>`_.
 
-**Download and install kernel updates to target nodes**
+**Download and install kernel updates to cluster nodes**
 
 1. Download all required kernel RPM update files to the ``/install/post/otherpkgs/<Provision OS.Version>/x86_64/custom_software/Packages/`` folder.
 
