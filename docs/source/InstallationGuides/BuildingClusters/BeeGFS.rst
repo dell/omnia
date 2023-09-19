@@ -53,8 +53,8 @@ To open the ports required, use the following steps:
 
 * If the cluster runs Rocky, ensure that versions running are compatible by checking our `support matrix <../../Overview/SupportMatrix/OperatingSystems/Rocky.html>`_.
 
-Installing the BeeGFS client via Omnia
---------------------------------------
+**Installing the BeeGFS client via Omnia**
+
 
 After the required parameters are filled in ``input/storage_config.yml``, Omnia installs BeeGFS on manager and compute nodes while executing the ``omnia.yml`` playbook.
 
