@@ -13,8 +13,13 @@
 # limitations under the License.
 ---
 
-- name: Gather facts from all the nodes
+- name: Check node reachable
   hosts: manager, compute, login
+  tasks:
+    - name: Check node reachable
+      ansible.builtin.include_role:
+        name: scheduler/roles/node_validation
+        tasks_from: validate_node_reachable.yml
 
 - name: Validate all input parameters
   hosts: localhost
@@ -24,6 +29,16 @@
     - scheduler/roles/cluster_validation
     - security/roles/security_validation
     - storage/roles/storage_validation
+
+- name: Check internet access
+  hosts: manager, compute, login
+  gather_facts: false
+  any_errors_fatal: true
+  tasks:
+    - name: Check internet access
+      ansible.builtin.include_role:
+        name: scheduler/roles/node_validation
+        tasks_from: validate_internet_access.yml
 
 - name: Configure security on nodes
   ansible.builtin.import_playbook: security/security.yml
