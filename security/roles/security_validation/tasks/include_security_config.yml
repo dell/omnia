@@ -30,8 +30,15 @@
   when: "'$ANSIBLE_VAULT;' in config_content.stdout"
 
 - name: Include variable file security_config.yml
-  ansible.builtin.include_vars: "{{ security_config_file }}"
-  no_log: true
+  block:
+    - name: Include variable file security_config.yml
+      ansible.builtin.include_vars: "{{ security_config_file }}"
+      register: include_security_config
+      no_log: true
+  rescue:
+    - name: Failed to include security_config.yml
+      ansible.builtin.fail:
+        msg: "{{ security_config_syntax_fail_msg }} Error: {{ include_security_config.message }}"
 
 - name: Create ansible vault key
   ansible.builtin.set_fact:
