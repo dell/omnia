@@ -25,7 +25,9 @@
     - name: Fail when docker repo not reachable
       ansible.builtin.fail:
         msg: "{{ docker_unreachable_fail_msg }}"
-      when: docker_url_check.status != 200
+      when:
+        - docker_url_check.status is defined
+        - docker_url_check.status != 200
 
 - name: Validate internet access when slurm_support is true
   when: hostvars['127.0.0.1']['slurm_support']
@@ -39,4 +41,6 @@
     - name: Fail when go url not reachable
       ansible.builtin.fail:
         msg: "{{ go_url_unreachable_fail_msg }}"
-      when: go_url_check.status != 200
+      when: 
+        - go_url_check.status is defined
+        - go_url_check.status != 200
