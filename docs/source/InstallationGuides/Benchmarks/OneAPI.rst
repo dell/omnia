@@ -23,7 +23,6 @@ ________________________________________________
 
 2. Move the newly created ``oneAPI.repo`` file to the YUM configuration directory. ::
 
-    /etc/yum.repos.d:
     sudo mv /tmp/oneAPI.repo /etc/yum.repos.d
 
 3. Switch to the ``/install/post/otherpkgs/<Provision OS.Version>/x86_64/custom_software/Packages/`` folder and execute:
