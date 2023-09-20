@@ -22,6 +22,7 @@ login_node_security_config_file: "{{ role_path }}/../../../input/login_node_secu
 ldap_freeipa_failure_msg: "Failed. Both ldap_required and freeipa_required cannot be true"
 hosts_file_dest: "/etc/hosts"
 hosts_file_mode: "0644"
+security_config_syntax_fail_msg: "Failed. Syntax errors present in security_config.yml. Fix errors and re-run playbook again."
 
 # Usage: fetch_inputs.yml
 ldap_required_success_msg: "ldap_required variable successfully validated"
