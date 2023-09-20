@@ -45,8 +45,15 @@
   when: "'$ANSIBLE_VAULT;' in config_content.stdout"
 
 - name: Include variable file omnia_config.yml
-  ansible.builtin.include_vars: "{{ role_path }}/../../../input/{{ config_filename }}"
-  no_log: true
+  block:
+    - name: Include variable file omnia_config.yml
+      ansible.builtin.include_vars: "{{ role_path }}/../../../input/{{ config_filename }}"
+      register: include_omnia_config
+      no_log: true
+  rescue:
+    - name: Failed to include omnia_config.yml
+      ansible.builtin.fail:
+        msg: "{{ omnia_config_syntax_fail_msg }} Error: {{ include_omnia_config.message }}"
 
 - name: Validate input parameters are not empty
   ansible.builtin.fail:
@@ -79,7 +86,7 @@
   block:
     - name: Assert kubernetes version
       ansible.builtin.assert:
-        that: 
+        that:
           - k8s_version | default("", true) | length > 1
           - "('1.16.7' in k8s_version) or ('1.19.3' in k8s_version)"
         success_msg: "{{ success_msg_k8s_version }}"
@@ -112,6 +119,10 @@
     ansible_conf_file_path: "{{ ansible_config_file_path }}"
     omnia_usrhome_share: "{{ omnia_usrhome_share }}"
   no_log: true
+
+- name: Set enable omnia nfs value
+  ansible.builtin.set_fact:
+    enable_omnia_nfs: "{{ enable_omnia_nfs | lower }}"
 
 - name: Verify the value of enable_omnia_nfs
   ansible.builtin.assert:
