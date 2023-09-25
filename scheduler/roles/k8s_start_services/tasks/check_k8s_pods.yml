@@ -13,6 +13,12 @@
 #  limitations under the License.
 ---
 
+- name: Wait for 5 minutes minutes for pods to come up
+  ansible.builtin.wait_for:
+    timeout: "{{ pod_wait_time }}"
+  run_once: true
+  when: "'manager' in group_names"
+
 - name: Calico node configuration
   when:
     - "'manager' in group_names"
@@ -30,7 +36,7 @@
       failed_when: false
 
     - name: Wait for calico pod to come to ready state
-      ansible.builtin.command: "kubectl wait --for=condition=ready -n kube-system pod -l k8s-app=calico-node --timeout=10m"
+      ansible.builtin.command: "kubectl wait --for=condition=ready -n kube-system pod -l k8s-app=calico-node --timeout=10s"
       changed_when: false
       register: calico_pod_status
       failed_when: false
@@ -43,7 +49,7 @@
       tags: install
 
 - name: Wait for flannel pod to come to ready state
-  ansible.builtin.command: "kubectl wait --for=condition=ready -n kube-system pod -l app=flannel --timeout=10m"
+  ansible.builtin.command: "kubectl wait --for=condition=ready -n kube-system pod -l app=flannel --timeout=10s"
   changed_when: false
   register: flannel_pod_status
   failed_when: false
@@ -53,7 +59,7 @@
   tags: install
 
 - name: Wait for nfs-client-provisioner pod to come to ready state
-  ansible.builtin.command: "kubectl wait --for=condition=ready -n default pod -l app=nfs-client-provisioner --timeout=10m"
+  ansible.builtin.command: "kubectl wait --for=condition=ready -n default pod -l app=nfs-client-provisioner --timeout=10s"
   changed_when: false
   register: nfs_pod_status
   failed_when: false
@@ -63,7 +69,7 @@
   tags: install
 
 - name: Wait for volcano-scheduler pod to come to ready state
-  ansible.builtin.command: "kubectl wait --for=condition=ready -n volcano-system pod -l app=volcano-scheduler --timeout=5m"
+  ansible.builtin.command: "kubectl wait --for=condition=ready -n volcano-system pod -l app=volcano-scheduler --timeout=10s"
   changed_when: false
   register: volcano_pod_status
   failed_when: false
