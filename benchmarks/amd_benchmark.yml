@@ -13,10 +13,17 @@
 #  limitations under the License.
 ---
 
-# Usage: install_packages.yml
-pmix_packages:
-  - pmix-devel
-  - libevent-devel
+- name: Validations for AMD benchmark
+  hosts: localhost
+  gather_facts: true
+  tasks:
+    - name: Validations for AMD benchmark
+      ansible.builtin.include_role:
+        name: amd_benchmark
+        tasks_from: validations.yml
 
-# Usage: configure_slurm.yml
-slurm_conf_path: /etc/slurm/slurm.conf
+- name: Benchmarks for AMD
+  hosts: manager, compute, login
+  gather_facts: true
+  roles:
+    - amd_benchmark

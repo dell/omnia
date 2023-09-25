@@ -13,8 +13,17 @@
 #  limitations under the License.
 ---
 
-- name: Install packages
-  ansible.builtin.include_tasks: install_packages.yml
+- name: Update repo for intel toolkit
+  hosts: localhost
+  gather_facts: true
+  tasks:
+    - name: Update repo for intel toolkit
+      ansible.builtin.include_role:
+        name: intel_benchmark
+        tasks_from: update_repo.yml
 
-- name: Configure slurm
-  ansible.builtin.include_tasks: configure_slurm.yml
+- name: Benchmarks for intel
+  hosts: manager, compute, login
+  gather_facts: true
+  roles:
+    - intel_benchmark
