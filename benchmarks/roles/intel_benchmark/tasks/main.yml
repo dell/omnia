@@ -13,8 +13,5 @@
 #  limitations under the License.
 ---
 
-- name: Benchmarks for AMD
-  hosts: manager, compute, login
-  gather_facts: true
-  roles:
-    - amd_benchmark
+- name: Install intel toolkit packages
+  ansible.builtin.include_tasks: install_packages.yml
