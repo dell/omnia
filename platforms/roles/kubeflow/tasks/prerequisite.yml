@@ -1,0 +1,28 @@
+---
+- name: install git if not present
+  package:
+    name: git
+    state: present
+  when: inventory_hostname in groups["manager"]
+
+- name: python and pip packages
+  block:
+    - name: Install pip3 on centos/RHEL
+      ansible.builtin.yum:
+        name: python3-pip
+        state: present
+      when: ansible_distribution in ["CentOS", "RedHat", "Rocky"]
+
+    - name: Install pip3 on Debian/Ubuntu
+      ansible.builtin.apt:
+        name: python3-pip
+        state: present
+      when: ansible_distribution in ["Debian", "Ubuntu"]
+
+    - name: Install pre-requisites python modules
+      ansible.builtin.pip:
+        name:
+          - kubernetes
+          - openshift
+        extra_args: "--ignore-installed"
+  when: inventory_hostname in groups["manager"]
