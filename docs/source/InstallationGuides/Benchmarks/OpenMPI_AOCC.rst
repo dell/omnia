@@ -101,6 +101,34 @@ For a batch job using the same parameters, the script would be: ::
     srun --mpi=pmix_v2 ./amd-zen-hpl-2023_07_18/xhpl
 
 
-.. note:: If mpirun is used to initiate jobs, a host list is required as illustrated: ``mpirun -np 2 -host 10.5.0.4,10.5.0.5 ./amd-zen-hpl-2023_07_18/xhpl``
+Alternatively, to use ``mpirun``, the script would be: ::
 
+    #!/bin/bash
+
+    #SBATCH --job-name=test
+
+    #SBATCH --output=test.log
+
+    #SBATCH --partition=normal
+
+    #SBATCH -N 3
+
+    #SBATCH --time=10:00
+
+    #SBATCH --ntasks=2
+
+
+
+
+    source /home/omnia-share/setenv_AOCC.sh
+
+    export PATH=$PATH:/home/omnia-share/openmpi/bin
+
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/omnia-share/openmpi/lib
+
+    /home/omnia-share/openmpi/bin/mpirun --map-by ppr:1:node -np 2 --display-map   --oversubscribe --mca orte_keep_fqdn_hostnames 1 ./xhpl
+
+
+
+.. note:: The above scripts are samples that can be modified as required. Ensure that ``--mca orte_keep_fqdn_hostnames 1`` is included in the mpirun command in sbatch scripts.  Omnia maintains all hostnames in FQDN format. Failing to include ``--mca orte_keep_fqdn_hostnames 1`` may cause job initiation to fail.
 
