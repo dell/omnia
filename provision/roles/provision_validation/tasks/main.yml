@@ -32,14 +32,6 @@
 - name: Validate network interface type
   ansible.builtin.include_tasks: validate_network_interface.yml
 
-- name: Assign nic configuration when discovery mechanism is mapping or snmp
-  ansible.builtin.include_tasks: assign_admin_nic_config.yml
-  when: network_interface_type == "dedicated"
-
-- name: Assign nic configuration when discovery mechanism is bmc
-  ansible.builtin.include_tasks: assign_nic_config.yml
-  when: network_interface_type == "lom"
-
 - name: Validate the nic parameters
   ansible.builtin.include_tasks: validate_cp_nic.yml
 
