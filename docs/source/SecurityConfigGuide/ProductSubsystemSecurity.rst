@@ -388,4 +388,4 @@ The format is described in the following table.
 Network vulnerability scanning
 ------------------------------
 
-Omnia performs network security scans on all modules of the product. Omnia additionally performs Blackduck scans on all open source software installed by Omnia at runtime. 
+Omnia performs network security scans on all modules of the product. Omnia additionally performs Blackduck scans on all open source software installed by Omnia at runtime.
