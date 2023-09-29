@@ -384,3 +384,8 @@ The format is described in the following table.
 +----------------------------------+----------------------------------+------------------------------------------+
 | Warning                          | [WARNING]: warning message       | [WARNING]: provided hosts list is empty  |
 +----------------------------------+----------------------------------+------------------------------------------+
+
+Network vulnerability scanning
+------------------------------
+
+Omnia performs network security scans on all modules of the product. However, Omnia is not responsible for the third-party software installed using Omnia. Review all third party software before using Omnia to install it.

@@ -7,7 +7,9 @@
     color: white;
 }
 .wy-table-responsive {
+    display: block;
     overflow: visible !important;
+    max-width: 800px;
 }
 .wy-nav-content {
     max-width: none;
