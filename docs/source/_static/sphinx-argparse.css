@@ -1,6 +1,6 @@
 .wy-table-responsive table td {
     white-space: normal !important;
-    word-wrap: break-word; !important;
+    word-break: break-all; !important;
 }
 .wy-table-responsive table th {
     background-color: #2980b9;
@@ -8,9 +8,8 @@
 }
 .wy-table-responsive {
     display: block;
+    width: fit-content;
+    block-size: fit-content;
     overflow: visible !important;
     max-width: 800px;
-}
-.wy-nav-content {
-    max-width: none;
 }
