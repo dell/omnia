@@ -23,7 +23,7 @@
 - name: Downloading intel packages
   block:
     - name: Download intel packages(This might take 10-15 minutes)
-      ansible.builtin.command: dnf download {{ item }} --resolve --alldeps --destdir="{{ omnia_common_xcat_repo }}"
+      ansible.builtin.command: dnf download {{ item }} -y --resolve --alldeps --destdir="{{ omnia_common_xcat_repo }}"
       changed_when: true
       with_items: "{{ intel_packages }}"
   rescue:
