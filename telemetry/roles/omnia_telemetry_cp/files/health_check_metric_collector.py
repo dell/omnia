@@ -57,14 +57,14 @@ class HealthCheckMetricCollector:
            This method checks if dmesg is giving some output or not.
         '''
         dmesg_op_dict = data_collector_os.get_health_node_dmesg()
-        self.health_check_metric_output_dict["Dmesg"] = dmesg_op_dict["Dmesg"]
+        self.health_check_metric_output_dict["dmesg"] = dmesg_op_dict["Dmesg"]
 
     def get_beegfs_details(self):
         '''
             This method checks if beeGFS client is reachable or not.
         '''
         beegfs_op_dict = data_collector_storage.get_beegfs_details()
-        self.health_check_metric_output_dict["Beegfs client Reachable"] = beegfs_op_dict["Beegfs client Reachable"]
+        self.health_check_metric_output_dict["Beegfs -beegfsstat"] = beegfs_op_dict["Beegfs client Reachable"]
 
     def get_nvidia_metrics(self):
         '''
@@ -244,16 +244,16 @@ class HealthCheckMetricCollector:
         if gpu_thermal is not None:
             for index, item in enumerate(gpu_thermal):
                 if int(item) < 85:
-                    self.health_check_metric_output_dict["gpu_health_temperature:gpu" \
+                    self.health_check_metric_output_dict["gpu_health_thermal:gpu" \
                                                          + str(index)] = \
                                                             utility.Result.SUCCESS.value
                 else:
-                    self.health_check_metric_output_dict["gpu_health_temperature:gpu" \
+                    self.health_check_metric_output_dict["gpu_health_thermal:gpu" \
                                                          + str(index)] = \
                                                             utility.Result.FAILURE.value
 
         else:
-            self.health_check_metric_output_dict["gpu_health_temperature:gpu"] = \
+            self.health_check_metric_output_dict["gpu_health_thermal:gpu"] = \
                 utility.Result.UNKNOWN.value
 
     def get_smart_health_parameters(self):
@@ -263,7 +263,7 @@ class HealthCheckMetricCollector:
         '''
         smart_dict=data_collector_smart.get_using_smartctl("smart")
         for key in smart_dict.keys():
-            self.health_check_metric_output_dict["smart:"+key]=smart_dict[key]
+            self.health_check_metric_output_dict["Smart:"+key]=smart_dict[key]
 
     def metric_collector(self, aggregation_level="compute"):
         '''
@@ -274,12 +274,12 @@ class HealthCheckMetricCollector:
         if prerequisite.dict_component_existence["beegfs"]:
             self.get_beegfs_details()
         else:
-            self.health_check_metric_output_dict["Beegfs client Reachable"] = utility.Result.UNKNOWN.value
+            self.health_check_metric_output_dict["Beegfs -beegfsstat"] = utility.Result.UNKNOWN.value
 
         if prerequisite.dict_component_existence["smartctl"]:
             self.get_smart_health_parameters()
         else:
-            self.health_check_metric_output_dict["smart"] = utility.Result.UNKNOWN.value
+            self.health_check_metric_output_dict["Smart"] = utility.Result.UNKNOWN.value
 
         # Run only when nvidia gpu present
         if prerequisite.dict_component_existence['nvidiagpu']:
@@ -298,7 +298,7 @@ class HealthCheckMetricCollector:
                 utility.Result.UNKNOWN.value
             self.health_check_metric_output_dict["gpu_health_power"] = \
                 utility.Result.UNKNOWN.value
-            self.health_check_metric_output_dict["gpu_health_temperature"] = \
+            self.health_check_metric_output_dict["gpu_health_thermal"] = \
                 utility.Result.UNKNOWN.value
         if aggregation_level in ["manager", "manager,login"]:
 

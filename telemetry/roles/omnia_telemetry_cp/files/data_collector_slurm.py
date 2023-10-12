@@ -77,7 +77,7 @@ def get_cluster_values_sinfo():
 
             for index,node_state in enumerate (column_list_state):
                 # state ending with * denotes node currently not responding, hence declaring that node as down.
-                star_present = state.endswith('*')
+                star_present = node_state.endswith('*')
                 state = common_parser.split_by_regex(node_state, '\*')[0]
                 for node in column_list_nodelist[index].split(','):
                     # Total Nodes
