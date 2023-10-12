@@ -33,6 +33,8 @@ echo "INSTALLING ANSIBLE:"
 echo "-------------------"
 python3.8 -m pip install ansible==5.10.0
 python3.8 -m pip install jinja2==3.1.2
+dnf install git-lfs -y
+git lfs pull
 
 selinux_count="$(grep "^SELINUX=disabled" /etc/selinux/config | wc -l)"
 if [[ $selinux_count == 0 ]];
@@ -45,8 +47,13 @@ then
 fi
 echo ""
 echo ""
-echo "Please set the hostname for the control plane in the format hostname.domain_name. Eg: controlplane.omnia.test"
 echo ""
-echo "Once hostname is set, provide inputs in input/provision_config.yml and execute the playbook provision/provision.yml"
+echo "Download the ISO file required to provision in the control plane."
+echo ""
+echo "Download OFED ISO and CUDA RPM file to install OFED and CUDA during provisioning."
+echo ""
+echo "Please configure all the NICs and set the hostname for the control plane in the format hostname.domain_name. Eg: controlplane.omnia.test"
+echo ""
+echo "Once IP and hostname is set, provide inputs in input/provision_config.yml and execute the playbook provision/provision.yml"
 echo ""
 echo "For more information: https://omnia-doc.readthedocs.io/en/latest/InstallationGuides/InstallingProvisionTool/index.html"

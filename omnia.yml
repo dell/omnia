@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,8 +13,33 @@
 # limitations under the License.
 ---
 
-- name: Gather facts from all the nodes
-  hosts: manager, compute, login, nfs
+- name: Check node reachable
+  hosts: manager, compute, login
+  tasks:
+    - name: Check node reachable
+      ansible.builtin.include_role:
+        name: scheduler/roles/node_validation
+        tasks_from: validate_node_reachable.yml
+
+- name: Validate all input parameters
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  roles:
+    - scheduler/roles/cluster_validation
+    - security/roles/security_validation
+    - storage/roles/storage_validation
+    - telemetry/roles/telemetry_validation
+
+- name: Check internet access
+  hosts: manager, compute, login
+  gather_facts: false
+  any_errors_fatal: true
+  tasks:
+    - name: Check internet access
+      ansible.builtin.include_role:
+        name: scheduler/roles/node_validation
+        tasks_from: validate_internet_access.yml
 
 - name: Configure security on nodes
   ansible.builtin.import_playbook: security/security.yml
@@ -27,3 +52,6 @@
 
 - name: Passwordless SSH between manager and compute nodes
   ansible.builtin.import_playbook: utils/passwordless_ssh.yml
+
+- name: Import playbook to start telemetry services
+  ansible.builtin.import_playbook: telemetry/telemetry.yml

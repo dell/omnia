@@ -17,6 +17,10 @@
   ansible.builtin.import_tasks: clean_provision_setup.yml
   tags: provision
 
-- name: Cleanup monitor setup
-  ansible.builtin.import_tasks: clean_monitor_setup.yml
-  tags: monitor
+- name: Cleanup docker-registry setup
+  ansible.builtin.import_tasks: clean_docker_registry.yml
+  tags: provision, docker-registry
+
+- name: Cleanup telemetry setup
+  ansible.builtin.import_tasks: clean_telemetry_setup.yml
+  tags: telemetry

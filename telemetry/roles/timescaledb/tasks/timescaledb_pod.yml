@@ -14,6 +14,7 @@
 ---
 
 - name: Timescaledb pod definition
+  no_log: true
   kubernetes.core.k8s:
     state: present
     definition:
@@ -61,6 +62,10 @@
                     name: timezone
                 workingDir: /go/src/github.com/telemetry-reference-tools
                 env:
+                  - name: POSTGRES_HOST_AUTH_METHOD
+                    value: scram-sha-256
+                  - name: POSTGRES_INITDB_ARGS
+                    value: "--auth-host=scram-sha-256"
                   - name: node.name
                     value: timescale
                   - name: POSTGRES_USER

@@ -30,6 +30,9 @@
       ansible.builtin.include_tasks: install_xcat.yml
       when: not xcat_installation_status
 
+    - name: Install genesis
+      ansible.builtin.include_tasks: install_genesis.yml
+
     - name: Configuration of xcat
       ansible.builtin.include_tasks: configure_xcat.yml
   environment:

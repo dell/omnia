@@ -13,6 +13,9 @@
 #  limitations under the License.
 ---
 
+# Usage: main.yml
+storage_config_vars: "{{ role_path }}/../../../input/storage_config.yml"
+
 # Usage: nfs_client.yml
 nfs_packages:
   - nfs-utils
@@ -26,20 +29,3 @@ default_client_mount_options: "nosuid,rw,sync,hard,intr"
 mount_msg: "nfs-server.service might not be running on NFS Server. Please check or start services"
 sync_value: 300
 poll_value: 5
-
-# Usage: fetch_nfs_client_params.yml
-nfs_server_reach_msg: "Failed. Nfs server is not reachable. Please enter valid nfs server IP in nfs_client_params"
-server_share_path_success_msg: "server_share_path is validated successfully"
-server_share_path_failure_msg: "Failed. Please enter valid NFS server mount location"
-server_ip_success_msg: "Successfully verified server_ip variable declaration"
-server_ip_fail_msg: "Failed, Declare server_ip variable in nfs_client_params of storage_config, please refer comments in storage_config.yml"
-server_share_path_fail_msg: "Failed, Declare server_share_path variable in nfs_client_params of storage_config, please refer comments in storage_config.yml"
-client_share_path_success_msg: "Successfully verified client_share_path variable declaration"
-client_share_path_fail_msg: "Failed, Declare client_share_path variable in nfs_client_params of storage_config, please refer comments in storage_config.yml"
-server_share_path_len_success_msg: "server_share_path validated successfully"
-client_mount_options_success_msg: "client_mount_options declaration validated successfully"
-client_mount_options_fail_msg: "Failed, please declare client_mount_options variable in nfs_client_params"
-server_ip_msg: "As server_ip is not available NFS bolt-on role will not work"
-nfs_client_declaration_msg: "Make sure to declare values in server_ip and server_share_path in all the lists on nfs_client_params"
-storage_config_vars: "{{ role_path }}/../../../input/storage_config.yml"
-ping_msg: "100% packet loss"

@@ -48,7 +48,7 @@ provision_os: "rhel"
 
 #### Mandatory, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
 # OS version of provision_os to be installed
-# Supported values for rhel/rocky: 8.0, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7
+# Supported values for rhel/rocky: 8.0, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.8
 provision_os_version: 8.6
 
 #### Mandatory, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
@@ -255,3 +255,9 @@ mlnx_ofed_path: ""
 # Example:
 # cuda_toolkit_path: "/root/cuda-repo-rhel8-12-0-local-12.0.0_525.60.13-1.x86_64.rpm"
 cuda_toolkit_path: ""
+
+#### Mandatory, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
+# apptainer will be installed on the cluster to enable execution of HPC benchmarks in a containeraized environment.
+# If apptainer_support: false, apptainer will not be installed on the cluster
+# If apptainer_support: true, apptainer will be installed on the cluster
+apptainer_support: false

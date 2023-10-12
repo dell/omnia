@@ -15,6 +15,9 @@
 
 - name: Create and update repositories
   block:
+    - name: Check encryption
+      ansible.builtin.include_tasks: check_telemetry_encryption.yml
+
     - name: Include xcat_repo_manipulate role vars
       ansible.builtin.include_vars: "{{ item }}"
       with_items: "{{ create_repo_role_vars }}"

@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,12 +13,14 @@
 # limitations under the License.
 ---
 
-- name: Validate xcat status on control plane
+- name: Validate storage input parameters
   hosts: localhost
   any_errors_fatal: true
-  roles:
-    - storage_validation
-  tags: beegfs
+  tasks:
+    - name: Validate storage input parameters
+      ansible.builtin.include_role:
+        name: storage_validation
+        tasks_from: validation_status_check.yml
 
 - name: Gather facts from all the nodes
   hosts: manager, compute
@@ -28,17 +30,6 @@
   gather_facts: false
   roles:
     - repo_validation
-  tags: beegfs
-
-- name: Validate input parameters for BeeGFS
-  hosts: localhost
-  connection: local
-  tasks:
-    - name: Validate variables
-      ansible.builtin.include_role:
-        name: beegfs
-        tasks_from: validate_beegfs_vars.yml
-  tags: beegfs
 
 - name: Install BeeGFS client
   hosts: manager, compute
@@ -46,16 +37,6 @@
   roles:
     - beegfs
   tags: beegfs
-
-- name: Validate input parameters for NFS client
-  hosts: localhost
-  connection: local
-  tasks:
-    - name: Validate input variables
-      ansible.builtin.include_role:
-        name: nfs
-        tasks_from: validate_nfs_vars.yml
-  tags: nfs_client
 
 - name: Install NFS client
   hosts: manager, compute, login

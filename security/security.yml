@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,11 +13,14 @@
 # limitations under the License.
 ---
 
-- name: Validate input parameters and create offline repo
+- name: Validate security input parameters
   hosts: localhost
   any_errors_fatal: true
-  roles:
-    - security_validation
+  tasks:
+    - name: Validate security input parameters
+      ansible.builtin.include_role:
+        name: security_validation
+        tasks_from: validation_status_check.yml
   tags: freeipa, ldap
 
 - name: Gather facts from all the nodes
