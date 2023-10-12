@@ -16,6 +16,10 @@
 - name: Include storage_config.yml
   ansible.builtin.include_vars: "{{ storage_config_vars }}"
 
+- name: Set beegfs_support value
+  ansible.builtin.set_fact:
+    beegfs_support: "{{ beegfs_support | lower }}"
+
 - name: Assert beegfs_support
   ansible.builtin.assert:
     that:

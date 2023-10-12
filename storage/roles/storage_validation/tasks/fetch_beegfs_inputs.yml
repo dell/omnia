@@ -17,6 +17,12 @@
   ansible.builtin.set_fact:
     beegfs_connauth_status: false
 
+- name: Set beegfs_rdma_support, beegfs_unmount_client, beegfs_version_change value
+  ansible.builtin.set_fact:
+    beegfs_rdma_support: "{{ beegfs_rdma_support | lower }}"
+    beegfs_unmount_client: "{{ beegfs_unmount_client | lower }}"
+    beegfs_version_change: "{{ beegfs_version_change | lower }}"
+
 - name: Assert beegfs_rdma_support
   ansible.builtin.assert:
     that:

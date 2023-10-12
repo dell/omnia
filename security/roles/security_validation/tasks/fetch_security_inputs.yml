@@ -77,9 +77,10 @@
   when:
     - user | length > 1
 
-- name: Convert case of allow_deny
+- name: Set allow_deny, restrict_program_support value
   ansible.builtin.set_fact:
     allow_deny: "{{ allow_deny | lower }}"
+    restrict_program_support: "{{ restrict_program_support | lower }}"
 
 - name: Validate allow_deny
   ansible.builtin.assert:

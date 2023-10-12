@@ -27,6 +27,7 @@ config_vaultname: .omnia_vault_key
 vault_key_permission: 0644
 min_length: 8
 max_length: 30
+omnia_config_syntax_fail_msg: "Failed. Syntax errors present in omnia_config.yml. Fix errors and re-run playbook again."
 fail_msg_mariadb_password: "maria_db password not given in correct format."
 success_msg_mariadb_password: "mariadb_password validated"
 success_msg_k8s_version: "Kubernetes Version Validated"
@@ -50,6 +51,7 @@ input_config_failure_msg: "None of the parameters in omnia_config.yml should be 
 scheduler_type_success_msg: "scheduler_type successfully validated"
 scheduler_type_fail_msg: "Failed. Invalid scheduler_type in omnia_config.yml. To install slurm provide scheduler_type: slurm
 To install k8s provide scheduler_type: k8s. To install slurm and k8s provide scheduler_type: slurm,k8s"
+install_scheduler_msg: "Installing job scheduler:"
 
 # Usage: validations.yml
 skip_tag_fail_msg: "Can't skip both slurm and kubernetes"
@@ -61,6 +63,7 @@ disjoint_fail_msg: "manager and compute groups should be disjoint"
 disjoint_success_msg: "manager and compute groups are disjoint"
 nfs_node_group_fail_msg: "nfs_node group should contain exactly 1 node"
 nfs_node_group_success_msg: "nfs_node group check passed"
+invalid_inventory_fail_msg: "Failed. Invalid inventory format. Provide inventory with manager and compute group."
 
 # Usage: install_packages.yml
 ansible_base_version: '2.9'

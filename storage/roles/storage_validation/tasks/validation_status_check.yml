@@ -13,16 +13,12 @@
 #  limitations under the License.
 ---
 
-- name: Fail if BMC nic subent is not present
-  ansible.builtin.fail:
-    msg: "Failed.{{ fail_subnet }} for BMC. Please provide bmc_nic_subnet in case of network_interface_type as LOM"
-  when: bmc_nic_subnet | length < 7
-
-- name: Set fact for BMC NIC IP and netmask details
+- name: Set storage_validation_status
   ansible.builtin.set_fact:
-    bmc_nic: "{{ admin_nic }}"
-    bmc_nic_netmask: "{{ omnia_bmc_netmask }}"
-    admin_nic_netmask: "{{ omnia_admin_netmask }}"
+    storage_validation_status: false
+  when: storage_validation_status is not defined
 
-- name: Configure the admin and bmc nic
-  ansible.builtin.include_tasks: enable_nic_configuration.yml
+- name: Validate storage parameters if storage_validation_status is false
+  ansible.builtin.include_role:
+    name: "{{ role_path }}"
+  when: not storage_validation_status

@@ -47,12 +47,14 @@
         name: slurmdbd
       register: slurmdbd_status
       until: 'slurmdbd_status.status.ActiveState=="active"'
-      retries: 20
+      retries: "{{ max_retries }}"
 
     - name: Show cluster if exists
       command: sacctmgr -n show cluster {{ cluster_name }}
       register: slurm_clusterlist
       changed_when: false
+      until: slurm_clusterlist is not failed
+      retries: "{{ max_retries }}"
 
     - name: Create slurm cluster
       command: sacctmgr -i add cluster {{ cluster_name }}
