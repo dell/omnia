@@ -232,11 +232,22 @@
   tags: init
 
 - name: Deploy ROCm Device plugin
-  ansible.builtin.command: "kubectl create -f '{{ rocm_device_plugin_yaml_url }}'"
-  changed_when: true
-  register: amd_gpu_enable
   when: "'amdgpu-device-plugin' not in k8s_pods.stdout"
-  tags: init
+  block:
+    - name: Deploy ROCm Device plugin
+      ansible.builtin.command: "kubectl create -f '{{ rocm_device_plugin_yaml_url }}'"
+      changed_when: true
+      register: amd_gpu_enable
+      tags: init
+  rescue:
+    - name: Delete ROCm device plugin
+      ansible.builtin.command: "kubectl delete -f '{{ rocm_device_plugin_yaml_url }}'"
+      changed_when: true
+
+    - name: Retry deploy ROCm device plugin
+      ansible.builtin.command: "kubectl create -f '{{ rocm_device_plugin_yaml_url }}'"
+      changed_when: true
+      register: amd_gpu_enable
 
 #- name: Deploy Volcano Scheduling
   #command: "kubectl apply -f '{{ volcano_scheduling_yaml_url }}'"

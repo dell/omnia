@@ -25,7 +25,7 @@
         labels:
           app: "{{ timescaledb_k8s_name }}"
       spec:
-        type: ClusterIP
+        type: LoadBalancer
         ports:
           - name: timescaledb
             port: "{{ timescaledb_container_port }}"

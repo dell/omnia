@@ -36,3 +36,6 @@ fail_msg_kerberos_admin_password: "Failed. Incorrect format provided for kerbero
 ldap_client_config_failure_msg: "LDAP Client Input parameters cannot be empty when ldap_reqired is set to true"
 domain_name_success_msg: "domain name successfully validated"
 domain_name_fail_msg: "Failed. Incorrect format provided for domain name in security_config.yml"
+invalid_inventory_fail_msg: "Failed. Invalid inventory format. Provide inventory with manager and compute group."
+invalid_inventory_ldap_fail_msg: "Failed. Invalid inventory format.
+Provide inventory with group ldap_server along with manager and compute group when authentication_type is ldap in passwordless_ssh_config.yml."
