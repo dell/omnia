@@ -48,7 +48,7 @@ Configuring ethernet switches (S3 and S4 series)
 |                            |      * Note: The playbooks will fail if any invalid configurations are entered.                                                                                                     |
 +----------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | save_changes_to_startup    | Change it to "true" only when you are certain that the updated   configurations and commands are valid.                                                                             |
-|      ``boolean``           |                                                                                                                                                                                     |
+|      ``boolean``  [1]_     |                                                                                                                                                                                     |
 |      Required              | WARNING: When set to "true", the startup configuration file is   updated. If incorrect configurations or commands are entered, the Ethernet   switches may not operate as expected. |
 |                            |                                                                                                                                                                                     |
 |                            | Choices:                                                                                                                                                                            |
@@ -58,6 +58,7 @@ Configuring ethernet switches (S3 and S4 series)
 |                            |      * ``true``                                                                                                                                                                     |
 +----------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
+.. [1] Boolean parameters do not need to be passed with double or single quotes.
 
 * When initializing a factory reset switch, the user needs to ensure DHCP is enabled and an IPv6 address is not assigned.
 

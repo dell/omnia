@@ -7,8 +7,8 @@ To enable centralized authentication in the cluster, Omnia installs either:
  - LDAP Client
 
 .. note:: 
-    * Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to run ``security.yml`` on RHEL target nodes.
-    * For RHEL target nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription.
+    * Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to run ``security.yml`` on RHEL cluster nodes.
+    * For RHEL cluster nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all cluster nodes. Every cluster node will require a RedHat subscription.
 
 
 
@@ -50,7 +50,8 @@ Enter the following parameters in ``input/security_config.yml``.
 
 .. note::
 
-    The ``input/omnia_config.yml`` file is encrypted on the first run of the provision tool:
+    The ``input/security_config.yml`` file is encrypted on the first run of ``security.yml`` and ``omnia.yml``:
+
         To view the encrypted parameters: ::
 
             ansible-vault view security_config.yml --vault-password-file .security_vault.key
@@ -59,37 +60,38 @@ Enter the following parameters in ``input/security_config.yml``.
 
             ansible-vault edit security_config.yml --vault-password-file .security_vault.key
 
+    If a subsequent run of ``security.yml`` or ``omnia.yml``, all configuration files that have been encrypted by the playbook will be unencrypted.
 
-
-Omnia installs a FreeIPA server on the manager node and FreeIPA clients on the compute and login node using one of the below commands: ::
+Omnia installs a FreeIPA server on the manager node and FreeIPA clients on the cluster  and login node using one of the below commands: ::
 
     ansible-playbook security.yml -i inventory
 
-Where inventory follows the format defined under inventory file in the provided `Sample Files <../../samplefiles.html>`_ ::
-
     ansible-playbook omnia.yml -i inventory
 
-Where inventory follows the format defined under inventory file in the provided `Sample Files <../../samplefiles.html>`_ The ``omnia.yml`` playbook installs Slurm, BeeFGS Client, NFS Client in addition to freeIPA.
+Where inventory follows the format defined under inventory file in the provided `Sample Files. <../../samplefiles.html>`_  The inventory file is case-sensitive. Follow the casing provided in the sample file link.
+
+The ``omnia.yml`` playbook installs Slurm, BeeFGS Client, NFS Client in addition to freeIPA.
 
 .. note::
 
-    * Omnia does not create any accounts (HPC users) on FreeIPA. To create a user, check out FreeIPA documentation.
+    * Omnia does not create any accounts (HPC users) on FreeIPA. To create a user, check out *FreeIPA documentation*.
 
-    * Alternatively, use the below commands with admin credentials: ::
+    * Alternatively, use the below commands with admin credentials on the login/head node: ::
 
             kinit admin  (When prompted, provide kerberos_admin_password as entered in security_config.yml)
-            ipa user-add --homedir=<nfs_dir_path> --password
+            ipa user-add FirstName_LastName --first=FirstName --last=LastName --password  --homedir=/home/omnia-share/FirstName_LastName --shell /bin/bash
 
-    For example: ``ipa user-add FirstName_LastName --first=FirstName --last=LastName --password  --homedir=/home/omnia-share/FirstName_LastName``
+    For example: ``ipa user-add FirstName_LastName --first=FirstName --last=LastName --password  --homedir=/home/omnia-share/FirstName_LastName --shell /bin/bash``
 
+    After the new user account logs in for the first time, you will be prompted to change the password to the account.
 
 **Setting up Passwordless SSH for FreeIPA**
 
 Once user accounts are created, admins can enable passwordless SSH for users to run HPC jobs on the cluster nodes.
 
-.. note:: Once user accounts are created on FreeIPA, use the accounts to login to the target nodes to reset the password and create a corresponding home directory.
+.. note:: Once user accounts are created on FreeIPA, use the accounts to login to the cluster nodes to reset the password and create a corresponding home directory.
 
-To customize your setup of passwordless ssh, input parameters in ``input/passwordless_ssh_config.yml``
+To customize your setup of passwordless ssh, input parameters in ``input/passwordless_ssh_config.yml``.
 
 +-----------------------+--------------------------------------------------------------------------------------------------------------------+
 | Parameter             | Details                                                                                                            |
@@ -117,7 +119,7 @@ Use the below command to enable passwordless SSH: ::
 
     ansible-playbook user_passwordless_ssh.yml -i inventory
 
-Where inventory follows the format defined under inventory file in the provided `Sample Files <../../samplefiles.html>`_
+Where inventory follows the format defined under inventory file in the provided `Sample Files. <../../samplefiles.html>`_ The inventory file is case-sensitive. Follow the casing provided in the sample file link.
 
 .. caution:: Do not run ssh-keygen commands after passwordless SSH is set up on the nodes.
 
@@ -198,7 +200,7 @@ Once user accounts are created, admins can enable passwordless SSH for users to 
             1. Add the LDAP server IP address to ``/etc/exports``.
             2. Run ``exportfs -ra`` to enable the NFS configuration.
         - From the LDAP server:
-            1. Add the required fstab entries in ``/etc/fstab``. (The corresponding entry will be available on the compute nodes in ``/etc/fstab``)
+            1. Add the required fstab entries in ``/etc/fstab``. (The corresponding entry will be available on the cluster  nodes in ``/etc/fstab``)
             2. Mount the NFS share using ``mount manager_ip: /home/omnia-share /home/omnia-share``.
     * If ``enable_omnia_nfs`` is false in ``input/omnia_config.yml``, ensure the user-configured NFS share is mounted on the LDAP server.
 

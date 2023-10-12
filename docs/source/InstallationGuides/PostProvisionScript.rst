@@ -1,12 +1,12 @@
 Creating node inventory
------------------------
+------------------------
 
-This script is optional. To skip over to Slurm, Kubernetes, NFS, BeeGFS and Authentication setup, `click here <../BuildingClusters/index.html>`_.
+Once the **servers are provisioned**, a list of reachable nodes can be fetched using the below command: ::
+
+    ansible-playbook post_provision.yml
 
 
-Once the **servers are provisioned**, run the script to:
-
-* Create ``node_inventory`` in ``/opt/omnia`` listing provisioned nodes. ::
+This creates a node inventory in ``/opt/omnia``.  ::
 
     cat /opt/omnia/node_inventory
     10.5.0.100 service_tag=XXXXXXX operating_system=RedHat
@@ -15,7 +15,4 @@ Once the **servers are provisioned**, run the script to:
     10.5.0.103 service_tag=XXXXXXX operating_system=Rocky
 
 
-To run the script, use the below command:::
-
-    ansible-playbook post_provision.yml
-
+To create an inventory when `Building Clusters <BuildingClusters/index.html>`_, use the reachable nodes' IP addresses from the above output to assign manager, compute and login groups. For more information on the inventory file used, `click here <../samplefiles.html>`_.

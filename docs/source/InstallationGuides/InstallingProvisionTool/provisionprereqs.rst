@@ -17,11 +17,13 @@ Before you run the provision tool
 
     .. include:: ../../Appendices/hostnamereqs.rst
 
-    For example, ``controlplane.omnia.test`` is acceptable.
+    For example, ``controlplane.omnia.test`` is acceptable. ::
+
+        hostnamectl set-hostname controlplane.omnia.test
 
 .. note:: The domain name specified for the control plane should be the same as the one specified under ``domain_name`` in ``input/provision_config.yml``.
 
-* To provision the bare metal servers, download one of the following ISOs for deployment:
+* To provision the bare metal servers, download one of the following ISOs to the control plane:
 
     1. `Rocky 8 <https://rockylinux.org/>`_
 
@@ -35,7 +37,7 @@ Note the compatibility between cluster OS and control plane OS below:
 
         +---------------------+--------------------+------------------+
         |                     |                    |                  |
-        | Control Plane OS    | Compute Node OS    | Compatibility    |
+        | Control Plane OS    | cluster  Node OS    | Compatibility   |
         +=====================+====================+==================+
         |                     |                    |                  |
         | RHEL [1]_           | RHEL               | Yes              |
@@ -49,17 +51,20 @@ Note the compatibility between cluster OS and control plane OS below:
 
 .. [1] Ensure that control planes running RHEL have an active subscription or are configured to access local repositories. The following repositories should be enabled on the control plane: **AppStream**, **Code Ready Builder (CRB)**, **BaseOS**. For RHEL control planes running 8.5 and below, ensure that sshpass is additionally available to install or download to the control plane (from any local repository).
 
-* To set up CUDA and OFED using the provisioning tool, download the required repositories from here:
+* To **optionally** set up CUDA and OFED using the provisioning tool, download the required repositories to the control plane from here to deploy on the target nodes:
 
-    1. `CUDA <https://developer.nvidia.com/cuda-downloads/>`_
+    1. `For NVIDIA GPUs: <https://developer.nvidia.com/cuda-downloads/>`_: CUDA is a parallel computing platform and application programming interface that allows software to use certain types of graphics processing units for general purpose processing, an approach called general-purpose computing on GPUs.
 
-    2. `OFED <https://network.nvidia.com/products/infiniband-drivers/linux/mlnx_ofed/>`_
+    2. `For Mellanox <https://network.nvidia.com/products/infiniband-drivers/linux/mlnx_ofed/>`_: OFED (OpenFabrics Enterprise Distribution) is open-source software for RDMA and kernel bypass applications. OFED can be used in business, research and scientific environments that require highly efficient networks, storage connectivity and parallel computing.
 
-* To dictate IP address/MAC mapping, a host mapping file can be provided. Use the `pxe_mapping_file.csv <../../samplefiles.html>`_ to create your own mapping file.
+* Ensure that all connection names under the network manager match their corresponding device names.
+    To verify network connection names: ::
 
-* Ensure that all connection names under the network manager match their corresponding device names. ::
+            nmcli connection
 
-    nmcli connection
+    To verify the device name: ::
+
+    ip link show
 
 In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcfg-<nic name>`` using vi editor.
 
@@ -71,29 +76,65 @@ In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcf
 
 * Users should also ensure that all repos (AppStream, BaseOS and CRB) are available on the RHEL control plane.
 
-* Uninstall epel-release if installed on the control plane as Omnia configures epel-release on the control plane. To uninstall epel-release, use the following commands: ::
-
-    dnf remove epel-release -y
-
-
 .. note::
-    To enable the repositories, run the following commands: ::
+   * Enable a repository from your RHEL subscription, run the following commands: ::
 
             subscription-manager repos --enable=codeready-builder-for-rhel-8-x86_64-rpms
             subscription-manager repos --enable=rhel-8-for-x86_64-appstream-rpms
             subscription-manager repos --enable=rhel-8-for-x86_64-baseos-rpms
 
-    Verify your changes by running: ::
+    * Enable an offline repository by creating a ``.repo`` file in ``/etc/yum.repos.d/``. Refer the below sample content: ::
+
+                [RHEL-8-appstream]
+
+                name=Red Hat AppStream repo
+
+                baseurl=http://xx.yy.zz/pub/Distros/RedHat/RHEL8/8.6/AppStream/x86_64/os/
+
+                enabled=1
+
+                gpgcheck=0
+
+                [RHEL-8-baseos]
+
+                name=Red Hat BaseOS repo
+
+                baseurl=http://xx.yy.zz/pub/Distros/RedHat/RHEL8/8.6/BaseOS/x86_64/os/
+
+                enabled=1
+
+                gpgcheck=0
+
+                [RHEL-8-crb]
+
+                name=Red Hat CRB repo
+
+                baseurl=http://xx.yy.zz/pub/Distros/RedHat/RHEL8/8.6/CRB/x86_64/os/
+
+                enabled=1
+
+                gpgcheck=0
+
+    * Verify your changes by running: ::
 
             yum repolist enabled
+            Updating Subscription Management repositories.
+            Unable to read consumer identity
+            This system is not registered with an entitlement server. You can use subscription-manager to register.
+                repo id                                                           repo name
+                RHEL-8-appstream-partners                                         Red Hat Enterprise Linux 8.6.0 Partners (AppStream)
+                RHEL-8-baseos-partners                                            Red Hat Enterprise Linux 8.6.0 Partners (BaseOS)
+                RHEL-8-crb-partners                                               Red Hat Enterprise Linux 8.6.0 Partners (CRB)
+
+* Uninstall epel-release if installed on the control plane as Omnia configures epel-release on the control plane. To uninstall epel-release, use the following commands: ::
+
+        dnf remove epel-release -y
 
 * Ensure that the ``pxe_nic`` and ``public_nic`` are in the firewalld zone: public.
 
 .. note::
 
     * After configuration and installation of the cluster, changing the control plane is not supported. If you need to change the control plane, you must redeploy the entire cluster.
-
-    * If there are errors while executing any of the Ansible playbook commands, then re-run the playbook.
 
     * For servers with an existing OS being discovered via BMC, ensure that the first PXE device on target nodes should be the designated active NIC for PXE booting.
 
