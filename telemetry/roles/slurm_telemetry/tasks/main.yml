@@ -16,8 +16,8 @@
 - name: Deploy slurm-telemetry
   when: slurm_telemetry_support
   block:
-    - name: Include common variables
-      ansible.builtin.include_vars: ../../common/vars/main.yml
+    - name: Include telemetry_validation variables
+      ansible.builtin.include_vars: ../../telemetry_validation/vars/main.yml
 
     - name: Include timescaledb variables
       ansible.builtin.include_vars: ../../timescaledb/vars/main.yml

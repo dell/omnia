@@ -60,7 +60,7 @@
   when: idrac_telemetry_support is true
   block:
     - name: Include telemetry common vars
-      ansible.builtin.include_vars: "{{ playbook_dir }}/roles/common/vars/main.yml"
+      ansible.builtin.include_vars: "{{ playbook_dir }}/roles/telemetry_validation/vars/main.yml"
       no_log: true
 
     - name: Include idrac-telemetry vars
