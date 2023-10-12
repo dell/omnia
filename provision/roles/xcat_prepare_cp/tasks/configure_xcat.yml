@@ -37,6 +37,7 @@
 - name: Delete default network table entries
   ansible.builtin.command: rmdef -t network {{ item.split(' ')[0] }}
   changed_when: true
+  failed_when: false
   with_items: "{{ default_network.stdout_lines }}"
   when:
     - '"host_network" not in item'
@@ -46,6 +47,25 @@
   ansible.builtin.shell: >
     chdef -t site dhcpinterfaces="{{ pxe_nic }}" master="{{ pxe_nic_ip }}" dhcplease="{{ default_lease_time }}"
     timezone="{{ timezone }}" forwarders="" nameservers=""
+  changed_when: true
+
+- name: Make node object for control plane
+  ansible.builtin.command: >-
+    mkdef -t node control_plane groups=control_plane mgt=ipmi cons=ipmi ip={{ admin_nic_ip }} bmc={{ bmc_nic_ip }} primarynic=mac mac={{ pxe_mac_address }}
+  changed_when: false
+  failed_when: false
+  when: network_interface_type == "lom"
+
+- name: Make node object for control plane
+  ansible.builtin.command: >-
+    mkdef -t node control_plane groups=control_plane mgt=ipmi cons=ipmi ip={{ admin_nic_ip }} primarynic=mac mac={{ pxe_mac_address }}
+  changed_when: false
+  failed_when: false
+  when: network_interface_type == "dedicated"
+
+- name: Update the site table
+  ansible.builtin.shell: >
+    chdef -t site excludenodes="control_plane"
   changed_when: true
 
 - name: Configure DHCP routing settings
@@ -89,3 +109,21 @@
     state: started
     enabled: true
   with_items: "{{ xcat_services }}"
+
+- name: Create conf directory for postgresql
+  ansible.builtin.file:
+    path: "{{ postgresql_conf_dir }}"
+    state: directory
+    mode: "{{ file_permission }}"
+
+- name: Copy postgresql.conf
+  ansible.builtin.copy:
+    src: "{{ postgresql_conf_src }}"
+    dest: "{{ postgresql_conf_dest }}"
+    mode: preserve
+
+- name: Reload systemd
+  ansible.builtin.command: systemctl daemon-reload
+  changed_when: true
+  args:
+    warn: false

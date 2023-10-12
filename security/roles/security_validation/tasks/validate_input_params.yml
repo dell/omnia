@@ -13,6 +13,12 @@
 #  limitations under the License.
 ---
 
+- name: Set ldap, freeipa_required, enable_secure_login_node required value
+  ansible.builtin.set_fact:
+    ldap_required: "{{ ldap_required | lower }}"
+    freeipa_required: "{{ freeipa_required | lower }}"
+    enable_secure_login_node: "{{ enable_secure_login_node | lower }}"
+
 - name: Verify the value of ldap_required
   ansible.builtin.assert:
     that:
@@ -33,6 +39,14 @@
       - enable_secure_login_node == true or enable_secure_login_node == false
     success_msg: "{{ secure_login_node_success_msg }}"
     fail_msg: "{{ secure_login_node_fail_msg }}"
+
+- name: Validate enable_secure_login_node is enabled and login group not provided
+  ansible.builtin.pause:
+    seconds: "{{ warning_wait_time }}"
+    prompt: "{{ secure_login_node_warning_msg }}"
+  when:
+    - enable_secure_login_node
+    - not login_node_required
 
 - name: Validate if freeipa and ldap required are enabled
   ansible.builtin.fail:

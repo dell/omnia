@@ -15,6 +15,9 @@
 
 - name: Create and update repositories
   block:
+    - name: Check encryption
+      ansible.builtin.include_tasks: check_telemetry_encryption.yml
+
     - name: Include xcat_repo_manipulate role vars
       ansible.builtin.include_vars: "{{ item }}"
       with_items: "{{ create_repo_role_vars }}"
@@ -38,11 +41,13 @@
     - name: Manage subscription-manager
       ansible.builtin.include_tasks: manage_subscription_manager.yml
       when:
+        - update_repos
         - os_supported_rhel in control_plane_os
+        - provision_os | lower == provision_os_rhel
         - not rhel_repo_path_status
 
-    - name: Create omnia-common repo
-      ansible.builtin.include_tasks: common_repo_config.yml
+    - name: Create omnia repo
+      ansible.builtin.include_tasks: omnia_repo_config.yml
 
     - name: Create omnia-common repo
       ansible.builtin.include_tasks: postscripts/main.yml

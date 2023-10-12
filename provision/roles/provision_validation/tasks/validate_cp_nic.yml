@@ -19,9 +19,9 @@
   register: input_provision_check
   tags: validate
   when:
-    - public_nic | length < 1 or
-      admin_nic | length < 1 or
-      admin_nic_subnet | length < 1
+    - public_nic | default("", true) | length < 1 or
+      admin_nic | default("", true) | length < 1 or
+      admin_nic_subnet | default("", true) | length < 1
 
 - name: Fetch the network interfaces in UP state in the system
   ansible.builtin.shell: set -o pipefail && /usr/sbin/ip a | awk '/state UP/{print $2}'

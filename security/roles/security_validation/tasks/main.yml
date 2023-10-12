@@ -13,11 +13,18 @@
 #  limitations under the License.
 ---
 
+- name: Initialize variables
+  ansible.builtin.set_fact:
+    security_validation_status: true
+
 - name: Include security config file
   ansible.builtin.include_tasks: include_security_config.yml
 
 - name: Include security variable file login_node_security_config.yml
   ansible.builtin.include_vars: "{{ login_node_security_config_file }}"
+
+- name: Set login_node_required status
+  ansible.builtin.include_tasks: set_login_node_status.yml
 
 - name: Fetch freeIPA inputs
   ansible.builtin.include_tasks: validate_input_params.yml
@@ -33,6 +40,9 @@
 - name: Fetch LDAP client inputs
   ansible.builtin.include_tasks: fetch_ldap_client_inputs.yml
   when: ldap_required
+
+- name: Encrypt security_config.yml
+  ansible.builtin.include_tasks: encrypt_security_config.yml
 
 - name: Check xcat installation status
   ansible.builtin.include_tasks: xcat_status_check.yml

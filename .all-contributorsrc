@@ -57,7 +57,9 @@
         "projectManagement",
         "mentoring",
         "talk",
-        "question"
+        "question",
+        "test",
+        "bug"
       ]
     },
     {
@@ -71,18 +73,8 @@
         "bug",
         "security",
         "talk",
-        "review"
-      ]
-    },
-    {
-      "login": "sakshiarora13",
-      "name": "Sakshi Arora",
-      "avatar_url": "https://avatars.githubusercontent.com/u/73195862?v=4",
-      "profile": "https://github.com/sakshiarora13",
-      "contributions": [
-        "code",
-        "bug",
-        "talk"
+        "review",
+        "mentoring"
       ]
     },
     {
@@ -96,6 +88,19 @@
         "doc",
         "test",
         "maintenance",
+        "talk",
+        "mentoring",
+        "review"
+      ]
+    },
+    {
+      "login": "sakshiarora13",
+      "name": "Sakshi Arora",
+      "avatar_url": "https://avatars.githubusercontent.com/u/73195862?v=4",
+      "profile": "https://github.com/sakshiarora13",
+      "contributions": [
+        "code",
+        "bug",
         "talk"
       ]
     },
@@ -128,6 +133,63 @@
       "name": "Khushboo Dholi",
       "avatar_url": "https://avatars.githubusercontent.com/u/12014935?v=4",
       "profile": "https://github.com/Khushboodholi",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "prasoon-sinha",
+      "name": "Prasoon Kumar Sinha",
+      "avatar_url": "https://avatars.githubusercontent.com/u/5362594?v=4",
+      "profile": "https://github.com/prasoon-sinha",
+      "contributions": [
+        "ideas",
+        "talk"
+      ]
+    },
+    {
+      "login": "SajithDas",
+      "name": "SajithDas",
+      "avatar_url": "https://avatars.githubusercontent.com/u/78676226?v=4",
+      "profile": "https://github.com/SajithDas",
+      "contributions": [
+        "projectManagement",
+        "talk"
+      ]
+    },
+    {
+      "login": "i3igpete",
+      "name": "i3igpete",
+      "avatar_url": "https://avatars.githubusercontent.com/u/33877827?v=4",
+      "profile": "https://github.com/i3igpete",
+      "contributions": [
+        "business",
+        "talk"
+      ]
+    },
+    {
+      "login": "renzo-granados",
+      "name": "renzo-granados",
+      "avatar_url": "https://avatars.githubusercontent.com/u/83035817?v=4",
+      "profile": "https://github.com/renzo-granados",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "Aditya-DP",
+      "name": "Aditya-DP",
+      "avatar_url": "https://avatars.githubusercontent.com/u/115771515?v=4",
+      "profile": "https://github.com/Aditya-DP",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "Katakam-Rakesh",
+      "name": "Katakam Rakesh Naga Sai",
+      "avatar_url": "https://avatars.githubusercontent.com/u/125246792?v=4",
+      "profile": "https://github.com/Katakam-Rakesh",
       "contributions": [
         "code"
       ]
@@ -254,15 +316,6 @@
       "name": "John Hearns",
       "avatar_url": "https://avatars.githubusercontent.com/u/19259589?v=4",
       "profile": "https://github.com/hearnsj",
-      "contributions": [
-        "bug"
-      ]
-    },
-    {
-      "login": "renzo-granados",
-      "name": "renzo-granados",
-      "avatar_url": "https://avatars.githubusercontent.com/u/83035817?v=4",
-      "profile": "https://github.com/renzo-granados",
       "contributions": [
         "bug"
       ]
@@ -526,21 +579,48 @@
       ]
     },
     {
-      "login": "Aditya-DP",
-      "name": "Aditya-DP",
-      "avatar_url": "https://avatars.githubusercontent.com/u/115771515?v=4",
-      "profile": "https://github.com/Aditya-DP",
+      "login": "SupriyaParthasarathy",
+      "name": "Supriya Parthasarathy",
+      "avatar_url": "https://avatars.githubusercontent.com/u/139955493?v=4",
+      "profile": "https://github.com/SupriyaParthasarathy",
+      "contributions": [
+        "projectManagement"
+      ]
+    },
+    {
+      "login": "Subhankar-Adak",
+      "name": "Subhankar-Adak",
+      "avatar_url": "https://avatars.githubusercontent.com/u/140381176?v=4",
+      "profile": "https://github.com/Subhankar-Adak",
       "contributions": [
         "code"
       ]
     },
     {
-      "login": "Katakam-Rakesh",
-      "name": "Katakam Rakesh Naga Sai",
-      "avatar_url": "https://avatars.githubusercontent.com/u/125246792?v=4",
-      "profile": "https://github.com/Katakam-Rakesh",
+      "login": "priti-parate",
+      "name": "priti-parate",
+      "avatar_url": "https://avatars.githubusercontent.com/u/140157516?v=4",
+      "profile": "https://github.com/priti-parate",
       "contributions": [
         "code"
+      ]
+    },
+    {
+      "login": "lavanya5899",
+      "name": "Lavanya Adhikari",
+      "avatar_url": "https://avatars.githubusercontent.com/u/140372459?v=4",
+      "profile": "https://github.com/lavanya5899",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "preeti-thankachan",
+      "name": "preeti-thankachan",
+      "avatar_url": "https://avatars.githubusercontent.com/u/141405483?v=4",
+      "profile": "https://github.com/preeti-thankachan",
+      "contributions": [
+        "test"
       ]
     }
   ],
@@ -550,5 +630,6 @@
   "repoType": "github",
   "repoHost": "https://github.com",
   "skipCi": true,
-  "commitConvention": "angular"
+  "commitConvention": "angular",
+  "commitType": "docs"
 }

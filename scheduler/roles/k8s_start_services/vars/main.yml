@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,10 +14,10 @@
 ---
 
 k8s_docker_images:
-  - docker.io/calico/kube-controllers:v3.19.1
-  - docker.io/calico/cni:v3.19.1
-  - docker.io/calico/pod2daemon-flexvol:v3.19.1
-  - docker.io/calico/node:v3.19.1
+  - docker.io/calico/kube-controllers:v3.22.2
+  - docker.io/calico/cni:v3.22.2
+  - docker.io/calico/pod2daemon-flexvol:v3.22.2
+  - docker.io/calico/node:v3.22.2
   - quay.io/coreos/flannel:v0.14.0
   - xilinxatg/xilinx_k8s_fpga_plugin:2020.11.24
   - nvidia/k8s-device-plugin:v0.7.0
@@ -30,13 +30,13 @@ k8s_docker_images:
   - prom/node-exporter:v1.0.1
   - prom/pushgateway:v1.2.0
   - prom/prometheus:v2.20.1
-  - metallb/controller:v0.8.1
-  - metallb/controller:v0.7.3
-  - metallb/speaker:v0.7.3
+  - quay.io/metallb/controller:v0.8.1
+  - quay.io/metallb/controller:v0.7.3
+  - quay.io/metallb/speaker:v0.7.3
   - volcanosh/vc-controller-manager:latest
   - volcanosh/vc-scheduler:latest
   - volcanosh/vc-webhook-manager:latest
-  - mpioperator/mpi-operator:latest
+  - mpioperator/mpi-operator:master
   - rocm/k8s-device-plugin
 
 docker_login_fail_msg: "Docker login failed! Please check the credentials and re-execute playbook."
@@ -65,7 +65,7 @@ helm_stable_repo_url: https://charts.helm.sh/stable
 
 nfs_server_manager_node: "{{ ansible_host }}"
 
-mpi_operator_yaml_url: https://raw.githubusercontent.com/kubeflow/mpi-operator/v0.3.0/deploy/v1alpha2/mpi-operator.yaml
+mpi_operator_yaml_url: https://raw.githubusercontent.com/kubeflow/mpi-operator/v0.4.0/deploy/v2beta1/mpi-operator.yaml
 
 nvidia_k8s_device_plugin_repo_url: https://nvidia.github.io/k8s-device-plugin
 
@@ -111,4 +111,8 @@ nginx_install_msg: "Skipping installation of nginx as required details of grafan
 
 calico_warning_msg: "Warning: Calico pod is not in ready state, please check"
 
-calico_ready_state: "Ready"
+calico_ready_state: "condition met"
+
+nfs_dir_mode: 0777
+
+pod_wait_time: 300

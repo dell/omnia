@@ -32,6 +32,9 @@
     src: "{{ jansson_src_url }}"
     dest: "{{ jansson_download_dir }}"
     remote_src: yes
+  register: download_jansson
+  until: download_jansson is not failed
+  retries: "{{ download_retries }}"
 
 - name: Install required C packages
   zypper:

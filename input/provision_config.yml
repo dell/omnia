@@ -13,13 +13,18 @@
 #  limitations under the License.
 ---
 
+#***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.                  
+# SIMPLY APPEND THE REQUIRED VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
+#***********************************************************************
+
 # Mandatory
 # This variable is used to depict the network type for the omnia cluster
 # Lom is supported by discovery_mechanism: mapping, bmc and switch_based
 # Dedicated is supported by discovery_mechanism: mapping and snmpwalk
-# Accepted values: lom, dedicated
-# Default value: lom
-network_interface_type: "lom"
+# Accepted values: dedicated, lom
+# Default value: dedicated
+network_interface_type: "dedicated"
 
 # Mandatory
 # If lom, discovery_mechanism can be switch_based or mapping or bmc
@@ -28,21 +33,22 @@ network_interface_type: "lom"
 # mapping indicates that the user has provided a valid mapping file path with details regarding MAC ID of the NIC, IP address and hostname.
 # bmc indicates the servers in the cluster will be discovered by Omnia using BMC.
 # bmc requirement is user should enable IPMI over LAN in iDRAC settings if the iDRACs are in static mode.
-# snmpwalk indicates Omnia will discover the nodes based on the switch IP (to which the cluster servers are connected) provided. SNMP should be enabled on the switch.
 # switch_based uses snmp v3 to find and provision servers connected on particular ports of a switch.SNMPv3 should be enabled on switches.
-# Accepted values: mapping, bmc, snmpwalk, switch_based
-# Default: switch_based
-discovery_mechanism: "switch_based"
+# snmpwalk indicates Omnia will discover the nodes based on the switch IP (to which the cluster servers are connected) provided. SNMP should be enabled on the switch.
+# Accepted values: mapping, bmc, switch_based, snmpwalk
+# Default: mapping
+discovery_mechanism: "mapping"
 
 #### Mandatory, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
 # This is the operating system image that will be used for provisioning compute nodes in the cluster.
 # Accepted values: rocky, rhel
+# Note: When provision_os is rocky, Rocky Linux OS version on the cluster will be upgraded to the latest 8.x version available irrespective of provision_os_version provided
 # Default value: "rhel"
 provision_os: "rhel"
 
 #### Mandatory, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
 # OS version of provision_os to be installed
-# Supported values for rhel/rocky: 8.0, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7
+# Supported values for rhel/rocky: 8.0, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.8
 provision_os_version: 8.6
 
 #### Mandatory, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
@@ -198,9 +204,9 @@ pxe_switch_ip: ""
 pxe_switch_snmp_community_string: "public"
 
 #### Mandatory, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
-# In the first execution of provision.yml, Omnia updates the BaseOS, Appstream and CRB repos.
-# If update_repos: false, none of the repos will be updated provided the repos are already available.
-# If update_repos: true, BaseOS, Appstream and CRB repos created for compute nodes will be updated
+# If update_repos: false, AppStream and BaseOS repos will not be updated to latest
+# If update_repos: true, Appstream and BaseOS will be updated to latest
+# Note: By default AppSteam and BaseOS repos will be configured from the given ISO file
 update_repos: false
 
 #### Mandatory, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
@@ -211,12 +217,11 @@ rhel_repo_alphabetical_folders: false
 #### Optional, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
 # The local RHEL repository path and names of the software repository to be configured on the compute nodes
 # Provide the repo data file path, which ends with .repo extension in repo_url parameter
-# Provide the url for BaseOS, Appstream and CRB repositories
+# Provide the url for Appstream and BaseOS repositories
 # This variable should be filled if control plane OS is RHEL and local RHEL repository is available.
 rhel_repo_local_path: 
   - { repo: "AppStream", repo_url: "", repo_name: "" }
   - { repo: "BaseOS", repo_url: "", repo_name: "" }
-  - { repo: "CRB", repo_url: "", repo_name: "" }
 
 #### Optional, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
 # The DNS servers IP addresses for internet access on compute nodes(through DHCP routing)
@@ -240,13 +245,19 @@ disk_partition:
 # The iso can be downloaded from https://network.nvidia.com/products/infiniband-drivers/linux/mlnx_ofed/
 # OFED will be installed post provisioning without any user intervention requirement
 # Example:
-# mlnx_ofed_path: /root/MLNX_OFED_LINUX-5.8-1.1.2.1-rhel8.6-x86_64.iso
-mlnx_ofed_path:
+# mlnx_ofed_path: "/root/MLNX_OFED_LINUX-5.8-1.1.2.1-rhel8.6-x86_64.iso"
+mlnx_ofed_path: ""
 
 #### Optional, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
 # Absolute path to local copy of .rpm file containing CUDA packages.
 # The cuda rpm can be downloaded from https://developer.nvidia.com/cuda-downloads
 # CUDA will be installed post provisioning without any user intervention requirement
 # Example:
-# cuda_toolkit_path: /root/cuda-repo-rhel8-12-0-local-12.0.0_525.60.13-1.x86_64.rpm
-cuda_toolkit_path:
+# cuda_toolkit_path: "/root/cuda-repo-rhel8-12-0-local-12.0.0_525.60.13-1.x86_64.rpm"
+cuda_toolkit_path: ""
+
+#### Mandatory, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
+# apptainer will be installed on the cluster to enable execution of HPC benchmarks in a containeraized environment.
+# If apptainer_support: false, apptainer will not be installed on the cluster
+# If apptainer_support: true, apptainer will be installed on the cluster
+apptainer_support: false

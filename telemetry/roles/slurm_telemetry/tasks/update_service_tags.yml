@@ -14,7 +14,7 @@
 ---
 
 - name: Get hosts details
-  when: hostvars['127.0.0.1']['slurm_telemetry_support']
+  when: slurm_telemetry_support
   block:
     - name: Check slurmctld service
       ansible.builtin.systemd:

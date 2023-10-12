@@ -20,9 +20,10 @@ server_domain_name_fail: "Failed. Domain name set is not same as domain name in 
 hostname_blank_msg: "Failed. Domain name is not set in hostname It should have hostname.domain_name format"
 server_hostname_success: "Hostname in server hostname validated"
 server_hostname_fail: "Failed. Hostname set is not valid"
-login_node_group: login_node
+login_node_group: login
 os_leap: leap
 
 # Usage: add_hosts.yml
 hosts_file_dest: "/etc/hosts"
 hosts_file_mode: "0644"
+manager_information_update_fail_msg: "Failed to update manager node information. Verify manager node is reachable and re-run the playbook."

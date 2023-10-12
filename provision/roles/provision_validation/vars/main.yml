@@ -28,7 +28,8 @@ pip_version: pip3.8
 netaddr_pip_package: netaddr
 pexpect_pip_package: pexpect
 max_retries: 10
-
+provision_package_fail_msg: "Failed. Unable to install {{ common_packages_provision }} packages.
+Please make sure all required repos are reachable. Remove or Update unreachable repos configured."
 common_packages_provision:
   - python3-netaddr
   - openssl
@@ -68,29 +69,38 @@ lom_discovery_fail_msg: "Failed.If network interface type is lom, only mapping, 
 dedicated_discovery_success_msg: "Success.Discovery mechanism validated in case of dedictaed network interface type."
 dedicated_discovery_fail_msg: "Failed.If network interface type is dedicated, only mapping and snmpwalk values are supported in discovery_mechanism"
 
-# Usage: assign_admin_nic_config.yml
-omnia_admin_ip: "{{ admin_nic_subnet.split('.')[0] + '.' + admin_nic_subnet.split('.')[1] + '.' + '255' + '.' + '254' }}"
+# Usage: validate_dedicated_config.yml
 omnia_admin_netmask: 255.255.0.0
 admin_nic_path: "/etc/sysconfig/network-scripts/ifcfg-{{ admin_nic }}"
+fail_admin_nic_dedicated: "Failed. Please assign admin nic IP with netmask {{ omnia_admin_netmask }} to the admin_nic {{ admin_nic }}
+provided in provision_config.yml."
+dedicated_admin_nic_config_fail_msg: "Failed. When network_interface_type is dedicated, admin IP should be assigned with netmask {{ omnia_admin_netmask }}
+and admin_nic_subnet {{ admin_nic_subnet }} in the admin_nic {{ admin_nic }} provided in provision_config.yml"
+fail_admin_subnet_msg: "Failed. Invalid admin_nic_subnet {{ admin_nic_subnet }}. Please provide proper admin_nic_subnet with netmask {{ omnia_admin_netmask }}
+for admin nic {{ admin_nic }} provided in provision_config.yml"
 
-# Usage: assign_nic_config.yml
+# Usage: validate_lom_config.yml
 pxe_subnet_msg: "Failed. Please provide proper pxe_subnet"
-omnia_bmc_ip: "{{ bmc_nic_subnet.split('.')[0] + '.' + bmc_nic_subnet.split('.')[1] + '.' + '255' + '.' + '254' }}"
 omnia_bmc_netmask: 255.255.0.0
 fail_mapping_bmc_dedicated: "Failed.BMC is only supported in shared LOM. Check the configuration once."
-
-# Usage: enable_nic_configuration.yml
+fail_admin_nic_lom: "Failed. Please assign admin and bmc IP with netmask {{ omnia_admin_netmask }} to the the admin_nic {{ admin_nic }}
+provided in provision_config.yml."
 nic_subnet: 16
 bmc_nic_path: "/etc/sysconfig/network-scripts/ifcfg-{{ admin_nic }}"
+lom_admin_nic_config_fail_msg: "Failed. When network_interface_type is lom, admin and bmc IP should be the first 2 IPs with netmask {{ omnia_admin_netmask }}
+in the admin_nic {{ admin_nic }} with admin_nic_subnet {{ admin_nic_subnet }} and bmc_nic_subnet {{ bmc_nic_subnet }} provided in provision_config.yml"
+bmc_subnet_lom_fail_msg: "Failed.{{ fail_subnet }} for BMC. Please provide bmc_nic_subnet in case of network_interface_type as LOM"
+fail_bmc_subnet_msg: "Failed. Invalid bmc_nic_subnet {{ bmc_nic_subnet }}. Please provide proper bmc_nic_subnet with netmask {{ omnia_admin_netmask }}
+for bmc nic {{ admin_nic }} provided in provision_config.yml"
 
 # Usage: validate_public_nic.yml
-input_provision_failure_msg: "Please provide all the required parameters in provision_config.yml"
+input_provision_failure_msg: "Please provide all the required nic parameters in provision_config.yml"
 success_msg_nic: "nic successfully validated"
-fail_msg_nic: "Failed. Provide proper values"
+fail_msg_nic: "Failed. Provide proper values in provision_config.yml"
 
 # Usage: validate_admin_nic.yml
 success_subnet: "The subnet provided is validated"
-fail_subnet: " Please provide proper subnet"
+fail_subnet: "Failed. Please provide proper subnet with netmask {{ omnia_admin_netmask }} in provision_config.yml"
 success_lom: " Network interface type is LOM"
 fail_lom: "Failed. In case of LOM, admin_nic_subnet and bmc_nic_subnet can't be same. Please provide proper input"
 
@@ -134,6 +144,9 @@ Make sure the mapping file contains only the hostname, and not the domain_name. 
 duplicate_ip_fail_msg: "Failed. Duplicate IP exists. Please verify mapping file again."
 duplicate_hostname_fail_msg: "Failed. Duplicate hostname exists. Please verify mapping file again."
 temp_mapping_file_path: "/opt/omnia/pxe_mapping_file.csv"
+admin_subnet_missing_msg: "Failed. Invalid IP {{ item }}. Missing admin subnet for IP {{ item }} provided in mapping file"
+capital_hostname_fail_msg: "Failed. Invalid hostname {{ item }}. Hostname should be in lower case and should not start with numbers.
+Refer documentation for more details."
 
 # Usage: validate_provision_vars.yml
 input_provision_fail_msg: "Please provide all the required provision parameters in provision_config.yml"
@@ -161,7 +174,7 @@ provision_password_fail_msg: "Failed. Incorrect provision_password format in pro
 min_length: 8
 max_length: 30
 warning_wait_time: 30
-postgresdb_password_fail_msg: "Failed. postgresdb_password should contain only alphanumeric characters in provision_config.yml"
+postgresdb_password_fail_msg: "Failed. postgresdb_password should contain only alphanumeric characters and minimum length 8 in provision_config.yml"
 os_supported_rocky: rocky
 os_supported_rhel: rhel
 mount_point_success_msg: "mountpoint of disk_partition successfully validated"
@@ -170,7 +183,9 @@ desired_capacity_success_msg: "desired_capacity of disk_partition successfully v
 desired_capacity_fail_msg: "Failed. Provide valid integer value to desired_capacity of disk_partition"
 supported_rhel_os_version: ["8.0", "8.1", "8.2", "8.3", "8.4", "8.5", "8.6", "8.7", "8.8", "8.9"]
 provision_os_version_fail_msg: "Failed. Invalid provision_os_version: {{ provision_os_version }} provided in provision_config.yml.
-Supported provision_os_version values are 8.0,8.1,8.2,8.3,8.4,8.5,8.6,8.7"
+Supported provision_os_version values are 8.0,8.1,8.2,8.3,8.4,8.5,8.6,8.7,8.8"
+rocky_update_warning_msg: "[WARNING] Rocky Linux OS version on the cluster will be upgraded to the latest 8.x irrespective of provision_os_version
+provided in provision_config.yml"
 
 # Usage: validate_domain_name.yml
 domain_name_success_msg: "domain_name successfully validated"
@@ -202,20 +217,30 @@ update_repos_success_msg: "Validated update_repos"
 update_repos_fail_msg: "Failed. update_repos variable in provision_config.yml should be either true or false"
 control_plane_os_redhat: "redhat"
 repo_path_count_success_msg: "Validated rhel_repo_local_path count"
-repo_path_count_fail_msg: "Failed. rhel_repo_local_path variable in provision_config.yml does not have details of repositories AppStream,BaseOS and CRB"
+repo_path_count_fail_msg: "Failed. rhel_repo_local_path variable in provision_config.yml does not have details of repositories AppStream and BaseOS"
 repo_path_success_msg: "Validated repo,repo_url and repo_name in rhel_repo_local_path"
 repo_path_fail_msg: "Failed. rhel_repo_local_path variable in provision_config.yml should have input regarding repo, repo_url and repo_name.
-repo_url should contain .repo extension and repo should be AppStream,BaseOS and CRB"
-rhel_repo_search_key: ['AppStream', 'BaseOS', 'CRB']
+repo_url should contain .repo extension and repo should be AppStream and BaseOS"
+rhel_repo_search_key: ['AppStream', 'BaseOS']
 subscription_repo_success_msg: "Validated subscription repos"
 subscription_repo_fail_msg: "Failed. AppStream and BaseOS repos are not enabled during subscription activation. Please enable the repos and proceed."
 rhel_subscription_warning_msg: "[WARNING] RedHat subscription not enabled. Proceeding execution with local repo details provided in provision_config.yml.
 Make sure the repos given are valid."
-rhel_subscription_fail_msg: "Failed. RedHat subscription not active.
+rhel_subscription_warn_msg: "[WARNING] RedHat subscription not active.
 Activate RedHat subscription or provide repos details in rhel_repo_local_path variable in provision_config.yml"
 subscription_check_key: "Subscribed"
 warning_wait_time_repo: 10
 rhel_repo_folders_success_msg: "Validated rhel_repo_alphabetical_folders"
 rhel_repo_folders_fail_msg: "Failed. rhel_repo_alphabetical_folders variable in provision_config.yml should be either true or false"
-compatibility_msg: "Failed. Control Plane should be RHEL when nodes are to be provisioned with RHEL OS.
-To provision RHEL nodes from other OS provide repos details in rhel_repo_local_path variable in provision_config.yml"
+compatibility_msg: "Failed. Control Plane OS should be RHEL when nodes are to be provisioned with RHEL OS."
+tmp_crb_dir: /opt/omnia/crb
+crb_repo_packages: "libaec lua-posix lua-filesystem munge-devel perl-Switch rrdtool-devel lua-devel hwloc-devel http-parser-devel
+perl-File-BaseDir opencl-headers ocl-icd-devel pmix-devel"
+download_crb_package_fail_msg: "Failed. Unable to download required crb packages libaec, lua-posix, lua-filesystem,
+munge-devel, perl-Switch, rrdtool-devel, lua-devel, hwloc-devel, http-parser-devel, perl-File-BaseDir, opencl-headers, ocl-icd-devel and pmix-devel.
+Make sure crb repos configured in control plane and re-run provision.yml"
+file_permission: 0755
+
+# Usage: validate_apptainer_support.yml
+apptainer_support_success_msg: "Validated apptainer_support"
+apptainer_support_fail_msg: "Failed. apptainer_support variable in provision_config.yml should be either true or false"

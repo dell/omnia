@@ -19,10 +19,17 @@ bmc_postscripts_path:
 
 # Usage: configure_postscripts.yml
 mlnx_ofed_repo: /install/ofed
-
-# Usage: configure_postbootscripts.yml
 cuda_core_path: /install/cuda/x86_64/cuda-core
+hostname_postscripts_path:
+  - { src: "{{ role_path }}/files/postscripts/omnia_hostname", dest: "/install/postscripts/omnia_hostname", mode: "755" }
 
 # Usage: check_nodes_all.yml
 all_nodes_warning_msg: "[WARNING] Not found any nodes using the given discovery mechanism.
 Verify all the input parameters are valid and re-run provision.yml or discovery_provision.yml"
+
+# Usage: configure_postscripts_admin.yml
+postscripts_path: /install/postscripts
+configeth_postscripts_path: "{{ postscripts_path }}/configeth"
+configeth_check_key: 'ipv4.dns "${NAMESERVERS}"'
+configeth_patch_path:
+  - { src: "{{ role_path }}/files/postscripts/configeth.patch", dest: "/install/postscripts/configeth.patch", mode: "755" }

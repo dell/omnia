@@ -32,8 +32,5 @@ done
 
 dnf clean all
 
-# Install racadm packages
-dnf install srvadmin-argtable2 srvadmin-hapi srvadmin-idracadm7 ipmitool -y
-
 #Install omnia common repo packages
-dnf install wget tar zip firewalld sshpass nfs-utils gcc make -y
+dnf install wget tar zip firewalld nfs-utils gcc make -y

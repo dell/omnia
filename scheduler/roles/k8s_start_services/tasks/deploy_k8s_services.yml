@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 - name: Include common variables
   ansible.builtin.include_vars: ../../slurm_exporter/vars/main.yml
 
-- name: Include k8s_nfs_server_setup variables
-  include_vars: ../../k8s_nfs_server_setup/vars/main.yml
+- name: Include nfs_server_setup variables
+  include_vars: ../../nfs_server_setup/vars/main.yml
 
 - name: Wait for CoreDNS to restart
   ansible.builtin.command: kubectl rollout status deployment/coredns -n kube-system  --timeout=5m
@@ -133,8 +133,14 @@
   changed_when: true
   tags: init
 
+- name: Create the directory for NFS for Kubernetes
+  ansible.builtin.file:
+    path: "{{ hostvars['127.0.0.1']['omnia_usrhome_share'] }}/kubernetes"
+    state: directory
+    mode: "{{ nfs_dir_mode }}"
+
 - name: Start NFS Client Provisioner using NFS on manager node
-  ansible.builtin.shell: "export PATH=/usr/local/bin:$PATH && helm install nfs-omnia stable/nfs-client-provisioner --set nfs.server='{{ nfs_server_manager_node }}' --set nfs.path='{{ nfs_share_dir }}'"
+  ansible.builtin.shell: "export PATH=/usr/local/bin:$PATH && helm install nfs-omnia stable/nfs-client-provisioner --set nfs.server='{{ nfs_server_manager_node }}' --set nfs.path='{{ hostvars['127.0.0.1']['omnia_usrhome_share'] }}/kubernetes'"
   changed_when: true
   when: "'nfs-client-provisioner' not in k8s_pods.stdout"
   tags: init
@@ -226,11 +232,22 @@
   tags: init
 
 - name: Deploy ROCm Device plugin
-  ansible.builtin.command: "kubectl create -f '{{ rocm_device_plugin_yaml_url }}'"
-  changed_when: true
-  register: amd_gpu_enable
   when: "'amdgpu-device-plugin' not in k8s_pods.stdout"
-  tags: init
+  block:
+    - name: Deploy ROCm Device plugin
+      ansible.builtin.command: "kubectl create -f '{{ rocm_device_plugin_yaml_url }}'"
+      changed_when: true
+      register: amd_gpu_enable
+      tags: init
+  rescue:
+    - name: Delete ROCm device plugin
+      ansible.builtin.command: "kubectl delete -f '{{ rocm_device_plugin_yaml_url }}'"
+      changed_when: true
+
+    - name: Retry deploy ROCm device plugin
+      ansible.builtin.command: "kubectl create -f '{{ rocm_device_plugin_yaml_url }}'"
+      changed_when: true
+      register: amd_gpu_enable
 
 #- name: Deploy Volcano Scheduling
   #command: "kubectl apply -f '{{ volcano_scheduling_yaml_url }}'"

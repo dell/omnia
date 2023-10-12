@@ -28,7 +28,7 @@ authentication_type_fail_msg: "Failed. authentication_Type should be either free
 user_name_success_msg: "user_name successfully validated"
 user_name_fail_msg: "Failed. Check whether user_name is provided in passwordless_ssh_config.yml."
 ldap_organizational_unit_success_msg: "ldap_organizational_unit successfully validated"
-ldap_organizational_unit_fail_msg: "Failed. Check whether ldap_organizational_unit is provided in passwordless_ssh_config.yml."
+ldap_organizational_unit_fail_msg: "Failed. Verify ldap_organizational_unit not empty and does not contains 'ou=' as prefix in passwordless_ssh_config.yml."
 user_home_directory_fail_msg: "Failed, User home directory does not exists"
 input_config_failure_msg: "Input parameters cannot be empty"
 success_msg_kerberos_admin_password: "kerberos_admin_password successfully validated"
@@ -36,3 +36,6 @@ fail_msg_kerberos_admin_password: "Failed. Incorrect format provided for kerbero
 ldap_client_config_failure_msg: "LDAP Client Input parameters cannot be empty when ldap_reqired is set to true"
 domain_name_success_msg: "domain name successfully validated"
 domain_name_fail_msg: "Failed. Incorrect format provided for domain name in security_config.yml"
+invalid_inventory_fail_msg: "Failed. Invalid inventory format. Provide inventory with manager and compute group."
+invalid_inventory_ldap_fail_msg: "Failed. Invalid inventory format.
+Provide inventory with group ldap_server along with manager and compute group when authentication_type is ldap in passwordless_ssh_config.yml."

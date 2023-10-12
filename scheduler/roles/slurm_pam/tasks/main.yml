@@ -39,8 +39,8 @@
 - name: Configure slurm pam for login node
   ansible.builtin.include_tasks: slurm_pam_login_node.yml
   when:
-    - groups['login_node'] is defined
-    - inventory_hostname in groups['login_node']
+    - groups['login'] is defined
+    - inventory_hostname in groups['login']
 
 - name: Configure slurm pam for manager node
   ansible.builtin.include_tasks: slurm_pam_manager.yml

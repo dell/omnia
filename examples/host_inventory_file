@@ -1,16 +1,9 @@
-all: 
-  children:
-    manager:
-      hosts:
-        manager.omnia.local:
-    nfs_node:
-      hosts:
-        storage.omnia.local:
-    login_node:
-      hosts:
-        login1.omnia.local:
-    compute:
-      hosts:
-        compute[001:004].omnia.local:
-        compute010.omnia.local:
-        compute011.omnia.local:
+[manager]
+10.5.0.101
+
+[compute]
+10.5.0.102
+10.5.0.103
+
+[login]
+10.5.0.104

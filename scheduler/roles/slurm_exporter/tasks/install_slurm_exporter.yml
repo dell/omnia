@@ -14,10 +14,19 @@
 ---
 
 - name: Download and untar go package
-  ansible.builtin.unarchive:
-    src: "{{ go_pack_url }}"
-    dest: "{{ installation_dir }}"
-    remote_src: yes
+  block:
+    - name: Download and untar go package
+      ansible.builtin.unarchive:
+        src: "{{ go_pack_url }}"
+        dest: "{{ installation_dir }}"
+        remote_src: yes
+      register: untar_go
+      until: untar_go is not failed
+      retries: "{{ max_retries }}"
+  rescue:
+    - name: Failed to download go package
+      ansible.builtin.fail:
+        msg: "{{ download_go_fail_msg }}"
 
 - name: Add to the linux path
   ansible.builtin.shell: echo $PATH

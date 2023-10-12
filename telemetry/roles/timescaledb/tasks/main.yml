@@ -13,23 +13,26 @@
 # limitations under the License.
 ---
 
-- name: Create persistent volume for timescaledb
-  ansible.builtin.include_tasks: persistent_volume.yml
+- name: Create timescaledb pods
+  when: idrac_telemetry_support or omnia_telemetry_support
+  block:
+    - name: Create persistent volume for timescaledb
+      ansible.builtin.include_tasks: persistent_volume.yml
 
-- name: Create persistent volume claim for timescaledb
-  ansible.builtin.include_tasks: persistent_volume_claim.yml
+    - name: Create persistent volume claim for timescaledb
+      ansible.builtin.include_tasks: persistent_volume_claim.yml
 
-- name: Checkout iDRAC telemetry github repo
-  ansible.builtin.git:
-    repo: "{{ idrac_telemetry_github }}"
-    dest: "{{ mount_location + idrac_telemetry_folder_name }}"
-    version: "{{ reference_tools_stable_commit }}"
+    - name: Checkout iDRAC telemetry github repo
+      ansible.builtin.git:
+        repo: "{{ idrac_telemetry_github }}"
+        dest: "{{ mount_location + idrac_telemetry_folder_name }}"
+        version: "{{ reference_tools_stable_commit }}"
 
-- name: Create timescaledb pod
-  ansible.builtin.include_tasks: timescaledb_pod.yml
+    - name: Create timescaledb pod
+      ansible.builtin.include_tasks: timescaledb_pod.yml
 
-- name: Create service for timescale db
-  ansible.builtin.include_tasks: service.yml
+    - name: Create service for timescale db
+      ansible.builtin.include_tasks: service.yml
 
-- name: Create service for timescale db
-  ansible.builtin.include_tasks: initialize_db.yml
+    - name: Create service for timescale db
+      ansible.builtin.include_tasks: initialize_db.yml

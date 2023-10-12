@@ -13,6 +13,11 @@
 #  limitations under the License.
 ---
 
+#***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.                  
+# SIMPLY APPEND THE REQUIRD VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
+#***********************************************************************
+
 # Boolean indicating whether FreeIPA is required or not
 # It can be set to true or false
 # By default it is set to true indicating FreeIPA will be installed on all the nodes
@@ -33,6 +38,8 @@ directory_manager_password: ""
 # kerberos_admin_password used by IPA admin user in Rocky OS and used by 389-ds for kerberos admin password in leap OS
 # The IPA server requires an administrative user, named 'admin'.
 # This user is a regular system account used for IPA server administration
+# The password must be at least 8 characters long
+# The password must not contain -,\, ',"
 kerberos_admin_password: ""
 
 # This variable is used to accept the domain name the user intends to configure
@@ -63,13 +70,13 @@ ldap_connection_type: "TLS"
 # Make sure certificate is present in the path provided
 # The certificate should have .pem or .crt extension.
 # This variable is mandatory if connection type is TLS
-ldap_ca_cert_path: /etc/openldap/certs/omnialdap.pem
+ldap_ca_cert_path: "/etc/openldap/certs/omnialdap.pem"
 
 # This variable accepts the user home directory path for ldap configuration
 # If nfs mount is created for user home, make sure you provide the
 # LDAP users mount home directory path
-# Default value is /home
-user_home_dir: "/home"
+# Default value is /home/omnia-share
+user_home_dir: "/home/omnia-share"
 
 # If LDAP server is configured with bind dn then bind dn user to be provided
 # By default the bind dn user is admin

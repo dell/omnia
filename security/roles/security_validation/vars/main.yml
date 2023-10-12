@@ -22,6 +22,7 @@ login_node_security_config_file: "{{ role_path }}/../../../input/login_node_secu
 ldap_freeipa_failure_msg: "Failed. Both ldap_required and freeipa_required cannot be true"
 hosts_file_dest: "/etc/hosts"
 hosts_file_mode: "0644"
+security_config_syntax_fail_msg: "Failed. Syntax errors present in security_config.yml. Fix errors and re-run playbook again."
 
 # Usage: fetch_inputs.yml
 ldap_required_success_msg: "ldap_required variable successfully validated"
@@ -42,6 +43,8 @@ fail_msg_kerberos_admin_password: "Failed. Incorrect format provided for kerbero
 input_config_failure_msg: "Failed. Since, freeipa_required is true,please provide few additional parameters in input/security_config.yml."
 secure_login_node_success_msg: "enable_secure_login_node successfully validated"
 secure_login_node_fail_msg: "Failed. enable_secure_login_node should be either true or false"
+secure_login_node_warning_msg: "[WARNING] enable_secure_login_node is true in security_config.yml and
+login group not provided with login node IP address in inventory. Skipping tasks for secure login node configuration"
 
 # Usage: fetch_security_inputs.yml
 max_failures_success_msg: "max_failures successfully validated"
@@ -80,3 +83,9 @@ ping_msg: "100% packet loss"
 ldap_connection_type_success_msg: "LDAP Connection type successfully validated"
 ldap_connection_type_fail_msg: "Failed. LDAP Connection type must be: SSL, TLS, ssl or tls"
 ldap_ca_cert_path_failure_msg: "Failed. The mentioned certificate does not exist"
+
+# Usage: set_login_node_status.yml
+multiple_login_node_fail_msg: "Failed. Currently only one login node supported in inventory"
+warning_wait_time: 10
+login_node_warning_msg: "[WARNING] login group with ip for login node not present in the inventory.
+Proceeding execution with manager and compute nodes"

@@ -13,8 +13,10 @@
 # limitations under the License.
 ---
 
-- name: Initiate reposync when needed
-  when: reposync_status and compute_os_rhel_status
+- name: Reposync for rhel os
+  when:
+    - update_repos
+    - compute_os_rhel_status
   block:
     - name: Create mount overlay for ISO packages
       ansible.builtin.include_tasks: create_mount_overlay.yml
@@ -29,7 +31,7 @@
         - name: Setup subscription-manager on control plane
           ansible.builtin.include_tasks: setup_subscription_manager.yml
 
-        - name: Update AppStream, BaseOS and CodeReadyBuilder repos
+        - name: Update AppStream, BaseOS repos
           ansible.builtin.include_tasks: update_repos_subscription.yml
 
         - name: Reset release version for subscription-manager
@@ -39,6 +41,5 @@
       ansible.builtin.include_tasks: update_repos_non_subscription.yml
       when: rhel_repo_path_status
 
-- name: Configure repos to osimage
-  ansible.builtin.include_tasks: configure_repo.yml
-  when: compute_os_rhel_status
+    - name: Configure repos to osimage
+      ansible.builtin.include_tasks: configure_repo.yml

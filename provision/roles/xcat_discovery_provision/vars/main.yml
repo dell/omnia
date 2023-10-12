@@ -38,6 +38,7 @@ osimage_search_key: install-compute
 
 # Usage: python_utility.yml
 postgres_utility_path: "{{ role_path }}/files/utils/postgres_utility.py"
+cp_db_utility_path: "{{ role_path }}/files/utils/add_cp_db.py"
 
 # Usage: configure_dhcp.yml
 dhcp_config_fail_msg: "Failed. makedhcp -n command is not successful. Error:"
@@ -50,3 +51,7 @@ psql_devel_packages:
   - postgresql-devel
   - python3-devel
 python_version: python3.8
+omnia_service_shell_file_path: /opt/omnia/omnia_service_script.sh
+omnia_service_shell_file_permissions: 0777
+omnia_service_path: /etc/systemd/system/omnia.service
+omnia_service_file_permissions: 0644

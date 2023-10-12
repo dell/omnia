@@ -28,7 +28,7 @@
       ansible.builtin.postgresql_query:
         db: omniadb
         login_user: postgres
-        query: SELECT node,ib_ip FROM cluster.nodeinfo;
+        query: SELECT node,ib_ip FROM cluster.nodeinfo where node!='control_plane';
       become_user: postgres
       register: ib_query_status
 
@@ -42,8 +42,4 @@
       changed_when: true
       when: item.node in node_list.stdout
       with_items: "{{ ib_query_status.query_result }}"
-
-    - name: Configure node objects with ib postscripts
-      ansible.builtin.command: chdef all -p postbootscripts="confignetwork --ibaports=1"
-      changed_when: true
   when: ib_status

@@ -21,8 +21,9 @@
     title: "{{ telemetry_folder_name }}"
     state: present
   no_log: true
+  when: idrac_telemetry_support
 
-- name: Import dashboards for visualizations
+- name: Import dashboards for idrac visualizations
   community.grafana.grafana_dashboard:
     grafana_url: "http://{{ grafana_svc_ip.stdout }}:{{ grafana_svc_port.stdout }}"
     grafana_user: "{{ grafana_username }}"
@@ -30,6 +31,20 @@
     state: present
     folder: "{{ telemetry_folder_name }}"
     overwrite: true
-    path: "{{ playbook_dir }}/roles/grafana_config/files/{{ item }}"
-  with_items: "{{ dashboards }}"
+    path: "{{ item }}"
+  with_items: "{{ idrac_dashboards }}"
   no_log: true
+  when: idrac_telemetry_support
+
+- name: Import dashboards for slurm visualizations
+  community.grafana.grafana_dashboard:
+    grafana_url: "http://{{ grafana_svc_ip.stdout }}:{{ grafana_svc_port.stdout }}"
+    grafana_user: "{{ grafana_username }}"
+    grafana_password: "{{ grafana_password }}"
+    state: present
+    folder: "{{ telemetry_folder_name }}"
+    overwrite: true
+    path: "{{ item }}"
+  with_items: "{{ slurm_dashboards }}"
+  no_log: true
+  when: idrac_telemetry_support and slurm_telemetry_support
