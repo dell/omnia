@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,14 +13,17 @@
 #  limitations under the License.
 ---
 
-- name: Build promtail image
-  ansible.builtin.import_tasks: promtail_image.yml
+- name: Validations for AMD benchmark
+  hosts: localhost
+  gather_facts: true
+  tasks:
+    - name: Validations for AMD benchmark
+      ansible.builtin.include_role:
+        name: amd_benchmark
+        tasks_from: validations.yml
 
-- name: Deploy loki pod
-  ansible.builtin.import_tasks: k8s_loki_pod.yml
-
-- name: Deploy loki service
-  ansible.builtin.import_tasks: loki_service.yml
-
-- name: Configure loki in grafana
-  ansible.builtin.import_tasks: configure_loki_grafana.yml
+- name: Benchmarks for AMD
+  hosts: manager, compute, login
+  gather_facts: true
+  roles:
+    - amd_benchmark
