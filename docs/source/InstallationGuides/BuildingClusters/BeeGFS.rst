@@ -11,7 +11,7 @@ BeeGFS is a hardware-independent POSIX parallel file system (a.k.a. Software-def
 * Ensure that the BeeGFS server is set up using the `linked steps <../../Appendices/BeeGFSServer.html>`_.
 * Ensure that a ``connAuthFile`` is configured on the server as explained `here <../../Appendices/BeeGFSServer.html>`_
 
-.. warning:: Configuring a ``connAuthFile`` is now mandatory. Services will no longer start if a ``connAuthFile`` is not configured
+.. caution:: Configuring a ``connAuthFile`` is now mandatory. Services will no longer start if a ``connAuthFile`` is not configured
 
 * Ensure that the following ports are open for TCP and UDP connectivity:
 
@@ -45,18 +45,20 @@ To open the ports required, use the following steps:
 
 * Ensure that the nodes in the inventory have been assigned **only** these roles: manager and compute.
 
-* Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to set up BeeGFS on RHEL target nodes.
+* Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to set up BeeGFS on RHEL cluster nodes.
 
-* For RHEL target nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription.
+* For RHEL cluster nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all cluster nodes. Every cluster node will require a RedHat subscription.
 
 .. note:: BeeGFS services over RDMA is only supported on RHEL 8.3 and above due to limitations on BeeGFS. When setting up your cluster with RDMA support, check the BeeGFS documentation to provide appropriate values in ``input/storage_config.yml``.
 
 * If the cluster runs Rocky, ensure that versions running are compatible by checking our `support matrix <../../Overview/SupportMatrix/OperatingSystems/Rocky.html>`_.
 
-Installing the BeeGFS client via Omnia
---------------------------------------
+**Installing the BeeGFS client via Omnia**
+
 
 After the required parameters are filled in ``input/storage_config.yml``, Omnia installs BeeGFS on manager and compute nodes while executing the ``omnia.yml`` playbook.
+
+.. caution:: Do not remove or comment any lines in the ``input/storage_config.yml`` file.
 
 +---------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Name                            | Details                                                                                                                                                                                                                                              |
@@ -110,16 +112,16 @@ After the required parameters are filled in ``input/storage_config.yml``, Omnia 
 |                                 |      * ``true``                                                                                                                                                                                                                                      |
 +---------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | beegfs_secret_storage_filepath  | * The filepath (including the filename) where the ``connauthfile`` is   placed.                                                                                                                                                                      |
-|      ``string``                 | * Required for Beegfs version >= 7.2.7                                                                                                                                                                                                               |
-|      Required                   |                                                                                                                                                                                                                                                      |
+|      ``string``                 | * Recommended for Beegfs version >= 7.2.7.                                                                                                                                                                                                           |
+|      Optional                   |                                                                                                                                                                                                                                                      |
 |                                 |                                                                                                                                                                                                                                                      |
-|                                 |      **Default values**: ``/home/connauthfile``                                                                                                                                                                                                      |
+|                                 |      **Default value**: ``/home/connauthfile``                                                                                                                                                                                                       |
 +---------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 .. note::
-    * BeeGFS client-server communication can take place over TCP or RDMA. If RDMA support is required, set ``beegfs_rdma_support`` should be set to true. Also, OFED should be installed on all target nodes.
+    * BeeGFS client-server communication can take place over TCP or RDMA. If RDMA support is required, set ``beegfs_rdma_support`` should be set to true. Also, OFED should be installed on all cluster nodes.
     * For BeeGFS communication happening over RDMA, the ``beegfs_mgmt_server`` should be provided with the Infiniband IP of the management server.
-    * The parameter inventory refers to the `inventory file <../../samplefiles.html>`_ listing manager, login_node and compute nodes.)
+    * The parameter inventory refers to the `inventory file <../../samplefiles.html>`_ listing manager, login and compute nodes.)
 
 If ``input/storage_config.yml`` is populated before running ``omnia.yml``, BeeGFS client will be set up during the run of ``omnia.yml``.
 
@@ -129,3 +131,4 @@ If ``omnia.yml`` is not leveraged to set up BeeGFS, run the ``storage.yml`` play
     ansible-playbook storage.yml -i inventory
 
 
+.. note:: Once BeeGFS is successfully set up, set ``enable_omnia_nfs`` (``input/omnia_config.yml``) to false and  ``omnia_usrhome_share`` (``input/omnia_config.yml``) to an accessible share path in BeeGFS to use the path across the cluster for deployments.

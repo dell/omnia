@@ -2,7 +2,7 @@ Red Hat Enterprise Linux
 ========================
 
 ========== ============= =============
-OS Version Control Plane Compute Nodes
+OS Version Control Plane Cluster  Nodes
 ========== ============= =============
 8.1        No            Yes
 8.2        No            Yes
@@ -14,5 +14,5 @@ OS Version Control Plane Compute Nodes
 ========== ============= =============
 
 .. note::
-    * Always deploy the DVD Edition of the OS on compute nodes to access offline repos.
-    * While Omnia may work with RHEL 8.4 and above, all Omnia testing was done with RHEL 8.4 on the control plane. All minor versions of RHEL 8 are supported on the compute nodes.
+    * Always deploy the DVD Edition of the OS on cluster  nodes to access offline repos.
+    * For RHEL 8.5 and below, ensure that RHEL subscription is enabled OR sshpass is available to install or download to the control plane (from any local repository).

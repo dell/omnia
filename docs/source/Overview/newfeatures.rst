@@ -1,10 +1,10 @@
 New Features
 ===========
 
-*  XE9680, R760, R7625, R6615, R7615 are now supported as control planes or target nodes.
+* Expanded `telemetry collection <../Roles/Telemetry/index.html>`_ support to Regular, health check and GPU metrics.
+* `Rsyslog <../Logging/ControlPlaneLogs.html>`_ : Added ability to aggregate logs via xCAT's syslog.
+* Integration of apptainer for `containerized HPC benchmark execution <../InstallationGuides/Benchmarks/index.html>`_.
+* Integration of  `grafana and loki installation <../Roles/Telemetry/index.html>`_ within ``telemetry.yml``.
 
-* Added ability for switch-based discovery of remote servers and PXE provisioning.
 
-* Active RedHat subscription is no longer required on the control plane and the compute nodes. Users can configure and use local RHEL repositories.
 
-* IP ranges can be defined for assignment to remote nodes when discovered via the switch.

@@ -4,6 +4,8 @@ Configuring ethernet switches (Z series)
 
 * Edit the ``network/ethernet_zseries_input.yml`` file for all Z series PowerSwitches such as Z9332F-ON, Z9262-ON and Z9264F-ON. The default configuration is written for Z9264F-ON.
 
+.. caution:: Do not remove or comment any lines in the ``network/ethernet_zseries_input.yml`` file.
+
 +----------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Name                       | Details                                                                                                                                                                             |
 +============================+=====================================================================================================================================================================================+
@@ -47,7 +49,7 @@ Configuring ethernet switches (Z series)
 |                            |      * Note: The playbooks will fail if any invalid configurations are entered.                                                                                                     |
 +----------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | save_changes_to_startup    | Change it to "true" only when you are certain that the updated   configurations and commands are valid.                                                                             |
-|      ``boolean``           |                                                                                                                                                                                     |
+|      ``boolean``   [1]_    |                                                                                                                                                                                     |
 |      Required              | WARNING: When set to "true", the startup configuration file is   updated. If incorrect configurations or commands are entered, the Ethernet   switches may not operate as expected. |
 |                            |                                                                                                                                                                                     |
 |                            | Choices:                                                                                                                                                                            |
@@ -56,6 +58,8 @@ Configuring ethernet switches (Z series)
 |                            |                                                                                                                                                                                     |
 |                            |      * ``true``                                                                                                                                                                     |
 +----------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+.. [1] Boolean parameters do not need to be passed with double or single quotes.
 
 * When initializing a factory reset switch, the user needs to ensure DHCP is enabled and an IPv6 address is not assigned.
 
@@ -73,7 +77,7 @@ Configuring ethernet switches (Z series)
 
 * Where ``ethernet_switch_username`` is the username used to authenticate into the switch.
 
-* The inventory file should be a list of IPs separated by newlines. Check out the switch_inventory section in `Sample Files <https://omnia-documentation.readthedocs.io/en/latest/samplefiles.html>`_
+* The inventory file should be a list of IPs separated by newlines. Check out the switch_inventory section in `Sample Files <https://omnia-doc.readthedocs.io/en/latest/samplefiles.html>`_
 
 * Where ``ethernet_switch_password`` is the password used to authenticate into the switch.
 

@@ -4,22 +4,26 @@ Configuring infiniband switches
 Depending on the number of ports available on your Infiniband switch, they can be classified into:
     - EDR Switches (36 ports)
     - HDR Switches (40 ports)
+    - NDR Switches (32 ports)
 
-Input the configuration variables into the ``network/infiniband_edr_input.yml`` or ``network/infiniband_hdr_input.yml`` as appropriate:
+Input the configuration variables into the ``network/infiniband_edr_input.yml``, ``network/infiniband_hdr_input.yml`` or ``network/infiniband_ndr_input.yml`` as appropriate:
+
+.. caution:: Do not remove or comment any lines in the ``network/infiniband_edr_input.yml``, ``network/infiniband_hdr_input.yml`` or ``network/infiniband_ndr_input.yml``  file.
 
 +-------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Parameters              | Details                                                                                                                                                                |
 +=========================+========================================================================================================================================================================+
 | enable_split_port       | Indicates whether ports are to be split.                                                                                                                               |
-|      ``boolean``        |                                                                                                                                                                        |
+|      ``boolean``  [1]_  |                                                                                                                                                                        |
 |      Required           |      Choices:                                                                                                                                                          |
 |                         |                                                                                                                                                                        |
 |                         |      * ``false`` <- default                                                                                                                                            |
 |                         |      * ``true``                                                                                                                                                        |
 +-------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| ib_split_ports          | Stores the split configuration of the ports. Accepted formats are   comma-separated (EX: "1,2"), ranges (EX: "1-10"),   comma-separated ranges (EX: "1,2,3-8,9,10-12") |
-|      ``string``         |                                                                                                                                                                        |
-|      Optional           |                                                                                                                                                                        |
+| ib_split_ports          | * Stores the split configuration of the ports.                                                                                                                         |
+|      ``string``         | * For EDR and HDR switches, the accepted formats are : comma-separated (EX: "1,2"), ranges (EX: "1-10"),   comma-separated ranges (EX: "1,2,3-8,9,10-12")              |
+|      Optional           | * For NDR switches, the accepted format is: 2/1, 2/2, 3/1                                                                                                              |
+|                         | .. note:: The port prefix IB1 can be ignored when setting this value.                                                                                                  |
 +-------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | snmp_community_name     | The “SNMP community string” is like a user ID or password that allows   access to a router's or other device's statistics.                                             |
 |      ``string``         |                                                                                                                                                                        |
@@ -45,12 +49,13 @@ Input the configuration variables into the ``network/infiniband_edr_input.yml`` 
 |      Optional           |      **Default values**: ``"no shutdown"``                                                                                                                             |
 +-------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | save_changes_to_startup | Indicates whether the switch configuration is to persist across   reboots.                                                                                             |
-|      ``boolean``        |      Choices:                                                                                                                                                          |
+|      ``boolean`` [1]_   |      Choices:                                                                                                                                                          |
 |      Optional           |                                                                                                                                                                        |
 |                         |      * ``false`` <- default                                                                                                                                            |
 |                         |      * ``true``                                                                                                                                                        |
 +-------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
+.. [1] Boolean parameters do not need to be passed with double or single quotes.
 
 **Before you run the playbook**
 
@@ -73,9 +78,13 @@ When connecting to a new or factory reset switch, the configuration wizard reque
 If the user enters 'yes', they will also be prompted to enter the hostname for the switch, DHCP details, IPv6 details, etc.
 
 .. note::
+    * Currently, Omnia only supports the splitting of switch ports. Switch ports cannot be un-split using this script. For information on manually un-splitting ports, `click here <https://docs.nvidia.com/networking/display/MLNXOSv3101110/InfiniBand+Interface+Commands#heading-interfaceibport-typesplit-2>`_.
+
     * When initializing a factory reset switch, the user needs to ensure DHCP is enabled and an IPv6 address is not assigned.
 
     * All ports intended for splitting need to be connected to the network before running the playbook.
+
+    * The ``ib_password`` remains unchanged on switches that are in split-ready mode.
 
 **Running the playbook**
 
@@ -99,21 +108,21 @@ If ``enable_split_port`` is **false**, run::
 
 * Where ``ib_monitor_password`` is the mandatory password required while running the initial configuration wizard on the Infiniband switch.
 
-* Where ``ib_default_password`` is the password used to authenticate into factory reset/fresh-install switches.
-
-* Where ``ib_switch_type`` refers to the model of the switch: HDR/EDR
-
 .. note::
 
  * ``ib_admin_password`` and ``ib_monitor_password`` have the following constraints:
 
     * Passwords should contain 8-64 characters.
 
-    * Passwords should be different than username.
+    * Passwords should be different from username.
 
-    * Passwords should be different than 5 previous passwords.
+    * Passwords should be different from 5 previous passwords.
 
     * Passwords should contain at least one of each: Lowercase, uppercase and digits.
 
- * The inventory file should be a list of IPs separated by newlines. Check out the ``switch_inventory`` section in `Sample Files <https://omnia-documentation.readthedocs.io/en/latest/samplefiles.html>`_
+ * The inventory file should be a list of IPs separated by newlines. Check out the ``switch_inventory`` section in `Sample Files <https://omnia-doc.readthedocs.io/en/latest/samplefiles.html>`_
+
+* Where ``ib_default_password`` is the password used to authenticate into factory reset/fresh-install switches.
+
+* Where ``ib_switch_type`` refers to the model of the switch: HDR/EDR/NDR
 

@@ -80,7 +80,7 @@ For setting up authentication on the cluster, the following credentials have to 
 
     2. LDAP (ldap_bind_username, ldap_bind_password)
 
-After the installation of Omnia is initialized, these files are encrypted using Ansible Vault and are hidden from external visibility and access.
+Once Omnia is invoked, these files are validated and encrypted using Ansible Vault. They are hidden from external visibility and access.
 
 Authentication to external systems
 ==================================
@@ -311,7 +311,7 @@ Omnia configures the following ports for use by third-party tools installed by O
 Data security
 -------------
 
-Omnia does not store data. The passwords Omnia accepts as input to configure the third party tools are encrypted using Ansible Vault.
+Omnia does not store data. The passwords Omnia accepts as input to configure the third party tools are validated and then encrypted using Ansible Vault.
 
 For more information on the passwords used by Omnia, see Login Security Settings.
 
@@ -384,3 +384,8 @@ The format is described in the following table.
 +----------------------------------+----------------------------------+------------------------------------------+
 | Warning                          | [WARNING]: warning message       | [WARNING]: provided hosts list is empty  |
 +----------------------------------+----------------------------------+------------------------------------------+
+
+Network vulnerability scanning
+------------------------------
+
+Omnia performs network security scans on all modules of the product. Omnia additionally performs Blackduck scans on the open source softwares, which are installed by Omnia at runtime. However, Omnia is not responsible for the third-party software installed using Omnia. Review all third party software before using Omnia to install it.

@@ -1,8 +1,4 @@
 Provision
 ==========
 
-.. include:: ../../InstallationGuides/InstallingProvisionTool/provisionprereqs.rst
-
-.. include:: ../../InstallationGuides/InstallingProvisionTool/installprovisiontool.rst
-
-.. include:: ../../InstallationGuides/InstallingProvisionTool/PostProvisionScript.rst
+This feature is documented in the Quick Installation Guide under `Installing the provision tool. <../../InstallationGuides/InstallingProvisionTool/index.html>`_

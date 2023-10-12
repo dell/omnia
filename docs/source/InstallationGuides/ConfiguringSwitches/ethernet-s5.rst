@@ -4,6 +4,8 @@ Configuring ethernet switches (S5 series)
 
 * Edit the ``network/ethernet_sseries_input.yml`` file for all S5* PowerSwitches such as S5232F-ON.
 
+.. caution:: Do not remove or comment any lines in the ``network/ethernet_sseries_input.yml`` file.
+
 +----------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Name                       | Details                                                                                                                                                                             |
 +============================+=====================================================================================================================================================================================+
@@ -47,7 +49,7 @@ Configuring ethernet switches (S5 series)
 |                            |      * Note: The playbooks will fail if any invalid configurations are entered.                                                                                                     |
 +----------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | save_changes_to_startup    | Change it to "true" only when you are certain that the updated   configurations and commands are valid.                                                                             |
-|      ``boolean``           |                                                                                                                                                                                     |
+|      ``boolean``  [1]_     |                                                                                                                                                                                     |
 |      Required              | WARNING: When set to "true", the startup configuration file is   updated. If incorrect configurations or commands are entered, the Ethernet   switches may not operate as expected. |
 |                            |                                                                                                                                                                                     |
 |                            | Choices:                                                                                                                                                                            |
@@ -59,6 +61,8 @@ Configuring ethernet switches (S5 series)
 
 * When initializing a factory reset switch, the user needs to ensure DHCP is enabled and an IPv6 address is not assigned.
 
+.. [1] Boolean parameters do not need to be passed with double or single quotes.
+
 .. note:: The ``breakout_value`` of a port can only be changed after un-splitting the port.
 
 **Running the playbook**::
@@ -69,7 +73,7 @@ Configuring ethernet switches (S5 series)
 
 * Where ``ethernet_switch_username`` is the username used to authenticate into the switch.
 
-* The inventory file should be a list of IPs separated by newlines. Check out the switch_inventory section in `Sample Files <https://omnia-documentation.readthedocs.io/en/latest/samplefiles.html>`_
+* The inventory file should be a list of IPs separated by newlines. Check out the switch_inventory section in `Sample Files <https://omnia-doc.readthedocs.io/en/latest/samplefiles.html>`_
 
 * Where ``ethernet_switch_password`` is the password used to authenticate into the switch.
 

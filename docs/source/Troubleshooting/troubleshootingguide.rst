@@ -1,65 +1,59 @@
 Troubleshooting guide
 ============================
 
-Control plane logs
----------------------------
-
-All log files can be viewed via the Dashboard tab ( |Dashboard| ). The Default Dashboard displays ``omnia.log`` and ``syslog``. Custom dashboards can be created per user requirements.
-
-Below is a list of all logs available to Loki and can be accessed on the dashboard:
-
-.. csv-table:: Parameters
-   :file: ../Tables/ControlPlaneLogs.csv
-   :header-rows: 1
-   :keepspace:
-
-
-Provisioning logs
---------------------
-
-Logs pertaining to provisioning can be viewed in ``/var/log/xcat/xcat.log`` on the target nodes.
-
-Logs of individual containers
---------------------------------------------
-   1. A list of namespaces and their corresponding pods can be obtained using:
-      ``kubectl get pods -A``
-   2. Get a list of containers for the pod in question using:
-      ``kubectl get pods <pod_name> -o jsonpath='{.spec.containers[*].name}'``
-   3. Once you have the namespace, pod and container names, run the below command to get the required logs:
-      ``kubectl logs pod <pod_name> -n <namespace> -c <container_name>``
-
-
 Connecting to internal databases
 ------------------------------------
 * TimescaleDB
     * Go inside the pod: ``kubectl exec -it pod/timescaledb-0 -n telemetry-and-visualizations -- /bin/bash``
     * Connect to psql: ``psql -U <postgres_username>``
-    * Connect to database: ``< timescaledb_name >``
+    * Connect to database: ``\c telemetry_metrics``
 * MySQL DB
-    * Go inside the pod: ``kubectl exec -it pod/mysqldb-n telemetry-and-visualizations -- /bin/bash``
-    * Connect to psql: ``psql -U <mysqldb_username> -p <mysqldb_password>``
-    * Connect to database: ``USE <mysqldb_name>``
+    * Go inside the pod: ``kubectl exec -it pod/mysqldb-0 -n telemetry-and-visualizations -- /bin/bash``
+    * Connect to mysql: ``mysql -U <mysqldb_username> -p <mysqldb_password>``
+    * Connect to database: ``USE idrac_telemetrysource_services_db``
 
 Checking and updating encrypted parameters
 -----------------------------------------------
 
-1. Move to the filepath where the parameters are saved (as an example, we will be using ``provision_config.yml``):
+1. Move to the filepath where the parameters are saved (as an example, we will be using ``provision_config.yml``): ::
 
-      ``cd input/``
+    cd input/
 
 2. To view the encrypted parameters: ::
 
    ansible-vault view provision_config.yml --vault-password-file .provision_vault_key
 
-  3. To edit the encrypted parameters: ::
+3. To edit the encrypted parameters: ::
 
     ansible-vault edit provision_config.yml --vault-password-file .provision_vault_key
-
 
 Checking pod status on the control plane
 --------------------------------------------
    * Select the pod you need to troubleshoot from the output of ``kubectl get pods -A``
    * Check the status of the pod by running ``kubectl describe pod <pod name> -n <namespace name>``
+
+Using telemetry information to diagnose node issues
+----------------------------------------------------
+
+.. csv-table:: Regular telemetry metrics
+   :file: ../Tables/Metrics_Regular.csv
+   :header-rows: 1
+   :keepspace:
+
+.. [1] This metric is collected from the manager node if a login node is absent.
+
+.. csv-table:: Health telemetry metrics
+   :file: ../Tables/Metrics_Health.csv
+   :header-rows: 1
+   :keepspace:
+
+
+.. csv-table:: GPU telemetry metrics
+   :file: ../Tables/Metrics_GPU.csv
+   :header-rows: 1
+   :keepspace:
+
+
 
 .. |Dashboard| image:: ../images/Visualization/DashBoardIcon.png
     :height: 25px

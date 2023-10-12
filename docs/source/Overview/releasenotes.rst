@@ -1,6 +1,31 @@
 Releases
 ============
 
+1.5
+----
+
+* Expanded `telemetry collection <../Roles/Telemetry/index.html>`_ support to Regular, health check and GPU metrics.
+
+* `Rsyslog <../Logging/ControlPlaneLogs.html>`_ : Added ability to aggregate logs via xCAT's syslog.
+
+* Integration of apptainer for `containerized HPC benchmark execution <../InstallationGuides/Benchmarks/index.html>`_.
+
+* Integration of  `grafana and loki installation <../Roles/Telemetry/index.html>`_ within ``telemetry.yml``.
+
+1.4.3
+------
+
+*  XE 9640, R760 XA, R760 XD2 are now supported as control planes or target nodes with Nvidia H100 accelerators.
+
+* Added ability for split port configuration on NVIDIA Quantum-2-based QM9700 (Nvidia InfiniBand NDR400 switches).
+
+* Extended password-less SSH support for multiple user configuration in a single execution.
+
+* Input mapping files and inventory files now support commented entries for customized playbook execution.
+
+* NFS share is now available for hosting user home directories within the cluster.
+
+
 1.4.2
 -------
 
@@ -8,7 +33,7 @@ Releases
 
 * Added ability for switch-based discovery of remote servers and PXE provisioning.
 
-* Active RedHat subscription is no longer required on the control plane and the compute nodes. Users can configure and use local RHEL repositories.
+* Active RedHat subscription is no longer required on the control plane and the cluster  nodes. Users can configure and use local RHEL repositories.
 
 * IP ranges can be defined for assignment to remote nodes when discovered via the switch.
 
@@ -50,7 +75,7 @@ Releases
 
 *	AMD accelerator and ROCm support on the remote nodes
 
-*	Omnia playbook execution with Kubernetes, Slurm & FreeIPA installation in all compute nodes
+*	Omnia playbook execution with Kubernetes, Slurm & FreeIPA installation in all cluster  nodes
 
 *	Infiniband switch configuration and split port functionality
 
@@ -118,11 +143,11 @@ Releases
 
 * Omnia now installs Grafana as a single pane of glass to view logs, metrics and telemetry visualization
 
-* Compute node provisioning can be done via PXE and iDRAC
+* cluster  node provisioning can be done via PXE and iDRAC
 
 * Omnia supports multiple operating systems on the cluster including support for Rocky 8.5 and OpenSUSE Leap 15.3
 
-* Omnia can deploy compute nodes with a single NIC.
+* Omnia can deploy cluster  nodes with a single NIC.
 
 * All Cluster metrics can be viewed using Grafana on the Control plane (as opposed to checking the manager node on each cluster)
 

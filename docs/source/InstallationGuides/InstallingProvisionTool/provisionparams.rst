@@ -3,6 +3,7 @@ Input parameters for the provision tool
 
 Fill in all provision-specific parameters in ``input/provision_config.yml``
 
+.. caution:: Do not remove or comment any lines in the ``input/provision_config.yml`` file.
 
 +----------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Parameter                        | Details                                                                                                                                                                                                                                                                                                                   |
@@ -205,7 +206,7 @@ Fill in all provision-specific parameters in ``input/provision_config.yml``
 
             ansible-vault edit provision_config.yml --vault-password-file .provision_vault_key
 
-.. warning::
+.. caution::
 
     * The IP address *192.168.25.x* is used for PowerVault Storage communications. Therefore, do not use this IP address for other configurations.
     * The IP range *x.y.246.1* - *x.y.255.253* (where x and y are provided by the first two octets of ``bmc_nic_subnet``) are reserved by Omnia.
