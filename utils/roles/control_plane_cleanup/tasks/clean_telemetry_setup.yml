@@ -13,17 +13,10 @@
 #  limitations under the License.
 ---
 
-- name: Check k8s namespace monitoring present or not
-  ansible.builtin.command: kubectl get namespaces
-  changed_when: false
-  failed_when: false
-  register: k8s_namespace
-
 - name: Reset kubeadm
-  ansible.builtin.command: kubeadm reset -f
+  ansible.builtin.command: kubeadm reset --cri-socket={{ crio_socket }} -f
   changed_when: false
   failed_when: false
-  when: monitor_namespace in k8s_namespace.stdout
 
 - name: Remove /etc/exports entries
   ansible.builtin.lineinfile:
@@ -36,3 +29,31 @@
   ansible.builtin.command: /usr/sbin/exportfs -r
   changed_when: true
   failed_when: false
+
+- name: Include telemetry_config file
+  ansible.builtin.include_tasks: include_telemetry_config.yml
+
+- name: Remove grafana persistent data
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  with_items: "{{ grafana_folders }}"
+
+- name: Remove telemetry github data
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  with_items: "{{ telemetry_folders }}"
+
+- name: Remove telemetry database persistent data
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  with_items: "{{ database_folders }}"
+  tags: database
+
+- name: Remove metallb data
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  with_items: "{{ metallb_files }}"
