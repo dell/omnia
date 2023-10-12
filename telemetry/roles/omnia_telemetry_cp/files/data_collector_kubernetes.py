@@ -44,10 +44,16 @@ def get_kubectl_get_pods():
                         # Pod status
                         pod_status=pods_json["items"][index]["status"]["phase"]
                         # Container status
-                        container_status_list=pods_json["items"][index]["status"]["containerStatuses"][0]["state"].keys()
-                        # Pod and Container both should be running
-                        if pod_status != "Running" or "running" not in container_status_list:
-                                # Not Running so Fail
+                        if "containerStatuses" in pods_json["items"][index]["status"].keys():
+                            container_status_list=pods_json["items"][index]["status"]["containerStatuses"][0]["state"].keys()
+                            # Pod and Container both should be running
+                            if pod_status != "Running" or "running" not in container_status_list:
+                                    # Not Running so Fail
+                                    flag_kubernetes_pods_status= "False"
+                                    break
+                        else:
+                            # Decide only based on the status of Pod
+                            if pod_status != "Running":
                                 flag_kubernetes_pods_status= "False"
                                 break
                     if flag_kubernetes_pods_status == "False":
@@ -91,8 +97,8 @@ def get_kubectl_get_nodes():
                 if total_nodes>0:
                     for index in range(total_nodes):
                         #Get the status and check if it is "Ready" or not
-                        kubelet_status = next( key for key in nodes_json["items"][index]["status"]["conditions"] if key["reason"] == "KubeletReady")
-                        if kubelet_status["type"] != "Ready":
+                        kubelet_status = next( key for key in nodes_json["items"][index]["status"]["conditions"] if key["type"] == "Ready")
+                        if kubelet_status["status"] != "True":
                             flag_all_nodes_up = "False"
                             # In case single node is present, then that is both master and child node
                             if total_nodes==1:
