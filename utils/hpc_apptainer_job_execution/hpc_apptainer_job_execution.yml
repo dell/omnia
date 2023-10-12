@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,24 +13,22 @@
 # limitations under the License.
 ---
 
-- name: Validate pre-requisites for monitor roles
-  hosts: localhost
-  tasks:
-    - name: Pre-requisites for grafana
-      ansible.builtin.include_role:
-        name: grafana
-        tasks_from: validate_grafana_params.yml
-
-    - name: Pre-requisites for orchestrator
-      ansible.builtin.include_role:
-        name: orchestrator
-        tasks_from: validate_k8s_params.yml
-
-- name: Executing monitor roles
+- name: Validate input parameters for hpc_apptainer
   hosts: localhost
   connection: local
+  tasks:
+    - name: Validate variables
+      ansible.builtin.include_role:
+        name: hpc_apptainer
+        tasks_from: validate_input.yml
+
+    - name: Download docker images
+      ansible.builtin.include_role:
+        name: hpc_apptainer
+        tasks_from: download_docker_images.yml
+
+- name: HPC apptainer job execution
+  hosts: all
+  gather_facts: true
   roles:
-    - role: orchestrator
-    - role: grafana
-    - role: prometheus
-    - role: loki
+    - hpc_apptainer
