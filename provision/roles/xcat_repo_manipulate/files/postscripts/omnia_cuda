@@ -1,3 +1,9 @@
+#!/bin/bash
+################################################################################################################
+#  omnia_cuda:
+#      Install CUDA on all the cluster nodes using CUDA rpm file provided
+#
+#################################################################################################################
 echo "--------------------------" >> /var/log/xcat/xcat.log
 echo "Checking for NVIDIA cards" >> /var/log/xcat/xcat.log
 nvidia_check=`lspci | grep -i nvidia`

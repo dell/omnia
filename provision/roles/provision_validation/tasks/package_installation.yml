@@ -18,9 +18,15 @@
     control_plane_os: "{{ ansible_distribution | lower }}"
 
 - name: Install common packages for provision
-  ansible.builtin.package:
-    name: "{{ common_packages_provision }}"
-    state: present
+  block:
+    - name: Install common packages for provision
+      ansible.builtin.package:
+        name: "{{ common_packages_provision }}"
+        state: present
+  rescue:
+    - name: Failed to install common packages for provision
+      ansible.builtin.fail:
+        msg: "{{ provision_package_fail_msg }}"
 
 - name: Install netaddr and pexpect
   ansible.builtin.command: "{{ pip_version }} install {{ item }}"

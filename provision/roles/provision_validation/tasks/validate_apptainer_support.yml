@@ -13,16 +13,13 @@
 # limitations under the License.
 ---
 
-- name: Configure postbootscripts
-  ansible.builtin.command: chdef all postbootscripts="otherpkgs"
-  changed_when: true
+- name: Set apptainer_support value
+  ansible.builtin.set_fact:
+    apptainer_support: "{{ apptainer_support | lower }}"
 
-- name: Configure bmc postbootscripts
-  ansible.builtin.include_tasks: configure_postscripts_bmc.yml
-  when: bmc_postscripts_config_status
-
-- name: Configure ib postbootscripts
-  ansible.builtin.include_tasks: configure_postscripts_ib.yml
-
-- name: Configure admin postbootscripts
-  ansible.builtin.include_tasks: configure_postscripts_admin.yml
+- name: Verify the value of apptainer_support
+  ansible.builtin.assert:
+    that:
+      - apptainer_support == true or apptainer_support == false
+    success_msg: "{{ apptainer_support_success_msg }}"
+    fail_msg: "{{ apptainer_support_fail_msg }}"
