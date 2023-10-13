@@ -32,7 +32,7 @@ Contributions to Omnia are made through [Pull Requests (PRs)](https://help.githu
 6. **Create a pull request:** [Create a pull request](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request) with a title following this format Issue ###: Description (_i.e., Issue 1023: Reformat testutils_). It is important that you do a good job with the description to make the job of the code reviewer easier. A good description not only reduces review time, but also reduces the probability of a misunderstanding with the pull request.
    * **Important:** When preparing a pull request it is important to stay up-to-date with the project repository. We recommend that you rebase against the upstream repo _frequently_. To do this, use the following commands:
    ```
-   git pull --rebase upstream devel #upstream is dellhpc/omnia
+   git pull --rebase upstream devel #upstream is dell/omnia
    git push --force origin <pr-branch-name> #origin is your fork of the repository (e.g., <github_user_name>/omnia.git)
    ```
    * **PR Description:** Be sure to fully describe the pull request. Ideally, your PR description will contain:
