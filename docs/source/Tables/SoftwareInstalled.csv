@@ -1,74 +1,74 @@
 ﻿OSS Title,License Name,Description,Repository URL
-389-ds,GPL,"LDAP server used for authentication, access control.",
-activemq,Apache-2.0,"Most popular multi protocol, message broker.",
-ansible posix,GNU General Public License,Ansible Collection targeting POSIX and POSIX-ish platforms.,
-ansible pylibssh,LGPL 2.1,Python bindings to client functionality of libssh specific to Ansible use case.,
-ansible.utils ansible collection,GPL 3.0,"Ansible Collection with utilities to ease the management, manipulation, and validation of data within a playbook",
-apparmor,GNU General Public License,Controls access based on paths of the program files,
+389-ds,GPL,"LDAP server used for authentication, access control.",https://github.com/389ds/389-ds-base
+activemq,Apache-2.0,"Most popular multi protocol, message broker.",https://activemq.apache.org/download.html
+ansible posix,GNU General Public License,Ansible Collection targeting POSIX and POSIX-ish platforms.,https://github.com/ansible-collections/ansible.posix
+ansible pylibssh,LGPL 2.1,Python bindings to client functionality of libssh specific to Ansible use case.,https://pypi.org/project/ansible-pylibssh/
+ansible.utils ansible collection,GPL 3.0,"Ansible Collection with utilities to ease the management, manipulation, and validation of data within a playbook",https://github.com/ansible-collections/ansible.utils
+apparmor,GNU General Public License,Controls access based on paths of the program files,https://gitlab.com/apparmor/apparmor
 apptainer,BSD 3-Clause License,Application containers for Linux,https://github.com/apptainer/apptainer
-Beegfs-Client,GPLv2,BeeGFS is a high-performance parallel file system with easy management. The distributed metadata architecture of BeeGFS has been designed to provide the scalability and flexibility that is required to run today’s and tomorrow’s most demanding HPC applications.,
-bind-dyndb-ldap,GNU General Public License v2,LDAP driver for BIND9. It allows you to read data and also write data back (DNS Updates) to an LDAP backend.,
-buildah,Apache-2.0,Tool to build and run containers,
-cni,Apache-2.0,Networking for Linux containers,
-community.general ansible,GNU-General Public License v3.0,The collection is a part of the Ansible package and includes many modules and plugins supported by Ansible community which are not part of more specialized community collections.,
-community.grafana,GPL 3.0,Technical Support for open source grafana.,
-coreDNS,Apache-2.0,DNS server that chains plugins,
-cri-o,Apache-2.0,CRI-O is an implementation of the Kubernetes CRI (Container Runtime Interface) to enable using OCI (Open Container Initiative) compatible runtimes.,
-CUDA Toolkit,NVIDIA License,The NVIDIA® CUDA® Toolkit provides a development environment for creating high performance GPU-accelerated applications.,
-dellemc.openmanage,GNU-General Public License v3.0,"OpenManage Ansible Modules simplifies and automates provisioning, deployment, and updates of PowerEdge servers and modular infrastructure.",
-dellemc.os10,GNU-General Public License v3.0,It provides networking hardware abstraction through a common set of APIs,
-Docker CE,Apache-2.0,Docker Service,
-freeipa,GNU General Public License v3,Authentication system used on the login node,
-golang,BSD-3-Clause License,"Go is a statically typed, compiled programming language designed at Google.",
-grafana,GNU AFFERO GENERAL PUBLIC LICENSE,Grafana is the open source analytics & monitoring solution for every database.,
-helm,Apache-2.0,Kubernetes Package Manager,
-horovod,Apache-2.0,Distributed deep learning training framework for Tensorflow,
-idrac-telemetry-reference tools,Apache-2.0,Reference toolset for PowerEdge telemetry metric collection and integration with analytics and visualization solutions.,
-jansson,MIT License,"C library for encoding, decoding and manipulating JSON data",
-jupyterhub,BSD-3Clause New or Revised License,Multi-user hub,
-kfctl,Apache-2.0,CLI for deploying and managing Kubeflow,
-Kube prometheus stack,Apache-2.0,"Kube Prometheus Stack is a collection of Kubernetes manifests, Grafana dashboards, and Prometheus rules.",
-kubeadm,Apache-2.0,“fast paths” for creating Kubernetes clusters,
-kubectl,Apache-2.0,Command line tool for Kubernetes,
-kubeflow,Apache-2.0,Cloud Native platform for machine learning,
-kubelet,Apache-2.0,"Provides external, versioned ComponentConfig API types for configuring the kubelet",
-Kubernetes Controllers,Apache-2.0,HPC Workload Manager,
-kubernetes.core,GPL 3.0,Performs CRUD operations on K8s objects,
-libjwt,Mozilla Public License-2.0 License,JWT C Library,
-Lmod,MIT License,Lmod is a Lua based module system that easily handles the MODULEPATH Hierarchical problem.,
-loki,GNU AFFERO GENERAL PUBLIC LICENSE v3.0,Loki is a log aggregation system designed to store and query logs from all your applications and infrastructure,
-Lua,MIT License,"Lua is a lightweight, high-level, multi-paradigm programming language designed primarily for embedded use in applications.",
-mailx,MIT License,mailx is a Unix utility program for sending and receiving mail.,
-MariaDB,GPL 2.0,Relational database used by Slurm,
+Beegfs-Client,GPLv2,BeeGFS is a high-performance parallel file system with easy management. The distributed metadata architecture of BeeGFS has been designed to provide the scalability and flexibility that is required to run today’s and tomorrow’s most demanding HPC applications.,https://www.beegfs.io/wiki/DownloadInstallationPackages
+bind-dyndb-ldap,GNU General Public License v2,LDAP driver for BIND9. It allows you to read data and also write data back (DNS Updates) to an LDAP backend.,https://github.com/freeipa/bind-dyndb-ldap/tree/master
+buildah,Apache-2.0,Tool to build and run containers,https://github.com/containers/buildah
+cni,Apache-2.0,Networking for Linux containers,https://github.com/containernetworking/cni
+community.general ansible,GNU-General Public License v3.0,The collection is a part of the Ansible package and includes many modules and plugins supported by Ansible community which are not part of more specialized community collections.,https://github.com/ansible-collections/community.general
+community.grafana,GPL 3.0,Technical Support for open source grafana.,https://github.com/ansible-collections/community.grafana
+coreDNS,Apache-2.0,DNS server that chains plugins,https://github.com/coredns/coredns
+cri-o,Apache-2.0,CRI-O is an implementation of the Kubernetes CRI (Container Runtime Interface) to enable using OCI (Open Container Initiative) compatible runtimes.,https://github.com/cri-o/cri-o
+CUDA Toolkit,NVIDIA License,The NVIDIA® CUDA® Toolkit provides a development environment for creating high performance GPU-accelerated applications.,https://developer.nvidia.com/cuda-downloads
+dellemc.openmanage,GNU-General Public License v3.0,"OpenManage Ansible Modules simplifies and automates provisioning, deployment, and updates of PowerEdge servers and modular infrastructure.",https://github.com/dell/dellemc-openmanage-ansible-modules
+dellemc.os10,GNU-General Public License v3.0,It provides networking hardware abstraction through a common set of APIs,https://github.com/ansible-collections/dellemc.os10
+Docker CE,Apache-2.0,Docker Service,https://github.com/docker/docker-ce
+freeipa,GNU General Public License v3,Authentication system used on the login node,https://github.com/freeipa/freeipa-container
+golang,BSD-3-Clause License,"Go is a statically typed, compiled programming language designed at Google.",https://github.com/golang/go
+grafana,GNU AFFERO GENERAL PUBLIC LICENSE,Grafana is the open source analytics & monitoring solution for every database.,https://github.com/grafana/grafana
+helm,Apache-2.0,Kubernetes Package Manager,https://github.com/helm/helm
+horovod,Apache-2.0,Distributed deep learning training framework for Tensorflow,https://github.com/horovod/horovod
+idrac-telemetry-reference tools,Apache-2.0,Reference toolset for PowerEdge telemetry metric collection and integration with analytics and visualization solutions.,https://github.com/dell/iDRAC-Telemetry-Reference-Tools
+jansson,MIT License,"C library for encoding, decoding and manipulating JSON data",https://github.com/akheron/jansson
+jupyterhub,BSD-3Clause New or Revised License,Multi-user hub,https://github.com/jupyterhub/jupyterhub
+kfctl,Apache-2.0,CLI for deploying and managing Kubeflow,https://github.com/kubeflow/kfctl
+Kube prometheus stack,Apache-2.0,"Kube Prometheus Stack is a collection of Kubernetes manifests, Grafana dashboards, and Prometheus rules.",https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack
+kubeadm,Apache-2.0,“fast paths” for creating Kubernetes clusters,https://github.com/kubernetes/kubeadm
+kubectl,Apache-2.0,Command line tool for Kubernetes,https://github.com/kubernetes/kubectl
+kubeflow,Apache-2.0,Cloud Native platform for machine learning,https://github.com/kubeflow/kubeflow
+kubelet,Apache-2.0,"Provides external, versioned ComponentConfig API types for configuring the kubelet",https://github.com/kubernetes/kubelet
+Kubernetes Controllers,Apache-2.0,HPC Workload Manager,https://github.com/kubernetes/controller-manager
+kubernetes.core,GPL 3.0,Performs CRUD operations on K8s objects,https://github.com/ansible-collections/kubernetes.core
+libjwt,Mozilla Public License-2.0 License,JWT C Library,https://github.com/benmcollins/libjwt
+Lmod,MIT License,Lmod is a Lua based module system that easily handles the MODULEPATH Hierarchical problem.,https://github.com/TACC/Lmod
+loki,GNU AFFERO GENERAL PUBLIC LICENSE v3.0,Loki is a log aggregation system designed to store and query logs from all your applications and infrastructure,https://github.com/grafana/loki
+Lua,MIT License,"Lua is a lightweight, high-level, multi-paradigm programming language designed primarily for embedded use in applications.",https://github.com/lua/lua
+mailx,MIT License,mailx is a Unix utility program for sending and receiving mail.,https://heirloom.sourceforge.net/mailx.html
+MariaDB,GPL 2.0,Relational database used by Slurm,https://github.com/MariaDB/
 MetalLB,Apache-2.0,A network load-balancer implementation for Kubernetes using standard routing protocols,https://github.com/metallb/metallb
-MLNX-OFED,BSD License,MLNX_OFED is an NVIDIA tested and packaged version of OFED that supports two interconnect types using the same RDMA (remote DMA) and kernel bypass APIs called OFED verbs – InfiniBand and Ethernet.,
-MPI,3Clause BSD License,HPC library,
-mysql,GPL 2.0,MySQL is an open-source relational database management system.,
-nsfcac/grafana-plugin,MIT License,Machine Learning Framework,
-NVidia container runtime,Apache-2.0,Nvidia container runtime library,
-omsdk,Apache-2.0,Dell EMC OpenManage Python SDK (OMSDK) is a python library that helps developers and customers to automate the lifecycle management of PowerEdge Servers,
-openshift,Apache-2.0,On-premises platform as a service built around Linux containers orchestrated and managed by Kubernetes,
-OpenSM,GNU General Public License 2,,
-pandas,BSD-3-Clause License,"pandas is a fast, powerful, flexible and easy to use open source data analysis and manipulation tool, built on top of the Python programming language.",
-perl-DBD-Pg,GNU General Public License v3,DBD::Pg - PostgreSQL database driver for the DBI module,
-postgresSQL,PostgresSQL License,"PostgreSQL, also known as Postgres, is a free and open-source relational database management system emphasizing extensibility and SQL compliance.",
-prometheus,Apache-2.0,"Open-source monitoring system with a dimensional data model, flexible query language, efficient time series database and modern alerting approach.",
-promtail,Apache-2.0,Promtail is an agent which ships the contents of local logs to a private Grafana Loki instance or Grafana Cloud.,
+MLNX-OFED,BSD License,MLNX_OFED is an NVIDIA tested and packaged version of OFED that supports two interconnect types using the same RDMA (remote DMA) and kernel bypass APIs called OFED verbs – InfiniBand and Ethernet.,https://github.com/Mellanox/ofed-docker
+MPI,3Clause BSD License,HPC library,https://github.com/open-mpi/ompi
+mysql,GPL 2.0,MySQL is an open-source relational database management system.,https://github.com/mysql/mysql-server
+nsfcac/grafana-plugin,MIT License,Machine Learning Framework,https://github.com/nsfcac/grafana-plugin
+NVidia container runtime,Apache-2.0,Nvidia container runtime library,https://github.com/NVIDIA/nvidia-container-runtime
+omsdk,Apache-2.0,Dell EMC OpenManage Python SDK (OMSDK) is a python library that helps developers and customers to automate the lifecycle management of PowerEdge Servers,https://github.com/dell/omsdk
+openshift,Apache-2.0,On-premises platform as a service built around Linux containers orchestrated and managed by Kubernetes,https://github.com/openshift/installer
+OpenSM,GNU General Public License 2,,https://github.com/linux-rdma/opensm
+pandas,BSD-3-Clause License,"pandas is a fast, powerful, flexible and easy to use open source data analysis and manipulation tool, built on top of the Python programming language.",https://github.com/pandas-dev/pandas
+perl-DBD-Pg,GNU General Public License v3,DBD::Pg - PostgreSQL database driver for the DBI module,https://github.com/bucardo/dbdpg
+postgresSQL,PostgresSQL License,"PostgreSQL, also known as Postgres, is a free and open-source relational database management system emphasizing extensibility and SQL compliance.",https://github.com/postgres/postgres
+prometheus,Apache-2.0,"Open-source monitoring system with a dimensional data model, flexible query language, efficient time series database and modern alerting approach.",https://github.com/prometheus/prometheus
+promtail,Apache-2.0,Promtail is an agent which ships the contents of local logs to a private Grafana Loki instance or Grafana Cloud.,https://github.com/grafana/loki
 psutil,BSD 3-Clause License,Cross-platform lib for process and system monitoring in Python,https://github.com/giampaolo/psutil
-psycopg2-binary,GNU Lesser General Public License,Psycopg is the most popular PostgreSQL database adapter for the Python programming language.,
+psycopg2-binary,GNU Lesser General Public License,Psycopg is the most popular PostgreSQL database adapter for the Python programming language.,https://github.com/psycopg/psycopg2
 pyinstaller,"GNU General Public License, Apache 2.0",Freeze (package) Python programs into stand-alone executables,https://github.com/pyinstaller/pyinstaller
-python.requests,Apache-2.0,Makes HTTP requests simpler and more human-friendly.,
-python3-netaddr,BSD License,A Python library for representing and manipulating network addresses.,
-Python-pip,MIT License,Python Package,
-redhat subscription,Apache-2.0,"Red Hat Subscription Management (RHSM) is a customer-driven, end-to-end solution that provides tools for subscription status and management and integrates with Red Hat’s system management tools.",
-redis,BSD-3-Clause License,In-memory database,
-singularity,BSD License,Container platform. It allows you to create and run containers that package up pieces of software in a way that is portable and reproducible.,
-Slurm Workload manager,GNU General Public License,HPC Workload Manager,
-slurm-exporter,GNU General Public License v3,Prometheus collector and exporter for metrics extracted from the Slurm resource scheduling system.,
+python.requests,Apache-2.0,Makes HTTP requests simpler and more human-friendly.,https://github.com/psf/requests
+python3-netaddr,BSD License,A Python library for representing and manipulating network addresses.,https://github.com/netaddr/netaddr
+Python-pip,MIT License,Python Package,https://github.com/pypa/pip
+redhat subscription,Apache-2.0,"Red Hat Subscription Management (RHSM) is a customer-driven, end-to-end solution that provides tools for subscription status and management and integrates with Red Hat’s system management tools.",https://github.com/RedHatSatellite/rhsmTools
+redis,BSD-3-Clause License,In-memory database,https://github.com/redis/redis
+singularity,BSD License,Container platform. It allows you to create and run containers that package up pieces of software in a way that is portable and reproducible.,https://github.com/sylabs/singularity
+Slurm Workload manager,GNU General Public License,HPC Workload Manager,https://github.com/SchedMD/slurm
+slurm-exporter,GNU General Public License v3,Prometheus collector and exporter for metrics extracted from the Slurm resource scheduling system.,https://github.com/vpenso/prometheus-slurm-exporter
 smartmontools,GNU General Public License,Official read only mirror of the smartmontools project SVN,https://github.com/smartmontools/smartmontools
-snoopy,GPL 2.0,Snoopy is a small library that logs all program executions on your Linux/BSD system,
-spark,Apache-2.0,,
-tensorflow,Apache-2.0,Machine Learning framework,
-timescaledb,Apache-2.0,"TimescaleDB is a time-series SQL database providing fast analytics, scalability, with automated data management on a proven storage engine.",
-xCAT,Eclipse Public License 1.0,Provisioning tool that also creates custom disk partitions,
-xorriso,GPL 3.0,xorriso copies file objects from POSIX compliant filesystems into Rock Ridge enhanced ISO 9660 filesystems.,
+snoopy,GPL 2.0,Snoopy is a small library that logs all program executions on your Linux/BSD system,https://github.com/a2o/snoopy
+spark,Apache-2.0,Spark is a unified analytics engine for large-scale data processing.,https://github.com/apache/spark
+tensorflow,Apache-2.0,Machine Learning framework,https://github.com/tensorflow/tensorflow
+timescaledb,Apache-2.0,"TimescaleDB is a time-series SQL database providing fast analytics, scalability, with automated data management on a proven storage engine.",https://github.com/timescale/timescaledb
+xCAT,Eclipse Public License 1.0,Provisioning tool that also creates custom disk partitions,https://github.com/xcat2/xcat-core
+xorriso,GPL 3.0,xorriso copies file objects from POSIX compliant filesystems into Rock Ridge enhanced ISO 9660 filesystems.,https://github.com/Distrotech/xorriso
