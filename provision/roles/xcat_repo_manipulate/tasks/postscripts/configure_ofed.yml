@@ -23,7 +23,7 @@
   ansible.builtin.copy:
     src: "{{ mlnx_ofed_path }}"
     dest: "{{ mlnx_ofed_repo }}/{{ mlnx_ofed_path.split('/')[-1] }}"
-    mode: preserve
+    mode: "{{ ofed_permission }}"
 
 - name: Copy OFED script to postscripts
   ansible.builtin.copy:

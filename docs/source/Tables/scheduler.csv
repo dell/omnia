@@ -15,8 +15,9 @@
 
      Optional    ","* Password used for Slurm database.               
 * The password must not contain -,\, ',""          
-* The Length of the password should be at least 8.
+* The length of the password should be at least 8.
 * Required when ``scheduler_type: ""slurm""``.
+* The first character of the string should be an alphabet.
 
      **Default value**: ``""password""``           "
 "**k8s_version**
@@ -53,7 +54,7 @@
 
      ``string``
 
-     Optional  ","* Username for Dockerhub account                                                                                                                                          
+     Optional  ","* Username for Dockerhub account
 * A kubernetes secret will be created and patched to service account in   default namespace. This kubernetes secret can be used to pull images from   private repositories
 * This value is optional but suggested avoiding docker pull limit issues                                                                                                  "
 "**docker_password**
@@ -61,7 +62,8 @@
      ``string``
 
      Optional  ","* Password for Dockerhub account                        
-* This value is mandatory if docker username is provided"
+* This value is mandatory if docker username is provided
+* The first character of the string should be an alphabet."
 "**ansible_config_file_path**
 
      ``string``
@@ -73,7 +75,7 @@
      **Default values**: ``/etc/ansible``                                           "
 "**enable_omnia_nfs**
 
-     ``boolean``
+     ``boolean``  [1]_
 
      Required      ","* Boolean indicating whether a parallel file system is **not** running in the environment and a share file system (NFS/BeeGFS) will be used to create home directory/ Kubernetes share directory on it.
 

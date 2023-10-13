@@ -17,6 +17,8 @@
 installation_dir: "/var/lib/"
 slurm_exporter_inst_dir: "/var/lib/slurm-exporter"
 go_pack_url: "https://dl.google.com/go/go1.15.linux-amd64.tar.gz"
+max_retries: 5
+download_go_fail_msg: "Failed to download go package from url {{ go_pack_url }}. Verify dns entries in /etc/resolv.conf and check internet access in the node."
 extended_path: "{{ installation_dir }}/go/bin"
 go_exec_path: "{{ installation_dir }}/go/bin/go"
 slurm_exporter_git_repo: "https://github.com/vpenso/prometheus-slurm-exporter.git"

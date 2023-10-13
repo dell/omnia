@@ -75,6 +75,10 @@
 
       when: not offline_path
 
+    - name: Set mlnx_ofed_add_kernel_support value
+      ansible.builtin.set_fact:
+        mlnx_ofed_add_kernel_support: "{{ mlnx_ofed_add_kernel_support | lower }}"
+
     - name: Validate mlnx_ofed_add_kernel_support variable
       ansible.builtin.assert:
         that: mlnx_ofed_add_kernel_support == true or mlnx_ofed_add_kernel_support == false

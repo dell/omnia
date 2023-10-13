@@ -1,5 +1,6 @@
 Open MPI AOCC HPL benchmark for AMD processors
 ----------------------------------------------
+This topic explains how to manually update servers for MPI jobs. To automatically install pmix and configure slurm, `click here. <AutomatingOpenMPI.html>`_
 
 This topic explains how to manually update servers for MPI jobs. To automatically install pmix and configure slurm, `click here. <AutomatingOpenMPI.html>`_
 

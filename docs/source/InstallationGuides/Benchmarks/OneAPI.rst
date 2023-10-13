@@ -1,7 +1,7 @@
 Install oneAPI for MPI jobs on Intel processors
 ________________________________________________
 
-This topic explains how to manually install oneAPI for MPI jobs. To install oneAPI automatically, `click here. <AutomatingOneAPI.html>`_
+This topic explains how to manually install oneAPI for MPI jobs. To automate the procedure, `click here. <AutomatingOneAPI.html>`_
 
 **Pre-requisites**
 

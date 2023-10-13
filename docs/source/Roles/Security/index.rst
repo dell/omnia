@@ -1,11 +1,11 @@
-Security
-=========
+Centralized authentication on the cluster
+==========================================
 
-The security role allows users to set up FreeIPA and LDAP to help authenticate into HPC clusters.
+The security feature allows users to set up FreeIPA and LDAP to help authenticate into HPC clusters.
 
 .. note:: 
-	* Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to run ``security.yml`` on RHEL target nodes.
-	* For RHEL target nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription. 
+    * Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to run ``security.yml`` on RHEL target nodes.
+    * For RHEL target nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription.
 
 
 Configuring FreeIPA/LDAP security
@@ -147,18 +147,49 @@ Manager and compute nodes will have LDAP client installed and configured if ``ld
 
 .. caution:: No users/groups will be created by Omnia.
 
-.. include:: ../Utils/freeipa_installation.rst
+FreeIPA installation on the NFS node
+-------------------------------------
 
-**Running the security role**
+IPA services are used to provide account management and centralized authentication.
+
+To customize your installation of FreeIPA, enter the following parameters in ``input/security_config.yml``.
+
++-------------------------+-----------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Input Parameter         | Definition                                                      | Variable value                                                                                                                                        |
++=========================+=================================================================+=======================================================================================================================================================+
+| kerberos_admin_password | "admin" user password for the IPA server on RockyOS and RedHat. | The password can be found in the file ``input/security_config.yml`` .                                                                                 |
++-------------------------+-----------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------+
+| ipa_server_hostname     | The hostname of the IPA server                                  | The hostname can be found on the manager node.                                                                                                        |
++-------------------------+-----------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------+
+| domain_name             | Domain name                                                     | The domain name can be found in the file ``input/security_config.yml``.                                                                               |
++-------------------------+-----------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------+
+| ipa_server_ipadress     | The IP address of the IPA server                                | The IP address can be found on the IPA server on the manager node using the ``ip a`` command. This IP address should be accessible from the NFS node. |
++-------------------------+-----------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+
+To set up IPA services for the NFS node in the target cluster, run the following command from the ``utils/cluster`` folder on the control plane: ::
+
+    cd utils/cluster
+    ansible-playbook install_ipa_client.yml -i inventory -e kerberos_admin_password="" -e ipa_server_hostname="" -e domain_name="" -e ipa_server_ipadress=""
+
+
+.. include:: ../../Appendices/hostnamereqs.rst
+
+.. note:: Use the format specified under `NFS inventory in the Sample Files <../../samplefiles.html#nfs-server-inventory-file>`_ for inventory.
+
+Running the security role
+--------------------------
 
 Run: ::
 
-	cd security
-	ansible-playbook security.yml -i inventory
+    cd security
+    ansible-playbook security.yml -i inventory
 
-The inventory should contain compute, manager, login as per the inventory file in `samplefiles <../../samplefiles.html#inventory-file>`_.
+The inventory should contain compute, manager, login as per the inventory file in `samplefiles <../../samplefiles.html#inventory-file>`_. The inventory file is case-sensitive. Follow the casing provided in the sample file link.
 
-	* To enable security features on the login node, ensure that ``enable_secure_login_node`` in ``input/security_config.yml`` is set to true.
-	* To customize the security features on the login node, fill out the parameters in ``input/login_node_security_config.yml``.
+    * To enable security features on the login node, ensure that ``enable_secure_login_node`` in ``input/security_config.yml`` is set to true.
+    * To customize the security features on the login node, fill out the parameters in ``input/login_node_security_config.yml``.
+    * If a subsequent run of ``security.yml`` fails, the ``security_config.yml`` file will be unencrypted.
+
 
 .. caution:: No users/groups will be created by Omnia.

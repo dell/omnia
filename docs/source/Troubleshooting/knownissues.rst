@@ -11,7 +11,7 @@ Due to internal MAC ID conflicts on the target nodes, the MAC address will be li
 
 Omnia does not maintain any order when assigning hostnames to target nodes.
 
-⦾ **Compute nodes get updated to Rocky 8.8 automatically irrespective of the input parameters provided to provision_config.yml when provision_os is Rocky.**
+⦾ **cluster nodes get updated to Rocky 8.8 automatically irrespective of the input parameters provided to provision_config.yml when provision_os is Rocky.**
 
 **Potential Cause:** In Rocky Linux, online repos are enabled by default, and they always point to the latest Rocky repository (currently Rocky Linux 8.8).
 
@@ -33,9 +33,9 @@ Calico pods are configured with the NIC name of the manager node. If the NIC nam
 
 **Workaround:**
 
-The manager and compute nodes should have connectivity over the same admin NIC.
+The manager and cluster nodes should have connectivity over the same admin NIC.
 
-⦾ **Why does the task ``cluster_preperation : Install sshpass`` fail during ``omnia.yml`` on compute nodes running RHEL 8.5 and below versions.**
+⦾ **Why does the task ``cluster_preperation : Install sshpass`` fail during ``omnia.yml`` on cluster nodes running RHEL 8.5 and below versions.**
 
 **Potential Cause**:
     * sshpass is not available in any of the repositories on the control plane.
@@ -104,7 +104,7 @@ This issue is caused by incompatibility between Rocky 8.7 and kubernetes due to 
 
 * Two or more servers in the same network have xCAT services running.
 
-* The target compute node does not have a configured PXE device with an active NIC.
+* The target cluster node does not have a configured PXE device with an active NIC.
 
 
 
@@ -200,7 +200,7 @@ Wait for 15 minutes after the Kubernetes cluster reboots. Next, verify the statu
 
 **Resolution**:
 
-1. Complete the PXE booting/format the OS on the manager and compute nodes.
+1. Complete the PXE booting/format the OS on the manager and cluster nodes.
 
 2. In the omnia_config.yml file, change the k8s_cni variable value from ``calico`` to ``flannel``.
 
@@ -213,7 +213,7 @@ Wait for 15 minutes after the Kubernetes cluster reboots. Next, verify the statu
 **Potential Cause**: The control_plane playbook does not support hostnames with an underscore in it such as 'mgmt_station'.
 
 As defined in RFC 822, the only legal characters are the following:
-1. Alphanumeric (a-z and 0-9): Both uppercase and lowercase letters are acceptable, and the hostname is case-insensitive. In other words, dvader.empire.gov is identical to DVADER.EMPIRE.GOV and Dvader.Empire.Gov.
+1. Alphanumeric (a-z and 0-9): Both uppercase and lowercase letters are acceptable, and the hostname is case-insensitive. In other words, omnia.test is identical to OMNIA.TEST and Omnia.test.
 
 2. Hyphen (-): Neither the first nor the last character in a hostname field should be a hyphen.
 
@@ -244,7 +244,7 @@ As defined in RFC 822, the only legal characters are the following:
     systemctl restart slurmctld
     systemctl restart prometheus-slurm-exporter
 
-* Run ``systemctl status slurmd`` to manually restart the following service on all the compute nodes.
+* Run ``systemctl status slurmd`` to manually restart the following service on all the cluster nodes.
 
 ⦾ **Why do Slurm services fail?**
 
@@ -486,3 +486,7 @@ Reboot the NFS server (external to the cluster) to bring up the services again: 
     systemctl enable nfs-server
     systemctl restart nfs-server
 
+
+⦾  **Why do Kuberneteschildnode & kubernetesnodes log as Pass in the database even if there are nodes in the Ready,Schedulingdisabled state?**
+
+**Potential Cause**:  Omnia telemetry considers ``Ready,SchedulingDisabled`` as a Ready state of Kubernetes nodes . So, even if the ``kubectl get nodes`` command shows any node’s state as ``Ready,SchedulingDisabled``, the entry in DB for  ``Kuberneteschildnode`` & ``kubernetesnodes`` will be logged as Pass instead of Fail.

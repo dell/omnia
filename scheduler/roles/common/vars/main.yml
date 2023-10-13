@@ -68,7 +68,9 @@ os_supported_redhat: "redhat"
 # Usage: tasks/prepare_hosts_file.yml
 hosts_file_dest: "/etc/hosts"
 hosts_file_mode: "0644"
-
+manager_hosts_update_fail_msg: "Failed to update hosts file in the manager node. Remove unreachable IP addresses from inventory and re-run the playbook."
+compute_hosts_update_fail_msg: "Failed to update hosts file in the compute node. Remove unreachable IP addresses from inventory and re-run the playbook."
+login_hosts_update_fail_msg: "Failed to update hosts file in the login node. Remove unreachable IP addresses from inventory and re-run the playbook."
 # Usage: ntp.yml
 chrony_path: "/etc/chrony.conf"
 ntp_path: "/etc/ntp.conf"

@@ -9,8 +9,8 @@
 
 project = 'Omnia'
 copyright = '2023, Dell Technologies'
-author = 'dellhpc/omnia'
-release = '1.4.2'
+author = 'dell/omnia'
+release = '1.5'
 rst_epilog = "If you have any feedback about Omnia documentation, please reach out at `omnia.readme@dell.com <mailto:omnia.readme@dell.com>`_."
 
 import sys
@@ -100,11 +100,11 @@ html_theme = "sphinx_rtd_theme"
 # html_theme_options = {}
 
 # Add any paths that contain custom themes here, relative to this directory.
-# html_theme_path = sphinx_bootstrap_theme.get_html_theme_path()
+# html_theme_path = ["_themes", ]
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
-html_title = "Omnia"
+html_title = "Dell/Omnia"
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 html_short_title = "Omnia"
@@ -137,7 +137,7 @@ html_static_path = ["_static"]
 # html_use_smartypants = True
 
 # Custom sidebar templates, maps document names to template names.
-# html_sidebars = {}
+html_sidebars = {'**': ['globaltoc.html', 'sourcelink.html', 'searchbox.html']}
 
 # Additional templates that should be rendered to pages, maps page names to
 # template names.

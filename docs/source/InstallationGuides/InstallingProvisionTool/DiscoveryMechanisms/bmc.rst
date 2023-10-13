@@ -48,9 +48,12 @@ The following parameters need to be populated in ``input/provision_config.yml`` 
    :header-rows: 1
    :keepspace:
 
+.. [1] Boolean parameters do not need to be passed with double or single quotes.
+
 .. note::
 
     The ``input/provision_config.yml`` file is encrypted on the first run of the provision tool:
+
         To view the encrypted parameters: ::
 
             ansible-vault view provision_config.yml --vault-password-file .provision_vault_key

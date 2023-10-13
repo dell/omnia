@@ -81,6 +81,15 @@
       no_log: true
       when: redhat_subscription_method | lower == "portal"
 
+    - name: Set redhat subscription value for force_register, manage_repos, full_refresh_on_yum, report_package_profile, repos_purge, and insecure
+      ansible.builtin.set_fact:
+        redhat_subscription_force_register: "{{ redhat_subscription_force_register | lower }}"
+        redhat_subscription_manage_repos: "{{ redhat_subscription_manage_repos | lower }}"
+        redhat_subscription_full_refresh_on_yum: "{{ redhat_subscription_full_refresh_on_yum | lower }}"
+        redhat_subscription_report_package_profile: "{{ redhat_subscription_report_package_profile | lower }}"
+        redhat_subscription_repos_purge: "{{ redhat_subscription_repos_purge | lower }}"
+        redhat_subscription_insecure: "{{ redhat_subscription_insecure | lower }}"
+
     - name: Validate redhat_subscription_force_register
       ansible.builtin.assert:
         that:

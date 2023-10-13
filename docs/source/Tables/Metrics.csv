@@ -47,7 +47,7 @@ gpu_health_thermal:gpu,For AMD GPU: ``rocm-smi --showbus --csv``,GPU temperature
 Kubernetespodsstatus,``sudo kubectl get pods -A -o json``,"Value is pass when all pods and containers are in running state, otherwise Fail.",Cluster Level
 Kuberneteschildnode,``sudo kubectl get nodes -o json``,"Value is pass when all child nodes are in Ready or Ready,SchedulingDisabled state, otherwise Fail.",Cluster Level
 kubernetesnodesstatus,``sudo kubectl get nodes -o json``,"Value is pass when all nodes are in Ready or Ready,SchedulingDisabled state, otherwise Fail.",Cluster Level
-kubernetescomponentsstatus,``sudo kubectl get --raw=/livez?verbose``,"Value is Pass when health check is passed in ``kubectl get --raw=/livez?verbose`` command , otherwise fail.",Cluster Level
+kubernetescomponentsstatus,sudo kubectl get --raw=/livez?verbose,"Value is Pass when health check is passed in ``kubectl get --raw=/livez?verbose`` command , otherwise fail.",Cluster Level
 Smart,``smartctl -a <device name>``,,Node Level
 gpu_temperature:gpu,"* For NVIDIA GPU: ``nvidia-smi --query-gpu=temperature.gpu --format=csv,nounits``
 * For AMD GPU: ``rocm-smi -t --csv``",,Node Level

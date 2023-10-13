@@ -10,7 +10,10 @@ The first time the provision tool is run (to discover the dedicated BMC ports), 
     * ``network_interface_type``: ``dedicated``
     * ``discovery_mechanism``: ``mapping``
 
-.. caution:: Leave the variables ``bmc_nic_subnet``, ``bmc_static_start_range`` and ``bmc_static_end_range`` blank in ``input/provision_config.yml``. Entering these variables will cause IP reassignment and can interfere with the availability of ports on your target servers.
+.. caution::
+
+* Leave the variables ``bmc_nic_subnet``, ``bmc_static_start_range`` and ``bmc_static_end_range`` blank in ``input/provision_config.yml``. Entering these variables will cause IP reassignment and can interfere with the availability of ports on your target servers.
+* Do not use the following methods to discover nodes in a Hybrid setup: snmpwalk, switch-based.
 
 .. note:: For users who don't want internet access routed to target nodes, keep ``primary_dns`` and ``secondary_dns`` blank in ``input/provision_config.yml``.
 

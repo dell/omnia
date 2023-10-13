@@ -14,92 +14,121 @@
 ---
 
 - name: Get the hostname
-  command: hostname
+  ansible.builtin.command: hostname
   register: machine_hostname
   changed_when: true
 
+- name: Get the short hostname
+  ansible.builtin.command: hostname -s
+  register: short_hostname
+  changed_when: false
+
 - name: Set facts for node hostname and ip
-  set_fact:
+  ansible.builtin.set_fact:
     node_ip: "{{ inventory_hostname }}"
     node_hostname: "{{ machine_hostname.stdout }}"
+    node_name: "{{ short_hostname.stdout }}"
 
 - name: Add host name in hosts file
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: "{{ hosts_file_dest }}"
-    line: "{{ inventory_hostname }} {{ machine_hostname.stdout }}"
+    line: "{{ inventory_hostname }} {{ machine_hostname.stdout }} {{ short_hostname.stdout }}"
     state: present
     create: yes
     mode: "{{ hosts_file_mode }}"
 
-- name: Add compute hosts info in manager node hosts file
-  lineinfile:
-    dest: "{{ hosts_file_dest }}"
-    line: "{{ hostvars[item].node_ip }} {{ hostvars[item].node_hostname }}"
-    state: present
-    create: yes
-    mode: "{{ hosts_file_mode }}"
-  with_items:
-    - "{{ groups['compute'] }}"
+- name: Add compute and login node info in manager node hosts file
   when: "'manager' in group_names"
+  block:
+    - name: Add compute hosts info in manager node hosts file
+      ansible.builtin.lineinfile:
+        dest: "{{ hosts_file_dest }}"
+        line: "{{ hostvars[item].node_ip }} {{ hostvars[item].node_hostname }} {{ hostvars[item].node_name }}"
+        state: present
+        create: yes
+        mode: "{{ hosts_file_mode }}"
+      with_items:
+        - "{{ groups['compute'] }}"
 
-- name: Add manager hosts info in compute node hosts file
-  lineinfile:
-    dest: "{{ hosts_file_dest }}"
-    line: "{{ hostvars[item].node_ip }} {{ hostvars[item].node_hostname }}"
-    state: present
-    create: yes
-    mode: "{{ hosts_file_mode }}"
-  with_items:
-    - "{{ groups['manager'] }}"
+    - name: Add login node info in /etc/hosts of manager node
+      ansible.builtin.lineinfile:
+        dest: "{{ hosts_file_dest }}"
+        line: "{{ hostvars[item].node_ip }} {{ hostvars[item].node_hostname }} {{ hostvars[item].node_name }}"
+        state: present
+        create: yes
+        mode: "{{ hosts_file_mode }}"
+      with_items:
+        - "{{ groups['login'] }}"
+      when: hostvars["127.0.0.1"]["login_node_required"]
+  rescue:
+    - name: Updating manager hosts file failed
+      ansible.builtin.fail:
+        msg: "{{ manager_hosts_update_fail_msg }}"
+
+- name: Add manager and login node info in compute node hosts file
   when: "'compute' in group_names"
+  block:
+    - name: Add manager hosts info in compute node hosts file
+      ansible.builtin.lineinfile:
+        dest: "{{ hosts_file_dest }}"
+        line: "{{ hostvars[item].node_ip }} {{ hostvars[item].node_hostname }} {{ hostvars[item].node_name }}"
+        state: present
+        create: yes
+        mode: "{{ hosts_file_mode }}"
+      with_items:
+        - "{{ groups['manager'] }}"
 
-- name: Add login node info in /etc/hosts of manager node
-  lineinfile:
-    dest: "{{ hosts_file_dest }}"
-    line: "{{ hostvars[item].node_ip }} {{ hostvars[item].node_hostname }}"
-    state: present
-    create: yes
-    mode: "{{ hosts_file_mode }}"
-  with_items:
-    - "{{ groups['login'] }}"
-  when:
-    - '"manager" in group_names'
+    - name: Add compute info in /etc/hosts of compute nodes
+      ansible.builtin.lineinfile:
+        dest: "{{ hosts_file_dest }}"
+        line: "{{ hostvars[item.1].node_ip }} {{ hostvars[item.1].node_hostname }} {{ hostvars[item.1].node_name }}"
+        state: present
+        create: yes
+        mode: "{{ hosts_file_mode }}"
+      with_nested:
+        - "{{ groups['compute'] }}"
+        - "{{ groups['compute'] }}"
+
+    - name: Add login node info in /etc/hosts of compute nodes
+      ansible.builtin.lineinfile:
+        dest: "{{ hosts_file_dest }}"
+        line: "{{ hostvars[item].node_ip }} {{ hostvars[item].node_hostname }} {{ hostvars[item].node_name }}"
+        state: present
+        create: yes
+        mode: "{{ hosts_file_mode }}"
+      with_items:
+        - "{{ groups['login'] }}"
+      when: hostvars["127.0.0.1"]["login_node_required"]
+  rescue:
+    - name: Updating compute hosts file failed
+      ansible.builtin.fail:
+        msg: "{{ compute_hosts_update_fail_msg }}"
+
+- name: Add manager and compute nodes info in login node hosts file
+  when: 
+    - "'login' in group_names"
     - hostvars["127.0.0.1"]["login_node_required"]
+  block:
+    - name: Add manager info in /etc/hosts of login node
+      ansible.builtin.lineinfile:
+        dest: "{{ hosts_file_dest }}"
+        line: "{{ hostvars[item].node_ip }} {{ hostvars[item].node_hostname }} {{ hostvars[item].node_name }}"
+        state: present
+        create: yes
+        mode: "{{ hosts_file_mode }}"
+      with_items:
+        - "{{ groups['manager'] }}"
 
-- name: Add manager info in /etc/hosts of login node
-  lineinfile:
-    dest: "{{ hosts_file_dest }}"
-    line: "{{ hostvars[item].node_ip }} {{ hostvars[item].node_hostname }}"
-    state: present
-    create: yes
-    mode: "{{ hosts_file_mode }}"
-  with_items:
-    - "{{ groups['manager'] }}"
-  when:
-    - '"login" in group_names'
-    - hostvars["127.0.0.1"]["login_node_required"]
-
-- name: Add compute info in /etc/hosts of login node
-  lineinfile:
-    dest: "{{ hosts_file_dest }}"
-    line: "{{ hostvars[item].node_ip }} {{ hostvars[item].node_hostname }}"
-    state: present
-    create: yes
-    mode: "{{ hosts_file_mode }}"
-  with_items:
-    - "{{ groups['compute'] }}"
-  when:
-    - hostvars["127.0.0.1"]["login_node_required"]
-    - '"login" in group_names'
-
-- name: Add compute info in /etc/hosts of compute nodes
-  lineinfile:
-    dest: "{{ hosts_file_dest }}"
-    line: "{{ hostvars[item.1].node_ip }} {{ hostvars[item.1].node_hostname }}"
-    state: present
-    create: yes
-    mode: "{{ hosts_file_mode }}"
-  with_nested:
-     - "{{ groups['compute'] }}"
-     - "{{ groups['compute'] }}"
-  when: '"compute" in group_names'
+    - name: Add compute info in /etc/hosts of login node
+      ansible.builtin.lineinfile:
+        dest: "{{ hosts_file_dest }}"
+        line: "{{ hostvars[item].node_ip }} {{ hostvars[item].node_hostname }} {{ hostvars[item].node_name }}"
+        state: present
+        create: yes
+        mode: "{{ hosts_file_mode }}"
+      with_items:
+        - "{{ groups['compute'] }}"
+  rescue:
+    - name: Updating login hosts file failed
+      ansible.builtin.fail:
+        msg: "{{ login_hosts_update_fail_msg }}"

@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -28,8 +28,11 @@ amd_gpu_version: "22.20.3"
 # This variable accepts the amd rocm version required
 # Make sure the subscription is enabled for rocm installation because rocm packages are present
 # in code ready builder repo for RHEL
-# If 'latest' is provided in the variable, the url transforms to
+# If 'latest/main' is provided in the variable, the url transforms to
 # https://repo.radeon.com/rocm/centos8/latest/main/
+# If '5.0.2' is provided in the variable, the url transforms to
+# https://repo.radeon.com/rocm/centos8/5.0.2/
+# Input the variable such that transformed url contains 'repodata/' folder
 # Only single instance is supported by Omnia
 amd_rocm_version: "latest/main"
 

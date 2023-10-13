@@ -13,6 +13,10 @@
 # limitations under the License.
 ---
 
+# Usage: initiate_telemetry.yml
+mysqldb_name: "idrac_telemetrysource_services_db"
+timescaledb_name: "telemetry_metrics"
+
 # Usage: mysqldb_deployment.yml
 mysql_pv_name: mysqldb-storage
 mysqldb_storage: 1Gi
