@@ -1,6 +1,8 @@
 Open MPI AOCC HPL benchmark for AMD processors
 ----------------------------------------------
 
+This topic explains how to manually update servers for MPI jobs. To automatically install pmix and configure slurm, `click here. <AutomatingOpenMPI.html>`_
+
 **Prerequisites**
 
 1. Provision the cluster and install slurm on all cluster nodes.
@@ -26,7 +28,7 @@ Open MPI AOCC HPL benchmark for AMD processors
 
     ii. Push the packages to the cluster nodes:
 
-        a. Update the ``package_list`` variable in the ``os_package_update/os_package_update.conf`` file and save it. ::
+        a. Update the ``package_list`` variable in the ``utils/os_package_update/package_update_config.yml`` file and save it. ::
 
                 package_list: "/install/post/otherpkgs/<os_version>/x86_64/custom_software/openmpi.pkglist"
 
@@ -62,7 +64,7 @@ Open MPI AOCC HPL benchmark for AMD processors
         systemctl stop slurmctld.service
         systemctl start slurmctld.service
 
-4. Job execution can now be initiated. To initiate a job use the following sample commands.
+4. Job execution can now be initiated.
 
 For a job to run on multiple nodes (10.5.0.4 and 10.5.0.5) where OpenMPI is compiled and installed on the NFS share (``/home/omnia-share/openmpi/bin/mpirun``), the job can be initiated as below:
 .. note:: Ensure ``amd-zen-hpl-2023_07_18`` is downloaded before running this command.
@@ -101,6 +103,34 @@ For a batch job using the same parameters, the script would be: ::
     srun --mpi=pmix_v2 ./amd-zen-hpl-2023_07_18/xhpl
 
 
-.. note:: If mpirun is used to initiate jobs, a host list is required as illustrated: ``mpirun -np 2 -host 10.5.0.4,10.5.0.5 ./amd-zen-hpl-2023_07_18/xhpl``
+Alternatively, to use ``mpirun``, the script would be: ::
 
+    #!/bin/bash
+
+    #SBATCH --job-name=test
+
+    #SBATCH --output=test.log
+
+    #SBATCH --partition=normal
+
+    #SBATCH -N 3
+
+    #SBATCH --time=10:00
+
+    #SBATCH --ntasks=2
+
+
+
+
+    source /home/omnia-share/setenv_AOCC.sh
+
+    export PATH=$PATH:/home/omnia-share/openmpi/bin
+
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/omnia-share/openmpi/lib
+
+    /home/omnia-share/openmpi/bin/mpirun --map-by ppr:1:node -np 2 --display-map   --oversubscribe --mca orte_keep_fqdn_hostnames 1 ./xhpl
+
+
+
+.. note:: The above scripts are samples that can be modified as required. Ensure that ``--mca orte_keep_fqdn_hostnames 1`` is included in the mpirun command in sbatch scripts.  Omnia maintains all hostnames in FQDN format. Failing to include ``--mca orte_keep_fqdn_hostnames 1`` may cause job initiation to fail.
 
