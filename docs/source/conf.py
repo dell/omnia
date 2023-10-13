@@ -9,7 +9,7 @@
 
 project = 'Omnia'
 copyright = '2023, Dell Technologies'
-author = 'dellhpc/omnia'
+author = 'dell/omnia'
 release = '1.4.2'
 rst_epilog = "If you have any feedback about Omnia documentation, please reach out at `omnia.readme@dell.com <mailto:omnia.readme@dell.com>`_."
 

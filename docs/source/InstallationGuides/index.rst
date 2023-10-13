@@ -18,7 +18,7 @@ The control plane needs to be internet-capable with Github and a full OS install
 
 Once the Omnia repository has been cloned on to the control plane: ::
 
-    git clone https://github.com/dellhpc/omnia.git
+    git clone https://github.com/dell/omnia.git
 
 Change directory to Omnia using: ::
 

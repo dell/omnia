@@ -311,7 +311,7 @@ Omnia configures the following ports for use by third-party tools installed by O
 Data security
 -------------
 
-Omnia does not store data. The passwords Omnia accepts as input to configure the third party tools are validated and then encrypted using Ansible Vault.
+Omnia does not store data. The passwords Omnia accepts as input to configure the third party tools are validated and then encrypted using Ansible Vault. Run ``yum update --security`` routinely on the control plane for the latest security updates.
 
 For more information on the passwords used by Omnia, see Login Security Settings.
 

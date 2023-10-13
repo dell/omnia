@@ -20,7 +20,7 @@ Document references
 
 In addition to this guide, more information on Omnia can be found through the below links:
 
-* `Omnia: Read Me <https://github.com/dellhpc/omnia#readme>`_
+* `Omnia: Read Me <https://github.com/dell/omnia#readme>`_
 * `Omnia: Quick Installation Guide <https://omnia-doc.readthedocs.io/en/latest/InstallationGuides/index.html>`_
 
 Reporting security vulnerabilities
