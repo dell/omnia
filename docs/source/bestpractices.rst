@@ -10,3 +10,4 @@ Best Practices
 * Ensure that the firefox version being used on the control plane is the latest available. This can be achieved using ``dnf update firefox -y``
 * It is recommended to configure devices using Omnia playbooks for better interoperability and ease of access.
 * Ensure that the ``/var`` partition has adequate space to complete commands.
+* Run ``yum update --security`` routinely on the control plane for the latest security updates.

@@ -4,7 +4,7 @@ Product and Subsystem Security
 Security controls map
 ----------------------
 
-.. image:: ../images/securityControlsMap.JPG
+.. image:: ../images/securityControlsMap.jpg
 
 Omnia performs bare metal configuration to enable AI/HPC workloads. It uses Ansible playbooks to perform installations and configurations. iDRAC is supported for provisioning bare metal servers. Omnia installs xCAT to enable provisioning of clusters via PXE in different ways:
 
@@ -311,7 +311,7 @@ Omnia configures the following ports for use by third-party tools installed by O
 Data security
 -------------
 
-Omnia does not store data. The passwords Omnia accepts as input to configure the third party tools are validated and then encrypted using Ansible Vault.
+Omnia does not store data. The passwords Omnia accepts as input to configure the third party tools are validated and then encrypted using Ansible Vault. Run ``yum update --security`` routinely on the control plane for the latest security updates.
 
 For more information on the passwords used by Omnia, see Login Security Settings.
 
