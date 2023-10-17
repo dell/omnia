@@ -80,7 +80,7 @@ The ``omnia.yml`` playbook installs Slurm, BeeFGS Client, NFS Client in addition
             kinit admin  (When prompted, provide kerberos_admin_password as entered in security_config.yml)
             ipa user-add --homedir=<nfs_dir_path> --password
 
-    For example: ``ipa user-add FirstName_LastName --first=FirstName --last=LastName --password  --homedir=/home/omnia-share/FirstName_LastName``
+    For example: ``ipa user-add FirstName_LastName --first=FirstName --last=LastName --password  --homedir=/home/omnia-share/FirstName_LastName --shell /bin/bash``
 
     After the new user account logs in for the first time, you will be prompted to change the password to the account.
 

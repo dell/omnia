@@ -167,6 +167,6 @@ After successfully running ``provision.yml``, go to `Building Clusters <../Build
 
         ssh-keygen -R <node IP>
 
-    * If a second run of ``provision.yml`` fails, the ``input/provision_config.yml`` file will be unencrypted. 
+    * If a subsequent run of ``provision.yml`` fails, the ``input/provision_config.yml`` file will be unencrypted.
 
 To create a node inventory in ``/opt/omnia``, `click here <../PostProvisionScript.html>`_.
