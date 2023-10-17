@@ -5,7 +5,6 @@ ansible posix,GNU General Public License,Ansible Collection targeting POSIX and 
 ansible pylibssh,LGPL 2.1,Python bindings to client functionality of libssh specific to Ansible use case.,https://pypi.org/project/ansible-pylibssh/
 ansible.utils ansible collection,GPL 3.0,"Ansible Collection with utilities to ease the management, manipulation, and validation of data within a playbook",https://github.com/ansible-collections/ansible.utils
 apparmor,GNU General Public License,Controls access based on paths of the program files,https://gitlab.com/apparmor/apparmor
-apptainer,BSD 3-Clause License,Application containers for Linux,https://github.com/apptainer/apptainer
 Beegfs-Client,GPLv2,BeeGFS is a high-performance parallel file system with easy management. The distributed metadata architecture of BeeGFS has been designed to provide the scalability and flexibility that is required to run today’s and tomorrow’s most demanding HPC applications.,https://www.beegfs.io/wiki/DownloadInstallationPackages
 bind-dyndb-ldap,GNU General Public License v2,LDAP driver for BIND9. It allows you to read data and also write data back (DNS Updates) to an LDAP backend.,https://github.com/freeipa/bind-dyndb-ldap/tree/master
 buildah,Apache-2.0,Tool to build and run containers,https://github.com/containers/buildah
