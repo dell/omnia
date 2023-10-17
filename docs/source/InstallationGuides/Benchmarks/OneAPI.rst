@@ -1,6 +1,8 @@
 Install oneAPI for MPI jobs on Intel processors
 ________________________________________________
 
+This topic explains how to manually install oneAPI for MPI jobs. To install oneAPI automatically, `click here. <AutomatingOneAPI.html>`_
+
 **Pre-requisites**
 
 * An Omnia **slurm** cluster running with at least 2 nodes: 1 manager and 1 compute.
