@@ -24,7 +24,7 @@
 - name: Validate all input parameters
   hosts: localhost
   connection: local
-  gather_facts: false
+  gather_facts: true
   roles:
     - scheduler/roles/cluster_validation
     - security/roles/security_validation

@@ -69,31 +69,38 @@ lom_discovery_fail_msg: "Failed.If network interface type is lom, only mapping, 
 dedicated_discovery_success_msg: "Success.Discovery mechanism validated in case of dedictaed network interface type."
 dedicated_discovery_fail_msg: "Failed.If network interface type is dedicated, only mapping and snmpwalk values are supported in discovery_mechanism"
 
-# Usage: assign_admin_nic_config.yml
-omnia_admin_ip: "{{ admin_nic_subnet.split('.')[0] + '.' + admin_nic_subnet.split('.')[1] + '.' + '255' + '.' + '254' }}"
+# Usage: validate_dedicated_config.yml
 omnia_admin_netmask: 255.255.0.0
 admin_nic_path: "/etc/sysconfig/network-scripts/ifcfg-{{ admin_nic }}"
-fail_admin_nic_dedicated: "Failed. Please assign admin nic IP to the admin_nic {{ admin_nic }} provided in provision_config.yml."
+fail_admin_nic_dedicated: "Failed. Please assign admin nic IP with netmask {{ omnia_admin_netmask }} to the admin_nic {{ admin_nic }}
+provided in provision_config.yml."
+dedicated_admin_nic_config_fail_msg: "Failed. When network_interface_type is dedicated, admin IP should be assigned with netmask {{ omnia_admin_netmask }}
+and admin_nic_subnet {{ admin_nic_subnet }} in the admin_nic {{ admin_nic }} provided in provision_config.yml"
+fail_admin_subnet_msg: "Failed. Invalid admin_nic_subnet {{ admin_nic_subnet }}. Please provide proper admin_nic_subnet with netmask {{ omnia_admin_netmask }}
+for admin nic {{ admin_nic }} provided in provision_config.yml"
 
-# Usage: assign_nic_config.yml
+# Usage: validate_lom_config.yml
 pxe_subnet_msg: "Failed. Please provide proper pxe_subnet"
-omnia_bmc_ip: "{{ bmc_nic_subnet.split('.')[0] + '.' + bmc_nic_subnet.split('.')[1] + '.' + '255' + '.' + '254' }}"
 omnia_bmc_netmask: 255.255.0.0
 fail_mapping_bmc_dedicated: "Failed.BMC is only supported in shared LOM. Check the configuration once."
-fail_admin_nic_lom: "Failed. Please assign admin and bmc IP to the the admin_nic {{ admin_nic }} provided in provision_config.yml."
-
-# Usage: enable_nic_configuration.yml
+fail_admin_nic_lom: "Failed. Please assign admin and bmc IP with netmask {{ omnia_admin_netmask }} to the the admin_nic {{ admin_nic }}
+provided in provision_config.yml."
 nic_subnet: 16
 bmc_nic_path: "/etc/sysconfig/network-scripts/ifcfg-{{ admin_nic }}"
+lom_admin_nic_config_fail_msg: "Failed. When network_interface_type is lom, admin and bmc IP should be the first 2 IPs with netmask {{ omnia_admin_netmask }}
+in the admin_nic {{ admin_nic }} with admin_nic_subnet {{ admin_nic_subnet }} and bmc_nic_subnet {{ bmc_nic_subnet }} provided in provision_config.yml"
+bmc_subnet_lom_fail_msg: "Failed.{{ fail_subnet }} for BMC. Please provide bmc_nic_subnet in case of network_interface_type as LOM"
+fail_bmc_subnet_msg: "Failed. Invalid bmc_nic_subnet {{ bmc_nic_subnet }}. Please provide proper bmc_nic_subnet with netmask {{ omnia_admin_netmask }}
+for bmc nic {{ admin_nic }} provided in provision_config.yml"
 
 # Usage: validate_public_nic.yml
-input_provision_failure_msg: "Please provide all the required parameters in provision_config.yml"
+input_provision_failure_msg: "Please provide all the required nic parameters in provision_config.yml"
 success_msg_nic: "nic successfully validated"
-fail_msg_nic: "Failed. Provide proper values"
+fail_msg_nic: "Failed. Provide proper values in provision_config.yml"
 
 # Usage: validate_admin_nic.yml
 success_subnet: "The subnet provided is validated"
-fail_subnet: " Please provide proper subnet"
+fail_subnet: "Failed. Please provide proper subnet with netmask {{ omnia_admin_netmask }} in provision_config.yml"
 success_lom: " Network interface type is LOM"
 fail_lom: "Failed. In case of LOM, admin_nic_subnet and bmc_nic_subnet can't be same. Please provide proper input"
 
@@ -228,8 +235,8 @@ rhel_repo_folders_fail_msg: "Failed. rhel_repo_alphabetical_folders variable in 
 compatibility_msg: "Failed. Control Plane OS should be RHEL when nodes are to be provisioned with RHEL OS."
 tmp_crb_dir: /opt/omnia/crb
 crb_repo_packages: "libaec lua-posix lua-filesystem munge-devel perl-Switch rrdtool-devel lua-devel hwloc-devel http-parser-devel
-perl-File-BaseDir opencl-headers ocl-icd-devel"
+perl-File-BaseDir opencl-headers ocl-icd-devel pmix-devel"
 download_crb_package_fail_msg: "Failed. Unable to download required crb packages libaec, lua-posix, lua-filesystem,
-munge-devel, perl-Switch, rrdtool-devel, lua-devel, hwloc-devel, http-parser-devel, perl-File-BaseDir, opencl-headers and ocl-icd-devel.
+munge-devel, perl-Switch, rrdtool-devel, lua-devel, hwloc-devel, http-parser-devel, perl-File-BaseDir, opencl-headers, ocl-icd-devel and pmix-devel.
 Make sure crb repos configured in control plane and re-run provision.yml"
 file_permission: 0755
