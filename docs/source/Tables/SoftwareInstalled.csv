@@ -39,7 +39,6 @@ loki,GNU AFFERO GENERAL PUBLIC LICENSE v3.0,Loki is a log aggregation system des
 Lua,MIT License,"Lua is a lightweight, high-level, multi-paradigm programming language designed primarily for embedded use in applications.",https://github.com/lua/lua
 mailx,MIT License,mailx is a Unix utility program for sending and receiving mail.,https://heirloom.sourceforge.net/mailx.html
 MariaDB,GPL 2.0,Relational database used by Slurm,https://github.com/MariaDB/
-MetalLB,Apache-2.0,A network load-balancer implementation for Kubernetes using standard routing protocols,https://github.com/metallb/metallb
 MLNX-OFED,BSD License,MLNX_OFED is an NVIDIA tested and packaged version of OFED that supports two interconnect types using the same RDMA (remote DMA) and kernel bypass APIs called OFED verbs – InfiniBand and Ethernet.,https://github.com/Mellanox/ofed-docker
 MPI,3Clause BSD License,HPC library,https://github.com/open-mpi/ompi
 mysql,GPL 2.0,MySQL is an open-source relational database management system.,https://github.com/mysql/mysql-server
@@ -61,7 +60,6 @@ python3-netaddr,BSD License,A Python library for representing and manipulating n
 Python-pip,MIT License,Python Package,https://github.com/pypa/pip
 redhat subscription,Apache-2.0,"Red Hat Subscription Management (RHSM) is a customer-driven, end-to-end solution that provides tools for subscription status and management and integrates with Red Hat’s system management tools.",https://github.com/RedHatSatellite/rhsmTools
 redis,BSD-3-Clause License,In-memory database,https://github.com/redis/redis
-singularity,BSD License,Container platform. It allows you to create and run containers that package up pieces of software in a way that is portable and reproducible.,https://github.com/sylabs/singularity
 Slurm Workload manager,GNU General Public License,HPC Workload Manager,https://github.com/SchedMD/slurm
 slurm-exporter,GNU General Public License v3,Prometheus collector and exporter for metrics extracted from the Slurm resource scheduling system.,https://github.com/vpenso/prometheus-slurm-exporter
 smartmontools,GNU General Public License,Official read only mirror of the smartmontools project SVN,https://github.com/smartmontools/smartmontools
