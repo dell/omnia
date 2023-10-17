@@ -1,5 +1,5 @@
-Storage
-=======
+Shared and distributed storage deployment
+============================================
 
 The storage role allows users to configure PowerVault Storage devices, BeeGFS and NFS services on the cluster.
 
@@ -189,4 +189,5 @@ To open the ports required, use the following steps:
 
 (Where inventory refers to the `inventory file <../../samplefiles.html>`_ listing manager, login_node and compute nodes.)
 
+.. note::  If a subsequent run of ``storage.yml`` fails, the ``storage_config.yml`` file will be unencrypted.
 

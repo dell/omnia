@@ -2,9 +2,4 @@ Scheduler
 ==========
 
 
-.. include:: ../../InstallationGuides/BuildingClusters/schedulerinputparams.rst
-
-.. include:: ../../InstallationGuides/BuildingClusters/schedulerprereqs.rst
-
-.. include:: ../../InstallationGuides/BuildingClusters/installscheduler.rst
-
+This feature is documented in the Quick Installation Guide under `Configuring the cluster. <../../InstallationGuides/BuildingClusters/index.html>`_

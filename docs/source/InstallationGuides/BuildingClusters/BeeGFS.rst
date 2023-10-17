@@ -45,16 +45,16 @@ To open the ports required, use the following steps:
 
 * Ensure that the nodes in the inventory have been assigned **only** these roles: manager and compute.
 
-* Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to set up BeeGFS on RHEL target nodes.
+* Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to set up BeeGFS on RHEL cluster nodes.
 
-* For RHEL target nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription.
+* For RHEL cluster nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all cluster nodes. Every cluster node will require a RedHat subscription.
 
 .. note:: BeeGFS services over RDMA is only supported on RHEL 8.3 and above due to limitations on BeeGFS. When setting up your cluster with RDMA support, check the BeeGFS documentation to provide appropriate values in ``input/storage_config.yml``.
 
 * If the cluster runs Rocky, ensure that versions running are compatible by checking our `support matrix <../../Overview/SupportMatrix/OperatingSystems/Rocky.html>`_.
 
-Installing the BeeGFS client via Omnia
---------------------------------------
+**Installing the BeeGFS client via Omnia**
+
 
 After the required parameters are filled in ``input/storage_config.yml``, Omnia installs BeeGFS on manager and compute nodes while executing the ``omnia.yml`` playbook.
 
@@ -119,7 +119,7 @@ After the required parameters are filled in ``input/storage_config.yml``, Omnia 
 +---------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 .. note::
-    * BeeGFS client-server communication can take place over TCP or RDMA. If RDMA support is required, set ``beegfs_rdma_support`` should be set to true. Also, OFED should be installed on all target nodes.
+    * BeeGFS client-server communication can take place over TCP or RDMA. If RDMA support is required, set ``beegfs_rdma_support`` should be set to true. Also, OFED should be installed on all cluster nodes.
     * For BeeGFS communication happening over RDMA, the ``beegfs_mgmt_server`` should be provided with the Infiniband IP of the management server.
     * The parameter inventory refers to the `inventory file <../../samplefiles.html>`_ listing manager, login and compute nodes.)
 

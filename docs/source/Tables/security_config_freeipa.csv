@@ -1,0 +1,31 @@
+Parameter,Details
+"freeipa_required
+     ``boolean``  [1]_
+     Required   ","Boolean indicating whether FreeIPA is required or not.
+                                                      
+     Choices:                                         
+                                                      
+     * ``true`` <- Default                            
+                                                      
+     * ``false``                                      "
+"realm_name     
+     ``string``
+     Required  ","Sets the intended realm name.        
+                                     
+     **Default value**: ``OMNIA.TEST``"
+"directory_manager_password
+     ``string``           
+     Required             ","* Password authenticating admin level access to the Directory for system   management tasks.
+* It will be added to the instance of directory server created for   IPA.              
+* Required Length: 8 characters.                                                       
+* The password must not contain -,, �,�
+* The first character of the string should be an alphabet."
+"kerberos_admin_password
+     ``string``        
+     Required          ","* ""admin""   user password for the IPA server on RockyOS.
+* The first character of the string should be an alphabet."
+"domain_name    
+     ``string``
+     Required  ","Sets the intended domain   name       
+                                      
+     **Default value**: ``omnia.test``"

@@ -36,8 +36,9 @@ k8s_packages:
   - "kubeadm-{{ hostvars['127.0.0.1']['k8s_version'] }}"
   - "kubectl-{{ hostvars['127.0.0.1']['k8s_version'] }}"
 docker_packages:
-  - docker-ce-cli-20.10.2
-  - docker-ce-20.10.2
+  - docker-ce-cli-24.0.4
+  - docker-ce-24.0.4
+  - containerd.io-1.6.21
 k8s_repo_dest: /etc/yum.repos.d/
 
 k8s_conf_dest: /etc/sysctl.d/

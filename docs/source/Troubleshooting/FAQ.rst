@@ -93,6 +93,18 @@ Re-run the playbook whose execution failed once the issue is resolved.
 
 .. note:: This error can also take place when task ``cluster_preperation : Install sshpass`` is executed during ``omnia.yml``.
 
+⦾ What to do if user login fails when accessing a cluster node:
+
+.. image:: ../images/UserLoginError.png
+
+**Potential Cause**:
+    * ssh key on the control plane may be outdated.
+
+**Resolution**:
+
+   * Refresh the key using ``ssh-keygen -R <hostname/server IP>``.
+   * Retry login.
+
 ⦾ **Why does the 'Fail if LDAP home directory exists' task fail during user_passwordless_ssh.yml?**
 
 .. image:: ../images/nfssharecheckfail.png
@@ -213,6 +225,22 @@ To enable routing, update the ``primary_dns`` and ``secondary_dns`` in ``provisi
 * Verify that the LC is in a ready state for all servers: ``racadm getremoteservicesstatus``
 
 * PXE boot the target server.
+
+⦾ **Why does the task: 'Orchestrator: Deploy MetalLB IP Address pool' fail?**
+
+.. image:: ../images/Metallb_Telemetry_Apptainer_fail.png
+
+**Potential Cause**: ``/var`` partition is full (potentially due to images not being cleared after intel-oneapi images docker images are used to execute benchmarks on the cluster using apptainer support) .
+
+**Resolution**: Clear the ``/var`` partition and retry ``telemetry.yml``.
+
+
+⦾ **Why does the task: [Telemetry]: TASK [grafana : Wait for grafana pod to come to ready state] fail with a timeout error?**
+
+**Potential Cause**: Docker pull limit exceeded.
+
+**Resolution**: Manually input the username and password to your docker account on the control plane.
+
 
 ⦾ **Is Disabling 2FA supported by Omnia?**
 

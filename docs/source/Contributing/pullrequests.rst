@@ -49,7 +49,7 @@ Make sure you have your user name and e-mail set. The ``--signoff | -s`` option 
 .. caution::
     When preparing a pull request it is important to stay up-to-date with the project repository. We recommend that you rebase against the upstream repo frequently. ::
 
-        git pull --rebase upstream devel #upstream is dellhpc/omnia
+        git pull --rebase upstream devel #upstream is dell/omnia
         git push --force origin <pr-branch-name> #origin is your fork of the repository (e.g., <github_user_name>/omnia.git)
 
 PR description

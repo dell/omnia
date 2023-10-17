@@ -13,11 +13,22 @@
 # limitations under the License.
 ---
 
+# Usage: include_telemetry_config.yml
+telemetry_config_file: "{{ role_path }}/../../../input/telemetry_config.yml"
+telemetry_vault_filename: "{{ role_path }}/../../../input/.telemetry_vault_key"
+
+# Usage: add_datasource.yml
+timescaledb_k8s_name: timescaledb
+namespace: telemetry-and-visualizations
+timescaledb_name: "telemetry_metrics"
+
+# Usage: add_dashboards.yml
 grafana_k8s: grafana
 grafana_namespace: grafana
 telemetry_folder_name: telemetry
-dashboards:
-  - parallel-coordinate.json
-  - Sankey.json
-  - SpiralLayout.json
-  - PowerMap.json
+idrac_dashboards:
+  - "{{ role_path }}/files/parallel-coordinate.json"
+slurm_dashboards:
+  - "{{ role_path }}/files/Sankey.json"
+  - "{{ role_path }}/files/SpiralLayout.json"
+  - "{{ role_path }}/files/PowerMap.json"

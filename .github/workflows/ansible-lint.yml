@@ -35,7 +35,6 @@ jobs:
         #   playbook_1.yml
         #   playbook_2.yml
         targets: |
-          /github/workspace/monitor/monitor.yml
           /github/workspace/accelerator/accelerator.yml
           /github/workspace/network/network.yml
           /github/workspace/provision/provision.yml

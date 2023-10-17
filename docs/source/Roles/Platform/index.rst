@@ -1,5 +1,5 @@
-Platforms
-------------
+AI platforms
+-------------
 
 If you want to install JupyterHub and Kubeflow playbooks, you have to first install the JupyterHub playbook and then install the Kubeflow playbook.
 
@@ -12,7 +12,7 @@ Commands to install JupyterHub and Kubeflow: ::
 
 * Format the OS on manager and compute nodes.
 
-* In the ``omnia_config.yml`` file, change the k8s_cni variable value from calico to flannel.
+* In the ``omnia_config.yml`` file, change the ``k8s_cni`` variable value from calico to flannel.
 
 * Run the Kubernetes and Kubeflow playbooks.
 

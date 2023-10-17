@@ -10,11 +10,12 @@ PowerEdge servers
 +-------------+---------------------------------------------------------------------------+
 | 15G         | C6520 R650 R750 R750xa                                                    |
 +-------------+---------------------------------------------------------------------------+
-| 16G         | C6620 R660 R6625 R760 XE8640 R760xa [1]_ R760xd2  XE9680 [2]_             |
+| 16G         | C6620 R660 R6625 R760 XE8640 R760xa [1]_ R760xd2  XE9680                  |
 +-------------+---------------------------------------------------------------------------+
 
 .. [1] The R760xa supports both H100 and A100.
-.. [2] The XE9680 supports both Intel and Nvidia GPUs.
+
+.. note::  Since Cloud Enclosures only support shared LOM connectivity, it is recommended that `BMC <../../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/bmc.html>`_ or `Switch-based <../../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/switch-based.html>`_ methods of discovery are used.
 
 AMD servers
 -----------

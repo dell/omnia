@@ -14,7 +14,7 @@
 ---
 
 - name: Configure postbootscripts
-  ansible.builtin.command: chdef all postbootscripts="otherpkgs,hardeths"
+  ansible.builtin.command: chdef all postbootscripts="otherpkgs"
   changed_when: true
 
 - name: Configure bmc postbootscripts
@@ -23,3 +23,6 @@
 
 - name: Configure ib postbootscripts
   ansible.builtin.include_tasks: configure_postscripts_ib.yml
+
+- name: Configure admin postbootscripts
+  ansible.builtin.include_tasks: configure_postscripts_admin.yml

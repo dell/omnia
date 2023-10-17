@@ -1,0 +1,206 @@
+"Parameter	",Details
+"**idrac_telemetry_support**
+
+``boolean`` [1]_
+
+Required	","* Enables iDRAC telemetry support and visualizations. 
+* **Values:** 
+
+	* ``false`` <- **Default**
+
+	* ``true``
+
+.. note:: When ``idrac_telemetry_support`` is ``true``, ``mysqldb_user``, ``mysqldb_password`` and ``mysqldb_root_password`` become mandatory. "
+"**omnia_telemetry_support**
+
+``boolean``  [1]_
+
+Required	","* Starts or stops Omnia telemetry
+
+* If omnia_telemetry_support is true, then at least one of ``collect_regular_metrics`` or ``collect_health_check_metrics`` or ``collect_gpu_metrics`` should be true, to collect metrics.
+
+* If omnia_telemetry_support is false, telemetry acquisition will be stopped.
+
+* **Values:** 
+
+	* ``false`` <- **Default**
+
+	* ``true``"
+"**visualization_support**
+
+``boolean``  [1]_
+
+Required	","* Enables visualizations. 
+* **Values:** 
+	* ``false`` <- **Default**
+
+	* ``true``
+
+.. note:: When ``visualization_support`` is true, ``grafana_username`` and ``grafana_password`` become mandatory."
+"**appliance_k8s_pod_net_cidr**
+
+``string``
+
+Required	","* Kubernetes pod network CIDR for appliance k8s network.
+* Make sure this value does not overlap with any of the host networks.
+* **Default value:** ``""192.168.0.0/16""``"
+"**pod_external_ip_start_range**
+
+``string``
+
+Required	","* The start of the range that will be used by Loadbalancer for assigning IPs to K8s services in admin NIC subnet configured on the control plane.
+* The first and second octets (x,y) are not used/validated by Omnia. These values are internally calculated based on the value of ``admin_nic_subnet`` in ``input/provision_config.yml``.
+* If ``pod_external_ip_start_range``: ""x.y.240.100"" and ``pod_external_ip_end_range``: ""x.y.240.105"" and
+* If ``admin_nic_subnet`` provided in provision_config.yml is 10.5.0.0, ``pod_external_ip_start_range`` will be 10.5.240.100 and ``pod_external_ip_end_range`` will be 10.5.240.105
+.. note:: Make sure the IP range is not assigned to any node in the cluster.
+
+* **Default value**: ``""x.y.240.100""``"
+"**pod_external_ip_end_range**
+
+``string``
+
+Required	","* The end of the range that will be used by Loadbalancer for assigning IPs to K8s services in admin NIC subnet configured on the control plane.
+* The first and second octets (x,y) are not used/validated by Omnia. These values are internally calculated based on the value of ``admin_nic_subnet`` in ``input/provision_config.yml``.
+* To create a meaningful range, the third octet of ``pod_external_ip_end_range`` should equal or exceed the third octet of ``pod_external_ip_start_range``. If the third octets are equal, the forth octet of ``pod_external_ip_end_range`` should exceed the forth octet of ``pod_external_ip_start_range``.
+* If ``pod_external_ip_start_range``: ""x.y.240.100"" and ``pod_external_ip_end_range``: ""x.y.240.105"" and
+* If ``admin_nic_subnet`` provided in provision_config.yml is 10.5.0.0, ``pod_external_ip_start_range`` will be 10.5.240.100 and ``pod_external_ip_end_range`` will be 10.5.240.105
+.. note:: Make sure the IP range is not assigned to any node in the cluster.
+
+* **Default value**: ``""x.y.240.105""``"
+"**timescaledb_user**
+
+``string``
+
+Required	","* Username used to access timescaleDB.
+* The username must not   contain -,\, ',"".
+* The Length of the username should be at least 2   characters."
+"**timescaledb_password**
+
+``string``
+
+Required	","* Password used to used to access timescaleDB.
+* The password must not   contain -,\, ',"".
+* The length of the password should be at least 2   characters.
+* The first character of the string should be an alphabet."
+"**idrac_username**
+
+``string``
+
+Optional	","* Username used to authenticate to iDRAC.
+* The username must not   contain -,\, ',"".
+* Required if ``idrac_telemetry_support`` is true."
+"**idrac_password**
+
+``string``
+
+Optional	","* Password used to authenticate to iDRAC.
+* The password must not   contain -,\, ',"".
+* Required if ``idrac_telemetry_support`` is true.
+* The first character of the string should be an alphabet."
+"**mysqldb_user**
+
+``string``
+
+Optional	","* Username used to authenticate to mysqldb.
+* The username must not   contain -,\, ',"".
+* The length of the username should be at least 2 characters.
+* Required if ``idrac_telemetry_support`` is true."
+"**mysqldb_password**
+
+``string``
+
+Optional	","* Password used to authenticate to mysqldb.
+* The password must not   contain -,\, ',"".
+* The length of the password should be at least 2 characters.
+* Required if ``idrac_telemetry_support`` is true.
+* The first character of the string should be an alphabet."
+"**mysqldb_root_password**
+
+``string``
+
+Optional	","* Password used to authenticate to mysqldb as a root user.
+* The password must not   contain -,\, ',"".
+* The length of the password should be at least 2 characters.
+* Required if ``idrac_telemetry_support`` is true.
+* The first character of the string should be an alphabet."
+"**omnia_telemetry_collection_interval**
+
+``integer``
+
+Required	","* This variable denotes the time interval (seconds) of telemetry data collection from required compute nodes.
+* **Range (seconds):** 60-3600  [1 minute to 1 hour]
+* **Default value:** 300"
+"**collect_regular_metrics**
+
+``boolean``  [1]_
+
+Required	","* This variable is used to enable metric collection part of the regular metric group.
+* For a list of regular metrics collected, `click here. <TelemetryMetrics.html#regular-metrics>`_
+* **Values:**
+	* ``true`` <- **Default**
+
+	* ``false``"
+"**collect_health_check_metrics**
+
+``boolean``  [1]_
+
+Required	","* This variable is used to enable metric collection part of the health check metric group.
+* For a list of health metrics collected, `click here. <TelemetryMetrics.html#health-metrics>`_
+* **Values:** 
+	* ``true`` <- **Default**
+
+	* ``false``"
+"**collect_gpu_metrics**
+
+``boolean``  [1]_
+
+Required	","* This variable is used to enable metric collection related to GPU.
+* For a list of GPU metrics collected, `click here. <TelemetryMetrics.html#health-metrics>`_
+
+
+* **Values:**
+	* ``true`` <- **Default**
+
+	* ``false``"
+"**fuzzy_offset**
+
+``integer``
+
+Required	","* This variable is used to set an appropriate time interval in seconds for all cluster nodes so that they do not congest the admin network.
+* Individual nodes generate a random number between 0 and ``fuzzy_offset`` and telemetry data collection of that node initially waits for that much of second before starting data collection.
+* **Default value (seconds)**: 60
+* For large clusters, a higher value is recommended.
+* This value should be less than or equal to the value of ``omnia_telemetry_collection_interval`` but greater than or equal to 60."
+"**metric_collection_timeout**
+
+``integer``
+
+Required	","* This variable is used to define data collection timeout period in seconds.
+* **Default value**: 5
+* This value should be less than the value of ``omnia_telemetry_collection_interval`` but greater than 0."
+"**grafana_username**
+
+``string``
+
+Optional","* The username for grafana UI
+* The length of username should be at least 5
+* The username must not contain -,\, ',""
+* Mandatory when ``visualization_support`` is true."
+"**grafana_password**
+
+``string``
+
+Optional","* The password for grafana UI
+* The length of password should be at least 5
+* The password must not contain -,\, ',""
+* The password cannot be set to 'admin'.
+* The first character of the string should be an alphabet.
+* Mandatory when ``visualization_support`` is true."
+"**mount_location**
+
+``string``
+
+Optional","* At this location grafana persistent volume will be created.
+* If using telemetry, all telemetry related files will also be stored and both timescale and mysql databases will be mounted to this location.
+* '/' is mandatory at the end of the path.
+* **Default value:** ""/opt/omnia/telemetry/"""

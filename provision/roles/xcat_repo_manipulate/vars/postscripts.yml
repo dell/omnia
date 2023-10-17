@@ -26,6 +26,7 @@ ofed_install_script_path:
 rhel8_package_path: "/opt/xcat/share/xcat/install/rh/compute.rhels8.pkglist"
 mlnx_ofed_repo: /install/ofed
 repo_permission: "755"
+ofed_permission: "0644"
 
 # Usage: configure_cuda.yml
 cuda_tmp_path: /tmp/cuda
