@@ -1,0 +1,124 @@
+---
+- name: Load kernel modules
+  command: |
+    modprobe -q {{ item }} || modprobe {{ item }}
+  with_items:
+    - br_netfilter
+    - nf_nat
+    - xt_REDIRECT
+    - xt_owner
+    - iptable_nat
+    - iptable_mangle
+    - iptable_filter
+  when: inventory_hostname in groups["compute"]
+
+- name: Create Istio modules directory
+  file:
+    path: /etc/modules-load.d
+    state: directory
+    mode: '0755'
+  when: inventory_hostname in groups["compute"]
+
+- name: Create Istio modules conf file
+  file:
+    path: /etc/modules-load.d/99-istio-modules.conf
+    state: touch
+    mode: '0755'
+  when: inventory_hostname in groups["compute"]
+
+- name: Create Istio modules file
+  blockinfile:
+    path: /etc/modules-load.d/99-istio-modules.conf
+    block: |
+      # These modules need to be loaded on boot so that Istio (as required by
+      # Kubeflow) runs properly.
+      #
+      # See also: https://github.com/istio/istio/issues/23009
+      br_netfilter
+      nf_nat
+      xt_REDIRECT
+      xt_owner
+      iptable_nat
+      iptable_mangle
+      iptable_filter
+  when: inventory_hostname in groups["compute"]
+  notify:
+    - Load kernel modules
+
+- name: clone kubeflow repositiry
+  ansible.builtin.git:
+    repo: "{{ kubeflow_url }}"
+    dest: /kubeflow
+    single_branch: yes
+    version: v1.6-branch
+  when: inventory_hostname in groups["manager"]
+
+- name: Change istio ingressgateway service from NodePort to LoadBalancer
+  replace:
+    path: "{{ istio_ingressgateway_service_yaml_file_path }}"
+    regexp: 'NodePort'
+    replace: 'LoadBalancer'
+  when: inventory_hostname in groups["manager"]
+
+- name: Modify CPU limit for training-operator
+  replace:
+    path: "{{ training_operator_deployment_yaml_file_path }}"
+    after: 'limits:'
+    before: 'requests:'
+    regexp: 'cpu: 100m'
+    replace: 'cpu: 1'
+  when: inventory_hostname in groups["manager"]
+
+- name: Modify Memory limit for training-operator
+  replace:
+    path: "{{ training_operator_deployment_yaml_file_path }}"
+    after: 'limits:'
+    before: 'requests:'
+    regexp: 'memory: 30Mi'
+    replace: 'memory: 256Mi'
+  when: inventory_hostname in groups["manager"]
+
+- name: Modify CPU Request for training-operator
+  replace:
+    path: "{{ training_operator_deployment_yaml_file_path }}"
+    after: 'requests:'
+    before: 'serviceAccountName: training-operator'
+    regexp: 'cpu: 100m'
+    replace: 'cpu: 1'
+  when: inventory_hostname in groups["manager"]
+
+- name: Modify Memory Request for training-operator
+  replace:
+    path: "{{ training_operator_deployment_yaml_file_path }}"
+    after: 'requests:'
+    before: 'serviceAccountName: training-operator'
+    regexp: 'memory: 20Mi'
+    replace: 'memory: 256Mi'
+  when: inventory_hostname in groups["manager"]
+
+- name: Delete mpijobs.kubeflow.org CRD
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: apiextensions.k8s.io/v1
+      kind: CustomResourceDefinition
+      metadata:
+        name: mpijobs.kubeflow.org
+    state: absent
+  when: inventory_hostname in groups["manager"]
+
+- name: Deploy CRD mpijobs
+  kubernetes.core.k8s:
+    api_version: apiextensions.k8s.io/v1
+    kind: CustomResourceDefinition
+    name: mpijobs.kubeflow.org
+    definition: "{{ lookup('template', 'template/crd_mpijobs_kubeflow.yaml.j2') | from_yaml }}"
+  when: inventory_hostname in groups["manager"]
+
+- name: deploy kubeflow
+  ansible.builtin.shell: cd /kubeflow &&
+                         while ! /usr/local/bin/kustomize build example | kubectl apply -f -; do echo "Retrying to apply resources"; sleep 10; done
+  async: 10
+  poll: 0
+  register: output
+  when: inventory_hostname in groups["manager"]
+
