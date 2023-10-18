@@ -1,3 +1,6 @@
+New Features
+===========
+
 *	`Extensive Telemetry and Monitoring <../Roles/Telemetry/index.html>`_ has been added to the Omnia stack, intended for consumption by customers that are using Dell systems and Omnia to provide SaaS/IaaS solutions.  These include, but are not limited to:
 
     –	CPU Utilization and status
