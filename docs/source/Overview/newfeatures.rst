@@ -23,7 +23,7 @@ New Features
 
     –	Cluster SW Health Checks (dmesg, BeeGFS, k8s nodes/pods, mySQL on control plane)
 
-*	Metrics are extracted using a combination of the following: PSUtil, Smartctl, beegfs-ctl, nvidia-smi, rocm-smi.  Since groundwork is already laid, additional requests from these tools will be quicker to implement in the future.
+*	Metrics are extracted using a combination of the following: PSUtil, Smartctl, beegfs-ctl, nvidia-smi, rocm-smi.
 
 *	Telemetry and health checks can be optionally disabled.
 
