@@ -1,16 +1,30 @@
 New Features
 ===========
 
-*  XE 9640, R760 XA, R760 XD2 are now supported as control planes or target nodes with Nvidia H100 accelerators.
+* Hardware Support: Intel E810 NIC, ConnectX-5/6 NICs
 
-* Added ability for split port configuration on NVIDIA Quantum-2-based QM9700 (Nvidia InfiniBand NDR400 switches).
+    * Omnia github now hosts a “genesis” image with this functionality baked in for initial bootup
 
-* Extended password-less SSH support for multiple user configuration in a single execution.
+* Host aliasing for Scheduler and IPA authentication
 
-* Input mapping files and inventory files now support commented entries for customized playbook execution.
+* Login and Manager Node access from both public and private NIC
 
-* NFS share is now available for hosting user home directories within the cluster.
 
+* Validation check enhancements:
+
+    * Rearranged to occur as early as possible
+
+    * Isolate checks when running smaller playbooks
+
+* Documentation Updates:
+
+    * How to check node installation status and dump the inventory of hostname/mac/IP/port
+
+    * How to Add Nodes to Existing Cluster
+
+    * Detailed support matrix of GPU, NIC, and storage controllers
+
+    * Benchmark Install Guide: OneAPI for Intel, MPI AOCC HPL for AMD
 
 
 
