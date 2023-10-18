@@ -1,8 +1,3 @@
-New Features
-===========
-
-
-
 *	`Extensive Telemetry and Monitoring <../Roles/Telemetry/index.html>`_ has been added to the Omnia stack, intended for consumption by customers that are using Dell systems and Omnia to provide SaaS/IaaS solutions.  These include, but are not limited to:
 
     –	CPU Utilization and status
@@ -35,4 +30,20 @@ New Features
 
     –	Uses Grafani-Loki for viewing.
 
-*	Automatic (empty) Docker Registry Creation.
+*	Hardware Support: Intel E810 NIC, ConnectX-5/6 NICs.
+
+    *	Omnia github now hosts a “genesis” image with this functionality baked in for initial bootup.
+
+*	Host aliasing for Scheduler and IPA authentication.
+
+*	Login and Manager Node access from both public and private NIC.
+
+*	Validation check enhancements:
+
+    *	Rearranged to occur as early as possible.
+
+    *	Isolate checks when running smaller playbooks.
+
+*	Docker Registry Creation.
+
+* Integration of apptainer for `containerized HPC benchmark execution <../InstallationGuides/Benchmarks/index.html>`_.

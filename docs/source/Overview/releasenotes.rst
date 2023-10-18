@@ -37,36 +37,27 @@ Releases
 
     –	Uses Grafani-Loki for viewing.
 
-*	Automatic (empty) Docker Registry Creation.
+*	Docker Registry Creation.
 
+* Integration of apptainer for `containerized HPC benchmark execution <../InstallationGuides/Benchmarks/hpcsoftwarestack.html>`_.
 
-1.4.3.1
---------
-
-
-–	Hardware Support: Intel E810 NIC, ConnectX-5/6 NICs.
+*	Hardware Support: Intel E810 NIC, ConnectX-5/6 NICs.
 
     *	Omnia github now hosts a “genesis” image with this functionality baked in for initial bootup.
 
-–	Host aliasing for Scheduler and IPA authentication.
+*	Host aliasing for Scheduler and IPA authentication.
 
-–	Login and Manager Node access from both public and private NIC.
+*	Login and Manager Node access from both public and private NIC.
 
-–	Validation check enhancements:
+*	Validation check enhancements:
 
     *	Rearranged to occur as early as possible.
 
     *	Isolate checks when running smaller playbooks.
 
-–	Documentation Updates:
+* 	Added a `Benchmark Install Guide <../InstallationGuides/Benchmarks/index.html>`_: OneAPI for Intel, MPI AOCC HPL for AMD.
 
-    *	`How to check node installation status and dump the inventory of hostname/mac/IP/port <../InstallationGuides/InstallingProvisionTool/ViewingDB.html>`_.
 
-    *	`How to Add Nodes to Existing Cluster <../InstallationGuides/addinganewnode.html>`_.
-
-    * 	`Detailed support matrix <SupportMatrix/index.html>`_ of GPU, NIC, and storage controllers.
-
-    * 	`Benchmark Install Guide <../InstallationGuides/Benchmarks/index.html>`_: OneAPI for Intel, MPI AOCC HPL for AMD.
 
 
 1.4.3
