@@ -20,7 +20,7 @@ Rocky
 .. note::
     * Always deploy the DVD (Full) Edition of the OS on Compute Nodes.
     * AMD ROCm driver installation is not supported by Omnia on Rocky compute nodes.
-
+    * If the control plane is running on the minimal edition of the OS, ensure that ``chrony`` and ``podman`` are installed before running ``provision.yml``.
 
 
 
