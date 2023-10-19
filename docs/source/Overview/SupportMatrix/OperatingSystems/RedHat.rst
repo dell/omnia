@@ -16,3 +16,4 @@ OS Version Control Plane Compute Nodes
 .. note::
     * Always deploy the DVD Edition of the OS on compute nodes to access offline repos.
     * For RHEL 8.5 and below, ensure that RHEL subscription is enabled OR sshpass is available to install or download to the control plane (from any local repository).
+    * If the control plane is running on the minimal edition of the OS, ensure that ``chrony`` and ``podman`` are installed before running ``provision.yml`` or ``omnia.yml``.
