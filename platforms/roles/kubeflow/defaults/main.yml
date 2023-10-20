@@ -1,0 +1,5 @@
+---
+kustomize_url: https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.1.0/kustomize_v5.1.0_linux_amd64.tar.gz
+kubeflow_url: https://github.com/kubeflow/manifests.git
+istio_ingressgateway_service_yaml_file_path: /kubeflow/common/istio-1-14/istio-install/base/patches/service.yaml
+training_operator_deployment_yaml_file_path: /kubeflow/apps/training-operator/upstream/base/deployment.yaml
