@@ -8,16 +8,16 @@ Switches
 +------------------------------+-------------------------------------------------------------------------------------+
 
 
-+--------------------------+------------------------------------------------------------------------------------------+
-| Switch Type              | Switch Model                                                                             |
-+==========================+==========================================================================================+
-| Dell Networking Switches | PowerSwitch S3048-ON PowerSwitch S5232F-ON PowerSwitch Z9264F-ON PowerSwitch N3248TE-ON  |
-+--------------------------+------------------------------------------------------------------------------------------+
++--------------------------+------------------------------------------------------------------------------------------------------------+
+| Switch Type              | Switch Model                                                                                               |
++==========================+============================================================================================================+
+| Dell Networking Switches | PowerSwitch S3048-ON PowerSwitch S5232F-ON PowerSwitch Z9264F-ON PowerSwitch N3248TE-ON PowerSwitch S4148  |
++--------------------------+------------------------------------------------------------------------------------------------------------+
 
 
 .. note::
 
-    * The switches that have reached EOL might not function properly. It is recommended by Omnia to use the switch models mentioned in support matrix.
+    * The switches that have reached EOL might not function properly. It is recommended by Omnia to use switch models mentioned in support matrix.
 
     * Omnia requires that OS10 be installed on ethernet switches.
 
