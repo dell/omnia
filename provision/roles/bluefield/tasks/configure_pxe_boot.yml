@@ -13,10 +13,17 @@
 # limitations under the License.
 ---
 
-# tasks file for bluefield
+- name: Get power status
+  ansible.builtin.include_role:
+    name: nvidia.dpu_ops.bf_bmc
+  vars:
+    - bmc_action: "-C 17 chassis power status"
+      bmc_host: "tbd"
+      bmc_user: "root"
+      bmc_password: "tbd"
 
-- name: Check prerequisites
-  ansible.builtin.include_tasks: check_prerequisites.yml
-
-- name: Deploy OS
-  ansible.builtin.include_tasks: deploy_os.yml
+- name: Configure boot order for PXE booting
+  ansible.builtin.include_role:
+    name: nvidia.dpu_ops.bf2_boot
+  vars:
+    - pxe_boot_dev: "{{ bluefield_pxe_boot_dev }}"
