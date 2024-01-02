@@ -20,3 +20,9 @@ bluefield_collections: nvidia.dpu_ops:1.0.1
 
 # Usage: configure_pxe_boot.yml
 bluefield_pxe_boot_dev: NET-OOB-IPV4
+
+# Usage: update_firmware.yml
+bmc:
+  url:  https://content.mellanox.com/BlueField/BMC/23.10-1-oct-2023
+  file: bf3-bmc-23.10-5_opn.fwpkg
+  cec:  cec1736-ecfw-00.02.0152.0000-n02-rel-prod.fwpkg
