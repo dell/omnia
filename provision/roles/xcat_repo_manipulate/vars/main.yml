@@ -51,7 +51,7 @@ xcat_rhel8_pre_script: "/opt/xcat/share/xcat/install/scripts/pre.rhels8"
 public_nic_zone: public
 
 # Usage: common_repo_config.yml
-racadm_url: "https://dl.dell.com/FOLDER05920767M/1/DellEMC-iDRACTools-Web-LX-9.4.0-3732_A00.tar.gz"
+racadm_url: "https://dl.dell.com/FOLDER08952875M/1/Dell-iDRACTools-Web-LX-11.0.0.0-5139_A00.tar.gz"
 racadm_file: "{{ xcat_directory }}/racadm.tar.gz"
 racadm_path: /opt/racadm
 omnia_common_xcat_repo: "{{ other_pkg_dir }}/omnia/Packages"
