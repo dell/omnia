@@ -11,6 +11,7 @@ OS Version Control Plane Cluster  Nodes
 8.5        Yes           Yes
 8.6        Yes           Yes
 8.7        Yes           Yes
+8.8        Yes           Yes
 ========== ============= =============
 
 .. note::

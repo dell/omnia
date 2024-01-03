@@ -62,11 +62,6 @@ Omnia now supports deploying different versions of the same OS. With each run of
     * While Omnia deploys the minimal version of the OS, the multiple version feature requires that the Rocky full (DVD) version of the OS be provided.
     * The multiple OS feature is only available with Rocky 8.7 when xCAT 2.16.5 is in use. [Currently, Omnia uses 2.16.4]
 
-
-**DHCP routing for internet access**
-
-    Omnia now supports DHCP routing via the control plane. To enable routing, update the ``primary_dns`` and ``secondary_dns`` in ``input/provision_config.yml`` with the appropriate IPs (hostnames are currently not supported). For cluster  nodes that are not directly connected to the internet (ie only PXE network is configured), this configuration allows for internet connectivity.
-
 **Disk partitioning**
 
     Omnia now allows for customization of disk partitions applied to remote servers. The disk partition ``desired_capacity`` has to be provided in MB. Valid ``mount_point`` values accepted for disk partition are ``/home``, ``/var``, ``/tmp``, ``/usr``, ``swap``. Default partition size provided for ``/boot`` is 1024MB, ``/boot/efi`` is 256MB and the remaining space to ``/`` partition.  Values are accepted in the form of JSON list such as:

@@ -87,6 +87,6 @@ Omnia can query known switches (by IP and community string) for information on t
     - Servers require a manual PXE boot if iDRAC IPs are not configured.
     - PXE NIC ranges should contain IPs that are double the iDRACs present (as NIC and iDRAC MACs may need to be mapped).
     - LOM architecture is not supported (including cloud enclosures: C6420, C6520, C6620).
-    - Ubuntu cannot be provisioned using this method
+
 For more information regarding snmpwalk, `click here <snmp.html>`_
 

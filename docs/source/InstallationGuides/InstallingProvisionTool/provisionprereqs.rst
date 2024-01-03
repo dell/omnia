@@ -1,7 +1,7 @@
 Before you run the provision tool
 ---------------------------------
 
-* (Recommended) Run ``prereq.sh`` to get the system ready to deploy Omnia. Alternatively, ensure that `Ansible 2.12.10 <https://docs.ansible.com/ansible/latest/reference_appendices/release_and_maintenance.html>`_ and `Python 3.8 <https://www.python.org/downloads/release/python-380/>`_ are installed on the system. SELinux should also be disabled.
+* (Recommended) Run ``prereq.sh`` to get the system ready to deploy Omnia. Alternatively, ensure that `Ansible 2.14.13 <https://docs.ansible.com/ansible/latest/reference_appendices/release_and_maintenance.html>`_ and `Python 3.9 <https://www.python.org/downloads/>`_ are installed on the system. SELinux should also be disabled.
 
 * If the control plane is running on the minimal edition of the OS, ensure that ``chrony`` and ``podman`` are installed before running ``provision.yml``.
 
@@ -32,7 +32,7 @@ Before you run the provision tool
 
     2. `RHEL 8.x <https://www.redhat.com/en/enterprise-linux-8>`_
 
-.. caution:: **THE ROCKY LINUX OS VERSION ON THE CLUSTER WILL BE UPGRADED TO THE LATEST 8.x VERSION AVAILABLE IRRESPECTIVE OF THE PROVISION_OS_VERSION PROVIDED IN PROVISION_CONFIG.YML.**
+    3. `Ubuntu <https://ubuntu.com/download/server>`_
 
 .. note:: Ensure the ISO provided has downloaded seamlessly (No corruption). Verify the SHA checksum/ download size of the ISO file before provisioning to avoid future failures.
 
@@ -40,7 +40,7 @@ Note the compatibility between cluster OS and control plane OS below:
 
         +---------------------+--------------------+------------------+
         |                     |                    |                  |
-        | Control Plane OS    | cluster  Node OS    | Compatibility   |
+        | Control Plane OS    | Cluster  Node OS   | Compatibility   |
         +=====================+====================+==================+
         |                     |                    |                  |
         | RHEL [1]_           | RHEL               | Yes              |
@@ -50,6 +50,21 @@ Note the compatibility between cluster OS and control plane OS below:
         +---------------------+--------------------+------------------+
         |                     |                    |                  |
         | Rocky               | Rocky              | Yes              |
+        +---------------------+--------------------+------------------+
+        |                     |                    |                  |
+        | Ubuntu              | Ubuntu             | Yes              |
+        +---------------------+--------------------+------------------+
+        |                     |                    |                  |
+        | Rocky               | Ubuntu             | No               |
+        +---------------------+--------------------+------------------+
+        |                     |                    |                  |
+        | RHEL                | Ubuntu             | No               |
+        +---------------------+--------------------+------------------+
+        |                     |                    |                  |
+        | Ubuntu              | RHEL               | No               |
+        +---------------------+--------------------+------------------+
+        |                     |                    |                  |
+        | Ubuntu              | Rocky              | No               |
         +---------------------+--------------------+------------------+
 
 .. [1] Ensure that control planes running RHEL have an active subscription or are configured to access local repositories. The following repositories should be enabled on the control plane: **AppStream**, **Code Ready Builder (CRB)**, **BaseOS**. For RHEL control planes running 8.5 and below, ensure that sshpass is additionally available to install or download to the control plane (from any local repository).

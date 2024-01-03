@@ -1,10 +1,10 @@
 Running prereq.sh
 =================
 
-``prereq.sh`` is used to install the software utilized by Omnia on the control plane including Python (3.9), Ansible (2.12.10).  ::
+``prereq.sh`` is used to install the software utilized by Omnia on the control plane including Python (3.9), Ansible (2.14.13).  ::
 
     cd omnia
-    sh prereq.sh
+    ./prereq.sh
 
 
 .. note::
