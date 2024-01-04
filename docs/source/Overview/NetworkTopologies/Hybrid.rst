@@ -20,4 +20,4 @@ Once all the dedicated NICs are discovered, re-run the provisioning tool (to dis
     * ``network_interface_type``: ``lom``
     * ``discovery_mechanism``: ``bmc``
 
-To assign BMC NICs and route internet access to your target nodes, populate the values of ``bmc_nic_subnet``, ``bmc_static_start_range``, ``bmc_static_end_range``, ``primary_dns`` and ``secondary_dns`` in ``input/provision_config.yml`` during the second run of the provision tool.
+To assign BMC NICs and route internet access to your target nodes, populate the values of ``bmc_nic_subnet``, ``bmc_static_start_range``, and ``bmc_static_end_range`` in ``input/provision_config.yml`` during the second run of the provision tool.

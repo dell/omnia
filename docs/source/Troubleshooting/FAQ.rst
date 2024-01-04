@@ -129,14 +129,6 @@ If ``enable_omnia_nfs`` is true in ``input/omnia_config.yml``, follow the below 
 
 **Resolution**: Bring the target node up and re-run the script.
 
-⦾ **Why does the 'Verify primary_dns is  reachable' task fail during provision.yml?**
-
-.. image:: ../images/primarydns_verify_failure.png
-
-Currently, the ``primary_dns`` value stored in ``input/provision_config.yml`` cannot be part of any of the subnets (``admin_nic_subnet``, ``ib_nic_subnet`` and ``bmc_nic_subnet``) also defined in ``input/provision_config.yml``.
-
-Ex: If the ``primary_dns`` is set to 10.15.0.7, the subnet ``10.15.0.0`` cannot be used for ``admin_nic_subnet``, ``ib_nic_subnet`` or ``bmc_nic_subnet``.
-
 ⦾ **Why is the node status stuck at 'powering-on' or 'powering-off' after a control plane reboot?**
 
 **Potential Cause**: The nodes were powering off or powering on during the control plane reboot/shutdown.
@@ -212,11 +204,6 @@ Omnia does not validate the input of ``rhel_repo_local_path``.
 **Resolution**:
 
     Changing the ``breakout_value`` on a split port is currently not supported. Ensure the port is un-split before assigning a new ``breakout_value``.
-
-
-⦾ **How to enable DHCP routing on Compute Nodes:**
-
-To enable routing, update the ``primary_dns`` and ``secondary_dns`` in ``provision_config.yml`` with the appropriate IPs (hostnames are currently not supported). For compute nodes that are not directly connected to the internet (ie only host network is configured), this configuration allows for internet connectivity.
 
 
 ⦾ **What to do if the LC is not ready:**
