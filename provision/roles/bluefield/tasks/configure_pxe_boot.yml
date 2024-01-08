@@ -22,6 +22,15 @@
       bmc_user: "root"
       bmc_password: "tbd"
 
+- name: Force PXE boot
+  ansible.builtin.include_role:
+    name: nvidia.dpu_ops.bf_bmc
+  vars:
+    - bmc_action: "-C 17 chassis bootdev pxe options=efiboot"
+      bmc_host: "tbd"
+      bmc_user: "root"
+      bmc_password: "tbd"
+
 - name: Configure boot order for PXE booting
   ansible.builtin.include_role:
     name: nvidia.dpu_ops.bf2_boot
