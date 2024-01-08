@@ -20,7 +20,13 @@
     - bmc_url: "{{ bmc.url }}/{{ bmc.file }}"
 
 - name: Update CEC firmware of DPU
-  raw: "wget --no-check-certificate {{ bmc.url }}/{{ bmc.cec }} -O /tmp/images/{{ bmc.cec }}"
+  community.general.redfish_command:
+    category: Update
+    command: SimpleUpdate
+    baseuri: "tbd"
+    username: "root"
+    password: "tbd"
+    update_image_uri: "{{ bmc.url }}/{{ bmc.cec }}"
 
 - name: Update DPU NIC firmware
   ansible.builtin.include_role:
