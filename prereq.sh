@@ -34,7 +34,7 @@ echo "-------------------"
 python3.8 -m pip install ansible==5.10.0
 python3.8 -m pip install jinja2==3.1.2
 dnf install git-lfs -y
-git lfs pull
+git lfs pull || true
 
 selinux_count="$(grep "^SELINUX=disabled" /etc/selinux/config | wc -l)"
 if [[ $selinux_count == 0 ]];
