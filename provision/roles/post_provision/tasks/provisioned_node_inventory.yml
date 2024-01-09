@@ -39,7 +39,7 @@
 - name: Fetch BMC IP
   ansible.builtin.shell: >
     set -o pipefail && \
-    ipmitool lan print 1 | grep "IP Address              :"
+    ipmitool lan print 1 | grep -E "IP Address\s+:"
   register: fetch_bmc_ip
   changed_when: false
 
