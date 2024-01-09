@@ -1,4 +1,4 @@
-name: Ansible Lint  # feel free to pick your own name
+name: Linters
 
 on:
   pull_request:
@@ -16,6 +16,14 @@ on:
       - devel-1.6
 
 jobs:
+
+  markdown-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run tests
+        run: docker run -v $PWD:/workdir ghcr.io/igorshubovych/markdownlint-cli:latest --disable=MD013 "**/*.md" || true
+
   ansible-lint:
 
     runs-on: ubuntu-latest
