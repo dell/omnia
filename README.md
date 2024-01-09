@@ -10,6 +10,9 @@
 
 ![GitHub issues](https://img.shields.io/github/issues-raw/dell/omnia) ![GitHub Discussions](https://img.shields.io/github/discussions/dell/omnia)[<img src="https://img.shields.io/badge/slack-dell-blue.svg?logo=slack">](https://app.slack.com/client/TH80K68HY/C018L5109PW)
 
+[![Linters](https://github.com/dell/omnia/actions/workflows/ansible-lint.yml/badge.svg)](https://github.com/dell/omnia/actions/workflows/ansible-lint.yml)
+[![Docker](https://github.com/dell/omnia/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/dell/omnia/actions/workflows/docker-publish.yml)
+
 #### Ansible playbook-based deployment of Slurm and Kubernetes on servers running an RPM-based Linux OS
 
 Omnia (Latin: all or everything) is a deployment tool to turn servers with RPM-based Linux images into functioning Slurm/Kubernetes clusters.
