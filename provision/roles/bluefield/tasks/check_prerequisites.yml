@@ -19,3 +19,31 @@
   with_items: "{{ bluefield_collections }}"
   run_once: true
 
+- name: Initialize variables
+  ansible.builtin.set_fact:
+    provision_status: false
+
+- name: Check if provisioned_dpu_bmc_inventory file exists
+  ansible.builtin.stat:
+    path: "{{ provisioned_dpu_bmc_inventory_path }}"
+  register: provisioned_dpu_bmc_check
+  run_once: true
+
+- name: Check the provisioned_dpu_bmc_inventory output
+  ansible.builtin.command: cat {{ provisioned_dpu_bmc_inventory_path }}
+  changed_when: false
+  register: provisioned_dpu_bmc_list
+  run_once: true
+  when: provisioned_dpu_bmc_check.stat.exists
+
+- name: Set provision status - CLI
+  ansible.builtin.set_fact:
+    provision_status: true
+  when:
+    - provisioned_dpu_bmc_check.stat.exists
+    - inventory_hostname in provisioned_dpu_bmc_list.stdout
+
+- name: Removing hosts already provisioned - CLI
+  ansible.builtin.debug:
+    msg: "{{ provision_skip_msg_cli }}"
+  when: provision_status

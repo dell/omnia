@@ -18,18 +18,18 @@
     name: nvidia.dpu_ops.bf_bmc
   vars:
     - bmc_action: "-C 17 chassis power status"
-      bmc_host: "tbd"
-      bmc_user: "root"
-      bmc_password: "tbd"
+      bmc_host: "{{ inventory_hostname }}"
+      bmc_user: "{{ dpu_bmc_username }}"
+      bmc_password: "{{ dpu_bmc_password }}"
 
 - name: Force PXE boot
   ansible.builtin.include_role:
     name: nvidia.dpu_ops.bf_bmc
   vars:
     - bmc_action: "-C 17 chassis bootdev pxe options=efiboot"
-      bmc_host: "tbd"
-      bmc_user: "root"
-      bmc_password: "tbd"
+      bmc_host: "{{ inventory_hostname }}"
+      bmc_user: "{{ dpu_bmc_username }}"
+      bmc_password: "{{ dpu_bmc_password }}"
 
 - name: Configure boot order for PXE booting
   ansible.builtin.include_role:
