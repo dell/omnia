@@ -1,7 +1,7 @@
 ﻿Parameter,Details
-"authentication_setup
+"authentication_system
      ``string``
-     Required ","Indicates whether FreeIPA or OpenLDAP is setup.
+     Required  ","Indicates whether FreeIPA or OpenLDAP is setup.
                                                           
      Choices:                                             
                                                           

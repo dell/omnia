@@ -53,6 +53,3 @@
      Required ","LDAP server is configured using organizations. They are necessary for user creation and group mapping. 
  
     **Default value**: ``""People""``"
-,
-,
-,
