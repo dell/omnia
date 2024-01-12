@@ -1,5 +1,5 @@
 ﻿Parameter,Details
-"authentication_setup  
+"authentication_setup
      ``string``
      Required ","Indicates whether FreeIPA or OpenLDAP is setup.
                                                           
@@ -19,8 +19,8 @@
      Required  ","* Sets the intended kerberos realm name.        
 * It is required for FreeIPA setups.
 * A realm name is often, but not always the upper case version of the name of the DNS domain over which it presides.
- * **Default value**: ``""OMNIA.TEST""``
-    **Default values**: ``omnia.test``	"
+* **Default value**: ``""OMNIA.TEST""``
+"
 "directory_manager_password
      ``string``
      Required"," 
@@ -29,7 +29,7 @@
 * The password must not contain -,\, ',"""
 "kerberos_admin_password
      ``string``
-     Required","* kerberos_admin_password used by IPA admin user. The IPA server requires an administrative user, named 'admin'. 
+     Required","* ``kerberos_admin_password`` used by IPA admin user. The IPA server requires an administrative user, named 'admin'.
 * The password must be at least 8 characters long.
 * The password must not contain -,\, ',"""
 "ldap_connection_type 
