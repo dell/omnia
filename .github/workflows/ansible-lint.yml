@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - devel
       - release-1.4
       - release-1.4.0.1
       - release-1.4.1
@@ -12,6 +13,7 @@ on:
       - devel-1.4.2.1
       - devel-1.4.2.2
       - devel-1.5
+      - devel-1.6
 
 jobs:
   ansible-lint:
