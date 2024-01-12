@@ -19,13 +19,8 @@ These parameters are located in ``input/omnia_config.yml``, ``input/security_con
 
 **security_config.yml**
 
-.. csv-table:: Parameters for FreeIPA
-   :file: ../../Tables/security_config_freeipa.csv
-   :header-rows: 1
-   :keepspace:
-
-.. csv-table:: Parameters for LDAP
-   :file: ../../Tables/security_config_ldap.csv
+.. csv-table:: Parameters for Authentication
+   :file: ../../Tables/security_config.csv
    :header-rows: 1
    :keepspace:
 

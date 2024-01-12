@@ -13,13 +13,8 @@ ________________________________
 
 Enter the following parameters in ``input/security_config.yml``.
 
-.. csv-table:: Parameters for FreeIPA
-   :file: ../../Tables/security_config_freeipa.csv
-   :header-rows: 1
-   :keepspace:
-
-.. csv-table:: Parameters for LDAP
-   :file: ../../Tables/security_config_ldap.csv
+.. csv-table:: Parameters for Authentication
+   :file: ../../Tables/security_config.csv
    :header-rows: 1
    :keepspace:
 
@@ -86,7 +81,7 @@ Enter the following parameters in ``input/login_node_security_config.yml``.
 Installing LDAP Client
 ________________________
 
-Manager and compute nodes will have LDAP client installed and configured if ``ldap_required`` is set to true. The login node does not have LDAP client installed.
+Manager and compute nodes will have LDAP client installed and configured if ``authentication_system`` is set to "openldap". The login node does not have LDAP client installed.
 
 .. caution:: No users/groups will be created by Omnia.
 
