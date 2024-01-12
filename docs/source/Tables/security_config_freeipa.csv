@@ -1,31 +1,21 @@
 Parameter,Details
-"freeipa_required
-     ``boolean``  [1]_
-     Required   ","Boolean indicating whether FreeIPA is required or not.
-                                                      
-     Choices:                                         
-                                                      
-     * ``true`` <- Default                            
-                                                      
-     * ``false``                                      "
-"realm_name     
+"realm_name    
      ``string``
-     Required  ","Sets the intended realm name.        
-                                     
-     **Default value**: ``OMNIA.TEST``"
+     Required  ","* Sets the intended kerberos realm name.        
+* It is required for FreeIPA setups.
+* A realm name is often, but not always the upper case version of the name of the DNS domain over which it presides.
+* **Default value**: ``""OMNIA.TEST""``
+"
 "directory_manager_password
-     ``string``           
-     Required             ","* Password authenticating admin level access to the Directory for system   management tasks.
-* It will be added to the instance of directory server created for   IPA.              
-* Required Length: 8 characters.                                                       
-* The password must not contain -,, �,�
-* The first character of the string should be an alphabet."
-"kerberos_admin_password
-     ``string``        
-     Required          ","* ""admin""   user password for the IPA server on RockyOS.
-* The first character of the string should be an alphabet."
-"domain_name    
      ``string``
-     Required  ","Sets the intended domain   name       
-                                      
-     **Default value**: ``omnia.test``"
+     Required"," 
+* The directory server operations require an administrative user. This user is referred to as the Directory Manager and has full access to the Directory for system management tasks and will be added to the instance of directory server created for IPA.
+* The password must be at least 8 characters long.
+* The password must not contain -,\, ',"""
+"kerberos_admin_password
+     ``string``
+     Required","* ``kerberos_admin_password`` used by IPA admin user. The IPA server requires an administrative user, named 'admin'.
+* The password must be at least 8 characters long.
+* The password must not contain -,\, ',"""
+,
+,

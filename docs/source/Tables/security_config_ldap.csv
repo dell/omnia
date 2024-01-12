@@ -1,30 +1,7 @@
 ﻿Parameter,Details
-"authentication_setup  
-     ``string``
-     Optional ","Indicates whether FreeIPA or OpenLDAP is setup.
-                                                          
-     Choices:                                             
-                                                          
-     * ``openldap`` <- Default                               
-     * ``freeipa``                                           "
-"domain_name    
-     ``string``
-     Required  ","* Sets the intended domain name.        
-* If dc=omnia,dc=test, Provide ``omnia.test``
-* If dc=dell,dc=omnia,dc=com Provide ``dell.omnia.com``  
-                                   
-    **Default values**: ``omnia.test``	"
-"enable_secure_login_node
-     ``boolean``  [1]_
-     Optional           ","Boolean value deciding whether security features are enabled on the Login   Node.
-                                                                                 
-     Choices:                                                                    
-                                                                                 
-     * ``false`` <- Default                                                      
-     * ``true``                                                                  "
 "ldap_connection_type 
      ``string``      
-     Optional        ","For a TLS connection, provide a valid certification path. For an SSL   connection, ensure port 636 is open.
+     Required        ","For a TLS connection, provide a valid certification path. For an SSL   connection, ensure port 636 is open.
                                 
      Choices:                                             
                                                           
@@ -41,30 +18,30 @@
      Optional ",The private key that matches the LDAP certificate.
 "user_home_dir  
      ``string``
-     Optional  ","This variable accepts the user   home directory path for ldap configuration.    If nfs mount is created for user home, make sure you provide the LDAP   users mount home directory path.
+     Required  ","This variable accepts the user   home directory path for ldap configuration.    If nfs mount is created for user home, make sure you provide the LDAP   users mount home directory path.
                                                                                                                                                                                         
     **Default value**: ``/home``                                                                                                                                                       "
 "openldap_db_username 
      ``string``
-     Optional "," The username used to manage the LDAP database. 
+     Required "," The username used to manage the LDAP database. 
  
     **Default value**: ``""admin""``"
 "openldap_db_password 
      ``string``
-     Optional "," The password used to configure and manage the LDAP database. Ensure that this value is 8 characters long.
+     Required "," The password used to configure and manage the LDAP database. Ensure that this value is 8 characters long.
 "
 "openldap_config_username 
      ``string``
-     Optional "," The username used to configure the LDAP database. 
+     Required "," The username used to configure the LDAP database. 
  
     **Default value**: ``""admin""``"
 "openldap_config_password 
      ``string``
-     Optional "," The password used to configure the LDAP database. Ensure that this value is 8 characters long.
+     Required "," The password used to configure the LDAP database. Ensure that this value is 8 characters long.
 "
 "openldap_monitor_password 
      ``string``
-     Optional "," The password used to monitor the LDAP database. Ensure that this value is 8 characters long.
+     Required "," The password used to monitor the LDAP database. Ensure that this value is 8 characters long.
 "
 "openldap_organization
      ``string``
@@ -76,3 +53,6 @@
      Required ","LDAP server is configured using organizations. They are necessary for user creation and group mapping. 
  
     **Default value**: ``""People""``"
+,
+,
+,

@@ -18,6 +18,16 @@ Enter the following parameters in ``input/security_config.yml``.
    :header-rows: 1
    :keepspace:
 
+.. csv-table:: Parameters for OpenLDAP configuration
+   :file: ../../Tables/security_config_ldap.csv
+   :header-rows: 1
+   :keepspace:
+
+.. csv-table:: Parameters for FreeIPA configuration
+   :file: ../../Tables/security_config_freeipa.csv
+   :header-rows: 1
+   :keepspace:
+
 .. [1] Boolean parameters do not need to be passed with double or single quotes.
 
 Configuring login node security
