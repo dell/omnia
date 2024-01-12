@@ -18,5 +18,8 @@
 - name: Check prerequisites
   ansible.builtin.include_tasks: check_prerequisites.yml
 
+# - name: Update firmware
+#   ansible.builtin.include_tasks: update_firmware.yml
+
 - name: Deploy OS
   ansible.builtin.include_tasks: deploy_os.yml

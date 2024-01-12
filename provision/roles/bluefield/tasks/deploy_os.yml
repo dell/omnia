@@ -16,6 +16,10 @@
 - name: Configure PXE booting
   ansible.builtin.include_tasks: configure_pxe_boot.yml
 
+- name: Add the host to provisioned_dpu_bmc_inventory
+  ansible.builtin.debug:
+    msg: "tbd"
+
 - name: Provision OS
   ansible.builtin.debug:
     msg: "tbd"

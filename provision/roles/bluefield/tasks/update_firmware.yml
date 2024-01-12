@@ -13,6 +13,15 @@
 # limitations under the License.
 ---
 
+- name: Get Firmware Inventory
+  community.general.redfish_info:
+    category: Update
+    command: GetFirmwareInventory
+    baseuri: "{{ inventory_hostname }}"
+    username: "{{ dpu_bmc_username }}"
+    password: "{{ dpu_bmc_password }}"
+  register: result
+
 - name: Update BMC firmware of DPU
   ansible.builtin.include_role:
     name: nvidia.dpu_ops.manage_bf_bmc_fw
@@ -23,16 +32,16 @@
   community.general.redfish_command:
     category: Update
     command: SimpleUpdate
-    baseuri: "tbd"
-    username: "root"
-    password: "tbd"
+    baseuri: "{{ inventory_hostname }}"
+    username: "{{ dpu_bmc_username }}"
+    password: "{{ dpu_bmc_password }}"
     update_image_uri: "{{ bmc.url }}/{{ bmc.cec }}"
 
 - name: Update DPU NIC firmware
   ansible.builtin.include_role:
     name: nvidia.dpu_ops.manage_bf2_fw
   vars:
-    - bmc_host: "tbd"
-      bmc_user: "root"
-      bmc_password: "tbd"
+    - bmc_host: "{{ inventory_hostname }}"
+      bmc_user: "{{ dpu_bmc_username }}"
+      bmc_password: "{{ dpu_bmc_password }}"
 
