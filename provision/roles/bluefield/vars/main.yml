@@ -17,6 +17,7 @@
 
 # Usage: check_prerequisites.yml
 bluefield_collections: nvidia.dpu_ops:1.0.1
+provisioned_dpu_bmc_inventory_path: /opt/omnia/provisioned_dpu_bmc_inventory
 
 # Usage: configure_pxe_boot.yml
 bluefield_pxe_boot_dev: NET-OOB-IPV4
