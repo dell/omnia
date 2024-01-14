@@ -24,6 +24,15 @@ jobs:
       - name: Run tests
         run: docker run -v $PWD:/workdir ghcr.io/igorshubovych/markdownlint-cli:latest --disable=MD013 "**/*.md" || true
 
+  docker-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hadolint/hadolint-action@v3.1.0
+        with:
+          recursive: false
+          ignore: DL3041,DL3059,DL3013
+
   ansible-lint:
 
     runs-on: ubuntu-latest

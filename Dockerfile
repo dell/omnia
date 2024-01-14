@@ -3,7 +3,7 @@ FROM rockylinux:8.8
 WORKDIR /app
 
 # why this is not part of prereq.sh ?
-RUN dnf install -y python38 iproute
+RUN dnf install -y python38 iproute && dnf clean all
 
 # prereq
 RUN echo "SELINUX=disabled" > /etc/selinux/config
@@ -19,14 +19,15 @@ RUN dnf install -y \
   net-snmp \
   net-snmp-utils \
   sshpass \
-  python3-pexpect
+  python3-pexpect \
+&& dnf clean all
 
 # why above RPMs are not enough ?
-RUN python3 -m pip install netaddr pexpect
+RUN python3 -m pip install --no-cache-dir netaddr pexpect
 
 # why this is not part of prereq.sh ?
 # see telemetry/roles/omnia_telemetry_cp/tasks/python_package_installation.yml
-RUN python3 -m pip install pyinstaller psutil
+RUN python3 -m pip install --no-cache-dir pyinstaller psutil
 
 ENTRYPOINT ["ansible-playbook"]
 CMD ["prepare_cp.yml", "-vv"]
