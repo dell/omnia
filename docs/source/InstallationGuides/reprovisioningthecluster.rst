@@ -6,6 +6,7 @@ In the event that an existing Omnia cluster needs a different OS version or a fr
     - The operating system
     - CUDA
     - OFED
+    - DOCA
 
 Omnia can re-provision the cluster by running the following command: ::
 

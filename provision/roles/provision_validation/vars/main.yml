@@ -211,6 +211,9 @@ ofed_rhel_check: "rhel{{ provision_os_version }}"
 cuda_rpm_empty_msg: "[WARNING] cuda_toolkit_path variable empty in provision_config.yml. CUDA won't be installed during provisioning."
 cuda_toolkit_path_missing_msg: "Failed. Incorrect cuda_toolkit_path: {{ cuda_toolkit_path }} provided.
 Make sure CUDA toolkit rpm file is present in the provided cuda_toolkit_path variable in provision_config.yml."
+doca_rpm_empty_msg: "[WARNING] nvidia_doca_path variable empty in provision_config.yml. DOCA won't be installed during provisioning."
+nvidia_doca_path_missing_msg: "Failed. Incorrect nvidia_doca_path: {{ nvidia_doca_path }} provided.
+Make sure DOCA rpm file is present in the provided nvidia_doca_path variable in provision_config.yml."
 
 # Usage: validate_repo_path.yml
 update_repos_success_msg: "Validated update_repos"

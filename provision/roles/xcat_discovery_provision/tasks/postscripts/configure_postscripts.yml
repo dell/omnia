@@ -56,3 +56,16 @@
   when:
     - cuda_config_status
     - cuda_repo_stat.stat.exists
+
+- name: Verify DOCA repo created
+  ansible.builtin.stat:
+    path: "{{ doca_core_path }}"
+  register: doca_repo_stat
+  when: doca_config_status
+
+- name: Configure postscripts for DOCA
+  ansible.builtin.command: chdef all -p postscripts=omnia_doca
+  changed_when: true
+  when:
+    - doca_config_status
+    - doca_repo_stat.stat.exists

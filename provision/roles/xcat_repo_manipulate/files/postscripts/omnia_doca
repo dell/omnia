@@ -1,0 +1,19 @@
+#!/bin/bash
+################################################################################################################
+#  omnia_doca:
+#      Install DOCA on all the cluster nodes using DOCA rpm file provided
+#
+#################################################################################################################
+echo "--------------------------" >> /var/log/xcat/xcat.log
+echo "Checking for NVIDIA DPU cards" >> /var/log/xcat/xcat.log
+nvidia_check=`lspci | grep -i bluefield`
+if [[ $nvidia_check == *"BlueField"* ]]
+then
+  echo "Starting DOCA installation" >> /var/log/xcat/xcat.log
+  dnf -y install doca-runtime doca-tools
+  reboot
+  echo "DOCA installation completed" >> /var/log/xcat/xcat.log
+else
+  echo "NVIDIA DPU cards not found" >> /var/log/xcat/xcat.log
+fi
+echo "-----------------------------" >> /var/log/xcat/xcat.log

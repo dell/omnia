@@ -1,0 +1,118 @@
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Delete doca repo folders
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - "{{ doca_tmp_path }}"
+    - "{{ doca_core_path }}"
+    - "{{ doca_deps_path }}"
+
+- name: Create doca repo folders
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "{{ repo_permission }}"
+  with_items:
+    - "{{ doca_tmp_path }}"
+    - "{{ doca_core_path }}"
+    - "{{ doca_deps_path }}"
+
+- name: Try extracting doca rpms
+  block:
+    - name: Extract doca rpms
+      ansible.builtin.shell: >
+        set -o pipefail && \
+        cd {{ doca_tmp_path }} && rpm2cpio {{ nvidia_doca_path }} | cpio -i -d
+      changed_when: true
+  rescue:
+    - name: Invalid doca rpm file
+      ansible.builtin.fail:
+        msg: "{{ invalid_doca_rpm_fail_msg }}"
+
+- name: Find doca rpm folder
+  ansible.builtin.find:
+    paths: "{{ doca_tmp_path }}/var/"
+    file_type: directory
+  register: doca_rpm_dir
+
+- name: Find doca rpm files
+  ansible.builtin.find:
+    paths: "{{ doca_rpm_dir.files[0].path }}"
+    patterns: "*.rpm"
+  register: doca_rpm_file
+
+- name: Copy doca rpm files to doca core repo
+  ansible.builtin.copy:
+    src: "{{ item.path }}"
+    dest: "{{ doca_core_path }}"
+    mode: preserve
+  with_items: "{{ doca_rpm_file.files }}"
+
+- name: Download epel 8 package list starts with d
+  ansible.builtin.get_url:
+    url: "{{ dkms_url }}"
+    dest: "{{ dkms_tmp_file }}"
+    mode: "{{ dkms_file_permission }}"
+  register: dkms_repo_result
+  until: dkms_repo_result is not failed
+  retries: "{{ download_retries_count }}"
+
+- name: Fetch dkms file name
+  ansible.builtin.shell: >
+    set -o pipefail && \
+    echo {{ dkms_url }}`cat {{ dkms_tmp_file }} | grep dkms | grep -o -P '(?<=rpm">).*(?=</a>)'`
+  changed_when: false
+  register: fetch_dkms_url
+
+- name: Download dkms
+  ansible.builtin.get_url:
+    url: "{{ fetch_dkms_url.stdout }}"
+    dest: "{{ doca_deps_path }}"
+    mode: "{{ dkms_file_permission }}"
+  register: dkms_rpm_result
+  until: dkms_rpm_result is not failed
+  retries: "{{ download_retries_count }}"
+
+- name: Create doca-core and doca-deps repos
+  ansible.builtin.command: createrepo {{ item }}
+  changed_when: true
+  with_items:
+    - "{{ doca_core_path }}"
+    - "{{ doca_deps_path }}"
+
+- name: Copy DOCA script to postscripts
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  with_items: "{{ doca_postscripts_path }}"
+
+- name: Add doca path in enviornment variable in postscripts
+  ansible.builtin.lineinfile:
+    path: "{{ xcat_rhel8_post_script }}"
+    regexp: 'EOF'
+    line: 'echo "PATH=$PATH:/opt/dell/srvadmin/sbin:/usr/local/sbin:/usr/local/bin/:/usr/local/doca/bin" >> /etc/bashrc'
+
+- name: Delete dkms.html file
+  ansible.builtin.file:
+    path: "{{ dkms_tmp_file }}"
+    state: absent
+
+- name: Update osimage with doca repository
+  ansible.builtin.command: chdef -t osimage -o {{ provision_os_image }} -p pkgdir={{ doca_core_path }},{{ doca_deps_path }}
+  changed_when: true

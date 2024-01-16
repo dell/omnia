@@ -25,6 +25,18 @@ Optional configurations managed by the provision tool
         * CUDA requires an additional reboot while being installed. While this is taken care of by Omnia, users are required to wait an additional few minutes when running the provision tool with CUDA installation for the target nodes to come up.
 
 
+**Installing DOCA**
+
+    **Using the provision tool**
+
+        * If ``nvidia_doca_path`` is provided  in ``input/provision_config.yml`` and Nvidia DPUs are available on the target nodes, DOCA packages will be deployed post provisioning without user intervention.
+
+    **Using the Network playbook**
+
+        * DOCA can also be installed using `network.yml <../../Roles/Network/index.html>`_ after provisioning the servers (Assuming the provision tool did not install DOCA packages).
+
+        .. note:: The DOCA package can be downloaded from `here <https://developer.nvidia.com/networking/doca>`_ .
+
 **Installing OFED**
 
     **Using the provision tool**

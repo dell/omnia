@@ -16,7 +16,9 @@ Some of the network features Omnia offers are:
 
 2. Infiniband switch configuration
 
-To install OFED drivers, enter all required parameters in ``input/network_config.yml``:
+3. Nvidia DOCA
+
+To install OFED and DOCA drivers, enter all required parameters in ``input/network_config.yml``:
 
 
 +------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -36,6 +38,14 @@ To install OFED drivers, enter all required parameters in ``input/network_config
 |                              |                                                                                                                                                                                         |
 |                              |      * ``false`` <- Default                                                                                                                                                             |
 |                              |      * ``true``                                                                                                                                                                         |
++------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| nvidia_doca_offline_path     | Absolute path to local copy of rpm file containing DOCA package. The package can be downloaded from https://developer.nvidia.com/networking/doca/.                                      |
+|      [optional]              |                                                                                                                                                                                         |
+|      ``string``              |                                                                                                                                                                                         |
++------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| nvidia_doca_version          | Indicates the version of DOCA to be downloaded. If ``nvidia_doca_offline_path`` is not given,   declaring this variable is mandatory.                                                   |
+|      [optional]              |                                                                                                                                                                                         |
+|      ``string``              | **Default value**: 2.5.0-0.0.1.23.10.1.1.9.0                                                                                                                                            |
 +------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 To run the script: ::
