@@ -9,15 +9,75 @@ inventory file
 
 ::
 
-    [manager]
-    10.5.0.101
+        #Batch Scheduler: Slurm
 
-    [compute]
-    10.5.0.102
-    10.5.0.103
+        [slurm_control_node]
 
-    [login]
-    10.5.0.104
+        # node1
+
+        [slurmdbd]
+
+        #node2
+
+        [slurm_node]
+
+        #node3
+
+        #node4
+
+        [login]
+
+        #node5
+
+
+
+        #General Cluster Storage
+
+        #NFS node
+
+        [nfs]
+
+        #node10
+
+
+
+        [auth_server]
+
+        #node12
+
+        #AI Scheduler: Kubernetes
+
+        [kube_control_plane]
+
+        # node1
+
+        [etcd]
+
+        # node1
+
+        # node2in
+
+        # node3
+
+
+
+        [kube_node]
+
+        # node2
+
+        # node3
+
+        # node4
+
+        # node5
+
+        # node6
+
+
+
+        [calico_rr]
+
+        #node7
 
 
 pxe_mapping_file.csv
@@ -59,8 +119,10 @@ NFS Server inventory file
 
 ::
 
+    #General Cluster Storage
+    #NFS node
     [nfs]
-    10.5.0.104
+    #node10
 
 
 
