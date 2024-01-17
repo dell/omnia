@@ -58,6 +58,7 @@ jobs:
           /github/workspace/network/network.yml
           /github/workspace/provision/provision.yml
           /github/workspace/provision/idrac.yml
+          /github/workspace/provision/bluefield.yml
           /github/workspace/provision/post_provision.yml
           /github/workspace/scheduler/job_based_user_access.yml
           /github/workspace/security/user_passwordless_ssh.yml

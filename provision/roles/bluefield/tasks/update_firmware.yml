@@ -44,4 +44,3 @@
     - bmc_host: "{{ inventory_hostname }}"
       bmc_user: "{{ dpu_bmc_username }}"
       bmc_password: "{{ dpu_bmc_password }}"
-
