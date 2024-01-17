@@ -1,0 +1,13 @@
+{
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+    "init": true,
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "redhat.ansible"
+            ]
+        }
+    }
+}
