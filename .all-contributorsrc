@@ -633,6 +633,16 @@
         "maintenance",
         "doc"
       ]
+    },
+    {
+      "login": "MoshiBin",
+      "name": "Moshi Binyamini",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1297388?v=4",
+      "profile": "https://github.com/MoshiBin",
+      "contributions": [
+        "code",
+        "maintenance"
+      ]
     }
   ],
   "contributorsPerLine": 7,
