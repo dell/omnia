@@ -141,3 +141,7 @@ The inventory should contain compute, manager, login as per the inventory file i
 
 
 .. caution:: No users/groups will be created by Omnia.
+
+.. toctree::
+
+    ReplicatingLDAP
