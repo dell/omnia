@@ -256,6 +256,14 @@ mlnx_ofed_path: ""
 # cuda_toolkit_path: "/root/cuda-repo-rhel8-12-0-local-12.0.0_525.60.13-1.x86_64.rpm"
 cuda_toolkit_path: ""
 
+#### Optional, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
+# Absolute path to local copy of .rpm file containing DOCA packages.
+# The cuda rpm can be downloaded from https://developer.nvidia.com/networking/doca
+# DOCA will be installed post provisioning without any user intervention requirement
+# Example:
+# nvidia_doca_path: "/root/doca-host-repo-rhel86-2.5.0-0.0.1.2.5.0108.1.el8.23.10.1.1.9.0.x86_64.rpm"
+nvidia_doca_path: ""
+
 #### Mandatory, discovery_mechanism: mapping or switch_based or bmc or snmpwalk
 # apptainer will be installed on the cluster to enable execution of HPC benchmarks in a containeraized environment.
 # If apptainer_support: false, apptainer will not be installed on the cluster

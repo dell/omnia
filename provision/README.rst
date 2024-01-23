@@ -16,6 +16,6 @@ This playbook achieves the following tasks:
 
     * Configures a docker registry to pull images from the internet and store them locally
 
-    * Optionally installs OFED and CUDA
+    * Optionally installs OFED, DOCA and CUDA
 
 `Click here <https://omnia-doc.readthedocs.io/en/latest/InstallationGuides/InstallingProvisionTool/index.html>`_ for more information on ``provision.yml``.

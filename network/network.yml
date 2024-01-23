@@ -39,6 +39,16 @@
         name: mlnx_ofed
         tasks_from: validations.yml
 
+- name: Validate input parameters for nvidia_doca
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  tasks:
+    - name: Validate variables from network_config.yml
+      ansible.builtin.include_role:
+        name: nvidia_doca
+        tasks_from: validations.yml
+
 - name: Check nodes having Infiniband Support
   hosts: all
   tasks:

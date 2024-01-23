@@ -54,11 +54,13 @@ Note the compatibility between cluster OS and control plane OS below:
 
 .. [1] Ensure that control planes running RHEL have an active subscription or are configured to access local repositories. The following repositories should be enabled on the control plane: **AppStream**, **Code Ready Builder (CRB)**, **BaseOS**. For RHEL control planes running 8.5 and below, ensure that sshpass is additionally available to install or download to the control plane (from any local repository).
 
-* To **optionally** set up CUDA and OFED using the provisioning tool, download the required repositories to the control plane from here to deploy on the target nodes:
+* To **optionally** set up CUDA, DOCA and OFED using the provisioning tool, download the required repositories to the control plane from here to deploy on the target nodes:
 
     1. `For NVIDIA GPUs: <https://developer.nvidia.com/cuda-downloads/>`_: CUDA is a parallel computing platform and application programming interface that allows software to use certain types of graphics processing units for general purpose processing, an approach called general-purpose computing on GPUs.
 
     2. `For Mellanox <https://network.nvidia.com/products/infiniband-drivers/linux/mlnx_ofed/>`_: OFED (OpenFabrics Enterprise Distribution) is open-source software for RDMA and kernel bypass applications. OFED can be used in business, research and scientific environments that require highly efficient networks, storage connectivity and parallel computing.
+
+    3. `For NVIDIA DPUs: <https://developer.nvidia.com/networking/doca/>`_: DOCA is ...
 
 * Ensure that all connection names under the network manager match their corresponding device names.
     To verify network connection names: ::

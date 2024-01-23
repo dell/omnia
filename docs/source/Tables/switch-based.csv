@@ -299,6 +299,11 @@ Optional",Absolute path to a  local copy of the .iso file containing Mellanox OF
 ``string``
 
 Optional","Absolute path to local copy of .rpm file containing CUDA packages. The cuda rpm can be downloaded from https://developer.nvidia.com/cuda-downloads. CUDA will be installed post provisioning without any user intervention. Eg: cuda_toolkit_path: ""/root/cuda-repo-rhel8-12-0-local-12.0.0_525.60.13-1.x86_64.rpm"""
+"**nvidia_doca_path**
+
+``string``
+
+Optional","Absolute path to local copy of .rpm file containing DOCA packages. The doca rpm can be downloaded from https://developer.nvidia.com/networking/doca. DOCA will be installed post provisioning without any user intervention. Eg: nvidia_doca_path: ""/root/doca-host-repo-rhel86-2.5.0-0.0.1.2.5.0108.1.el8.23.10.1.1.9.0.x86_64.rpm"""
 "**apptainer_support**
 
 ``boolean``  [1]_

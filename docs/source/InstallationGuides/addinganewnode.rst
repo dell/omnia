@@ -8,6 +8,7 @@ While adding a new node to the cluster, users can modify the following:
     - The operating system
     - CUDA
     - OFED
+    - DOCA
 
 A new node can be added using the following ways:
 

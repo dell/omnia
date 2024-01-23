@@ -40,3 +40,12 @@ Make sure cuda rpm file is downloaded completely."
 cuda_postscripts_path:
   - { src: "{{ role_path }}/files/postscripts/omnia_cuda", dest: "/install/postscripts/omnia_cuda", mode: "755" }
 download_retries_count: 10
+
+# Usage: configure_doca.yml
+doca_tmp_path: /tmp/doca
+doca_core_path: /install/doca/x86_64/doca-core
+doca_deps_path: /install/doca/x86_64/doca-deps
+invalid_doca_rpm_fail_msg: "Failed. Invalid nvidia_doca_path: {{ nvidia_doca_path }} provided in provision_config.yml.
+Make sure doca rpm file is downloaded completely."
+doca_postscripts_path:
+  - { src: "{{ role_path }}/files/postscripts/omnia_doca", dest: "/install/postscripts/omnia_doca", mode: "755" }

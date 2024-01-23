@@ -20,6 +20,7 @@ bmc_postscripts_path:
 # Usage: configure_postscripts.yml
 mlnx_ofed_repo: /install/ofed
 cuda_core_path: /install/cuda/x86_64/cuda-core
+doca_core_path: /install/doca/x86_64
 hostname_postscripts_path:
   - { src: "{{ role_path }}/files/postscripts/omnia_hostname", dest: "/install/postscripts/omnia_hostname", mode: "755" }
 

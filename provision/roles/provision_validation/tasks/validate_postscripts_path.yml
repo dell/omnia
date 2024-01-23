@@ -13,10 +13,11 @@
 #  limitations under the License.
 ---
 
-- name: Initialize ofed_config_status and cuda_config_status
+- name: Initialize ofed_config_status, doca_config_status and cuda_config_status
   ansible.builtin.set_fact:
     ofed_config_status: false
     cuda_config_status: false
+    doca_config_status: false
 
 - name: Set ofed_config_status to true
   ansible.builtin.set_fact:
@@ -75,3 +76,27 @@
   when:
     - cuda_config_status
     - not verify_cuda_path.stat.exists
+
+- name: Set doca_config_status to true
+  ansible.builtin.set_fact:
+    doca_config_status: true
+  when: nvidia_doca_path | default("", true) | length > 1
+
+- name: Warning - waiting for {{ warning_wait_time }} seconds
+  ansible.builtin.pause:
+    seconds: "{{ warning_wait_time }}"
+    prompt: "{{ doca_rpm_empty_msg }}"
+  when: not doca_config_status
+
+- name: Verify the nvidia_doca_path
+  ansible.builtin.stat:
+    path: "{{ nvidia_doca_path }}"
+  register: verify_doca_path
+  when: doca_config_status
+
+- name: Assert nvidia_doca_path location
+  ansible.builtin.fail:
+    msg: "{{ nvidia_doca_path_missing_msg }}"
+  when:
+    - doca_config_status
+    - not verify_doca_path.stat.exists

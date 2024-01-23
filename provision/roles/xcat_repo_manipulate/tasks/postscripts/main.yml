@@ -39,3 +39,7 @@
 - name: Configure CUDA postscripts
   ansible.builtin.include_tasks: configure_cuda.yml
   when: cuda_config_status
+
+- name: Configure DOCA postscripts
+  ansible.builtin.include_tasks: configure_doca.yml
+  when: doca_config_status
