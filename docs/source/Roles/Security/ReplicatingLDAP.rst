@@ -19,7 +19,7 @@ Below is a sample file: ::
     objectclass: account
     objectClass: shadowAccount
     uid: replicauser
-    description: Replication  User
+    description: Replication User
     userPassword: {SSHA}BL5xdrUvHQ8GPvdvHhO/4OmKHYoXQlIK
 
 2. Run the command ``ldapadd -D <enter admin binddn > -w < bind_password > -f replication_user.ldif`` to execute the LDIF file and create the account.
@@ -28,8 +28,9 @@ Below is a sample file: ::
 
 1. Create an LDIF file (eg: ``Replication.ldif``) containing the following information:
 
-    * Provider: The IP address of the source LDAP server.
+    * Provider: The IP address of the source LDAP server. It is routed over the LDAP protocol and via port 389.
     * binddn: The distinguished name of the replication user/admin user being used to authenticate the replication.
+    * credentials: The corresponding password of the user indicated in ``binddn``.
     * searchbase: The groups of users to be replicated.
 
 Below is a sample file: ::
@@ -38,7 +39,7 @@ Below is a sample file: ::
     changetype: modify
     add: olcSyncRepl
     olcSyncRepl: rid=001
-      provider=ldap://10.5.0.4:389/
+      provider=ldap://xx.xx.xx.xx:389/
       bindmethod=simple
       binddn="uid=replica,dc=orchid,dc=cluster"
       credentials=sync1234
