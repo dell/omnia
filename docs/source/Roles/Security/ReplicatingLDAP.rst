@@ -29,7 +29,7 @@ Below is a sample file: ::
 1. Create an LDIF file (eg: ``Replication.ldif``) containing the following information:
 
     * Provider: The IP address of the source LDAP server. It is routed over the LDAP protocol and via port 389.
-    * binddn: The distinguished name of the replication user/admin user being used to authenticate the replication.
+    * binddn: The distinguished name of the dedicated replication user or admin user being used to authenticate the replication.
     * credentials: The corresponding password of the user indicated in ``binddn``.
     * searchbase: The groups of users to be replicated.
 
@@ -41,7 +41,7 @@ Below is a sample file: ::
     olcSyncRepl: rid=001
       provider=ldap://xx.xx.xx.xx:389/
       bindmethod=simple
-      binddn="uid=replica,dc=orchid,dc=cluster"
+      binddn="uid=replicauser,dc=orchid,dc=cluster"
       credentials=sync1234
       searchbase="dc=orchid,dc=cluster"
       scope=sub
