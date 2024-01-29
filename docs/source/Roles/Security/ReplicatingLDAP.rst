@@ -4,7 +4,7 @@ Once Omnia has set up an LDAP server for the cluster, external LDAP servers can 
 
 **[Optional]Create a replication user**
 
-1. Create an LDIF file (eg: ``replication_user.ldif``) containing the following information:
+1. Create an LDIF file (eg: ``replication_user.ldif``) on the external LDAP server (source) containing the following information:
 
     * DN: The distinguished name that indicates where the user will be created.
     * objectClass: The object class specifies the mandatory and optional attributes that can be associated with an entry of that class. Here, the values are ``simpleSecurityObject``, ``account``, and ``shadowAccount``.
@@ -26,7 +26,7 @@ Below is a sample file: ::
 
 **Initiate the replication**
 
-1. Create an LDIF file (eg: ``Replication.ldif``) containing the following information:
+1. Create an LDIF file (eg: ``Replication.ldif``) on the auth server on the cluster (destination) containing the following information:
 
     * Provider: The IP address of the source LDAP server. It is routed over the LDAP protocol and via port 389.
     * binddn: The distinguished name of the dedicated replication user or admin user being used to authenticate the replication.
