@@ -13,6 +13,11 @@
 #  limitations under the License.
 ---
 
+- name: Invalid inventory format
+  ansible.builtin.fail:
+    msg: "{{ invalid_inventory_fail_msg }}"
+  when: groups['manager'] is not defined or groups['compute'] is not defined
+
 - name: Manager group to contain exactly 1 node
   ansible.builtin.assert:
     that: "groups['manager'] | length | int == 1"

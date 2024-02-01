@@ -13,13 +13,15 @@
 # limitations under the License.
 ---
 
-
-- name: Validate the cluster
+- name: Validate scheduler input parameters
   hosts: localhost
   connection: local
   gather_facts: false
-  roles:
-    - cluster_validation
+  tasks:
+    - name: Validate scheduler input parameters
+      ansible.builtin.include_role:
+        name: cluster_validation
+        tasks_from: validation_status_check.yml
 
 - name: Gather facts from all the nodes
   hosts: manager, compute, login
@@ -31,7 +33,7 @@
     - repo_validation
 
 - name: Apply common installation and config
-  hosts: manager, compute, login, nfs
+  hosts: manager, compute, login
   gather_facts: false
   any_errors_fatal: true
   roles:

@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,12 +13,23 @@
 # limitations under the License.
 ---
 
-- name: Telemetry and visualization
+- name: Validate telemetry input parameters
+  hosts: localhost
+  any_errors_fatal: true
+  tasks:
+    - name: Validate telemetry input parameters
+      ansible.builtin.include_role:
+        name: telemetry_validation
+        tasks_from: validation_status_check.yml
+
+- name: Telemetry for omnia
   hosts: localhost
   connection: local
   gather_facts: true
   roles:
-    - common
+    - orchestrator
+    - grafana
+    - loki
     - timescaledb
     - idrac_telemetry
     - grafana_config
@@ -50,3 +61,17 @@
   roles:
     - slurm_telemetry
   tags: slurm_telemetry
+
+- name: Prepare CP for Telemetry
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - omnia_telemetry_prepare_cp
+  tags: omnia_telemetry
+
+- name: Install Omnia Telemetry
+  hosts: manager, compute, login
+  gather_facts: false
+  roles:
+    - omnia_telemetry_acquisition
+  tags: omnia_telemetry

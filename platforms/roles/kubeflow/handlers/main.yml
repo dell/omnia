@@ -1,0 +1,12 @@
+---
+- name: Load kernel modules
+  command: /sbin/modprobe {{ item }}
+  with_items:
+    - br_netfilter
+    - nf_nat
+    - xt_REDIRECT
+    - xt_owner
+    - iptable_nat
+    - iptable_mangle
+    - iptable_filter
+  when: inventory_hostname in groups["compute"]

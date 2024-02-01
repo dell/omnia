@@ -1,0 +1,24 @@
+---
+# Install kfctl cli on target server
+- name: Install Kustomize
+  ansible.builtin.get_url:
+    url: "{{ kustomize_url }}"
+    dest: "/tmp/kustomize_v5.0.0_linux_arm64.tar.gz"
+    mode: "0644"
+  when: inventory_hostname in groups["manager"]
+
+- name: Extract kustomize
+  ansible.builtin.unarchive:
+    src: "/tmp/kustomize_v5.0.0_linux_arm64.tar.gz"
+    dest: "/usr/local/bin"
+    remote_src: true
+    creates: "/usr/local/bin/kustomize"
+    mode: '0755'
+  when: inventory_hostname in groups["manager"]
+
+- name: Make kustomize executable
+  file:
+    path: "/usr/local/bin/kustomize"
+    state: file
+    mode: "0775"
+  when: inventory_hostname in groups["manager"]

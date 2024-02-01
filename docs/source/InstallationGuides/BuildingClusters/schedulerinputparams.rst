@@ -1,84 +1,34 @@
 Input parameters for the cluster
 -------------------------------------
 
-These parameters are located in ``input/omnia_config.yml``, ``input/security_config.yml`` and [optional] ``input/storage_config.yml``.
+These parameters are located in ``input/omnia_config.yml``, ``input/security_config.yml``, ``input/telemetry_config.yml`` and [optional] ``input/storage_config.yml``.
 
 .. caution:: Do not remove or comment any lines in the ``input/omnia_config.yml``, ``input/security_config.yml`` and [optional] ``input/storage_config.yml`` file.
 
 **omnia_config.yml**
 
-.. csv-table:: Parameters
-   :file: ../../Tables/scheduler.csv
+.. csv-table:: Parameters for kubernetes
+   :file: ../../Tables/scheduler_k8s.csv
+   :header-rows: 1
+   :keepspace:
+
+.. csv-table:: Parameters for slurm setup
+   :file: ../../Tables/scheduler_slurm.csv
    :header-rows: 1
    :keepspace:
 
 **security_config.yml**
 
+.. csv-table:: Parameters for FreeIPA
+   :file: ../../Tables/security_config_freeipa.csv
+   :header-rows: 1
+   :keepspace:
 
-+----------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Parameter                  | Details                                                                                                                                                                                                                                                         |
-+============================+=================================================================================================================================================================================================================================================================+
-| freeipa_required           | Boolean indicating whether FreeIPA is required or not.                                                                                                                                                                                                          |
-|      ``boolean``           |                                                                                                                                                                                                                                                                 |
-|      Optional              |      Choices:                                                                                                                                                                                                                                                   |
-|                            |                                                                                                                                                                                                                                                                 |
-|                            |      * ``true`` <- Default                                                                                                                                                                                                                                      |
-|                            |      * ``false``                                                                                                                                                                                                                                                |
-+----------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| realm_name                 | Sets the intended realm name.                                                                                                                                                                                                                                   |
-|      ``string``            |                                                                                                                                                                                                                                                                 |
-|      Optional              |      **Default values**: ``OMNIA.TEST``                                                                                                                                                                                                                         |
-+----------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| directory_manager_password | Password authenticating admin level access to the Directory for system   management tasks. It will be added to the instance of directory server   created for IPA.Required Length: 8 characters. The password must not contain   -,, ‘,”                        |
-|      ``string``            |                                                                                                                                                                                                                                                                 |
-|      Optional              |                                                                                                                                                                                                                                                                 |
-+----------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| kerberos_admin_password    | “admin” user password for the IPA server on RockyOS.                                                                                                                                                                                                            |
-|      ``string``            |                                                                                                                                                                                                                                                                 |
-|      Optional              |                                                                                                                                                                                                                                                                 |
-+----------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| ldap_required              | Boolean indicating whether ldap client is required or not.                                                                                                                                                                                                      |
-|      ``boolean``           |                                                                                                                                                                                                                                                                 |
-|      Optional              |      Choices:                                                                                                                                                                                                                                                   |
-|                            |                                                                                                                                                                                                                                                                 |
-|                            |      * ``false`` <- Default                                                                                                                                                                                                                                     |
-|                            |      * ``true``                                                                                                                                                                                                                                                 |
-+----------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| domain_name                | Sets the intended domain name.                                                                                                                                                                                                                                  |
-|      ``string``            |                                                                                                                                                                                                                                                                 |
-|      Optional              |      **Default values**: ``omnia.test``                                                                                                                                                                                                                         |
-+----------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| ldap_server_ip             | LDAP server IP. Required if ``ldap_required`` is true. There should be an   explicit LDAP server running on this IP.                                                                                                                                            |
-|      ``string``            |                                                                                                                                                                                                                                                                 |
-|      Optional              |                                                                                                                                                                                                                                                                 |
-+----------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| ldap_connection_type       | For a TLS connection, provide a valid certification path. For an SSL   connection, ensure port 636 is open.                                                                                                                                                     |
-|      ``string``            |                                                                                                                                                                                                                                                                 |
-|      Optional              |      **Default values**: ``TLS``                                                                                                                                                                                                                                |
-+----------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| ldap_ca_cert_path          | This variable accepts Server Certificate Path. Make sure certificate is   present in the path provided. The certificate should have .pem or .crt   extension. This variable is mandatory if connection type is TLS.                                             |
-|      ``string``            |                                                                                                                                                                                                                                                                 |
-|      Optional              |      **Default values**: ``/etc/openldap/certs/omnialdap.pem``                                                                                                                                                                                                  |
-+----------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| user_home_dir              |  This variable accepts the user   home directory path for ldap configuration.    If nfs mount is created for user home, make sure you provide the LDAP   users mount home directory path.                                                                       |
-|      ``string``            |                                                                                                                                                                                                                                                                 |
-|      Optional              |      **Default values**: ``/home``                                                                                                                                                                                                                              |
-+----------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| ldap_bind_username         | If LDAP server is configured with bind dn then bind dn user to be   provided. If this value is not provided (when bind is configured in server)   then ldap authentication fails. Omnia does not validate this input. Ensure   that it is valid and proper.     |
-|      ``string``            |                                                                                                                                                                                                                                                                 |
-|      Optional              |      **Default values**: ``admin``                                                                                                                                                                                                                              |
-+----------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| ldap_bind_password         | If LDAP server is configured with bind dn then bind dn password to be   provided. If this value is not provided (when bind is configured in server)   then ldap authentication fails. Omnia does not validate this input. Ensure   that it is valid and proper. |
-|      ``string``            |                                                                                                                                                                                                                                                                 |
-|      Optional              |                                                                                                                                                                                                                                                                 |
-+----------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| enable_secure_login_node   | Boolean value deciding whether security features are enabled on the Login   Node.                                                                                                                                                                               |
-|      ``boolean``           |                                                                                                                                                                                                                                                                 |
-|      Optional              |      Choices:                                                                                                                                                                                                                                                   |
-|                            |                                                                                                                                                                                                                                                                 |
-|                            |      * ``false`` <- Default                                                                                                                                                                                                                                     |
-|                            |      * ``true``                                                                                                                                                                                                                                                 |
-+----------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+.. csv-table:: Parameters for LDAP
+   :file: ../../Tables/security_config_ldap.csv
+   :header-rows: 1
+   :keepspace:
+
 
 **storage_config.yml**
 
@@ -131,7 +81,7 @@ These parameters are located in ``input/omnia_config.yml``, ``input/security_con
 |      Optional                   |                                                                                                                                                                                                                                                      |
 +---------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | beegfs_unmount_client           | Changing this value to true will unmount running instance of BeeGFS   client and should only be used when decommisioning BeeGFS, changing the mount   location or changing the BeeGFS version.                                                       |
-|      ``boolean``                |                                                                                                                                                                                                                                                      |
+|      ``boolean``  [1]_          |                                                                                                                                                                                                                                                      |
 |      Optional                   | Choices:                                                                                                                                                                                                                                             |
 |                                 |                                                                                                                                                                                                                                                      |
 |                                 |      * ``false`` <- Default                                                                                                                                                                                                                          |
@@ -143,7 +93,7 @@ These parameters are located in ``input/omnia_config.yml``, ``input/security_con
 |      Optional                   |      **Default value**: 7.2.6                                                                                                                                                                                                                        |
 +---------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | beegfs_version_change           | Use this variable to change the BeeGFS version on the target nodes.                                                                                                                                                                                  |
-|      ``boolean``                |                                                                                                                                                                                                                                                      |
+|      ``boolean`` [1]_           |                                                                                                                                                                                                                                                      |
 |      Optional                   | Choices:                                                                                                                                                                                                                                             |
 |                                 |                                                                                                                                                                                                                                                      |
 |                                 |      * ``false`` <- Default                                                                                                                                                                                                                          |
@@ -157,16 +107,15 @@ These parameters are located in ``input/omnia_config.yml``, ``input/security_con
 |                                 |      **Default values**: ``/home/connauthfile``                                                                                                                                                                                                      |
 +---------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-Click here for more information on `FreeIPA, LDAP <Authentication.html>`_, `BeeGFS <BeeGFS.html>`_ or, `NFS <NFS.html>`_.
+**telemetry_config.yml**
 
-.. note::
+.. csv-table:: Parameters
+   :file: ../../Tables/telemetry_config.csv
+   :header-rows: 1
+   :keepspace:
 
-    The ``input/omnia_config.yml`` file is encrypted on the first run of the provision tool:
-        To view the encrypted parameters: ::
+.. [1] Boolean parameters do not need to be passed with double or single quotes.
 
-            ansible-vault view omnia_config.yml --vault-password-file .omnia_vault_key
 
-        To edit the encrypted parameters: ::
-
-            ansible-vault edit omnia_config.yml --vault-password-file .omnia_vault_key
+Click here for more information on `FreeIPA, LDAP <Authentication.html>`_, `Telemetry <../../Roles/Telemetry/index.html>`_, `BeeGFS <BeeGFS.html>`_ or, `NFS <NFS.html>`_.
 
