@@ -23,4 +23,5 @@ When all compute nodes have their own public network access, ``primary_dns`` and
 When all compute nodes rely on the control plane for public network access, the variables ``primary_dns`` and ``secondary_dns`` in ``provision_config.yml`` are used to indicate that the control plane is the gateway for all compute nodes to get internet access. Since all public network traffic will be routed through the control plane, the user may have to take precautions to avoid bottlenecks in such a set-up.
 
 
-
+* `mapping <../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/mappingfile.html>`_
+* `snmpwalk <../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/snmp.html>`_
