@@ -16,3 +16,5 @@ Commands to install JupyterHub and Kubeflow: ::
 
 * Run the Kubernetes and Kubeflow playbooks.
 
+.. toctree::
+    InstallJupyterhub
