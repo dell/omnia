@@ -39,6 +39,7 @@ For an Ubuntu server, use these additional steps:
    _ ``/etc/beegfs/beegfs-meta.conf``
 
 6. Start BeeGFS services by running the following commands:
+
     - Manager: ``systemctl start beegfs-mgmtd``
     - Meta: ``systemctl start beegfs-meta``
     - Storage: ``systemctl start beegfs-storage``
