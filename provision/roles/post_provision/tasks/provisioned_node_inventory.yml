@@ -39,13 +39,13 @@
 - name: Fetch BMC IP
   ansible.builtin.shell: >
     set -o pipefail && \
-    racadm get iDRAC.IPv4.Address | grep Address
+    ipmitool lan print 1 | grep -E "IP Address\s+:"
   register: fetch_bmc_ip
   changed_when: false
 
 - name: Set BMC IP
   ansible.builtin.set_fact:
-    bmc_ip: "{{ fetch_bmc_ip.stdout.split('=')[1] }}"
+    bmc_ip: "{{ fetch_bmc_ip.stdout.split(':')[1] }}"
   when: fetch_bmc_ip.stdout is defined
 
 - name: Check IP and service tag already present in node_inventory

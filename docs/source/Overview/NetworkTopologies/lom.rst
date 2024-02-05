@@ -10,7 +10,7 @@ A LOM port could be shared with the host operating system production traffic. Al
 
 **Recommended discovery mechanism**
 
-* `mapping <../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/mapping.html>`_
+* `mapping <../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/mappingfile.html>`_
 * `bmc <../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/bmc.html>`_
 * `switch-based  <../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/switch-based.html>`_
 
