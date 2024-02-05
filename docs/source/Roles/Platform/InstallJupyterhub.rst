@@ -35,11 +35,11 @@ Using Helm charts, Omnia can install Jupyterhub on Kubernetes clusters. Once Jup
 The IP address is listed against ``proxy-public-service``.
 
 3. For the first log in, use the Login Node. Ensure the login node has an OS installed with GUI support. Use any browser to log in with user credentials.
-4. Choose your preferred notebook server option and click on **Start**. A pod will be created for the user. Available server options will depend on the user logging in.
+4. Choose your preferred notebook server option and click **Start**. A pod will be created for the user. Available server options will depend on the user logging in.
 
 **Stopping the Notebook server**
 
 1. Click **File > Hub Control Plane**.
 2. Select **Stop Server**.
 
-**Note:** Stopping the notebook server only terminates the user pod. The users data persists and can be accessed by loggin in and starting the notebook server again.
+.. note:: Stopping the notebook server only terminates the user pod. The users data persists and can be accessed by loggin in and starting the notebook server again.
