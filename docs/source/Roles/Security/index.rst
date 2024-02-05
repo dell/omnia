@@ -152,7 +152,6 @@ Create a new user on OpenLDAP
     * UID: The username of the replication user.
     * sn: The surname of the intended user.
     * cn: The given name of the intended user.
-    *
 
 Below is a sample file: ::
 
