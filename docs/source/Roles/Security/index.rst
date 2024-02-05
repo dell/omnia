@@ -140,8 +140,45 @@ The inventory should contain compute, manager, login as per the inventory file i
     * If a subsequent run of ``security.yml`` fails, the ``security_config.yml`` file will be unencrypted.
 
 
-.. caution:: No users/groups will be created by Omnia.
+.. caution:: No users will be created by Omnia.
+
+Create a new user on OpenLDAP
+-----------------------------
+
+1. Create an LDIF file (eg: ``create_user.ldif``) on the auth server containing the following information:
+
+    * DN: The distinguished name that indicates where the user will be created.
+    * objectClass: The object class specifies the mandatory and optional attributes that can be associated with an entry of that class. Here, the values are ``inetOrgPerson``, ``posixAccount``, and ``shadowAccount``.
+    * UID: The username of the replication user.
+    * sn: The surname of the intended user.
+    * cn: The given name of the intended user.
+    *
+
+Below is a sample file: ::
+
+    dn: uid=testuser1,ou=People,dc=orchid,dc=cluster
+    objectClass: inetOrgPerson
+    objectClass: posixAccount
+    objectClass: shadowAccount
+    cn: testuser1
+    sn: testuser1
+    loginShell: /bin/bash
+    uidNumber: 2000
+    gidNumber: 2000
+    homeDirectory: /home/testuser1
+    shadowLastChange: 0
+    shadowMax: 0
+    shadowWarning: 0
+
+    dn: cn=testuser1,ou=Group,dc=orchid,dc=cluster
+    objectClass: posixGroup
+    cn: testuser1
+    gidNumber: 2000
+    memberUid: testuser1
+
+2. Run the command ``ldapadd -D <enter admin binddn > -w < bind_password > -f create_user.ldif`` to execute the LDIF file and create the account.
+3. To set up a password for this account, use the command ``ldappasswd -D <enter admin binddn > -w < bind_password > -S <user_dn>``. The value of ``user_dn`` is the distinguished name that indicates where the user was created. (In this example, ``testuser1,ou=People,dc=orchid,dc=cluster``)
+
 
 .. toctree::
-
     ReplicatingLDAP
