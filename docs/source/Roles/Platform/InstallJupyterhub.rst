@@ -30,9 +30,14 @@ Using Helm charts, Omnia can install Jupyterhub on Kubernetes clusters. Once Jup
 1. Verify that the Jupyterhub service is running using metallb loadbalancer.
 2. Find the IP address of the Jupyterhub service using: ::
 
-        kubectl get svc -n jupyterhub
+        root@omnianode0000x:/usr/local# kubectl get svc -A
+        NAMESPACE     NAME           TYPE           CLUSTER-IP      EXTERNAL-IP   PORT(S)                  AGE
+        default       kubernetes     ClusterIP      xx.xx.xx.xx      <none>        443/TCP                  2d2h
+        jupyterhub    hub            ClusterIP      xx.xx.xx.xx      <none>        8081/TCP                 2d2h
+        jupyterhub    proxy-api      ClusterIP      xx.xx.xx.xx      <none>        8001/TCP                 2d2h
+        jupyterhub    proxy-public   LoadBalancer   xx.xx.xx.xx   xx.xx.xx.xx    80:31134/TCP               2d2h
 
-The IP address is listed against ``proxy-public-service``.
+The IP address is listed against ``proxy-public``.
 
 3. For the first log in, use the Login Node. Ensure the login node has an OS installed with GUI support. Use any browser to log in with user credentials.
 
