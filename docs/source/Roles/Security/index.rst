@@ -155,6 +155,7 @@ Create a new user on OpenLDAP
 
 Below is a sample file: ::
 
+    # User Creation
     dn: uid=testuser1,ou=People,dc=orchid,dc=cluster
     objectClass: inetOrgPerson
     objectClass: posixAccount
@@ -169,6 +170,7 @@ Below is a sample file: ::
     shadowMax: 0
     shadowWarning: 0
 
+    # Group Creation
     dn: cn=testuser1,ou=Group,dc=orchid,dc=cluster
     objectClass: posixGroup
     cn: testuser1
