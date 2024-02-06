@@ -42,6 +42,27 @@ The default namespace is for deployment is ``vLLM``.
 
    python3.9 -c "import vllm; print(vllm.__version__)"
 
-2. Use the package within a python script as demonstrated: ::
+2. Use the package within a python script as demonstrated in the sample below: ::
+
+            from vllm import LLM, SamplingParams
+
+            prompts = [
+                "Hello, my name is",
+                "The president of the United States is",
+                "The capital of France is",
+                "The future of AI is",
+            ]
+
+            sampling_params = SamplingParams(temperature=0.8, top_p=0.95)
+            llm = LLM(model="mistralai/Mistral-7B-v0.1")
+
+            outputs = llm.generate(prompts, sampling_params)
+
+            # Print the outputs.
+            for output in outputs:
+                prompt = output.prompt
+                generated_text = output.outputs[0].text
+                print(f"Prompt: {prompt!r}, Generated text: {generated_text!r}")
+            has context menu
 
 3. To enable an endpoint, `click here <https://docs.vllm.ai/en/latest/getting_started/quickstart.html>`_.
