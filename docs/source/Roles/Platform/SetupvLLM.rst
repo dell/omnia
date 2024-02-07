@@ -7,7 +7,6 @@ Using ansible playbooks, Omnia can install vLLM on the kube_node, and the kube_c
 * Ensure the kube_node, kube_control_node is setup and working. If NVidia or AMD GPU acceleration is required for the task, install the NVidia (CUDA 12.1) or AMD (RocM 5.7) GPU drivers during provisioning.
 * Ensure the system has enough available space (Over 55GiB).
 * Ensure the passed inventory file has a kube_control_plane listing all cluster nodes.
-* Review the ``omnia/tools/vllm_config.yml`` file to ensure the deployment meets your requirements. If not, modify the file.
 * Update the ``omnia/input/software_config.json`` file with the correct vLLM version required. The default value is ``vllm-v0.2.4`` for AMD container and ``vllm latest`` for NVidia.
 * Omnia deploys the vLLM pip installation for NVidia GPU, or ``embeddedllminfo/vllm-rocm:vllm-v0.2.4`` container image for AMD GPU. To use a custom image, modify the ``omnia/tools/roles/vllm_config.yml`` file. While updating the custom image, ensure all additional pre-requisites are met.
 * Nerdctl does not support mounting directories as devices because it is not a feature of containerd (The runtime that nerdctl uses). Individual files need to be attached while running nerdctl.
