@@ -156,29 +156,29 @@ Create a new user on OpenLDAP
 Below is a sample file: ::
 
     # User Creation
-    dn: uid=testuser1,ou=People,dc=orchid,dc=cluster
+    dn: uid=ldapuser,ou=People,dc=orchid,dc=cluster
     objectClass: inetOrgPerson
     objectClass: posixAccount
     objectClass: shadowAccount
-    cn: testuser1
-    sn: testuser1
+    cn: ldapuser
+    sn: ldapuser
     loginShell: /bin/bash
     uidNumber: 2000
     gidNumber: 2000
-    homeDirectory: /home/testuser1
+    homeDirectory: /home/ldapuser
     shadowLastChange: 0
     shadowMax: 0
     shadowWarning: 0
 
     # Group Creation
-    dn: cn=testuser1,ou=Group,dc=orchid,dc=cluster
+    dn: cn=ldapuser,ou=Group,dc=orchid,dc=cluster
     objectClass: posixGroup
-    cn: testuser1
+    cn: ldapuser
     gidNumber: 2000
-    memberUid: testuser1
+    memberUid: ldapuser
 
 2. Run the command ``ldapadd -D <enter admin binddn > -w < bind_password > -f create_user.ldif`` to execute the LDIF file and create the account.
-3. To set up a password for this account, use the command ``ldappasswd -D <enter admin binddn > -w < bind_password > -S <user_dn>``. The value of ``user_dn`` is the distinguished name that indicates where the user was created. (In this example, ``testuser1,ou=People,dc=orchid,dc=cluster``)
+3. To set up a password for this account, use the command ``ldappasswd -D <enter admin binddn > -w < bind_password > -S <user_dn>``. The value of ``user_dn`` is the distinguished name that indicates where the user was created. (In this example, ``ldapuser,ou=People,dc=orchid,dc=cluster``)
 
 
 .. toctree::
