@@ -40,7 +40,7 @@ The default namespace is for deployment is ``vLLM``.
 
 1. Verify that the vLLM package is installed: ::
 
-   python3.9 -c "import vllm; print(vllm.__version__)"
+        python3.9 -c "import vllm; print(vllm.__version__)"
 
 2. Use the package within a python script as demonstrated in the sample below: ::
 
