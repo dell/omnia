@@ -18,3 +18,4 @@ Commands to install JupyterHub and Kubeflow: ::
 
 .. toctree::
     InstallJupyterhub
+    SetupvLLM

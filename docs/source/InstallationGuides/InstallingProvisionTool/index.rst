@@ -22,5 +22,4 @@ This playbook achieves the following tasks:
     installprovisiontool
     ViewingDB
     provisionservers
-    SetupvLLM
 

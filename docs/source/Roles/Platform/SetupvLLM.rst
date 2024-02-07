@@ -8,9 +8,9 @@ Using ansible playbooks, Omnia can install vLLM on the kube_node, and the kube_c
 * Ensure the system has enough available space (Over 55GiB).
 * Ensure the passed inventory file has a kube_control_plane listing all cluster nodes.
 * Review the ``omnia/tools/vllm_config.yml`` file to ensure the deployment meets your requirements. If not, modify the file.
-* Update the ``omnia/input/software_config.json`` file with the correct vllm version required. The default value is vllm-v0.2.4 for AMD container and vllm latest for NVidia.
-* Omnia deploys the vLLM pip installation for NVidia GPU, or embeddedllminfo/vllm-rocm:vllm-v0.2.4 container image for AMD GPU. To use a custom image, modify the ``omnia/tools/roles/vllm_config.yml`` file. While updating the custom image, ensure all additional pre-requisites are met.
-* Nerdctl does not support mounting directories as devices because it is not a feature of containerd (The runtime that nerdctl uses). Individual files need to be attached while running nerdctl.NVidia
+* Update the ``omnia/input/software_config.json`` file with the correct vLLM version required. The default value is ``vllm-v0.2.4`` for AMD container and ``vllm latest`` for NVidia.
+* Omnia deploys the vLLM pip installation for NVidia GPU, or ``embeddedllminfo/vllm-rocm:vllm-v0.2.4`` container image for AMD GPU. To use a custom image, modify the ``omnia/tools/roles/vllm_config.yml`` file. While updating the custom image, ensure all additional pre-requisites are met.
+* Nerdctl does not support mounting directories as devices because it is not a feature of containerd (The runtime that nerdctl uses). Individual files need to be attached while running nerdctl.
 
 **Deploying vLLM**
 
@@ -63,6 +63,5 @@ The default namespace is for deployment is ``vLLM``.
                 prompt = output.prompt
                 generated_text = output.outputs[0].text
                 print(f"Prompt: {prompt!r}, Generated text: {generated_text!r}")
-            has context menu
 
 3. To enable an endpoint, `click here <https://docs.vllm.ai/en/latest/getting_started/quickstart.html>`_.
