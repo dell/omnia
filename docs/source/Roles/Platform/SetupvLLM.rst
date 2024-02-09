@@ -1,12 +1,16 @@
 Setup vLLM
 -----------
-Using ansible playbooks, Omnia can install vLLM on the kube_node, and the kube_control_node. Once vLLM is deployed, log into the UI to create your own notebook servers. For more information, `click here <https://docs.vllm.ai/en/latest/getting_started/installation.html>`_.
+vLLM 0.2.4 onwards supports model inferencing and serving on AMD GPUs with ROCm. At the moment AWQ quantization is not supported in ROCm, but SqueezeLLM quantization has been ported. Data types currently supported in ROCm are FP16 and BF16.
+
+For NVidia, vLLM is a Python library that also contains pre-compiled C++ and CUDA (12.1) binaries.
+
+With an Ansible script, user can deploy vLLM on both kube_node and kube_control_node. After the deployment of vLLM, users gain access to the vllm container (AMD GPU) and can import the vLLM Python package (NVIDIA GPU). For more information, `click here <https://docs.vllm.ai/en/latest/getting_started/installation.html>`_
 
 **Pre requisites**
 
 * Ensure the kube_node, kube_control_node is setup and working. If NVidia or AMD GPU acceleration is required for the task, install the NVidia (CUDA 12.1) or AMD (RocM 5.7) GPU drivers during provisioning.
-* Ensure the system has enough available space (Over 55GiB).
-* Ensure the passed inventory file has a kube_control_plane listing all cluster nodes.
+* Ensure the system has enough available space (Over 55GiB is required for the vLLM image. Any additional scripting will take disk capacity outside the image.)
+* Ensure the passed inventory file has a kube_control_plane and kube_node_group listing all cluster nodes.
 * Update the ``omnia/input/software_config.json`` file with the correct vLLM version required. The default value is ``vllm-v0.2.4`` for AMD container and ``vllm latest`` for NVidia.
 * Omnia deploys the vLLM pip installation for NVidia GPU, or ``embeddedllminfo/vllm-rocm:vllm-v0.2.4`` container image for AMD GPU.
 * For nodes using AMD, ensure nerdctl is available.
