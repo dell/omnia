@@ -22,6 +22,7 @@ Configuring the cluster
     schedulerprereqs
     installscheduler
     Authentication
+    KubernetesAccess
     BeeGFS
     NFS
     OneAPI
