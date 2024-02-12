@@ -15,7 +15,7 @@ Optional","* The code ready builder URL required for downloading packages to a R
 * This value is required on RHEL clusters.
 * 'url' defines the baseurl for the repository.
 * 'gpgkey' defines gpgkey for the repository. If 'gpgkey' is omitted then gpgcheck=0 is set for that repository.
-* **Sample value**: ``- {url: ""http://crb.com/CRB/x86_64/os/"",gpgkey: ""http://crb.com/CRB/x86_64/os/RPM-GPG-KEY""}``"
+* **Sample value**: - {url: ""http://crb.com/CRB/x86_64/os/"",gpgkey: ""http://crb.com/CRB/x86_64/os/RPM-GPG-KEY""}"
 "**user_registry**
 
 ``JSON List``
@@ -37,7 +37,7 @@ Optional","* URL to a list of repositories to be configured for Ubuntu clusters.
 * When the value of ``repo_config`` in ``input/local_repo_config.yml`` is set to ``always``, the given ``os_repo_url`` will be mirrored on the control plane.
 * When the value of ``repo_config`` in ``input/local_repo_config.yml`` is set to ``partial`` or ``never``, the given ``os_repo_url`` is configured via proxy on the compute nodes.
 
-* **Sample value**: ``http://in.archive.ubuntu.com/ubuntu``"
+* **Sample value**: http://in.archive.ubuntu.com/ubuntu"
 "**omnia_registry**
 
 ``string``
