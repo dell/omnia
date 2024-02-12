@@ -27,7 +27,8 @@ Optional","* Lists external user configured mirror registries.
 * **Sample value**: ::
 	
 	 - { host: 10.11.0.100:5001, cert_path: ""/home/ca.crt"" }
-	 - { host: registryhostname.registry.test, cert_path: """" }"
+	 - { host: registryhostname.registry.test, cert_path: """" }
+	 "
 "**os_repo_url**
 
 ``string``
@@ -49,12 +50,14 @@ Mandatory","* A list of registries from where images will be downloaded for Omni
 
 	- ""registry.k8s.io""
 	- ""quay.io""
-	- ""docker.io"""
+	- ""docker.io""
+
+	"
 "**omnia_repo_url_rhel**
 
 ``JSON List``
 
-Mandatory","* A list of all the repo urls from where rpms will be downloaded for Omnia features.
+Required","* A list of all the repo urls from where rpms will be downloaded for Omnia features.
 * 'url' defines the baseurl for the repository.
 * 'gpgkey' defines gpgkey for the repository. If 'gpgkey' is omitted, then gpgcheck=0 is set for that repository
 * This value is not validated by Omnia. Any errors can cause Omnia to fail.
@@ -69,4 +72,6 @@ Mandatory","* A list of all the repo urls from where rpms will be downloaded for
 	- { url: ""https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64"", gpgkey: ""https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64/D42D0685.pub"" }
 	- { url: ""https://yum.repos.intel.com/oneapi"", gpgkey: ""https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB"" }
 	- { url: ""https://ltb-project.org/rpm/openldap25/$releasever/$basearch"", gpgkey: """"}
+
+
 "
