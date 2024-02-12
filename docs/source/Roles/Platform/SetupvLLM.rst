@@ -4,22 +4,22 @@ vLLM 0.2.4 onwards supports model inferencing and serving on AMD GPUs with ROCm.
 
 For NVidia, vLLM is a Python library that also contains pre-compiled C++ and CUDA (12.1) binaries.
 
-With an Ansible script, user can deploy vLLM on both kube_node and kube_control_node. After the deployment of vLLM, users gain access to the vllm container (AMD GPU) and can import the vLLM Python package (NVIDIA GPU). For more information, `click here <https://docs.vllm.ai/en/latest/getting_started/installation.html>`_
+With an Ansible script, deploy vLLM on both the kube_node and kube_control_node. After the deployment of vLLM, access the vllm container (AMD GPU) and import the vLLM Python package (NVIDIA GPU). For more information, `click here <https://docs.vllm.ai/en/latest/getting_started/installation.html>`_
 
 **Pre requisites**
 
 * Only AMD GPUs from the MI200s (gfx90a) are supported.
 * For nodes using AMD, ensure nerdctl is available.
 * For nodes using NVidia, ensure that the GPU has a compute capacity that is higher than 7 (Eg: V100, T4, RTX20xx, A100, L4, H100, etc).
-* Ensure the kube_node, kube_control_node is setup and working. If NVidia or AMD GPU acceleration is required for the task, install the NVidia (CUDA 12.1) or AMD (RocM 5.7) GPU drivers during provisioning.
+* Ensure the kube_node, kube_control_node is setup and working. If NVidia or AMD GPU acceleration is required for the task, install the NVidia (CUDA 12.1) or AMD (RocM 5.7.0) GPU drivers during provisioning.
 
     **[Optional]**
 
-    * Ensure the system has enough available space. (Over 55GiB is required for the vLLM image. Any additional scripting will take disk capacity outside the image.)
+    * Ensure the system has enough available space. (Approximately 100GiB is required for the vLLM image. Any additional scripting will take disk capacity outside the image.)
 
     * Ensure the passed inventory file has a kube_control_plane and kube_node_group listing all cluster nodes.
 
-    * Update the ``omnia/input/software_config.json`` file with the correct vLLM version required. The default value is ``vllm-v0.2.4`` for AMD container and ``vllm latest`` for NVidia.
+    * Update the ``/input/software_config.json`` file with the correct vLLM version required. The default value is ``vllm-v0.2.4`` for AMD container and ``vllm latest`` for NVidia.
 
     * Omnia deploys the vLLM pip installation for NVidia GPU, or ``embeddedllminfo/vllm-rocm:vllm-v0.2.4`` container image for AMD GPU.
 
