@@ -5,11 +5,10 @@ The local repository feature will help create offline repositories on control pl
 
 1. Enter the required values in the ``input/software_config.json`` file:
 
-    * ``cluster_os_type``: The operating system provisioned on the cluster. Accepted values are ``rhel``, and ``ubuntu``.
-    * ``cluster_os_version``: The version of the operating system provisioned on the cluster.
-    * ``repo_config``: This variable specifies how many of the listed software are to be downloaded offline (versus configured as online repositories). Possible values include ``always`` (all images and RPMs will be downloaded and configured), ``partial`` (all images specified under ``input/local_repo_config.yml/user_registry`` are omitted), and ``never`` (No images or RPMs are configured locally).
-    .. note:: This variable configures how many RPMs and images are configured as offline repositories or online subscriptions. All other repository types like tarballs etc. will be downloaded and maintained offline by default.
-    * ``softwares``: A JSON list of required software and (optionally) the software revision.
+    .. csv-table:: Parameters for Software Configuration
+       :file: ../../Tables/software_config.csv
+       :header-rows: 1
+       :keepspace:
 
 Below is a sample version of the file: ::
 
@@ -49,7 +48,7 @@ Below is a sample version of the file: ::
        :header-rows: 1
        :keepspace:
 
-``local_repo.yml`` is internally called when ``provision.yml`` is executed.
+
 Alternatively, run the following commands: ::
 
     cd local_repo

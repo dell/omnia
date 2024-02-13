@@ -25,10 +25,9 @@ Optional","* Lists external user configured mirror registries.
 * 'host' defines the host for registry along with port where registry will be accessible.
 * 'cert_path' defines the absolution path location for certificates for respective registry. If 'cert_path' value is omitted, an insecure registry will be configured.
 * **Sample value**: ::
-	
-	 - { host: 10.11.0.100:5001, cert_path: ""/home/ca.crt"" }
-	 - { host: registryhostname.registry.test, cert_path: """" }
-	 "
+	  - { host: 10.11.0.100:5001, cert_path: ""/home/ca.crt"" }
+	  - { host: registryhostname.registry.test, cert_path: """" }
+"
 "**os_repo_url**
 
 ``string``
@@ -47,11 +46,9 @@ Mandatory","* A list of registries from where images will be downloaded for Omni
 * This value is not validated by Omnia. Any errors can cause Omnia to fail.
 
 **Default value**: ::
-
-	- ""registry.k8s.io""
-	- ""quay.io""
-	- ""docker.io""
-
+     - ""registry.k8s.io""
+	 - ""quay.io""
+	 - ""docker.io""
 	"
 "**omnia_repo_url_rhel**
 
@@ -63,15 +60,13 @@ Required","* A list of all the repo urls from where rpms will be downloaded for 
 * This value is not validated by Omnia. Any errors can cause Omnia to fail.
 
 **Default value**: ::
-
-	- { url: ""https://download.docker.com/linux/centos/$releasever/$basearch/stable"", gpgkey: ""https://download.docker.com/linux/centos/gpg"" }
-	- { url: ""https://repo.radeon.com/rocm/rhel8/{{ rocm_version }}/main"", gpgkey: ""https://repo.radeon.com/rocm/rocm.gpg.key"" }
-	- { url: ""https://download.fedoraproject.org/pub/epel/8/Everything/$basearch"", gpgkey: ""https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-8"" }
-	- { url: ""https://repo.radeon.com/amdgpu/{{ amdgpu_version }}/rhel/{{ cluster_os_version }}/main/x86_64"", gpgkey: ""https://repo.radeon.com/rocm/rocm.gpg.key"" }
-	- { url: ""https://www.beegfs.io/release/beegfs_{{beegfs_version}}/dists/rhel8"", gpgkey: ""https://www.beegfs.io/release/beegfs_{{beegfs_version}}/gpg/GPG-KEY-beegfs"" }
-	- { url: ""https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64"", gpgkey: ""https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64/D42D0685.pub"" }
-	- { url: ""https://yum.repos.intel.com/oneapi"", gpgkey: ""https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB"" }
-	- { url: ""https://ltb-project.org/rpm/openldap25/$releasever/$basearch"", gpgkey: """"}
-
+       - { url: ""https://download.docker.com/linux/centos/$releasever/$basearch/stable"", gpgkey: ""https://download.docker.com/linux/centos/gpg"" }
+	   - { url: ""https://repo.radeon.com/rocm/rhel8/{{ rocm_version }}/main"", gpgkey: ""https://repo.radeon.com/rocm/rocm.gpg.key"" }
+	   - { url: ""https://download.fedoraproject.org/pub/epel/8/Everything/$basearch"", gpgkey: ""https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-8"" }
+	   - { url: ""https://repo.radeon.com/amdgpu/{{ amdgpu_version }}/rhel/{{ cluster_os_version }}/main/x86_64"", gpgkey: ""https://repo.radeon.com/rocm/rocm.gpg.key"" }
+	   - { url: ""https://www.beegfs.io/release/beegfs_{{beegfs_version}}/dists/rhel8"", gpgkey: ""https://www.beegfs.io/release/beegfs_{{beegfs_version}}/gpg/GPG-KEY-beegfs"" }
+	   - { url: ""https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64"", gpgkey: ""https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64/D42D0685.pub"" }
+	   - { url: ""https://yum.repos.intel.com/oneapi"", gpgkey: ""https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB"" }
+	   - { url: ""https://ltb-project.org/rpm/openldap25/$releasever/$basearch"", gpgkey: """"}
 
 "
