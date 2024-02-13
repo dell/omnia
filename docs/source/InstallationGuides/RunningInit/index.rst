@@ -6,6 +6,7 @@ Running prereq.sh
     cd omnia
     ./prereq.sh
 
+To install local repositories on the control plane, `click here. <../../Roles/Airgap/index.html>`_
 
 .. note::
     * If SELinux is not disabled, it will be disabled by the script and the user will be prompted to reboot the control plane.
