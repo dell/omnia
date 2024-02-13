@@ -46,6 +46,7 @@ Mandatory","* A list of registries from where images will be downloaded for Omni
 * This value is not validated by Omnia. Any errors can cause Omnia to fail.
 
 **Default value**: ::
+
      - ""registry.k8s.io""
 	 - ""quay.io""
 	 - ""docker.io""
@@ -60,6 +61,7 @@ Required","* A list of all the repo urls from where rpms will be downloaded for 
 * This value is not validated by Omnia. Any errors can cause Omnia to fail.
 
 **Default value**: ::
+
        - { url: ""https://download.docker.com/linux/centos/$releasever/$basearch/stable"", gpgkey: ""https://download.docker.com/linux/centos/gpg"" }
 	   - { url: ""https://repo.radeon.com/rocm/rhel8/{{ rocm_version }}/main"", gpgkey: ""https://repo.radeon.com/rocm/rocm.gpg.key"" }
 	   - { url: ""https://download.fedoraproject.org/pub/epel/8/Everything/$basearch"", gpgkey: ""https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-8"" }

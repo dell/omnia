@@ -1,11 +1,11 @@
-﻿Parameter,Details,,
+﻿Parameter,Details
 "**cluster_os_type**
 
 ``string``
 
 Required","* The operating system running on the cluster.
 
-**Accepted values**: rocky, rhel, and **ubuntu**.",,
+**Accepted values**: rocky, rhel, and **ubuntu**."
 "**cluster_os_version**
 
 ``string``
@@ -14,7 +14,7 @@ Mandatory","* The OS Version that will be provisoned on compute nodes.
 * For RHEL, the accepted values are 8.6, 8.7, and 8.8.
 * For Rocky, the accepted values are 8.6, 8.7, and 8.8.
 * For Ubuntu, the accepted values are 20.04, 22.04.
-* **Default value**: 22.04",,
+* **Default value**: 22.04"
 "**repo_config**
 
 ``string``
@@ -25,11 +25,9 @@ Mandatory","* The type of offline configuration user needs.
 * When the value is set to ``never``, no images or RPMs will be configured locally.
 .. note:: All local repositories that are not available as images or RPMs will be configured locally.
 * **Accepted values**: always, **partial**, and never.
-	",,
+	"
 "**softwares**
 
 ``JSON list``
 
-Mandatory",A JSON list of required software and (optionally) the software revision.,,
-,,,
-,,,
+Mandatory",A JSON list of required software and (optionally) the software revision.
