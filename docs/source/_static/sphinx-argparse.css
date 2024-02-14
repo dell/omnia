@@ -2,10 +2,12 @@
     word-wrap: break-word !important;
     overflow-wrap: break-word !important;
     word-break: break-all !important;
+    white-space: normal !important;
 }
 .wy-table-responsive table th {
     background-color: #2980b9;
     color: white;
+    overflow : visible !important;
 }
 .wy-table-responsive {
     display: block;
