@@ -5,7 +5,7 @@
 .wy-table-responsive table th {
     background-color: #2980b9;
     color: white;
-    overflow : visible !important;
+
 }
 .wy-table-responsive {
     display: block;
