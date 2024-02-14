@@ -78,7 +78,7 @@ Below is a sample version of the file: ::
 |                         | * All registries mentioned in ``user_registry`` will be set as mirror for   ``omnia_registry`` items.                                                                                                |
 |      ``string``         | * This value is not validated by Omnia. Any errors can cause Omnia to   fail.                                                                                                                        |
 |                         |                                                                                                                                                                                                      |
-|      Mandatory          | **Default value**: ::                                                                                                                                                                                |
+|       Required          | **Default value**: ::                                                                                                                                                                                |
 |                         |                                                                                                                                                                                                      |
 |                         |          - "registry.k8s.io"                                                                                                                                                                         |
 |                         |      	 - "quay.io"                                                                                                                                                                                 |
@@ -103,7 +103,6 @@ Below is a sample version of the file: ::
 |                         |      	   - { url:   "https://ltb-project.org/rpm/openldap25/$releasever/$basearch",   gpgkey: ""}                                                                                                  |
 |                         |                                                                                                                                                                                                      |
 +-------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-
 Alternatively, run the following commands: ::
 
     cd local_repo
