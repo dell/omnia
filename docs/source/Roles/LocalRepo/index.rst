@@ -9,6 +9,9 @@ The local repository feature will help create offline repositories on control pl
    :file: ../../Tables/software_config.csv
    :header-rows: 1
    :keepspace:
+   :class: longtable
+
+
 
 Below is a sample version of the file: ::
 
@@ -47,7 +50,7 @@ Below is a sample version of the file: ::
    :file: ../../Tables/local_repo_config.csv
    :header-rows: 1
    :keepspace:
-
+   :class: longtable
 
 Alternatively, run the following commands: ::
 
