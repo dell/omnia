@@ -25,6 +25,7 @@ Optional","* Lists external user configured mirror registries.
 * 'host' defines the host for registry along with port where registry will be accessible.
 * 'cert_path' defines the absolution path location for certificates for respective registry. If 'cert_path' value is omitted, an insecure registry will be configured.
 * **Sample value**: ::
+
 	  - { host: 10.11.0.100:5001, cert_path: ""/home/ca.crt"" }
 	  - { host: registryhostname.registry.test, cert_path: """" }
 "
