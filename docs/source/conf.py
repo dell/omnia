@@ -10,14 +10,11 @@
 project = 'Omnia'
 copyright = '2023, Dell Technologies'
 author = 'dell/omnia'
-release = '1.6'
+release = '1.5'
 rst_epilog = "If you have any feedback about Omnia documentation, please reach out at `omnia.readme@dell.com <mailto:omnia.readme@dell.com>`_."
 
 import sys
 import os
-from datetime import datetime
-from sphinxawesome_theme.postprocess import Icons
-
 
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -33,16 +30,7 @@ sys.path.insert(0, os.path.abspath("../"))
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-#extensions = [
-#    "sphinx.ext.mathjax",
-#    "sphinx.ext.viewcode",
-#    "sphinx.ext.napoleon",
-#    "sphinxarg.ext",
-#    "sphinx.ext.autosectionlabel",
-#    "myst_parser",
-#    "sphinxawesome_theme.highlighting",
-#]
-
+extensions = []
 
 html_css_files = ["theme.css"]
 html_js_files = [
@@ -104,7 +92,7 @@ pygments_style = "sphinx"
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = "sphinxawesome_theme"
+html_theme = "sphinx_rtd_theme"
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -188,6 +176,3 @@ htmlhelp_basename = "Omnia"
 
 def setup(app):
     app.add_css_file("sphinx-argparse.css")
-
-
-
