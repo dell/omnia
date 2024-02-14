@@ -157,13 +157,13 @@ Create a new user on OpenLDAP
 Below is a sample file: ::
 
     # User Creation
-    dn: uid=ldapuser,ou=People,dc=orchid,dc=cluster
+    dn: uid=ldapuser,ou=People,dc=omnia,dc=test
     objectClass: inetOrgPerson
     objectClass: posixAccount
     objectClass: shadowAccount
     cn: ldapuser
     sn: ldapuser
-    loginShell: /bin/bash
+    loginShell:/bin/bash
     uidNumber: 2000
     gidNumber: 2000
     homeDirectory: /home/ldapuser
@@ -172,7 +172,7 @@ Below is a sample file: ::
     shadowWarning: 0
 
     # Group Creation
-    dn: cn=ldapuser,ou=Group,dc=orchid,dc=cluster
+    dn: cn=ldapuser,ou=Group,dc=omnia,dc=test
     objectClass: posixGroup
     cn: ldapuser
     gidNumber: 2000
