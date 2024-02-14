@@ -1,5 +1,5 @@
 .wy-table-responsive table td {
-    white-space: normal !important;
+    white-space: pre-line !important;
     word-break: break-all; !important;
 }
 .wy-table-responsive table th {
