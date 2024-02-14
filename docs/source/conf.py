@@ -33,11 +33,16 @@ sys.path.insert(0, os.path.abspath("../"))
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions += [
-   "sphinxawesome.highlighting",
-   # To help you with the upgrade to version 5:
-   # "sphinxawesome.deprecated",
+extensions = [
+    "sphinx.ext.mathjax",
+    "sphinx.ext.viewcode",
+    "sphinx.ext.napoleon",
+    "sphinxarg.ext",
+    "sphinx.ext.autosectionlabel",
+    "myst_parser",
+    "sphinxawesome_theme.highlighting",
 ]
+
 
 html_css_files = ["theme.css"]
 html_js_files = [
