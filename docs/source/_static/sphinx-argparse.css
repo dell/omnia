@@ -1,6 +1,7 @@
 .wy-table-responsive table td {
-    white-space: pre-line !important;
-    word-break: break-all; !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    word-break: break-all !important;
 }
 .wy-table-responsive table th {
     background-color: #2980b9;
