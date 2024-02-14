@@ -21,13 +21,15 @@ Mandatory","* The OS Version that will be provisoned on compute nodes.
 
 Mandatory","* The type of offline configuration user needs. 
 * When the value is set to ``always``, all repositories specified in the ``softwares`` list will be configured.
-* When the value is set to ``partial``, all repositories specified in the ``softwares`` list will be configured except those listed in the ``user_registry`` in ``input/local_repo_config.yml``.
+* When the value is set to ``partial``, all repositories specified in the ``softwares`` list will be configured except those listed in the ``user_registry`` or ``user_repo_url`` in ``input/local_repo_config.yml``.
 * When the value is set to ``never``, no images or RPMs will be configured locally.
 .. note:: All local repositories that are not available as images or RPMs will be configured locally.
-* **Accepted values**: always, **partial**, and never.
+* **Accepted values**: ``always``, ``**partial**``, and never.
 	"
 "**softwares**
 
 ``JSON list``
 
-Mandatory",A JSON list of required software and (optionally) the software revision.
+Mandatory","A JSON list of required software and (optionally) the software revision.
+
+.. note:: The accepted names for software is taken from "

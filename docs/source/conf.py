@@ -15,6 +15,9 @@ rst_epilog = "If you have any feedback about Omnia documentation, please reach o
 
 import sys
 import os
+from datetime import datetime
+from sphinxawesome_theme.postprocess import Icons
+
 
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -92,7 +95,7 @@ pygments_style = "sphinx"
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = "sphinx_rtd_theme"
+html_theme = "sphinxawesome_theme"
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
