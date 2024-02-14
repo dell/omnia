@@ -5,10 +5,10 @@ The local repository feature will help create offline repositories on control pl
 
 1. Enter the required values in the ``input/software_config.json`` file:
 
-    .. csv-table:: Parameters for Software Configuration
-       :file: ../../Tables/software_config.csv
-       :header-rows: 1
-       :keepspace:
+.. csv-table:: Parameters for Software Configuration
+   :file: ../../Tables/software_config.csv
+   :header-rows: 1
+   :keepspace:
 
 Below is a sample version of the file: ::
 
@@ -43,10 +43,10 @@ Below is a sample version of the file: ::
 
 2. Enter the required values in the ``input/local_repo_config.yml`` file:
 
-    .. csv-table:: Parameters for Local Repositories
-       :file: ../../Tables/local_repo_config.csv
-       :header-rows: 1
-       :keepspace:
+.. csv-table:: Parameters for Local Repositories
+   :file: ../../Tables/local_repo_config.csv
+   :header-rows: 1
+   :keepspace:
 
 
 Alternatively, run the following commands: ::
