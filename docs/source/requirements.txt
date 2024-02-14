@@ -1,2 +1,9 @@
-sphinx-tabs
-sphinx-rtd-theme==1.2.2
+sphinx >=3
+sphinxcontrib-napoleon
+sphinx-argparse
+docutils
+myst-parser
+configargparse
+appdirs
+immutables
+sphinxawesome-theme
