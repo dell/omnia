@@ -1,11 +1,10 @@
 Sample Files
 =============
 
-.. caution:: All the file contents mentioned below are case sensitive.
-
 inventory file
 -----------------
 
+.. caution:: All the file contents mentioned below are case sensitive.
 
 ::
 
