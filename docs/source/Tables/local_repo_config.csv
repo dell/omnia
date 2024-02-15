@@ -6,7 +6,7 @@
 Required","* The intended file path for offline repository data.
 * Ensure the disk partition has enough space. 
 
-**Default value**: ""/omnia_repo"""
+**Default value**:  ``""/omnia_repo""``"
 "**user_repo_url**
 
 ``JSON List``

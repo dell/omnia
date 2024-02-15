@@ -97,20 +97,10 @@ To deploy the Omnia provision tool, run the following command ::
 
     To call this playbook individually, ensure that ``input/provision_config.yml`` is updated and then run::
 
+        cd Prepare_cp
         ansible-playbook prepare_cp.yml
 
-**Creating/updating the repositories**
-
-    * Creates and updates all repositories required locally.
-
-    * This playbook also invokes the ``airgap.yml`` playbook for creating offline repositories. For more information on this, `click here <../../Roles/Airgap/index.html>`_.
-
-    * To call this playbook individually, ensure that ``prepare_cp.yml`` has run at least once and then run::
-
-        ansible-playbook repo_manipulate.yml
-
-
-**Discovering/provisioning the nodes**
+**Discovering the nodes**
 
     * Discovers all target servers based on specifications in ``input/provision_config.yml``.
 
@@ -118,13 +108,22 @@ To deploy the Omnia provision tool, run the following command ::
 
     * Configures the control plane with NTP services for cluster  node synchronization.
 
-    * Provisions all discovered servers.
+    * Encrypts the file ``input/provision_config_credentails.yml``.
 
-    To call this playbook individually, ensure that ``repo_manipulate.yml`` has run at least once and then run::
 
+    To call this playbook individually, run::
+
+        cd Discovery
         ansible-playbook discovery_provision.yml
 
+**Provisioning the nodes**
 
+    * The intended operating system and version is provisioned on the nodes.
+
+    To call this playbook individually, run::
+
+        cd Provision
+        ansible-playbook provision.yml
 
 ----
 After successfully running ``provision.yml``, go to `Building Clusters <../BuildingClusters/index.html>`_ to setup Slurm, Kubernetes, NFS, BeeGFS and Authentication.

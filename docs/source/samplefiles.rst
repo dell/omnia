@@ -85,11 +85,9 @@ pxe_mapping_file.csv
 
 ::
 
-    MAC,Hostname,IP
-
-    xx:yy:zz:aa:bb:cc,server,10.5.0.101
-
-    aa:bb:cc:dd:ee:ff,server2, 10.5.0.102
+    SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_IP
+    6XCVT4,n1,xx:yy:zz:aa:bb:cc,10.5.0.101,10.3.0.101
+    V345H5,n2,aa:bb:cc:dd:ee:ff,10.5.0.102,10.3.0.102
 
 .. note::
     * To skip the provisioning of a particular node in the list, simply append a '#' to the beginning of the line pertaining to that node.

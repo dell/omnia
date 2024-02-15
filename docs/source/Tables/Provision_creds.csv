@@ -1,0 +1,52 @@
+﻿Parameter,Details
+"**provision_password**
+
+``string``
+
+Required","* Password set for the root account of target nodes during provisioning.
+* Length >= 8 characters
+* Password must not contain -,\, ',"""
+"**postgresdb_password**
+
+``string``
+
+Required","* Password set for the postgresDB on target nodes during provisioning.
+* Length >= 8 characters
+* Password must not contain -,\, ',"""
+"**bmc_username**
+
+``string``
+
+Required","* The username set on target iDRACs.
+* Username must not contain -,\, ',"""
+"**bmc_password**
+
+``string``
+
+Required","* The password set on target iDRACs.
+* The username must not contain -,\, ',"""
+"**switch_snmp3_username**
+
+``string``
+
+Optional","* Non-admin SNMPv3 credentials of the PXE switch.
+* If multiple switches are provided, ensure the credentials are same across switches.
+* Username must not contain -,\, ',"""
+"**switch_snmp3_password**
+
+``string``
+
+Optional","* Non-admin SNMPv3 credentials of the PXE switch.
+* If multiple switches are provided, ensure the credentials are same across switches.
+* Password must not contain -,\, ',"""
+,
+,
+,
+,
+,
+,
+,
+,
+,
+,
+,
