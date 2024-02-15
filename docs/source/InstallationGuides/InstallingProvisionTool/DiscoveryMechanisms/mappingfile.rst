@@ -17,6 +17,7 @@ Manually collect PXE NIC information for target servers and define them to Omnia
     * The hostnames provided should not contain the domain name of the nodes.
     * All fields mentioned in the mapping file are mandatory.
     * The MAC address provided in ``pxe_mapping_file.csv`` should refer to the PXE NIC on the target nodes.
+    * If the fields ``bmc_static_start_range`` and ``bmc_static_end_range`` are not populated, manually set the nodes to PXE mode and start provisioning. If the fields are populated, Omnia will take care of provisioning automatically.
 
 .. caution::
     * Do not remove or comment any lines in the ``input/provision_config.yml`` file.
