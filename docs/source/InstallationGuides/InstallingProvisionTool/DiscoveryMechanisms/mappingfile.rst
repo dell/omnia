@@ -12,8 +12,10 @@ Manually collect PXE NIC information for target servers and define them to Omnia
     V345H5,n2,aa:bb:cc:dd:ee:ff,10.5.0.102,10.3.0.102
 
 .. note::
-    * All the file contents mentioned above are case sensitive.
-    * The service tags listed in the above file should be exclusively upper-case with no special characters.
+    * The header fields mentioned above are case sensitive.
+    * The service tags provided are not validated. Ensure the correct service tags are provided.
+    * The hostnames provided should not contain the domain name of the nodes.
+    * All fields mentioned in the mapping file are mandatory.
     * The MAC address provided in ``pxe_mapping_file.csv`` should refer to the PXE NIC on the target nodes.
 
 .. caution::

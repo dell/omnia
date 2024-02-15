@@ -5,7 +5,7 @@ NFS bolt on
 
 * Fill out the ``nfs_client_params`` variable in the ``input/storage_config.yml`` file in JSON format using the samples provided below.
 
-* This role runs on manager, compute and login nodes.
+* This role runs on all nodes.
 
 * Make sure that ``/etc/exports`` on the NFS server is populated with the same paths listed as ``server_share_path`` in the ``nfs_client_params`` in ``input/storage_config.yml``.
 

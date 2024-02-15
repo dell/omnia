@@ -80,22 +80,20 @@ Running the provision tool
 To deploy the Omnia provision tool, run the following command ::
 
     cd provision
-    ansible-playbook provision.yml
+    ansible-playbook discovery_provision.yml
 
 
 ``provision.yml`` runs in three stages that can be called individually:
 
 **Preparing the control plane**
 
-    * Verifies pre-requisites such as SELinux and xCAT services status.
     * Installs required tool packages.
     * Verifies and updates firewall settings.
     * Installs xCAT.
-    * Configures xCAT databases basis ``input/provision_config.yml``.
-    * Configures a docker registry to pull images from the internet and store them locally. These images will then be pulled by cluster nodes locally. For more information, `click here. <../Benchmarks/hpcsoftwarestack.html>`_
+    * Configures Omnia databases basis ``input/provision_config.yml``.
 
 
-    To call this playbook individually, ensure that ``input/provision_config.yml`` is updated and then run::
+    To call this playbook individually, ensure that ``input/provision_config.yml`` and ``input/provision_config_credentials.yml`` is updated and then run::
 
         cd Prepare_cp
         ansible-playbook prepare_cp.yml
@@ -108,13 +106,11 @@ To deploy the Omnia provision tool, run the following command ::
 
     * Configures the control plane with NTP services for cluster  node synchronization.
 
-    * Encrypts the file ``input/provision_config_credentails.yml``.
-
 
     To call this playbook individually, run::
 
         cd Discovery
-        ansible-playbook discovery_provision.yml
+        ansible-playbook discovery.yml
 
 **Provisioning the nodes**
 

@@ -1,14 +1,4 @@
 ﻿Parameter,Details
-"**network_interface_type**
-
-``string``
-
-Required","The network type used on the Omnia cluster.
-
-Choices:
-
-* ``dedicated`` <- default
-* ``lom``"
 "**discovery_mechanism**
 
 ``string``
@@ -86,20 +76,6 @@ Required","Language to be used during OS provisioning.
 Required","Default lease time for IPs assigned by DHCP. Range: 21600-86400
 
 **Default values**: ``86400``"
-"**provision_password**
-
-``string``
-
-Required","* Password set for the root account of target nodes during provisioning.
-* Length >= 8 characters
-* Password must not contain -,\, ',"""
-"**postgresdb_password**
-
-``string``
-
-Required","* Password set for the postgresDB on target nodes during provisioning.
-* Length >= 8 characters
-* Password must not contain -,\, ',"""
 "**node_name**
 
 ``string``
@@ -253,3 +229,12 @@ Optional","Absolute path to local copy of .rpm file containing CUDA packages. Th
 Required","* Indicates whether apptainer will be installed on the cluster to enable execution of HPC benchmarks in a containeraized environment.
 * If ``apptainer_support``: false, apptainer will not be installed on the cluster.
 * If ``apptainer_support``: true, apptainer will be installed on the cluster."
+"**admin_static_start_range**
+
+``string``
+
+Required","**admin_static_start_range**
+
+``string``
+
+Required"

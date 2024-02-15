@@ -9,10 +9,7 @@ Building clusters
 
 2. Create an inventory file in the *omnia* folder. Check out the `sample inventory for more information <../../samplefiles.html>`_.
 
-    * *[Manager]* group should contain the manager node IP address. [1]_
-    * *[compute]* group should contain all compute node IP addresses.
-    * *[login]* group should contain the login node IP.
-.. [1] In a multi-node setup, IP's cannot be repeated in the manager or compute groups. That is, don't include the manager node IP address in the compute group. In a single node setup, the compute node and the manager node must be the same.
+.. [1] In a multi-node setup, IP's cannot be repeated in the manager or compute groups. That is, do not include the manager node IP address in the compute group. In a single node setup, the compute node and the manager node must be the same.
 
 .. include:: ../../Appendices/hostnamereqs.rst
 

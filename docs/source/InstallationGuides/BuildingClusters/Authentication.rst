@@ -127,7 +127,7 @@ Where inventory follows the format defined under inventory file in the provided 
 Using LDAP client
 ------------------
 
-To add the cluster to an external LDAP server, Omnia enables the installation of LDAP client on the manager, compute and login nodes.
+To add the cluster to an external LDAP server, Omnia enables the installation of LDAP client on all cluster nodes.
 
 To customize your LDAP client installation, input parameters in ``input/security_config.yml``
 
@@ -232,19 +232,6 @@ To customize your setup of passwordless ssh, input parameters in ``input/passwor
 Use the below command to enable passwordless SSH: ::
 
     ansible-playbook user_passwordless_ssh.yml -i inventory
-
-Where inventory follows the format defined under inventory file. ::
-
-    [manager]
-    10.5.0.101
-
-    [compute]
-    10.5.0.102
-    10.5.0.103
-
-    [ldap_server]
-    10.5.0.105
-
 
 .. caution:: Do not run ssh-keygen commands after passwordless SSH is set up on the nodes.
 
