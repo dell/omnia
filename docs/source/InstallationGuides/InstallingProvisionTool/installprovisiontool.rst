@@ -99,6 +99,7 @@ To deploy the Omnia provision tool, run the following command ::
         * ``compute_gpu_nvidia``
         * ``compute_servicetag_ip``
 
+    .. note:: Service tags will only be written into the inventory files after the nodes are booted post provisioning.
 
     To call this playbook individually, ensure that ``input/provision_config.yml`` and ``input/provision_config_credentials.yml`` are updated and then run::
 
