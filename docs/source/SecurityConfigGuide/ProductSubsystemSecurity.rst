@@ -22,7 +22,7 @@ Omnia can be installed via CLI only. Slurm and Kubernetes are deployed and confi
 
 To perform these configurations and installations, a secure SSH channel is established between the management node and the following entities:
 
-* Manager Node
+* kube_control_plane
 
 * Compute Nodes
 

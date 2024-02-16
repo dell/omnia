@@ -7,8 +7,8 @@ Limitations
 -  Omnia supports adding only 1000 nodes when discovered via BMC.
 -  Removal of Slurm and Kubernetes component roles are not supported.
    However, the scheduler type can be customized by setting ``scheduler_type`` in ``input/omnia_config.yml`` prior to running ``omnia.yml``.
--  After installing the Omnia control plane, changing the manager node
-   is not supported. If you need to change the manager node, you must
+-  After installing the Omnia control plane, changing the kube_control_plane
+   is not supported. If you need to change the kube_control_plane, you must
    redeploy the entire cluster.
 -  Dell Technologies provides support to the Dell-developed modules of
    Omnia. All the other third-party tools deployed by Omnia are outside

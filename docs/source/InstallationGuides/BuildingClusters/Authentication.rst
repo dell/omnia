@@ -62,7 +62,7 @@ Enter the following parameters in ``input/security_config.yml``.
 
     If a subsequent run of ``security.yml`` or ``omnia.yml``, all configuration files that have been encrypted by the playbook will be unencrypted.
 
-Omnia installs a FreeIPA server on the manager node and FreeIPA clients on the cluster  and login node using one of the below commands: ::
+Omnia installs a FreeIPA server on the kube_control_plane and FreeIPA clients on the cluster  and login node using one of the below commands: ::
 
     ansible-playbook security.yml -i inventory
 
@@ -196,7 +196,7 @@ Once user accounts are created, admins can enable passwordless SSH for users to 
 .. note::
     * Ensure that the control plane can reach the designated LDAP server.
     * If ``enable_omnia_nfs`` is true in ``input/omnia_config.yml``, follow the below steps to configure an NFS share on your LDAP server:
-        - From the manager node:
+        - From the kube_control_plane:
             1. Add the LDAP server IP address to ``/etc/exports``.
             2. Run ``exportfs -ra`` to enable the NFS configuration.
         - From the LDAP server:

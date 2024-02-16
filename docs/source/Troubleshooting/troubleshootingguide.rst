@@ -40,7 +40,7 @@ Using telemetry information to diagnose node issues
    :header-rows: 1
    :keepspace:
 
-.. [1] This metric is collected from the manager node if a login node is absent.
+.. [1] This metric is collected from the kube_control_plane if a login node is absent.
 
 .. csv-table:: Health telemetry metrics
    :file: ../Tables/Metrics_Health.csv

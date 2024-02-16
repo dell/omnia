@@ -125,7 +125,7 @@ Re-run the playbook whose execution failed once the issue is resolved.
 **Resolution**:
 
 If ``enable_omnia_nfs`` is true in ``input/omnia_config.yml``, follow the below steps to configure an NFS share on your LDAP server:
-    - From the manager node:
+    - From the kube_control_plane:
         1. Add the LDAP server IP address to ``/etc/exports``.
         2. Run ``exportfs -ra`` to enable the NFS configuration.
     - From the LDAP server:

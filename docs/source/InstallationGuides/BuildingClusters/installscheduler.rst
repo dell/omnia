@@ -5,11 +5,11 @@ Building clusters
 
 .. note::
     * Use the parameter ``scheduler_type`` in ``input/omnia_config.yml`` to customize what schedulers are installed in the cluster.
-    * Without the login node, Slurm jobs can be scheduled only through the manager node.
+    * Without the login node, Slurm jobs can be scheduled only through the kube_control_plane.
 
 2. Create an inventory file in the *omnia* folder. Check out the `sample inventory for more information <../../samplefiles.html>`_.
 
-.. [1] In a multi-node setup, IP's cannot be repeated in the manager or compute groups. That is, do not include the manager node IP address in the compute group. In a single node setup, the compute node and the manager node must be the same.
+.. [1] In a multi-node setup, IP's cannot be repeated in the manager or compute groups. That is, do not include the kube_control_plane IP address in the compute group. In a single node setup, the compute node and the kube_control_plane must be the same.
 
 .. include:: ../../Appendices/hostnamereqs.rst
 

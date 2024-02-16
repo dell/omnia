@@ -47,7 +47,7 @@ Releases
 
 *	Host aliasing for Scheduler and IPA authentication.
 
-*	Login and Manager Node access from both public and private NIC.
+*	Login and kube_control_plane access from both public and private NIC.
 
 *	Validation check enhancements:
 
@@ -197,7 +197,7 @@ Releases
 
 * Omnia can deploy cluster  nodes with a single NIC.
 
-* All Cluster metrics can be viewed using Grafana on the Control plane (as opposed to checking the manager node on each cluster)
+* All Cluster metrics can be viewed using Grafana on the Control plane (as opposed to checking the kube_control_plane on each cluster)
 
 * AWX node inventory now displays service tags with the relevant operating system.
 

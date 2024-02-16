@@ -25,11 +25,11 @@ Omnia does not maintain any order when assigning hostnames to target nodes.
 
 **Resolution**: Ensure a control plane IP is assigned to the admin NIC.
 
-⦾ **Kubernetes pods on the manager node are in CreateContainerConfigError and Calico Pods are in CrashLoopBackoff error after running omnia.yml.**
+⦾ **Kubernetes pods on the kube_control_plane are in CreateContainerConfigError and Calico Pods are in CrashLoopBackoff error after running omnia.yml.**
 
 **Potential Cause:**
 
-Calico pods are configured with the NIC name of the manager node. If the NIC name of the other nodes are not the same, the pods will throw an error and retry later.
+Calico pods are configured with the NIC name of the kube_control_plane. If the NIC name of the other nodes are not the same, the pods will throw an error and retry later.
 
 **Workaround:**
 
@@ -147,7 +147,7 @@ Alternatively, run the task manually: ::
 ⦾ **What to do after a reboot if kubectl commands return: ``The connection to the server head_node_ip:port was refused - did you specify the right host or port?``**
 
 
-On the control plane or the manager node, run the following commands: ::
+On the control plane or the kube_control_plane, run the following commands: ::
 
    swapoff -a
 
@@ -160,11 +160,11 @@ On the control plane or the manager node, run the following commands: ::
 
 Wait for 15 minutes after the Kubernetes cluster reboots. Next, verify the status of the cluster using the following commands:
 
-* ``kubectl get nodes`` on the manager node to get the real-time k8s cluster status.
+* ``kubectl get nodes`` on the kube_control_plane to get the real-time k8s cluster status.
 
-* ``kubectl get pods  all-namespaces`` on the manager node to check which the pods are in the **Running** state.
+* ``kubectl get pods  all-namespaces`` on the kube_control_plane to check which the pods are in the **Running** state.
 
-* ``kubectl cluster-info`` on the manager node to verify that both the k8s master and kubeDNS are in the **Running** state.
+* ``kubectl cluster-info`` on the kube_control_plane to verify that both the k8s master and kubeDNS are in the **Running** state.
 
 
 ⦾ **What to do when the Kubernetes services are not in the  Running  state:**
@@ -225,7 +225,7 @@ As defined in RFC 822, the only legal characters are the following:
 
 **Potential Cause**: Your Docker pull limit has been exceeded. For more information, click [here](https://www.docker.com/increase-rate-limits)
 
-1. Delete Kubeflow deployment by executing the following command in manager node: ``kfctl delete -V -f /root/k8s/omnia-kubeflow/kfctl_k8s_istio.v1.0.2.yaml``
+1. Delete Kubeflow deployment by executing the following command in kube_control_plane: ``kfctl delete -V -f /root/k8s/omnia-kubeflow/kfctl_k8s_istio.v1.0.2.yaml``
 
 2. Re-execute ``kubeflow.yml`` after 8-9 hours
 
@@ -238,7 +238,7 @@ As defined in RFC 822, the only legal characters are the following:
 
 ⦾ **What to do when Slurm services do not start automatically after the cluster reboots:**
 
-* Manually restart the slurmd services on the manager node by running the following commands: ::
+* Manually restart the slurmd services on the kube_control_plane by running the following commands: ::
 
     systemctl restart slurmdbd
     systemctl restart slurmctld
@@ -287,9 +287,9 @@ Recommended Actions:
 
 
 
-    slurmctl restart slurmctld on manager node
+    slurmctl restart slurmctld on kube_control_plane
 
-    systemctl restart slurmdbd on manager node
+    systemctl restart slurmdbd on kube_control_plane
 
     systemctl restart slurmd on compute node
 
@@ -461,7 +461,7 @@ The hostnames of the manager and login nodes are not set in the correct format.
 
 **Resolution**:
 
-If you have enabled the option to install the login node in the cluster, set the hostnames of the nodes in the format: *hostname.domainname*. For example, *manager.omnia.test* is a valid hostname for the login node. **Note**: To find the cause for the failure of the FreeIPA server and client installation, see *ipaserver-install.log* in the manager node or */var/log/ipaclient-install.log* in the login node.
+If you have enabled the option to install the login node in the cluster, set the hostnames of the nodes in the format: *hostname.domainname*. For example, *manager.omnia.test* is a valid hostname for the login node. **Note**: To find the cause for the failure of the FreeIPA server and client installation, see *ipaserver-install.log* in the kube_control_plane or */var/log/ipaclient-install.log* in the login node.
 
 ⦾ **Why does FreeIPA installation fail on the control plane when the public NIC provided is static?**
 
@@ -474,7 +474,7 @@ If you have enabled the option to install the login node in the cluster, set the
 
 **Potential Cause**: Your Docker pull limit has been exceeded. For more information, `click here <https://www.docker.com/increase-rate-limits>`_.
 
-1. Delete Jupyterhub deployment by executing the following command in manager node: ``helm delete jupyterhub -n jupyterhub``
+1. Delete Jupyterhub deployment by executing the following command in kube_control_plane: ``helm delete jupyterhub -n jupyterhub``
 
 2. Re-execute ``jupyterhub.yml`` after 8-9 hours.
 
