@@ -25,6 +25,33 @@ Omnia grants Kubernetes node access to users defined on the kube_control_plane u
     * ``verbs`` are a list of actions that can be taken on the ``resources``. Possible values are ``["create", "get", "list", "update", "delete"]``.
 * The passed inventory should contain a defined ``kube_control_plane``.
 
+::
+
+        [auth_server]
+
+        #node12
+
+        #AI Scheduler: Kubernetes
+
+        [kube_control_plane]
+
+        # node1
+
+
+        [kube_node]
+
+        # node2
+
+        # node3
+
+        # node4
+
+        # node5
+
+        # node6
+
+
+
 To run the playbook, use the below command: ::
 
     ansible-playbook -i  inventory k8s_access.yml
