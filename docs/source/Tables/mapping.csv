@@ -117,6 +117,22 @@ Required","* The subnet within which all Admin IPs are assigned.
 * The value of this variable cannot be changed after successfully running ``provision.yml``.
 
 **Default values**: ``10.5.0.0``"
+"**admin_static_start_range**
+
+``string``
+
+Required","* The start IP of the admin NIC provisioning range.
+* The value of this variable cannot be changed after successfully running ``provision.yml``.
+* Only the last two octects (16 bits) of IPv4 are dynamic.
+**Default values**: ``10.5.0.0``"
+"**admin_static_start_range**
+
+``string``
+
+Required","* The end IP of the admin NIC provisioning range.
+* The value of this variable cannot be changed after successfully running ``provision.yml``.
+* Only the last two octects (16 bits) of IPv4 are dynamic.
+**Default values**: ``10.5.0.0``"
 "**pxe_mapping_file_path**
 
 ``string``
@@ -144,6 +160,22 @@ Required","* If provided, Omnia will assign static IPs to IB NICs on the cluster
 * When the PXE range and BMC subnet are provided, corresponding NICs will be assigned IPs with the same 3rd and 4th octets.
 * The value of this variable cannot be changed after successfully running ``provision.yml``.
 "
+"**bmc_nic_start_range**
+
+``string``
+
+Required","* The start IP of the admin NIC provisioning range.
+* The value of this variable cannot be changed after successfully running ``provision.yml``.
+* Only the last two octects (16 bits) of IPv4 are dynamic.
+**Default values**: ``10.5.0.0``"
+"**bmc_nic_start_range**
+
+``string``
+
+Required","* The end IP of the admin NIC provisioning range.
+* The value of this variable cannot be changed after successfully running ``provision.yml``.
+* Only the last two octects (16 bits) of IPv4 are dynamic.
+**Default values**: ``10.5.0.0``"
 "**update_repos**
 
 ``boolean``  [1]_
@@ -229,12 +261,3 @@ Optional","Absolute path to local copy of .rpm file containing CUDA packages. Th
 Required","* Indicates whether apptainer will be installed on the cluster to enable execution of HPC benchmarks in a containeraized environment.
 * If ``apptainer_support``: false, apptainer will not be installed on the cluster.
 * If ``apptainer_support``: true, apptainer will be installed on the cluster."
-"**admin_static_start_range**
-
-``string``
-
-Required","**admin_static_start_range**
-
-``string``
-
-Required"
