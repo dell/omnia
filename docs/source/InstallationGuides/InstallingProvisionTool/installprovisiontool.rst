@@ -100,7 +100,7 @@ To deploy the Omnia provision tool, run the following command ::
         * ``compute_servicetag_ip``
 
 
-    To call this playbook individually, ensure that ``input/provision_config.yml`` and ``input/provision_config_credentials.yml`` is updated and then run::
+    To call this playbook individually, ensure that ``input/provision_config.yml`` and ``input/provision_config_credentials.yml`` are updated and then run::
 
         cd Prepare_cp
         ansible-playbook prepare_cp.yml
