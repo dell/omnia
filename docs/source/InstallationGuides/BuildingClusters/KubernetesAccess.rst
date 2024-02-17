@@ -6,6 +6,9 @@ Omnia grants Kubernetes node access to users defined on the kube_control_plane u
 **Prerequisites**
 
 * Ensure the Kubernetes cluster is up and running.
+
+**Input parameters**
+
 * Update the variable ``user_name``, in the ``input/k8s_access_config.yml`` file with a comma separated list of users.
 
     +---------------+--------------------------------------------------------------------------------------------+
@@ -23,6 +26,7 @@ Omnia grants Kubernetes node access to users defined on the kube_control_plane u
 
     * ``resources`` are a list of kubernetes objects or entities that are used to define, configure, and manage applications or infrastructure within a Kubernetes cluster. Possible values include ``["pods", "services", "deployments", "jobs"]``.
     * ``verbs`` are a list of actions that can be taken on the ``resources``. Possible values are ``["create", "get", "list", "update", "delete"]``.
+
 * The passed inventory should contain a defined ``kube_control_plane``.
 
 ::
