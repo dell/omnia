@@ -33,7 +33,8 @@ For a list of repositories (and their types) configured for CUDA, view the ``inp
           }
         }
 
-    .. note:: If the target cluster runs on RHEL, ensure the "dkms" package is included in ``input/config/rhel/8.x/cuda.json`` as illustrated above.
+
+.. note:: If the target cluster runs on RHEL, ensure the "dkms" package is included in ``input/config/rhel/8.x/cuda.json`` as illustrated above.
 
 2. Enter the required values in the ``input/local_repo_config.yml`` file. For parameter information, `click here <index.html>`_.
 3. Run the following commands: ::
