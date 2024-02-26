@@ -24,4 +24,4 @@ When all compute nodes rely on the control plane for public network access, the 
 
 
 * `mapping <../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/mappingfile.html>`_
-* `snmpwalk <../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/snmp.html>`_
+

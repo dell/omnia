@@ -40,6 +40,7 @@ Run the script ``prereq.sh`` to verify the system is ready for Omnia deployment.
 
 .. toctree::
     RunningInit/index
+    LocalRepo/index
     InstallingProvisionTool/index
     PostProvisionScript
     BuildingClusters/index

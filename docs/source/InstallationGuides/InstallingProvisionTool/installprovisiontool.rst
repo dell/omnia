@@ -151,6 +151,8 @@ After successfully running ``provision.yml``, go to `Building Clusters <../Build
 
     * Post execution of ``provision.yml``, IPs/hostnames cannot be re-assigned by changing the mapping file. However, the addition of new nodes is supported as explained `here <../addinganewnode.html>`_.
 
+    * Default Python is installed during provisioning on Ubuntu cluster nodes. For Ubuntu 22.04, Python 3.10 is installed. For Ubuntu 20.04, Python 3.8 is installed.
+
 .. caution::
 
     * Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect.

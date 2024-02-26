@@ -212,12 +212,14 @@ For a list of repositories (and their types) configured for kubernetes, view the
     +-------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 
-3. Alternatively, run the following commands: ::
+3. Run the following commands: ::
 
     cd local_repo
     ansible-playbook local_repo.yml
 
 .. toctree::
+    cuda
+    ofed
     CustomLocalRepo
 
 
