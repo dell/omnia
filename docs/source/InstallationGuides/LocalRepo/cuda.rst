@@ -9,12 +9,13 @@ Create local CUDA repository
    :keepspace:
    :class: longtable
 
-    To install CUDA, include the following line under ``softwares```: ::
+
+To install CUDA, include the following line under ``softwares```: ::
 
         {"name": "cuda", "version": "12.3.2"},
 
 
-    For a list of repositories (and their types) configured for CUDA, view the ``input/config/<operating_system>/<operating_system_version>/cuda.json`` file. To customize your CUDA installation, update the file. URLs for different versions can be found `here <https://developer.nvidia.com/cuda-downloads>`_: ::
+For a list of repositories (and their types) configured for CUDA, view the ``input/config/<operating_system>/<operating_system_version>/cuda.json`` file. To customize your CUDA installation, update the file. URLs for different versions can be found `here <https://developer.nvidia.com/cuda-downloads>`_: ::
 
         {
           "cuda": {
