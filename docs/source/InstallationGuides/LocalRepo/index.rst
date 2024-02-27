@@ -217,6 +217,7 @@ For a list of repositories (and their types) configured for kubernetes, view the
 .. toctree::
     cuda
     ofed
+    bcm_roce
     CustomLocalRepo
 
 
