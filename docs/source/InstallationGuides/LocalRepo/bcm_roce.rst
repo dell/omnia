@@ -17,7 +17,7 @@ To install ROCe, include the following line under ``softwares```: ::
         {"name": "bcm_roce", "version": "229.2.9.0"}
 
 
-For a list of repositories (and their types) configured for ROCe, view the ``input/config/ubuntu/<operating_system_version>/cuda.json`` file. To customize your CUDA installation, update the file. URLs for different versions can be found `here <https://developer.nvidia.com/cuda-downloads>`_: ::
+For a list of repositories (and their types) configured for ROCe, view the ``input/config/ubuntu/<operating_system_version>/cuda.json`` file. To customize your ROCe installation, update the file. URLs for different versions can be found `here <https://downloads.dell.com>`_: ::
 
         {
           "bcm_roce": {
