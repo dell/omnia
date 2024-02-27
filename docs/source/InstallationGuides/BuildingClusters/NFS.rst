@@ -1,5 +1,5 @@
 NFS bolt on
-------------
+-------------
 
 * Ensure that an external NFS server is set up using the `linked steps <../../Appendices/NFSServer.html>`_ alternatively, `nfs_sas.yml <../ConfiguringStorage/index.html>`_ can be leveraged. NFS clients are mounted using the external NFS server's IP.
 
@@ -69,4 +69,5 @@ If ``omnia.yml`` is not leveraged to set up NFS, run the ``storage.yml`` playboo
     ansible-playbook storage.yml -i inventory
 
 
-.. note:: Once NFS is successfully set up, set ``enable_omnia_nfs`` (``input/omnia_config.yml``) to false and  ``omnia_usrhome_share`` (``input/omnia_config.yml``) to an accessible share path in the NFS share to use the path across the cluster for deployments.
+
+
