@@ -35,7 +35,8 @@ Below is a sample version of the file: ::
             {"name": "utils"},
             {"name": "vllm"},
             {"name": "pytorch"},
-            {"name": "tensorflow"}
+            {"name": "tensorflow"},
+            {"name": "bcm_roce", "version": "229.2.9.0"}
         ],
 
         "amdgpu": [
