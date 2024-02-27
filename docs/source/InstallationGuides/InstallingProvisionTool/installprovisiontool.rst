@@ -99,7 +99,12 @@ To deploy the Omnia provision tool, run the following command ::
         * ``compute_gpu_nvidia``
         * ``compute_servicetag_ip``
 
-    .. note:: Service tags will only be written into the inventory files after the nodes are successfully PXE booted post provisioning.
+    .. note::
+
+        * Service tags will only be written into the inventory files after the nodes are successfully PXE booted post provisioning.
+        * Nodes must be booted and the service tag must be in the DB for nodes to list in the Inventory file.
+        * To regenerate an inventory file, use the playbook ``omnia/utils/inventory_tagging.yml``.
+
 
     To call this playbook individually, ensure that ``input/provision_config.yml`` and ``input/provision_config_credentials.yml`` are updated and then run::
 
@@ -147,9 +152,9 @@ After successfully running ``provision.yml``, go to `Building Clusters <../Build
 
     * After running ``provision.yml``, the file ``input/provision_config.yml`` will be encrypted. To edit the file, use the command: ``ansible-vault edit provision_config.yml --vault-password-file .provision_vault_key``
 
-    * To re-provision target servers ``provision.yml`` can be re-run with a new inventory file that contains a list of admin (PXE) IPs. For more information, `click here <../reprovisioningthecluster.html>`_
-
     * Post execution of ``provision.yml``, IPs/hostnames cannot be re-assigned by changing the mapping file. However, the addition of new nodes is supported as explained `here <../addinganewnode.html>`_.
+
+    * Ensure the `clean up script <../CleanUpScript.html>`_ is run before any subsequent executions of ``provision.yml``.
 
     * Default Python is installed during provisioning on Ubuntu cluster nodes. For Ubuntu 22.04, Python 3.10 is installed. For Ubuntu 20.04, Python 3.8 is installed.
 
