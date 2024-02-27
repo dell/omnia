@@ -30,6 +30,7 @@ Required","* The type of offline configuration user needs.
 
 ``JSON list``
 
-Required","A JSON list of required software and (optionally) the software revision.
+Required","* A JSON list of required software and (optionally) the software revision.
+* This value of version is required for OFED and CUDA.
 
 .. note:: The accepted names for software is taken from "

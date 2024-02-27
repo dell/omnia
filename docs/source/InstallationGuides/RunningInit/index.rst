@@ -6,12 +6,7 @@ Running prereq.sh
     cd omnia
     ./prereq.sh
 
-To install local repositories on the control plane, `click here. <../../Roles/LocalRepo/index.html>`_
-
-.. note::
-    * If SELinux is not disabled, it will be disabled by the script and the user will be prompted to reboot the control plane.
-    * If the control plane is running on the minimal edition of the OS, ensure that ``chrony`` and ``podman`` are installed before running ``provision.yml``.
-
+.. note:: If SELinux is not disabled, it will be disabled by the script and the user will be prompted to reboot the control plane.
 
 
 

@@ -10,35 +10,6 @@ Edit the ``input/provision_config.yml`` file to update the required variables. A
 Optional configurations managed by the provision tool
 +++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-**Installing CUDA**
-
-    **Using the provision tool**
-
-        * If ``cuda_toolkit_path`` is provided  in ``input/provision_config.yml`` and NVIDIA GPUs are available on the target nodes, CUDA packages will be deployed post provisioning without user intervention.
-
-    **Using the Accelerator playbook**
-
-        * CUDA can also be installed using `accelerator.yml <../../Roles/Accelerator/index.html>`_ after provisioning the servers (Assuming the provision tool did not install CUDA packages).
-
-    .. note::
-        * The CUDA package can be downloaded from `here <https://developer.nvidia.com/cuda-downloads>`_
-        * CUDA requires an additional reboot while being installed. While this is taken care of by Omnia, users are required to wait an additional few minutes when running the provision tool with CUDA installation for the target nodes to come up.
-
-
-**Installing OFED**
-
-    **Using the provision tool**
-
-        * If ``mlnx_ofed_path`` is provided  in ``input/provision_config.yml`` and Mellanox NICs are available on the target nodes, OFED packages will be deployed post provisioning without user intervention.
-
-        .. note:: When leveraging the provision tool to install OFED, Omnia prevents the following packages from being upgraded: dapl* ibacm infiniband* libmlx* librdma* opensm* ibutils* perftest* openmpi by appending ``exclude=dapl* ibacm infiniband* libmlx* librdma* opensm* ibutils* perftest* openmpi`` to ``/etc/yum.conf``. For more information on this, `click here <https://xcat-docs.readthedocs.io/en/stable/advanced/networks/infiniband/mlnxofed_ib_known_issue.html>`_.
-
-    **Using the Network playbook**
-
-        * OFED can also be installed using `network.yml <../../Roles/Network/index.html>`_ after provisioning the servers (Assuming the provision tool did not install OFED packages).
-
-        .. note:: The OFED package can be downloaded from `here <https://network.nvidia.com/products/infiniband-drivers/linux/mlnx_ofed/>`_ .
-
 **Assigning infiniband IPs**
 
 
