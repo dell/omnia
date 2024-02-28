@@ -1,21 +1,9 @@
 ﻿Parameter,Details
-"authentication_system
-     ``string``
-     Required  ","Indicates whether FreeIPA or OpenLDAP is setup.
-                                                          
-     Choices:                                             
-                                                          
-     * ``openldap`` <- Default                               
-     * ``freeipa``                                           "
-"domain_name    
+"domain_name
      ``string``
      Required  ","* Sets the intended domain name.        
 * If dc=omnia,dc=test, Provide ``omnia.test``
 * If dc=dell,dc=omnia,dc=com Provide ``dell.omnia.com``  
                                    
     **Default values**: ``omnia.test``	"
-"enable_secure_login_node
-     ``boolean`` [1]_
-     Required   ","* Boolean indicating whether security features are to be enabled on the login node or not. 
-
-    **Default value**: ``false``"
+,
