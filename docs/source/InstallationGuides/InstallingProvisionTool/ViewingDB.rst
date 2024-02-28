@@ -31,13 +31,10 @@ Via omniadb
 
 4. To view the contents of the ``nodeinfo`` table: ``select * from cluster.nodeinfo;`` ::
 
-        id | service_tag |     node      |     hostname      |     admin_mac     | admin_ip  |  bmc_ip   | status | discovery_mechanism | bmc_mode | switch_ip | switch_name | switch_port
-        ----+-------------+---------------+-------------------+-------------------+-----------+-----------+--------+---------------------+----------+-----------+-------------+-------------
-          1 |             | control_plane | control.omnia.test| 2c:ea:7f:b4:6e:ed | 10.27.0.1 | 10.29.0.1 |        |                     |          |           |             |
-          2 | 6T2R6Z2     | node1         | node1.omnia.test  | 4c:d9:8f:76:48:2e | 10.27.0.3 | 10.29.0.3 |        | mapping             |          |           |             |
-          3 | C2KP643     | node2         | node2.omnia.test  | 2c:ea:7f:3d:6b:98 | 10.27.0.2 | 10.29.0.2 |        | mapping             |          |           |             |
-          4 | 6TDL6Z2     | login         | login.omnia.test  | 20:04:0f:fa:88:d4 | 10.27.0.4 |           |        | mapping             |          |           |             |
-        (4 rows)
+        Node 		cpu			gpu			cpu_count		gpu_count
+        node1		intel	  nvidia		    1				2
+        node2		amd		  amd			    2				1
+        node3		amd						    1				0
 
 
 Possible values of node status are powering-off, powering-on, bmcready, installing, booting, post-booting, booted, failed.

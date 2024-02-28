@@ -3,10 +3,29 @@ Creating node inventory
 
 When ``provision.yml``, ``prepare_cp.yml``, or ``utils/inventory_tagging.yml`` is run, a set of inventory files is created in `/opt/omnia/omnia_inventory/``. The inventories are created based on the type of CPUs and GPUs nodes have. The inventory files are:
                                                                                                                                                                                                            * ``compute_cpu_amd``
-      * ``compute_cpu_intel``
-      * ``compute_gpu_amd``
-      * ``compute_gpu_nvidia``
-      * ``compute_servicetag_ip``
+      * ``compute_cpu_intel`` ::
+
+            [compute_cpu_intel]
+            ABCD1
+
+      * ``compute_gpu_amd`` ::
+
+           [compute_cpu_amd]
+           ABCD2
+           ABCD3
+
+      * ``compute_gpu_nvidia`` ::
+
+            [compute_gpu_nvidia]
+            ABCD1
+
+
+      * ``compute_servicetag_ip`` ::
+
+            [compute_servicetag_ip]
+            ABCD1 ansible_host=10.5.0.2
+            ABCD2 ansible_host=10.5.0.3
+            ABCD3 ansible_host=10.5.0.4
 
   .. note::
 
