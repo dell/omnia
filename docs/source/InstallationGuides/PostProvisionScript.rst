@@ -1,18 +1,18 @@
 Creating node inventory
 ------------------------
 
-Once the **servers are provisioned**, a list of reachable nodes can be fetched using the below command: ::
+When ``provision.yml``, ``prepare_cp.yml``, or ``utils/inventory_tagging.yml`` is run, a set of inventory files is created in `/opt/omnia/omnia_inventory/``. The inventories are created based on the type of CPUs and GPUs nodes have. The inventory files are:
+                                                                                                                                                                                                           * ``compute_cpu_amd``
+      * ``compute_cpu_intel``
+      * ``compute_gpu_amd``
+      * ``compute_gpu_nvidia``
+      * ``compute_servicetag_ip``
 
-    ansible-playbook post_provision.yml
+  .. note::
+
+      * Service tags will only be written into the inventory files after the nodes are successfully PXE booted post provisioning.
+      * Nodes must be booted and the service tag must be in the DB for nodes to list in the Inventory file.
+      * To regenerate an inventory file, use the playbook ``utils/inventory_tagging.yml``.
 
 
-This creates a node inventory in ``/opt/omnia``.  ::
 
-    cat /opt/omnia/node_inventory
-    10.5.0.100 service_tag=XXXXXXX operating_system=RedHat
-    10.5.0.101 service_tag=XXXXXXX operating_system=RedHat
-    10.5.0.102 service_tag=XXXXXXX operating_system=Rocky
-    10.5.0.103 service_tag=XXXXXXX operating_system=Rocky
-
-
-To create an inventory when `Building Clusters <BuildingClusters/index.html>`_, use the reachable nodes' IP addresses from the above output to assign manager, compute and login groups. For more information on the inventory file used, `click here <../samplefiles.html>`_.

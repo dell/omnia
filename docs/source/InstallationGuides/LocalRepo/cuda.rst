@@ -17,6 +17,20 @@ To install CUDA, include the following line under ``softwares```: ::
 
 For a list of repositories (and their types) configured for CUDA, view the ``input/config/<operating_system>/<operating_system_version>/cuda.json`` file. To customize your CUDA installation, update the file. URLs for different versions can be found `here <https://developer.nvidia.com/cuda-downloads>`_:
 
+For Ubuntu: ::
+
+        {
+            "cuda": {
+              "cluster": [
+                { "package": "cuda",
+                  "type": "iso",
+                  "url": "https://developer.download.nvidia.com/compute/cuda/12.3.2/local_installers/cuda-repo-ubuntu2204-12-3-local_12.3.2-545.23.08-1_amd64.deb",
+                  "path": ""
+                }
+              ]
+            }
+        }
+
 For RHEL or Rocky: ::
 
         {
@@ -35,19 +49,6 @@ For RHEL or Rocky: ::
           }
         }
 
-For Ubuntu: ::
-
-        {
-            "cuda": {
-              "cluster": [
-                { "package": "cuda",
-                  "type": "iso",
-                  "url": "https://developer.download.nvidia.com/compute/cuda/12.3.2/local_installers/cuda-repo-ubuntu2204-12-3-local_12.3.2-545.23.08-1_amd64.deb",
-                  "path": ""
-                }
-              ]
-            }
-        }
 
 .. note::
 * If the package version is customized, ensure that the ``version`` value is updated in ``software_config.json```.

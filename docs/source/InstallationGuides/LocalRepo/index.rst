@@ -216,6 +216,7 @@ For a list of repositories (and their types) configured for kubernetes, view the
     ansible-playbook local_repo.yml
 
 .. toctree::
+    Prerequisite
     cuda
     ofed
     bcm_roce
