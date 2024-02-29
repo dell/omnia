@@ -92,7 +92,7 @@ Enter the following parameters in ``input/login_node_security_config.yml``.
 |      ``integer``         |                                                                                                                                                                                |
 |      Optional            |      **Default values**: ``3``                                                                                                                                                 |
 +--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-|**failure_reset_interval**|Period (in seconds) after which the number of failed login attempts is   reset. Min value: 30; Max value: 60.                                                                  |
+|**failure_reset_interval**| Period (in seconds) after which the number of failed login attempts is   reset. Min value: 30; Max value: 60.                                                                  |
 |      ``integer``         |                                                                                                                                                                                |
 |      Optional            |      **Default values**: ``60``                                                                                                                                                |
 +--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
