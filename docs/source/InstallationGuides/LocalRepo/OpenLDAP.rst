@@ -1,5 +1,5 @@
-OpenLDAP
---------
+Create OpenLDAP repository
+---------------------------
 
 1. Enter the required values in the ``input/software_config.json`` file:
 

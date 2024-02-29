@@ -1,5 +1,5 @@
-Secure login node
-------------------
+Create secure login node repository
+-----------------------------------
 
 
 1. Enter the required values in the ``input/software_config.json`` file:
