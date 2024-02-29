@@ -19,17 +19,17 @@ For a list of repositories (and their types) configured for OpenLDAP, view the `
 
 For Ubuntu: ::
 
-{
-    "ofed": {
-      "cluster": [
-        { "package": "freeipa",
-          "type": "iso",
-          "url": "https://content.mellanox.com/ofed/MLNX_OFED-24.01-0.3.3.1/MLNX_OFED_LINUX-24.01-0.3.3.1-ubuntu20.04-x86_64.iso",
-          "path": ""
+        {
+            "ofed": {
+              "cluster": [
+                { "package": "freeipa",
+                  "type": "iso",
+                  "url": "https://content.mellanox.com/ofed/MLNX_OFED-24.01-0.3.3.1/MLNX_OFED_LINUX-24.01-0.3.3.1-ubuntu20.04-x86_64.iso",
+                  "path": ""
+                }
+              ]
+            }
         }
-      ]
-    }
-}
 
 
 For RHEL or Rocky: ::
