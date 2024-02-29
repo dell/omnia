@@ -11,7 +11,11 @@ The security feature allows users to set up FreeIPA and LDAP to help authenticat
 Configuring FreeIPA/LDAP security
 ________________________________
 
-Enter the following parameters in ``input/security_config.yml``.
+**Pre requisites**
+
+* Run ``local_repo.yml`` to create offline repositories of FreeIPA or OpenLDAP. If both were downloaded, ensure that the non-required system is removed from ``input/software_config.json`` before running ``security.yml``. For more information, `click here <../../InstallationGuides/LocalRepo/SecureLoginNode.html>`_.
+
+* Enter the following parameters in ``input/security_config.yml``.
 
 .. csv-table:: Parameters for Authentication
    :file: ../../Tables/security_config.csv
@@ -30,39 +34,85 @@ Enter the following parameters in ``input/security_config.yml``.
 
 .. [1] Boolean parameters do not need to be passed with double or single quotes.
 
+Create a new user on OpenLDAP
+-----------------------------
+
+1. Create an LDIF file (eg: ``create_user.ldif``) on the auth server containing the following information:
+
+    * DN: The distinguished name that indicates where the user will be created.
+    * objectClass: The object class specifies the mandatory and optional attributes that can be associated with an entry of that class. Here, the values are ``inetOrgPerson``, ``posixAccount``, and ``shadowAccount``.
+    * UID: The username of the replication user.
+    * sn: The surname of the intended user.
+    * cn: The given name of the intended user.
+
+Below is a sample file: ::
+
+    # User Creation
+    dn: uid=ldapuser,ou=People,dc=omnia,dc=test
+    objectClass: inetOrgPerson
+    objectClass: posixAccount
+    objectClass: shadowAccount
+    cn: ldapuser
+    sn: ldapuser
+    loginShell:/bin/bash
+    uidNumber: 2000
+    gidNumber: 2000
+    homeDirectory: /home/ldapuser
+    shadowLastChange: 0
+    shadowMax: 0
+    shadowWarning: 0
+
+    # Group Creation
+    dn: cn=ldapuser,ou=Group,dc=omnia,dc=test
+    objectClass: posixGroup
+    cn: ldapuser
+    gidNumber: 2000
+    memberUid: ldapuser
+
+.. note:: Avoid whitespaces when using an LDIF file for user creation. Extra spaces in the input data may be encrypted by OpenLDAP and cause access failures.
+
+2. Run the command ``ldapadd -D <enter admin binddn > -w < bind_password > -f create_user.ldif`` to execute the LDIF file and create the account.
+3. To set up a password for this account, use the command ``ldappasswd -D <enter admin binddn > -w < bind_password > -S <user_dn>``. The value of ``user_dn`` is the distinguished name that indicates where the user was created. (In this example, ``ldapuser,ou=People,dc=omnia,dc=test``)
+
+
+
 Configuring login node security
 ________________________________
+
+**Prerequisites**
+
+* Run ``local_repo.yml`` to create an offline repository of all utilities used to secure the login node. For more information, click here <>
 
 Enter the following parameters in ``input/login_node_security_config.yml``.
 
 +--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Variable                 | Details                                                                                                                                                                        |
 +==========================+================================================================================================================================================================================+
-| max_failures             | The number of login failures that can take place before the account is   locked out.                                                                                           |
+| **max_failures**         | The number of login failures that can take place before the account is   locked out.                                                                                           |
 |      ``integer``         |                                                                                                                                                                                |
 |      Optional            |      **Default values**: ``3``                                                                                                                                                 |
 +--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| failure_reset_interval   | Period (in seconds) after which the number of failed login attempts is   reset. Min value: 30; Max value: 60.                                                                  |
+|**failure_reset_interval**|Period (in seconds) after which the number of failed login attempts is   reset. Min value: 30; Max value: 60.                                                                  |
 |      ``integer``         |                                                                                                                                                                                |
 |      Optional            |      **Default values**: ``60``                                                                                                                                                |
 +--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| lockout_duration         | Period (in seconds) for which users are locked out. Min value: 5; Max   value: 10.                                                                                             |
+| **lockout_duration**     | Period (in seconds) for which users are locked out. Min value: 5; Max   value: 10.                                                                                             |
 |      ``integer``         |                                                                                                                                                                                |
 |      Optional            |      **Default values**: ``10``                                                                                                                                                |
 +--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| session_timeout          | User sessions that have been idle for a specific period can be ended   automatically. Min value: 90; Max value: 180.                                                           |
+|**session_timeout**       | User sessions that have been idle for a specific period can be ended   automatically. Min value: 90; Max value: 180.                                                           |
 |      ``integer``         |                                                                                                                                                                                |
 |      Optional            |      **Default values**: ``180``                                                                                                                                               |
 +--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| alert_email_address      | Email address used for sending alerts in case of authentication failure.   When blank, authentication failure alerts are disabled. Currently, only one   email ID is accepted. |
+|**alert_email_address**   | Email address used for sending alerts in case of authentication failure.   When blank, authentication failure alerts are disabled. Currently, only one   email ID is accepted. |
 |      ``string``          |                                                                                                                                                                                |
 |      Optional            |                                                                                                                                                                                |
 +--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| user                     | Access control list of users. Accepted formats are username@ip   (root@1.2.3.4) or username (root). Multiple users can be separated using   whitespaces.                       |
+|**user**                  | Access control list of users. Accepted formats are username@ip   (root@1.2.3.4) or username (root). Multiple users can be separated using   whitespaces.                       |
 |      ``string``          |                                                                                                                                                                                |
 |      Optional            |                                                                                                                                                                                |
 +--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| allow_deny               | This variable decides whether users are to be allowed or denied access.   Ensure that AllowUsers or DenyUsers entries on sshd configuration file are   not commented.          |
+|**allow_deny**            | This variable decides whether users are to be allowed or denied access.   Ensure that AllowUsers or DenyUsers entries on sshd configuration file are   not commented.          |
 |      ``string``          |                                                                                                                                                                                |
 |      Optional            |      Choices:                                                                                                                                                                  |
 |                          |                                                                                                                                                                                |
@@ -76,7 +126,7 @@ Enter the following parameters in ``input/login_node_security_config.yml``.
 |                          |      * ``false`` <- Default                                                                                                                                                    |
 |                          |      * ``true``                                                                                                                                                                |
 +--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| restrict_softwares       | List of services to be disabled (Comma-separated). Example:   'telnet,lpd,bluetooth'                                                                                           |
+|**restrict_softwares**    | List of services to be disabled (Comma-separated). Example:   'telnet,lpd,bluetooth'                                                                                           |
 |      ``string``          |                                                                                                                                                                                |
 |      Optional            |      Choices:                                                                                                                                                                  |
 |                          |                                                                                                                                                                                |
@@ -90,8 +140,6 @@ Enter the following parameters in ``input/login_node_security_config.yml``.
 
 Installing LDAP Client
 ________________________
-
-Manager and compute nodes will have LDAP client installed and configured if ``authentication_system`` is set to "openldap". The login node does not have LDAP client installed.
 
 .. caution:: No users/groups will be created by Omnia.
 
@@ -142,46 +190,6 @@ The inventory should contain auth_server as per the inventory file in `samplefil
 
 
 .. caution:: No users will be created by Omnia.
-
-Create a new user on OpenLDAP
------------------------------
-
-1. Create an LDIF file (eg: ``create_user.ldif``) on the auth server containing the following information:
-
-    * DN: The distinguished name that indicates where the user will be created.
-    * objectClass: The object class specifies the mandatory and optional attributes that can be associated with an entry of that class. Here, the values are ``inetOrgPerson``, ``posixAccount``, and ``shadowAccount``.
-    * UID: The username of the replication user.
-    * sn: The surname of the intended user.
-    * cn: The given name of the intended user.
-
-Below is a sample file: ::
-
-    # User Creation
-    dn: uid=ldapuser,ou=People,dc=omnia,dc=test
-    objectClass: inetOrgPerson
-    objectClass: posixAccount
-    objectClass: shadowAccount
-    cn: ldapuser
-    sn: ldapuser
-    loginShell:/bin/bash
-    uidNumber: 2000
-    gidNumber: 2000
-    homeDirectory: /home/ldapuser
-    shadowLastChange: 0
-    shadowMax: 0
-    shadowWarning: 0
-
-    # Group Creation
-    dn: cn=ldapuser,ou=Group,dc=omnia,dc=test
-    objectClass: posixGroup
-    cn: ldapuser
-    gidNumber: 2000
-    memberUid: ldapuser
-
-.. note:: Avoid whitespaces when using an LDIF file for user creation. Extra spaces in the input data may be encrypted by OpenLDAP and cause access failures.
-
-2. Run the command ``ldapadd -D <enter admin binddn > -w < bind_password > -f create_user.ldif`` to execute the LDIF file and create the account.
-3. To set up a password for this account, use the command ``ldappasswd -D <enter admin binddn > -w < bind_password > -S <user_dn>``. The value of ``user_dn`` is the distinguished name that indicates where the user was created. (In this example, ``ldapuser,ou=People,dc=omnia,dc=test``)
 
 
 .. toctree::

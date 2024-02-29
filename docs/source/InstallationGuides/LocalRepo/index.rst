@@ -220,6 +220,9 @@ For a list of repositories (and their types) configured for kubernetes, view the
     cuda
     ofed
     bcm_roce
+    FreeIPA
+    OpenLDAP
+    SecureLoginNode
     CustomLocalRepo
 
 
