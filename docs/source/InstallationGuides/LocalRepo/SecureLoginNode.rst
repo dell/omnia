@@ -11,26 +11,12 @@ Create secure login node repository
    :class: longtable
 
 
-To install OFED, include the following line under ``softwares```: ::
+To secure the login node, include the following line under ``softwares```: ::
 
         {"name": "secure_login_node"},
 
 
-For a list of repositories (and their types) configured for OFED, view the ``input/config/<operating_system>/<operating_system_version>/secure_login_node.json`` file. To customize your repository installation, update the file.:
-
-For Ubuntu: ::
-
-    {
-        "ofed": {
-          "cluster": [
-            { "package": "ofed",
-              "type": "iso",
-              "url": "https://content.mellanox.com/ofed/MLNX_OFED-24.01-0.3.3.1/MLNX_OFED_LINUX-24.01-0.3.3.1-ubuntu20.04-x86_64.iso",
-              "path": ""
-            }
-          ]
-        }
-    }
+For a list of repositories (and their types) configured for securing the login node, view the ``input/config/<operating_system>/<operating_system_version>/secure_login_node.json`` file. To customize your repository installation, update the file.:
 
 
 For RHEL or Rocky: ::

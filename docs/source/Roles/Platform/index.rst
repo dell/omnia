@@ -19,3 +19,6 @@ Commands to install JupyterHub and Kubeflow: ::
 .. toctree::
     InstallJupyterhub
     SetupvLLM
+    Pytorch
+    TensorFlow
+    kserve

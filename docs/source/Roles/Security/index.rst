@@ -13,7 +13,7 @@ ________________________________
 
 **Pre requisites**
 
-* Run ``local_repo.yml`` to create offline repositories of FreeIPA or OpenLDAP. If both were downloaded, ensure that the non-required system is removed from ``input/software_config.json`` before running ``security.yml``. For more information, `click here <../../InstallationGuides/LocalRepo/SecureLoginNode.html>`_.
+* Run ``local_repo.yml`` to create offline repositories of FreeIPA or OpenLDAP. If both were downloaded, ensure that the non-required system is removed from ``input/software_config.json`` before running ``security.yml``. For more information, `click here <../../InstallationGuides/LocalRepo/index.html>`_.
 
 * Enter the following parameters in ``input/security_config.yml``.
 
@@ -81,7 +81,7 @@ ________________________________
 
 **Prerequisites**
 
-* Run ``local_repo.yml`` to create an offline repository of all utilities used to secure the login node. For more information, click here <>
+* Run ``local_repo.yml`` to create an offline repository of all utilities used to secure the login node. For more information, `click here. <../../InstallationGuides/LocalRepo/SecureLoginNode.html>`_
 
 Enter the following parameters in ``input/login_node_security_config.yml``.
 

@@ -223,6 +223,9 @@ For a list of repositories (and their types) configured for kubernetes, view the
     FreeIPA
     OpenLDAP
     SecureLoginNode
+    PyTorch
+    TensorFlow
+    kserve
     CustomLocalRepo
 
 
