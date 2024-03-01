@@ -19,40 +19,6 @@ To secure the login node, include the following line under ``softwares```: ::
 For a list of repositories (and their types) configured for securing the login node, view the ``input/config/<operating_system>/<operating_system_version>/secure_login_node.json`` file. To customize your repository installation, update the file.:
 
 
-For RHEL or Rocky: ::
-
-        {
-          "secure_login_node": {
-            "cluster": [
-              {
-              "package": "community.general",
-              "type": "ansible_galaxy_collection",
-              "version": "4.4.0"
-              },
-              {
-              "package": "install-snoopy",
-              "type": "shell",
-              "url": "https://github.com/a2o/snoopy/raw/install/install/install-snoopy.sh"
-              },
-              {"package": "mailx", "type": "rpm", "repo_name": "baseos"},
-              {"package": "postfix", "type": "rpm", "repo_name": "baseos"},
-              {"package": "gcc", "type": "rpm", "repo_name": "appstream"},
-              {"package": "gzip", "type": "rpm", "repo_name": "appstream"},
-              {"package": "make", "type": "rpm", "repo_name": "baseos"},
-              {"package": "procps-ng", "type": "rpm", "repo_name": "baseos"},
-              {"package": "socat", "type": "rpm", "repo_name": "appstream"},
-              {"package": "tar", "type": "rpm", "repo_name": "appstream"},
-              {"package": "wget", "type": "rpm", "repo_name": "appstream"},
-              {"package": "psacct", "type": "rpm", "repo_name": "baseos"},
-              {"package": "psacct", "type": "rpm", "repo_name": "baseos"},
-              {"package": "python3.9", "type": "rpm", "repo_name": "appstream"}
-
-            ]
-          }
-        }
-
-
-
 2. Enter the required values in the ``input/local_repo_config.yml`` file. For parameter information, `click here <index.html>`_.
 3. Run the following commands: ::
 
