@@ -3,15 +3,25 @@ Set up PyTorch
 
 PyTorch is a popular open-source deep learning framework, renowned for its dynamic computation graph that enhances flexibility and ease of use, making it a preferred choice for researchers and developers. With strong community support, PyTorch facilitates seamless experimentation and rapid prototyping in the field of machine learning.
 
+
 **Prerequisites**
+
 * Ensure nerdctl is available on all cluster nodes.
+
 * If GPUs are present on the target nodes, install NVidia (CUDA 12.1) or AMD (Rocm 5.7) drivers during provisioning. CPUs do not require any additional drivers.PyTorch
+
 * Use ``local_repo.yml`` to create an offline PyTorch repository. For more information, `click here. <../../InstallationGuides/LocalRepo/PyTorch.html>`_
 
+
+
     **[Optional]**
+
     * Ensure the system has enough space.
+
     * Ensure the passed inventory file includes a ``kube_control_plane`` and a ``kube_node_group`` listing all cluster nodes. `Click here <../../samplefiles.html>`_ for a sample file.
+
     * Nerdctl does not support mounting directories as devices because it is not a feature of containerd (The runtime that nerdctl uses). Individual files need to be attached while running nerdctl.
+
     * Container Network Interface should be enabled with nerdctl.
 
 **Deploying PyTorch**
@@ -34,7 +44,7 @@ PyTorch is a popular open-source deep learning framework, renowned for its dynam
 
     nerdctl run -it --rm pytorch/pytorch:latest
 
-For more information, `click here <https://www.tensorflow.org/install/docker>`_.
+For more information, `click here <https://hub.docker.com/r/pytorch/pytorch/tags>`_.
 
 
 **Accessing PyTorch (AMD)**
@@ -47,7 +57,7 @@ For more information, `click here <https://www.tensorflow.org/install/docker>`_.
 
     nerdctl run -it --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --device=/dev/kfd --device /dev/dri/card0 --device /dev/dri/card1 --device /dev/dri/card2 --device /dev/dri/renderD128 --device /dev/dri/renderD129  --group-add video --ipc=host --shm-size 8G rocm/pytorch:latest
 
-For more information, `click here <https://rocm.docs.amd.com/projects/install-on-linux/en/latest/how-to/3rd-party/tensorflow-install.html>`_.
+For more information, `click here <https://rocm.docs.amd.com/projects/install-on-linux/en/develop/how-to/3rd-party/pytorch-install.html>`_.
 
 **Accessing PyTorch (NVidia)**
 
@@ -59,4 +69,4 @@ For more information, `click here <https://rocm.docs.amd.com/projects/install-on
 
     nerdctl  run --gpus all -it --rm nvcr.io/nvidia/pytorch:23.12-py3
 
-For more information, `click here <https://catalog.ngc.nvidia.com/orgs/nvidia/containers/tensorflow>`_.
+For more information, `click here <https://catalog.ngc.nvidia.com/orgs/nvidia/containers/pytorch>`_.

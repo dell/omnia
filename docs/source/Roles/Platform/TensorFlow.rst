@@ -5,15 +5,25 @@ TensorFlow is a widely-used open-source deep learning framework, recognized for 
 
 With an Ansible script, deploy TensorFlow on both ``kube_nodes`` and the ``kube_control_node``. After the deployment of TensorFlow, you gain access to the TensorFlow container.
 
+
 **Prerequisites**
+
 * Ensure nerdctl is available on all cluster nodes.
+
 * If GPUs are present on the target nodes, install NVidia (CUDA 12.1) or AMD (Rocm 5.7) drivers during provisioning. CPUs do not require any additional drivers.PyTorch
+
 * Use ``local_repo.yml`` to create an offline TensorFlow repository. For more information, `click here <../../>`_.
 
+
+
     **[Optional]**
+
     * Ensure the system has enough space.
+
     * Ensure the passed inventory file includes a ``kube_control_plane`` and a ``kube_node_group`` listing all cluster nodes. `Click here <../../samplefiles.html>`_ for a sample file.
+
     * Nerdctl does not support mounting directories as devices because it is not a feature of containerd (The runtime that nerdctl uses). Individual files need to be attached while running nerdctl.
+
     * Container Network Interface should be enabled with nerdctl.
 
 

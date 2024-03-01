@@ -22,3 +22,6 @@ For a list of repositories (and their types) configured for TensorFlow, view the
 
        cd local_repo
        ansible-playbook local_repo.yml
+
+For information on deploying TensorFlow after setting up the cluster, `click here. <../../Roles/Platform/TensorFlow.html>`_
+

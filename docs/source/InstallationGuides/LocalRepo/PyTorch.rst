@@ -23,3 +23,6 @@ For a list of repositories (and their types) configured for PyTorch, view the ``
        cd local_repo
        ansible-playbook local_repo.yml
 
+
+For information on deploying PyTorch after setting up the cluster, `click here. <../../Roles/Platform/Pytorch.html>`_
+

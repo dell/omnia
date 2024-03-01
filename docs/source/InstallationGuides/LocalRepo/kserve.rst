@@ -22,3 +22,5 @@ For a list of repositories (and their types) configured for Kserve, view the ``i
 
        cd local_repo
        ansible-playbook local_repo.yml
+
+For information on deploying Kserve after setting up the cluster, `click here. <../../Roles/Platform/kserve.html>`_

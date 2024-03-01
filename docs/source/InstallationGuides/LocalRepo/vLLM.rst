@@ -22,3 +22,5 @@ For a list of repositories (and their types) configured for vLLM, view the ``inp
 
        cd local_repo
        ansible-playbook local_repo.yml
+
+For information on deploying PyTorch after setting up the cluster, `click here. <../../Roles/Platform/SetupvLLM.html>`_
