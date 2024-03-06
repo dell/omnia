@@ -46,6 +46,7 @@ Network File System (NFS) is a networking protocol for distributed file sharing.
 
 * Ensure that an NFS local repository is created by including ``{"name": "nfs"},`` in ``input/software_config.json``. For more information, `click here. <../InstallationGuides/LocalRepo/index.html>`_
 * Enter the value of ``share_path`` in ``input/omnia_config.yml``.
+
 .. note:: Ensure that the value of ``share_path`` provided matches at least one value of ``client_share_path`` provided in ``nfs_client_params`` in ``input/storage_config.yml``.
 
 * If an external NFS share is used, make sure that ``/etc/exports`` on the NFS server is populated with the same paths listed as ``server_share_path`` in the ``nfs_client_params`` in ``input/storage_config.yml``.
