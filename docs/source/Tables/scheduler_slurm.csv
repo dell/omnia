@@ -44,3 +44,21 @@
 
      * ``nfs_share``  <- default
      * ``configless``                                          "
+"**share_path**
+
+     ``string``
+
+     Optional      ","* Path to directory which will be shared across all nodes in the cluster.
+* If omitted, ``/mnt/share`` is provided.
+**Default value**:  ""/home/omnia-share"""
+"**restart_slurm_services**
+
+     ``boolean``
+
+     Optional   ","* Indicates whether slurm services should be restarted.
+
+* **Choices**
+
+	* ``true`` <- **Default**
+
+	* ``false``"

@@ -3,6 +3,8 @@ NFS bolt on
 
 * Ensure that an external NFS server is set up using the `linked steps <../../Appendices/NFSServer.html>`_ alternatively, `nfs_sas.yml <../ConfiguringStorage/index.html>`_ can be leveraged. NFS clients are mounted using the external NFS server's IP.
 
+* Ensure that an NFS local repository is created by including ``{"name": "nfs"},`` in ``input/software_config.json``. For more information, `click here. <../InstallationGuides/LocalRepo/index.html>`_
+
 * Fill out the ``nfs_client_params`` variable in the ``input/storage_config.yml`` file in JSON format using the samples provided below.
 
 * This role runs on all nodes.
@@ -60,6 +62,28 @@ NFS bolt on
             systemctl disable nfs-server
             systemctl enable nfs-server
             systemctl restart nfs-server
+
+
+NFS server set up
+------------------
+
+Set up an NFS server export on the control plane with cluster nodes clients.up
+
+**Pre requisites**
+
+* Ensure that an NFS local repository is created by including ``{"name": "nfs"},`` in ``input/software_config.json``. For more information, `click here. <../InstallationGuides/LocalRepo/index.html>`_
+* Enter all required information in ``omnia_config.yml``.
+
+    .. csv-table:: Parameters for Kubernetes cluster setup with NFS
+       :file: ../../Tables/scheduler_k8s.csv
+       :header-rows: 1
+       :keepspace:
+
+    .. csv-table:: Parameters for Slurm cluster setup with NFS
+       :file: ../../Tables/scheduler_slurm.csv
+       :header-rows: 1
+       :keepspace:
+
 
 
 

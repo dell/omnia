@@ -3,7 +3,7 @@ Shared and distributed storage deployment
 
 The storage role allows users to configure PowerVault Storage devices, BeeGFS and NFS services on the cluster.
 
-First, enter all required parameters in ``input/storage_config.yml``
+1. Enter all required parameters in ``input/storage_config.yml``
 
 +---------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Name                            | Details                                                                                                                                                                                                                                              |
@@ -80,6 +80,8 @@ First, enter all required parameters in ``input/storage_config.yml``
 +---------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 .. note:: If ``storage.yml`` is run with the ``input/storage_config.yml`` filled out, BeeGFS and NFS client will be set up.
+
+2. Ensure that the entry ``{"name": "beegfs", "version": "7.2.6"},`` is included in ``input/software_config.json`` and a local repository is created. For more information, `click here. <../../InstallationGuides/LocalRepo/index.html>`_
 
 **Installing BeeGFS Client**
 
