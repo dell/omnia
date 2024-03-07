@@ -30,8 +30,7 @@ Network File System (NFS) is a networking protocol for distributed file sharing.
 
       - **client_share_path**: Target directory for the NFS mount on the client. If left empty, the respective ``server_share_path value`` will be taken for ``client_share_path``.
 
-
-      - **nfs_server**: Indicates whether an external NFS server is available (false) or an NFS server will need to be created (true).
+      - **nfs_server**: Indicates whether an external NFS server is available (``false``) or an NFS server will need to be created (``true``).
 
   To configure all cluster nodes to access a single external NFS server export, use the below sample: ::
 
