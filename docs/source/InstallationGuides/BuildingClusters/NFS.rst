@@ -10,17 +10,16 @@ Network File System (NFS) is a networking protocol for distributed file sharing.
 
     .. csv-table:: Parameter for NFS configuration
        :header-rows: 1
+            Variables,Details
+            "**nfs_client_params**
 
-    Variables,Details
-    "**nfs_client_params**
+                 ``JSON List``
 
-         ``JSON List``
-
-         Required    ","* This JSON list contains all parameters required to set up NFS.
-    * For a bolt-on set up where there is a pre-existing NFS export, set ``nfs_server`` to ``false``.
-    * When ``nfs_server`` is set to ``true``, an NFS share is created on the control plane for access by all cluster nodes.
-    * Ensure that the value of ``share_path`` in ``input/omnia_config.yml`` matches at least one of the ``client_share_path`` values in the JSON list provided.
-    * For more information on the different kinds of configuration available, `click here. <NFS.html>`_"
+                 Required    ","* This JSON list contains all parameters required to set up NFS.
+            * For a bolt-on set up where there is a pre-existing NFS export, set ``nfs_server`` to ``false``.
+            * When ``nfs_server`` is set to ``true``, an NFS share is created on the control plane for access by all cluster nodes.
+            * Ensure that the value of ``share_path`` in ``input/omnia_config.yml`` matches at least one of the ``client_share_path`` values in the JSON list provided.
+            * For more information on the different kinds of configuration available, `click here. <NFS.html>`_"
 
 
     .. image:: ../../images/NFS_FlowChart.png
