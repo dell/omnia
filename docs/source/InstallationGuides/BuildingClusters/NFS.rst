@@ -1,8 +1,9 @@
 NFS
 ____
 
-Network File System (NFS) is a networking protocol for distributed file sharing. A file system defines the way data in the form of files is stored and retrieved from storage devices, such as hard disk drives, solid-state drives and tape drives. NFS is a network file sharing protocol that defines the way files are stored and retrieved from storage devices across networks. NFS is a mandatory feature for all clusters set up by Omnia.
+Network File System (NFS) is a networking protocol for distributed file sharing. A file system defines the way data in the form of files is stored and retrieved from storage devices, such as hard disk drives, solid-state drives and tape drives. NFS is a network file sharing protocol that defines the way files are stored and retrieved from storage devices across networks.
 
+.. note:: NFS is a mandatory feature for all clusters set up by Omnia.
 
 **Pre requisites**
 
@@ -12,8 +13,8 @@ Network File System (NFS) is a networking protocol for distributed file sharing.
     | Parameter             | Details                                                                                                                                                     |
     +=======================+=============================================================================================================================================================+
     | **nfs_client_params** | * This JSON list contains all parameters required to set up NFS.                                                                                            |
-    |                       | * For a bolt-on set up where there is a pre-existing NFS export, set ``nfs_server`` to ``false``.                                                           |
-    |      ``JSON List``    | * When ``nfs_server`` is set to ``true``, an NFS share is created on the control plane for access by all cluster nodes.                                     |
+    |                       | * For a bolt-on set up where there is a pre-existing NFS server, set ``nfs_server`` to ``false``.                                                           |
+    |      ``JSON List``    | * When ``nfs_server`` is set to ``true``, an NFS share is created on the a server IP in the cluster for access by all other cluster nodes.                  |
     |                       | * Ensure that the value of ``share_path`` in ``input/omnia_config.yml`` matches at least one of the ``client_share_path`` values in the JSON list provided. |
     |      Required         | * For more information on the different kinds of configuration available, `click here. <NFS.html>`_                                                         |
     +-----------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -23,15 +24,14 @@ Network File System (NFS) is a networking protocol for distributed file sharing.
 
     * The fields listed in ``nfs_client_params`` are:
 
-      - server_ip: IP of the intended NFS server. To set up an NFS server on the control plane, use the value ``localhost``.
+      - **server_ip**: IP of the intended NFS server. To set up an NFS server on the control plane, use the value ``localhost``. Use an IP  address to configure access anywhere else.
 
-      - server_share_path: Folder on which the NFS server mounted.
+      - **server_share_path**: Folder on which the NFS server mounted.
 
-      - client_share_path: Target directory for the NFS mount on the client. If left empty, the respective ``server_share_path value`` will be taken for ``client_share_path``.
+      - **client_share_path**: Target directory for the NFS mount on the client. If left empty, the respective ``server_share_path value`` will be taken for ``client_share_path``.
 
-      - client_mount_options: The mount options when mounting the NFS export on the client. Default value: nosuid,rw,sync,hard,intr. For a list of mount options, `click here <https://man7.org/linux/man-pages/man8/mount.8.html>`_.
 
-      - nfs_server: Indicates whether an external NFS server is available (true) or an NFS export will need to be created (false).
+      - **nfs_server**: Indicates whether an external NFS server is available (false) or an NFS server will need to be created (true).
 
   To configure all cluster nodes to access a single external NFS server export, use the below sample: ::
 
@@ -74,7 +74,7 @@ Post configuration, enable the following services (using this command: ``firewal
   - mountd
 
 .. caution::
-    After an NFS client is configured, if the NFS server is rebooted, the client may not be able to reach the server. In those cases, restart the NFS services on the server using the below command:
+   *  After an NFS client is configured, if the NFS server is rebooted, the client may not be able to reach the server. In those cases, restart the NFS services on the server using the below command:
 
         ::
 
@@ -82,4 +82,11 @@ Post configuration, enable the following services (using this command: ``firewal
             systemctl enable nfs-server
             systemctl restart nfs-server
 
+   * When ``nfs_server`` is false, enable the following services after configuration using this command: ``firewall-cmd --permanent --add-service=<service name>``) and then reload the firewall (using this command: ``firewall-cmd --reload``).
+
+       - nfs
+
+       - rpc-bind
+
+       - mountd
 
