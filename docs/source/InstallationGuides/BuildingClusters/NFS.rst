@@ -19,7 +19,7 @@ Network File System (NFS) is a networking protocol for distributed file sharing.
     +-----------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 
-    .. image:: ../../images/NFS_FlowChart.png
+    .. image:: ../../images/nfs_flowchart.png
 
     * The fields listed in ``nfs_client_params`` are:
 
