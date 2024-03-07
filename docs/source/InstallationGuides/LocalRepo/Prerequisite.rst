@@ -13,7 +13,7 @@ If ``repo_config`` in ``input/software_config.json`` is set to ``partial`` or ``
 
     <host>/<image name>:v<version number>
 
-Therefore, for the image of calico/cni version 1.2 available on quay.io that has been pulled to a local host server1.omnia.test, the accepted user registry name is: ::
+Therefore, for the image of ``calico/cni`` version ``1.2`` available on ``quay.io`` that has been pulled to a local host: ``server1.omnia.test``, the accepted user registry name is: ::
 
     server1.omnia.test:5001/calico/cni:v1.2
 
