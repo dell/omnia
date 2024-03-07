@@ -1,248 +1,191 @@
-Centralized authentication systems
-===================================
+Centralized authentication on the cluster
+==========================================
 
-To enable centralized authentication in the cluster, Omnia installs either:
-
- - FreeIPA
- - LDAP Client
-
-.. note:: 
-    * Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to run ``security.yml`` on RHEL cluster nodes.
-    * For RHEL cluster nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all cluster nodes. Every cluster node will require a RedHat subscription.
-
-
-
-Using FreeIPA
---------------
-
-Enter the following parameters in ``input/security_config.yml``.
-
-.. caution:: Do not remove or comment any lines in the ``input/security_config.yml`` file.
-
-+----------------------------+----------------------------------------------------------------------------------------------+
-| Parameter                  | Details                                                                                      |
-+============================+==============================================================================================+
-| freeipa_required           | Boolean indicating whether FreeIPA is required or not.                                       |
-|      ``boolean``           |                                                                                              |
-|      Required              |      Choices:                                                                                |
-|                            |                                                                                              |
-|                            |      * ``true`` <- Default                                                                   |
-|                            |                                                                                              |
-|                            |      * ``false``                                                                             |
-+----------------------------+----------------------------------------------------------------------------------------------+
-| realm_name                 | Sets the intended realm name.                                                                |
-|      ``string``            |                                                                                              |
-|      Required              |      **Default value**: ``OMNIA.TEST``                                                       |
-+----------------------------+----------------------------------------------------------------------------------------------+
-| directory_manager_password | * Password authenticating admin level access to the Directory for system   management tasks. |
-|      ``string``            |      * It will be added to the instance of directory server created for   IPA.               |
-|      Required              |      * Required Length: 8 characters.                                                        |
-|                            |      * The password must not contain -,, ‘,”                                                 |
-+----------------------------+----------------------------------------------------------------------------------------------+
-| kerberos_admin_password    | “admin”   user password for the IPA server on RockyOS.                                       |
-|      ``string``            |                                                                                              |
-|      Required              |                                                                                              |
-+----------------------------+----------------------------------------------------------------------------------------------+
-| domain_name                | Sets the intended domain   name                                                              |
-|      ``string``            |                                                                                              |
-|      Required              |      **Default value**: ``omnia.test``                                                       |
-+----------------------------+----------------------------------------------------------------------------------------------+
+The security feature allows users to set up FreeIPA and LDAP to help authenticate into HPC clusters.
 
 .. note::
+    * Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to run ``security.yml`` on RHEL target nodes.
+    * For RHEL target nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription.
 
-    The ``input/security_config.yml`` file is encrypted on the first run of ``security.yml`` and ``omnia.yml``:
 
-        To view the encrypted parameters: ::
+Configuring FreeIPA/LDAP security
+________________________________
 
-            ansible-vault view security_config.yml --vault-password-file .security_vault.key
+**Pre requisites**
 
-        To edit the encrypted parameters: ::
+* Run ``local_repo.yml`` to create offline repositories of FreeIPA or OpenLDAP. If both were downloaded, ensure that the non-required system is removed from ``input/software_config.json`` before running ``security.yml``. For more information, `click here <../../InstallationGuides/LocalRepo/index.html>`_.
 
-            ansible-vault edit security_config.yml --vault-password-file .security_vault.key
+* Enter the following parameters in ``input/security_config.yml``.
 
-    If a subsequent run of ``security.yml`` or ``omnia.yml``, all configuration files that have been encrypted by the playbook will be unencrypted.
+.. csv-table:: Parameters for Authentication
+   :file: ../../Tables/security_config.csv
+   :header-rows: 1
+   :keepspace:
 
-Omnia installs a FreeIPA server on the kube_control_plane and FreeIPA clients on the cluster  and login node using one of the below commands: ::
+.. csv-table:: Parameters for OpenLDAP configuration
+   :file: ../../Tables/security_config_ldap.csv
+   :header-rows: 1
+   :keepspace:
 
+.. csv-table:: Parameters for FreeIPA configuration
+   :file: ../../Tables/security_config_freeipa.csv
+   :header-rows: 1
+   :keepspace:
+
+.. [1] Boolean parameters do not need to be passed with double or single quotes.
+
+Create a new user on OpenLDAP
+-----------------------------
+
+1. Create an LDIF file (eg: ``create_user.ldif``) on the auth server containing the following information:
+
+    * DN: The distinguished name that indicates where the user will be created.
+    * objectClass: The object class specifies the mandatory and optional attributes that can be associated with an entry of that class. Here, the values are ``inetOrgPerson``, ``posixAccount``, and ``shadowAccount``.
+    * UID: The username of the replication user.
+    * sn: The surname of the intended user.
+    * cn: The given name of the intended user.
+
+Below is a sample file: ::
+
+    # User Creation
+    dn: uid=ldapuser,ou=People,dc=omnia,dc=test
+    objectClass: inetOrgPerson
+    objectClass: posixAccount
+    objectClass: shadowAccount
+    cn: ldapuser
+    sn: ldapuser
+    loginShell:/bin/bash
+    uidNumber: 2000
+    gidNumber: 2000
+    homeDirectory: /home/ldapuser
+    shadowLastChange: 0
+    shadowMax: 0
+    shadowWarning: 0
+
+    # Group Creation
+    dn: cn=ldapuser,ou=Group,dc=omnia,dc=test
+    objectClass: posixGroup
+    cn: ldapuser
+    gidNumber: 2000
+    memberUid: ldapuser
+
+.. note:: Avoid whitespaces when using an LDIF file for user creation. Extra spaces in the input data may be encrypted by OpenLDAP and cause access failures.
+
+2. Run the command ``ldapadd -D <enter admin binddn > -w < bind_password > -f create_user.ldif`` to execute the LDIF file and create the account.
+3. To set up a password for this account, use the command ``ldappasswd -D <enter admin binddn > -w < bind_password > -S <user_dn>``. The value of ``user_dn`` is the distinguished name that indicates where the user was created. (In this example, ``ldapuser,ou=People,dc=omnia,dc=test``)
+
+
+
+Configuring login node security
+________________________________
+
+**Prerequisites**
+
+* Run ``local_repo.yml`` to create an offline repository of all utilities used to secure the login node. For more information, `click here. <../../InstallationGuides/LocalRepo/SecureLoginNode.html>`_
+
+Enter the following parameters in ``input/login_node_security_config.yml``.
+
++--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Variable                 | Details                                                                                                                                                                        |
++==========================+================================================================================================================================================================================+
+| **max_failures**         | The number of login failures that can take place before the account is   locked out.                                                                                           |
+|      ``integer``         |                                                                                                                                                                                |
+|      Optional            |      **Default values**: ``3``                                                                                                                                                 |
++--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|**failure_reset_interval**| Period (in seconds) after which the number of failed login attempts is   reset. Min value: 30; Max value: 60.                                                                  |
+|      ``integer``         |                                                                                                                                                                                |
+|      Optional            |      **Default values**: ``60``                                                                                                                                                |
++--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| **lockout_duration**     | Period (in seconds) for which users are locked out. Min value: 5; Max   value: 10.                                                                                             |
+|      ``integer``         |                                                                                                                                                                                |
+|      Optional            |      **Default values**: ``10``                                                                                                                                                |
++--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|**session_timeout**       | User sessions that have been idle for a specific period can be ended   automatically. Min value: 90; Max value: 180.                                                           |
+|      ``integer``         |                                                                                                                                                                                |
+|      Optional            |      **Default values**: ``180``                                                                                                                                               |
++--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|**alert_email_address**   | Email address used for sending alerts in case of authentication failure.   When blank, authentication failure alerts are disabled. Currently, only one   email ID is accepted. |
+|      ``string``          |                                                                                                                                                                                |
+|      Optional            |                                                                                                                                                                                |
++--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|**user**                  | Access control list of users. Accepted formats are username@ip   (root@1.2.3.4) or username (root). Multiple users can be separated using   whitespaces.                       |
+|      ``string``          |                                                                                                                                                                                |
+|      Optional            |                                                                                                                                                                                |
++--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|**allow_deny**            | This variable decides whether users are to be allowed or denied access.   Ensure that AllowUsers or DenyUsers entries on sshd configuration file are   not commented.          |
+|      ``string``          |                                                                                                                                                                                |
+|      Optional            |      Choices:                                                                                                                                                                  |
+|                          |                                                                                                                                                                                |
+|                          |      * ``allow`` <- Default                                                                                                                                                    |
+|                          |      * ``deny``                                                                                                                                                                |
++--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| restrict_program_support | This variable is used to disable services. Root access is   mandatory.                                                                                                         |
+|      ``boolean``         |                                                                                                                                                                                |
+|      Optional            |      Choices:                                                                                                                                                                  |
+|                          |                                                                                                                                                                                |
+|                          |      * ``false`` <- Default                                                                                                                                                    |
+|                          |      * ``true``                                                                                                                                                                |
++--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|**restrict_softwares**    | List of services to be disabled (Comma-separated). Example:   'telnet,lpd,bluetooth'                                                                                           |
+|      ``string``          |                                                                                                                                                                                |
+|      Optional            |      Choices:                                                                                                                                                                  |
+|                          |                                                                                                                                                                                |
+|                          |      * ``telnet``                                                                                                                                                              |
+|                          |      * ``lpd``                                                                                                                                                                 |
+|                          |      * ``bluetooth``                                                                                                                                                           |
+|                          |      * ``rlogin``                                                                                                                                                              |
+|                          |      * ``rexec``                                                                                                                                                               |
++--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+
+Installing LDAP Client
+________________________
+
+.. caution:: No users/groups will be created by Omnia.
+
+FreeIPA installation on the NFS node
+-------------------------------------
+
+IPA services are used to provide account management and centralized authentication.
+
+To customize your installation of FreeIPA, enter the following parameters in ``input/security_config.yml``.
+
++-------------------------+-----------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Input Parameter         | Definition                                                      | Variable value                                                                                                                                        |
++=========================+=================================================================+=======================================================================================================================================================+
+| kerberos_admin_password | "admin" user password for the IPA server on RockyOS and RedHat. | The password can be found in the file ``input/security_config.yml`` .                                                                                 |
++-------------------------+-----------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------+
+| ipa_server_hostname     | The hostname of the IPA server                                  | The hostname can be found on the manager node.                                                                                                        |
++-------------------------+-----------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------+
+| domain_name             | Domain name                                                     | The domain name can be found in the file ``input/security_config.yml``.                                                                               |
++-------------------------+-----------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------+
+| ipa_server_ipadress     | The IP address of the IPA server                                | The IP address can be found on the IPA server on the manager node using the ``ip a`` command. This IP address should be accessible from the NFS node. |
++-------------------------+-----------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+
+To set up IPA services for the NFS node in the target cluster, run the following command from the ``utils/cluster`` folder on the control plane: ::
+
+    cd utils/cluster
+    ansible-playbook install_ipa_client.yml -i inventory -e kerberos_admin_password="" -e ipa_server_hostname="" -e domain_name="" -e ipa_server_ipadress=""
+
+
+.. include:: ../../Appendices/hostnamereqs.rst
+
+.. note:: Use the format specified under `NFS inventory in the Sample Files <../../samplefiles.html#nfs-server-inventory-file>`_ for inventory.
+
+Running the security role
+--------------------------
+
+Run: ::
+
+    cd security
     ansible-playbook security.yml -i inventory
 
-    ansible-playbook omnia.yml -i inventory
+The inventory should contain auth_server as per the inventory file in `samplefiles <../../samplefiles.html#inventory-file>`_. The inventory file is case-sensitive. Follow the casing provided in the sample file link.
 
-Where inventory follows the format defined under inventory file in the provided `Sample Files. <../../samplefiles.html>`_  The inventory file is case-sensitive. Follow the casing provided in the sample file link.
-
-The ``omnia.yml`` playbook installs Slurm, BeeFGS Client, NFS Client in addition to freeIPA.
-
-.. note::
-
-    * Omnia does not create any accounts (HPC users) on FreeIPA. To create a user, check out *FreeIPA documentation*.
-
-    * Alternatively, use the below commands with admin credentials on the login/head node: ::
-
-            kinit admin  (When prompted, provide kerberos_admin_password as entered in security_config.yml)
-            ipa user-add FirstName_LastName --first=FirstName --last=LastName --password  --homedir=/home/omnia-share/FirstName_LastName --shell /bin/bash
-
-    For example: ``ipa user-add FirstName_LastName --first=FirstName --last=LastName --password  --homedir=/home/omnia-share/FirstName_LastName --shell /bin/bash``
-
-    After the new user account logs in for the first time, you will be prompted to change the password to the account.
-
-**Setting up Passwordless SSH for FreeIPA**
-
-Once user accounts are created, admins can enable passwordless SSH for users to run HPC jobs on the cluster nodes.
-
-.. note:: Once user accounts are created on FreeIPA, use the accounts to login to the cluster nodes to reset the password and create a corresponding home directory.
-
-To customize your setup of passwordless ssh, input parameters in ``input/passwordless_ssh_config.yml``.
-
-+-----------------------+--------------------------------------------------------------------------------------------------------------------+
-| Parameter             | Details                                                                                                            |
-+=======================+====================================================================================================================+
-| user_name             | The list of users that requires passwordless SSH. Separate the list of users using a comma.                        |
-|      ``string``       |  Eg: ``user1,user2,user3``                                                                                         |
-|      Required         |                                                                                                                    |
-+-----------------------+--------------------------------------------------------------------------------------------------------------------+
-| authentication_type   | Indicates whether LDAP or FreeIPA is in use on the cluster.                                                        |
-|      ``string``       |                                                                                                                    |
-|      Required         |      Choices:                                                                                                      |
-|                       |                                                                                                                    |
-|                       |      * ``freeipa`` <- Default                                                                                      |
-|                       |                                                                                                                    |
-|                       |      * ``ldap``                                                                                                    |
-+-----------------------+--------------------------------------------------------------------------------------------------------------------+
-| freeipa_user_home_dir | * This variable accepts the user home directory path for freeipa   configuration.                                  |
-|      ``string``       |      * If nfs mount is created for user home, make sure you provide the freeipa   users mount home directory path. |
-|      Required         |                                                                                                                    |
-|                       |      **Default value**: ``"/home/omnia-share"``                                                                    |
-+-----------------------+--------------------------------------------------------------------------------------------------------------------+
+    * Do not include the IP of the control plane or local host in the auth_server group in the passed inventory.
+    * To customize the security features on the login node, fill out the parameters in ``input/login_node_security_config.yml``.
+    * If a subsequent run of ``security.yml`` fails, the ``security_config.yml`` file will be unencrypted.
 
 
-Use the below command to enable passwordless SSH: ::
-
-    ansible-playbook user_passwordless_ssh.yml -i inventory
-
-Where inventory follows the format defined under inventory file in the provided `Sample Files. <../../samplefiles.html>`_ The inventory file is case-sensitive. Follow the casing provided in the sample file link.
-
-.. caution:: Do not run ssh-keygen commands after passwordless SSH is set up on the nodes.
-
-
-Using LDAP client
-------------------
-
-To add the cluster to an external LDAP server, Omnia enables the installation of LDAP client on all cluster nodes.
-
-To customize your LDAP client installation, input parameters in ``input/security_config.yml``
-
-+----------------------+----------------------------------------------------------------------------------------------------------------------+
-| Parameter            | Details                                                                                                              |
-+======================+======================================================================================================================+
-| ldap_required        | Boolean indicating whether LDAP is required or not.                                                                  |
-|      ``boolean``     |                                                                                                                      |
-|      Required        |      Choices:                                                                                                        |
-|                      |                                                                                                                      |
-|                      |      * ``true`` <- Default                                                                                           |
-|                      |                                                                                                                      |
-|                      |      * ``false``                                                                                                     |
-+----------------------+----------------------------------------------------------------------------------------------------------------------+
-| domain_name          | Sets the intended domain name                                                                                        |
-|      ``string``      |                                                                                                                      |
-|      Required        |      **Default value**: ``omnia.test``                                                                               |
-+----------------------+----------------------------------------------------------------------------------------------------------------------+
-| ldap_server_ip       | LDAP server IP. Required if ``ldap_required`` is true. There should be an   explicit LDAP server running on this IP. |
-|      ``string``      |                                                                                                                      |
-|      Optional        |                                                                                                                      |
-+----------------------+----------------------------------------------------------------------------------------------------------------------+
-| ldap_connection_type | * For a TLS connection, provide a valid certification path.                                                          |
-|      ``string``      | * For an SSL connection, ensure port 636 is open.                                                                    |
-|      Required        |                                                                                                                      |
-|                      |      Choices:                                                                                                        |
-|                      |                                                                                                                      |
-|                      |      * ``TLS`` <- Default                                                                                            |
-|                      |                                                                                                                      |
-|                      |      * ``SSL``                                                                                                       |
-+----------------------+----------------------------------------------------------------------------------------------------------------------+
-| ldap_ca_cert_path    | * This variable accepts Server Certificate Path.                                                                     |
-|      ``string``      | * Make sure certificate is present in the path provided.                                                             |
-|      Required        | * The certificate should have .pem or .crt extension.                                                                |
-|                      | * This variable is mandatory if connection type is TLS.                                                              |
-|                      |                                                                                                                      |
-|                      |      **Default value**: ``/etc/openldap/certs/omnialdap.pem``                                                        |
-+----------------------+----------------------------------------------------------------------------------------------------------------------+
-| user_home_dir        | * This variable accepts the user home directory path for LDAP   configuration.                                       |
-|      ``string``      | * If nfs mount is created for user home, make sure you provide the freeipa   users mount home directory path.        |
-|      Required        |                                                                                                                      |
-|                      |      **Default value**: ``"/home/omnia-share"``                                                                      |
-+----------------------+----------------------------------------------------------------------------------------------------------------------+
-| ldap_bind_username   | * If LDAP server is configured with bind dn then bind dn user to be   provided.                                      |
-|      ``string``      | * If this value is not provided (when bind is configured in server) then   ldap authentication fails.                |
-|      Required        | * Omnia does not validate this input.                                                                                |
-|                      | * Ensure that it is valid and proper.                                                                                |
-|                      |                                                                                                                      |
-|                      |      **Default value**: ``admin``                                                                                    |
-+----------------------+----------------------------------------------------------------------------------------------------------------------+
-| ldap_bind_password   | * If LDAP server is configured with bind dn then bind dn password to be   provided.                                  |
-|      ``string``      | * If this value is not provided (when bind is configured in server) then   ldap authentication fails.                |
-|      Required        | * Omnia does not validate this input.                                                                                |
-|                      | * Ensure that it is valid and proper.                                                                                |
-|                      |                                                                                                                      |
-|                      |      **Default value**: ``admin``                                                                                    |
-+----------------------+----------------------------------------------------------------------------------------------------------------------+
-
-.. note:: Omnia does not create any accounts (HPC users) on LDAP. To create a user, check out `LDAP documentation. <https://docs.oracle.com/cd/E19857-01/820-7651/bhacc/index.html>`_
-
-
-**Setting up Passwordless SSH for LDAP**
-
-Once user accounts are created, admins can enable passwordless SSH for users to run HPC jobs on the cluster nodes.
-
-.. note::
-    * Ensure that the control plane can reach the designated LDAP server.
-    * If ``enable_omnia_nfs`` is true in ``input/omnia_config.yml``, follow the below steps to configure an NFS share on your LDAP server:
-        - From the kube_control_plane:
-            1. Add the LDAP server IP address to ``/etc/exports``.
-            2. Run ``exportfs -ra`` to enable the NFS configuration.
-        - From the LDAP server:
-            1. Add the required fstab entries in ``/etc/fstab``. (The corresponding entry will be available on the cluster  nodes in ``/etc/fstab``)
-            2. Mount the NFS share using ``mount manager_ip: /home/omnia-share /home/omnia-share``.
-    * If ``enable_omnia_nfs`` is false in ``input/omnia_config.yml``, ensure the user-configured NFS share is mounted on the LDAP server.
-
-
-To customize your setup of passwordless ssh, input parameters in ``input/passwordless_ssh_config.yml``
-
-+--------------------------+-------------------------------------------------------------------------------------------------------+
-| Parameter                | Details                                                                                               |
-+==========================+=======================================================================================================+
-| user_name                | The list of users that requires passwordless SSH. Separate the list of users using a comma.           |
-|      ``string``          |  Eg: ``user1,user2,user3``                                                                            |
-|      Required            |                                                                                                       |
-+--------------------------+-------------------------------------------------------------------------------------------------------+
-| authentication_type      | Indicates whether LDAP or FreeIPA is in use on the cluster.                                           |
-|      ``string``          |                                                                                                       |
-|      Required            |      Choices:                                                                                         |
-|                          |                                                                                                       |
-|                          |      * ``freeipa`` <- Default                                                                         |
-|                          |                                                                                                       |
-|                          |      * ``ldap``                                                                                       |
-+--------------------------+-------------------------------------------------------------------------------------------------------+
-| ldap_organizational_unit | * Distinguished name i.e dn in ldap is used to identify an entity in a   LDAP.                        |
-|      ``string``          | * This variable includes the organizational unit (ou) which is used to   identifies user in the LDAP. |
-|      Required            | * Only provide ou details i.e ou=people, as domain name and userid is   accepted already.             |
-|                          | **Default value**: ``people``                                                                         |
-+--------------------------+-------------------------------------------------------------------------------------------------------+
-
-
-Use the below command to enable passwordless SSH: ::
-
-    ansible-playbook user_passwordless_ssh.yml -i inventory
-
-.. caution:: Do not run ssh-keygen commands after passwordless SSH is set up on the nodes.
-
-
-
-
-
-
-
-
-
-
-
-
+.. caution:: No users will be created by Omnia.
