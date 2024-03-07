@@ -49,7 +49,7 @@ For RHEL or Rocky: ::
 .. note::
 * If the package version is customized, ensure that the ``version`` value is updated in ``software_config.json```.
 
-2. Enter the required values in the ``input/local_repo_config.yml`` file. For parameter information, `click here <index.html>`_.
+2. Enter the required values in the ``input/local_repo_config.yml`` file. For parameter information, `click here <RunningLocalRepo.html>`_.
 3. Run the following commands: ::
 
        cd local_repo

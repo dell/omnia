@@ -54,7 +54,7 @@ For RHEL or Rocky: ::
 * If the package version is customized, ensure that the ``version`` value is updated in ``software_config.json```.
 * If the target cluster runs on RHEL or Rocky, ensure the "dkms" package is included in ``input/config/<operating systen>/8.x/cuda.json`` as illustrated above.
 
-2. Enter the required values in the ``input/local_repo_config.yml`` file. For parameter information, `click here <index.html>`_.
+2. Enter the required values in the ``input/local_repo_config.yml`` file. For parameter information, `click here <RunningLocalRepo.html>`_.
 3. Run the following commands: ::
 
        cd local_repo

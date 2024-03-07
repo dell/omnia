@@ -60,8 +60,8 @@ After the required parameters are filled in ``input/storage_config.yml``, Omnia 
 
 .. caution:: Do not remove or comment any lines in the ``input/storage_config.yml`` file.
 
-.. csv-table:: Parameters for Authentication
-   :file: ../../Tables/security_config.csv
+.. csv-table:: Parameters for storage
+   :file: ../../Tables/storage_config.csv
    :header-rows: 1
    :keepspace:
 

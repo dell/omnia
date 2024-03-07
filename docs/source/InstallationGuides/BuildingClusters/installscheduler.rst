@@ -3,13 +3,8 @@ Building clusters
 
 1. In the ``input/omnia_config.yml``, ``input/security_config.yml``, ``input/telemetry_config.yml`` and [optional] ``input/storage_config.yml`` files, provide the `required details <schedulerinputparams.html>`_.
 
-.. note::
-    * Use the parameter ``scheduler_type`` in ``input/omnia_config.yml`` to customize what schedulers are installed in the cluster.
-    * Without the login node, Slurm jobs can be scheduled only through the kube_control_plane.
 
-2. Create an inventory file in the *omnia* folder. Check out the `sample inventory for more information <../../samplefiles.html>`_.
-
-.. [1] In a multi-node setup, IP's cannot be repeated in the manager or compute groups. That is, do not include the kube_control_plane IP address in the compute group. In a single node setup, the compute node and the kube_control_plane must be the same.
+2. Create an inventory file in the *omnia* folder. Check out the `sample inventory for more information <../../samplefiles.html>`_. If a hostname is used to refer to the target nodes, ensure that the domain name is included in the entry. IP addresses are also accepted in the inventory file.
 
 .. include:: ../../Appendices/hostnamereqs.rst
 
@@ -33,7 +28,7 @@ To run ``omnia.yml``: ::
 
 .. note::
     * To visualize the cluster (Slurm/Kubernetes) metrics on Grafana (On the control plane)  during the run of ``omnia.yml``, add the parameters ``grafana_username`` and ``grafana_password`` (That is ``ansible-playbook omnia.yml -i inventory -e grafana_username="" -e grafana_password=""``).
-    * Having the same node in the manager and login groups in the inventory is not recommended by Omnia.
+    * For a Kubernetes cluster installation, ensure that the inventory includes an ``[etcd]`` entry. etcd is a consistent and highly-available key value store used as Kubernetes' backing store for all cluster data. For more information, `click here. <https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/>`_
     * If you want to view or edit the ``omnia_config.yml`` file, run the following command:
 
                 - ``ansible-vault view omnia_config.yml --vault-password-file .omnia_vault_key`` -- To view the file.
