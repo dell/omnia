@@ -22,4 +22,4 @@ To install Kubernetes, include the following line under ``softwares```: ::
        cd local_repo
        ansible-playbook local_repo.yml
 
-To complete the installation of Kubernetes on the cluster, `click here. <../BuildingClusters/index.rst>`_
+To complete the installation of Kubernetes on the cluster, `click here. <../BuildingClusters/index.html>`_
