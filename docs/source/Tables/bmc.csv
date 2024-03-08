@@ -1,26 +1,4 @@
 ﻿Parameter,Details
-"**network_interface_type**
-
-``string``
-
-Required","The network type used on the Omnia cluster.
-
-Choices:
-
-* ``dedicated`` <- default
-* ``lom``"
-"**discovery_mechanism**
-
-``string``
-
-Required","The mechanism through which Omnia will discover nodes for provisioning. For more information on how the mechanisms work, go to `DiscoveryMechanisms <DiscoveryMechanisms/index.html>`_.
-
-Choices:
-
-* ``switch_based``
-* ``mapping``  <-default
-* ``bmc``
-* ``snmpwalk``"
 "**provision_os**
 
 ``string``
@@ -128,29 +106,6 @@ Required","* Domain name the user intends to configure on the cluster.
 Required","The nic/ethernet card that is connected to the public internet.
 
 **Default values**: ``eno2``"
-"**admin_nic**
-
-``string``
-
-Required","Admin NIC of Control Plane. This is the shared LOM NIC.
-
-**Default values**: ``eno1``"
-"**admin_nic_subnet**
-
-``string``
-
-Required","* The subnet within which all Admin IPs are assigned.
-* The value of this variable cannot be changed after successfully running ``provision.yml``.
-
-**Default values**: ``10.5.0.0``"
-"**ib_nic_subnet**
-
-``string``
-
-Optional","* If provided, Omnia will handle and assign static IPs to cluster node's IB network.
-* Only the last 16 bits/2 octets of IPv4 are dynamic
-* If provided, the DB entry will be in parallel with the pxe_subnet.
-* Example: If ``admin_ip``: 10.5.0.50 and ``ib_nic_subnet``: 10.10.0.0, then ``ib_ip``: 10.10.0.50"
 "**bmc_nic_subnet**
 
 ``string``

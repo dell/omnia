@@ -1,16 +1,4 @@
 ﻿Parameter,Details
-"**discovery_mechanism**
-
-``string``
-
-Required","The mechanism through which Omnia will discover nodes for provisioning. For more information on how the mechanisms work, go to `DiscoveryMechanisms <DiscoveryMechanisms/index.html>`_.
-
-Choices:
-
-* ``switch_based``
-* ``mapping``  <-default
-* ``bmc``
-* ``snmpwalk``"
 "**provision_os**
 
 ``string``
@@ -102,21 +90,6 @@ Required","* Domain name the user intends to configure on the cluster.
 Required","The nic/ethernet card that is connected to the public internet.
 
 **Default values**: ``eno2``"
-"**admin_nic**
-
-``string``
-
-Required","Admin NIC of Control Plane. This is the shared LOM NIC.
-
-**Default values**: ``eno1``"
-"**admin_nic_subnet**
-
-``string``
-
-Required","* The subnet within which all Admin IPs are assigned.
-* The value of this variable cannot be changed after successfully running ``provision.yml``.
-
-**Default values**: ``10.5.0.0``"
 "**admin_static_start_range**
 
 ``string``
@@ -141,25 +114,6 @@ Required","* The mapping file consists of the MAC address and its respective IP 
 * If static IPs are required, create a csv file in the format MAC,Hostname,IP.
 * A sample file is provided here: examples/pxe_mapping_file.csv.
 * If not provided, ensure that pxe_switch_ip is provided."
-"**ib_nic_subnet**
-
-``string``
-
-Optional","* If provided, Omnia will handle and assign static IPs to cluster node's IB network.
-* Only the last 16 bits/2 octets of IPv4 are dynamic
-* If provided, the DB entry will be in parallel with the pxe_subnet.
-* Example: If ``admin_ip``: 10.5.0.50 and ``ib_nic_subnet``: 10.10.0.0, then ``ib_ip``: 10.10.0.50"
-"**bmc_nic_subnet**
-
-``string``
-
-Required","* If provided, Omnia will assign static IPs to IB NICs on the cluster nodes within the provided subnet.
-* If ``network_interface_type``: ``lom``, mandatory for discovery_mechanism: mapping, switch_based and bmc.
-* If ``network_interface_type``: ``dedicated``, optional for discovery_mechanism: mapping, switch_based.
-* Note that since the last 16 bits/2 octets of IPv4 are dynamic, please ensure that the parameter value is set to x.x.0.0.
-* When the PXE range and BMC subnet are provided, corresponding NICs will be assigned IPs with the same 3rd and 4th octets.
-* The value of this variable cannot be changed after successfully running ``provision.yml``.
-"
 "**bmc_nic_start_range**
 
 ``string``

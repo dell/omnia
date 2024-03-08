@@ -9,7 +9,7 @@ For persistent offline local repositories, (If the parameter ``repo_config`` in 
 
 **When creating user registries**
 
-If ``repo_config`` in ``input/software_config.json`` is set to ``partial`` or ``never``, images listed in ``user_registry`` in ``input/local_repo_config.yml`` are accessed from user defined registries. To ensure that the control plane can correctly access the registry, ensure that the following naming convention is used to save the image: ::
+Images listed in ``user_registry`` in ``input/local_repo_config.yml`` are accessed from user defined registries. To ensure that the control plane can correctly access the registry, ensure that the following naming convention is used to save the image: ::
 
     <host>/<image name>:v<version number>
 
