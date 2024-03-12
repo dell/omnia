@@ -32,5 +32,6 @@ Required","* The type of offline configuration user needs.
 
 Required","* A JSON list of required software and (optionally) the software revision.
 * This value of version is required for OFED and CUDA.
-
-.. note:: The accepted names for software is taken from "
+* A minimum of one software should be provided in the list for ``local_repo.yml`` to execute correctly.
+.. note:: The accepted names for software is taken from ``input/config/<cluster_os_type>/<cluster_os_version>/``.                                                        input/config/<cluster_os_type>/<cluster_os_version>/
+                                                           "
