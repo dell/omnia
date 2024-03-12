@@ -11,23 +11,49 @@ Required","* The intended file path for offline repository data.
 
 ``JSON List``
 
-Optional","* The code ready builder URL required for downloading packages to a RHEL control plane.
-* This value is required on RHEL clusters.
+Optional","* This variable accepts the repository urls of the user which contains the packages required for the cluster.
+
+* When ``repo_config`` is always, the given list will be configured on the control plane and packages required for cluster will be downloaded into a local repository.
+
+* When ``repo_config`` is partial, a local repository is created on the control plane containing packages that are not part of the user's repository.
+
+* When ``repo_config`` is never, no local repository is created and packages are downloaded on all cluster nodes.
+
 * 'url' defines the baseurl for the repository.
-* 'gpgkey' defines gpgkey for the repository. If 'gpgkey' is omitted then gpgcheck=0 is set for that repository.
-* **Sample value**: - {url: ""http://crb.com/CRB/x86_64/os/"",gpgkey: ""http://crb.com/CRB/x86_64/os/RPM-GPG-KEY""}"
+
+* 'gpgkey' defines gpgkey for the repository. If 'gpgkey' is omitted then   gpgcheck=0 is set for that repository.
+
+* **Sample value**: ``- {url: ""http://crb.com/CRB/x86_64/os/"",gpgkey: ""http://crb.com/CRB/x86_64/os/RPM-GPG-KEY""}``
+
+
+"
 "**user_registry**
 
 ``JSON List``
 
-Optional","* Lists external user configured mirror registries. 
-* For partial configurations of offline repositories, values listed here will not be configured locally. Instead, subscriptions will be set up for the cluster to access the images/RPMs online.
-* 'host' defines the host for registry along with port where registry will be accessible.
-* 'cert_path' defines the absolution path location for certificates for respective registry. If 'cert_path' value is omitted, an insecure registry will be configured.
+Optional","* This variable accepts the registry url along with port of the user which contains the images required for cluster.
+
+* When ``repo_config`` is always, the list given in ``user_registry`` will be configured on the control plane and packages required for cluster will be downloaded into a local repository.
+
+* When ``repo_config`` is partial, a local registry is created on the control plane containing packages that are not part of the ``user_registry``.
+
+* When ``repo_config`` is never, no local registry is created and packages are downloaded on all cluster nodes.
+
+* 'host' defines the URL and path to the registry.
+
+* 'cert_path' defines the absolute path where the security certificates for each registry. If this path is not provided, insecure registries are configured.
+
 * **Sample value**: ::
 
 	  - { host: 10.11.0.100:5001, cert_path: ""/home/ca.crt"" }
 	  - { host: registryhostname.registry.test, cert_path: """" }
+
+
+
+
+
+
+
 "
 "**os_repo_url**
 
@@ -37,7 +63,7 @@ Optional","* URL to a list of repositories to be configured for Ubuntu clusters.
 * When the value of ``repo_config`` in ``input/local_repo_config.yml`` is set to ``always``, the given ``os_repo_url`` will be mirrored on the control plane.
 * When the value of ``repo_config`` in ``input/local_repo_config.yml`` is set to ``partial`` or ``never``, the given ``os_repo_url`` is configured via proxy on the compute nodes.
 
-* **Sample value**: http://in.archive.ubuntu.com/ubuntu"
+* **Sample value**: ``http://in.archive.ubuntu.com/ubuntu``"
 "**omnia_registry**
 
 ``string``
@@ -49,8 +75,20 @@ Mandatory","* A list of registries from where images will be downloaded for Omni
 **Default value**: ::
 
      - ""registry.k8s.io""
-	 - ""quay.io""
-	 - ""docker.io""
+     - ""quay.io""
+     - ""docker.io""
+     - ""public.ecr.aws""
+     - ""gcr.io""
+     - ""nvcr.io""
+
+
+
+
+
+
+
+
+
 	"
 "**omnia_repo_url_rhel**
 
@@ -71,6 +109,12 @@ Required","* A list of all the repo urls from where rpms will be downloaded for 
 	   - { url: ""https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64"", gpgkey: ""https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64/D42D0685.pub""}
 	   - { url: ""https://yum.repos.intel.com/oneapi"", gpgkey: ""https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB"" }
 	   - { url: ""https://ltb-project.org/rpm/openldap25/$releasever/$basearch"", gpgkey: """"}
+
+
+
+
+
+
 "
 "**omnia_repo_url_rocky**
 
