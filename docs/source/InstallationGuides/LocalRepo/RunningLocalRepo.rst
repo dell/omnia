@@ -136,6 +136,12 @@ For a list of repositories (and their types) configured for kubernetes, view the
 
 2. Enter the required values in the ``input/local_repo_config.yml`` file:
 
+.. csv-table:: Parameters for Local Repository Configuration
+   :file: ../../Tables/local_repo_config.csv
+   :header-rows: 1
+   :keepspace:
+   :class: longtable
+
 3. Run the following commands: ::
 
     cd local_repo
