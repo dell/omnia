@@ -26,7 +26,7 @@ switch_based
 
 
 
-* IPMI over LAN needs to be enabled for the BMC. ::
+* IPMI over LAN needs to be enabled for the control plane. ::
 
     racadm set iDRAC.IPMILan.Enable 1
     racadm get iDRAC.IPMILan
