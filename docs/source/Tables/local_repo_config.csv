@@ -45,8 +45,8 @@ Optional","* This variable accepts the registry url along with port of the user 
 
 * **Sample value**: ::
 
-	  - { host: 10.11.0.100:5001, cert_path: ""/home/ca.crt"" }
-	  - { host: registryhostname.registry.test, cert_path: """" }
+   - { host: 10.11.0.100:5001, cert_path: ""/home/ca.crt"" }
+   - { host: registryhostname.registry.test, cert_path: """" }
 
 
 
