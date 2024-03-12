@@ -83,14 +83,21 @@ Required","* A list of all the repo urls from where rpms will be downloaded for 
 
 **Default value**: ::
 
-       - { url: ""https://download.docker.com/linux/centos/$releasever/$basearch/stable"", gpgkey: ""https://download.docker.com/linux/centos/gpg"" }
-	   - { url: ""https://repo.radeon.com/rocm/rhel8/{{ rocm_version }}/main"", gpgkey: ""https://repo.radeon.com/rocm/rocm.gpg.key"" }
-	   - { url: ""https://download.fedoraproject.org/pub/epel/8/Everything/$basearch"", gpgkey: ""https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-8"" }
-	   - { url: ""https://repo.radeon.com/amdgpu/{{ amdgpu_version }}/rhel/{{ cluster_os_version }}/main/x86_64"", gpgkey: ""https://repo.radeon.com/rocm/rocm.gpg.key"" }
-	   - { url: ""https://www.beegfs.io/release/beegfs_{{beegfs_version}}/dists/rhel8"", gpgkey: ""https://www.beegfs.io/release/beegfs_{{beegfs_version}}/gpg/GPG-KEY-beegfs"" }
-	   - { url: ""https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64"", gpgkey: ""https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64/D42D0685.pub""}
-	   - { url: ""https://yum.repos.intel.com/oneapi"", gpgkey: ""https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB"" }
-	   - { url: ""https://ltb-project.org/rpm/openldap25/$releasever/$basearch"", gpgkey: """"}
+         - { url: ""https://download.docker.com/linux/centos/$releasever/$basearch/stable"", gpgkey: ""https://download.docker.com/linux/centos/gpg"" }
+         - { url: ""https://repo.radeon.com/rocm/rhel8/{{ rocm_version }}/main"", gpgkey: ""https://repo.radeon.com/rocm/rocm.gpg.key"" }
+         - { url: ""https://download.fedoraproject.org/pub/epel/8/Everything/$basearch"", gpgkey: ""https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-8"" }
+         - { url: ""https://repo.radeon.com/amdgpu/{{ amdgpu_version }}/rhel/{{ cluster_os_version }}/main/x86_64"", gpgkey: ""https://repo.radeon.com/rocm/rocm.gpg.key"" }
+         - { url: ""https://www.beegfs.io/release/beegfs_{{beegfs_version}}/dists/rhel8"", gpgkey: ""https://www.beegfs.io/release/beegfs_{{beegfs_version}}/gpg/GPG-KEY-beegfs"" }
+         - { url: ""https://yum.repos.intel.com/oneapi"", gpgkey: ""https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB"" }
+         - { url: ""https://ltb-project.org/rpm/openldap25/$releasever/$basearch"", gpgkey: """"}
+         - { url: ""http://dl.rockylinux.org/$contentdir/$releasever/PowerTools/$basearch/os/"", gpgkey: """"}
+
+
+
+
+
+
+
 "
 "**omnia_repo_url_ubuntu**
 
@@ -103,12 +110,11 @@ Required","* A list of all the repo urls from where rpms will be downloaded for 
 
 **Default value**: ::
 
-       - { url: ""https://download.docker.com/linux/centos/$releasever/$basearch/stable"", gpgkey: ""https://download.docker.com/linux/centos/gpg"" }
-	   - { url: ""https://repo.radeon.com/rocm/rhel8/{{ rocm_version }}/main"", gpgkey: ""https://repo.radeon.com/rocm/rocm.gpg.key"" }
-	   - { url: ""https://download.fedoraproject.org/pub/epel/8/Everything/$basearch"", gpgkey: ""https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-8"" }
-	   - { url: ""https://repo.radeon.com/amdgpu/{{ amdgpu_version }}/rhel/{{ cluster_os_version }}/main/x86_64"", gpgkey: ""https://repo.radeon.com/rocm/rocm.gpg.key"" }
-	   - { url: ""https://www.beegfs.io/release/beegfs_{{beegfs_version}}/dists/rhel8"", gpgkey: ""https://www.beegfs.io/release/beegfs_{{beegfs_version}}/gpg/GPG-KEY-beegfs"" }
-	   - { url: ""https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64"", gpgkey: ""https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64/D42D0685.pub""}
-	   - { url: ""https://yum.repos.intel.com/oneapi"", gpgkey: ""https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB"" }
-	   - { url: ""https://ltb-project.org/rpm/openldap25/$releasever/$basearch"", gpgkey: """"}
-"
+         - { url: ""https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"", gpgkey: ""https://download.docker.com/linux/ubuntu/gpg"" }
+         - { url: ""https://repo.radeon.com/rocm/apt/{{ rocm_version }} {{ ansible_distribution_release }} main"", gpgkey: ""https://repo.radeon.com/rocm/rocm.gpg.key"" }
+         - { url: ""https://www.beegfs.io/release/beegfs_{{beegfs_version}} {{ ansible_distribution_release }} non-free"", gpgkey: ""https://www.beegfs.io/release/beegfs_{{beegfs_version}}/gpg/GPG-KEY-beegfs"" }
+         - { url: ""https://repo.radeon.com/amdgpu/{{ amdgpu_version }}/ubuntu {{ ansible_distribution_release }} main"", gpgkey: ""https://repo.radeon.com/rocm/rocm.gpg.key"" }
+         - { url: ""https://ltb-project.org/debian/openldap25/bookworm bookworm main"", gpgkey: ""https://ltb-project.org/documentation/_static/RPM-GPG-KEY-LTB-project"" }
+         - { url: ""http://security.ubuntu.com/ubuntu focal-security main"", gpgkey: """"}
+
+         "
