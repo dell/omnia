@@ -39,14 +39,3 @@ Optional","* Non-admin SNMPv3 credentials of the PXE switch.
 Optional","* Non-admin SNMPv3 credentials of the PXE switch.
 * If multiple switches are provided, ensure the credentials are same across switches.
 * Password must not contain -,\, ',"""
-,
-,
-,
-,
-,
-,
-,
-,
-,
-,
-,
