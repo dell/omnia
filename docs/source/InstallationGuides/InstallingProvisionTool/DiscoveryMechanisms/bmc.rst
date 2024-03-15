@@ -21,10 +21,9 @@ For automatic provisioning of servers and discovery, the BMC method can be used.
     racadm set iDRAC.IPMILan.Enable 1
     racadm get iDRAC.IPMILan
 
-- IP ranges (``bmc_static_start_range``, ``bmc_static_start_range``) provided to Omnia for BMC discovery should be within the same subnet.
 
-.. caution::
-    * If you are re-provisioning your cluster (that is, re-running the ``discovery_provision.yml`` playbook) after a `clean-up <../../CleanUpScript.html>`_, ensure to use a different ``static_range`` against ``bmc_network`` in ``input/network_spec.yml`` to avoid a conflict with newly assigned servers. Alternatively, disable any OS available in the ``Boot Option Enable/Disable`` section of your BIOS settings (**BIOS Settings > Boot Settings > UEFI Boot Settings**) on all target nodes.
+
+.. caution:: If you are re-provisioning your cluster (that is, re-running the ``discovery_provision.yml`` playbook) after a `clean-up <../../CleanUpScript.html>`_, ensure to use a different ``static_range`` against ``bmc_network`` in ``input/network_spec.yml`` to avoid a conflict with newly assigned servers. Alternatively, disable any OS available in the ``Boot Option Enable/Disable`` section of your BIOS settings (**BIOS Settings > Boot Settings > UEFI Boot Settings**) on all target nodes.
 
 - All target servers should be reachable from the ``admin_network`` specified in ``input/network_spec.yml``.
 

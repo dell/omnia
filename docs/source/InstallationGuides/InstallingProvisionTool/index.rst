@@ -5,9 +5,7 @@ This playbook achieves the following tasks:
 
     * Discovers potential cluster nodes.
 
-    * Installs Rocky, Ubuntu, or RHEL on the nodes.
-
-    * Assigns admin/infiniband IPs with optional DHCP routing.
+    * Installs Rocky, Ubuntu, or RHEL on the discovered nodes.
 
 .. toctree::
 
