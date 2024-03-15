@@ -32,9 +32,9 @@ Via omniadb
 4. To view the contents of the ``nodeinfo`` table: ``select * from cluster.nodeinfo;`` ::
 
         Node 		cpu			gpu			cpu_count		gpu_count
-        node1		intel	  nvidia		    1				2
-        node2		amd		  amd			    2				1
-        node3		amd						    1				0
+        node1		intel		      nvidia		    1				2
+        node2		amd		   amd			2				1
+        node3		amd						      1				0
 
 
 Possible values of node status are powering-off, powering-on, bmcready, installing, booting, post-booting, booted, failed.
