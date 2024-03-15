@@ -20,6 +20,30 @@ Fill in all required parameters in ``input/provision_config.yml``, ``provision_c
    :header-rows: 1
    :keepspace:
 
+.. [1] Boolean parameters do not need to be passed with double or single quotes.
+
+
+Update the ``input/network_spec.yml`` file for all networks available for use by the control plane. A sample is provided below: ::
+
+     ---
+     Networks:
+       - admin_network:
+           nic_name: "eno1"
+           netmask_bits: "16"
+           static_range: "10.5.0.1-10.5.0.200"
+           dynamic_range: "10.5.1.1-10.5.1.200"
+           network_gateway: ""
+           DNS: ""
+           MTU: "1500"
+
+       - bmc_network:
+           nic_name: ""
+           netmask_bits: ""
+           static_range: ""
+           dynamic_range: ""
+           discover_ranges: ""
+           network_gateway: ""
+           MTU: "1500"
 
 .. note::
 
