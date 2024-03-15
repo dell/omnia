@@ -49,6 +49,7 @@ Run the script ``prereq.sh`` to verify the system is ready for Omnia deployment.
     ConfiguringSwitches/index
     ConfiguringStorage/index
     Benchmarks/index
+    deletenode
     CleanUpScript
 
 

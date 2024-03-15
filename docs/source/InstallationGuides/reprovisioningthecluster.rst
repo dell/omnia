@@ -28,7 +28,7 @@ Where the inventory contains a list of host IPs (Sourced from the `nodeinfo tabl
 
 .. note::
     * The host IPs passed in the inventory should be assigned by Omnia. They will not be changed during the re-provisioning.
-    * If the nodes were discovered via snmpwalk or mapping, users will be required to manually reboot target nodes.
+    * If the nodes were discovered via mapping, manually reboot target nodes.
     * Do not include groups like *manager*, *compute* and *login* in the passed inventory.
 
 **Setting up the cluster**

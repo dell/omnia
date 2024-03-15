@@ -86,7 +86,7 @@ Note the compatibility between cluster OS and control plane OS below:
 
 In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcfg-<nic name>`` using vi editor.
 
-* When discovering nodes via snmpwalk or a mapping file, all target nodes should be set up in PXE mode before running the playbook.
+* When discovering nodes via a mapping file, all target nodes should be set up in PXE mode before running the playbook.
 
 * Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to run ``provision.yml`` on RHEL target nodes.
 

@@ -17,6 +17,7 @@ This playbook achieves the following tasks:
 
     provisionprereqs
     DiscoveryMechanisms/index
+    provisionparams
     installprovisiontool
     ViewingDB
     provisionservers

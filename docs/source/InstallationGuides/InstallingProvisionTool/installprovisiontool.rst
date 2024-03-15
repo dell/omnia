@@ -115,7 +115,7 @@ After successfully running ``provision.yml``, go to `Building Clusters <../Build
 
     * While the ``admin_nic`` on cluster nodes is configured by Omnia to be static, the public NIC IP address should be configured by user.
 
-    * If the target nodes were discovered using switch-based, mapping or snmpwalk mechanisms, manually PXE boot the target servers after the ``provision.yml`` playbook is executed and the target node lists as **booted** `in the nodeinfo table <ViewingDB.html>`_.
+    * If the target nodes were discovered using switch-based or mapping mechanisms, manually PXE boot the target servers after the ``provision.yml`` playbook is executed and the target node lists as **booted** `in the nodeinfo table <ViewingDB.html>`_.
 
     * If the cluster does not have access to the internet, AppStream will not function.
 

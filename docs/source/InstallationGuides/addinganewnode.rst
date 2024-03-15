@@ -48,16 +48,6 @@ A new node can be added using the following ways:
 
     * Manually PXE boot the target servers after the ``provision.yml`` playbook is executed and the target node lists as **booted** `in the nodeinfo table <InstallingProvsionTool/ViewingDB.html>`_
 
-* When the discovery mechanism is ``snmpwalk``:
-
-    * Run ``provision.yml`` after the switch as discovered the new node. ::
-
-        cd provision
-        ansible-playbook provision.yml
-
-    * Manually PXE boot the target servers after the ``provision.yml`` playbook is executed and the target node lists as **booted** `in the Omnia nodeinfo table. <InstallingProvisionTool/ViewingDB.html>`_
-
-
 Alternatively, if a new node is to be added with no change in configuration, run the following commands: ::
 
             cd provision

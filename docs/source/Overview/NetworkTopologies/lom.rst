@@ -6,7 +6,6 @@ A LOM port could be shared with the host operating system production traffic. Al
 
 .. image:: ../../images/omnia_network_LOM.png
 
-.. caution:: Target nodes using LOM ports cannot be discovered via snmpwalk.
 
 **Recommended discovery mechanism**
 
