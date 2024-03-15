@@ -35,7 +35,7 @@ switch_based
 
 * Target servers should be configured to boot in PXE mode with appropriate NIC as the first boot device.
 
-* Set the IP address of the control plane with a /16 subnet mask. The control plane NIC connected to remote servers (through the switch) should be configured with two IPs (BMC IP and admin IP) in a shared LOM or hybrid set up. In the case dedicated network topology, a single IP (admin IP) is required.
+* Set the IP address of the control plane. The control plane NIC connected to remote servers (through the switch) should be configured with two IPs (BMC IP and admin IP) in a shared LOM or hybrid set up. In the case dedicated network topology, a single IP (admin IP) is required.
 .. image:: ../../../images/ControlPlaneNic.png
 
 * Ensure that the variable ``switch_based_details`` in ``input/provision_config.yml`` is provided.
@@ -47,8 +47,7 @@ switch_based
 
 
 .. note::
-
-    * If any of the target nodes have a pre-provisioned IP, ensure that these IPs are not part of the ``bmc_subnet`` specified in ``input/network_spec.yml``.
+    * If any of the target nodes have a pre-provisioned BMC IP, ensure that these IPs are not part of the ``static_range`` specified in ``input/network_spec.yml`` under the ``bmc_network`` to avoid any node IP conflicts.
     * Even if ``switch_based_details`` are provided in ``input/provision_config.yml``, a BMC discovery job task is run on the ``static_range`` and ``dynamic_range`` provided in ``input/network_spec.yml`` against the ``bmc_network`` before the switch based discovery job. If there is any overlap in the values provided, duplicate node objects may be created in the database. Ensure mindful IP range inputs to avoid duplicates. In case of a duplicate node object, bmc nodes will be deleted automatically by the **duplicate_node_cleanup** service that runs every 30 minutes.
 
 To clear the configuration on Omnia provisioned switches and ports, `click here <../../../Roles/Utils/portcleanup.html>`_.

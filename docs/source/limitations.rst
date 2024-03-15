@@ -3,7 +3,6 @@ Limitations
 
 -  Once ``provision.yml`` is used to configure devices, it is
    recommended to avoid rebooting the control plane.
-- Omnia provision tools only support /16 subnet masks for provisioning.
 -  Omnia supports adding only 1000 nodes when discovered via BMC.
 -  Removal of Slurm and Kubernetes component roles are not supported.
    However, the scheduler type can be customized by setting ``scheduler_type`` in ``input/omnia_config.yml`` prior to running ``omnia.yml``.

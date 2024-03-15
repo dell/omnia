@@ -5,7 +5,7 @@ For automatic provisioning of servers and discovery, the BMC method can be used.
 
 **Pre requisites**
 
-* Set the IP address of the control plane with a /16 subnet mask. The control plane NIC connected to remote servers (through the switch) should be configured with two IPs (BMC IP and admin IP) in a shared LOM or hybrid set up. In the case dedicated network topology, a single IP (admin IP) is required.
+* Set the IP address of the control plane. The control plane NIC connected to remote servers (through the switch) should be configured with two IPs (BMC IP and admin IP) in a shared LOM or hybrid set up. In the case dedicated network topology, a single IP (admin IP) is required.
 .. image:: ../../../images/ControlPlaneNic.png
 
 * BMC NICs should have a static IP assigned or be configured in DHCP mode.
@@ -24,7 +24,7 @@ For automatic provisioning of servers and discovery, the BMC method can be used.
 - IP ranges (``bmc_static_start_range``, ``bmc_static_start_range``) provided to Omnia for BMC discovery should be within the same subnet.
 
 .. caution::
-    * If you are re-provisioning your cluster (that is, re-running the ``provision.yml`` playbook) after a `clean-up <../../CleanUpScript.html>`_, ensure to use a different ``admin_nic_subnet`` in ``input/provision_config.yml`` to avoid a conflict with newly assigned servers. Alternatively, disable any OS available in the ``Boot Option Enable/Disable`` section of your BIOS settings (``BIOS Settings`` > ``Boot Settings`` > ``UEFI Boot Settings``) on all target nodes.
+    * If you are re-provisioning your cluster (that is, re-running the ``discovery_provision.yml`` playbook) after a `clean-up <../../CleanUpScript.html>`_, ensure to use a different ``static_range`` against ``bmc_network`` in ``input/network_spec.yml`` to avoid a conflict with newly assigned servers. Alternatively, disable any OS available in the ``Boot Option Enable/Disable`` section of your BIOS settings (**BIOS Settings > Boot Settings > UEFI Boot Settings**) on all target nodes.
 
 - All target servers should be reachable from the ``admin_network`` specified in ``input/network_spec.yml``.
 
