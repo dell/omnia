@@ -1,4 +1,4 @@
-Set up TensorFlow
+Setup TensorFlow
 -----------------
 
 TensorFlow is a widely-used open-source deep learning framework, recognized for its static computation graph that optimizes performance and scalability, making it a favored choice for deploying machine learning models at scale in various industries.

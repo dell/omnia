@@ -1,4 +1,4 @@
-Set up Kserve
+Setup Kserve
 --------------
 
 Kserve is an open-source serving platform that simplifies the deployment, scaling, and management of machine learning models in production environments, ensuring efficient and reliable inference capabilities. For more information, `click here. <https://kserve.github.io/website/0.11/get_started/>`_

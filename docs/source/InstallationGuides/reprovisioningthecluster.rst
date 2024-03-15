@@ -1,20 +1,14 @@
 Re-provisioning the cluster
 ++++++++++++++++++++++++++++
 
-In the event that an existing Omnia cluster needs a different OS version or a fresh installation, the cluster can be re-provisioned. While re-provisioning the cluster, users can modify the following:
+**Pre-requisites**
 
-    - The operating system
-    - CUDA
-    - OFED
+    * Run the `delete node playbook. <deletenode.html#delete-node-from-the-cluster>`_ for every target node.
 
-Omnia can re-provision the cluster by running the following command: ::
+In the event that an existing Omnia cluster needs a different OS version or a fresh installation, the cluster can be re-provisioned.
 
-    cd provision
-    ansible-playbook provision.yml -i inventory
+If a re-deployment with no modifications are required  ::
 
-Alternatively, if a re-deployment with no modifcations are required  ::
-
-    cd provision
     ansible-playbook discovery_provision.yml -i inventory
 
 
@@ -39,10 +33,10 @@ Where the inventory contains a list of host IPs (Sourced from the `nodeinfo tabl
 
 ::
 
-    [manager]
+    [kube_control_plane]
     10.5.0.101
 
-    [compute]
+    [kube_node]
     10.5.0.102
     10.5.0.103
 
@@ -53,10 +47,10 @@ Where the inventory contains a list of host IPs (Sourced from the `nodeinfo tabl
 
 ::
 
-    [manager]
+    [kube_control_plane]
     10.5.0.102
 
-    [compute]
+    [kube_node]
     10.5.0.101
     10.5.0.103
     10.5.0.104

@@ -47,7 +47,7 @@ Update the ``input/network_spec.yml`` file for all networks available for use by
 
 .. note::
 
-    The ``input/provision_config.yml`` file is encrypted on the first run of the provision tool:
+    * The ``input/provision_config.yml`` file is encrypted on the first run of the provision tool:
 
         To view the encrypted parameters: ::
 
@@ -56,6 +56,8 @@ Update the ``input/network_spec.yml`` file for all networks available for use by
         To edit the encrypted parameters: ::
 
             ansible-vault edit provision_config.yml --vault-password-file .provision_vault_key
+
+    * The strings ``admin_network`` and ``bmc_network`` in the ``input/network_spec.yml`` file should not be edited.
 
 .. caution::
 

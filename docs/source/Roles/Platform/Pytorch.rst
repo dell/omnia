@@ -1,4 +1,4 @@
-Set up PyTorch
+Setup PyTorch
 ---------------
 
 PyTorch is a popular open-source deep learning framework, renowned for its dynamic computation graph that enhances flexibility and ease of use, making it a preferred choice for researchers and developers. With strong community support, PyTorch facilitates seamless experimentation and rapid prototyping in the field of machine learning.

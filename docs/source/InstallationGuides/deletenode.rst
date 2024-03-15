@@ -1,5 +1,6 @@
-Remove node from the cluster
-----------------------------
+Remove Slurm/K8s configuration from a node
+-------------------------------------------
+
 Use this playbook to remove nodes from the cluster and stop all clustering software on the target nodes.
 
 .. note:: All target nodes should be drained before executing the playbook. If a job is running on any target nodes, the playbook will exit.
@@ -37,8 +38,9 @@ Run the playbook using the following commands: ::
         cd utils
         ansible-playbook reset_cluster_config.yml -i inventory
 
-Delete node from the cluster
------------------------------
+Delete provisioned node
+------------------------
+
 Use this playbook to remove nodes from all inventory files and tables. No changes are made to the Slurm or Kubernetes cluster.
 
 .. note:: All target nodes should be drained before executing the playbook. If a job is running on any target nodes, the playbook will exit.

@@ -1,4 +1,4 @@
-Using Jupyterhub
+Setup Jupyterhub
 -----------------
 
 Using Helm charts, Omnia can install Jupyterhub on Kubernetes clusters. Once Jupyterhub is deployed, log into the UI to create your own notebook servers. For more information, `click here <https://z2jh.jupyter.org/en/stable/jupyterhub/customization.html>`_.

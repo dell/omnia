@@ -36,7 +36,7 @@ Required","* Domain name the user intends to configure on the cluster.
 
 ``string``
 
-Required","* The mapping file consists of the MAC address and its respective IP address and hostname.
+Required (Mapping discovery mechanism)","* The mapping file consists of the MAC address and its respective IP address and hostname.
 * If static IPs are required, create a csv file in the format MAC,Hostname,IP.
 * A sample file is provided here: examples/pxe_mapping_file.csv.
 * If not provided, ensure that pxe_switch_ip is provided."
@@ -44,7 +44,7 @@ Required","* The mapping file consists of the MAC address and its respective IP 
 
 ``JSON List``
 
-Required","* JSON list of switches to query for target nodes.
+Required (Switch based discovery mechanism)","* JSON list of switches to query for target nodes.
 * Split port ranges are not accepted here. (Ex: 10:5-10:10 will not be valid).
 * Example: ::
 

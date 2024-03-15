@@ -20,5 +20,4 @@ This playbook achieves the following tasks:
     provisionparams
     installprovisiontool
     ViewingDB
-    provisionservers
 
