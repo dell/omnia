@@ -15,17 +15,17 @@ Connecting to internal databases
 Checking and updating encrypted parameters
 -----------------------------------------------
 
-1. Move to the filepath where the parameters are saved (as an example, we will be using ``provision_config.yml``): ::
+1. Move to the filepath where the parameters are saved (as an example, we will be using ``provision_config_credentials.yml``): ::
 
     cd input/
 
 2. To view the encrypted parameters: ::
 
-   ansible-vault view provision_config.yml --vault-password-file .provision_vault_key
+   ansible-vault view provision_config_credentials.yml --vault-password-file .provision_vault_key
 
 3. To edit the encrypted parameters: ::
 
-    ansible-vault edit provision_config.yml --vault-password-file .provision_vault_key
+    ansible-vault edit provision_config_credentials.yml --vault-password-file .provision_vault_key
 
 Checking pod status on the control plane
 --------------------------------------------

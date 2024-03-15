@@ -8,7 +8,6 @@ This playbook achieves the following tasks:
     * Installs Rocky, Ubuntu, or RHEL on the nodes.
 
     * Assigns admin/infiniband IPs with optional DHCP routing.
--
 
 .. toctree::
 
