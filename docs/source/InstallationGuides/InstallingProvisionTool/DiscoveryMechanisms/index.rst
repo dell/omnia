@@ -1,7 +1,7 @@
 Discovery Mechanisms
 -----------------------
 
-Typically, the choice of discovery mechanism depends on the `Network Topology <../../../Overview/NetworkTopologies/index.html>`_ in your setup. Depending on the value of ``discovery_mechanism`` in ``input/provision_config.yml``, potential target servers can be discovered one of three ways:
+Depending on the values provided in ``input/provision_config.yml``, target nodes can be discovered in one of three ways:
 
 .. toctree::
     mappingfile
