@@ -47,7 +47,7 @@ switch_based
 
 
 .. note::
-    * If any of the target nodes have a pre-provisioned BMC IP, ensure that these IPs are not part of the ``static_range`` specified in ``input/network_spec.yml`` under the ``bmc_network`` to avoid any node IP conflicts.
+    * If any of the target nodes have a pre-provisioned BMC IP, ensure that these IPs are not part of the ``static_range`` specified in ``input/network_spec.yml`` under the ``bmc_network`` to avoid any bmc IP conflicts.
     * Even if ``switch_based_details`` are provided in ``input/provision_config.yml``, a BMC discovery job task is run on the ``static_range`` and ``dynamic_range`` provided in ``input/network_spec.yml`` against the ``bmc_network`` before the switch based discovery job. If there is any overlap in the values provided, duplicate node objects may be created in the database. Ensure mindful IP range inputs to avoid duplicates. In case of a duplicate node object, bmc nodes will be deleted automatically by the **duplicate_node_cleanup** service that runs every 30 minutes.
 
 To clear the configuration on Omnia provisioned switches and ports, `click here <../../../Roles/Utils/portcleanup.html>`_.
