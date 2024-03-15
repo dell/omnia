@@ -11,7 +11,7 @@ Fill in all required parameters in ``input/provision_config.yml``, ``provision_c
    :keepspace:
 
 .. csv-table:: provision_config_credentials.yml
-   :file: ../../Tables/Provision_config.csv
+   :file: ../../Tables/Provision_creds.csv
    :header-rows: 1
    :keepspace:
 
