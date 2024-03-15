@@ -1,7 +1,7 @@
 Input parameters for the provision tool
 -----------------------------------------
 
-Fill in all required parameters in ``input/provision_config.yml``, ``provision_config_credentials.yml``, ``input/software_config.json``.`
+Fill in all required parameters in ``input/provision_config.yml``, ``provision_config_credentials.yml``, ``input/software_config.json``.
 
 .. caution:: Do not remove or comment any lines in the ``input/provision_config.yml`` file.
 
@@ -24,6 +24,7 @@ Fill in all required parameters in ``input/provision_config.yml``, ``provision_c
 .. note::
 
     The ``input/provision_config.yml`` file is encrypted on the first run of the provision tool:
+
         To view the encrypted parameters: ::
 
             ansible-vault view provision_config.yml --vault-password-file .provision_vault_key
