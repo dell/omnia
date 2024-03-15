@@ -3,8 +3,6 @@ Before you run the provision tool
 
 * (Recommended) Run ``prereq.sh`` to get the system ready to deploy Omnia. Alternatively, ensure that `Ansible 2.14.13 <https://docs.ansible.com/ansible/latest/reference_appendices/release_and_maintenance.html>`_ and `Python 3.9 <https://www.python.org/downloads/>`_ are installed on the system. SELinux should also be disabled.
 
-* If the control plane is running on the minimal edition of the OS, ensure that ``chrony`` and ``podman`` are installed before running ``provision.yml``.
-
 * Set the IP address of the control plane with a /16 subnet mask. The control plane NIC connected to remote servers (through the switch) should be configured with two IPs (BMC IP and admin IP) in a shared LOM or hybrid set up. In the case dedicated network topology, a single IP (admin IP) is required.
 
 .. figure:: ../../images/ControlPlaneNic.png
@@ -82,7 +80,7 @@ Note the compatibility between cluster OS and control plane OS below:
 
     To verify the device name: ::
 
-    ip link show
+             ip link show
 
 In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcfg-<nic name>`` using vi editor.
 
@@ -144,9 +142,6 @@ In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcf
                 RHEL-8-baseos-partners                                            Red Hat Enterprise Linux 8.6.0 Partners (BaseOS)
                 RHEL-8-crb-partners                                               Red Hat Enterprise Linux 8.6.0 Partners (CRB)
 
-* Uninstall epel-release if installed on the control plane as Omnia configures epel-release on the control plane. To uninstall epel-release, use the following commands: ::
-
-        dnf remove epel-release -y
 
 * Ensure that the ``pxe_nic`` and ``public_nic`` are in the firewalld zone: public.
 

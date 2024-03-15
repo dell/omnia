@@ -9,27 +9,13 @@ In the event that an existing Omnia cluster needs a different OS version or a fr
 
 If a re-deployment with no modifications are required  ::
 
-    ansible-playbook discovery_provision.yml -i inventory
-
-
-Where the inventory contains a list of host IPs (Sourced from the `nodeinfo table <InstallingProvisionTool/ViewingDB.html>`_) as shown below:
-
-::
-
-    10.5.0.101
-    10.5.0.102
-
-
-.. note::
-    * The host IPs passed in the inventory should be assigned by Omnia. They will not be changed during the re-provisioning.
-    * If the nodes were discovered via mapping, manually reboot target nodes.
-    * Do not include groups like *manager*, *compute* and *login* in the passed inventory.
+    ansible-playbook discovery_provision.yml
 
 **Setting up the cluster**
 
-1. Insert the new IPs (only if a new node is to be added) and/or move nodes between groups in the existing inventory file following the below example.
+1. Insert the new IPs in the existing inventory file following the below example.
 
-*Existing inventory*
+*Existing kubernetes inventory*
 
 ::
 
@@ -37,31 +23,73 @@ Where the inventory contains a list of host IPs (Sourced from the `nodeinfo tabl
     10.5.0.101
 
     [kube_node]
+    10.5.0.102
+    10.5.0.103
+
+    [auth_server]
+    10.5.0.101
+
+
+
+*Updated kubernetes inventory with the new node information*
+
+::
+
+    [kube_control_plane]
+    10.5.0.101
+
+    [kube_node]
+    10.5.0.102
+    10.5.0.103
+    10.5.0.105
+    10.5.0.106
+
+    [auth_server]
+    10.5.0.101
+
+*Existing Slurm inventory*
+
+::
+
+    [slurm_control_node]
+    10.5.0.101
+
+    [slurm_node]
     10.5.0.102
     10.5.0.103
 
     [login]
     10.5.0.104
 
-*Updated inventory with the new node information*
+    [auth_server]
+    10.5.0.101
+
+
+*Updated Slurm inventory with the new node information*
 
 ::
 
-    [kube_control_plane]
-    10.5.0.102
-
-    [kube_node]
+    [slurm_control_node]
     10.5.0.101
+
+    [slurm_node]
+    10.5.0.102
     10.5.0.103
-    10.5.0.104
+    10.5.0.105
     10.5.0.106
 
     [login]
-    10.5.0.105
+    10.5.0.104
 
-In the above example, the compute node: 10.5.0.102 has been moved to manager, a new login node: 10.5.0.105 has been set up, and the node: 10.5.0.106 has been added to the cluster as a compute node.
+    [auth_server]
+    10.5.0.101
 
-.. note:: To change the configuration of the cluster, the files ``input/omnia_config.yml``, ``input/security_config.yml`` and ``input/storage_config.yml`` can be updated before running ``omnia.yml``.
+
+In the above examples, nodes 10.5.0.105 and 10.5.0.106 have been added to the cluster as compute nodes.
+
+.. note::
+    * Do not change the kube_control_plane/slurm_control_node/auth_server in the existing inventory. Simply add the new node information in the kube_node/slurm_node group.
+    * When re-running ``omnia.yml`` to add a new node, ensure that the ``input/security_config.yml`` and ``input/omnia_config.yml`` are not edited between runs.
 
 3. To install `security <BuildingClusters/Authentication.html>`_, `job scheduler <BuildingClusters/installscheduler.html>`_ and storage tools (`NFS <BuildingClusters/NFS.html>`_, `BeeGFS <BuildingClusters/BeeGFS.html>`_) on the node, run ``omnia.yml``: ::
 

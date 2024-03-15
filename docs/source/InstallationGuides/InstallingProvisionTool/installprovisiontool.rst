@@ -86,6 +86,8 @@ To deploy the Omnia provision tool, run the following command ::
 
     * Discovers all target servers based on specifications in ``input/provision_config.yml``.
 
+    .. note:: Even if ``switch_details`` are provided in ``input/provision_config.yml``, a BMC discovery job task is run on the ``static_range`` and ``dynamic_range`` provided in ``input/network_spec.yml`` against the bmc_network before the switch based discovery job. If there is any overlap in the values provided, duplicate node objects may be created in the database. Ensure mindful IP range inputs to avoid duplicates. In case of a duplicate node object, bmc nodes will be deleted automatically by the **duplicate_node_cleanup** service that runs every 30 minutes.
+
     * PostgreSQL database is set up with all relevant cluster information such as MAC IDs, hostname, admin IP, infiniband IPs, BMC IPs etc.
 
     * Configures the control plane with NTP services for cluster  node synchronization.

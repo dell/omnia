@@ -46,29 +46,17 @@ Update the ``input/network_spec.yml`` file for all networks available for use by
            MTU: "1500"
 
        #   - thor_network1:
-
        #       netmask_bits: "20"
-
        #       CIDR: "10.10.16.0"
-
        #       network_gateway: ""
-
        #       MTU: "1500"
-
        #       VLAN: ""
 
-
-
        #   - thor_network2:
-
        #       netmask_bits: "20"
-
        #       static_range: "10.10.1.1-10.10.15.254"
-
        #       network_gateway: ""
-
        #       MTU: "1500"
-
        #       VLAN: "1"
 
 .. note::

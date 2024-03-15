@@ -48,7 +48,6 @@ switch_based
 .. note::
 
     * If any of the target nodes have a pre-provisioned IP, ensure that these IPs are not part of the ``bmc_subnet`` specified in ``input/network_spec.yml``.
-    *
 
 
 To clear the configuration on Omnia provisioned switches and ports, `click here <../../../Roles/Utils/portcleanup.html>`_.
