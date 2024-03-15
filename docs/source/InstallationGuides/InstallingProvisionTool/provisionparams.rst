@@ -45,6 +45,32 @@ Update the ``input/network_spec.yml`` file for all networks available for use by
            network_gateway: ""
            MTU: "1500"
 
+       #   - thor_network1:
+
+       #       netmask_bits: "20"
+
+       #       CIDR: "10.10.16.0"
+
+       #       network_gateway: ""
+
+       #       MTU: "1500"
+
+       #       VLAN: ""
+
+
+
+       #   - thor_network2:
+
+       #       netmask_bits: "20"
+
+       #       static_range: "10.10.1.1-10.10.15.254"
+
+       #       network_gateway: ""
+
+       #       MTU: "1500"
+
+       #       VLAN: "1"
+
 .. note::
 
     * The ``input/provision_config.yml`` file is encrypted on the first run of the provision tool:
@@ -57,7 +83,11 @@ Update the ``input/network_spec.yml`` file for all networks available for use by
 
             ansible-vault edit provision_config.yml --vault-password-file .provision_vault_key
 
-    * The strings ``admin_network`` and ``bmc_network`` in the ``input/network_spec.yml`` file should not be edited.
+    * The strings ``admin_network`` and ``bmc_network`` in the ``input/network_spec.yml`` file should not be edited. Also, the properties ``nic_name``, ``static_range``, and ``dynamic_range`` cannot be edited on subsequent runs of the provision tool.
+    * Netmask bits is mandatory and should be same for both the ``admin_network`` and ``bmc_network`` (ie between 1 and 32; 1 and 32 are acceptable values).
+    * Ensure that the CIDR is aligned with the ``netmask_bits`` provided.
+    * The ``discover_ranges`` property of the ``bmc_network`` can accept multiple comma-separated ranges.
+    * The ``VLAN`` property is optional but should be between 0 and 4095 (0 and 4095 are not acceptable values).
 
 .. caution::
 
