@@ -7,7 +7,6 @@ Depending on the values provided in ``input/provision_config.yml``, target nodes
     mappingfile
     switch-based
     bmc
-    snmp
 
 
 **switch_based**

@@ -10,28 +10,11 @@ Edit the ``input/provision_config.yml`` file to update the required variables. A
 Optional configurations managed by the provision tool
 +++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-**Assigning infiniband IPs**
-
-
-    When ``ib_nic_subnet`` is provided in ``input/provision_config.yml``, the infiniband NIC on target nodes are assigned IPv4 addresses within the subnet without user intervention. When PXE range and Infiniband subnet are provided, the infiniband NICs will be assigned IPs with the same 3rd and 4th octets as the PXE NIC.
-
-    * For example on a target node, when the PXE NIC is assigned 10.5.0.101, and the Infiniband NIC is assigned 10.10.0.101 (where ``ib_nic_subnet`` is 10.10.0.0).
-
-    .. note::  The IP is assigned to the interface **ib0** on target nodes only if the interface is present in **active** mode. If no such NIC interface is found, xCAT will list the status of the node object as failed.
-
-**Assigning BMC IPs**
-
-    When target nodes are discovered via SNMP or mapping files (ie ``discovery_mechanism`` is set to snmp or mapping in ``input/provision_config.yml``), the ``bmc_nic_subnet`` in ``input/provision_config.yml`` can be used to assign BMC IPs to iDRAC without user intervention. When PXE range and BMC subnet are provided, the iDRAC NICs will be assigned IPs with the same 3rd and 4th octets as the PXE NIC.
-
-    * For example on a target node, when the PXE NIC is assigned 10.5.0.101, and the iDRAC NIC is assigned 10.3.0.101 (where ``bmc_nic_subnet`` is 10.3.0.0).
-
 **Using multiple versions of a given OS**
 
-Omnia now supports deploying different versions of the same OS. With each run of ``provision.yml``, a new deployable OS image is created with a distinct type (rocky or RHEL) and version (8.0, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7) depending on the values provided in ``input/provision_config.yml``.
+Omnia now supports deploying different versions of the same OS. With each run of ``discovery_provision.yml``, a new deployable OS image is created with a distinct type (rocky, Ubuntu, or RHEL) and version (8.0, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 20.04, 22.04) depending on the values provided in ``input/provision_config.yml``.
 
-.. note::
-    * While Omnia deploys the minimal version of the OS, the multiple version feature requires that the Rocky full (DVD) version of the OS be provided.
-    * The multiple OS feature is only available with Rocky 8.7 when xCAT 2.16.5 is in use. [Currently, Omnia uses 2.16.4]
+.. note::  While Omnia deploys the minimal version of the OS, the multiple version feature requires that the Rocky full (DVD) version of the OS be provided.
 
 **Disk partitioning**
 
@@ -48,20 +31,19 @@ Omnia now supports deploying different versions of the same OS. With each run of
 Running the provision tool
 ++++++++++++++++++++++++++++
 
-To deploy the Omnia provision tool, run the following command ::
+To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, ``input/network_spec.yml``, and ``input/provision_config_credentials.yml`` are updated and then run::
 
-    cd provision
     ansible-playbook discovery_provision.yml
 
 
-``provision.yml`` runs in three stages that can be called individually:
+``discovery_provision.yml`` runs in three stages that can be called individually:
 
 **Preparing the control plane**
 
     * Installs required tool packages.
     * Verifies and updates firewall settings.
     * Installs xCAT.
-    * Configures Omnia databases basis ``input/provision_config.yml``.
+    * Configures Omnia databases basis ``input/network_spec.yml``.
     * Creates an inventory of all nodes in the cluster at ``/opt/omnia/omnia_inventory/``. This inventory will list nodes based on the type of CPUs and GPUs they have. The inventory files are:
 
         * ``compute_cpu_amd``
@@ -77,25 +59,23 @@ To deploy the Omnia provision tool, run the following command ::
         * To regenerate an inventory file, use the playbook ``omnia/utils/inventory_tagging.yml``.
 
 
-    To call this playbook individually, ensure that ``input/provision_config.yml`` and ``input/provision_config_credentials.yml`` are updated and then run::
-
-        cd Prepare_cp
+        cd prepare_cp
         ansible-playbook prepare_cp.yml
 
 **Discovering the nodes**
 
-    * Discovers all target servers based on specifications in ``input/provision_config.yml``.
+    * Discovers all target servers.
 
-    .. note:: Even if ``switch_details`` are provided in ``input/provision_config.yml``, a BMC discovery job task is run on the ``static_range`` and ``dynamic_range`` provided in ``input/network_spec.yml`` against the bmc_network before the switch based discovery job. If there is any overlap in the values provided, duplicate node objects may be created in the database. Ensure mindful IP range inputs to avoid duplicates. In case of a duplicate node object, bmc nodes will be deleted automatically by the **duplicate_node_cleanup** service that runs every 30 minutes.
+    .. note:: Even if ``switch_based_details`` are provided in ``input/provision_config.yml``, a BMC discovery job task is run on the ``static_range`` and ``dynamic_range`` provided in ``input/network_spec.yml`` against the ``bmc_network`` before the switch based discovery job. If there is any overlap in the values provided, duplicate node objects may be created in the database. Ensure mindful IP range inputs to avoid duplicates. In case of a duplicate node object, bmc nodes will be deleted automatically by the **duplicate_node_cleanup** service that runs every 30 minutes.
 
-    * PostgreSQL database is set up with all relevant cluster information such as MAC IDs, hostname, admin IP, infiniband IPs, BMC IPs etc.
+    * PostgreSQL database is set up with all relevant cluster information such as MAC IDs, hostname, admin IP, BMC IPs etc.
 
     * Configures the control plane with NTP services for cluster  node synchronization.
 
 
     To call this playbook individually, run::
 
-        cd Discovery
+        cd discovery
         ansible-playbook discovery.yml
 
 **Provisioning the nodes**
@@ -104,11 +84,11 @@ To deploy the Omnia provision tool, run the following command ::
 
     To call this playbook individually, run::
 
-        cd Provision
+        cd provision
         ansible-playbook provision.yml
 
 ----
-After successfully running ``provision.yml``, go to `Building Clusters <../BuildingClusters/index.html>`_ to setup Slurm, Kubernetes, NFS, BeeGFS and Authentication.
+After successfully running ``discovery_provision.yml``, go to `Building Clusters <../BuildingClusters/index.html>`_ to setup Slurm, Kubernetes, NFS, BeeGFS and Authentication.
 ----
 
 .. note::
@@ -117,17 +97,13 @@ After successfully running ``provision.yml``, go to `Building Clusters <../Build
 
     * While the ``admin_nic`` on cluster nodes is configured by Omnia to be static, the public NIC IP address should be configured by user.
 
-    * If the target nodes were discovered using switch-based or mapping mechanisms, manually PXE boot the target servers after the ``provision.yml`` playbook is executed and the target node lists as **booted** `in the nodeinfo table <ViewingDB.html>`_.
-
-    * If the cluster does not have access to the internet, AppStream will not function.
+    * If the target nodes were discovered using switch-based or mapping mechanisms, manually PXE boot the target servers after the ``discovery_provision.yml`` playbook is executed and the target node lists as **booted** `in the nodeinfo table <ViewingDB.html>`_.
 
     * All ports required for xCAT to run will be opened (For a complete list, check out the `Security Configuration Document <../../SecurityConfigGuide/ProductSubsystemSecurity.html#firewall-settings>`_).
 
-    * After running ``provision.yml``, the file ``input/provision_config.yml`` will be encrypted. To edit the file, use the command: ``ansible-vault edit provision_config.yml --vault-password-file .provision_vault_key``
+    * After running ``discovery_provision.yml``, the file ``input/provision_config_credentials.yml`` will be encrypted. To edit the file, use the command: ``ansible-vault edit provision_config.yml --vault-password-file .provision_vault_key``
 
-    * Post execution of ``provision.yml``, IPs/hostnames cannot be re-assigned by changing the mapping file. However, the addition of new nodes is supported as explained `here <../addinganewnode.html>`_.
-
-    * Ensure the `clean up script <../CleanUpScript.html>`_ is run before any subsequent executions of ``provision.yml``.
+    * Post execution of ``discovery_provision.yml``, IPs/hostnames cannot be re-assigned by changing the mapping file. However, the addition of new nodes is supported as explained `here <../addinganewnode.html>`_.
 
     * Default Python is installed during provisioning on Ubuntu cluster nodes. For Ubuntu 22.04, Python 3.10 is installed. For Ubuntu 20.04, Python 3.8 is installed.
 

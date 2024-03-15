@@ -7,7 +7,7 @@ switch_based
 
 * Switch port range where all BMC NICs are connected should be provided.
 
-* SNMP v3 should be enabled on the switch.
+* SNMP v3 should be enabled on the switch and the credentials should be provided in ``input/provision_config_credentials.yml``.
 
 * Non-admin user credentials for the switch need to be provided.
 
@@ -43,12 +43,13 @@ switch_based
 .. caution::
     * Do not use daisy chain ports or the port used to connect to the control plane in ``switch_based_details`` in ``input/provision_config.yml``. This can cause IP conflicts on servers attached to potential target ports.
     * Omnia does not validate SNMP switch credentials, if the provision tool is run with incorrect credentials, use the clean-up script and re-run the provision tool with the correct credentials.
-    * If you are re-provisioning your cluster (that is, re-running the ``provision.yml`` playbook) after a `clean-up <../../CleanUpScript.html>`_, ensure to use a different ``admin_nic_subnet`` in ``input/provision_config.yml`` to avoid a conflict with newly assigned servers. Alternatively, disable any OS available in the ``Boot Option Enable/Disable`` section of your BIOS settings (**BIOS Settings > Boot Settings > UEFI Boot Settings**) on all target nodes.
+    * If you are re-provisioning your cluster (that is, re-running the ``discovery_provision.yml`` playbook) after a `clean-up <../../CleanUpScript.html>`_, ensure to use a different ``static_range`` against ``bmc_network`` in ``input/network_spec.yml`` to avoid a conflict with newly assigned servers. Alternatively, disable any OS available in the ``Boot Option Enable/Disable`` section of your BIOS settings (**BIOS Settings > Boot Settings > UEFI Boot Settings**) on all target nodes.
+
 
 .. note::
 
     * If any of the target nodes have a pre-provisioned IP, ensure that these IPs are not part of the ``bmc_subnet`` specified in ``input/network_spec.yml``.
-
+    * Even if ``switch_based_details`` are provided in ``input/provision_config.yml``, a BMC discovery job task is run on the ``static_range`` and ``dynamic_range`` provided in ``input/network_spec.yml`` against the ``bmc_network`` before the switch based discovery job. If there is any overlap in the values provided, duplicate node objects may be created in the database. Ensure mindful IP range inputs to avoid duplicates. In case of a duplicate node object, bmc nodes will be deleted automatically by the **duplicate_node_cleanup** service that runs every 30 minutes.
 
 To clear the configuration on Omnia provisioned switches and ports, `click here <../../../Roles/Utils/portcleanup.html>`_.
 

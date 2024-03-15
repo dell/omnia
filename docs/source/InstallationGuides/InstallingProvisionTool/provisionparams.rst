@@ -61,15 +61,15 @@ Update the ``input/network_spec.yml`` file for all networks available for use by
 
 .. note::
 
-    * The ``input/provision_config.yml`` file is encrypted on the first run of the provision tool:
+    * The ``input/provision_config_credentials.yml`` file is encrypted on the first run of the provision tool:
 
         To view the encrypted parameters: ::
 
-            ansible-vault view provision_config.yml --vault-password-file .provision_vault_key
+            ansible-vault view provision_config_credentials.yml --vault-password-file .provision_vault_key
 
         To edit the encrypted parameters: ::
 
-            ansible-vault edit provision_config.yml --vault-password-file .provision_vault_key
+            ansible-vault edit provision_config_credentials.yml --vault-password-file .provision_vault_key
 
     * The strings ``admin_network`` and ``bmc_network`` in the ``input/network_spec.yml`` file should not be edited. Also, the properties ``nic_name``, ``static_range``, and ``dynamic_range`` cannot be edited on subsequent runs of the provision tool.
     * Netmask bits is mandatory and should be same for both the ``admin_network`` and ``bmc_network`` (ie between 1 and 32; 1 and 32 are acceptable values).
@@ -77,7 +77,3 @@ Update the ``input/network_spec.yml`` file for all networks available for use by
     * The ``discover_ranges`` property of the ``bmc_network`` can accept multiple comma-separated ranges.
     * The ``VLAN`` property is optional but should be between 0 and 4095 (0 and 4095 are not acceptable values).
 
-.. caution::
-
-    * The IP address *192.168.25.x* is used for PowerVault Storage communications. Therefore, do not use this IP address for other configurations.
-    * The IP range *x.y.246.1* - *x.y.255.253* (where x and y are provided by the first two octets of ``bmc_nic_subnet``) are reserved by Omnia.
