@@ -32,6 +32,8 @@ With an Ansible script, deploy vLLM on both the kube_node and kube_control_node.
 
     * Nerdctl does not support mounting directories as devices because it is not a feature of containerd (The runtime that nerdctl uses). Individual files need to be attached while running nerdctl.
 
+.. note:: This playbook was validated using Ubuntu 22.04 and RHEL 8.8.
+
 **Deploying vLLM**
 
 1. Change directories to the ``tools`` folder: ::
