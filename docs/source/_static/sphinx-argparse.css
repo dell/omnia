@@ -6,11 +6,12 @@
 .wy-table-responsive table th {
     background-color: #2980b9;
     color: white;
-
 }
 
  .rst-content div[class^=highlight], .rst-content pre.literal-block {
-     width: 650px;
+     width: 600px;
+     overflow-x: unset;
+     
  }
 
 .wy-table-responsive {
