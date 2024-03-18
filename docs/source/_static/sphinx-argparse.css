@@ -1,18 +1,26 @@
 .wy-table-responsive table td {
     white-space: inherit !important;
     word-break: break-all; !important;
+    overflow-wrap: break-word; !important;
 }
 .wy-table-responsive table th {
     background-color: #2980b9;
     color: white;
 
 }
+
+.wy-table-responsive table#id2 {
+    max-width: 750px;
+    overflow-wrap: break-word;
+
+}
+
 .wy-table-responsive {
     display: block;
     width: fit-content;
     table-layout: fixed;
     block-size: fit-content;
-    overflow: auto !important;
+    overflow: visible !important;
     max-width: 750px;
 }
 
