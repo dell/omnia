@@ -140,7 +140,6 @@ For a list of repositories (and their types) configured for kubernetes, view the
    :file: ../../Tables/local_repo_config.csv
    :header-rows: 1
    :widths: auto
-   :keepspace:
 
 3. Run the following commands: ::
 
