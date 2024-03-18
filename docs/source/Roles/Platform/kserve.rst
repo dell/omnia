@@ -105,7 +105,7 @@ For example: ::
         < x-envoy-upstream-service-time: 7
         <
         * Connection #0 to host 10.20.0.101 left intact
-        {"predictions":[1,1]}r
+        {"predictions":[1,1]}
 
 
 
