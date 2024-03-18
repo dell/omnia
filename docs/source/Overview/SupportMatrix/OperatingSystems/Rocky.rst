@@ -14,7 +14,7 @@ Rocky
 +------------+---------------+---------------+
 
 .. note::
-    * Always deploy the DVD (Full) Edition of the OS on cluster  Nodes.
+    * Always deploy the DVD (Full) Edition of the OS on cluster  nodes.
     * AMD ROCm driver installation is not supported by Omnia on Rocky cluster  nodes.
 
 
