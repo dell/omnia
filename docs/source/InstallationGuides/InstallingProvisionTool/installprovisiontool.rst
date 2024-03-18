@@ -60,6 +60,8 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
         * To regenerate an inventory file, use the playbook ``omnia/utils/inventory_tagging.yml``.
 
 
+    ::
+
         cd prepare_cp
         ansible-playbook prepare_cp.yml
 
