@@ -11,7 +11,9 @@
 
 .wy-table-responsive table#id2 {
     max-width: 750px; !important;
-    overflow-wrap: break-word;
+    overflow-wrap: anywhere;
+    word-break: break-all; !important;
+    overflow: scroll;
 
 
 }
