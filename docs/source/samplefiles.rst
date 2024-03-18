@@ -74,11 +74,6 @@ inventory file
 
 
 
-        [calico_rr]
-
-        #node7
-
-
 pxe_mapping_file.csv
 ------------------------------------
 
