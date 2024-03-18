@@ -2,6 +2,7 @@
     white-space: inherit !important;
     word-break: break-all; !important;
     overflow-wrap: break-word; !important;
+    background-color: white;
 }
 .wy-table-responsive table th {
     background-color: #2980b9;
@@ -11,7 +12,6 @@
  .rst-content div[class^=highlight], .rst-content pre.literal-block {
      width: 600px;
      overflow-x: unset;
-     
  }
 
 .wy-table-responsive {
