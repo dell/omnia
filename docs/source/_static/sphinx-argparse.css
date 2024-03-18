@@ -10,6 +10,7 @@
 .wy-table-responsive {
     display: block;
     width: fit-content;
+    table-layout: fixed;
     block-size: fit-content;
     overflow: visible !important;
     max-width: 750px;
