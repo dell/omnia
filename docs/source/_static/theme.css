@@ -23,8 +23,10 @@
     cursor: pointer;
     *zoom: 1;
 }
-.rst-content code.literal {
+.rst-content div[class^=highlight], .rst-content pre.literal-block {
     word-break: break-all; !important;
+    overflow-x: scroll ;
+    width: 400px;
 }
 .wy-side-nav-search .wy-dropdown>a img.logo,
 .wy-side-nav-search>a img.logo {
@@ -96,6 +98,7 @@
 .wy-nav-content .admonition.warning a {
     color: rgb(7, 7, 7);
 }
+
 
 
 .wy-nav-content a.reference {
