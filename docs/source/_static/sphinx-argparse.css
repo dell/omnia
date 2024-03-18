@@ -13,8 +13,7 @@
     max-width: 750px; !important;
     overflow-wrap: anywhere;
     word-break: break-all; !important;
-    overflow: scroll;
-    text-wrap: wrap;
+    overflow: scroll; !important;
 }
 
 .wy-table-responsive {
