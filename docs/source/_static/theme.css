@@ -97,9 +97,6 @@
     color: rgb(7, 7, 7);
 }
 
- .wy-nav-content .rst-content .linenodiv pre, .rst-content div[class^=highlight] pre, .rst-content pre.literal-block{
-    word-break: break-all;
-}
 
 .wy-nav-content a.reference {
     color: rgb(41, 128, 185);
