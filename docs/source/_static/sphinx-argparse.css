@@ -10,10 +10,9 @@
 }
 
 .wy-table-responsive table#id2 {
-    max-width: 750px;
+    max-width: 750px; !important;
     overflow-wrap: break-word;
-    background-color: #b92989
-    
+
 
 }
 
