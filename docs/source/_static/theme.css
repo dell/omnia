@@ -74,6 +74,7 @@
 /* Main content
   ==================================================== */
 
+
 .wy-nav-content .highlight,
 .wy-nav-content .rst-content .warning {
     background: rgba(238, 238, 238, 0.78);
@@ -94,6 +95,10 @@
 .rst-content dl:not(.docutils) dt,
 .wy-nav-content .admonition.warning a {
     color: rgb(7, 7, 7);
+}
+
+.wy-nav-content .highlight .rst-content pre.literal-block{
+    word-break: break-all;
 }
 
 .wy-nav-content a.reference {
