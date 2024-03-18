@@ -64,32 +64,6 @@ Optional","* URL to a list of repositories to be configured for Ubuntu clusters.
 * When the value of ``repo_config`` in ``input/local_repo_config.yml`` is set to ``partial`` or ``never``, the given ``os_repo_url`` is configured via proxy on the compute nodes.
 
 * **Sample value**: ``http://in.archive.ubuntu.com/ubuntu``"
-"**omnia_registry**
-
-``string``
-
-Mandatory","* A list of registries from where images will be downloaded for Omnia features.
-* All registries mentioned in ``user_registry`` will be set as mirror for ``omnia_registry`` items.
-* This value is not validated by Omnia. Any errors can cause Omnia to fail.
-
-**Default value**: ::
-
-     - ""registry.k8s.io""
-     - ""quay.io""
-     - ""docker.io""
-     - ""public.ecr.aws""
-     - ""gcr.io""
-     - ""nvcr.io""
-
-
-
-
-
-
-
-
-
-	"
 "**omnia_repo_url_rhel**
 
 ``JSON List``

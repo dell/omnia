@@ -207,6 +207,16 @@ Wait for 15 minutes after the Kubernetes cluster reboots. Next, verify the statu
 3. Run the Kubernetes and Kubeflow playbooks.
 
 
+⦾ **What to do if pulling the Kserve inference model fail with "Unable to fetch image "kserve/sklearnserver:v0.11.2": failed to resolve image to digest: Get "https://index.docker.io/v2/": dial tcp 3.219.239.5:443: i/o timeout."?**
+
+1. Edit the kubernetes configuration map: ::
+
+        kubectl edit configmap -n knative-serving config-deployment
+
+2. Add docker.io and index.docker.io as part of the registries-skipping-tag-resolving.
+
+For more information, `click here. <https://github.com/kserve/kserve/issues/3372>`_
+
 
 ⦾ **Why does the 'Initialize Kubeadm' task fail with 'nnode.Registration.name: Invalid value: \"<Host name>\"'?**
 

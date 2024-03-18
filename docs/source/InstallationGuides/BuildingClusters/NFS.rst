@@ -51,6 +51,7 @@ Network File System (NFS) is a networking protocol for distributed file sharing.
 
 * Ensure that an NFS local repository is created by including ``{"name": "nfs"},`` in ``input/software_config.json``. For more information, `click here. <../InstallationGuides/LocalRepo/index.html>`_
 * Enter the value of ``share_path`` in ``input/omnia_config.yml``.
+* If the intended cluster will run Slurm, set the value of ``Slurm_installation_type`` in ``input/omnia_config.yml`` to ``nfs_share``.
 
 .. note:: Ensure that the value of ``share_path`` provided matches at least one value of ``client_share_path`` provided in ``nfs_client_params`` in ``input/storage_config.yml``.
 
@@ -60,7 +61,7 @@ Network File System (NFS) is a networking protocol for distributed file sharing.
 
 **Running the playbook**
 
-If ``omnia.yml`` is not leveraged to set up NFS, run the ``storage.yml`` playbook : ::
+Run the ``storage.yml`` playbook : ::
 
     cd storage
     ansible-playbook storage.yml -i inventory

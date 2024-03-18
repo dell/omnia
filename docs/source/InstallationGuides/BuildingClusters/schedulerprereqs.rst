@@ -9,11 +9,7 @@ Before you build clusters
 
 * Verify that all nodes are assigned a group. Use the `inventory <../../samplefiles.html>`_ as a reference. The inventory file is case-sensitive. Follow the casing provided in the sample file link.
 
-  * The manager group should have exactly 1 manager node.
-
-  * The compute group should have at least 1 node.
-
-  * The login group is optional. If present, it should have exactly 1 node.
+* If NFS is required on the cluster, run `storage.yml. <NFS.html>`_
 
 .. note::
     * The inventory file accepts both IPs and FQDNs as long as they can be resolved by DNS.
