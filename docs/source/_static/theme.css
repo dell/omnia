@@ -23,10 +23,12 @@
     cursor: pointer;
     *zoom: 1;
 }
-.rst-content div[class^=highlight], .rst-content pre.literal-block {
-    word-break: break-all; !important;
-    overflow-x: scroll ;
-    width: 400px;
+
+.wy-nav-content .rst.highlight-default.notranslate {
+
+    width: 550px;
+
+
 }
 .wy-side-nav-search .wy-dropdown>a img.logo,
 .wy-side-nav-search>a img.logo {
