@@ -14,6 +14,7 @@
     overflow-wrap: anywhere;
     word-break: break-all; !important;
     overflow: scroll; !important;
+    width: 750px;
 }
 
 .wy-table-responsive {
