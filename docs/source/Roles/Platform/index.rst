@@ -5,8 +5,8 @@ If you want to install JupyterHub and Kubeflow playbooks, you have to first inst
 
 Commands to install JupyterHub and Kubeflow: ::
 
-    ansible-playbook platforms/jupyterhub.yml -i inventory
-    ansible-playbook platforms/kubeflow.yml -i inventory
+    ansible-playbook tools/jupyterhub.yml -i inventory
+    ansible-playbook tools/kubeflow.yml -i inventory
 
 .. note:: When the Internet connectivity is unstable or slow, it may take more time to pull the images to create the Kubeflow containers. If the time limit is exceeded, the **Apply Kubeflow configurations** task may fail. To resolve this issue, you must redeploy Kubernetes cluster and reinstall Kubeflow by completing the following steps:
 
