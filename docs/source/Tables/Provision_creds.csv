@@ -39,3 +39,16 @@ Optional (Required for Switch based discovery mechanism)","* Non-admin SNMPv3 cr
 Optional (Required for Switch based discovery mechanism)","* Non-admin SNMPv3 credentials of the PXE switch.
 * If multiple switches are provided, ensure the credentials are same across switches.
 * Password must not contain -,\, ',"""
+"**docker_username**
+
+``string``
+
+Optional","* Username for Dockerhub account used for Docker logins.
+* A kubernetes secret will be created and patched to the service account in default namespace.
+* This kubernetes secret can be used to pull images from private repositories."
+"**docker_password**
+
+``string``
+
+Optional","* Password for Dockerhub account used for Docker logins.
+* This value is mandatory if ``docker_username`` is provided."

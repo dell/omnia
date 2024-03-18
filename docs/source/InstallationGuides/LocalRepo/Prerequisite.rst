@@ -9,6 +9,8 @@ For persistent offline local repositories, (If the parameter ``repo_config`` in 
 
 **When creating user registries**
 
+To avoid docker pull limits, provide docker credentials (``docker_username``, ``docker_password``) in ``input/provision_config_credentials.yml``.
+
 Images listed in ``user_registry`` in ``input/local_repo_config.yml`` are accessed from user defined registries. To ensure that the control plane can correctly access the registry, ensure that the following naming convention is used to save the image: ::
 
     <host>/<image name>:v<version number>
