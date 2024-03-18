@@ -9,13 +9,9 @@
 
 }
 
-.wy-table-responsive table#id2 {
-    max-width: 750px; !important;
-    overflow-wrap: anywhere;
-    word-break: break-all; !important;
-    overflow: auto; !important;
-    width: 750px;
-}
+ .rst-content div[class^=highlight], .rst-content pre.literal-block {
+     width: 650px;
+ }
 
 .wy-table-responsive {
     display: block;
