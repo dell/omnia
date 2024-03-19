@@ -1,7 +1,7 @@
-Create local ROCe repository
+Create local RoCE repository
 -----------------------------
 
-.. note:: The ROCe driver is only supported on Ubuntu clusters.
+.. note:: The RoCE driver is only supported on Ubuntu clusters.
 
 1. Enter the required values in the ``input/software_config.json`` file:
 
@@ -12,12 +12,12 @@ Create local ROCe repository
    :class: longtable
 
 
-To install ROCe, include the following line under ``softwares```: ::
+To install RoCE, include the following line under ``softwares```: ::
 
         {"name": "bcm_roce", "version": "229.2.9.0"}
 
 
-For a list of repositories (and their types) configured for ROCe, view the ``input/config/ubuntu/<operating_system_version>/bcm_roce.json`` file. To customize your ROCe installation, update the file. URLs for different versions can be found `here <https://downloads.dell.com>`_: ::
+For a list of repositories (and their types) configured for RoCE, view the ``input/config/ubuntu/<operating_system_version>/bcm_roce.json`` file. To customize your RoCE installation, update the file. URLs for different versions can be found `here <https://downloads.dell.com>`_: ::
 
         {
           "bcm_roce": {
@@ -33,7 +33,7 @@ For a list of repositories (and their types) configured for ROCe, view the ``inp
         }
 
 
-.. note:: The only accepted URL for the ROCe driver is from the Dell Driver website.
+.. note:: The only accepted URL for the RoCE driver is from the Dell Driver website.
 
 2. Enter the required values in the ``input/local_repo_config.yml`` file. For parameter information, `click here <RunningLocalRepo.html>`_.
 3. Run the following commands: ::
