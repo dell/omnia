@@ -13,7 +13,7 @@ Rocky
 | 8.8        | Yes           | Yes           |
 +------------+---------------+---------------+
 
-.. [1]:: This version of Rocky does not support vLLM installation via Omnia.
+.. [1] This version of Rocky does not support vLLM installation via Omnia.
 
 .. note::
     * Always deploy the DVD (Full) Edition of the OS on cluster  nodes.
