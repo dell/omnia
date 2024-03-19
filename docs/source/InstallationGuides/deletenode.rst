@@ -42,16 +42,16 @@ Use this playbook to stop all Slurm and Kubernetes services. This action will de
 Run the playbook using the following commands: ::
 
         cd utils
-        ansible-playbook reset_cluster_config.yml -i inventory
+        ansible-playbook reset_cluster_configuration.yml -i inventory
 
 To specify only Slurm or Kubernetes nodes while running the playbook, use the tags ``slurm_node`` or ``kube_node``. That is:
 
-To reset only slurm nodes, use ``ansible-playbook reset_cluster_config.yml -i inventory --tags slurm_node``.
-To reset only kubernetes nodes, use ``ansible-playbook reset_cluster_config.yml -i inventory --tags kube_node``.
+To reset only slurm nodes, use ``ansible-playbook reset_cluster_configuration.yml -i inventory --tags slurm_node``.
+To reset only kubernetes nodes, use ``ansible-playbook reset_cluster_configuration.yml -i inventory --tags kube_node``.
 
-To skip confirmation while running the playbook, use ``ansible-playbook reset_cluster_config.yml -i inventory --extra-vars skip_confirmation=yes`` or ``ansible-playbook remove_node_configuration.yml -i inventory -e  skip_confirmation=yes``.
+To skip confirmation while running the playbook, use ``ansible-playbook reset_cluster_configuration.yml -i inventory --extra-vars skip_confirmation=yes`` or ``ansible-playbook remove_node_configuration.yml -i inventory -e  skip_confirmation=yes``.
 
-The inventory file passed for ``reset_cluster_config`` should follow the below format:
+The inventory file passed for ``reset_cluster_configuration`` should follow the below format:
 
 *For a slurm cluster* ::
 

@@ -1,23 +1,12 @@
-AI platforms
--------------
+AI Tools
+---------
 
-If you want to install JupyterHub and Kubeflow playbooks, you have to first install the JupyterHub playbook and then install the Kubeflow playbook.
 
-Commands to install JupyterHub and Kubeflow: ::
-
-    ansible-playbook tools/jupyterhub.yml -i inventory
-    ansible-playbook tools/kubeflow.yml -i inventory
-
-.. note:: When the Internet connectivity is unstable or slow, it may take more time to pull the images to create the Kubeflow containers. If the time limit is exceeded, the **Apply Kubeflow configurations** task may fail. To resolve this issue, you must redeploy Kubernetes cluster and reinstall Kubeflow by completing the following steps:
-
-* Format the OS on manager and compute nodes.
-
-* In the ``omnia_config.yml`` file, change the ``k8s_cni`` variable value from calico to flannel.
-
-* Run the Kubernetes and Kubeflow playbooks.
+AI (Artificial Intelligence) tools are software applications or systems that use AI technologies such as machine learning, natural language processing (NLP), computer vision, and deep learning to perform various tasks autonomously or with human interaction. These tools are designed to mimic human intelligence and can be used across different industries and domains for purposes such as automation, data analysis, decision-making, and more.
 
 .. toctree::
     InstallJupyterhub
+    kubeflow
     SetupvLLM
     Pytorch
     TensorFlow

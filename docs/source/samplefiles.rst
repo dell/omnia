@@ -54,12 +54,6 @@ inventory file
 
         # node1
 
-        # node2in
-
-        # node3
-
-
-
         [kube_node]
 
         # node2

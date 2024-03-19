@@ -7,8 +7,11 @@ For NVidia, vLLM is a Python library that also contains pre-compiled C++ and CUD
 
 With an Ansible script, deploy vLLM on both the kube_node and kube_control_node. After the deployment of vLLM, access the vllm container (AMD GPU) and import the vLLM Python package (NVIDIA GPU). For more information, `click here <https://docs.vllm.ai/en/latest/getting_started/installation.html>`_
 
+.. note:: This playbook was validated using Ubuntu 22.04 and RHEL 8.8.
+
 **Pre requisites**
 
+* Ensure nerdctl and containerd is available on all cluster nodes.
 
 * Only AMD GPUs from the MI200s (gfx90a) are supported.
 
@@ -32,7 +35,7 @@ With an Ansible script, deploy vLLM on both the kube_node and kube_control_node.
 
     * Nerdctl does not support mounting directories as devices because it is not a feature of containerd (The runtime that nerdctl uses). Individual files need to be attached while running nerdctl.
 
-.. note:: This playbook was validated using Ubuntu 22.04 and RHEL 8.8.
+
 
 **Deploying vLLM**
 

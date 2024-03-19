@@ -7,7 +7,7 @@ These parameters are located in ``input/omnia_config.yml``, ``input/security_con
 
 **omnia_config.yml**
 
-.. csv-table:: Parameters for kubernetes
+.. csv-table:: Parameters for kubernetes setup
    :file: ../../Tables/scheduler_k8s.csv
    :header-rows: 1
    :keepspace:

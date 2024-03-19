@@ -8,9 +8,9 @@ With an Ansible script, deploy TensorFlow on both ``kube_nodes`` and the ``kube_
 
 **Prerequisites**
 
-* Ensure nerdctl is available on all cluster nodes.
+* Ensure nerdctl= is available on all cluster nodes.
 
-* If GPUs are present on the target nodes, install NVidia (CUDA 12.1) or AMD (Rocm 5.7) drivers during provisioning. CPUs do not require any additional drivers.PyTorch
+* If GPUs are present on the target nodes, install NVidia CUDA (with containerd) or AMD ROCm drivers during provisioning. CPUs do not require any additional drivers.PyTorch
 
 * Use ``local_repo.yml`` to create an offline TensorFlow repository. For more information, `click here <../../>`_.
 
@@ -39,7 +39,7 @@ With an Ansible script, deploy TensorFlow on both ``kube_nodes`` and the ``kube_
 
 **Accessing TensorFlow (CPU)**
 
-1. Verify that the PyTorch image present in container engine images: ::
+1. Verify that the tensorflow image present in container engine images: ::
 
     nerdctl images
 
@@ -52,7 +52,7 @@ For more information, `click here <https://www.tensorflow.org/install/docker>`_.
 
 **Accessing TensorFlow (AMD)**
 
-1. Verify that the PyTorch image present in container engine images: ::
+1. Verify that the tensorflow image present in container engine images: ::
 
     nerdctl images
 
@@ -64,7 +64,7 @@ For more information, `click here <https://rocm.docs.amd.com/projects/install-on
 
 **Accessing TensorFlow (NVidia)**
 
-1. Verify that the PyTorch image present in container engine images: ::
+1. Verify that the tensorflow image present in container engine images: ::
 
     nerdctl images
 

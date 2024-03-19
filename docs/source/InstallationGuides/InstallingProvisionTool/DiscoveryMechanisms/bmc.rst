@@ -27,6 +27,7 @@ For automatic provisioning of servers and discovery, the BMC method can be used.
 
 - All target servers should be reachable from the ``admin_network`` specified in ``input/network_spec.yml``.
 
+* BMC network details should be provided in the ``input/network_spec.yml`` file.
 
 *When entering details in ``input/network_spec.yml``*
 * Ensure that the netmask bits for the BMC network and the admin network are the same.

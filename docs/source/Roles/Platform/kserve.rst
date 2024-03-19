@@ -6,6 +6,8 @@ Kserve is an open-source serving platform that simplifies the deployment, scalin
 
 **Prerequisites**
 
+    * Ensure nerdctl and containerd is available on all cluster nodes.
+
     * The cluster is deployed with Kubernetes.
 
     * MetalLB pod is up and running to provide an external IP to ``istio-ingressgateway``.
