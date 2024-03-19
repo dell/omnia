@@ -24,7 +24,11 @@ Required","* The type of offline configuration user needs.
 * When the value is set to ``partial``, Omnia creates a local repository/registry on the Control plane hosting all the packages/images except those listed in the ``user_registry`` in ``input/local_repo_config.yml``.
 * When the value is set to ``never``, Omnia does not create a local repository/registry. All the packages/images are directly downloaded on the cluster.
 .. note:: All local repositories that are not available as images or RPMs will be configured locally.
-* **Accepted values**: always, **partial**, and never.
+* **Accepted values**:
+
+  * ``always``
+  * ``partial`` <- Default
+  * ``never``
 	"
 "**softwares**
 
