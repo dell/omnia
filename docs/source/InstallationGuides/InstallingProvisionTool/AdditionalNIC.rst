@@ -9,11 +9,13 @@ After running ``provision.yml`` or ``discovery_provision.yml`` and the nodes boo
     * The ``input/network_spec.yml`` file has been updated with all network information including admin network and bmc network information.
 
     * The ``input/server_spec.yml`` file has been updated with all NIC information of the target nodes.
+
         * All NICs listed in the ``server_spec.yml`` file are grouped into categories (groups for servers). The string "Categories:" should not be edited out of the ``input/server_spec.yml`` file.
         * The property ``nicname`` is the unique identifier of NICs in the file.
         * The property ``nictype`` indicates what kind of NIC is in use (ethernet, infiniband, or vlan). If the ``nictype`` is set to ``vlan``, ensure to specify a primary NIC for the VLAN using the property ``nicdevices``.
         * While new groups can be added to the ``server_spec.yml`` file on subsequent runs of ``nic_update.yml``, existing groups cannot be edited or deleted.
-            .. note:: The ``nicnetwork`` property should match any of the networks specified in ``input/network_spec.yml``.
+
+   .. note:: The ``nicnetwork`` property should match any of the networks specified in ``input/network_spec.yml``.
 
     Below is a sample ``input/server_spec.yml`` file: ::
 
