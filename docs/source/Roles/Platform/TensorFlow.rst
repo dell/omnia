@@ -8,7 +8,7 @@ With an Ansible script, deploy TensorFlow on both ``kube_nodes`` and the ``kube_
 
 **Prerequisites**
 
-* Ensure nerdctl= is available on all cluster nodes.
+* Ensure nerdctl is available on all cluster nodes.
 
 * If GPUs are present on the target nodes, install NVidia CUDA (with containerd) or AMD ROCm drivers during provisioning. CPUs do not require any additional drivers.PyTorch
 

@@ -11,15 +11,13 @@ With an Ansible script, deploy vLLM on both the kube_node and kube_control_node.
 
 **Pre requisites**
 
-* Ensure nerdctl and containerd is available on all cluster nodes.
+* Ensure nerdctl is available on all cluster nodes.
 
 * Only AMD GPUs from the MI200s (gfx90a) are supported.
 
-* For nodes using AMD, ensure nerdctl is available.
-
 * For nodes using NVidia, ensure that the GPU has a compute capacity that is higher than 7 (Eg: V100, T4, RTX20xx, A100, L4, H100, etc).
 
-* Ensure the ``kube_node``, ``kube_control_node`` is setup and working. If NVidia or AMD GPU acceleration is required for the task, install the NVidia (CUDA 12.1) or AMD (RocM 5.7.0) GPU drivers during provisioning.
+* Ensure the ``kube_node``, ``kube_control_node`` is setup and working. If NVidia or AMD GPU acceleration is required for the task, install the NVidia (with containerd) or AMD ROCm GPU drivers during provisioning.
 
 * Use ``local_repo.yml`` to create an offline vLLM repository. For more information, `click here. <../../InstallationGuides/LocalRepo/vLLM.html>`_
 

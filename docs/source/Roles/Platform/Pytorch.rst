@@ -8,7 +8,7 @@ PyTorch is a popular open-source deep learning framework, renowned for its dynam
 
 * Ensure nerdctl is available on all cluster nodes.
 
-* If GPUs are present on the target nodes, install NVidia CUDA (with containerd) or AMD Rocm 5.7 drivers during provisioning. CPUs do not require any additional drivers.
+* If GPUs are present on the target nodes, install NVidia CUDA (with containerd) or AMD Rocm drivers during provisioning. CPUs do not require any additional drivers.
 
 * Use ``local_repo.yml`` to create an offline PyTorch repository. For more information, `click here. <../../InstallationGuides/LocalRepo/PyTorch.html>`_
 
