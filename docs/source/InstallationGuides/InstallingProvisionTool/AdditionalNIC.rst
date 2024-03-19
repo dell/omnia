@@ -1,6 +1,6 @@
 Configuring additional NICs on the nodes
 -------------------------------------------
-After running ``provision.yml`` or ``discovery_provision.yml`` and the nodes boot up, additional NICs can be configured on target nodes using the ``nic_update.yml `` playbook.
+After running ``provision.yml`` or ``discovery_provision.yml`` and the nodes boot up, additional NICs can be configured on target nodes using the ``nic_update.yml`` playbook.
 
 **Prerequisites**
 
