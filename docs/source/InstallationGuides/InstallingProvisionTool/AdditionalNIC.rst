@@ -17,7 +17,7 @@ After running ``provision.yml`` or ``discovery_provision.yml`` and the nodes boo
 
    .. note:: The ``nicnetwork`` property should match any of the networks specified in ``input/network_spec.yml``.
 
-    Below is a sample ``input/server_spec.yml`` file: ::
+Below is a sample ``input/server_spec.yml`` file: ::
 
         ---
         Categories:
