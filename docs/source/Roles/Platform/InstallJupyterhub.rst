@@ -5,7 +5,7 @@ Using Helm charts, Omnia can install Jupyterhub on Kubernetes clusters. Once Jup
 
 **Prerequisites**
 
-* Ensure the kubernetes cluster is setup and working. If NVidia or AMD GPU acceleration is required for the notebook, install the Kubernetes NVidia or AMD GPU device plugin during Kubernetes deployment.
+* Ensure the kubernetes cluster is setup and working.
 * Ensure the inventory file includes a ``kube_control_plane`` group listing all cluster nodes.
 * Review the ``tools/jupyter_config.yml`` file to ensure that the deployment meets your requirements. If not, modify the file.
 * Update the ``input/config/<operating_system>/<operating_system_version>/jupyter.json`` file with the correct jupyter helm chart version required. The default value is **3.2.0**.
