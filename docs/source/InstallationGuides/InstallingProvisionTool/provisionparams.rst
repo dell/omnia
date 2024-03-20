@@ -26,16 +26,20 @@ Fill in all required parameters in ``input/provision_config.yml``, ``provision_c
 Update the ``input/network_spec.yml`` file for all networks available for use by the control plane.
 
     * The following ``admin_nic`` details are mandatory.
-        * ``nic_name``: The name of the NIC on which the administrative network is accessible to the control plane.
-        * ``netmask_bits``: The 32-bit "mask" used to divide an IP address into subnets and specify the network's available hosts.
-        * ``static_range``: The static range of IPs to be provisioned on target nodes.
-        * ``dynamic_range``: The
-        * ``correlation_to_admin``: Boolean value used to indicate whether all other networks specified in the file (eg: ``bmc_network``) should be correlated to the admin network. For eg: if a target node is assigned the IP xx.yy.0.5 on the admin network, it will be assigned the IP aa.bb.0.5 on the BMC network. This value is irrelevant when discovering nodes using a mapping file.
-        * ``admin_uncorrelated_node_start_ip``: If ``correlation_to_admin`` is set to true but correlated IPs are not available on non-admin networks, provide an IP within the ``static_range`` of the admin network that can be used to assign admin static IPs to uncorrelated nodes. If this is empty, then the first IP in the ``static_range`` of the admin network is taken by default. This value is irrelevant when discovering nodes using a mapping file.
+         * ``nic_name``: The name of the NIC on which the administrative network is accessible to the control plane.
+         * ``netmask_bits``: The 32-bit "mask" used to divide an IP address into subnets and specify the network's available hosts.
+         * ``static_range``: The static range of IPs to be provisioned on target nodes.
+         * ``dynamic_range``: The dynamic range of IPs to be provisioned on target nodes.
+         * ``correlation_to_admin``: Boolean value used to indicate whether all other networks specified in the file (eg: ``bmc_network``) should be correlated to the admin network. For eg: if a target node is assigned the IP xx.yy.0.5 on the admin network, it will be assigned the IP aa.bb.0.5 on the BMC network. This value is irrelevant when discovering nodes using a mapping file.
+         * ``admin_uncorrelated_node_start_ip``: If ``correlation_to_admin`` is set to true but correlated IPs are not available on non-admin networks, provide an IP within the ``static_range`` of the admin network that can be used to assign admin static IPs to uncorrelated nodes. If this is empty, then the first IP in the ``static_range`` of the admin network is taken by default. This value is irrelevant when discovering nodes using a mapping file.
+         * ``CIDR``: Classless or Classless Inter-Domain Routing (CIDR) addresses use variable length subnet masking (VLSM) to alter the ratio between the network and host address bits in an IP address.
+         * ``MTU``: Maximum transmission unit (MTU) is a measurement in bytes of the largest data packets that an Internet-connected device can accept.
+         * ``DNS``: A DNS server is a computer equipped with a database that stores the public IP addresses linked to the domain names of websites, enabling users to reach websites using their IP addresses.
+         * ``VLAN``: A 12-bit field that identifies a virtual LAN (VLAN) and specifies the VLAN that an Ethernet frame belongs to.
 
     * If the ``nic_name`` is the same on both the admin_network and the bmc_network, a LOM setup is assumed.
     * BMC network details are not required when target nodes are discovered using a mapping file.
-    * If ``bmc_network`` properties are provided, target nodes will be discovered using the BMC method.
+    * If ``bmc_network`` properties are provided, target nodes will be discovered using the BMC method in addition to the methods whose details are explicitly provided in ``provision_config.yml``.
 
 
 A sample is provided below: ::
