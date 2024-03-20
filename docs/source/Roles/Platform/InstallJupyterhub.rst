@@ -55,3 +55,16 @@ The IP address is listed against ``proxy-public``.
 2. Select **Stop Server**.
 
 .. note:: Stopping the notebook server only terminates the user pod. The users data persists and can be accessed by loggin in and starting the notebook server again.
+
+**Updating the Jupyterhub configuration**
+
+1. Update the ``tools/jupyter_config.yml`` file with the new configuration.
+2. Clear the existing configuration by running the below commands: ::
+
+    	kubectl delete ns jupyterhub
+    	kubectl delete pv jupyterhub-pv
+
+3. Re-run the ``jupyterhub.yml`` playbook. ::
+
+        cd tools
+        ansible-playbook jupyterhub.yml -i inventory
