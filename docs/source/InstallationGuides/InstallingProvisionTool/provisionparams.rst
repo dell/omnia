@@ -35,7 +35,7 @@ Update the ``input/network_spec.yml`` file for all networks available for use by
          * ``CIDR``: Classless or Classless Inter-Domain Routing (CIDR) addresses use variable length subnet masking (VLSM) to alter the ratio between the network and host address bits in an IP address.
          * ``MTU``: Maximum transmission unit (MTU) is a measurement in bytes of the largest data packets that an Internet-connected device can accept.
          * ``DNS``: A DNS server is a computer equipped with a database that stores the public IP addresses linked to the domain names of websites, enabling users to reach websites using their IP addresses.
-         * ``VLAN``: A 12-bit field that identifies a virtual LAN (VLAN) and specifies the VLAN that an Ethernet frame belongs to.
+         * ``VLAN``: A 12-bit field that identifies a virtual LAN (VLAN) and specifies the VLAN that an Ethernet frame belongs to. This value is not supported on admin and bmc networks.
 
     * If the ``nic_name`` is the same on both the admin_network and the bmc_network, a LOM setup is assumed.
     * BMC network details are not required when target nodes are discovered using a mapping file.
