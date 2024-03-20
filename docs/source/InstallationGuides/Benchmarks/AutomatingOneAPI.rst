@@ -30,6 +30,11 @@ This topic explains how to automatically update servers for MPI jobs. To manuall
 
     export FI_PROVIDER=tcp
 
+.. csv-table:: Gambling is good till you win!
+   :file: ../../Tables/Table_test.csv
+   :header-rows: 1
+   :stub-columns: 1
+   :keepspace:
 
 Job execution can now be initiated.
 
