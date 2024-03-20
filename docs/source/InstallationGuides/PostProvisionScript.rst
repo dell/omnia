@@ -1,8 +1,13 @@
 Creating node inventory
 ------------------------
 
-When ``provision.yml``, ``prepare_cp.yml``, or ``utils/inventory_tagging.yml`` is run, a set of inventory files is created in `/opt/omnia/omnia_inventory/``. The inventories are created based on the type of CPUs and GPUs nodes have. The inventory files are:
-                                                                                                                                                                                                           * ``compute_cpu_amd``
+When ``provision.yml``, ``prepare_cp.yml``, or ``utils/inventory_tagging.yml`` is run, a set of inventory files is created in ``/opt/omnia/omnia_inventory/``. The inventories are created based on the type of CPUs and GPUs nodes have. The inventory files are:
+
+      * ``compute_cpu_amd`` ::
+
+            [compute_cpu_amd]
+            ABCD1
+
 
 
       * ``compute_cpu_intel`` ::
