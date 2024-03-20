@@ -59,7 +59,7 @@ The IP address is listed against ``proxy-public``.
 **Updating the Jupyterhub configuration**
 
 1. Update the ``tools/jupyter_config.yml`` file with the new configuration.
-2. Clear the existing configuration by running the below commands: ::
+2. **[Optional]** Clear the existing configuration by running the below commands: ::
 
     	kubectl delete ns jupyterhub
     	kubectl delete pv jupyterhub-pv
@@ -68,3 +68,10 @@ The IP address is listed against ``proxy-public``.
 
         cd tools
         ansible-playbook jupyterhub.yml -i inventory
+
+**Clearing the Jupyterhub configuration**
+
+Clear the existing configuration by running the below commands: ::
+
+    	kubectl delete ns jupyterhub
+    	kubectl delete pv jupyterhub-pv
