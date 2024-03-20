@@ -8,3 +8,4 @@ This document will evolve as the project matures. Please be sure to regularly re
 .. toctree::
 
     pullrequests
+    catsvsdogs
