@@ -3,11 +3,11 @@ Input parameters for Local Repositories
 
 * Input all required values in ``input/software_config.json``.
 
-    .. csv-table:: Parameters for Software Configuration
-       :file: ../../Tables/software_config.csv
-       :header-rows: 1
-       :keepspace:
-       :class: longtable
+.. csv-table:: Parameters for Software Configuration
+   :file: ../../Tables/software_config.csv
+   :header-rows: 1
+   :keepspace:
+   :class: longtable
 
 Below is a sample version of the file: ::
 
@@ -97,9 +97,9 @@ For a list of repositories (and their types) configured for amdgpu, view the ``a
 
 * Input the required values in ``input/local_repo_config.yml``.
 
-    .. csv-table:: Parameters for Local Repository Configuration
-       :file: ../../Tables/local_repo_config.csv
-       :header-rows: 1
-       :widths: auto
+.. csv-table:: Parameters for Local Repository Configuration
+   :file: ../../Tables/local_repo_config.csv
+   :header-rows: 1
+   :widths: auto
 
 * Input ``docker_username`` and ``docker_password`` in ``input/provision_config_credentials.yml``  to avoid image pullback errors.
