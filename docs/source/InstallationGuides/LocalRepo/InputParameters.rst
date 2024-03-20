@@ -57,76 +57,40 @@ Below is a sample version of the file: ::
 
         }
 
-For a list of accepted values in ``softwares``, go to ``input/config/<operating_system>/<operating_system_version>`` and view the list of JSON files available. The filenames present in this location (without the * .json extension) are a list of accepted software names. The repositories to be downloaded for each software are listed the corresponding JSON file. For example: For a cluster running RHEL 8.8, go to ``input/config/rhel/8.8/`` and view the file list:
+For a list of accepted values in ``softwares``, go to ``input/config/<operating_system>/<operating_system_version>`` and view the list of JSON files available. The filenames present in this location (without the * .json extension) are a list of accepted software names. The repositories to be downloaded for each software are listed the corresponding JSON file. For example: For a cluster running Ubuntu 22.04, go to ``input/config/ubuntu/22.04/`` and view the file list:
 
 ::
 
     amdgpu.json
+    bcm_roce.json
+    beegfs.json
+    cuda.json
+    jupyter.json
     k8s.json
+    kserve.json
+    kubeflow.json
+    nfs.json
+    ofed.json
     openldap.json
-    rocm.json
+    pytorch.json
+    tensorflow.json
+    vllm.json
 
-For a list of repositories (and their types) configured for kubernetes, view the ``k8s.json``` file: ::
+For a list of repositories (and their types) configured for amdgpu, view the ``amdgpu.json``` file: ::
 
     {
-
-      "k8s": {
-
+      "amdgpu": {
         "cluster": [
-        {
-          "package": "containerd.io-1.6.16-3.1.el8",
-          "type": "rpm",
-          "repo_name": "docker-ce-repo"
-        },
-        {
-          "package": "kubelet",
-          "type": "tarball",
-          "url": "https://dl.k8s.io/release/v{{ k8s_version }}/bin/linux/amd64/kubelet"
-        },
-        {
-          "package": "kubeadm",
-          "type": "tarball",
-          "url": "https://dl.k8s.io/release/v{{ k8s_version }}/bin/linux/amd64/kubeadm"
-        },
-        {
-          "package": "helm",
-          "type": "tarball",
-          "url": "https://get.helm.sh/helm-v3.12.3-linux-amd64.tar.gz"
-        },
-        {
-          "package": "registry.k8s.io/kube-apiserver",
-          "version": "v{{ k8s_version }}",
-          "type": "image"
-        },
-        {
-          "package": "registry.k8s.io/kube-controller-manager",
-          "version": "v{{ k8s_version }}",
-          "type": "image"
-        },
-        {
-          "package": "quay.io/coreos/etcd",
-          "version": "v3.5.9",
-          "type": "image"
-        },
-        {
-          "package": "quay.io/calico/node",
-          "version": "v3.25.2",
-          "type": "image"
-        },
-        {
-          "package": "registry.k8s.io/pause",
-          "version": "3.9",
-          "type": "image"
-        },
-        {
-          "package": "docker.io/kubernetesui/dashboard",
-          "version": "v2.7.0",
-          "type": "image"
-        }
+            {"package": "linux-headers-$(uname -r)", "type": "deb", "repo_name": "jammy"},
+            {"package": "linux-modules-extra-$(uname -r)", "type": "deb", "repo_name": "jammy"},
+            {"package": "amdgpu-dkms", "type": "deb", "repo_name": "amdgpu"}
         ]
-
+      },
+      "rocm": {
+        "cluster": [
+          {"package": "rocm-hip-sdk{{ rocm_version }}*", "type": "deb", "repo_name": "rocm"}
+        ]
       }
-
     }
 
 .. note:: To configure a locally available repository that does not have a pre-defined json file, `click here <CustomLocalRepo.html>`_.
