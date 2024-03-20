@@ -43,8 +43,6 @@ To open the ports required, use the following steps:
 
 
 
-* Ensure that the nodes in the inventory have been assigned **only** these roles: manager and compute.
-
 * Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to set up BeeGFS on RHEL cluster nodes.
 
 * For RHEL cluster nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all cluster nodes. Every cluster node will require a RedHat subscription.
@@ -56,7 +54,7 @@ To open the ports required, use the following steps:
 **Installing the BeeGFS client via Omnia**
 
 
-After the required parameters are filled in ``input/storage_config.yml``, Omnia installs BeeGFS on manager and compute nodes while executing the ``omnia.yml`` playbook.
+After the required parameters are filled in ``input/storage_config.yml``, Omnia installs BeeGFS on all nodes while executing the ``storage.yml`` playbook.
 
 .. caution:: Do not remove or comment any lines in the ``input/storage_config.yml`` file.
 

@@ -1,4 +1,4 @@
-Create local PyTorch repository
+Create local Jupyter repository
 -------------------------------
 
 1. Enter the required values in the ``input/software_config.json`` file:
@@ -12,16 +12,10 @@ Create local PyTorch repository
 
 To install PyTorch, include the following line under ``softwares```: ::
 
-        {"name": "pytorch"},
-
-        "pytorch": [
-                {"name": "pytorch_cpu"},
-                {"name": "pytorch_amd"},
-                {"name": "pytorch_nvidia"}
-            ],
+        {"name": "jupyter"},
 
 
-For a list of repositories (and their types) configured for PyTorch, view the ``input/config/<operating_system>/<operating_system_version>/pytorch.json`` file. To customize your PyTorch installation, update the file.
+For a list of repositories (and their types) configured for jupyter, view the ``input/config/<operating_system>/<operating_system_version>/jupyter.json`` file. To customize your jupyter installation, update the file.
 
 2. Enter the required values in the ``input/local_repo_config.yml`` file. For parameter information, `click here <RunningLocalRepo.html>`_.
 3. Run the following commands: ::
@@ -30,5 +24,5 @@ For a list of repositories (and their types) configured for PyTorch, view the ``
        ansible-playbook local_repo.yml
 
 
-For information on deploying PyTorch after setting up the cluster, `click here. <../../Roles/Platform/Pytorch.html>`_
+For information on deploying jupyter after setting up the cluster, `click here. <../../Roles/Platform/InstallJupyterhub.html>`_
 

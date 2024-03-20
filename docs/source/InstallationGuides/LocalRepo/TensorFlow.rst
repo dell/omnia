@@ -14,6 +14,12 @@ To install TensorFlow, include the following line under ``softwares```: ::
 
         {"name": "tensorflow"},
 
+        "tensorflow": [
+                {"name": "tensorflow_cpu"},
+                {"name": "tensorflow_amd"},
+                {"name": "tensorflow_nvidia"}
+            ]
+
 
 For a list of repositories (and their types) configured for TensorFlow, view the ``input/config/<operating_system>/<operating_system_version>/tensorflow.json`` file. To customize your TensorFlow installation, update the file.
 

@@ -12,7 +12,11 @@ Create local Kserve repository
 
 To install Kserve, include the following line under ``softwares```: ::
 
-        {"name": "kserve"},
+         "kserve": [
+                {"name": "istio"},
+                {"name": "cert_manager"},
+                {"name": "knative"}
+            ]
 
 
 For a list of repositories (and their types) configured for Kserve, view the ``input/config/<operating_system>/<operating_system_version>/kserve.json`` file. To customize your Kserve installation, update the file.

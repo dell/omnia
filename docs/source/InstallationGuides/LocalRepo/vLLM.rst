@@ -14,6 +14,11 @@ To install vLLM, include the following line under ``softwares```: ::
 
         {"name": "vLLM"},
 
+         "vllm": [
+                {"name": "vllm_amd"},
+                {"name": "vllm_nvidia"}
+            ],
+
 
 For a list of repositories (and their types) configured for vLLM, view the ``input/config/<operating_system>/<operating_system_version>/vllm.json`` file. To customize your vLLM installation, update the file.
 

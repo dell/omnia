@@ -25,7 +25,7 @@ Omnia does not maintain any order when assigning hostnames to target nodes.
 
 **Resolution**: Ensure a control plane IP is assigned to the admin NIC.
 
-⦾ **Kubernetes pods on the kube_control_plane are in CreateContainerConfigError and Calico Pods are in CrashLoopBackoff error after running omnia.yml.**
+⦾ **Kubernetes pods on the kube_control_plane are in CreateContainerConfigError and Calico Pods are in CrashLoopBackoff error after running omnia.yml (version 1.5 and below).**
 
 **Potential Cause:**
 
@@ -193,7 +193,7 @@ Wait for 15 minutes after the Kubernetes cluster reboots. Next, verify the statu
 
 3. Set ``scheduler_type: "k8s"`` in ``input/omnia_config.yml`` and run ``omnia.yml``.
 
-⦾ **Why does pulling images to create the Kubeflow timeout causing the 'Apply Kubeflow Configuration' task to fail?**
+⦾ **Why does pulling images to create the Kubeflow timeout causing the 'Apply Kubeflow Configuration' task to fail? (version 1.5 and below)**
 
 
 **Potential Cause**: Unstable or slow Internet connectivity.
@@ -462,7 +462,7 @@ The required services are not running on the node. Verify the service status usi
 **Resolution**: Enable all required repositories via your red hat subscription.
 
 
-⦾ **Why would FreeIPA server/client installation fail?**
+⦾ **Why would FreeIPA server/client installation fail? (version 1.5 and below)**
 
 
 **Potential Cause**:
