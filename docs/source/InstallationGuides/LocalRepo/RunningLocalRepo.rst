@@ -9,7 +9,7 @@ Run the following commands: ::
     cd local_repo
     ansible-playbook local_repo.yml
 
-
+.. note:: After ``local_repo.yml`` has run, the value of ``repo_config`` in ``input/software_config.json`` cannot be updated without running the `control_plane_cleanup.yml <../CleanUpScript.html>`_ script first.
 
 **Update local repositories**
 
@@ -19,3 +19,5 @@ To run the playbook: ::
 
     cd utils
     ansible-playbook update_user_repo.yml -i inventory
+
+
