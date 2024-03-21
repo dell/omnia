@@ -338,8 +338,13 @@ Recommended Actions:
 
 **Potential Cause**:
 
-    The subnet 10.4.0.0/24 has been assigned to the admin, bmc, or additional network. nerdctl uses this subnet by default and cannot be assigned to any other interface in the system.
+    * The subnet 10.4.0.0/24 has been assigned to the admin, bmc, or additional network. nerdctl uses this subnet by default and cannot be assigned to any other interface in the system.
+    * The docker pull limit has been breached.
 
+**Resolution**:
+
+    * Reassign the conflicting network to a different subnet.
+    * Update ``input/provision_config_credentials.yml`` with the ``docker_username`` and ``docker_password``.
 
 ⦾ **Why does the task 'Install Packages' fail on the NFS node with the message: ``Failure in talking to yum: Cannot find a valid baseurl for repo: base/7/x86_64.``**
 
