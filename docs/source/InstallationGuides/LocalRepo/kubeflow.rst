@@ -1,4 +1,4 @@
-Create local Jupyter repository
+Create local Kubeflow repository
 -------------------------------
 
 1. Enter the required values in the ``input/software_config.json`` file:
@@ -10,12 +10,12 @@ Create local Jupyter repository
    :class: longtable
 
 
-To install PyTorch, include the following line under ``softwares```: ::
+To install kubeflow, include the following line under ``softwares```: ::
 
-        {"name": "jupyter"},
+        {"name": "kubeflow"},
 
 
-For a list of repositories (and their types) configured for jupyter, view the ``input/config/<operating_system>/<operating_system_version>/jupyter.json`` file. To customize your jupyter installation, update the file.
+For a list of repositories (and their types) configured for jupyter, view the ``input/config/<operating_system>/<operating_system_version>/kubeflow.json`` file. To customize your jupyter installation, update the file.
 
 2. Enter the required values in the ``input/local_repo_config.yml`` file. For parameter information, `click here <InputParameters.html>`_.
 3. Run the following commands: ::
@@ -24,5 +24,5 @@ For a list of repositories (and their types) configured for jupyter, view the ``
        ansible-playbook local_repo.yml
 
 
-For information on deploying jupyter after setting up the cluster, `click here. <../../Roles/Platform/InstallJupyterhub.html>`_
+For information on deploying jupyter after setting up the cluster, `click here. <../../Roles/Platform/kubeflow.html>`_
 

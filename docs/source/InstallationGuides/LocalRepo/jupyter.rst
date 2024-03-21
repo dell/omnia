@@ -1,4 +1,4 @@
-Create local kubeflow repository
+Create local Jupyterhub repository
 -------------------------------
 
 1. Enter the required values in the ``input/software_config.json`` file:
@@ -10,12 +10,12 @@ Create local kubeflow repository
    :class: longtable
 
 
-To install kubeflow, include the following line under ``softwares```: ::
+To install Jupyterhub, include the following line under ``softwares```: ::
 
-        {"name": "kubeflow"},
+        {"name": "jupyter"},
 
 
-For a list of repositories (and their types) configured for kubeflow, view the ``input/config/<operating_system>/<operating_system_version>/kubeflow.json`` file. To customize your kubeflow installation, update the file.
+For a list of repositories (and their types) configured for jupyter, view the ``input/config/<operating_system>/<operating_system_version>/jupyter.json`` file. To customize your jupyter installation, update the file.
 
 2. Enter the required values in the ``input/local_repo_config.yml`` file. For parameter information, `click here <InputParameters.html>`_.
 3. Run the following commands: ::
@@ -24,5 +24,5 @@ For a list of repositories (and their types) configured for kubeflow, view the `
        ansible-playbook local_repo.yml
 
 
-For information on deploying kubeflow after setting up the cluster, `click here. <../../Roles/Platform/kubeflow.html>`_
+For information on deploying kubeflow after setting up the cluster, `click here. <../../Roles/Platform/InstallJupyterhub.html>`_
 

@@ -6,24 +6,7 @@ The local repository feature will help create offline repositories on the contro
 .. toctree::
     Prerequisite
     InputParameters
-    Kubernetes
-    cuda
-    amdgpu
-    ucx
-    openMPI
-    beegfs
-    nfs
-    ofed
-    bcm_roce
-    FreeIPA
-    OpenLDAP
-    SecureLoginNode
-    jupyter
-    kubeflow
-    vLLM
-    PyTorch
-    TensorFlow
-    kserve
+    localrepos
     RunningLocalRepo
     CustomLocalRepo
 

@@ -10,7 +10,7 @@ Create local OpenMPI repository
    :class: longtable
 
 
-To install UCX, include the following line under ``softwares```: ::
+To install OpenMPI, include the following line under ``softwares```: ::
 
         {"name": "openmpi", "version":"4.1.6"},
 
