@@ -44,6 +44,8 @@ Configuring specific local repositories
 
             {"name": "beegfs"},
 
+For information on deploying BeeGFS after setting up the cluster, `click here. <../../Roles/Storage/index.html>`_
+
 **CUDA**
 
     To install CUDA, include the following line under ``softwares```: ::
@@ -164,11 +166,15 @@ Configuring specific local repositories
 
             {"name": "freeipa"},
 
+For information on deploying FreeIPA after setting up the cluster, `click here. <../../Roles/Security/index.html>`_
+
 **Jupyterhub**
 
     To install Jupyterhub, include the following line under ``softwares```: ::
 
             {"name": "jupyter"},
+
+For information on deploying Jupyterhub after setting up the cluster, `click here. <../../Roles/Platform/InstallJupyterhub.html>`_
 
 **Kserve**
 
@@ -180,11 +186,16 @@ Configuring specific local repositories
                     {"name": "knative"}
                 ]
 
+For information on deploying Kserve after setting up the cluster, `click here. <../../Roles/Platform/kserve.html>`_
+
 **Kubeflow**
 
     To install kubeflow, include the following line under ``softwares```: ::
 
             {"name": "kubeflow"},
+
+For information on deploying kubeflow after setting up the cluster, `click here. <../../Roles/Platform/kubeflow.html>`_
+
 
 **Kubernetes**
 
@@ -193,6 +204,8 @@ Configuring specific local repositories
             {"name": "k8s", "version":"1.26.12"},
 
     .. note:: The version of the software provided above is the only version of the software Omnia supports.
+
+
 
 **OFED**
 
@@ -240,11 +253,16 @@ Configuring specific local repositories
 
             {"name": "openldap"},
 
+Features that are part of the OpenLDAP repository are enabled by running `security.yml <../../Roles/Security/index.html>`_
+
 **OpenMPI**
 
     To install OpenMPI, include the following line under ``softwares```: ::
 
             {"name": "openmpi", "version":"4.1.6"},
+
+
+OpenMPI is deployed on the cluster when the above configurations are complete and `omnia.yml is run. <../BuildingClusters/index.html>`_
 
 **Pytorch**
 
@@ -257,12 +275,16 @@ Configuring specific local repositories
                     {"name": "pytorch_amd"},
                     {"name": "pytorch_nvidia"}
                 ],
+
+For information on deploying Pytorch after setting up the cluster, `click here. <../../Roles/Platform/Pytorch.html>`_
+
 **Secure Login Node**
 
     To secure the login node, include the following line under ``softwares```: ::
 
             {"name": "secure_login_node"},
 
+Features that are part of the secure_login_node repository are enabled by running `security.yml <../../Roles/Security/index.html>`_
 
 **TensorFlow**
 
@@ -276,11 +298,15 @@ Configuring specific local repositories
                     {"name": "tensorflow_nvidia"}
                 ]
 
+For information on deploying TensorFlow after setting up the cluster, `click here. <../../Roles/Platform/TensorFlow.html>`_
+
 **Unified Communication X**
 
     To install UCX, include the following line under ``softwares```: ::
 
             {"name": "ucx", "version":"1.15.0"},
+
+UCX is deployed on the cluster when the ``local_repo.yml`` is run then `omnia.yml is run. <../BuildingClusters/index.html>`_
 
 **vLLM**
 
@@ -292,6 +318,8 @@ Configuring specific local repositories
                     {"name": "vllm_amd"},
                     {"name": "vllm_nvidia"}
                 ],
+
+For information on deploying vLLM after setting up the cluster, `click here. <../../Roles/Platform/SetupvLLM.html>`_
 
 
 

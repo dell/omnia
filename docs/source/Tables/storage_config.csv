@@ -68,7 +68,7 @@ Choices:
 * If ansible is installed using pip, this path should be set                        
                                                                                     
      **Default values**: ``/etc/ansible``                                           "
-"beegfs_secret_storage_filepath
+"**beegfs_secret_storage_filepath**
      ``string``
      Required
 ","* The filepath (including the filename) where the ``connauthfile`` is   placed.
