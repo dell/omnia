@@ -331,7 +331,14 @@ Recommended Actions:
     systemctl enable nfs-server.service
 
 
+⦾ **Why does the task `configure registry: Start and enable nerdctl-registry service` fail with "Job for nerdctl-registry.service failed because the control process exited with error code"?**
 
+.. image:: ../images/nerdctlError.png
+
+
+**Potential Cause**:
+
+    The subnet 10.4.0.0/24 has been assigned to the admin, bmc, or additional network. nerdctl uses this subnet by default and cannot be assigned to any other interface in the system.
 
 
 ⦾ **Why does the task 'Install Packages' fail on the NFS node with the message: ``Failure in talking to yum: Cannot find a valid baseurl for repo: base/7/x86_64.``**

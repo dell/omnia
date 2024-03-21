@@ -85,6 +85,7 @@ A sample is provided below: ::
 
     * The strings ``admin_network`` and ``bmc_network`` in the ``input/network_spec.yml`` file should not be edited. Also, the properties ``nic_name``, ``static_range``, and ``dynamic_range`` cannot be edited on subsequent runs of the provision tool.
     * Netmask bits are mandatory and should be same for both the ``admin_network`` and ``bmc_network`` (ie between 1 and 32; 1 and 32 are acceptable values).
+    * Do not assign the subnet 10.4.0.0/24 to any interfaces in the network as nerdctl uses it by default.
     * Ensure that the CIDR is aligned with the ``netmask_bits`` provided.
     * The ``discover_ranges`` property of the ``bmc_network`` can accept multiple comma-separated ranges.
     * The ``VLAN`` property is optional but should be between 0 and 4095 (0 and 4095 are not acceptable values).
