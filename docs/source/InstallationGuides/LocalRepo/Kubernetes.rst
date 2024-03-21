@@ -16,7 +16,7 @@ To install Kubernetes, include the following line under ``softwares```: ::
         
 .. note:: The version of the software provided above is the only version of the software Omnia supports. 
 
-2. Enter the required values in the ``input/local_repo_config.yml`` file. For parameter information, `click here <RunningLocalRepo.html>`_.
+2. Enter the required values in the ``input/local_repo_config.yml`` file. For parameter information, `click here <InputParameters.html>`_.
 3. Run the following commands: ::
 
        cd local_repo

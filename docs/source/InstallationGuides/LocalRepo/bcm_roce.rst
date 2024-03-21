@@ -35,7 +35,7 @@ For a list of repositories (and their types) configured for RoCE, view the ``inp
 
 .. note:: The only accepted URL for the RoCE driver is from the Dell Driver website.
 
-2. Enter the required values in the ``input/local_repo_config.yml`` file. For parameter information, `click here <RunningLocalRepo.html>`_.
+2. Enter the required values in the ``input/local_repo_config.yml`` file. For parameter information, `click here <InputParameters.html>`_.
 3. Run the following commands: ::
 
        cd local_repo

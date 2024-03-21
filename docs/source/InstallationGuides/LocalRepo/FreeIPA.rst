@@ -17,7 +17,7 @@ To install FreeIPA, include the following line under ``softwares```: ::
 
 For a list of repositories (and their types) configured for FreeIPA, view the ``input/config/<operating_system>/<operating_system_version>/freeipa.json`` file. To customize your FreeIPA installation, update the file.:
 
-2. Enter the required values in the ``input/local_repo_config.yml`` file. For parameter information, `click here <RunningLocalRepo.html>`_.
+2. Enter the required values in the ``input/local_repo_config.yml`` file. For parameter information, `click here <InputParameters.html>`_.
 3. Run the following commands: ::
 
        cd local_repo

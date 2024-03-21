@@ -17,7 +17,7 @@ To install ROCm, include the following line under ``softwares```: ::
             ]
 
 
-2. Enter the required values in the ``input/local_repo_config.yml`` file. For parameter information, `click here <RunningLocalRepo.html>`_.
+2. Enter the required values in the ``input/local_repo_config.yml`` file. For parameter information, `click here <InputParameters.html>`_.
 3. Run the following commands: ::
 
        cd local_repo

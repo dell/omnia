@@ -9,6 +9,8 @@ The local repository feature will help create offline repositories on the contro
     Kubernetes
     cuda
     amdgpu
+    ucx
+    openMPI
     beegfs
     nfs
     ofed
