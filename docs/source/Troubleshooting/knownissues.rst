@@ -124,9 +124,10 @@ This issue is caused by incompatibility between Rocky 8.7 and kubernetes due to 
     * The errors occur when the Docker pull limit is exceeded.
 **Resolution**:
 
-    * For ``omnia.yml`` and ``provision.yml`` : Provide the docker username and password for the Docker Hub account in the *omnia_config.yml* file and execute the playbook.
+    * Ensure that the ``docker_username`` and ``docker_password`` are provided in ``input/provision_config_credentials.yml``.
 
-    * For HPC cluster, during ``omnia.yml execution``, a kubernetes secret 'dockerregcred' will be created in default namespace and patched to service account. User needs to patch this secret in their respective namespace while deploying custom applications and use the secret as imagePullSecrets in yaml file to avoid ErrImagePull. [Click here for more info](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/)
+    * For a HPC cluster, during ``omnia.yml`` execution, a kubernetes secret 'dockerregcred' will be created in default namespace and patched to service account. User needs to patch this secret in their respective namespace while deploying custom applications and use the secret as imagePullSecrets in yaml file to avoid ErrImagePull. `Click here for more info. <https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry>`_
+
 .. note:: If the playbook is already executed and the pods are in **ImagePullBack** state, then run ``kubeadm reset -f`` in all the nodes before re-executing the playbook with the docker credentials.
 
 ⦾ **Why does the task 'Gather facts from all the nodes' stuck when re-running ``omnia.yml``?**
