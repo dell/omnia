@@ -1,6 +1,14 @@
 Before you create local repositories
 -------------------------------------
 
+**Space considerations**
+
+If all available software stacks are configured, the free space required is as below:
+
+    * For packages: 30GB
+    * For images (in ``/var``): 400GB
+    * For storing repositories (the file path should be specified in ``repo_store_path`` in ``input/local_repo_config.yml``): 30GB.
+
 **On Ubuntu clusters**
 
 For persistent offline local repositories, (If the parameter ``repo_config`` in ``input/software_config`` is set to ``always``), click `here <https://help.ubuntu.com/community/Debmirror>`_ to set up the required repositories.
