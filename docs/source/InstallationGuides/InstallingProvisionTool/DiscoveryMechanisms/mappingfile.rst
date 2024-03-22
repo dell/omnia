@@ -19,7 +19,7 @@ Manually collect PXE NIC information for target servers and define them to Omnia
     * The MAC address provided in ``pxe_mapping_file.csv`` should refer to the PXE NIC on the target nodes.
     * If the field ``bmc_ip`` is not populated, manually set the nodes to PXE mode and start provisioning. If the fields are populated and IPMI is enabled, Omnia will take care of provisioning automatically.
     * Target servers should be configured to boot in PXE mode with the appropriate NIC as the first boot device.
-
+    * To assign IPs on the BMC network while discovering servers using a mapping file, target servers should be in DHCP mode or switch details should be provided.
 
 To continue to the next steps:
 

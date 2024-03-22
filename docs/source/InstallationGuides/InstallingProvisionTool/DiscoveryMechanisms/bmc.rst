@@ -8,7 +8,8 @@ For automatic provisioning of servers and discovery, the BMC method can be used.
 * Set the IP address of the control plane. The control plane NIC connected to remote servers (through the switch) should be configured with two IPs (BMC IP and admin IP) in a shared LOM or hybrid set up. In the case dedicated network topology, a single IP (admin IP) is required.
 .. image:: ../../../images/ControlPlaneNic.png
 
-* BMC NICs should have a static IP assigned or be configured in DHCP mode.
+* To assign IPs on the BMC network while discovering servers using a BMC details, target servers should be in DHCP mode or switch details should be provided.
+
 
 * BMC credentials should be the same across all servers and provided as input to Omnia in the parameters explained below.
 
