@@ -37,7 +37,7 @@ Optional","* This variable accepts the registry url along with port of the user 
 
 * When ``repo_config`` is partial, a local registry is created on the control plane containing packages that are not part of the ``user_registry``.
 
-* When ``repo_config`` is never, no local registry is created and packages are downloaded on all cluster nodes.
+* When ``repo_config`` is never, no local registry is created and packages/images are downloaded on all cluster nodes.
 
 * 'host' defines the URL and path to the registry.
 
