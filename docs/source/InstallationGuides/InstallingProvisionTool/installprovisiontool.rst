@@ -38,6 +38,9 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
 
 ``discovery_provision.yml`` runs in three stages that can be called individually:
 
+.. caution:: Always execute ``discovery_provision.yml`` within the ``omnia`` directory. That is, always change directories (``cd omnia``) to the path where the playbook resides before running the playbook.
+
+
 **Preparing the control plane**
 
     * Installs required tool packages.
