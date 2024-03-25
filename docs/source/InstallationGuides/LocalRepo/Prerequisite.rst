@@ -3,7 +3,7 @@ Before you create local repositories
 
 **Space considerations**
 
-If all available software stacks are configured, the free space required is as below:
+If all available software stacks are configured, the free space required on the control plane is as below:
 
     * For packages: 30GB
     * For images (in ``/var``): 400GB
