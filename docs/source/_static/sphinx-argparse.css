@@ -12,7 +12,7 @@
 }
 
  .rst-content div[class^=highlight], .rst-content pre.literal-block {
-     width: 575px;
+     width: 700px;
      overflow-x: unset;
  }
 
@@ -26,6 +26,6 @@
     table-layout: fixed;
     block-size: fit-content;
     overflow: visible !important;
-    max-width: 750px;
+    max-width: 900px;
 }
 
