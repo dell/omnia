@@ -29,14 +29,16 @@ Required","* The password set on target iDRACs.
 
 ``string``
 
-Optional (Required for Switch based discovery mechanism)","* Non-admin SNMPv3 credentials of the PXE switch.
+Optional ","* Non-admin SNMPv3 credentials of the PXE switch.
+* This variable is required when discovering nodes via switch details.
 * If multiple switches are provided, ensure the credentials are same across switches.
 * Username must not contain -,\, ',"""
 "**switch_snmp3_password**
 
 ``string``
 
-Optional (Required for Switch based discovery mechanism)","* Non-admin SNMPv3 credentials of the PXE switch.
+Optional","* Non-admin SNMPv3 credentials of the PXE switch.
+* This variable is required when discovering nodes via switch details.
 * If multiple switches are provided, ensure the credentials are same across switches.
 * Password must not contain -,\, ',"""
 "**docker_username**
