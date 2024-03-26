@@ -25,7 +25,8 @@ Fill in all required parameters in ``input/provision_config.yml``, ``provision_c
 
 Update the ``input/network_spec.yml`` file for all networks available for use by the control plane.
 
-    * The following ``admin_nic`` details are mandatory.
+    * The following ``admin_nic`` details are mandatory:
+
          * ``nic_name``: The name of the NIC on which the administrative network is accessible to the control plane.
          * ``netmask_bits``: The 32-bit "mask" used to divide an IP address into subnets and specify the network's available hosts.
          * ``static_range``: The static range of IPs to be provisioned on target nodes.
