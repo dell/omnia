@@ -40,6 +40,18 @@ Required (Mapping discovery mechanism)","* The mapping file consists of the Serv
 * Ensure that the admin IP addresses provided are within the ``admin_static_ranges``.
 * A sample file is provided here: examples/pxe_mapping_file.csv.
 * The headers of the CSV are SERVICE_TAG,ADMIN_MAC,HOSTNAME,ADMIN_IP,BMC_IP."
+"**enable_switch_based**
+
+``boolean`` [1]_
+
+Required (Switch based discovery mechanism)","* Indicates whether target nodes should be discovered via switch details or not. Set to true when discovering nodes via switch details.
+* When set to true, node discovery will not take place via BMC. Therefore, it is mandatory to provide BMC network details like ``nic_name``, ``netmask_bits``, ``static_range``, and ``dynamic_range`` are provided in the ``input/network_spec.yml`` file.
+* To discover nodes via switch details AND BMC, run the ``discovery_provision.yml`` playbook twice: Once with ``enable_switch_based`` set to true and once with ``enable_switch_based`` set to false.
+
+Accepted values:
+
+* ``true``
+* ``false`` <- Default"
 "**switch_based_details**
 
 ``JSON List``
@@ -64,7 +76,8 @@ Required (Switch based discovery mechanism)","* JSON list of switches to query f
 Optional","* User defined disk partition applied to remote servers.
 * The disk partition desired_capacity has to be provided in MB.
 * Valid mount_point values accepted for disk partition are /home, /var, /tmp, /usr, swap.
-* Default partition size provided for /boot is 1024MB, /boot/efi is 256MB and the remaining space to / partition. 
+* Default partition size provided for RHEL/Rocky is /boot: 1024MB, /boot/efi: 256MB and remaining space to / partition.
+* Default partition size provided for Ubuntu is /boot: 2148MB, /boot/efi: 1124MB and remaining space to / partition.
 * Values are accepted in the form of JSON list such as: , - { mount_point: ""/home"", desired_capacity: ""102400"" }
  
 

@@ -9,7 +9,7 @@ Omnia grants Kubernetes node access to users defined on the kube_control_plane u
 
 **Input parameters**
 
-* Update the variable ``user_name``, in the ``input/k8s_access_config.yml`` file with a comma separated list of users.
+* Update the variable ``user_name``, in the ``input/k8s_access_config.yml`` file with a comma-separated list of users.
 
     +---------------+--------------------------------------------------------------------------------------------+
     | Parameter     | Details                                                                                    |

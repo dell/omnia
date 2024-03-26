@@ -82,7 +82,7 @@ In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcf
 
 * When discovering nodes via a mapping file, all target nodes should be set up in PXE mode before running the playbook.
 
-* Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to run ``provision.yml`` on RHEL target nodes.
+* Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to run ``discovery_provision.yml`` on RHEL target nodes.
 
 * For RHEL target nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription.
 

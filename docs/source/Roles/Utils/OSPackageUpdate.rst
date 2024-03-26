@@ -47,7 +47,7 @@ To customize the package update, enter the following parameters in ``utils/packa
 |                  |      * ``os``                                                                                                                                                                             |
 |                  |      * ``other`` <- Default                                                                                                                                                               |
 +------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| nodelist         | Comma separated list of all target nodes in the cluster.                                                                                                                                  |
+| nodelist         | comma-separated list of all target nodes in the cluster.                                                                                                                                  |
 |      ``string``  |                                                                                                                                                                                           |
 |      Required    |      **Default value**: ``all``                                                                                                                                                           |
 +------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+

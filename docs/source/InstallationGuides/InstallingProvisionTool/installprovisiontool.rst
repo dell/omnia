@@ -1,7 +1,7 @@
 Provisioning the cluster
 --------------------------
 
-Edit the ``input/provision_config.yml`` file to update the required variables. A list of the variables required is available by `discovery mechanism <DiscoveryMechanisms/index.html>`_.
+Edit the ``input/provision_config.yml``, ``input/provision_config.yml`` file to update the required variables. A list of the variables required is available by `discovery mechanism <DiscoveryMechanisms/index.html>`_.
 
     .. note:: The first PXE device on target nodes should be the designated active NIC for PXE booting.
 
@@ -86,12 +86,12 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
 
 **Provisioning the nodes**
 
-    * The intended operating system and version is provisioned on the nodes.
+    * The intended operating system and version is provisioned on the primary disk partition on the nodes. If a BOSS Controller card is available on the target node, the operating system is provisioned on the boss controller disks.
 
     To call this playbook individually, run::
 
         cd provision
-        ansible-playbook provision.yml
+        ansible-playbook discovery_provision.yml
 
 ----
 After successfully running ``discovery_provision.yml``, go to `Building Clusters <../BuildingClusters/index.html>`_ to setup Slurm, Kubernetes, NFS, BeeGFS and Authentication.
@@ -115,18 +115,18 @@ After successfully running ``discovery_provision.yml``, go to `Building Clusters
 
 .. caution::
 
-    * Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect.
-    * To avoid breaking the passwordless SSH channel on the control plane, do not run ``ssh-keygen`` commands post execution of ``provision.yml`` to create a new key.
+    * Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect. If the new environment variables still do not come into effect, enable manually using ``source /etc/profile.d
+    * To avoid breaking the passwordless SSH channel on the control plane, do not run ``ssh-keygen`` commands post execution of ``discovery_provision.yml`` to create a new key.
     * Do not delete the following directories:
         - ``/root/xcat``
         - ``/root/xcat-dbback``
         - ``/docker-registry``
         - ``/opt/omnia``
         - ``/var/log/omnia``
-    * On subsequent runs of ``provision.yml``, if users are unable to log into the server, refresh the ssh key manually and retry. ::
+    * On subsequent runs of ``discovery_provision.yml``, if users are unable to log into the server, refresh the ssh key manually and retry. ::
 
         ssh-keygen -R <node IP>
 
-    * If a subsequent run of ``provision.yml`` fails, the ``input/provision_config.yml`` file will be unencrypted.
+    * If a subsequent run of ``discovery_provision.yml`` fails, the ``input/provision_config.yml`` file will be unencrypted.
 
 To create a node inventory in ``/opt/omnia``, `click here <../PostProvisionScript.html>`_.

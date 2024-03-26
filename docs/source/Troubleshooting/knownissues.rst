@@ -17,7 +17,7 @@ Omnia does not maintain any order when assigning hostnames to target nodes.
 
 **Resolution**: This will be addressed in a later release.
 
-⦾ **Why does the task Assign admin NIC IP fail during provision.yml with errors?**
+⦾ **Why does the task Assign admin NIC IP fail during discovery_provision.yml with errors?**
 
 .. image:: ../images/AdminNICErrors.png
 

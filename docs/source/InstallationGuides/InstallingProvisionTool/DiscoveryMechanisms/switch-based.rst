@@ -13,10 +13,12 @@ switch_based
 
 .. note::
     * To create an SNMPv3 user on S series switches (running  OS10), use the following commands:
+
         - To create SNMP view: ``snmp-server view test_view internet included``
         - To create SNMP group: ``snmp-server group testgroup 3 auth read test_view``
         - To create SNMP users: ``snmp-server user authuser1 testgroup 3 auth sha authpasswd1``
     * To verify the changes made, use the following commands:
+
         - To view the SNMP views: ``show snmp view``
         - To view the SNMP groups: ``show snmp group``
         - To view the SNMP users: ``show snmp user``
@@ -31,14 +33,14 @@ switch_based
     racadm set iDRAC.IPMILan.Enable 1
     racadm get iDRAC.IPMILan
 
-* BMC credentials should be the same across all servers and provided as input to Omnia.
+* BMC credentials should be the same across all servers and provided as input to Omnia. All BMC network details should be provided in ``input/network_spec.yml``.
 
 * Target servers should be configured to boot in PXE mode with appropriate NIC as the first boot device.
 
 * Set the IP address of the control plane. The control plane NIC connected to remote servers (through the switch) should be configured with two IPs (BMC IP and admin IP) in a shared LOM or hybrid set up. In the case dedicated network topology, a single IP (admin IP) is required.
 .. image:: ../../../images/ControlPlaneNic.png
 
-* Ensure that the variable ``switch_based_details`` in ``input/provision_config.yml`` is provided.
+* Ensure that the variable ``switch_based_details`` in ``input/provision_config.yml`` is provided. Addtionally, set the value of ``enable_switch_based`` to true in ``input/provision_config.yml``.
 
 .. caution::
     * Do not use daisy chain ports or the port used to connect to the control plane in ``switch_based_details`` in ``input/provision_config.yml``. This can cause IP conflicts on servers attached to potential target ports.

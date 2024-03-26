@@ -51,7 +51,7 @@ Frequently asked questions
      cd utils
      ansible-playbook control_plane_cleanup.yml
 
-3. Re-run the provision tool (``ansible-playbook provision.yml``).
+3. Re-run the provision tool (``ansible-playbook discovery_provision.yml``).
 
 
 ⦾ **What to do if playbook execution fails due to external (network, hardware etc) failure:**
@@ -91,7 +91,7 @@ Re-run the playbook whose execution failed once the issue is resolved.
     * Configure the first PXE device to be active for PXE booting.
     * PXE boot the target node manually.
 
-⦾ **Why does the provision.yml fail at 'provision validation: Install common packages for provision' on RHEL nodes running 8.5 or earlier?**
+⦾ **Why does the discovery_provision.yml fail at 'provision validation: Install common packages for provision' on RHEL nodes running 8.5 or earlier?**
 
 .. image:: ../images/RedHat_provisionerror_sshpass.PNG
 
@@ -179,7 +179,7 @@ This can only be achieved using local repos specified in rhel_repo_local_path  (
 
 Omnia does not validate the input of ``rhel_repo_local_path``.
 
-**Resolution**: Ensure the correct values are passed before re-running ``provision.yml``.
+**Resolution**: Ensure the correct values are passed before re-running ``discovery_provision.yml``.
 
 ⦾ **How to add a new node for provisioning**
 
@@ -188,11 +188,11 @@ Omnia does not validate the input of ``rhel_repo_local_path``.
 
     * Update the existing mapping file by appending the new entry (without the disrupting the older entries) or provide a new mapping file by pointing ``pxe_mapping_file_path`` in ``provision_config.yml`` to the new location.
 
-    * Run ``provision.yml``.
+    * Run ``discovery_provision.yml``.
 
 2. Using the switch IP:
 
-    * Run ``provision.yml`` once the switch has discovered the potential new node.
+    * Run ``discovery_provision.yml`` once the switch has discovered the potential new node.
 
 ⦾ **Why does the task: 'BeeGFS: Rebuilding BeeGFS client module' fail?**
 
