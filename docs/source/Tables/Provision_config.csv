@@ -44,7 +44,7 @@ Required (Mapping discovery mechanism)","* The mapping file consists of the Serv
 
 ``boolean`` [1]_
 
-Required (Switch based discovery mechanism)","* Variable indicates whether switch based discovery should be enabled to discover the nodes
+Required","* Variable indicates whether switch based discovery should be enabled to discover the nodes
 * To enable switch based discovery, set ``enable_switch_based`` to true.
 * If ``enable_switch_based`` is set to true,the following inputs should be provided:
 
@@ -62,7 +62,8 @@ Required (Switch based discovery mechanism)","* Variable indicates whether switc
 
 ``JSON List``
 
-Required (Switch based discovery mechanism)","* JSON list of switches to query for target nodes.
+Optional","* JSON list of switches to query for target nodes.
+* This variable is required when nodes are to be discovered via switch details.
 * Split port ranges are not accepted here. (Ex: 10:5-10:10 will not be valid).
 * Example: ::
 

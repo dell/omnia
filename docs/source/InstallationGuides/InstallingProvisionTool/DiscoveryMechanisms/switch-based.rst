@@ -3,9 +3,11 @@ switch_based
 
 **Pre requisites**
 
-* IP address for ToR switch needs to be provided.
+* Set the value of ``enable_switch_based`` to true in ``input/provision_config.yml``. Additionally, ensure that the variable ``switch_based_details`` in ``input/provision_config.yml`` is populated with the IP address and port details of the ToR switch.
 
 * Switch port range where all BMC NICs are connected should be provided.
+
+* BMC credentials should be the same across all servers and provided as input to Omnia. All BMC network details should be provided in ``input/network_spec.yml``.
 
 * SNMP v3 should be enabled on the switch and the credentials should be provided in ``input/provision_config_credentials.yml``.
 
@@ -33,14 +35,10 @@ switch_based
     racadm set iDRAC.IPMILan.Enable 1
     racadm get iDRAC.IPMILan
 
-* BMC credentials should be the same across all servers and provided as input to Omnia. All BMC network details should be provided in ``input/network_spec.yml``.
-
 * Target servers should be configured to boot in PXE mode with appropriate NIC as the first boot device.
 
 * Set the IP address of the control plane. The control plane NIC connected to remote servers (through the switch) should be configured with two IPs (BMC IP and admin IP) in a shared LOM or hybrid set up. In the case dedicated network topology, a single IP (admin IP) is required.
 .. image:: ../../../images/ControlPlaneNic.png
-
-* Ensure that the variable ``switch_based_details`` in ``input/provision_config.yml`` is provided. Addtionally, set the value of ``enable_switch_based`` to true in ``input/provision_config.yml``.
 
 .. caution::
     * Do not use daisy chain ports or the port used to connect to the control plane in ``switch_based_details`` in ``input/provision_config.yml``. This can cause IP conflicts on servers attached to potential target ports.
@@ -50,7 +48,7 @@ switch_based
 
 .. note::
     * If any of the target nodes have a pre-provisioned BMC IP, ensure that these IPs are not part of the ``static_range`` specified in ``input/network_spec.yml`` under the ``bmc_network`` to avoid any bmc IP conflicts.
-    * Even if ``switch_based_details`` are provided in ``input/provision_config.yml``, a BMC discovery job task is run on the ``static_range`` and ``dynamic_range`` provided in ``input/network_spec.yml`` against the ``bmc_network`` before the switch based discovery job. If there is any overlap in the values provided, duplicate node objects may be created in the database. Ensure mindful IP range inputs to avoid duplicates. In case of a duplicate node object, bmc nodes will be deleted automatically by the **duplicate_node_cleanup** service that runs every 30 minutes.
+    * In case of a duplicate node object, bmc nodes will be deleted automatically by the **duplicate_node_cleanup** service that runs every 30 minutes.
 
 To clear the configuration on Omnia provisioned switches and ports, `click here <../../../Roles/Utils/portcleanup.html>`_.
 

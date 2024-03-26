@@ -115,7 +115,7 @@ After successfully running ``discovery_provision.yml``, go to `Building Clusters
 
 .. caution::
 
-    * Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect. If the new environment variables still do not come into effect, enable manually using ``source /etc/profile.d
+    * Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect. If the new environment variables still do not come into effect, enable manually using ``source /etc/profile.d/xcat.sh``.
     * To avoid breaking the passwordless SSH channel on the control plane, do not run ``ssh-keygen`` commands post execution of ``discovery_provision.yml`` to create a new key.
     * Do not delete the following directories:
         - ``/root/xcat``
