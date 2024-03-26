@@ -36,7 +36,8 @@ Required","* Domain name the user intends to configure on the cluster.
 
 ``string``
 
-Required (Mapping discovery mechanism)","* The mapping file consists of the Service tag, Admin MAC,Hostname and its respective admin IP address and/or BMC IP.
+Optional","* The mapping file consists of the Service tag, Admin MAC,Hostname and its respective admin IP address and/or BMC IP.
+* This variable is required to discover nodes using a mapping file.
 * Ensure that the admin IP addresses provided are within the ``admin_static_ranges``.
 * A sample file is provided here: examples/pxe_mapping_file.csv.
 * The headers of the CSV are SERVICE_TAG,ADMIN_MAC,HOSTNAME,ADMIN_IP,BMC_IP."
