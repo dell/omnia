@@ -36,7 +36,7 @@ When entering details in ``input/network_spec.yml``:
 
     * The network gateways on both admin and BMC networks are optional.
 
-.. note:: If the value of ``enable_switch_based`` is set to true, nodes will not
+.. note:: If the value of ``enable_switch_based`` is set to true, nodes will not be discovered via BMC irrespective of the contents in ``input/network_spec.yml``.
 
 To continue to the next steps:
 
