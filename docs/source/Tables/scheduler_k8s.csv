@@ -37,20 +37,12 @@
 
      ``string``
 
-     Optional      ","* Indicates whether the slurm installation will support configless or nfs mode
-* If set to ``nfs_share``, ensure that a ``share_path`` is provided.
+     Optional      ","* Indicates whether the slurm installation will support configless or nfs mode.
 
      Choices:
 
      * ``nfs_share``  <- default
      * ``configless``                                          "
-"**share_path**
-
-     ``string``
-
-     Optional      ","* Path to directory which will be shared across all nodes in the cluster.
-* If omitted, ``/mnt/share`` is provided.
-Default value:  ""/home/omnia-share"""
 "**k8s_service_addresses**
 
      ``string``
