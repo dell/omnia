@@ -36,8 +36,8 @@ Required","* Domain name the user intends to configure on the cluster.
 
 ``string``
 
-Optional","* The mapping file consists of the Service tag, Admin MAC,Hostname and its respective admin IP address and/or BMC IP.
-* This variable is required to discover nodes using a mapping file.
+Optional","* This variable is required to discover nodes using a mapping file.
+* The mapping file consists of the Service tag, Admin MAC,Hostname and its respective admin IP address and/or BMC IP.
 * Ensure that the admin IP addresses provided are within the ``admin_static_ranges``.
 * A sample file is provided here: examples/pxe_mapping_file.csv.
 * The headers of the CSV are SERVICE_TAG,ADMIN_MAC,HOSTNAME,ADMIN_IP,BMC_IP."
@@ -63,8 +63,8 @@ Required","* Variable indicates whether switch based discovery should be enabled
 
 ``JSON List``
 
-Optional","* JSON list of switches to query for target nodes.
-* This variable is required when nodes are to be discovered via switch details.
+Optional","* This variable is required when nodes are to be discovered via switch details (that is ``enable_switch_based`` is set to true).
+* JSON list of switches to query for target nodes.
 * Split port ranges are not accepted here. (Ex: 10:5-10:10 will not be valid).
 * Example: ::
 

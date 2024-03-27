@@ -89,7 +89,6 @@ In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcf
 .. note::
    * Enable a repository from your RHEL subscription, run the following commands: ::
 
-            subscription-manager repos --enable=codeready-builder-for-rhel-8-x86_64-rpms
             subscription-manager repos --enable=rhel-8-for-x86_64-appstream-rpms
             subscription-manager repos --enable=rhel-8-for-x86_64-baseos-rpms
 
@@ -115,15 +114,7 @@ In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcf
 
                 gpgcheck=0
 
-                [RHEL-8-crb]
 
-                name=Red Hat CRB repo
-
-                baseurl=http://xx.yy.zz/pub/Distros/RedHat/RHEL8/8.6/CRB/x86_64/os/
-
-                enabled=1
-
-                gpgcheck=0
 
     * Verify your changes by running: ::
 
@@ -134,7 +125,7 @@ In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcf
                 repo id                                                           repo name
                 RHEL-8-appstream-partners                                         Red Hat Enterprise Linux 8.6.0 Partners (AppStream)
                 RHEL-8-baseos-partners                                            Red Hat Enterprise Linux 8.6.0 Partners (BaseOS)
-                RHEL-8-crb-partners                                               Red Hat Enterprise Linux 8.6.0 Partners (CRB)
+
 
 
 .. note::

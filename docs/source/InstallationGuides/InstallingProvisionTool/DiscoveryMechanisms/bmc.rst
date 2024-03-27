@@ -10,7 +10,6 @@ For automatic provisioning of servers and discovery, the BMC method can be used.
 
 * To assign IPs on the BMC network while discovering servers using a BMC details, target servers should be in DHCP mode or switch details should be provided.
 
-
 * BMC credentials should be the same across all servers and provided as input to Omnia in the parameters explained below.
 
 * Target servers should be configured to boot in PXE mode with the appropriate NIC as the first boot device.
@@ -31,10 +30,14 @@ For automatic provisioning of servers and discovery, the BMC method can be used.
 * BMC network details should be provided in the ``input/network_spec.yml`` file.
 
 *When entering details in ``input/network_spec.yml``*
-* Ensure that the netmask bits for the BMC network and the admin network are the same.
-* The static and dynamic ranges for the BMC network accepts multiple comma-separated ranges.
-* The network gateways on both admin and BMC networks are optional.
 
+    * Ensure that the netmask bits for the BMC network and the admin network are the same.
+
+    * The static and dynamic ranges for the BMC network accepts multiple comma-separated ranges.
+
+    * The network gateways on both admin and BMC networks are optional.
+
+.. note:: If the value of ``enable_switch_based`` is set to true, nodes will not
 
 To continue to the next steps:
 

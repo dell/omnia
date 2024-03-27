@@ -34,19 +34,25 @@ Network File System (NFS) is a networking protocol for distributed file sharing.
 
       - **nfs_server**: Indicates whether an external NFS server is available (``false``) or an NFS server will need to be created (``true``).
 
+      - **slurm_share**: Indicates that the target cluster uses Slurm.
+
+      - **k8s_share**: Indicates that the target cluster uses Kubernetes.
+
+     .. note:: To install any Benchmarking software like UCX or OpenMPI, at least **slurm_share** or **k8s_share** should be set to true. If both are set to true, a higher precedence is given to **slurm_share**.
+
   To configure all cluster nodes to access a single external NFS server export, use the below sample: ::
 
-         - { server_ip: 10.5.0.101, server_share_path: "/mnt/share", client_share_path: "/home", client_mount_options: "nosuid,rw,sync,hard", nfs_server: true }
+         - { server_ip: 10.5.0.101, server_share_path: "/mnt/share", client_share_path: "/home", client_mount_options: "nosuid,rw,sync,hard", nfs_server: true, slurm_share: true, k8s_share: true }
 
   To configure the cluster nodes to access a new NFS server on the control plane as well as an external NFS server, use the below example: ::
 
-        - { server_ip: localhost, server_share_path: "/mnt/share1", client_share_path: "/home", client_mount_options: "nosuid,rw,sync,hard", nfs_server: true }
-        - { server_ip: 198.168.0.1, server_share_path: "/mnt/share2", client_share_path: "/mnt/mount2", client_mount_options: "nosuid,rw,sync,hard", nfs_server: false }
+        - { server_ip: localhost, server_share_path: "/mnt/share1", client_share_path: "/home", client_mount_options: "nosuid,rw,sync,hard", nfs_server: true, slurm_share: true, k8s_share: true }
+        - { server_ip: 198.168.0.1, server_share_path: "/mnt/share2", client_share_path: "/mnt/mount2", client_mount_options: "nosuid,rw,sync,hard", nfs_server: false, slurm_share: true, k8s_share: true }
 
   To configure the cluster nodes to access new NFS server exports on the cluster nodes, use the below sample: ::
 
-        - { server_ip: 198.168.0.1, server_share_path: "/mnt/share1", client_share_path: "/mnt/mount1", client_mount_options: "nosuid,rw,sync,hard", nfs_server: false }
-        - { server_ip: 198.168.0.2, server_share_path: "/mnt/share2", client_share_path: "/mnt/mount2", client_mount_options: "nosuid,rw,sync,hard", nfs_server: false }
+        - { server_ip: 198.168.0.1, server_share_path: "/mnt/share1", client_share_path: "/mnt/mount1", client_mount_options: "nosuid,rw,sync,hard", nfs_server: false, slurm_share: true, k8s_share: true }
+        - { server_ip: 198.168.0.2, server_share_path: "/mnt/share2", client_share_path: "/mnt/mount2", client_mount_options: "nosuid,rw,sync,hard", nfs_server: false, slurm_share: true, k8s_share: true }
 
 
 * Ensure that an NFS local repository is created by including ``{"name": "nfs"},`` in ``input/software_config.json``. For more information, `click here. <../InstallationGuides/LocalRepo/index.html>`_

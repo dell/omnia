@@ -12,13 +12,19 @@ Optional configurations managed by the provision tool
 
 **Using multiple versions of a given OS**
 
-Omnia now supports deploying different versions of the same OS. With each run of ``discovery_provision.yml``, a new deployable OS image is created with a distinct type (rocky, Ubuntu, or RHEL) and version (8.0, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 20.04, 22.04) depending on the values provided in ``input/provision_config.yml``.
+Omnia now supports deploying different versions of the same OS. With each run of ``discovery_provision.yml``, a new deployable OS image is created with a distinct type:
+
+    * Rocky: 8.6, 8.7, 8.8
+    * RHEL: 8.6, 8.7, 8.8
+    * Ubuntu: 20.04, 22.04
+
+depending on the values provided in ``input/software_config.json``.
 
 .. note::  While Omnia deploys the minimal version of the OS, the multiple version feature requires that the Rocky full (DVD) version of the OS be provided.
 
 **Disk partitioning**
 
-    Omnia now allows for customization of disk partitions applied to remote servers. The disk partition ``desired_capacity`` has to be provided in MB. Valid ``mount_point`` values accepted for disk partition are ``/home``, ``/var``, ``/tmp``, ``/usr``, ``swap``. Default partition size provided for ``/boot`` is 1024MB, ``/boot/efi`` is 256MB and the remaining space to ``/`` partition.  Values are accepted in the form of JSON list such as:
+    Omnia now allows for customization of disk partitions applied to remote servers. The disk partition ``desired_capacity`` has to be provided in MB. Valid ``mount_point`` values accepted for disk partition are ``/home``, ``/var``, ``/tmp``, ``/usr``, ``swap``. The default partition size provided for RHEL/Rocky is /boot: 1024MB, /boot/efi: 256MB and remaining space to / partition. Default partition size provided for Ubuntu is /boot: 2148MB, /boot/efi: 1124MB and remaining space to / partition. Values are accepted in the form of JSON list such as:
 
     ::
 
@@ -113,7 +119,10 @@ After successfully running ``discovery_provision.yml``, go to `Building Clusters
 
 .. caution::
 
-    * Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect. If the new environment variables still do not come into effect, enable manually using ``source /etc/profile.d/xcat.sh``.
+    * Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect. If the new environment variables still do not come into effect, enable manually using: ::
+
+             source /etc/profile.d/xcat.sh
+
     * To avoid breaking the passwordless SSH channel on the control plane, do not run ``ssh-keygen`` commands post execution of ``discovery_provision.yml`` to create a new key.
     * Do not delete the following directories:
         - ``/root/xcat``

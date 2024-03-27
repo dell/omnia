@@ -48,7 +48,7 @@ switch_based
 
 .. note::
     * If any of the target nodes have a pre-provisioned BMC IP, ensure that these IPs are not part of the ``static_range`` specified in ``input/network_spec.yml`` under the ``bmc_network`` to avoid any bmc IP conflicts.
-    * In case of a duplicate node object, bmc nodes will be deleted automatically by the **duplicate_node_cleanup** service that runs every 30 minutes.
+    * In case of a duplicate node object, duplicate BMC nodes will be deleted automatically by the **duplicate_node_cleanup** service that runs every 30 minutes. Nodes discovered via mapping will not be deleted.
 
 To clear the configuration on Omnia provisioned switches and ports, `click here <../../../Roles/Utils/portcleanup.html>`_.
 
