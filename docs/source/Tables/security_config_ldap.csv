@@ -16,12 +16,7 @@
 "tls_certificate_key 
      ``string``
      Optional ",The private key that matches the LDAP certificate.
-"user_home_dir  
-     ``string``
-     Required  ","This variable accepts the user   home directory path for ldap configuration.    If nfs mount is created for user home, make sure you provide the LDAP   users mount home directory path.
-                                                                                                                                                                                        
-    **Default value**: ``/home``                                                                                                                                                       "
-"openldap_db_username 
+"openldap_db_username
      ``string``
      Required "," The username used to manage the LDAP database. 
  
