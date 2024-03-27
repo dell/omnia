@@ -63,10 +63,12 @@ To ensure security while running jobs on the cluster, users can be assigned perm
 
 **Configuring UCX and OpenMPI on the cluster**
 
-If a local repository for UCX and OpenMPI has been configured on the cluster, the following configurations take place when running ``omnia.yml`` or ``scheduler.yml``.OpenMPI
+If a local repository for UCX and OpenMPI has been configured on the cluster, the following configurations take place when running ``omnia.yml`` or ``scheduler.yml``.
 
-    * **UCX** and **OpenMPI for Slurm (if Slurm is installed)** will be compiled and installed on the NFS share (based on the ``share_path`` provided in ``input/omnia_config.yml``).
-    *
+    * **UCX** will be compiled and installed on the NFS share (based on the ``client_share_path`` provided in the ``nfs_client_params`` in  ``input/storage_config.yml``).
+    * If the cluster uses Slurm and UCX, OpenMPI is configured to compile with the UCX and Slurm on the NFS share (based on the ``client_share_path`` provided in the ``nfs_client_params`` in  ``input/storage_config.yml``).
+    * All corresponding compiled UCX and OpenMPI files will be saved to the ``<client_share_path>/compile`` directory on the nfs share.
+    * All corresponding UCX and OpenMPI executables will be saved to the ``<client_share_path>/benchmarks/`` directory on the nfs share.
 
 
 
