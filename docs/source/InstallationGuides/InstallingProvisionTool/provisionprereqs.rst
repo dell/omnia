@@ -1,7 +1,7 @@
 Before you run the provision tool
 ---------------------------------
 
-* (Recommended) Run ``prereq.sh`` to get the system ready to deploy Omnia. Alternatively, ensure that `Ansible 2.14.14 <https://docs.ansible.com/ansible/latest/reference_appendices/release_and_maintenance.html>`_ and `Python 3.9 <https://www.python.org/downloads/>`_ are installed on the system.
+* (Recommended) Run ``prereq.sh`` to get the system ready to deploy Omnia. Alternatively, ensure that `Ansible 2.14 <https://docs.ansible.com/ansible/latest/reference_appendices/release_and_maintenance.html>`_ and `Python 3.9 <https://www.python.org/downloads/>`_ are installed on the system.
 
 * All target bare-metal servers should be reachable to the chosen control plane.
 
