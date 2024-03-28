@@ -199,7 +199,7 @@ To customize your setup of passwordless ssh, input parameters in ``input/passwor
 +-----------------------+--------------------------------------------------------------------------------------------------------------------+
 | Parameter             | Details                                                                                                            |
 +=======================+====================================================================================================================+
-| user_name             | The list of users that requires passwordless SSH. Separate the list of users using a comma.                        |
+| user_name             | The list of users that requires password-less SSH. Separate the list of users using a comma.                       |
 |      ``string``       |  Eg: ``user1,user2,user3``                                                                                         |
 |      Required         |                                                                                                                    |
 +-----------------------+--------------------------------------------------------------------------------------------------------------------+
@@ -207,9 +207,9 @@ To customize your setup of passwordless ssh, input parameters in ``input/passwor
 |      ``string``       |                                                                                                                    |
 |      Required         |      Choices:                                                                                                      |
 |                       |                                                                                                                    |
-|                       |      * ``freeipa`` <- Default                                                                                      |
+|                       |      * ``freeipa``                                                                                                 |
 |                       |                                                                                                                    |
-|                       |      * ``ldap``                                                                                                    |
+|                       |      * ``ldap``   <- Default                                                                                       |
 +-----------------------+--------------------------------------------------------------------------------------------------------------------+
 
 
