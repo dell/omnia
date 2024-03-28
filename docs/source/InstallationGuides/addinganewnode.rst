@@ -64,7 +64,7 @@ Verify that the node has been provisioned successfully by `checking the Omnia no
 
     [etcd]
 
-    # node1
+    10.5.0.110
 
 
 
@@ -86,7 +86,7 @@ Verify that the node has been provisioned successfully by `checking the Omnia no
 
     [etcd]
 
-    # node1
+    10.5.0.110
 
 
 *Existing Slurm inventory*
