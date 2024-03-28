@@ -1,0 +1,44 @@
+﻿Parameter,Details
+"**cluster_os_type**
+
+``string``
+
+Required","* The operating system running on the cluster (``rhel``, ``rocky``, and ``ubuntu``).
+
+**Default value**: ``ubuntu``."
+"**cluster_os_version**
+
+``string``
+
+Required","* The OS Version that will be provisoned on compute nodes.
+* For RHEL, the accepted values are 8.6, 8.7, and 8.8.
+* For Rocky, the accepted values are 8.6, 8.7, and 8.8.
+* For Ubuntu, the accepted values are 20.04, 22.04.
+* **Default value**: 22.04"
+"**repo_config**
+
+``string``
+
+Required","* The type of offline configuration user needs.
+* When the value is set to ``always``, Omnia creates a local repository/registry on the Control plane hosting all the packages/images required for the cluster.
+* When the value is set to ``partial``, Omnia creates a local repository/registry on the Control plane hosting all the packages/images except those listed in the ``user_registry`` in ``input/local_repo_config.yml``.
+* When the value is set to ``never``, Omnia does not create a local repository/registry. All the packages/images are directly downloaded on the cluster.
+.. note::
+  * After ``local_repo.yml`` has run, the value of ``repo_config`` in ``input/software_config.json`` cannot be updated without running the `control_plane_cleanup.yml <../CleanUpScript.html>`_ script first.
+  * All local repositories that are not available as images or RPMs will be configured locally.
+
+
+* **Accepted values**:
+
+  * ``always``
+  * ``partial`` <- Default
+  * ``never``
+	"
+"**softwares**
+
+``JSON list``
+
+Required","* A JSON list of required software and (optionally) the software revision.
+* This value of version is required for OFED and CUDA.
+* A minimum of one software should be provided in the list for ``local_repo.yml`` to execute correctly.
+.. note:: The accepted names for software is taken from ``input/config/<cluster_os_type>/<cluster_os_version>/``."

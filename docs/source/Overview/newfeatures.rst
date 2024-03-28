@@ -39,7 +39,7 @@ New Features
 
 *	Host aliasing for Scheduler and IPA authentication.
 
-*	Login and Manager Node access from both public and private NIC.
+*	Login and kube_control_plane access from both public and private NIC.
 
 *	Validation check enhancements:
 
