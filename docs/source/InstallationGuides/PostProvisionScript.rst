@@ -37,7 +37,9 @@ When ``discovery_provision.yml``, ``prepare_cp.yml``, or ``utils/inventory_taggi
   .. note::
 
       * Service tags will only be written into the inventory files after the nodes are successfully PXE booted post provisioning.
-      * Nodes must be booted and the service tag must be in the DB for nodes to list in the Inventory file.
+      * For a node's service tag to list in an inventory file, two conditions must be met:
+                  * Node status in DB is "booted".
+                  * Node's service tag information is present in DB.
       * To regenerate an inventory file, use the playbook ``utils/inventory_tagging.yml``.
 
 
