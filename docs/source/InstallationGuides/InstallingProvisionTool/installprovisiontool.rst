@@ -65,7 +65,8 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
 
         * Service tags will only be written into the inventory files after the nodes are successfully PXE booted post provisioning.
         * For a node's service tag to list in an inventory file, two conditions must be met:
-            * Node status in DB is "booted".
+
+            * Node status must be "booted" in DB.
             * Node's service tag information is present in DB.
         * Nodes are not removed from the inventory files even if they are physically disconnected. Ensure to run the `delete node playbook <../deletenode.html#delete-provisioned-node>`_ to remove the node.
         * To regenerate an inventory file, use the playbook ``omnia/utils/inventory_tagging.yml``.
