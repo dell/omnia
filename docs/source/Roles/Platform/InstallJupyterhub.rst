@@ -10,6 +10,17 @@ Using Helm charts, Omnia can install Jupyterhub on Kubernetes clusters. Once Jup
 * Review the ``tools/jupyter_config.yml`` file to ensure that the deployment meets your requirements. If not, modify the file.
 * Update the ``input/config/<operating_system>/<operating_system_version>/jupyter.json`` file with the correct jupyter helm chart version required. The default value is **3.2.0**.
 * Omnia deploys the ``quay.io/jupyterhub/k8s-singleuser-sample:3.2.0`` image irrespective of whether the intended notebooks are CPU-only, NVidia GPU, or AMD GPU.  To use a custom image, modify the ``omnia/tools/roles/jupyter_config.yml`` file.
+* Ensure that NFS has been deployed on the cluster using ``storage.yml`` followed by ``scheduler.yml`` or ``omnia.yml``. Verify that the required NFS storage provisioner is deployed using the below command: ::
+
+    [root@node3 ~]# kubectl get pod -A
+    NAMESPACE              NAME                                                              READY   STATUS             RESTARTS       AGE
+    default                nfs-omnia-nfs-subdir-external-provisioner-54785fccd-9mp8z         1/1     Running            1 (12m ago)    3h24m
+
+* Verify that the default storage class is set to nfs_client for dynamic persistent volume provisioning. ::
+
+    [root@node3 ~]# kubectl get storageclass
+    NAME                   PROVISIONER                                               RECLAIMPOLICY   VOLUMEBINDINGMODE   ALLOWVOLUMEEXPANSION   AGE
+    nfs-client (default)   cluster.local/nfs-omnia-nfs-subdir-external-provisioner   Delete          Immediate           true                   17h
 
 
 **Deploying Jupyterhub**
@@ -66,7 +77,7 @@ The IP address is listed against ``proxy-public``.
 
 **Clearing Jupyterhub configuration**
 
-Clear the existing configuration by running the below commands: ::
+Clear the existing configuration by running the below command: ::
 
     	kubectl delete ns jupyterhub
-    	kubectl delete pv jupyterhub-pv
+
