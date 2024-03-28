@@ -186,3 +186,37 @@ The inventory should contain auth_server as per the inventory file in `samplefil
 
 
 .. caution:: No users will be created by Omnia.
+
+Setting up Passwordless SSH
+----------------------------
+
+Once user accounts are created, admins can enable passwordless SSH for users to run HPC jobs on the cluster nodes.
+
+.. note:: Once user accounts are created on the auth server, use the accounts to login to the cluster nodes to reset the password and create a corresponding home directory.
+
+To customize your setup of passwordless ssh, input parameters in ``input/passwordless_ssh_config.yml``.
+
++-----------------------+--------------------------------------------------------------------------------------------------------------------+
+| Parameter             | Details                                                                                                            |
++=======================+====================================================================================================================+
+| user_name             | The list of users that requires passwordless SSH. Separate the list of users using a comma.                        |
+|      ``string``       |  Eg: ``user1,user2,user3``                                                                                         |
+|      Required         |                                                                                                                    |
++-----------------------+--------------------------------------------------------------------------------------------------------------------+
+| authentication_type   | Indicates whether LDAP or FreeIPA is in use on the cluster.                                                        |
+|      ``string``       |                                                                                                                    |
+|      Required         |      Choices:                                                                                                      |
+|                       |                                                                                                                    |
+|                       |      * ``freeipa`` <- Default                                                                                      |
+|                       |                                                                                                                    |
+|                       |      * ``ldap``                                                                                                    |
++-----------------------+--------------------------------------------------------------------------------------------------------------------+
+
+
+Use the below command to enable passwordless SSH: ::
+
+    ansible-playbook user_passwordless_ssh.yml -i inventory
+
+Where inventory follows the format defined under inventory file in the provided `Sample Files. <../../samplefiles.html>`_ The inventory file is case-sensitive. Follow the casing provided in the sample file link.
+
+.. caution:: Do not run ssh-keygen commands after passwordless SSH is set up on the nodes.
