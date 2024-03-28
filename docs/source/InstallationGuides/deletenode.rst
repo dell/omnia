@@ -98,7 +98,7 @@ Run the playbook using the following commands: ::
 
 To skip confirmation while running the playbook, use ``ansible-playbook delete_node.yml -i inventory --extra-vars skip_confirmation=yes`` or ``ansible-playbook remove_node_configuration.yml -i inventory -e  skip_confirmation=yes``.
 
-The inventory file passed for ``delete_node.yml`` should follow one of the below formats: ::
+The inventory file passed for ``delete_node.yml`` should follow one of the below formats. Passed inventory files should exclusively contain either service tags or admin IPs. Do not provide a mix of both in a single inventory file.: ::
 
     [nodes]
     {ip address}
