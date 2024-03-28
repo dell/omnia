@@ -17,10 +17,6 @@ Before you build clusters
 
 * Users should also ensure that all repos are available on the cluster nodes running RHEL.
 
-* Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to run ``omnia.yml`` on RHEL cluster nodes.
-
-* For RHEL cluster nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription.
-
 
 
 

@@ -45,7 +45,7 @@ Frequently asked questions
 
 .. image:: ../images/PXEBootFail.png
 
-1. Rectify any probable causes like incorrect/unavailable credentials (``switch_snmp3_username`` and ``switch_snmp3_password`` provided in ``input/provision_config.yml``), network glitches or incorrect switch IP/port details.
+1. Rectify any probable causes like incorrect/unavailable credentials (``switch_snmp3_username`` and ``switch_snmp3_password`` provided in ``input/provision_config.yml``), network glitches, having multiple NICs with the same IP address as the control plane, or incorrect switch IP/port details.
 2. Run the clean up script by: ::
 
      cd utils
@@ -84,25 +84,13 @@ Re-run the playbook whose execution failed once the issue is resolved.
 **Causes**:
 
     * Nodes do not have their first PXE device set as designated active NIC for PXE booting.
-    * Nodes that have been discovered via SNMP or mapping file have not been PXE booted.
+    * Nodes that have been discovered via multiple discovery mechanisms may list multiple times. Duplicate node entries will not list MAC addresses.
 
 **Resolution**:
 
     * Configure the first PXE device to be active for PXE booting.
     * PXE boot the target node manually.
-
-⦾ **Why does the discovery_provision.yml fail at 'provision validation: Install common packages for provision' on RHEL nodes running 8.5 or earlier?**
-
-.. image:: ../images/RedHat_provisionerror_sshpass.PNG
-
-**Potential Cause**:
-    * sshpass is not available in any of the repositories on the control plane.
-
-**Resolution**:
-
-   * Enable RedHat subscription or ensure that sshpass is available to install or download to the control plane (from any local repository).
-
-.. note:: This error can also take place when task ``cluster_preperation : Install sshpass`` is executed during ``omnia.yml``.
+    * Duplicate node objects (identified by service tag) will be deleted automatically. To manually delete node objects, use ``utils/delete_node.yml``.
 
 ⦾ What to do if user login fails when accessing a cluster node:
 
@@ -125,10 +113,14 @@ Re-run the playbook whose execution failed once the issue is resolved.
 **Resolution**:
 
 If ``enable_omnia_nfs`` is true in ``input/omnia_config.yml``, follow the below steps to configure an NFS share on your LDAP server:
+
     - From the kube_control_plane:
+
         1. Add the LDAP server IP address to ``/etc/exports``.
         2. Run ``exportfs -ra`` to enable the NFS configuration.
+
     - From the LDAP server:
+
         1. Add the required fstab entries in ``/etc/fstab`` (The corresponding entry will be available on the compute nodes in ``/etc/fstab``)
         2. Mount the NFS share using ``mount manager_ip: /home/omnia-share /home/omnia-share``
 
@@ -156,9 +148,9 @@ For many of Omnia's features to work, RHEL control planes need access to the fol
 
     1. AppStream
     2. BaseOS
-    3. CRB
 
-This can only be achieved using local repos specified in rhel_repo_local_path  (``input/provision_config.yml``) OR having an active, available RedHat subscription.
+
+This can only be achieved using local repos specified in rhel_repo_local_path  (``input/provision_config.yml``).
 
 .. note::
     To enable the repositories, run the following commands: ::
@@ -239,18 +231,9 @@ Omnia does not validate the input of ``rhel_repo_local_path``.
 
 **Resolution**: Manually input the username and password to your docker account on the control plane.
 
-
-⦾ **Is Disabling 2FA supported by Omnia?**
-
-* Disabling 2FA is not supported by Omnia and must be manually disabled.
-
 ⦾ **Is provisioning servers using BOSS controller supported by Omnia?**
 
 Provisioning server using BOSS controller is now supported by Omnia 1.2.1.
-
-⦾ **How many IPs are required within the PXE NIC range?**
-
-Ensure that the number of IPs available between ``pxe_nic_start_range`` and ``pxe_nic_end_range`` is double the number of iDRACs available to account for potential stale entries in the mapping DB.
 
 ⦾ **What are the licenses required when deploying a cluster through Omnia?**
 

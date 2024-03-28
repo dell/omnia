@@ -1,5 +1,5 @@
-Configuring storage
-=====================
+Configuring PowerVault
+=======================
 
 **Configuring Powervault storage**
 

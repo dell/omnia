@@ -12,60 +12,49 @@ inventory file
 
         [slurm_control_node]
 
-        # node1
-
-        [slurmdbd]
-
-        #node2
+        10.5.1.101
 
         [slurm_node]
 
-        #node3
+        10.5.1.103
 
-        #node4
+        10.5.1.104
 
         [login]
 
-        #node5
+        10.5.1.105
 
 
 
         #General Cluster Storage
 
-        #NFS node
-
-        [nfs]
-
-        #node10
-
-
-
         [auth_server]
 
-        #node12
+        10.5.1.106
 
         #AI Scheduler: Kubernetes
 
         [kube_control_plane]
 
-        # node1
+        10.5.1.101
 
         [etcd]
 
-        # node1
+        10.5.1.101
 
         [kube_node]
 
-        # node2
+        10.5.1.102
 
-        # node3
+        10.5.1.103
 
-        # node4
+        10.5.1.104
 
-        # node5
+        10.5.1.105
 
-        # node6
+        10.5.1.106
 
+.. note:: The auth_server is common to both slurm and kubernetes clusters.
 
 
 pxe_mapping_file.csv
@@ -74,8 +63,8 @@ pxe_mapping_file.csv
 ::
 
     SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_IP
-    6XCVT4,n1,xx:yy:zz:aa:bb:cc,10.5.0.101,10.3.0.101
-    V345H5,n2,aa:bb:cc:dd:ee:ff,10.5.0.102,10.3.0.102
+    XXXXXXX,n1,xx:yy:zz:aa:bb:cc,10.5.0.101,10.3.0.101
+    XXXXXXX,n2,aa:bb:cc:dd:ee:ff,10.5.0.102,10.3.0.102
 
 
 switch_inventory

@@ -67,7 +67,7 @@ Note the compatibility between cluster OS and control plane OS below:
         | Ubuntu              | Rocky              | No               |
         +---------------------+--------------------+------------------+
 
-.. [1] Ensure that control planes running RHEL have an active subscription or are configured to access local repositories. The following repositories should be enabled on the control plane: **AppStream**, **Code Ready Builder (CRB)**, **BaseOS**. For RHEL control planes running 8.5 and below, ensure that sshpass is additionally available to install or download to the control plane (from any local repository).
+.. [1] Ensure that control planes running RHEL have an active subscription or are configured to access local repositories. The following repositories should be enabled on the control plane: **AppStream**, **BaseOS**.
 
 * Ensure that all connection names under the network manager match their corresponding device names.
     To verify network connection names: ::
@@ -81,52 +81,6 @@ Note the compatibility between cluster OS and control plane OS below:
 In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcfg-<nic name>`` using vi editor.
 
 * When discovering nodes via a mapping file, all target nodes should be set up in PXE mode before running the playbook.
-
-* Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to run ``discovery_provision.yml`` on RHEL target nodes.
-
-* For RHEL target nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription.
-
-.. note::
-   * Enable a repository from your RHEL subscription, run the following commands: ::
-
-            subscription-manager repos --enable=rhel-8-for-x86_64-appstream-rpms
-            subscription-manager repos --enable=rhel-8-for-x86_64-baseos-rpms
-
-    * Enable an offline repository by creating a ``.repo`` file in ``/etc/yum.repos.d/``. Refer the below sample content: ::
-
-                [RHEL-8-appstream]
-
-                name=Red Hat AppStream repo
-
-                baseurl=http://xx.yy.zz/pub/Distros/RedHat/RHEL8/8.6/AppStream/x86_64/os/
-
-                enabled=1
-
-                gpgcheck=0
-
-                [RHEL-8-baseos]
-
-                name=Red Hat BaseOS repo
-
-                baseurl=http://xx.yy.zz/pub/Distros/RedHat/RHEL8/8.6/BaseOS/x86_64/os/
-
-                enabled=1
-
-                gpgcheck=0
-
-
-
-    * Verify your changes by running: ::
-
-            yum repolist enabled
-            Updating Subscription Management repositories.
-            Unable to read consumer identity
-            This system is not registered with an entitlement server. You can use subscription-manager to register.
-                repo id                                                           repo name
-                RHEL-8-appstream-partners                                         Red Hat Enterprise Linux 8.6.0 Partners (AppStream)
-                RHEL-8-baseos-partners                                            Red Hat Enterprise Linux 8.6.0 Partners (BaseOS)
-
-
 
 .. note::
 

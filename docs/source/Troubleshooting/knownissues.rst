@@ -7,44 +7,17 @@ Due to internal MAC ID conflicts on the target nodes, the MAC address will be li
 
 .. image:: ../images/MACConflict.png
 
-⦾ **Hostname assignment by Omnia is not sequential (that is from 1-xx) when discovering nodes via BMC or switch-based methods**
-
-Omnia does not maintain any order when assigning hostnames to target nodes.
-
-⦾ **cluster nodes get updated to Rocky 8.8 automatically irrespective of the input parameters provided to provision_config.yml when provision_os is Rocky.**
-
-**Potential Cause:** In Rocky Linux, online repos are enabled by default, and they always point to the latest Rocky repository (currently Rocky Linux 8.8).
-
-**Resolution**: This will be addressed in a later release.
 
 ⦾ **Why does the task Assign admin NIC IP fail during discovery_provision.yml with errors?**
 
-.. image:: ../images/AdminNICErrors.png
+.. image:: ../images/AdminNICErrors.png <Update>
 
 **Potential Cause:** Omnia validates the admin NIC IP on the control plane. If the user has not assigned an admin NIC IP in case of dedicated network interface type, an error message is returned. There is a parsing logic that is being applied on the blank IP and hence, the error displays twice.
 
 **Resolution**: Ensure a control plane IP is assigned to the admin NIC.
 
-⦾ **Kubernetes pods on the kube_control_plane are in CreateContainerConfigError and Calico Pods are in CrashLoopBackoff error after running omnia.yml (version 1.5 and below).**
 
-**Potential Cause:**
-
-Calico pods are configured with the NIC name of the kube_control_plane. If the NIC name of the other nodes are not the same, the pods will throw an error and retry later.
-
-**Workaround:**
-
-The manager and cluster nodes should have connectivity over the same admin NIC.
-
-⦾ **Why does the task ``cluster_preperation : Install sshpass`` fail during ``omnia.yml`` on cluster nodes running RHEL 8.5 and below versions.**
-
-**Potential Cause**:
-    * sshpass is not available in any of the repositories on the control plane.
-
-**Resolution**:
-
-   * Enable RedHat subscription or ensure that sshpass is available to install or download to the control plane (from any local repository).
-
-⦾ **Why are some target servers not reachable after running PXE booting them?**
+⦾ **Why are some target servers not reachable after PXE booting them?**
 
 
 **Potential Causes**:
@@ -59,23 +32,6 @@ The manager and cluster nodes should have connectivity over the same admin NIC.
 
 2. Hard-reboot the server to bring up the server and verify that the boot process runs smoothly. (If it gets stuck again, disable PXE and try provisioning the server via iDRAC.)
 
-⦾ **Why does the task 'Provision: Fetch the available subnets and netmasks' fail with 'no ipv4_secondaries present'?**
-
-.. image:: ../images/SharedLomError.png
-
-**Potential Cause**: If a shared LOM environment is in use, the management network/host network NIC may only have one IP assigned to it.
-
-**Resolution**: Ensure that the NIC used for host and data connections has 2 IPs assigned to it.
-
-⦾ **Why does provisioning RHEL 8.3 fail on some nodes with "dasbus.error.DBusError: 'NoneType' object has no attribute 'set_property'"?**
-
-This error is known to RHEL and is being addressed `here <https://bugzilla.redhat.com/show_bug.cgi?id=1912898>`_. Red Hat has offered a user intervention `here <https://access.redhat.com/solutions/5872751>`_. Omnia recommends that in the event of this failure, any OS other than RHEL 8.3.
-
-⦾ **Why is the Infiniband NIC down after provisioning the server?**
-
-For servers running Rocky, enable the Infiniband NIC manually, use ``ifup <InfiniBand NIC>``.
-
-Alternatively, run ``network.yml`` or  ``post_provision.yml`` (Only if the nodes are provisioned using Omnia) to activate the NIC.
 
 ⦾ **Why does the Task [infiniband_switch_config : Authentication failure response] fail with the message 'Status code was -1 and not [302]: Request failed: <urlopen error [Errno 111] Connection refused>' on Infiniband Switches when running infiniband_switch_config.yml?**
 
@@ -91,9 +47,6 @@ To correct the issue, run:
 
 ``json-gw enable`` (To enable the JSON gateway)
 
-⦾ **Why does the task 'Initialize kubeadm' fail while running monitor.yml?**
-
-This issue is caused by incompatibility between Rocky 8.7 and kubernetes due to cri-o. For more information, `click here <https://github.com/cri-o/cri-o/issues/6197>`_.
 
 ⦾ **Why does PXE boot fail with tftp timeout or service timeout errors?**
 
@@ -114,7 +67,7 @@ This issue is caused by incompatibility between Rocky 8.7 and kubernetes due to 
 
 2. Check if other systems except for the control plane have xcatd running. If yes, then stop the xCAT service using the following commands: ``systemctl stop xcatd``.
 
-3. On the server, go to ``BIOS Setup -> Network Settings -> PXE Device``. For each listed device (typically 4), configure an active NIC under ``PXE device settings``
+3. On the server, go to **BIOS Setup -> Network Settings -> PXE Device**. For each listed device (typically 4), configure an active NIC under ``PXE device settings``
 
 
 ⦾ **Why do Kubernetes Pods show "ImagePullBack" or "ErrPullImage" errors in their status?**
@@ -144,17 +97,6 @@ Alternatively, run the task manually: ::
 
     cd omnia/utils/cluster
     ansible-playbook gather_facts_resolution.yml
-
-⦾ **What to do after a reboot if kubectl commands return: ``The connection to the server head_node_ip:port was refused - did you specify the right host or port?``**
-
-
-On the control plane or the kube_control_plane, run the following commands: ::
-
-   swapoff -a
-
-   systemctl restart kubelet
-
-
 
 ⦾ **What to do if the nodes in a Kubernetes cluster reboot:**
 
@@ -192,20 +134,7 @@ Wait for 15 minutes after the Kubernetes cluster reboots. Next, verify the statu
 
 2. On the management node, edit the ``omnia_config.yml`` file to change the Kubernetes Pod Network CIDR. The suggested IP range is 192.168.0.0/16. Ensure that the IP provided is not in use on your host network.
 
-3. Set ``scheduler_type: "k8s"`` in ``input/omnia_config.yml`` and run ``omnia.yml``.
-
-⦾ **Why does pulling images to create the Kubeflow timeout causing the 'Apply Kubeflow Configuration' task to fail? (version 1.5 and below)**
-
-
-**Potential Cause**: Unstable or slow Internet connectivity.
-
-**Resolution**:
-
-1. Complete the PXE booting/format the OS on the manager and cluster nodes.
-
-2. In the omnia_config.yml file, change the k8s_cni variable value from ``calico`` to ``flannel``.
-
-3. Run the Kubernetes and Kubeflow playbooks.
+3. List k8s in ``input/software_config.json`` and re-run ``omnia.yml``.
 
 
 ⦾ **What to do if pulling the Kserve inference model fail with "Unable to fetch image "kserve/sklearnserver:v0.11.2": failed to resolve image to digest: Get "https://index.docker.io/v2/": dial tcp 3.219.239.5:443: i/o timeout."?**
@@ -298,11 +227,11 @@ Recommended Actions:
 
 
 
-    slurmctl restart slurmctld on kube_control_plane
+    slurmctl restart slurmctld on slurm_control_node
 
-    systemctl restart slurmdbd on kube_control_plane
+    systemctl restart slurmdbd on slurm_control_node
 
-    systemctl restart slurmd on compute node
+    systemctl restart slurmd on slurm_node
 
 
 
@@ -364,27 +293,9 @@ Recommended Actions:
                 3. For connecting to PowerVault (Data Connection)
 
 
-⦾ **Why do pods and images appear to get deleted automatically?**
-
-
-**Potential Cause**:
-
-Lack of space in the root partition (/) causes Linux to clear files automatically (Use ``df -h`` to diagnose the issue).
-
-  **Resolution**:
-
-* Delete large, unused files to clear the root partition (Use the command ``find / -xdev -size +5M | xargs ls -lh | sort -n -k5`` to identify these files). Before running ``monitor.yml``, it is recommended to have a minimum of 50% free space in the root partition.
-
-* Once the partition is cleared, run ``kubeadm reset -f``
-
-* Re-run ``monitor.yml``
-
-
 ⦾ **What to do when the JupyterHub or Prometheus UI is not accessible:**
 
 Run the command ``kubectl get pods  namespace default`` to ensure **nfs-client** pod and all Prometheus server pods are in the **Running** state.
-
-
 
 
 ⦾ **What to do if PowerVault throws the error: ``Error: The specified disk is not available. - Unavailable disk (0.x) in disk range '0.x-x'``:**
@@ -448,7 +359,7 @@ At any given time only one type of disk group can be created on the system. That
 ⦾ **Why does the task 'security: Authenticate as admin' fail?**
 
 **Potential Cause**:
-The required services are not running on the node. Verify the service status using:::
+The required services are not running on the node. Verify the service status using: ::
 
     systemctl status sssd-kcm.socket
 
@@ -456,7 +367,7 @@ The required services are not running on the node. Verify the service status usi
 
 **Resolution**:
 
-* Restart the services using:::
+* Restart the services using: ::
 
     systemctl start sssd-kcm.socket
     systemctl start sssd.service
@@ -466,31 +377,19 @@ The required services are not running on the node. Verify the service status usi
     ansible-playbook omnia.yml
 
 
-⦾ **Why does installing FreeIPA fail on RHEL servers?**
-
-.. image:: ../images/FreeIPA_RHEL_Error.png
-
-**Potential Causes**: Required repositories may not be enabled by your red hat subscription.
-
-**Resolution**: Enable all required repositories via your red hat subscription.
-
-
 ⦾ **Why would FreeIPA server/client installation fail? (version 1.5 and below)**
 
 
 **Potential Cause**:
 
-The hostnames of the manager and login nodes are not set in the correct format.
+The hostnames of the auth server nodes are not set in the correct format.
 
 **Resolution**:
 
-If you have enabled the option to install the login node in the cluster, set the hostnames of the nodes in the format: *hostname.domainname*. For example, *manager.omnia.test* is a valid hostname for the login node. **Note**: To find the cause for the failure of the FreeIPA server and client installation, see *ipaserver-install.log* in the kube_control_plane or */var/log/ipaclient-install.log* in the login node.
+If you have enabled the option to install the login node in the cluster, set the hostnames of the nodes in the format: *hostname.domainname*. For example, *authserver_node.omnia.test* is a valid hostname for the auth server node.
 
-⦾ **Why does FreeIPA installation fail on the control plane when the public NIC provided is static?**
+.. note:: To find the cause for the failure of the FreeIPA server and client installation, see *ipaserver-install.log* in the auth server.
 
-**Potential Cause**: The network config file for the public NIC on the control plane does not define any DNS entries.
-
-**Resolution**: Ensure the fields ``DNS1`` and ``DNS2`` are updated appropriately in the file ``/etc/sysconfig/network-scripts/ifcfg-<NIC name>``.
 
 
 ⦾ **What to do when JupyterHub pods are in 'ImagePullBackOff' or 'ErrImagePull' status after executing jupyterhub.yml:**

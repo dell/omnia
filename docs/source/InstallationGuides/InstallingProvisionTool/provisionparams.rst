@@ -42,6 +42,10 @@ Update the ``input/network_spec.yml`` file for all networks available for use by
     * BMC network details are not required when target nodes are discovered using a mapping file.
     * If ``bmc_network`` properties are provided, target nodes will be discovered using the BMC method in addition to the methods whose details are explicitly provided in ``provision_config.yml``.
 
+.. caution::
+    * Do not assign the subnet 10.4.0.0/24 to any interfaces in the network as nerdctl uses it by default.
+    * If a DNS server is available on the network, ensure that the ranges provided in the ``input/network_spec.yml`` file do not include the IP address of the DNS server.
+    * All provided network ranges and nic IP addresses should be distinct with no overlap.
 
 A sample is provided below: ::
 
@@ -86,8 +90,7 @@ A sample is provided below: ::
 
     * The strings ``admin_network`` and ``bmc_network`` in the ``input/network_spec.yml`` file should not be edited. Also, the properties ``nic_name``, ``static_range``, and ``dynamic_range`` cannot be edited on subsequent runs of the provision tool.
     * Netmask bits are mandatory and should be same for both the ``admin_network`` and ``bmc_network`` (ie between 1 and 32; 1 and 32 are acceptable values).
-    * Do not assign the subnet 10.4.0.0/24 to any interfaces in the network as nerdctl uses it by default.
-    * Ensure that the CIDR is aligned with the ``netmask_bits`` provided.
+        * Ensure that the CIDR is aligned with the ``netmask_bits`` provided.
     * The ``discover_ranges`` property of the ``bmc_network`` can accept multiple comma-separated ranges.
     * The ``VLAN`` property is optional but should be between 0 and 4095 (0 and 4095 are not acceptable values).
 
