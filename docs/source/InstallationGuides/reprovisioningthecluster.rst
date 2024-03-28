@@ -91,6 +91,7 @@ If a re-deployment with no modifications are required  ::
     10.5.0.101
 
 
+
 In the above examples, nodes 10.5.0.105 and 10.5.0.106 have been added to the cluster as compute nodes.
 
 .. note::
