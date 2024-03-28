@@ -53,7 +53,7 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
     * Verifies and updates firewall settings.
     * Installs xCAT.
     * Configures Omnia databases basis ``input/network_spec.yml``.
-    * Creates an inventory of all nodes in the cluster at ``/opt/omnia/omnia_inventory/``. This inventory will list nodes based on the type of CPUs and GPUs they have. The inventory files are:
+    * Creates empty inventory files in the control plane at ``/opt/omnia/omnia_inventory/``. These inventory files will be filled with information of compute node service tag post provisioning based on type of CPUs and GPUs they have. The inventory files are:
 
         * ``compute_cpu_amd``
         * ``compute_cpu_intel``
