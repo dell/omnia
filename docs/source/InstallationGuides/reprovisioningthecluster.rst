@@ -29,6 +29,9 @@ If a re-deployment with no modifications are required  ::
     [auth_server]
     10.5.0.101
 
+    [etcd]
+    10.5.0.110
+
 
 
 *Updated kubernetes inventory with the new node information*
@@ -46,6 +49,9 @@ If a re-deployment with no modifications are required  ::
 
     [auth_server]
     10.5.0.101
+
+    [etcd]
+    10.5.0.110
 
 *Existing Slurm inventory*
 
