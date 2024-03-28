@@ -8,7 +8,7 @@ Using Helm charts, Omnia can install Jupyterhub on Kubernetes clusters. Once Jup
 * Ensure the kubernetes cluster is setup and working.
 * Ensure the inventory file includes a ``kube_node`` group listing all cluster nodes.
 * Review the ``tools/jupyter_config.yml`` file to ensure that the deployment meets your requirements. If not, modify the file.
-* Ensure that a local Jupyterhub repository is created using `the local repository script. <../../LocalRepo/index.html>`_
+* Ensure that a local Jupyterhub repository is created using `the local repository script. <../../InstallationGuides/LocalRepo/index.html>`_
 * Omnia deploys the ``quay.io/jupyterhub/k8s-singleuser-sample:3.2.0`` image irrespective of whether the intended notebooks are CPU-only, NVidia GPU, or AMD GPU.  To use a custom image, modify the ``omnia/tools/roles/jupyter_config.yml`` file.
 * Ensure that NFS has been deployed on the cluster using ``storage.yml`` followed by ``scheduler.yml`` or ``omnia.yml``. Verify that the required NFS storage provisioner is deployed using the below command: ::
 
