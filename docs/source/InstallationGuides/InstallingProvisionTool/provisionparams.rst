@@ -44,8 +44,8 @@ Update the ``input/network_spec.yml`` file for all networks available for use by
 
 .. caution::
     * Do not assign the subnet 10.4.0.0/24 to any interfaces in the network as nerdctl uses it by default.
-    * If a DNS server is available on the network, ensure that the ranges provided in the ``input/network_spec.yml`` file do not include the IP address of the DNS server.
-    * All provided network ranges and nic IP addresses should be distinct with no overlap.
+    * If a DNS server is available on the network, ensure that the ranges provided in the ``input/network_spec.yml`` file do not include the IP ranges of the DNS server.
+    * All provided network ranges and nic IP addresses should be distinct with no overlap in the ``input/network_spec.yml``.
 
 A sample is provided below: ::
 
