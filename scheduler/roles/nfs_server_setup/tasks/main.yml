@@ -52,6 +52,15 @@
         mode: "{{ nfs_share_dir_mode }}"
       tags: nfs_server
 
+    - name: Adding NFS share entries in /etc/exports for manager node
+      ansible.builtin.lineinfile:
+        path: "{{ exports_file_path }}"
+        line: "{{ hostvars['127.0.0.1']['omnia_usrhome_share'] }} {{ item }}(rw,sync,no_root_squash)"
+      with_items:
+        - "{{ groups['manager'] }}"
+      tags: nfs_server
+
+
     - name: Adding NFS share entries in /etc/exports for compute node
       ansible.builtin.lineinfile:
         path: "{{ exports_file_path }}"

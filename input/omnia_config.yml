@@ -31,9 +31,9 @@ scheduler_type: "slurm"
 mariadb_password: "password"
 
 # Kubernetes version.
-# Supported Versions: "1.16.7" or "1.19.3".
-# Default k8s version is "1.19.3".
-k8s_version: "1.19.3"
+# Supported Versions: "1.26" only.
+# Default k8s version is "1.26".
+k8s_version: "1.26"
 
 # Kubernetes SDN network.
 # It can either be "calico" or "flannel".

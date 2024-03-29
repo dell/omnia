@@ -55,7 +55,7 @@
   #tags: init
 
 - name: Create Metallb namespace
-  ansible.builtin.command: "kubectl create -f https://raw.githubusercontent.com/metallb/metallb/v0.10.3/manifests/namespace.yaml"
+  ansible.builtin.command: "kubectl create -f {{ metallb_namespace_url }}"
   changed_when: true
   when: "'metallb' not in k8s_pods.stdout"
   tags: init
@@ -74,8 +74,15 @@
 
 - name: Deploy Metallb
   #command: "helm install metallb metallb/metallb  -f '{{ metallb_config_file_dest }}'"
-  ansible.builtin.command: "kubectl create -f  https://raw.githubusercontent.com/metallb/metallb/v0.10.3/manifests/metallb.yaml"
+  ansible.builtin.command: "kubectl create -f  '{{ metallb_yaml_url }}'"
   changed_when: true
+  failed_when : false
+  when: "'metallb' not in k8s_pods.stdout"
+  tags: init
+
+- name: Wait for 2 minutes for MetalLB to be ready
+  ansible.builtin.pause:
+    seconds: 120
   when: "'metallb' not in k8s_pods.stdout"
   tags: init
 
@@ -139,8 +146,20 @@
     state: directory
     mode: "{{ nfs_dir_mode }}"
 
+- name: Add NFS Subdir External Provisioner Helm repository
+  ansible.builtin.shell: >
+    export PATH=/usr/local/bin:$PATH && helm repo add nfs-subdir-external-provisioner '{{ nfs_subdir_external_provisioner_url }}'
+  changed_when: true
+  when: "'nfs-client-provisioner' not in k8s_pods.stdout"
+  tags: init
+
+- name: Update local Helm chart repository cache
+  ansible.builtin.shell: "export PATH=/usr/local/bin:$PATH && helm repo update"
+  changed_when: true
+  tags: init
+
 - name: Start NFS Client Provisioner using NFS on manager node
-  ansible.builtin.shell: "export PATH=/usr/local/bin:$PATH && helm install nfs-omnia stable/nfs-client-provisioner --set nfs.server='{{ nfs_server_manager_node }}' --set nfs.path='{{ hostvars['127.0.0.1']['omnia_usrhome_share'] }}/kubernetes'"
+  ansible.builtin.shell: "export PATH=/usr/local/bin:$PATH && helm install nfs-omnia nfs-subdir-external-provisioner/nfs-subdir-external-provisioner  --set nfs.server='{{ nfs_server_manager_node }}' --set nfs.path='{{ hostvars['127.0.0.1']['omnia_usrhome_share'] }}/kubernetes'"
   changed_when: true
   when: "'nfs-client-provisioner' not in k8s_pods.stdout"
   tags: init
@@ -191,9 +210,21 @@
     replace: "{{ public_ip.stdout }}:{{ slurm_exporter_port }}"
   tags: init
 
+- name: Add Prometheus Helm Repository
+  ansible.builtin.shell: "export PATH=/usr/local/bin:$PATH && helm repo add prometheus-community '{{ prometheus_helm_repo_url }}'"
+  changed_when: true
+  when: "'prometheus' not in k8s_pods.stdout"
+  tags: init
+
+- name: Update local Helm chart repository cache
+  ansible.builtin.shell: >
+    export PATH=/usr/local/bin:$PATH && helm repo update
+  changed_when: true
+  tags: init
+
 - name: Prometheus deployment
   ansible.builtin.shell: >
-    export PATH=/usr/local/bin:$PATH && helm install stable/prometheus \
+    export PATH=/usr/local/bin:$PATH && helm install prometheus-community/prometheus \
     --set-file extraScrapeConfigs="{{ slurm_exporter_config_file_path }}{{ slurm_exporter_config_file }}" \
     --set alertmanager.persistentVolume.storageClass=nfs-client,server.persistentVolume.storageClass=nfs-client,server.service.type=LoadBalancer \
     --generate-name
@@ -255,13 +286,14 @@
   #when: "'volcano-system' not in k8s_pods.stdout"
   #tags: init
 
-- name: Install Spark Operator
-  ansible.builtin.shell: "export PATH=/usr/local/bin:$PATH && helm repo add spark-operator '{{ spark_operator_repo }}'"
-  changed_when: true
-  tags: init
+#- name: Install Spark Operator
+  #ansible.builtin.shell: "export PATH=/usr/local/bin:$PATH && helm repo add incubator 'https://charts.helm.sh/incubator' --force-update"
+  #changed_when: true
+  #tags: init
 
-- name: Install Spark Operator Namespace
-  ansible.builtin.shell: export PATH=/usr/local/bin:$PATH && helm install my-release spark-operator/spark-operator --set image.tag={{ operator_image_tag }} --namespace spark-operator --create-namespace
-  changed_when: true
-  when: "'spark-operator' not in k8s_pods.stdout"
-  tags: init
+
+#- name: Install Spark Operator Namespace
+  #ansible.builtin.shell: export PATH=/usr/local/bin:$PATH && helm install my-release incubator/sparkoperator --set operatorVersion={{ operator_image_tag }} --namespace spark-operator --create-namespace
+  #changed_when: true
+  #when: "'spark-operator' not in k8s_pods.stdout"
+  #tags: init

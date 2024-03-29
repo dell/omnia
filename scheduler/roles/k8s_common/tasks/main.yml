@@ -41,13 +41,12 @@
           ansible.builtin.yum_repository:
             name: kubernetes
             description: kubernetes
-            baseurl: https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+            baseurl: "https://pkgs.k8s.io/core:/stable:/v1.26/rpm/"
             enabled: yes
             gpgcheck: no
             repo_gpgcheck: no
             gpgkey:
-              - https://packages.cloud.google.com/yum/doc/yum-key.gpg
-              - https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+              - "https://pkgs.k8s.io/addons:/cri-o:/prerelease:/main/rpm/repodata/repomd.xml.key"
           tags: install
 
         - name: Add docker community edition repository
@@ -189,6 +188,10 @@
         name: docker
         state: restarted
         enabled: yes
+      register: docker_service_details
+      until: docker_service_details is not failed
+      retries: 10
+      delay: 10
       tags: install
 
     - name: Start and enable kubernetes - kubelet
