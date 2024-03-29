@@ -26,6 +26,7 @@
 - name: Deploy MetalLB
   ansible.builtin.command: "kubectl apply -f '{{ metallb_yaml_url }}'"
   changed_when: true
+  failed_when: false
   when: "'metallb' not in k8s_pods.stdout"
 
 - name: Wait for 2 minutes for MetalLB to be ready

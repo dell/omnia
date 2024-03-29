@@ -120,6 +120,6 @@
   when: "'calico-system' not in k8s_pods.stdout"
 
 - name: Edge / Workstation Install allows pods to schedule on manager
-  ansible.builtin.command: kubectl taint nodes --all node-role.kubernetes.io/master-
+  ansible.builtin.command: kubectl taint nodes --all node-role.kubernetes.io/control-plane:NoSchedule-
   changed_when: true
   failed_when: false
