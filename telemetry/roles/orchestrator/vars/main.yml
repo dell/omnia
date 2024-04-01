@@ -33,15 +33,15 @@ selinux_warning: "Warning! SELinux status is disabled by user. No SELinux policy
 os_supported_leap: "leap"
 
 # Usage: k8s_installation_leap.yml
-k8s_repo_leap: https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+k8s_repo_leap: https://pkgs.k8s.io/core:/stable:/v1.26/rpm/
 rpm_pkg_leap: https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
 yum_key_leap: https://packages.cloud.google.com/yum/doc/yum-key.gpg
 gpg_pubkey_leap: "rpm -q gpg-pubkey --qf '%{name}-%{version}-%{release} --> %{summary}'"
 docker_repo_url_leap: https://download.docker.com/linux/sles/docker-ce.repo
 docker_repo_dest_leap: /etc/YaST2/docker-ce.repo
-kubeadm_version: kubeadm-1.21.0-0.x86_64
-kubelet_version: kubelet-1.21.0-0.x86_64
-kubectl_version: kubectl-1.21.0-0.x86_64
+kubeadm_version: kubeadm-1.26.0-0.x86_64
+kubelet_version: kubelet-1.26.0-0.x86_64
+kubectl_version: kubectl-1.26.0-0.x86_64
 os_supported_leap_version: "15.3"
 min_retries: 3
 max_retries: 10
@@ -52,7 +52,7 @@ k8s_package_names:
   - kubeadm
   - kubelet
   - kubectl
-version_kubectl: "v1.21.0"
+version_kubectl: "v1.26.0"
 
 # Usage: k8s_installation.yml
 k8s_common_packages_rocky:
@@ -65,9 +65,9 @@ k8s_common_packages_rhel:
   - bash-completion
   - buildah
 k8s_packages:
-  - kubelet-1.21.0
-  - kubeadm-1.21.0
-  - kubectl-1.21.0
+  - kubelet-1.26.0
+  - kubeadm-1.26.0
+  - kubectl-1.26.0
 k8s_conf_dest: /etc/modules-load.d/
 crio_conf_dest: /etc/modules-load.d/
 k8s_crio_conf_dest: /etc/sysctl.d/
