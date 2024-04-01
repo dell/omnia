@@ -242,11 +242,7 @@
       tags: init
 
     - name: Setup Calico SDN network
-<<<<<<< HEAD
       ansible.builtin.command: "kubectl apply -f '{{ calico_manifest_url }}'"
-=======
-      ansible.builtin.command: "kubectl apply -f 'https://raw.githubusercontent.com/projectcalico/calico/v3.27.2/manifests/calico.yaml'"
->>>>>>> 308a9b78fceb9a2bf1c01424b8e858da44dd2ed2
       when: hostvars['127.0.0.1']['k8s_cni'] == "calico"
       failed_when: false
       tags: init
