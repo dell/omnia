@@ -5,19 +5,19 @@ The local repository feature will help create offline repositories on the contro
 
 **Configurations made by the playbook**
 
-* A registry is created on the control plane at <Control Plane hostname>:5001.
+    * A registry is created on the control plane at <Control Plane hostname>:5001.
 
-* If ``repo_config`` in ``local_repo_config.yml`` is set to ``always`` or ``partial``, all images present in the ``input/config/<operating system>/<version>`` folder will be downloaded to the control plane.
-
-
-    * If the image is defined using a tag, the image will be tagged using <control plane hostname>:5001/<image_name>:<version> and pushed to the Omnia local registry.
-
-    * If the image is defined using a digest, the image will be tagged using <control plane hostname>:5001/<image_name>:omnia and pushed to the Omnia local registry.repositories
+    * If ``repo_config`` in ``local_repo_config.yml`` is set to ``always`` or ``partial``, all images present in the ``input/config/<operating system>/<version>`` folder will be downloaded to the control plane.
 
 
-* When  ``repo_config`` in ``local_repo_config.yml`` is set to ``always``, the control plane is set as the default registry mirror.
+        * If the image is defined using a tag, the image will be tagged using <control plane hostname>:5001/<image_name>:<version> and pushed to the Omnia local registry.
 
-* When ``repo_config`` in ``local_repo_config`` is set to ``partial``, the ``user_registry`` (if defined) and the control plane are set as default registry mirrors.
+        * If the image is defined using a digest, the image will be tagged using <control plane hostname>:5001/<image_name>:omnia and pushed to the Omnia local registry.repositories
+
+
+    * When  ``repo_config`` in ``local_repo_config.yml`` is set to ``always``, the control plane is set as the default registry mirror.
+
+    * When ``repo_config`` in ``local_repo_config`` is set to ``partial``, the ``user_registry`` (if defined) and the control plane are set as default registry mirrors.
 
 To create local repositories, run the following commands: ::
 
