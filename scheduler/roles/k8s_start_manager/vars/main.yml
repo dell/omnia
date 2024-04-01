@@ -55,4 +55,8 @@ tigera_operator_url: https://raw.githubusercontent.com/projectcalico/calico/v3.2
 
 calico_yml_url: https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/custom-resources.yaml
 
+<<<<<<< HEAD
 calico_manifest_url: https://raw.githubusercontent.com/projectcalico/calico/v3.27.2/manifests/calico.yaml
+=======
+
+>>>>>>> 308a9b78fceb9a2bf1c01424b8e858da44dd2ed2
