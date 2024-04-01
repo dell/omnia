@@ -14,10 +14,12 @@ After running ``discovery_provision.yml`` or ``discovery_provision.yml`` and the
     * ``dynamic_range``: The dynamic range of IPs to be provisioned on target nodes.
     * ``correlation_to_admin``: Boolean value used to indicate whether all other networks specified in the file (eg: ``bmc_network``) should be correlated to the admin network. For eg: if a target node is assigned the IP xx.yy.0.5 on the admin network, it will be assigned the IP aa.bb.0.5 on the BMC network. This value is irrelevant when discovering nodes using a mapping file.
     * ``admin_uncorrelated_node_start_ip``: If ``correlation_to_admin`` is set to true but correlated IPs are not available on non-admin networks, provide an IP within the ``static_range`` of the admin network that can be used to assign admin static IPs to uncorrelated nodes. If this is empty, then the first IP in the ``static_range`` of the admin network is taken by default. This value is irrelevant when discovering nodes using a mapping file.
+    * ``VLAN``: A 12-bit field that identifies a virtual LAN (VLAN) and specifies the VLAN that an Ethernet frame belongs to. This property is not supported on clusters running Ubuntu.
+
+   *The below properties are only applicable to additional NICs*
     * ``CIDR``: Classless or Classless Inter-Domain Routing (CIDR) addresses use variable length subnet masking (VLSM) to alter the ratio between the network and host address bits in an IP address.
     * ``MTU``: Maximum transmission unit (MTU) is a measurement in bytes of the largest data packets that an Internet-connected device can accept.
     * ``DNS``: A DNS server is a computer equipped with a database that stores the public IP addresses linked to the domain names of websites, enabling users to reach websites using their IP addresses.
-    * ``VLAN``: A 12-bit field that identifies a virtual LAN (VLAN) and specifies the VLAN that an Ethernet frame belongs to.
 
 .. note::
 
@@ -77,7 +79,7 @@ Use the below commands to assign IPs to the NICs: ::
     cd nic_update
     ansible-playbook nic_update -i inventory
 
-Where the inventory file passed includes user-defined groups,servers associated with them, and a mapping from the groups specified and the categories in ``input/server_spec.yml``. Below is a sample: ::
+Where the inventory file passed includes user-defined groups,servers associated with them, and a mapping from the groups specified and the categories in ``input/server_spec.yml`` under [<group name>:vars]. Below is a sample: ::
 
     [waco1]
     10.5.0.3
