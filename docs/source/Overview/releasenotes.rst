@@ -14,11 +14,17 @@ Releases
     *	`NFS client/server configuration. <../InstallationGuides/BuildingClusters/NFS.html>`_
     *	`OpenLDAP support with documented support for replication. <../Roles/Security/index.html>`_
     *	AI Software Stack support including the installation of the following tools:
+
         *	`Jupyter notebook <../Roles/Platform/InstallJupyterhub.html>`_
+
         *	`Kubeflow <../Roles/Platform/kubeflow.html>`_
+
         *	`Kserve <../Roles/Platform/kserve.html>`_
+
         *	`Pytorch <../Roles/Platform/Pytorch.html>`_
-        *	`Tensorflow <../Roles/Platform/Tensorflow.html>`_
+
+        *	`Tensorflow <../Roles/Platform/TensorFlow.html>`_
+
         *	`vLLM (MI210x support) <../Roles/Platform/SetupvLLM.html>`_
 
 *	Additional Features
