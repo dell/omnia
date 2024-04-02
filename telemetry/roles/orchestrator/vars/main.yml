@@ -119,6 +119,7 @@ yaml_repo_dir_mode: 0755
 tigera_operator_url: https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/tigera-operator.yaml
 calico_yml_url: https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/custom-resources.yaml
 crio_socket_path: /var/run/crio/crio.sock
+policy_file: /etc/containers/policy.json
 
 # Usage: configure_metallb.yml
 ipaddresspool_file_src: "{{ role_path }}/files/ipaddresspool.yaml"
