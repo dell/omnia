@@ -1,6 +1,11 @@
 Troubleshooting guide
 ============================
 
+Troubleshooting Kubeadm
+------------------------
+
+For a complete guide to troubleshooting kubeadm, `click here. <https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/troubleshooting-kubeadm/>`_
+
 Connecting to internal databases
 ------------------------------------
 * TimescaleDB
