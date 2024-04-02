@@ -63,9 +63,9 @@ NICs
 +--------------------------------------------------+
 | NIC                                              |
 +==================================================+
-| Intel(R) Ethernet 10G 4P X710/I350 rNDC          |
+| Intel®  Ethernet 10G 4P X710/I350 rNDC           |
 +--------------------------------------------------+
-| Intel(R) Ethernet Converged Network Adapter X710 |
+| Intel®   Ethernet Converged Network Adapter X710 |
 +--------------------------------------------------+
 | Mellanox ConnectX-5 Single Port 100 GbE QSFP+    |
 +--------------------------------------------------+
@@ -88,6 +88,8 @@ NICs
 | Mellanox Network Adapter (10 Gb)                 |
 +--------------------------------------------------+
 | Mellanox ConnectX-5 Ex 100 GbE QSFP              |
++--------------------------------------------------+
+| Intel®   Ethernet 100GbE Network Adapter E810    |
 +--------------------------------------------------+
 
 GPUs
