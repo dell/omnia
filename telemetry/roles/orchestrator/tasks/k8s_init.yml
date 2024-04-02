@@ -35,6 +35,13 @@
   failed_when: false
   register: k8s_pods
 
+- name: Create policy.json file
+  ansible.builtin.copy:
+    src: "{{ role_path }}/files/policy.json"
+    dest: "{{ policy_file }}"         
+    mode: "0644"
+  run_once: true
+
 - name: Initialize kubeadm (This process may take 5-10min)
   block:
     - name: Initialize kubeadm (This process may take 5-10min)
