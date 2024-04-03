@@ -18,7 +18,7 @@ This topic explains how to automatically update servers for MPI jobs. To manuall
 
 **To execute multi-node jobs**
 
-* Make sure to have NFS shares on each node.
+* Ensuree to have NFS shares on each node.
 * Copy slurm script to NFS share and execute it from there.
 * Load all the necessary modules using module load: ::
 

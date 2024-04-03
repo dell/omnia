@@ -139,7 +139,7 @@ To open the ports required, use the following steps:
 
 * This role runs on manager, compute and login nodes.
 
-* Make sure that ``/etc/exports`` on the NFS server is populated with the same paths listed as ``server_share_path`` in the ``nfs_client_params`` in ``omnia_config.yml``.
+* Ensure that ``/etc/exports`` on the NFS server is populated with the same paths listed as ``server_share_path`` in the ``nfs_client_params`` in ``omnia_config.yml``.
 
 * Post configuration, enable the following services (using this command: ``firewall-cmd --permanent --add-service=<service name>``) and then reload the firewall (using this command: ``firewall-cmd --reload``).
 
