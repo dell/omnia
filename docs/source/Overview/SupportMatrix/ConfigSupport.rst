@@ -50,12 +50,12 @@ Hosts
 +------------+-----------------------+
 | 16G        | PowerEdge R760        |
 +------------+-----------------------+
-| 16G        | PowerEdge XE9640 [1]_ |
+| 16G        | PowerEdge XE9640[*]_ |
 +------------+-----------------------+
-| 16G        | PowerEdge XE9680 [1]_ |
+| 16G        | PowerEdge XE9680[*]_ |
 +------------+-----------------------+
 
-.. [1] This model was tested using Omnia 1.4.3.
+.. [*] This model was tested using Omnia 1.4.3.
 
 NICs
 +++++
