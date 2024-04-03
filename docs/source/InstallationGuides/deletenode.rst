@@ -57,9 +57,6 @@ The inventory file passed for ``reset_cluster_configuration`` should follow the 
     [slurm_control_node]
     {ip or servicetag}
 
-    [slurmdbd]
-    {ip or servicetag}
-
     [slurm_node]
     {ip or servicetag}
     {ip or servicetag}
