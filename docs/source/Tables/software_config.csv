@@ -26,6 +26,7 @@ Required","* The type of offline configuration user needs.
 .. note::
   * After ``local_repo.yml`` has run, the value of ``repo_config`` in ``input/software_config.json`` cannot be updated without running the `control_plane_cleanup.yml <../CleanUpScript.html>`_ script first.
   * All local repositories that are not available as images or RPMs will be configured locally.
+  * Irrespective of the value of ``repo_config``, if the following software is listed in ``softwares``, they will be downloaded by default: AMD GPU drivers, ROCm drivers, CUDA, and OFED.
 
 
 * **Accepted values**:
@@ -39,6 +40,6 @@ Required","* The type of offline configuration user needs.
 ``JSON list``
 
 Required","* A JSON list of required software and (optionally) the software revision.
-* This value of version is required for OFED and CUDA.
+* The following software should be listed with a version in the list: BeeGFS, AMD GPU, Kubernetes, CUDA, OFED, BCM RoCE, UCX, and ROCm.
 * A minimum of one software should be provided in the list for ``local_repo.yml`` to execute correctly.
 .. note:: The accepted names for software is taken from ``input/config/<cluster_os_type>/<cluster_os_version>/``."
