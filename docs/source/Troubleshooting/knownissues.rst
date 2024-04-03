@@ -24,7 +24,7 @@ Due to internal MAC ID conflicts on the target nodes, the MAC address will be li
 
 1. The server hardware does not allow for auto rebooting
 
-2. PXE booting is hung on the node
+2. The process of PXE booting the node has stalled.
 
 **Resolution**:
 
@@ -35,17 +35,17 @@ Due to internal MAC ID conflicts on the target nodes, the MAC address will be li
 
 ⦾ **Why does the Task [infiniband_switch_config : Authentication failure response] fail with the message 'Status code was -1 and not [302]: Request failed: <urlopen error [Errno 111] Connection refused>' on Infiniband Switches when running infiniband_switch_config.yml?**
 
-To configure a new Infiniband Switch, it is required that HTTP and JSON gateway be enabled. To verify that they are enabled, run:
+To configure a new Infiniband Switch, HTTP and JSON gateway must be enabled. To verify that they are enabled, run:
 
-``show web`` (To check if HTTP is enabled)
+To check if HTTP is enabled: ``show web``
 
-``show json-gw`` (To check if JSON Gateway is enabled)
+To check if JSON Gateway is enabled: ``show json-gw``
 
 To correct the issue, run:
 
-``web http enable`` (To enable the HTTP gateway)
+To enable the HTTP gateway: ``web http enable``
 
-``json-gw enable`` (To enable the JSON gateway)
+To enable the JSON gateway: ``json-gw enable``
 
 
 ⦾ **Why does PXE boot fail with tftp timeout or service timeout errors?**
@@ -83,7 +83,7 @@ To correct the issue, run:
 
 .. note:: If the playbook is already executed and the pods are in **ImagePullBack** state, then run ``kubeadm reset -f`` in all the nodes before re-executing the playbook with the docker credentials.
 
-⦾ **Why does the task 'Gather facts from all the nodes' stuck when re-running ``omnia.yml``?**
+⦾ **Why does the task 'Gather facts from all the nodes' get stuck when re-running ``omnia.yml``?**
 
 **Potential Cause**: Corrupted entries in the ``/root/.ansible/cp/`` folder. For more information on this issue, `check this out <https://github.com/ansible/ansible/issues/17349>`_!
 
@@ -153,23 +153,23 @@ For more information, `click here. <https://github.com/kserve/kserve/issues/3372
 **Potential Cause**: The control_plane playbook does not support hostnames with an underscore in it such as 'mgmt_station'.
 
 As defined in RFC 822, the only legal characters are the following:
-1. Alphanumeric (a-z and 0-9): Both uppercase and lowercase letters are acceptable, and the hostname is case-insensitive. In other words, omnia.test is identical to OMNIA.TEST and Omnia.test.
+1. Alphanumeric (a-z and 0-9): Both uppercase and lowercase letters are acceptable, and the hostname is not case-sensitive. In other words, omnia.test is identical to OMNIA.TEST and Omnia.test.
 
 2. Hyphen (-): Neither the first nor the last character in a hostname field should be a hyphen.
 
-3. Period (.): The period should be used only to delimit fields in a hostname (e.g., dvader.empire.gov)
+3. Period (.): The period should be used only to delimit fields in a hostname (For example, dvader.empire.gov)
 
 
-⦾ **What to do when Kubeflow pods are in 'ImagePullBackOff' or 'ErrImagePull' status after executing kubeflow.yml:**
+⦾ **What to do when Kubeflow pods are in 'ImagePullBackOff' or 'ErrImagePull' status after executing kubeflow.yml?**
 
 
-**Potential Cause**: Your Docker pull limit has been exceeded. For more information, click [here](https://www.docker.com/increase-rate-limits)
+**Potential Cause**: Your Docker pull limit has been exceeded. For more information, `click here. <https://www.docker.com/increase-rate-limits>`_
 
 1. Delete Kubeflow deployment by executing the following command in kube_control_plane: ``kfctl delete -V -f /root/k8s/omnia-kubeflow/kfctl_k8s_istio.v1.0.2.yaml``
 
 2. Re-execute ``kubeflow.yml`` after 8-9 hours
 
-⦾ **What to do when omnia.yml fail with 'Error: kinit: Connection refused while getting default ccache' while completing the security role?**
+⦾ **What to do when omnia.yml fails while completing the security role, and returns the following error message: 'Error: kinit: Connection refused while getting default cache'?**
 
 1. Start the sssd-kcm.socket: ``systemctl start sssd-kcm.socket``
 
@@ -249,7 +249,7 @@ Recommended Actions:
 
 * Enable the required services using ``firewall-cmd  --permanent  --add-service=<service name>`` and then reload the firewall using ``firewall-cmd  --reload``.
 
-⦾ **What to do when omnia.yml fails with nfs-server.service might not be running on NFS Server. Please check or start services``?**
+⦾ **What to do when omnia.yml execution fails with nfs-server.service might not be running on NFS Server. Please check or start services``?**
 
 **Potential Cause**: nfs-server.service is not running on the target node.
 

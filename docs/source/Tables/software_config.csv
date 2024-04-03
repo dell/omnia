@@ -26,7 +26,7 @@ Required","* The type of offline configuration user needs.
 .. note::
   * After ``local_repo.yml`` has run, the value of ``repo_config`` in ``input/software_config.json`` cannot be updated without running the `control_plane_cleanup.yml <../CleanUpScript.html>`_ script first.
   * All local repositories that are not available as images or RPMs will be configured locally.
-  * Irrespective of the value of ``repo_config``, if the following software is listed in ``softwares``, they will be downloaded by default: AMD GPU drivers, ROCm drivers, CUDA, and OFED.
+  * Irrespective of the value of ``repo_config``, if the following software are listed in ``softwares``, they will be downloaded by default: AMD GPU drivers, ROCm drivers, CUDA, and OFED.
 
 
 * **Accepted values**:

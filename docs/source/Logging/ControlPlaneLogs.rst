@@ -1,13 +1,13 @@
 Control plane logs
 -------------------
 
-All log files can be viewed via CLI. Alternatively, most log files can be viewed via the Dashboard tab ( |Dashboard| ) on the grafana UI.
+All log files can be viewed using CLI. Alternatively, most log files can be viewed using the Dashboard tab ( |Dashboard| ) on the grafana UI.
 
 .. caution:: It is not recommended to delete the below log files or the directories they reside in.
 
 .. note:: Log files are rotated periodically as a storage consideration. To customize how often logs are rotated, edit the ``/etc/logrotate.conf`` file on the node.
 
-Below is a list of all logs available to Loki and can be accessed on the dashboard:
+Below is a list of all logs available to Loki and can be accessed from the dashboard:
 
 .. csv-table:: Log files
    :file: ../Tables/ControlPlaneLogs.csv
@@ -60,7 +60,7 @@ After `telemetry.yml <../Roles/Telemetry/index.html>`_ is run, Grafana services 
             (job= "cluster deployment logs") |= "nodename"
             (job="compute log messages") |= "nodename" |="node_username"
 
-Custom dashboards can be created per user requirement.
+Custom dashboards can be created as per your requirement.
 
 .. |Dashboard| image:: ../images/Visualization/DashBoardIcon.png
     :height: 25px
