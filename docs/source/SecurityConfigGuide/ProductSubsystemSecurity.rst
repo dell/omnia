@@ -16,7 +16,7 @@ Omnia performs bare metal configuration to enable AI/HPC workloads. It uses Ansi
 
     - Switch **[default]**: To discovery the cluster by routing communication through particular switch ports over SNMPv3, non-admin switch credentials must be provided.
 
-.. note:: IPMI is not required on the control plane. However compute nodes (iDRACs in the cluster/private network) require IPMI to be enabled for BMC discovery.
+.. note:: IPMI is not required on the control plane. However, compute nodes (iDRACs in the cluster/private network) require IPMI to be enabled for BMC discovery.
 
 Omnia can be installed via CLI only. Slurm and Kubernetes are deployed and configured on the cluster. FreeIPA or LDAP is installed for providing authentication.
 
@@ -48,7 +48,7 @@ Key-Based authentication
 
 **Use of SSH authorized_keys**
 
-A password-less channel is created between the management station and compute nodes using SSH authorized keys. This is explained in Security Controls Maps.
+A password-less channel is created between the management station and compute nodes using SSH authorized keys. This is explained in the `Security Controls Map <#security-controls-map>`_.
 
 Login security settings
 ------------------------
@@ -108,7 +108,7 @@ Omnia configures the firewall as required by the third-party tools to enhance se
 Network exposure
 -----------------
 
-Omnia uses port 22 for SSH connections as Ansible uses port 22.
+Omnia uses port 22 for SSH connections, same as Ansible.
 
 
 
@@ -306,14 +306,14 @@ Omnia configures the following ports for use by third-party tools installed by O
         | 123           | UDP     | NTP                  | Manager/ Login_Node  |
         +---------------+---------+----------------------+----------------------+
 
-.. note:: To avoid security vulnerabilities, protocols can be restricted on the network using the parameters restrict_program_support and restrict_softwares. However, certain protocols are essential to Omnia's functioning and cannot be disabled: ftp, smbd, nmbd, automount, portmap.
+.. note:: To avoid security vulnerabilities, protocols can be restricted on the network using the parameters ``restrict_program_support`` and ``restrict_softwares`` in ``input/login_node_security_config.yml``. However, certain protocols are essential to Omnia's functioning and cannot be disabled. These protocols are: ftp, smbd, nmbd, automount, portmap.
 
 Data security
 -------------
 
 Omnia does not store data. The passwords Omnia accepts as input to configure the third party tools are validated and then encrypted using Ansible Vault. Run ``yum update --security`` routinely on the control plane for the latest security updates.
 
-For more information on the passwords used by Omnia, see Login Security Settings.
+For more information on the passwords used by Omnia, see `Login Security Settings <#login-security-settings>`_.
 
 Auditing and logging
 --------------------

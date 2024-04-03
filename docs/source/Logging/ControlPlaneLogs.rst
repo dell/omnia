@@ -55,7 +55,7 @@ After `telemetry.yml <../Roles/Telemetry/index.html>`_ is run, Grafana services 
     .. image:: ../images/Grafana_Loki.png
 
     iv. The log browser allows users to filter logs by job, node, user, etc.
-        Ex: ::
+        Example ::
 
             (job= "cluster deployment logs") |= "nodename"
             (job="compute log messages") |= "nodename" |="node_username"

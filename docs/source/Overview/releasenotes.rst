@@ -33,6 +33,11 @@ Releases
     *	`CUDA Driver installation <../Roles/Accelerator/index.html>`_
     *	`Add <../InstallationGuides/addinganewnode.html>`_ / `remove <../InstallationGuides/deletenode.html>`_ nodes to the cluster.
 
+1.5.1
+-----
+
+* Omnia now installs Kubernetes 1.26.
+
 1.5
 ----
 
@@ -155,7 +160,7 @@ Releases
 
 *	AMD accelerator and ROCm support on the remote nodes
 
-*	Omnia playbook execution with Kubernetes, Slurm & FreeIPA installation in all cluster  nodes
+*	Omnia playbook execution with Kubernetes, Slurm, and FreeIPA installation in all cluster  nodes
 
 *	Infiniband switch configuration and split port functionality
 

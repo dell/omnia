@@ -239,7 +239,7 @@ Recommended Actions:
 
 **Potential Cause**:
 
-* The required services for NFS may not be running:
+* The required services for NFS may not have been running:
 
     - nfs
     - rpc-bind
@@ -300,7 +300,7 @@ Run the command ``kubectl get pods  namespace default`` to ensure **nfs-client**
 
 ⦾ **What to do if PowerVault throws the error: ``Error: The specified disk is not available. - Unavailable disk (0.x) in disk range '0.x-x'``:**
 
-1. Verify that the disk in question is not part of any pool: ``show disks``
+1. Verify that the disk in question is not part of any pool using: ``show disks``
 
 2. If the disk is part of a pool, remove it and try again.
 
@@ -309,7 +309,7 @@ Run the command ``kubectl get pods  namespace default`` to ensure **nfs-client**
 At any given time only one type of disk group can be created on the system. That is, all disk groups on the system have to exclusively be linear or virtual. To fix the issue, either delete the existing disk group or change the type of pool you are creating.
 
 
-⦾ **Why does the task 'nfs_client: Mount NFS client' fail with ``No route to host``?**
+⦾ **Why does the task 'nfs_client: Mount NFS client' fail with the message ``No route to host``?**
 
 **Potential Cause**:
 
@@ -317,7 +317,7 @@ At any given time only one type of disk group can be created on the system. That
 
 **Resolution**:
 
-* Ensure that the input paths are a perfect match down to the character to avoid any errors.
+* Ensure that the input paths are a perfect match to avoid any errors.
 
 
 ⦾ **Why is my NFS mount not visible on the client?**
@@ -350,7 +350,7 @@ At any given time only one type of disk group can be created on the system. That
 
 2. Open all ports required by BeeGFS: 8008, 8003, 8004, 8005 and 8006
 
-3. Check the [support matrix for RHEL or Rocky](../Support_Matrix/Software/Operating_Systems) to verify your set-up.
+3. Check the `support matrix for RHEL or Rocky <../Overview/SupportMatrix/OperatingSystems/index.html>`_ to verify your set-up.
 
 4. For further insight into the issue, check out ``/var/log/beegfs-client.log`` on nodes where the BeeGFS client is running.
 
@@ -367,14 +367,14 @@ The required services are not running on the node. Verify the service status usi
 
 **Resolution**:
 
-* Restart the services using: ::
+* Restart the services using:  ::
 
-    systemctl start sssd-kcm.socket
-    systemctl start sssd.service
+        systemctl start sssd-kcm.socket
+        systemctl start sssd.service
 
 * Re-run ``omnia.yml`` using: ::
 
-    ansible-playbook omnia.yml
+        ansible-playbook omnia.yml
 
 
 ⦾ **Why would FreeIPA server/client installation fail? (version 1.5 and below)**
@@ -382,7 +382,7 @@ The required services are not running on the node. Verify the service status usi
 
 **Potential Cause**:
 
-The hostnames of the auth server nodes are not set in the correct format.
+The hostnames of the auth server nodes are not configured in the correct format.
 
 **Resolution**:
 

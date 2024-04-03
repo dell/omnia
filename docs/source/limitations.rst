@@ -10,8 +10,7 @@ Limitations
    on the single node.
 -  Only one storage instance (Powervault) is currently supported in the
    HPC cluster.
--  Omnia supports only basic telemetry configurations. Changing data
-   fetching time intervals for telemetry is not supported.
+-  Omnia supports only basic telemetry configurations. Altering the time intervals for telemetry data collection is not supported.
 -  Slurm cluster metrics will only be fetched from clusters configured
    by Omnia.
 -  All iDRACs must have the same username and password.
