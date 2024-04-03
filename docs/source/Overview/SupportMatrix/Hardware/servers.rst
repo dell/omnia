@@ -3,17 +3,12 @@ Servers
 
 PowerEdge servers
 ------------------
-    +-------------+---------------------------------------------------------------------------------------+
-    | Server Type | Server Model                                                                          |
-    +=============+=======================================================================================+
-    | 14G         | C4140, C6420, R240, R340, R440, R540, R640, R740, R740xd, R740xd2, R840, R940, R940xa |
-    +-------------+---------------------------------------------------------------------------------------+
-    | 15G         | C6520, R650, R750, R750xa                                                             |
-    +-------------+---------------------------------------------------------------------------------------+
-    | 16G         | C6620, R660, R6625, R760, XE8640, R760xa [*]_, R760xd2, XE9680                        |
-    +-------------+---------------------------------------------------------------------------------------+
+   .. csv-table:: Supported PowerEdge servers
+      :file: ../../../Tables/supported-poweredge-servers.csv
+      :header-rows: 1
+      :keepspace:
 
-.. [*] The R760xa supports both H100 and A100 GPUs.
+.. [1] The R760xa supports both H100 and A100 GPUs.
 
 .. note::  Since Cloud Enclosures only support shared LOM connectivity, it is recommended that `BMC <../../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/bmc.html>`_ or `Switch-based <../../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/switch-based.html>`_ methods of discovery are used.
 
