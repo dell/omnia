@@ -25,11 +25,8 @@
      ``string``
 
      Optional  ","* Kubernetes version.
-* Required when ``scheduler_type: ""k8s""``
-     Choices:                    
-                                 
-     * ``""1.19.3""``  <-   default
-     * ``"" 1.16.7""``             "
+* Currently, only 1.26 is supported.
+* **Default value**: 1.26        "
 "**k8s_cni**
 
      ``string``
