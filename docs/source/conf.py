@@ -8,9 +8,9 @@
 
 
 project = 'Omnia'
-copyright = '2023, Dell Technologies'
+copyright = '2024, Dell Technologies'
 author = 'dell/omnia'
-release = '1.5'
+release = '1.5.1'
 rst_epilog = "If you have any feedback about Omnia documentation, please reach out at `omnia.readme@dell.com <mailto:omnia.readme@dell.com>`_."
 
 import sys
