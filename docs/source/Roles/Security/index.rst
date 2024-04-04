@@ -177,7 +177,7 @@ Run: ::
     cd security
     ansible-playbook security.yml -i inventory
 
-The inventory should contain auth_server as per the inventory file in `samplefiles <../../samplefiles.html#inventory-file>`_. The inventory file is case-sensitive. Follow the casing provided in the sample file link.
+The inventory should contain auth_server as per the inventory file in `samplefiles <../../samplefiles.html#inventory-file>`_. The inventory file is case-sensitive. Follow the format provided in the sample file link.
 
     * Do not include the IP of the control plane or local host in the auth_server group in the passed inventory.
     * To customize the security features on the login node, fill out the parameters in ``input/login_node_security_config.yml``.
