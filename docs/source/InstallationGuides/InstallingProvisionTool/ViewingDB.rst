@@ -42,6 +42,7 @@ Via omniadb
 Possible values of node status are powering-off, powering-on, bmcready, installing, booting, post-booting, booted, failed.
 
 .. note::
+    * The ``gpu_count`` in the DB is only updated every time a cluster node is PXE booted.
     * Nodes are listed as failed when the IB NIC or OFED did not get configured. They are still reachable via the admin IP. Correct any underlying connectivity issue on the IB NIC and `re-provision the node <../reprovisioningthecluster.html>`_.
     * Information on debugging nodes stuck at 'powering-on', 'bmcready' or 'installing' for longer than expected is available `here. <../../Troubleshooting/FAQ.html>`_ Correct any underlying issue on the node and `re-provision the node <../reprovisioningthecluster.html>`_.
     * A blank node status indicates that no attempt to provision has taken place. Attempt a manual PXE boot on the node to initiate provisioning.

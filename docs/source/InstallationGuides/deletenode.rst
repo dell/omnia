@@ -3,7 +3,10 @@ Remove Slurm/K8s configuration from a node
 
 Use this playbook to remove slurm and kubernetes configuration from slurm or kubernetes worker nodes  of the cluster and stop all clustering software on the worker nodes.
 
-.. note:: All target nodes should be drained before executing the playbook. If a job is running on any target nodes, the playbook may timeout waiting for the node state to change.
+.. note::
+    * All target nodes should be drained before executing the playbook. If a job is running on any target nodes, the playbook may timeout waiting for the node state to change.
+    * When running ``remove_node_configuration.yml``, ensure that the ``input/storage_config.yml`` and ``input/omnia_config.yml`` have not been edited since ``omnia.yml`` was run.
+
 
 **Configurations performed by the playbook**
 
@@ -29,7 +32,9 @@ Soft reset the cluster
 -----------------------
 Use this playbook to stop all Slurm and Kubernetes services. This action will destroy the cluster.
 
-.. note:: All target nodes should be drained before executing the playbook. If a job is running on any target nodes, the playbook may timeout waiting for the node state to change.
+.. note::
+    * All target nodes should be drained before executing the playbook. If a job is running on any target nodes, the playbook may timeout waiting for the node state to change.
+    * When running ``reset_cluster_configuration.yml``, ensure that the ``input/storage_config.yml`` and ``input/omnia_config.yml`` have not been edited since ``omnia.yml`` was run.
 
 **Configurations performed by the playbook**
 
