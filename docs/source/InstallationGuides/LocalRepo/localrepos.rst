@@ -174,7 +174,7 @@ For information on deploying FreeIPA after setting up the cluster, `click here. 
 
             {"name": "jupyter"},
 
-For information on deploying Jupyterhub after setting up the cluster, `click here. <../../Roles/Platform/InstallJupyterhub.html>`_
+For information on deploying Jupyterhub after setting up the cluster, `click here. <../../InstallingProvisionTool/Platform/InstallJupyterhub.html>`_
 
 **Kserve**
 
@@ -186,7 +186,7 @@ For information on deploying Jupyterhub after setting up the cluster, `click her
                     {"name": "knative"}
                 ]
 
-For information on deploying Kserve after setting up the cluster, `click here. <../../Roles/Platform/kserve.html>`_
+For information on deploying Kserve after setting up the cluster, `click here. <../../InstallingProvisionTool/Platform/kserve.html>`_
 
 **Kubeflow**
 
@@ -194,7 +194,7 @@ For information on deploying Kserve after setting up the cluster, `click here. <
 
             {"name": "kubeflow"},
 
-For information on deploying kubeflow after setting up the cluster, `click here. <../../Roles/Platform/kubeflow.html>`_
+For information on deploying kubeflow after setting up the cluster, `click here. <../../InstallingProvisionTool/Platform/kubeflow.html>`_
 
 
 **Kubernetes**
@@ -276,7 +276,7 @@ OpenMPI is deployed on the cluster when the above configurations are complete an
                     {"name": "pytorch_nvidia"}
                 ],
 
-For information on deploying Pytorch after setting up the cluster, `click here. <../../Roles/Platform/Pytorch.html>`_
+For information on deploying Pytorch after setting up the cluster, `click here. <../../InstallingProvisionTool/Platform/Pytorch.html>`_
 
 **Secure Login Node**
 
@@ -298,7 +298,7 @@ Features that are part of the secure_login_node repository are enabled by runnin
                     {"name": "tensorflow_nvidia"}
                 ]
 
-For information on deploying TensorFlow after setting up the cluster, `click here. <../../Roles/Platform/TensorFlow.html>`_
+For information on deploying TensorFlow after setting up the cluster, `click here. <../../InstallingProvisionTool/Platform/TensorFlow.html>`_
 
 **Unified Communication X**
 
@@ -319,7 +319,7 @@ UCX is deployed on the cluster when the ``local_repo.yml`` is run then `omnia.ym
                     {"name": "vllm_nvidia"}
                 ],
 
-For information on deploying vLLM after setting up the cluster, `click here. <../../Roles/Platform/SetupvLLM.html>`_
+For information on deploying vLLM after setting up the cluster, `click here. <../../InstallingProvisionTool/Platform/SetupvLLM.html>`_
 
 
 

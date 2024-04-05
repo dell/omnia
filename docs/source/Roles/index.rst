@@ -11,7 +11,6 @@ Below is a list of all Omnia's features:
   Security/index
   Storage/index
   Accelerator/index
-  Platform/index
   Utils/index
   Telemetry/index
 
