@@ -20,8 +20,6 @@ Limitations
 -  In a single node cluster, the login node and Slurm functionalities
    are not applicable. However, Omnia installs FreeIPA Server and Slurm
    on the single node.
--  To change the Kubernetes version from 1.16 to 1.19 or 1.19 to 1.16,
-   you must redeploy the entire cluster.
 -  The Kubernetes pods will not be able to access the Internet or start
    when firewalld is enabled on the node. This is a limitation in
    Kubernetes. So, the firewalld daemon will be disabled on all the

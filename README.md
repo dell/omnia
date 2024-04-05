@@ -4,7 +4,7 @@
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 
-![GitHub](https://img.shields.io/github/license/dell/omnia) ![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/dell/omnia?include_prereleases) ![GitHub last commit (branch)](https://img.shields.io/github/last-commit/dell/omnia/main) ![GitHub commits since tagged version](https://img.shields.io/github/commits-since/dell/omnia/v1.5/main)
+![GitHub](https://img.shields.io/github/license/dell/omnia) ![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/dell/omnia?include_prereleases) 
 
 ![All contributors](https://img.shields.io/github/all-contributors/dell/omnia) ![GitHub forks](https://img.shields.io/github/forks/dell/omnia) ![GitHub Repo stars](https://img.shields.io/github/stars/dell/omnia) ![GitHub all releases](https://img.shields.io/github/downloads/dell/omnia/total)
 

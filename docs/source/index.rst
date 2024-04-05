@@ -6,7 +6,7 @@
 Omnia: Everything at once!
 ----------------------------------
 
-|Omnia version| |Downloads| |Last Commit| |Commits Since 1.4.3| |Contributors| |Forks| |License|
+|Omnia version| |Downloads| |Last Commit| |Contributors| |Forks| |License|
 
 Ansible playbook-based deployment of Slurm and Kubernetes on servers running an RPM-based Linux OS.
 
@@ -66,7 +66,6 @@ For a better understanding of what Omnia does, check out our `docs <https://omni
 .. |Omnia version| image:: https://img.shields.io/github/v/release/dell/omnia?include_prereleases
 .. |Downloads| image:: https://img.shields.io/github/downloads/dell/omnia/total
 .. |Last Commit| image:: https://img.shields.io/github/last-commit/dell/omnia/main
-.. |Commits Since 1.4.3| image:: https://img.shields.io/github/commits-since/dell/omnia/v1.4.3/main
 .. |Contributors| image:: https://img.shields.io/github/all-contributors/dell/omnia
    :target: docs/CONTRIBUTORS.md
    :alt: Contributors

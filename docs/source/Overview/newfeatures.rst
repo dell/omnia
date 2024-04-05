@@ -1,10 +1,8 @@
 New Features
 ===========
 
-* Expanded `telemetry collection <../Roles/Telemetry/index.html>`_ support to Regular, health check and GPU metrics.
-* `Rsyslog <../Logging/ControlPlaneLogs.html>`_ : Added ability to aggregate logs via xCAT's syslog.
-* Integration of apptainer for `containerized HPC benchmark execution <../InstallationGuides/Benchmarks/index.html>`_.
-* Integration of  `grafana and loki installation <../Roles/Telemetry/index.html>`_ within ``telemetry.yml``.
+* Added support for `Kubernetes 1.26. <https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-1.26.md>`_
+* Deprecated support for `Kubernetes 1.16 <https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-1.16.md>`_  and `1.19. <https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-1.19.md>`_
 
 
 
