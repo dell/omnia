@@ -1,11 +1,11 @@
-Before you run the provision tool
----------------------------------
+Prerequisites
+-------------
 
 * (Recommended) Run ``prereq.sh`` to get the system ready to deploy Omnia. Alternatively, ensure that `Ansible 2.12.10 <https://docs.ansible.com/ansible/latest/reference_appendices/release_and_maintenance.html>`_ and `Python 3.8 <https://www.python.org/downloads/release/python-380/>`_ are installed on the system. SELinux should also be disabled.
 
 * If the control plane is running on the minimal edition of the OS, ensure that ``chrony`` and ``podman`` are installed before running ``provision.yml``.
 
-* Set the IP address of the control plane with a /16 subnet mask. The control plane NIC connected to remote servers (through the switch) should be configured with two IPs (BMC IP and admin IP) in a shared LOM or hybrid set up. In the case dedicated network topology, a single IP (admin IP) is required.
+* Set the IP address of the control plane with a /16 subnet mask. The control plane NIC connected to remote servers (through the switch) should be configured with two IPs (BMC IP and admin IP) in a shared LOM or hybrid set up. In the case of a dedicated network topology, a single IP (admin IP) is required.
 
 .. figure:: ../../images/ControlPlaneNic.png
 
@@ -58,16 +58,16 @@ Note the compatibility between cluster OS and control plane OS below:
 
     1. `For NVIDIA GPUs: <https://developer.nvidia.com/cuda-downloads/>`_: CUDA is a parallel computing platform and application programming interface that allows software to use certain types of graphics processing units for general purpose processing, an approach called general-purpose computing on GPUs.
 
-    2. `For Mellanox <https://network.nvidia.com/products/infiniband-drivers/linux/mlnx_ofed/>`_: OFED (OpenFabrics Enterprise Distribution) is open-source software for RDMA and kernel bypass applications. OFED can be used in business, research and scientific environments that require highly efficient networks, storage connectivity and parallel computing.
+    2. `For Mellanox <https://network.nvidia.com/products/infiniband-drivers/linux/mlnx_ofed/>`_: OFED (OpenFabrics Enterprise Distribution) is an open-source software for RDMA and kernel bypass applications. OFED can be used in business, research and scientific environments that require highly efficient networks, storage connectivity and parallel computing.
 
 * Ensure that all connection names under the network manager match their corresponding device names.
-    To verify network connection names: ::
+    To verify network connection name, use the following command: ::
 
             nmcli connection
 
-    To verify the device name: ::
+    To verify the device name, use the following command: ::
 
-    ip link show
+            ip link show
 
 In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcfg-<nic name>`` using vi editor.
 
@@ -80,7 +80,7 @@ In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcf
 * Users should also ensure that all repos (AppStream, BaseOS and CRB) are available on the RHEL control plane.
 
 .. note::
-   * Enable a repository from your RHEL subscription, run the following commands: ::
+   * To enable a repository from your RHEL subscription, run the following commands: ::
 
             subscription-manager repos --enable=codeready-builder-for-rhel-8-x86_64-rpms
             subscription-manager repos --enable=rhel-8-for-x86_64-appstream-rpms
@@ -129,7 +129,7 @@ In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcf
                 RHEL-8-baseos-partners                                            Red Hat Enterprise Linux 8.6.0 Partners (BaseOS)
                 RHEL-8-crb-partners                                               Red Hat Enterprise Linux 8.6.0 Partners (CRB)
 
-* Uninstall epel-release if installed on the control plane as Omnia configures epel-release on the control plane. To uninstall epel-release, use the following commands: ::
+* If epel-release is pre-installed on the control plane, it should be uninstalled. Omnia will configure epel-release on the control plane. To uninstall epel-release, use the following command: ::
 
         dnf remove epel-release -y
 

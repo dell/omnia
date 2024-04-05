@@ -9,28 +9,6 @@ Typically, the choice of discovery mechanism depends on the `Network Topology <.
     bmc
     snmp
 
-
-**switch_based**
-
-Omnia can query known switches (by SNMPv3 username/password) for information on target node MAC IDs.
-
-**Pros**
-
-- The whole discovery process is totally automatic.
-
-- Admin IP, BMC IP and Infiniband IP address configuration is automatic on the target nodes.
-
-- Re-provisioning of servers will be automatic.
-
-- PXE booting servers is supported via split ports on the switch.
-
-**Cons**
-
-- Users need to enable IPMI on target servers.
-- Servers require a manual PXE boot after the first run of the provision tool
-
-For more information regarding switch-based discovery, `click here <switch-based.html>`_
-
 **mapping**
 
 Manually collect PXE NIC information for target servers and manually define them to Omnia using a mapping file using the below format:
@@ -57,6 +35,29 @@ Manually collect PXE NIC information for target servers and manually define them
 
 For more information regarding mapping files, `click here <mappingfile.html>`_
 
+
+**switch_based**
+
+Omnia can query known switches (by SNMPv3 username/password) for information on target node MAC IDs.
+
+**Pros**
+
+- The whole discovery process is totally automatic.
+
+- Admin IP, BMC IP and Infiniband IP address configuration is automatic on the target nodes.
+
+- Re-provisioning of servers is automatic.
+
+- PXE booting servers is supported via split ports on the switch.
+
+**Cons**
+
+- Users need to enable IPMI on target servers.
+- Servers require a manual PXE boot after the first run of the provision tool
+
+For more information regarding switch-based discovery, `click here <switch-based.html>`_
+
+
 **bmc**
 
 Omnia can also discover nodes via their iDRAC using IPMI.
@@ -69,7 +70,7 @@ Omnia can also discover nodes via their iDRAC using IPMI.
     - LOM architecture is supported (including cloud enclosures: C6420, C6520, C6620).
 **Cons**
 
-    - For iDRACs that are not DHCP enabled (ie Static), users need to enable IPMI manually.
+    - For iDRACs that are not DHCP enabled (that is, Static), users need to enable IPMI manually.
 
 
 For more information regarding BMC, `click here <bmc.html>`_

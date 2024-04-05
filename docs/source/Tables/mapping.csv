@@ -13,7 +13,7 @@ Choices:
 
 ``string``
 
-Required","The mechanism through which Omnia will discover nodes for provisioning. For more information on how the mechanisms work, go to `DiscoveryMechanisms <DiscoveryMechanisms/index.html>`_.
+Required","The mechanism through which Omnia will discover nodes for provisioning. For more information on how the mechanisms work, go to `Discovery Mechanisms <DiscoveryMechanisms/index.html>`_.
 
 Choices:
 

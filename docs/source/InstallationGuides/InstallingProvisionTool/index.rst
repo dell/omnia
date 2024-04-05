@@ -1,7 +1,7 @@
 Installing the provision tool
 =============================
 
-This playbook achieves the following tasks:
+The provision tool is installed using an Ansible playbook. This playbook achieves the following tasks:
 
     * Discovers potential cluster nodes
 

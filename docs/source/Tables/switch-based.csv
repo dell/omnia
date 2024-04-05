@@ -51,7 +51,7 @@ Choices:
 
 ``string``
 
-Required","Path where user has placed the iso image that needs to be provisioned on target nodes. Accepted files are Rocky8-DVD or RHEL-8.x-DVD (full OS).  iso_file_path  should contain the  provision_os  and  provision_os_version  values in the  filename.
+Required","Path where user has placed the OS.iso image that needs to be provisioned on target nodes. Accepted files are Rocky8-DVD or RHEL-8.x-DVD (full OS).iso. File path  should contain the  provision_os  and  provision_os_version  values in the  filename.
 
 **Default values**: ``""/home/RHEL-8.6.0-20220420.3-x86_64-dvd1.iso""``"
 "**timezone**
@@ -103,9 +103,9 @@ Required","* Password set for the postgresDB on target nodes during provisioning
 ``string``
 
 Required","* Prefix for target node names, if dynamically allocated.
-* Hostname = node_name + '0000x' + domain_name
+* Hostname = node_name + '00000x' + domain_name
 * Hostname <= 65 characters
-* Example: servernode00001.Omnia.test , where  node_name =servernode,  domain_name =Omnia.test , 00001 used by Omnia.
+* Example: servernode000001.Omnia.test , where  node_name =servernode,  domain_name =Omnia.test , and 000001 used by Omnia. Omnia appends 6 digits to the hostname to individually name each target node.
 
 **Default values**: ``node``"
 "**domain_name**
@@ -113,10 +113,10 @@ Required","* Prefix for target node names, if dynamically allocated.
 ``string``
 
 Required","* Domain name the user intends to configure on the cluster.
-* Hostname = node_name + '0000x' + domain_name
+* Hostname = node_name + '00000x' + domain_name
 * Hostname <= 65 characters
 * Please provide a valid domain name according to the domain name standards.
-* Example: servernode00001.Omnia.test , where node_name=servernode, domain_name=Omnia.test , 00001 used by Omnia."
+* Example: servernode000001.Omnia.test , where node_name=servernode, domain_name=Omnia.test , and 000001 is used by Omnia. Omnia appends 6 digits to the hostname to individually name each target node."
 "**public_nic**
 
 ``string``
@@ -128,7 +128,7 @@ Required","The nic/ethernet card that is connected to the public internet.
 
 ``string``
 
-Required","* Admin NIC of Control Plane. This is the shared LOM NIC.
+Required","* Admin NIC of control plane. This is the shared LOM NIC.
 * The value of this variable cannot be changed after successfully running ``provision.yml``.
 
 **Default values**: ``eno1``"
@@ -144,12 +144,12 @@ Required","The subnet within which all Admin IPs are assigned.
 ``JSON List``
 
 Required","* JSON list of switches to query for target nodes.
-* Split port ranges are not accepted here. (Ex: 10:5-10:10 will not be valid).
-* Example: ::
+* Split port ranges are not accepted here. (Example: 10:5-10:10 will not be valid).
+* Example with a single switch: ::
 
    - { ip: 172.96.28.12, ports: '1-48,49:3,50' }
 
-* Example with 2 switches: ::
+* Example with two switches: ::
 
   - { ip: 172.96.28.12, ports: '1-48,49:3,50' }
 
@@ -171,7 +171,7 @@ Required","* The non-admin SNMPv3 password for the switch.
 
 ``string``
 
-Required","* The IP start range for all the NICs within the subnets mentioned above.(Admin, BMC, IB).
+Required","* The IP start range for all the NICs within the subnets mentioned above (Admin, BMC, IB).
 * Example: For the range x.y.0.1 to x.y.0.100 with  admin_nic_subnet = 10.5.0.0, target nodes will be assigned admin IPs between 10.5.0.1 and 10.5.0.100."
 "**ip_end_range**
 
@@ -192,9 +192,9 @@ Optional","* If provided, Omnia will handle and assign static IPs to cluster nod
 ``string``
 
 Required","* If provided, Omnia will assign static IPs to BMC NICs on the cluster nodes within the provided subnet.
-* If ``network_interface_type``: ``lom``, mandatory for discovery_mechanism: mapping, switch_based and bmc.
+* If ``network_interface_type``: ``lom``, mandatory for discovery_mechanism: mapping, switch_based, and bmc.
 * If ``network_interface_type``: ``dedicated``, optional for discovery_mechanism: mapping, snmpwalk.
-* Note that since the last 16 bits/2 octets of IPv4 are dynamic, please ensure that the parameter value is set to x.x.0.0.
+* Note that since the last 16 bits/2 octets of IPv4 are dynamic, ensure that the parameter value is set to x.x.0.0.
 * When the PXE range and BMC subnet are provided, corresponding NICs will be assigned IPs with the same 3rd and 4th octets."
 "**bmc_username**
 
@@ -231,7 +231,7 @@ Choices:
  Required   ","* Indicates whether the packages in local or subscription repos should be ordered in alphabetical directories.
 
 
-* This variable should be filled if control plane OS is RHEL and local RHEL repository is available.
+* This variable should be filled only if control plane OS is RHEL and local RHEL repository is available.
 
 
 
@@ -252,7 +252,7 @@ Optional                ","* The repo path and names of the software repository 
 
 * This variable should be filled if control plane OS is RHEL and subscription is not activated.
 
-* This variable should be filled if the control plane OS is Rocky and the ``provision_os`` is rhel.
+* This variable should be filled if the control plane OS is Rocky and the ``provision_os`` is RHEL.
 
 
 Sample value: ::
@@ -269,14 +269,14 @@ Sample value: ::
 ``string``
 
 Optional","* The primary DNS host IP queried to provide Internet access to cluster Node (through DHCP routing).
-* Currently, the ``primary_dns`` value stored in ``input/provision_config.yml`` cannot be part of any of the subnets (``admin_nic_subnet``, ``ib_nic_subnet`` and ``bmc_nic_subnet``) also defined in ``input/provision_config.yml``.
+* Currently, the ``primary_dns`` value stored in ``input/provision_config.yml`` cannot be part of any of the subnets (``admin_nic_subnet``, ``ib_nic_subnet``, and ``bmc_nic_subnet``) defined in ``input/provision_config.yml``.
 
-Ex: If the ``primary_dns`` is set to 10.15.0.7, the subnet ``10.15.0.0`` cannot be used for ``admin_nic_subnet``, ``ib_nic_subnet`` or ``bmc_nic_subnet``."
+Example: If the ``primary_dns`` is set to 10.15.0.7, the subnet ``10.15.0.0`` cannot be used for ``admin_nic_subnet``, ``ib_nic_subnet`` or ``bmc_nic_subnet``."
 "secondary_dns
 
 ``string``
 
-Optional",The secondary DNS host IP queried to provide Internet access to cluster Node (through DHCP routing)
+Optional",The secondary DNS host IP queried to provide Internet access to cluster Node (through DHCP routing).
 "**disk_partition**
 
 ``JSON list``
@@ -284,8 +284,8 @@ Optional",The secondary DNS host IP queried to provide Internet access to cluste
 Optional","* User defined disk partition applied to remote servers.
 * The disk partition desired_capacity has to be provided in MB.
 * Valid mount_point values accepted for disk partition are /home, /var, /tmp, /usr, swap.
-* Default partition size provided for /boot is 1024MB, /boot/efi is 256MB and the remaining space to / partition. 
-* Values are accepted in the form of JSON list such as: , - { mount_point: ""/home"", desired_capacity: ""102400"" }
+* Default partition size provided for /boot is 1024MB, /boot/efi is 256MB, and the remaining space is provided to / partition. 
+* Values are accepted in the form of JSON list. Example: - { mount_point: ""/home"", desired_capacity: ""102400"" }
  
 
 **Default values**: ``- { mount_point: """", desired_capacity: """" }``"
@@ -293,12 +293,12 @@ Optional","* User defined disk partition applied to remote servers.
 
 ``string``
 
-Optional",Absolute path to a  local copy of the .iso file containing Mellanox OFED packages. The image can be downloaded from https://network.nvidia.com/products/infiniband-drivers/linux/mlnx_ofed/.  Sample value:  /root/MLNX_OFED_LINUX-5.8-1.1.2.1-rhel8.6-x86_64.iso 
+Optional",Absolute path to a  local copy of the .iso file containing Mellanox OFED packages. The image can be downloaded from https://network.nvidia.com/products/infiniband-drivers/linux/mlnx_ofed/. Example:  /root/MLNX_OFED_LINUX-5.8-1.1.2.1-rhel8.6-x86_64.iso 
 "**cuda_toolkit_path**
 
 ``string``
 
-Optional","Absolute path to local copy of .rpm file containing CUDA packages. The cuda rpm can be downloaded from https://developer.nvidia.com/cuda-downloads. CUDA will be installed post provisioning without any user intervention. Eg: cuda_toolkit_path: ""/root/cuda-repo-rhel8-12-0-local-12.0.0_525.60.13-1.x86_64.rpm"""
+Optional","Absolute path to local copy of .rpm file containing CUDA packages. The cuda rpm can be downloaded from https://developer.nvidia.com/cuda-downloads. CUDA will be installed post provisioning without any user intervention. Example: cuda_toolkit_path: ""/root/cuda-repo-rhel8-12-0-local-12.0.0_525.60.13-1.x86_64.rpm"""
 "**apptainer_support**
 
 ``boolean``  [1]_

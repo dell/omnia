@@ -5,7 +5,7 @@ For pre-configured iDRACs, ``provision/idrac.yml`` can be used to provision the 
 
 **Before running idrac.yml**
 
-* The idrac_inventory file is updated with the iDRAC IP addresses.
+* Ensure that the idrac_inventory file is updated with the iDRAC IP addresses.
 
 * To customize iDRAC provisioning, input parameters can be updated in the ``provision/idrac_input.yml`` file.
 
@@ -20,11 +20,11 @@ For pre-configured iDRACs, ``provision/idrac.yml`` can be used to provision the 
 
 **Configurations performed by idrac.yml**
 
-* If bare metal servers have BOSS controllers installed, virtual disks (Data will be stored in a RAID 1 configuration by default) will be created on the BOSS controller (ie, RAID controllers will be ignored/unmanaged). Ensure that exactly 2 SSD disks are available on the server.
+* If bare metal servers have BOSS controllers installed, virtual disks (Data will be stored in a RAID 1 configuration by default) will be created on the BOSS controller (that is, RAID controllers will be ignored/unmanaged). Ensure that exactly 2 SSD disks are available on the server.
 
 * If bare metal servers have a RAID controller installed, Virtual disks are created for RAID configuration (Data will be saved in a RAID 0 configuration by default).
 
-* Omnia validates and configures the active host NICs in PXE device settings when provision_method is set to PXE. (If no active NIC is found, idrac.yml will fail on the target node.)
+* Omnia validates and configures the active host NICs in PXE device settings when provision_method is set to PXE. If no active NIC is found, idrac.yml will fail on the target node.
 
 * Once all configurations are in place, the ``idrac.yml`` initiates a PXE boot for configuration to take effect.
 

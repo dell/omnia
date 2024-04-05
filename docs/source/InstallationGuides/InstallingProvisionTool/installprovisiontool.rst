@@ -1,7 +1,7 @@
 Provisioning the cluster
 --------------------------
 
-Edit the ``input/provision_config.yml`` file to update the required variables. A list of the variables required is available by `discovery mechanism <DiscoveryMechanisms/index.html>`_.
+Edit the ``input/provision_config.yml`` file to update the required variables. For the list of all required variables or parameters, see `Discovery Mechanisms <DiscoveryMechanisms/index.html>`_.
 
     .. note:: The first PXE device on target nodes should be the designated active NIC for PXE booting.
 
@@ -18,11 +18,11 @@ Optional configurations managed by the provision tool
 
     **Using the Accelerator playbook**
 
-        * CUDA can also be installed using `accelerator.yml <../../Roles/Accelerator/index.html>`_ after provisioning the servers (Assuming the provision tool did not install CUDA packages).
+        * CUDA can also be installed using `accelerator.yml <../../Roles/Accelerator/index.html>`_ after provisioning the servers (assuming the provision tool did not install CUDA packages).
 
     .. note::
-        * The CUDA package can be downloaded from `here <https://developer.nvidia.com/cuda-downloads>`_
-        * CUDA requires an additional reboot while being installed. While this is taken care of by Omnia, users are required to wait an additional few minutes when running the provision tool with CUDA installation for the target nodes to come up.
+        * The CUDA package can be downloaded from `here <https://developer.nvidia.com/cuda-downloads>`_.
+        * CUDA installation requires an additional reboot. Although Omnia manages this process, users should anticipate a brief wait for the target nodes to fully initialize when CUDA is installed through the provision tool.
 
 
 **Installing OFED**
@@ -44,32 +44,32 @@ Optional configurations managed by the provision tool
 
     When ``ib_nic_subnet`` is provided in ``input/provision_config.yml``, the infiniband NIC on target nodes are assigned IPv4 addresses within the subnet without user intervention. When PXE range and Infiniband subnet are provided, the infiniband NICs will be assigned IPs with the same 3rd and 4th octets as the PXE NIC.
 
-    * For example on a target node, when the PXE NIC is assigned 10.5.0.101, and the Infiniband NIC is assigned 10.10.0.101 (where ``ib_nic_subnet`` is 10.10.0.0).
+    * For example, on a target node, if the PXE NIC is assigned the IP address 10.5.0.101, then the Infiniband NIC is assigned 10.10.0.101 (with the ``ib_nic_subnet`` being 10.10.0.0)
 
     .. note::  The IP is assigned to the interface **ib0** on target nodes only if the interface is present in **active** mode. If no such NIC interface is found, xCAT will list the status of the node object as failed.
 
 **Assigning BMC IPs**
 
-    When target nodes are discovered via SNMP or mapping files (ie ``discovery_mechanism`` is set to snmp or mapping in ``input/provision_config.yml``), the ``bmc_nic_subnet`` in ``input/provision_config.yml`` can be used to assign BMC IPs to iDRAC without user intervention. When PXE range and BMC subnet are provided, the iDRAC NICs will be assigned IPs with the same 3rd and 4th octets as the PXE NIC.
+    When target nodes are discovered via SNMP or mapping files (that is, ``discovery_mechanism`` is set to snmp or mapping in ``input/provision_config.yml``), the ``bmc_nic_subnet`` in ``input/provision_config.yml`` can be used to assign BMC IPs to iDRAC without user intervention. When PXE range and BMC subnet are provided, the iDRAC NICs will be assigned IPs with the same 3rd and 4th octets as the PXE NIC.
 
-    * For example on a target node, when the PXE NIC is assigned 10.5.0.101, and the iDRAC NIC is assigned 10.3.0.101 (where ``bmc_nic_subnet`` is 10.3.0.0).
+    * For example, on a target node, if the PXE NIC is assigned the IP address 10.5.0.101, then the iDRAC NIC is assigned 10.3.0.101 (with the ``ib_nic_subnet`` being 10.3.0.0).
 
 **Using multiple versions of a given OS**
 
 Omnia now supports deploying different versions of the same OS. With each run of ``provision.yml``, a new deployable OS image is created with a distinct type (rocky or RHEL) and version (8.0, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7) depending on the values provided in ``input/provision_config.yml``.
 
 .. note::
-    * While Omnia deploys the minimal version of the OS, the multiple version feature requires that the Rocky full (DVD) version of the OS be provided.
+    * While Omnia deploys the minimal version of the OS, the multiple version feature requires the full (DVD) version of Rocky OS.
     * The multiple OS feature is only available with Rocky 8.7 when xCAT 2.16.5 is in use. [Currently, Omnia uses 2.16.4]
 
 
 **DHCP routing for internet access**
 
-    Omnia now supports DHCP routing via the control plane. To enable routing, update the ``primary_dns`` and ``secondary_dns`` in ``input/provision_config.yml`` with the appropriate IPs (hostnames are currently not supported). For cluster  nodes that are not directly connected to the internet (ie only PXE network is configured), this configuration allows for internet connectivity.
+    Omnia now supports DHCP routing via the control plane. To enable routing, update the ``primary_dns`` and ``secondary_dns`` in ``input/provision_config.yml`` with the appropriate IPs (hostnames are currently not supported). This configuration allows Internet connectivity to cluster nodes which are not directly connected to the Internet (that is, only PXE network is configured).
 
 **Disk partitioning**
 
-    Omnia now allows for customization of disk partitions applied to remote servers. The disk partition ``desired_capacity`` has to be provided in MB. Valid ``mount_point`` values accepted for disk partition are ``/home``, ``/var``, ``/tmp``, ``/usr``, ``swap``. Default partition size provided for ``/boot`` is 1024MB, ``/boot/efi`` is 256MB and the remaining space to ``/`` partition.  Values are accepted in the form of JSON list such as:
+    Omnia now allows for customization of disk partitions applied to remote servers. The disk partition ``desired_capacity`` has to be provided in MB. Valid ``mount_point`` values accepted for disk partition are ``/home``, ``/var``, ``/tmp``, ``/usr``, ``swap``. Default partition size provided for ``/boot`` is 1024MB, ``/boot/efi`` is 256MB, and the remaining space goes to ``/`` partition.  Values are accepted in the form of JSON list, such as:
 
     ::
 
@@ -141,11 +141,11 @@ After successfully running ``provision.yml``, go to `Building Clusters <../Build
 
     * While the ``admin_nic`` on cluster nodes is configured by Omnia to be static, the public NIC IP address should be configured by user.
 
-    * If the target nodes were discovered using switch-based, mapping or snmpwalk mechanisms, manually PXE boot the target servers after the ``provision.yml`` playbook is executed and the target node lists as **booted** `in the nodeinfo table <ViewingDB.html>`_.
+    * If the target nodes were discovered using switch-based, mapping, or snmpwalk mechanisms, manually PXE boot the target servers after the ``provision.yml`` playbook is executed. This lists the target node as **booted** in the `nodeinfo table <ViewingDB.html>`_.
 
     * If the cluster does not have access to the internet, AppStream will not function.  To provide internet access through the control plane (via the PXE network NIC), update ``primary_dns`` and ``secondary_dns`` in ``provision_config.yml`` and run ``provision.yml``
 
-    * All ports required for xCAT to run will be opened (For a complete list, check out the `Security Configuration Document <../../SecurityConfigGuide/ProductSubsystemSecurity.html#firewall-settings>`_).
+    * All ports required for xCAT to run will be opened (For a complete list, check out the `Security Configuration Guide <../../SecurityConfigGuide/ProductSubsystemSecurity.html#firewall-settings>`_).
 
     * After running ``provision.yml``, the file ``input/provision_config.yml`` will be encrypted. To edit the file, use the command: ``ansible-vault edit provision_config.yml --vault-password-file .provision_vault_key``
 
