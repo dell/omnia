@@ -6,7 +6,7 @@
 Omnia: Everything at once!
 ----------------------------------
 
-|Omnia version| |Downloads| |Last Commit| |Commits Since 1.6| |Contributors| |Forks| |License|
+|Omnia version| |Downloads| |Last Commit| |Contributors| |Forks| |License|
 
 Ansible playbook-based deployment of Slurm and Kubernetes on servers running an RPM-based Linux OS.
 
