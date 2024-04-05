@@ -27,6 +27,11 @@
       register: node_hostname
       tags: init
 
+    - name: Generate default containerd configuration
+      ansible.builtin.shell:
+        cmd: containerd config default > /etc/containerd/config.toml && systemctl restart containerd
+      become: yes
+
     - name: Reset kubeadm
       command: kubeadm reset -f
       changed_when: true

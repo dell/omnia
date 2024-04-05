@@ -45,6 +45,15 @@ calico_yml_file_path: /root/k8s/kube-calico.yaml
 
 calico_yml_file_mode: 0644
 
+flannel_manifest_url: https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
+
 flannel_yml_file_path: /root/k8s/kube-flannel.yaml
 
 flannel_yml_file_mode: 0644
+
+tigera_operator_url: https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/tigera-operator.yaml
+
+calico_yml_url: https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/custom-resources.yaml
+
+calico_manifest_url: https://raw.githubusercontent.com/projectcalico/calico/v3.27.2/manifests/calico.yaml
+

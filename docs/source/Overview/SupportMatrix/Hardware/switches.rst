@@ -17,10 +17,10 @@ Switches
 
 .. note::
 
-    * The switches that have reached EOL might not function properly. Omnia recommends to use the switch models mentioned in the support matrix.
+    * The switches that have reached EOL might not function properly. It is recommended by Omnia to use switch models mentioned in support matrix.
 
-    * Omnia requires Dell OS10 to be installed on ethernet switches.
+    * Omnia requires that OS10 be installed on ethernet switches.
 
-    * Omnia requires MLNX-OS to be installed on Infiniband switches.
+    * Omnia requires that MLNX-OS be installed on Infiniband switches.
 
 

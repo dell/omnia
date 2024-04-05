@@ -1,6 +1,11 @@
 Troubleshooting guide
 ============================
 
+Troubleshooting Kubeadm
+------------------------
+
+For a complete guide to troubleshooting kubeadm, `click here. <https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/troubleshooting-kubeadm/>`_
+
 Connecting to internal databases
 ------------------------------------
 * TimescaleDB
@@ -15,17 +20,17 @@ Connecting to internal databases
 Checking and updating encrypted parameters
 -----------------------------------------------
 
-1. Move to the filepath where the parameters are saved (as an example, we will be using ``provision_config.yml``): ::
+1. Move to the filepath where the parameters are saved (as an example, we will be using ``provision_config_credentials.yml``): ::
 
     cd input/
 
 2. To view the encrypted parameters: ::
 
-   ansible-vault view provision_config.yml --vault-password-file .provision_vault_key
+   ansible-vault view provision_config_credentials.yml --vault-password-file .provision_vault_key
 
 3. To edit the encrypted parameters: ::
 
-    ansible-vault edit provision_config.yml --vault-password-file .provision_vault_key
+    ansible-vault edit provision_config_credentials.yml --vault-password-file .provision_vault_key
 
 Checking pod status on the control plane
 --------------------------------------------
@@ -40,7 +45,7 @@ Using telemetry information to diagnose node issues
    :header-rows: 1
    :keepspace:
 
-.. [1] This metric is collected from the manager node if a login node is absent.
+.. [1] This metric is collected from the kube_control_plane if a login node is absent.
 
 .. csv-table:: Health telemetry metrics
    :file: ../Tables/Metrics_Health.csv

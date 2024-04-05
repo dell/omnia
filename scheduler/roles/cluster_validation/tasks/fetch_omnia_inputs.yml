@@ -88,7 +88,7 @@
       ansible.builtin.assert:
         that:
           - k8s_version | default("", true) | length > 1
-          - "('1.16.7' in k8s_version) or ('1.19.3' in k8s_version)"
+          - "('1.26' in k8s_version)"
         success_msg: "{{ success_msg_k8s_version }}"
         fail_msg: "{{ fail_msg_k8s_version }}"
 

@@ -22,13 +22,7 @@
   ansible.builtin.set_fact:
     control_plane_version: "{{ ansible_facts['distribution_version'] | float }}"
 
-- name: Update containers policy
-  ansible.builtin.replace:
-    path: "{{ policy_file_path }}"
-    regexp: '"keyPaths": (.*)$'
-    replace: "{{ keypath_str }}"
-  when: (os_supported_rocky in mgmt_os and control_plane_version >= rocky_version) or
-        (os_supported_rhel in mgmt_os and control_plane_version >= redhat_version)
+
 
 # Checking if the last task of orchestrator role has been executed successfully
 - name: Check if kubernetes control plane is up and running

@@ -1,13 +1,34 @@
 Discovery Mechanisms
 -----------------------
 
-Typically, the choice of discovery mechanism depends on the `Network Topology <../../../Overview/NetworkTopologies/index.html>`_ in your setup. Depending on the value of ``discovery_mechanism`` in ``input/provision_config.yml``, potential target servers can be discovered one of four ways:
+Depending on the values provided in ``input/provision_config.yml``, target nodes can be discovered in one of three ways:
 
 .. toctree::
     mappingfile
     switch-based
     bmc
-    snmp
+
+
+**switch_based**
+
+Omnia can query known switches (by SNMPv3 username/password) for information on target node MAC IDs.
+
+**Pros**
+
+- The whole discovery process is totally automatic.
+
+- Admin IP, BMC IP and Infiniband IP address configuration is automatic on the target nodes.
+
+- Re-provisioning of servers will be automatic.
+
+- PXE booting servers is supported via split ports on the switch.
+
+**Cons**
+
+- Users need to enable IPMI on target servers.
+- Servers require a manual PXE boot after the first run of the provision tool.
+
+For more information regarding switch-based discovery, `click here <switch-based.html>`_
 
 **mapping**
 
@@ -15,13 +36,12 @@ Manually collect PXE NIC information for target servers and manually define them
 
 **pxe_mapping_file.csv**
 
+
 ::
 
-    MAC,Hostname,IP
-
-    xx:yy:zz:aa:bb:cc,server,10.5.0.101
-
-    aa:bb:cc:dd:ee:ff,server2, 10.5.0.102
+    SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_IP
+    XXXXXXXX,n1,xx:yy:zz:aa:bb:cc,10.5.0.101,10.3.0.101
+    XXXXXXXX,n2,aa:bb:cc:dd:ee:ff,10.5.0.102,10.3.0.102
 
 
 **Pros**
@@ -35,29 +55,6 @@ Manually collect PXE NIC information for target servers and manually define them
 
 For more information regarding mapping files, `click here <mappingfile.html>`_
 
-
-**switch_based**
-
-Omnia can query known switches (by SNMPv3 username/password) for information on target node MAC IDs.
-
-**Pros**
-
-- The whole discovery process is totally automatic.
-
-- Admin IP, BMC IP and Infiniband IP address configuration is automatic on the target nodes.
-
-- Re-provisioning of servers is automatic.
-
-- PXE booting servers is supported via split ports on the switch.
-
-**Cons**
-
-- Users need to enable IPMI on target servers.
-- Servers require a manual PXE boot after the first run of the provision tool
-
-For more information regarding switch-based discovery, `click here <switch-based.html>`_
-
-
 **bmc**
 
 Omnia can also discover nodes via their iDRAC using IPMI.
@@ -70,23 +67,10 @@ Omnia can also discover nodes via their iDRAC using IPMI.
     - LOM architecture is supported (including cloud enclosures: C6420, C6520, C6620).
 **Cons**
 
-    - For iDRACs that are not DHCP enabled (that is, Static), users need to enable IPMI manually.
+    - For iDRACs that are not DHCP enabled (ie Static), users need to enable IPMI manually.
 
 
 For more information regarding BMC, `click here <bmc.html>`_
 
 
-**snmpwalk**
-
-Omnia can query known switches (by IP and community string) for information on target node MAC IDs.
-
-**Pros**
-    - The method can be applied to large clusters.
-    - User intervention is minimal.
-**Cons**
-    - Switches should be SNMP enabled.
-    - Servers require a manual PXE boot if iDRAC IPs are not configured.
-    - PXE NIC ranges should contain IPs that are double the iDRACs present (as NIC and iDRAC MACs may need to be mapped).
-    - LOM architecture is not supported (including cloud enclosures: C6420, C6520, C6620).
-For more information regarding snmpwalk, `click here <snmp.html>`_
 

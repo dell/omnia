@@ -4,15 +4,11 @@ Red Hat Enterprise Linux
 ========== ============= =============
 OS Version Control Plane Cluster  Nodes
 ========== ============= =============
-8.1        No            Yes
-8.2        No            Yes
-8.3        No            Yes
-8.4        Yes           Yes
-8.5        Yes           Yes
 8.6        Yes           Yes
-8.7        Yes           Yes
+8.7 [1]_   Yes           Yes
+8.8        Yes           Yes
 ========== ============= =============
 
-.. note::
-    * To access offline repositories, it's recommended to deploy the DVD (full) edition of the operating system on cluster nodes.
-    * For RHEL 8.5 and below, ensure that RHEL subscription is enabled OR sshpass is available to install or download to the control plane (from any local repository).
+.. [1] This version of RHEL does not support vLLM installation via Omnia.
+
+.. note::  Always deploy the DVD Edition of the OS on cluster  nodes to access offline repos.

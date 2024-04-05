@@ -5,7 +5,7 @@ To install multiple packages on target nodes in a bulk operation, the ``package_
 
 **Prerequisites**
 
-    * All target nodes should be running RHEL or Rocky (Versions 8.4, 8.5 or 8.6).
+    * All target nodes should be running RHEL or Rocky.
     * Download the packages (RPMs) for the target nodes and place them in this folder:  ``/install/post/otherpkgs/<Provision OS.Version>/x86_64/custom_software/Packages``.
 
         .. note:: Do not use ISO files for updates or package installations.
@@ -47,7 +47,7 @@ To customize the package update, enter the following parameters in ``utils/packa
 |                  |      * ``os``                                                                                                                                                                             |
 |                  |      * ``other`` <- Default                                                                                                                                                               |
 +------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| nodelist         | Comma separated list of all target nodes in the cluster.                                                                                                                                  |
+| nodelist         | comma-separated list of all target nodes in the cluster.                                                                                                                                  |
 |      ``string``  |                                                                                                                                                                                           |
 |      Required    |      **Default value**: ``all``                                                                                                                                                           |
 +------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+

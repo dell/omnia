@@ -32,9 +32,9 @@ k8s_package_names:
   - kubelet
   - kubectl
 k8s_packages:
-  - "kubelet-{{ hostvars['127.0.0.1']['k8s_version'] }}"
-  - "kubeadm-{{ hostvars['127.0.0.1']['k8s_version'] }}"
-  - "kubectl-{{ hostvars['127.0.0.1']['k8s_version'] }}"
+  - "kubelet-1.26.0"
+  - "kubeadm-1.26.0"
+  - "kubectl-1.26.0"
 docker_packages:
   - docker-ce-cli-24.0.4
   - docker-ce-24.0.4

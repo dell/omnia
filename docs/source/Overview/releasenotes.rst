@@ -1,6 +1,38 @@
 Releases
 ============
 
+1.6
+----
+
+*	WACO support with Ubuntu 22.04 OS:
+    *	`Local repository and registry creation for packages and container images. <../InstallationGuides/LocalRepo/index.html>`_
+    *	`Cluster provision with Ubuntu 22.04 OS. <../InstallationGuides/InstallingProvisionTool/index.html>`_
+    *	`AMD GPU driver and ROCm installation. <../Roles/Accelerator/index.html>`_
+    *	`Broadcom RoCE driver installation. <../InstallationGuides/LocalRepo/index.html>`_
+    *	`IP configuration on the additional NICs: IPv4 support <../InstallationGuides/InstallingProvisionTool/AdditionalNIC.html>`_
+    *	`Kubernetes installation. <../InstallationGuides/BuildingClusters/index.html>`_
+    *	`NFS client/server configuration. <../InstallationGuides/BuildingClusters/NFS.html>`_
+    *	`OpenLDAP support with documented support for replication. <../Roles/Security/index.html>`_
+    *	AI Software Stack support including the installation of the following tools:
+
+        *	`Jupyter notebook <../Roles/Platform/InstallJupyterhub.html>`_
+
+        *	`Kubeflow <../Roles/Platform/kubeflow.html>`_
+
+        *	`Kserve <../Roles/Platform/kserve.html>`_
+
+        *	`Pytorch <../Roles/Platform/Pytorch.html>`_
+
+        *	`Tensorflow <../Roles/Platform/TensorFlow.html>`_
+
+        *	`vLLM (MI210x support) <../Roles/Platform/SetupvLLM.html>`_
+
+*	Additional Features
+    *	`RHEL 8.8 support <SupportMatrix/OperatingSystems/RedHat.html>`_
+    *	`OFED Installation <../InstallationGuides/LocalRepo/index.html>`_
+    *	`CUDA Driver installation <../Roles/Accelerator/index.html>`_
+    *	`Add <../InstallationGuides/addinganewnode.html>`_ / `remove <../InstallationGuides/deletenode.html>`_ nodes to the cluster.
+
 1.5
 ----
 
@@ -47,7 +79,7 @@ Releases
 
 *	Host aliasing for Scheduler and IPA authentication.
 
-*	Login and Manager Node access from both public and private NIC.
+*	Login and kube_control_plane access from both public and private NIC.
 
 *	Validation check enhancements:
 
@@ -197,7 +229,7 @@ Releases
 
 * Omnia can deploy cluster  nodes with a single NIC.
 
-* All Cluster metrics can be viewed using Grafana on the Control plane (as opposed to checking the manager node on each cluster)
+* All Cluster metrics can be viewed using Grafana on the Control plane (as opposed to checking the kube_control_plane on each cluster)
 
 * AWX node inventory now displays service tags with the relevant operating system.
 

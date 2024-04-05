@@ -5,7 +5,7 @@ This topic explains how to manually install oneAPI for MPI jobs. To install oneA
 
 **Pre-requisites**
 
-* An Omnia **slurm** cluster running with at least 2 nodes: 1 manager and 1 compute.
+* An Omnia **slurm** cluster running with at least 2 nodes: 1 slurm_control_node and 1 slurm_node.
 * Verify that the target nodes are in the ``booted`` state. For more information, `click here <../InstallingProvisionTool/ViewingDB.html>`_.
 
 
