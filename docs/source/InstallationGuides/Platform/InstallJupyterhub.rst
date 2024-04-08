@@ -48,9 +48,9 @@ Using Helm charts, Omnia can install Jupyterhub on Kubernetes clusters. Once Jup
         jupyterhub    proxy-api      ClusterIP      xx.xx.xx.xx      <none>        8001/TCP                 2d2h
         jupyterhub    proxy-public   LoadBalancer   xx.xx.xx.xx   xx.xx.xx.xx    80:31134/TCP               2d2h
 
-The IP address is listed against ``proxy-public``.
+The IP address is listed against ``proxy-public`` under ``External IP``.
 
-3. For the first log in, use the Login Node. Ensure the login node has an OS installed with GUI support. Use any browser to log in with user credentials.
+3. The Jupyterhub GUI should be accessible from the control plane GUI. Use any browser to log in with user credentials.
 
 .. image:: ../../images/Jupyterhub_Login.png
 
