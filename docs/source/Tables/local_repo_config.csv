@@ -72,6 +72,7 @@ Required","* A list of all the repo urls from where rpms will be downloaded for 
 * 'url' defines the baseurl for the repository.
 * 'gpgkey' defines gpgkey for the repository. If 'gpgkey' is omitted, then gpgcheck=0 is set for that repository
 * This value is not validated by Omnia. Any errors can cause Omnia to fail.
+* Ensure that all URLs listed below are reachable to the control plane.
 
 **Default value**: ::
 
@@ -91,6 +92,7 @@ Required","* A list of all the repo urls from where rpms will be downloaded for 
 * 'url' defines the baseurl for the repository.
 * 'gpgkey' defines gpgkey for the repository. If 'gpgkey' is omitted, then gpgcheck=0 is set for that repository
 * This value is not validated by Omnia. Any errors can cause Omnia to fail.
+* Ensure that all URLs listed below are reachable to the control plane.
 
 **Default value**: ::
 
@@ -118,6 +120,7 @@ Required","* A list of all the repo urls from where rpms will be downloaded for 
 * 'url' defines the baseurl for the repository.
 * 'gpgkey' defines gpgkey for the repository. If 'gpgkey' is omitted, then gpgcheck=0 is set for that repository
 * This value is not validated by Omnia. Any errors can cause Omnia to fail.
+* Ensure that all URLs listed below are reachable to the control plane.
 
 **Default value**: ::
 
