@@ -21,17 +21,17 @@ With an Ansible script, deploy vLLM on both the kube_node and kube_control_node.
 
 * Use ``local_repo.yml`` to create an offline vLLM repository. For more information, `click here. <../../InstallationGuides/LocalRepo/vLLM.html>`_
 
-    **[Optional]**
+**[Optional prerequisites]**
 
-    * Ensure the system has enough available space. (Approximately 100GiB is required for the vLLM image. Any additional scripting will take disk capacity outside the image.)
+* Ensure the system has enough available space. (Approximately 100GiB is required for the vLLM image. Any additional scripting will take disk capacity outside the image.)
 
-    * Ensure the passed inventory file has a ``kube_control_plane`` and ``kube_node_group`` listing all cluster nodes.
+* Ensure the passed inventory file has a ``kube_control_plane`` and ``kube_node_group`` listing all cluster nodes.
 
-    * Update the ``/input/software_config.json`` file with the correct vLLM version required. The default value is ``vllm-v0.2.4`` for AMD container and ``vllm latest`` for NVidia.
+* Update the ``/input/software_config.json`` file with the correct vLLM version required. The default value is ``vllm-v0.2.4`` for AMD container and ``vllm latest`` for NVidia.
 
-    * Omnia deploys the vLLM pip installation for NVidia GPU, or ``embeddedllminfo/vllm-rocm:vllm-v0.2.4`` container image for AMD GPU.
+* Omnia deploys the vLLM pip installation for NVidia GPU, or ``embeddedllminfo/vllm-rocm:vllm-v0.2.4`` container image for AMD GPU.
 
-    * Nerdctl does not support mounting directories as devices because it is not a feature of containerd (The runtime that nerdctl uses). Individual files need to be attached while running nerdctl.
+* Nerdctl does not support mounting directories as devices because it is not a feature of containerd (The runtime that nerdctl uses). Individual files need to be attached while running nerdctl.
 
 
 
