@@ -24,7 +24,9 @@ To create local repositories, run the following commands: ::
     cd local_repo
     ansible-playbook local_repo.yml
 
-Verify changes made by the playbook by running ``cat /etc/containerd/certs.d/_default/hosts.toml`` on compute nodes. View the status of packages for the current run of ``local_repo.yml`` in ``/opt/omnia/offline/download_package_status.csv``.
+Verify changes made by the playbook by running ``cat /etc/containerd/certs.d/_default/hosts.toml`` on compute nodes.
+
+.. note:: View the status of packages for the current run of ``local_repo.yml`` in ``/opt/omnia/offline/download_package_status.csv``.
 
 To fetch images from the ``user_registry`` or the Omnia local registry, run the below commands:
 
