@@ -25,7 +25,7 @@ Required","* The type of offline configuration user needs.
 * When the value is set to ``never``, Omnia does not create a local repository/registry. All the packages/images are directly downloaded on the cluster.
 .. note::
   * After ``local_repo.yml`` has run, the value of ``repo_config`` in ``input/software_config.json`` cannot be updated without running the `control_plane_cleanup.yml <../CleanUpScript.html>`_ script first.
-  *  Irrespective of the value of ``repo_config``, all local repositories that are not available as images, debian packages, or RPMs will be configured locally.
+  * Irrespective of the value of ``repo_config``, all local repositories that are not available as images, debian packages, or RPMs will be downloaded and configured locally on the control plane.
 
 * **Accepted values**:
 
