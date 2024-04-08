@@ -50,7 +50,7 @@ Using Helm charts, Omnia can install Jupyterhub on Kubernetes clusters. Once Jup
 
 The IP address is listed against ``proxy-public`` under ``External IP``.
 
-3. The Jupyterhub GUI should be accessible from the control plane GUI. Use any browser to log in with user credentials.
+3. The Jupyterhub GUI should be accessible from the control plane GUI via the external IP mentioned above. Use any browser to log in with user credentials.
 
 .. image:: ../../images/Jupyterhub_Login.png
 
