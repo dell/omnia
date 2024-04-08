@@ -147,7 +147,7 @@ def get_kubectl_get_cs():
 
     output=invoke_commands.call_command('sudo kubectl get --raw=/livez?verbose')
     if output is not None:
-        component_status = common_parser.query_from_txt(output, "healthz check (\\w+)")
+        component_status = common_parser.query_from_txt(output, "livez check (\\w+)")
         if component_status is not None:
             if component_status== "passed":
                 dict_cluster_parameter_kubectl_cs["kubernetescomponentsstatus"]=\
@@ -156,7 +156,7 @@ def get_kubectl_get_cs():
                 dict_cluster_parameter_kubectl_cs["kubernetescomponentsstatus"]=\
                                             utility.Result.FAILURE.value
         else:
-            common_logging.log_error("data_collector_kubernetes:get_kubectl_get_cs","component healthz check information not found.")
+            common_logging.log_error("data_collector_kubernetes:get_kubectl_get_cs","component livez check information not found.")
     else:
         common_logging.log_error("data_collector_kubernetes:get_kubectl_get_cs","kubectl get --raw=/livez?verbose command output is None")
     return dict_cluster_parameter_kubectl_cs
