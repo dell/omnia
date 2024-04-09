@@ -10,7 +10,7 @@ PowerEdge servers
 
 .. [1] The R760xa supports both H100 and A100 GPUs.
 
-.. note::  Since Cloud Enclosures only support shared LOM connectivity,, it is recommended that `BMC <../../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/bmc.html>`_ or `Switch-based <../../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/switch-based.html>`_ methods of discovery are used.
+.. note::  Since Cloud Enclosures only support shared LOM connectivity, it is recommended that `BMC <../../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/bmc.html>`_ or `Switch-based <../../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/switch-based.html>`_ methods of discovery are used.
 
 AMD servers
 -----------
