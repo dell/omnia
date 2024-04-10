@@ -3,7 +3,7 @@
 }
 .wy-nav-content {
     background-color: #ffffff;
-    max-width: none;
+    max-width: none; !important;
 }
 .wy-side-nav-search img {
     display: block;
