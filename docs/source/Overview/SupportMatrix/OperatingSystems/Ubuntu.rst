@@ -13,3 +13,4 @@ OS Version Control Plane Cluster  Nodes
 .. note::
     * Only the live-server version of Ubuntu for provisioning via Omnia.
     * Ubuntu does not support the use of Slurm as a clustering software. As a result, benchmarking software and FreeIPA is not supported on Ubuntu.
+    * Ubuntu does not support the use of powervault storage.
