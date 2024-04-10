@@ -76,6 +76,16 @@ To enable the JSON gateway: ``json-gw enable``
 
 **Resolution**: Verify all connectivity and re-run the playbook.
 
+⦾ **Why does any script that installs software fail with "The checksum for <software repository path> did not match."**?
+
+**Potential Cause**: A local repository for the software was not configured by ``local_repo.yml``.
+
+**Resolution**:
+
+    * Delete the tarball/image/deb of the software from ``<repo_path>/cluster/tarball``.
+    * Re-run ``local_repo.yml``.
+    * Re-run the script to install the software.
+
 
 ⦾ **Why do Kubernetes Pods show "ImagePullBack" or "ErrPullImage" errors in their status?**
 
