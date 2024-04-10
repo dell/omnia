@@ -8,7 +8,7 @@ Running prereq.sh
 
 .. note::
     * If SELinux is not disabled, it will be disabled by the script and the user will be prompted to reboot the control plane.
-    * The file ``input/software_config.json`` is overwritten with the default value when ``prereq.sh`` is executed.
+    * The file ``input/software_config.json`` is overwritten with the default value (based on the operating system) when ``prereq.sh`` is executed.
 
 
 
