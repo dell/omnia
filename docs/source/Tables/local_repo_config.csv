@@ -126,11 +126,12 @@ Required","* A list of all the repo urls from where rpms will be downloaded for 
 
 **Default value**: ::
 
-         - { url: ""https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"", gpgkey: ""https://download.docker.com/linux/ubuntu/gpg"" }
-         - { url: ""https://repo.radeon.com/rocm/apt/{{ rocm_version }} {{ ansible_distribution_release }} main"", gpgkey: ""https://repo.radeon.com/rocm/rocm.gpg.key"" }
-         - { url: ""https://www.beegfs.io/release/beegfs_{{beegfs_version}} {{ ansible_distribution_release }} non-free"", gpgkey: ""https://www.beegfs.io/release/beegfs_{{beegfs_version}}/gpg/GPG-KEY-beegfs"" }
-         - { url: ""https://repo.radeon.com/amdgpu/{{ amdgpu_version }}/ubuntu {{ ansible_distribution_release }} main"", gpgkey: ""https://repo.radeon.com/rocm/rocm.gpg.key"" }
-         - { url: ""https://ltb-project.org/debian/openldap25/bookworm bookworm main"", gpgkey: ""https://ltb-project.org/documentation/_static/RPM-GPG-KEY-LTB-project"" }
-         - { url: ""http://security.ubuntu.com/ubuntu focal-security main"", gpgkey: """"}
-
+       - { url: ""https://download.docker.com/linux/ubuntu {{ os_release }} stable"", gpgkey: ""https://download.docker.com/linux/ubuntu/gpg"" }
+       - { url: ""https://repo.radeon.com/rocm/apt/{{ rocm_version }} {{ os_release }} main"", gpgkey: ""https://repo.radeon.com/rocm/rocm.gpg.key"" }
+       - { url: ""https://www.beegfs.io/release/beegfs_{{beegfs_version}} {{ os_release }} non-free"", gpgkey: ""https://www.beegfs.io/release/beegfs_{{beegfs_version}}/gpg/GPG-KEY-beegfs"" }
+       - { url: ""https://repo.radeon.com/amdgpu/{{ amdgpu_version }}/ubuntu {{ os_release }} main"", gpgkey: ""https://repo.radeon.com/rocm/rocm.gpg.key"" }
+       - { url: ""https://ltb-project.org/debian/openldap25/jammy jammy main"", publickey: ""https://ltb-project.org/documentation/_static/RPM-GPG-KEY-LTB-project"" }
+       - { url: ""https://nvidia.github.io/libnvidia-container/stable/deb/amd64 /"", gpgkey: ""https://nvidia.github.io/libnvidia-container/gpgkey"" }
+       - { url: ""http://ppa.launchpad.net/deadsnakes/ppa/ubuntu {{ os_release }} main"", gpgkey: """" }
+       - { url: ""https://a2o.github.io/snoopy-packages/repo/ubuntu {{ os_release }} stable"", publickey: ""https://a2o.github.io/snoopy-packages/snoopy-packages-key.pub"" }
          "
