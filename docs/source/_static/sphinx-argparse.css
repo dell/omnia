@@ -1,6 +1,5 @@
 .wy-table-responsive table td {
     white-space: inherit !important;
-    word-break: break-all; !important;
     overflow-wrap: break-word; !important;
     background-color: white;
 }
