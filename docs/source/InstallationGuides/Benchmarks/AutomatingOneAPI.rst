@@ -1,12 +1,16 @@
 Automate installation oneAPI on Intel processors for MPI jobs
 ------------------------------------------------------------------
 
-This topic explains how to automatically update servers for MPI jobs. To manually install oneAPI, `click here. <OneAPI.html>`_
+This topic explains how to automatically update servers for MPI jobs.
+
+.. caution:: oneAPI is not supported on Ubuntu clusters.
 
 **Pre-requisites**
 
 * ``discovery_provision.yml`` has been executed.
+* The cluster has been set up with kubernetes.
 * An Omnia **slurm** cluster has been set up by ``omnia.yml`` running with at least 2 nodes: 1 slurm_control_node and 1 slurm_node.
+* A local repository has been set up by listing ``{"name": "intel_benchmarks"},`` in ``input/software_config.json`` and running ``local_repo.yml``. For more information, `click here. <../LocalRepo/index.html>`_
 * Verify that the target nodes are in the ``booted`` state. For more information, `click here <../InstallingProvisionTool/ViewingDB.html>`_.
 
 **To run the playbook**::

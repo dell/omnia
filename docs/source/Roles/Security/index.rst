@@ -67,8 +67,8 @@ Below is a sample file: ::
 
 .. note:: Avoid whitespaces when using an LDIF file for user creation. Extra spaces in the input data may be encrypted by OpenLDAP and cause access failures.
 
-2. Run the command ``ldapadd -D <enter admin binddn > -w < bind_password > -f create_user.ldif`` to execute the LDIF file and create the account.
-3. To set up a password for this account, use the command ``ldappasswd -D <enter admin binddn > -w < bind_password > -S <user_dn>``. The value of ``user_dn`` is the distinguished name that indicates where the user was created. (In this example, ``ldapuser,ou=People,dc=omnia,dc=test``)
+2. Run the command ``ldapadd -D <admin database username> -w <admin database password> -f create_user.ldif`` to execute the LDIF file and create the account.
+3. To set up a password for this account, use the command ``ldappasswd -D <admin database username> -w <admin database password> -S <user_dn>``. The value of ``user_dn`` is the distinguished name that indicates where the user was created. (In this example, ``ldapuser,ou=People,dc=omnia,dc=test``)
 
 
 
@@ -177,7 +177,7 @@ Run: ::
     cd security
     ansible-playbook security.yml -i inventory
 
-The inventory should contain auth_server as per the inventory file in `samplefiles <../../samplefiles.html#inventory-file>`_. The inventory file is case-sensitive. Follow the casing provided in the sample file link.
+The inventory should contain auth_server as per the inventory file in `samplefiles <../../samplefiles.html#inventory-file>`_. The inventory file is case-sensitive. Follow the format provided in the sample file link.
 
     * Do not include the IP of the control plane or local host in the auth_server group in the passed inventory.
     * To customize the security features on the login node, fill out the parameters in ``input/login_node_security_config.yml``.

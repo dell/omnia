@@ -10,21 +10,19 @@ With an Ansible script, deploy TensorFlow on both ``kube_nodes`` and the ``kube_
 
 * Ensure nerdctl is available on all cluster nodes.
 
-* If GPUs are present on the target nodes, install NVidia CUDA (with containerd) or AMD ROCm drivers during provisioning. CPUs do not require any additional drivers.PyTorch
+* If GPUs are present on the target nodes, install NVidia CUDA (with containerd) or AMD ROCm drivers during provisioning. CPUs do not require any additional drivers.
 
 * Use ``local_repo.yml`` to create an offline TensorFlow repository. For more information, `click here <../../>`_.
 
+**[Optional prerequisites]**
 
+* Ensure the system has enough space.
 
-    **[Optional]**
+* Ensure the passed inventory file includes a ``kube_control_plane`` and a ``kube_node_group`` listing all cluster nodes. `Click here <../../samplefiles.html>`_ for a sample file.
 
-    * Ensure the system has enough space.
+* Nerdctl does not support mounting directories as devices because it is not a feature of containerd (The runtime that nerdctl uses). Individual files need to be attached while running nerdctl.
 
-    * Ensure the passed inventory file includes a ``kube_control_plane`` and a ``kube_node_group`` listing all cluster nodes. `Click here <../../samplefiles.html>`_ for a sample file.
-
-    * Nerdctl does not support mounting directories as devices because it is not a feature of containerd (The runtime that nerdctl uses). Individual files need to be attached while running nerdctl.
-
-    * Container Network Interface should be enabled with nerdctl.
+* Container Network Interface should be enabled with nerdctl.
 
 
 **Deploying TensorFlow**

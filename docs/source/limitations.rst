@@ -10,10 +10,10 @@ Limitations
    on the single node.
 -  Only one storage instance (Powervault) is currently supported in the
    HPC cluster.
--  Omnia supports only basic telemetry configurations. Changing data
-   fetching time intervals for telemetry is not supported.
+-  Omnia supports only basic telemetry configurations. Altering the time intervals for telemetry data collection is not supported.
 -  Slurm cluster metrics will only be fetched from clusters configured
    by Omnia.
 -  All iDRACs must have the same username and password.
 - Currently, Omnia only supports the splitting of switch ports. Switch ports cannot be un-split using the `switch configuration script <InstallationGuides/ConfiguringSwitches/index.html>`_.
 - The IP subnet 10.4.0.0 cannot be used for any networks on the Omnia cluster as it is reserved for Nerdctl.
+- Installation of vLLM and racadam via Omnia is not supported on Ubuntu 20.04.

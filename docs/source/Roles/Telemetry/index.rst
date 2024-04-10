@@ -95,7 +95,7 @@ Datasources configured by Omnia can be viewed as seen below.
 
     iii. The log browser allows you to filter logs by job, node and/or user.
 
-Ex: ::
+Example ::
 
     (job)= "cluster deployment logs") |= "nodename"
     (job="compute log messages") |= "nodename" |="node_username"

@@ -3,7 +3,10 @@ Remove Slurm/K8s configuration from a node
 
 Use this playbook to remove slurm and kubernetes configuration from slurm or kubernetes worker nodes  of the cluster and stop all clustering software on the worker nodes.
 
-.. note:: All target nodes should be drained before executing the playbook. If a job is running on any target nodes, the playbook may timeout waiting for the node state to change.
+.. note::
+    * All target nodes should be drained before executing the playbook. If a job is running on any target nodes, the playbook may timeout waiting for the node state to change.
+    * When running ``remove_node_configuration.yml``, ensure that the ``input/storage_config.yml`` and ``input/omnia_config.yml`` have not been edited since ``omnia.yml`` was run.
+
 
 **Configurations performed by the playbook**
 
@@ -29,7 +32,9 @@ Soft reset the cluster
 -----------------------
 Use this playbook to stop all Slurm and Kubernetes services. This action will destroy the cluster.
 
-.. note:: All target nodes should be drained before executing the playbook. If a job is running on any target nodes, the playbook may timeout waiting for the node state to change.
+.. note::
+    * All target nodes should be drained before executing the playbook. If a job is running on any target nodes, the playbook may timeout waiting for the node state to change.
+    * When running ``reset_cluster_configuration.yml``, ensure that the ``input/storage_config.yml`` and ``input/omnia_config.yml`` have not been edited since ``omnia.yml`` was run.
 
 **Configurations performed by the playbook**
 
@@ -43,10 +48,10 @@ Run the playbook using the following commands: ::
         cd utils
         ansible-playbook reset_cluster_configuration.yml -i inventory
 
-To specify only Slurm or Kubernetes nodes while running the playbook, use the tags ``slurm_node`` or ``kube_node``. That is:
+To specify only Slurm or Kubernetes clusters while running the playbook, use the tags ``slurm_cluster`` or ``k8s_cluster``. That is:
 
-To reset only slurm nodes, use ``ansible-playbook reset_cluster_configuration.yml -i inventory --tags slurm_node``.
-To reset only kubernetes nodes, use ``ansible-playbook reset_cluster_configuration.yml -i inventory --tags kube_node``.
+To reset a slurm cluster, use ``ansible-playbook reset_cluster_configuration.yml -i inventory --tags slurm_cluster``.
+To reset a kubernetes cluster, use ``ansible-playbook reset_cluster_configuration.yml -i inventory --tags k8s_cluster``.
 
 To skip confirmation while running the playbook, use ``ansible-playbook reset_cluster_configuration.yml -i inventory --extra-vars skip_confirmation=yes`` or ``ansible-playbook remove_node_configuration.yml -i inventory -e  skip_confirmation=yes``.
 
@@ -55,9 +60,6 @@ The inventory file passed for ``reset_cluster_configuration`` should follow the 
 *For a slurm cluster* ::
 
     [slurm_control_node]
-    {ip or servicetag}
-
-    [slurmdbd]
     {ip or servicetag}
 
     [slurm_node]
