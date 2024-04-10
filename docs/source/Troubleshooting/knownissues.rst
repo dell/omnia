@@ -70,7 +70,7 @@ To enable the JSON gateway: ``json-gw enable``
 3. On the server, go to **BIOS Setup -> Network Settings -> PXE Device**. For each listed device (typically 4), configure an active NIC under ``PXE device settings``
 
 
-⦾ **Why does running local_repo.yml fail with "Connection failure: [Errno 104] Connection reset by peer"?**
+⦾ **Why does running local_repo.yml fail with connectivity errors?**
 
 **Potential Cause**: The control plane was unable to reach a required online resource due to a network glitch.
 
