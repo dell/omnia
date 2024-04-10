@@ -26,7 +26,9 @@ To create local repositories, run the following commands: ::
 
 Verify changes made by the playbook by running ``cat /etc/containerd/certs.d/_default/hosts.toml`` on compute nodes.
 
-.. note:: View the status of packages for the current run of ``local_repo.yml`` in ``/opt/omnia/offline/download_package_status.csv``.
+.. note::
+    * View the status of packages for the current run of ``local_repo.yml`` in ``/opt/omnia/offline/download_package_status.csv``.
+    * If any software packages failed to download during the execution of this script, scripts that rely on the package for their working (that is, scripts that install the software)  may fail.
 
 To fetch images from the ``user_registry`` or the Omnia local registry, run the below commands:
 
