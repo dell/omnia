@@ -118,9 +118,11 @@ Required","* A list of all the repo urls from where rpms will be downloaded for 
 
 Required","* A list of all the repo urls from where rpms will be downloaded for Omnia features on Ubuntu clusters.
 * 'url' defines the baseurl for the repository.
-* 'gpgkey' defines gpgkey for the repository. If 'gpgkey' is omitted, then gpgcheck=0 is set for that repository
+* 'gpgkey' defines gpgkey for the repository. If 'gpgkey' is omitted, the repository will be marked as ""trusted"".
+* On clusters running Ubuntu, if gpgkeys are not available, public keys are accepted in place of gpgkeys. However, the field public key cannot be left blank.
 * This value is not validated by Omnia. Any errors can cause Omnia to fail.
 * Ensure that all URLs listed below are reachable to the control plane.
+
 
 **Default value**: ::
 
