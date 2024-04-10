@@ -21,6 +21,8 @@ Manually collect PXE NIC information for target servers and define them to Omnia
     * Target servers should be configured to boot in PXE mode with the appropriate NIC as the first boot device.
     * To assign IPs on the BMC network while discovering servers using a mapping file, target servers should be in DHCP mode or switch details should be provided.
 
+.. caution:: Details provided in the mapping file are not validated. If incorrect details are passed on to the Omnia DB (this takes place when ``discovery.yml`` or ``discovery_provision.yml`` is run), delete the nodes with incorrect information using `the linked script. <../../deletenode.html#delete-provisioned-node>`_ If the ``bmc_ip`` alone is incorrect, manually PXE boot the target server to update the database.
+
 To continue to the next steps:
 
 * `Provisioning the cluster <../installprovisiontool.html>`_
