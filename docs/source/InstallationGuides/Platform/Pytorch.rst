@@ -14,13 +14,13 @@ PyTorch is a popular open-source deep learning framework, renowned for its dynam
 
 
 
-    **[Optional]**
+**[Optional prerequisites]**
 
-    * Ensure the system has enough space.
+* Ensure the system has enough space.
 
-    * Ensure the passed inventory file includes a ``kube_control_plane`` and a ``kube_node_group`` listing all cluster nodes. `Click here <../../samplefiles.html>`_ for a sample file.
+* Ensure the passed inventory file includes a ``kube_control_plane`` and a ``kube_node_group`` listing all cluster nodes. `Click here <../../samplefiles.html>`_ for a sample file.
 
-    * Nerdctl does not support mounting directories as devices because it is not a feature of containerd (The runtime that nerdctl uses). Individual files need to be attached while running nerdctl.
+* Nerdctl does not support mounting directories as devices because it is not a feature of containerd (The runtime that nerdctl uses). Individual files need to be attached while running nerdctl.
 
 
 **Deploying PyTorch**

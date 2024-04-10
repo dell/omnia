@@ -26,6 +26,10 @@ To create local repositories, run the following commands: ::
 
 Verify changes made by the playbook by running ``cat /etc/containerd/certs.d/_default/hosts.toml`` on compute nodes.
 
+.. note::
+    * View the status of packages for the current run of ``local_repo.yml`` in ``/opt/omnia/offline/download_package_status.csv``.
+    * If any software packages failed to download during the execution of this script, scripts that rely on the package for their working (that is, scripts that install the software)  may fail.
+
 To fetch images from the ``user_registry`` or the Omnia local registry, run the below commands:
 
     * Images defined with versions: ``nerdctl pull <global_registry>/<image_name>:<tag>``
@@ -35,6 +39,8 @@ To fetch images from the ``user_registry`` or the Omnia local registry, run the 
 
 
     * After ``local_repo.yml`` has run, the value of ``repo_config`` in ``input/software_config.json`` cannot be updated without running the `control_plane_cleanup.yml <../CleanUpScript.html>`_ script first.
+
+    * To configure additional local repositories after running ``local_repo.yml``, update ``software_config.json`` and re-run ``local_repo.yml``.
 
     * For images coming from ``gcr.io``, digests are defined as tags are not available. Omnia gives a custom tag of ‘omnia’ to these images. If such images need to be taken from the ``user_registry``, use one of the below steps:
 

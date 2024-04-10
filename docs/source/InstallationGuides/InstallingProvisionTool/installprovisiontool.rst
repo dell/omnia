@@ -98,13 +98,15 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
     To call this playbook individually, run::
 
         cd provision
-        ansible-playbook discovery_provision.yml
+        ansible-playbook provision.yml
 
 ----
 After successfully running ``discovery_provision.yml``, go to `Building Clusters <../BuildingClusters/index.html>`_ to setup Slurm, Kubernetes, NFS, BeeGFS and Authentication.
 ----
 
 .. note::
+
+    * racadm and ipmitool are installed on all target nodes except Ubuntu 20.04.
 
     * Ansible playbooks by default run concurrently on 5 nodes. To change this, update the ``forks`` value in ``ansible.cfg`` present in the respective playbook directory.
 

@@ -40,7 +40,7 @@ To customize the package update, enter the following parameters in ``utils/packa
 |                  | * All packages in this list will be installed/updated on remote nodes                                                                                                                     |
 |                  | **Default value**: ``"/install/post/otherpkgs/rhels8.6.0/x86_64/custom_software/update.otherpkgs.pkglist"``                                                                               |
 +------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| package_type     | * Indicates whether the packages to be installed are ``os`` packages (ie   they are available in baseos or appstream) or ``other`` (ie they're not part of os repos, appstream or baseos).|
+| package_type     | * Indicates whether the packages to be installed are ``os`` packages (they are available in baseos or appstream) or ``other`` (they're not part of os repos, appstream or baseos).        |
 |      ``string``  | * If the package is being downloaded to ``/install/post/otherpkgs/<Provision OS.Version>/x86_64/custom_software/Packages/``, use the value ``other``.                                     |
 |      Required    | Choices:                                                                                                                                                                                  |
 |                  |                                                                                                                                                                                           |

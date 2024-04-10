@@ -1,7 +1,7 @@
 Creating node inventory
-------------------------
+========================
 
-When ``discovery_provision.yml``, ``prepare_cp.yml``, or ``utils/inventory_tagging.yml`` is run, a set of inventory files is created in ``/opt/omnia/omnia_inventory/``. The inventories are created based on the type of CPUs and GPUs nodes have. The inventory files are:
+When ``discovery_provision.yml``, ``prepare_cp.yml``, or ``utils/inventory_tagging.yml`` is run, a set of inventory files is created in ``/opt/omnia/omnia_inventory/`` based on `the Omnia database. <InstallingProvisionTool/ViewingDB.html>`_ The inventories are created based on the type of CPUs and GPUs nodes have. The inventory files are:
 
       * ``compute_cpu_amd`` ::
 
@@ -41,7 +41,7 @@ When ``discovery_provision.yml``, ``prepare_cp.yml``, or ``utils/inventory_taggi
 
                   * Node status must be "booted" in DB.
                   * Node's service tag information is present in DB.
-      * To regenerate an inventory file, use the playbook ``utils/inventory_tagging.yml``.
+      * To regenerate all the inventory files, use the playbook ``utils/inventory_tagging.yml``.
 
 
 

@@ -10,7 +10,7 @@ Due to internal MAC ID conflicts on the target nodes, the MAC address will be li
 
 ⦾ **Why does the task Assign admin NIC IP fail during discovery_provision.yml with errors?**
 
-.. image:: ../images/AdminNICErrors.png <Update>
+.. image:: ../images/AdminNICErrors.png
 
 **Potential Cause:** Omnia validates the admin NIC IP on the control plane. If the user has not assigned an admin NIC IP in case of dedicated network interface type, an error message is returned. There is a parsing logic that is being applied on the blank IP and hence, the error displays twice.
 
@@ -24,7 +24,7 @@ Due to internal MAC ID conflicts on the target nodes, the MAC address will be li
 
 1. The server hardware does not allow for auto rebooting
 
-2. PXE booting is hung on the node
+2. The process of PXE booting the node has stalled.
 
 **Resolution**:
 
@@ -35,17 +35,17 @@ Due to internal MAC ID conflicts on the target nodes, the MAC address will be li
 
 ⦾ **Why does the Task [infiniband_switch_config : Authentication failure response] fail with the message 'Status code was -1 and not [302]: Request failed: <urlopen error [Errno 111] Connection refused>' on Infiniband Switches when running infiniband_switch_config.yml?**
 
-To configure a new Infiniband Switch, it is required that HTTP and JSON gateway be enabled. To verify that they are enabled, run:
+To configure a new Infiniband Switch, HTTP and JSON gateway must be enabled. To verify that they are enabled, run:
 
-``show web`` (To check if HTTP is enabled)
+To check if HTTP is enabled: ``show web``
 
-``show json-gw`` (To check if JSON Gateway is enabled)
+To check if JSON Gateway is enabled: ``show json-gw``
 
 To correct the issue, run:
 
-``web http enable`` (To enable the HTTP gateway)
+To enable the HTTP gateway: ``web http enable``
 
-``json-gw enable`` (To enable the JSON gateway)
+To enable the JSON gateway: ``json-gw enable``
 
 
 ⦾ **Why does PXE boot fail with tftp timeout or service timeout errors?**
@@ -70,6 +70,23 @@ To correct the issue, run:
 3. On the server, go to **BIOS Setup -> Network Settings -> PXE Device**. For each listed device (typically 4), configure an active NIC under ``PXE device settings``
 
 
+⦾ **Why does running local_repo.yml fail with connectivity errors?**
+
+**Potential Cause**: The control plane was unable to reach a required online resource due to a network glitch.
+
+**Resolution**: Verify all connectivity and re-run the playbook.
+
+⦾ **Why does any script that installs software fail with "The checksum for <software repository path> did not match."**?
+
+**Potential Cause**: A local repository for the software was not configured by ``local_repo.yml``.
+
+**Resolution**:
+
+    * Delete the tarball/image/deb of the software from ``<repo_path>/cluster/tarball``.
+    * Re-run ``local_repo.yml``.
+    * Re-run the script to install the software.
+
+
 ⦾ **Why do Kubernetes Pods show "ImagePullBack" or "ErrPullImage" errors in their status?**
 
 **Potential Cause**:
@@ -83,7 +100,7 @@ To correct the issue, run:
 
 .. note:: If the playbook is already executed and the pods are in **ImagePullBack** state, then run ``kubeadm reset -f`` in all the nodes before re-executing the playbook with the docker credentials.
 
-⦾ **Why does the task 'Gather facts from all the nodes' stuck when re-running ``omnia.yml``?**
+⦾ **Why does the task 'Gather facts from all the nodes' get stuck when re-running ``omnia.yml``?**
 
 **Potential Cause**: Corrupted entries in the ``/root/.ansible/cp/`` folder. For more information on this issue, `check this out <https://github.com/ansible/ansible/issues/17349>`_!
 
@@ -153,23 +170,23 @@ For more information, `click here. <https://github.com/kserve/kserve/issues/3372
 **Potential Cause**: The control_plane playbook does not support hostnames with an underscore in it such as 'mgmt_station'.
 
 As defined in RFC 822, the only legal characters are the following:
-1. Alphanumeric (a-z and 0-9): Both uppercase and lowercase letters are acceptable, and the hostname is case-insensitive. In other words, omnia.test is identical to OMNIA.TEST and Omnia.test.
+1. Alphanumeric (a-z and 0-9): Both uppercase and lowercase letters are acceptable, and the hostname is not case-sensitive. In other words, omnia.test is identical to OMNIA.TEST and Omnia.test.
 
 2. Hyphen (-): Neither the first nor the last character in a hostname field should be a hyphen.
 
-3. Period (.): The period should be used only to delimit fields in a hostname (e.g., dvader.empire.gov)
+3. Period (.): The period should be used only to delimit fields in a hostname (For example, dvader.empire.gov)
 
 
-⦾ **What to do when Kubeflow pods are in 'ImagePullBackOff' or 'ErrImagePull' status after executing kubeflow.yml:**
+⦾ **What to do when Kubeflow pods are in 'ImagePullBackOff' or 'ErrImagePull' status after executing kubeflow.yml?**
 
 
-**Potential Cause**: Your Docker pull limit has been exceeded. For more information, click [here](https://www.docker.com/increase-rate-limits)
+**Potential Cause**: Your Docker pull limit has been exceeded. For more information, `click here. <https://www.docker.com/increase-rate-limits>`_
 
 1. Delete Kubeflow deployment by executing the following command in kube_control_plane: ``kfctl delete -V -f /root/k8s/omnia-kubeflow/kfctl_k8s_istio.v1.0.2.yaml``
 
 2. Re-execute ``kubeflow.yml`` after 8-9 hours
 
-⦾ **What to do when omnia.yml fail with 'Error: kinit: Connection refused while getting default ccache' while completing the security role?**
+⦾ **What to do when omnia.yml fails while completing the security role, and returns the following error message: 'Error: kinit: Connection refused while getting default cache'?**
 
 1. Start the sssd-kcm.socket: ``systemctl start sssd-kcm.socket``
 
@@ -239,7 +256,7 @@ Recommended Actions:
 
 **Potential Cause**:
 
-* The required services for NFS may not be running:
+* The required services for NFS may not have been running:
 
     - nfs
     - rpc-bind
@@ -249,7 +266,7 @@ Recommended Actions:
 
 * Enable the required services using ``firewall-cmd  --permanent  --add-service=<service name>`` and then reload the firewall using ``firewall-cmd  --reload``.
 
-⦾ **What to do when omnia.yml fails with nfs-server.service might not be running on NFS Server. Please check or start services``?**
+⦾ **What to do when omnia.yml execution fails with nfs-server.service might not be running on NFS Server. Please check or start services``?**
 
 **Potential Cause**: nfs-server.service is not running on the target node.
 
@@ -300,7 +317,7 @@ Run the command ``kubectl get pods  namespace default`` to ensure **nfs-client**
 
 ⦾ **What to do if PowerVault throws the error: ``Error: The specified disk is not available. - Unavailable disk (0.x) in disk range '0.x-x'``:**
 
-1. Verify that the disk in question is not part of any pool: ``show disks``
+1. Verify that the disk in question is not part of any pool using: ``show disks``
 
 2. If the disk is part of a pool, remove it and try again.
 
@@ -309,7 +326,7 @@ Run the command ``kubectl get pods  namespace default`` to ensure **nfs-client**
 At any given time only one type of disk group can be created on the system. That is, all disk groups on the system have to exclusively be linear or virtual. To fix the issue, either delete the existing disk group or change the type of pool you are creating.
 
 
-⦾ **Why does the task 'nfs_client: Mount NFS client' fail with ``No route to host``?**
+⦾ **Why does the task 'nfs_client: Mount NFS client' fail with the message ``No route to host``?**
 
 **Potential Cause**:
 
@@ -317,7 +334,7 @@ At any given time only one type of disk group can be created on the system. That
 
 **Resolution**:
 
-* Ensure that the input paths are a perfect match down to the character to avoid any errors.
+* Ensure that the input paths are a perfect match to avoid any errors.
 
 
 ⦾ **Why is my NFS mount not visible on the client?**
@@ -350,7 +367,7 @@ At any given time only one type of disk group can be created on the system. That
 
 2. Open all ports required by BeeGFS: 8008, 8003, 8004, 8005 and 8006
 
-3. Check the [support matrix for RHEL or Rocky](../Support_Matrix/Software/Operating_Systems) to verify your set-up.
+3. Check the `support matrix for RHEL or Rocky <../Overview/SupportMatrix/OperatingSystems/index.html>`_ to verify your set-up.
 
 4. For further insight into the issue, check out ``/var/log/beegfs-client.log`` on nodes where the BeeGFS client is running.
 
@@ -367,14 +384,14 @@ The required services are not running on the node. Verify the service status usi
 
 **Resolution**:
 
-* Restart the services using: ::
+* Restart the services using:  ::
 
-    systemctl start sssd-kcm.socket
-    systemctl start sssd.service
+        systemctl start sssd-kcm.socket
+        systemctl start sssd.service
 
 * Re-run ``omnia.yml`` using: ::
 
-    ansible-playbook omnia.yml
+        ansible-playbook omnia.yml
 
 
 ⦾ **Why would FreeIPA server/client installation fail? (version 1.5 and below)**
@@ -382,7 +399,7 @@ The required services are not running on the node. Verify the service status usi
 
 **Potential Cause**:
 
-The hostnames of the auth server nodes are not set in the correct format.
+The hostnames of the auth server nodes are not configured in the correct format.
 
 **Resolution**:
 

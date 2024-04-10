@@ -7,24 +7,6 @@
 * The Length of the password should be at least 8.
 * The password must not contain -,\, ',""
 * **Default value**: ""password"""
-"**k8s_cni**
-
-     ``string``
-
-     Required  ","* Kubernetes SDN network.
-* Required when ``scheduler_type: ""k8s""``
-
-     Choices:
-
-     * ``""calico""``  <-   default
-     * ``""flannel""``             "
-"**pod_external_ip_range**
-
-     ``string``
-
-     Required       ","* These addresses will be used by Loadbalancer for assigning External IPs to K8s services
-* Make sure the IP range is not assigned to any node in the cluster.
-* **Sample values**: ""10.11.0.100-10.11.0.150"" , ""10.11.0.0/16""                            "
 "**ansible_config_file_path**
 
      ``string``

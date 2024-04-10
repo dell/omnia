@@ -15,7 +15,7 @@ Frequently asked questions
 
     * Hardware issues (Auto reboot may fail at POST)
 
-    * A virtual disk may not be created
+    * A virtual disk may not have been created
 
 
 **Resolution**:
@@ -128,7 +128,7 @@ If ``enable_omnia_nfs`` is true in ``input/omnia_config.yml``, follow the below 
 
 .. image:: ../images/ImportSCPiDRAC_fail.png
 
-**Potential Cause**: The target server may be hung during the booting process.
+**Potential Cause**: The target server may be stalled during the booting process.
 
 **Resolution**: Bring the target node up and re-run the script.
 
@@ -140,7 +140,7 @@ If ``enable_omnia_nfs`` is true in ``input/omnia_config.yml``, follow the below 
 
 For more information, `click here <https://github.com/xcat2/xcat-core/issues/7374>`_
 
-⦾ **Why do subscription errors occur on RHEL control planes when rhel_repo_local_path (in input/provision_config.yml) is not provided & control plane does not have an active subscription?**
+⦾ **Why do subscription errors occur on RHEL control planes when rhel_repo_local_path (in input/provision_config.yml) is not provided and control plane does not have an active subscription?**
 
 .. image:: ../images/SubscriptionErrors.png
 
@@ -167,7 +167,7 @@ This can only be achieved using local repos specified in rhel_repo_local_path  (
 
 .. image::  ../images/RepoURLError.png
 
-**Potential Cause**: The ``repo_url``, ``repo_name`` or ``repo`` provided in ``rhel_repo_local_path`` (``input/provision_config.yml``) may not be valid.
+**Potential Cause**: The ``repo_url``, ``repo_name`` or ``repo`` provided in ``rhel_repo_local_path`` (``input/provision_config.yml``) may not have been valid.
 
 Omnia does not validate the input of ``rhel_repo_local_path``.
 
@@ -233,7 +233,7 @@ Omnia does not validate the input of ``rhel_repo_local_path``.
 
 ⦾ **Is provisioning servers using BOSS controller supported by Omnia?**
 
-Provisioning server using BOSS controller is now supported by Omnia 1.2.1.
+From Omnia 1.2.1, provisioning a server using BOSS controller is supported.
 
 ⦾ **What are the licenses required when deploying a cluster through Omnia?**
 
