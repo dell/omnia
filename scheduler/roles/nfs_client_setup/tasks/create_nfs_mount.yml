@@ -30,12 +30,6 @@
   failed_when: false
   tags: nfs_client
 
-- name: Deleting directory used to mount NFS Share
-  ansible.builtin.file:
-    path: "{{ hostvars['127.0.0.1']['omnia_usrhome_share'] }}"
-    state: absent
-  tags: nfs_client
-
 - name: Creating directory to mount NFS Share
   ansible.builtin.file:
     path: "{{ hostvars['127.0.0.1']['omnia_usrhome_share'] }}"
