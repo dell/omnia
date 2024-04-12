@@ -36,7 +36,7 @@ For example: ``cd /install/post/otherpkgs/rhels8.6.0/x86_64/custom_software/Pack
 
 .. note:: Use ``alldeps -y`` to download **all** dependencies related to OneAPI.
 
-4. Once downloaded, make sure there are >=270~ rpm packages in the ``/install/post/otherpkgs/rhels8.6.0/x86_64/custom_software/Packages/`` directory.
+4. Once downloaded, Ensure there are >=270~ rpm packages in the ``/install/post/otherpkgs/rhels8.6.0/x86_64/custom_software/Packages/`` directory.
 5. Inside the ``/install/post/otherpkgs/<Provision OS.Version>/x86_64/custom_software`` folder, create a file named ``update.otherpkgs.pkglist`` with the contents: ::
 
     custom_software/intel-basekit
@@ -49,7 +49,7 @@ For example: ``cd /install/post/otherpkgs/rhels8.6.0/x86_64/custom_software/Pack
 
 **To execute multi-node jobs**
 
-* Make sure to have NFS shares on each node.
+* Ensure to have NFS shares on each node.
 * Copy slurm script to NFS share and execute it from there.
 * Load all the necessary modules using module load: ::
 

@@ -40,7 +40,7 @@ Commit changes
     git commit -s
 
 
-Make sure you have your user name and e-mail set. The ``--signoff | -s`` option will use the configured user name and e-mail, so it is important to configure it before the first time you commit. Check the following references:
+Ensure you have your user name and e-mail set. The ``--signoff | -s`` option will use the configured user name and e-mail, so it is important to configure it before the first time you commit. Check the following references:
 
     * `Setting up your github user name <https://help.github.com/articles/setting-your-username-in-git/>`_
 
