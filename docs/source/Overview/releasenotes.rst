@@ -6,7 +6,7 @@ Releases
 
 *	WACO support with Ubuntu 22.04 OS:
     *	`Local repository and registry creation for packages and container images. <../InstallationGuides/LocalRepo/index.html>`_
-    *	`Cluster provision with Ubuntu 22.04 OS. <../InstallationGuides/InstallingProvisionTool/index.html>`_
+    *	`Cluster provision with Ubuntu 22.04 OS <../InstallationGuides/InstallingProvisionTool/index.html>`_
     *	`AMD GPU driver and ROCm installation. <../Roles/Accelerator/index.html>`_
     *	`Broadcom RoCE driver installation. <../InstallationGuides/LocalRepo/index.html>`_
     *	`IP configuration on the additional NICs: IPv4 support <../InstallationGuides/InstallingProvisionTool/AdditionalNIC.html>`_
