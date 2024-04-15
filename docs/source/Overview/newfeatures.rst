@@ -24,8 +24,8 @@ New Features
       * vLLM (MI210x support)
 
 *   Feature support on RHEL 8.8
-        *   Slurm in configless support
-        *   NFS support
+        *   Slurm installation in configless mode
+        *   Slurm installation in NFS mode
 
 *	Additional Features
     *	OFED Installation

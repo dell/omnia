@@ -27,8 +27,11 @@ Releases
 
         *	`vLLM (MI210x support) <../Roles/Platform/SetupvLLM.html>`_
 
+*   Feature support on `RHEL 8.8 <SupportMatrix/OperatingSystems/RedHat.html>`_
+    *   `Slurm installation in configless mode <../InstallationGuides/BuildingClusters/schedulerinputparams.html>`_
+    *   `Slurm installation in NFS mode <../InstallationGuides/BuildingClusters/schedulerinputparams.html>`_
+
 *	Additional Features
-    *	`RHEL 8.8 support <SupportMatrix/OperatingSystems/RedHat.html>`_
     *	`OFED Installation <../InstallationGuides/LocalRepo/index.html>`_
     *	`CUDA Driver installation <../Roles/Accelerator/index.html>`_
     *	`Add <../InstallationGuides/addinganewnode.html>`_ / `remove <../InstallationGuides/deletenode.html>`_ nodes to the cluster.
