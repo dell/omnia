@@ -3,46 +3,46 @@ New Features
 
 *	Feature support on Ubuntu 22.04 OS:
 
-        *	Local repository and registry creation for packages and container images.
+            *	Local repository and registry creation for packages and container images.
 
-        *	Cluster provision with Ubuntu 22.04 OS.
+            *	Cluster provision with Ubuntu 22.04 OS.
 
-        *	AMD GPU driver and ROCm installation.
+            *	AMD GPU driver and ROCm installation.
 
-        *	Broadcom RoCE driver installation.
+            *	Broadcom RoCE driver installation.
 
-        *	IP configuration on the additional NICs: IPv4 support
+            *	IP configuration on the additional NICs: IPv4 support
 
-        *	Kubernetes installation.
+            *	Kubernetes installation.
 
-        *	NFS client/server configuration.
+            *	NFS client/server configuration.
 
-        *	OpenLDAP support with documented support for replication.
+            *	OpenLDAP support with documented support for replication.
 
-        *   AI Software Stack support including the installation of the following tools:
+            *   AI Software Stack support including the installation of the following tools:
 
-                * Jupyter notebook
+                    * Jupyter notebook
 
-                * Kubeflow
+                    * Kubeflow
 
-                * Kserve
+                    * Kserve
 
-                * Pytorch
+                    * Pytorch
 
-                * Tensorflow
+                    * Tensorflow
 
-                * vLLM (MI210x support)
+                    * vLLM (MI210x support)
 
 *   Feature support on RHEL 8.8
 
-        *   Slurm installation in configless mode
+            *   Slurm installation in configless mode
 
-        *   Slurm installation in NFS mode
+            *   Slurm installation in NFS mode
 
 *	Additional Features
 
-        *	OFED Installation
+            *	OFED Installation
 
-        *	CUDA Driver installation
+            *	CUDA Driver installation
 
-        *	Add/remove nodes to the cluster.
+            *	Add/remove nodes to the cluster.
