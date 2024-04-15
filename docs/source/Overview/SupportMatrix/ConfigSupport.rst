@@ -3,6 +3,12 @@ Testing matrix
 
 Hosts
 +++++++
+
+.. csv-table:: PowerEdge servers Testing matrix
+      :file: ../../Tables/testing-matrix.csv
+      :header-rows: 1
+      :keepspace:
+
     +------------+-----------------------+
     | Generation | Server Model          |
     +============+=======================+
