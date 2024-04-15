@@ -4,7 +4,7 @@ Testing matrix
 Hosts
 +++++++
 
-.. csv-table:: Testing matrix for PowerEdge servers
+    .. csv-table:: Testing matrix for PowerEdge servers
       :file: ../../Tables/testing-matrix.csv
       :header-rows: 1
       :keepspace:
