@@ -11,7 +11,6 @@ New Features
     *	NFS client/server configuration.
     *	OpenLDAP support with documented support for replication.
     *   AI Software Stack support including the installation of the following tools:
-
       * Jupyter notebook
 
       * Kubeflow
@@ -25,8 +24,8 @@ New Features
       * vLLM (MI210x support)
 
 *   Feature support on RHEL 8.8
-    *   Slurm in configless support
-    *   NFS support
+        *   Slurm in configless support
+        *   NFS support
 
 *	Additional Features
     *	OFED Installation
