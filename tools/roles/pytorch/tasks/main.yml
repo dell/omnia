@@ -1,0 +1,55 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Initial variables
+- name: Initialize pytorch_prerequisite_status
+  ansible.builtin.set_fact:
+    pytorch_prerequisite_status: false
+
+- name: Initialize pytorch_installation_status
+  ansible.builtin.set_fact:
+    pytorch_installation_status: false
+
+- name: Initialize installation_status
+  ansible.builtin.set_fact:
+    installation_status: "{{ installation_success_status }}"
+
+# Include local_repo_access.yml for proxy setup
+- name: Include local_repo_access.yml file
+  ansible.builtin.include_vars: "{{ local_repo_access_path }}"
+
+# Main plays
+- name: Check prerequisites
+  ansible.builtin.include_tasks: check_prerequisites.yml
+
+- name: Install pytorch
+  ansible.builtin.include_tasks: pytorch_install.yml
+  when: pytorch_prerequisite_status
+
+- name: Verify pytorch installation
+  ansible.builtin.include_tasks: pytorch_verify.yml
+  when: pytorch_installation_status
+
+# Print list of successfully installation nodes
+- name: Print successfully installation status
+  ansible.builtin.debug:
+    msg: "{{ installation_status }}"
+  when: installation_status == installation_success_status
+
+# Print list of failed installation nodes
+- name: Print failed installation status
+  ansible.builtin.fail:
+    msg: "{{ installation_status }}"
+  when: installation_status != installation_success_status

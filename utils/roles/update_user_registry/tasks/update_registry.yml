@@ -1,0 +1,162 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Read variables from software_config.json
+  ansible.builtin.include_vars:
+    file: "{{ software_config_file_path }}"
+    name: fetch_variables
+  delegate_to: localhost
+  connection: local
+
+- name: Fetch 'repo_config' value from software_config.json
+  ansible.builtin.set_fact:
+    repoconfig_value: "{{ fetch_variables.repo_config }}"
+  delegate_to: localhost
+  connection: local
+
+- name: Fetch 'cluster_os_type' value from software_config.json
+  ansible.builtin.set_fact:
+    clusteros_value: "{{ fetch_variables.cluster_os_type }}"
+  delegate_to: localhost
+  connection: local
+
+- name: Read variables from local_repo_config.yml
+  when: repoconfig_value == 'partial' or repoconfig_value == 'never'
+  block:
+    - name: Fetch local_repo_config.yml
+      ansible.builtin.set_fact:
+        fetch_var: "{{ lookup('file', local_repo_config_file_path) | from_yaml }}"
+      delegate_to: localhost
+      connection: local
+
+    - name: Fetch items in 'user_registry' from local_repo_config.yml
+      ansible.builtin.set_fact:
+        user_registry: "{{ fetch_var.user_registry }}"
+      delegate_to: localhost
+      connection: local
+
+    - name: Create empty list for ports
+      ansible.builtin.set_fact:
+        ports_list: []
+      delegate_to: localhost
+      connection: local
+      run_once: true
+
+    - name: Extract ports from user_registry
+      ansible.builtin.set_fact:
+        ports_list: "{{ ports_list + [item.host.split(':')[1] | default(5000)] }}"
+      with_items: "{{  user_registry | default([]) }}"
+      delegate_to: localhost
+      connection: local
+      run_once: true
+      when: user_registry | length > 0
+
+    - name: Ensure user_registry SSL_ports ACL is present in squid.conf
+      ansible.builtin.lineinfile:
+        path: "{{ squid_proxy_conf_path }}"
+        line: "acl SSL_ports port {{ item }}"
+        insertafter: "acl SSL_ports port 443"
+        regexp: "^acl SSL_ports port {{ item }}$"
+      loop: "{{ ports_list | default([]) }}"
+      register: configure_proxy_port
+      delegate_to: localhost
+      connection: local
+      run_once: true
+      changed_when: false
+
+    - name: Restart Squid service if configuration changed
+      ansible.builtin.service:
+        name: squid
+        state: restarted
+      when: configure_proxy_port.changed    # noqa: no-handler
+      delegate_to: localhost
+      connection: local
+      run_once: true
+
+- name: Print msg when repoconfig_value is 'always'
+  ansible.builtin.debug:
+    msg: "No update in registry required since repo_config value is 'always'"
+  when: repoconfig_value == 'always'
+
+- name: Execute utility tasks
+  when: (repoconfig_value == 'partial' or repoconfig_value == 'never') and user_registry | length > 0
+  block:
+    - name: Check if certificate path exists for all user registries
+      ansible.builtin.stat:
+        path: "{{ certificate_path }}/{{ item.host }}"
+      register: directory_check
+      loop: "{{ user_registry | default([], true) }}"
+      failed_when: false
+
+    - name: Create new directory if path does not exist
+      ansible.builtin.file:
+        path: "{{ certificate_path }}/{{ item.item.host }}"
+        state: directory
+        mode: "{{ mode }}"
+      with_items: "{{ directory_check.results }}"
+      when: not item.stat.exists and item.item.cert_path != ""
+      failed_when: false
+
+    - name: Copy user registry certificate to compute node
+      ansible.builtin.copy:
+        src: "{{ item.cert_path }}"
+        dest: "{{ certificate_path }}/{{ item.host }}/ca.crt"
+        mode: "{{ file_permissions }}"
+      when: item.cert_path != ""
+      loop: "{{ user_registry | default([], true) }}"
+
+    - name: Check if _default directory exists
+      ansible.builtin.stat:
+        path: "{{ containerd_path }}/_default"
+      register: dir_chk
+
+    - name: Create _default directory if doesn't exist
+      ansible.builtin.file:
+        path: "{{ containerd_path }}/_default"
+        state: directory
+        mode: "{{ mode }}"
+      when: not dir_chk.stat.exists and user_registry | default([],true)
+
+    - name: Create empty hosts.toml file
+      ansible.builtin.copy:
+        content: ""
+        dest: "{{ containerd_path }}/_default/hosts.toml"
+        mode: "{{ mode }}"
+      when: not dir_chk.stat.exists and user_registry | default([],true)
+
+    - name: Check if each registry host exists in hosts.toml
+      ansible.builtin.command:
+        cmd: "{{ grep_command }}"
+      loop: "{{ user_registry | default([], true) }}"
+      register: grep_result
+      ignore_errors: true
+      changed_when: false
+
+    - name: Initialize hostlist variable
+      ansible.builtin.set_fact:
+        hostlist: []
+
+    - name: List of user registries not present in hosts.toml
+      ansible.builtin.set_fact:
+        hostlist: "{{ hostlist | default([]) + [item.item.host] }}"
+      when: item.rc != 0
+      loop: "{{ grep_result.results }}"
+
+    - name: Add user_registry entry at the beginning of hosts.toml
+      ansible.builtin.lineinfile:
+        path: "{{ containerd_path }}/_default/hosts.toml"
+        line: "{{ lookup('template', update_registry_template_src) }}"
+        insertbefore: BOF
+        mode: "{{ file_permissions }}"
+      when: user_registry | default([],true)

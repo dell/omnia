@@ -14,7 +14,7 @@
 ---
 
 - name: Refresh ssh keys
-  ansible.builtin.command: ssh-keygen -R {{ inventory_hostname }}
+  ansible.builtin.command: ssh-keygen -R {{ ansible_host }}
   changed_when: false
   delegate_to: localhost
 

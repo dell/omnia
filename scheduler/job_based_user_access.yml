@@ -17,8 +17,22 @@
 # The inventory queried in the below command is to be created by the user prior to running `omnia.yml`.
 # Command to execute: ansible-playbook job_based_user_access.yml -i inventory
 
+- name: Include omnia_config.yml variables
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Validate scheduler software config input parameters
+      ansible.builtin.include_role:
+        name: cluster_validation
+        tasks_from: fetch_software_config.yml
+
+    - name: Validate scheduler omnia config input parameters
+      ansible.builtin.include_role:
+        name: cluster_validation
+        tasks_from: fetch_omnia_inputs.yml
+
 - name: Setup slurm pam authentication
-  hosts: manager, compute, login
+  hosts: slurm_control_node, slurm_node, login
   gather_facts: true
   roles:
     - slurm_pam

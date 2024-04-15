@@ -34,3 +34,7 @@
     - ipa_modify_output.stderr is defined
     - ipa_modify_output.stderr | length > 1
     - ssh_key_command_fail_search not in ipa_modify_output.stderr
+
+- name: Update SSS Cache to update ssh public keys
+  ansible.builtin.shell: set -o pipefail && sss_cache -E
+  changed_when: false

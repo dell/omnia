@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,8 +22,7 @@
   tasks:
     - name: Initialize security variables
       ansible.builtin.set_fact:
-        freeipa_required: true
-        ldap_required: false
+        authentication_system: "freeipa"
 
 - name: Install IPA client
   hosts: all

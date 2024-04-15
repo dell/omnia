@@ -1,0 +1,38 @@
+#!/bin/bash
+################################################################################################################
+#  omnia_ubuntu:
+#     Install omnia default ubuntu packages
+#
+#################################################################################################################
+echo "---------------------------" >> /var/log/xcat/xcat.log
+echo "Started installing omnia packages" >> /var/log/xcat/xcat.log
+echo "Configure Proxy" >> /var/log/xcat/xcat.log
+
+echo "Acquire::http::Proxy \"http://{{ admin_nic_ip }}:3128\";" >> /etc/apt/apt.conf
+echo "Acquire::https::Proxy \"http://{{ admin_nic_ip }}:3128\";" >> /etc/apt/apt.conf
+apt clean
+apt update
+apt install network-manager ifupdown chrony ipmitool -y
+echo "network:" >> /etc/netplan/01-netcfg.yaml
+echo "  version: 2" >> /etc/netplan/01-netcfg.yaml
+echo "  renderer: NetworkManager" >> /etc/netplan/01-netcfg.yaml
+sed -i 's/managed=.*/managed=true/g' /etc/NetworkManager/NetworkManager.conf
+
+echo `df -Th` >> /var/log/xcat/xcat.log
+echo "Extend root partition" >> /var/log/xcat/xcat.log
+lvextend -l +100%FREE /dev/mapper/vg--ubuntu-lv--root -r
+echo `df -Th` >> /var/log/xcat/xcat.log
+
+check_ubuntu22="$(cat /etc/os-release | grep 'VERSION_ID="22.04"' | wc -l)"
+if [[ "$check_ubuntu22" == "1" ]]
+then
+    echo "Installing racadm" >> /var/log/xcat/xcat.log
+    wget "http://{{ admin_nic_ip }}:80/install{{ repo_store_path }}/cluster/tarball/racadm.tar.gz" -O /tmp/racadm.tar.gz
+    tar -zxvf /tmp/racadm.tar.gz -C /tmp
+    cd /tmp/iDRACTools/racadm && echo "y" | bash install_racadm.sh
+fi
+
+echo "{{ admin_nic_ip }} {{ control_plane_hostname }}" >> /etc/hosts
+
+echo "Installed omnia packages" >> /var/log/xcat/xcat.log
+echo "---------------------------" >> /var/log/xcat/xcat.log

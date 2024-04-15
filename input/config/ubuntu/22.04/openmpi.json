@@ -1,0 +1,13 @@
+{
+  "openmpi": {
+    "cluster": [
+      { "package": "openmpi",
+        "type": "tarball",
+        "url": "https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-4.1.6.tar.gz"
+      },
+      {"package": "gcc", "type": "deb", "repo_name": "jammy"},
+      {"package": "g++", "type": "deb", "repo_name": "jammy"},
+      {"package": "clang", "type": "deb", "repo_name": "jammy"}
+    ]
+  }
+}

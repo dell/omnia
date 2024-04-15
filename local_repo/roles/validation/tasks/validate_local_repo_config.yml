@@ -1,0 +1,142 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Check that the local_repo_config.yml exists
+  ansible.builtin.stat:
+    path: "{{ local_repo_config_file }}"
+  register: stat_result
+
+- name: Fail if local_repo_config.yml file doesn't exist
+  ansible.builtin.fail:
+    msg: "{{ fail_msg_local_repo_config_file }}"
+  when: not stat_result.stat.exists
+
+- name: Include variable file local_repo_config.yml
+  block:
+    - name: Include variable file local_repo_config.yml
+      ansible.builtin.include_vars: "{{ local_repo_config_file }}"
+      register: include_local_repo_config
+      no_log: true
+  rescue:
+    - name: Failed to include local_repo_config.yml
+      ansible.builtin.fail:
+        msg: "{{ local_repo_config_syntax_fail_msg }} Possible Syntax Error Hints: {{ include_local_repo_config.message }}"
+
+- name: Validate repo_store_path
+  ansible.builtin.assert:
+    that:
+      - "repo_store_path is defined"
+      - "repo_store_path !='/install'"
+      - "'/' in repo_store_path[0]"
+      - "repo_store_path[-1] != '/'"
+    fail_msg: "{{ repo_store_path_fail_msg }}"
+
+- name: Create repo_store_path folder
+  ansible.builtin.file:
+    path: "{{ repo_store_path }}"
+    state: directory
+    mode: "{{ directory_permissions }}"
+
+- name: Check if rhel_os_url is provided incase of cluster_os_type rhel
+  ansible.builtin.fail:
+    msg: "{{ rhel_os_url_fail_msg_crb }}"
+  when: cluster_os_type == "rhel" and rhel_os_url is none
+
+- name: Validate rhel_os_url
+  ansible.builtin.include_tasks: validate_rhel_os_url.yml
+  when: rhel_os_url is not none
+
+- name: Validate user_repo_url
+  ansible.builtin.include_tasks: validate_user_repo_url.yml
+  when: user_repo_url is not none
+
+- name: Validate user_registry
+  ansible.builtin.include_tasks: validate_user_registry.yml
+  when: user_registry is not none
+
+- name: Validate omnia_repo_url_rhel
+  ansible.builtin.assert:
+    that:
+      - "omnia_repo_url_rhel is defined"
+      - "omnia_repo_url_rhel | type_debug == 'list'"
+      - "omnia_repo_url_rhel | length > 0"
+    fail_msg: "{{ omnia_repo_url_rhel_fail_msg }}"
+  when: cluster_os_type == 'rhel'
+
+- name: Validate url and gpgkey presence in omnia_repo_url_rhel
+  ansible.builtin.assert:
+    that:
+      - "item.url is defined"
+      - "item.gpgkey is defined"
+    fail_msg: "{{ omnia_repo_url_rhel_url_gpg_key_fail_msg }}"
+  loop: "{{ omnia_repo_url_rhel }}"
+  loop_control:
+    loop_var: item
+  when: cluster_os_type == 'rhel'
+
+- name: Validate omnia_repo_url_rocky
+  ansible.builtin.assert:
+    that:
+      - "omnia_repo_url_rocky is defined"
+      - "omnia_repo_url_rocky | type_debug == 'list'"
+      - "omnia_repo_url_rocky | length > 0"
+    fail_msg: "{{ omnia_repo_url_rocky_fail_msg }}"
+  when: cluster_os_type == 'rocky'
+
+- name: Validate url and gpgkey presence in omnia_repo_url_rocky
+  ansible.builtin.assert:
+    that:
+      - "item.url is defined"
+      - "item.gpgkey is defined"
+    fail_msg: "{{ omnia_repo_url_rocky_url_gpg_key_fail_msg }}"
+  loop: "{{ omnia_repo_url_rocky }}"
+  loop_control:
+    loop_var: item
+  when: cluster_os_type == 'rocky'
+
+# Commenting now later, when variables were introduced we will validate this
+- name: Validate omnia_repo_url_ubuntu
+  ansible.builtin.assert:
+    that:
+      - "omnia_repo_url_ubuntu is defined"
+      - "omnia_repo_url_ubuntu | type_debug == 'list'"
+      - "omnia_repo_url_ubuntu | length > 0"
+    fail_msg: "{{ omnia_repo_url_ubuntu_fail_msg }}"
+  when: cluster_os_type == 'ubuntu'
+
+- name: Validate url and gpgkey presence in omnia_repo_url_ubuntu
+  ansible.builtin.assert:
+    that:
+      - "item.url is defined"
+      - "item.gpgkey is defined or item.publickey is defined"
+    fail_msg: "{{ omnia_repo_url_ubuntu_url_gpg_key_fail_msg }}"
+  loop: "{{ omnia_repo_url_ubuntu }}"
+  loop_control:
+    loop_var: item
+  when: cluster_os_type == 'ubuntu'
+
+- name: Create rpm folder
+  ansible.builtin.file:
+    path: "{{ rpm_dir_path }}"
+    state: directory
+    mode: "{{ directory_permissions }}"
+  when: repo_config in ["always", "partial"] and cluster_os_type in ["rhel", "rocky"]
+
+- name: Create deb folder
+  ansible.builtin.file:
+    path: "{{ deb_dir_path }}"
+    state: directory
+    mode: "{{ directory_permissions }}"
+  when: cluster_os_type in ["ubuntu"]

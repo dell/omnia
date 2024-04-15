@@ -1,0 +1,320 @@
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Set additional network status
+  ansible.builtin.set_fact:
+    add_network_status: true
+  when:
+    - item.key not in ['admin_network', 'bmc_network']
+  with_dict: "{{ network_data }}"
+
+- name: Validate if CIDR or static_range is defined
+  ansible.builtin.assert:
+    that:
+      - "'CIDR' in item.value.keys() or 'static_range' in item.value.keys()"
+      - "not ('CIDR' in item.value.keys() and 'static_range' in item.value.keys())"
+    fail_msg: "{{ cidr_or_static_range_fail_msg }}"
+  when: item.key not in ['admin_network', 'bmc_network']
+  with_dict: "{{ network_data }}"
+
+- name: Check network static_range ip format
+  ansible.builtin.assert:
+    that:
+      - (item.value.static_range.split('-') | first | ansible.utils.ipaddr('address')).split('.')[-1] | int != 0
+      - (item.value.static_range.split('-') | last | ansible.utils.ipaddr('address')).split('.')[-1] | int != 255
+    fail_msg: "{{ range_ip_check_fail_msg }} : {{ item.key }} - static_range"
+  when:
+    - "'static_range' in item.value.keys()"
+    - item.key not in ['admin_network', 'bmc_network']
+  with_dict: "{{ network_data }}"
+
+- name: Check network static range overlap
+  block:
+    - name: Validate input static range overlap with admin static range
+      ansible.builtin.command:
+        argv:
+          - "{{ python_version }}"
+          - "{{ validation_range_file }}"
+          - "{{ pxe_nic_start_range }}"
+          - "{{ pxe_nic_end_range }}"
+          - "{{ item.value.static_range.split('-') | first }}"
+          - "{{ item.value.static_range.split('-') | last }}"
+      register: range_validation_status
+      failed_when: range_validation_status.stdout == "True" or range_validation_status.rc != 0
+      changed_when: true
+      when:
+        - "'static_range' in item.value.keys()"
+        - item.key not in ['admin_network', 'bmc_network']
+      with_dict: "{{ network_data }}"
+  rescue:
+    - name: Rescue block
+      ansible.builtin.fail:
+        msg: "{{ fail_static_ip_range }} Admin static range"
+
+- name: Check network static range overlap
+  block:
+    - name: Validate input static range overlap with admin dynamic range
+      ansible.builtin.command:
+        argv:
+          - "{{ python_version }}"
+          - "{{ validation_range_file }}"
+          - "{{ pxe_nic_dynamic_start_range }}"
+          - "{{ pxe_nic_dynamic_end_range }}"
+          - "{{ item.value.static_range.split('-') | first }}"
+          - "{{ item.value.static_range.split('-') | last }}"
+      register: range_validation_status
+      failed_when: range_validation_status.stdout == "True" or range_validation_status.rc != 0
+      changed_when: true
+      when:
+        - "'static_range' in item.value.keys()"
+        - item.key not in ['admin_network', 'bmc_network']
+      with_dict: "{{ network_data }}"
+  rescue:
+    - name: Rescue block
+      ansible.builtin.fail:
+        msg: "{{ fail_static_ip_range }} Admin dynamic range"
+
+- name: Check network static range overlap
+  block:
+    - name: Validate input static range overlap with BMC Static range
+      ansible.builtin.command:
+        argv:
+          - "{{ python_version }}"
+          - "{{ validation_range_file }}"
+          - "{{ bmc_static_start_range }}"
+          - "{{ bmc_static_end_range }}"
+          - "{{ item.value.static_range.split('-') | first }}"
+          - "{{ item.value.static_range.split('-') | last }}"
+      register: range_validation_status
+      failed_when: range_validation_status.stdout == "True" or range_validation_status.rc != 0
+      changed_when: true
+      when:
+        - bmc_details_status
+        - "'static_range' in item.value.keys()"
+        - item.key not in ['admin_network', 'bmc_network']
+      with_dict: "{{ network_data }}"
+  rescue:
+    - name: Rescue block
+      ansible.builtin.fail:
+        msg: "{{ fail_static_ip_range }} BMC static range"
+
+- name: Check network static range overlap
+  block:
+    - name: Validate input static range overlap with BMC dynamic range
+      ansible.builtin.command:
+        argv:
+          - "{{ python_version }}"
+          - "{{ validation_range_file }}"
+          - "{{ bmc_dynamic_start_range }}"
+          - "{{ bmc_dynamic_end_range }}"
+          - "{{ item.value.static_range.split('-') | first }}"
+          - "{{ item.value.static_range.split('-') | last }}"
+      register: range_validation_status
+      failed_when: range_validation_status.stdout == "True" or range_validation_status.rc != 0
+      changed_when: true
+      when:
+        - bmc_details_status
+        - "'static_range' in item.value.keys()"
+        - item.key not in ['admin_network', 'bmc_network']
+      with_dict: "{{ network_data }}"
+  rescue:
+    - name: Rescue block
+      ansible.builtin.fail:
+        msg: "{{ fail_static_ip_range }} BMC dynamic range"
+
+- name: Validate network static_range
+  block:
+    - name: Check network static_range format
+      ansible.builtin.command: "{{ python_version }} {{ ip_range_netmask_script_script }} {{ item.value.static_range }} {{ item.value.netmask_bits }}"
+      changed_when: false
+      register: static_range_check
+      when:
+        - "'static_range' in item.value.keys()"
+        - item.key not in ['admin_network', 'bmc_network']
+      failed_when: static_range_check.stdout == "False" or static_range_check.rc != 0
+      with_dict:
+        - "{{ network_data }}"
+  rescue:
+    - name: Rescue block
+      ansible.builtin.fail:
+        msg: "{{ static_range_check_fail_msg }}"
+
+- name: Validate network netmask bits
+  ansible.builtin.assert:
+    that:
+      - network_data.admin_network.netmask_bits | int >= 1
+      - network_data.admin_network.netmask_bits | int <= 32
+    fail_msg: "{{ fail_msg_netmask_bits }}"
+
+- name: Validate network CIDR
+  block:
+    - name: Check network CIDR format
+      ansible.builtin.assert:
+        that:
+          - item.value.CIDR.split('.') | map('int') | list | length == 4
+          - (item.value.CIDR | ansible.utils.ipaddr('address')).split('.')[-1] | int == 0
+      when:
+        - "'CIDR' in item.value.keys()"
+        - item.key not in ['admin_network', 'bmc_network']
+      with_dict: "{{ network_data }}"
+
+    - name: Validate network CIDR
+      ansible.builtin.command: "{{ python_version }} {{ validate_cidr }} {{ (item.value.CIDR | string + '/' + item.value.netmask_bits | string) }}"
+      register: script_output
+      changed_when: false
+      failed_when: script_output.stdout == "False" or script_output.rc != 0
+      with_dict: "{{ network_data }}"
+      when:
+        - "'CIDR' in item.value.keys()"
+        - item.key not in ['admin_network', 'bmc_network']
+  rescue:
+    - name: Network CIDR invalid
+      ansible.builtin.fail:
+        msg: "{{ cidr_fail_msg }}"
+
+- name: Check network CIDR range overlap
+  block:
+    - name: Validate input CIDR range overlap with admin static range
+      ansible.builtin.command:
+        argv:
+          - "{{ python_version }}"
+          - "{{ validation_range_file }}"
+          - "{{ pxe_nic_start_range }}"
+          - "{{ pxe_nic_end_range }}"
+          - "{{ (item.value.CIDR | string + '/' + item.value.netmask_bits | string) | ansible.utils.ipaddr('first_usable') }}"
+          - "{{ (item.value.CIDR | string + '/' + item.value.netmask_bits | string) | ansible.utils.ipaddr('last_usable') }}"
+      register: range_validation_status
+      failed_when: range_validation_status.stdout == "True" or range_validation_status.rc != 0
+      changed_when: true
+      when:
+        - "'CIDR' in item.value.keys()"
+        - item.key not in ['admin_network', 'bmc_network']
+      with_dict: "{{ network_data }}"
+  rescue:
+    - name: Rescue block
+      ansible.builtin.fail:
+        msg: "{{ fail_cidr_ip_range }} Admin static range"
+
+- name: Check network CIDR range overlap
+  block:
+    - name: Validate input CIDR range overlap with admin dynamic range
+      ansible.builtin.command:
+        argv:
+          - "{{ python_version }}"
+          - "{{ validation_range_file }}"
+          - "{{ pxe_nic_dynamic_start_range }}"
+          - "{{ pxe_nic_dynamic_end_range }}"
+          - "{{ (item.value.CIDR | string + '/' + item.value.netmask_bits | string) | ansible.utils.ipaddr('first_usable') }}"
+          - "{{ (item.value.CIDR | string + '/' + item.value.netmask_bits | string) | ansible.utils.ipaddr('last_usable') }}"
+      register: range_validation_status
+      failed_when: range_validation_status.stdout == "True" or range_validation_status.rc != 0
+      changed_when: true
+      when:
+        - "'CIDR' in item.value.keys()"
+        - item.key not in ['admin_network', 'bmc_network']
+      with_dict: "{{ network_data }}"
+  rescue:
+    - name: Rescue block
+      ansible.builtin.fail:
+        msg: "{{ fail_cidr_ip_range }} Admin dynamic range"
+
+- name: Check network CIDR range overlap
+  block:
+    - name: Validate input CIDR range overlap with BMC Static range
+      ansible.builtin.command:
+        argv:
+          - "{{ python_version }}"
+          - "{{ validation_range_file }}"
+          - "{{ bmc_static_start_range }}"
+          - "{{ bmc_static_end_range }}"
+          - "{{ (item.value.CIDR | string + '/' + item.value.netmask_bits | string) | ansible.utils.ipaddr('first_usable') }}"
+          - "{{ (item.value.CIDR | string + '/' + item.value.netmask_bits | string) | ansible.utils.ipaddr('last_usable') }}"
+      register: range_validation_status
+      failed_when: range_validation_status.stdout == "True" or range_validation_status.rc != 0
+      changed_when: true
+      when:
+        - bmc_details_status
+        - "'CIDR' in item.value.keys()"
+        - item.key not in ['admin_network', 'bmc_network']
+      with_dict: "{{ network_data }}"
+  rescue:
+    - name: Rescue block
+      ansible.builtin.fail:
+        msg: "{{ fail_cidr_ip_range }} BMC static range"
+
+- name: Check network CIDR range overlap
+  block:
+    - name: Validate input CIDR range overlap with BMC dynamic range
+      ansible.builtin.command:
+        argv:
+          - "{{ python_version }}"
+          - "{{ validation_range_file }}"
+          - "{{ bmc_dynamic_start_range }}"
+          - "{{ bmc_dynamic_end_range }}"
+          - "{{ (item.value.CIDR | string + '/' + item.value.netmask_bits | string) | ansible.utils.ipaddr('first_usable') }}"
+          - "{{ (item.value.CIDR | string + '/' + item.value.netmask_bits | string) | ansible.utils.ipaddr('last_usable') }}"
+      register: range_validation_status
+      failed_when: range_validation_status.stdout == "True" or range_validation_status.rc != 0
+      changed_when: true
+      when:
+        - bmc_details_status
+        - "'CIDR' in item.value.keys()"
+        - item.key not in ['admin_network', 'bmc_network']
+      with_dict: "{{ network_data }}"
+  rescue:
+    - name: Rescue block
+      ansible.builtin.fail:
+        msg: "{{ fail_cidr_ip_range }} BMC dynamic range"
+
+- name: Validate network gateway
+  block:
+    - name: Check network gateway IP is valid
+      ansible.builtin.assert:
+        that:
+          - item.value.network_gateway | ansible.utils.ipaddr | length > 0
+          - item.value.network_gateway.split('.') | map('int') | list | length == 4
+      when:
+        - "'network_gateway' in item.value.keys()"
+        - item.value.network_gateway | length > 0
+        - item.key not in ['admin_network', 'bmc_network']
+      with_dict: "{{ network_data }}"
+  rescue:
+    - name: Network gateway invalid
+      ansible.builtin.fail:
+        msg: "{{ network_gateway_fail_msg }}"
+
+- name: Validate network MTU details
+  ansible.builtin.assert:
+    that:
+      - "'MTU' in item.value.keys()"
+      - item.value.MTU == '' or item.value.MTU | string is match('^[0-9]+$')
+    fail_msg: "{{ mtu_check_fail_msg }}"
+  with_dict: "{{ network_data }}"
+
+- name: Check and set default MTU value for network
+  ansible.builtin.set_fact:
+    network_mtu_default: "1500"
+
+- name: Validate VLAN ID for networks
+  ansible.builtin.assert:
+    that:
+      - item.value.VLAN | int > 0
+      - item.value.VLAN | int < 4095
+    fail_msg: "{{ vlan_fail_msg }}"
+  when:
+    - "'VLAN' in item.value.keys()"
+    - item.value.VLAN | length > 0
+    - item.key not in ['admin_network', 'bmc_network']
+  with_dict: "{{ network_data }}"

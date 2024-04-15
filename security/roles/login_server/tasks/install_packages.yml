@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -21,12 +21,10 @@
     - ansible_distribution | lower == os_rocky or
       ansible_distribution | lower == os_centos
 
-- name: Install DL1 - dns and adtrust(It may take 5-10 mins)
+- name: Install DL1 - dns and adtrust(It may take 5-10 mins) # noqa: command-instead-of-module
   ansible.builtin.command: yum module install idm:DL1/{dns,adtrust} -y
   changed_when: true
   failed_when: false
-  args:
-    warn: false
   when: ansible_distribution | lower == os_redhat
 
 - name: Install packages for RHEL

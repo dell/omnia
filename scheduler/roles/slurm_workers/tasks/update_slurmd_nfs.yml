@@ -1,0 +1,99 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Slurmd service - slurmd.service
+  ansible.builtin.template:
+    src: slurmd.service.j2
+    dest: "{{ slurmd_service_path }}"
+    mode: "{{ slurm_mode }}"
+  tags: install
+
+- name: Check if environment variables are set
+  ansible.builtin.command: echo $SLURM_CONF
+  changed_when: false
+  failed_when: false
+  register: path_output
+
+- name: Update Environment variable for LD_LIBRARY_PATH
+  when: "'slurm' not in path_output.stdout"
+  block:
+    - name: Check current environment variables
+      ansible.builtin.shell: echo $SLURM_CONF # noqa: command-instead-of-shell
+      changed_when: false
+      register: environment_output
+
+    - name: Replace SLURM_CONF variable
+      ansible.builtin.lineinfile:
+        path: "{{ bashrc_path }}"
+        regexp: '^SLURM_CONF=*'
+        insertafter: EOF
+        line: 'export SLURM_CONF={{ slurm_nfs_folder }}/etc/slurm/slurm.conf'
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Check if environment variables are set
+  ansible.builtin.command: echo $PATH
+  changed_when: false
+  failed_when: false
+  register: path_output
+
+- name: Update Environment variable for PATH
+  when: "'slurm' not in path_output.stdout"
+  block:
+    - name: Check current environment variables
+      ansible.builtin.shell: echo $PATH # noqa: command-instead-of-shell
+      changed_when: false
+      register: environment_output
+
+    - name: Replace PATH variable
+      ansible.builtin.lineinfile:
+        path: "{{ bashrc_path }}"
+        regexp: '^PATH=*'
+        insertafter: EOF
+        line: 'PATH={{ environment_output.stdout }}:{{ slurm_nfs_folder }}/usr/bin:{{ slurm_nfs_folder }}/usr/sbin'
+
+- name: Check if environment variables are set
+  ansible.builtin.command: echo $LD_LIBRARY_PATH
+  changed_when: false
+  failed_when: false
+  register: path_output
+
+- name: Perform Post Installation steps
+  when: "'slurm' not in path_output.stdout"
+  block:
+    - name: Check current environment variables
+      ansible.builtin.shell: echo $LD_LIBRARY_PATH
+      changed_when: false
+      register: environment_output
+
+    - name: Replace LD_LIBRARY_PATH variable
+      ansible.builtin.lineinfile:
+        path: "{{ bashrc_path }}"
+        regexp: '^LD_LIBRARY_PATH=*'
+        insertafter: EOF
+        line: 'export LD_LIBRARY_PATH={{ slurm_nfs_folder }}/usr/lib64/'
+
+- name: Source /etc/bashrc
+  ansible.builtin.shell: source  "{{ bashrc_path }}" # noqa: command-instead-of-shell
+  changed_when: false
+
+- name: Start slurmd on slurm nodes
+  ansible.builtin.systemd:
+    name: slurmd.service
+    state: restarted
+    enabled: true
+  failed_when: false

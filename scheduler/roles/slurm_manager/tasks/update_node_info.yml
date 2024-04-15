@@ -1,0 +1,46 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Update new node info
+  when:
+    - hostvars[item].node_fqdn is defined
+    - hostvars[item].node_fqdn != "None"
+  throttle: 1
+  block:
+    - name: Update hostnames of slurm node when ALL in partition nodes
+      ansible.builtin.replace:
+        path: "{{ slurm_confpth }}"
+        regexp: 'PartitionName=normal Nodes=ALL'
+        replace: 'PartitionName=normal Nodes={{ hostvars[item].node_fqdn }}'
+      when:
+        - hostvars["127.0.0.1"]["login_node_required"]
+      register: output
+
+    - name: Update hostnames of slurm node in partition nodes
+      ansible.builtin.replace:
+        path: "{{ slurm_confpth }}"
+        regexp: ' Default=YES MaxTime=INFINITE State=UP'
+        replace: ',{{ hostvars[item].node_fqdn }} Default=YES MaxTime=INFINITE State=UP'
+      when:
+        - hostvars["127.0.0.1"]["login_node_required"]
+        - output.msg | length == 0
+
+    - name: Add slurm nodes core & socket info in slurm config file
+      ansible.builtin.lineinfile:
+        dest: "{{ slurm_confpth }}"
+        line: "NodeName={{ hostvars[item].node_fqdn }} Sockets={{ hostvars[item].sockets }} CoresPerSocket={{ hostvars[item].cores }}"
+        state: present
+        create: true
+        mode: "{{ slurm_mode }}"

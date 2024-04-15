@@ -1,0 +1,32 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Usage: validate_switch_mechanism.yml
+enable_switch_based_fail_msg: "Failed. enable_switch_based in provision_config.yml should be either true or false"
+
+# Usage: validate_switch_based_details.yml
+fail_unique_switch_v3_ip: "Failed. Please provide unique switch v3 IPs in switch_based_details of provision_config.yml."
+switch_details_success_msg: "switch_based_details validated"
+switch_details_fail_msg: "Failed. Please provide switch_based_details in provision_config.yml with switch ip and switch ports
+when enable_switch_based is set true."
+
+# Usage: validate_switch_snmp_params.yml
+switch_snmp3_password_fail_msg: "Failed. Incorrect switch_snmp3_username or switch_snmp3_password format in provision_config_credentials.yml"
+
+# Usage: validate_bmc_details_status.yml
+bmc_network_details_fail_msg: "Failed. bmc_network details should be provided in network_spec.yml when enable_switch_based is set true.
+nic_name, netmask_bits, static_range and dynamic_range are mandatory parameters under bmc_network in network_spec.yml for switch discovery of nodes"
+bmc_discovery_warning_msg: "[WARNING] bmc discovery will be skipped when enable_switch_based is set true in provision_config.yml.
+Either switch_based discovery or bmc discovery allowed during execution of discovery_provision.yml."

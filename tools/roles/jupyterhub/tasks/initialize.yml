@@ -1,0 +1,72 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Include local_repo_access.yml
+  ansible.builtin.include_vars: "{{ local_repo_access_path }}"
+
+- name: Read software_config.json
+  ansible.builtin.include_vars:
+    file: "{{ software_config_file }}"
+    name: software_config
+
+- name: Get repo config entry from software_config.json
+  ansible.builtin.set_fact:
+    repo_config_value: "{{ software_config['repo_config'] }}"
+
+- name: Get cluster_os_type from software_config.json
+  ansible.builtin.set_fact:
+    cluster_os_type: "{{ software_config['cluster_os_type'] }}"
+
+- name: Check if jupyter entry is present in software_config.json
+  ansible.builtin.set_fact:
+    jupyter_present: "{{ software_config['softwares'] | selectattr('name', 'equalto', 'jupyter') | list | count > 0 }}"
+
+- name: Jupyter entry is not present in software_config.json
+  ansible.builtin.fail:
+    msg: "{{ fail_msg_jupyter_software_config }}"
+  when: not jupyter_present
+
+- name: Load jupyter.json
+  ansible.builtin.set_fact:
+    jupyter_json: "{{ lookup('file', jupyter_json_file) | from_json }}"
+
+- name: Create jupyterhub directory under /opt/omnia
+  ansible.builtin.file:
+    path: "{{ jupyterhub_path }}"
+    mode: "{{ permission_644 }}"
+    state: directory
+    owner: "{{ owner_value }}"
+    group: "{{ group_value }}"
+
+- name: Load iptables kernel module
+  when: cluster_os_type != 'ubuntu'
+  block:
+    - name: Check if jupyter.conf file exists
+      ansible.builtin.stat:
+        path: /etc/modules-load.d/jupyter.conf
+      register: jupyter_conf_stat
+
+    - name: Create jupyter.conf file under /etc/modules-load.d for enabling ip_tables kernel module load post reboot
+      ansible.builtin.copy:
+        content: "ip_tables"
+        dest: /etc/modules-load.d/jupyter.conf
+        mode: '0644'
+      when: not jupyter_conf_stat.stat.exists
+
+    - name: Load iptables kernel module
+      ansible.builtin.command: modprob ip_tables
+      failed_when: false
+      register: modprob_command_status
+      changed_when: modprob_command_status.changed

@@ -1,0 +1,20 @@
+[Unit]
+Description=Slurm controller daemon
+After=network.target munge.service
+ConditionPathExists={{ slurm_nfs_folder }}/etc/slurm/slurm.conf
+
+[Service]
+Type=forking
+EnvironmentFile=-/etc/sysconfig/slurmctld
+Environment="LD_LIBRARY_PATH={{ slurm_nfs_folder }}/usr/lib64/"
+WorkingDirectory={{ slurm_nfs_folder }}/etc/slurm/
+ExecStart={{ slurm_nfs_folder }}/usr/sbin/slurmctld -f {{ slurm_nfs_folder }}/etc/slurm/slurm.conf $SLURMCTLD_OPTIONS
+ExecReload=/bin/kill -HUP $MAINPID
+PIDFile={{ slurm_nfs_folder }}/var/run/slurmctld.pid
+LimitNOFILE=65536
+Restart=on-failure
+RestartSec=2
+
+
+[Install]
+WantedBy=multi-user.target

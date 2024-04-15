@@ -43,6 +43,7 @@
     ansible-vault decrypt {{ role_path }}/../../../input/{{ config_filename }}
     --vault-password-file {{ role_path }}/../../../input/{{ config_vaultname }}
   when: "'$ANSIBLE_VAULT;' in config_content.stdout"
+  changed_when: true
 
 - name: Include variable file omnia_config.yml
   block:
@@ -60,12 +61,21 @@
     msg: "{{ input_config_failure_msg }}"
   register: input_config_check
   when:
-    - ansible_config_file_path | default("", true) | length < 1 or
-      omnia_usrhome_share | default("", true) | length < 1 or
-      scheduler_type | default("", true) | length < 1
+    - ansible_config_file_path | default("", true) | length < 1
 
-- name: Validate scheduler_type
-  ansible.builtin.include_tasks: validate_scheduler_type.yml
+- name: Validate input parameters are not empty
+  ansible.builtin.fail:
+    msg: " {{ slurm_installation_type_empty_failure_msg }}"
+  register: input_config_check
+  when:
+    - slurm_installation_type | default("", true) | length < 1
+
+- name: Validate input parameters are mentioned properly for slurm installation type
+  ansible.builtin.fail:
+    msg: " {{ slurm_installation_type_wrong_failure_msg }}"
+  register: input_config_check
+  when:
+    - slurm_installation_type | default("", true) not in ["nfs_share", "configless"]
 
 - name: Assert mariadb_password
   ansible.builtin.assert:
@@ -81,6 +91,14 @@
     fail_msg: "{{ fail_msg_mariadb_password }}"
   when: slurm_support
 
+- name: Verify the value of restart_slurm_services
+  ansible.builtin.assert:
+    that:
+      - restart_slurm_services == true or restart_slurm_services == false
+    success_msg: "{{ restart_services_success_msg }}"
+    fail_msg: "{{ restart_services_failure_msg }}"
+  when: slurm_support
+
 - name: Validate k8s_support variable
   when: k8s_support
   block:
@@ -88,7 +106,7 @@
       ansible.builtin.assert:
         that:
           - k8s_version | default("", true) | length > 1
-          - "('1.26' in k8s_version)"
+          - "'1.26.12' in k8s_version"
         success_msg: "{{ success_msg_k8s_version }}"
         fail_msg: "{{ fail_msg_k8s_version }}"
 
@@ -100,36 +118,37 @@
         success_msg: "{{ success_msg_k8s_cni }}"
         fail_msg: "{{ fail_msg_k8s_cni }}"
 
+    - name: Assert pod external IP range
+      ansible.builtin.assert:
+        that:
+          - pod_external_ip_range | default("", true) | length > 9
+          - ("'/' in pod_external_ip_range") or ("'-' in pod_external_ip_range")
+        success_msg: "{{ success_msg_pod_external_ip_range }}"
+        fail_msg: "{{ fail_msg_pod_external_ip_range }}"
+
+    - name: Assert kubernetes service addresses
+      ansible.builtin.assert:
+        that:
+          - k8s_service_addresses | default("", true) | length > 9
+          - '"/" in k8s_service_addresses'
+        success_msg: "{{ success_msg_k8s_service_addresses }}"
+        fail_msg: "{{ fail_msg_k8s_service_addresses }}"
+
     - name: Assert kubernetes pod network CIDR
       ansible.builtin.assert:
         that:
           - k8s_pod_network_cidr | default("", true) | length > 9
-          - '"/" in k8s_pod_network_cidr '
+          - '"/" in k8s_pod_network_cidr'
         success_msg: "{{ success_msg_k8s_pod_network_cidr }}"
         fail_msg: "{{ fail_msg_k8s_pod_network_cidr }}"
 
 - name: Save input variables from file
   ansible.builtin.set_fact:
     db_password: "{{ mariadb_password }}"
-    k8s_version: "{{ k8s_version }}"
     k8s_cni: "{{ k8s_cni }}"
-    k8s_pod_network_cidr: "{{ k8s_pod_network_cidr }}"
-    docker_username: "{{ docker_username }}"
-    docker_password: "{{ docker_password }}"
     ansible_conf_file_path: "{{ ansible_config_file_path }}"
-    omnia_usrhome_share: "{{ omnia_usrhome_share }}"
+    slurm_installation_type: "{{ slurm_installation_type }}"
   no_log: true
-
-- name: Set enable omnia nfs value
-  ansible.builtin.set_fact:
-    enable_omnia_nfs: "{{ enable_omnia_nfs | lower }}"
-
-- name: Verify the value of enable_omnia_nfs
-  ansible.builtin.assert:
-    that:
-      - enable_omnia_nfs == true or enable_omnia_nfs == false
-    success_msg: "{{ enable_omnia_nfs_success_msg }}"
-    fail_msg: "{{ enable_omnia_nfs_fail_msg }}"
 
 - name: Encrypt input config file
   ansible.builtin.command: >-

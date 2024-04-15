@@ -1,0 +1,10 @@
+[Unit]
+Description=Service to delete duplicate node
+
+[Service]
+Type=simple
+ExecStart={{ duplicate_node_cleanup_shell_dest }}
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

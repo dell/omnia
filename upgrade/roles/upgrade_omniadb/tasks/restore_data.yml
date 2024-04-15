@@ -1,0 +1,63 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+- name: Ping new omnia database
+  community.postgresql.postgresql_ping:
+    db: omniadb
+    login_password: "{{ postgresdb_password }}"
+  register: db_ping_new
+
+- name: Read in old omnia data
+  community.postgresql.postgresql_db:
+    db: omniadb
+    login_password: "{{ postgresdb_password }}"
+    state: restore
+    target: "{{ backup_location }}/backup.sql"
+  when: db_ping_new.is_available
+
+- name: Add and remove nodeinfo table schema columns
+  community.postgresql.postgresql_query:
+    db: omniadb
+    login_password: "{{ postgresdb_password }}"
+    query: |
+      ALTER TABLE cluster.nodeinfo
+        DROP COLUMN IF EXISTS ib_ip,
+        ADD COLUMN IF NOT EXISTS discovery_mechanism VARCHAR(65),
+        ADD COLUMN IF NOT EXISTS cpu VARCHAR(10),
+        ADD COLUMN IF NOT EXISTS gpu VARCHAR(10),
+        ADD COLUMN IF NOT EXISTS cpu_count INTEGER,
+        ADD COLUMN IF NOT EXISTS gpu_count INTEGER
+  when: db_ping_new.is_available
+
+- name: Rename nodeinfo serial column
+  community.postgresql.postgresql_query:
+    db: omniadb
+    login_password: "{{ postgresdb_password }}"
+    query: |
+      ALTER TABLE cluster.nodeinfo
+        RENAME COLUMN serial TO service_tag
+  when: db_ping_new.is_available
+  failed_when: false
+
+- name: Add nicinfo table schema
+  community.postgresql.postgresql_query:
+    db: omniadb
+    login_password: "{{ postgresdb_password }}"
+    query: |
+      CREATE TABLE IF NOT EXISTS cluster.nicinfo (
+        ID SERIAL NOT NULL PRIMARY KEY UNIQUE,
+        category VARCHAR(60),
+        FOREIGN KEY (id) REFERENCES cluster.nodeinfo(id) ON DELETE CASCADE
+      )
+  when: db_ping_new.is_available

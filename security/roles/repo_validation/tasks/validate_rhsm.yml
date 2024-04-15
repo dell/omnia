@@ -14,6 +14,7 @@
 ---
 
 - name: Validate rhsm status on manager node
+  when: "'auth_server' in group_names"
   block:
     - name: Fetch redhat subscription status
       ansible.builtin.command: subscription-manager list
@@ -47,9 +48,8 @@
       changed_when: false
       run_once: true
 
-  when: "'manager' in group_names"
-
 - name: Validate rhsm status on all remaining nodes
+  when: "'auth_server' not in group_names"
   block:
     - name: Fetch redhat subscription status
       ansible.builtin.command: subscription-manager list
@@ -77,5 +77,3 @@
           - "Execution skipped for this host because of one of the following reasons:"
           - "{{ compute_inactive_msg1 }}"
           - "{{ compute_inactive_msg2 }}"
-
-  when: "'manager' not in group_names"

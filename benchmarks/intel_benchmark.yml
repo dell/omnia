@@ -1,4 +1,4 @@
-#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,17 +13,21 @@
 #  limitations under the License.
 ---
 
-- name: Update repo for intel toolkit
+- name: Validations for Intel benchmark
   hosts: localhost
   gather_facts: true
   tasks:
-    - name: Update repo for intel toolkit
+    - name: Validations for Intel benchmark
       ansible.builtin.include_role:
         name: intel_benchmark
-        tasks_from: update_repo.yml
+        tasks_from: validate_intel_benchmarks.yml
+
+- name: Update Repositories/Registries on nodes
+  ansible.builtin.import_playbook: ../utils/update_user_repo.yml
+  when: not ( hostvars['127.0.0.1']['update_user_repo_executed'] | default(false) | bool )
 
 - name: Benchmarks for intel
-  hosts: manager, compute, login
+  hosts: slurm_control_node, slurm_node, login
   gather_facts: true
   roles:
     - intel_benchmark

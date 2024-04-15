@@ -1,0 +1,16 @@
+# Add organization
+dn: {{ ldaptoolbox_openldap_suffix }}
+objectClass: top
+objectClass: dcObject
+objectclass: organization
+o: {{ hostvars['127.0.0.1']['openldap_organization'] }}
+description: Omnia_set_organization
+
+dn: ou={{ hostvars['127.0.0.1']['openldap_organizational_unit'] }},{{ ldaptoolbox_openldap_suffix }}
+objectClass: organizationalUnit
+ou: {{ hostvars['127.0.0.1']['openldap_organizational_unit'] }}
+description: Omnia_set_organizationalUnit
+
+dn: ou=Group,{{ ldaptoolbox_openldap_suffix }}
+objectClass: organizationalUnit
+ou: Group

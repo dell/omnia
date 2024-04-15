@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -17,10 +17,6 @@
 storage_config_vars: "{{ role_path }}/../../../input/storage_config.yml"
 
 # Usage: prerequisites.yml
-beegfs_common_pkgs_non_leap:
-   - wget
-   - elfutils-libelf-devel
-   - firewalld
 os_supported_leap: "leap"
 max_retries: 20
 beegfs_unmount_client_fail_msg: "Failed, beegfs_unmount_client should be true when there is a change in beegfs mount location or in version"
@@ -50,8 +46,17 @@ beegfs_pkgs:
    - beegfs-helperd
    - beegfs-utils
    - libbeegfs-ib
-beegfs_client_non_leap_repo: "https://www.beegfs.io/release/beegfs_{{ beegfs_client_version }}/dists/beegfs-rhel8.repo"
-beegfs_repo_dest_non_leap: "/etc/yum.repos.d/beegfs_rhel8.repo"
+beegfs_pkgs_version:
+   - beegfs-client-{{ beegfs_version }}
+   - beegfs-helperd-{{ beegfs_version }}
+   - beegfs-utils-{{ beegfs_version }}
+   - libbeegfs-ib-{{ beegfs_version }}
+beegfs_pkgs_version_ubuntu:
+   - beegfs-client={{ beegfs_new_version }}
+   - beegfs-common={{ beegfs_new_version }}
+   - beegfs-utils={{ beegfs_new_version }}
+   - beegfs-helperd={{ beegfs_new_version }}
+   - libbeegfs-ib={{ beegfs_new_version }}
 min_retries: 10
 beegfs_client_conf_file: "/etc/beegfs/beegfs-client-autobuild.conf"
 client_mount_location: "/etc/beegfs/beegfs-client.conf"
@@ -87,3 +92,5 @@ beegfs_secretfile_mode: "0400"
 beegfs_client_secret_conf_file: "/etc/beegfs/beegfs-client.conf"
 beegfs_secretfile_regexp: "^connAuthFile(\\s*)=$"
 beegfs_secretfile_regexp_update: "connAuthFile                           = /etc/beegfs/connauthfile"
+regexp_pattern: '^sysMountSanityCheckMS\s*='
+replacement_line: 'sysMountSanityCheckMS         = false'

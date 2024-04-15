@@ -1,0 +1,55 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Initialize network_interface_type
+  ansible.builtin.set_fact:
+    network_interface_type: ""
+    bmc_details_status: false
+
+- name: Checking BMC network input
+  ansible.builtin.set_fact:
+    bmc_details_status: true
+  when:
+    - network_data.bmc_network.nic_name | default("", true) | length > 0
+    - network_data.bmc_network.netmask_bits | default("", true) | length > 0
+    - network_data.bmc_network.static_range | default("", true) | length > 0
+    - network_data.bmc_network.dynamic_range | default("", true) | length > 0
+
+- name: Warning - BMC network details incomplete
+  ansible.builtin.pause:
+    seconds: "{{ warning_wait_time }}"
+    prompt: "{{ warning_msg_bmc_network_details_incomplete }}"
+  when: not bmc_details_status
+
+- name: Set network_interface_type variable
+  block:
+    - name: Assign LOM to network_interface_type
+      ansible.builtin.set_fact:
+        network_interface_type: "lom"
+      when:
+        - bmc_details_status
+        - network_data.admin_network.nic_name == network_data.bmc_network.nic_name
+
+    - name: Assign Dedicated to network_interface_type
+      ansible.builtin.set_fact:
+        network_interface_type: "dedicated"
+      when:
+        - (not bmc_details_status) or
+          (network_data.bmc_network.nic_name | default("", true) | length > 1
+          and network_data.admin_network.nic_name != network_data.bmc_network.nic_name)
+  rescue:
+    - name: Failed to initialize network interface type
+      ansible.builtin.fail:
+        msg: "{{ network_interface_fail_msg }}"

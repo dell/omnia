@@ -1,0 +1,66 @@
+#!/bin/bash
+
+################################################################################################################
+#  omnia_cpu_info:
+#      Add the cpu type, gpu type, cpu count and gpu count information to xcat log
+#################################################################################################################
+
+. /xcatpost/xcatlib.sh
+
+# Set log label, log file and log type
+log_label="xcat.deployment"
+xcat_log_file="/var/log/xcat/xcat.log"
+log_type="info"
+
+# Log the execution of omnia_cpu_gpu_info
+msgutil_r "$MASTER_IP" "$log_type" "Running omnia_cpu_gpu_info: Logs CPU & GPU info" "$xcat_log_file" "$log_label"
+
+# Check if the CPU vendor is Intel
+intel_cpu_check=`lscpu | grep -i "^vendor ID" | grep -ic "Intel"`
+
+# Check if the CPU vendor is AMD
+amd_cpu_check=`lscpu | grep -i "^vendor ID" | grep -ic "AMD"`
+
+# Get CPU count
+cpu_count=`lscpu | grep -i "^socket" | grep -o -E "[0-9]+"`
+
+# Get Nvidia GPU count
+nvidia_gpu_count=`lshw -c display | grep -ic "vendor: NVIDIA Corporation"`
+
+# Get AMD display controller count
+amd_display_controller_count=`lshw -c display | grep -ic "vendor: Advanced Micro Devices"`
+
+# Get AMD processing accelerator count
+amd_processing_accelerator_count=`lshw | grep --after-context=2 "description: Processing accelerators" | grep -c "vendor: Advanced Micro Devices"`
+
+# Compute AMD GPU count
+amd_gpu_count=$((amd_display_controller_count + amd_processing_accelerator_count))
+
+# Check for Intel CPU
+if [ $intel_cpu_check -gt 0 ]; then
+    cpu_str="Intel CPU Found Count=$cpu_count"
+# Check for AMD CPU
+elif [ $amd_cpu_check -gt 0 ]; then
+    cpu_str="AMD CPU Found Count=$cpu_count"
+else
+    cpu_str="No CPU Found"
+fi
+
+# Check for NVIDIA GPU
+if [ $nvidia_gpu_count -gt 0 ]; then
+    gpu_str="NVIDIA GPU Found Count=$nvidia_gpu_count"
+# Check for AMD GPU
+elif [ $amd_gpu_count -gt 0 ]; then
+    gpu_str="AMD GPU Found Count=$amd_gpu_count"
+else
+    gpu_str="No GPU Found"
+fi
+
+# Log the CPU information
+msgutil_r "$MASTER_IP" "$log_type" "$cpu_str" "$xcat_log_file" "$log_label"
+
+# Log the GPU information
+msgutil_r "$MASTER_IP" "$log_type" "$gpu_str" "$xcat_log_file" "$log_label"
+
+# Log the completion of omnia_cpu_gpu_info script
+msgutil_r "$MASTER_IP" "$log_type" "Completed Execution of omnia_cpu_gpu_info" "$xcat_log_file" "$log_label"

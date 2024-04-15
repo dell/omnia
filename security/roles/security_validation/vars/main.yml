@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,21 +14,18 @@
 ---
 
 # Usage: include_security_config.yml
-vault_key_permission: 0644
+vault_key_permission: "0644"
 ansible_vault_search_key: "$ANSIBLE_VAULT;"
 security_config_file: "{{ role_path }}/../../../input/security_config.yml"
 security_vaultname: "{{ role_path }}/../../../input/.security_vault.key"
 login_node_security_config_file: "{{ role_path }}/../../../input/login_node_security_config.yml"
-ldap_freeipa_failure_msg: "Failed. Both ldap_required and freeipa_required cannot be true"
 hosts_file_dest: "/etc/hosts"
 hosts_file_mode: "0644"
 security_config_syntax_fail_msg: "Failed. Syntax errors present in security_config.yml. Fix errors and re-run playbook again."
 
 # Usage: fetch_inputs.yml
-ldap_required_success_msg: "ldap_required variable successfully validated"
-ldap_required_fail_msg: "Failed. ldap_required should be either true or false"
-freeipa_required_success_msg: "freeipa_required variable sccessfully validated"
-freeipa_required_fail_msg: "Failed. freeipa_required should be either true or false"
+authentication_system_success_msg: "authentication_system variable successfully validated"
+authentication_system_fail_msg: "Failed. authentication_system variable in security_config.yml should be either openldap or freeipa"
 min_length: 8
 max_length: 30
 domain_name_length: '63'
@@ -40,11 +37,12 @@ success_msg_directory_manager_password: "directory_manager_password successfully
 fail_msg_directory_manager_password: "Failed. Incorrect format provided for directory_manager_password"
 success_msg_kerberos_admin_password: "kerberos_admin_password successfully validated"
 fail_msg_kerberos_admin_password: "Failed. Incorrect format provided for kerberos_admin_password"
-input_config_failure_msg: "Failed. Since, freeipa_required is true,please provide few additional parameters in input/security_config.yml."
+input_config_failure_msg: "Failed. Since, authentication_system is freeipa, provide few additional parameters in input/security_config.yml."
 secure_login_node_success_msg: "enable_secure_login_node successfully validated"
 secure_login_node_fail_msg: "Failed. enable_secure_login_node should be either true or false"
 secure_login_node_warning_msg: "[WARNING] enable_secure_login_node is true in security_config.yml and
 login group not provided with login node IP address in inventory. Skipping tasks for secure login node configuration"
+ubuntu_freeipa_support_fail_msg: "Failed. freeipa is not supported on ubuntu. Remove freeipa from software_config.json and rerun the playbook"
 
 # Usage: fetch_security_inputs.yml
 max_failures_success_msg: "max_failures successfully validated"
@@ -86,6 +84,78 @@ ldap_ca_cert_path_failure_msg: "Failed. The mentioned certificate does not exist
 
 # Usage: set_login_node_status.yml
 multiple_login_node_fail_msg: "Failed. Currently only one login node supported in inventory"
-warning_wait_time: 10
-login_node_warning_msg: "[WARNING] login group with ip for login node not present in the inventory.
-Proceeding execution with manager and compute nodes"
+warning_wait_time: 30
+login_node_warning_msg: "[WARNING] login group with ip for login node not present in the inventory. Proceeding execution with auth_server and other nodes"
+
+# Usasge: fetch_ldap_server_inputs.yml
+success_msg_config_root_password: "Openldap Config password valid"
+fail_msg_config_root_password: "Failed, Incorrect format provided for Openldap Config password in input/security_config.yml for openldap configuration."
+success_msg_database_root_password: "Openldap Database password valid"
+fail_msg_database_root_password: "Failed, Incorrect format provided for Openldap Database password in input/security_config.yml for openldap configuration."
+success_msg_monitor_root_password: "Openldap Monitor password valid"
+fail_msg_monitor_root_password: "Failed, Incorrect format provided for Openldap Monitor password in input/security_config.yml for openldap configuration."
+ldap_cert_path_fail_msg: "Failed, LDAP certificate path doesn't exist."
+ldap_cert_path_success_msg: "LDAP certificate path validated"
+fail_msg_ltb_dir: "Failed, LTB directory doesn't exist."
+local_repo_access_config_file: "/opt/omnia/offline/local_repo_access.yml"
+
+# Usage: generate_ldap_password_hashes.yml
+hashing_python_file: "{{ role_path }}/files/generate_hash.py"
+python_version: python3.9
+
+# Usage: ldap_prereq.yml
+ldap_dir: "/opt/omnia/ldap"
+ltb_git_repo_path: "ansible-role-ldaptoolbox-openldap"
+file_permission: "0644"
+openldap_software_failure_msg: "Failed, OpenLDAP software stack is not present in software_config.json file.
+Update openldap software stack in software_config.json and execute local_repo.yml."
+ldap_repo_failure_msg: "Failed, Local repo not present for OpenLDAP. Execute local_repo.yml again."
+
+# fetch_software_config.yml
+software_config_json_file: "{{ role_path }}/../../../input/software_config.json"
+freeipa_and_openldap_false_fail_msg: "Both freeipa and openldap are not present in software_config.json.
+Please give one of them in software_config.json and execute local_repo.yml again."
+freeipa_and_openldap_true_fail_msg: "Both freeipa and openldap are present in software_config.json.
+Please give only one of them in software_config.json"
+compute_os_ubuntu: "ubuntu"
+
+# secure_login_node_prereq.yml
+snoopy_package: "install-snoopy"
+snoopy_package_failure_msg: "Failed, Local repo not present for secure_login_node. Execute local_repo.yml again."
+
+# Usage: validate_inventory.yml
+invalid_auth_server_inventory_fail_msg: "Failed. inventory format either not provided or is invalid.
+Verify inventory file has auth_server group and re-run the playbook."
+auth_server_group_fail_msg: "Failed, auth_server group should contain exactly 1 node"
+auth_server_group_success_msg: "Success, inventory file is valid"
+invalid_security_inventory_warn_msg: "[WARNING] Invalid inventory format for the execution.
+When k8s software is present in software_config.json, specify kube_control_plane, kube_node and etcd.
+When slurm software is present in software_config.json, specify slurm_control_node and slurm_node.
+Remaining tasks of the playbook will be executed for groups slurm_control_node, slurm_node, kube_control_plane, kube_node, etcd, auth_server, login
+available in the inventory.
+Remaining groups in the inventory will be skipped."
+empty_inventory_fail_msg: "Failed. inventory not provided. Re-run playbook with inventory by providing -i inventory.
+Inventory support groups are slurm_control_node, slurm_node, kube_control_plane, kube_node, etcd, auth_server, login"
+
+# Usage: k8s_validations.yml
+invalid_kube_inventory_fail_msg: "Failed. k8s software is present in software_config.json.
+Invalid inventory format, specify kube_control_plane, kube_node and etcd"
+kube_one_node_validation_fail_msg: "Failed. k8s software is present in software_config.json.
+There should be exactly one entry for kube_control_plane in the inventory"
+kube_one_node_validation_success_msg: "One kube_control_plane exists in the inventory"
+kube_node_validation_fail_msg: "Failed. k8s software is present in software_config.json.
+At least one kube_node should be present in the inventory."
+kube_node_validation_success_msg: " At least one kube_node exists in the inventory"
+etcd_node_validation_fail_msg: "Failed. k8s software is present in software_config.json.
+etcd group in inventory must have atleast one node and total node count must be odd."
+etcd_node_validation_success_msg: "etcd should have odd number of nodes in the inventory"
+
+# Usage: slurm_validations.yml
+invalid_slurm_inventory_fail_msg: "Failed. slurm software is present in software_config.json.
+Invalid inventory format, specify slurm_control_node and slurm_node."
+slurm_one_node_validation_fail_msg: "Failed. slurm software is present in software_config.json.
+There should be exactly one entry for slurm_control_node in the inventory."
+slurm_one_node_validation_success_msg: "One slurm_control_node exists in the inventory"
+slurm_node_validation_fail_msg: "Failed. slurm software is present in software_config.json.
+At least one slurm_node should be present in the inventory."
+slurm_node_validation_success_msg: "At least one slurm_node exists in the inventory"

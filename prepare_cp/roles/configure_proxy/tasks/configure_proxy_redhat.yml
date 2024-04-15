@@ -1,0 +1,68 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Install Squid package
+  ansible.builtin.yum:
+    name: squid
+    state: present
+
+- name: Ensure omnia_local_registry SSL_ports ACL is present in squid.conf
+  ansible.builtin.lineinfile:
+    path: "{{ squid_proxy_conf_path }}"
+    line: "acl SSL_ports port {{ nerdctl_registry_port }}"
+    insertafter: "acl SSL_ports port 443"
+    regexp: "^acl SSL_ports port {{ nerdctl_registry_port }}$"
+  register: configure_proxy
+
+- name: Add ports for user_registry
+  when:
+    - user_registry is defined
+    - user_registry is not none
+    - user_registry | length > 0
+  ansible.builtin.include_tasks: configure_user_registry_port.yml
+
+- name: Start and enable squid service
+  ansible.builtin.service:
+    name: squid
+    state: restarted
+    enabled: true
+  when:
+    - configure_proxy.changed or
+      (configure_proxy_port is defined and configure_proxy_port.changed) # noqa: no-handler
+
+- name: Start and enable firewalld
+  ansible.builtin.service:
+    name: firewalld
+    state: started
+    enabled: true
+
+- name: Configure firewalld with port 3128
+  ansible.builtin.command: "firewall-cmd  --zone=public --permanent --add-port={{ squid_proxy_port }}"
+  changed_when: true
+
+- name: Reload firewalld
+  ansible.builtin.command: firewall-cmd --reload
+  changed_when: true
+
+- name: Restart nerdctl registry after firewalld restart
+  block:
+    - name: Restart nerdctl-registry service
+      ansible.builtin.systemd:
+        name: nerdctl-registry
+        state: restarted
+  rescue:
+    - name: Message if nerdctl-registry restart fails
+      ansible.builtin.debug:
+        msg: "{{ nerdctl_registry_restart_fail_msg }}"

@@ -1,0 +1,47 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+file_permission: 755
+download_dest: /tmp/kustomize_v5.0.3_linux_amd64.tar.gz
+kustomize_binary_path: /opt/omnia/kustomize/kustomize
+branch: v1.8-branch
+deployment_success_message: Deployment is successful
+deployment_failure_message: Deployment is not ready
+warning_msg: Do not continue, if kubeflow deployment is running for first time
+wait_time: 180
+execution_time: 300
+image_pull_wait_time: 10
+kubeflow_json_file: "{{ role_path }}/../../../input/config/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/kubeflow.json"
+max_user_watches: 1255360
+max_user_instances: 2280
+# usage prereq.yml
+kubeflow_dir_path: "/opt/omnia/kubeflow"
+kustomize_dir: "/opt/omnia/kustomize"
+local_repo_config_file: "{{ role_path }}/../../../input/local_repo_config.yml"
+software_config_file: "{{ role_path }}/../../../input/software_config.json"
+kubeflow_git_repo_path: "kubeflow"
+kustomize_git_repo_path: "kustomize"
+kubeflow_software_failure_msg: "Kubeflow software stack is not present in software_config.json file."
+kubeflow_repo_failure_msg: "Failed, Local repo not present for kubeflow. Execute local_repo.yml again."
+kustomize_repo_failure_msg: "Failed, Local repo not present for kubeflow. Execute local_repo.yml again."
+k8s_not_deployed: "Kubernetes is prerequisite for deploying kubeflow. Please deploy kubernetes by executing scheduler.yml or omnia.yml"
+jw_app: /opt/omnia/kubeflow/kubeflow/apps/jupyter/jupyter-web-app/upstream/base/params.env
+tb_app: /opt/omnia/kubeflow/kubeflow/apps/tensorboard/tensorboards-web-app/upstream/base/params.env
+vw_app: /opt/omnia/kubeflow/kubeflow/apps/volumes-web-app/upstream/base/params.env
+istio_ingressgateway_service_yaml_file_path: /opt/omnia/kubeflow/kubeflow/common/istio-1-17/istio-install/base/patches/service.yaml
+kserve_exist: "Kserve is already deployed, please remove kserve to deploy kubeflow."
+# usage main.yml
+local_repo_access_config_file: "/opt/omnia/offline/local_repo_access.yml"
+istio_module_dir: /etc/modules-load.d
+istio_module_file: /etc/modules-load.d/99-istio-modules.conf

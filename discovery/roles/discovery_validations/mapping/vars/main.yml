@@ -1,0 +1,37 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Usage: validate_mapping_file.yml
+python_version: "python3.9"
+validate_mapping_py: "{{ role_path }}/../mapping/files/validate_mapping_file.py"
+pxe_path_fail_msg: "Failed. Please provide a valid pxe_mapping_file_path in provision_config.yml"
+mapping_file_key: "ADMIN_MAC"
+mapping_file_header_fail_msg: "Failed. Header of csv file is not in correct format. It should be of the format: MAC,Hostname,IP"
+host_mapping_header_format: "MAC,Hostname,IP"
+mapping_file_seperation_fail_msg: "Failed. Mapping file should be comma separated and all fields must be filled."
+hostname_chars_fail_msg: "Failed. Hostname should not contain _ or . or space or node- as it might result in issues with provisioning/authentication tools like FreeIPA.
+Make sure the mapping file contains only the hostname, and not the domain_name. Found in: "
+duplicate_ip_fail_msg: "Failed. Duplicate IP exists. Please verify mapping file again."
+duplicate_hostname_fail_msg: "Failed. Duplicate hostname exists. Please verify mapping file again."
+temp_mapping_file_path: "/opt/omnia/pxe_mapping_file.csv"
+admin_subnet_missing_msg: "Failed. Invalid IP {{ item }}. Missing admin subnet for IP {{ item }} provided in mapping file"
+capital_hostname_fail_msg: "Failed. Invalid hostname {{ item }}. Hostname should be in lower case and should not start with numbers.
+Refer documentation for more details."
+temp_pxe_file_path: "/opt/omnia/temp_pxe_file.csv"
+file_mode: "0644"
+
+# Usage: validate_mapping_mechanism.yml
+invalid_mapping_fail_msg: "Failed. pxe_mapping_file_path {{ pxe_mapping_file_path }} provided in provision_config.yml does not exist.
+Please provide valid path and re-run the playbook."

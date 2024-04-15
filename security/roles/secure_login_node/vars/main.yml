@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -17,12 +17,27 @@
 sshd_conf_file: /etc/ssh/sshd_config
 
 # Usage: configure_alerting.yml
-community_general_collection: "community.general:4.4.0"
+community_general_collection: "{{ offline_ansible_galaxy_collection_path }}/community.general:4.4.0.tar.gz"
 mail_packages:
   - mailx
   - postfix
 alerting_file_path: /root/auth_failure_check.yml
 hosts_file_mode: "0644"
+local_repo_access_path: "/opt/omnia/offline/local_repo_access.yml"
+ansible_name: "ansible"
+secure_ansible_version: "7.7.0"
+cryptography_name: "cryptography"
+cryptography_version: "41.0.7"
+jinja_name: "jinja2"
+jinja_version: "3.1.2"
+ansible_galaxy_path: "community.general.tar.gz"
+file_mode: "0644"
+
+# Usage: configure_alerting_ubuntu
+python_packages:
+  - python3.9
+  - python3.9-distutils
+  - python3-pip
 
 # Usage: install_snoopy.yml
 snoopy_packages:
@@ -34,12 +49,15 @@ snoopy_packages:
   - tar
   - wget
 snoopy_mode: "0755"
-snoopy_url: https://github.com/a2o/snoopy/raw/install/install/install-snoopy.sh
+snoopy_package: "install-snoopy"
 snoopy_path: /var/lib
 
 # Usage: user_monitor.yml
 psacct: psacct
 acct: acct
+redhat_os: "redhat"
+rocky_os: "rocky"
+ubuntu_os: "ubuntu"
 
 # Usage: restrict_nonessentials.yml
 service_status: ['enabled', 'alias', 'static', 'indirect', 'enabled-runtime', 'active', 'inactive']

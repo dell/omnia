@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,13 @@
 # limitations under the License.
 ---
 
+- name: Update Inventory with ansible_host information
+  ansible.builtin.import_playbook: ../utils/servicetag_host_mapping.yml
+  when: not ( hostvars['127.0.0.1']['update_inventory_executed'] | default(false) | bool )
+
+- name: Gather facts from all the nodes
+  hosts: slurm_control_node, kube_control_plane, slurm_node, kube_node, login, etcd
+
 - name: Validate scheduler input parameters
   hosts: localhost
   connection: local
@@ -23,109 +30,80 @@
         name: cluster_validation
         tasks_from: validation_status_check.yml
 
-- name: Gather facts from all the nodes
-  hosts: manager, compute, login
-
-- name: Validate repo file and subscription
-  hosts: manager, compute, login
-  gather_facts: false
-  roles:
-    - repo_validation
+- name: Update Repositories/Registries on nodes
+  ansible.builtin.import_playbook: ../utils/update_user_repo.yml
+  when: not ( hostvars['127.0.0.1']['update_user_repo_executed'] | default(false) | bool )
 
 - name: Apply common installation and config
-  hosts: manager, compute, login
+  hosts: slurm_control_node, slurm_node, login
   gather_facts: false
   any_errors_fatal: true
   roles:
     - common
 
-- name: Apply NFS server setup on manager node
-  hosts: manager
+- name: Prepare kube control plane for kubernetes installations
+  hosts: kube_control_plane
   gather_facts: false
-  roles:
-    - nfs_server_setup
-
-- name: Apply NFS client setup on compute nodes
-  hosts: compute, login
-  gather_facts: false
-  roles:
-    - nfs_client_setup
-
-- name: Apply common K8s installation and config
-  hosts: manager, compute
-  gather_facts: false
-  roles:
-    - k8s_common
-  
-- name: Apply K8s manager config
-  hosts: manager
-  gather_facts: true
   roles:
     - k8s_manager
 
-- name: Apply K8s firewalld config on manager and compute nodes
-  hosts: manager, compute
+- name: Prepare kube control plane, kube nodes and etcd for kubernetes installations
+  hosts: kube_control_plane, kube_node, etcd
+  gather_facts: false
+  any_errors_fatal: true
+  roles:
+    - k8s_prepare_nodes
+
+- name: Start Kubernetes Installations
+  ansible.builtin.import_playbook: "{{ playbook_dir }}/playbooks/k8s_start_setup.yml"
+
+- name: Add nodes to kubernetes cluster
+  ansible.builtin.import_playbook: "{{ playbook_dir }}/playbooks/k8s_add_node.yml"
+
+- name: Prepare kube control plane and kube nodes for kubernetes services installations
+  hosts: kube_control_plane, kube_node
   gather_facts: false
   roles:
-    - k8s_firewalld
+    - k8s_prepare_services
 
-- name: Start K8s on manager server
-  hosts: manager
-  gather_facts: true
-  roles:
-    - k8s_start_manager
-
-- name: Start K8s worker servers on compute nodes
-  hosts: compute
-  gather_facts: false
-  roles:
-    - k8s_start_workers
-
-- name: Start K8s worker servers on manager nodes
-  hosts: manager, compute
+- name: Start K8s worker servers on kube control nodes
+  hosts: kube_control_plane
   gather_facts: false
   roles:
     - k8s_start_services
 
 - name: Apply common Slurm installation and config
-  hosts: manager, compute, login
+  hosts: slurm_control_node, slurm_node, login
   gather_facts: false
   roles:
     - slurm_common
 
-- name: Apply Slurm manager config
-  hosts: manager
+- name: Apply slurm control node config
+  hosts: slurm_control_node
   gather_facts: false
   roles:
     - slurm_manager
 
-- name: Configure Slurm workers
-  hosts: compute, login
-  serial: 1
+- name: Configure Slurm worker nodes
+  hosts: slurm_node, login
   gather_facts: false
   roles:
     - slurm_workers
 
-- name: Start Slurm workers
-  hosts: compute, login
-  gather_facts: false
-  roles:
-    - slurm_workers_service
-
-- name: Start Slurm services
-  hosts: manager
+- name: Start slurm services on slurm control node
+  hosts: slurm_control_node
   gather_facts: false
   roles:
     - slurm_start_services
 
-- name: Install slurm exporter
-  hosts: manager
+- name: Start slurm services on slurm node and login
+  hosts: slurm_node, login
   gather_facts: false
   roles:
-    - slurm_exporter
+    - slurm_workers_service
 
-- name: Install slurm restd
-  hosts: manager
-  gather_facts: false
+- name: Compile and install the ucx and openmpi on the nfs share of compute nodes
+  hosts: slurm_control_node, kube_control_plane
+  gather_facts: true
   roles:
-    - slurm_restd
+    - install_benchmarks_tools

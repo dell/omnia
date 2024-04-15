@@ -1,0 +1,62 @@
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Usage: main.yml
+slurm_inv_fail_msg: "Required slurm groups are not defined in inventory. Please check inventory format"
+slurm_not_exists: "Slurm services does not exist"
+slurm_nfs_folder: "/slurm"
+slurmd_servicepath: /usr/lib/systemd/system/slurmd.service
+slurmdbd_servicepath: /etc/systemd/system/slurmdbd.service
+slurmctld_servicepath: /etc/systemd/system/slurmctld.service
+bashrc_path: /etc/bashrc
+
+check_slurm_services:
+  - slurmctld
+  - slurmd
+  - slurmdbd
+
+slurm_services:
+  - slurmctld
+  - slurmd
+  - slurmdbd
+  - munge
+  - mariadb
+
+slurm_packages:
+  - slurm-slurmd
+  - slurm-slurmctld
+  - slurm-slurmdbd
+  - slurm-slurmrestd
+  - slurm-pmi
+  - munge
+  - munge-libs
+  - munge-devel
+  - mariadb-server
+  - mariadb-devel
+
+slurm_common_files:
+  - /etc/slurm
+  - /var/spool/mail/slurm
+  - /home/slurm
+
+slurm_configless_files:
+  - /var/spool/slurm
+  - /var/log/slurm
+  - /var/run/slurm
+  - /run/slurm
+  - /etc/logrotate.d/slurm
+  - /usr/lib64/slurm
+  - /usr/share/licenses/slurm
+  - /usr/share/doc/slurm

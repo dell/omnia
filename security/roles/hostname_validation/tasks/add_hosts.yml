@@ -25,21 +25,21 @@
 
 - name: Set facts for node hostname and ip
   ansible.builtin.set_fact:
-    node_ip: "{{ inventory_hostname }}"
+    node_ip: "{{ ansible_host }}"
     node_hostname: "{{ machine_hostname.stdout }}"
     node_name: "{{ short_hostname.stdout }}"
 
 - name: Add host name in hosts file
   ansible.builtin.lineinfile:
     dest: "{{ hosts_file_dest }}"
-    line: "{{ inventory_hostname }} {{ machine_hostname.stdout }} {{ short_hostname.stdout }}"
+    line: "{{ ansible_host }} {{ machine_hostname.stdout }} {{ short_hostname.stdout }}"
     state: present
     create: true
     mode: "{{ hosts_file_mode }}"
 
-- name: Add manager information in compute and login nodes
+- name: Add auth_server information in cluster nodes
   block:
-    - name: Add manager hosts info in compute node hosts file
+    - name: Add auth_server hosts info in compute node hosts file
       ansible.builtin.lineinfile:
         dest: "{{ hosts_file_dest }}"
         line: "{{ hostvars[item].node_ip }} {{ hostvars[item].node_hostname }} {{ hostvars[item].node_name }}"
@@ -47,10 +47,9 @@
         create: true
         mode: "{{ hosts_file_mode }}"
       with_items:
-        - "{{ groups['manager'] }}"
-      when: "'compute' in group_names"
+        - "{{ groups['auth_server'] }}"
 
-    - name: Add manager info in /etc/hosts of login node
+    - name: Add auth_server info in /etc/hosts of login node
       ansible.builtin.lineinfile:
         dest: "{{ hosts_file_dest }}"
         line: "{{ hostvars[item].node_ip }} {{ hostvars[item].node_hostname }} {{ hostvars[item].node_name }}"
@@ -58,10 +57,10 @@
         create: true
         mode: "{{ hosts_file_mode }}"
       with_items:
-        - "{{ groups['manager'] }}"
+        - "{{ groups['auth_server'] }}"
       when:
         - '"login" in group_names'
   rescue:
-    - name: Updating manager hosts information failed
+    - name: Updating auth_server hosts information failed
       ansible.builtin.fail:
         msg: "{{ manager_information_update_fail_msg }}"

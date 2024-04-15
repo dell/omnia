@@ -1,0 +1,67 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Delete maxstartups line in remoteshell script
+  ansible.builtin.lineinfile:
+    path: "{{ remoteshell_script_path }}"
+    regexp: "{{ remoteshell_regexp }}"
+    state: absent
+
+- name: Ubuntu 22.04 configuration
+  when:
+    - provision_os | lower == os_supported_ubuntu
+    - provision_os_version | string in ubuntu22_version
+  block:
+    - name: Fetch ubuntu 22 directory name
+      ansible.builtin.shell: >
+        set -o pipefail && \
+        lsdef -t osimage -o {{ provision_os_image }} | grep osvers
+      changed_when: false
+      register: fetch_ubuntu22_directory
+
+    - name: Set ubuntu22_directory
+      ansible.builtin.set_fact:
+        ubuntu22_directory: "{{ fetch_ubuntu22_directory.stdout.split('=')[1] }}"
+
+    - name: Delete ubuntu 22.04 unwanted package
+      ansible.builtin.file:
+        path: "{{ ubuntu22_unwanted_package }}"
+        state: absent
+    
+    - name: Copy ubuntu kickstart files to xcat configuration path
+      ansible.builtin.template:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        mode: "{{ item.mode }}"
+      with_items: "{{ xcat_ubuntu22_path }}"
+
+- name: Ubuntu 20.04 configuration
+  when:
+    - provision_os | lower == os_supported_ubuntu
+    - provision_os_version | string in ubuntu20_version
+  block:
+    - name: Copy ubuntu kickstart files to xcat configuration path
+      ansible.builtin.template:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        mode: "{{ item.mode }}"
+      with_items: "{{ xcat_ubuntu20_path }}"
+
+- name: Copy ubuntu pre script to xcat configuration path
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  with_items: "{{ pre_scripts_ubuntu_path }}"

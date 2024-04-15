@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -12,6 +12,11 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+
+- name: Initializing variables for NFS bolt on support
+  ansible.builtin.set_fact:
+    nfs_client_support: false
+    nfs_server_support: false
 
 - name: Verify server_ip variable declaration
   ansible.builtin.assert:
@@ -41,6 +46,14 @@
     success_msg: "{{ client_mount_options_success_msg }}"
     fail_msg: "{{ client_mount_options_fail_msg }}"
 
+- name: Verify nfs_server variable declaration
+  ansible.builtin.assert:
+    that:
+      - item.nfs_server is defined
+      - item.nfs_server == true or item.nfs_server == false
+    success_msg: "{{ nfs_server_success_msg }}"
+    fail_msg: "{{ nfs_server_fail_msg }}"
+
 - name: Updating nfs_client_support value
   ansible.builtin.set_fact:
     nfs_client_support: true
@@ -50,11 +63,24 @@
       item.client_share_path | default("", true) | length > 1 or
       item.client_mount_options | default("", true) | length > 1
 
+- name: Fail if nfs_client_support is false
+  ansible.builtin.fail:
+    msg: "{{ nfs_client_support_failure_msg }}"
+  when: not nfs_client_support
+
+- name: Updating nfs_server_support value
+  ansible.builtin.set_fact:
+    nfs_server_support: true
+  when:
+    - item.nfs_server is defined
+    - item.nfs_server
+
 - name: Initialize variables
   ansible.builtin.set_fact:
     nfs_client_declaration: false
 
 - name: Check for variable declaration and update status
+  when: nfs_client_support
   block:
     - name: Updating nfs_client_declaration value when values are declared correctly
       ansible.builtin.set_fact:
@@ -67,15 +93,35 @@
       ansible.builtin.fail:
         msg: "{{ nfs_client_declaration_msg }}"
       when: not nfs_client_declaration
-  when: nfs_client_support
 
-- name: Test reachablility of NFS server
-  ansible.builtin.command: ping -c3 {{ item.server_ip }}
-  changed_when: false
-  failed_when: false
-  register: nfs_server_reachability
+    - name: Test reachablility of NFS server
+      ansible.builtin.command: ping -c3 {{ item.server_ip }}
+      changed_when: false
+      failed_when: false
+      register: nfs_server_reachability
+      when: item.server_ip != "localhost"
 
-- name: Verify NFS server reachability
-  ansible.builtin.fail:
-    msg: "{{ nfs_server_reach_msg }}"
-  when: ping_msg in nfs_server_reachability.stdout
+    - name: Verify NFS server reachability
+      ansible.builtin.fail:
+        msg: "{{ nfs_server_reach_msg }}"
+      when:
+        - item.server_ip != "localhost"
+        - ping_msg in nfs_server_reachability.stdout
+
+- name: Create nfs_server_cluster group
+  ansible.builtin.add_host:
+    name: "{{ item.server_ip }}"
+    groups: "nfs_server_cluster"
+  when:
+    - nfs_server_support
+    - item.server_ip != "localhost"
+    - item.server_ip != admin_nic_ip
+
+- name: Create nfs_server_local group
+  ansible.builtin.add_host:
+    name: "{{ item.server_ip }}"
+    groups: "nfs_server_local"
+  when:
+    - nfs_server_support
+    - item.server_ip == "localhost" or
+      item.server_ip == admin_nic_ip

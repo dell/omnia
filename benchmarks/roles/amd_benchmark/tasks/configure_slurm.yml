@@ -1,4 +1,4 @@
-#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,30 +13,61 @@
 #  limitations under the License.
 ---
 
-- name: Update SelectType in slurm.conf
-  ansible.builtin.replace:
-    path: "{{ slurm_conf_path }}"
-    regexp: 'SelectType=(.*)'
-    replace: 'SelectType=select/cons_tres'
+- name: Update slurm.conf in configless mode
+  when:
+    - hostvars['127.0.0.1']['slurm_installation_type'] == "configless"
+    - "'slurm_control_node' in group_names"
+  block:
+    - name: Update SelectType in slurm.conf
+      ansible.builtin.replace:
+        path: "{{ slurm_conf_path }}"
+        regexp: 'SelectType=(.*)'
+        replace: 'SelectType=select/cons_tres'
 
-- name: Add SelectTypeParameters in slurm.conf
-  ansible.builtin.lineinfile:
-    path: "{{ slurm_conf_path }}"
-    insertafter: '^SelectType='
-    line: 'SelectTypeParameters=CR_Core'
+    - name: Add SelectTypeParameters in slurm.conf
+      ansible.builtin.lineinfile:
+        path: "{{ slurm_conf_path }}"
+        insertafter: '^SelectType='
+        line: 'SelectTypeParameters=CR_Core'
 
-- name: Update TaskPlugin in slurm.conf
-  ansible.builtin.replace:
-    path: "{{ slurm_conf_path }}"
-    regexp: '#TaskPlugin='
-    replace: 'TaskPlugin=task/affinity,task/cgroup'
+    - name: Add SelectTypeParameters in slurm.conf
+      ansible.builtin.lineinfile:
+        path: "{{ slurm_conf_path }}"
+        insertafter: '^SelectType='
+        line: 'SelectTypeParameters=CR_Core'
 
-- name: Restart slurmd on compute
+- name: Update slurm.conf in nfs mode
+  when:
+    - hostvars['127.0.0.1']['slurm_installation_type'] == 'nfs_share'
+  block:
+    - name: Append share_path to variables when slurm_installation_type is nfs_share
+      ansible.builtin.set_fact:
+        slurm_conf_path: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ slurm_conf_path }}"
+
+    - name: Update SelectType in slurm.conf
+      ansible.builtin.replace:
+        path: "{{ slurm_conf_path }}"
+        regexp: 'SelectType=(.*)'
+        replace: 'SelectType=select/cons_tres'
+
+    - name: Add SelectTypeParameters in slurm.conf
+      ansible.builtin.lineinfile:
+        path: "{{ slurm_conf_path }}"
+        insertafter: '^SelectType='
+        line: 'SelectTypeParameters=CR_Core'
+
+    - name: Add SelectTypeParameters in slurm.conf
+      ansible.builtin.lineinfile:
+        path: "{{ slurm_conf_path }}"
+        insertafter: '^SelectType='
+        line: 'SelectTypeParameters=CR_Core'
+
+- name: Restart slurmd on slurm_node
   ansible.builtin.systemd:
     name: slurmd
     state: restarted
     enabled: true
-  when: "'compute' in group_names"
+  when: "'slurm_node' in group_names"
 
 - name: Restart slurmd on login
   ansible.builtin.systemd:
@@ -45,9 +76,9 @@
     enabled: true
   when: "'login' in group_names"
 
-- name: Restart slurmctld on manager
+- name: Restart slurmctld on slurm_control_node
   ansible.builtin.systemd:
     name: slurmctld
     state: restarted
     enabled: true
-  when: "'manager' in group_names"
+  when: "'slurm_control_node' in group_names"

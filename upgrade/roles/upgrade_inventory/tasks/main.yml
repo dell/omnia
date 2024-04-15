@@ -1,0 +1,76 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Check whether user supplied old inventory
+  ansible.builtin.set_fact:
+    managergrp_exists: "{{ 'manager' in groups }}"
+    computegrp_exists: "{{ 'compute' in groups }}"
+
+- name: Extract manager, compute ips from inventory
+  when: managergrp_exists and computegrp_exists
+  block:
+    - name: Extract host ips under 'manager' group
+      ansible.builtin.set_fact:
+        manager_ips: "{{ groups['manager'] | default([]) }}"
+
+    - name: Extract host ips under 'compute' group
+      ansible.builtin.set_fact:
+        compute_ips: "{{ groups['compute'] | default([]) }}"
+
+    - name: Extract host ips under 'login' group
+      ansible.builtin.set_fact:
+        login_ips: "{{ groups['login'] | default([]) }}"
+
+    - name: Extract host ips under 'nfs' group
+      ansible.builtin.set_fact:
+        nfs_node_ips: "{{ groups['nfs'] | default([]) }}"
+
+    - name: Check whether idrac group exists in old inventory
+      ansible.builtin.set_fact:
+        idracgrp_exists: "{{ 'idrac' in groups }}"
+
+    - name: Extract idrac ips under 'idrac' group
+      ansible.builtin.set_fact:
+        idrac_ips: "{{ groups['idrac'] | default([]) }}"
+      when: idracgrp_exists
+
+- name: Fetch file contents from software_config.json
+  ansible.builtin.slurp:
+    src: "{{ software_config_file_path }}"
+  register: config_content
+
+- name: Decode file contents
+  ansible.builtin.set_fact:
+    config_data: "{{ config_content['content'] | b64decode | from_json }}"
+
+- name: Check if slurm exists in software_config.json
+  ansible.builtin.set_fact:
+    slurm_exists: "{{ 'slurm' in config_data['softwares'] | map(attribute='name') | default(false) }}"
+
+- name: Check if k8s exists in software_config.json
+  ansible.builtin.set_fact:
+    k8s_exists: "{{ 'k8s' in config_data['softwares'] | map(attribute='name') | default(false) }}"
+
+- name: Render new inventory template
+  ansible.builtin.template:
+    src: "{{ inventory_template_src }}"
+    dest: "{{ new_inventory_path }}"
+    mode: "{{ file_permission }}"
+
+- name: Create NFS inventory (only when NFS group exists)
+  ansible.builtin.template:
+    src: "{{ nfs_inventory_template_src }}"
+    dest: "{{ new_inventory_path }}"
+    mode: "{{ file_permission }}"
+  when: nfs_node_ips | length > 0

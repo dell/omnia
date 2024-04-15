@@ -1,0 +1,50 @@
+#!/bin/bash
+################################################################################################################
+#  omnia_rocm:
+#      Install AMDGPU drivers on all the cluster nodes
+#
+#################################################################################################################
+echo "--------------------------" >> /var/log/xcat/xcat.log
+echo "Checking for AMD cards" >> /var/log/xcat/xcat.log
+amd_check_display_ctrlr=`lspci|grep "Display controller: Advanced Micro Devices, Inc. \[AMD/ATI]"`
+amd_check_processing_xlr8r=`lspci|grep "Processing accelerators: Advanced Micro Devices, Inc. \[AMD/ATI]"`
+validate_ubuntu_os="$(cat /etc/os-release | grep 'ID=ubuntu' | wc -l)"
+if [[ $amd_check_display_ctrlr == *"Advanced Micro Devices"* || $amd_check_processing_xlr8r == *"Advanced Micro Devices"* ]]; then
+  echo "Installing AMDGPU" >> /var/log/xcat/xcat.log
+  if [[ $validate_ubuntu_os == "1"  ]]
+  then
+
+    echo "deb [trusted=yes] http://{{ admin_nic_ip }}:80/install{{ repo_store_path }}/cluster/apt/amdgpu/{{ amdgpu_version }} ./" >> /etc/apt/sources.list.d/amdgpu.list
+
+    sudo apt-get update
+    sudo apt install "linux-headers-$(uname -r)" "linux-modules-extra-$(uname -r)" -y
+    sudo apt install amdgpu-dkms -y
+    
+    rm /etc/apt/sources.list.d/amdgpu.list
+
+    apt-get update
+    echo "AMDGPU installation completed" >> /var/log/xcat/xcat.log
+
+  else
+
+sudo tee /etc/yum.repos.d/amdgpu.repo <<EOF
+[amdgpu]
+name=amdgpu
+baseurl=http://{{ admin_nic_ip }}:80/install{{ repo_store_path }}/cluster/yum/amdgpu/{{ amdgpu_version }}
+enabled=1
+gpgcheck=0
+EOF
+
+    dnf clean all
+    dnf makecache
+    dnf install kernel-headers kernel-devel -y
+    dnf install amdgpu-dkms -y
+
+    rm /etc/yum.repos.d/amdgpu.repo
+    dnf clean all
+    dnf makecache
+
+  echo "AMDGPU installation completed" >> /var/log/xcat/xcat.log
+  fi
+  echo "-----------------------------" >> /var/log/xcat/xcat.log
+fi

@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -102,6 +102,7 @@
     fail_msg: "{{ restrict_program_support_failure_msg }}"
 
 - name: Validate Restrict program support variables
+  when: restrict_program_support
   block:
     - name: The services needs to be disabled are appending to list
       ansible.builtin.set_fact:
@@ -136,4 +137,3 @@
         restrict_program_status: true
       when:
         - disable_services | length > 0
-  when: restrict_program_support
