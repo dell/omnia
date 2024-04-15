@@ -10,6 +10,7 @@ Required	","* Enables iDRAC telemetry support and visualizations.
 
 	* ``true``
 
+
 .. note:: When ``idrac_telemetry_support`` is ``true``, ``mysqldb_user``, ``mysqldb_password`` and ``mysqldb_root_password`` become mandatory. "
 "**omnia_telemetry_support**
 
@@ -35,6 +36,7 @@ Required	","* Enables visualizations.
 	* ``false`` <- **Default**
 
 	* ``true``
+
 
 .. note:: When ``visualization_support`` is true, ``grafana_username`` and ``grafana_password`` become mandatory."
 "**k8s_service_addresses**
