@@ -1,14 +1,11 @@
 Testing matrix
 ---------------
-
-Hosts
-+++++++
-
-.. csv-table:: PowerEdge servers Testing matrix
+.. csv-table:: Testing matrix for PowerEdge servers
       :file: ../../Tables/testing-matrix.csv
       :header-rows: 1
       :keepspace:
-
+Hosts
++++++++
     +------------+-----------------------+
     | Generation | Server Model          |
     +============+=======================+
