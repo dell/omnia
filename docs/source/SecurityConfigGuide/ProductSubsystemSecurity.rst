@@ -12,8 +12,6 @@ Omnia performs bare metal configuration to enable AI/HPC workloads. It uses Ansi
 
     - BMC discovery **[optional]**: To discover the cluster via BMC (iDRAC), IPMI must be enabled on remote servers. Discovery happens over IPMI. For security best practices when using this method, `click here! <https://www.dell.com/support/manuals/en-us/idrac9-lifecycle-controller-v5.x-series/idrac9_security_configuration_guide/ipmi-security-best-practices?guid=guid-5d99c30c-294f-4f03-b584-596b43d79089&lang=en-us>`_
 
-    - SNMP **[optional]**: To discover the cluster by querying switches, SNMPv2 must be enabled.
-
     - Switch **[default]**: To discovery the cluster by routing communication through particular switch ports over SNMPv3, non-admin switch credentials must be provided.
 
 .. note:: IPMI is not required on the control plane. However, compute nodes (iDRACs in the cluster/private network) require IPMI to be enabled for BMC discovery.
@@ -68,7 +66,7 @@ The following credentials have to be entered to enable different tools on the ma
 
     6. SNMPv3 PXE switch (Non-admin username/ password)
 
-Similarly, passwords for the following tools have to be provided in ``input/omnia_config.yml`` to configure the cluster:
+Similarly, passwords for the following tools have to be provided in ``input/omnia_config.yml`` and ``input/provision_config_credentials.yml`` to configure the cluster:
 
     1. maria_db (Password)
 
