@@ -37,7 +37,7 @@ Releases
                 *	`vLLM (MI210x support) <../Roles/Platform/SetupvLLM.html>`_
 
 
-*   Feature support on `RHEL 8.8 <SupportMatrix/OperatingSystems/RedHat.html>`_
+*   Feature support on `RHEL 8.8 OS: <SupportMatrix/OperatingSystems/RedHat.html>`_
 
         *   `Slurm installation in configless mode <../InstallationGuides/BuildingClusters/schedulerinputparams.html>`_
 
