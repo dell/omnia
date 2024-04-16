@@ -14,34 +14,18 @@ To customize the software update, enter the following parameters in ``utils/soft
 +------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Parameter        | Details                                                                                                                                                                                      |
 +==================+==============================================================================================================================================================================================+
-| os_type          | The operating system in use on the target cluster nodes.                                                                                                                                     |
-|      ``string``  |                                                                                                                                                                                              |
-|      Required    |      Choices:                                                                                                                                                                                |
-|                  |                                                                                                                                                                                              |
-|                  |      * ``rhel``    <- Default                                                                                                                                                                |
-|                  |                                                                                                                                                                                              |
-|                  |      * ``rocky``                                                                                                                                                                             |
+| softwares_list   | * Mandatory, when package_list is not provided                                                                                                                                               |
+|      ``string``  | * This variable contains the list of software group mentioned in ``software_config.json``.                                                                                                   |
+|      Required    | * Example: ``softwares_list:
+|                  |                  - custom                                                                                                                                                      |
+|                  | * In the above case, user is required to create custom.json under ``input/config/<cluster_os_type>/<cluster_os_version>/custom.json``. For example: ``input/config/ubuntu/22.04/custom.json``|
+|                  | * This json should contain the list of packages, either .deb (for Ubuntu) or .rpm (for RHEL/Rocky), which are to be installed on remote nodes.                                               |
 +------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| os_version       | OS version of target nodes in the cluster.                                                                                                                                                   |
-|      ``string``  |                                                                                                                                                                                              |
-|      Required    | **Default value**: 8.6                                                                                                                                                                       |
-+------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| package_list     | * Location path for the package list file                                                                                                                                                    |
-|      ``string``  | * For other packagelist, file name should be -   (xxx.otherpkgs.pkglist)                                                                                                                     |
-|      Required    | * For os packagelist, file name should be - (xxx.pkglist)                                                                                                                                    |
-|                  | * All packages in this list will be installed/updated on remote nodes                                                                                                                        |
-|                  | **Default value**: ``"/install/post/otherpkgs/rhels8.6.0/x86_64/custom_software/update.otherpkgs.pkglist"``                                                                                  |
-+------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| package_type     | * Indicates whether the packages to be installed are ``os`` packages (they are available in baseos or appstream) or ``other`` (they're not part of os repos, appstream or baseos).           |
-|      ``string``  | * If the package is being downloaded to ``/install/post/otherpkgs/<Provision OS.Version>/x86_64/custom_software/Packages/``, use the value ``other``.                                        |
-|      Required    | Choices:                                                                                                                                                                                     |
-|                  |                                                                                                                                                                                              |
-|                  |      * ``os``                                                                                                                                                                                |
-|                  |      * ``other`` <- Default                                                                                                                                                                  |
-+------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| nodelist         | comma-separated list of all target nodes in the cluster.                                                                                                                                     |
-|      ``string``  |                                                                                                                                                                                              |
-|      Required    |      **Default value**: ``all``                                                                                                                                                              |
+| package_list     | * Mandatory, when softwares_list is not provided                                                                                                                                             |
+|      ``string``  | * This variable contains the list of packages to be installed on remote nodes.software                                                                                                       |
+|      Required    | * Example: ``package_list: - linux-generic - wget`` ::                                                                                                                                         |
+|                  |
+|                  | * Kernel package name of Ubuntu is ``linux-generic``, whereas for RHEL, it's just ``kernel*``.
 +------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | reboot_required  | Indicates whether the remote nodes listed will be rebooted.                                                                                                                                  |
 |      ``boolean`` |                                                                                                                                                                                              |
@@ -49,16 +33,6 @@ To customize the software update, enter the following parameters in ``utils/soft
 |                  |                                                                                                                                                                                              |
 |                  |      * ``true``                                                                                                                                                                              |
 |                  |      * ``false`` <- Default                                                                                                                                                                  |
-+------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| softwares_list   | * Mandatory, when package_list is not provided                                                                                                                                               |
-|      ``string``  | * This variable contains the list of software group mentioned in ``software_config.json``.                                                                                                   |
-|      Required    | * Example: ``softwares_list: - custom``                                                                                                                                                      |
-|                  | * In the above case, user is required to create custom.json under ``input/config/<cluster_os_type>/<cluster_os_version>/custom.json``. For example: ``input/config/ubuntu/22.04/custom.json``|
-|                  | * This json should contain the list of packages, either .deb (for Ubuntu) or .rpm (for RHEL/Rocky), which are to be installed on remote nodes.                                               |
-+------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| package_list     | * Mandatory, when softwares_list is not provided                                                                                                                                             |
-|      ``string``  | * This variable contains the list of packages to be installed on remote nodes.software                                                                                                       |
-|      Required    | * Example: ``package_list: - linux generic - wget``                                                                                                                                          |
 +------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 To run the playbook, run the following commands: ::
