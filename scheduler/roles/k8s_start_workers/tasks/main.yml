@@ -39,6 +39,7 @@
       when:
         - groups['manager'][0] != groups['compute'][0]
         - groups['compute']|length >= 1
+        - node_hostname.stdout in hostvars['K8S_TOKEN_HOLDER']['k8s_nodes_not_ready']
       tags: init
 
     - block:
@@ -49,7 +50,8 @@
             {{ hostvars['K8S_TOKEN_HOLDER']['ip'] }}:{{ apiserver_bind_port }}
           when:
             - groups['manager'][0] != groups['compute'][0]
-            - groups['compute']|length >= 1   
+            - groups['compute']|length >= 1
+            - node_hostname.stdout not in hostvars['K8S_TOKEN_HOLDER']['k8s_nodes_ready']
           tags: init
       rescue:
         - name: Execute kubeadm join command failed
