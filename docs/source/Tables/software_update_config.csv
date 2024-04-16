@@ -8,8 +8,8 @@
 * This variable contains the list of software group mentioned in ``software_config.json``.                                                                                                   
 * Example: ::
 
-  - { softwares_list: }
-  - {  - custom }
+    softwares_list: 
+     - custom 
 
 
 * In the above case, user is required to create custom.json under ``input/config/<cluster_os_type>/<cluster_os_version>/custom.json``. For example: ``input/config/ubuntu/22.04/custom.json``
