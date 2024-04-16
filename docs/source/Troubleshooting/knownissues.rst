@@ -429,3 +429,9 @@ Reboot the NFS server (external to the cluster) to bring up the services again: 
 ⦾  **Why do Kuberneteschildnode & kubernetesnodes log as Pass in the database even if there are nodes in the Ready,Schedulingdisabled state?**
 
 **Potential Cause**:  Omnia telemetry considers ``Ready,SchedulingDisabled`` as a Ready state of Kubernetes nodes . So, even if the ``kubectl get nodes`` command shows any node’s state as ``Ready,SchedulingDisabled``, the entry in DB for  ``Kuberneteschildnode`` & ``kubernetesnodes`` will be logged as Pass instead of Fail.
+
+⦾ **What to do if omnia.yml playbook execution fails with MetalLB, a load-balancer for bare metal Kubernetes cluster? **
+
+**Resolution**:
+
+If omnia.yml playbook execution fails at this task, you need to wait for the MetalLB pods to come to running state (approximately for 2 minutes) and then re-run ``omnia.yml/scheduler.yml``.

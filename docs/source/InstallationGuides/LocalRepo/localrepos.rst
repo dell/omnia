@@ -329,7 +329,7 @@ For information on deploying vLLM after setting up the cluster, `click here. <..
 
 **AMD benchmarks**
 
-    To install AMD benchmarks, include the following line under ``software``: ::
+    To install AMD benchmarks, include the following line under ``softwares``: ::
 
             {"name": "amd_benchmarks"},
 
