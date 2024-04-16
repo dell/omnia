@@ -82,11 +82,11 @@ A sample is provided below: ::
 
         To view the encrypted parameters: ::
 
-            ansible-vault view provision_config_credentials.yml --vault-password-file .provision_vault_key
+            ansible-vault view provision_config_credentials.yml --vault-password-file .provision_credential_vault_key
 
         To edit the encrypted parameters: ::
 
-            ansible-vault edit provision_config_credentials.yml --vault-password-file .provision_vault_key
+            ansible-vault edit provision_config_credentials.yml --vault-password-file .provision_credential_vault_key
 
     * The strings ``admin_network`` and ``bmc_network`` in the ``input/network_spec.yml`` file should not be edited. Also, the properties ``nic_name``, ``static_range``, and ``dynamic_range`` cannot be edited on subsequent runs of the provision tool.
     * Netmask bits are mandatory and should be same for both the ``admin_network`` and ``bmc_network`` (ie between 1 and 32; 1 and 32 are acceptable values).
