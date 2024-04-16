@@ -1,0 +1,34 @@
+﻿Parameter,Details
+"softwares_list  
+     ``string`` 
+     Required   
+                
+                
+                ","* Mandatory, when package_list is not provided                                                                                                                                               
+* This variable contains the list of software group mentioned in ``software_config.json``.                                                                                                   
+* Example: 
+                        softwares_list:
+                        - custom                                                                                                                                                      
+
+* In the above case, user is required to create custom.json under ``input/config/<cluster_os_type>/<cluster_os_version>/custom.json``. For example: ``input/config/ubuntu/22.04/custom.json``
+* This json should contain the list of packages, either .deb (for Ubuntu) or .rpm (for RHEL/Rocky), which are to be installed on remote nodes.                                               "
+"package_list   
+     ``string``
+     Required  
+               ","* Mandatory, when softwares_list is not provided                                               
+* This variable contains the list of packages to be installed on remote nodes.         
+* Example: 
+                       package_list: 
+                       - linux-generic 
+                       - wget
+                                         
+* Kernel package name of Ubuntu is ``linux-generic``, whereas for RHEL, it's just ``kernel*``."
+"reboot_required 
+     ``boolean``
+     Required   
+                ","Indicates whether the remote nodes listed will be rebooted.
+                                                           
+Choices:                                                   
+                                                           
+     * ``true``                                            
+     * ``false`` <- Default                                "

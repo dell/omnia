@@ -11,29 +11,10 @@ To install multiple packages on target nodes in a bulk operation, the ``software
 
 To customize the software update, enter the following parameters in ``utils/software_update/software_update_config.yml``:
 
-+------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Parameter        | Details                                                                                                                                                                                      |
-+==================+==============================================================================================================================================================================================+
-| softwares_list   | * Mandatory, when package_list is not provided                                                                                                                                               |
-|      ``string``  | * This variable contains the list of software group mentioned in ``software_config.json``.                                                                                                   |
-|      Required    | * Example: ``softwares_list:
-|                  |                  - custom                                                                                                                                                      |
-|                  | * In the above case, user is required to create custom.json under ``input/config/<cluster_os_type>/<cluster_os_version>/custom.json``. For example: ``input/config/ubuntu/22.04/custom.json``|
-|                  | * This json should contain the list of packages, either .deb (for Ubuntu) or .rpm (for RHEL/Rocky), which are to be installed on remote nodes.                                               |
-+------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| package_list     | * Mandatory, when softwares_list is not provided                                                                                                                                             |
-|      ``string``  | * This variable contains the list of packages to be installed on remote nodes.software                                                                                                       |
-|      Required    | * Example: ``package_list: - linux-generic - wget`` ::                                                                                                                                         |
-|                  |
-|                  | * Kernel package name of Ubuntu is ``linux-generic``, whereas for RHEL, it's just ``kernel*``.
-+------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| reboot_required  | Indicates whether the remote nodes listed will be rebooted.                                                                                                                                  |
-|      ``boolean`` |                                                                                                                                                                                              |
-|      Required    | Choices:                                                                                                                                                                                     |
-|                  |                                                                                                                                                                                              |
-|                  |      * ``true``                                                                                                                                                                              |
-|                  |      * ``false`` <- Default                                                                                                                                                                  |
-+------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+.. csv-table:: Parameters for software_update_config
+      :file: ../../Tables/software_update_config.csv
+      :header-rows: 1
+      :keepspace:
 
 To run the playbook, run the following commands: ::
 
