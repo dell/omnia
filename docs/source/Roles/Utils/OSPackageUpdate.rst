@@ -50,6 +50,21 @@ To customize the software update, enter the following parameters in ``utils/soft
 |                  |      * ``true``                                                                                                                                                                           |
 |                  |      * ``false`` <- Default                                                                                                                                                               |
 +------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| softwares_list   | * Mandatory, when package_list is not provided                                                                                                                                            |
+|      ``string``  | * This variable contains the list of software group mentioned in ``software_config.json``.                                                                                                |
+|      Required    | * Example:                                                                                                                                                                                |
+|                  |                                                                                                                                                                                           |
+|                  |       softwares_list: - custom                                                                                                                                                            |
+|                  |                                                                                                                                                                                           |
+|                  | * In the above case, user is required to create custom.json under input/config/<cluster_os_type>/<cluster_os_version>/custom.json. For example: input/config/ubuntu/22.04/custom.json     |
+|                  | * This json should contain the list of packages, either .deb (for Ubuntu) or .rpm (for RHEL/Rocky), which are to be installed on remote nodes.                                            |
++------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| package_list     | * Mandatory, when softwares_list is not provided                                                                                                                                          |
+|       ``string`` | * This variable contains the list of packages to be installed on remote nodes.software                                                                                                    |
+|      Required    | * Example:                                                                                                                                                                                |
+|                  |                                                                                                                                                                                           |
+|                  |       package_list: - linux generic - wget                                                                                                                                                |
++------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 To run the playbook, run the following commands: ::
 
