@@ -430,8 +430,17 @@ Reboot the NFS server (external to the cluster) to bring up the services again: 
 
 **Potential Cause**:  Omnia telemetry considers ``Ready,SchedulingDisabled`` as a Ready state of Kubernetes nodes . So, even if the ``kubectl get nodes`` command shows any node’s state as ``Ready,SchedulingDisabled``, the entry in DB for  ``Kuberneteschildnode`` & ``kubernetesnodes`` will be logged as Pass instead of Fail.
 
-⦾ **What to do if omnia.yml playbook execution fails with MetalLB, a load-balancer for bare metal Kubernetes cluster? **
+⦾ **What to do if omnia.yml playbook execution fails with MetalLB, a load-balancer for bare metal Kubernetes cluster?**
 
 **Resolution**:
 
-If omnia.yml playbook execution fails at this task, you need to wait for the MetalLB pods to come to running state (approximately for 2 minutes) and then re-run ``omnia.yml/scheduler.yml``.
+If omnia.yml playbook execution fails at this task, you need to wait for the MetalLB pods to come to running state and then re-run ``omnia.yml/scheduler.yml``.
+
+⦾ **What to do if omnia.yml playbook execution fails to execute ``kubeadm join`` or ``kubeadm init`` command?**
+
+**Resolution**:
+
+If kubeadm join/kubeadm init command fails, either one of the following should be done:
+
+    * re-run omnia.yml/scheduler.yml
+    * reset cluster using utils/reset_cluster_configuration.yml and then run scheduler.yml/omnia.yml
