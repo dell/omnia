@@ -21,9 +21,10 @@
 * This variable contains the list of packages to be installed on remote nodes.         
 * Example: ::
 
-  package_list: 
-  - linux-generic 
-  - wget
+    package_list: 
+     - linux-generic
+     - wget 
+
 
 * Kernel package name of Ubuntu is ``linux-generic``, whereas for RHEL, it's just ``kernel*``."
 "reboot_required 
