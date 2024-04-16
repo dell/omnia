@@ -442,5 +442,6 @@ If your ``omnia.yml`` playbook execution fails while waiting for the MetalLB con
 
 If kubeadm join/kubeadm init command fails, either one of the following should be done:
 
-    * re-run ``omnia.yml/scheduler.yml``.
-    * reset cluster using ``utils/reset_cluster_configuration.yml`` and then run ``scheduler.yml/omnia.yml``.
+    * Re-run ``omnia.yml/scheduler.yml``.
+    * Run ``kubeadm reset -f`` on the node where kubeadm join/kubeadm init command fails and run ``omnia.yml/scheduler.yml``.
+    * Reset cluster using ``utils/reset_cluster_configuration.yml`` and then run ``scheduler.yml/omnia.yml``.
