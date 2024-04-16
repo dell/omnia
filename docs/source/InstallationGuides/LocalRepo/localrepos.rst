@@ -321,9 +321,17 @@ UCX is deployed on the cluster when the ``local_repo.yml`` is run then `omnia.ym
 
 For information on deploying vLLM after setting up the cluster, `click here. <../../InstallingProvisionTool/Platform/SetupvLLM.html>`_
 
+**Intel benchmarks**
 
+    To install Intel benchmarks, include the following line under ``softwares``: ::
 
+            {"name": "intel_benchmarks", "version": "2024.1.0"},
 
+**AMD benchmarks**
+
+    To install AMD benchmarks, include the following line under ``software``: ::
+
+            {"name": "amd_benchmarks"},
 
 
 

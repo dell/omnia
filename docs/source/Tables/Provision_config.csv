@@ -1,11 +1,4 @@
 ﻿Parameter,Details
-"**public_nic**
-
-``string``
-
-Required","The nic/ethernet card that is connected to the public internet.
-
-**Default values**: ``eno2``"
 "**iso_file_path**
 
 ``string``
