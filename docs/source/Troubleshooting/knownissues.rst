@@ -442,5 +442,5 @@ If omnia.yml playbook execution fails at this task, you need to wait for the Met
 
 If kubeadm join/kubeadm init command fails, either one of the following should be done:
 
-    * re-run omnia.yml/scheduler.yml
-    * reset cluster using utils/reset_cluster_configuration.yml and then run scheduler.yml/omnia.yml
+    * re-run ``omnia.yml/scheduler.yml``.
+    * reset cluster using ``utils/reset_cluster_configuration.yml`` and then run ``scheduler.yml/omnia.yml``.
