@@ -150,7 +150,7 @@
   ansible.builtin.shell: >
     export PATH=/usr/local/bin:$PATH && helm repo add nfs-subdir-external-provisioner '{{ nfs_subdir_external_provisioner_url }}'
   changed_when: true
-  when: "'nfs-client-provisioner' not in k8s_pods.stdout"
+  when: "'nfs-subdir-external-provisioner' not in k8s_pods.stdout"
   tags: init
 
 - name: Update local Helm chart repository cache
@@ -161,7 +161,7 @@
 - name: Start NFS Client Provisioner using NFS on manager node
   ansible.builtin.shell: "export PATH=/usr/local/bin:$PATH && helm install nfs-omnia nfs-subdir-external-provisioner/nfs-subdir-external-provisioner  --set nfs.server='{{ nfs_server_manager_node }}' --set nfs.path='{{ hostvars['127.0.0.1']['omnia_usrhome_share'] }}/kubernetes'"
   changed_when: true
-  when: "'nfs-client-provisioner' not in k8s_pods.stdout"
+  when: "'nfs-subdir-external-provisioner' not in k8s_pods.stdout"
   tags: init
 
 - name: Set NFS-Client Provisioner as DEFAULT StorageClass

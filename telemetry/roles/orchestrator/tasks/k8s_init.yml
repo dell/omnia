@@ -65,7 +65,7 @@
       changed_when: false
       failed_when: false
       register: k8s_pods
-  when: "'master' not in k8s_nodes.stdout"
+  when: "'control-plane' not in k8s_nodes.stdout"
 
 - name: Setup directory for Kubernetes environment for root
   ansible.builtin.file:
