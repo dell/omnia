@@ -1,23 +1,15 @@
 OS Package Update
 ++++++++++++++++++
 
-To install multiple packages on target nodes in a bulk operation, the ``package_update.yml`` playbook can be leveraged.
+To install multiple packages on target nodes in a bulk operation, the ``software_update.yml`` playbook can be leveraged.
 
 **Prerequisites**
 
-    * All target nodes should be running RHEL or Rocky.
-    * Download the packages (RPMs) for the target nodes and place them in this folder:  ``/install/post/otherpkgs/<Provision OS.Version>/x86_64/custom_software/Packages``.
-
-        .. note:: Do not use ISO files for updates or package installations.
-
-    * Create a package list by creating the following text file (For packages that are not in RHEL repos, name the file ``update.otherpkgs.pkglist``. For OS packages, ``xxxx.pkglist``) and place in the default path. For example: ``/install/post/otherpkgs/<Provision OS.Version>/x86_64/custom_software/update.otherpkgs.pkglist``: ::
-
-        custom_software/<package1>-<version1>
-        custom_software/<package2>-<version2>
-        custom_software/<package3>-<version3>
+    * All target nodes should be running RHEL, Rocky, or Ubuntu OS.
+    * Download the packages using ``local_repo.yml``. For more information, `click here. <../../LocalRepo/index.html>`_.
 
 
-To customize the package update, enter the following parameters in ``utils/package_update_config.yml``:
+To customize the software update, enter the following parameters in ``utils/software_update/software_update_config.yml``:
 
 +------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Parameter        | Details                                                                                                                                                                                   |
@@ -61,7 +53,10 @@ To customize the package update, enter the following parameters in ``utils/packa
 
 To run the playbook, run the following commands: ::
 
-    cd utils
-    ansible-playbook package_update.yml
+    cd utils/software_update
+    ansible-playbook software_update.yml -i inventory
 
-.. note:: At the end of the playbook, the package update status is displayed by target node. If the update status of any node is ``failed``, use the command log (``/var/log/xcat/commands.log``) to debug the issue. Alternatively, verify that the node is reachable post provisioning.
+Inventory should contain the IP of the target nodes. For example,
+
+        10.5.0.101
+        10.5.0.102
