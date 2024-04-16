@@ -24,6 +24,8 @@ To create local repositories, run the following commands: ::
     cd local_repo
     ansible-playbook local_repo.yml
 
+.. caution:: While running ``local_repo.yml``, Omnia will remove any packages/softwares which have conflict with the ``local_repo.yml`` execution requirements.
+
 Verify changes made by the playbook by running ``cat /etc/containerd/certs.d/_default/hosts.toml`` on compute nodes.
 
 .. note::
