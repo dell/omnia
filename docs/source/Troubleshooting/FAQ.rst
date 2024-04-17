@@ -247,7 +247,8 @@ While Omnia playbooks are licensed by Apache 2.0, Omnia deploys multiple softwar
 
 **Resolution**: Use the following commands to configure the hostname properly: ::
 
-        ```sysctl kernel.hostname=node001.omnia.test
+        ```markdown
+        sysctl kernel.hostname=node001.omnia.test
         hostnamectl set-hostname node001.omnia.test```
 
 .. note:: ``node001.omnia.test`` is a sample hostname.
