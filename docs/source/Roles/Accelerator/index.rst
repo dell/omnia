@@ -49,7 +49,7 @@ User permissions for ROCm platforms
 
         sudo usermod -a -G render,video $<user>
 
-  .. note::
+.. note::
         * <user> is the system name of the end user.
         * This command must be run with ``root`` permissions.
 
