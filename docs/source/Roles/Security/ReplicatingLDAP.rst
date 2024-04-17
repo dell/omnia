@@ -12,6 +12,8 @@ Once Omnia has set up an LDAP server for the cluster, external LDAP servers can 
     * Description: A user-defined string describing the account.
     * UserPassword: The SHA encrypted value of the intended user password. This can be obtained using ``slappasswd``
 
+.. note:: In case of external LDAP server replication, ensure that the ``homeDirectory`` is always set to ``/home``.
+
 Below is a sample file: ::
 
     dn: uid=replicauser,dc=orchid,dc=cluster

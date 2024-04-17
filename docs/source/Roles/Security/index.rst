@@ -41,6 +41,8 @@ Create a new user on OpenLDAP
     * sn: The surname of the intended user.
     * cn: The given name of the intended user.
 
+.. note:: Omnia only supports ``/home`` as the ``homeDirectory``.
+
 Below is a sample file: ::
 
     # User Creation
