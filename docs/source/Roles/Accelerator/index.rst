@@ -47,13 +47,17 @@ User permissions for ROCm platforms
 
     * To add an user to the ``render`` and ``video`` group, use the following command:
 
-            sudo usermod -a -G render,video $<user>
+
+        sudo usermod -a -G render,video $<user>
+
 
       .. note:: * <user> is the system name of the end user.
                 * This command must be run with ``root`` permissions.
 
     * If the root user wants to provide access to other users and their individual GPU nodes, the following command needs to be run on all of them, as shown in the below sample image.
 
-            /opt/rocm/bin/
+
+        /opt/rocm/bin/
+
 
         .. image:: ../../images/ROCm_user_permissions.png
