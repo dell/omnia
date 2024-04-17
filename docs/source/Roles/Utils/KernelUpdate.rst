@@ -24,7 +24,6 @@ Updating kernels
 
 .. note:: Inventory should contain the IP/hostname/service tag of the target nodes. For example,
     ::
-
         10.5.0.101
         10.5.0.102
 
