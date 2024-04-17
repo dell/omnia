@@ -24,8 +24,8 @@ Updating kernels
 
 .. note:: Inventory should contain the IP/hostname/service tag of the target nodes. For example, ::
 
-           10.5.0.101
-           10.5.0.102
+            10.5.0.101
+            10.5.0.102
 
 3. After execution is completed, verify that kernel packages are on the nodes using:
             * For RHEL/Rocky: ``rpm -qa | grep kernel``

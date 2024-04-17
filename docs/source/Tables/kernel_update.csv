@@ -13,7 +13,7 @@
 
 
 * In the above case, user is required to create custom.json under ``input/config/<cluster_os_type>/<cluster_os_version>/custom.json``. For example: ``input/config/ubuntu/22.04/custom.json``
-* This json should list the kernel packages to be downloaded during ``local_repo.yml`` execution, and for installation as part of ``software_update.yml`` execution. Kernel package name of Ubuntu is ``linux-generic``, whereas for RHEL or Rocky, it's just ``kernel*``. For example:
+* This json should list the kernel packages to be downloaded during ``local_repo.yml`` execution, and for installation as part of ``software_update.yml`` execution. Kernel package name of Ubuntu is ``linux-generic``, whereas for RHEL or Rocky, it's just ``kernel*``. For example: ::
 
     {
     ""custom"": {
@@ -22,10 +22,10 @@
                 ""package"": ""linux-generic"",
                 ""type"": ""deb"",
                 ""repo_name"": ""jammy""
-            }
-        ]
-    }
-}
+             }
+         ]
+      }
+   }
 
 "
 "package_list   
