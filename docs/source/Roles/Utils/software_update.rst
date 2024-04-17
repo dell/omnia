@@ -7,6 +7,7 @@ To install multiple packages on target nodes in a bulk operation, the ``software
 
     * All target nodes should be running RHEL, Rocky, or Ubuntu OS.
     * Download the packages using ``local_repo.yml``. For more information, `click here <../../LocalRepo/index.html>`_.
+    * Verify that the cluster nodes are in the ``booted`` state. For more information, `click here <../InstallingProvisionTool/ViewingDB.html>`_.
 
 
 To customize the software update, enter the following parameters in ``utils/software_update/software_update_config.yml``:
