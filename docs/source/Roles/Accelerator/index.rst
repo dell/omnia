@@ -49,8 +49,9 @@ User permissions for ROCm platforms
 
         sudo usermod -a -G render,video $<user>
 
-  .. note:: * <user> is the system name of the end user.
-            * This command must be run with ``root`` permissions.
+  .. note::
+        * <user> is the system name of the end user.
+        * This command must be run with ``root`` permissions.
 
 * If the root user wants to provide access to other users and their individual GPU nodes, the following command needs to be run on all of them, as shown in the below sample image. ::
 
