@@ -18,7 +18,7 @@ MPI,3Clause BSD License,HPC library,0.2.3
 spark,Apache-2.0,Unified engine for large-scale data analytics.,2.4.7
 coreDNS,Apache-2.0,DNS server that chains plugins,1.9.3
 cni,Apache-2.0,Networking for Linux containers,1.4.0
-dellemc.openmanage,GNU-General Public License v3.0," It is a systems management and monitoring application that provides a comprehensive view of the Dell EMC servers, chassis, storage, and network switches on the enterprise network",4.4.0
+dellemc.openmanage,GNU-General Public License v3.0,"It is a systems management and monitoring application that provides a comprehensive view of the Dell EMC servers, chassis, storage, and network switches on the enterprise network",4.4.0
 dellemc.os10,GNU-General Public License v3.0,It provides networking hardware abstraction through a common set of APIs,1.1.1
 community.general ansible,GNU-General Public License v3.0,The collection is a part of the Ansible package and includes many modules and plugins supported by Ansible community which are not part of more specialized community collections.,4.8.7
 cri-o,Apache-2.0,Container service,1.21
