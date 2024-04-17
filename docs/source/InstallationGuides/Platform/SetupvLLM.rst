@@ -19,7 +19,7 @@ With an Ansible script, deploy vLLM on both the kube_node and kube_control_node.
 
 * Ensure the ``kube_node``, ``kube_control_node`` is setup and working. If NVidia or AMD GPU acceleration is required for the task, install the NVidia (with containerd) or AMD ROCm GPU drivers during provisioning.
 
-* Use ``local_repo.yml`` to create an offline vLLM repository. For more information, `click here. <../../InstallationGuides/LocalRepo/vLLM.html>`_
+* Use ``local_repo.yml`` to create an offline vLLM repository. For more information, `click here. <../../InstallationGuides/LocalRepo/localrepos.html>`_
 
 **[Optional prerequisites]**
 
