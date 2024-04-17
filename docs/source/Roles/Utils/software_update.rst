@@ -22,7 +22,7 @@ To run the playbook, run the following commands: ::
     cd utils/software_update
     ansible-playbook software_update.yml -i inventory
 
-Inventory should contain the IP of the target nodes. For example, ::
+Inventory should contain the IP/hostname/service tag of the target nodes. For example, ::
 
     10.5.0.101
     10.5.0.102
