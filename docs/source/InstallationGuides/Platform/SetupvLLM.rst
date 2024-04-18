@@ -89,5 +89,3 @@ The default namespace is for deployment is ``vLLM``.
 
 3. To enable an endpoint, `click here <https://docs.vllm.ai/en/latest/getting_started/quickstart.html>`_.
 
-.. note:: If you want to verify whether vLLM deployment was successful or not, use the following command:
-            ``pip list | grep vllm``
