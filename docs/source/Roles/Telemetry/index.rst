@@ -3,6 +3,8 @@ Telemetry and visualizations
 
 The telemetry feature allows the set up  of Omnia telemetry (to poll values from all Omnia provisioned nodes in the cluster) and/or iDRAC telemetry (To poll values from all eligible iDRACs in the cluster). It also installs `Grafana <https://grafana.com/>`_ and `Loki <https://grafana.com/oss/loki/>`_ as Kubernetes pods.
 
+.. note:: In order to enable telemetry feature in Omnia, ensure to add ``telemetry`` in ``software_config.json``.
+
 To initiate telemetry support, fill out the following parameters in ``input/telemetry_config.yml``:
 
 .. csv-table:: Parameters
