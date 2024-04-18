@@ -70,8 +70,6 @@ For more information, `click here <https://rocm.docs.amd.com/projects/install-on
 
     nerdctl run --gpus all -it --rm nvcr.io/nvidia/tensorflow:23.12-tf2-py3
 
-.. note:: If you want to verify whether TensorFlow deployment was successful or not, use the following command:
-        ``pip list | grep tensorflow``
 
 For more information, `click here <https://catalog.ngc.nvidia.com/orgs/nvidia/containers/tensorflow>`_.
 
