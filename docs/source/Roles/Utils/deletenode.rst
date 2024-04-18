@@ -1,6 +1,6 @@
 Remove node from the cluster
 ----------------------------
-Use this playbook to remove nodes from the cluster and stop all clustering software on the target nodes. `here. <../../samplefiles.html#inventory-file>`_
+Use this playbook to remove nodes from the cluster and stop all clustering software on the target nodes. See the sample inventory file `here. <../../samplefiles.html#inventory-file>`_
 
 .. note:: All target nodes should be drained before executing the playbook. If a job is running on any target nodes, the playbook will exit.
 
