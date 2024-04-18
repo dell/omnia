@@ -168,9 +168,9 @@ To set up IPA services for the NFS node in the target cluster, run the following
 
 .. include:: ../../Appendices/hostnamereqs.rst
 
-.. note::
-            * Use the format specified under `NFS inventory in the Sample Files <../../samplefiles.html#nfs-server-inventory-file>`_ for inventory.
-            * Omnia only supports ``/home`` as the ``homeDirectory``.
+.. note:: Use the format specified under `NFS inventory in the Sample Files <../../samplefiles.html#nfs-server-inventory-file>`_ for inventory.
+
+.. note:: Omnia only supports ``/home`` as the ``homeDirectory``.
 
 Running the security role
 --------------------------
