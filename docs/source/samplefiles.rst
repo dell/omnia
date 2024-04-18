@@ -57,6 +57,14 @@ inventory file
 .. note:: The auth_server is common to both slurm and kubernetes clusters.
 
 
+inventory file to delete node from the cluster
+-------------------------------------------------
+
+::
+
+    [nodes]
+    10.5.0.33
+
 pxe_mapping_file.csv
 ------------------------------------
 
