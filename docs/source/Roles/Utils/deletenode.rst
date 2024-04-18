@@ -39,7 +39,7 @@ Run the playbook using the following commands: ::
 
 Delete node from the cluster
 -----------------------------
-Use this playbook to remove nodes from all inventory files and tables. No changes are made to the Slurm or Kubernetes cluster. See the sample inventory file `here. <../../samplefiles.html>`_
+Use this playbook to remove nodes from all inventory files and tables. No changes are made to the Slurm or Kubernetes cluster. See the sample inventory file `here. <../../samplefiles.html#inventory-file-to-delete-node-from-the-cluster>`_
 
 .. note:: All target nodes should be drained before executing the playbook. If a job is running on any target nodes, the playbook will exit.
 
