@@ -59,3 +59,5 @@ User permissions for ROCm platforms
         /opt/rocm/bin/<rocm command>
 
 .. image:: ../../images/ROCm_user_permissions.png
+
+For any configuration changes, check out ROCm's official documentation `here. <https://rocm.docs.amd.com/projects/install-on-linux/en/latest/how-to/prerequisites.html>`_

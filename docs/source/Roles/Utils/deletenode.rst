@@ -35,7 +35,7 @@ Use this playbook to stop all Slurm and Kubernetes services. This action will de
 Run the playbook using the following commands: ::
 
         cd utils
-        ansible-playbook reset_cluster_config.yml -i inventory
+        ansible-playbook reset_cluster_configuration.yml -i inventory
 
 Delete node from the cluster
 -----------------------------
