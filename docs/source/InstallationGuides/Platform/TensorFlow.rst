@@ -3,7 +3,7 @@ Setup TensorFlow
 
 TensorFlow is a widely-used open-source deep learning framework, recognized for its static computation graph that optimizes performance and scalability, making it a favored choice for deploying machine learning models at scale in various industries.
 
-With an Ansible script, deploy TensorFlow on both ``kube_nodes`` and the ``kube_control_node``. After the deployment of TensorFlow, you gain access to the TensorFlow container.
+With an Ansible script, deploy TensorFlow on both ``kube_node`` and the ``kube_control_plane``. After the deployment of TensorFlow, you gain access to the TensorFlow container.
 
 
 **Prerequisites**
@@ -18,7 +18,7 @@ With an Ansible script, deploy TensorFlow on both ``kube_nodes`` and the ``kube_
 
 * Ensure the system has enough space.
 
-* Ensure the passed inventory file includes a ``kube_control_plane`` and a ``kube_node_group`` listing all cluster nodes. `Click here <../../samplefiles.html>`_ for a sample file.
+* Ensure the passed inventory file includes a ``kube_control_plane`` and a ``kube_node`` listing all cluster nodes. `Click here <../../samplefiles.html>`_ for a sample file.
 
 * Nerdctl does not support mounting directories as devices because it is not a feature of containerd (The runtime that nerdctl uses). Individual files need to be attached while running nerdctl.
 
