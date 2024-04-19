@@ -5,7 +5,7 @@ vLLM is a fast and easy-to-use library for LLM inference and serving. It is seam
 
 For NVidia, vLLM is a Python library that also contains pre-compiled C++ and CUDA (12.1) binaries.
 
-With an Ansible script, deploy vLLM on both the kube_node and kube_control_node. After the deployment of vLLM, access the vllm container (AMD GPU) and import the vLLM Python package (NVIDIA GPU). For more information, `click here <https://docs.vllm.ai/en/latest/getting_started/installation.html>`_
+With an Ansible script, deploy vLLM on both the kube_node and kube_control_plane. After the deployment of vLLM, access the vllm container (AMD GPU) and import the vLLM Python package (NVIDIA GPU). For more information, `click here <https://docs.vllm.ai/en/latest/getting_started/installation.html>`_
 
 .. note:: This playbook was validated using Ubuntu 22.04 and RHEL 8.8.
 
