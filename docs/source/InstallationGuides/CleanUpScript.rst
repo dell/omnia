@@ -10,15 +10,15 @@ To run the script: ::
 
 To skip the deletion of the configured local repositories (stored in ``repo_store_path`` and xCAT repositories), run: ::
 
-    ansible-playbook control_plane_cleanup.yml –skip-tags downloads
+    ansible-playbook control_plane_cleanup.yml –-skip-tags downloads
 
 To delete the changes made by ``local_repo.yml`` while retaining the ``repo_store_path`` folder, run: ::
 
-    ansible-playbook control_plane_cleanup.yml –tags local_repo  --skip-tags downloads
+    ansible-playbook control_plane_cleanup.yml -–tags local_repo  --skip-tags downloads
 
 To delete the changes made by ``local_repo.yml`` including the ``repo_store_path`` folder, run: ::
 
-   	ansible-playbook control_plane_cleanup.yml –tags local_repo
+   	ansible-playbook control_plane_cleanup.yml –-tags local_repo
 
 
 .. caution::
