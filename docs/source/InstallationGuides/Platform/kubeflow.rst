@@ -36,7 +36,7 @@ After obtaining the external IP address of the ingress gateway, you can access t
         * Open any we browser of your choice and go to `<http://external_ip:80>`_.
         * You will be redirected to the Dex login page. You can find a sample image below.
 
-        .. image:: ../../images/dex_login.jpg
+        .. image:: ../../images/dex_login.png
 
 **Logging into the Kubeflow dashboard**
 
