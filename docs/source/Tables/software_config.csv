@@ -42,7 +42,7 @@ Required","* A JSON list of required software and (optionally) the software revi
 * The following software should be listed with a version in the list: BeeGFS, AMD GPU, Kubernetes, CUDA, OFED, BCM RoCE, UCX, and ROCm.
 * A minimum of one software should be provided in the list for ``local_repo.yml`` to execute correctly.
 * The ``<os_type>_software_config.json`` will have the basic softwares present in it. To add additional software stacks, add the software under ``input/software_config.json``.
-* For the list of all applicable softwares based on your <os_type>, refer the templates at ``examples/template_<os>_software_config.json``. Supported ``<os>`` are RHEL, Rocky, and Ubuntu.
+* For the list of all applicable softwares based on your <cluster_os_type>, refer the templates at ``examples/template_<os>_software_config.json``. Supported ``<os>`` are RHEL, Rocky, and Ubuntu.
 
 .. note:: The accepted names for software is taken from ``input/config/<cluster_os_type>/<cluster_os_version>/``.
 "
