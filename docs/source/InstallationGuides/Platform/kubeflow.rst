@@ -10,12 +10,12 @@ Ensure that you have executed ``local_repo.yml`` with Kubeflow specified in the 
 
 First, ensure that you have a Kubernetes cluster deployed on your compute node.
 
-        Instructions to set up Kubernetes:
+    Instructions to set up Kubernetes:
 
-            * Run the ``omnia.yml`` or ``scheduler.yml`` playbook to deploy Kubernetes.
-            * Ensure dynamic NFS provisioning is enabled through the ``storage.yml`` playbook.
+        * Run the ``omnia.yml`` or ``scheduler.yml`` playbook to deploy Kubernetes.
+        * Ensure dynamic NFS provisioning is enabled through the ``storage.yml`` playbook.
 
-            .. note:: The playbooks automate the process, ensuring consistency across deployments.
+.. note:: The playbooks automate the process, ensuring consistency across deployments.
 
 **Deploy Kubeflow**
 
