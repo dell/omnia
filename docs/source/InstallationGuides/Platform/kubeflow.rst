@@ -31,11 +31,12 @@ Once Kubeflow is deployed, you need to obtain the external IP address of the ing
 
 After obtaining the external IP address of the ingress gateway, you can access the Kubeflow dashboard using a web browser.
 
-       Instructions to access Kubeflow dashboard:
+    Instructions to access Kubeflow dashboard:
 
-            * Open any we browser of your choice and go to `<http://external_ip:80>`_.
-            * You will be redirected to the Dex login page. You can find a sample image below.
-            .. image:: ../../images/dex_login_sample.jpg
+        * Open any we browser of your choice and go to `<http://external_ip:80>`_.
+        * You will be redirected to the Dex login page. You can find a sample image below.
+
+        .. image:: ../../images/dex_login.jpg
 
 **Logging into the Kubeflow dashboard**
 
@@ -44,4 +45,4 @@ To log in to the Kubeflow dashboard and start using its features, you need to pr
         * **Username**: user@example.com
         * **Password**: 12341234
 
-For more details, refer to Kubeflow manifest documentation link `<here. https://github.com/kubeflow/manifests?tab=readme-ov-file#overview>`_
+For more details, refer to Kubeflow manifest documentation link `here. <https://github.com/kubeflow/manifests?tab=readme-ov-file#overview>`_
