@@ -24,9 +24,9 @@ Optionally, you can initiate only telemetry using the below command: ::
 
 .. note::
 
-    * Depending on the type of telemetry initiated, include the following groups in the inventory:
+    * Depending on the type of telemetry initiated, include the following possible groups in the inventory:
 
-        * omnia_telemetry: manager, compute, [optional] login
+        * omnia_telemetry: slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login, etcd
 
         * idrac_telemetry: idrac
 
