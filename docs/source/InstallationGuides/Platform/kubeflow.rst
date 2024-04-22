@@ -4,7 +4,7 @@ Kubeflow is an open-source platform for machine learning and MLOps on Kubernetes
 
 **Prerequisite**
 
-Ensure that you have executed ``local_repo.yml`` with Kubeflow specified in the ``software_config.json`` file.an
+Ensure that you have executed ``local_repo.yml`` with Kubeflow specified in the ``software_config.json`` file.
 
 **Deploy Kubernetes**
 
