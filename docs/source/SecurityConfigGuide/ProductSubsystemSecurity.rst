@@ -12,21 +12,25 @@ Omnia performs bare metal configuration to enable AI/HPC workloads. It uses Ansi
 
     - BMC discovery **[optional]**: To discover the cluster via BMC (iDRAC), IPMI must be enabled on remote servers. Discovery happens over IPMI. For security best practices when using this method, `click here! <https://www.dell.com/support/manuals/en-us/idrac9-lifecycle-controller-v5.x-series/idrac9_security_configuration_guide/ipmi-security-best-practices?guid=guid-5d99c30c-294f-4f03-b584-596b43d79089&lang=en-us>`_
 
-    - SNMP **[optional]**: To discover the cluster by querying switches, SNMPv2 must be enabled.
-
     - Switch **[default]**: To discovery the cluster by routing communication through particular switch ports over SNMPv3, non-admin switch credentials must be provided.
 
 .. note:: IPMI is not required on the control plane. However, compute nodes (iDRACs in the cluster/private network) require IPMI to be enabled for BMC discovery.
 
-Omnia can be installed via CLI only. Slurm and Kubernetes are deployed and configured on the cluster. FreeIPA or LDAP is installed for providing authentication.
+Omnia can be installed via CLI only. Slurm and Kubernetes are deployed and configured on the cluster. FreeIPA or OpenLDAP is installed for providing authentication.
 
 To perform these configurations and installations, a secure SSH channel is established between the management node and the following entities:
 
+* slurm_control_node
+
+* slurm_node
+
 * kube_control_plane
 
-* Compute Nodes
+* kube_node
 
-* Login Node
+* auth_server
+
+* login
 
 Authentication
 ---------------
@@ -38,7 +42,7 @@ Cluster authentication tool
 
 In order to enable authentication to the cluster, Omnia installs FreeIPA: an open source tool providing integrated identity and authentication for Linux/UNIX networked environments. As part of the HPC cluster, the login node is responsible for configuring users and managing a limited number of administrative tasks. Access to the manager/head node is restricted to administrators with the root password. For authentication on the manager and compute nodes exclusively, LDAP can also be installed by Omnia on the client.
 
-.. note::  Omnia does not configure LDAP users or groups.
+.. note::  Omnia does not configure OpenLDAP users or groups.
 
 Authentication types and setup
 ------------------------------
@@ -78,7 +82,7 @@ For setting up authentication on the cluster, the following credentials have to 
 
     1. FreeIPA (directory_manager_password, ipa_admin_password)
 
-    2. LDAP (ldap_bind_username, ldap_bind_password)
+    2. OpenLDAP (openldap_db_username, openldap_db_password, openldap_config_username, openldap_config_password)
 
 Once Omnia is invoked, these files are validated and encrypted using Ansible Vault. They are hidden from external visibility and access.
 
