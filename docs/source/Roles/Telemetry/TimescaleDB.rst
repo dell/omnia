@@ -18,13 +18,23 @@ Timescale DB
 
 4. Query the database using SQL syntax.
 
-Eg: ::
+Example:
+
+For Omnia telemetry: ::
 
     select * from omnia_telemetry.metrics;
+
+
+For iDRAC telemetry: ::
+
     select * from public.timeseries_metrics;
 
 .. image:: ../../images/TimescaleDB_table.png
+*Query for Omnia telemetry*
+
 .. image:: ../../images/publictimeseries.png
+*Query for iDRAC telemetry*
+
 
 **Data retention policy**
 

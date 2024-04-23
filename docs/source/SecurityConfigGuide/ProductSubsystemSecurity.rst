@@ -310,6 +310,20 @@ Omnia configures the following ports for use by third-party tools installed by O
         | 123           | UDP     | NTP                  | Manager/ Login_Node  |
         +---------------+---------+----------------------+----------------------+
 
+**OpenLDAP port requirements**
+
+        +---------------+---------+----------------------+----------------------+
+        | Port   Number | Layer 4 | Purpose              | Node                 |
+        +===============+=========+======================+======================+
+        | 80            | TCP     | HTTP/HTTPS           | Manager/ Login_Node  |
+        +---------------+---------+----------------------+----------------------+
+        | 443           | TCP     | HTTP/HTTPS           | Manager/ Login_Node  |
+        +---------------+---------+----------------------+----------------------+
+        | 389           | TCP     | LDAP/LDAPS           | Manager/ Login_Node  |
+        +---------------+---------+----------------------+----------------------+
+        | 636           | TCP     | LDAP/LDAPS           | Manager/ Login_Node  |
+        +---------------+---------+----------------------+----------------------+
+
 .. note:: To avoid security vulnerabilities, protocols can be restricted on the network using the parameters ``restrict_program_support`` and ``restrict_softwares`` in ``input/login_node_security_config.yml``. However, certain protocols are essential to Omnia's functioning and cannot be disabled. These protocols are: ftp, smbd, nmbd, automount, portmap.
 
 Data security
