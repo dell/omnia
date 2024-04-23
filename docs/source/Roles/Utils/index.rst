@@ -7,7 +7,6 @@ The Utilities role allows users to set up certain tasks such as
     software_update
     KernelUpdate
     cleanupscript
-    deletenode
     portcleanup
     timescaledb_utility
     freeipa_installation
