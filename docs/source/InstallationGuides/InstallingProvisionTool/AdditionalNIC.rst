@@ -1,6 +1,6 @@
 Configuring additional NICs on the nodes
 -------------------------------------------
-After running ``discovery_provision.yml`` or ``discovery_provision.yml`` and the nodes boot up, additional NICs can be configured on target nodes using the ``nic_update.yml`` playbook.
+After running ``discovery_provision.yml`` or ``discovery_provision.yml`` and the nodes boot up, additional NICs can be configured on target nodes using the ``server_spec_update.yml`` playbook.
 
 **Prerequisites**
 
@@ -76,8 +76,8 @@ Below is a sample ``input/server_spec.yml`` file: ::
 
 Use the below commands to assign IPs to the NICs: ::
 
-    cd nic_update
-    ansible-playbook nic_update -i inventory
+    cd server_spec_update
+    ansible-playbook server_spec_update -i inventory
 
 Where the inventory file passed includes user-defined groups,servers associated with them, and a mapping from the groups specified and the categories in ``input/server_spec.yml`` under [<group name>:vars]. Below is a sample: ::
 
