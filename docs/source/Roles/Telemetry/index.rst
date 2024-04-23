@@ -122,9 +122,9 @@ Example ::
         * **hostname**: The hostname of the cluster node.
         * **time**: The timestamp at which the metric was polled from the cluster node.
 
-*iDRAC telemetry data from Grafana*
+    *iDRAC telemetry data from Grafana*
 
-    .. image:: ../../images/idractelemetry.png
+        .. image:: ../../images/idractelemetry.png
 
 .. note:: If you are more comfortable using SQL queries over the query builder, click on **Edit SQL** to directly provide your query. Optionally, the data returned from a query can be viewed as a graph.
 
