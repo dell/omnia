@@ -15,7 +15,7 @@ Configuring specific local repositories
 
     To install RoCE, include the following line under ``softwares``: ::
 
-            {"name": "bcm_roce", "version": "229.2.9.0"}
+            {"name": "bcm_roce", "version": "229.2.61.0"}
 
 
     For a list of repositories (and their types) configured for RoCE, view the ``input/config/ubuntu/<operating_system_version>/bcm_roce.json`` file. To customize your RoCE installation, update the file. URLs for different versions can be found `here <https://downloads.dell.com>`_: ::
@@ -29,6 +29,30 @@ Configuring specific local repositories
                     "url": "",
                     "path": ""
                   }
+                ]
+              },
+              "bcm_roce_libraries": {
+                "cluster": [
+                  {
+                    "package": "bcm_roce_source_{{ bcm_roce_libraries_version }}",
+                    "type": "tarball",
+                    "url": "",
+                    "path": ""
+                  },
+                  {"package": "libelf-dev", "type": "deb", "repo_name": "jammy"},
+                  {"package": "gcc", "type": "deb", "repo_name": "jammy"},
+                  {"package": "make", "type": "deb", "repo_name": "jammy"},
+                  {"package": "libtool", "type": "deb", "repo_name": "jammy"},
+                  {"package": "autoconf", "type": "deb", "repo_name": "jammy"},
+                  {"package": "librdmacm-dev", "type": "deb", "repo_name": "jammy"},
+                  {"package": "rdmacm-utils", "type": "deb", "repo_name": "jammy"},
+                  {"package": "infiniband-diags", "type": "deb", "repo_name": "jammy"},
+                  {"package": "ibverbs-utils", "type": "deb", "repo_name": "jammy"},
+                  {"package": "perftest", "type": "deb", "repo_name": "jammy"},
+                  {"package": "ethtool", "type": "deb", "repo_name": "jammy"},
+                  {"package": "libibverbs-dev", "type": "deb", "repo_name": "jammy"},
+                  {"package": "rdma-core", "type": "deb", "repo_name": "jammy"},
+                  {"package": "strace", "type": "deb", "repo_name": "jammy"}
                 ]
               }
             }

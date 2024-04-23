@@ -29,9 +29,12 @@ Below is a sample version of the file: ::
                 {"name": "vllm"},
                 {"name": "pytorch"},
                 {"name": "tensorflow"},
-                {"name": "bcm_roce", "version": "229.2.9.0"}
+                {"name": "bcm_roce", "version": "229.2.61.0"}
             ],
 
+            "bcm_roce": [
+                    {"name": "bcm_roce_libraries", "version": "229.2.61.0"}
+            ],
             "kserve": [
                 {"name": "istio"},
                 {"name": "cert_manager"},

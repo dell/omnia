@@ -11,21 +11,17 @@ After running ``discovery_provision.yml`` or ``discovery_provision.yml`` and the
     * ``nic_name``: The name of the NIC on which the administrative network is accessible to the control plane.
     * ``netmask_bits``: The 32-bit "mask" used to divide an IP address into subnets and specify the network's available hosts.
     * ``static_range``: The static range of IPs to be provisioned on target nodes.
-    * ``dynamic_range``: The dynamic range of IPs to be provisioned on target nodes.
-    * ``correlation_to_admin``: Boolean value used to indicate whether all other networks specified in the file (eg: ``bmc_network``) should be correlated to the admin network. For eg: if a target node is assigned the IP xx.yy.0.5 on the admin network, it will be assigned the IP aa.bb.0.5 on the BMC network. This value is irrelevant when discovering nodes using a mapping file.
-    * ``admin_uncorrelated_node_start_ip``: If ``correlation_to_admin`` is set to true but correlated IPs are not available on non-admin networks, provide an IP within the ``static_range`` of the admin network that can be used to assign admin static IPs to uncorrelated nodes. If this is empty, then the first IP in the ``static_range`` of the admin network is taken by default. This value is irrelevant when discovering nodes using a mapping file.
     * ``VLAN``: A 12-bit field that identifies a virtual LAN (VLAN) and specifies the VLAN that an Ethernet frame belongs to. This property is not supported on clusters running Ubuntu.
 
    *The below properties are only applicable to additional NICs*
     * ``CIDR``: Classless or Classless Inter-Domain Routing (CIDR) addresses use variable length subnet masking (VLSM) to alter the ratio between the network and host address bits in an IP address.
-    * ``MTU``: Maximum transmission unit (MTU) is a measurement in bytes of the largest data packets that an Internet-connected device can accept.
-    * ``DNS``: A DNS server is a computer equipped with a database that stores the public IP addresses linked to the domain names of websites, enabling users to reach websites using their IP addresses.
+    * ``MTU``: Maximum transmission unit (MTU) is a measurement in bytes of the largest data packets that an Internet-connected device can accept. Default value of ``MTU`` is 1500. You can enter your desired value.
 
 .. note::
 
     * If a ``CIDR`` value is provided, the complete subnet is used for Omnia to assign IPs and where possible, the IPs will be correlated with the assignment on the admin network.
     * If a VLAN is required, ensure that a VLAN ID is provided in the field ``vlan``. This field is not supported on admin or bmc networks.
-
+    * You can either use ``CIDR`` or ``static_range``. Simultaneous use of both parameters will result in an error message being displayed.
 
 Below is a sample of additional NIC information in a ``input/network_spec.yml`` file: ::
 
@@ -77,7 +73,7 @@ Below is a sample ``input/server_spec.yml`` file: ::
 Use the below commands to assign IPs to the NICs: ::
 
     cd server_spec_update
-    ansible-playbook server_spec_update -i inventory
+    ansible-playbook server_spec_update.yml -i inventory
 
 Where the inventory file passed includes user-defined groups,servers associated with them, and a mapping from the groups specified and the categories in ``input/server_spec.yml`` under [<group name>:vars]. Below is a sample: ::
 

@@ -40,7 +40,7 @@ There are two ways to pull images from the user registries in the form of a dige
 
         },
 
-
+    * Images pulled from gcr.io does not have a ``tag``, but a ``digest value``. While pushing these images to ``user_registry``, user needs to manually enter a ``tag`` as shown in the sample below. Tags make the image unique to Omnia ``user_registry``. If not provided, image will be accessed from the ``gcr.io`` registry, that is, from the internet.
     * While pushing the image to the user registry, create a tag and update the JSON file to take the tag value instead of the digest.
 
 
