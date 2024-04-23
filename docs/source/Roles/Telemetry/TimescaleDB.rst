@@ -29,12 +29,11 @@ For iDRAC telemetry: ::
 
     select * from public.timeseries_metrics;
 
-.. image:: ../../images/TimescaleDB_table.png
 *Query for Omnia telemetry*
+.. image:: ../../images/TimescaleDB_table.png
 
-.. image:: ../../images/publictimeseries.png
 *Query for iDRAC telemetry*
-
+.. image:: ../../images/publictimeseries.png
 
 **Data retention policy**
 
