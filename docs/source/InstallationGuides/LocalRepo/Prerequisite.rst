@@ -31,15 +31,6 @@ Omnia will not be able to configure access to any registries that do not follow 
 
 There are two ways to pull images from the user registries in the form of a digest:
 
-    * Update the digest value to the listed image in the registry. All images to be pulled are listed in ``input/config/<os>/<version>/<software_file>.json``. A sample of the listing is shown below: ::
-
-        {
-            "package": "gcr.io/knative-releases/knative.dev/serving/cmd/webhook",
-            "digest": ".1305209ce498caf783f39c8f3e85df..35ece6947033bf50b0b627983fd65953",
-            "type": "image"
-
-        },
-
     * Images pulled from gcr.io does not have a ``tag``, but a ``digest value``. While pushing these images to ``user_registry``, user needs to manually enter a ``tag`` as shown in the sample below. Tags make the image unique to Omnia ``user_registry``. If not provided, image will be accessed from the ``gcr.io`` registry, that is, from the internet.
 
         *Image pulled from gcr.io* ::
@@ -50,7 +41,7 @@ There are two ways to pull images from the user registries in the form of a dige
                     "type": "image"
              },
 
-        *Append "digest" value to add "omnia" tag while pushing image to ``user_registry``* ::
+        *Append "digest" value to add "omnia" tag while pushing image to user_registry* ::
 
             {
                     "package": "gcr.io/knative-releases/knative.dev/serving/cmd/webhook",
