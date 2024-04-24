@@ -47,7 +47,7 @@ Below is a sample of additional NIC information in a ``input/network_spec.yml`` 
     * The property ``nictype`` indicates what kind of NIC is in use (ethernet, infiniband, or vlan). If the ``nictype`` is set to ``vlan``, ensure to specify a primary NIC for the VLAN using the property ``nicdevices``.
     * While new groups can be added to the ``server_spec.yml`` file on subsequent runs of the playbook, existing groups cannot be edited or deleted.
 
-   .. note:: The ``nicnetwork`` property should match any of the networks specified in ``input/network_spec.yml``.
+.. note:: The ``nicnetwork`` property should match any of the networks specified in ``input/network_spec.yml``.
 
 Below is a sample ``input/server_spec.yml`` file: ::
 
