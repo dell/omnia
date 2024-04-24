@@ -40,7 +40,7 @@ Omnia does not have its own authentication mechanism because bare metal installa
 Cluster authentication tool
 ----------------------------
 
-In order to enable authentication to the cluster, Omnia installs FreeIPA: an open source tool providing integrated identity and authentication for Linux/UNIX networked environments. As part of the HPC cluster, the login node is responsible for configuring users and managing a limited number of administrative tasks. Access to the manager/head node is restricted to administrators with the root password. For authentication on the manager and compute nodes exclusively, LDAP can also be installed by Omnia on the client.
+In order to enable authentication to the cluster, Omnia installs FreeIPA: an open source tool providing integrated identity and authentication for Linux/UNIX networked environments. As part of the HPC cluster, the login node is responsible for configuring users and managing a limited number of administrative tasks. Access to the manager/head node is restricted to administrators with the root password. Omnia installs either FreeIPA or OpenLDAP based on user's preference.
 
 .. note::  Omnia does not configure OpenLDAP users or groups.
 
@@ -329,7 +329,21 @@ Omnia configures the following ports for use by third-party tools installed by O
 Data security
 -------------
 
-Omnia does not store data. The passwords Omnia accepts as input to configure the third party tools are validated and then encrypted using Ansible Vault. Run ``yum update --security`` routinely on the control plane for the latest security updates.
+Omnia does not store data. The passwords Omnia accepts as input to configure the third party tools are validated and then encrypted using Ansible Vault. Run the following commands routinely on the control plane for the latest security updates.
+
+ * For RHEL/Rocky OS ::
+
+  yum update --security
+
+* For Ubuntu
+
+i. First, install the toolkit using ::
+
+sudo apt install unattended-upgrades
+
+ii. Then, run the following command ::
+
+sudo unattended-upgarde
 
 For more information on the passwords used by Omnia, see `Login Security Settings <#login-security-settings>`_.
 
