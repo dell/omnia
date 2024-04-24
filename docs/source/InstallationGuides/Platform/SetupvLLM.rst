@@ -163,7 +163,7 @@ A sample inventory is attached below:
 vLLM container internet enablement
 -----------------------------------
 
-To enable internet access within the container, user needs to export ``http_proxy`` and ``https_proxy`` environment variables in the following information
+To enable internet access within the container, user needs to export ``http_proxy`` and ``https_proxy`` environment variables in the following format
 
 ::
 
@@ -174,9 +174,7 @@ For benchmark testing
 ----------------------
 
 1. Navigate to ``vllm/benchmarks/`` inside the container.
-2. Modify the python files (.py) as shown in the below sample image to perform benchmark testing.
-
-    .. image::
+2. Modify the python files (.py) to perform benchmark testing.
 
 Hugging face environment setup
 -------------------------------
@@ -187,7 +185,7 @@ Utilize the following command to setup the Hugging face environment variables
 
     nerdctl run -it --network=host --group-add=video --ipc=host --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --device /dev/kfd --device /dev/dri/card0 --device /dev/dri/card1 --device /dev/dri/renderD128 -v /opt/omnia/:/app/model --env "HUGGING_FACE_HUB_TOKEN=hf_xxxxxxxxxxxxxxxxxxxxxx" vllm-rocm:latest bash
 
-By default, vLLM automatically retrieves models from HuggingFace. If you prefer to utilize models from ModelScope in the following examples, please set the environment variable value to ``True`` as shown below,
+By default, vLLM automatically retrieves models from HuggingFace. If you prefer to utilize models from ModelScope, please set the environment variable value to ``True`` as shown below,
 
 ::
 
@@ -201,13 +199,13 @@ For a complete list of quick start examples, `click here <https://docs.vllm.ai/e
 
 1. *Using api_server*
 
-    * Execute the following command to enable the ``api_server`` inference endpoint inside container
+    * Execute the following command to enable the ``api_server`` inference endpoint inside the container.
 
         ::
 
             python -m vllm.entrypoints.api_server --model facebook/opt-125m
 
-    * Expected output
+        Expected output
 
         ::
 
