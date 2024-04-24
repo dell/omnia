@@ -157,7 +157,6 @@ Delete provisioned node
 
 Use this playbook to remove discovered or provisioned nodes from all inventory files and Omnia database tables. No changes are made to the Slurm or Kubernetes cluster.
 
-.. note:: To undo changes made by this playbook, re-run the provision tool on the target node.
 
 **Configurations performed by the playbook**
 
