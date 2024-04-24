@@ -37,6 +37,8 @@ For iDRAC telemetry: ::
 
     .. image:: ../../images/publictimeseries.png
 
+For the entire set of iDRAC telemetry metrics, `click here <https://github.com/dell/iDRAC-Telemetry-Reference-Tools>`_.
+
 **Data retention policy**
 
 The ``omnia_telemetry.metrics`` has a data retention policy that ensures data is stored for 2 months only. A cleanup job is run everyday to purge metrics older than 60 days.
