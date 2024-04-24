@@ -6,7 +6,7 @@ After running ``discovery_provision.yml`` or ``discovery_provision.yml`` and the
 
 * All target nodes are provisioned and booted. `Click here to verify the status of all nodes. <ViewingDB.html>`_
 
-* The ``input/network_spec.yml`` file has been updated with all network information in addition to admin network and bmc network information. Below are all applicable properties of an additional network:
+* Ensure that ``input/network_spec.yml`` file has been updated with all network information in addition to admin network and bmc network information. Below are all applicable properties of an additional network:
 
     * ``nic_name``: The name of the NIC on which the administrative network is accessible to the control plane.
     * ``netmask_bits``: The 32-bit "mask" used to divide an IP address into subnets and specify the network's available hosts.
