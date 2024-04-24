@@ -23,7 +23,6 @@ Run the playbook using the following commands: ::
 * To specify only Slurm or Kubernetes nodes while running the playbook, use the tags ``slurm_node`` or ``kube_node``. That is:
 * To remove only slurm nodes, use ``ansible-playbook remove_node_configuration.yml -i inventory --tags slurm_node``.
 * To remove only kubernetes nodes, use ``ansible-playbook remove_node_configuration.yml -i inventory --tags kube_node``.
-* Passed inventory files should exclusively contain either service tags or admin IPs. Do not provide a mix of both in a single inventory file.
 * To skip confirmation while running the playbook, use ``ansible-playbook remove_node_configuration.yml -i inventory --extra-vars skip_confirmation=yes`` or ``ansible-playbook remove_node_configuration.yml -i inventory -e  skip_confirmation=yes``.
 
 
@@ -57,7 +56,7 @@ To reset a kubernetes cluster, use ``ansible-playbook reset_cluster_configuratio
 
 To skip confirmation while running the playbook, use ``ansible-playbook reset_cluster_configuration.yml -i inventory --extra-vars skip_confirmation=yes`` or ``ansible-playbook remove_node_configuration.yml -i inventory -e  skip_confirmation=yes``.
 
-The inventory file passed for ``reset_cluster_configuration`` should follow the below format. Passed inventory files should exclusively contain either service tags or admin IPs. Do not provide a mix of both in a single inventory file.:
+The inventory file passed for ``reset_cluster_configuration`` should follow the below format.
 
 *For a slurm cluster* ::
 
@@ -101,7 +100,7 @@ Run the playbook using the following commands: ::
 
 To skip confirmation while running the playbook, use ``ansible-playbook delete_node.yml -i inventory --extra-vars skip_confirmation=yes`` or ``ansible-playbook remove_node_configuration.yml -i inventory -e  skip_confirmation=yes``.
 
-The inventory file passed for ``delete_node.yml`` should follow one of the below formats. Passed inventory files should exclusively contain either service tags or admin IPs. Do not provide a mix of both in a single inventory file.: ::
+The inventory file passed for ``delete_node.yml`` should follow one of the below formats. ::
 
     [nodes]
     {ip address}
