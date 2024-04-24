@@ -39,6 +39,10 @@ Update the ``input/network_spec.yml`` file for all networks available for use by
     * If the ``nic_name`` is the same on both the admin_network and the bmc_network, a LOM setup is assumed.
     * BMC network details are not required when target nodes are discovered using a mapping file.
     * If ``bmc_network`` properties are provided, target nodes will be discovered using the BMC method in addition to the methods whose details are explicitly provided in ``provision_config.yml``.
+    * The following parameters are applicable for ``bmc_network``:
+
+        * ``discover_ranges``: If some iDRACs are reachable from control_plane but is not in ``bmc_network``, then user can provide those IP ranges here. Discovery of a single IP is not possible. User must provide a range. This is an optional field. User must not remove any of the fields even though it is optional.
+        * ``reassignment_to_static``: If iDRACs are set to DHCP mode and Omnia has assigned the IPs, then the user can reassign the IP within the ``bmc_network`` static range by setting this value to ``true``. If this value is not provided or set to ``false`` while the iDRACs are in DHCP mode, they will obtain IPs from the ``bmc_network`` dynamic range, and these IPs will then be converted to static IPs for the iDRACs.
 
 .. caution::
     * Do not assign the subnet 10.4.0.0/24 to any interfaces in the network as nerdctl uses it by default.

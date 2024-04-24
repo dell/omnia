@@ -11,11 +11,11 @@ After running ``discovery_provision.yml`` or ``discovery_provision.yml`` and the
     * ``nic_name``: The name of the NIC on which the administrative network is accessible to the control plane.
     * ``netmask_bits``: The 32-bit "mask" used to divide an IP address into subnets and specify the network's available hosts.
     * ``static_range``: The static range of IPs to be provisioned on target nodes.
-    * ``VLAN``: A 12-bit field that identifies a virtual LAN (VLAN) and specifies the VLAN that an Ethernet frame belongs to. This property is not supported on clusters running Ubuntu.
 
    *The below properties are only applicable to additional NICs*
     * ``CIDR``: Classless or Classless Inter-Domain Routing (CIDR) addresses use variable length subnet masking (VLSM) to alter the ratio between the network and host address bits in an IP address.
     * ``MTU``: Maximum transmission unit (MTU) is a measurement in bytes of the largest data packets that an Internet-connected device can accept. Default value of ``MTU`` is 1500. You can enter your desired value.
+    * ``VLAN``: A 12-bit field that identifies a virtual LAN (VLAN) and specifies the VLAN that an Ethernet frame belongs to. This property is not supported on clusters running Ubuntu.
 
 .. note::
 
