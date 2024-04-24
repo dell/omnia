@@ -331,19 +331,19 @@ Data security
 
 Omnia does not store data. The passwords Omnia accepts as input to configure the third party tools are validated and then encrypted using Ansible Vault. Run the following commands routinely on the control plane for the latest security updates.
 
- * For RHEL/Rocky OS ::
+    * For RHEL/Rocky OS
 
-  yum update --security
+     ``yum update --security``
 
-* For Ubuntu
+    * For Ubuntu
 
-i. First, install the toolkit using ::
+        i. First, install the toolkit using
 
-sudo apt install unattended-upgrades
+           ``sudo apt install unattended-upgrades``
 
-ii. Then, run the following command ::
+        ii. Then, run the following command
 
-sudo unattended-upgarde
+            ``sudo unattended-upgarde``
 
 For more information on the passwords used by Omnia, see `Login Security Settings <#login-security-settings>`_.
 
