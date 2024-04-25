@@ -192,7 +192,7 @@ As defined in RFC 822, the only legal characters are the following:
 
 2. Re-run ``omnia.yml``
 
-⦾ **What to do if slurmd services do not start after running ``omnia.yml`` playbook?
+⦾ **What to do if slurmd services do not start after running ``omnia.yml`` playbook?**
 
 Run the following command to manually restart slurmd services on the nodes ::
 
