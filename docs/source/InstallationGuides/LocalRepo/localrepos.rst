@@ -19,7 +19,7 @@ Configuring specific local repositories
                                 {"name": "rocm", "version": "6.0" }
                           ]
 
-        * A sample format is available `here. <../InputParameters.html>`_
+        * A sample format is available `here. <InputParameters.html>`_
 
 **BCM RoCE**
 
