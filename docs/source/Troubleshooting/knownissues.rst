@@ -208,13 +208,13 @@ Run the following command to manually restart slurmd services on the nodes ::
 
 * Run ``systemctl status slurmd`` to manually restart the following service on all the cluster nodes.
 
-⦾ **What to do if new slurm node is not added to sinfo output of slurm control node when restart_slurm_services in omnia_config.yml is set to false**
+⦾ **What to do if new slurm node is not added to sinfo output of slurm control node when restart_slurm_services in omnia_config.yml is set to ``false``?**
 
 * Run the following command on slurm control node: ::
 
     systemctl restart slurmctld
 
-* Verify if the slurm node was added, using : ::
+* Verify if the slurm node was added, using: ::
 
     sinfo
 
