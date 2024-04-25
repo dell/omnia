@@ -69,6 +69,7 @@ Below is a sample ``input/server_spec.yml`` file: ::
                   nicnetwork: "thor_network1"
                   nictypes: "ethernet"
 
+A sample inventory format is present in ``examples/server_spec_inv``.
 
 Use the below commands to assign IPs to the NICs: ::
 

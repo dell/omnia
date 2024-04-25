@@ -36,5 +36,6 @@
 
 	* ``false``
 
+
 .. caution:: If any slurm jobs are running,  restarting ``slurmctld`` can cause failure of jobs. Set ``restart_slurm_services`` to ``false`` if jobs are running and restart manually the service after playbook execution.
 "
