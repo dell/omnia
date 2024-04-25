@@ -227,25 +227,9 @@ For information on deploying Jupyterhub after setting up the cluster, `click her
 
 **Kserve**
 
-    To install Kserve, do the following:
-
-        * Include the following line under ``softwares`` in ``input/software_config.json``:
-
-            ::
+    To install Kserve, include the following line under ``softwares`` in ``input/software_config.json``: ::
 
                 {"name": "kserve"},
-
-        * Add the following line below the ``softwares`` section:
-
-            ::
-                "kserve": [
-                    {"name": "istio"},
-                    {"name": "cert_manager"},
-                    {"name": "knative"}
-                    ]
-
-        * A sample format is available `here. <InputParameters.html>`_
-
 
 For information on deploying Kserve after setting up the cluster, `click here. <../../InstallingProvisionTool/Platform/kserve.html>`_
 
@@ -265,8 +249,6 @@ For information on deploying kubeflow after setting up the cluster, `click here.
             {"name": "k8s", "version":"1.26.12"},
 
     .. note:: The version of the software provided above is the only version of the software Omnia supports.
-
-
 
 **OFED**
 
