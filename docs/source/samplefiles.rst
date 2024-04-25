@@ -26,7 +26,7 @@ inventory file
 
 
 
-        #General Cluster Storage
+        #General Cluster authentication server
 
         [auth_server]
 
