@@ -28,7 +28,8 @@
 
      ``boolean``
 
-     Optional   ","* Indicates whether slurm control node services (slurmctld) should be restarted or not
+     Optional   ","* Indicates whether slurm control node services (slurmctld) should be restarted or not.
+* If ``restart_slurm_services`` is set to ``true``, slurmctld services will be restarted on every execution of ``omnia.yml``.
 
 * **Choices**
 
