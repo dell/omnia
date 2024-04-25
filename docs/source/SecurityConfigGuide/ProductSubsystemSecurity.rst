@@ -350,7 +350,7 @@ Omnia does not store data. The passwords Omnia accepts as input to configure the
 
     ::
 
-        sudo unattended-upgarde
+        sudo unattended-upgrade
 
 
 For more information on the passwords used by Omnia, see `Login Security Settings <#login-security-settings>`_.
