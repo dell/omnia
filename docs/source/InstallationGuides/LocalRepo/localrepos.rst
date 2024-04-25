@@ -3,19 +3,25 @@ Configuring specific local repositories
 
 **AMDGPU ROCm**
 
-    To install ROCm, include the following line under ``softwares``: ::
+    To install ROCm, include the following line under ``softwares`` in ``input/software_config.json``: ::
 
-             "amdgpu": [
-                    {"name": "rocm", "version": "6.0" }
-                ]
+            {"name": "amdgpu", "version": "6.0"},
+
+                "amdgpu": [
+                                {"name": "rocm", "version": "6.0" }
+                          ]
 
 
 **BCM RoCE**
 
 
-    To install RoCE, include the following line under ``softwares``: ::
+    To install RoCE, include the following line under ``softwares`` in ``input/software_config.json``: ::
 
             {"name": "bcm_roce", "version": "229.2.61.0"}
+
+                "bcm_roce": [
+                                    {"name": "bcm_roce_libraries", "version": "229.2.61.0"}
+                            ],
 
 
     For a list of repositories (and their types) configured for RoCE, view the ``input/config/ubuntu/<operating_system_version>/bcm_roce.json`` file. To customize your RoCE installation, update the file. URLs for different versions can be found `here <https://downloads.dell.com>`_: ::
@@ -64,15 +70,15 @@ Configuring specific local repositories
 
 **BeeGFS**
 
-    To install BeeGFS, include the following line under ``softwares``: ::
+    To install BeeGFS, include the following line under ``softwares`` in ``input/software_config.json``: ::
 
-            {"name": "beegfs"},
+            {"name": "beegfs", "version": "7.4.2"},
 
 For information on deploying BeeGFS after setting up the cluster, `click here. <../../Roles/Storage/index.html>`_
 
 **CUDA**
 
-    To install CUDA, include the following line under ``softwares``: ::
+    To install CUDA, include the following line under ``softwares`` in ``input/software_config.json``: ::
 
             {"name": "cuda", "version": "12.3.2"},
 
@@ -118,7 +124,7 @@ For information on deploying BeeGFS after setting up the cluster, `click here. <
 
 **Custom repositories**
 
-    Include the following line under ``softwares``: ::
+    Include the following line under ``softwares`` in ``input/software_config.json``: ::
 
                 {"name": "custom"},
 
@@ -186,7 +192,7 @@ For information on deploying BeeGFS after setting up the cluster, `click here. <
 
 **FreeIPA**
 
-    To install FreeIPA, include the following line under ``softwares``: ::
+    To install FreeIPA, include the following line under ``softwares`` in ``input/software_config.json``: ::
 
             {"name": "freeipa"},
 
@@ -194,7 +200,7 @@ For information on deploying FreeIPA after setting up the cluster, `click here. 
 
 **Jupyterhub**
 
-    To install Jupyterhub, include the following line under ``softwares``: ::
+    To install Jupyterhub, include the following line under ``softwares`` in ``input/software_config.json``: ::
 
             {"name": "jupyter"},
 
@@ -202,19 +208,21 @@ For information on deploying Jupyterhub after setting up the cluster, `click her
 
 **Kserve**
 
-    To install Kserve, include the following line under ``softwares``: ::
+    To install Kserve, include the following line under ``softwares`` in ``input/software_config.json``: ::
 
-             "kserve": [
+             {"name": "kserve"},
+
+                "kserve": [
                     {"name": "istio"},
                     {"name": "cert_manager"},
                     {"name": "knative"}
-                ]
+                    ]
 
 For information on deploying Kserve after setting up the cluster, `click here. <../../InstallingProvisionTool/Platform/kserve.html>`_
 
 **Kubeflow**
 
-    To install kubeflow, include the following line under ``softwares``: ::
+    To install kubeflow, include the following line under ``softwares`` in ``input/software_config.json``: ::
 
             {"name": "kubeflow"},
 
@@ -223,7 +231,7 @@ For information on deploying kubeflow after setting up the cluster, `click here.
 
 **Kubernetes**
 
-    To install Kubernetes, include the following line under ``softwares``: ::
+    To install Kubernetes, include the following line under ``softwares`` in ``input/software_config.json``: ::
 
             {"name": "k8s", "version":"1.26.12"},
 
@@ -233,7 +241,7 @@ For information on deploying kubeflow after setting up the cluster, `click here.
 
 **OFED**
 
-    To install OFED, include the following line under ``softwares``: ::
+    To install OFED, include the following line under ``softwares`` in ``input/software_config.json``: ::
 
             {"name": "ofed", "version": "24.01-0.3.3.1"},
 
@@ -273,7 +281,7 @@ For information on deploying kubeflow after setting up the cluster, `click here.
 
 **OpenLDAP**
 
-    To install OpenLDAP, include the following line under ``softwares``: ::
+    To install OpenLDAP, include the following line under ``softwares`` in ``input/software_config.json``: ::
 
             {"name": "openldap"},
 
@@ -281,7 +289,7 @@ Features that are part of the OpenLDAP repository are enabled by running `securi
 
 **OpenMPI**
 
-    To install OpenMPI, include the following line under ``softwares``: ::
+    To install OpenMPI, include the following line under ``softwares`` in ``input/software_config.json``: ::
 
             {"name": "openmpi", "version":"4.1.6"},
 
@@ -290,7 +298,7 @@ OpenMPI is deployed on the cluster when the above configurations are complete an
 
 **Pytorch**
 
-    To install PyTorch, include the following line under ``softwares``: ::
+    To install PyTorch, include the following line under ``softwares`` in ``input/software_config.json``: ::
 
             {"name": "pytorch"},
 
@@ -304,7 +312,7 @@ For information on deploying Pytorch after setting up the cluster, `click here. 
 
 **Secure Login Node**
 
-    To secure the login node, include the following line under ``softwares``: ::
+    To secure the login node, include the following line under ``softwares`` in ``input/software_config.json``: ::
 
             {"name": "secure_login_node"},
 
@@ -312,7 +320,7 @@ Features that are part of the secure_login_node repository are enabled by runnin
 
 **TensorFlow**
 
-    To install TensorFlow, include the following line under ``softwares``: ::
+    To install TensorFlow, include the following line under ``softwares`` in ``input/software_config.json``: ::
 
             {"name": "tensorflow"},
 
@@ -326,7 +334,7 @@ For information on deploying TensorFlow after setting up the cluster, `click her
 
 **Unified Communication X**
 
-    To install UCX, include the following line under ``softwares``: ::
+    To install UCX, include the following line under ``softwares`` in ``input/software_config.json``: ::
 
             {"name": "ucx", "version":"1.15.0"},
 
@@ -334,7 +342,7 @@ UCX is deployed on the cluster when the ``local_repo.yml`` is run then `omnia.ym
 
 **vLLM**
 
-    To install vLLM, include the following line under ``softwares``: ::
+    To install vLLM, include the following line under ``softwares`` in ``input/software_config.json``: ::
 
             {"name": "vLLM"},
 
@@ -347,13 +355,13 @@ For information on deploying vLLM after setting up the cluster, `click here. <..
 
 **Intel benchmarks**
 
-    To install Intel benchmarks, include the following line under ``softwares``: ::
+    To install Intel benchmarks, include the following line under ``softwares`` in ``input/software_config.json``: ::
 
             {"name": "intel_benchmarks", "version": "2024.1.0"},
 
 **AMD benchmarks**
 
-    To install AMD benchmarks, include the following line under ``softwares``: ::
+    To install AMD benchmarks, include the following line under ``softwares`` in ``input/software_config.json``: ::
 
             {"name": "amd_benchmarks"},
 
