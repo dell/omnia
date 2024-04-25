@@ -1,12 +1,4 @@
 ﻿Variables,Details
-"**mariadb_password**
-
-     ``string``
-
-     Required    ","* Password used for Slurm database.
-* The Length of the password should be at least 8.
-* The password must not contain -,\, ',""
-* **Default value**: ""password"""
 "**k8s_cni**
 
      ``string``
@@ -33,16 +25,6 @@
 * This directory is on the host running ansible, if ansible is installed   using dnf
 * If ansible is installed using pip, this path should be set                        
 * **Default value**: ``/etc/ansible``                                           "
-"**slurm_installation_type**
-
-     ``string``
-
-     Optional      ","* Indicates whether the slurm installation will support configless or nfs mode.
-
-     Choices:
-
-     * ``nfs_share``  <- default
-     * ``configless``                                          "
 "**k8s_service_addresses**
 
      ``string``
