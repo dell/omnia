@@ -3,25 +3,44 @@ Configuring specific local repositories
 
 **AMDGPU ROCm**
 
-    To install ROCm, include the following line under ``softwares`` in ``input/software_config.json``: ::
+    To install ROCm, do the following:
 
-            {"name": "amdgpu", "version": "6.0"},
+        * Include the following line under ``softwares`` in ``input/software_config.json``:
+
+            ::
+
+                {"name": "amdgpu", "version": "6.0"},
+
+        * Add the following line below the ``softwares`` section:
+
+            ::
 
                 "amdgpu": [
                                 {"name": "rocm", "version": "6.0" }
                           ]
 
+        * A sample format is available `here. </InputParameters.html>`_
 
 **BCM RoCE**
 
 
-    To install RoCE, include the following line under ``softwares`` in ``input/software_config.json``: ::
+    To install RoCE, do the following:
 
-            {"name": "bcm_roce", "version": "229.2.61.0"}
+        * Include the following line under ``softwares`` in ``input/software_config.json``:
+
+            ::
+
+                {"name": "bcm_roce", "version": "229.2.61.0"}
+
+        * Add the following line below the ``softwares`` section:
+
+            ::
 
                 "bcm_roce": [
                                     {"name": "bcm_roce_libraries", "version": "229.2.61.0"}
                             ],
+
+        * A sample format is available `here. </InputParameters.html>`_
 
 
     For a list of repositories (and their types) configured for RoCE, view the ``input/config/ubuntu/<operating_system_version>/bcm_roce.json`` file. To customize your RoCE installation, update the file. URLs for different versions can be found `here <https://downloads.dell.com>`_: ::
@@ -208,15 +227,25 @@ For information on deploying Jupyterhub after setting up the cluster, `click her
 
 **Kserve**
 
-    To install Kserve, include the following line under ``softwares`` in ``input/software_config.json``: ::
+    To install Kserve, do the following:
 
-             {"name": "kserve"},
+        * Include the following line under ``softwares`` in ``input/software_config.json``:
 
+            ::
+
+                {"name": "kserve"},
+
+        * Add the following line below the ``softwares`` section:
+
+            ::
                 "kserve": [
                     {"name": "istio"},
                     {"name": "cert_manager"},
                     {"name": "knative"}
                     ]
+
+        * A sample format is available `here. </InputParameters.html>`_
+
 
 For information on deploying Kserve after setting up the cluster, `click here. <../../InstallingProvisionTool/Platform/kserve.html>`_
 
