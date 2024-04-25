@@ -64,7 +64,9 @@ Sample version of the file:
 
 * For RHEL/Rocky OS:
 
-    ::
+.. note:: For Rocky OS, the "cluster_os_type" in the below sample will be "rocky".
+
+::
 
         {
             "cluster_os_type": "rhel",
