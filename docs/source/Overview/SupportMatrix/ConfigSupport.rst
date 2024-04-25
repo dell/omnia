@@ -8,7 +8,6 @@ Hosts
       :header-rows: 1
       :keepspace:
 
-.. [1] This model was tested using Omnia 1.4.3.
 
 NICs
 +++++

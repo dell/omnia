@@ -259,15 +259,15 @@ For a complete list of quick start examples, `click here <https://docs.vllm.ai/e
 
             -d '{
 
-             "prompt": "San Francisco is a",
+            "prompt": "San Francisco is a",
 
-             "use_beam_search": true,
+            "use_beam_search": true,
 
-             "n": 4,
+            "n": 4,
 
-             "temperature": 0
+            "temperature": 0
 
-             }'
+            }'
 
         Expected output:
 
