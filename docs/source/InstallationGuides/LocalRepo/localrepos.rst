@@ -40,7 +40,7 @@ Configuring specific local repositories
                                     {"name": "bcm_roce_libraries", "version": "229.2.61.0"}
                             ],
 
-        * A sample format is available `here. </InputParameters.html>`_
+        * A sample format is available `here. <InputParameters.html>`_
 
 
     For a list of repositories (and their types) configured for RoCE, view the ``input/config/ubuntu/<operating_system_version>/bcm_roce.json`` file. To customize your RoCE installation, update the file. URLs for different versions can be found `here <https://downloads.dell.com>`_: ::
@@ -244,7 +244,7 @@ For information on deploying Jupyterhub after setting up the cluster, `click her
                     {"name": "knative"}
                     ]
 
-        * A sample format is available `here. </InputParameters.html>`_
+        * A sample format is available `here. <InputParameters.html>`_
 
 
 For information on deploying Kserve after setting up the cluster, `click here. <../../InstallingProvisionTool/Platform/kserve.html>`_
@@ -327,15 +327,25 @@ OpenMPI is deployed on the cluster when the above configurations are complete an
 
 **Pytorch**
 
-    To install PyTorch, include the following line under ``softwares`` in ``input/software_config.json``: ::
+    To install PyTorch, do the following:
 
-            {"name": "pytorch"},
+        * Include the following line under ``softwares`` in ``input/software_config.json``:
 
-            "pytorch": [
+            ::
+
+                {"name": "pytorch"},
+
+        * Add the following line below the ``softwares`` section:
+
+            ::
+
+                "pytorch": [
                     {"name": "pytorch_cpu"},
                     {"name": "pytorch_amd"},
                     {"name": "pytorch_nvidia"}
                 ],
+
+        * A sample format is available `here. <InputParameters.html>`_
 
 For information on deploying Pytorch after setting up the cluster, `click here. <../../InstallingProvisionTool/Platform/Pytorch.html>`_
 
@@ -349,15 +359,25 @@ Features that are part of the secure_login_node repository are enabled by runnin
 
 **TensorFlow**
 
-    To install TensorFlow, include the following line under ``softwares`` in ``input/software_config.json``: ::
+    To install TensorFlow, do the following:
 
-            {"name": "tensorflow"},
+        * Include the following line under ``softwares`` in ``input/software_config.json``:
 
-            "tensorflow": [
+            ::
+
+                {"name": "tensorflow"},
+
+        * Add the following line below the ``softwares`` section:
+
+            ::
+
+                "tensorflow": [
                     {"name": "tensorflow_cpu"},
                     {"name": "tensorflow_amd"},
                     {"name": "tensorflow_nvidia"}
                 ]
+
+        * A sample format is available `here. <InputParameters.html>`_
 
 For information on deploying TensorFlow after setting up the cluster, `click here. <../../InstallingProvisionTool/Platform/TensorFlow.html>`_
 
@@ -371,14 +391,24 @@ UCX is deployed on the cluster when the ``local_repo.yml`` is run then `omnia.ym
 
 **vLLM**
 
-    To install vLLM, include the following line under ``softwares`` in ``input/software_config.json``: ::
+    To install vLLM, do the following:
 
-            {"name": "vLLM"},
+        * Include the following line under ``softwares`` in ``input/software_config.json``:
 
-             "vllm": [
+            ::
+
+                {"name": "vLLM"},
+
+        * Add the following line below the ``softwares`` section:
+
+             ::
+
+                "vllm": [
                     {"name": "vllm_amd"},
                     {"name": "vllm_nvidia"}
                 ],
+
+        * A sample format is available `here. <InputParameters.html>`_
 
 For information on deploying vLLM after setting up the cluster, `click here. <../../InstallingProvisionTool/Platform/SetupvLLM.html>`_
 
