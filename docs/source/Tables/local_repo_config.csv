@@ -66,8 +66,7 @@ Optional","* Mandatory when cluster_os_type is rhel in ``softwares_config.json``
 * When repo_config is ""partial"" or ""never"", the packages required for cluster which were coming from ``rhel_repo_url`` will not be downloaded.
 * The ``rhel_os_url`` is configured via proxy in compute nodes.
 
-* **Example**:
-When cluster_os_type is rhel, ``rhel_os_url`` should be ""- {url: ""http://crb.com/CRB/x86_64/os/"", gpgkey: ""http://crb.com/CRB/x86_64/os/RPM-GPG-KEY""}"""
+* **Example**: When ``cluster_os_type`` is rhel, ``rhel_os_url`` should be ""- {url: ""http://crb.com/CRB/x86_64/os/"", gpgkey: ""http://crb.com/CRB/x86_64/os/RPM-GPG-KEY""}"""
 "**ubuntu_os_url**
 
 ``string``
@@ -80,8 +79,7 @@ Optional","* Mandatory when ``cluster_os_type`` is ubuntu in ``softwares_config.
 * Online ``ubuntu_os_url`` for Ubuntu 20.04 is ""http://archive.ubuntu.com/ubuntu"".
 
 
-* **Example**:
-When cluster_os_type is Ubuntu 22.04, ``ubuntu_os_url`` should be ""http://in.archive.ubuntu.com/ubuntu"""
+* **Example**: When cluster_os_type is Ubuntu 22.04, ``ubuntu_os_url`` should be ""http://in.archive.ubuntu.com/ubuntu"""
 "**omnia_repo_url_rhel**
 
 ``JSON List``
