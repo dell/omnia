@@ -8,7 +8,7 @@ AI (Artificial Intelligence) tools are software applications or systems that use
     Test/index
     InstallJupyterhub
     kubeflow
-    SetupvLLM
+    vLLM/index
     Pytorch
     TensorFlow
     kserve
