@@ -37,6 +37,8 @@ Sample inventory: ::
 
     10.5.1.103
 
+.. Note:: Ensure that the inventory format aligns with the Kubernetes installation on the cluster.
+
 **Obtain External IP of Ingress Gateway**
 
 Once Kubeflow is deployed, you need to obtain the external IP address of the ingress gateway. Check the external IP address of the ingress gateway using command-line tools like ``kubectl``. This IP address will be used to access the Kubeflow dashboard.
