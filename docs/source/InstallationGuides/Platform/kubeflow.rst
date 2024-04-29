@@ -25,6 +25,18 @@ Commands to install Kubeflow: ::
 
     ansible-playbook tools/kubeflow.yml -i inventory
 
+Sample inventory: ::
+
+    [kube_control_plane]
+
+    10.5.1.101
+
+    [kube_node]
+
+    10.5.1.102
+
+    10.5.1.103
+
 **Obtain External IP of Ingress Gateway**
 
 Once Kubeflow is deployed, you need to obtain the external IP address of the ingress gateway. Check the external IP address of the ingress gateway using command-line tools like ``kubectl``. This IP address will be used to access the Kubeflow dashboard.
