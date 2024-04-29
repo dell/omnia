@@ -4,7 +4,8 @@
 ``string``
 
 Required","* The intended file path for offline repository data.
-* Ensure the disk partition has enough space. 
+* Ensure the disk partition has enough space.
+* Ensure that 755 permission is given to ``repo_store_path`` if user intends to use nfs share mount for ``repo_store_path``. 
 
 **Default value**:  ``""/omnia_repo""``"
 "**user_repo_url**

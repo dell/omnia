@@ -70,7 +70,7 @@ Kserve is an open-source serving platform that simplifies the deployment, scalin
 
     * Pull the intended inference model and the corresponding runtime-specific images into the nodes.
     * As part of the deployment, Omnia deploys `standard model runtimes. <https://github.com/kserve/kserve/releases/download/v0.11.0/kserve-runtimes.yaml>`_ If a custom model is deployed, deploy a custom runtime first.
-    * To avoid problems with image to digest mapping when pulling inference runtime images, `click here. <../../Troubleshooting/KnownIssues.html>`_
+    * To avoid problems with image to digest mapping when pulling inference runtime images, `click here. <../../Troubleshooting/knownissues.html>`_
 
 
 **Access the inference service**
