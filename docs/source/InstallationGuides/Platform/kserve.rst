@@ -3,6 +3,7 @@ Setup Kserve
 
 Kserve is an open-source serving platform that simplifies the deployment, scaling, and management of machine learning models in production environments, ensuring efficient and reliable inference capabilities. For more information, `click here. <https://kserve.github.io/website/0.11/get_started/>`_ Omnia deploys KServe (v0.11.0) on the kubernetes cluster. Once KServe is deployed, any inference service can be installed on the kubernetes cluster.
 
+.. note:: Omnia 1.6 does not support deploying both Kserve and Kubeflow in the same Kubernetes cluster. If Kserve is already deployed on the cluster and you wish to deploy Kubeflow, you must first remove Kserve. To remove Kserve, follow the steps `here. <Remove KServe.html>`_
 
 **Prerequisites**
 
@@ -110,7 +111,20 @@ For example: ::
         {"predictions":[1,1]}
 
 
+**Remove KServe**
 
+    1. Delete all artifacts from the namespace, by entering the following commands:
 
+        * ``kubectl delete all --all --namespace kserve``
+        * ``kubectl delete all --all --namespace knative-serving``
+        * ``kubectl delete all --all --namespace istio-system``
+        * ``kubectl delete all --all --namespace cert-manager``
 
+    2. Delete the namespace, by entering the following commands:
 
+        * ``kubectl delete ns kserve``
+        * ``kubectl delete ns knative-serving``
+        * ``kubectl delete ns istio-system``
+        * ``kubectl delete ns cert-manager``
+
+.. warning:: Please be careful about any other required deployments sharing the above namespace. Deleting artifacts using ``--all`` will delete all artifacts in the namespace.

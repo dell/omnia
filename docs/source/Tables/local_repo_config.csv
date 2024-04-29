@@ -59,14 +59,14 @@ Optional","* This variable accepts the registry url along with port of the user 
 
 ``string``
 
-Optional","* Mandatory when cluster_os_type is rhel in ``softwares_config.json``.
-* This variable will be ignored when cluster_os_type is ubuntu or rocky.
+Optional","* Mandatory when ``cluster_os_type`` is rhel in ``softwares_config.json``.
+* This variable will be ignored when ``cluster_os_type`` is ubuntu or rocky.
 * User has to provide the code ready builder url in order to download the packages.
 * When ``repo_config`` is ""always"", the given ``rhel_os_url`` will be configured in the control plane and packages required for cluster will be downloaded.
 * When repo_config is ""partial"" or ""never"", the packages required for cluster which were coming from ``rhel_repo_url`` will not be downloaded.
 * The ``rhel_os_url`` is configured via proxy in compute nodes.
 
-* **Example**: When ``cluster_os_type`` is rhel, ``rhel_os_url`` should be ""- {url: ""http://crb.com/CRB/x86_64/os/"", gpgkey: ""http://crb.com/CRB/x86_64/os/RPM-GPG-KEY""}"""
+* **Example**: If ``cluster_os_type`` is rhel, ``rhel_os_url`` might be ""- {url: ""http://crb.com/CRB/x86_64/os/"", gpgkey: ""http://crb.com/CRB/x86_64/os/RPM-GPG-KEY""}"""
 "**ubuntu_os_url**
 
 ``string``
