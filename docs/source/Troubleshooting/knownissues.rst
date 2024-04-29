@@ -460,3 +460,46 @@ If kubeadm join/kubeadm init command fails, either one of the following should b
     * Re-run ``omnia.yml/scheduler.yml``.
     * Run ``kubeadm reset -f`` on the node where kubeadm join/kubeadm init command fails and run ``omnia.yml/scheduler.yml``.
     * Reset cluster using ``utils/reset_cluster_configuration.yml`` and then run ``scheduler.yml/omnia.yml``.
+
+⦾ **What to do if local_repo.yml execution fails with a "403: Forbidden" error when an NFS share is provided as the repo_store_path?**
+
+**Potential Cause**: Omnia 1.6 requires the NFS path provided in repo_store_path to have 755 permissions. Additionally, executing local_repo.yml requires root user privileges.
+
+**Resolution**:
+
+    * Ensure that the NFS share path provided as teh repo_store_path must have 755 permissions.
+    * Ensure to execute local_repo.yml with root user privileges.
+
+⦾ **omnia.yml or scheduler.yml playbook execution fails with the following error:**
+
+.. image:: ../images/kubespray_error.png
+
+**Potential Cause**: This error occurs when the Kubespray collection is not installed during the execution of ``prepare_cp.yml``.
+
+**Resolution**: Re-run ``prepare_cp.yml``.
+
+⦾ **NFS-client provisioner is in "ContainerCreating" or "CrashLoopBackOff" state.**
+
+.. image:: ../images/NFS_container_creating_error.png
+
+.. image:: ../images/NFS_crash_loop_back_off_error.png
+
+**Potential Cause**: This issue usually occurs when ``server_share_path`` given in ``storage_config.yml`` for ``k8s_share`` does not have an NFS server running.
+
+**Resolution**:
+
+    * Ensure that ``storage.yml`` is executed on the same inventory which is being used for ``scheduler.yml``.
+    * Ensure that ``server_share_path`` mentioned in ``storage_config.yml`` for ``k8s_share: true`` has an active nfs_server running on it.
+
+⦾ **Nfs-client provisioner is in "ContainerCreating" or "CrashLoopBackOff" state and ``kubectl describe <pod_name>`` shows the following output:**
+
+.. image:: ../images/NFS_helm_23743.png
+
+**Potential Cause**: This is a known issue. For more information, click `here. <https://github.com/helm/charts/issues/23743>`_
+
+**Resolution**:
+
+    * Wait for some times for the pods to come up.
+    * Run the following command to restart the pod and bring it to running state: ::
+
+       kubectl delete pod <pod_name> -n <namespace>
