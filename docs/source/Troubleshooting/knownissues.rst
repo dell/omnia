@@ -506,7 +506,11 @@ If kubeadm join/kubeadm init command fails, either one of the following should b
 
 **Resolution**:
 
-    * Wait for some times for the pods to come up.
-    * Run the following command to restart the pod and bring it to running state: ::
+    1. Wait for some time for the pods to come up. or
+    2. Do the following:
 
-       kubectl delete pod <pod_name> -n <namespace>
+        * Run the following command to delete the pod: ::
+
+            kubectl delete pod <pod_name> -n <namespace>
+
+        * Post deletion, the pod will be restarted and it will come to running state.
