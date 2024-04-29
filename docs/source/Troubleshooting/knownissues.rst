@@ -465,9 +465,9 @@ If kubeadm join/kubeadm init command fails, either one of the following should b
 
 .. image:: ../images/local_repo_permissions_error.png
 
-**Potential Cause**: Executing ``local_repo.yml`` requires root user privileges.
+**Potential Cause**: Executing ``local_repo.yml`` with ``repo_store_path`` set as an NFS share, but lacking the necessary permissions to access it from the control plane.
 
-**Resolution**: Execute ``local_repo.yml`` with root user privileges. Ensure that the ``repo_store_path`` has 755 permissions.
+**Resolution**: Provide the required (read, write, and execute) permissions for the NFS share. Verify the permissions of NFS share from the root user of the control plane.
 
 ⦾ **What to do if omnia.yml execution fails with a "403: Forbidden" error when an NFS share is provided as the repo_store_path?**
 
