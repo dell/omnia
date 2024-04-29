@@ -461,14 +461,21 @@ If kubeadm join/kubeadm init command fails, either one of the following should b
     * Run ``kubeadm reset -f`` on the node where kubeadm join/kubeadm init command fails and run ``omnia.yml/scheduler.yml``.
     * Reset cluster using ``utils/reset_cluster_configuration.yml`` and then run ``scheduler.yml/omnia.yml``.
 
-⦾ **What to do if local_repo.yml execution fails with a "403: Forbidden" error when an NFS share is provided as the repo_store_path?**
+⦾ **What to do if local_repo.yml execution fails with the following error:**
 
-**Potential Cause**: Omnia 1.6 requires the NFS path provided in repo_store_path to have 755 permissions. Additionally, executing local_repo.yml requires root user privileges.
+.. image:: ../images/local_repo_permissions_error.png
 
-**Resolution**:
+**Potential Cause**: Executing ``local_repo.yml`` requires root user privileges.
 
-    * Ensure that the NFS share path provided as teh repo_store_path must have 755 permissions.
-    * Ensure to execute local_repo.yml with root user privileges.
+**Resolution**: Execute ``local_repo.yml`` with root user privileges. Ensure that the ``repo_store_path`` has 755 permissions.
+
+⦾ **What to do if omnia.yml execution fails with a "403: Forbidden" error when an NFS share is provided as the repo_store_path?**
+
+.. image:: ../images/omnia_NFS_403.png
+
+**Potential Cause**: For omnia.yml execution, the NFS share folder provided in repo_store_path must have 755 permissions.
+
+**Resolution**: Ensure that the NFS share folder provided as the repo_store_path has 755 permissions, and re-run ``omnia.yml``.
 
 ⦾ **omnia.yml or scheduler.yml playbook execution fails with the following error:**
 
