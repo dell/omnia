@@ -10,7 +10,7 @@ The ``upgrade_config.yml`` requires the following details:
 +========================================================================================================================+
 | **old_input_location**      |     * This variable points to the input directory of the old Omnia 1.5.1 installation    |
 |                             |     * **Example:** ``/root/omnia15/input``                                               |
-+-----------------------------+------------------------------------------------------------------------------------------|
++-----------------------------+------------------------------------------------------------------------------------------+
 | **backup_location**         |     * This variable points to the directory where OmniaDB backups should be stored.      |
 |                             |     * This directory must be provided. This is a mandatory detail.                       |
 |                             |     * **Example:** ``/root/omnia-backups``                                               |
