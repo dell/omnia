@@ -1,16 +1,17 @@
 Setup Jupyterhub
 -----------------
 
-Using Helm charts, Omnia can install Jupyterhub on Kubernetes clusters. Once Jupyterhub is deployed, log into the UI to create your own notebook servers. For more information, `click here <https://z2jh.jupyter.org/en/stable/jupyterhub/customization.html>`_.
+Using Jupyterhub helm chart (version 3.2.0), Omnia installs Jupyterhub (version 4.0.2) on Kubernetes clusters. Once Jupyterhub is deployed, log into the GUI to create your own Jupyter notebook. For more information, `click here <https://z2jh.jupyter.org/en/stable/jupyterhub/customization.html>`_.
 
 **Prerequisites**
 
-* Ensure the kubernetes cluster is setup and working.
-* Ensure the inventory file includes a ``kube_node`` group listing all cluster nodes.
+* Ensure that Kubernetes is deployed and all pods are running on the cluster.
+* MetalLB pod is up and running to provide external IP to jupyterhub service.
+* Ensure the passed inventory file includes ``kube_control_plane`` and ``kube_node`` groups. `Click here <../../samplefiles.html>`_ for a sample file.
 * Review the ``tools/jupyter_config.yml`` file to ensure that the deployment meets your requirements. If not, modify the file.
-* Ensure that a local Jupyterhub repository is created using `the local repository script. <../../InstallationGuides/LocalRepo/index.html>`_
+* Run ``local_repo.yml`` with ``jupyter`` entry in ``software_config.json``.
 * Omnia deploys the ``quay.io/jupyterhub/k8s-singleuser-sample:3.2.0`` image irrespective of whether the intended notebooks are CPU-only, NVidia GPU, or AMD GPU.  To use a custom image, modify the ``omnia/tools/roles/jupyter_config.yml`` file.
-* Ensure that NFS has been deployed on the cluster using ``storage.yml`` followed by ``scheduler.yml`` or ``omnia.yml``. Verify that the required NFS storage provisioner is deployed using the below command: ::
+* Ensure that NFS storage provisioner has been deployed on the cluster using ``storage.yml`` followed by ``scheduler.yml`` or ``omnia.yml``. Verify that the required NFS storage provisioner is deployed using the below command: ::
 
     [root@node3 ~]# kubectl get pod -A
     NAMESPACE              NAME                                                              READY   STATUS             RESTARTS       AGE
@@ -36,9 +37,9 @@ Using Helm charts, Omnia can install Jupyterhub on Kubernetes clusters. Once Jup
 .. note:: The default namespace for deployment is ``jupyterhub``.
 
 
-**Accessing the Jupyterhub UI**
+**Accessing the Jupyterhub GUI**
 
-1. Verify that the Jupyterhub service is running using metallb loadbalancer.
+1. Verify that the Jupyterhub service is running.
 2. Find the IP address of the Jupyterhub service using: ::
 
         root@omnianode0000x:/usr/local# kubectl get svc -A
@@ -50,11 +51,11 @@ Using Helm charts, Omnia can install Jupyterhub on Kubernetes clusters. Once Jup
 
 The IP address is listed against ``proxy-public`` under ``External IP``.
 
-3. The Jupyterhub GUI should be accessible from the control plane GUI via the external IP mentioned above. Use any browser to log in with user credentials.
+3. The Jupyterhub GUI should be accessible from the control plane GUI via the external IP mentioned above. Use any browser to log in.
 
 .. image:: ../../images/Jupyterhub_Login.png
 
-4. Choose your preferred notebook server option and click **Start**. A pod will be created for the user. Available server options will depend on the user logging in.
+4. Choose your preferred notebook server option and click **Start**. A pod will be created for the user.
 
 .. image:: ../../images/Jupyterhub_UI.png
 
@@ -65,7 +66,7 @@ The IP address is listed against ``proxy-public`` under ``External IP``.
 1. Click **File > Hub Control Plane**.
 2. Select **Stop Server**.
 
-.. note:: Stopping the notebook server only terminates the user pod. The users data persists and can be accessed by loggin in and starting the notebook server again.
+.. note:: Stopping the notebook server only terminates the user pod. The users data persists and can be accessed by logging in and starting the notebook server again.
 
 **Redeploy Jupyterhub with new configurations**
 
