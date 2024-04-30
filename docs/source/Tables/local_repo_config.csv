@@ -105,7 +105,7 @@ Required","* A list of all the repo urls from where rpms will be downloaded for 
 
 ``JSON List``
 
-Required","* A list of all the repo urls from where rpms will be downloaded for Omnia features on Rocky clusters.
+Required","* A list of all the repo urls from where deb packages will be downloaded for Omnia features on Rocky clusters.
 * 'url' defines the baseurl for the repository.
 * 'gpgkey' defines gpgkey for the repository. If 'gpgkey' is omitted, then gpgcheck=0 is set for that repository
 * This value is not validated by Omnia. Any errors can cause Omnia to fail.
