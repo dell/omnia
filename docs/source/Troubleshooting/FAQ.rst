@@ -104,26 +104,6 @@ Re-run the playbook whose execution failed once the issue is resolved.
    * Refresh the key using ``ssh-keygen -R <hostname/server IP>``.
    * Retry login.
 
-⦾ **Why does the 'Fail if LDAP home directory exists' task fail during user_passwordless_ssh.yml?**
-
-.. image:: ../images/nfssharecheckfail.png
-
-**Potential Cause**: The required NFS share is not set up on the control plane.
-
-**Resolution**:
-
-If ``enable_omnia_nfs`` is true in ``input/omnia_config.yml``, follow the below steps to configure an NFS share on your LDAP server:
-
-    - From the kube_control_plane:
-
-        1. Add the OpenLDAP server IP address to ``/etc/exports``.
-        2. Run ``exportfs -ra`` to enable the NFS configuration.
-
-    - From the OpenLDAP server:
-
-        1. Add the required fstab entries in ``/etc/fstab`` (The corresponding entry will be available on the compute nodes in ``/etc/fstab``)
-        2. Mount the NFS share using ``mount manager_ip: /home/omnia-share /home/omnia-share``
-
 ⦾ **Why does the 'Import SCP from a local path' task fail during idrac.yml?**
 
 .. image:: ../images/ImportSCPiDRAC_fail.png

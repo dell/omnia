@@ -73,4 +73,3 @@ If ``omnia.yml`` is not leveraged to set up BeeGFS, run the ``storage.yml`` play
     ansible-playbook storage.yml -i inventory
 
 
-.. note:: Once BeeGFS is successfully set up, set ``enable_omnia_nfs`` (``input/omnia_config.yml``) to false and  ``omnia_usrhome_share`` (``input/omnia_config.yml``) to an accessible share path in BeeGFS to use the path across the cluster for deployments.

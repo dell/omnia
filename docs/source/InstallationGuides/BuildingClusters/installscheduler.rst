@@ -9,7 +9,6 @@ Building clusters
 .. include:: ../../Appendices/hostnamereqs.rst
 
 .. note::
-     * RedHat nodes that are not configured by Omnia need to have a valid subscription. To set up a subscription, `click here <https://omnia-doc.readthedocs.io/en/latest/Roles/Utils/rhsm_subscription.html>`_.
      * Omnia creates a log file which is available at: ``/var/log/omnia.log``.
      * If only Slurm is being installed on the cluster, docker credentials are not required.
 
@@ -36,15 +35,6 @@ To run ``omnia.yml``: ::
 
     * Use the ansible-vault view or edit commands and not the ansible-vault decrypt or encrypt commands. If you have used the ansible-vault decrypt or encrypt commands, provide 644 permission to the parameter files.
 
-**Setting up a shared home directory**
-
-.. image:: ../../images/UserHomeDirectory.jpg
-
-Users wanting to set up a shared home directory for the cluster can do it in one of two ways:
-
-    * **Using the head node as an NFS host**: Set ``enable_omnia_nfs`` (``input/omnia_config.yml``) to true and provide a share path which will be configured on all nodes in ``omnia_usrhome_share`` (``input/omnia_config.yml``). During the execution of ``omnia.yml``, the NFS share will be set up for access by all cluster  nodes.
-    * **Using an external filesystem**: Configure the external file storage using ``storage.yml``. Set ``enable_omnia_nfs`` (``input/omnia_config.yml``) to false and provide the external share path in ``omnia_usrhome_share`` (``input/omnia_config.yml``). Run ``omnia.yml`` to configure access to the external share for deployments.
-
 **Slurm job based user access**
 
 To ensure security while running jobs on the cluster, users can be assigned permissions to access cluster  nodes only while their jobs are running. To enable the feature: ::
@@ -52,14 +42,11 @@ To ensure security while running jobs on the cluster, users can be assigned perm
     cd scheduler
     ansible-playbook job_based_user_access.yml -i inventory
 
-
 .. note::
 
     * The inventory queried in the above command is to be created by the user prior to running ``omnia.yml`` as ``scheduler.yml`` is invoked by ``omnia.yml``
 
     * Only users added to the 'slurm' group can execute slurm jobs. To add users to the group, use the command: ``usermod -a -G slurm <username>``.
-
-
 
 **Configuring UCX and OpenMPI on the cluster**
 
