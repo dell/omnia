@@ -1,7 +1,7 @@
 Setup Kserve
 --------------
 
-Kserve is an open-source serving platform that simplifies the deployment, scaling, and management of machine learning models in production environments, ensuring efficient and reliable inference capabilities. For more information, `click here. <https://kserve.github.io/website/0.11/get_started/>`_ Omnia deploys KServe (v0.11.0) on the kubernetes cluster. Once KServe is deployed, any inference service can be installed on the kubernetes cluster.
+Kserve is an open-source serving platform that simplifies the deployment, scaling, and management of machine learning models in production environments, ensuring efficient and reliable inference capabilities. For more information, `click here. <https://kserve.github.io/website/0.11/get_started/>`_ Omnia deploys Kserve (v0.11.0) on the kubernetes cluster. Once KServe is deployed, any inference service can be installed on the kubernetes cluster.
 
 .. note:: Omnia 1.6 does not support deploying both Kserve and Kubeflow in the same Kubernetes cluster. If Kubeflow is already deployed on the cluster and you wish to deploy KServe, you must first remove Kubeflow.
 
@@ -13,7 +13,7 @@ Kserve is an open-source serving platform that simplifies the deployment, scalin
 
     * MetalLB pod is up and running to provide an external IP to ``istio-ingressgateway``.
 
-    * The domain name on the kubernetes cluster should be **cluster.local**. The KServe inference service will not work with a custom ``cluster_name`` property on the kubernetes cluster.
+    * The domain name on the kubernetes cluster should be cluster.local. The Kserve inference service will not work with a custom ``cluster_name`` property on the kubernetes cluster.
 
     * Run ``local_repo.yml`` with ``kserve`` entry in ``software_config.json``.
 
@@ -21,7 +21,7 @@ Kserve is an open-source serving platform that simplifies the deployment, scalin
 
     * To access NVIDIA or AMD GPU accelerators for inferencing, Kubernetes NVIDIA or AMD GPU device plugin pods should be in running state. Kserve deployment does not deploy GPU device plugins.
 
-**Deploy KServe**
+**Deploy Kserve**
 
     1. Change directories to ``tools``. ::
 
@@ -121,7 +121,7 @@ For example: ::
         {"predictions":[1,1]}
 
 
-**Remove KServe**
+**Remove Kserve**
 
     1. Delete all artifacts from the namespace, by entering the following commands:
 
