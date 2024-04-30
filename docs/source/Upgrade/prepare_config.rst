@@ -7,7 +7,7 @@ The ``upgrade_config.yml`` requires the following details:
 
 +-----------------------------+------------------------------------------------------------------------------------------+
 | Parameter                   |     Description                                                                          |
-+========================================================================================================================+
++=============================+==========================================================================================+
 | **old_input_location**      |     * This variable points to the input directory of the old Omnia 1.5.1 installation    |
 |                             |     * **Example:** ``/root/omnia15/input``                                               |
 +-----------------------------+------------------------------------------------------------------------------------------+
@@ -21,7 +21,7 @@ The playbook also sets v1.6 execution environment by updating the ansible and py
 To use the playbook, execute the following command: ::
 
     cd upgrade
-    ansible-playbook prepare_config.yml -i<Omnia1.5.1 inventory>
+    ansible-playbook prepare_config.yml -i <Omnia1.5.1 inventory>
 
 Expected output of this playbook execution:
 

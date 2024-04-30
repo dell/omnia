@@ -12,4 +12,4 @@ This playbook performs the following tasks:
 
 To use the playbook, execute the following command: ::
 
-    ansible-playbook prepare_upgrade.yml -i<Omnia1.5.1 inventory>
+    ansible-playbook prepare_upgrade.yml -i <Omnia1.5.1 inventory>
