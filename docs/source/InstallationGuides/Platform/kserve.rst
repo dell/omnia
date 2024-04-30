@@ -3,7 +3,7 @@ Setup Kserve
 
 Kserve is an open-source serving platform that simplifies the deployment, scaling, and management of machine learning models in production environments, ensuring efficient and reliable inference capabilities. For more information, `click here. <https://kserve.github.io/website/0.11/get_started/>`_ Omnia deploys KServe (v0.11.0) on the kubernetes cluster. Once KServe is deployed, any inference service can be installed on the kubernetes cluster.
 
-.. note:: Omnia 1.6 does not support deploying both Kserve and Kubeflow in the same Kubernetes cluster. If Kserve is already deployed on the cluster and you wish to deploy Kubeflow, you must first remove Kserve.
+.. note:: Omnia 1.6 does not support deploying both Kserve and Kubeflow in the same Kubernetes cluster. If Kubeflow is already deployed on the cluster and you wish to deploy KServe, you must first remove Kubeflow.
 
 **Prerequisites**
 
@@ -70,8 +70,18 @@ Kserve is an open-source serving platform that simplifies the deployment, scalin
 
     * Pull the intended inference model and the corresponding runtime-specific images into the nodes.
     * As part of the deployment, Omnia deploys `standard model runtimes. <https://github.com/kserve/kserve/releases/download/v0.11.0/kserve-runtimes.yaml>`_ If a custom model is deployed, deploy a custom runtime first.
-    * To avoid problems with image to digest mapping when pulling inference runtime images, `click here. <../../Troubleshooting/knownissues.html>`_
+    * To avoid problems with image to digest mapping when pulling inference runtime images, make the following changes in the config map:
 
+
+        1. ::
+
+            kubectl edit configmap -n knative-serving config-deployment
+
+        2. Add ``docker.io`` and ``index.docker.io`` as part of ``registries-skipping-tag-resolving``
+
+            .. image:: ../../images/kserve_config_map.png
+
+    For more information, `click here. <../../Troubleshooting/knownissues.html>`_
 
 **Access the inference service**
 
