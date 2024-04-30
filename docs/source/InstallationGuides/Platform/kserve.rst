@@ -9,17 +9,17 @@ Kserve is an open-source serving platform that simplifies the deployment, scalin
 
     * Ensure nerdctl and containerd is available on all cluster nodes.
 
-    * The cluster is deployed with Kubernetes.
+    * Ensure that Kubernetes is deployed and all pods are running on the cluster.
 
     * MetalLB pod is up and running to provide an external IP to ``istio-ingressgateway``.
 
     * The domain name on the kubernetes cluster should be **cluster.local**. The KServe inference service will not work with a custom ``cluster_name`` property on the kubernetes cluster.
 
-    * A local Kserve repository should be created using ``local_repo.yml``. For more information, `click here. <../../InstallationGuides/LocalRepo/kserve.html>`_
+    * Run ``local_repo.yml`` with ``kserve`` entry in ``software_config.json``.
 
-    * Ensure the passed inventory file includes a ``kube_control_plane`` and a ``kube_node`` listing all cluster nodes. `Click here <../../samplefiles.html>`_ for a sample file.
+    * Ensure the passed inventory file includes ``kube_control_plane`` and ``kube_node`` groups. `Click here <../../samplefiles.html>`_ for a sample file.
 
-    * To access NVIDIA or AMD GPU acceleration in inferencing, Kubernetes NVIDIA or AMD GPU device plugins need to be installed during Kubernetes deployment. ``kserve.yml`` does not deploy GPU device plugins.
+    * To access NVIDIA or AMD GPU accelerators for inferencing, Kubernetes NVIDIA or AMD GPU device plugin pods should be in running state. Kserve deployment does not deploy GPU device plugins.
 
 **Deploy KServe**
 
@@ -31,7 +31,7 @@ Kserve is an open-source serving platform that simplifies the deployment, scalin
 
         ansible-playbook kserve.yml -i inventory
 
-    Post deployment, the following dependencies are installed:
+    Post deployment, the following dependencies are installed along with Kserve:
 
         * Istio (version: 1.17.0)
         * Certificate manager (version: 1.13.0)
@@ -69,11 +69,11 @@ Kserve is an open-source serving platform that simplifies the deployment, scalin
 
 
     * Pull the intended inference model and the corresponding runtime-specific images into the nodes.
-    * As part of the deployment, Omnia deploys `standard model runtimes. <https://github.com/kserve/kserve/releases/download/v0.11.0/kserve-runtimes.yaml>`_ If a custom model is deployed, deploy a custom runtime first.
-    * To avoid problems with image to digest mapping when pulling inference runtime images, make the following changes in the config map:
+    * As part of the deployment, Omnia deploys `standard model runtimes. <https://github.com/kserve/kserve/releases/download/v0.11.0/kserve-runtimes.yaml>`_ To deploy a custom model, you might need to deploy required model runtime first.
+    * To avoid problems with image to digest mapping when pulling inference runtime images, make the following config map changes:
 
 
-        1. ::
+        1. Edit ``knative-serving`` config map by executing the following command: ::
 
             kubectl edit configmap -n knative-serving config-deployment
 
