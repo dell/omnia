@@ -83,6 +83,9 @@ If you encounter image download failures while executing ``local_repo.yml``, do 
 
         .. image:: ../images/image_failure_output_s2.png
 
+        &nbsp;
+        &nbsp;
+
         Else run:
 
             ::
