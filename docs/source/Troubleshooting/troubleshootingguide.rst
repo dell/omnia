@@ -74,7 +74,7 @@ If you encounter image download failures while executing ``local_repo.yml``, do 
     1. Check if docker pull limit has been reached by manually trying to download an image. Provide docker credentials in ``provision_config_credentials.yml`` and re-run ``local_repo.yml`` playbook. Else execute ``nerdctl login`` manually.
 
     2. Run the following command:
-        ::
+    ::
             systemctl status nerdctl-registry
 
         Expected output:
