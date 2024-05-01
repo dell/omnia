@@ -81,12 +81,10 @@ If you encounter image download failures while executing ``local_repo.yml``, do 
 
        Expected output:
 
-        .. image:: ../images/image_failure_output_s2.png
+            .. image:: ../images/image_failure_output_s2.png
 
-        &nbsp;
-        &nbsp;
 
-        Else run:
+       Else run:
 
             ::
 
@@ -100,7 +98,8 @@ If you encounter image download failures while executing ``local_repo.yml``, do 
 
         Expected output:
 
-        .. image:: ../images/image_failure_output_s3.png
+            .. image:: ../images/image_failure_output_s3.png
+
 
         Else run:
 
@@ -109,8 +108,10 @@ If you encounter image download failures while executing ``local_repo.yml``, do 
                 systemctl restart nerdctl-registry
 
     4. Run the following command:
-        ::
-            curl -k https://<cp_hostname>:5001/v2/_catalog
+
+            ::
+
+                curl -k https://<cp_hostname>:5001/v2/_catalog
 
         Expected outputs:
 
@@ -123,15 +124,20 @@ If you encounter image download failures while executing ``local_repo.yml``, do 
             b. Re-run ``local_repo.yml``.
 
     5. Run the following command:
-        ::
-            openssl s_client -showcerts -connect <cp_hostname>:5001
+
+            ::
+
+                openssl s_client -showcerts -connect <cp_hostname>:5001
 
         Expected output:
+
         .. image:: ../images/image_failure_output_s5.png
 
             * Verify that the certificate is valid and ``CN=private_registry``.
             * Certificate shown by this command output should be the same as output present at ``/etc/containerd/certs.d/<cp_hostname>5001/ca.crt``.
 
         If no certificate is visible on screen, run the following command:
+
             ::
-                systemctl restart nerdctl-registry
+
+                    systemctl restart nerdctl-registry
