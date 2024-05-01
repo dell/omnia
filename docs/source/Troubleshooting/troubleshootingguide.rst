@@ -133,8 +133,8 @@ If you encounter image download failures while executing ``local_repo.yml``, do 
 
         .. image:: ../images/image_failure_output_s5.png
 
-            * Verify that the certificate is valid and ``CN=private_registry``.
-            * Certificate shown by this command output should be the same as output present at ``/etc/containerd/certs.d/<cp_hostname>5001/ca.crt``.
+        * Verify that the certificate is valid and ``CN=private_registry``.
+        * Certificate shown by this command output should be the same as output present at ``/etc/containerd/certs.d/<cp_hostname>5001/ca.crt``.
 
         If no certificate is visible on screen, run the following command:
 
