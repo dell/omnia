@@ -74,24 +74,36 @@ If you encounter image download failures while executing ``local_repo.yml``, do 
     1. Check if docker pull limit has been reached by manually trying to download an image. Provide docker credentials in ``provision_config_credentials.yml`` and re-run ``local_repo.yml`` playbook. Else execute ``nerdctl login`` manually.
 
     2. Run the following command:
-    ::
-            systemctl status nerdctl-registry
 
-        Expected output:
+            ::
+
+                systemctl status nerdctl-registry
+
+       Expected output:
+
         .. image:: ../images/image_failure_output_s2.png
 
-        Else run: ::
-            systemctl restart nerdctl-registry
+        Else run:
+
+            ::
+
+                systemctl restart nerdctl-registry
 
     3. Run the following command:
-        ::
-            nerdctl ps -a | grep omnia-registry
+
+            ::
+
+                nerdctl ps -a | grep omnia-registry
 
         Expected output:
+
         .. image:: ../images/image_failure_output_s3.png
 
-        Else run: ::
-            systemctl restart nerdctl-registry
+        Else run:
+
+            ::
+
+                systemctl restart nerdctl-registry
 
     4. Run the following command:
         ::
