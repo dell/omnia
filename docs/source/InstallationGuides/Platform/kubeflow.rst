@@ -62,3 +62,21 @@ To log in to the Kubeflow dashboard and start using its features, you need to pr
         Password: 12341234
 
 For more details, refer to Kubeflow manifest documentation link `here. <https://github.com/kubeflow/manifests?tab=readme-ov-file#overview>`_
+
+**Remove Kubeflow**
+
+    1. Change directory to ``/opt/omnia/kubeflow/kubeflow``.
+
+    2. Run either of the following commands:
+
+        a. ::
+
+                command- while ! /opt/omnia/kustomize/kustomize build example | kubectl delete -f -; do echo "Retrying to delete resources"; sleep 10; done
+
+        The above command ties to delete resources in loop. You can verify that all resources are deleted and halt the command's execution if it doesn't stop automatically after some time.
+
+        b. ::
+
+                /opt/omnia/kustomize/kustomize build example | kubectl delete -f -
+
+        The second command does not utilize a loop and can be used as well, but the user needs to ensure that all resources are deleted. Re-run the command until all resources are deleted.
