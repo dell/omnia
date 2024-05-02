@@ -73,7 +73,7 @@ For more details, refer to Kubeflow manifest documentation link `here. <https://
 
                 command- while ! /opt/omnia/kustomize/kustomize build example | kubectl delete -f -; do echo "Retrying to delete resources"; sleep 10; done
 
-        The above command ties to delete resources in loop. You can verify that all resources are deleted and halt the command's execution if it doesn't stop automatically after some time.
+        The above command tries to delete resources in loop. You can verify that all resources are deleted and halt the command's execution if it doesn't stop automatically after some time.
 
         b. ::
 
