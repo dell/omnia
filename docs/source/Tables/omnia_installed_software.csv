@@ -87,7 +87,7 @@ netaddr,BSD License,A Python library for representing and manipulating network a
 pbr,Apache Software License,Python Build Reasonableness. Mirror of code maintained at opendev.org.,5.11.1
 ruamel.yaml,MIT License,It is a YAML 1.2 loader/dumper package for Python.,0.17.31
 ruamel.yaml.clib,MIT License,It is the C based reader/scanner and emitter for ruamel.yaml,0.2.8
-Kserve,Apache License 2.0,"Deploys Kserve as inference platform on K8s cluster. Kserve installation installs dependencies istio1.17.0, certificate manager (1.13.0) and  Knative(1.11.0) ",0.11.0
+Kserve,Apache License 2.0,"Deploys Kserve as inference platform on K8s cluster. Kserve installation installs dependencies istio1.17.0, certificate manager (1.13.0) and  Knative(1.11.0) ",0.11.2
 pyarrow,Apache License 2.0,Discovery provisioning,15.0.2
 bcm_roce,BCM Licenses,RoCE drivers,229.2.9.0
 vllm,Apache License 2.0,A high-throughput and memory-efficient inference and serving engine for LLMs,0.4.0

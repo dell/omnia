@@ -1,7 +1,7 @@
 Setup Kserve
 --------------
 
-Kserve is an open-source serving platform that simplifies the deployment, scaling, and management of machine learning models in production environments, ensuring efficient and reliable inference capabilities. For more information, `click here. <https://kserve.github.io/website/0.11/get_started/>`_ Omnia deploys Kserve (v0.11.0) on the kubernetes cluster. Once Kserve is deployed, any inference service can be installed on the kubernetes cluster.
+Kserve is an open-source serving platform that simplifies the deployment, scaling, and management of machine learning models in production environments, ensuring efficient and reliable inference capabilities. For more information, `click here. <https://kserve.github.io/website/0.11/get_started/>`_ Omnia deploys Kserve (v0.11.2) on the kubernetes cluster. Once Kserve is deployed, any inference service can be installed on the kubernetes cluster.
 
 .. note:: Omnia 1.6 does not support deploying both Kserve and Kubeflow in the same Kubernetes cluster. If Kubeflow is already deployed on the cluster and you wish to deploy Kserve, you must first remove Kubeflow by following the steps `here <kubeflow.html>`_.
 
@@ -10,6 +10,8 @@ Kserve is an open-source serving platform that simplifies the deployment, scalin
     * Ensure nerdctl and containerd is available on all cluster nodes.
 
     * Ensure that Kubernetes is deployed and all pods are running on the cluster.
+
+    * It is advisable not to deploy Kserve immediately after deploying Kubernetes via the scheduler role. Dell suggests allowing a 10-minute gap after Kubernetes installation for Kubernetes pods to stabilize.
 
     * MetalLB pod is up and running to provide an external IP to ``istio-ingressgateway``.
 
@@ -61,6 +63,16 @@ Kserve is an open-source serving platform that simplifies the deployment, scalin
 **Prerequisites**
 
     * To deploy a model joblib file with PVC as model storage, `click here <https://kserve.github.io/website/0.11/modelserving/storage/pvc/pvc/>`_
+    * As part of Kserve deployment, Omnia deploys ``ClusterStorageContainer`` for supporting inference model download from the following endpoints:
+
+            1.	prefix: gs://
+            2.	prefix: s3://
+            3.	prefix: hdfs://
+            4.	prefix: webhdfs://
+            5.	regex: https://(.+?).blob.core.windows.net/(.+)
+            6.	regex: https://(.+?).file.core.windows.net/(.+)
+            7.	regex: "https?://(.+)/(.+)"
+
     * Verify that the inference service is up and running using the command: ``kubectl get isvc -A``.::
 
             root@sparknode1:/tmp# kubectl get isvc -A
@@ -69,7 +81,7 @@ Kserve is an open-source serving platform that simplifies the deployment, scalin
 
 
     * Pull the intended inference model and the corresponding runtime-specific images into the nodes.
-    * As part of the deployment, Omnia deploys `standard model runtimes. <https://github.com/kserve/kserve/releases/download/v0.11.0/kserve-runtimes.yaml>`_ To deploy a custom model, you might need to deploy required model runtime first.
+    * As part of the deployment, Omnia deploys `standard model runtimes. <https://github.com/kserve/kserve/releases/download/v0.11.2/kserve-runtimes.yaml>`_ To deploy a custom model, you might need to deploy required model runtime first.
     * To avoid problems with image to digest mapping when pulling inference runtime images, make the following config map changes:
 
 
