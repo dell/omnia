@@ -304,8 +304,9 @@ Features that are part of the OpenLDAP repository are enabled by running `securi
 
             {"name": "openmpi", "version":"4.1.6"},
 
+OpenMPI is deployed on the cluster when the above configurations are complete and `omnia.yml <../BuildingClusters/index.html>`_ is run.
 
-OpenMPI is deployed on the cluster when the above configurations are complete and `omnia.yml is run. <../BuildingClusters/index.html>`_
+.. note:: The default OpenMPI version for Omnia is 4.1.6. If you change the version in the "software.json" file, make sure to update it in the "openmpi.json" file in the "input/config" directory as well.
 
 **Pytorch**
 

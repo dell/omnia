@@ -57,6 +57,8 @@ If a local repository for UCX and OpenMPI has been configured on the cluster, th
     * All corresponding compiled UCX and OpenMPI files will be saved to the ``<client_share_path>/compile`` directory on the nfs share.
     * All corresponding UCX and OpenMPI executables will be saved to the ``<client_share_path>/benchmarks/`` directory on the nfs share.
 
+.. note:: The default OpenMPI version for Omnia is 4.1.6. If you change the version in the "software.json" file, make sure to update it in the "openmpi.json" file in the "input/config" directory as well.
+
 
 
 
