@@ -132,7 +132,7 @@ For example: ::
         * Connection #0 to host 10.20.0.101 left intact
         {"predictions":[1,1]}
 
-.. note:: Refer to `image pull <>`_ in case of ImagePullBackOff issue while deploying inference service.
+.. note:: Refer to `image pull <../../Roles/Utils/pullimagestonodes.html>`_ in case of ImagePullBackOff issue while deploying inference service.
 
 **Remove Kserve**
 
