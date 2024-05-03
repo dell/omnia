@@ -63,6 +63,8 @@ To log in to the Kubeflow dashboard and start using its features, you need to pr
 
 For more details, refer to Kubeflow manifest documentation link `here. <https://github.com/kubeflow/manifests?tab=readme-ov-file#overview>`_
 
+.. note:: Refer to `image pull <>`_ in case of ImagePullBackOff issue while deploying any user defined task.
+
 **Remove Kubeflow**
 
     1. Change directory to ``/opt/omnia/kubeflow/kubeflow``.

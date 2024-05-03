@@ -11,7 +11,7 @@ Kserve is an open-source serving platform that simplifies the deployment, scalin
 
     * Ensure that Kubernetes is deployed and all pods are running on the cluster.
 
-    * It is advisable not to deploy Kserve immediately after deploying Kubernetes via the scheduler role. Dell suggests allowing a 10-minute gap after Kubernetes installation for Kubernetes pods to stabilize.
+    * It is advisable not to deploy Kserve immediately after deploying Kubernetes. Dell suggests allowing a 10-minute gap after Kubernetes installation for Kubernetes pods to stabilize.
 
     * MetalLB pod is up and running to provide an external IP to ``istio-ingressgateway``.
 
@@ -65,20 +65,13 @@ Kserve is an open-source serving platform that simplifies the deployment, scalin
     * To deploy a model joblib file with PVC as model storage, `click here <https://kserve.github.io/website/0.11/modelserving/storage/pvc/pvc/>`_
     * As part of Kserve deployment, Omnia deploys ``ClusterStorageContainer`` for supporting inference model download from the following endpoints:
 
-            1.	prefix: gs://
-            2.	prefix: s3://
-            3.	prefix: hdfs://
-            4.	prefix: webhdfs://
-            5.	regex: https://(.+?).blob.core.windows.net/(.+)
-            6.	regex: https://(.+?).file.core.windows.net/(.+)
-            7.	regex: "https?://(.+)/(.+)"
-
-    * Verify that the inference service is up and running using the command: ``kubectl get isvc -A``.::
-
-            root@sparknode1:/tmp# kubectl get isvc -A
-            NAMESPACE     NAME           URL                                      READY   PREV   LATEST   PREVROLLEDOUTREVISION   LATESTREADYREVISION           AGE
-            default       sklearn-pvc    http://sklearn-pvc.default.example.com   True           100                              sklearn-pvc-predictor-00001   9m18s
-
+            * prefix: gs://
+            * prefix: s3://
+            * prefix: hdfs://
+            * prefix: webhdfs://
+            * regex: https://(.+?).blob.core.windows.net/(.+)
+            * regex: https://(.+?).file.core.windows.net/(.+)
+            * regex: "https?://(.+)/(.+)"
 
     * Pull the intended inference model and the corresponding runtime-specific images into the nodes.
     * As part of the deployment, Omnia deploys `standard model runtimes. <https://github.com/kserve/kserve/releases/download/v0.11.2/kserve-runtimes.yaml>`_ To deploy a custom model, you might need to deploy required model runtime first.
@@ -97,7 +90,14 @@ Kserve is an open-source serving platform that simplifies the deployment, scalin
 
 **Access the inference service**
 
-1. Use ``kubectl get svc -A`` to check the external IP of the service ``istio-ingressgateway``. ::
+1. Deploy the inference service and verify that the service is up and running using the command: ``kubectl get isvc -A``. ::
+
+    root@sparknode1:/tmp# kubectl get isvc -A
+    NAMESPACE     NAME           URL                                      READY   PREV   LATEST   PREVROLLEDOUTREVISION   LATESTREADYREVISION           AGE
+    default       sklearn-pvc    http://sklearn-pvc.default.example.com   True           100                              sklearn-pvc-predictor-00001   9m18s
+
+
+2. Use ``kubectl get svc -A`` to check the external IP of the service ``istio-ingressgateway``. ::
 
     root@sparknode1:/tmp# kubectl get svc -n istio-system
     NAME                    TYPE           CLUSTER-IP      EXTERNAL-IP   PORT(S)                                      AGE
@@ -105,7 +105,7 @@ Kserve is an open-source serving platform that simplifies the deployment, scalin
     istiod                  ClusterIP      10.233.18.185   <none>        15010/TCP,15012/TCP,443/TCP,15014/TCP        44h
     knative-local-gateway   ClusterIP      10.233.37.248   <none>        80/TCP                                       44h
 
-2. To access inferencing from the ingressgateway with HOST header, run the below command from the kube_control_plane or kube_node: ::
+3. To access inferencing from the ingressgateway with HOST header, run the below command from the kube_control_plane or kube_node: ::
 
         curl -v -H "Host: <service url>" -H "Content-Type: application/json" "http://<istio-ingress external IP>:<istio-ingress port>/v1/models/<model name>:predict" -d @./iris-input.json
 
@@ -132,6 +132,7 @@ For example: ::
         * Connection #0 to host 10.20.0.101 left intact
         {"predictions":[1,1]}
 
+.. note:: Refer to `image pull <>`_ in case of ImagePullBackOff issue while deploying inference service.
 
 **Remove Kserve**
 

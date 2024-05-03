@@ -514,3 +514,9 @@ If kubeadm join/kubeadm init command fails, either one of the following should b
             kubectl delete pod <pod_name> -n <namespace>
 
         * Post deletion, the pod will be restarted and it will come to running state.
+
+⦾ **What to do if slurmctld services fails when ``slurm_installaton_type`` is nfs_share during omnia.yml execution?**
+
+**Potential Cause**: This issue may arise due to internal network issues.
+
+**Resolution**: Re-run the playbook with same configuration and verify the status of slurmctld service in the slurm control node.
