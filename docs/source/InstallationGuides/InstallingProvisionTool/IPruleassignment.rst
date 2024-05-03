@@ -5,7 +5,13 @@ This playbook is used for updating IP ruleset of the additional configured NICs.
 
 **Prerequisites**
 
-You must run ``server_spec_update.yml`` playbook before trying to update the IP ruleset.
+* You must run ``server_spec_update.yml`` playbook before trying to update the IP ruleset.
+
+* Ensure that all applicable properties are provided in the inventory file, as mentioned below:
+
+        * ``nic_name``: The name of the NIC on which the administrative network is accessible to the control plane.
+        * ``gateway``: The gateway through which the NIC is connected to the switch.
+        * ``metric``: Network metric value is a value assigned to an IP route for a network interface that indicates the cost of using that route.
 
 **Running the playbook**
 
@@ -37,3 +43,5 @@ You must run ``server_spec_update.yml`` playbook before trying to update the IP 
            nic_info:
              - { nic_name: enp129s0f0np0, gateway: 10.11.1.254, metric: 101 }
              - { nic_name: enp33s0f0np0, gateway: 10.11.2.254, metric: 102 }
+
+* For an example inventory template, go to ``omnia/examples/ip_rule_inv_template``.
