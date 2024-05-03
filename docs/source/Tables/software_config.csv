@@ -22,7 +22,7 @@ Required","* The OS Version that will be provisoned on compute nodes.
 
 Required","* The type of offline configuration user needs.
 * When the value is set to ``always``, Omnia creates a local repository/registry on the Control plane hosting all the packages/images required for the cluster.
-* When the value is set to ``partial``, Omnia creates a local repository/registry on the Control plane hosting all the packages/images except those listed in the ``user_registry`` in ``input/local_repo_config.yml``.
+* When the value is set to ``partial``, Omnia creates a local repository/registry on the Control plane hosting all the packages/images except those listed in the ``local_repo_url/user_registry`` in ``input/local_repo_config.yml``.
 * When the value is set to ``never``, Omnia does not create a local repository/registry. All the packages/images are directly downloaded on the cluster.
 .. note::
   * After ``local_repo.yml`` has run, the value of ``repo_config`` in ``input/software_config.json`` cannot be updated without running the `control_plane_cleanup.yml <../CleanUpScript.html>`_ script first.
