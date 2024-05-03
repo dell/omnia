@@ -53,13 +53,15 @@ Using Jupyterhub helm chart (version 3.2.0), Omnia installs Jupyterhub (version 
 
     The IP address is listed against ``proxy-public`` under ``External IP``.
 
-3. The Jupyterhub GUI should be accessible from the kube control plane GUI via the external IP mentioned above. Use any browser to log in. Currently Jupyterhub authentication is not linked with openLDAP.
+3. The Jupyterhub GUI should be accessible from the control plane GUI via the external IP mentioned above. Use any browser to log in. Currently Jupyterhub authentication is not linked with openLDAP.
 
 .. image:: ../../images/Jupyterhub_Login.png
 
 4. Choose your preferred notebook server option and click **Start**. A pod will be created for the user.
 
 .. image:: ../../images/Jupyterhub_UI.png
+
+..
 
 .. image:: ../../images/Jupyterhub_UI_2.png
 
