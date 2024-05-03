@@ -1,15 +1,17 @@
 IP rule assignment
 ===================
 
-This playbook is used for updating IP ruleset of the additional configured NICs.
+This playbook is used for updating IP rule of the additional configured NICs.
+
+.. note:: ``ip_rule_assignment`` is only supported for clusters running on Ubuntu OS.
 
 **Prerequisites**
 
-* You must run ``server_spec_update.yml`` playbook before trying to update the IP ruleset.
+* You must run ``server_spec_update.yml`` playbook before trying to update the IP rule.
 
 * Ensure that all applicable properties are provided in the inventory file, as mentioned below:
 
-        * ``nic_name``: The name of the NIC on which the administrative network is accessible to the control plane.
+        * ``nic_name``: The name of the additional nic on which user wants to configure the ip rule.
         * ``gateway``: The gateway through which the NIC is connected to the switch.
         * ``metric``: Network metric value is a value assigned to an IP route for a network interface that indicates the cost of using that route.
 
