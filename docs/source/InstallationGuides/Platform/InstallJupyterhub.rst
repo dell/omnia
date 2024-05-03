@@ -61,6 +61,12 @@ Using Jupyterhub helm chart (version 3.2.0), Omnia installs Jupyterhub (version 
 
 .. image:: ../../images/Jupyterhub_UI.png
 
+..role:: raw-role(raw)
+
+:format: html latex
+
+:raw-role: `<br/>`
+
 .. image:: ../../images/Jupyterhub_UI_2.png
 
 **Stopping the Notebook server**
