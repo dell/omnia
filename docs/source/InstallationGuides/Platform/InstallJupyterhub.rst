@@ -39,7 +39,7 @@ Using Jupyterhub helm chart (version 3.2.0), Omnia installs Jupyterhub (version 
 
 **Accessing the Jupyterhub GUI**
 
-1. Verify that the Jupyterhub service is running.
+1. Login to kube control plane and verify that the Jupyterhub service is running.
 2. Find the IP address of the Jupyterhub service using: ::
 
         root@omnianode0000x:/usr/local# kubectl get svc -A
@@ -49,9 +49,9 @@ Using Jupyterhub helm chart (version 3.2.0), Omnia installs Jupyterhub (version 
         jupyterhub    proxy-api      ClusterIP      xx.xx.xx.xx      <none>        8001/TCP                 2d2h
         jupyterhub    proxy-public   LoadBalancer   xx.xx.xx.xx   xx.xx.xx.xx    80:31134/TCP               2d2h
 
-The IP address is listed against ``proxy-public`` under ``External IP``.
+    The IP address is listed against ``proxy-public`` under ``External IP``.
 
-3. The Jupyterhub GUI should be accessible from the control plane GUI via the external IP mentioned above. Use any browser to log in.
+3. The Jupyterhub GUI should be accessible from the kube control plane GUI via the external IP mentioned above. Use any browser to log in. Currently Jupyterhub authentication is not linked with openLDAP.
 
 .. image:: ../../images/Jupyterhub_Login.png
 
