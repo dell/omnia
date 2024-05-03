@@ -62,7 +62,7 @@ Using Jupyterhub helm chart (version 3.2.0), Omnia installs Jupyterhub (version 
 .. image:: ../../images/Jupyterhub_UI.png
 
 
-
+<br>
 
 .. image:: ../../images/Jupyterhub_UI_2.png
 
