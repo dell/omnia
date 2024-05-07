@@ -520,3 +520,73 @@ If kubeadm join/kubeadm init command fails, either one of the following should b
 **Potential Cause**: This issue may arise due to internal network issues.
 
 **Resolution**: Re-run the playbook with same configuration and verify the status of slurmctld service in the slurm control node.
+
+⦾ **Why does the task ‘Parse and Download: Display Failed Packages’ fail while running prepare_upgrade.yml?**
+
+.. image:: ../images/upgrade_failed_packages.png
+
+**Potential Cause**: This issue may arise while setting up of local repo for Omnia v1.6 and can occur due to internet connection issues on control plane.
+
+**Resolution**: Verify that the internet connectivity on control plane is stable and re-run the ``prepare_upgrade.yml`` playbook.
+
+⦾ **Why does omnia.yml (or upgrade.yml, in case of upgrade) fail with an error “Unable to retrieve file contents. Could not find or access... kubernetes_sigs.kubespray.cluster on the Ansible Controller”?**
+
+.. image:: ../images/kubernetes_unable_to_retrieve1.png
+
+**Potential Cause**: This issue could occur when the task *‘prepare_cp/roles/omnia_appliance_cp: Install Kubespray ansible-collection’* in ``prepare_upgrade.yml`` silently passes, without installing the Kubespray ansible-collection. This can happen due to unstable internet connectivity on control plane during installation.
+
+.. image:: ../images/kubernetes_unable_to_retrieve2.png
+
+**Resolution**: Manually try to install the Kubespray ansible-collection as shown below and re-run the ``omnia.yml`` playbook (or ``upgrade.yml`` playbook in case of upgrade):
+
+.. image:: ../images/kubernetes_unable_to_retrieve3.png
+
+⦾ **Why does the task ‘loki: Start Docker Service’ fail at “Job for docker.service failed because the control process exited with error code” while running upgrade.yml?**
+
+.. image:: ../images/loki_docker.png
+
+**Potential Cause**: This issue could occur when the ‘docker0’ interface is already bound to a zone in the firewall settings and Docker tries to use this interface, resulting in a ‘Zone Conflict’.
+
+**Resolution**: Perform the following steps to adjust your firewall settings, allowing Docker to utilize the 'docker0' interface without encountering conflicts.
+
+1. Run the following command to check which zone the ‘docker0’ interface is bound to: ::
+
+        firewall-cmd --get-zone-of-interface=docker0
+
+   If the command output shows a zone other than Docker, then you need to remove docker0 interface from the current zone and add it to the ‘Docker’ zone.
+
+2. Run the following command to remove docker0 interface from its current zone: ::
+
+        sudo firewall-cmd --zone=<zone_name> --remove-interface=docker0
+
+   Where <zone_name> is the name of the zone where docker0 interface is currently present.
+
+3. To check whether Docker zone exists already, run the following command: ::
+
+        firewall-cmd --get-zones
+
+    * If docker zone doesn’t exist, create a new docker zone using the following command:
+
+        ::
+
+            sudo firewall-cmd --new-zone=docker --permanent
+
+    * If docker zone exists already, add the docker0 interface using the following command:
+
+        ::
+
+            sudo firewall-cmd --zone=docker --add-interface=docker0 --permanent
+
+4. Reload the firewall to apply changes, using the following command: ::
+
+        sudo firewall-cmd --reload
+
+5. Restart docker service to ensure it picks up the changes, using the following command: ::
+
+        sudo systemctl restart docker
+
+6. Finally, run the following command to ensure docker service is active and running: ::
+
+        systemctl status docker
+
+After performing all the above steps, re-run ``upgrade.yml`` playbook.
