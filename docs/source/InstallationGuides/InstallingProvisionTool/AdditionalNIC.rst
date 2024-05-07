@@ -12,7 +12,8 @@ After running ``discovery_provision.yml`` or ``discovery_provision.yml`` and the
     * ``netmask_bits``: The 32-bit "mask" used to divide an IP address into subnets and specify the network's available hosts.
     * ``static_range``: The static range of IPs to be provisioned on target nodes.
 
-   *The below properties are only applicable to additional NICs*
+* In addition to the above mentioned properties, the following properties should be provided for configuring additional NICs
+
     * ``CIDR``: Classless or Classless Inter-Domain Routing (CIDR) addresses use variable length subnet masking (VLSM) to alter the ratio between the network and host address bits in an IP address.
     * ``MTU``: Maximum transmission unit (MTU) is a measurement in bytes of the largest data packets that an Internet-connected device can accept. Default value of ``MTU`` is 1500. You can enter your desired value.
     * ``VLAN``: A 12-bit field that identifies a virtual LAN (VLAN) and specifies the VLAN that an Ethernet frame belongs to. This property is not supported on clusters running Ubuntu.
@@ -78,20 +79,20 @@ Use the below commands to assign IPs to the NICs: ::
 
 Where the inventory file passed includes user-defined groups,servers associated with them, and a mapping from the groups specified and the categories in ``input/server_spec.yml`` under [<group name>:vars]. Below is a sample: ::
 
-    [waco1]
+    [node-group1]
     10.5.0.3
 
-    [waco1:vars]
+    [node-group1:vars]
     Categories=group-1
 
-    [waco2]
+    [node-group2]
     10.5.0.4
     10.5.0.5
 
-    [waco2:vars]
+    [node-group2:vars]
     Categories=group-2
 
-Based on the provided sample files, server 10.5.0.3 has been mapped to waco1 which corresponds to group-1. Therefore, the NICs ensp0 and ensp0.5 will be configured in an ethernet VLAN group with ens0 as the primary device.
+Based on the provided sample files, server 10.5.0.3 has been mapped to node-group1 which corresponds to group-1. Therefore, the NICs ensp0 and ensp0.5 will be configured in an ethernet VLAN group with ens0 as the primary device.
 
 
 

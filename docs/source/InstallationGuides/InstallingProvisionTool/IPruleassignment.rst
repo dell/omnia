@@ -31,7 +31,7 @@ This playbook is used for updating IP rule of the additional configured NICs.
 
      all:
        hosts:
-         waconode:
+         node1:
            nic_info:
              - { nic_name: eno20195np0, gateway: 10.10.1.254, metric: 101 }
              - { nic_name: eno20295np0, gateway: 10.10.2.254, metric: 102 }
