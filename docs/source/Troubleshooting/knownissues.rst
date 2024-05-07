@@ -281,7 +281,7 @@ Recommended Actions:
 
 * Enable the required services using ``firewall-cmd  --permanent  --add-service=<service name>`` and then reload the firewall using ``firewall-cmd  --reload``.
 
-⦾ **What to do when omnia.yml execution fails with nfs-server.service might not be running on NFS Server. Please check or start services``?**
+⦾ **What to do when omnia.yml execution fails with nfs-server.service might not be running on NFS Server. Please check or start services?**
 
 **Potential Cause**: nfs-server.service is not running on the target node.
 
