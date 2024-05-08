@@ -565,7 +565,7 @@ If kubeadm join/kubeadm init command fails, either one of the following should b
 
     ::
 
-    firewall-cmd --get-zones
+        firewall-cmd --get-zones
 
     * If docker zone doesn’t exist, create a new docker zone using the following command:
 
