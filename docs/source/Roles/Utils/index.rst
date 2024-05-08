@@ -10,4 +10,3 @@ The Utilities role allows users to set up certain tasks such as
     portcleanup
     timescaledb_utility
     freeipa_installation
-    pullimagestonodes
