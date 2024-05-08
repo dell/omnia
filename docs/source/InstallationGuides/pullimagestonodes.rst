@@ -1,26 +1,6 @@
 Download custom packages/images to the cluster
 ===============================================
 
-Since the nodes are behind the proxy, they don't have direct internet access. Only the control plane has direct access to the public internet.
-Nodes can connect to the internet via the control plane by setting the ``http_proxy`` and ``https_proxy`` environment variables, in the following format: ::
-
-    export http_proxy=http://<Host IP address of control plane>:3128
-    export https_proxy=http://<Host IP address of control plane>:3128
-
-Example: ::
-
-    export http_proxy=http://10.5.255.254:3128
-    export https_proxy= http://10.5.255.254:3128
-
-**Pull a specific image**
-
-To pull any specific image to a particular node, do the following:
-
-    1. Connect to the node via SSH protocol and configuring the ``http_proxy`` and ``https_proxy`` environment variables by following the above commands.
-    2. Use the following command to pull any desired image: ::
-
-        nerdctl pull <image_name>
-
 **Download packages/images to the control plane registry**
 
 To download packages/images, Omnia provides ``pull_images_to_nodes`` utility.
@@ -103,3 +83,23 @@ Below are the steps to download packages/images using the ``pull_images_to_nodes
 
             cd utils
             ansible-playbook pull_images_to_nodes.yml -i imagepull_inventory.ini
+
+.. note:: Since the nodes are behind the proxy, they don't have direct internet access. Only the control plane has direct access to the public internet.
+          Nodes can connect to the internet via the control plane by setting the ``http_proxy`` and ``https_proxy`` environment variables, in the following format: ::
+
+              export http_proxy=http://<Host IP address of control plane>:3128
+              export https_proxy=http://<Host IP address of control plane>:3128
+
+          Example: ::
+
+              export http_proxy=http://10.5.255.254:3128
+              export https_proxy= http://10.5.255.254:3128
+
+          To pull any specific image to a particular node, do the following:
+
+              1. Connect to the node via SSH protocol and configuring the ``http_proxy`` and ``https_proxy`` environment variables by following the above commands.
+              2. Use the following command to pull any desired image:
+
+                    ::
+
+                        nerdctl pull <image_name>
