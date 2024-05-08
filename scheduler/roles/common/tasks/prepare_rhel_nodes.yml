@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -15,69 +15,32 @@
 
 # Prepare RHEL and Rocky nodes
 
-- name: Add epel-release repo
-  package:
-    name: epel-release
-    state: present
-  tags: install
-  when: os_supported_redhat not in compute_os
-
-- name: Add elrepo GPG key
-  rpm_key:
-    state: present
-    key: "{{ elrepo_gpg_key_url }}"
-  register: elrepo_gpg_key
-  until: elrepo_gpg_key is not failed
-  retries: "{{ max_retries }}"
-  delay: "{{ max_delay }}"
-  tags: install
-  when: os_supported_redhat not in compute_os
-
-- name: Add elrepo (nvidia kmod drivers)
-  package:
-    name: "{{ elrepo_rpm_url }}"
-    state: present
-  register: elrepo
-  until: elrepo is not failed
-  retries: "{{ max_retries }}"
-  delay: "{{ max_delay }}"
-  tags: install
-  when: os_supported_redhat not in compute_os
-
 - name: Permanently Disable swap
-  mount:
+  ansible.posix.mount:
     name: "swap"
     fstype: swap
     state: absent
 
 - name: Disable selinux
-  selinux:
+  ansible.posix.selinux:
     state: disabled
   tags: install
 
 - name: Install common packages
-  package:
+  ansible.builtin.package:
     name: "{{ common_packages }}"
     state: present
-  when: os_supported_centos not in compute_os
   tags: install
 
-- name: Install common packages for CentOS 7.9
-  package:
-    name: "{{ common_packages_centos }}"
+- name: Install utils packages
+  ansible.builtin.package:
+    name: "{{ utils_packages }}"
     state: present
-  when: os_supported_centos in compute_os
-
-- name: Install common packages for non leap and non RHEL OS
-  package:
-    name: "{{ common_packages_non_leap }}"
-    state: present
+  when: utils_support is true
   tags: install
-  when: os_supported_redhat not in compute_os
 
-- name: Install common packages for RHEL
-  package:
+- name: Install common packages for RHEL/Rocky
+  ansible.builtin.package:
     name: "{{ common_packages_rhel }}"
     state: present
   tags: install
-  when: os_supported_redhat in compute_os

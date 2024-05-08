@@ -1,60 +1,23 @@
 Sample Files
 =============
 
+.. caution:: All the file contents mentioned below are case sensitive. The casing of words like ``[manager]``, ``[compute]``,  etc should be consistent with the samples below when creating inventory or mapping files.
+
 inventory file
 -----------------
 
-.. caution:: All the file contents mentioned below are case sensitive.
 
 ::
 
-        #Batch Scheduler: Slurm
+    [manager]
+    10.5.0.101
 
-        [slurm_control_node]
+    [compute]
+    10.5.0.102
+    10.5.0.103
 
-        10.5.1.101
-
-        [slurm_node]
-
-        10.5.1.103
-
-        10.5.1.104
-
-        [login]
-
-        10.5.1.105
-
-
-
-        #General Cluster Storage
-
-        [auth_server]
-
-        10.5.1.106
-
-        #AI Scheduler: Kubernetes
-
-        [kube_control_plane]
-
-        10.5.1.101
-
-        [etcd]
-
-        10.5.1.101
-
-        [kube_node]
-
-        10.5.1.102
-
-        10.5.1.103
-
-        10.5.1.104
-
-        10.5.1.105
-
-        10.5.1.106
-
-.. note:: The auth_server is common to both slurm and kubernetes clusters.
+    [login]
+    10.5.0.104
 
 
 pxe_mapping_file.csv
@@ -62,9 +25,15 @@ pxe_mapping_file.csv
 
 ::
 
-    SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_IP
-    XXXXXXX,n1,xx:yy:zz:aa:bb:cc,10.5.0.101,10.3.0.101
-    XXXXXXX,n2,aa:bb:cc:dd:ee:ff,10.5.0.102,10.3.0.102
+    MAC,Hostname,IP
+
+    xx:yy:zz:aa:bb:cc,server,10.5.0.101
+
+    aa:bb:cc:dd:ee:ff,server2, 10.5.0.102
+
+.. note::
+    * To skip the provisioning of a particular node in the list, simply append a '#' to the beginning of the line pertaining to that node.
+    * Hostnames listed in this file should be exclusively lower-case with no special characters.
 
 
 switch_inventory
@@ -90,10 +59,8 @@ NFS Server inventory file
 
 ::
 
-    #General Cluster Storage
-    #NFS node
     [nfs]
-    #node10
+    10.5.0.104
 
 
 

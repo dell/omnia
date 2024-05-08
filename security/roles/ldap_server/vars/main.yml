@@ -1,0 +1,31 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Usage: ldap_prereq_Redhat.yml
+ldaptoolbox_openldap_config_olcRootDN: "cn={{ hostvars['127.0.0.1']['openldap_config_username'] }},cn=config" # noqa var-naming
+ldaptoolbox_openldap_database_olcRootDN: "cn={{ hostvars['127.0.0.1']['openldap_db_username'] }},{{ ldaptoolbox_openldap_suffix }}" # noqa var-naming
+ldaptoolbox_openldap_monitor_olcRootDN: "cn=monitor" # noqa var-naming
+ldaptoolbox_olcPasswordHash: "{SHA}" # noqa var-naming
+openldap_configuration_mode: "0600"
+openldap_config_permissions: "0600"
+openldap_cert_permissions: "0644"
+
+# Usage: set_domain.yml
+openldap_config_dest_dir: "/opt/ldap"
+openldap_config_src_path: "{{ role_path }}/templates/add_domain.ldif"
+ldap_host_string: "ldapi://%2Fvar%2Frun%2Fslapd%2Fldapi"
+schema_search_string: "Omnia_set_organization"
+env_var_path: "/root/.bashrc"
+ldap_bin_path: "/usr/local/openldap/bin/"

@@ -12,5 +12,5 @@ To run the script: ::
     cd omnia/utils
     ansible-playbook install_hpc_thirdparty_packages.yml -i inventory
 
-Where the inventory refers to a file listing all nodes per the format provided in `inventory file <../samplefiles.html>`_.
+Where the inventory refers to a file listing all manager and compute nodes per the format provided in `inventory file <../samplefiles.html>`_.
 

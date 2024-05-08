@@ -18,7 +18,7 @@ For example: ::
     cd /install/post/otherpkgs/rhels8.6.0/x86_64/custom_software/Packages/
     dnf download kernel* --resolve -y
 
-2. Once downloaded, Ensure there are >=20~ rpm packages in the ``/install/post/otherpkgs/rhels8.6.0/x86_64/custom_software/Packages/`` directory.
+2. Once downloaded, make sure there are >=20~ rpm packages in the ``/install/post/otherpkgs/rhels8.6.0/x86_64/custom_software/Packages/`` directory.
 3. Inside the ``/install/post/otherpkgs/<Provision OS.Version>/x86_64/custom_software`` folder, create a file named ``update.otherpkgs.pkglist`` with the contents: ::
 
     custom_software/kernel*

@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -19,7 +19,8 @@
       ansible.builtin.unarchive:
         src: "{{ go_pack_url }}"
         dest: "{{ installation_dir }}"
-        remote_src: yes
+        remote_src: true
+        mode: "{{ file_permission }}"
       register: untar_go
       until: untar_go is not failed
       retries: "{{ max_retries }}"
@@ -32,43 +33,103 @@
   ansible.builtin.shell: echo $PATH
   environment:
     PATH: "{{ extended_path }}:{{ ansible_env.PATH }}"
-  changed_when: False
+  changed_when: false
 
-- name: Clone the source code
-  ansible.builtin.git:
-    repo: "{{ slurm_exporter_git_repo }}"
-    dest: "{{ slurm_exporter_inst_dir }}"
-    version: "{{ stable_commit_id }}"
+- name: Download and untar slurm exporter package
+  block:
+    - name: Create slurm exporter directory
+      ansible.builtin.file:
+        path: "{{ slurm_exporter_inst_dir }}"
+        mode: "{{ file_permission }}"
+        state: directory
 
-- name: export GOPATH
-  ansible.builtin.shell: echo $GOPATH
-  environment:
-    PATH: "{{ ansible_env.PATH }}:/var/lib/go/bin/"
-    GOPATH: "{{ go_modules_path }}"
-  changed_when: False
+    - name: Download and untar slurm exporter package
+      ansible.builtin.unarchive:
+        src: "{{ slurm_exporter_git_repo }}"
+        dest: "{{ slurm_exporter_inst_dir }}"
+        remote_src: true
+      register: untar_slurm_exporter
+      until: untar_slurm_exporter is not failed
+      retries: "{{ max_retries }}"
+  rescue:
+    - name: Failed to download slurm exporter package
+      ansible.builtin.fail:
+        msg: "{{ download_slurm_exporter_fail_msg }}"
+
+- name: Check if environment variables are set
+  ansible.builtin.command: echo $PATH
+  changed_when: false
+  failed_when: false
+  register: path_output
+
+- name: Set environment PATH variable
+  when: "'go' not in path_output.stdout"
+  block:
+    - name: Check current environment variables
+      ansible.builtin.shell: echo $PATH
+      changed_when: false
+      register: environment_output
+
+    - name: Replace PATH variable
+      ansible.builtin.lineinfile:
+        path: "{{ bashrc_path }}"
+        regexp: '^PATH=*'
+        insertafter: EOF
+        line: 'PATH={{ environment_output.stdout }}:/var/lib/go/bin/'
+
+- name: Check if environment variables are set
+  ansible.builtin.command: echo $GOPATH
+  changed_when: false
+  failed_when: false
+  register: path_output
+
+- name: Set GOPATH variable in /etc/bashrc
+  when: "'go' not in path_output.stdout"
+  block:
+    - name: Check current environment variables
+      ansible.builtin.shell: echo $GOPATH
+      changed_when: false
+      register: environment_output
+
+    - name: Replace GOPATH variable
+      ansible.builtin.lineinfile:
+        path: "{{ bashrc_path }}"
+        regexp: '^GOPATH=*'
+        insertafter: EOF
+        line: 'GOPATH= {{ go_modules_path }}'
+
+- name: Change go path permission
+  ansible.builtin.file:
+    path: "{{ go_exec_path }}"
+    mode: "{{ file_permission }}"
+
+- name: Create slurm exporter directory
+  ansible.builtin.file:
+    path: "{{ slurm_exporter_inst_dir }}{{ prometheus_ver_dir }}"
+    mode: "{{ file_permission }}"
 
 - name: Download dependencies
   ansible.builtin.command: "{{ go_exec_path }} mod download"
   args:
-    chdir: "{{ slurm_exporter_inst_dir }}"
-  changed_when: False
+    chdir: "{{ slurm_exporter_inst_dir }}{{ prometheus_ver_dir }}"
+  changed_when: false
 
 - name: Build the exporter
-  ansible.builtin.shell: "{{ go_exec_path }} build -o bin/prometheus-slurm-exporter {main,accounts,cpus,nodes,partitions,queue,scheduler,users}.go"
+  ansible.builtin.shell: "{{ go_exec_path }} build -o bin/prometheus-slurm-exporter {{ go_files }}"
   args:
-    chdir: "{{ slurm_exporter_inst_dir }}"
-  changed_when: False
+    chdir: "{{ slurm_exporter_inst_dir }}{{ prometheus_ver_dir }}"
+  changed_when: false
 
 - name: Run all tests included in _test.go files
   ansible.builtin.shell: "{{ go_exec_path }} test -v *.go"
   args:
     chdir: "{{ slurm_exporter_inst_dir }}"
-  changed_when: False
+  changed_when: False # noqa: yaml[truthy]
   failed_when: false
 
 - name: Copy executable to /usr/bin
   ansible.builtin.copy:
     src: "{{ slurm_exporter_exec }}"
     dest: "{{ system_path }}"
-    remote_src: yes
+    remote_src: true
     mode: "{{ file_permission }}"

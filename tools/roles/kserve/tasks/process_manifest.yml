@@ -1,0 +1,157 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.aa
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Download and process the required manifest files to updated digest tag aand image pull policy to IfNotPresent
+
+# Create local folder to download all required manifest files
+- name: Create manifest local directory
+  ansible.builtin.file:
+    path: "{{ manifest_local_path }}"
+    state: directory
+    mode: "{{ permission_644 }}"
+
+# Download certificate manager manifest
+- name: Check if cert_manager_manifest.yaml file exists
+  ansible.builtin.uri:
+    url: "{{ offline_manifest_path }}/cert_manager_manifest.yaml"
+    method: HEAD
+  register: response
+
+- name: Fail if cert_manager_manifest.yaml manifest file does not exist
+  ansible.builtin.fail:
+    msg: "{{ fail_msg_cert_mgr_manifest_not_found }}"
+  when: not response.status == http_success_code
+
+- name: Download cert_manager_manifest.yaml manifest
+  ansible.builtin.get_url:
+    url: "{{ offline_manifest_path }}/cert_manager_manifest.yaml"
+    dest: "{{ manifest_local_path }}/cert_manager_manifest.yaml"
+    mode: "{{ permission_644 }}"
+
+# Download knative serving crds manifest
+- name: Check if knative_serving_crds_manifest.yaml file exists
+  ansible.builtin.uri:
+    url: "{{ offline_manifest_path }}/knative_serving_crds_manifest.yaml"
+    method: HEAD
+  register: response
+
+- name: Fail if manifest file does not exist
+  ansible.builtin.fail:
+    msg: "{{ fail_msg_knative_crd_manifest_not_found }}"
+  when: not response.status == http_success_code
+
+- name: Download knative_serving_crds_manifest.yaml manifest
+  ansible.builtin.get_url:
+    url: "{{ offline_manifest_path }}/knative_serving_crds_manifest.yaml"
+    dest: "{{ manifest_local_path }}/knative_serving_crds_manifest.yaml"
+    mode: "{{ permission_644 }}"
+
+# Download knative serving core manifest
+- name: Check if knative_serving_core_manifest.yaml file exists
+  ansible.builtin.uri:
+    url: "{{ offline_manifest_path }}/knative_serving_core_manifest.yaml"
+    method: HEAD
+  register: response
+
+- name: Fail if manifest file does not exist
+  ansible.builtin.fail:
+    msg: "{{ fail_msg_knative_core_manifest_not_found }}"
+  when: not response.status == http_success_code
+
+- name: Download knative_serving_core_manifest.yaml manifest
+  ansible.builtin.get_url:
+    url: "{{ offline_manifest_path }}/knative_serving_core_manifest.yaml"
+    dest: "{{ manifest_local_path }}/knative_serving_core_manifest.yaml"
+    mode: "{{ permission_644 }}"
+
+# Download knative net istio manifest
+- name: Check if knative_net_istio_manifest.yaml file exists
+  ansible.builtin.uri:
+    url: "{{ offline_manifest_path }}/knative_net_istio_manifest.yaml"
+    method: HEAD
+  register: response
+
+- name: Fail if manifest file does not exist
+  ansible.builtin.fail:
+    msg: "{{ fail_msg_knative_net_istio_manifest_not_found }}"
+  when: not response.status == http_success_code
+
+- name: Download knative_net_istio_manifest.yaml manifest
+  ansible.builtin.get_url:
+    url: "{{ offline_manifest_path }}/knative_net_istio_manifest.yaml"
+    dest: "{{ manifest_local_path }}/knative_net_istio_manifest.yaml"
+    mode: "{{ permission_644 }}"
+
+# Download Kserve manifest
+- name: Check if kserve_manifest.yaml file exists
+  ansible.builtin.uri:
+    url: "{{ offline_manifest_path }}/kserve_manifest.yaml"
+    method: HEAD
+  register: response
+
+- name: Fail if manifest file does not exist
+  ansible.builtin.fail:
+    msg: "{{ fail_msg_kserve_manifest_not_found }}"
+  when: not response.status == http_success_code
+
+- name: Download kserve_manifest.yaml manifest
+  ansible.builtin.get_url:
+    url: "{{ offline_manifest_path }}/kserve_manifest.yaml"
+    dest: "{{ manifest_local_path }}/kserve_manifest.yaml"
+    mode: "{{ permission_644 }}"
+
+# Download kserve runtime manifest
+- name: Check if kserve_runtimes_manifest.yaml file exists
+  ansible.builtin.uri:
+    url: "{{ offline_manifest_path }}/kserve_runtimes_manifest.yaml"
+    method: HEAD
+  register: response
+
+- name: Fail if manifest file does not exist
+  ansible.builtin.fail:
+    msg: "{{ fail_msg_kserve_runtime_manifest_not_found }}"
+  when: not response.status == http_success_code
+
+- name: Download kserve_runtimes_manifest.yaml manifest
+  ansible.builtin.get_url:
+    url: "{{ offline_manifest_path }}/kserve_runtimes_manifest.yaml"
+    dest: "{{ manifest_local_path }}/kserve_runtimes_manifest.yaml"
+    mode: "{{ permission_644 }}"
+
+# Process manifest files to replace digest values
+- name: Process manifest files to replace digest values
+  ansible.builtin.find:
+    paths: "{{ manifest_local_path }}"
+    patterns: "*.yaml"
+  register: manifest_files
+  changed_when: false
+
+- name: Replace digest values
+  when: repo_config_value == 'always' or repo_config_value == 'partial'
+  ansible.builtin.shell: |
+    set -o pipefail && \
+    for file in {{ manifest_files.files | map(attribute='path') | join(' ') }}; do
+      echo "Processing file: $file"
+      sed -i 's/@sha256:.*/:{{ digest_tag }}/' "$file"
+    done
+  register: digest_modification_status
+  changed_when: digest_modification_status.changed
+
+- name: Modify Image pull policy to IfNotPresent
+  ansible.builtin.shell: |
+    set -o pipefail && \
+    for file in {{ manifest_files.files | map(attribute='path') | join(' ') }}; do
+      echo "Processing file: $file"
+      sed -i 's/\(^\s*imagePullPolicy:\s*\)Always/\1IfNotPresent/' "$file"
+    done
+  register: digest_modification_status
+  changed_when: digest_modification_status.changed

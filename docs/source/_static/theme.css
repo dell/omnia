@@ -3,7 +3,6 @@
 }
 .wy-nav-content {
     background-color: #ffffff;
-    max-width: 90% !important;
 }
 .wy-side-nav-search img {
     display: block;
@@ -23,7 +22,9 @@
     cursor: pointer;
     *zoom: 1;
 }
-
+.rst-content code.literal {
+    word-break: break-all; !important;
+}
 .wy-side-nav-search .wy-dropdown>a img.logo,
 .wy-side-nav-search>a img.logo {
     display: block;
@@ -72,12 +73,9 @@
 /* Main content
   ==================================================== */
 
-
 .wy-nav-content .highlight,
 .wy-nav-content .rst-content .warning {
     background: rgba(238, 238, 238, 0.78);
-    width: 575px;
-    overflow-x: unset;
 
 }
 
@@ -96,8 +94,6 @@
 .wy-nav-content .admonition.warning a {
     color: rgb(7, 7, 7);
 }
-
-
 
 .wy-nav-content a.reference {
     color: rgb(41, 128, 185);

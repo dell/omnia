@@ -7,7 +7,7 @@ In your HPC cluster, connect the Mellanox InfiniBand switches using the Fat-Tree
 
     * From Omnia 1.4, the Subnet Manager runs on the target Infiniband switches and not the control plane.
 
-    * When ``ib_nic_subnet`` is provided in ``input/provision_config.yml``, the infiniband NIC on target nodes are assigned IPv4 addresses within the subnet without user intervention during the execution of ``discovery_provision.yml``.
+    * When ``ib_nic_subnet`` is provided in ``input/provision_config.yml``, the infiniband NIC on target nodes are assigned IPv4 addresses within the subnet without user intervention during the execution of ``provision.yml``.
 
 
 Some of the network features Omnia offers are:

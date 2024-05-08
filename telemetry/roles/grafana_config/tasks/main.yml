@@ -13,11 +13,14 @@
 # limitations under the License.
 ---
 
-- name: Configure grafana for telemetry
-  when: (visualization_support and idrac_telemetry_support) or (visualization_support and omnia_telemetry_support)
+- name: Check if telemetry entry is present in software_config.json
+  when: telemetry_entry_present
   block:
-    - name: Add telemetry datasource on grafana
-      ansible.builtin.include_tasks: add_datasource.yml
+    - name: Configure grafana for telemetry
+      when: (visualization_support and idrac_telemetry_support) or (visualization_support and omnia_telemetry_support)
+      block:
+        - name: Add telemetry datasource on grafana
+          ansible.builtin.include_tasks: add_datasource.yml
 
-    - name: Add dashboards on grafana
-      ansible.builtin.include_tasks: add_dashboards.yml
+        - name: Add dashboards on grafana
+          ansible.builtin.include_tasks: add_dashboards.yml

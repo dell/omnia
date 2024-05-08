@@ -1,9 +1,0 @@
----
-- name: Deploy kubeflow 1.6 on k8s cluster
-  hosts: manager, compute
-  become: true
-  gather_facts: true
-
-  # role to deploy kubeflow
-  roles:
-    - kubeflow

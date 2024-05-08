@@ -1,0 +1,249 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Usage: main.yml
+provision_validation_vars:
+  - "{{ role_path }}/../mapping/vars/main.yml"
+  - "{{ role_path }}/../mtms/vars/main.yml"
+  - "{{ role_path }}/../switch_based/vars/main.yml"
+nic_wait_time: 30
+
+# Usage: validate_cp_os.yml
+control_plane_os_redhat: "redhat"
+control_plane_os_rocky: "rocky"
+control_plane_os_ubuntu: "ubuntu"
+control_plane_os_fail_msg: "Failed. Control plane OS should be RHEL, Rocky or Ubuntu."
+root_user_name: "root"
+user_fail_msg: "Failed. Omnia playbooks should run as root user."
+
+# Usage: package_installation.yml
+ansible_galaxy_collection:
+  - ansible.utils:2.5.2
+  - community.general:4.8.7
+python_version: python3.9
+snmp_python_package: easysnmp
+postgres_python_package: psycopg2-binary
+requests_python_package: requests
+pyarrow_python_package: pyarrow
+pandas_python_package: pandas
+passlib_python_package: passlib
+pip_version: pip3.9
+netaddr_pip_package: netaddr
+pexpect_pip_package: pexpect
+max_retries: 10
+
+# Usage: create_provision_ini.yml
+provision_conf_path: "/opt/omnia/.data/provision.ini"
+provision_conf_dest: "/opt/omnia/.data/"
+mount_dir_perm: "0775"
+conf_file_mode: "0644"
+
+# Usage: include_network_spec.yml
+network_spec: "{{ role_path }}/../../../../input/network_spec.yml"
+network_spec_syntax_fail_msg: "Failed. Syntax errors present in network_spec.yml. Fix errors and re-run playbook again."
+
+# Usage: include_provision_config.yml
+spec_file:
+  - "{{ role_path }}/../../../../input/network_spec.yml"
+  - "{{ role_path }}/../../../../input/server_spec.yml"
+provision_config_filename: "{{ role_path }}/../../../../input/provision_config.yml"
+provision_vault_path: "{{ role_path }}/../../../../input/.provision_vault_key"
+ansible_vault_search_key: "$ANSIBLE_VAULT;"
+provision_config_syntax_fail_msg: "Failed. Syntax errors present in provision_config.yml. Fix errors and re-run playbook again."
+spec_syntax_fail_msg: "Failed. Syntax errors present in either network_spec.yml or server_spec.yml. Fix the errors and re-run."
+
+# Usage: include_provision_credentials_config.yml
+provision_credentials_config_filename: "{{ role_path }}/../../../../input/provision_config_credentials.yml"
+provision_credentials_vault_path: "{{ role_path }}/../../../../input/.provision_credential_vault_key"
+provision_config_cred_syntax_fail_msg: "Failed. Syntax errors present in provision_credentials_config.yml. Fix errors and re-run playbook again."
+
+# Usage: include_local_repo_config.yml
+local_repo_config_file: "{{ role_path }}/../../../../input/local_repo_config.yml"
+software_config_file: "{{ role_path }}/../../../../input/software_config.json"
+invalid_software_config_fail_msg: "Failed. Please provide valid software_config.json file with cluster_os_type, cluster_os_version, repo_config
+and repo_config values."
+local_repo_config_syntax_fail_msg: "Failed. Syntax errors present in local_repo_config.yml. Fix errors and re-run playbook again."
+software_config_syntax_fail_msg: "Failed. Syntax errors present in software_config.json. Fix errors and re-run playbook again."
+
+# Usage: validate_local_repo.yml
+metadata_file_path: "/opt/omnia/offline/.data/metadata.yml"
+local_repo_fail_msg: "Failed! Please run local_repo.yml before running discovery_provision.yml/prepare_cp.yml"
+softwares_warning_msg: "[WARNING] software_config.json does not have any softwares. Hence softwares will not be installed on the nodes post provisioning."
+repo_store_path_fail_msg: "Failed. {{ repo_store_path }} didn't exist. Please run local_repo.yml before running discovery_provision.yml/prepare_cp.yml"
+repo_config_metadata_fail_msg: "Failed: Cannot change repo_config in subsequent runs. Please use the repo_config:{{ md_repo_config }} in software_config.json"
+
+# Usage: assign_network_interface.yml
+network_interface_fail_msg: "Failed. Please provide a valid network interface type."
+warning_msg_bmc_network_details_incomplete: "Warning, BMC network details incomplete. BMC discovery and support will be skipped.
+Note: nic_name, netmask_bits, static_range and dynamic_range are mandatory parameters under bmc_network in network_spec.yml for bmc discover"
+
+# Usage: validate_discovery_params.yml
+validation_range_file: "{{ role_path }}/files/validate_input_ranges.py"
+discovery_mechanism_fail_msg: "Failed. Please provide valid details for any discovery mechanism and re-run the playbook.
+For mapping discovery, provide pxe_mapping_file_path in provision_config.yml.
+For bmc discovery, provide bmc_network details in network_spec.yml and set enable_switch_based to false in provision_config.yml.
+For switch_based discovery, set enable_switch_based to true and provide switch_based_details in provision_config.yml along with
+switch_snmp3_username & switch_snmp3_password details in provision_config_credentials.yml."
+
+# Usage: validate_public_nic.yml
+input_provision_failure_msg: "Please provide all the required nic parameters in provision_config.yml"
+success_msg_nic: "nic successfully validated"
+fail_msg_nic: "Failed. Provide proper values in provision_config.yml"
+
+# Usage: validate_admin_nic.yml
+success_msg_admin_nic_details: "Admin nic details validated"
+fail_msg_admin_nic_details: "Failed. Invalid admin_nic details (nic_name, netmask_bits, static_range or dynamic_range) in network_spec file."
+fail_msg_admin_nic_ip_details: "Ensure admin nic is configured with ip address."
+fail_msg_admin_netmask_bits: "Failed. Invalid Admin netmask_bits provided in network_spec file."
+success_subnet: "The subnet provided is validated"
+fail_subnet: "Failed. Please provide proper subnet with netmask {{ omnia_admin_netmask }} in provision_config.yml"
+success_lom: " Network interface type is LOM"
+fail_lom: "Failed. In case of LOM, admin_nic_subnet and bmc_nic_subnet can't be same. Please provide proper input"
+admin_params_success_msg: "Successfully validated admin network params."
+admin_params_failure_msg: "Failed. Please provide proper input parameters for admin network in network_spec file."
+admin_uncorrelated_ip_fail_msg: "Failed. admin_uncorrelated_node_start_ip is invalid or not within admin network static range."
+admin_correlation_fail_msg: "Failed. Invalid details provided, correlation_to_admin should true or false."
+validate_ip_within_range: "{{ role_path }}/files/validate_ip_within_range.py"
+validate_nic_status: "Failed, please check the network interface status should be UP"
+fail_msg_admin_static_netmask_bits: "Failed, Admin static range is not within the admin netmask range."
+admin_nic_netmask_fail_msg: "Failed, Admin nic netmask should be same as netmask in network_spec file."
+admin_range_ip_check_fail_msg: "Failed. : Admin network - static/dynamic ranges should be valid IP address (Eg. 192.168.1.1-198.168.1.254)."
+fail_admin_ip_range: "Failed, Admin static and dynamic ranges should not overldap."
+
+# Usage: validate_bmc_nic.yml
+success_msg_bmc_nic_details: "BMC nic details validated"
+bmc_params_success_msg: "Successfully validated bmc network params"
+bmc_params_failure_msg: "Failed. Please provide proper input parameters for bmc network in network_spec file."
+fail_msg_bmc_netmask_bits: "Failed. Invalid BMC netmask_bits provided in network_spec file."
+fail_msg_bmc_nic_details: "Failed. Invalid bmc_network details (nic_name, netmask_bits, static_range or dynamic_range) in network_spec file."
+bmc_nic_start: "{{ bmc_nic_subnet.split('.')[0] + '.' + bmc_nic_subnet.split('.')[1] + '.'
++ pxe_nic_start_range.split('.')[-2] + '.' + pxe_nic_start_range.split('.')[-1] }}"
+bmc_nic_end: "{{ bmc_nic_subnet.split('.')[0] + '.' + bmc_nic_subnet.split('.')[1] + '.'
++ pxe_nic_end_range.split('.')[-2] + '.' + pxe_nic_end_range.split('.')[-1] }}"
+network_address_script: "{{ role_path }}/files/validate_network_address.py"
+reassignment_to_static_failure_msg: "Failed. Invalid details provided, reassignment_to_static should true or false."
+fail_msg_bmc_static_netmask_bits: "Failed, BMC static range is not within the BMC netmask range."
+bmc_range_ip_check_fail_msg: "Failed. : BMC network - static/dynamic ranges should be valid IP address (Eg. 192.168.1.1-198.168.1.254)."
+
+# Usage: validate_switch_vars.yml
+pxe_switch_ip_valid: "Valid switch ip provided"
+pxe_switch_ip_invalid: " Failed. Provide a valid switch ip in provision_config.yml"
+fail_switch_or_mapping_file: "Failed. python_version provide PXE switch details.
+If switch details are given,then provide proper node_name too."
+pxe_switch_unreachable: "Failed. Given switch is unreachable. Please provide correct switch IP in provision_config.yml."
+provision_option_fail_msg: "[WARNING]. Ignoring pxe_switch_ip when pxe_mapping_file_path provided"
+
+# Usage: validate_provision_vars.yml
+input_provision_fail_msg: "Failed! Please provide all the required provision parameters in provision_config.yml, namely,
+iso_file_path, domain_name,timezone, default_lease_time and provision_os, provision_os_version in software_config.json."
+default_lease_time_success_msg: "default_lease_time validated"
+default_lease_time_fail_msg: "Failed. Please provide a valid default_lease_time"
+timezone_success_msg: "timezone validated"
+timezone_fail_msg: "Failed. Incorrect timezone provided. Please check the file timezone.txt in files folder"
+language_fail_msg: "Failed. Only en-US language supported"
+os_supported_rocky: rocky
+os_supported_rhel: rhel
+os_supported_ubuntu: ubuntu
+provision_os_success_msg: "cluster_os_type validated"
+provision_os_fail_msg: "Failed. Incorrect cluster_os_type selected.
+If control plane OS RHEL, only cluster_os_type {{ os_supported_rhel }} is supported.
+If control plane OS Rocky, only cluster_os_type {{ os_supported_rocky }} is supported.
+If control plane OS Ubuntu, only cluster_os_type {{ os_supported_ubuntu }} is supported"
+iso_file_path_missing_msg: "Incorrect iso_file_path provided. Make sure ISO file is present in the provided iso_file_path."
+iso_file_path_success_msg: "iso_file_path validated"
+iso_file_path_fail_msg: "Failed. Invalid iso_file_path: {{ iso_file_path }} provided. Make sure iso_file_path variable in provision_config.yml contains value
+mentioned in the variables cluster_type: {{ provision_os }} and cluster_os_version: {{ provision_os_version }} mentioned in software_config.json"
+ping_search_key: "100% packet loss"
+provision_password_fail_msg: "Failed. Incorrect provision_password format in provision_config_credentials.yml"
+min_length: 8
+max_length: 30
+warning_wait_time: 30
+postgresdb_password_fail_msg: "Failed. postgresdb_password should contain only alphanumeric characters and minimum length 8 in provision_config_credentials.yml"
+mount_point_success_msg: "mountpoint of disk_partition successfully validated"
+mount_point_fail_msg: "Failed. Supported disk_partition mount_point values are /var, /tmp, /usr, swap"
+desired_capacity_success_msg: "desired_capacity of disk_partition successfully validated"
+desired_capacity_fail_msg: "Failed. Provide valid integer value to desired_capacity of disk_partition"
+supported_rhel_os_version: ["8.6", "8.7", "8.8"]
+supported_ubuntu_os_version: ["20.04", "22.04"]
+provision_os_version_fail_msg: "Failed. Invalid cluster_os_version: {{ provision_os_version }} provided in software_config.json.
+Supported cluster_os_version values for cluster_os_type rhel/rocky are 8.6,8.7,8.8.
+For cluster_os_type ubuntu supported versions are 20.04,22.04"
+nodename_chars_fail_msg: "Failed. node_name empty or invalid in provision_config.yml.
+node_name should not contain _ or . or space or node- as it might result in issues with provisioning/authentication tools like FreeIPA."
+ubuntu_kernel_fail_msg: "Failed. ubuntu_kernel_flavor should be either hwe or generic"
+ubuntu22_version: "22.04"
+
+# Usage: validate_domain_name.yml
+domain_name_success_msg: "domain_name successfully validated"
+domain_name_fail_msg: "Failed. Check whether domain_name is in proper format in provision_config.yml."
+server_hostname_success_msg: "Hostname in server hostname validated"
+server_hostname_fail_msg: "Failed. Hostname set is not valid"
+server_domain_name_blank_msg: "Failed. domain_name is not set in hostname. It should have hostname.domain_name format"
+server_domain_name_success_msg: "domain_name in server hostname validated"
+server_domain_name_fail_msg: "Failed. domain_name set is not same as domain_name in provision_config.yml"
+hosts_file_path: /etc/hosts
+hosts_file_mode: "0644"
+hostname_success_msg: "Hostname length successfully validated."
+hostname_fail_msg: "Failed. Hostname comprises of domain name, node name and 6 characters (00001 and .) that is used by omnia.
+All these inclusive, the total length should be less than 65 characters."
+
+# Usage: validate_ofed_cuda_repo.yml
+ofed_version_warning_msg: "[WARNING] software_config.json does not have the version for OFED.
+Hence OFED will not be installed on the nodes post provisioning."
+ofed_repo_warning_msg: "[WARNING] local_repo.yml is not executed for downloading OFED packages.
+OFED will not be installed on the nodes post provisioning."
+cuda_version_warning_msg: "[WARNING] software_config.json does not have the version for CUDA.
+Hence CUDA will not be installed on the nodes post provisioning."
+cuda_repo_warning_msg: "[WARNING] local_repo.yml is not executed for downloading CUDA packages.
+CUDA will not be installed on the nodes post provisioning."
+offline_iso_directory: "{{ repo_store_path }}/cluster/{{ provision_os }}/{{ provision_os_version }}/iso"
+
+# Usage: validate_amdgpu_rocm_repo.yml
+amdgpu_input_warning_msg: "[WARNING] software_config.json does not have the amdgpu software stack.
+Hence ROCm will not be installed on the nodes post provisioning."
+amdgpu_version_warning_msg: "[WARNING] software_config.json does not have the version for AMDGPU.
+Hence ROCm will not be installed on the nodes post provisioning."
+amdgpu_repo_warning_msg: "[WARNING] local_repo.yml is not executed for downloading AMDGPU packages.
+ROCm will not be installed on the nodes post provisioning."
+rocm_version_warning_msg: "[WARNING] software_config.json does not have the version for ROCM.
+Hence ROCm will not be installed on the nodes post provisioning."
+rocm_repo_warning_msg: "[WARNING] local_repo.yml is not executed for downloading ROCM packages.
+ROCm will not be installed on the nodes post provisioning."
+
+# Usage: validate_broadcom_repo.yml
+roce_version_warning_msg: "[WARNING] software_config.json does not have the version for bcm_roce.
+Hence RoCE drivers will not be installed on the nodes post provisioning."
+roce_repo_warning_msg: "[WARNING] bcm_roce is mentioned in software_config.json and local_repo.yml not executed for current bcm_roce version.
+RoCE drivers will not be installed on the nodes post provisioning."
+roce_src_version_warning_msg: "[WARNING] software_config.json does not have the version for bcm_roce_libraries.
+Hence RoCE libraries will not be installed on the nodes post provisioning."
+roce_src_repo_warning_msg: "[WARNING] bcm_roce_libraries is mentioned in software_config.json and local_repo.yml not executed for current bcm_roce_libraries
+ version. RoCE libraries will not be installed on the nodes post provisioning."
+
+# Usage: validate_network_spec.yml
+static_range_check_fail_msg: "Failed. static_range_check variable in network_spec should be withing the netmask provided."
+cidr_fail_msg: "Failed. CIDR or netmask_bits are invalid. Please provide valid CIDR or netmask_bits (Eg. '192.168.1.0/24')."
+network_gateway_fail_msg: "Failed. network_gateway in network_spec should be in proper format."
+vlan_fail_msg: "Failed. vlan in network_spec should be in proper format."
+netmask_bits_failure_msg: "Failed. admin and bmc netmask should be same."
+netmask_bits_success_msg: "Validated admin and bmc netmask bits"
+cidr_or_static_range_fail_msg: "Failed. network_spec should have either static_range or CIDR for the network."
+fail_msg_netmask_bits: "Failed. Invalid netmask_bits provided in network_spec file."
+ip_range_netmask_script_script: "{{ role_path }}/files/validate_ip_range_netmask.py"
+mtu_check_fail_msg: "Failed. MTU input variable in network_spec should be in proper integer format."
+validate_cidr: "{{ role_path }}/files/validate_cidr.py"
+range_ip_check_fail_msg: "Failed. input ip range should be valid IP address (Eg. 192.168.1.1-198.168.1.254)."
+fail_static_ip_range: "Failed, Network static overlaps with"
+fail_cidr_ip_range: "Failed, Cidr overlaps with"

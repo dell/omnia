@@ -1,7 +1,7 @@
 Log management
 ----------------
 
-Use ``/etc/logrotate.conf`` to customize how often logs are rotated. The default settings for ``logrotate.conf`` are: ::
+Use ``/etc/logrotate.conf`` to customize how often logs are rotated. By default, the ``logrotate.conf`` file: ::
 
     cat /etc/logrotate.conf
     # see "man logrotate" for details
@@ -23,6 +23,6 @@ With the above settings:
 
     * Logs are backed up weekly.
 
-    * Data upto 4 weeks old is backed up. Any log backup older than four weeks will be deleted.
+    * Data upto 4 weeks old is backed up. Any log backup created before that will be deleted.
 
-.. caution:: Since these logs take up ``/var`` space, sufficient space must be allocated to ``/var`` partition if it's created. If ``/var`` partition space fills up, control plane might crash.
+.. caution:: Since these logs take up ``/var`` space, sufficient space must be allocated to ``/var`` partition if being created. If ``/var`` partition space fills up, control plane might crash.

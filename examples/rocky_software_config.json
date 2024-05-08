@@ -1,0 +1,32 @@
+{
+    "cluster_os_type": "rocky",
+    "cluster_os_version": "8.8",
+    "repo_config": "partial",
+    "softwares": [
+        {"name": "amdgpu", "version": "6.0"},
+        {"name": "cuda", "version": "12.3.2"},
+        {"name": "ofed", "version": "24.01-0.3.3.1"},
+        {"name": "openldap"},
+        {"name": "nfs"},
+        {"name": "slurm"},
+        {"name": "k8s", "version":"1.26.12"},
+        {"name": "jupyter"},
+        {"name": "pytorch"},
+        {"name": "tensorflow"}
+    ],
+
+    "amdgpu": [
+        {"name": "rocm", "version": "6.0" }
+    ],
+    "pytorch": [
+        {"name": "pytorch_cpu"},
+        {"name": "pytorch_amd"},
+        {"name": "pytorch_nvidia"}
+    ],
+    "tensorflow": [
+        {"name": "tensorflow_cpu"},
+        {"name": "tensorflow_amd"},
+        {"name": "tensorflow_nvidia"}
+    ]
+
+}

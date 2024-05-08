@@ -1,4 +1,4 @@
-#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,6 +13,9 @@
 #  limitations under the License.
 ---
 
+# Usage: main.yml
+local_repo_access_dest_path: "/opt/omnia/offline/local_repo_access.yml"
+
 # Usage: validate_beegfs_vars.yml
 beegfs_support_success_msg: "beegfs_support validated successfully"
 beegfs_support_failure_msg: "Failed. beegfs_support should be either true or false"
@@ -21,7 +24,7 @@ beegfs_support_failure_msg: "Failed. beegfs_support should be either true or fal
 beegfs_rdma_support_success_msg: "beegfs_rdma_support validated successfully"
 beegfs_rdma_support_failure_msg: "Failed. beegfs_rdma_support should be either true or false"
 beegfs_mgmt_server_success_msg: "beegfs_mgmt_server, validated successfully"
-beegfs_mgmt_server_fail_msg: "Failed. Please enter IP of management server in IPV4 format"
+beegfs_mgmt_server_fail_msg: "Failed. Please enter IP of management server in IPV4 format or remove 'beegfs' details from input/software_config.json"
 beegfs_mgmt_server_not_reachable_msg: "Failure, IP provided for beegfs_mgmt_server is not reachable. Please provide reachable IP of beegfs management server"
 beegfs_mounts_fail_msg: "Failed. Please provide a path for mounting beegfs file system"
 beegfs_client_version_success_msg: "beegfs_client_version, validated successfully "
@@ -39,23 +42,90 @@ compatability_msg: "Upgradation to 7.3.0 is not possible, as it is not supported
 beegfs_shared_secret_failure_msg: "[WARNING] Missing shared secret (connauth) file.
 connauth file configured in server, meta and storage should be provided in beegfs_secret_storage_filepath variable in storage_config.yml
 for beegfs client version >= 7.2.7"
-warning_wait_time: 10
+warning_wait_time: 30
 
 # Usage: fetch_nfs_client_params.yml
 nfs_server_reach_msg: "Failed. Nfs server is not reachable. Please enter valid nfs server IP in nfs_client_params"
 server_share_path_success_msg: "server_share_path is validated successfully"
-server_share_path_fail_msg: "Failed, Declare server_share_path variable in nfs_client_params of storage_config, please refer comments in storage_config.yml"
+server_share_path_fail_msg: "Failed, Declare server_share_path variable in nfs_client_params of storage_config.yml, please refer comments in storage_config.yml"
 server_share_path_failure_msg: "Failed. Please enter valid NFS server mount location"
 server_ip_success_msg: "Successfully verified server_ip variable declaration"
-server_ip_fail_msg: "Failed, Declare server_ip variable in nfs_client_params of storage_config, please refer comments in storage_config.yml"
+server_ip_fail_msg: "Failed, Declare server_ip variable in nfs_client_params of storage_config.yml, please refer comments in storage_config.yml"
 client_share_path_success_msg: "Successfully verified client_share_path variable declaration"
-client_share_path_fail_msg: "Failed, Declare client_share_path variable in nfs_client_params of storage_config, please refer comments in storage_config.yml"
+client_share_path_fail_msg: "Failed, Declare client_share_path variable in nfs_client_params of storage_config.yml, please refer comments in storage_config.yml"
 server_share_path_len_success_msg: "server_share_path validated successfully"
 client_mount_options_success_msg: "client_mount_options declaration validated successfully"
 client_mount_options_fail_msg: "Failed, please declare client_mount_options variable in nfs_client_params"
 server_ip_msg: "As server_ip is not available NFS bolt-on role will not work"
 nfs_client_declaration_msg: "Make sure to declare values in server_ip and server_share_path in all the lists on nfs_client_params"
+nfs_server_success_msg: "Successfully verified nfs_server variable declaration"
+nfs_server_fail_msg: "Failed. nfs_server variable in nfs_client_params of storage_config.yml should be either true or false"
+nfs_client_support_failure_msg: "Failed. Its mandatory to configure NFS during omnia.yml/storage.yml execution.
+Please provide required inputs in nfs_client_params of storage_config.yml"
+slurm_share_on_ubuntu_warning_msg: "[Warning] Slurm_share is set to true, Note ubuntu doesn't support slurm. However, nfs share will be created."
+compute_os_ubuntu: "ubuntu"
 
 # Usage: fetch_beegfs_inputs.yml, fetch_nfs_client_params.yml
 ping_msg: "100% packet loss"
 storage_config_vars: "{{ role_path }}/../../../input/storage_config.yml"
+
+# Usage: fetch_software_config.yml
+software_config_json_file: "{{ role_path }}/../../../input/software_config.json"
+beegfs_directory_rhel_rocky: "{{ repo_store_path }}/cluster/yum/beegfs/{{ beegfs_client_version }}"
+beegfs_repo_failure_msg: "Failed, Local repo not present for beegfs. Execute local_repo.yml again."
+local_repo_config_file: "{{ role_path }}/../../../input/local_repo_config.yml"
+nfs_client_params_failure_msg: "nfs software is present in software_config.json, please provide the nfs_client_params in storage_config.yml"
+beegfs_version_fail_msg: "Failed, Ensure version of beegfs is mentioned in software_config.json"
+storage_config_syntax_fail_msg: "Failed. Syntax errors present in storage_config.yml. Fix errors and re-run playbook again."
+nfs_client_params_k8s_share_fail_msg: "Exactly one entry should be present in nfs_client_params with k8s_share as true in input/storage_config.yml"
+nfs_client_params_k8s_share_success_msg: "Entry found in nfs_client_params with k8s_share as true"
+nfs_client_params_slurm_share_fail_msg: "Exactly one entry should be present in nfs_client_params with slurm_share as true in input/storage_config.yml"
+nfs_client_params_slurm_share_success_msg: "Entry found in nfs_client_params with slurm_share as true"
+nfs_client_params_benchmarks_fail_msg: "Atleast one out of k8s_share or slurm_share in input/storage_config.yml should be true \
+when ucx/openmpi are installed on cluster nodes."
+nfs_client_params_benchmarks_success_msg: "Entry found in nfs_client_params with slurm_share or k8s_share as true"
+
+# Usage: include_provision_metadata.yml
+provision_metadata_path: "/opt/omnia/.data/metadata.yml"
+metadata_missing_fail_msg: "Failed. Missing /opt/omnia/.data/metadata.yml in control plane.
+Run discovery_provision.yml before executing omnia.yml/storage.yml playbook for creating metdata.yml file."
+
+# Usage: k8s_validations.yml
+invalid_kube_inventory_fail_msg: "Failed. k8s software is present in software_config.json.
+Invalid inventory format, specify kube_control_plane, kube_node and etcd"
+kube_one_node_validation_fail_msg: "Failed. k8s software is present in software_config.json.
+There should be exactly one entry for kube_control_plane in the inventory"
+kube_one_node_validation_success_msg: "One kube_control_plane exists in the inventory"
+kube_node_validation_fail_msg: "Failed. k8s software is present in software_config.json.
+At least one kube_node should be present in the inventory."
+kube_node_validation_success_msg: " At least one kube_node exists in the inventory"
+etcd_node_validation_fail_msg: "Failed. k8s software is present in software_config.json.
+etcd group in inventory must have atleast one node and total node count must be odd."
+etcd_node_validation_success_msg: "etcd should have odd number of nodes in the inventory"
+
+# Usage: slurm_validations.yml
+invalid_slurm_inventory_fail_msg: "Failed. slurm software is present in software_config.json.
+Invalid inventory format, specify slurm_control_node and slurm_node."
+slurm_one_node_validation_fail_msg: "Failed. slurm software is present in software_config.json.
+There should be exactly one entry for slurm_control_node in the inventory."
+slurm_one_node_validation_success_msg: "One slurm_control_node exists in the inventory"
+slurm_node_validation_fail_msg: "Failed. slurm software is present in software_config.json.
+At least one slurm_node should be present in the inventory."
+slurm_node_validation_success_msg: "At least one slurm_node exists in the inventory"
+
+# Usage: fetch_omnia_config.yml
+omnia_config_path: "{{ role_path }}/../../../input/omnia_config.yml"
+omnia_vault_path: "{{ role_path }}/../../../input/.omnia_vault_key"
+vault_key_permission: "0644"
+omnia_config_syntax_fail_msg: "Failed. Syntax errors present in omnia_config.yml. Fix errors and re-run playbook again."
+slurm_installation_type_wrong_failure_msg: "Slurm Installation Type should be either nfs_share or configless in omnia_config.yml"
+
+# Usage: validate_inventory.yml
+empty_inventory_fail_msg: "Failed. inventory not provided. Re-run playbook with inventory providing -i inventory.
+Inventory support groups are slurm_control_node, slurm_node, kube_control_plane, kube_node, etcd, auth_server, login"
+invalid_storage_inventory_warn_msg: "[WARNING] Invalid inventory format for the execution.
+When k8s software is present in software_config.json, specify kube_control_plane, kube_node and etcd.
+When slurm software is present in software_config.json, specify slurm_control_node and slurm_node.
+Remaining tasks of the playbook will be executed for groups slurm_control_node, slurm_node, kube_control_plane, kube_node, etcd, auth_server, login
+available in the inventory.
+Remaining groups in the inventory will be skipped."

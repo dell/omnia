@@ -1,12 +1,24 @@
 ﻿Variables,Details
-"**mariadb_password**
+"**scheduler_type**
 
      ``string``
 
-     Required    ","* Password used for Slurm database.
-* The Length of the password should be at least 8.
-* The password must not contain -,\, ',""
-* **Default value**: ""password"""
+     Required    ","* Job scheduler to be installed across all nodes in the cluster*
+* To install slurm provide ``scheduler_type: ""slurm""``
+* To install k8s provide ``scheduler_type: ""k8s""``
+* To install slurm and k8s provide ``scheduler_type: ""slurm,k8s""``
+
+**Default value**: ``""slurm""``"
+"**k8s_version**
+
+     ``string``
+
+     Required  ","* Kubernetes version.
+* Required when ``scheduler_type: ""k8s""``
+     Choices:                    
+                                 
+     * ``""1.19.3""``  <-   default
+     * ``"" 1.16.7""``             "
 "**k8s_cni**
 
      ``string``
@@ -18,13 +30,30 @@
                                  
      * ``""calico""``  <-   default
      * ``""flannel""``             "
-"**pod_external_ip_range**
+"**k8s_pod_network_cidr**
 
      ``string``
 
-     Required       ","* These addresses will be used by Loadbalancer for assigning External IPs to K8s services
-* Make sure the IP range is not assigned to any node in the cluster.
-* **Sample values**: ""10.11.0.100-10.11.0.150"" , ""10.11.0.0/16""                            "
+     Required       ","* Kubernetes pod network CIDR.                                          
+* Make sure this value does not overlap with any of the host   networks.
+* Required when ``scheduler_type: ""k8s""``
+
+     **Default values**: ``""10.244.0.0/16""``                            "
+"**docker_username**
+
+     ``string``
+
+     Optional  ","* Username for Dockerhub account
+* A kubernetes secret will be created and patched to service account in   default namespace. This kubernetes secret can be used to pull images from   private repositories
+* This value is optional but suggested avoiding docker pull limit issues.
+* The first character of the string should be an alphabet."
+"**docker_password**
+
+     ``string``
+
+     Optional  ","* Password for Dockerhub account                        
+* This value is mandatory if docker username is provided.
+* The first character of the string should be an alphabet."
 "**ansible_config_file_path**
 
      ``string``
@@ -32,28 +61,26 @@
      Required           ","* Path to directory hosting ansible config file (ansible.cfg file)
 * This directory is on the host running ansible, if ansible is installed   using dnf
 * If ansible is installed using pip, this path should be set                        
-* **Default value**: ``/etc/ansible``                                           "
-"**slurm_installation_type**
+                                                                                    
+     **Default values**: ``/etc/ansible``                                           "
+"**enable_omnia_nfs**
 
-     ``string``
+     ``boolean``  [1]_
 
-     Optional      ","* Indicates whether the slurm installation will support configless or nfs mode.
+     Required      ","* Boolean indicating whether a parallel file system is **not** running in the environment and a share file system (NFS/BeeGFS) will be used to create home directory/ Kubernetes share directory on it.
+
+* When this variable is ``true``, Omnia will create its own NFS share and mount ``omnia_usrhome_share`` on all the nodes.
 
      Choices:
 
-     * ``nfs_share``  <- default
-     * ``configless``                                          "
-"**k8s_service_addresses**
+     * ``true``  <- default
+     * ``false``                                          "
+"**omnia_usrhome_share**
 
      ``string``
 
-     Optional      ","* Kubernetes internal network for services.
-* This network must be unused in your network infrastructure.
-* **Default value**: ""10.233.0.0/18"" "
-"**k8s_pod_network_cidr**
+     Required      ","* Path to directory which will be shared across all nodes in the cluster.
+* If ``enable_omnia_nfs``: true, NFS share will be created at path mentioned below.
+* If ``enable_omnia_nfs``: false, set this variable as path to parallel file system(NFS/BeeGFS) running in the system.
 
-     ``string``
-
-     Optional      ","* Kubernetes pod network CIDR for internal network. When used, it will assign IP addresses from this range to individual pods.
-* This network must be unused in your network infrastructure.
-* **Default value**: ""10.233.64.0/18"""
+Default value:  ""/home/omnia-share"""

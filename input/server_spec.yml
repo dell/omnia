@@ -1,0 +1,17 @@
+---
+Categories:
+  - group-1:
+    - network:
+      - ensp0:
+          nicnetwork: "thor_network1"
+          nictypes: "ethernet"
+      - ensp0.5:
+          nicnetwork: "thor_network2"
+          nictypes: "vlan"
+          nicdevices: "ensp0"
+
+  - group-2:
+    - network:
+      - eno1:
+          nicnetwork: "thor_network1"
+          nictypes: "ethernet"

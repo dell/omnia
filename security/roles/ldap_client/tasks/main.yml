@@ -1,4 +1,4 @@
-#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,15 +13,24 @@
 #  limitations under the License.
 
 ---
+- name: Set compute_os name
+  ansible.builtin.set_fact:
+    compute_os: "{{ ansible_distribution | lower }}"
+
+- name: Include vars for {{ compute_os }}
+  ansible.builtin.include_vars: "{{ role_path }}/vars/{{ compute_os }}.yml"
 
 - name: Install and configure Openldap client
+  when: hostvars['127.0.0.1']['authentication_system'] == 'openldap'
   block:
-      - name: Install required packages
-        ansible.builtin.include_tasks: configure_ldap_client.yml
+    - name: Install required packages
+      ansible.builtin.include_tasks: configure_ldap_client_{{ compute_os }}.yml
 
-      - name: Configure sssd
-        ansible.builtin.include_tasks: configure_sssd_conf.yml
+    - name: Configure sssd
+      ansible.builtin.include_tasks: configure_sssd_conf.yml
 
-      - name: Configure system for authselect with sssd
-        ansible.builtin.include_tasks: configure_authselect.yml
-  when: hostvars['127.0.0.1']['ldap_required']
+    - name: Configure system for authselect with sssd
+      ansible.builtin.include_tasks: configure_authselect_{{ compute_os }}.yml
+
+    - name: Configure system for common sssd configurations
+      ansible.builtin.include_tasks: configure_authselect_common.yml

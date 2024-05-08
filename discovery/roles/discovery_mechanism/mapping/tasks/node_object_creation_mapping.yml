@@ -1,0 +1,57 @@
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Create group for mapping with bmc nodes
+  ansible.builtin.set_fact:
+    mapping_bmc_node_group: "mapping_bmc"
+
+- name: Fetch all node object list
+  ansible.builtin.command: lsdef all -i mac
+  changed_when: false
+  failed_when: false
+  register: node_mac_list
+
+- name: Read mapping file provided by user
+  community.general.read_csv:
+    path: "{{ temp_pxe_file_path }}"
+  register: mapping_file_output
+
+- name: Create node object from mapping file provided by user
+  ansible.builtin.shell: >
+    mkdef -t node "{{ mapping_file_output.list[idx1].HOSTNAME.split('.')[0] }}" groups={{ mapping_node_group }},all
+    ip="{{ mapping_file_output.list[idx1].ADMIN_IP | trim }}" mac="{{ mapping_file_output.list[idx1].ADMIN_MAC | trim }}"
+    hostnames="{{ mapping_file_output.list[idx1].HOSTNAME | trim }}" serial="{{ mapping_file_output.list[idx1].SERVICE_TAG | trim }}"
+    netboot=xnba arch=x86_64  -f
+  with_items: "{{ mapping_file_output.list }}"
+  changed_when: true
+  loop_control:
+    index_var: idx1
+  when:
+    - mapping_file_output.list[idx1].BMC_IP == ""
+    - mapping_file_output.list[idx1].ADMIN_MAC | lower not in node_mac_list.stdout | lower
+
+- name: Create node object from mapping file provided by user
+  ansible.builtin.shell: >
+    mkdef -t node "{{ mapping_file_output.list[idx1].HOSTNAME.split('.')[0] }}" groups={{ mapping_node_group }},{{ mapping_bmc_node_group }},all
+    ip="{{ mapping_file_output.list[idx1].ADMIN_IP | trim }}" bmc="{{ mapping_file_output.list[idx1].BMC_IP | trim }}" mgt=ipmi
+    mac="{{ mapping_file_output.list[idx1].ADMIN_MAC | trim }}" serial="{{ mapping_file_output.list[idx1].SERVICE_TAG | trim }}"
+    hostnames="{{ mapping_file_output.list[idx1].HOSTNAME | trim }}" netboot=xnba arch=x86_64  -f
+  with_items: "{{ mapping_file_output.list }}"
+  changed_when: true
+  loop_control:
+    index_var: idx1
+  when:
+    - mapping_file_output.list[idx1].BMC_IP != ""
+    - mapping_file_output.list[idx1].ADMIN_MAC | lower not in node_mac_list.stdout | lower

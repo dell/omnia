@@ -1,4 +1,4 @@
-#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,8 +14,14 @@
 ---
 
 # Usage: validations.yml
-invalid_inventory_fail_msg: "Failed. Invalid inventory format. Provide inventory with manager and compute group."
-xcat_running_fail_msg: "Failed. xCAT services are not running. Run provision.yml before executing this playbook."
+invalid_inventory_fail_msg: "Failed. Invalid inventory format. Provide inventory with slurm_control_node and slurm_node group."
+os_supported_rocky: rocky
+os_supported_rhel: rhel
+cluster_os_type_success_msg: "cluster_os_type validated"
+cluster_os_type_fail_msg: "Failed. Incorrect cluster_os_type selected. Supported OS are {{ os_supported_rocky }} or {{ os_supported_rhel }}"
+supported_rhel_os_version: ["8.6", "8.7", "8.8"]
+cluster_os_version_fail_msg: "Failed. Invalid cluster_os_version: {{ cluster_os_version }} provided in software_config.json.
+Supported cluster_os_version values 8.6,8.7,8.8"
 
 # Usage: pre_requisites.yml
 slurm_running_fail_msg: "Failed. slurm services are not running in the node {{ inventory_hostname }}.
@@ -28,3 +34,31 @@ pmix_packages:
 
 # Usage: configure_slurm.yml
 slurm_conf_path: /etc/slurm/slurm.conf
+slurm_nfs_folder: /slurm
+
+# Usage: fetch_software_config.yml
+software_config_json_file: "{{ role_path }}/../../../input/software_config.json"
+local_repo_config_file: "{{ role_path }}/../../../input/local_repo_config.yml"
+amd_benchmarks_support_false_fail_msg: "amd_benchmarks is not present in software_config.json.
+Please mention amd_benchmarks in software_config.json and execute local_repo.yml again."
+
+# Usage: install_packages.yml
+json_folder: "{{ role_path }}/../../../input/config/{{ cluster_os_type }}/{{ cluster_os_version }}"
+amd_packages_fail_msg: "Failed to install amd benchmarks packages. Ensure local_repo.yml is run as packages were not able to install."
+
+# Usage: fetch_storage_config.yml
+storage_config_filename: "storage_config.yml"
+storage_config_syntax_fail_msg: "Failed. Syntax errors present in storage_config.yml. Fix errors and re-run playbook again."
+nfs_client_params_failure_msg: "nfs_client_params variable cannot be kept empty in input/storage_config.yml. It should have atleast one nfs share details."
+nfs_client_params_slurm_share_fail_msg: "Exactly one entry should be present in nfs_client_params with slurm_share as true in input/storage_config.yml"
+nfs_client_params_slurm_share_success_msg: "Entry found in nfs_client_params with slurm_share as true"
+
+# Usage: fetch_omnia_inputs.yml
+config_filename: "omnia_config.yml"
+config_vaultname: .omnia_vault_key
+vault_key_permission: "0644"
+omnia_config_syntax_fail_msg: "Failed. Syntax errors present in omnia_config.yml. Fix errors and re-run playbook again."
+file_perm: '0755'
+input_config_failure_msg: "None of the parameters in omnia_config.yml should be empty."
+slurm_installation_type_empty_failure_msg: "Slurm Installation type cannot be empty in omnia_config.yml"
+slurm_installation_type_wrong_failure_msg: "Slurm Installation Type should be either nfs_share or configless in omnia_config.yml"

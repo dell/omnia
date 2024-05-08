@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -17,6 +17,9 @@
   ansible.builtin.include_vars: "{{ role_path }}/../login_common/vars/main.yml"
 
 - name: Install ipa client
+  when:
+    - hostvars['127.0.0.1']['authentication_system'] == 'freeipa'
+    - ansible_host not in groups['auth_server'][0]
   block:
     - name: Add ports to firewall to run slurm jobs
       ansible.builtin.include_tasks: firewall_settings.yml
@@ -32,7 +35,3 @@
     - name: Install 389 directory server
       ansible.builtin.include_tasks: install_389ds.yml
       when: os_leap in ansible_distribution | lower
-  when:
-    - hostvars['127.0.0.1']['freeipa_required']
-    - not hostvars['127.0.0.1']['ldap_required']
-    - inventory_hostname not in groups['manager'][0]

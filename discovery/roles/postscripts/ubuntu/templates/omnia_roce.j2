@@ -1,0 +1,64 @@
+#!/bin/bash
+################################################################################################################
+#  omnia_roce:
+#      Install and Enable RoCE on Thor nic
+#
+#################################################################################################################
+echo "---------------------------"
+
+echo "Checking for Broadcom NetXtreme-E cards" >> /var/log/xcat/xcat.log
+thor_check=$(lspci -vvv 2>/dev/null | grep -i -E "BCM5750|BCM5760")
+if [[ -n $thor_check ]]
+then
+    echo "starting RoCE Installation" >> /var/log/xcat/xcat.log
+    # Download the roce_src tar file
+    wget "http://{{ admin_nic_ip }}:80/install{{ repo_store_path }}/cluster/tarball/{{ roce_package_name }}"
+    # Extract the contents of the tar file
+    extracted_driver_name=$(tar -tzf "{{ roce_package_name }}" | head -n 1)
+    tar -xvzf "{{ roce_package_name }}"
+    # install the L2, RoCE, and Peer Memory Direct (GPU direct) drivers
+    sudo apt install -y "$(find ./$extracted_driver_name/ -name "netxtreme-peer-mem-dkms*.deb")"
+    # Download the roce_Drivers tar file
+    sudo apt install -y linux-headers-"$(uname -r)"
+    sudo apt install -y libelf-dev gcc make libtool autoconf librdmacm-dev rdmacm-utils infiniband-diags ibverbs-utils perftest ethtool libibverbs-dev rdma-core strace
+    if [ "{{ roce_src_package_name }}" != "omnia_default" ]; then
+        wget "http://{{ admin_nic_ip }}:80/install{{ repo_store_path }}/cluster/tarball/{{ roce_src_package_name }}"
+        extracted_source_name=$(tar -tzf "{{ roce_src_package_name }}" | head -n 1)
+        tar -xvzf "{{ roce_src_package_name }}"
+        find ./$extracted_source_name/ -name "*netxtreme-bnxt_en*.tar.*" -exec sh -c '
+            # Extract the tar file
+            tar -xvzf "$0" -C "$(dirname "$0")"
+            # Navigate to the extracted directory and run make
+            extracted_dir="$(dirname "$0")/$(basename "$0" | sed 's/\.tar\..*$//')"
+            if [ -d "$extracted_dir" ]; then
+                cd "$extracted_dir" || exit 1
+                make
+            else
+                echo "Extracted directory $extracted_dir does not exist"
+            fi
+        ' {} \;
+        # compile and install the RoCE library
+        find ./$extracted_source_name/ -name "*libbnxt_re*.tar.*" -exec sh -c '
+            # Extract the tar file
+            tar -xvzf "$0" -C "$(dirname "$0")"
+            # Navigate to the extracted directory and run make
+            extracted_dir="$(dirname "$0")/$(basename "$0" | sed 's/\.tar\..*$//')"
+            if [ -d "$extracted_dir" ]; then
+                cd "$extracted_dir" || exit 1
+                sh autogen.sh
+                ./configure --sysconfdir=/etc
+                make
+                make install all
+                sudo ldconfig
+                cp -f bnxt_re.driver /etc/libibverbs.d/
+            else
+                echo "Extracted directory $extracted_dir does not exist"
+            fi
+        ' {} \;
+        find /usr/lib64/ /usr/lib -name "libbnxt_re-rdmav*.so" -exec mv {} {}.inbox \;
+    fi
+    echo "RoCE Installation completed" >> /var/log/xcat/xcat.log
+else
+    echo "Broadcom NetXtreme-E cards not found" >> /var/log/xcat/xcat.log
+fi
+echo "-----------------------------"

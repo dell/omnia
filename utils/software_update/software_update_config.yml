@@ -1,0 +1,46 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+#***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.                  
+# SIMPLY APPEND THE REQUIRD VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
+#***********************************************************************
+
+# Mandatory, when package_list is not provided
+# This variable contains the list of software group mentioned in software_config.json
+# Example:
+# softwares_list:
+#   - custom
+# In above case, user is required to create custom.json under input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/custom.json, Eg: input/config/ubuntu/22.04/custom.json file.
+# This json should contain the list of packages, either .deb(Ubuntu) or .rpm(RHEL/Rocky) that should be installed on remote nodes.  
+softwares_list:
+
+# Mandatory, when softwares_list is not provided
+# This variable contains the list of packages to be installed on remote nodes
+# Example for Ubuntu:
+# package_list:
+#   - linux-generic
+#   - wget
+# Example for RHEL/Rocky:
+# package_list:
+#   - kernel*
+# For kernel update, linux-generic is package for ubuntu and kernel* is package for RHEL/Rocky.
+package_list:
+
+# Mandatory
+# This boolean variable determines if remote nodes are required to be rebooted
+# If true then all node in inventory will get rebooted
+# Default: false
+reboot_required: false

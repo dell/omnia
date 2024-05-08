@@ -1,0 +1,12 @@
+[Unit]
+Description=Nerdctl Registry
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory={{ nerdctl_registry_dir }}
+ExecStart=/bin/bash nerdctl-registry start
+ExecStop=/bin/bash nerdctl-registry stop
+
+[Install]
+WantedBy=default.target

@@ -58,7 +58,7 @@ This topic explains how to manually update servers for MPI jobs. To automaticall
     systemctl stop slurmd
     systemctl start slurmd
 
-3. Once the service restarts on the compute nodes, restart ``slurmctld.service`` on the kube_control_plane. ::
+3. Once the service restarts on the compute nodes, restart ``slurmctld.service`` on the manager node. ::
 
         systemctl stop slurmctld.service
         systemctl start slurmctld.service

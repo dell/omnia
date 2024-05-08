@@ -1,0 +1,32 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Verify if kubernetes is removed
+  ansible.builtin.command: kubectl get nodes --selector '!node-role.kubernetes.io/control-plane' -o custom-columns=NAME:.metadata.name,STATUS:.status.conditions[-1].status,TYPE:.status.conditions[-1].type,SCHEDULE:.spec.unschedulable --no-headers # noqa: yaml[line-length]
+  register: kubectl_output
+  delegate_to: "{{  groups['kube_control_plane'] | first }}"
+  failed_when: false
+  changed_when: false
+  run_once: true
+
+- name: Confirm if kubernetes node removed
+  ansible.builtin.debug:
+    msg: "{{ kube_node_removed if (kube_override_hostname not in kubectl_output.stdout) else kube_node_fail_to_remove }}"
+  when: kubectl_output.rc == 0
+
+- name: Confirm if kubernetes cluster does not have any kube_node
+  ansible.builtin.debug:
+    msg: "{{ all_kube_node_removed }}"
+  when: kubectl_output.rc == 0 and kubectl_output.stdout | length == 0

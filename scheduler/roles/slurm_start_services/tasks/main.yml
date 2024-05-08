@@ -1,4 +1,4 @@
-#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,67 +13,109 @@
 #  limitations under the License.
 ---
 
+- name: Initialize slurmctld service status
+  ansible.builtin.set_fact:
+    slurmctld_status: false
+
 - name: Tasks for slurm_start_services role
   when: hostvars['127.0.0.1']['slurm_support']
   block:
+    - name: Update PATH and LD_LIBRARY_PATH in bashrc
+      ansible.builtin.include_tasks: configure_slurm_paths.yml
+      when: slurm_installation_type == 'nfs_share'
+
+    - name: Gathering service facts
+      ansible.builtin.service_facts:
+
+    - name: Check the status of slurmctld
+      ansible.builtin.set_fact:
+        slurmctld_status: true
+      when:
+        - "'slurmctld.service' in ansible_facts.services"
+        - "ansible_facts.services['slurmctld.service'].state == 'running'"
+
+- name: Tasks for slurm_start_services role
+  when:
+    - hostvars['127.0.0.1']['slurm_support']
+    - not slurmctld_status
+  block:
     - name: Include common variables
-      include_vars: ../../slurm_manager/vars/main.yml
+      ansible.builtin.include_vars: ../../slurm_manager/vars/main.yml
 
     - name: Include common variables
-      include_vars: ../../slurm_common/vars/main.yml
+      ansible.builtin.include_vars: ../../slurm_common/vars/main.yml
 
-    - name: Copy slurm conf from buffer
-      copy:
-        src: "{{ buffer_path }}"
-        dest: "{{ slurm_confpth }}"
-        mode: "{{ slurm_mode }}"
-
-    - name: Enable slurmdbd on manager
-      systemd:
+    - name: Enable slurmdbd on slurm control node
+      ansible.builtin.systemd:
         name: slurmdbd
         state: restarted
-        enabled: yes
+        enabled: true
       tags: install
 
-    - name: Start slurmctld on manager
-      systemd:
-        name: slurmctld
-        state: restarted
-        enabled: yes
-      tags: install
+    - name: Start slurmctld on slurm control node
+      block:
+        - name: Start slurmctld on slurm control node
+          ansible.builtin.systemd:
+            name: slurmctld
+            state: restarted
+            enabled: true
+          when: hostvars['127.0.0.1']['restart_slurm_services']
+      rescue:
+        - name: Failed to start slurmctld on slurm control node
+          ansible.builtin.fail:
+            msg: "{{ slurmctld_start_fail_msg }}"
 
-    - name: check slurmdbd is active
-      systemd:
+    - name: Check slurmdbd is active
+      ansible.builtin.systemd:
         name: slurmdbd
       register: slurmdbd_status
       until: 'slurmdbd_status.status.ActiveState=="active"'
       retries: "{{ max_retries }}"
 
     - name: Show cluster if exists
-      command: sacctmgr -n show cluster {{ cluster_name }}
+      ansible.builtin.command: sacctmgr -n show cluster {{ cluster_name }}
       register: slurm_clusterlist
       changed_when: false
       until: slurm_clusterlist is not failed
       retries: "{{ max_retries }}"
 
     - name: Create slurm cluster
-      command: sacctmgr -i add cluster {{ cluster_name }}
+      ansible.builtin.command: sacctmgr -i add cluster {{ cluster_name }}
       when: not slurm_clusterlist.stdout
+      changed_when: true
 
     - name: Show account
-      command: sacctmgr show account -s
+      ansible.builtin.command: sacctmgr show account -s
       register: account_added
       changed_when: false
 
     - name: Create default slurm group
-      command: sacctmgr -i add account defaultgroup Cluster={{ cluster_name }} Description="Default Account" Organization="Default Org"
+      ansible.builtin.command: sacctmgr -i add account defaultgroup Cluster={{ cluster_name }} Description="Default Account" Organization="Default Org"
       when: account_added.rc != 0
+      changed_when: true
 
     - name: Check if user exists
-      command: sacctmgr show user -s
+      ansible.builtin.command: sacctmgr show user -s
       register: user_added
       changed_when: false
 
     - name: Add root to the default account
-      command: sacctmgr -i add user root DefaultAccount=defaultgroup
+      ansible.builtin.command: sacctmgr -i add user root DefaultAccount=defaultgroup
       when: user_added.rc != 0
+      changed_when: true
+
+- name: Start slurmctld on slurm control node
+  block:
+    - name: Start slurmctld on slurm control node
+      ansible.builtin.systemd:
+        name: slurmctld
+        state: restarted
+        enabled: true
+      when:
+        - hostvars['127.0.0.1']['slurm_support']
+        - slurmctld_status
+        - hostvars['127.0.0.1']['restart_slurm_services']
+  rescue:
+    - name: Failed to start slurmctld on slurm control node
+      ansible.builtin.fail:
+        msg: "{{ slurmctld_start_fail_msg }}"

@@ -1,7 +1,7 @@
 Creating A Pull Request
 ======================
 
-Contributions to Omnia are made through `Pull Requests (PRs) <https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-requests>`_.
+Contributions to Omnia are made through `Pull Requests (PRs) <https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-requests>`_. To make a pull request against Omnia, use the following steps.
 
 .. image:: ../images/omnia-branch-structure.png
 
@@ -40,7 +40,7 @@ Commit changes
     git commit -s
 
 
-Ensure you have your user name and e-mail set. The ``--signoff | -s`` option will use the configured user name and e-mail, so it is important to configure it before the first time you commit. Check the following references:
+Make sure you have your user name and e-mail set. The ``--signoff | -s`` option will use the configured user name and e-mail, so it is important to configure it before the first time you commit. Check the following references:
 
     * `Setting up your github user name <https://help.github.com/articles/setting-your-username-in-git/>`_
 
@@ -56,8 +56,8 @@ PR description
 ---------------
 
 Be sure to fully describe the pull request. Ideally, your PR description will contain:
-    1. A description of the main point (that is, why was this PR made?),
-    2. Linking text to the related issue (that is, This PR closes issue #<issue_number>),
+    1. A description of the main point (i.e., why was this PR made?),
+    2. Linking text to the related issue (i.e., This PR closes issue #<issue_number>),
     3. How the changes solves the problem
     4. How to verify that the changes work correctly.
 

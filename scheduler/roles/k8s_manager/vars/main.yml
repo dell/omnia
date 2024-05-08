@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,12 +13,10 @@
 #  limitations under the License.
 ---
 
-helm_installer_file_directory: /root/bin
+# Usage: main.yml
+os_supported_redhat: "redhat"
+os_supported_rocky: "rocky"
 
-helm_installer_file_directory_mode: 0755
-
-helm_installer_url: https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
-
-helm_installer_file_dest: /root/bin/get_helm.sh
-
-helm_installer_file_mode: 0700
+# Usage: fetch_k8s_nodes.yml
+docker_login_fail_msg: "If repo_config: never, please check the credentials and re-execute playbook. Skip otherwise."
+k8s_version: "{{ hostvars['localhost']['k8s_version'] }}"

@@ -1,0 +1,45 @@
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Read software_config.json
+  ansible.builtin.include_vars:
+    file: "{{ software_config_file }}"
+    name: software_config
+
+- name: Check if telemetry entry is present in software_config.json
+  ansible.builtin.set_fact:
+    telemetry_entry_present: "{{ software_config['softwares'] | selectattr('name', 'equalto', 'telemetry') | list | count > 0 }}"
+
+- name: Check if slurm entry is present in software_config.json
+  ansible.builtin.set_fact:
+    slurm_entry_present: "{{ software_config['softwares'] | selectattr('name', 'equalto', 'slurm') | list | count > 0 }}"
+
+- name: Check if k8s entry is present in software_config.json
+  ansible.builtin.set_fact:
+    k8s_entry_present: "{{ software_config['softwares'] | selectattr('name', 'equalto', 'k8s') | list | count > 0 }}"
+
+- name: Proceed with telemetry validation if telemetry entry present in software_config.json
+  when: telemetry_entry_present
+  block:
+    - name: Include local_repo_access.yml
+      ansible.builtin.include_vars: "{{ local_repo_access_path }}"
+
+    - name: Get cluster_os_type from software_config.json
+      ansible.builtin.set_fact:
+        cluster_os_type: "{{ software_config['cluster_os_type'] }}"
+
+    - name: Load telemetry.json
+      ansible.builtin.set_fact:
+        telemetry_packages: "{{ lookup('file', telemetry_packages_file) | from_json }}"

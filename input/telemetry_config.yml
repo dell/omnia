@@ -32,22 +32,32 @@ omnia_telemetry_support: false
 # Accepted values:  true or false
 visualization_support: false
 
-##### BELOW VARIABLES ARE MANDATORY IF EITHER idrac_telemetry_support OR omnia_telemetry_support OR visualization_support IS true
-# Kubernetes pod network CIDR for appliance k8s network
-# Make sure this value does not overlap with any of the host networks.
-# Default value: "192.168.0.0/16"
-appliance_k8s_pod_net_cidr: "192.168.0.0/16"
-
-# These addresses will be used by Loadbalancer for assigning External IPs to K8s services(Timescaledb and Grafana)
-# If pod_external_ip_start_range: "x.y.240.100" and pod_external_ip_end_range: "x.y.240.105" and 
-# If admin_nic_subnet provided in provision_config.yml is 10.5.0.0, pod_external_ip_start_range will be 10.5.240.100 and pod_external_ip_end_range will be 10.5.240.105
+##### BELOW VARIABLES ARE MANDATORY IF telemetry ENTRY is PRESENT in software_config.json AND EITHER idrac_telemetry_support OR omnia_telemetry_support OR visualization_support IS true
+###-----CONFIGURATIONS FOR KUBERNETES ON CONTROL PLANE FOR TELEMETRY SUPPORT------
+# These addresses will be used by Loadbalancer for assigning External IPs to K8s services running on control plane
 # Make sure the IP range is not assigned to any node in the cluster.
-# First and Second octet values are neither validated nor used by Omnia. Instead they will be calculated internally by Omnia from admin_nic_subnet provided in provision_config.yml
-# Only third and fourth octet values will be validated and used for External IPs
-# The third octet value of pod_external_ip_end_range should be greater than or equal to third octet value of pod_external_ip_start_range.
-# The fourth octet value of pod_external_ip_end_range should be greater than fourth octet value of pod_external_ip_start_range when third octet values are same
-pod_external_ip_start_range: "x.y.240.100"
-pod_external_ip_end_range: "x.y.240.105"
+# If admin_nic network provided in network_spec.yml is in 10.11.0.0 network, then pod_external_ip_range should be in same netwwork like "10.11.0.60-10.11.0.70"
+# Acceptable formats: "10.11.0.100-10.11.0.150" , "10.11.0.0/16"
+# Provide a different ip range than that of external ip range entered in omnia_config.yml
+# Mandatory Field
+pod_external_ip_range: ""
+
+# Kubernetes SDN network.
+# Accepted values: "calico" or "flannel".
+# Default value assigned is "calico".
+k8s_cni: "calico"
+
+###------ADVANCE CONFIGURATIONS FOR KUBERNETES------
+# Kubernetes internal network for services.
+# This network must be unused in your network infrastructure.
+# Default value is "10.233.0.0/18"
+k8s_service_addresses: "10.233.0.0/18"
+
+# Kubernetes pod network CIDR for internal network. When used, it will assign IP
+# addresses from this range to individual pods.
+# This network must be unused in your network infrastructure.
+# Default value is "10.233.64.0/18"
+k8s_pod_network_cidr: "10.233.64.0/18"
 
 # Username used for connecting to timescale db
 # The username must not contain -,\, ',"

@@ -1,0 +1,47 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Adding the path in the bashrc files
+  ansible.builtin.lineinfile:
+    path: "{{ env_var_path }}"
+    line: "export PATH=/usr/local/openldap/sbin:/usr/local/openldap/bin:$PATH"
+    insertafter: EOF
+    state: present
+
+- name: Search schema
+  ansible.builtin.command: "{{ ldap_bin_path }}ldapsearch -Y EXTERNAL -H {{ ldap_host_string }} -b {{ ldaptoolbox_openldap_suffix }}"
+  changed_when: false
+  ignore_errors: true
+  register: schema_output
+  no_log: true
+
+- name: Verify and add domain config
+  when: schema_output is not search(schema_search_string)
+  block:
+    - name: Create ldap config directory
+      ansible.builtin.file:
+        path: "{{ openldap_config_dest_dir }}"
+        state: directory
+        mode: "{{ openldap_config_permissions }}"
+
+    - name: Deploy domain config file
+      ansible.builtin.template:
+        src: "{{ openldap_config_src_path }}"
+        dest: "{{ openldap_config_dest_dir }}"
+        mode: "{{ openldap_configuration_mode }}"
+
+    - name: Execute domain config file
+      ansible.builtin.command: "{{ ldap_bin_path }}ldapadd -Y EXTERNAL -H {{ ldap_host_string }} -f {{ openldap_config_dest_dir }}/add_domain.ldif"
+      changed_when: false

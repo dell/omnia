@@ -1,0 +1,26 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+omnia_config_file_path: "{{ role_path }}/../../../input/omnia_config.yml"
+omnia_config_vault_key: "{{ role_path }}/../../../input/.omnia_vault_key"
+binary_files_path: "/opt/omnia/telemetry/dist/omnia_telemetry"
+ansible_vault_search_key: "$ANSIBLE_VAULT;"
+
+# variables for the 1.5 nfs cleanup
+omnia_config_file_name: "omnia_config.yml"
+omnia_15_config_vault_key: ".omnia_vault_key"
+exports_file_path: "/etc/exports"
+fstab_file_path: "/etc/fstab"
+spool_clustername_file: "/var/spool/clustername"

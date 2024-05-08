@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,7 +17,27 @@
   ansible.builtin.command: dnf clean all
   changed_when: true
 
-- name: Install intel packages(This might take 10-20 minutes)
-  ansible.builtin.package:
-    name: "{{ intel_packages }}"
-    state: present
+- name: Read package details of software - intel_benchmarks
+  ansible.builtin.include_vars:
+    file: "{{ json_folder }}/intel_benchmarks.json"
+    name: "custom_config"
+
+- name: Install packages
+  block:
+    - name: Install Package
+      ansible.builtin.package:
+        name: "{{ item.package }}"
+        state: present
+      when:
+        - custom_config.intel_benchmarks.cluster[item_index].repo_name is defined
+        - custom_config.intel_benchmarks.cluster[item_index].type is defined
+        - custom_config.intel_benchmarks.cluster[item_index].type == 'rpm'
+      loop: "{{ custom_config.intel_benchmarks.cluster }}"
+      loop_control:
+        loop_var: item
+        index_var: item_index
+
+  rescue:
+    - name: Unable to install intel packages
+      ansible.builtin.fail:
+        msg: "{{ intel_packages_fail_msg }}"

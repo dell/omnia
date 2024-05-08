@@ -3,14 +3,12 @@ GPU accelerator configuration
 
 The accelerator role allows users to  set up the `AMD ROCm <https://www.amd.com/en/graphics/servers-solutions-rocm>`_ platform or the `CUDA Nvidia toolkit <https://developer.nvidia.com/cuda-zone>`_. These tools allow users to unlock the potential of installed GPUs.
 
-Ensure that CUDA and ROCm local repositories are configured using the `local_repo.yml script. <../../InstallationGuides/LocalRepo/index.html>`_
-
 Enter all required parameters in ``input/accelerator_config.yml``.
 
 +----------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Parameters           | Details                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 +======================+=========================================================================================================================================================================================================================================================================================================================================================================================================================================+
-| amd_gpu_version      |  This variable accepts the amd gpu   version for the RHEL specific OS version.    Verify if the version provided is present in the repo for the OS   version on your node.  Verify the url   for the compatible version: https://repo.radeon.com/amdgpu/ .  If 'latest' is provided in the variable and   the cluster  os version is rhel 8.5. Then the url transforms to   https://repo.radeon.com/amdgpu/latest/rhel/8.5/main/x86_64/ |
+| amd_gpu_version      |  This variable accepts the amd gpu   version for the RHEL specific OS version.    Verify if the version provided is present in the repo for the OS   version on your node.  Verify the url   for the compatible version: https://repo.radeon.com/amdgpu/ .  If 'latest' is provided in the variable and   the cluster  os version is rhel 8.5. Then the url transforms to   https://repo.radeon.com/amdgpu/latest/rhel/8.5/main/x86_64/  |
 |      ``string``      |                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 |      Optional        |      **Default values**: ``22.20.3``                                                                                                                                                                                                                                                                                                                                                                                                    |
 +----------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -35,6 +33,7 @@ Enter all required parameters in ``input/accelerator_config.yml``.
 .. note::
 	* Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to run ``accelerator.yml`` on RHEL target nodes.
 	* For RHEL target nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription.
+	* If ``cuda_toolkit_path`` is provided in ``input/provision_config.yml`` and NVIDIA GPUs are available on the target nodes, CUDA packages will be deployed post provisioning without user intervention during the execution of ``provision.yml``.
 	* AMD ROCm driver installation is not supported by Omnia on Rocky cluster  nodes.
 
 To install all the latest GPU drivers and toolkits, run: ::
@@ -42,9 +41,9 @@ To install all the latest GPU drivers and toolkits, run: ::
 	cd accelerator
 	ansible-playbook accelerator.yml -i inventory
 
+(where inventory consists of manager, cluster  and login nodes)
 
 The following configurations take place when running ``accelerator.yml``
-
 	i. Servers with AMD GPUs are identified and the latest GPU drivers and ROCm platforms are downloaded and installed.
 	ii. Servers with NVIDIA GPUs are identified and the specified CUDA toolkit is downloaded and installed.
 	iii. For the rare servers with both NVIDIA and AMD GPUs installed, all the above mentioned download-ables are installed to the server.

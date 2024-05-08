@@ -12,7 +12,7 @@ To initiate telemetry support, fill out the following parameters in ``input/tele
 
 .. [1] Boolean parameters do not need to be passed with double or single quotes.
 
-Once you have executed ``discovery_provision.yml`` and has also provisioned the cluster, initiate telemetry on the cluster as part of ``omnia.yml``, which configures the cluster with scheduler, storage and authentication using the below command. ::
+Once you have executed ``provision.yml`` and has also provisioned the cluster, initiate telemetry on the cluster as part of ``omnia.yml``, which configures the cluster with scheduler, storage and authentication using the below command. ::
 
     ansible-playbook omnia.yml -i inventory
 
@@ -45,7 +45,7 @@ To modify how data is collected from the cluster, modify the variables in ``omni
 .. note::
     * Currently, changing the ``grafana_username`` and ``grafana_password`` values is not supported via ``telemetry.yml``.
     * The passed inventory should have an idrac group, if ``idrac_telemetry_support`` is true.
-    * If ``omnia_telemetry_support`` is true, then the inventory should have control plane and cluster node groups (as specified in the sample files) along with optional login group.
+    * If ``omnia_telemetry_support`` is true, then the inventory should have manager and compute groups along with optional login group.
     * Rocky 8.7 is not compatible with the Kubernetes installed by ``telemetry.yml`` due to known issues with cri-o. For more information, `click here <https://github.com/cri-o/cri-o/issues/6197>`_.
     * If a subsequent run of ``telemetry.yml`` fails, the ``telemetry_config.yml`` file will be unencrypted.
 
@@ -95,7 +95,7 @@ Datasources configured by Omnia can be viewed as seen below.
 
     iii. The log browser allows you to filter logs by job, node and/or user.
 
-Example ::
+Ex: ::
 
     (job)= "cluster deployment logs") |= "nodename"
     (job="compute log messages") |= "nodename" |="node_username"

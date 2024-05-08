@@ -17,10 +17,14 @@
   ansible.builtin.import_tasks: clean_provision_setup.yml
   tags: provision
 
-- name: Cleanup docker-registry setup
-  ansible.builtin.import_tasks: clean_docker_registry.yml
-  tags: provision, docker-registry
-
 - name: Cleanup telemetry setup
   ansible.builtin.import_tasks: clean_telemetry_setup.yml
   tags: telemetry
+
+- name: Cleanup local repo setup
+  ansible.builtin.import_tasks: clean_local_repo_setup.yml
+  tags: local_repo
+
+- name: Cleanup nfs server
+  ansible.builtin.import_tasks: clean_nfs_server.yml
+  tags: nfs_server

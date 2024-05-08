@@ -18,13 +18,13 @@
     user: "{{ item }}"
 
 - name: Vailidate ldap home directory
-  delegate_to: "{{ groups['manager'][0] }}"
+  delegate_to: "{{ groups['auth_server'][0] }}"
   run_once: true
   when: hostvars['127.0.0.1']['authentication_type'] == "ldap"
   block:
     - name: Check ldap home directory exists - {{ user }}
       ansible.builtin.stat:
-        path: "{{ hostvars['127.0.0.1']['user_home_dir'] }}/{{ user }}"
+        path: "{{ user_home_dir }}/{{ user }}"
       register: ldap_directory
 
     - name: Fail if ldap home directory not exists - {{ user }}
@@ -34,16 +34,16 @@
 
     - name: Set ldap user_home_directory - {{ user }}
       ansible.builtin.set_fact:
-        user_home_directory: "{{ hostvars['127.0.0.1']['user_home_dir'] }}"
+        user_home_directory: "{{ user_home_dir }}"
 
 - name: Vailidate freeIPA home directory
-  delegate_to: "{{ groups['manager'][0] }}"
+  delegate_to: "{{ groups['auth_server'][0] }}"
   run_once: true
   when: hostvars['127.0.0.1']['authentication_type'] == "freeipa"
   block:
     - name: Check ipa home directory exists - {{ user }}
       ansible.builtin.stat:
-        path: "{{ hostvars['127.0.0.1']['freeipa_user_home_dir'] }}/{{ user }}"
+        path: "{{ user_home_dir }}/{{ user }}"
       register: ipa_directory
 
     - name: Fail if ipa home directory not exists - {{ user }}
@@ -53,4 +53,4 @@
 
     - name: Set ipa user_home_directory - {{ user }}
       ansible.builtin.set_fact:
-        user_home_directory: "{{ hostvars['127.0.0.1']['freeipa_user_home_dir'] }}"
+        user_home_directory: "{{ user_home_dir }}"

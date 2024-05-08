@@ -6,11 +6,11 @@
 Omnia: Everything at once!
 ----------------------------------
 
-|Omnia version| |Downloads| |Last Commit| |Contributors| |Forks| |License|
+|Omnia version| |Downloads| |Last Commit| |Commits Since 1.4.3| |Contributors| |Forks| |License|
 
 Ansible playbook-based deployment of Slurm and Kubernetes on servers running an RPM-based Linux OS.
 
-**Omnia**, derived from the Latin word for "all" or "everything", serves as a deployment tool designed to transform servers equipped with RPM-based Linux images into fully operational Slurm/Kubernetes clusters.
+**Omnia** (Latin: all or everything) is a deployment tool to turn servers with RPM-based Linux images into functioning Slurm/Kubernetes clusters.
 
 **Omnia** is an open source project hosted on `GitHub <https://github.com/dell/omnia>`_. Go to `GitHub <https://github.com/dell/omnia>`_ to view the source, open issues, ask questions, and participate in the project.
 
@@ -66,6 +66,7 @@ For a better understanding of what Omnia does, check out our `docs <https://omni
 .. |Omnia version| image:: https://img.shields.io/github/v/release/dell/omnia?include_prereleases
 .. |Downloads| image:: https://img.shields.io/github/downloads/dell/omnia/total
 .. |Last Commit| image:: https://img.shields.io/github/last-commit/dell/omnia/main
+.. |Commits Since 1.4.3| image:: https://img.shields.io/github/commits-since/dell/omnia/v1.4.3/main
 .. |Contributors| image:: https://img.shields.io/github/all-contributors/dell/omnia
    :target: docs/CONTRIBUTORS.md
    :alt: Contributors

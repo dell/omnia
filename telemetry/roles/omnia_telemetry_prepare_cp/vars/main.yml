@@ -34,4 +34,4 @@ config_encryption_utility: "{{ role_path }}/files/encrypt_config.py"
 # Usage: create_omnia_telemetry_schema.yml
 timescaledb_vars_filepath: "{{ role_path }}/../timescaledb/vars/main.yml"
 db_schema_utility: "{{ role_path }}/files/omnia_telemetry_schema_creation.py"
-python_version: python3.8
+python_version: python3.9

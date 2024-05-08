@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
 ---
 
 - name: Validate rhsm status on manager node
+  when: "'manager' in group_names"
   block:
     - name: Fetch redhat subscription status
       ansible.builtin.command: subscription-manager list
@@ -36,19 +37,19 @@
           - "'baseos' in rhsm_repo_list.stdout"
   rescue:
     - name: Fail if manager node subscription is not proper
-      debug:
+      ansible.builtin.debug:
         msg:
           - "Playbook failed because of one of the following reasons:"
           - "{{ manager_inactive_msg1 }}"
           - "{{ manager_inactive_msg2 }}"
 
     - name: End playbook execution
-      shell: /bin/false
+      ansible.builtin.command: /bin/false
       run_once: true
-
-  when: "'manager' in group_names"
+      changed_when: true
 
 - name: Validate rhsm status on all remaining nodes
+  when: "'manager' not in group_names"
   block:
     - name: Fetch redhat subscription status
       ansible.builtin.command: subscription-manager list
@@ -66,18 +67,16 @@
 
     - name: Check redhat enabled repos
       ansible.builtin.assert:
-        that: 
+        that:
           - "'appstream' in rhsm_repo_list.stdout"
           - "'baseos' in rhsm_repo_list.stdout"
   rescue:
     - name: Removing host as it's redhat subscription is not proper
-      fail:
+      ansible.builtin.fail:
         msg:
           - "Execution skipped for this host because of one of the following reasons:"
           - "{{ compute_inactive_msg1 }}"
           - "{{ compute_inactive_msg2 }}"
-
-  when: "'manager' not in group_names"
 
 - name: Subscribe for codeready-builder repo in RHEL
   ansible.builtin.command: subscription-manager repos --enable "{{ rhel_code_ready_repo }}"

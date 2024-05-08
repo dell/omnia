@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -20,20 +20,26 @@
   ansible.builtin.set_fact:
     compute_os: "{{ ansible_distribution | lower }}"
 
+- name: Include vars for {{ compute_os }}
+  ansible.builtin.include_vars: "{{ role_path }}/vars/{{ compute_os }}.yml"
+
 - name: Install BeeGFS client
   when:
-    - beegfs_support
+    - hostvars['127.0.0.1']['beegfs_support']
     - os_supported_leap not in compute_os
   block:
+    - name: Clean the existing beegfs version
+      ansible.builtin.include_tasks: remove_client_{{ compute_os }}.yml
+      when: beegfs_version_change
+
+    - name: Run prerequisites for {{ compute_os }}
+      ansible.builtin.include_tasks: prerequisites_{{ compute_os }}.yml
+
     - name: Check prerequisites
       ansible.builtin.include_tasks: prerequisites.yml
 
-    - name: Clean the existing beegfs version
-      ansible.builtin.include_tasks: remove_client.yml
-      when: beegfs_version_change
-
     - name: Configure firewalld
-      ansible.builtin.include_tasks: beegfs_firewalld.yml
+      ansible.builtin.include_tasks: beegfs_firewall_{{ compute_os }}.yml
 
     - name: Install BeeGFS client
       ansible.builtin.include_tasks: beegfs_client.yml

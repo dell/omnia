@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,7 +14,6 @@
 ---
 
 # Usage: check_prerequisites.yml
-return_status: 200
 ipa_admin_username: admin
 
 # Usage: install_packages.yml
@@ -62,5 +61,5 @@ sssd_packages:
   - sssd
   - sssd-ldap
 admin_group_name: server_admins
-sssd_file_mode: 0600
+sssd_file_mode: "0600"
 sssd_config_path: /etc/sssd/sssd.conf

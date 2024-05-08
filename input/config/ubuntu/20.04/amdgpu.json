@@ -1,0 +1,14 @@
+{
+  "amdgpu": {
+    "cluster": [
+        {"package": "linux-headers-$(uname -r)", "type": "deb", "repo_name": "focal"},
+        {"package": "linux-modules-extra-$(uname -r)", "type": "deb", "repo_name": "focal"},
+        {"package": "amdgpu-dkms", "type": "deb", "repo_name": "amdgpu"}
+    ]
+  },
+  "rocm": {
+    "cluster": [
+      {"package": "rocm-hip-sdk{{ rocm_version }}*", "type": "deb", "repo_name": "rocm"}
+    ]
+  }
+}

@@ -18,5 +18,5 @@ Via CLI: ::
     cd omnia/utils
     ansible-playbook kernel_upgrade.yml -i inventory -e rhsm_kernel_version=x.xx.x-xxxx
 
-Where the inventory refers to a file listing all nodes per the format provided in `inventory file <../samplefiles.html>`_. The inventory file is case-sensitive. Follow the format provided in the sample file link.
+Where the inventory refers to a file listing all manager and compute nodes per the format provided in `inventory file <../samplefiles.html>`_. The inventory file is case-sensitive. Follow the casing provided in the sample file link.
 

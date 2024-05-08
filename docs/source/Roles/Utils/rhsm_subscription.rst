@@ -29,7 +29,7 @@ Red Hat Subscription
 |      ``string``                            |      If the quantity is provided, it is used to consume multiple entitlements   from a pool (the pool must support this).                                                                                                                                                                               |
 |      Optional                              |                                                                                                                                                                                                                                                                                                         |
 +--------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| redhat_subscription_repos                  | The list of repositories to enable or disable.When providing multiple   values, a YAML list or a comma-separated list are accepted.                                                                                                                                                                     |
+| redhat_subscription_repos                  | The list of repositories to enable or disable.When providing multiple   values, a YAML list or a comma separated list are accepted.                                                                                                                                                                     |
 |      ``string``                            |                                                                                                                                                                                                                                                                                                         |
 |      Optional                              |                                                                                                                                                                                                                                                                                                         |
 +--------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -146,7 +146,7 @@ Before running ``omnia.yml``, it is mandatory that red hat subscription be set u
         cd utils
         ansible-playbook rhsm_subscription.yml -i inventory -e redhat_subscription_activation_key="<activation-key>" -e redhat_subscription_org_id="<org-id>"
 
-Where the inventory refers to a file listing all nodes per the format provided in `inventory file <../../samplefiles.html>`_. The inventory file is case-sensitive. Follow the format provided in the sample file link.
+Where the inventory refers to a file listing all manager and compute nodes per the format provided in `inventory file <../../samplefiles.html>`_. The inventory file is case-sensitive. Follow the casing provided in the sample file link.
 
 
 

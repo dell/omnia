@@ -74,7 +74,7 @@ The monitor role sets up `Grafana <https://grafana.com/>`_ ,  `Prometheus <https
     ii. In the Explore page, select **control-plane-loki**.
     .. image:: ../../images/Grafana_ControlPlaneLoki.png
     iii. The log browser allows users to filter logs by job, node and/or user.
-        Example ::
+        Ex: ::
 
             (job= "cluster deployment logs") |= "nodename"
             (job="compute log messages") |= "nodename" |="node_username"
