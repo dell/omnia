@@ -1,0 +1,36 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Usage: main.yml
+nodeinfo_db_config_file: "{{ role_path }}/../../nodeinfo_db_config.yml"
+
+# Usage: validate_inputs.yml
+nodeinfo_db_default_show_column_list1: "id,service_tag,node,hostname,admin_mac,admin_ip,bmc_ip,status,discovery_mechanism,"
+nodeinfo_db_default_show_column_list2: "bmc_mode,switch_ip,switch_name,switch_port,cpu,gpu,cpu_count,gpu_count"
+nodeinfo_db_default_show_column_list: "{{ nodeinfo_db_default_show_column_list1 + nodeinfo_db_default_show_column_list2 }}"
+
+nodeinfo_db_error_rescue_condition: "An error occurred during validation. Please check user input file nodeinfo_db_config.yml"
+nodeinfo_db_error_attribute: "One or more attributes do not exist in cluster.nodeinfo"
+nodeinfo_db_error_filter_attributes: "One or more filter attributes do not exist in cluster.nodeinfo"
+nodeinfo_db_error_filter_attributes_length: "Filter variable length is not same, hence unable to filter"
+
+# Usage: db_dump.yml
+nodeinfo_db_omniadb: "omniadb"
+nodeinfo_db_login_user: "postgres"
+
+nodeinfo_db_filename_tmp: "/tmp/nodeinfo_data.csv"
+nodeinfo_db_file_owner: "root"
+nodeinfo_db_file_group: "root"
+nodeinfo_db_file_mode: "0644"

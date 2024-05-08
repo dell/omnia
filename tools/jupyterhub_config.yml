@@ -1,0 +1,54 @@
+# This is the default config file that omnia utilizes to configure Jupyterhub deployment.
+# Users are adviced to modify this file to their needs.
+
+proxy:
+  secretToken: "1c8572f630701e8792bede122ec9c4179d9087f801e1a85ed32cce69887aec1b"
+hub:
+  cookieSecret: "1c8572f630701e8792bede122ec9c4179d9087f801e1a85ed32cce69887aec1b"
+  service:
+    type: ClusterIP
+  db:
+    type: sqlite-pvc
+  extraConfig:
+    jupyterlab: |
+      c.Spawner.cmd = ['jupyter-labhub']
+      c.Spawner.http_timeout = 60
+singleuser:
+  image:
+    name: quay.io/jupyterhub/k8s-singleuser-sample
+    tag: "3.2.0"
+  cmd: null
+  profileList:
+    - display_name: "CPU only Notebook"
+      description: "Jupyter notebook with only CPU support"
+      kubespawner_override:
+        image: "quay.io/jupyterhub/k8s-singleuser-sample:3.2.0"
+    - display_name: "NVIDIA GPU Notebook"
+      description: "Jupyter notebook with NVIDIA GPU support"
+      kubespawner_override:
+        image: "quay.io/jupyterhub/k8s-singleuser-sample:3.2.0"
+        extra_resource_limits:
+          nvidia.com/gpu: "1"
+    - display_name: "AMD GPU Notebook"
+      description: "Jupyter notebook with AMD GPU support"
+      kubespawner_override:
+        image: "quay.io/jupyterhub/k8s-singleuser-sample:3.2.0"
+        extra_resource_limits:
+          amd.com/gpu: "1"
+  storage:
+    homeMountPath: /home/jovyan
+    dynamic:
+      storageClass: nfs-client
+      pvcNameTemplate: claim-{username}
+      volumeNameTemplate: volume-{username}
+      storageAccessModes: [ReadWriteOnce]
+  cpu:
+    limit: 1
+  memory:
+    limit: 5G
+    guarantee: 1G
+  defaultUrl: "/lab"
+
+prePuller:
+  continuous:
+    enabled: true

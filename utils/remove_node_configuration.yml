@@ -1,0 +1,85 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Warning and User confirmation for removing slurm and kube node
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - { role: remove_node/user_confirmation } # noqa: role-name[path]
+    - { role: servicetag_host_mapping }
+    - { role: common }
+  tags: always
+
+- name: Proceeding to remove slurm node
+  tags: slurm_node
+  hosts: localhost
+  connection: ssh
+  gather_facts: false
+  roles:
+    - { role: remove_node/validate_slurm_node } # noqa: role-name[path]
+
+- name: Remove slurm node
+  tags: slurm_node
+  hosts: remove_slurm_node
+  connection: ssh
+  gather_facts: false
+  roles:
+    - { role: remove_node/remove_slurm_node } # noqa: role-name[path]
+
+- name: Proceeding to remove kube node
+  tags: kube_node
+  hosts: localhost
+  connection: ssh
+  gather_facts: false
+  roles:
+    - { role: remove_node/remove_kube_node } # noqa: role-name[path]
+  tasks:
+    - name: Add host
+      when: removing_nodes is defined and removing_nodes | length > 0
+      ansible.builtin.add_host:
+        name: "remove_nodes"
+        nodes_removing: "{{ removing_nodes }}"
+
+- name: Remove kube nodes
+  tags: kube_node
+  when: hostvars['remove_nodes']['nodes_removing'] is defined
+  ansible.builtin.import_playbook: '{{ playbook_dir }}/playbooks/remove_kube_node.yml'
+  vars:
+    node: "{{ hostvars['remove_nodes']['nodes_removing'] }}"
+
+# manually removing kube service address from /etc/resolv.conf
+- name: Remove kube service address from kube nodes
+  tags: kube_node
+  hosts: remove_kube_node
+  connection: ssh
+  roles:
+    - { role: remove_node/post_kube_node_removal } # noqa: role-name[path]
+
+- name: Confirm slurm_node removal
+  hosts: remove_slurm_node
+  connection: ssh
+  gather_facts: false
+  tags: slurm_node
+  roles:
+    - { role: remove_node/verify_slurm_node_removal } # noqa: role-name[path]
+
+- name: Confirm kube_node removal
+  hosts: remove_kube_node
+  connection: ssh
+  gather_facts: false
+  tags: kube_node
+  roles:
+    - { role: remove_node/verify_kube_node_removal } # noqa: role-name[path]

@@ -1,4 +1,4 @@
-#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,35 +13,23 @@
 #  limitations under the License.
 ---
 
-# Usage: include_provision_config.yml
-provision_config_filename: "{{ role_path }}/../../../input/provision_config.yml"
-provision_vault_path: "{{ role_path }}/../../../input/.provision_vault_key"
-ansible_vault_search_key: "$ANSIBLE_VAULT;"
-provision_config_syntax_fail_msg: "Failed. Syntax errors present in provision_config.yml. Fix errors and re-run playbook again."
-conf_file_mode: 0644
-
 # Usage: validations.yml
-invalid_inventory_fail_msg: "Failed. Invalid inventory format. Provide inventory with manager and compute group."
-xcat_running_fail_msg: "Failed. xCAT services are not running. Run provision.yml before executing this playbook."
+invalid_inventory_fail_msg: "Failed. Invalid inventory format. Provide inventory with slurm_control_node and slurm_node group."
 os_supported_rocky: rocky
 os_supported_rhel: rhel
-provision_os_success_msg: "provision_os validated"
-provision_os_fail_msg: "Failed. Incorrect provision_os selected. Supported OS are {{ os_supported_rocky }} or {{ os_supported_rhel }}"
-supported_rhel_os_version: ["8.0", "8.1", "8.2", "8.3", "8.4", "8.5", "8.6", "8.7", "8.8", "8.9"]
-provision_os_version_fail_msg: "Failed. Invalid provision_os_version: {{ provision_os_version }} provided in provision_config.yml.
-Supported provision_os_version values are 8.0,8.1,8.2,8.3,8.4,8.5,8.6,8.7,8.8"
-
-# Usage: fetch_osimage.yml
-osimage_search_key: install-compute
-
-# Usage: intel_repo_config.yml
-oneapi_repo_path:
-  - { src: "{{ role_path }}/files/oneapi.repo", dest: "/etc/yum.repos.d/oneapi.repo", mode: 0644 }
-omnia_common_xcat_repo: "{{ other_pkg_dir }}/omnia/Packages"
-download_intel_package_fail_msg: "Failed. Unable to download packages from the intel repo configured in control plane.
-This might be due to internet connectivity issue when accessing the intel repository. Try re-running playbook after sometime."
+cluster_os_type_success_msg: "cluster_os_type validated"
+cluster_os_type_fail_msg: "Failed. Incorrect cluster_os_type selected. Supported OS are {{ os_supported_rocky }} or {{ os_supported_rhel }}"
+supported_rhel_os_version: ["8.6", "8.7", "8.8"]
+provision_os_version_fail_msg: "Failed. Invalid cluster_os_version: {{ cluster_os_version }} provided in software_config.json.
+Supported cluster_os_version values 8.6,8.7,8.8"
 
 # Usage: install_packages.yml
-intel_packages:
-  - intel-basekit
-  - intel-hpckit
+json_folder: "{{ role_path }}/../../../input/config/{{ cluster_os_type }}/{{ cluster_os_version }}"
+intel_packages_fail_msg: "Failed to install intel packages. Ensure local_repo.yml is run as packages were not able to install."
+
+# Usage: fetch_software_config.yml
+software_config_json_file: "{{ role_path }}/../../../input/software_config.json"
+local_repo_config_file: "{{ role_path }}/../../../input/local_repo_config.yml"
+intel_benchmarks_support_false_fail_msg: "intel_benchmarks is not present in software_config.json.
+Please mention intel_benchmarks in software_config.json and execute local_repo.yml again."
+intel_benchmarks_version_fail_msg: "Failed, Ensure version of intel_benchmarks is mentioned in software_config.json"

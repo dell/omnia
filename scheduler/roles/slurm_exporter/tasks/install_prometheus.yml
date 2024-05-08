@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -17,13 +17,13 @@
   ansible.builtin.unarchive:
     src: "{{ prometheus_git_repo }}"
     dest: "{{ installation_dir }}"
-    remote_src: yes
+    remote_src: true
 
 - name: Copy prometheus executable to /usr/local/bin
   ansible.builtin.copy:
     src: "{{ prometheus_exec_path }}"
     dest: "{{ system_local_path }}"
-    remote_src: yes
+    remote_src: true
     mode: "{{ file_permission }}"
 
 - name: Configure prometheus for slurm exporter
@@ -38,62 +38,3 @@
           scrape_timeout:   30s
           static_configs:
             - targets: ['localhost:{{ slurm_exporter_port }}']
-
-- name: Install & configure nginx
-  block:
-    - name: Install nginx
-      ansible.builtin.package:
-        name: nginx
-        state: present
-      when: ansible_facts['distribution'] != opensuse_os_name
-
-    - name: Install nginx
-      community.general.zypper:
-        name: nginx
-        state: present
-      when: ansible_facts['distribution'] == opensuse_os_name
-
-    - name: Configure nginx.conf (1/2)
-      ansible.builtin.replace:
-        path: "{{ playbook_dir }}/roles/k8s_start_services/templates/nginx.conf.j2"
-        regexp: '        server_name  .*'
-        replace: "        server_name  {{ ansible_default_ipv4.address }};"
-      delegate_to: localhost
-
-    - name: Configure nginx.conf (2/2)
-      ansible.builtin.replace:
-        path: "{{ playbook_dir }}/roles/k8s_start_services/templates/nginx.conf.j2"
-        regexp: '          proxy_pass http://.*'
-        replace: "          proxy_pass {{ prometheus_ip }};"
-      delegate_to: localhost
-
-    - name: Load nginx conf
-      ansible.builtin.template:
-        src: "{{ playbook_dir }}/roles/k8s_start_services/templates/nginx.conf.j2"
-        dest: "{{ nginx_conf_file_path }}"
-        mode: "{{ nginx_conf_file_mode }}"
-
-    - name: Validate nginx conf file
-      ansible.builtin.command: nginx -t
-      changed_when: false
-
-    - name: Start and enable nginx service
-      ansible.builtin.service:
-        name: nginx
-        state: restarted
-        enabled: yes
-  when:
-    - grafana_svc_ip != ""
-    - grafana_svc_port != ""
-    - grafana_status
-    - grafana_cred_status
-
-- name: Skipping nginx installation - wait for 10 seconds
-  ansible.builtin.pause:
-    seconds: 10
-    prompt: "{{ nginx_install_msg }}"
-  when: 
-    - not grafana_status or
-      not grafana_cred_status or
-      grafana_svc_ip == "" or
-      grafana_svc_port == ""

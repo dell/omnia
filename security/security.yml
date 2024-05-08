@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,8 +13,13 @@
 # limitations under the License.
 ---
 
+- name: Update Inventory with ansible_host information
+  ansible.builtin.import_playbook: ../utils/servicetag_host_mapping.yml
+  when: not ( hostvars['127.0.0.1']['update_inventory_executed'] | default(false) | bool )
+
 - name: Validate security input parameters
   hosts: localhost
+  connection: local
   any_errors_fatal: true
   tasks:
     - name: Validate security input parameters
@@ -23,18 +28,15 @@
         tasks_from: validation_status_check.yml
   tags: freeipa, ldap
 
+- name: Update Repositories/Registries on nodes
+  ansible.builtin.import_playbook: ../utils/update_user_repo.yml
+  when: not ( hostvars['127.0.0.1']['update_user_repo_executed'] | default(false) | bool )
+
 - name: Gather facts from all the nodes
-  hosts: manager, compute, login
+  hosts: slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login, etcd
 
-- name: Validate repo file and subscription
-  hosts: manager, login, compute
-  gather_facts: false
-  roles:
-    - repo_validation
-  tags: freeipa, ldap
-
-- name: Add hosts to compute and login nodes
-  hosts: manager, login, compute
+- name: Add hosts to nodes and login nodes
+  hosts: slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login, etcd
   gather_facts: false
   any_errors_fatal: true
   roles:
@@ -42,7 +44,7 @@
   tags: freeipa
 
 - name: Validate hostname
-  hosts: manager, login, compute
+  hosts: slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login, etcd
   any_errors_fatal: true
   gather_facts: false
   tasks:
@@ -53,7 +55,7 @@
   tags: freeipa, ldap
 
 - name: Apply login common installation and config
-  hosts: manager, login, compute
+  hosts: slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login, etcd
   any_errors_fatal: true
   gather_facts: false
   roles:
@@ -61,21 +63,42 @@
   tags: freeipa
 
 - name: Apply login server installation and config
-  hosts: manager
+  hosts: auth_server
   gather_facts: false
   roles:
     - login_server
   tags: freeipa
 
-- name: Install FreeIPA client on login and compute nodes
-  hosts: login, compute
+- name: Install FreeIPA client on login and nodes
+  hosts: slurm_control_node, slurm_node, kube_control_plane, kube_node, login, etcd:!auth_server
   gather_facts: false
   roles:
     - login_node
   tags: freeipa
 
+- name: Install openldap server and apply configurations
+  hosts: auth_server
+  tasks:
+    - name: Setup openldap server and apply configurations
+      when: hostvars['127.0.0.1']['authentication_system'] == 'openldap'
+      block:
+        - name: Include server prerequisite config
+          ansible.builtin.include_role:
+            name: ldap_server
+
+        - name: Include LTB role for server installation
+          ansible.builtin.include_role:
+            name: "{{ hostvars['127.0.0.1']['ltb_repo_path'] }}"
+          when: not openldap_status
+
+        - name: Include domain setup task for server configuration
+          ansible.builtin.include_role:
+            name: ldap_server
+            tasks_from: set_domain.yml
+          when: not openldap_status
+
 - name: Apply ldap client installation and config
-  hosts: manager, compute, login
+  hosts: slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login, etcd
   gather_facts: false
   roles:
     - ldap_client

@@ -1,0 +1,67 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Include variable file software_update_config_file.yml
+  ansible.builtin.include_vars: "{{ software_update_config_file }}"
+
+- name: Initialize softwares_list_status and package_list_status
+  ansible.builtin.set_fact:
+    softwares_list_status: false
+    package_list_status: false
+
+- name: Set softwares_list_status
+  ansible.builtin.set_fact:
+    softwares_list_status: true
+  when:
+    - softwares_list is defined
+    - softwares_list | type_debug == 'list'
+    - softwares_list | length > 0
+
+- name: Set package_list_status
+  ansible.builtin.set_fact:
+    package_list_status: true
+  when:
+    - package_list is defined
+    - package_list | type_debug == 'list'
+    - package_list | length > 0
+
+- name: Validate softwares_list and package_list
+  ansible.builtin.fail:
+    msg: "{{ empty_input_fail_msg }}"
+  when:
+    - not softwares_list_status
+    - not package_list_status
+
+- name: Set reboot_required to lower
+  ansible.builtin.set_fact:
+    reboot_required: "{{ reboot_required | lower }}"
+
+- name: Validate reboot_required
+  ansible.builtin.assert:
+    that:
+      - "reboot_required is defined"
+      - "reboot_required == true or reboot_required == false"
+    fail_msg: "{{ reboot_required_fail_msg }}"
+
+- name: Inventory not provided
+  ansible.builtin.fail:
+    msg: "{{ empty_inventory_fail_msg }}"
+  when:
+    - groups['all'] is defined
+    - (groups['all'] | length == 0)
+
+- name: Validate software_config.json
+  ansible.builtin.include_tasks: validate_software_config.yml
+  when: softwares_list_status

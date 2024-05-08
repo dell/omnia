@@ -1,0 +1,172 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Get slurm info output if slurm is installed
+  ansible.builtin.command: 'sinfo -h --format="%N"'
+  register: slurm_info
+  changed_when: false
+  delegate_to: "{{  groups['slurm_control_node'] | first }}"
+  run_once: true
+
+- name: Get nodelist
+  ansible.builtin.set_fact:
+    node_list: "{{ slurm_info.stdout | regex_replace('\n', ',') }}"
+  when: slurm_info.rc == 0
+  run_once: true
+
+- name: Update slurm_node state as down before removing from slurm cluster (make sure that jobs are not running on slurm node and node is in drain state)
+  when: status == 'booted' and node_list is defined and node_hostname in node_list
+  ansible.builtin.command: 'scontrol update NodeName={{ node_hostname }} state=DOWN reason="Removing from cluster"'
+  register: result
+  until: result.rc == 0
+  retries: "{{ change_state_retries }}"
+  delay: "{{ change_state_retry_delay_seconds }}"
+  failed_when: result.rc != 0
+  changed_when: true
+
+- name: Update partition info if service restart is not allowed
+  when:
+    - hostvars['localhost']['restart_slurm_services'] is defined
+    - not hostvars['localhost']['restart_slurm_services']
+  block:
+    - name: Removed node from nodelist
+      ansible.builtin.set_fact:
+        updated_nodelist: "{{ node_list.split(',') | difference([node_hostname]) | join(',') }}"
+        cluster_nodes: "{{ node_list.split(',') | difference([node_hostname]) }}"
+
+    - name: Update nodelist in partition details on slurm_control_node
+      ansible.builtin.command: 'scontrol update partition=normal nodes={{ updated_nodelist }}'
+      delegate_to: "{{  groups['slurm_control_node'] | first }}"
+      changed_when: true
+      failed_when: false
+
+    - name: Update nodelist in partition details on slurm_node
+      ansible.builtin.command: 'scontrol update partition=normal nodes={{ updated_nodelist }}'
+      delegate_to: '{{ item }}'
+      changed_when: true
+      loop: "{{ cluster_nodes }}"
+      failed_when: false
+
+- name: Get NFS share path from storage_config.yml
+  ansible.builtin.set_fact:
+    share_path: "{{ hostvars['localhost']['nfs_client_params']
+                    | selectattr('slurm_share', 'equalto', true)
+                    | map(attribute='client_share_path') | first }}"
+  when:
+    - hostvars['localhost']['nfs_client_params'] is defined and hostvars['localhost']['nfs_client_params'] | length > 0
+    - hostvars['localhost']['nfs_client_params'] | selectattr('slurm_share', 'defined') | selectattr('slurm_share', 'equalto', true) | list | length == 1 # noqa: yaml[line-length]
+
+- name: Set slurm.conf path when slurm_installation_type is nfs
+  ansible.builtin.set_fact:
+    conf_path: "{{ '{{ share_path }}{{ slurm_nfs_folder }}{{ slurm_conf_path }}' if
+                  share_path is defined and hostvars['localhost']['slurm_installation_type'] == 'nfs_share'
+                  else '{{ slurm_conf_path }}' }}"
+  when:
+    - hostvars['localhost']['slurm_installation_type'] is defined
+    - hostvars['localhost']['slurm_installation_type'] | length > 0
+
+- name: Stop slurm services on slurm_control_node if allowed
+  when:
+    - hostvars['localhost']['restart_slurm_services'] is defined
+    - hostvars['localhost']['restart_slurm_services']
+  ansible.builtin.systemd:
+    name: slurmctld
+    state: stopped
+  delegate_to: "{{ groups['slurm_control_node'] | first }}"
+
+- name: Remove hostname from partition details of slurm.conf
+  ansible.builtin.replace:
+    path: '{{ conf_path }}'
+    regexp: '^(PartitionName=.*\s){{ node_hostname }}(\s.*)$'
+    replace: '\1\2'
+  failed_when: false
+  delegate_to: "{{ groups['slurm_control_node'] | first }}"
+
+- name: Remove hostname from NoneName details of slurm.conf
+  ansible.builtin.lineinfile:
+    path: '{{ conf_path }}'
+    state: absent
+    regexp: '^NodeName={{ node_hostname }}(\s.*)$'
+  delegate_to: "{{ groups['slurm_control_node'] | first }}"
+  failed_when: false
+
+- name: Start slurm services on slurm_control_node if allowed
+  when:
+    - hostvars['localhost']['restart_slurm_services'] is defined
+    - hostvars['localhost']['restart_slurm_services']
+  ansible.builtin.systemd:
+    name: slurmctld
+    state: started
+  delegate_to: "{{ groups['slurm_control_node'] | first }}"
+
+- name: Stop Slurm services
+  when: status == 'booted'
+  ansible.builtin.service:
+    name: "{{ item }}"
+    state: stopped
+    enabled: false
+  failed_when: false
+  with_items: "{{ slurm_services }}"
+
+- name: Remove Slurm user
+  when: status == 'booted'
+  ansible.builtin.user:
+    name: slurm
+    state: absent
+  failed_when: false
+
+- name: Remove Slurm packages
+  when: status == 'booted'
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: absent
+  with_items: "{{ slurm_packages }}"
+  failed_when: false
+
+- name: Remove slurmd service
+  ansible.builtin.file:
+    state: absent
+    path: "{{ slurmd_servicepath }}"
+
+- name: Remove Slurm common configuration files
+  when: status == 'booted'
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  with_items: "{{ slurm_common_files }}"
+  failed_when: false
+
+- name: Remove Slurm configuration files if slurm is installed in configless mode
+  when:
+    - hostvars['localhost']['slurm_installation_type'] is defined
+    - hostvars['localhost']['slurm_installation_type'] | length > 0
+    - hostvars['localhost']['slurm_installation_type'] == "configless"
+    - status == 'booted'
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  with_items: "{{ slurm_configless_files }}"
+  failed_when: false
+
+- name: Remove SLURM_CONF variable if slurm is installed on NFS shared
+  when:
+    - share_path is defined
+    - hostvars['localhost']['slurm_installation_type'] is defined
+    - hostvars['localhost']['slurm_installation_type'] | length > 0
+    - hostvars['localhost']['slurm_installation_type'] == "nfs_share"
+  ansible.builtin.lineinfile:
+    state: absent
+    path: "{{ bashrc_path }}"
+    regexp: '^export SLURM_CONF=.*$'

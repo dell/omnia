@@ -44,7 +44,7 @@
     insertafter: "^{{ task_plugin_manager }}"
     line: "{{ prolog_flag_content }}"
 
-- name: Start slurmctld on manager
+- name: Start slurmctld on slurm control node
   ansible.builtin.systemd:
     name: slurmctld
     state: restarted

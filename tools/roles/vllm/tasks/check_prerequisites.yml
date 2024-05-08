@@ -1,0 +1,199 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+---
+
+
+- name: Load software_config.json
+  ansible.builtin.include_vars:
+    file: "{{ software_config_json_file }}"
+    name: software_config
+
+- name: Assert cluster_os_type, cluster_os_version, repo_config
+  ansible.builtin.assert:
+    that:
+      - software_config.cluster_os_type is defined
+      - software_config.cluster_os_version is defined
+      - software_config.repo_config is defined
+    fail_msg: "{{ software_config_parameters_fail_msg }}"
+
+- name: Set facts for cluster
+  ansible.builtin.set_fact:
+    cluster_os_type: "{{ software_config.cluster_os_type }}"
+    cluster_os_version: "{{ software_config.cluster_os_version }}"
+    repo_config: "{{ software_config.repo_config }}"
+
+- name: Read package details from vllm.json
+  ansible.builtin.include_vars:
+    file: "{{ vllm_json_file }}"
+  register: vllm_packages
+
+- name: Set packages variables
+  when: vllm_packages.ansible_facts
+  block:
+    - name: Extract package details
+      ansible.builtin.set_fact:
+        vllm_amd_image: "{{ vllm_packages.ansible_facts.vllm_amd.cluster[0].package }}"
+        vllm_amd_image_version: "{{ vllm_packages.ansible_facts.vllm_amd.cluster[0].tag }}"
+        vllm_pytorch_cuda_version: "{{ vllm_packages.ansible_facts.vllm_nvidia.cluster[1].package }}"
+        vllm_nvidia_package: "{{ vllm_packages.ansible_facts.vllm_nvidia.cluster[2].package }}"
+
+    - name: Validate package details
+      ansible.builtin.assert:
+        that:
+          - vllm_amd_image is defined
+          - vllm_amd_image_version is defined
+          - vllm_pytorch_cuda_version is defined
+          - vllm_nvidia_package is defined
+
+    - name: Extact vllm amd image
+      ansible.builtin.set_fact:
+        vllm_amd_image_with_version: "{{ vllm_amd_image }}:{{ vllm_amd_image_version }}"
+
+- name: Initialize processing_unit
+  ansible.builtin.set_fact:
+    processing_unit: "cpu"
+
+- name: Check and set processing_unit
+  when: processing_unit == "cpu"
+  block:
+    - name: Check AMD GPU Driver
+      ansible.builtin.command: rocminfo
+      register: amd_gpu
+      changed_when: true
+      failed_when: false
+
+    - name: Modify processing_unit_amd
+      ansible.builtin.set_fact:
+        processing_unit: "amd"
+      when: amd_gpu.rc == 0
+
+    - name: Check Nvidia GPU Driver
+      ansible.builtin.command: nvidia-smi
+      register: nvidia_gpu
+      changed_when: true
+      failed_when: false
+
+    - name: Modify processing_unit_nvidia
+      ansible.builtin.set_fact:
+        processing_unit: "nvidia"
+      when: nvidia_gpu.rc == 0
+
+- name: GPU not present
+  ansible.builtin.debug:
+    msg: "Warning: {{ error_check_gpu_failed }}"
+  when: processing_unit == "cpu"
+
+- name: Updating prerequisites installation_status (CPU)
+  ansible.builtin.set_fact:
+    installation_status: "{{ installation_failed_status }}:{{ error_check_gpu_failed }}"
+  when: processing_unit == "cpu"
+
+- name: Check and create omnia folder
+  block:
+    - name: Check if omnia folder exists
+      ansible.builtin.stat:
+        path: "{{ omnia_foler_path }}"
+      register: omnia_folder_stat
+
+    - name: Create omnia folder if it doesn't exist
+      ansible.builtin.file:
+        path: "{{ omnia_foler_path }}"
+        state: "{{ omnia_foler_stat }}"
+        mode: "{{ omnia_foler_mode }}"
+      when: not omnia_folder_stat.stat.exists
+
+- name: Check prerequisites (AMD)
+  when: processing_unit == "amd"
+  block:
+    - name: Check container engine package
+      ansible.builtin.command: nerdctl -v
+      register: container_engine_package_status
+      changed_when: false
+      failed_when: false
+
+    - name: Container engine not present
+      ansible.builtin.debug:
+        msg: "Warning: {{ error_check_container_engine_failed }}"
+      when: container_engine_package_status.rc != 0
+
+    - name: Updating container prerequisites installation_status
+      ansible.builtin.set_fact:
+        installation_status: "{{ installation_failed_status }}:{{ error_check_container_engine_failed }}"
+      when: container_engine_package_status.rc != 0
+
+    - name: List files in /dev/dri
+      ansible.builtin.command: ls /dev/dri
+      register: dri_files
+      changed_when: false
+
+    - name: Dynamic vllm_run_cmd
+      ansible.builtin.set_fact:
+        dynamic_vllm_run_cmd: "{{ ' --device /dev/dri/' + dri_files.stdout_lines | reject('match', '^by-path') | join(' --device /dev/dri/') }}"
+      when: dri_files.rc == 0
+
+    - name: Construct vllm_run_cmd
+      ansible.builtin.set_fact:
+        vllm_run_cmd: "{{ vllm_run_cmd_start + dynamic_vllm_run_cmd + vllm_run_cmd_mid + vllm_amd_image_with_version + vllm_run_cmd_end }}"
+      when: dri_files.rc == 0
+
+    - name: Updating prerequisites installation_status
+      ansible.builtin.set_fact:
+        installation_status: "{{ error_dri_file_failed }}"
+      when: dri_files.rc != 0
+
+- name: Check prerequisites(NVIDIA)
+  when: processing_unit == "nvidia"
+  block:
+    - name: Check Python version
+      ansible.builtin.command: "{{ vllm_python_version }} --version"
+      register: python_version
+      changed_when: false
+      failed_when: false
+
+    - name: Install Python 3.9
+      ansible.builtin.package:
+        name: "{{ vllm_python_version }}"
+        state: present
+      when: python_version.rc != 0
+      changed_when: true
+      failed_when: false
+
+    - name: Install pip and python3.9 distutils
+      ansible.builtin.package:
+        name: "{{ vllm_python_package }}"
+        state: present
+      changed_when: true
+      failed_when: false
+
+    - name: Install pytorch
+      ansible.builtin.command: "{{ vllm_python_version }} -m pip install torch==2.1.2 --upgrade --index-url https://download.pytorch.org/whl/cu121"
+      changed_when: true
+      failed_when: false
+      register: pytorch_package_status
+
+    - name: Failed to install pytorch package
+      ansible.builtin.debug:
+        msg: "Warning: {{ error_check_pytorch_failed }}"
+      when: pytorch_package_status.rc != 0
+
+    - name: Updating pytorch prerequisites installation_status
+      ansible.builtin.set_fact:
+        installation_status: "{{ error_check_pytorch_failed }}"
+      when: pytorch_package_status.rc != 0
+
+- name: Modify vllm_prerequisite_status
+  ansible.builtin.set_fact:
+    vllm_prerequisite_status: true
+  when: installation_status == installation_success_status

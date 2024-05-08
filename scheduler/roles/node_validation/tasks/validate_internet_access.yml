@@ -41,6 +41,6 @@
     - name: Fail when go url not reachable
       ansible.builtin.fail:
         msg: "{{ go_url_unreachable_fail_msg }}"
-      when: 
+      when:
         - go_url_check.status is defined
         - go_url_check.status != 200

@@ -1,0 +1,75 @@
+--- mlnxofed_ib_install	2024-01-29 08:02:20.876726691 +0000
++++ updated_mlnxofed_ib_install	2024-01-29 08:05:24.271172767 +0000
+@@ -267,13 +267,13 @@
+             echo "$HOSTNAME 's operating system is Ubuntu."
+             echo "If you want to install Mellanox_OFED in $HOSTNAME, $HOSTNAME must have ability to access ports.ubuntu.com"
+             echo -n "checking $HOSTNAME 's ability to access ports.ubuntu.com..........."
+-            if ping -c 3 ports.ubuntu.com > /dev/null;then
+-                echo "[OK]"
+-            else
+-                echo "[Failed]" >&2
+-                echo "[Error] please make your $HOSTNAME has ability to access ports.ubuntu.com" >&2
+-                exit 1
+-            fi
++#            if ping -c 3 ports.ubuntu.com > /dev/null;then
++#                echo "[OK]"
++#            else
++#                echo "[Failed]" >&2
++#                echo "[Error] please make your $HOSTNAME has ability to access ports.ubuntu.com" >&2
++#                exit 1
++#            fi
+ 
+ 
+             echo "get distro name form /etc/lsb-release ......"
+@@ -284,22 +284,22 @@
+             fi
+             echo "DISTRIB_CODENAME=$DISTRIB_CODENAME ...[OK]"
+ 
+-            cp /etc/apt/sources.list /etc/apt/sources.list.bak
+-            sed -i "/deb http:\\/\\/ports.ubuntu.com\\/ubuntu-ports\\/ $DISTRIB_CODENAME main/d"  /etc/apt/sources.list
+-            sed -i "/deb http:\\/\\/ports.ubuntu.com\\/ubuntu-ports\\/ $DISTRIB_CODENAME-updates main/d"  /etc/apt/sources.list
+-            sed -i "/deb http:\\/\\/ports.ubuntu.com\\/ubuntu-ports\\/ $DISTRIB_CODENAME universe/d" /etc/apt/sources.list
+-            sed -i "/deb http:\\/\\/ports.ubuntu.com\\/ubuntu-ports\\/ $DISTRIB_CODENAME-updates universe/d" /etc/apt/sources.list
+-
+-            cat <<-EOF >>/etc/apt/sources.list
+-deb http://ports.ubuntu.com/ubuntu-ports/ $DISTRIB_CODENAME main
+-deb http://ports.ubuntu.com/ubuntu-ports/ $DISTRIB_CODENAME-updates main
+-deb http://ports.ubuntu.com/ubuntu-ports/ $DISTRIB_CODENAME universe
+-deb http://ports.ubuntu.com/ubuntu-ports/ $DISTRIB_CODENAME-updates universe
+-EOF
+-
+-            apt-get clean all
+-            sleep 1
+-            apt-get update
++#            cp /etc/apt/sources.list /etc/apt/sources.list.bak
++#            sed -i "/deb http:\\/\\/ports.ubuntu.com\\/ubuntu-ports\\/ $DISTRIB_CODENAME main/d"  /etc/apt/sources.list
++#            sed -i "/deb http:\\/\\/ports.ubuntu.com\\/ubuntu-ports\\/ $DISTRIB_CODENAME-updates main/d"  /etc/apt/sources.list
++#            sed -i "/deb http:\\/\\/ports.ubuntu.com\\/ubuntu-ports\\/ $DISTRIB_CODENAME universe/d" /etc/apt/sources.list
++#            sed -i "/deb http:\\/\\/ports.ubuntu.com\\/ubuntu-ports\\/ $DISTRIB_CODENAME-updates universe/d" /etc/apt/sources.list
++
++#            cat <<-EOF >>/etc/apt/sources.list
++#deb http://ports.ubuntu.com/ubuntu-ports/ $DISTRIB_CODENAME main
++#deb http://ports.ubuntu.com/ubuntu-ports/ $DISTRIB_CODENAME-updates main
++#deb http://ports.ubuntu.com/ubuntu-ports/ $DISTRIB_CODENAME universe
++#deb http://ports.ubuntu.com/ubuntu-ports/ $DISTRIB_CODENAME-updates universe
++#EOF
++
++#            apt-get clean all
++#            sleep 1
++#            apt-get update
+         fi
+ 
+         #  Being run from a stateful install postscript
+@@ -332,9 +332,9 @@
+         fi
+         echo "[OK]"
+ 
+-        if [ "$NODESETSTATE" = "install" ]; then
+-            hack_uname
+-        fi
++        #if [ "$NODESETSTATE" = "install" ]; then
++        #    hack_uname
++        #fi
+ 
+         echo "Start Mellanox OFED installation ........."
+         env -i "PATH=${PATH}" /tmp/ofed/mountpoint/mlnxofedinstall "${MLNXOFED_OPTS[@]}"

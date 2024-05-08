@@ -1,0 +1,48 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Usage: validate_software_update_config.yml
+software_update_config_file: "{{ role_path }}/../../software_update_config.yml"
+reboot_required_fail_msg: "Failed. reboot_required should be either true or false in software_update_config.yml"
+empty_input_fail_msg: "Failed. Either of softwares_list and package_list details should be provided as list in software_update_config.yml"
+empty_inventory_fail_msg: "Failed. inventory not provided. Re-run playbook with inventory provided."
+
+# Usage: validate_software_config.yml
+invalid_software_config_fail_msg: "Failed. Please provide valid input/software_config.json file with cluster_os_type, cluster_os_version, repo_config
+and repo_config values."
+json_folder: "{{ role_path }}/../../../../input/config/{{ cluster_os_type }}/{{ cluster_os_version }}"
+invalid_json_fail_msg: "Failed. json files for softwares mentioned in softwares list missing in {{ json_folder }}"
+invalid_software_fail_msg: "Faied. Software mentioned in softwares_list is not present in input/software_config.json"
+
+# Usage: include_software_config.yml
+software_config_file: "{{ role_path }}/../../../../input/software_config.json"
+local_repo_config_syntax_fail_msg: "Failed. Syntax errors present in local_repo_config.yml. Fix errors and re-run playbook again."
+software_config_syntax_fail_msg: "Failed. Syntax errors present in software_config.json. Fix errors and re-run playbook again."
+
+# Usage: update_repo_cache.yml
+os_supported_ubuntu: "ubuntu"
+os_supported_rhel: "redhat"
+os_supported_rocky: "rocky"
+
+# Usage: reboot_nodes.yml
+reboot_fail_msg: "Failed. Nodes should be rebooted manually."
+
+# Usage: package_installation_package_list.yml
+package_list_install_fail_msg: "Failed. Package installation failed for package_list: {{ hostvars['localhost']['package_list'] }} in software_update_config.yml.
+Please check packages {{ hostvars['localhost']['package_list'] }} are available to install with repos configured in the nodes."
+
+# Usage: package_installation_softwares_list.yml
+softwares_list_install_fail_msg: "Failed. Package installation failed for packages mentioned in softwares_list: {{ software }}.
+Please check packages mentioned for software {{ software }} in software_update_config.yml are available to install with repos configured in the nodes."

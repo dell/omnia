@@ -1,0 +1,26 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Usage: configue_proxy_ubuntu.yml
+squid_proxy_conf_path: /etc/squid/squid.conf
+squid_proxy_conf_regxp: "^#http_access allow localnet"
+squid_proxy_conf_replace: "http_access allow localnet"
+repo_update_fail_msg: "Failed. Unable to run apt update.
+Please make sure all required repos are reachable. Remove or Update unreachable repos configured and re-run the playbook."
+
+# Usage: configure_proxy_redhat.yml
+nerdctl_registry_restart_fail_msg: "Unable to restart nerdctl-registry service. Please restart nerdctl-registry manually."
+squid_proxy_port: "3128/tcp"
+nerdctl_registry_port: 5001

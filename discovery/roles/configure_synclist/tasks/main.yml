@@ -1,0 +1,46 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Configure synclist
+  environment:
+    XCATROOT: "{{ xcat_root_env }}"
+    PATH: "{{ ansible_env.PATH }}:{{ xcat_path_env }}"
+    MANPATH: "{{ xcat_manpath_env }}"
+    PERL_BADLANG: "{{ perl_badlang_env }}"
+  block:
+    - name: Saving distribution of os
+      ansible.builtin.set_fact:
+        control_plane_os: "{{ ansible_distribution | lower }}"
+
+    - name: Include vars for {{ control_plane_os }}
+      ansible.builtin.include_vars: "{{ role_path }}/vars/{{ control_plane_os }}.yml"
+
+    - name: Include vars
+      ansible.builtin.include_vars: "{{ role_path }}/vars/main.yml"
+
+    - name: Create local_repo_access.ini file
+      ansible.builtin.include_tasks: create_local_repo_access_yml_file.yml
+
+    - name: Create files to be synced with xCAT for omnia local_repo common
+      ansible.builtin.include_tasks: create_files_local_repo_common.yml
+
+    - name: Create files to be synced with xCAT for omnia local_repo
+      ansible.builtin.include_tasks: create_files_local_repo_{{ control_plane_os }}.yml
+
+    - name: Create files to be synced with xCAT for omnia local_registry
+      ansible.builtin.include_tasks: create_files_local_registry.yml
+
+    - name: Configure synclist
+      ansible.builtin.include_tasks: configure_synclist.yml

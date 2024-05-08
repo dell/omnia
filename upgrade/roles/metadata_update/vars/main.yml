@@ -1,0 +1,36 @@
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+provision_metadata_path: "/opt/omnia/.data/metadata.yml"
+
+# Usage: update_metadata.yml
+meta_path: "/opt/omnia/.data/metadata.yml"
+conf_file_mode: "0644"
+
+# Usage: include_network_spec.yml
+network_spec: "{{ role_path }}/../../../input/network_spec.yml"
+network_spec_syntax_fail_msg: "Failed. Syntax errors present in network_spec.yml. Fix errors and re-run playbook again."
+python_version: python3.9
+network_address_script: "{{ role_path }}/../../../discovery/roles/discovery_validations/common/files/validate_network_address.py"
+success_msg_nic: "nic successfully validated"
+fail_msg_admin_nic_details: "Failed. Invalid admin_nic details (nic_name, netmask_bits, static_range or dynamic_range) in network_spec file."
+fail_msg_admin_nic_ip_details: "Ensure admin nic is configured with ip address."
+validate_nic_status: "Failed, please check the network interface status should be UP"
+admin_nic_netmask_fail_msg: "Failed, Admin nic netmask should be same as netmask in network_spec file."
+admin_correlation_fail_msg: "Failed. Invalid details provided, correlation_to_admin should true or false."
+fail_msg_bmc_nic_details: "Failed. Invalid bmc_network details (nic_name, netmask_bits, static_range or dynamic_range) in network_spec file."
+discovery_mech_mapping: true
+discovery_mech_bmc: false
+discovery_mech_switch_based: false

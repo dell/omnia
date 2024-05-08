@@ -1,0 +1,31 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+- name: Deploy Kubeflow Components (Start async)
+  ansible.builtin.shell: |
+    cd /opt/omnia/kubeflow/kubeflow &&
+    while ! /opt/omnia/kustomize/kustomize build example | kubectl apply -f -; do
+      echo "Retrying to apply resources"
+      sleep 1
+    done
+  register: output
+  ignore_errors: true
+  changed_when: false
+  async: "{{ execution_time }}"
+  poll: 0
+
+- name: Warning - wait for Deployment
+  ansible.builtin.pause:
+    seconds: "{{ wait_time }}"
+    prompt: "{{ warning_msg }}"

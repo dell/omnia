@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -12,29 +12,16 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-
 - name: Install required packages
   ansible.builtin.package:
     name: "{{ snoopy_packages }}"
     state: present
 
-- name: Download snoopy package
-  ansible.builtin.get_url:
-    url: "{{ snoopy_url }}"
-    dest: "{{ snoopy_path }}"
-    mode: "{{ snoopy_mode }}"
-
-- name: Change permissions
-  ansible.builtin.file:
-    path: "{{ snoopy_path }}"
-    mode: "{{ snoopy_mode }}"
-
-- name: Run the script
-  ansible.builtin.command: sh ./install-snoopy.sh stable
-  args:
-    chdir: "{{ snoopy_path }}"
-  changed_when: false
+- name: Install snoopy on RHEL/Rocky/Ubuntu
+  ansible.builtin.package:
+    name: snoopy
+    state: present
 
 - name: Enable snoopy
-  ansible.builtin.command: /usr/local/sbin/snoopyctl enable
+  ansible.builtin.command: snoopyctl enable
   changed_when: false

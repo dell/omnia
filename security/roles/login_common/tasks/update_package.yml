@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,11 +13,9 @@
 #  limitations under the License.
 ---
 
-- name: Update nss package to install ipa server/client
+- name: Update nss package to install ipa server/client # noqa: command-instead-of-module
   ansible.builtin.command: yum update nss -y
   changed_when: false
-  args:
-    warn: false
   when:
     - ( ansible_distribution | lower == os_centos )
     - ( ansible_distribution_version < os_version )

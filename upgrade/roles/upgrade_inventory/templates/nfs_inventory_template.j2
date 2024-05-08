@@ -1,0 +1,7 @@
+# General Cluster Storage
+# NFS node
+
+[nfs]
+{% for ip in nfs_node_ips %}
+{{ ip }}
+{% endfor %}

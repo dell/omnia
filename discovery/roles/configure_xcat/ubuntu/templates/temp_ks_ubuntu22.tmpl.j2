@@ -1,0 +1,76 @@
+#cloud-config
+autoinstall:
+  version: 1
+  keyboard: {layout: us, toggle: null, variant: ''}
+  locale: en_US
+  ssh:
+    allow-pw: true
+    authorized-keys: []
+    install-server: true
+  apt:
+    preserve_sources_list: false
+    geoip: false
+    fallback: offline-install
+    mirror-selection:
+      primary:
+      - arches: [amd64, i386]
+        uri: {{ ubuntu_os_url | default("http://in.archive.ubuntu.com/ubuntu", true) }}
+  source:
+    id: ubuntu-server
+    search_drivers: false
+  kernel:
+    flavor: {{ ubuntu_kernel_flavor | default("generic", true) }}
+  user-data:
+    hostname: #HOSTNAME#
+    disable_root: false
+    package_update: false
+    package_upgrade: false
+    timezone: #TABLE:site:key=timezone:value#
+    chpasswd:
+      list:
+        - root:#CRYPT:passwd:key=system,username=root:password#
+  packages:
+    - bash
+    - openssl
+    - isc-dhcp-client
+    - libc-bin
+    - openssh-server
+    - openssh-client
+    - wget
+    - vim
+    - rsync
+    - busybox-static
+    - gawk
+    - dnsutils
+    - gpg
+  early-commands:
+    - '{
+    echo "Running install disk detection...";
+    wget http://#XCATVAR:XCATMASTER##COLONHTTPPORT#/install/autoinst/getinstdisk;
+    chmod u+x ./getinstdisk;
+    ./getinstdisk;
+    echo "Running early_command Installation script...";
+    wget http://#XCATVAR:XCATMASTER##COLONHTTPPORT#/install/autoinst/#HOSTNAME#.pre;
+    chmod u+x #HOSTNAME#.pre;
+    ./#HOSTNAME#.pre;
+    echo "Updating storage config...";
+    cat /autoinstall.yaml |head -n -1 > /tmp/autoinstall.yaml;
+    cat /tmp/partitionfile >> /tmp/autoinstall.yaml;
+    cat /tmp/autoinstall.yaml >/autoinstall.yaml;
+    echo "Disabling systemd-resolved...";
+    rm -f /etc/resolv.conf;
+    echo "nameserver #TABLE:noderes:$NODE:xcatmaster#" >/etc/resolv.conf;
+    echo "domain #TABLE:site:key=domain:value#" >>/etc/resolv.conf;
+    } >>/tmp/pre-install.log'
+  late-commands:
+    - mkdir -p /target/var/log/xcat/
+    - '{
+    cat /tmp/pre-install.log >> /target/var/log/xcat/xcat.log;
+    echo "Running late_command Installation script...";
+    wget http://#XCATVAR:XCATMASTER##COLONHTTPPORT#/install/autoinst/#HOSTNAME#.post;
+    chmod u+x #HOSTNAME#.post;
+    cp ./#HOSTNAME#.post /target/root/post.script;
+    curtin in-target --target /target /root/post.script;
+    echo "Force rebooting the system...";
+    reboot -f;
+    } >>/target/var/log/xcat/xcat.log 2>&1'

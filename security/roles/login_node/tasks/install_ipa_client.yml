@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,13 +14,12 @@
 ---
 
 - name: Configure freeipa client
+  when: not freeipa_client_status
   block:
-    - name: Install DL1 - client(It may take 5-10 mins)
+    - name: Install DL1 - client(It may take 5-10 mins) # noqa: command-instead-of-module
       ansible.builtin.command: yum module install idm:DL1/client -y
       changed_when: true
       failed_when: false
-      args:
-        warn: false
       when: ansible_distribution | lower == os_redhat
 
     - name: Install freeipa client package
@@ -32,14 +31,12 @@
       ansible.builtin.command: rm -rf {{ cert_path }}
       changed_when: false
       failed_when: false
-      args:
-        warn: false
       when: ansible_distribution | lower == os_redhat
 
-    - name: Set hostname of ipa server when manager node has ipa server installed
+    - name: Set hostname of ipa server when auth_server node has ipa server installed
       ansible.builtin.set_fact:
         required_ipa_admin_pwd: "{{ hostvars['127.0.0.1']['kerberos_admin_password'] }}"
-        required_server_hostname: "{{ hostvars[groups['manager'][0]]['server_hostname'] }}"
+        required_server_hostname: "{{ hostvars[groups['auth_server'][0]]['server_hostname'] }}"
         required_domain_name: "{{ hostvars['127.0.0.1']['domain_name'] }}"
       no_log: true
 
@@ -89,4 +86,3 @@
         state: started
         enabled: true
       failed_when: false
-  when: not freeipa_client_status

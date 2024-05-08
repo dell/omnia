@@ -1,0 +1,42 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Set default openldap_status
+  ansible.builtin.set_fact:
+    openldap_search_dn: "{{ (hostvars['127.0.0.1']['domain_name'].split('.') | map('regex_replace', '^', 'dc=') | list) | join(',') }}"
+    openldap_status: false
+
+- name: Check if openldap is present and running or not
+  block:
+    - name: Gathering service facts
+      ansible.builtin.service_facts:
+
+    - name: Check openldap database for omnia configurations
+      ansible.builtin.command: "{{ ldap_bin_path }}ldapsearch -Y EXTERNAL -H {{ ldap_host_string }} -b {{ openldap_search_dn }}"
+      when:
+        - ansible_facts.services["slapd-ltb.service"] is defined
+        - ansible_facts.services["slapd-ltb.service"].state == "running"
+      changed_when: false
+      ignore_errors: true
+      register: schema_output
+      no_log: true
+
+    - name: Set openldap_status
+      ansible.builtin.set_fact:
+        openldap_status: true
+      when:
+        - ansible_facts.services["slapd-ltb.service"] is defined
+        - ansible_facts.services["slapd-ltb.service"].state == "running"
+        - schema_output is search(schema_search_string)

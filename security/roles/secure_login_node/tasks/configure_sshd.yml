@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@
   when: user | length < 1
 
 - name: Configure sshd_config
+  when: user | length > 1
   block:
     - name: Configure sshd_config file when AllowUsers entry not exists
       ansible.builtin.lineinfile:
@@ -71,4 +72,3 @@
       when:
         - allow_deny == 'deny'
         - file_content.stdout.find('DenyUsers') != -1
-  when: user | length > 1

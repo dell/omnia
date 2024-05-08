@@ -13,11 +13,6 @@
 #  limitations under the License.
 ---
 
-- name: Invalid inventory format
-  ansible.builtin.fail:
-    msg: "{{ invalid_inventory_fail_msg }}"
-  when: groups['manager'] is not defined or groups['compute'] is not defined
-
 - name: Verify the value of authentication_type is valid
   ansible.builtin.assert:
     that:
@@ -30,7 +25,7 @@
     msg: "{{ invalid_inventory_ldap_fail_msg }}"
   when:
     - authentication_type == "ldap"
-    - groups['ldap_server'] is not defined
+    - groups['auth_server'] is not defined
 
 - name: Validate the user_name
   ansible.builtin.assert:
@@ -42,15 +37,6 @@
 - name: Create a list of user
   ansible.builtin.set_fact:
     user_list: "{{ user_name.split(',') }}"
-
-- name: Validate the ldap_organizational_unit
-  ansible.builtin.assert:
-    that:
-      - ldap_organizational_unit | length > 1
-      - '"ou=" not in ldap_organizational_unit'
-    success_msg: "{{ ldap_organizational_unit_success_msg }}"
-    fail_msg: "{{ ldap_organizational_unit_fail_msg }}"
-  when: authentication_type == "ldap"
 
 - name: Validate freeIPA parameters
   ansible.builtin.fail:

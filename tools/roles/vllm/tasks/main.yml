@@ -1,0 +1,61 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Initial variables
+- name: Initialize vllm_prerequisite_status
+  ansible.builtin.set_fact:
+    vllm_prerequisite_status: false
+
+- name: Initialize vllm_installation_status
+  ansible.builtin.set_fact:
+    vllm_installation_status: false
+
+- name: Initialize installation_status
+  ansible.builtin.set_fact:
+    installation_status: "{{ installation_success_status }}"
+
+# Include local_repo_access.yml for proxy setup
+- name: Include local_repo_access.yml file
+  ansible.builtin.include_vars: "{{ local_repo_access_path }}"
+
+# Print Warning message vLLM space requirement 
+- name: Warning message vLLM space requirement
+  ansible.builtin.pause:
+    seconds: "{{ wait_time }}"
+    prompt: "{{ vllm_warning }}"
+
+# Main plays
+- name: Check prerequisites
+  ansible.builtin.include_tasks: check_prerequisites.yml
+
+- name: Install vLLM
+  ansible.builtin.include_tasks: vllm_install.yml
+  when: vllm_prerequisite_status
+
+- name: Verify vLLM installation
+  ansible.builtin.include_tasks: vllm_verify.yml
+  when: vllm_installation_status
+
+# Print list of successfully installation nodes
+- name: Print success status
+  ansible.builtin.debug:
+    msg: "{{ installation_status }}"
+  when: installation_status == installation_success_status
+
+# Print list of failed installation nodes
+- name: Print failed status
+  ansible.builtin.fail:
+    msg: "{{ installation_status }}"
+  when: installation_status != installation_success_status

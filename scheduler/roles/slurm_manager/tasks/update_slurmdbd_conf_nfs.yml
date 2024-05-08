@@ -1,0 +1,126 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Start mariadb
+  ansible.builtin.shell: dnf install -y  mariadb-server mariadb-devel # noqa: command-instead-of-shell
+  changed_when: false
+  failed_when: false
+  environment:
+    PKG_CONFIG_PATH: "{{ slurm_nfs_folder }}"
+    PATH: "{{ ansible_env.PATH }}:{{ slurm_nfs_folder }}"
+
+- name: Start mariadb
+  ansible.builtin.systemd:
+    name: mariadb
+    state: restarted
+    enabled: true
+  tags: install
+
+- name: Grant permissions for slurm db
+  ansible.builtin.command: >-
+    mysql -u root -e "GRANT ALL ON slurm_acct_db.* TO '{{ db_user }}'@'{{
+    db_host }}' identified by '{{ hostvars['127.0.0.1']['db_password'] }}'with
+    grant option;"
+  tags: install
+  changed_when: true
+
+- name: Create slurmdbd.conf file
+  ansible.builtin.copy:
+    src: slurmdbd.conf
+    dest: "{{ slurmdbd_path }}"
+    mode: "{{ slurmdbd_mode }}"
+    owner: slurm
+  tags: install
+
+- name: Add slurm user name
+  ansible.builtin.lineinfile:
+    path: "{{ slurmdbd_path }}"
+    regexp: "SlurmUser="
+    line: "SlurmUser={{ slurm_user }}"
+
+- name: Add db address
+  ansible.builtin.lineinfile:
+    path: "{{ slurmdbd_path }}"
+    regexp: "DbdAddr="
+    line: "DbdAddr={{ dbd_addr }}"
+
+- name: Add db host
+  ansible.builtin.lineinfile:
+    path: "{{ slurmdbd_path }}"
+    regexp: "DbdHost="
+    line: "DbdHost={{ dbd_host }}"
+
+- name: Add storage password
+  ansible.builtin.lineinfile:
+    path: "{{ slurmdbd_path }}"
+    regexp: "StoragePass="
+    line: "StoragePass={{ hostvars['127.0.0.1']['db_password'] }}"
+
+- name: Add storage user
+  ansible.builtin.lineinfile:
+    path: "{{ slurmdbd_path }}"
+    regexp: "StorageUser="
+    line: "StorageUser={{ slurm_user }}"
+
+- name: Add log file path
+  ansible.builtin.lineinfile:
+    path: "{{ slurmdbd_path }}"
+    regexp: "LogFile="
+    line: "LogFile={{ logfile }}"
+
+- name: Add pid file path
+  ansible.builtin.lineinfile:
+    path: "{{ slurmdbd_path }}"
+    regexp: "PidFile="
+    line: "PidFile={{ pidfile }}"
+    mode: "{{ slurmdbd_mode }}"
+
+- name: Add slurm plugindir
+  ansible.builtin.lineinfile:
+    path: "{{ slurmdbd_path }}"
+    regexp: "PluginDir="
+    line: "PluginDir={{ plugin_slurm_dir }}"
+
+- name: Create directory for symbolic link
+  ansible.builtin.file:
+    path: "{{ etc_folder }}"
+    state: directory
+    mode: "{{ gen_mode }}"
+
+- name: Create directory for symbolic link
+  ansible.builtin.file:
+    path: "{{ etcl_slurm_folder }}"
+    state: directory
+    mode: "{{ gen_mode }}"
+
+- name: Create symbolic link for slurmdbd.conf
+  ansible.builtin.file:
+    src: "{{ slurm_nfs_folder }}/etc/slurm/slurmdbd.conf"
+    dest: "{{ default_slurmdbd_path }}"
+    state: link
+    force: true
+
+- name: Change ownership of slurmdbd.conf
+  ansible.builtin.file:
+    path: "{{ default_slurmdbd_path }}"
+    owner: slurm
+    group: slurm
+    state: file
+
+- name: Set permissions for slurmdbd.conf
+  ansible.builtin.file:
+    path: "{{ default_slurmdbd_path }}"
+    mode: " {{ slurmdbd_mode }}"
+    state: file
