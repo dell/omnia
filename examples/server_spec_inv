@@ -1,12 +1,12 @@
-[waco1]
+[node-group1]
 10.5.0.3
 
-[waco1:vars]
+[node-group1:vars]
 Categories=group-1
 
-[waco2]
+[node-group2]
 10.5.0.4
 10.5.0.5
 
-[waco2:vars]
+[node-group2:vars]
 Categories=group-2
