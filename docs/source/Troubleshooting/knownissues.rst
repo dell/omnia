@@ -561,11 +561,15 @@ If kubeadm join/kubeadm init command fails, either one of the following should b
 
    Where <zone_name> is the name of the zone where docker0 interface is currently present.
 
-3. To check whether Docker zone exists already, run the following command: ::
+3. To check whether Docker zone exists already, run the following command:
+
+    ::
 
         firewall-cmd --get-zones
 
-    * If docker zone doesn’t exist, create a new docker zone using the following command: ::
+    * If docker zone doesn’t exist, create a new docker zone using the following command:
+
+        ::
 
             sudo firewall-cmd --new-zone=docker --permanent
 
