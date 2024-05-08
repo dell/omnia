@@ -136,6 +136,14 @@ Our thanks go to everyone who makes Omnia possible ([emoji key](https://allcontr
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/SanthoshT2001"><img src="https://avatars.githubusercontent.com/u/93521129?v=4" width="100px;" alt="SanthoshT2001"/><br /><sub><b>SanthoshT2001</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=SanthoshT2001" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Kratika-P"><img src="https://avatars.githubusercontent.com/u/169249531?v=4" width="100px;" alt="Kratika-P"/><br /><sub><b>Kratika</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=Kratika-P" title="Code">💻</a></td>
     </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/sbasu96"><img src="https://avatars.githubusercontent.com/u/162503707?v=4" width="100px;" alt="sbasu96"/><br /><sub><b>Soumyadeep Basu</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=sbasu96" title="Documentation">📖</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/VrindaMarwah"><img src="https://avatars.githubusercontent.com/u/169263232?v=4" width="100px;" alt="VrindaMarwah"/><br /><sub><b>VrindaMarwah</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=VrindaMarwah" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/balajikumaran-c-s"><img src="https://avatars.githubusercontent.com/u/169248535?v=4" width="100px;" alt="balajikumaran-c-s"/><br/><sub><b>balajikumaran-c-s</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=balajikumaran-c-s" title="Tests">⚠️</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Amogha-Reddy"><img src="https://avatars.githubusercontent.com/u/140503786?v=4" width="100px;" alt="Amogha-Reddy"/><br/><sub><b>Amogha-Reddy</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=Amogha-Reddy" title="Tests">⚠️</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/krsandeepit"><img src="https://avatars.githubusercontent.com/u/140503786?v=4" width="100px;" alt="krsandeepit"/><br/><sub><b>krsandeepit</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=krsandeepit" title="Tests">⚠️</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Yash-shetty1"><img src="https://avatars.githubusercontent.com/u/169258785?v=4" width="100px;" alt="Yash-shetty1"/><br/><sub><b>Yash-shetty1</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=Yash-shetty1" title="Tests">⚠️</a></td>
+    </tr>
   </tbody>
 </table>
 
