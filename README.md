@@ -4,7 +4,7 @@
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 
-![GitHub](https://img.shields.io/github/license/dell/omnia) ![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/dell/omnia?include_prereleases) ![GitHub last commit (branch)](https://img.shields.io/github/last-commit/dell/omnia/main)
+![GitHub](https://img.shields.io/github/license/dell/omnia) ![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/dell/omnia?include_prereleases) ![GitHub last commit (branch)](https://img.shields.io/github/last-commit/dell/omnia/main) ![GitHub commits since tagged version](https://img.shields.io/github/commits-since/dell/omnia/v1.5/main)
 
 ![All contributors](https://img.shields.io/github/all-contributors/dell/omnia) ![GitHub forks](https://img.shields.io/github/forks/dell/omnia) ![GitHub Repo stars](https://img.shields.io/github/stars/dell/omnia) ![GitHub all releases](https://img.shields.io/github/downloads/dell/omnia/total)
 
@@ -24,6 +24,12 @@ Current Status: ![GitHub](https://readthedocs.org/projects/omnia-doc/badge/?vers
 ## Licensing
 
 Omnia is made available under the [Apache 2.0 license](https://opensource.org/licenses/Apache-2.0)
+
+## Contributing To Omnia
+
+We encourage everyone to help us improve Omnia by contributing to the project. Contributions can be as small as documentation updates or adding example use cases, to adding commenting and properly styling code segments all the way up to full feature contributions. We ask that contributors follow our established [guidelines](https://omnia-doc.readthedocs.io/en/latest/Contributing/index.html) for contributing to the project.
+
+Contributions to Omnia are made through Pull Requests (PRs) to "[devel](https://github.com/dell/omnia/tree/devel)" branch. "[devel](https://github.com/dell/omnia/tree/devel)" is the bleeding edge branch of Omnia packed with experimental and untested features".
 
 ## Omnia Community Members:
 <img src="docs/source/images/logos/delltech.jpg" height="50px" alt="Dell Technologies">
@@ -116,7 +122,28 @@ Our thanks go to everyone who makes Omnia possible ([emoji key](https://allcontr
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Subhankar-Adak"><img src="https://avatars.githubusercontent.com/u/140381176?v=4?s=100" width="100px;" alt="Subhankar-Adak"/><br /><sub><b>Subhankar-Adak</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=Subhankar-Adak" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/priti-parate"><img src="https://avatars.githubusercontent.com/u/140157516?v=4?s=100" width="100px;" alt="priti-parate"/><br /><sub><b>priti-parate</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=priti-parate" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/lavanya5899"><img src="https://avatars.githubusercontent.com/u/140372459?v=4?s=100" width="100px;" alt="Lavanya Adhikari"/><br /><sub><b>Lavanya Adhikari</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=lavanya5899" title="Code">💻</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/preeti-thankachan"><img src="https://avatars.githubusercontent.com/u/141405483?v=4?s=100" width="100px;" alt="preeti-thankachan"/><br /><sub><b>preeti-thankachan</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=preeti-thankachan" title="Tests">⚠️</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/preeti-thankachan"><img src="https://avatars.githubusercontent.com/u/141405483?v=4?s=100" width="100px;" alt="Preeti Thankachan"/><br /><sub><b>preeti-thankachan</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=preeti-thankachan" title="Tests">⚠️</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/glimchb"><img src="https://avatars.githubusercontent.com/u/36732377?v=4?s=100" width="100px;" alt="Boris Glimcher"/><br /><sub><b>Boris Glimcher</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=glimchb" title="Code">💻</a> <a href="#maintenance-glimchb" title="Maintenance">🚧</a><a href="https://github.com/dell/omnia/commits?author=glimchb" title="Documentation">📖</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/MoshiBin"><img src="https://avatars.githubusercontent.com/u/1297388?v=4?s=100" width="100px;" alt="Moshi Binyamini"/><br /><sub><b>Moshi Binyamini</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=MoshiBin" title="Code">💻</a><a href="#maintenance-MoshiBin" title="Maintenance">🚧</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/paul-tp"><img src="https://avatars.githubusercontent.com/u/169248855?v=4" width="100px;" alt="paul-tp"/><br /><sub><b>paul-tp</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=paul-tp" title="Code">💻</a></td>
+    </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Milisha-Gupta"><img src="https://avatars.githubusercontent.com/u/52577117?v=4" width="100px;" alt="Milisha-Gupta"/><br /><sub><b>Milisha Gupta</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=Milisha-Gupta" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/sakshi-singla-1735"><img src="https://avatars.githubusercontent.com/u/169248923?v=4" width="100px;" alt="sakshi-singla-1735"/><br /><sub><b>sakshi-singla-1735</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=sakshi-singla-1735" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Sankeerna-S"><img src="https://avatars.githubusercontent.com/u/169250907?v=4" width="100px;" alt="Sankeerna-S"/><br /><sub><b>Sankeerna-S</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=Sankeerna-S" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/AjayKadoula"><img src="https://avatars.githubusercontent.com/u/38178003?v=4" width="100px;" alt="AjayKadoula"/><br /><sub><b>Ajay Kadoula</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=AjayKadoula" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/ShubhamKumar1996"><img src="https://avatars.githubusercontent.com/u/51914136?v=4" width="100px;" alt="ShubhamKumar1996"/><br /><sub><b>ShubhamKumar1996</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=ShubhamKumar1996" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/SanthoshT2001"><img src="https://avatars.githubusercontent.com/u/93521129?v=4" width="100px;" alt="SanthoshT2001"/><br /><sub><b>SanthoshT2001</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=SanthoshT2001" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Kratika-P"><img src="https://avatars.githubusercontent.com/u/169249531?v=4" width="100px;" alt="Kratika-P"/><br /><sub><b>Kratika</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=Kratika-P" title="Code">💻</a></td>
+    </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/sbasu96"><img src="https://avatars.githubusercontent.com/u/162503707?v=4" width="100px;" alt="sbasu96"/><br /><sub><b>Soumyadeep Basu</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=sbasu96" title="Documentation">📖</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/VrindaMarwah"><img src="https://avatars.githubusercontent.com/u/169263232?v=4" width="100px;" alt="VrindaMarwah"/><br /><sub><b>VrindaMarwah</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=VrindaMarwah" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Kevin-Kodama"><img src="https://avatars.githubusercontent.com/u/163032741?v=4" width="100px;" alt="Kevin-Kodama"/><br /><sub><b>Kevin-Kodama</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=Kevin-Kodama" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/balajikumaran-c-s"><img src="https://avatars.githubusercontent.com/u/169248535?v=4" width="100px;" alt="balajikumaran-c-s"/><br/><sub><b>balajikumaran-c-s</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=balajikumaran-c-s" title="Tests">⚠️</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Amogha-Reddy"><img src="https://avatars.githubusercontent.com/u/140503786?v=4" width="100px;" alt="Amogha-Reddy"/><br/><sub><b>Amogha-Reddy</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=Amogha-Reddy" title="Tests">⚠️</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/krsandeepit"><img src="https://avatars.githubusercontent.com/u/162142649?v=4" width="100px;" alt="krsandeepit"/><br/><sub><b>krsandeepit</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=krsandeepit" title="Tests">⚠️</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Yash-shetty1"><img src="https://avatars.githubusercontent.com/u/169258785?v=4" width="100px;" alt="Yash-shetty1"/><br/><sub><b>Yash-shetty1</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=Yash-shetty1" title="Tests">⚠️</a></td>
     </tr>
   </tbody>
 </table>
