@@ -65,7 +65,7 @@ Below are the steps to download packages/images using the ``pull_images_to_nodes
 
 **Pull images/packages to the cluster**
 
-    1. Create an inventory file (for example, ``imagepull_inventory.ini``) with the required groups. Assign the required nodes to each group. Images will be pulled to the nodes within these groups. For example, if you have a Kubernetes cluster, then the inventory file should contain ``kube_control_plane`` and ``kube_node`` groups. An example inventory is provided below:
+    1. Create an inventory file (for example, ``imagepull_inventory.ini``) with the required groups. Assign the required nodes to each group. Images will be pulled to the nodes within these groups. For example, if you have a Kubernetes cluster, then the inventory file should contain ``kube_control_plane`` and ``kube_node`` groups. An inventory example is provided below:
 
         ::
 
