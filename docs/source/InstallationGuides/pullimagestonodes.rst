@@ -81,7 +81,7 @@ Below are the steps to download packages/images using the ``pull_images_to_nodes
             cd local_repo
             ansible-playbook local_repo.yml
 
-    .. note:: If user registry is required to be used, then update the registry details in ``input/local_repo_config.yml`` before executing ``local_repo.yml``.
+    .. note:: If user registry is required to be used, ensure to update the registry details in ``input/local_repo_config.yml`` before executing ``local_repo.yml``. For example, ``user_registry: - { host: 192.168.0.1:5001, cert_path: "/home/ca.crt" }``.
 
 **Pull images/packages to the cluster**
 
