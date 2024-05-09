@@ -3,9 +3,9 @@ Download custom packages/images to the cluster
 
 **Download packages/images to the control plane registry**
 
-To download packages/images, Omnia provides ``pull_images_to_nodes`` utility.
+To download packages/images to the control plane registry/repository, ``local_repo.yml`` should be executed.
 
-Below are the steps to download packages/images using the ``pull_images_to_nodes`` utility:
+Follow the steps below to download packages/images:
 
     1. Create a ``.json`` file with all the required packages/images. For example, ``custom_image.json``.
 
@@ -41,7 +41,7 @@ Below are the steps to download packages/images using the ``pull_images_to_nodes
 
             {"name": "custom_image"}
 
-    4. Enter the required image entries under ``softwares`` in ``software_config.json`` based on the OS type and version running on the cluster. For example,
+    4. Enter the required softwares in ``software_config.json`` for which ``<software_name>.json`` file is created, based on the OS type and version running on the cluster. For example,
 
         ::
 
