@@ -570,4 +570,4 @@ After performing all the above steps, re-run ``upgrade.yml`` playbook.
 
 **Potential Cause**: nvidia-container-toolkit is not installed on GPU nodes.
 
-**Resolution**: Go to `<../InstallationGuides/BuildingClusters/install_kubernetes.html>`_ and follow the steps to download nvidia-container-toolkit and perform the necessary configurations based on the OS running on the cluster.
+**Resolution**: Go to `Install Kubernetes <../InstallationGuides/BuildingClusters/install_kubernetes.html>`_ and follow the steps to download nvidia-container-toolkit and perform the necessary configurations based on the OS running on the cluster.
