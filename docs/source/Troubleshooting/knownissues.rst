@@ -549,11 +549,11 @@ If kubeadm join/kubeadm init command fails, either one of the following should b
 
 **Resolution**: Perform the following steps to adjust your firewall settings, allowing Docker to utilize the 'docker0' interface without encountering conflicts.
 
-1. If docker zone exists already, add the docker0 interface using the following command: ::
+1. Add the the docker0 interface to the docker zone using the following command: ::
 
        sudo firewall-cmd --zone=docker --add-interface=docker0 --permanent
 
-2. Reload the firewall to apply changes, using the following command: ::
+2. Reload the firewall to apply the changes, using the following command: ::
 
         sudo firewall-cmd --reload
 
