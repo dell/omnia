@@ -147,10 +147,11 @@
 - name: Set variables when kube name in IP format
   ansible.builtin.set_fact:
     node_dict: "{{ node_dict | combine({item.item: {'admin_ip': item.query_result[0].admin_ip,
-      'kube_override_hostname': item.query_result[0].service_tag if item.query_result[0].service_tag in kubectl_output.stdout
+      'kube_override_hostname': (item.query_result[0].service_tag | upper) if (item.query_result[0].service_tag | upper) in kubectl_output.stdout
+         else ((item.query_result[0].service_tag | lower ) if (item.query_result[0].service_tag | lower) in kubectl_output.stdout
          else (item.query_result[0].admin_ip if item.query_result[0].admin_ip in kubectl_output.stdout
          else (item.query_result[0].hostname if item.query_result[0].hostname in kubectl_output.stdout
-         else (item.query_result[0].node if item.query_result[0].node in kubectl_output.stdout else ''))),
+         else (item.query_result[0].node if item.query_result[0].node in kubectl_output.stdout else '')))),
       'allow_ungraceful_removal': true if (item.query_result[0].admin_ip not in ready_node_names or
           item.query_result[0].service_tag not in ready_node_names or
           item.query_result[0].hostname not in ready_node_names or
