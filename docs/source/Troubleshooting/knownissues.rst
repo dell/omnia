@@ -571,3 +571,26 @@ After performing all the above steps, re-run ``upgrade.yml`` playbook.
 **Potential Cause**: nvidia-container-toolkit is not installed on GPU nodes.
 
 **Resolution**: Go to `Install Kubernetes <../InstallationGuides/BuildingClusters/install_kubernetes.html>`_ and follow the steps to download nvidia-container-toolkit and perform the necessary configurations based on the OS running on the cluster.
+
+⦾ **While provisioning a node in an Ubuntu cluster, "Installing" status is not displayed.**
+
+**Resolution**: User can track provisioning progress by checking the supported status types. If the status shows ``bmcready`` or ``powering-on``, user can infer that the node is being provisioned.
+
+⦾ **``discovery_provision.yml`` fails to check for duplicate disk_partition values in provision_config.yml**
+
+**Resolution**: User needs to ensure that there are no duplicate entries for the same partition in provision_config.yml.
+
+⦾ **Why do the nodes PXE-boot again and again while running ``discovery_provision.yml``?
+
+**Resolution**: For any discovery mechanism other than switch-based, do the following:
+
+    1. Execute the following command: ::
+
+        chdef <node> status=””
+
+    2. Then run: ::
+
+        rinstall <node>
+
+    Where <node> refers to the node column in the OmniaDB, which has a “standingby” status.
+
