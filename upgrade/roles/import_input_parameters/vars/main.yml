@@ -13,21 +13,36 @@
 #  limitations under the License.
 
 ## File arrays
-# Usage: Decryption playbook
+# Usage: read_parameters.yml
 import_input_parameters_config_file_array:
   - file: "omnia_config.yml"
     vault_password_file: ".omnia_vault_key"
   - file: "provision_config.yml"
     vault_password_file: ".provision_vault_key"
   - file: "network_config.yml"
-    vault_password_file: ".network_vault_key"
+    vault_password_file: ""
   - file: "security_config.yml"
     vault_password_file: ".security_vault.key"
   - file: "storage_config.yml"
-    vault_password_file: ".storage_vault_key"
+    vault_password_file: ""
   - file: "telemetry_config.yml"
     vault_password_file: ".telemetry_vault_key"
+
 import_input_parameters_new_config_file_array: []
+
+import_input_parameters_config_encrypt_array:
+  - file: "omnia_config.yml"
+    vault_password_file: ".omnia_vault_key"
+  - file: "provision_config.yml"
+    vault_password_file: ".provision_vault_key"
+  - file: "security_config.yml"
+    vault_password_file: ".security_vault.key"
+  - file: "telemetry_config.yml"
+    vault_password_file: ".telemetry_vault_key"
+
+read_parameters_failed_msg: "Failed to read Omnia v1.5 input config files"
+
+# Usage: generate_new_input_files.yml
 import_input_parameters_config_template_array:
   - src: 'omnia_config.j2'
     dest: 'omnia_config.yml'
@@ -45,6 +60,8 @@ import_input_parameters_config_template_array:
     dest: 'telemetry_config.yml'
   - src: 'network_spec.j2'
     dest: 'network_spec.yml'
+
+input_file_perm: "0644"
 
 ## Template variables
 # Usage: omnia_config.j2
@@ -112,3 +129,6 @@ import_input_parameters_openldap_organizational_unit: "People"
 ## Messages displayed to user
 # Usage: import_input_parameters.yml
 import_input_parameters_successful_msg: "Prepare upgrade completed. Kindly confirm migrated values and provide input for newly introduced values."
+
+# Usage: encrypt_1_5_inputs.yml
+vault_file_perm: '0644'

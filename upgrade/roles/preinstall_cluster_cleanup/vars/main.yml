@@ -24,3 +24,4 @@ omnia_15_config_vault_key: ".omnia_vault_key"
 exports_file_path: "/etc/exports"
 fstab_file_path: "/etc/fstab"
 spool_clustername_file: "/var/spool/clustername"
+omnia_config_syntax_fail_msg: "Failed.Syntax errors present in the v1.5 omnia_config.yml.File Path is: {{ old_input_location }}/{{ omnia_config_file_name }}.Re-run the playbook after fixing syntax error." # noqa: yaml[line-length]

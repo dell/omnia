@@ -16,3 +16,4 @@
 - name: Encrypt config files
   ansible.builtin.include_tasks: encrypt_input_file.yml
   loop: "{{ input_config_files_array }}"
+  no_log: true

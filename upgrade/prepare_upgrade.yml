@@ -18,8 +18,8 @@
   hosts: localhost
   connection: local
   roles:
-    - validate_input_configs
     - encrypt_inputs
+    - validate_input_configs
 
 - name: Cleanup Control plane
   hosts: localhost
