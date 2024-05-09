@@ -533,7 +533,7 @@ If kubeadm join/kubeadm init command fails, either one of the following should b
 
 .. image:: ../images/kubernetes_unable_to_retrieve1.png
 
-**Potential Cause**: This issue could occur when the task *‘prepare_cp/roles/omnia_appliance_cp: Install Kubespray ansible-collection’* in ``prepare_upgrade.yml`` silently passes, without installing the Kubespray ansible-collection. This can happen due to unstable internet connectivity on control plane during installation.
+**Potential Cause**: This issue may arise when the task *‘prepare_cp/roles/omnia_appliance_cp: Install Kubespray ansible-collection’* in ``prepare_upgrade.yml`` silently passes (as shown in the following image), without installing the Kubespray ansible-collection. This can happen due to unstable internet connectivity on control plane during installation.
 
 .. image:: ../images/kubernetes_unable_to_retrieve2.png
 
@@ -545,49 +545,23 @@ If kubeadm join/kubeadm init command fails, either one of the following should b
 
 .. image:: ../images/loki_docker.png
 
-**Potential Cause**: This issue could occur when the ‘docker0’ interface is already bound to a zone in the firewall settings and Docker tries to use this interface, resulting in a ‘Zone Conflict’.
+**Potential Cause**: This issue may arise when the ‘docker0’ interface is already bound to a zone in the firewall settings and Docker tries to use this interface, resulting in a ‘Zone Conflict’.
 
 **Resolution**: Perform the following steps to adjust your firewall settings, allowing Docker to utilize the 'docker0' interface without encountering conflicts.
 
-1. Run the following command to check which zone the ‘docker0’ interface is bound to: ::
+1. If docker zone exists already, add the docker0 interface using the following command: ::
 
-        firewall-cmd --get-zone-of-interface=docker0
+       sudo firewall-cmd --zone=docker --add-interface=docker0 --permanent
 
-   If the command output shows a zone other than Docker, then you need to remove docker0 interface from the current zone and add it to the ‘Docker’ zone.
-
-2. Run the following command to remove docker0 interface from its current zone: ::
-
-        sudo firewall-cmd --zone=<zone_name> --remove-interface=docker0
-
-   Where <zone_name> is the name of the zone where docker0 interface is currently present.
-
-3. To check whether Docker zone exists already, run the following command:
-
-    ::
-
-        firewall-cmd --get-zones
-
-    * If docker zone doesn’t exist, create a new docker zone using the following command:
-
-        ::
-
-            sudo firewall-cmd --new-zone=docker --permanent
-
-    * If docker zone exists already, add the docker0 interface using the following command:
-
-        ::
-
-            sudo firewall-cmd --zone=docker --add-interface=docker0 --permanent
-
-4. Reload the firewall to apply changes, using the following command: ::
+2. Reload the firewall to apply changes, using the following command: ::
 
         sudo firewall-cmd --reload
 
-5. Restart docker service to ensure it picks up the changes, using the following command: ::
+3. Restart docker service to ensure it picks up the changes, using the following command: ::
 
         sudo systemctl restart docker
 
-6. Finally, run the following command to ensure docker service is active and running: ::
+4. Finally, run the following command to ensure docker service is active and running: ::
 
         systemctl status docker
 
