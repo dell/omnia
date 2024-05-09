@@ -9,7 +9,7 @@ This playbook performs the following tasks:
     * Cleanup v1.5.1 Docker on the control plane
     * Cleanup v1.5.1 Kubernetes on cluster
     * Creates the v1.6 local repository based on the ``software_config.json``, generated after running ``prepare_config.yml``.
-    * Disables the NFS server running on the head node and unmounts the omnia-share directory.
+    * Disables the NFS server running on the head node and unmounts the omnia_nfs_share directory.
     * Prepares the control plane which includes upgrading xCAT, setting up Omnia telemetry binaries for cluster, restoring the OmniaDB backup to v1.6 format.
 
 To execute the ``prepare_upgrade.yml`` playbook, run the following command: ::
