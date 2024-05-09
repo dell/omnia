@@ -10,15 +10,6 @@ To execute the ``upgrade.yml`` playbook, run the following command: ::
 
 Where inventory refers to the auto-generated inventory file in Omnia v1.6 format.
 
-This is the first line.|
-This is the second line.
-
-
-This is the first line. |
-This is the second line.
-
-
-
 .. note::
 
     * Upgrade flow upgrades the existing Omnia v1.5.1 cluster and should not be combined with provisioning of new nodes for Omnia v1.6.
