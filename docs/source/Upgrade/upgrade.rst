@@ -10,8 +10,13 @@ To execute the ``upgrade.yml`` playbook, run the following command: ::
 
 Where inventory refers to the auto-generated inventory file in Omnia v1.6 format.
 
-This is the first line.
+This is the first line.|
 This is the second line.
+
+
+This is the first line. |
+This is the second line.
+
 
 
 .. note::
