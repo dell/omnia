@@ -137,13 +137,10 @@ Wait for 15 minutes after the Kubernetes cluster reboots. Next, verify the statu
 3. Run the corresponding playbook that was used to install Kubernetes: ``omnia.yml``, ``jupyterhub.yml``, or ``kubeflow.yml``.
 
 
-
 ⦾ **Why do Kubernetes Pods stop communicating with the servers when the DNS servers are not responding?**
 
 
 **Potential Cause**: The host network is faulty causing DNS to be unresponsive
-
-
 
 **Resolution**:
 
@@ -566,3 +563,11 @@ If kubeadm join/kubeadm init command fails, either one of the following should b
         systemctl status docker
 
 After performing all the above steps, re-run ``upgrade.yml`` playbook.
+
+⦾ **Why does the nvidia-device-plugin pods in ContainerCreating status fails with ``no runtime for "nvidia" in configured`` error?
+
+.. image:: ../images/nvidia_noruntime.png
+
+**Potential Cause**: nvidia-container-toolkit is not installed on GPU nodes.
+
+**Resolution**: Go to `<../InstallationGuides/BuildingClusters/install_kubernetes.html>`_ and follow the steps to download nvidia-container-toolkit and perform the necessary configurations based on the OS running on the cluster.
