@@ -13,9 +13,7 @@ The upgrade feature in v1.6 helps customers to upgrade their Omnia setup from v1
 
            git clone https://github.com/dell/omnia.git
 
-    4. Change directory to Omnia using: ::
-
-           cd omnia
+    4. Once the cloning process is done, follow the steps listed below to invoke the upgrade process:
 
 .. toctree::
 
