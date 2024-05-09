@@ -33,7 +33,7 @@ Run the following commands one after the other:
 
             ansible-playbook omnia.yml -i inventory
 
-.. note:: To add new nodes in an existing cluster, click `here. <../addinganewnode.html>`_.
+.. note:: To add new nodes in an existing cluster, click `here. <../addinganewnode.html>`_
 
 **Additional installations**
 
