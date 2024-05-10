@@ -28,9 +28,9 @@
   roles:
     - validate_upgrade_config
     - import_input_parameters
+    - encrypt_inputs
     - backup_omniadb
     - upgrade_inventory
-    - encrypt_inputs
 
 - name: Display User Message
   hosts: localhost

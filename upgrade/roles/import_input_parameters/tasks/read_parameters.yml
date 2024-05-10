@@ -17,6 +17,7 @@
   changed_when: false
   loop: "{{ import_input_parameters_config_file_array }}"
   register: cat_output
+  no_log: true
 
 - name: Read stdout into an array
   ansible.builtin.set_fact:
@@ -28,20 +29,33 @@
   loop: "{{ import_input_parameters_config_file_array | zip(stdout_array) | list }}"
   no_log: true
 
-- name: Decrypt config files
-  ansible.builtin.command: >-
-    ansible-vault decrypt {{ old_input_location }}/{{ item.file_entry.file }}
-    --vault-password-file {{ old_input_location }}/{{ item.file_entry.vault_password_file }}
-  loop: "{{ import_input_parameters_new_config_file_array }}"
-  when: "'$ANSIBLE_VAULT;' in item.stdout"
-  no_log: true
-  changed_when: false
+- name: Read config files
+  block:
+    - name: Decrypt config files
+      ansible.builtin.command: >-
+        ansible-vault decrypt {{ old_input_location }}/{{ item.file_entry.file }}
+        --vault-password-file {{ old_input_location }}/{{ item.file_entry.vault_password_file }}
+      loop: "{{ import_input_parameters_new_config_file_array }}"
+      when: "'$ANSIBLE_VAULT;' in item.stdout"
+      no_log: true
+      changed_when: false
 
-- name: Read existing parameters from old input directory
-  ansible.builtin.include_vars:
-    dir: "{{ old_input_location }}"
-    ignore_unknown_extensions: true
-    extensions:
-      - 'yml'
-      - 'yaml'
-  changed_when: false
+    - name: Read existing parameters from old input directory
+      ansible.builtin.include_vars:
+        dir: "{{ old_input_location }}"
+        ignore_unknown_extensions: true
+        extensions:
+          - 'yml'
+          - 'yaml'
+      changed_when: false
+
+  rescue:
+    - name: Failed to read Omnia 1.5 input config files
+      ansible.builtin.fail:
+        msg: "{{ read_parameters_failed_msg }}"
+
+  always:
+    - name: Encrypt Omnia 1.5 input config files
+      ansible.builtin.include_tasks: encrypt_1_5_inputs.yml
+      loop: "{{ import_input_parameters_config_encrypt_array }}"
+      no_log: true

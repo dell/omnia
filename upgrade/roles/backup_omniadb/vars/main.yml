@@ -15,12 +15,3 @@
 
 # Usage:install_packages.yml
 python_version: "python3.9"
-decrypted_config_files_array:
-  - file: "omnia_config.yml"
-    vault_password_file: ".omnia_vault_key"
-  - file: "provision_config.yml"
-    vault_password_file: ".provision_vault_key"
-  - file: "security_config.yml"
-    vault_password_file: ".security_vault.key"
-  - file: "telemetry_config.yml"
-    vault_password_file: ".telemetry_vault_key"

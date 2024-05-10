@@ -13,13 +13,6 @@
 #  limitations under the License.
 ---
 
-- name: Generate config files from templates
-  ansible.builtin.template:
-    src: "{{ item.src }}"
-    dest: "{{ role_path }}/../../../input/{{ item.dest }}"
-    mode: "0644"
-  loop: "{{ import_input_parameters_config_template_array }}"
-
 - name: Remove k8s line from software_config.json
   ansible.builtin.lineinfile:
     path: "{{ role_path }}/../../../input/software_config.json"
@@ -56,3 +49,10 @@
     insertafter: '\['
     firstmatch: true
   when: omnia_telemetry_support
+
+- name: Generate config files from templates
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ role_path }}/../../../input/{{ item.dest }}"
+    mode: "{{ input_file_perm }}"
+  loop: "{{ import_input_parameters_config_template_array }}"

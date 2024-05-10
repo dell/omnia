@@ -25,10 +25,3 @@
     state: dump
     target: "{{ backup_location }}/backup.sql"
   when: db_ping.is_available
-
-- name: Encrypt config files
-  ansible.builtin.command: >-
-    ansible-vault encrypt {{ old_input_location }}/{{ item.file }}
-    --vault-password-file {{ old_input_location }}/{{ item.vault_password_file }}
-  loop: "{{ decrypted_config_files_array }}"
-  changed_when: false
