@@ -100,7 +100,10 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
         cd provision
         ansible-playbook provision.yml
 
-.. note:: If you are using ``switch_based`` discovery mechanism, you do not need to run ``provision.yml`` playbook. Run ``prepare_cp.yml`` and ``discovery.yml`` and then manually boot the nodes in PXE mode.
+.. note::
+
+    * If you are using ``switch_based`` discovery mechanism, you do not need to run ``provision.yml`` playbook. Run ``prepare_cp.yml`` and ``discovery.yml`` and then manually boot the nodes in PXE mode.
+    * After executing ``discovery_provision.yml`` playbook, user can check the log file available at ``/var/log/omnia.log`` for more information.
 
 ----
 After successfully running ``discovery_provision.yml``, go to `Building Clusters <../BuildingClusters/index.html>`_ to setup Slurm, Kubernetes, NFS, BeeGFS and Authentication.

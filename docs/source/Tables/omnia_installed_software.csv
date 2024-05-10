@@ -89,7 +89,6 @@ ruamel.yaml,MIT License,It is a YAML 1.2 loader/dumper package for Python.,0.17.
 ruamel.yaml.clib,MIT License,It is the C based reader/scanner and emitter for ruamel.yaml,0.2.8
 Kserve,Apache License 2.0,"Deploys Kserve as inference platform on K8s cluster. Kserve installation installs dependencies istio1.17.0, certificate manager (1.13.0) and  Knative(1.11.0) ",0.11.2
 pyarrow,Apache License 2.0,Discovery provisioning,15.0.2
-bcm_roce,BCM Licenses,RoCE drivers,229.2.9.0
 vllm,Apache License 2.0,A high-throughput and memory-efficient inference and serving engine for LLMs,0.4.0
 ucx,BSD 3 Clause License,Benchmarks tools,1.15.0
 openmpi, 3-clause BSD license,Benchmarks tools,4.1.6

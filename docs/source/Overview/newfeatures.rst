@@ -9,8 +9,6 @@ New Features
 
             *	AMD GPU driver and ROCm installation.
 
-            *	Broadcom RoCE driver installation.
-
             *	IP configuration on the additional NICs: IPv4 support
 
             *	Kubernetes installation.

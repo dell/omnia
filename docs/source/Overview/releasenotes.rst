@@ -12,8 +12,6 @@ Releases
 
             *	`AMD GPU driver and ROCm installation. <../Roles/Accelerator/index.html>`_
 
-            *	`Broadcom RoCE driver installation. <../InstallationGuides/LocalRepo/index.html>`_
-
             *	`IP configuration on the additional NICs: IPv4 support <../InstallationGuides/InstallingProvisionTool/AdditionalNIC.html>`_
 
             *	`Kubernetes installation. <../InstallationGuides/BuildingClusters/index.html>`_

@@ -425,6 +425,8 @@ If you have enabled the option to install the login node in the cluster, set the
 
 **Potential Cause**: Your Docker pull limit has been exceeded. For more information, `click here <https://www.docker.com/increase-rate-limits>`_.
 
+**Resolution**:
+
 1. Delete Jupyterhub deployment by executing the following command in kube_control_plane: ``helm delete jupyterhub -n jupyterhub``
 
 2. Re-execute ``jupyterhub.yml`` after 8-9 hours.
@@ -580,7 +582,7 @@ After performing all the above steps, re-run ``upgrade.yml`` playbook.
 
 **Resolution**: User needs to ensure that there are no duplicate entries for the same partition in provision_config.yml.
 
-⦾ **Why do the nodes PXE-boot again and again while running ``discovery_provision.yml``?**
+⦾ **After executing ``disocvery_provision.yml``, the node status in OmniaDB reflects as "standingby"?**
 
 **Resolution**: For any discovery mechanism other than switch-based, do the following:
 
@@ -598,3 +600,16 @@ After performing all the above steps, re-run ``upgrade.yml`` playbook.
 
 **Resolution**: User must provide the software subgroup (if required) for the respective software in ``input/software_config.json``. For more information, `click here <../InstallationGuides/LocalRepo/InputParameters.html>`_.
 
+⦾ **The "TASK [configure_repos : Generate metadata for repositories]" fails during the execution of local_repo.yml on RHEL clusters if the Epel repository is unstable.**
+
+**Potential Cause**: If the external Epel repository link mentioned in ``omnia_repo_url_rhel`` is not stable, then it can cause failures in ``local_repo.yml`` playbook execution.
+
+**Resolution**:
+
+1. Check if the Epel repository link mentioned in ``omnia_repo_url_rhel`` is accessible.
+
+2. Verify the required software listed in ``software_config.json``, by examining the corresponding ``<software>.json`` files located in the ``input/config/rhel/`` directory. User can do either of the following, based on the findings:
+
+    - If none of the packages are dependent on the Epel repository, users can remove the Epel repository URL from ``omnia_repo_url_rhel``.
+
+    - If any package required from the Epel repository is listed in the ``software_config.json`` file, it's advisable to either wait for the Epel repository to stabilize or host those Epel repository packages locally. Afterward, remove the Epel repository link from ``omnia_repo_url_rhel`` and provide the locally hosted URL for the Epel repository packages via the ``user_repo_url`` variable.
