@@ -580,7 +580,7 @@ After performing all the above steps, re-run ``upgrade.yml`` playbook.
 
 **Resolution**: User needs to ensure that there are no duplicate entries for the same partition in provision_config.yml.
 
-⦾ **Why do the nodes PXE-boot again and again while running ``discovery_provision.yml``?
+⦾ **Why do the nodes PXE-boot again and again while running ``discovery_provision.yml``?**
 
 **Resolution**: For any discovery mechanism other than switch-based, do the following:
 
