@@ -137,13 +137,10 @@ Wait for 15 minutes after the Kubernetes cluster reboots. Next, verify the statu
 3. Run the corresponding playbook that was used to install Kubernetes: ``omnia.yml``, ``jupyterhub.yml``, or ``kubeflow.yml``.
 
 
-
 ⦾ **Why do Kubernetes Pods stop communicating with the servers when the DNS servers are not responding?**
 
 
 **Potential Cause**: The host network is faulty causing DNS to be unresponsive
-
-
 
 **Resolution**:
 
@@ -192,6 +189,11 @@ As defined in RFC 822, the only legal characters are the following:
 
 2. Re-run ``omnia.yml``
 
+⦾ **What to do if slurmd services do not start after running ``omnia.yml`` playbook?**
+
+Run the following command to manually restart slurmd services on the nodes ::
+
+    systemctl restart slurmd
 
 ⦾ **What to do when Slurm services do not start automatically after the cluster reboots:**
 
@@ -202,6 +204,16 @@ As defined in RFC 822, the only legal characters are the following:
     systemctl restart prometheus-slurm-exporter
 
 * Run ``systemctl status slurmd`` to manually restart the following service on all the cluster nodes.
+
+⦾ **What to do if new slurm node is not added to sinfo output of slurm control node when restart_slurm_services in omnia_config.yml is set to ``false``?**
+
+* Run the following command on slurm control node: ::
+
+    systemctl restart slurmctld
+
+* Verify if the slurm node was added, using: ::
+
+    sinfo
 
 ⦾ **Why do Slurm services fail?**
 
@@ -266,7 +278,7 @@ Recommended Actions:
 
 * Enable the required services using ``firewall-cmd  --permanent  --add-service=<service name>`` and then reload the firewall using ``firewall-cmd  --reload``.
 
-⦾ **What to do when omnia.yml execution fails with nfs-server.service might not be running on NFS Server. Please check or start services``?**
+⦾ **What to do when omnia.yml execution fails with nfs-server.service might not be running on NFS Server. Please check or start services?**
 
 **Potential Cause**: nfs-server.service is not running on the target node.
 
@@ -413,6 +425,8 @@ If you have enabled the option to install the login node in the cluster, set the
 
 **Potential Cause**: Your Docker pull limit has been exceeded. For more information, `click here <https://www.docker.com/increase-rate-limits>`_.
 
+**Resolution**:
+
 1. Delete Jupyterhub deployment by executing the following command in kube_control_plane: ``helm delete jupyterhub -n jupyterhub``
 
 2. Re-execute ``jupyterhub.yml`` after 8-9 hours.
@@ -429,3 +443,173 @@ Reboot the NFS server (external to the cluster) to bring up the services again: 
 ⦾  **Why do Kuberneteschildnode & kubernetesnodes log as Pass in the database even if there are nodes in the Ready,Schedulingdisabled state?**
 
 **Potential Cause**:  Omnia telemetry considers ``Ready,SchedulingDisabled`` as a Ready state of Kubernetes nodes . So, even if the ``kubectl get nodes`` command shows any node’s state as ``Ready,SchedulingDisabled``, the entry in DB for  ``Kuberneteschildnode`` & ``kubernetesnodes`` will be logged as Pass instead of Fail.
+
+⦾ **What to do if omnia.yml playbook execution fails with MetalLB, a load-balancer for bare metal Kubernetes cluster?**
+
+**Resolution**:
+
+If your ``omnia.yml`` playbook execution fails while waiting for the MetalLB controller to be up and running, you need to wait for the MetalLB pods to come to running state and then re-run ``omnia.yml/scheduler.yml``.
+
+⦾ **What to do if omnia.yml playbook execution fails to execute ``kubeadm join`` or ``kubeadm init`` command?**
+
+**Resolution**:
+
+If kubeadm join/kubeadm init command fails, either one of the following should be done:
+
+    * Re-run ``omnia.yml/scheduler.yml``.
+    * Run ``kubeadm reset -f`` on the node where kubeadm join/kubeadm init command fails and run ``omnia.yml/scheduler.yml``.
+    * Reset cluster using ``utils/reset_cluster_configuration.yml`` and then run ``scheduler.yml/omnia.yml``.
+
+⦾ **What to do if local_repo.yml execution fails with the following error:**
+
+.. image:: ../images/local_repo_permissions_error.png
+
+**Potential Cause**: Executing ``local_repo.yml`` with ``repo_store_path`` set as an NFS share, but lacking the necessary permissions to access it from the control plane.
+
+**Resolution**: Provide the required (read, write, and execute) permissions for the NFS share. Verify the permissions of NFS share from the root user of the control plane.
+
+⦾ **What to do if omnia.yml execution fails with a "403: Forbidden" error when an NFS share is provided as the repo_store_path?**
+
+.. image:: ../images/omnia_NFS_403.png
+
+**Potential Cause**: For omnia.yml execution, the NFS share folder provided in repo_store_path must have 755 permissions.
+
+**Resolution**: Ensure that the NFS share folder provided as the repo_store_path has 755 permissions, and re-run ``omnia.yml``.
+
+⦾ **omnia.yml or scheduler.yml playbook execution fails with the following error:**
+
+.. image:: ../images/kubespray_error.png
+
+**Potential Cause**: This error occurs when the Kubespray collection is not installed during the execution of ``prepare_cp.yml``.
+
+**Resolution**: Re-run ``prepare_cp.yml``.
+
+⦾ **NFS-client provisioner is in "ContainerCreating" or "CrashLoopBackOff" state.**
+
+.. image:: ../images/NFS_container_creating_error.png
+
+.. image:: ../images/NFS_crash_loop_back_off_error.png
+
+**Potential Cause**: This issue usually occurs when ``server_share_path`` given in ``storage_config.yml`` for ``k8s_share`` does not have an NFS server running.
+
+**Resolution**:
+
+    * Ensure that ``storage.yml`` is executed on the same inventory which is being used for ``scheduler.yml``.
+    * Ensure that ``server_share_path`` mentioned in ``storage_config.yml`` for ``k8s_share: true`` has an active nfs_server running on it.
+
+⦾ **Nfs-client provisioner is in "ContainerCreating" or "CrashLoopBackOff" state and ``kubectl describe <pod_name>`` shows the following output:**
+
+.. image:: ../images/NFS_helm_23743.png
+
+**Potential Cause**: This is a known issue. For more information, click `here. <https://github.com/helm/charts/issues/23743>`_
+
+**Resolution**:
+
+    1. Wait for some time for the pods to come up. **OR**
+    2. Do the following:
+
+        * Run the following command to delete the pod: ::
+
+            kubectl delete pod <pod_name> -n <namespace>
+
+        * Post deletion, the pod will be restarted and it will come to running state.
+
+⦾ **What to do if slurmctld services fails when ``slurm_installaton_type`` is nfs_share during omnia.yml execution?**
+
+**Potential Cause**: This issue may arise due to internal network issues.
+
+**Resolution**: Re-run the playbook with same configuration and verify the status of slurmctld service in the slurm control node.
+
+⦾ **Why does the task ‘Parse and Download: Display Failed Packages’ fail while running prepare_upgrade.yml?**
+
+.. image:: ../images/upgrade_failed_packages.png
+
+**Potential Cause**: This issue may arise while setting up of local repo for Omnia v1.6 and can occur due to internet connection issues on control plane.
+
+**Resolution**: Verify that the internet connectivity on control plane is stable and re-run the ``prepare_upgrade.yml`` playbook.
+
+⦾ **Why does omnia.yml (or upgrade.yml, in case of upgrade) fail with an error “Unable to retrieve file contents. Could not find or access... kubernetes_sigs.kubespray.cluster on the Ansible Controller”?**
+
+.. image:: ../images/kubernetes_unable_to_retrieve1.png
+
+**Potential Cause**: This issue may arise when the task *‘prepare_cp/roles/omnia_appliance_cp: Install Kubespray ansible-collection’* in ``prepare_upgrade.yml`` silently passes (as shown in the following image), without installing the Kubespray ansible-collection. This can happen due to unstable internet connectivity on control plane during installation.
+
+.. image:: ../images/kubernetes_unable_to_retrieve2.png
+
+**Resolution**: Manually try to install the Kubespray ansible-collection as shown below and re-run the ``omnia.yml`` playbook (or ``upgrade.yml`` playbook in case of upgrade):
+
+.. image:: ../images/kubernetes_unable_to_retrieve3.png
+
+⦾ **Why does the task ‘loki: Start Docker Service’ fail at “Job for docker.service failed because the control process exited with error code” while running upgrade.yml?**
+
+.. image:: ../images/loki_docker.png
+
+**Potential Cause**: This issue may arise when the ‘docker0’ interface is already bound to a zone in the firewall settings and Docker tries to use this interface, resulting in a ‘Zone Conflict’.
+
+**Resolution**: Perform the following steps to adjust your firewall settings, allowing Docker to utilize the 'docker0' interface without encountering conflicts.
+
+1. Add the the docker0 interface to the docker zone using the following command: ::
+
+       sudo firewall-cmd --zone=docker --add-interface=docker0 --permanent
+
+2. Reload the firewall to apply the changes, using the following command: ::
+
+        sudo firewall-cmd --reload
+
+3. Restart docker service to ensure it picks up the changes, using the following command: ::
+
+        sudo systemctl restart docker
+
+4. Finally, run the following command to ensure docker service is active and running: ::
+
+        systemctl status docker
+
+After performing all the above steps, re-run ``upgrade.yml`` playbook.
+
+⦾ **Why does the nvidia-device-plugin pods in ContainerCreating status fails with ``no runtime for "nvidia" in configured`` error?
+
+.. image:: ../images/nvidia_noruntime.png
+
+**Potential Cause**: nvidia-container-toolkit is not installed on GPU nodes.
+
+**Resolution**: Go to `Install Kubernetes <../InstallationGuides/BuildingClusters/install_kubernetes.html>`_ and follow the steps to download nvidia-container-toolkit and perform the necessary configurations based on the OS running on the cluster.
+
+⦾ **While provisioning a node in an Ubuntu cluster, "Installing" status is not displayed in cluster.nodeinfo table.**
+
+**Resolution**: User can track provisioning progress by checking the supported status types. If the status shows ``bmcready`` or ``powering-on``, user can infer that the node is being provisioned. Once the node has been provisioned successfully, it will reflect a ``booted`` status in the OmniaDB.
+
+⦾ **``discovery_provision.yml`` fails to check for duplicate disk_partition values in provision_config.yml**
+
+**Resolution**: User needs to ensure that there are no duplicate entries for the same partition in provision_config.yml.
+
+⦾ **After executing ``disocvery_provision.yml``, the node status in OmniaDB reflects as "standingby"?**
+
+**Resolution**: For any discovery mechanism other than switch-based, do the following:
+
+    1. Execute the following command: ::
+
+        chdef <node> status=””
+
+    2. Then run: ::
+
+        rinstall <node>
+
+    Where <node> refers to the node column in the OmniaDB, which has a “standingby” status.
+
+⦾ **While executing local_repo.yml playbook, subgroup entries for applicable software is not validated during playbook execution.**
+
+**Resolution**: User must provide the software subgroup (if required) for the respective software in ``input/software_config.json``. For more information, `click here <../InstallationGuides/LocalRepo/InputParameters.html>`_.
+
+⦾ **The "TASK [configure_repos : Generate metadata for repositories]" fails during the execution of local_repo.yml on RHEL clusters if the Epel repository is unstable.**
+
+**Potential Cause**: If the external Epel repository link mentioned in ``omnia_repo_url_rhel`` is not stable, then it can cause failures in ``local_repo.yml`` playbook execution.
+
+**Resolution**:
+
+1. Check if the Epel repository link mentioned in ``omnia_repo_url_rhel`` is accessible.
+
+2. Verify the required software listed in ``software_config.json``, by examining the corresponding ``<software>.json`` files located in the ``input/config/rhel/`` directory. User can do either of the following, based on the findings:
+
+    - If none of the packages are dependent on the Epel repository, users can remove the Epel repository URL from ``omnia_repo_url_rhel``.
+
+    - If any package required from the Epel repository is listed in the ``software_config.json`` file, it's advisable to either wait for the Epel repository to stabilize or host those Epel repository packages locally. Afterward, remove the Epel repository link from ``omnia_repo_url_rhel`` and provide the locally hosted URL for the Epel repository packages via the ``user_repo_url`` variable.

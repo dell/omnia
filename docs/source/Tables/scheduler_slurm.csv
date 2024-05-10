@@ -28,10 +28,15 @@
 
      ``boolean``
 
-     Optional   ","* Indicates whether slurm services should be restarted.
+     Optional   ","* Indicates whether slurm control node services (slurmctld) should be restarted or not.
+* If ``restart_slurm_services`` is set to ``true``, slurmctld services will be restarted on every execution of ``omnia.yml``.
 
 * **Choices**
 
 	* ``true`` <- **Default**
 
-	* ``false``"
+	* ``false``
+
+
+.. caution:: If any slurm jobs are running,  restarting ``slurmctld`` can cause failure of jobs. Set ``restart_slurm_services`` to ``false`` if jobs are running and restart manually the service after playbook execution.
+"

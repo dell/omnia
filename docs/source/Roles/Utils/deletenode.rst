@@ -1,6 +1,6 @@
 Remove node from the cluster
 ----------------------------
-Use this playbook to remove nodes from the cluster and stop all clustering software on the target nodes.
+Use this playbook to remove nodes from the cluster and stop all clustering software on the target nodes. See the sample inventory file `here. <../../samplefiles.html#inventory-file>`_
 
 .. note:: All target nodes should be drained before executing the playbook. If a job is running on any target nodes, the playbook will exit.
 
@@ -20,7 +20,7 @@ Run the playbook using the following commands: ::
 
 Soft reset the cluster
 -----------------------
-Use this playbook to stop all Slurm and Kubernetes services. This action will destroy the cluster.
+Use this playbook to stop all Slurm and Kubernetes services. This action will destroy the cluster. See the sample inventory file `here. <../../samplefiles.html#inventory-file>`_
 
 .. note:: All target nodes should be drained before executing the playbook. If a job is running on any target nodes, the playbook will exit.
 
@@ -35,11 +35,11 @@ Use this playbook to stop all Slurm and Kubernetes services. This action will de
 Run the playbook using the following commands: ::
 
         cd utils
-        ansible-playbook reset_cluster_config.yml -i inventory
+        ansible-playbook reset_cluster_configuration.yml -i inventory
 
 Delete node from the cluster
 -----------------------------
-Use this playbook to remove nodes from all inventory files and tables. No changes are made to the Slurm or Kubernetes cluster.
+Use this playbook to remove nodes from all inventory files and tables. No changes are made to the Slurm or Kubernetes cluster. See the sample inventory file `here. <../../samplefiles.html#inventory-file-to-delete-node-from-the-cluster>`_
 
 .. note:: All target nodes should be drained before executing the playbook. If a job is running on any target nodes, the playbook will exit.
 

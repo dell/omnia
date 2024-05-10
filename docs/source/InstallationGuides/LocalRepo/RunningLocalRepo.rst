@@ -24,10 +24,13 @@ To create local repositories, run the following commands: ::
     cd local_repo
     ansible-playbook local_repo.yml
 
+.. caution:: During the execution of ``local_repo.yml``, Omnia 1.6 will remove packages such as ``podman``, ``containers-common``, and ``buildah`` (if they are already installed), as they conflict with the installation of ``containerd.io`` on RHEL/Rocky OS control plane.
+
 Verify changes made by the playbook by running ``cat /etc/containerd/certs.d/_default/hosts.toml`` on compute nodes.
 
 .. note::
-    * View the status of packages for the current run of ``local_repo.yml`` in ``/opt/omnia/offline/download_package_status.csv``.
+    * View the status of packages for the current run of ``local_repo.yml`` in ``/opt/omnia/offline/download_package_status.csv``. Packages which are already a part of AppStream or BaseOS repositories (for RHEL or Rocky OS) and Focal or Jammy repositories (for Ubuntu) show up as ``Skipped``.
+    * If ``repo_config`` is set to ``partial``, packages which are part of the ``user_repo_url`` or images which are part of ``user_registry`` have a ``Skipped`` status in ``/opt/omnia/offline/download_package_status.csv``.
     * If any software packages failed to download during the execution of this script, scripts that rely on the package for their working (that is, scripts that install the software)  may fail.
 
 To fetch images from the ``user_registry`` or the Omnia local registry, run the below commands:

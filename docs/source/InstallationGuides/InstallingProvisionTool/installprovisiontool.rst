@@ -100,6 +100,11 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
         cd provision
         ansible-playbook provision.yml
 
+.. note::
+
+    * If you are using ``switch_based`` discovery mechanism, you do not need to run ``provision.yml`` playbook. Run ``prepare_cp.yml`` and ``discovery.yml`` and then manually boot the nodes in PXE mode.
+    * After executing ``discovery_provision.yml`` playbook, user can check the log file available at ``/var/log/omnia.log`` for more information.
+
 ----
 After successfully running ``discovery_provision.yml``, go to `Building Clusters <../BuildingClusters/index.html>`_ to setup Slurm, Kubernetes, NFS, BeeGFS and Authentication.
 ----
@@ -116,7 +121,7 @@ After successfully running ``discovery_provision.yml``, go to `Building Clusters
 
     * All ports required for xCAT to run will be opened (For a complete list, check out the `Security Configuration Document <../../SecurityConfigGuide/ProductSubsystemSecurity.html#firewall-settings>`_).
 
-    * After running ``discovery_provision.yml``, the file ``input/provision_config_credentials.yml`` will be encrypted. To edit the file, use the command: ``ansible-vault edit provision_config.yml --vault-password-file .provision_vault_key``
+    * After running ``discovery_provision.yml``, the file ``input/provision_config_credentials.yml`` will be encrypted. To edit the file, use the command: ``ansible-vault edit provision_config.yml --vault-password-file .provision_credential_vault_key``
 
     * Post execution of ``discovery_provision.yml``, IPs/hostnames cannot be re-assigned by changing the mapping file. However, the addition of new nodes is supported as explained `here <../addinganewnode.html>`_.
 

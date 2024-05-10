@@ -1,7 +1,8 @@
 Security
 =========
 
-The security role allows users to set up FreeIPA and LDAP to help authenticate into HPC clusters.
+The security feature allows users to set up FreeIPA and OpenLDAP to help authenticate into HPC clusters.
+
 
 .. note::
 	* Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to run ``security.yml`` on RHEL target nodes.

@@ -1,7 +1,7 @@
 GPU accelerator configuration
 -------------------------------
 
-The accelerator role allows users to  set up the `AMD ROCm <https://www.amd.com/en/graphics/servers-solutions-rocm>`_ platform or the `CUDA Nvidia toolkit <https://developer.nvidia.com/cuda-zone>`_. These tools allow users to unlock the potential of installed GPUs.
+The accelerator role allows users to  set up the `AMD ROCm <https://rocm.docs.amd.com/projects/install-on-linux/en/latest/>`_ platform or the `CUDA Nvidia toolkit <https://developer.nvidia.com/cuda-zone>`_. These tools allow users to unlock the potential of installed GPUs.
 
 Ensure that CUDA and ROCm local repositories are configured using the `local_repo.yml script. <../../InstallationGuides/LocalRepo/index.html>`_
 
@@ -10,14 +10,6 @@ Enter all required parameters in ``input/accelerator_config.yml``.
 +----------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Parameters           | Details                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 +======================+=========================================================================================================================================================================================================================================================================================================================================================================================================================================+
-| amd_gpu_version      |  This variable accepts the amd gpu   version for the RHEL specific OS version.    Verify if the version provided is present in the repo for the OS   version on your node.  Verify the url   for the compatible version: https://repo.radeon.com/amdgpu/ .  If 'latest' is provided in the variable and   the cluster  os version is rhel 8.5. Then the url transforms to   https://repo.radeon.com/amdgpu/latest/rhel/8.5/main/x86_64/ |
-|      ``string``      |                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-|      Optional        |      **Default values**: ``22.20.3``                                                                                                                                                                                                                                                                                                                                                                                                    |
-+----------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| amd_rocm_version     | Required AMD ROCm driver version. Make sure the subscription is enabled   for rocm installation because rocm packages are present in code ready builder   repo for RHEL.  If 'latest' is provided   in the variable, the url transforms to    https://repo.radeon.com/rocm/centos8/latest/main/. Only single   instance is supported by Omnia.                                                                                          |
-|      ``string``      |                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-|      Optional        |      **Default values**: ``latest/main``                                                                                                                                                                                                                                                                                                                                                                                                |
-+----------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | cuda_toolkit_version | Required CUDA toolkit version.  By   default latest cuda is installed unless cuda_toolkit_path is specified.  Default: latest (11.8.0).                                                                                                                                                                                                                                                                                                 |
 |      ``string``      |                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 |      Optional        |      **Default values**: ``latest``                                                                                                                                                                                                                                                                                                                                                                                                     |
@@ -49,3 +41,23 @@ The following configurations take place when running ``accelerator.yml``
 	ii. Servers with NVIDIA GPUs are identified and the specified CUDA toolkit is downloaded and installed.
 	iii. For the rare servers with both NVIDIA and AMD GPUs installed, all the above mentioned download-ables are installed to the server.
 	iv. Servers with neither GPU are skipped.
+
+User permissions for ROCm platforms
+------------------------------------
+
+* To add an user to the ``render`` and ``video`` group, use the following command: ::
+
+        sudo usermod -a -G render,video <user>
+
+.. note::
+        * <user> is the system name of the end user.
+        * This command must be run with ``root`` permissions.
+        * If the root user wants to provide access to other users and their individual GPU nodes, the previous command needs to be run on all of them separately. ::
+
+* To enable users to use rocm tools, use the following command as shown in the below added sample file: ::
+
+        /opt/rocm/bin/<rocm command>
+
+.. image:: ../../images/ROCm_user_permissions.png
+
+For any configuration changes, check out ROCm's official documentation `here. <https://rocm.docs.amd.com/projects/install-on-linux/en/latest/how-to/prerequisites.html>`_

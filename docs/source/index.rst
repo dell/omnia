@@ -18,7 +18,7 @@ Ansible playbook-based deployment of Slurm and Kubernetes on servers running an 
 
 Omnia is made available under the `Apache 2.0 license. <https://opensource.org/licenses/Apache-2.0>`_
 
-.. note:: Omnia playbooks are licensed under the Apache 2.0 license.  Once an end-user initiates Omnia, that end-user will enable deployment of other open source software that is licensed separately by their respective developer communities. For a comprehensive list of software and their licenses, `click here <Overview/SupportMatrix/omniainstalledsoftware.html>`_ . Dell (or any other contributors) shall have no liability regarding and no responsibility to provide support for an end-users use of any open source software and end-users are encouraged to ensure that they are complying with all such licenses.  Omnia is provided “as is” without any warranty, express or implied.  Dell (or any other contributors) shall have no liability for any direct, indirect, incidental, punitive, special, or consequential damages for an end-users use of Omnia.
+.. note:: Omnia playbooks are licensed under the Apache 2.0 license. Once an end-user initiates Omnia, that end-user will deploy other open-source and/or third-party software that is licensed separately by their respective developer communities and/or third parties. For a comprehensive list of software and their licenses, `click here <Overview/SupportMatrix/omniainstalledsoftware.html>`_. Dell (or any other contributors) shall have no liability regarding (and no responsibility to provide support for) an end-users use of any open- source and/or third-party software and OMNIA users are solely responsible for ensuring that they are complying with all such licenses. Omnia is provided “as is” without any warranty, express or implied. Dell (or any other contributors) shall have no liability for any direct, indirect, incidental, punitive, special, or consequential damages for an end-user's use of Omnia.
 
 For a better understanding of what Omnia does, check out our `docs <https://omnia-doc.readthedocs.io/en/latest/index.html>`_!
 
@@ -37,7 +37,7 @@ For a better understanding of what Omnia does, check out our `docs <https://omni
 .. image:: https://user-images.githubusercontent.com/83095575/117071024-64956c80-ace3-11eb-9d90-2dac7daef11c.png
   :width: 60pt
 
-.. image:: https://www.vizias.com/uploads/1/1/8/9/118906653/published/thick-blue-white-ring-letters-full.png
+.. image:: https://images.squarespace-cdn.com/content/v1/660f1a48587dbb2769709a33/9ac5520f-a308-4751-80f4-415d07a23473/VIZIAS+Blue.png
     :width: 60pt
 
 .. image:: https://user-images.githubusercontent.com/5414112/153955170-0a4b199a-54f0-42af-939c-03eac76881c0.png
@@ -51,6 +51,7 @@ For a better understanding of what Omnia does, check out our `docs <https://omni
 
 .. toctree::
    Overview/index
+   Upgrade/index
    InstallationGuides/index
    Roles/index
    Logging/index

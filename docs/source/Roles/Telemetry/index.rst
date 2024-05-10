@@ -3,6 +3,8 @@ Telemetry and visualizations
 
 The telemetry feature allows the set up  of Omnia telemetry (to poll values from all Omnia provisioned nodes in the cluster) and/or iDRAC telemetry (To poll values from all eligible iDRACs in the cluster). It also installs `Grafana <https://grafana.com/>`_ and `Loki <https://grafana.com/oss/loki/>`_ as Kubernetes pods.
 
+.. note:: In order to enable telemetry feature in Omnia, ensure to add ``telemetry`` in ``software_config.json``.
+
 To initiate telemetry support, fill out the following parameters in ``input/telemetry_config.yml``:
 
 .. csv-table:: Parameters
@@ -22,9 +24,9 @@ Optionally, you can initiate only telemetry using the below command: ::
 
 .. note::
 
-    * Depending on the type of telemetry initiated, include the following groups in the inventory:
+    * Depending on the type of telemetry initiated, include the following possible groups in the inventory:
 
-        * omnia_telemetry: manager, compute, [optional] login
+        * omnia_telemetry: slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login, etcd
 
         * idrac_telemetry: idrac
 
@@ -120,8 +122,11 @@ Example ::
         * **hostname**: The hostname of the cluster node.
         * **time**: The timestamp at which the metric was polled from the cluster node.
 
-    If you are more comfortable using SQL queries over the query builder, click on **Edit SQL** to directly provide your query.
-    Optionally, the data returned from a query can be viewed as a graph.
+    *iDRAC telemetry data from Grafana*
+
+    .. image:: ../../images/idractelemetry.png
+
+.. note:: If you are more comfortable using SQL queries over the query builder, click on **Edit SQL** to directly provide your query. Optionally, the data returned from a query can be viewed as a graph.
 
 **Visualizations**
 

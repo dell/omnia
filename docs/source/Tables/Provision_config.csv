@@ -1,18 +1,9 @@
 ﻿Parameter,Details
-"**public_nic**
-
-``string``
-
-Required","The nic/ethernet card that is connected to the public internet.
-
-**Default values**: ``eno2``"
 "**iso_file_path**
 
 ``string``
 
-Required","Path where user has placed the iso image that needs to be provisioned on target nodes. Accepted files are Rocky8-DVD or RHEL-8.x-DVD (full OS).  iso_file_path  should contain the  provision_os  and  provision_os_version  values in the  filename.
-
-**Default values**: ``""/home/RHEL-8.6.0-20220420.3-x86_64-dvd1.iso""``"
+Required",Path where user has placed the iso image that needs to be provisioned on target nodes. Accepted files are Rocky8-DVD or RHEL-8.x-DVD (full OS).  iso_file_path  should contain the  provision_os  and  provision_os_version  values in the  filename.
 "**node_name**
 
 ``string``

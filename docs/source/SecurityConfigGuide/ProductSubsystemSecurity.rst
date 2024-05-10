@@ -16,15 +16,21 @@ Omnia performs bare metal configuration to enable AI/HPC workloads. It uses Ansi
 
 .. note:: IPMI is not required on the control plane. However, compute nodes (iDRACs in the cluster/private network) require IPMI to be enabled for BMC discovery.
 
-Omnia can be installed via CLI only. Slurm and Kubernetes are deployed and configured on the cluster. FreeIPA or LDAP is installed for providing authentication.
+Omnia can be installed via CLI only. Slurm and Kubernetes are deployed and configured on the cluster. FreeIPA or OpenLDAP is installed for providing authentication.
 
 To perform these configurations and installations, a secure SSH channel is established between the management node and the following entities:
 
+* slurm_control_node
+
+* slurm_node
+
 * kube_control_plane
 
-* Compute Nodes
+* kube_node
 
-* Login Node
+* auth_server
+
+* login
 
 Authentication
 ---------------
@@ -34,9 +40,9 @@ Omnia does not have its own authentication mechanism because bare metal installa
 Cluster authentication tool
 ----------------------------
 
-In order to enable authentication to the cluster, Omnia installs FreeIPA: an open source tool providing integrated identity and authentication for Linux/UNIX networked environments. As part of the HPC cluster, the login node is responsible for configuring users and managing a limited number of administrative tasks. Access to the manager/head node is restricted to administrators with the root password. For authentication on the manager and compute nodes exclusively, LDAP can also be installed by Omnia on the client.
+In order to enable authentication to the cluster, Omnia installs FreeIPA: an open source tool providing integrated identity and authentication for Linux/UNIX networked environments. As part of the HPC cluster, the login node is responsible for configuring users and managing a limited number of administrative tasks. Access to the manager/head node is restricted to administrators with the root password. Omnia installs either FreeIPA or OpenLDAP based on user's preference.
 
-.. note::  Omnia does not configure LDAP users or groups.
+.. note::  Omnia does not configure OpenLDAP users or groups.
 
 Authentication types and setup
 ------------------------------
@@ -76,7 +82,7 @@ For setting up authentication on the cluster, the following credentials have to 
 
     1. FreeIPA (directory_manager_password, ipa_admin_password)
 
-    2. LDAP (ldap_bind_username, ldap_bind_password)
+    2. OpenLDAP (openldap_db_username, openldap_db_password, openldap_config_username, openldap_config_password)
 
 Once Omnia is invoked, these files are validated and encrypted using Ansible Vault. They are hidden from external visibility and access.
 
@@ -304,12 +310,48 @@ Omnia configures the following ports for use by third-party tools installed by O
         | 123           | UDP     | NTP                  | Manager/ Login_Node  |
         +---------------+---------+----------------------+----------------------+
 
+**OpenLDAP port requirements**
+
+        +---------------+---------+----------------------+----------------------+
+        | Port   Number | Layer 4 | Purpose              | Node                 |
+        +===============+=========+======================+======================+
+        | 80            | TCP     | HTTP/HTTPS           | Manager/ Login_Node  |
+        +---------------+---------+----------------------+----------------------+
+        | 443           | TCP     | HTTP/HTTPS           | Manager/ Login_Node  |
+        +---------------+---------+----------------------+----------------------+
+        | 389           | TCP     | LDAP/LDAPS           | Manager/ Login_Node  |
+        +---------------+---------+----------------------+----------------------+
+        | 636           | TCP     | LDAP/LDAPS           | Manager/ Login_Node  |
+        +---------------+---------+----------------------+----------------------+
+
 .. note:: To avoid security vulnerabilities, protocols can be restricted on the network using the parameters ``restrict_program_support`` and ``restrict_softwares`` in ``input/login_node_security_config.yml``. However, certain protocols are essential to Omnia's functioning and cannot be disabled. These protocols are: ftp, smbd, nmbd, automount, portmap.
 
 Data security
 -------------
 
-Omnia does not store data. The passwords Omnia accepts as input to configure the third party tools are validated and then encrypted using Ansible Vault. Run ``yum update --security`` routinely on the control plane for the latest security updates.
+Omnia does not store data. The passwords Omnia accepts as input to configure the third party tools are validated and then encrypted using Ansible Vault. Run the following commands routinely on the control plane for the latest security updates.
+
+* For RHEL/Rocky OS
+
+    ::
+
+        yum update --security
+
+* For Ubuntu
+
+    i. First, install the toolkit using
+
+    ::
+
+        sudo apt install unattended-upgrades
+
+
+    ii. Then, run the following command
+
+    ::
+
+        sudo unattended-upgrade
+
 
 For more information on the passwords used by Omnia, see `Login Security Settings <#login-security-settings>`_.
 

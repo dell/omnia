@@ -26,12 +26,12 @@ Checking and updating encrypted parameters
 
 2. To view the encrypted parameters: ::
 
-        ansible-vault view provision_config_credentials.yml --vault-password-file .provision_vault_key
+        ansible-vault view provision_config_credentials.yml --vault-password-file .provision_credential_vault_key
 
 
 3. To edit the encrypted parameters: ::
 
-        ansible-vault edit provision_config_credentials.yml --vault-password-file .provision_vault_key
+        ansible-vault edit provision_config_credentials.yml --vault-password-file .provision_credential_vault_key
 
 
 Checking pod status on the control plane
@@ -66,3 +66,78 @@ Using telemetry information to diagnose node issues
     :height: 25px
 
 
+Troubleshooting image download failures while executing local_repo.yml playbook
+--------------------------------------------------------------------------------
+
+If you encounter image download failures while executing ``local_repo.yml``, do the following to resolve the issue:
+
+    1. Check if docker pull limit has been reached by manually trying to download an image. Provide docker credentials in ``provision_config_credentials.yml`` and re-run ``local_repo.yml`` playbook. Else execute ``nerdctl login`` manually.
+
+    2. Run the following command:
+
+            ::
+
+                systemctl status nerdctl-registry
+
+       Expected output:
+
+            .. image:: ../images/image_failure_output_s2.png
+
+
+       Else run:
+
+            ::
+
+                systemctl restart nerdctl-registry
+
+    3. Run the following command:
+
+            ::
+
+                nerdctl ps -a | grep omnia-registry
+
+        Expected output:
+
+            .. image:: ../images/image_failure_output_s3.png
+
+
+        Else run:
+
+            ::
+
+                systemctl restart nerdctl-registry
+
+    4. Run the following command:
+
+            ::
+
+                curl -k https://<cp_hostname>:5001/v2/_catalog
+
+        Expected outputs:
+
+        a. .. image:: ../images/image_failure_output_s4.png
+        b. Empty list
+
+        Else, do the following:
+
+            a. Restart control-plane and check curl command output again.
+            b. Re-run ``local_repo.yml``.
+
+    5. Run the following command:
+
+            ::
+
+                openssl s_client -showcerts -connect <cp_hostname>:5001
+
+        Expected output:
+
+        .. image:: ../images/image_failure_output_s5.png
+
+        * Verify that the certificate is valid and ``CN=private_registry``.
+        * Certificate shown by this command output should be the same as output present at ``/etc/containerd/certs.d/<cp_hostname>5001/ca.crt``.
+
+        If no certificate is visible on screen, run the following command:
+
+            ::
+
+                    systemctl restart nerdctl-registry

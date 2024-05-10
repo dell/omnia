@@ -5,9 +5,9 @@ Before you create local repositories
 
 If all available software stacks are configured, the free space required on the control plane is as below:
 
-    * For packages: 30GB
-    * For images (in ``/var``): 400GB
-    * For storing repositories (the file path should be specified in ``repo_store_path`` in ``input/local_repo_config.yml``): 30GB.
+    * For packages: 50GB
+    * For images (in ``/var``): 500GB
+    * For storing repositories (the file path should be specified in ``repo_store_path`` in ``input/local_repo_config.yml``): 50GB.
 
 **On Ubuntu clusters**
 
@@ -29,19 +29,27 @@ Therefore, for the image of ``calico/cni`` version ``1.2`` available on ``quay.i
 
 Omnia will not be able to configure access to any registries that do not follow this naming convention. Do not include any other extraneous information in the registry name.
 
-There are two ways to pull images from the user registries in the form of a digest:
+Instructions to pull images from the user registries in the form of a digest:
 
-    * Update the digest value to the listed image in the registry. All images to be pulled are listed in ``input/config/<os>/<version>/<software_file>.json``. A sample of the listing is shown below: ::
+    * Images pulled from gcr.io does not have a ``tag``, but a ``digest value``.
 
-        {
-            "package": "gcr.io/knative-releases/knative.dev/serving/cmd/webhook",
-            "digest": ".1305209ce498caf783f39c8f3e85df..35ece6947033bf50b0b627983fd65953",
-            "type": "image"
+        *Image pulled from gcr.io* ::
 
-        },
+             {
+                    "package": "gcr.io/knative-releases/knative.dev/serving/cmd/webhook",
+                    "digest": "7b138c73fcaaf0b9bb2d414b8a89a780f8c09371d24c6f57969be1694acf4aaa",
+                    "type": "image"
+             },
 
+    * While pushing these images to ``user_registry``, user needs to manually enter a ``tag`` as shown in the sample below. Tags make the image unique to Omnia ``user_registry``. If not provided, image will be accessed from the ``gcr.io`` registry, that is, from the internet.
 
-    * While pushing the image to the user registry, create a tag and update the JSON file to take the tag value instead of the digest.
+        *Add "tag" value as "omnia" in <software>.json file while pushing the image to user_registry* ::
+
+            {
+                    "package": "gcr.io/knative-releases/knative.dev/serving/cmd/webhook",
+                    "tag": "omnia",
+                    "type": "image"
+            },
 
 
 .. note::

@@ -3,7 +3,7 @@ Input parameters for the provision tool
 
 Fill in all required parameters in ``input/provision_config.yml``, ``provision_config_credentials.yml``, ``input/software_config.json``.
 
-.. caution:: Do not remove or comment any lines in the ``input/provision_config.yml`` file.
+.. caution:: Do not remove or comment any lines in the above specified ``.yml`` files.
 
 .. csv-table:: provision_config.yml
    :file: ../../Tables/Provision_config.csv
@@ -25,7 +25,7 @@ Fill in all required parameters in ``input/provision_config.yml``, ``provision_c
 
 Update the ``input/network_spec.yml`` file for all networks available for use by the control plane.
 
-    * The following ``admin_nic`` details are mandatory:
+    * The following ``admin_network`` details are mandatory:
 
          * ``nic_name``: The name of the NIC on which the administrative network is accessible to the control plane.
          * ``netmask_bits``: The 32-bit "mask" used to divide an IP address into subnets and specify the network's available hosts.
@@ -33,14 +33,16 @@ Update the ``input/network_spec.yml`` file for all networks available for use by
          * ``dynamic_range``: The dynamic range of IPs to be provisioned on target nodes.
          * ``correlation_to_admin``: Boolean value used to indicate whether all other networks specified in the file (eg: ``bmc_network``) should be correlated to the admin network. For eg: if a target node is assigned the IP xx.yy.0.5 on the admin network, it will be assigned the IP aa.bb.0.5 on the BMC network. This value is irrelevant when discovering nodes using a mapping file.
          * ``admin_uncorrelated_node_start_ip``: If ``correlation_to_admin`` is set to true but correlated IPs are not available on non-admin networks, provide an IP within the ``static_range`` of the admin network that can be used to assign admin static IPs to uncorrelated nodes. If this is empty, then the first IP in the ``static_range`` of the admin network is taken by default. This value is irrelevant when discovering nodes using a mapping file.
-         * ``CIDR``: Classless or Classless Inter-Domain Routing (CIDR) addresses use variable length subnet masking (VLSM) to alter the ratio between the network and host address bits in an IP address.
          * ``MTU``: Maximum transmission unit (MTU) is a measurement in bytes of the largest data packets that an Internet-connected device can accept.
          * ``DNS``: A DNS server is a computer equipped with a database that stores the public IP addresses linked to the domain names of websites, enabling users to reach websites using their IP addresses.
-         * ``VLAN``: A 12-bit field that identifies a virtual LAN (VLAN) and specifies the VLAN that an Ethernet frame belongs to. This value is not supported on admin and bmc networks.
 
     * If the ``nic_name`` is the same on both the admin_network and the bmc_network, a LOM setup is assumed.
     * BMC network details are not required when target nodes are discovered using a mapping file.
     * If ``bmc_network`` properties are provided, target nodes will be discovered using the BMC method in addition to the methods whose details are explicitly provided in ``provision_config.yml``.
+    * The following parameters are applicable for ``bmc_network``:
+
+        * ``discover_ranges``: If some iDRACs are reachable from control_plane but is not in ``bmc_network``, then user can provide those IP ranges here. Discovery of a single IP is not possible. User must provide a range. This is an optional field. User must not remove any of the fields even though it is optional.
+        * ``reassignment_to_static``: If iDRACs are set to DHCP mode and Omnia has assigned the IPs, then the user can reassign the IP within the ``bmc_network`` static range by setting this value to ``true``. If this value is not provided or set to ``false`` while the iDRACs are in DHCP mode, they will obtain IPs from the ``bmc_network`` dynamic range, and these IPs will then be converted to static IPs for the iDRACs.
 
 .. caution::
     * Do not assign the subnet 10.4.0.0/24 to any interfaces in the network as nerdctl uses it by default.
@@ -82,15 +84,13 @@ A sample is provided below: ::
 
         To view the encrypted parameters: ::
 
-            ansible-vault view provision_config_credentials.yml --vault-password-file .provision_vault_key
+            ansible-vault view provision_config_credentials.yml --vault-password-file .provision_credential_vault_key
 
         To edit the encrypted parameters: ::
 
-            ansible-vault edit provision_config_credentials.yml --vault-password-file .provision_vault_key
+            ansible-vault edit provision_config_credentials.yml --vault-password-file .provision_credential_vault_key
 
     * The strings ``admin_network`` and ``bmc_network`` in the ``input/network_spec.yml`` file should not be edited. Also, the properties ``nic_name``, ``static_range``, and ``dynamic_range`` cannot be edited on subsequent runs of the provision tool.
-    * Netmask bits are mandatory and should be same for both the ``admin_network`` and ``bmc_network`` (ie between 1 and 32; 1 and 32 are acceptable values).
-    * Ensure that the CIDR is aligned with the ``netmask_bits`` provided.
+    * Netmask bits are mandatory and should be same for both the ``admin_network`` and ``bmc_network`` (that is, between 1 and 32; 1 and 32 are acceptable values).
     * The ``discover_ranges`` property of the ``bmc_network`` can accept multiple comma-separated ranges.
-    * The ``VLAN`` property is optional but should be between 0 and 4095 (0 and 4095 are not acceptable values).
 
