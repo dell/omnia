@@ -111,7 +111,7 @@ After executing ``scheduler.yml`` or ``omnia.yml``, there are some manual steps 
 
         **Steps for Ubuntu**
 
-        1.	Check http_proxy and https_proxy values from /opt/omnia/offline/local_repo_access.yml on ControlPlane.
+        1.	Check http_proxy and https_proxy values from ``/opt/omnia/offline/local_repo_access.yml`` on ControlPlane.
         2.	SSH to node with GPU and set http proxy environment variables.
         3.	Execute the following command:
             ::
