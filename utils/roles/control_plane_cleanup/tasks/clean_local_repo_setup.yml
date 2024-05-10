@@ -62,7 +62,7 @@
 
 - name: Remove containerd.io package - RHEL/Rocky
   ansible.builtin.yum:
-    name: containerd
+    name: containerd.io
     state: absent
     disable_gpg_check: true
   when: control_plane_os in control_plane_os_redhat or
@@ -70,7 +70,7 @@
 
 - name: Remove containerd.io package -Ubuntu
   ansible.builtin.apt:
-    deb: containerd
+    name: containerd.io
     state: absent
     autoremove: true
     purge: true
