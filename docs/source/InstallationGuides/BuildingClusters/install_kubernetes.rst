@@ -4,7 +4,7 @@ Install Kubernetes
 **Prerequisites**
 
 * Once all the required parameters in `omnia_config.yml <schedulerinputparams.html>`_ are filled in, ``omnia.yml`` can be used to set up Kubernetes.
-* Ensure that ``k8s`` entry is present in the ``softwares`` list in ``software_confgig.yml``, as mentioned below:
+* Ensure that ``k8s`` entry is present in the ``softwares`` list in ``software_config.yml``, as mentioned below:
     ::
 
         "softwares": [
@@ -63,7 +63,7 @@ You can install the following packages on top of the Kubernetes stack:
 
     * NFS subdir external provisioner is an automatic provisioner that use your existing and already configured NFS server to support dynamic provisioning of Kubernetes Persistent Volumes via Persistent Volume Claims.
     * The NFS server utilised here is the one mentioned in ``storage_config.yml``.
-    * Server IP is ``<nfs_client_params.server_ip>`` and path is ``<nfs_client_params>.<server_share_path>`` of the ``k8s_share`` is set to ``true``.
+    * Server IP is ``<nfs_client_params.server_ip>`` and path is ``<nfs_client_params>.<server_share_path>`` of the entry where ``k8s_share`` is set to ``true``.
 
     Click `here <https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner>`_ for more information.
 
@@ -82,7 +82,7 @@ You can install the following packages on top of the Kubernetes stack:
 After executing ``scheduler.yml`` or ``omnia.yml``, there are some manual steps which user needs to perform for nvidia device plugin to detect GPU on the nodes.
 
     * First, install nvidia-container-toolkit from `this link <https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html>`_. This must be installed on servers running Nvidia GPU.
-    * Follow the below steps based on the OS running on your cluster.
+    * As per the `nvidia-container-toolkit installation guide <https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html>`_, follow the below steps based on the OS running on your cluster.
 
         **Steps for RHEL/Rocky**
 
