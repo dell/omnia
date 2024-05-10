@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -30,11 +30,13 @@ slurm_restd_packages_leap:
    - libopenssl-devel
 
 slurm_gcc_leap:
-  - devel_basis
+   - devel_basis
+
+local_repo_access_dest_path: "/opt/omnia/offline/local_repo_access.yml"
 
 fil_mode: "0755"
 jansson_download_dir: /var/lib/
-jansson_src_url: https://github.com/akheron/jansson/archive/refs/tags/v2.14.tar.gz
+jansson_src_url: "{{ offline_tarball_path }}/jansson.tar.gz"
 jansson_path: /usr/local/lib/pkgconfig
 jansson_dir_path: /var/lib/jansson-2.14/
 os_supported_leap: "leap"
@@ -42,8 +44,9 @@ os_supported_centos: "centos"
 download_retries: 5
 
 # Usage: install_libjwt.yml
-libjwt_repo: https://github.com/benmcollins/libjwt.git
+libjwt_repo: "{{ offline_tarball_path }}/libjwt.tar.gz"
 libjwt_dir: /var/lib/libjwt
+libjwt_ver_dir: "libjwt-1.12.0"
 
 # Usage: configure_restd_leap.yml
 src_repo_name: "src-repo"

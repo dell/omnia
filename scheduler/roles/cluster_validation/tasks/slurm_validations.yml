@@ -1,0 +1,64 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Invalid inventory format for Slurm
+  ansible.builtin.fail:
+     msg: "{{ invalid_slurm_inventory_fail_msg }}"
+  when:
+     - "('slurm_control_node' not in groups or 'slurm_node' not in groups)"
+
+- name: Slurm control node group to contain exactly 1 node
+  ansible.builtin.assert:
+     that:
+        - "groups['slurm_control_node'] | length | int == 1"
+     fail_msg: "{{ slurm_one_node_validation_fail_msg }}"
+     success_msg: "{{ slurm_one_node_validation_success_msg }}"
+
+- name: Slurm node group to contain atleast 1 node
+  ansible.builtin.assert:
+     that: "groups['slurm_node'] | length | int >= 1"
+     fail_msg: "{{ slurm_node_validation_fail_msg }}"
+     success_msg: "{{ slurm_node_validation_success_msg }}"
+
+- name: Add all hosts in slurm_control_node and slurm_node to group slurm_cluster
+  ansible.builtin.add_host:
+     name: '{{ item }}'
+     groups: slurm_cluster
+  with_items:
+     - "{{ groups['slurm_control_node'] }}"
+     - "{{ groups['slurm_node'] }}"
+
+- name: Add hosts in login to group slurm_cluster
+  ansible.builtin.add_host:
+     name: '{{ item }}'
+     groups: slurm_cluster
+  when: login_node_required
+  with_items:
+     - "{{ groups['login'] }}"
+
+- name: Initialize variables
+  ansible.builtin.set_fact:
+     unreachable_slurm_control_node: []
+
+- name: Set unreachable_slurm_control_node
+  ansible.builtin.set_fact:
+     unreachable_slurm_control_node: "{{ unreachable_slurm_control_node + [item] }}"
+  when: item not in ansible_play_hosts
+  with_items: "{{ groups['slurm_control_node'] }}"
+
+- name: Unreachable slurm_control_node in inventory
+  ansible.builtin.fail:
+     msg: "{{ unreachable_slurm_control_node_fail_msg }}"
+  when: unreachable_slurm_control_node | length >= 1

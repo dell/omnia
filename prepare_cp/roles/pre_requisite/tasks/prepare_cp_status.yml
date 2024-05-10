@@ -1,0 +1,69 @@
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Set control_plane_os
+  ansible.builtin.set_fact:
+    control_plane_os: "{{ ansible_distribution | lower }}"
+
+- name: Initialize variables
+  ansible.builtin.set_fact:
+    xcat_installation_status: false
+    prep_inv_status: false
+    prepare_cp_status: false
+
+- name: Gathering service facts
+  ansible.builtin.service_facts:
+
+- name: Set xcat_installation_status to true
+  ansible.builtin.set_fact:
+    xcat_installation_status: true
+  when:
+    - control_plane_os == "redhat" or control_plane_os == "rocky"
+    - xcatd_service in ansible_facts.services
+    - postgresql_service_rhel in ansible_facts.services
+    - "'running' in ansible_facts.services[xcatd_service].state"
+    - "'running' in ansible_facts.services[postgresql_service_rhel].state"
+
+- name: Set xcat_installation_status to true
+  ansible.builtin.set_fact:
+    xcat_installation_status: true
+  when:
+    - control_plane_os == "ubuntu"
+    - xcatd_service in ansible_facts.services
+    - postgresql_service_ubuntu in ansible_facts.services
+    - "'running' in ansible_facts.services[xcatd_service].state"
+    - "'running' in ansible_facts.services[postgresql_service_ubuntu].state"
+
+- name: Check if inventory files are present
+  ansible.builtin.stat:
+    path: "{{ inv_file_path_list }}"
+  register: stat_result
+
+- name: Set fact if inventory is present
+  ansible.builtin.set_fact:
+    prep_inv_status: true
+  when: stat_result.stat.exists
+
+- name: Set fact for prepare cp
+  ansible.builtin.set_fact:
+    prepare_cp_status: true
+  when:
+    - xcat_installation_status
+    - prep_inv_status
+
+- name: Prepare_cp needs to be executed
+  ansible.builtin.fail:
+    msg: "{{ prepare_cp_execution_req }}"
+  when: not prepare_cp_status

@@ -28,7 +28,7 @@ timescaledb_credentials_fail_msg: "Please provide timescaledb credentials in tel
 
 # Usage: install_packages.yml
 devel_packages:
-  - python38-devel
+  - python39-devel
   - postgresql-devel
 python_package:
   - psycopg2-binary
@@ -40,5 +40,5 @@ timescaledb_service_failure_msg: "TimescaleDB is not running. Run telemetry.yml/
 timescaledb_k8s_name: timescaledb
 namespace: telemetry-and-visualizations
 timescaledb_name: telemetry_metrics
-python_version: python3.8
+python_version: python3.9
 db_schema_utility: "{{ role_path }}/files/dump_data_from_db.py"

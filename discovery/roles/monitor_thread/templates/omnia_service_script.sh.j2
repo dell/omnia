@@ -1,0 +1,6 @@
+#!/bin/sh
+while true
+do
+ {{ python_version }} "{{ role_path }}/files/monitor_status.py" "{{ role_path }}" "{{ file_path }}"
+ sleep 180
+done

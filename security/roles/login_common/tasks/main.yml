@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,8 +14,11 @@
 ---
 
 - name: Install common packages
+  when:
+    - os_leap not in ansible_distribution | lower
+    - hostvars['127.0.0.1']['authentication_system'] == 'freeipa'
   block:
-    - name: Add ports of manager and login node to firewall
+    - name: Add ports of auth_server and login node to firewall
       ansible.builtin.include_tasks: firewall_settings.yml
 
     - name: Enable module idm in Rocky or Centos >= 8.0
@@ -23,7 +26,3 @@
 
     - name: Update Packages
       ansible.builtin.include_tasks: update_package.yml
-  when:
-    - os_leap not in ansible_distribution | lower
-    - hostvars['127.0.0.1']['freeipa_required']
-    - not hostvars['127.0.0.1']['ldap_required']

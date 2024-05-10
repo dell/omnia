@@ -1,0 +1,42 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Validate discovery parameters
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Check whether prepare cp has been executed
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}/../prepare_cp/roles/pre_requisite"    # noqa: role-name[path]
+        tasks_from: prepare_cp_status.yml
+
+    - name: Validate discovery parameters
+      ansible.builtin.include_role:
+        name: discovery_validations/common
+        tasks_from: validation_status_check.yml  # noqa: role-name[path]
+
+- name: Discovery roles of control plane for provisioning
+  hosts: localhost
+  connection: local
+  roles:
+    - role: db_operations
+    - role: ../server_spec_update/roles/create_nicinfo_db  # noqa: role-name[path]
+    - role: configure_xcat/common          # noqa: role-name[path]
+    - role: configure_synclist
+    - role: discovery_mechanism/common     # noqa: role-name[path]
+    - role: postscripts/common             # noqa: role-name[path]
+    - role: configure_os_image/common      # noqa: role-name[path]
+    - role: monitor_thread
+    - role: metadata_update

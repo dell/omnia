@@ -14,7 +14,9 @@
 ---
 
 - name: Promtail image creation
-  ansible.builtin.command: "buildah bud -f Dockerfile_promtail -t {{ promtail_image_name }}:{{ promtail_image_tag }} ."
+  environment:
+    BUILDKIT_HOST: "nerdctl-container://buildkitd"
+  ansible.builtin.command: "nerdctl build --namespace k8s.io -f Dockerfile_promtail -t {{ promtail_image_name }}:{{ promtail_image_tag }} ."
   changed_when: true
   register: create_promtail_image
   until: create_promtail_image is not failed

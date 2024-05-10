@@ -23,5 +23,5 @@
     rhel_compute_os: 'rhel'
   when: '"redhat" == compute_os'
 
-- name: Check if nvidia accelerator is present on compute node
-  ansible.builtin.include_tasks: pre_requisites_cuda.yml
+# - name: Check if nvidia accelerator is present on compute node
+#   ansible.builtin.include_tasks: pre_requisites_cuda.yml

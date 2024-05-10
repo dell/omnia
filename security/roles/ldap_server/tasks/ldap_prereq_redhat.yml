@@ -1,0 +1,88 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Set variables for OpenLDAP
+  ansible.builtin.set_fact:
+    ldaptoolbox_openldap_database_olcLimits: # noqa var-naming
+      - "dn.base=gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth size=unlimited  time=unlimited"
+    ldaptoolbox_openldap_syncrepl: []
+    ldaptoolbox_openldap_suffix: "{{ (hostvars['127.0.0.1']['domain_name'].split('.') | map('regex_replace', '^', 'dc=') | list) | join(',') }}"
+    tls_certificates_directory_path: "{{ tls_cert_source }}"
+    default_certs: false
+
+- name: Create default Certificates
+  when:
+    - hostvars['127.0.0.1']['tls_ca_certificate'] == ''
+    - hostvars['127.0.0.1']['tls_certificate'] == ''
+    - hostvars['127.0.0.1']['tls_certificate_key'] == ''
+  block:
+    - name: Set default certificates as true
+      ansible.builtin.set_fact:
+        default_certs: true
+
+    - name: Generate TLS certificates
+      ansible.builtin.command: |
+        openssl req -new -newkey rsa:4096 -days {{ ssl_limit }} -nodes -x509 -subj /C=/ST=/L=/O=/CN= -keyout
+        {{ tls_certificates_directory_path }}/{{ rhel_cert_key }}
+        -out {{ tls_certificates_directory_path }}/{{ rhel_cert_file }}
+      changed_when: false
+      no_log: true
+      when: not openldap_status
+
+    - name: Copy Certificate to control plane for client setup
+      ansible.builtin.fetch:
+        src: "{{ tls_certificates_directory_path }}/{{ rhel_cert_file }}"
+        dest: "{{ tls_cert_path }}"
+        flat: true
+      when: not openldap_status
+
+    - name: Set default tls certificate path for LTB playbook
+      ansible.builtin.set_fact:
+        ldaptoolbox_openldap_olcTLSCACertificateFile: "{{ tls_certificates_directory_path }}/{{ rhel_cert_file }}" # noqa var-naming
+        ldaptoolbox_openldap_olcTLSCertificateFile: "{{ tls_certificates_directory_path }}/{{ rhel_cert_file }}" # noqa var-naming
+        ldaptoolbox_openldap_olcTLSCertificateKeyFile: "{{ tls_certificates_directory_path }}/{{ rhel_cert_key }}" # noqa var-naming
+
+- name: Set tls certificate path for omnia playbook
+  when: not default_certs
+  block:
+    - name: Copy the certificate to remote node
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ tls_certificates_directory_path }}"
+        remote_src: false
+        mode: "{{ openldap_cert_permissions }}"
+      with_items:
+        - "{{ hostvars['127.0.0.1']['tls_ca_certificate'] }}"
+        - "{{ hostvars['127.0.0.1']['tls_certificate'] }}"
+        - "{{ hostvars['127.0.0.1']['tls_certificate_key'] }}"
+      when: not openldap_status
+
+    - name: Copy Certificate to control plane for client setup
+      ansible.builtin.copy:
+        src: "{{ hostvars['127.0.0.1']['tls_ca_certificate'] }}"
+        dest: "{{ tls_cert_path }}"
+        mode: "{{ openldap_cert_permissions }}"
+      delegate_to: localhost
+      connection: local
+      when: not openldap_status
+
+    - name: Set tls certificate path for LTB playbook
+      ansible.builtin.set_fact:
+        ldaptoolbox_openldap_olcTLSCACertificateFile: "{{ tls_certificates_directory_path }}/{{ hostvars['127.0.0.1']['tls_ca_certificate']
+         | basename }}" # noqa var-naming
+        ldaptoolbox_openldap_olcTLSCertificateFile: "{{ tls_certificates_directory_path }}/{{ hostvars['127.0.0.1']['tls_certificate']
+         | basename }}" # noqa var-naming
+        ldaptoolbox_openldap_olcTLSCertificateKeyFile: "{{ tls_certificates_directory_path }}/{{ hostvars['127.0.0.1']['tls_certificate_key']
+         | basename }}" # noqa var-naming

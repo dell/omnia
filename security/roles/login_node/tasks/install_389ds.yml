@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -63,6 +63,7 @@
     - sssd_install_search_key in ansible_facts.services['sssd.service'].state
 
 - name: Install 389 ds
+  when: not ds389_status
   block:
     - name: Install 389-ds
       community.general.zypper:
@@ -98,7 +99,7 @@
       when: ldap1_search_key in ldap1_status.stdout
 
     - name: Creating 389 directory server instance
-      ansible.builtin.shell: dscreate -v from-file {{ ldap1_config_path }} | tee {{ ldap1_output_path }}
+      ansible.builtin.shell: set -o pipefail && dscreate -v from-file {{ ldap1_config_path }} | tee {{ ldap1_output_path }}
       changed_when: true
       when: ldap1_search_key in ldap1_status.stdout
 
@@ -235,7 +236,7 @@
             msg: "Error: {{ authenticate_admin.stderr }}"
 
     - name: Install sssd packages
-      zypper:
+      community.general.zypper:
         name: "{{ sssd_packages }}"
         state: present
 
@@ -273,7 +274,6 @@
         name: sssd
         state: started
         enabled: true
-  when: not ds389_status
 
 - name: Configure password policy
   block:

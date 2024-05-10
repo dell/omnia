@@ -1,0 +1,13 @@
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: "developer-binding-{{ item }}"
+subjects:
+  - kind: User
+    name: "{{ item }}"
+roleRef:
+  kind: Role
+  name: developer
+  apiGroup: rbac.authorization.k8s.io

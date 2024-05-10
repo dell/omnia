@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,14 +14,14 @@
 ---
 
 - name: Add leap src repo
-  zypper_repository:
+  community.general.zypper_repository:
     name: "{{ src_repo_name }}"
     repo: "{{ src_repo_path }}"
     state: present
-    autorefresh: yes
+    autorefresh: true
 
 - name: Install tar packages
-  zypper:
+  community.general.zypper:
     name: "{{ item }}"
     state: present
   with_items:
@@ -29,41 +29,43 @@
     - bzip2
 
 - name: Install source slurm
-  command: zypper --non-interactive si slurm
+  ansible.builtin.command: zypper --non-interactive si slurm
   changed_when: true
 
 - name: Find tar.bz2 slurm file name
-  command: find "{{ slurm_src_package_path }}" -name "slurm*tar.bz2"
+  ansible.builtin.command: find "{{ slurm_src_package_path }}" -name "slurm*tar.bz2"
   changed_when: false
   register: slurm_tar_file
 
 - name: Set slurm tar file and folder path
-  set_fact:
+  ansible.builtin.set_fact:
     slurm_tar_file: "{{ slurm_tar_file.stdout.split(slurm_src_package_path)[1] }}"
     slurm_folder_path: "{{ slurm_tar_file.stdout.split(slurm_src_package_path)[1].split('.tar')[0] }}"
 
-- name: Copy slurm tar file to lib folder 
-  copy:
+- name: Copy slurm tar file to lib folder
+  ansible.builtin.copy:
     src: "{{ slurm_src_package_path }}{{ slurm_tar_file }}"
     dest: "{{ slurm_lib_path }}{{ slurm_tar_file }}"
     remote_src: true
     mode: preserve
 
 - name: Untar the slurm tar file
-  command: tar --bzip -x -f "{{ slurm_lib_path }}{{ slurm_tar_file }}" "{{ slurm_folder_path }}/"
-  changed_when: true
-  args:
-    chdir: "{{ slurm_lib_path }}"
-    warn: false
+  ansible.builtin.unarchive:
+    src: "{{ slurm_lib_path }}{{ slurm_tar_file }}"
+    dest: "{{ slurm_folder_path }}"
+    remote_src: true
+    extra_opts: --bzip
+  register: untar_result
+  changed_when: untar_result.changed
 
-- name: Configure slurmrestd 
-  command: ./configure --prefix "{{ slurm_lib_path }}" --enable-slurmrestd --with-jwt=/usr/local
+- name: Configure slurmrestd
+  ansible.builtin.command: ./configure --prefix "{{ slurm_lib_path }}" --enable-slurmrestd --with-jwt=/usr/local
   changed_when: true
   args:
     chdir: "{{ slurm_lib_path }}{{ slurm_folder_path }}"
 
 - name: Execute make
-  command: make
+  ansible.builtin.command: make
   changed_when: true
   register: make
   until: make is not failed
@@ -72,7 +74,7 @@
     chdir: "{{ slurm_lib_path }}{{ slurm_folder_path }}"
 
 - name: Execute make install
-  command: make install
+  ansible.builtin.command: make install
   changed_when: true
   register: make_install
   until: make_install is not failed
@@ -81,41 +83,41 @@
     chdir: "{{ slurm_lib_path }}{{ slurm_folder_path }}"
 
 - name: Check lib64 auth_jwt file path
-  stat:
+  ansible.builtin.stat:
     path: "{{ slurm_lib64_auth_jwt_src }}/{{ auth_jwt_file_name }}"
   register: auth_jwt_lib64_path
 
 - name: Check lib auth_jwt file path
-  stat:
+  ansible.builtin.stat:
     path: "{{ slurm_lib_auth_jwt_src }}/{{ auth_jwt_file_name }}"
   register: auth_jwt_lib_path
 
 - name: Copy lib64 auth_jwt files
-  shell: "cp {{ slurm_lib64_auth_jwt_src }}/auth_jwt.* {{ slurm_lib64_auth_jwt_dest }}"
+  ansible.builtin.shell: "cp {{ slurm_lib64_auth_jwt_src }}/auth_jwt.* {{ slurm_lib64_auth_jwt_dest }}"
   changed_when: true
   when: auth_jwt_lib64_path.stat.exists
 
 - name: Copy lib auth_jwt files
-  shell: "cp {{ slurm_lib_auth_jwt_src }}/auth_jwt.* {{ slurm_lib64_auth_jwt_dest }}"
+  ansible.builtin.shell: "cp {{ slurm_lib_auth_jwt_src }}/auth_jwt.* {{ slurm_lib64_auth_jwt_dest }}"
   changed_when: true
   when: auth_jwt_lib_path.stat.exists
 
 - name: Check lib64 auth_jwt file path
-  stat:
+  ansible.builtin.stat:
     path: "{{ slurm_lib64_libjwt_src }}/{{ libjwt_file_name }}"
   register: libjwt_lib64_path
 
 - name: Check lib auth_jwt file path
-  stat:
+  ansible.builtin.stat:
     path: "{{ slurm_lib_libjwt_src }}/{{ libjwt_file_name }}"
   register: libjwt_lib_path
 
 - name: Copy lib64 libjwt files
-  shell: "cp {{ slurm_lib64_libjwt_src }}/libjwt.* {{ slurm_lib64_libjwt_dest }}"
+  ansible.builtin.shell: "cp {{ slurm_lib64_libjwt_src }}/libjwt.* {{ slurm_lib64_libjwt_dest }}"
   changed_when: true
   when: libjwt_lib64_path.stat.exists
 
 - name: Copy lib libjwt files
-  shell: "cp {{ slurm_lib_libjwt_src }}/libjwt.* {{ slurm_lib64_libjwt_dest }}"
+  ansible.builtin.shell: "cp {{ slurm_lib_libjwt_src }}/libjwt.* {{ slurm_lib64_libjwt_dest }}"
   changed_when: true
   when: libjwt_lib_path.stat.exists

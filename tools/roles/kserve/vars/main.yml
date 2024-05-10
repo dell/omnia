@@ -1,0 +1,72 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+kserve_directory: "/opt/omnia/kserve"
+istio_tar_file_name: "istio"
+istio_version: "1.17.0"
+istio_tar_file_location: "{{ kserve_directory }}/{{ istio_tar_file_name }}.tar.gz"
+
+manifest_folder_name: "kserve_manifest"
+manifest_local_path: "{{ kserve_directory }}/{{ manifest_folder_name }}"
+
+kserve_namespace: "kserve"
+kserve_verification_namespace: "kserve-test"
+kserve_cert_manager_namespace: "cert-manager"
+kserve_istio_namespace: "istio-system"
+kserve_knative_namespace: "knative-serving"
+
+owner_value: "root"
+group_value: "root"
+permission_644: "0644"
+max_attempts: 20
+wait_time: 10
+http_success_code: 200
+
+digest_tag: "omnia-kserve"
+inference_service_domain: "example.com"
+kserve_json_file: "{{ role_path }}/../../../input/config/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/kserve.json"
+
+local_repo_access_path: "/opt/omnia/offline/local_repo_access.yml"
+software_config_file: "{{ role_path }}/../../../input/software_config.json"
+fail_msg_kserve_software_config: "Kserve entry is not present in software_config.json"
+
+
+k8s_not_deployed: "kubernetes is prerequisite for deploying kserve. Please deploy kubernetes first."
+fail_msg_istio_tar: "Failed to get istio tar file from local repo location: {{ offline_tarball_path }}"
+fail_msg_knative_crd_manifest_not_found: "Failed to get knative_serving_crds_manifest.yaml in omnia local repo location: {{ offline_manifest_path }}"
+fail_msg_knative_core_manifest_not_found: "Failed to get knative_serving_core_manifest.yaml file in omnia local repo location: {{ offline_manifest_path }}"
+fail_msg_knative_net_istio_manifest_not_found: "Failed to get knative_net_istio_manifest.yaml file in omnia local repo location: {{ offline_manifest_path }}"
+fail_msg_cert_mgr_manifest_not_found: "Failed to get cert_manager_manifest.yaml file in omnia local repo location: {{ offline_manifest_path }}"
+fail_msg_kserve_manifest_not_found: "Failed to get kserve_manifest.yaml file in omnia local repo location: {{ offline_manifest_path }}"
+fail_msg_kserve_runtime_manifest_not_found: "Failed to get kserve_runtimes_manifest.yaml file in omnia local repo location: {{ offline_manifest_path }}"
+
+fail_msg_cert_manager_ns: "Failed to create namespace {{ kserve_cert_manager_namespace }}"
+fail_msg_knative_ns: "Failed to create namespace {{ kserve_knative_namespace }}"
+fail_msg_istio_ns: " Failed to create namespace {{ kserve_istio_namespace }}"
+fail_msg_kserve_ns: "Failed to create namespace {{ kserve_namespace }}"
+
+fail_msg_kserve_pod_not_running: "Not all kserve pods are in the Running state"
+fail_msg_kserve_cert_mgr_pod_not_running: "Not all cert-manager pods are in the Running state"
+fail_msg_kserve_istio_pod_not_running: "Not all istio pods are in the Running state"
+fail_msg_kserve_knative_pod_not_running: "Not all knative pods are in the Running state"
+wait_msg_kserve_pods_bringing_up: "Waiting for pods to come to active state"
+
+fail_inv_format: "Both 'kube_control_plane' and 'kube_node' groups should be defined in inventory"
+fail_node_kube_control_plane: "Single node should be part of kube_control_plane group in inventory"
+fail_no_node_kube_node: "No node is part of kube_node group in inventory"
+
+kserve_deployment_warning: "Warning! Please review the deployment. There are non-running pods under namespace :"
+kserve_deployment_success: "kserve successfully deployed with all pods in running state."
+kubeflow_exist: "Kubeflow namespace found, please remove kubeflow to deploy kserve."

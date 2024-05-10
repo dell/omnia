@@ -13,8 +13,13 @@
 # limitations under the License.
 ---
 
+- name: Update Inventory with ansible_host information
+  ansible.builtin.import_playbook: ../utils/servicetag_host_mapping.yml
+  when: not ( hostvars['127.0.0.1']['update_inventory_executed'] | default(false) | bool )
+
 - name: Validate storage input parameters
   hosts: localhost
+  connection: local
   any_errors_fatal: true
   tasks:
     - name: Validate storage input parameters
@@ -22,25 +27,38 @@
         name: storage_validation
         tasks_from: validation_status_check.yml
 
-- name: Gather facts from all the nodes
-  hosts: manager, compute
+- name: Update Repositories/Registries on nodes
+  ansible.builtin.import_playbook: ../utils/update_user_repo.yml
+  when: not ( hostvars['127.0.0.1']['update_user_repo_executed'] | default(false) | bool )
 
-- name: Validate repo file and subscription
-  hosts: manager, compute
-  gather_facts: false
-  roles:
-    - repo_validation
+- name: Gather facts from all the nodes
+  hosts: slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login, etcd
 
 - name: Install BeeGFS client
-  hosts: manager, compute
+  hosts: slurm_control_node, slurm_node, kube_control_plane, kube_node
   gather_facts: true
   roles:
     - beegfs
   tags: beegfs
 
+- name: Install NFS server on nfs_server_cluster
+  hosts: nfs_server_cluster
+  gather_facts: true
+  roles:
+    - nfs_server
+  tags: nfs_client
+
+- name: Install NFS server on nfs_server_cluster
+  hosts: nfs_server_local
+  connection: local
+  gather_facts: true
+  roles:
+    - nfs_server
+  tags: nfs_client
+
 - name: Install NFS client
-  hosts: manager, compute, login
+  hosts: slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login, etcd
   gather_facts: false
   roles:
-    - nfs
+    - nfs_client
   tags: nfs_client

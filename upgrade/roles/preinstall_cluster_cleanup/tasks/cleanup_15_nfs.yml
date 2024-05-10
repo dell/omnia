@@ -1,0 +1,102 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Read omnia config file
+  delegate_to: localhost
+  run_once: true
+  block:
+    - name: Read file path parameters from upgrade_config.yml
+      ansible.builtin.include_vars:
+        file: upgrade_config.yml
+      changed_when: false
+
+    - name: Fetch ansible-vault path
+      ansible.builtin.command: whereis ansible-vault
+      changed_when: false
+      register: ansible_vault_path
+
+    - name: Read the omnia config from 1.5 which is encrypted
+      ansible.builtin.command: cat "{{ old_input_location }}/{{ omnia_config_file_name }}"
+      changed_when: false
+      register: omnia_config_content
+      no_log: true
+
+    - name: Decrypt config files
+      ansible.builtin.command: >-
+        {{ ansible_vault_path.stdout.split(' ')[1] }} decrypt {{ old_input_location }}/{{ omnia_config_file_name }}
+        --vault-password-file {{ old_input_location }}/{{ omnia_15_config_vault_key }}
+      when: ansible_vault_search_key in omnia_config_content.stdout
+      changed_when: false
+
+    - name: Fetch v1.5 omnia_config.yml
+      block:
+        - name: Fetch v1.5 omnia_config.yml
+          ansible.builtin.set_fact:
+            fetch_var: "{{ lookup('file', old_input_location + '/' + omnia_config_file_name) | from_yaml }}"
+      rescue:
+        - name: Failed to fetch v1.5 omnia_config.yml
+          ansible.builtin.fail:
+            msg: "{{ omnia_config_syntax_fail_msg }}"
+
+    - name: Encrypt config files
+      ansible.builtin.command: >-
+        {{ ansible_vault_path.stdout.split(' ')[1] }} encrypt {{ old_input_location }}/{{ omnia_config_file_name }}
+        --vault-password-file {{ old_input_location }}/{{ omnia_15_config_vault_key }}
+      changed_when: false
+
+
+- name: Stop the nfs service
+  ansible.builtin.service:
+    name: nfs-server
+    state: stopped
+    enabled: false
+  changed_when: false
+  when: "'manager' in group_names"
+
+- name: Comment the nfs share entries in "{{ exports_file_path }}"
+  ansible.builtin.lineinfile:
+    path: "{{ exports_file_path }}"
+    regexp: "{{ fetch_var.omnia_usrhome_share }}"
+    state: absent
+  changed_when: false
+  when: "'manager' in group_names"
+
+- name: Unmount nfs share directory
+  ansible.posix.mount:
+    path: "{{ fetch_var.omnia_usrhome_share }}"
+    state: unmounted
+  become: true
+  when: "'compute' in group_names"
+
+- name: Remove nfs share directory
+  ansible.builtin.file:
+    path: "{{ fetch_var.omnia_usrhome_share }}"
+    state: absent
+  become: true
+
+- name: Read the contents of file /etc/fstab
+  ansible.builtin.command: cat "{{ fstab_file_path }}"
+  register: fstab_content
+  no_log: true
+  changed_when: false
+  when: "'compute' in group_names"
+
+- name: Comment the nfs share entry in /etc/fstab file
+  ansible.builtin.lineinfile:
+    path: "{{ fstab_file_path }}"
+    regexp: "{{ fetch_var.omnia_usrhome_share }}"
+    state: absent
+  changed_when: false
+  when: "'compute' in group_names"

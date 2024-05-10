@@ -1,0 +1,39 @@
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Copy RHEL8 kickstart files to xcat configuration path
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  with_items: "{{ xcat_rhel8_path }}"
+
+- name: Configure kickstart file - language
+  ansible.builtin.replace:
+    path: "{{ xcat_rhel8_tmpl }}"
+    regexp: '^lang ks_language'
+    replace: 'lang {{ language }}'
+
+- name: Fetch control_plane hostname
+  ansible.builtin.command: hostname
+  changed_when: false
+  register: cp_hostname
+
+- name: Update control plane IP in /etc/hosts of compute node
+  ansible.builtin.lineinfile:
+    path: "{{ xcat_rhel8_post_script }}"
+    insertafter: "EOF"
+    state: present
+    line: 'echo "{{ admin_nic_ip }} {{ cp_hostname.stdout }}" >> /etc/hosts'

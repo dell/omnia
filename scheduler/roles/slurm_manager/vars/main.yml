@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -29,7 +29,26 @@ slurm_packages:
    - slurm-slurmctld
    - slurm-slurmdbd
 
-dev_tools:
+nfs_dev_packages:
+   - gcc
+   - openssl
+   - numactl
+   - hwloc
+   - lua
+   - readline
+   - perl-ExtUtils-MakeMaker
+   - rpm-build
+   - perl-DBI
+   - perl-Switch
+   - libibumad
+   - git
+
+nfs_slurm_packages:
+   - slurm-slurmctld
+   - slurm-slurmdbd
+
+# Usage: install_dev_packages.yml
+rocky_dev_tools:
    - rrdtool-devel
    - lua-devel
    - hwloc-devel
@@ -59,12 +78,12 @@ log_files_manager:
 leap_slurm_packages:
    - slurm-slurmdbd
    - git
-
+slurm_installation_type: "{{ hostvars['localhost']['slurm_installation_type'] }}"
+slurm_share_path: "{{ hostvars['localhost']['share_path'] }}"
 tmp_mode: "0755"
+bashrc_path: "/etc/bashrc"
 cluster_state_path: "/var/spool/slurm/cluster_state"
-spool_slurmctld_pth: "/var/spool/slurmctld"
-spool_slurmd_pth: "/var/spool/slurmd"
-slurm_logpth: "/var/log/slurm/"
+default_slurmdbd_path: "/etc/slurm/slurmdbd.conf"
 tcp_port1: "6817/tcp"
 tcp_port2: "6818/tcp"
 tcp_port3: "6819/tcp"
@@ -77,19 +96,35 @@ udp_port4: "6820/udp"
 family: "ipv4"
 db_user: "slurm"
 db_host: "localhost"
-slurmdbd_path: "/etc/slurm/slurmdbd.conf"
 slurmdbd_mode: "0600"
-slurm_confpth: "/etc/slurm/slurm.conf"
+gen_mode: "0755"
+common_mode: "0777"
 slurm_user: "slurm"
 dbd_addr: "localhost"
 dbd_host: "localhost"
-logfile: "/var/log/slurm/slurmdbd.log"
-pidfile: "/var/run/slurmdbd.pid"
+etc_folder: "/etc"
+etcl_slurm_folder: "/etc/slurm"
 buffer_path: "/tmp/slurm.conf"
 slurm_mode: "0644"
+
+nfs_slurm_main_dest: "/etc/slurm"
+cluster_name: "slurm_control_node,slurm_node"
+slurmctld_port: "6817"
+slurmd_port: "6818"
+srun_port_range: "60001-63000"
+acct_port: "6819"
+slurm_uid: "6001"
+plugin_slurm_dir: "/usr/lib64/slurm"
+slurmdbd_services_dir: "/etc/systemd/system/slurmdbd.service"
+slurmctld_services_dir: "/etc/systemd/system/slurmctld.service"
+cgroup_conf: "/etc/cgroup.conf"
+innodb_conf: "/etc/my.cnf.d/innodb.cnf"
+spool_state: "/var/spool/slurm.state"
+innodb_conf_dir: "/etc/my.cnf.d"
 
 os_centos: 'centos'
 os_rocky: 'rocky'
 os_supported_leap: "leap"
 os_supported_redhat: "redhat"
+os_supported_rocky: "rocky"
 max_retries: 10

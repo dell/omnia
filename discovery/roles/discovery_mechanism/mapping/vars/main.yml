@@ -1,0 +1,31 @@
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Usage: main.yml
+discovery_mech_vars_common:
+  - "{{ role_path }}/../common/vars/main.yml"
+
+# Usage: update_db_mapping.yml
+mapping_file_db_path: "{{ role_path }}/../mapping/files/mapping_file_db.py"
+db_path: "{{ role_path }}/../../db_operations/files"
+
+# Usage: node_object_creation_mapping.yml
+mapping_node_group: "mapping"
+temp_pxe_file_path: "/opt/omnia/temp_pxe_file.csv"
+file_mode: "0644"
+
+# Usage: check_nodes_mapping.yml
+mapping_nodes_warning_msg: "[WARNING] Nodes provided in mapping file were already provisioned by omnia using other discovery mechanism."
+warning_wait_time: 10

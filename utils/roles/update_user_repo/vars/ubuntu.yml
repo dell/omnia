@@ -1,0 +1,37 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Usage: update_user_repo_ubuntu.yml,update_software_repo_ubuntu.yml,create_software_repo_ubuntu.yml
+repo_path: "/etc/apt/sources.list.d/"
+
+# Usage: create_software_repo_ubuntu.yml
+repo_config_template_src: "{{ role_path }}/templates/repo_config_template_ubuntu.j2"
+cluster_software_path: "{{ omnia_repo_path }}/cluster/apt"
+
+# Usage:update_user_repo_ubuntu.yml
+usr_repo_config_template_src: "{{ role_path }}/templates/user_repo_config_ubuntu.j2"
+tmp_update_repo_file_path: "/tmp/update_repo_util"
+update_keyring_file_path: "{{ tmp_update_repo_file_path }}/user_repo_keyrings"
+tmp_user_repo_path: "{{ tmp_update_repo_file_path }}/user_repo_files"
+
+# Usage:update_software_repo_ubuntu.yml
+omnia_repo_config_template_src: "{{ role_path }}/templates/omnia_repo_config_ubuntu.j2"
+tmp_omnia_keyring_file_path: "{{ tmp_update_repo_file_path }}/omnia_repo_keyrings"
+tmp_omnia_repo_path: "{{ tmp_update_repo_file_path }}/omnia_repo_files"
+apt_update_failure_msg: "The playbook failed due to an error while running apt update.
+     Please check user_repo_url and omnia_repo_url_ubuntu in local_repo_config.yml and ensure they are correct and reachable"
+
+# Usage:update_user_repo_ubuntu.yml,update_software_repo_ubuntu.yml
+os_type: "ubuntu"

@@ -14,7 +14,7 @@
 ---
 
 - name: Pull image for loki
-  ansible.builtin.command: buildah pull "{{ loki_image_name }}:{{ loki_image_tag }}"
+  ansible.builtin.command: nerdctl pull "{{ loki_image_name }}:{{ loki_image_tag }}"
   changed_when: true
   register: pull_loki_image
   until: pull_loki_image is not failed
@@ -63,7 +63,7 @@
                   - containerPort: "{{ loki_port }}"
 
               - name: promtail
-                image: localhost/promtail:latest
+                image: promtail:latest
                 imagePullPolicy: "Never"
                 volumeMounts:
                   - name: varlog

@@ -1,0 +1,60 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Load software_config.json
+  ansible.builtin.include_vars:
+    file: "{{ software_config_json_file }}"
+    name: software_config
+
+- name: Check freeipa support
+  ansible.builtin.set_fact:
+    freeipa_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'freeipa') | list | length > 0 }}"
+
+- name: Set facts for cluster
+  ansible.builtin.set_fact:
+    cluster_os_type: "{{ software_config.cluster_os_type }}"
+
+- name: Check if freeipa support is required
+  ansible.builtin.fail:
+    msg: "{{ ubuntu_freeipa_support_fail_msg }}"
+  when:
+    - freeipa_support is true
+    - cluster_os_type == compute_os_ubuntu
+
+- name: Check openldap support
+  ansible.builtin.set_fact:
+    openldap_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'openldap') | list | length > 0 }}"
+
+- name: Check secure_login_node support
+  ansible.builtin.set_fact:
+    enable_secure_login_node: "{{ software_config.softwares | selectattr('name', 'equalto', 'secure_login_node') | list | length > 0 }}"
+
+- name: Fail if both freeipa_support and openldap_support are true
+  ansible.builtin.fail:
+    msg: "{{ freeipa_and_openldap_true_fail_msg }}"
+  when: freeipa_support and openldap_support
+
+- name: Set facts for authentication system
+  ansible.builtin.set_fact:
+    authentication_system: "{{ 'openldap' if openldap_support else 'freeipa' if freeipa_support }}"
+  when: freeipa_support or openldap_support
+
+- name: Check if k8s support is true
+  ansible.builtin.set_fact:
+    k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'k8s') | list | length > 0 }}"
+
+- name: Check if slurm support is true
+  ansible.builtin.set_fact:
+    slurm_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'slurm') | list | length > 0 }}"

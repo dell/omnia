@@ -72,19 +72,55 @@
       - metric_collection_timeout < omnia_telemetry_collection_interval
     fail_msg: "{{ metric_collection_timeout_fail_msg }}"
 
-- name: Validate omnia inventory
-  ansible.builtin.assert:
-    that:
-      - groups['manager'] is defined
-      - groups['compute'] is defined
-    fail_msg: "{{ inventory_fail_msg }}"
+# Validate k8s groups in inventory
+- name: Validate k8s groups in inventory
+  when: k8s_entry_present
+  block:
+    - name: Validate omnia inventory
+      ansible.builtin.assert:
+        that:
+          - groups['kube_control_plane'] is defined
+          - groups['kube_node'] is defined
+          - groups['etcd'] is defined
+        fail_msg: "{{ k8s_inventory_fail_msg }}"
 
-- name: Validate manager group
-  ansible.builtin.assert:
-    that: "groups['manager'] | length | int == 1"
-    fail_msg: "{{ manager_group_fail_msg }}"
+    - name: Validate kube_control_plane group
+      ansible.builtin.assert:
+        that: "groups['kube_control_plane'] | length | int == 1"
+        fail_msg: "{{ kube_control_plane_group_fail_msg }}"
 
-- name: Validate compute group
-  ansible.builtin.assert:
-    that: "groups['compute'] | length | int >= 1"
-    fail_msg: "{{ compute_group_fail_msg }}"
+    - name: Validate kube_node group
+      ansible.builtin.assert:
+        that: "groups['kube_node'] | length | int >= 1"
+        fail_msg: "{{ kube_node_group_fail_msg }}"
+
+    - name: Validate etcd group
+      ansible.builtin.assert:
+        that: "groups['etcd'] | length | int >= 1"
+        fail_msg: "{{ etcd_group_fail_msg }}"
+
+    - name: Validate etcd group having odd nodes
+      ansible.builtin.assert:
+        that: "groups['etcd'] | length | int % 2 == 1"
+        fail_msg: "{{ etcd_odd_entry_fail_msg }}"
+
+# Validate slurm groups in inventory
+- name: Validate slurm groups in inventory
+  when: slurm_entry_present
+  block:
+    - name: Validate omnia inventory
+      ansible.builtin.assert:
+        that:
+          - groups['slurm_control_node'] is defined
+          - groups['slurm_node'] is defined
+        fail_msg: "{{ slurm_inventory_fail_msg }}"
+
+    - name: Validate slurm_control_node group
+      ansible.builtin.assert:
+        that: "groups['slurm_control_node'] | length | int == 1"
+        fail_msg: "{{ slurm_control_node_group_fail_msg }}"
+
+    - name: Validate slurm_node group
+      ansible.builtin.assert:
+        that: "groups['slurm_node'] | length | int >= 1"
+        fail_msg: "{{ slurm_node_group_fail_msg }}"

@@ -1,0 +1,47 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Check the nic configuratoion file exists
+  ansible.builtin.stat:
+    path: "{{ nic_configuration_file_path }}"
+  register: stat_result
+
+- name: Warning - Please wait, This task will take few seconds
+  ansible.builtin.pause:
+    seconds: "{{ warning_wait_time }}"
+    prompt: "{{ nic_config_warning_msg }}"
+  when: not stat_result.stat.exists
+
+- name: Fetch IP address
+  when: stat_result.stat.exists
+  block:
+    - name: Fetch IP address from NIC configuration file
+      ansible.builtin.command:
+        cmd: "cat {{ nic_configuration_file_path }}"
+      register: nic_content
+      changed_when: false
+
+    - name: Extract IP address from NIC configuration
+      ansible.builtin.set_fact:
+        nic_ip_address: "{{ nic_content.stdout | regex_search('address\\s+([0-9.]+)') | regex_replace('address\\s+', '') }}"
+      when: nic_content.stdout is defined
+
+    - name: Write content to NIC configuration files
+      ansible.builtin.blockinfile:
+        path: "{{ nic_configuration_file_path }}"
+        marker: "  # {mark} "
+        block: |
+          {{ "  " }}up ip rule add from {{ nic_ip_address }} table {{ item.metric }}
+          {{ "  " }}up ip route add default via {{ item.gateway }} table {{ item.metric }}

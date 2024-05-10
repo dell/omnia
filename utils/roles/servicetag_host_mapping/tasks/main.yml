@@ -1,0 +1,32 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Servicetag Host mapping
+  ansible.builtin.command: "{{ python }} {{ servicetag_host_mapping_script }} {{ role_path }} {{ file_path }} {{ ansible_inventory_sources }}"
+  register: servicetag_host_mapping_result
+  changed_when: true
+
+- name: Verify Error in Servicetag Host mapping
+  ansible.builtin.fail:
+    msg: "{{ servicetag_host_mapping_result.stdout_lines[-1] }}"
+  when: servicetag_host_mapping_result is defined and 'Error' in servicetag_host_mapping_result.stdout
+
+- name: Clear facts
+  ansible.builtin.meta: clear_facts
+  changed_when: false
+
+- name: Refresh inventory
+  ansible.builtin.meta: refresh_inventory
+  changed_when: false

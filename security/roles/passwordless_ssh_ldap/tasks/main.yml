@@ -16,19 +16,6 @@
 - name: Configure passwordless ssh for LDAP client
   when: hostvars['127.0.0.1']['authentication_type'] == "ldap"
   block:
-      - name: Copy ldap add key file
-        ansible.builtin.copy:
-            src: "{{ role_path }}/files/addpubkeys.ldif"
-            dest: addpubkeys.ldif
-            mode: "{{ ldif_file_mode }}"
-
-      - name: Extract the domain name required by LDAP
-        ansible.builtin.set_fact:
-            reqd_domain_name: "{{ (hostvars['127.0.0.1']['domain_name'].split('.') | map('regex_replace', '^', 'dc=') | list) | join(',') }}"
-
-      - name: Include LDAP Config tasks
-        ansible.builtin.include_tasks: ldap_config.yml
-
       - name: Include LDAP add key tasks
         ansible.builtin.include_tasks: ldap_addkey.yml
         with_items: "{{ hostvars['127.0.0.1']['user_list'] }}"

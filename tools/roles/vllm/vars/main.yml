@@ -1,0 +1,65 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Global
+wait_time: "30"
+vllm_warning: "The vLLM container requires at least 60GB of storage. Additionally, the Storage for inference example relies on the inference model, so please ensure that the necessary storage is available."
+installation_success_status: "vLLM succesfully installed"
+installation_failed_status: "Failed to install vLLM"
+vllm_python_version: "python3.9"
+
+
+# For env proxy setup
+local_repo_access_path: "/opt/omnia/offline/local_repo_access.yml"
+
+# Usage: check_prerequisites.yml for validate_software_config_json.yml
+software_config_json_file: "{{ role_path }}/../../../input/software_config.json"
+software_config_parameters_fail_msg: "Failed. Please ensure cluster_os_type, cluster_os_verion, repo_config, softwares are defined in software_config.json"
+vllm_python_package:
+  - python3-pip
+  - python3.9-distutils
+
+# vllm.json file path
+vllm_json_file: "{{ role_path }}/../../../input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/vllm.json"
+
+# Errors: check_prerequisites.yml
+error_check_gpu_failed: "GPU Driver absent. Skipping vLLM installation."
+error_check_container_engine_failed: "vLLM requires containerd as a prerequisite. Please execute scheduler.yml/omnia.yml and install k8s and excute vLLM again"
+error_dri_file_failed: "Unable to read dri files in /dev/dri folder"
+error_check_pytorch_failed: "Failed to install dependency - pytorch"
+
+# check_prerequisites.yml - Create omnia folder if it doesn't exist
+omnia_foler_path: "/opt/omnia"
+omnia_foler_stat: "directory"
+omnia_foler_mode: "0755"
+
+# Usage: vllm_install.yml
+vllm_run_cmd_start: "nerdctl run -it --network=host --group-add=video --ipc=host --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --device /dev/kfd "
+vllm_run_cmd_mid: " -v /opt/omnia/:/app/model "
+vllm_run_cmd_end: " /bin/bash -c 'export http_proxy={{ http_proxy }} && export https_proxy={{ https_proxy }} && python /app/model/vllm_example.py'"
+
+# Errors: vllm_install.yml
+error_pull_container: "Failed to install vLLM container on AMD GPU node. Please ensure you have enough disk space (recommended: 100 GB) or check your network connection to the local repository"
+error_vllm_package: "Failed to install vLLM on NVIDIA node. Please ensure you have enough disk space (recommended: 100 GB) or check your network connection to the local repository"
+
+# Usage: vllm_verify.yml
+vllm_example_src_file_path: "vllm_example.py"
+vllm_example_file_path: "/opt/omnia/vllm_example.py"
+vllm_example_file_owner: "root"
+vllm_example_file_group: "root"
+vllm_example_file_mode: "0755"
+
+# Error: vllm_verify.yml
+error_vllm_example_failed: "Failed to execute vLLM sample model"

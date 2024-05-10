@@ -1,0 +1,8 @@
+{% for registry in user_registry|reverse %}
+{% if registry.host in hostlist %}
+
+[host."{{ registry.host }}"]
+capabilities = ["pull", "resolve"]
+skip_verify = true
+{% endif %}
+{% endfor %}

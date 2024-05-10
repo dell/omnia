@@ -13,8 +13,13 @@
 # limitations under the License.
 ---
 
+- name: Update Inventory with ansible_host information
+  ansible.builtin.import_playbook: ../utils/servicetag_host_mapping.yml
+  when: not ( hostvars['127.0.0.1']['update_inventory_executed'] | default(false) | bool )
+
 - name: Validate telemetry input parameters
   hosts: localhost
+  connection: local
   any_errors_fatal: true
   tasks:
     - name: Validate telemetry input parameters
@@ -22,10 +27,16 @@
         name: telemetry_validation
         tasks_from: validation_status_check.yml
 
+- name: Update Repositories/Registries on nodes
+  ansible.builtin.import_playbook: ../utils/update_user_repo.yml
+  when: not ( hostvars['127.0.0.1']['update_user_repo_executed'] | default(false) | bool )
+
 - name: Telemetry for omnia
   hosts: localhost
   connection: local
   gather_facts: true
+  vars:
+    ansible_python_interpreter: /usr/bin/python3.9
   roles:
     - orchestrator
     - grafana
@@ -34,43 +45,16 @@
     - idrac_telemetry
     - grafana_config
 
-- name: Get node inventory
-  hosts: localhost
-  gather_facts: false
-  tasks:
-    - name: Get node inventory
-      ansible.builtin.include_role:
-        name: slurm_telemetry
-        tasks_from: get_node_inventory.yml
-      tags: slurm_telemetry
-
-- name: Get node details
-  hosts: manager, compute
-  gather_facts: false
-  tasks:
-    - name: Get service tag
-      ansible.builtin.include_role:
-        name: slurm_telemetry
-        tasks_from: update_service_tags.yml
-      tags: slurm_telemetry
-
-- name: Slurm Telemetry
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  roles:
-    - slurm_telemetry
-  tags: slurm_telemetry
-
 - name: Prepare CP for Telemetry
   hosts: localhost
+  connection: local
   gather_facts: false
   roles:
     - omnia_telemetry_prepare_cp
   tags: omnia_telemetry
 
 - name: Install Omnia Telemetry
-  hosts: manager, compute, login
+  hosts: slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login, etcd
   gather_facts: false
   roles:
     - omnia_telemetry_acquisition

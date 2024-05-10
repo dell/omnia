@@ -13,19 +13,24 @@
 # limitations under the License.
 ---
 
-- name: Validate xcat status on control plane
+- name: Validate accelerator inputs
   hosts: localhost
   gather_facts: true
+  connection: local
   roles:
     - accelerator_validation
   tags: amd, nvidia
 
-- name: Validate repo file and subscription
-  hosts: all
-  gather_facts: true
-  roles:
-    - repo_validation
-  tags: amd, nvidia
+- name: Update Repositories/Registries on nodes
+  ansible.builtin.import_playbook: ../utils/update_user_repo.yml
+  when: not ( hostvars['127.0.0.1']['update_user_repo_executed'] | default(false) | bool )
+
+# - name: Validate repo file and subscription
+#   hosts: all
+#   gather_facts: true
+#   roles:
+#     - repo_validation
+#   tags: amd, nvidia
 
 - name: Gather Cluster Facts
   hosts: all
@@ -42,22 +47,22 @@
     - amd
   tags: amd
 
-- name: Validate input parameters for CUDA Accelerator and setup nfs server if needed
-  hosts: localhost
-  connection: local
-  gather_facts: true
-  tasks:
-    - name: Validate variables from network_config.yml
-      ansible.builtin.include_role:
-        name: nvidia
-        tasks_from: validations.yml
-  tags: nvidia
+# - name: Validate input parameters for CUDA Accelerator and setup nfs server if needed
+#   hosts: localhost
+#   connection: local
+#   gather_facts: true
+#   tasks:
+#     - name: Validate variables from network_config.yml
+#       ansible.builtin.include_role:
+#         name: nvidia
+#         tasks_from: validations.yml
+#   tags: nvidia
 
-- name: Setup NFS client and install cuda drivers on nodes
-  hosts: all
-  roles:
-    - nvidia
-  handlers:
-    - name: Reboot node
-      ansible.builtin.reboot:
-  tags: nvidia
+# - name: Setup NFS client and install cuda drivers on nodes
+#   hosts: all
+#   roles:
+#     - nvidia
+#   handlers:
+#     - name: Reboot node
+#       ansible.builtin.reboot:
+#   tags: nvidia

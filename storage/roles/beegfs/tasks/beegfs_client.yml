@@ -1,4 +1,4 @@
-#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,37 +13,53 @@
 #  limitations under the License.
 ---
 
-- name: Add repo for BeeGFS client installation
-  ansible.builtin.get_url:
-    url: "{{ beegfs_client_non_leap_repo }}"
-    dest: "{{ beegfs_repo_dest_non_leap }}"
-    mode: "{{ file_mode }}"
-  register: beegfs_repo_status
-  until: beegfs_repo_status is not failed
-  retries: "{{ min_retries }}"
-
-- name: Installing packages for BeeGFS client
+- name: Installing packages for BeeGFS client on RHEL/Rocky
   ansible.builtin.package:
-    name: "{{ beegfs_pkgs }}"
+    name: "{{ beegfs_pkgs_version }}"
     state: present
+  when: compute_os in ["redhat", "rocky"]
+
+- name: Installing packages for BeeGFS client on Ubuntu
+  when: compute_os == "ubuntu"
+  block:
+    - name: Run apt info command and capture output
+      ansible.builtin.command: apt info beegfs-helperd -a
+      register: apt_info_output
+      changed_when: false
+
+    - name: Extract version line containing beegfs_version
+      ansible.builtin.set_fact:
+        beegfs_new_version: "{{ item.split(':')[1:] | join(':') | trim }}"
+      loop: "{{ apt_info_output.stdout_lines }}"
+      when: "'Version' in item and beegfs_version in item"
+
+    - name: Display the extracted version line
+      ansible.builtin.debug:
+        var: beegfs_new_version
+
+    - name: Installing packages for BeeGFS client
+      ansible.builtin.command:
+        cmd: "apt install -y {{ item }}"
+      loop: "{{ beegfs_pkgs_version_ubuntu }}"
+      changed_when: true
 
 - name: Disable security features of BeeGFS helperd
   ansible.builtin.replace:
     path: "{{ helperd_location }}"
     regexp: "^connDisableAuthentication = false"
     replace: "connDisableAuthentication = true"
-  when: beegfs_client_version >= '7.3.1'
+  when: hostvars['127.0.0.1']['beegfs_client_version'] >= '7.3.1'
 
 - name: Disable security features of BeeGFS client
   ansible.builtin.replace:
     path: "{{ client_mount_location }}"
     regexp: "^connDisableAuthentication     = false"
     replace: "connDisableAuthentication     = true"
-  when: beegfs_client_version >= '7.3.1'
+  when: hostvars['127.0.0.1']['beegfs_client_version'] >= '7.3.1'
 
 - name: Copy and update the shared secret file configuration
   when:
-    - beegfs_client_version >= '7.2.7'
+    - hostvars['127.0.0.1']['beegfs_client_version'] >= '7.2.7'
     - hostvars['127.0.0.1']['beegfs_connauth_status']
   block:
     - name: Copy the shared secret file to the cluster
@@ -103,6 +119,12 @@
     insertafter: "{{ default_arg }}"
     line: "{{ without_rdma_arg }}"
   when: not beegfs_rdma_support
+
+- name: Disable sanity check
+  ansible.builtin.lineinfile:
+    path: "{{ beegfs_client_secret_conf_file }}"
+    regexp: "{{ regexp_pattern }}"
+    line: "{{ replacement_line }}"
 
 - name: Modify BeeGFS mounts file for supporting different mount location
   ansible.builtin.lineinfile:

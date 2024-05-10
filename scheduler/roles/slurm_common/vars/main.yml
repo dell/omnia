@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
 #  limitations under the License.
 ---
 
+# Usage: install_packages.yml
 common_packages:
    - slurm-slurmd
    - slurm-pmi
@@ -23,45 +24,71 @@ common_packages:
    - mariadb-devel
    - man2html
 
+munge_packages:
+   - munge
+   - munge-libs
+   - munge-devel
+
 leap_common_packages:
    - slurm
    - munge
    - mariadb
    - slurm-munge
 
-common_python2_packages:
-   - MySQL-python
-   - python-netaddr
-
+# Usage: install_python_packages.yml
 common_python3_packages:
-   - MySQL-python3
+   - python3-mysql
    - python3-netaddr
 
+slurm_installation_type: "{{ hostvars['localhost']['slurm_installation_type'] }}"
+slurm_share_path: "{{ hostvars['localhost']['share_path'] }}"
+nfs_share_slurm: "nfs_share"
+configless_slurm: "configless"
+slurm_conf_default_path: "/etc/slurm/slurm.conf"
+hosts_file_mode: "0644"
 hostname_dest: "/etc/hostname"
 hosts_dest: "/etc/hosts"
 munge_dest: "/etc/munge/"
+munge_socket: "/var/run/munge/munge.socket.*"
 munge_cmd: "/usr/sbin/create-munge-key -f"
 munge_mode: "0400"
+munge_user_id: 1001
+munge_path: "/run/munge"
+munge_log_path: "/var/log/munge/"
+munge_lib_path: "/var/lib/munge/"
 slurm_mode: "0644"
 common_mode: "0777"
-slurm_dest: "/etc/slurm/"
-slurm_confpth: "/etc/slurm/slurm.conf"
+common_munge_mode: "0700"
+run_munge_mode: "0711"
 slurm_user: "slurm"
 slurmctld_port: "6817"
 slurmd_port: "6818"
 srun_port_range: "60001-63000"
 acct_port: "6819"
 slurm_uid: "6001"
-slurm_logpth: "/var/log/slurm/"
-slurm_pidpth: "/var/run/slurm/"
 gen_mode: "0755"
 spool_dir: "/var/spool/"
 spool_pth: "/var/spool/slurm/"
 slurmctld_pid: "/var/run/slurmctld.pid"
 slurmd_pid: "/var/run/slurmd.pid"
-cluster_name: "manager,compute"
+cluster_name: "slurm_control_node,slurm_node"
 slurmctld_log: "/var/log/slurm/slurmctld.log"
 slurmd_log: "/var/log/slurm/slurmd.log"
+slurm_logpth: "/var/log/slurm/"
+slurm_pidpth: "/var/run/slurm/"
+slurm_dest: "/etc/slurm/"
+slurm_confpth: "/etc/slurm/slurm.conf"
+cluster_state_path: "/var/spool/slurm/cluster_state"
+spool_slurmctld_pth: "/var/spool/slurmctld"
+spool_slurmd_pth: "/var/spool/slurmd"
+slurmdbd_path: "/etc/slurm/slurmdbd.conf"
+logfile: "/var/log/slurm/slurmdbd.log"
+pidfile: "/var/run/slurmdbd.pid"
+slurmd_path: "/usr/lib/systemd/system/slurmd.service"
+slurm_nfs_folder: /slurm
+plugin_slurm_dir: "/usr/lib64/slurm"
+mail_prog_dir: "/usr/bin/mail"
+
 
 os_centos: 'centos'
 os_rocky: 'rocky'

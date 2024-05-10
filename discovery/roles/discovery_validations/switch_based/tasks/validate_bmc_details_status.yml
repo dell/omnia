@@ -1,0 +1,49 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Set switch_details_status to true
+  ansible.builtin.set_fact:
+    switch_details_status: true
+  when:
+    - item.ip | default("", true) | length > 0
+    - item.ports | default("", true) | length > 0
+  loop: "{{ switch_based_details }}"
+
+- name: Set switch_credentials_status to true
+  ansible.builtin.set_fact:
+    switch_credentials_status: true
+  when:
+    - switch_snmp3_username | default("", true) | length > 1
+    - switch_snmp3_password | default("", true) | length > 1
+
+- name: Fail when bmc details not provided
+  ansible.builtin.fail:
+    msg: "{{ bmc_network_details_fail_msg }}"
+  when: not bmc_details_status
+
+- name: Warning - bmc discovery will be skipped
+  ansible.builtin.pause:
+    seconds: "{{ warning_wait_time }}"
+    prompt: "{{ bmc_discovery_warning_msg }}"
+  when: discovery_mech_bmc
+
+- name: Set discovery_mech_switch_based to true
+  ansible.builtin.set_fact:
+    discovery_mech_switch_based: true
+    discovery_mech_bmc: false
+  when:
+    - bmc_details_status
+    - switch_details_status
+    - switch_credentials_status

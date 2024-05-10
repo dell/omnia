@@ -1,0 +1,193 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Usage: main.yml
+local_repo_config_file: "{{ role_path }}/../../../input/local_repo_config.yml"
+
+# Usage: prerequisites_redhat.yml, prerequisites_ubuntu.yml
+community_general_collection: community.general:4.8.7
+community_crypto_collection: community.crypto:2.14.0
+max_retries: 10
+yum_repos_path: "/etc/yum.repos.d"
+yum_conf_path: "/etc/yum.conf"
+jq_package: jq
+repo_pkgs:
+  - createrepo
+  - yum-utils
+python_version: python3.9
+python_package:
+  - requests==2.31.0
+  - pyopenssl==21.0.0
+  - urllib3==1.26.5
+# Usage: validate_cp_os.yml
+control_plane_os_redhat: "redhat"
+control_plane_os_rocky: "rocky"
+control_plane_os_ubuntu: "ubuntu"
+control_plane_os_fail_msg: "Failed. Control plane OS should be RHEL, Rocky or Ubuntu."
+root_user_name: "root"
+user_fail_msg: "Failed. Omnia playbooks should run as root user."
+warning_wait_time_warning: 15
+warning_msg_local_repo: "[WARNING] Omnia will remove any package/software conflicting with the requirements."
+
+# Usage: validate_software_config_json.yml
+software_config_json_file: "{{ role_path }}/../../../input/software_config.json"
+fail_msg_software_config_json_file: "software_config.json file doesn't exist."
+software_config_parameters_fail_msg: "Failed. Please ensure cluster_os_type, cluster_os_verion, repo_config, softwares are defined in software_config.json"
+software_config_softwares_fail_msg: "Failed. softwares list cannot be empty in software_config.json. Atleast one software should be defined."
+missing_json_fail_msg: "The json files for the following software stacks are missing at input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/,
+this might be due to removal of json files from the path or the softwares are not being supported on
+{{ cluster_os_type }} : {{ missing_json_list | map('regex_replace', '\\.json$', '') | list }}"
+specific_softwares:
+  - 'beegfs'
+  - 'amdgpu'
+  - 'k8s'
+  - 'cuda'
+  - 'ofed'
+  - 'bcm_roce'
+  - 'ucx'
+  - 'rocm'
+  - 'intel_benchmarks'
+  - 'openmpi'
+versions_fail_msg: "Versions were not defined for the following softwares: {{ failed_softwares | join(', ') }} in software_config.json.
+Refer examples/template_{{ cluster_os_type }}_software_config.json and define version details accordingly in input/software_config.json"
+cluster_os_type_fail_msg: "Failed. The supported values of cluster_os_type are rhel, rocky, ubuntu."
+cluster_os_version_fail_msg_rhel: "Failed. The supported values of cluster_os_version is 8.6,8.7 and 8.8 when cluster_os_type is rhel"
+cluster_os_version_fail_msg_rocky: "Failed. The supported values of cluster_os_version is 8.6,8.7 and 8.8 when cluster_os_type is rocky"
+cluster_os_version_fail_msg_ubuntu: "Failed. The supported values of cluster_os_version is 20.04 and 22.04 when cluster_os_type is ubuntu"
+repo_config_fail_msg: "Failed. The supported values of repo_config is always, partial and never"
+cross_os_support_fail_msg: "Cross-OS is not supported: control_plane_os '{{ control_plane_os }}' does not match cluster_os_type '{{ cluster_os_type }}'"
+valid_cluster_os_type:
+  - 'rhel'
+  - 'rocky'
+  - 'ubuntu'
+rhel_valid_os_versions:
+  - '8.6'
+  - '8.7'
+  - '8.8'
+rocky_valid_os_versions:
+  - '8.6'
+  - '8.7'
+  - '8.8'
+ubuntu_valid_os_versions:
+  - '20.04'
+  - '22.04'
+valid_repo_config:
+  - 'always'
+  - 'partial'
+  - 'never'
+
+# Usage: validate_local_repo_config.yml
+fail_msg_local_repo_config_file: "local_repo_config.yml file doesn't exist."
+local_repo_config_syntax_fail_msg: "Failed. Syntax errors present in local_repo_config.yml. Fix errors and re-run playbook again. Common syntax Errors:
+indentation errors, improper quotes, improper space or tab, missing colon, missing comma etc. "
+repo_store_path_fail_msg: "Failed. Ensure repo_store_path is defined and it should start with '/' and should not end with '/'"
+directory_permissions: "0755"
+rhel_os_url_fail_msg_crb: "Please provide code ready builder repo in rhel_os_url in local_repo_config.yml when cluster_os_type is rhel"
+omnia_repo_url_rhel_fail_msg: "Failed. Please ensure omnia_repo_url_rhel is defined and the repos are provided in local_repo_config.yml"
+omnia_repo_url_rhel_url_gpg_key_fail_msg: "Failed. Each item in omnia_repo_url_rhel should have 'url' and 'gpgkey' keys defined"
+omnia_repo_url_rocky_fail_msg: "Failed. Please ensure omnia_repo_url_rocky is defined and the repos are mentioned in local_repo_config.yml"
+omnia_repo_url_rocky_url_gpg_key_fail_msg: "Failed. Each item in omnia_repo_url_rocky should have 'url' and 'gpgkey' keys defined"
+omnia_repo_url_ubuntu_fail_msg: "Failed. Please ensure omnia_repo_url_ubuntu is defined and the repos are mentioned in local_repo_config.yml"
+omnia_repo_url_ubuntu_url_gpg_key_fail_msg: "Failed. Each item in omnia_repo_url_ubuntu should have 'url' and 'gpgkey' keys defined"
+omnia_registry_fail_msg: "Failed. omnia_registry should be defined in local_repo_config.yml."
+omnia_registry_string_fail_msg: "Each item in omnia_registry should be a string."
+rpm_dir_path: "{{ repo_store_path }}/cluster/{{ cluster_os_type }}/{{ cluster_os_version }}/rpm"
+deb_dir_path: "{{ repo_store_path }}/cluster/{{ cluster_os_type }}/{{ cluster_os_version }}/deb"
+
+# Usage: validate_user_registry.yml
+user_registry_fail_msg: "Failed. Please ensure user_registry is non empty list and
+check if there is any indentation error in input/local_repo_config.yml"
+user_registry_fail_host_cert_path_msg: "Failed. Each item in user_registry should have 'host' and 'cert_path' keys defined"
+
+# Usage: validate_user_repo_url.yml
+user_repo_url_fail_msg: "Failed. Please ensure user_repo_url is proper and should not have jinja variables.
+Also ensure that there is no indentation error in input/local_repo_config.yml"
+user_repo_url_fail_url_gpg_key_msg: "Failed. Each item in user_repo_url should have 'url' and 'gpgkey' keys defined"
+
+# Usage: validate_json_path.yml
+json_files_directory: "{{ role_path }}/../../../input/config/{{ cluster_os_type }}/{{ cluster_os_version }}"
+
+# Usage: validate_json_file.yml
+software_key_fail_msg: "'{{ file_basename }}' key is missing in the JSON file."
+
+# Usage: validate_json_subgroup_file.yml
+cluster_key_fail_msg: "'cluster' key is missing within '{{ file_basename }}' in the JSON file."
+rpm_properties_fail_msg: "Missing required properties for an item of type 'rpm' in the JSON file '{{ file_basename }}.json'."
+ansible_galaxy_properties_fail_msg: "Missing required properties for an item of type 'ansible_galaxy_collection' in the JSON file '{{ file_basename }}.json'."
+git_properties_fail_msg: "Missing required properties for an item of type 'git' in the JSON file '{{ file_basename }}.json'."
+image_properties_fail_msg: "Missing required properties for an item of type 'image' in the JSON file '{{ file_basename }}.json'."
+tarball_properties_fail_msg: "Missing required properties for an item of type 'tarball' in the JSON file '{{ file_basename }}.json'."
+manifest_properties_fail_msg: "Missing required properties for an item of type 'manifest' in the JSON file '{{ file_basename }}.json'."
+shell_properties_fail_msg: "Missing required properties for an item of type 'shell' in the JSON file '{{ file_basename }}.json'."
+iso_properties_fail_msg: "Missing required properties for an item of type 'iso' in the JSON file '{{ file_basename }}.json'."
+validation_failure_msg: "Validation failed for JSON file: {{ json_file.path }}. Please ensure all properties are defined in all items based on type"
+
+# Usage: validate_ubuntu_os_url.yml
+url_format_fail_msg: "Failed. Invalid format for ubuntu_os_url.
+Also ensure that there is no indentation error in input/local_repo_config.yml"
+url_unreachable_fail_msg: "Failed. Unreachable url {{ ubuntu_os_url }} input provided in ubuntu_os_url.
+This can be due to intermittent internet connectivity issues as well.
+Please ensure that the url mentioned in ubuntu_os_url is reachable and re-run local_repo.yml."
+http_key: http
+
+# Usage: validate_metadata.yml
+metadata_file_path: "/opt/omnia/offline/.data/metadata.yml"
+repo_config_metadata_fail_msg: "Failed: Cannot change repo_config in subsequent runs. Please use the repo_config:{{ md_repo_config }} in software_config.json"
+
+# Usage: validate_rhel_os_url.yml
+rhel_os_url_fail_msg: "Failed. Please ensure rhel_os_url is non empty list and
+check if there is any indentation error for variable names in input/local_repo_config.yml"
+rhel_os_url_fail_url_gpg_key_msg: "Failed. Each item in rhel_os_url should have 'url' and 'gpgkey' keys defined"
+
+# Usage: include_provision_credentials_inputs.yml
+docker_password_fail_msg: "docker password must be mentioned when docker_username is defined."
+warning_wait_time: 30
+warning_msg_docker_username_password_incomplete: "[WARNING] Docker credentials not provided in provision_config_credentials.yml.
+Proceeding without docker credentials."
+provision_config_credentials_filename: "{{ role_path }}/../../../input/provision_config_credentials.yml"
+provision_credentials_vault_path: "{{ role_path }}/../../../input/.provision_credential_vault_key"
+ansible_vault_search_key: "$ANSIBLE_VAULT;"
+provision_config_credentials_syntax_fail_msg: "Failed. Syntax errors present in provision_config_credentials.yml. Fix errors and re-run playbook again."
+conf_file_mode: "0644"
+
+# Usage: validate_bcm_roce.yml
+bcm_roce_json_file: "{{ role_path }}/../../../input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/bcm_roce.json"
+fail_msg_bcm_roce_json_file: "bcm_roce.json file is absent. Broadcom RoCE driver packages will not be downloaded."
+bcm_roce_fail_msg: "bcm_roce is provided in software_config.json but neither url nor path is provided in bcm_roce.json file in
+ input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/"
+bcm_roce_file_path_missing_msg: "Incorrect bcm_roce_file_path provided. Make sure bcm_roce file is present in the provided
+ bcm_roce path."
+bcm_roce_file_path_success_msg: "bcm_roce_file_path validated"
+bcm_roce_file_path_fail_msg: "Failed. The path provided for bcm_roce file is not a tarball. please provide a valid tarball."
+bcm_roce_src_warning_msg: "bcm_roce_libraries will not be installed on the nodes post provisioning. bcm_roce is provided in software_config.json
+ but neither url nor path is provided in bcm_roce.json file in input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/"
+bcm_roce_src_file_path_missing_msg: "Incorrect bcm_roce_libraries file_path provided. Make sure bcm_roce file is present in the provided
+ bcm_roce path."
+bcm_roce_src_file_path_success_msg: "bcm_roce_libraries file_path validated"
+bcm_roce_src_file_path_fail_msg: "Failed. The path provided for bcm_roce_libraries file is not a tarball. please provide a valid tarball."
+file_permission: "0755"
+bcm_roce_driver_temp: /opt/omnia/.bcm_roce/driver
+bcm_roce_source_temp: /opt/omnia/.bcm_roce/source
+bcm_roce_driver_fail_msg: "Failed. The provided tarball does not have netxtreme-peer-mem deb packages, please provide a valid driver tarball."
+bcm_roce_source_fail_msg: "Failed. The provided tarball does not have bnxt libraries, please provide a valid libraries tarball."
+search_patterns:
+  - "*netxtreme-bnxt_en*.tar.*"
+  - "*libbnxt_re*.tar.*"
+subgroup_missing_warning_msg: "bcm_roce mentioned in software_config.json, but bcm_roce sub-group is not available.
+ bcm_roce_libraries will not be installed on the nodes post provisioning."
+subgroup_warning_msg: "bcm_roce_libraries attribute is not mentioned in the bcm_roce sub-group in software_config.json,
+ so bcm_roce_libraries will not be installed on the nodes post provisioning."
+bcm_roce_libraries_warning_msg: "bcm_roce_libraries object not found in bcm_roce.json,
+ so bcm_roce_libraries will not be installed during post provisioning."

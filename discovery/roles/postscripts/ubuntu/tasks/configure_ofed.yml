@@ -1,0 +1,70 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Create OFED repository
+  ansible.builtin.file:
+    path: "{{ mlnx_ofed_repo }}"
+    state: directory
+    mode: "{{ repo_permission }}"
+
+- name: Copy OFED ISO file
+  ansible.builtin.copy:
+    src: "{{ mlnx_ofed_path }}"
+    dest: "{{ mlnx_ofed_repo }}/{{ mlnx_ofed_path.split('/')[-1] }}"
+    mode: "{{ ofed_permission }}"
+
+- name: Copy mellanox script to postscripts
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  with_items: "{{ ofed_install_script_path }}"
+
+- name: Copy OFED script to postscripts
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  with_items: "{{ ofed_postscripts_path }}"
+
+- name: Check mlnxofed script applied
+  ansible.builtin.shell: >
+    set -o pipefail && \
+    cat {{ mlnxofed_script_path }} | grep '{{ mlnxofed_check_key }}'
+  changed_when: false
+  failed_when: false
+  register: mlnxofed_check
+
+- name: Apply mlnxofed patch
+  when: mlnxofed_check_key not in mlnxofed_check.stdout
+  block:
+    - name: Copy mlnxofed patch
+      ansible.builtin.copy:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        mode: "{{ item.mode }}"
+      with_items: "{{ mlnxofed_patch_path }}"
+
+    - name: Patch mlnxofed file
+      ansible.builtin.shell: patch mlnxofed_ib_install < mlnxofed_ib_install.patch # noqa: command-instead-of-module
+      changed_when: true
+      args:
+        chdir: "{{ xcat_postscripts_path }}"
+
+    - name: Delete mlnxofed script patch
+      ansible.builtin.file:
+        path: "{{ item.dest }}"
+        state: absent
+      with_items: "{{ mlnxofed_patch_path }}"

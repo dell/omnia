@@ -13,5 +13,12 @@
 # limitations under the License.
 ---
 
+- name: Saving distribution of os
+  ansible.builtin.set_fact:
+    control_plane_os: "{{ ansible_distribution | lower }}"
+
+- name: Include local_repo variables
+  ansible.builtin.include_tasks: include_local_repo_config.yml
+
 - name: Check xcat installation status
-  ansible.builtin.include_tasks: xcat_status_check.yml
+  ansible.builtin.include_tasks: validate_amd.yml

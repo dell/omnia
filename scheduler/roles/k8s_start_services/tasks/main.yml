@@ -1,4 +1,4 @@
-#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,33 +14,9 @@
 ---
 
 - name: Tasks for k8s_start_services role
-  when: hostvars['127.0.0.1']['k8s_support']
+  when:
+    - hostvars['127.0.0.1']['k8s_support']
+    - "'kube_control_plane' in group_names"
   block:
     - name: Deploy K8s services
       ansible.builtin.include_tasks: deploy_k8s_services.yml
-      when: "'manager' in group_names"
-      tags: install
-
-    - name: Check K8s pods
-      ansible.builtin.include_tasks: check_k8s_pods.yml
-      tags: install
-
-    - name: Configure Nginx/Prometheus/Grafana
-      ansible.builtin.include_tasks: configure_nginx_prom_grafana.yml
-      when:
-        - grafana_status
-        - grafana_cred_status
-        - "'manager' in group_names"
-        - grafana_svc_ip != ""
-        - grafana_svc_port != ""
-      tags: install
-
-    - name: Skipping nginx installation - wait for 10 seconds
-      ansible.builtin.pause:
-        seconds: 10
-        prompt: "{{ nginx_install_msg }}"
-      when: 
-        - not grafana_status or
-          not grafana_cred_status or
-          grafana_svc_ip == "" or
-          grafana_svc_port == ""

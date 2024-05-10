@@ -1,0 +1,39 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License
+---
+
+- name: Check if the user's home directory exists
+  ansible.builtin.stat:
+    path: "/home/{{ item }}"
+  loop: "{{ user_list }}"
+  register: directory_check_results
+
+- name: Store existing directories
+  ansible.builtin.set_fact:
+    existing_directories: "{{ directory_check_results.results | selectattr('stat.exists') | map(attribute='item') | list }}"
+
+- name: Print message for missing directories
+  ansible.builtin.debug:
+    msg: "{{ missing_directory }}: {{ item }}"
+  loop: "{{ user_list | difference(existing_directories) }}"
+  when: directory_check_results is defined and directory_check_results.results | length > 0
+
+- name: Fail if existing_directories is empty
+  ansible.builtin.fail:
+    msg: "{{ no_users }}"
+  when: existing_directories | length == 0
+
+- name: Pass existing directories back to main playbook
+  ansible.builtin.set_fact:
+    existing_directories: "{{ existing_directories }}"

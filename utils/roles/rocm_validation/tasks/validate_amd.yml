@@ -1,0 +1,74 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Set default rocm_config_status
+  ansible.builtin.set_fact:
+    rocm_config_status: false
+    rocm_input_status: false
+
+- name: Load software_config.json
+  ansible.builtin.include_vars:
+    file: "{{ software_config_json_file }}"
+    name: user_config
+
+- name: Include vars for {{ control_plane_os }}
+  ansible.builtin.include_vars: "{{ role_path }}/vars/{{ control_plane_os }}.yml"
+
+- name: Get rocm status only if amdgpu present amd_status is true
+  ansible.builtin.set_fact:
+    rocm_input_status: true
+  loop: "{{ user_config.amdgpu | default([]) }}"
+  when:
+    - "'rocm' in item.name"
+  loop_control:
+    loop_var: item
+
+- name: AMDGPU ROCm will not be installed
+  ansible.builtin.pause:
+    prompt: "{{ rocm_stack_msg }}"
+    seconds: "{{ warning_time }}"
+  when: not rocm_input_status
+
+- name: Set rocm_config_status
+  when: rocm_input_status
+  block:
+    - name: Fetch rocm_version
+      ansible.builtin.set_fact:
+        rocm_version: "{{ user_config.amdgpu | selectattr('name', 'equalto', 'rocm') | map(attribute='version') | first }}"
+
+    - name: Set rocm_directory
+      ansible.builtin.set_fact:
+        rocm_directory: "{{ offline_rocm_directory }}/rocm/{{ rocm_version }}/"
+
+    - name: Check rocm_directory exists or not
+      ansible.builtin.stat:
+        path: "{{ rocm_directory }}"
+      register: check_rocm_dir
+
+    - name: Warning, rocm directory repo not found
+      ansible.builtin.pause:
+        prompt: "{{ rocm_repo_msg }}"
+        seconds: "{{ warning_time }}"
+      when: not check_rocm_dir.stat.exists
+
+    - name: Set rocm_config_status to true
+      ansible.builtin.set_fact:
+        rocm_config_status: true
+      when: check_rocm_dir.stat.exists
+  rescue:
+    - name: Warning, rocm version not found
+      ansible.builtin.pause:
+        prompt: "{{ rocm_version_msg }}"
+        seconds: "{{ warning_time }}"

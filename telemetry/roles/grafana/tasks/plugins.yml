@@ -13,11 +13,6 @@
 # limitations under the License.
 ---
 
-- name: Install git
-  ansible.builtin.package:
-    name: git
-    state: present
-
 - name: Git clone grafana plugin repo
   ansible.builtin.git:
     repo: "{{ grafana_plugins_github_repo }}"

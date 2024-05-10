@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
   ansible.builtin.service_facts:
 
 - name: Disable bluetooth services
+  when: "'bluetooth' in hostvars['127.0.0.1']['disable_services']"
   block:
     - name: Disabling bluetooth service
       ansible.builtin.service:
@@ -45,9 +46,17 @@
       when:
         - "'blueman-mechanism.service' in ansible_facts.services"
         - ansible_facts.services['blueman-mechanism.service'].status in service_status
-  when: "'bluetooth' in hostvars['127.0.0.1']['disable_services']"
 
-- name: Disabling telnet service
+- name: Disable telnet service in 'Ubuntu'
+  ansible.builtin.service:
+    name: inetd
+    state: stopped
+    enabled: false
+  when:
+    - "'telnet' in hostvars['127.0.0.1']['disable_services']"
+    - ansible_distribution | lower == ubuntu_os
+
+- name: Disabling telnet service 'Rhel/Rocky'
   ansible.builtin.service:
     name: telnet.socket
     enabled: false
@@ -56,6 +65,7 @@
     - "'telnet' in hostvars['127.0.0.1']['disable_services']"
     - "'telnet@.service' in ansible_facts.services"
     - ansible_facts.services['telnet@.service'].status in service_status
+    - ansible_distribution | lower in [redhat_os, rocky_os]
 
 - name: Disabling lpd service
   ansible.builtin.service:
@@ -82,7 +92,6 @@
     name: rexec.socket
     enabled: false
     state: stopped
-    changed_when: false
   when:
     - "'rexec' in hostvars['127.0.0.1']['disable_services']"
     - "'rexec.socket' in ansible_facts.services"

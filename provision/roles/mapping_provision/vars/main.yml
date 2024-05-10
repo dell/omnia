@@ -1,0 +1,27 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Usage: mapping_provision.yml
+python_version: "python3.9"
+rinstall_nodes_py: "{{ role_path }}/files/rinstall_nodes.py"
+prov_db_path: "{{ role_path }}/../../../discovery/roles/db_operations/files"
+mapping_provision_msg: " nodes will be booted automatically. Ensure that IPMI is enabled on them. Remaining nodes,
+initiate manual PXE boot on the remaining nodes mentioned in mapping file."
+
+# Usage: main.yml
+xcat_root_env: "/opt/xcat"
+xcat_path_env: "/opt/xcat/bin:/opt/xcat/sbin:/opt/xcat/share/xcat/tools"
+xcat_manpath_env: "/opt/xcat/share/man:$MANPATH"
+perl_badlang_env: 0

@@ -1,0 +1,211 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Validate kubernets groups
+  ansible.builtin.fail:
+    msg: "{{ kube_inv_fail_msg }}"
+  when:
+    - groups['kube_control_plane'] is not defined or groups['kube_node'] is not defined or groups['etcd'] is not defined
+    - groups['kube_node'] | length == 0
+    - groups['kube_control_plane'] != 1
+
+- name: Get kube_control_plane fomrat
+  ansible.builtin.set_fact:
+    ctrl_format: "{{ 'ip_format' if (groups['kube_control_plane'] | first) is match('^(\\d{1,3}\\.){3}\\d{1,3}$') else 'non_ip_format' }}"
+
+- name: Validate kube_control_plane entry if it is IP format
+  when: ctrl_format == 'ip_format'
+  block:
+    - name: Get details from DB when it is in IP format
+      community.postgresql.postgresql_query:
+        db: omniadb
+        login_user: postgres
+        query: SELECT status FROM cluster.nodeinfo where (node!='control_plane') AND (admin_ip='{{ item }}');
+        login_password: "{{ hostvars['localhost']['postgresdb_password'] }}"
+      become_user: postgres
+      register: ctrl_ip_query_status
+      with_items: "{{ groups['kube_control_plane'] | first }}"
+      no_log: true
+
+    - name: Fail if not found in DB
+      ansible.builtin.fail:
+        msg: "{{ not_valid_control_node }}"
+      when: ctrl_ip_query_status.results[0].rowcount == 0 or ctrl_ip_query_status.results[0].query_result[0].status != 'booted'
+
+- name: Validatte kube_control_plane entry when it is non IP format
+  when: ctrl_format == 'non_ip_format'
+  block:
+    - name: Get details from DB when it is in non IP format
+      community.postgresql.postgresql_query:
+        db: omniadb
+        login_user: postgres
+        query: SELECT status FROM cluster.nodeinfo where (node!='control_plane') AND (service_tag='{{ item | upper }}' OR node='{{ item }}' OR hostname='{{ item }}'); # noqa: yaml[line-length]
+        login_password: "{{ hostvars['localhost']['postgresdb_password'] }}"
+      become_user: postgres
+      register: ctrl_non_ip_query_status
+      with_items: "{{ groups['kube_control_plane'] | first }}"
+      no_log: true
+
+    - name: Fail if not found in DB
+      ansible.builtin.fail:
+        msg: "{{ not_valid_control_node }}"
+      when: ctrl_non_ip_query_status.results[0].rowcount == 0 or ctrl_non_ip_query_status.results[0].query_result[0].status != 'booted'
+
+- name: Check if Kubernetes is installed
+  ansible.builtin.command: kubectl get nodes --selector '!node-role.kubernetes.io/control-plane' -o custom-columns=NAME:.metadata.name,STATUS:.status.conditions[-1].status,TYPE:.status.conditions[-1].type,SCHEDULE:.spec.unschedulable --no-headers # noqa: yaml[line-length]
+  register: kubectl_output
+  failed_when: false
+  delegate_to: "{{ groups['kube_control_plane'] | first }}"
+  changed_when: false
+
+- name: Fail if kubernetes is not installed
+  ansible.builtin.fail:
+    msg: "{{ kube_not_installed }}"
+  when: kubectl_output.rc != 0
+
+- name: Fail if kubernetes nodes are not configured
+  ansible.builtin.fail:
+    msg: "{{ kube_node_not_configured }}"
+  when: kubectl_output.rc == 0 and kubectl_output.stdout | length == 0
+
+- name: Set nodes variables
+  ansible.builtin.set_fact:
+    node_dict: {}
+    ready_node_names: >-
+      {{
+        kubectl_output.stdout_lines
+        | map('split', ' ')
+        | selectattr('3', 'equalto', 'True')
+        | selectattr('6', 'equalto', 'Ready')
+        | selectattr('9', 'equalto', '<none>')
+        | map(attribute='0')
+        | join(', ')
+      }}
+
+- name: Initialize variables
+  ansible.builtin.set_fact:
+    ip_addresses: []
+    non_ip_addresses: []
+
+- name: Get IP addresses from inventory
+  ansible.builtin.set_fact:
+    ip_addresses: "{{ ip_addresses + [item] }}"
+  with_items: "{{ groups['kube_node'] }}"
+  when: item is match('^(\d{1,3}\.){3}\d{1,3}$')
+
+- name: Get items which are not IP addresses from inventory
+  ansible.builtin.set_fact:
+    non_ip_addresses: "{{ groups['kube_node'] | difference(ip_addresses) }}"
+
+- name: Set variables based on inventory item types
+  ansible.builtin.set_fact:
+    only_ip_present: "{{ true if (ip_addresses | length > 0 and non_ip_addresses | length == 0) else false }}"
+    only_non_ip_present: "{{ true if (ip_addresses | length == 0 and non_ip_addresses | length > 0) else false }}"
+
+- name: Get node details if inventory data in service tag type
+  community.postgresql.postgresql_query:
+    db: "{{ omnia_db_name }}"
+    login_user: "{{ db_user }}"
+    query: SELECT admin_ip, service_tag, hostname, node, status FROM cluster.nodeinfo where (node!='control_plane') AND (service_tag='{{ item | upper }}' OR node='{{ item }}' OR hostname='{{ item }}'); # noqa: yaml[line-length]
+    login_password: "{{ hostvars['localhost']['postgresdb_password'] }}"
+  become_user: postgres
+  register: non_ip_query_status
+  with_items: "{{ non_ip_addresses }}"
+  no_log: true
+
+- name: Get node details if inventory data in admin IP
+  community.postgresql.postgresql_query:
+    db: "{{ omnia_db_name }}"
+    login_user: "{{ db_user }}"
+    query: SELECT admin_ip, service_tag, hostname, node, status FROM cluster.nodeinfo where (node!='control_plane') AND admin_ip='{{ item }}';
+    login_password: "{{ hostvars['localhost']['postgresdb_password'] }}"
+  become_user: postgres
+  register: ip_query_status
+  with_items: "{{ ip_addresses }}"
+  no_log: true
+
+- name: Set query result
+  ansible.builtin.set_fact:
+    query_results: >-
+      {{
+        only_ip_present | ternary(ip_query_status.results,
+        only_non_ip_present | ternary( non_ip_query_status.results, ip_query_status.results + non_ip_query_status.results))
+      }}
+
+- name: Set variables when kube name in IP format
+  ansible.builtin.set_fact:
+    node_dict: "{{ node_dict | combine({item.item: {'admin_ip': item.query_result[0].admin_ip,
+      'kube_override_hostname': (item.query_result[0].service_tag | upper) if (item.query_result[0].service_tag | upper) in kubectl_output.stdout
+         else ((item.query_result[0].service_tag | lower ) if (item.query_result[0].service_tag | lower) in kubectl_output.stdout
+         else (item.query_result[0].admin_ip if item.query_result[0].admin_ip in kubectl_output.stdout
+         else (item.query_result[0].hostname if item.query_result[0].hostname in kubectl_output.stdout
+         else (item.query_result[0].node if item.query_result[0].node in kubectl_output.stdout else '')))),
+      'allow_ungraceful_removal': true if (item.query_result[0].admin_ip not in ready_node_names or
+          item.query_result[0].service_tag not in ready_node_names or
+          item.query_result[0].hostname not in ready_node_names or
+          item.query_result[0].node not in ready_node_names) else false,
+      'reset_nodes': true if item.query_result[0].status == 'booted' else false}}) }}"
+  when:
+    - item.rowcount!=0
+    - "item.item not in groups['etcd']"
+    - "item.item not in groups['kube_control_plane']"
+  loop: "{{ query_results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Add variable to group kube_node
+  ansible.builtin.add_host:
+    name: '{{ item.key }}'
+    groups: kube_node
+    ansible_host: '{{ item.value.admin_ip }}'
+    kube_override_hostname: '{{ item.value.kube_override_hostname }}'
+    allow_ungraceful_removal: '{{ item.value.allow_ungraceful_removal | lower }}'
+    reset_nodes: '{{ item.value.reset_nodes | lower }}'
+  loop: "{{ query('ansible.builtin.dict', node_dict) }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: Get node dictionary keys
+  ansible.builtin.set_fact:
+    removing_nodes: "{{ node_dict.keys() | join(', ') }}"
+
+- name: Following nodes will be removed
+  ansible.builtin.debug:
+    msg: "{{ removing_nodes }}"
+
+- name: Add kube_control_plane to group k8s_cluster
+  ansible.builtin.add_host:
+    name: '{{ item }}'
+    groups: k8s_cluster
+  with_items:
+    - "{{ groups['kube_control_plane'] }}"
+
+- name: Add all removing nodes to group k8s_cluster
+  ansible.builtin.add_host:
+    name: '{{ item.key }}'
+    groups: k8s_cluster
+    kube_override_hostname: '{{ item.value.kube_override_hostname }}'
+  loop: "{{ query('ansible.builtin.dict', node_dict) }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: Add all removing nodes to group remove_kube_node
+  ansible.builtin.add_host:
+    name: '{{ item.key }}'
+    groups: remove_kube_node
+    reset_nodes: '{{ item.value.reset_nodes | lower }}'
+  loop: "{{ query('ansible.builtin.dict', node_dict) }}"
+  loop_control:
+    label: "{{ item.key }}"

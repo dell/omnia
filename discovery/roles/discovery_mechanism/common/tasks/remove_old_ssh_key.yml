@@ -1,0 +1,52 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Get all discovered nodes from DB
+  community.postgresql.postgresql_query:
+    db: omniadb
+    login_user: postgres
+    query: SELECT admin_ip,hostname,node FROM cluster.nodeinfo where (node!='control_plane');
+    login_password: "{{ hostvars['localhost']['postgresdb_password'] }}"
+  become_user: postgres
+  register: query_status
+  failed_when: false
+  no_log: true
+
+- name: Remove old ssh key for IP of all discovered nodes
+  when: query_status.query_result is defined
+  ansible.builtin.command: ssh-keygen -R "{{ item.admin_ip }}"
+  failed_when: false
+  changed_when: true
+  loop: "{{ query_status.query_result }}"
+  loop_control:
+    label: "{{ item.admin_ip }}"
+
+- name: Remove old ssh key for hostname of all discovered nodes
+  when: query_status.query_result is defined
+  ansible.builtin.command: ssh-keygen -R "{{ item.hostname }}"
+  failed_when: false
+  changed_when: true
+  loop: "{{ query_status.query_result }}"
+  loop_control:
+    label: "{{ item.hostname }}"
+
+- name: Remove old ssh key for node name of all discovered nodes
+  when: query_status.query_result is defined
+  ansible.builtin.command: ssh-keygen -R "{{ item.node }}"
+  failed_when: false
+  changed_when: true
+  loop: "{{ query_status.query_result }}"
+  loop_control:
+    label: "{{ item.node }}"

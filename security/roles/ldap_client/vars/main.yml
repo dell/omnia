@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,20 +13,13 @@
 #  limitations under the License.
 ---
 
-# Usage: configre_ldap_client.yml
-ldap_client_packages:
-  - openldap-clients
-  - sssd
-  - sssd-ldap
-  - oddjob-mkhomedir
-  - openssl-perl
-
+# Common vars
+user_home_dir: "/home"
 sssd_conf_dest: "/etc/sssd/sssd.conf"
 file_permission: "0600"
-tls_cert_path: "/etc/openldap/certs/"
-ldap_conf_dest: "/etc/openldap/ldap.conf"
 sasl_nocanon_regxp: "SASL_NOCANON\ton"
 sasl_nacanon_replace1: "SASL_NOCANON\ton\nBASE\t{{ reqd_domain_name }}"
-sasl_nacanon_replace2: "SASL_NOCANON\ton\nURI\tldap://{{ hostvars['127.0.0.1']['ldap_server_ip'] }}"
-sasl_nacanon_replace3: "SASL_NOCANON\ton\nTLS_CACERT\t{{ tls_cert_path }}"
-sasl_nacanon_replace4: "SASL_NOCANON\ton\nURI\tldap://{{ hostvars['127.0.0.1']['ldap_server_ip'] }}:636"
+sasl_nacanon_replace2: "SASL_NOCANON\ton\nURI\tldap://{{ hostvars[groups['auth_server'][0]]['ansible_env'].SSH_CONNECTION.split(' ')[2] }}"
+# sasl_nacanon_replace3: Defined in each compute os vars file
+sasl_nacanon_replace4: "SASL_NOCANON\ton\nURI\tldap://{{ hostvars[groups['auth_server'][0]]['ansible_env'].SSH_CONNECTION.split(' ')[2] }}:636"
+file_mode: "0644"

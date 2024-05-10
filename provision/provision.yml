@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,11 +13,11 @@
 # limitations under the License.
 ---
 
-- name: Prepare control plane for provisioning
-  ansible.builtin.import_playbook: prepare_cp.yml
-
-- name: Create and update repositories
-  ansible.builtin.import_playbook: repo_manipulate.yml
-
-- name: Discover and provision nodes
-  ansible.builtin.import_playbook: discovery_provision.yml
+- name: Prepare control plane for provisioning nodes
+  hosts: localhost
+  connection: local
+  roles:
+    - role: provision_validation
+    - role: ../prepare_cp/roles/pre_requisite  # noqa: role-name[path]
+    - role: mapping_provision
+    - role: mtms_provision
