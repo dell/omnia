@@ -572,9 +572,9 @@ After performing all the above steps, re-run ``upgrade.yml`` playbook.
 
 **Resolution**: Go to `Install Kubernetes <../InstallationGuides/BuildingClusters/install_kubernetes.html>`_ and follow the steps to download nvidia-container-toolkit and perform the necessary configurations based on the OS running on the cluster.
 
-⦾ **While provisioning a node in an Ubuntu cluster, "Installing" status is not displayed.**
+⦾ **While provisioning a node in an Ubuntu cluster, "Installing" status is not displayed in cluster.nodeinfo table.**
 
-**Resolution**: User can track provisioning progress by checking the supported status types. If the status shows ``bmcready`` or ``powering-on``, user can infer that the node is being provisioned.
+**Resolution**: User can track provisioning progress by checking the supported status types. If the status shows ``bmcready`` or ``powering-on``, user can infer that the node is being provisioned. Once the node has been provisioned successfully, it will reflect a ``booted`` status in the OmniaDB.
 
 ⦾ **``discovery_provision.yml`` fails to check for duplicate disk_partition values in provision_config.yml**
 
@@ -593,4 +593,8 @@ After performing all the above steps, re-run ``upgrade.yml`` playbook.
         rinstall <node>
 
     Where <node> refers to the node column in the OmniaDB, which has a “standingby” status.
+
+⦾ **While executing local_repo.yml playbook, subgroup entries for applicable software is not validated during playbook execution.**
+
+**Resolution**: User must provide the software subgroup (if required) for the respective software in ``input/software_config.json``. For more information, `click here <../InstallationGuides/LocalRepo/InputParameters.html>`_.
 
