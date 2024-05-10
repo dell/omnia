@@ -37,7 +37,7 @@ Run the following commands one after the other:
 
 **Additional installations**
 
-You can install the following packages on top of the Kubernetes stack:
+Omnia installs the following packages on top of the Kubernetes stack:
 
 1.	*amdgpu-device-plugin (ROCm device plugin)*
 
