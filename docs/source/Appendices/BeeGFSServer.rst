@@ -1,7 +1,7 @@
 Setting up the BeeGFS server
 -----------------------------
 
-1. Download and install the required BeeGFS version for Rocky and RHEL servers using the below commands: ::
+1. Download and install the required BeeGFS version for Rocky Linux and RHEL servers using the below commands: ::
 
     wget -O /etc/yum.repos.d/beegfs_rhel8.repo https://www.beegfs.io/release/beegfs_7.3.2/dists/beegfs-rhel8.repo
 

@@ -14,17 +14,17 @@ Optional configurations managed by the provision tool
 
 Omnia now supports deploying different versions of the same OS. With each run of ``discovery_provision.yml``, a new deployable OS image is created with a distinct type:
 
-    * Rocky: 8.6, 8.7, 8.8
+    * Rocky Linux: 8.6, 8.7, 8.8
     * RHEL: 8.6, 8.7, 8.8
     * Ubuntu: 20.04, 22.04
 
 depending on the values provided in ``input/software_config.json``.
 
-.. note::  While Omnia deploys the minimal version of the OS, the multiple version feature requires that the Rocky full (DVD) version of the OS be provided.
+.. note::  While Omnia deploys the minimal version of the OS, the multiple version feature requires that the Rocky Linux full (DVD) version of the OS be provided.
 
 **Disk partitioning**
 
-    Omnia now allows for customization of disk partitions applied to remote servers. The disk partition ``desired_capacity`` has to be provided in MB. Valid ``mount_point`` values accepted for disk partition are  ``/var``, ``/tmp``, ``/usr``, ``swap``. The default partition size provided for RHEL/Rocky is /boot: 1024MB, /boot/efi: 256MB and remaining space to / partition. Default partition size provided for Ubuntu is /boot: 2148MB, /boot/efi: 1124MB and remaining space to / partition. Values are accepted in the form of JSON list such as:
+    Omnia now allows for customization of disk partitions applied to remote servers. The disk partition ``desired_capacity`` has to be provided in MB. Valid ``mount_point`` values accepted for disk partition are  ``/var``, ``/tmp``, ``/usr``, ``swap``. The default partition size provided for RHEL/Rocky Linux is /boot: 1024MB, /boot/efi: 256MB and remaining space to / partition. Default partition size provided for Ubuntu is /boot: 2148MB, /boot/efi: 1124MB and remaining space to / partition. Values are accepted in the form of JSON list such as:
 
     ::
 

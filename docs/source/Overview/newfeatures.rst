@@ -1,46 +1,62 @@
 New Features
 ===========
 
-*	Feature support on Ubuntu 22.04 OS:
+* Enablement for AI
 
-            *	Local repository and registry creation for packages and container images.
+    * Ubuntu 22.04.3 LTS with GA kernel and HWE kernel support
 
-            *	Cluster provision with Ubuntu 22.04 OS.
+    * Ubuntu 20.04.6 LTS
 
-            *	AMD GPU driver and ROCm installation.
+    * Install AMD ROCm SDK on host OS
 
-            *	IP configuration on the additional NICs: IPv4 support
+    * Install Vanilla Kubernetes stack v1.26
 
-            *	Kubernetes installation.
+    * Install GPU device plugin for Kubernetes
 
-            *	NFS client/server configuration.
+        - GPU device plugin for AMD
+        - GPU device plugin for Nvidia
 
-            *	OpenLDAP support with documented support for replication.
+    * Submit Kubernetes jobs as a non-admin user
 
-            *   AI Software Stack support including the installation of the following tools:
+    * Install Kubeflow
 
-                    * Jupyter notebook
+    * Install vLLM Inference platform
 
-                    * Kubeflow
+    * Install Kserve Inference platform
 
-                    * Kserve
+    * Install Jupyter Notebook
 
-                    * Pytorch
+    * Install PyTorch
 
-                    * Tensorflow
+    * Install TensorFlow
 
-                    * vLLM (MI210x support)
+* Additional Features
 
-*   Feature support on RHEL 8.8
+    * Offline package repo and image registry creation for Ubuntu and RHEL/Rocky Linux
 
-            *   Slurm installation in configless mode
+    * Classless IP Addressing
 
-            *   Slurm installation in NFS mode
+        * Additional NIC configuration
+        * IP rule assignment
 
-*	Additional Features
+    * LDAP client and server configuration
 
-            *	OFED Installation
+    * One-off Utility to add or remove a node
 
-            *	CUDA Driver installation
+    * HPC/AI cluster inventory partitioning
 
-            *	Add/remove nodes to the cluster.
+        - CPU inventory
+        - AMD GPU inventory
+        - Nvidia GPU inventory
+
+    * Smoother Omnia upgrades on the control plane
+
+    * Slurm in configless or NFS in RHEL/Rocky Linux
+
+    * OpenMPI and UCX installation in share partition
+
+
+
+
+
+

@@ -58,9 +58,9 @@ Sample version of the file:
             ]
         }
 
-* For RHEL/Rocky OS:
+* For RHEL/Rocky Linux OS:
 
-.. note:: For Rocky OS, the "cluster_os_type" in the below sample will be "rocky".
+.. note:: For Rocky Linux OS, the "cluster_os_type" in the below sample will be "Rocky Linux".
 
 ::
 

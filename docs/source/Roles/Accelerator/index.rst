@@ -27,7 +27,7 @@ Enter all required parameters in ``input/accelerator_config.yml``.
 .. note::
 	* Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to run ``accelerator.yml`` on RHEL target nodes.
 	* For RHEL target nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription.
-	* AMD ROCm driver installation is not supported by Omnia on Rocky cluster  nodes.
+	* AMD ROCm driver installation is not supported by Omnia on Rocky Linux cluster  nodes.
 
 To install all the latest GPU drivers and toolkits, run: ::
 

@@ -84,7 +84,7 @@ After executing ``scheduler.yml`` or ``omnia.yml``, there are some manual steps 
     * First, install nvidia-container-toolkit from `this link <https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html>`_. This must be installed on servers running Nvidia GPU.
     * As per the `nvidia-container-toolkit installation guide <https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html>`_, follow the below steps based on the OS running on your cluster.
 
-        **Steps for RHEL/Rocky**
+        **Steps for RHEL/Rocky Linux**
 
         1.	Check the values of http_proxy and https_proxy environment variables from ``/opt/omnia/offline/local_repo_access.yml`` on the control plane.
         2.	SSH to node with the Nvidia GPU and set http_proxy environment variables.

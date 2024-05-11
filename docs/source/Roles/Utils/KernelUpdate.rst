@@ -3,7 +3,7 @@ Updating kernels
 
 **Pre requisites**:
 
-* All target nodes should be running RHEL, Rocky, or Ubuntu OS.
+* All target nodes should be running RHEL, Rocky Linux, or Ubuntu OS.
 * Download the kernel packages using ``local_repo.yml``. For more information, `click here <../../LocalRepo/index.html>`_.
 * Verify that the cluster nodes are in the ``booted`` state. For more information, `click here <../InstallingProvisionTool/ViewingDB.html>`_.
 
@@ -28,5 +28,5 @@ Updating kernels
         10.5.0.102
 
 3. After execution is completed, verify that kernel packages are on the nodes using:
-            * For RHEL/Rocky: ``rpm -qa | grep kernel``
+            * For RHEL/Rocky Linux: ``rpm -qa | grep kernel``
             * For Ubuntu: ``dpkg -l | grep linux-generic``
