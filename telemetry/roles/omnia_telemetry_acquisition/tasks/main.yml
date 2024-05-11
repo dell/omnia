@@ -13,24 +13,27 @@
 # limitations under the License.
 ---
 
-- name: Omnia telemetry setup
-  when: hostvars['127.0.0.1']['omnia_telemetry_support']
+- name: Check if telemetry support is required
+  when: hostvars['127.0.0.1']['telemetry_entry_present']
   block:
-    - name: Install telemetry packages
-      ansible.builtin.include_tasks: package_installation.yml
+    - name: Omnia telemetry setup
+      when: hostvars['127.0.0.1']['omnia_telemetry_support']
+      block:
+        - name: Install telemetry packages
+          ansible.builtin.include_tasks: package_installation.yml
 
-    - name: Binary transfer to remote nodes
-      ansible.builtin.include_tasks: binary_transfer.yml
+        - name: Binary transfer to remote nodes
+          ansible.builtin.include_tasks: binary_transfer.yml
 
-    - name: Update and transfer ini file to remote nodes
-      ansible.builtin.include_tasks: ini_file_transfer.yml
+        - name: Update and transfer ini file to remote nodes
+          ansible.builtin.include_tasks: ini_file_transfer.yml
 
-    - name: Transfer database configuration file to remote nodes
-      ansible.builtin.include_tasks: config_file_transfer.yml
+        - name: Transfer database configuration file to remote nodes
+          ansible.builtin.include_tasks: config_file_transfer.yml
 
-    - name: Initiate omnia_telemetry service execution
-      ansible.builtin.include_tasks: service_execution.yml
+        - name: Initiate omnia_telemetry service execution
+          ansible.builtin.include_tasks: service_execution.yml
 
-- name: Stop omnia telemetry
-  ansible.builtin.include_tasks: stop_omnia_telemetry.yml
-  when: not hostvars['127.0.0.1']['omnia_telemetry_support']
+    - name: Stop omnia telemetry
+      ansible.builtin.include_tasks: stop_omnia_telemetry.yml
+      when: not hostvars['127.0.0.1']['omnia_telemetry_support']

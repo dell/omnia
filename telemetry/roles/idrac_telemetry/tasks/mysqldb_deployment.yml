@@ -96,17 +96,17 @@
                   - name: MYSQL_USER
                     valueFrom:
                       secretKeyRef:
-                        name: "{{ secrets_name }}"
+                        name: "{{ mysqldb_secrets_name }}"
                         key: sqldb_user
                   - name: MYSQL_PASSWORD
                     valueFrom:
                       secretKeyRef:
-                        name: "{{ secrets_name }}"
+                        name: "{{ mysqldb_secrets_name }}"
                         key: sqldb_password
                   - name: MYSQL_ROOT_PASSWORD
                     valueFrom:
                       secretKeyRef:
-                        name: "{{ secrets_name }}"
+                        name: "{{ mysqldb_secrets_name }}"
                         key: sqldb_root_password
                 ports:
                   - containerPort: "{{ mysqldb_container_port1 }}"

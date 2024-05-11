@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,45 +13,45 @@
 #  limitations under the License.
 ---
 
-  - name: Deploy ntp servers
-    block:
-      - name: Deploy ntpd
-        package:
-          name: ntp
-          state: present
-      - name: Deploy ntpdate
-        package:
-          name: ntpdate
-          state: present
-      - name: Update ntp servers
-        template:
-          src: ntp.conf.j2
-          dest: "{{ ntp_path }}"
-          owner: root
-          group: root
-          mode: "{{ ntp_mode }}"
-          backup: yes
-        notify:
-          - Restart ntpd
-          - Sync tp clocks
-    when:  ( ansible_distribution == "CentOS" or   ansible_distribution == "RedHat" ) and ansible_distribution_major_version  < os_higher_version
+- name: Deploy ntp servers
+  when: ( ansible_distribution == "CentOS" or ansible_distribution == "RedHat" ) and ansible_distribution_major_version < os_higher_version
+  block:
+    - name: Deploy ntpd
+      ansible.builtin.package:
+        name: ntp
+        state: present
+    - name: Deploy ntpdate
+      ansible.builtin.package:
+        name: ntpdate
+        state: present
+    - name: Update ntp servers
+      ansible.builtin.template:
+        src: ntp.conf.j2
+        dest: "{{ ntp_path }}"
+        owner: root
+        group: root
+        mode: "{{ ntp_mode }}"
+        backup: true
+      notify:
+        - Restart ntpd
+        - Sync tp clocks
 
-  - name: Deploy chrony server
-    block:
-      - name: Deploy chrony
-        package:
-            name: chrony
-            state: present
-      - name: Update ntp servers
-        template:
-          src: chrony.conf.j2
-          dest: "{{ chrony_path }}"
-          owner: root
-          group: root
-          mode: "{{ ntp_mode }}"
-          backup: yes
-        notify:
-          - Restart chrony
-          - Sync chrony sources
-    when:  (( ansible_distribution == "CentOS" or   ansible_distribution == "RedHat" ) and ansible_distribution_major_version  > os_version) or
-           ( os_supported_leap in compute_os ) and ( ansible_distribution_version >= os_supported_leap_version )
+- name: Deploy chrony server
+  when: (( ansible_distribution == "CentOS" or ansible_distribution == "RedHat" ) and ansible_distribution_major_version > os_version) or
+         ( os_supported_leap in compute_os ) and ( ansible_distribution_version >= os_supported_leap_version )
+  block:
+    - name: Deploy chrony
+      ansible.builtin.package:
+        name: chrony
+        state: present
+    - name: Update ntp servers
+      ansible.builtin.template:
+        src: chrony.conf.j2
+        dest: "{{ chrony_path }}"
+        owner: root
+        group: root
+        mode: "{{ ntp_mode }}"
+        backup: true
+      notify:
+        - Restart chrony
+        - Sync chrony sources

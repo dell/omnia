@@ -1,9 +1,0 @@
----
-- name: "prerequisite Installation"
-  ansible.builtin.include_tasks: prerequisite.yml
-
-- name: "Kustomize Installation"
-  ansible.builtin.include_tasks: kustomize_install.yml
-
-- name: "Kubeflow deployment"
-  ansible.builtin.include_tasks: kubeflow_deploy.yml

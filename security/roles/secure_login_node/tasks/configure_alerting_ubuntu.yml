@@ -1,0 +1,75 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Install packages
+  environment:
+    http_proxy: "{{ http_proxy }}"
+    https_proxy: "{{ https_proxy }}"
+  block:
+    - name: Install python3.9
+      ansible.builtin.package:
+        name: "{{ python_packages }}"
+        state: present
+
+    - name: Install required ansible packages
+      ansible.builtin.command:
+        cmd: "python3.9 -m pip install {{ ansible_name }}=={{ secure_ansible_version }} {{ cryptography_name }}=={{ cryptography_version }}"
+      changed_when: false
+
+    - name: Install required ansible jinja packages
+      ansible.builtin.command:
+        cmd: "python3.9 -m pip install {{ jinja_name }}=={{ jinja_version }}"
+      changed_when: false
+
+- name: Install community_general_collection repo tarball
+  ansible.builtin.get_url:
+    url: "{{ offline_tarball_path }}/{{ ansible_galaxy_path }}"
+    dest: "/{{ ansible_galaxy_path }}"
+    mode: "{{ file_mode }}"
+
+- name: Check current environment variables
+  ansible.builtin.shell: echo $PATH
+  changed_when: false
+  register: environment_output
+
+- name: Add ansible path to PATH variable
+  ansible.builtin.lineinfile:
+    path: /etc/profile
+    regexp: '^PATH=*'
+    insertafter: EOF
+    line: 'PATH={{ environment_output.stdout }}:/usr/local/bin'
+
+- name: Copy auth_failure_check.yml to login_node
+  ansible.builtin.copy:
+    src: "{{ role_path }}/files/auth_failure_check.yml"
+    dest: "{{ alerting_file_path }}"
+    mode: "{{ hosts_file_mode }}"
+
+- name: Fetch ansible-playbook path
+  ansible.builtin.command: whereis ansible-playbook
+  changed_when: false
+  register: ansible_playbook_path
+
+- name: Start cron service in Ubuntu
+  ansible.builtin.systemd:
+    name: cron
+    state: started
+    enabled: true
+
+- name: Schedule cron job for alerting
+  ansible.builtin.cron:
+    name: Auth failure alerting
+    special_time: hourly
+    job: "{{ ansible_playbook_path.stdout.split(' ')[1] }} {{ alerting_file_path }} -e 'alert_email_address={{ hostvars['127.0.0.1']['alert_email_address'] }}'"

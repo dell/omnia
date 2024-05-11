@@ -1,0 +1,35 @@
+#!/bin/bash
+################################################################################################################
+#  omnia_hostname:
+#      Configure hostname in all the cluster nodes in the format nodename.domainname
+#      Hostname should be in this format nodename.domainname to install centralized authentication tools like ipa
+#
+#################################################################################################################
+echo "---------------------------"
+if [ -f "/etc/debian_version" ];then
+  str_os_type="debian"
+else
+  str_os_type="redhat"
+fi
+
+echo "Configuring hostname"
+HOSTNAMECTL=`which hostnamectl 2>&1 | grep -v "/usr/bin/which: no"`
+if [ ! -z $HOSTNAMECTL ] && [ ! -z $NODE ]; then
+    SET_HOSTNAME=$NODE
+    if [ ! -z $DOMAIN ]; then
+        SET_HOSTNAME=$NODE.$DOMAIN
+    fi
+    echo "Setting hostname to: $SET_HOSTNAME"
+    hostnamectl set-hostname $SET_HOSTNAME
+    echo $SET_HOSTNAME > /etc/hostname
+    sysctl kernel.hostname=$SET_HOSTNAME
+    echo "Configured hostname"
+fi
+
+if [ "$str_os_type" = "debian" ];then
+  rm -f /etc/resolv.conf;
+  echo "nameserver {{ admin_nic_ip }}" > /etc/resolv.conf
+  echo "nameserver 127.0.0.53" >> /etc/resolv.conf
+  echo "search $DOMAIN" >> /etc/resolv.conf
+fi
+echo "-----------------------------"

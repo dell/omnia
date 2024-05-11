@@ -1,0 +1,53 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# fetch_user_input.yml
+user_confirmation: "No usernames defined in k8s_access_config.yml file."
+file_path: "{{ role_path }}/../../../input/k8s_access_config.yml"
+
+# generate_certificate.yml
+user_kube_path: "/home/{{ user }}"
+openssl_key_path: "/home/{{ item }}/{{ item }}.key"
+openssl_csr_path: "/home/{{ item }}/{{ item }}.csr"
+openssl_cert_path: "/home/{{ item }}/{{ item }}.crt"
+private_key_mode: "0600"
+private_key_state: "present"
+csr_common_name: "{{ item }}"
+csr_country_name: "NA"
+csr_organizational_name: "NA"
+csr_email_address: "NA"
+csr_state_name: "NA"
+csr_locality_name: "NA"
+subject: >
+  "/C={{ csr_country_name }}/ST={{ csr_state_name }}/L={{ csr_locality_name }}"
+  "/OU={{ csr_organizational_name }}/CN={{ csr_common_name }}"
+  "/emailAddress={{ csr_email_address }}"
+
+# prerequisite.yml
+k8s_confirmation: "Kubernetes cluster is not accessible or does not exist. Install kubernetes and then execute k8s_access.yml."
+
+# role_creation.yml
+role_file_mode: "0644"
+role_template: "roles/k8s_access/template/role.yml.j2"
+role_binding_template: "roles/k8s_access/template/role_binding.yml.j2"
+
+# update_kube.yml
+kube_mode: "0750"
+kube_config_mode: "0640"
+kube_config_path: "/root/.kube/config"
+user_home_path: "/home/{{ item }}"
+
+# validation.yml
+no_users: "No users home directory found. Playbook cannot continue."
+missing_directory: "/home/username directory not present for user: {{ item }}"

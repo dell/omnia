@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ idrac_telemetry_folder_name: iDRAC-Telemetry-Reference-Tools
 statefulset_replicas: 1
 timescaledb_k8s_name: timescaledb
 timescaledb_container_port: 5432
-retries: 10
-delay: 10
+max_retries: 10
+max_delay: 10
 reference_tools_stable_commit: "0016fcb"
 zoneinfo_dir: "/usr/share/zoneinfo/"

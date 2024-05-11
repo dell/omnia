@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -18,30 +18,34 @@
 # SIMPLY APPEND THE REQUIRD VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
 #***********************************************************************
 
-# NFS bolt-on support, USER have to mount EXTERNAL NFS server, omnia will mount NFS client
-# This variable is used for supporting NFS bolt-on on login, compute, and manager nodes
+# -----------------------------NFS------------------------------------------------
+
+# USER have to mount EXTERNAL NFS server, omnia will mount NFS client when nfs_server value is false.
+# omnia will setup NFS server and mount NFS client when nfs_server value is true.
+# This variable is used for creating NFS share on slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login, etcd nodes
 # Values should be entered in JSON format only.
 # If mount_option values are empty, NFS client will be mounted with these values "nosuid,rw,sync,hard,intr"
-# For enabling NFS bolt-on support, at least one list of valid values should be provided.
+# Its mandatory to provide atleast one entry in nfs_client_params
+# If user wants to setup NFS server on control plane "localhost" can be mentioned as server_ip or admin_nic_ip of control plane also can be provided.
+# For the server which must be used as k8s server share for NFS external provisioner must be given k8s_share as true
+# For the server which must be used as slurm share, slurm_share must be given as true
+# For benchmarks, either slurm_share or k8s_share will be used. Higher precedence will be given to slurm_share
 # Example for single mount file system:
 # nfs_client_params: 
-# - { server_ip: 198.168.0.1, server_share_path: "/mnt/share", client_share_path: "/mnt/mount", client_mount_options: "nosuid,rw,sync,hard" }
+# - { server_ip: 10.5.0.101, server_share_path: "/mnt/share", client_share_path: "/home", client_mount_options: "nosuid,rw,sync,hard", nfs_server: true, slurm_share: true, k8s_share: true }
 # Example for supporting multiple mount points:
 # nfs_client_params: 
-#    - { server_ip: 198.168.0.1, server_share_path: "/mnt/share1", client_share_path: "/mnt/mount1", client_mount_options: "nosuid,rw,sync,hard" } 
-#    - { server_ip: 198.168.0.1, server_share_path: "/mnt/share2", client_share_path: "/mnt/mount2", client_mount_options: "nosuid,rw,sync,hard" } 
+#    - { server_ip: localhost, server_share_path: "/mnt/share1", client_share_path: "/home", client_mount_options: "nosuid,rw,sync,hard", nfs_server: true, slurm_share: false, k8s_share: true } 
+#    - { server_ip: 198.168.0.1, server_share_path: "/mnt/share2", client_share_path: "/mnt/mount2", client_mount_options: "nosuid,rw,sync,hard", nfs_server: false, slurm_share: true, k8s_share: true}
 # Example for multiple mount file system:
 # nfs_client_params: 
-# - { server_ip: 198.168.0.1, server_share_path: "/mnt/share1", client_share_path: "/mnt/mount1", client_mount_options: "nosuid,rw,sync,hard" } 
-# - { server_ip: 198.168.0.2, server_share_path: "/mnt/share2", client_share_path: "/mnt/mount2", client_mount_options: "nosuid,rw,sync,hard" } 
+# - { server_ip: 198.168.0.1, server_share_path: "/mnt/share1", client_share_path: "/mnt/mount1", client_mount_options: "nosuid,rw,sync,hard", nfs_server: false , slurm_share: false, k8s_share: true} 
+# - { server_ip: 198.168.0.2, server_share_path: "/mnt/share2", client_share_path: "/mnt/mount2", client_mount_options: "nosuid,rw,sync,hard", nfs_server: false , slurm_share: true, k8s_share: false} 
 nfs_client_params:
-   - { server_ip: , server_share_path: , client_share_path: , client_mount_options: }
+   - { server_ip: localhost, server_share_path: /mnt/omnia_home_share, client_share_path: /home, client_mount_options: "nosuid,rw,sync,hard,intr", nfs_server: true, slurm_share: true, k8s_share: true }
 
-# This variable is used to install beegfs-client on compute and manager nodes
-# Accepted values: true or false
-# Default value: false
-# To install BeeGFS client, set this value to true
-beegfs_support: false
+
+# ----------------------------BEEGFS---------------------------------------------------
 
 # This variable is used if user has RDMA-capable network hardware (e.g., InfiniBand)
 # Accepted values: true or false
@@ -70,12 +74,6 @@ beegfs_mounts: "/mnt/beegfs"
 # Default value: false
 # changing this value to true will unmount running instance of BeeGFS client
 beegfs_unmount_client: false
-
-# Beegfs client version needs to be installed on compute and manager nodes
-# Default value is 7.2.6
-# Make sure beegfs_unmount_client value is true, for changing version in the next run
-# Supported versions are greater than 7.2
-beegfs_client_version: "7.2.6"
 
 # For installing different version of BeeGFS client than the version which is already running on the BeeGFS cluster
 # Accepted values: true or false

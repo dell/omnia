@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,27 +14,29 @@
 ---
 
 - name: Restart ntpd
-  systemd:
+  ansible.builtin.systemd:
     name: ntpd
     state: started
-    enabled: yes
+    enabled: true
 
 - name: Restart chrony
-  service:
+  ansible.builtin.service:
     name: chronyd
     state: restarted
-    enabled: yes
+    enabled: true
 
 - name: Sync tp clocks
-  command: ntpdc -np
+  ansible.builtin.command: ntpdc -np
   register: ntp_clock
-  until:  ntp_clock.stdout.find('*') > -1
+  until: ntp_clock.stdout.find('*') > -1
   retries: "{{ retry_count_one }}"
   delay: "{{ delay_count_one }}"
+  changed_when: true
 
 - name: Sync chrony sources
-  command: chronyc sources
+  ansible.builtin.command: chronyc sources
   register: chrony_src
-  until:  chrony_src.stdout.find('^*') > -1
+  until: chrony_src.stdout.find('^*') > -1
   retries: "{{ retry_count }}"
   delay: "{{ delay_count }}"
+  changed_when: true

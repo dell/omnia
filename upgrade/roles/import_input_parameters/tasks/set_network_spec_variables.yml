@@ -1,0 +1,229 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+- name: Extract subnet variables from old input files
+  ansible.builtin.set_fact:
+    ip_start_bits: "{{ ip_start_range.split('.') if '.' in ip_start_range else [''] }}"
+    ip_end_bits: "{{ ip_end_range.split('.') if '.' in ip_end_range else [''] }}"
+    admin_subnet_bits: "{{ admin_nic_subnet.split('.') if '.' in admin_nic_subnet else [''] }}"
+    bmc_subnet_bits: "{{ bmc_nic_subnet.split('.') if '.' in bmc_nic_subnet else [''] }}"
+    ib_subnet_bits: "{{ ib_nic_subnet.split('.') if '.' in ib_nic_subnet else [''] }}"
+    pod_external_ip_start_bits: "{{ pod_external_ip_start_range.split('.') if '.' in pod_external_ip_start_range else [''] }}"
+    pod_external_ip_end_bits: "{{ pod_external_ip_end_range.split('.') if '.' in pod_external_ip_end_range else [''] }}"
+    node_start_ip_fourth_octet: "50"
+  no_log: true
+
+- name: Initialize validation variables
+  ansible.builtin.set_fact:
+    is_valid_ip_range: false
+    is_valid_admin_subnet: false
+    is_valid_bmc_subnet: false
+    is_valid_ib_subnet: false
+    is_valid_pod_external_ip_range: false
+  no_log: true
+
+- name: Validate IP range
+  ansible.builtin.set_fact:
+    is_valid_ip_range: true
+    last_bit_minus_one: "{{ ip_end_bits[3] | int - 1 }}"
+    admin_network_dynamic_range_third_octet: "{{ ip_start_bits[2] | int + 1 }}"
+    adm_dynamic_end_range_fourth_octet: "{{ ip_end_bits[3] | int - 55 }}"
+    dynamic_range_third_octet: "{{ ip_start_bits[2] | int + 2 }}"
+  when:
+    - ip_start_bits
+    - ip_start_bits|length == 4
+    - ip_end_bits
+    - ip_end_bits|length == 4
+    - ip_end_bits[3] | int > 0
+  no_log: true
+
+- name: Validate admin subnet
+  ansible.builtin.set_fact:
+    is_valid_admin_subnet: true
+  when: admin_subnet_bits and admin_subnet_bits|length == 4
+  no_log: true
+
+- name: Validate BMC subnet
+  ansible.builtin.set_fact:
+    is_valid_bmc_subnet: true
+  when: bmc_subnet_bits and bmc_subnet_bits|length == 4
+  no_log: true
+
+- name: Validate InfiniBand subnet
+  ansible.builtin.set_fact:
+    is_valid_ib_subnet: true
+  when: ib_subnet_bits and ib_subnet_bits|length == 4
+  no_log: true
+
+- name: Validate pod external IP range
+  ansible.builtin.set_fact:
+    is_valid_pod_external_ip_range: true
+  when: pod_external_ip_start_bits and pod_external_ip_start_bits|length == 4 and pod_external_ip_end_bits and pod_external_ip_end_bits|length == 4
+  no_log: true
+
+- name: Initialize admin_network_static_range
+  ansible.builtin.set_fact:
+    import_input_parameters_admin_network_static_range: >
+      {{
+        admin_subnet_bits[0] ~ '.' ~
+        admin_subnet_bits[1] ~ '.' ~
+        ip_start_bits[2] ~ '.' ~
+        ip_start_bits[3] ~ '-' ~
+        admin_subnet_bits[0] ~ '.' ~
+        admin_subnet_bits[1] ~ '.' ~
+        ip_end_bits[2] ~ '.' ~
+        last_bit_minus_one
+      }}
+  when: is_valid_admin_subnet and is_valid_ip_range
+  no_log: true
+
+- name: Initialize admin_network_dynamic_range
+  ansible.builtin.set_fact:
+    import_input_parameters_admin_network_dynamic_range: >
+      {{
+        admin_subnet_bits[0] ~ '.' ~
+        admin_subnet_bits[1] ~ '.' ~
+        admin_network_dynamic_range_third_octet ~ '.' ~
+        ip_start_bits[3] ~ '-' ~
+        admin_subnet_bits[0] ~ '.' ~
+        admin_subnet_bits[1] ~ '.' ~
+        admin_network_dynamic_range_third_octet ~ '.' ~
+        adm_dynamic_end_range_fourth_octet
+      }}
+  when: is_valid_admin_subnet and is_valid_ip_range
+  no_log: true
+
+- name: Initialize admin_network_admin_uncorrelated_node_start_ip
+  ansible.builtin.set_fact:
+    import_input_parameters_uncorrelated_node_start_ip: >
+     {{
+      admin_subnet_bits[0] ~ '.' ~
+      admin_subnet_bits[1] ~ '.' ~
+      ip_start_bits[2] ~ '.' ~
+      node_start_ip_fourth_octet
+     }}
+  when: is_valid_admin_subnet and is_valid_ip_range
+  no_log: true
+
+- name: Initialize netmask bits
+  ansible.builtin.set_fact:
+    import_input_parameters_bmc_network_netmask_bits: "16"
+  when: is_valid_bmc_subnet
+
+- name: Initialize bmc_network_static_range
+  ansible.builtin.set_fact:
+    import_input_parameters_bmc_network_static_range: >
+      {{
+        bmc_subnet_bits[0] ~ '.' ~
+        bmc_subnet_bits[1] ~ '.' ~
+        ip_start_bits[2] ~ '.' ~
+        ip_start_bits[3] ~ '-' ~
+        bmc_subnet_bits[0] ~ '.' ~
+        bmc_subnet_bits[1] ~ '.' ~
+        ip_end_bits[2] ~ '.' ~
+        last_bit_minus_one
+      }}
+  when: is_valid_bmc_subnet and is_valid_ip_range
+  no_log: true
+
+- name: Initialize bmc_network_dynamic_range
+  ansible.builtin.set_fact:
+    import_input_parameters_bmc_network_dynamic_range: >
+      {{
+        bmc_subnet_bits[0] ~ '.' ~
+        bmc_subnet_bits[1] ~ '.' ~
+        dynamic_range_third_octet ~ '.' ~
+        ip_start_bits[3] ~ '-' ~
+        bmc_subnet_bits[0] ~ '.' ~
+        bmc_subnet_bits[1] ~ '.' ~
+        dynamic_range_third_octet ~ '.' ~
+        last_bit_minus_one
+      }}
+  when: is_valid_bmc_subnet and is_valid_ip_range
+  no_log: true
+
+# - name: Initialize admin_network_network_gateway
+#   ansible.builtin.set_fact:
+#     import_input_parameters_admin_network_network_gateway: >
+#       {{
+#         admin_subnet_bits[0] ~ '.' ~
+#         admin_subnet_bits[1] ~ '.' ~
+#         ip_start_bits[2] ~ '.' ~
+#         last_bit_minus_one
+#       }}
+#   when: is_valid_admin_subnet and is_valid_ip_range
+#   no_log: true
+
+# - name: Initialize bmc_network_network_gateway
+#   ansible.builtin.set_fact:
+#     import_input_parameters_bmc_network_network_gateway: >
+#       {{
+#         bmc_subnet_bits[0] ~ '.' ~
+#         bmc_subnet_bits[1] ~ '.' ~
+#         ip_start_bits[2] ~ '.' ~
+#         last_bit_minus_one
+#       }}
+#   when: is_valid_bmc_subnet and is_valid_ip_range
+#   no_log: true
+
+- name: Initialize bmc_network_discover_range
+  ansible.builtin.set_fact:
+    import_input_parameters_bmc_network_discover_range: "{{ bmc_static_start_range ~ '-' ~ bmc_static_end_range }}"
+  when: bmc_static_start_range and bmc_static_end_range
+  no_log: true
+
+- name: Initialize ib_network1_static_range
+  ansible.builtin.set_fact:
+    import_input_parameters_ib_network1_static_range: >
+      {{
+        ib_subnet_bits[0] ~ '.' ~
+        ib_subnet_bits[1] ~ '.' ~
+        ip_start_bits[2] ~ '.' ~
+        ip_start_bits[3] ~ '-' ~
+        ib_subnet_bits[0] ~ '.' ~
+        ib_subnet_bits[1] ~ '.' ~
+        ip_end_bits[2] ~ '.' ~
+        ip_end_bits[3]
+      }}
+  when: ib_subnet_bits and is_valid_ib_subnet
+  no_log: true
+
+- name: Initialize pod_external_ip_range
+  ansible.builtin.set_fact:
+    import_input_parameters_pod_external_ip_range: >
+      {{
+        admin_subnet_bits[0] ~ '.' ~
+        admin_subnet_bits[1] ~ '.' ~
+        pod_external_ip_start_bits[2] ~ '.' ~
+        pod_external_ip_start_bits[3] ~ '-' ~
+        admin_subnet_bits[0] ~ '.' ~
+        admin_subnet_bits[1] ~ '.' ~
+        pod_external_ip_end_bits[2] ~ '.' ~
+        pod_external_ip_end_bits[3]
+      }}
+  when: is_valid_admin_subnet and is_valid_pod_external_ip_range
+  no_log: true
+
+- name: Trim strings
+  ansible.builtin.set_fact:
+    import_input_parameters_admin_network_static_range: "{{ import_input_parameters_admin_network_static_range | trim }}"
+    import_input_parameters_bmc_network_static_range: "{{ import_input_parameters_bmc_network_static_range | trim }}"
+    import_input_parameters_admin_network_network_gateway: "{{ import_input_parameters_admin_network_network_gateway | trim }}"
+    import_input_parameters_bmc_network_network_gateway: "{{ import_input_parameters_bmc_network_network_gateway | trim }}"
+    import_input_parameters_bmc_network_discover_range: "{{ import_input_parameters_bmc_network_discover_range | trim }}"
+    import_input_parameters_ib_network1_static_range: "{{ import_input_parameters_ib_network1_static_range | trim }}"
+    import_input_parameters_pod_external_ip_range: "{{ import_input_parameters_pod_external_ip_range | trim }}"
+    import_input_parameters_admin_network_dynamic_range: "{{ import_input_parameters_admin_network_dynamic_range | trim }}"
+    import_input_parameters_uncorrelated_node_start_ip: "{{ import_input_parameters_uncorrelated_node_start_ip | trim }}"
+    import_input_parameters_bmc_network_dynamic_range: "{{ import_input_parameters_bmc_network_dynamic_range | trim }}"

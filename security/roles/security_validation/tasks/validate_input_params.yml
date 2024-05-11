@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,25 +13,17 @@
 #  limitations under the License.
 ---
 
-- name: Set ldap, freeipa_required, enable_secure_login_node required value
+- name: Set authentication_system, enable_secure_login_node required value
   ansible.builtin.set_fact:
-    ldap_required: "{{ ldap_required | lower }}"
-    freeipa_required: "{{ freeipa_required | lower }}"
+    authentication_system: "{{ authentication_system | lower }}"
     enable_secure_login_node: "{{ enable_secure_login_node | lower }}"
 
-- name: Verify the value of ldap_required
+- name: Verify the value of authentication_system
   ansible.builtin.assert:
     that:
-      - ldap_required == true or ldap_required == false
-    success_msg: "{{ ldap_required_success_msg }}"
-    fail_msg: "{{ ldap_required_fail_msg }}"
-
-- name: Verify the value of freeipa_required
-  ansible.builtin.assert:
-    that:
-      - freeipa_required == true or freeipa_required == false
-    success_msg: "{{ freeipa_required_success_msg }}"
-    fail_msg: "{{ freeipa_required_fail_msg }}"
+      - "authentication_system == 'openldap' or authentication_system == 'freeipa'"
+    success_msg: "{{ authentication_system_success_msg }}"
+    fail_msg: "{{ authentication_system_fail_msg }}"
 
 - name: Verify the value of enable_secure_login_node
   ansible.builtin.assert:
@@ -48,18 +40,10 @@
     - enable_secure_login_node
     - not login_node_required
 
-- name: Validate if freeipa and ldap required are enabled
-  ansible.builtin.fail:
-    msg: "{{ ldap_freeipa_failure_msg }}"
-  when:
-    - freeipa_required
-    - ldap_required
-
 - name: Validate the domain name
   ansible.builtin.assert:
     that:
       - domain_name is regex("^(?!-)[A-Za-z0-9-]+([\\-\\.]{1}[a-z0-9]+)*\\.[A-Za-z]{2,}$")
     success_msg: "{{ domain_name_success_msg }}"
     fail_msg: "{{ domain_name_fail_msg }}"
-  when: freeipa_required or
-        ldap_required
+  when: authentication_system == 'openldap' or authentication_system == 'freeipa'

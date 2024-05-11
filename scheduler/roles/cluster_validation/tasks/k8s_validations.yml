@@ -1,0 +1,76 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Invalid inventory format for Kube
+  ansible.builtin.fail:
+    msg: "{{ invalid_kube_inventory_fail_msg }}"
+  when:
+    - "('kube_control_plane' not in groups or 'kube_node' not in groups or 'etcd' not in groups)"
+
+- name: Kube control plane group to contain exactly 1 kube control plane
+  ansible.builtin.assert:
+    that:
+      - "groups['kube_control_plane'] | length | int == 1"
+    success_msg: "{{ kube_one_node_validation_success_msg }}"
+    fail_msg: "{{ kube_one_node_validation_fail_msg }}"
+
+- name: Kube node group to contain atleast 1 kube node
+  ansible.builtin.assert:
+    that: "groups['kube_node'] | length | int >= 1"
+    success_msg: "{{ kube_node_validation_success_msg }}"
+    fail_msg: "{{ kube_node_validation_fail_msg }}"
+
+- name: Etcd node group to contain atleast 1 etcd node
+  ansible.builtin.assert:
+    that: "((groups['etcd'] | length | int) % 2) == 1"
+    success_msg: "{{ etcd_node_validation_success_msg }}"
+    fail_msg: "{{ etcd_node_validation_fail_msg }}"
+
+- name: Add all hosts in kube_control_plane and kube_node to group k8s_cluster
+  ansible.builtin.add_host:
+    name: '{{ item }}'
+    groups: k8s_cluster
+  with_items:
+    - "{{ groups['kube_control_plane'] }}"
+    - "{{ groups['kube_node'] }}"
+
+- name: Add all hosts in k8s_cluster and etcd to group k8s_cluster_all
+  ansible.builtin.add_host:
+    name: '{{ item }}'
+    groups: k8s_cluster_all
+  with_items:
+    - "{{ groups['k8s_cluster'] }}"
+    - "{{ groups['etcd'] }}"
+
+- name: Initialize variables
+  ansible.builtin.set_fact:
+    unreachable_kube_control_plane: []
+
+- name: Set unreachable_kube_control_plane
+  ansible.builtin.set_fact:
+    unreachable_kube_control_plane: "{{ unreachable_kube_control_plane + [item] }}"
+  when: item not in ansible_play_hosts
+  with_items: "{{ groups['kube_control_plane'] }}"
+
+- name: Unreachable kube_control_plane in inventory
+  ansible.builtin.fail:
+    msg: "{{ unreachable_kube_control_plane_fail_msg }}"
+  when: unreachable_kube_control_plane | length >= 1
+
+- name: Modify kubespray collection task
+  ansible.builtin.lineinfile:
+    path: "{{ ansible_collection_folder }}{{ kubespray_certificate_key_taskfile_path }}"
+    insertafter: "- name: Set kubeadm certificate key"
+    line: "  no_log: true"

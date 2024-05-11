@@ -72,7 +72,7 @@ The following credentials have to be entered to enable different tools on the ma
 
     6. SNMPv3 PXE switch (Non-admin username/ password)
 
-Similarly, passwords for the following tools have to be provided in ``input/omnia_config.yml`` to configure the cluster:
+Similarly, passwords for the following tools have to be provided in ``input/omnia_config.yml`` and ``input/provision_config_credentials.yml`` to configure the cluster:
 
     1. maria_db (Password)
 

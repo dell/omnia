@@ -1,4 +1,4 @@
-#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -12,264 +12,109 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+- name: Append share_path to variables when slurm_installation_type is nfs_share
+  ansible.builtin.set_fact:
+    slurm_dest: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ slurm_dest }}"
+    slurm_confpth: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ slurm_confpth }}"
+    slurm_logpth: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ slurm_logpth }}"
+    spool_pth: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ spool_pth }}"
+    spool_dir: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ spool_dir }}"
+    slurm_pidpth: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ slurm_pidpth }}"
+    slurmctld_pid: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ slurmctld_pid }}"
+    slurmd_pid: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ slurmd_pid }}"
+    slurmctld_log: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ slurmctld_log }}"
+    spool_slurmctld_pth: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ spool_slurmctld_pth }}"
+    cluster_state_path: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ cluster_state_path }}"
+    slurmdbd_path: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ slurmdbd_path }}"
+    slurmd_log: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ slurmd_log }}"
+    spool_slurmd_pth: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ spool_slurmd_pth }}"
+    logfile: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ logfile }}"
+    pidfile: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ pidfile }}"
+    slurmd_path: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ slurmd_path }}"
+    plugin_slurm_dir: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ plugin_slurm_dir }}"
+    mail_prog_dir: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ mail_prog_dir }}"
+    slurm_nfs_folder: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}"
+  when: slurm_installation_type == 'nfs_share'
 
-- name: Tasks for slurm_common role
+- name: Append share_path to variables when slurm_installation_type is configless
+  ansible.builtin.set_fact:
+    slurm_dest: "{{ slurm_dest }}"
+    slurm_confpth: "{{ slurm_confpth }}"
+    slurm_logpth: "{{ slurm_logpth }}"
+    spool_pth: "{{ spool_pth }}"
+    spool_dir: "{{ spool_dir }}"
+    slurm_pidpth: "{{ slurm_pidpth }}"
+    slurmctld_pid: "{{ slurmctld_pid }}"
+    slurmd_pid: "{{ slurmd_pid }}"
+    slurmctld_log: "{{ slurmctld_log }}"
+    spool_slurmctld_pth: "{{ spool_slurmctld_pth }}"
+    cluster_state_path: "{{ cluster_state_path }}"
+    slurmdbd_path: "{{ slurmdbd_path }}"
+    slurmd_log: "{{ slurmd_log }}"
+    spool_slurmd_pth: "{{ spool_slurmd_pth }}"
+    logfile: "{{ logfile }}"
+    pidfile: "{{ pidfile }}"
+    slurmd_path: "{{ slurmd_path }}"
+  when: slurm_installation_type == 'configless'
+
+- name: Add nfs_share and configless installation type variables
+  ansible.builtin.set_fact:
+    nfs_share_slurm: "{{ nfs_share_slurm }}"
+    configless_slurm: "{{ configless_slurm }}"
+
+- name: Initialize slurmctld service status
+  ansible.builtin.set_fact:
+    slurmctld_status: false
+    slurmd_status: false
+
+- name: Tasks for slurm_manager role
   when: hostvars['127.0.0.1']['slurm_support']
   block:
-    - name: Get hostname
-      ansible.builtin.command: hostname
-      register: host_name
-      changed_when: true
+    - name: Fetch the service facts
+      ansible.builtin.service_facts:
 
-    - name: Add host name in file
-      ansible.builtin.replace:
-        dest: "{{ hostname_dest }}"
-        regexp: localhost.localdomain
-        replace: "{{ host_name.stdout }}"
-        backup: yes
-        mode: "{{ common_mode }}"
-
-    - name: Enable powertools repo in Rocky 8
-      ansible.builtin.command: dnf config-manager --set-enabled powertools -y
-      when:
-        - ( ansible_distribution | lower == os_centos ) or
-          ( ansible_distribution | lower == os_rocky )
-        - ( ansible_distribution_version >= os_version )
-
-    - name: Add python dependent packages for CentOS 7.9
-      ansible.builtin.package:
-        name: "{{ common_python2_packages }}"
-        state: present
-      tags: install
-      when:
-        - ( ansible_distribution | lower == os_centos )
-        - ( ansible_distribution_version < os_version )
-
-    - name: Add python dependent packages for CentOS version > 8 and Rocky 8
-      ansible.builtin.package:
-        name: "{{ common_python3_packages }}"
-        state: present
-      tags: install
-      when:
-        - ( ansible_distribution | lower == os_centos ) or
-          ( ansible_distribution | lower == os_rocky )
-        - ( ansible_distribution_version >= os_version )
-
-    - name: Install packages for slurm
-      ansible.builtin.package:
-        name: "{{ common_packages }}"
-        state: present
-      tags: install
-      when: os_supported_leap not in compute_os
-
-    - name: Install packages for slurm
-      ansible.builtin.package:
-        name: "{{ leap_common_packages }}"
-        state: present
-      when: os_supported_leap in compute_os
-
-    - name: Create munge key
-      ansible.builtin.command: "{{ munge_cmd }}"
-      changed_when: true
-      when: os_supported_leap not in compute_os
-
-    - name: Create munge key
-      ansible.builtin.shell: dd if=/dev/random bs=1 count=1024 >/etc/munge/munge.key
-      changed_when: true
-      when: os_supported_leap in compute_os
-
-    - name: Copy munge key
-      ansible.builtin.copy:
-        src: munge.key
-        dest: "{{ munge_dest }}"
-        owner: munge
-        group: munge
-        mode: "{{ munge_mode }}"
-      tags: install
-
-    - name: Slurm configuration - slurm.conf
-      ansible.builtin.copy:
-        src: slurm.conf
-        dest: "{{ slurm_dest }}"
-        mode: "{{ slurm_mode }}"
-      tags: install
-
-    - name: Add cluster name
-      ansible.builtin.lineinfile:
-        path: "{{ slurm_confpth }}"
-        regexp: "ClusterName="
-        line: "ClusterName={{ cluster_name }}"
-
-    - name: Add slurm user name
-      ansible.builtin.lineinfile:
-        path: "{{ slurm_confpth }}"
-        regexp: "SlurmUser="
-        line: "SlurmUser={{ slurm_user }}"
-
-    - name: Add slurmctld port no
-      ansible.builtin.lineinfile:
-        path: "{{ slurm_confpth }}"
-        regexp: "SlurmctldPort="
-        line: "SlurmctldPort={{ slurmctld_port }}"
-
-    - name: Add slurmd port no
-      ansible.builtin.lineinfile:
-        path: "{{ slurm_confpth }}"
-        regexp: "SlurmdPort="
-        line: "SlurmdPort={{ slurmd_port }}"
-
-    - name: Add srun port range
-      ansible.builtin.lineinfile:
-        path: "{{ slurm_confpth }}"
-        regexp: "SrunPortRange="
-        line: "SrunPortRange={{ srun_port_range }}"
-
-    - name: Add spool path
-      ansible.builtin.lineinfile:
-        path: "{{ slurm_confpth }}"
-        regexp: "SlurmdSpoolDir="
-        line: "SlurmdSpoolDir={{ spool_pth }}"
-
-    - name: Add slurmctld pid file path
-      ansible.builtin.lineinfile:
-        path: "{{ slurm_confpth }}"
-        regexp: "SlurmctldPidFile="
-        line: "SlurmctldPidFile={{ slurmctld_pid }}"
-
-    - name: Add slurmd pid file path
-      ansible.builtin.lineinfile:
-        path: "{{ slurm_confpth }}"
-        regexp: "SlurmdPidFile="
-        line: "SlurmdPidFile={{ slurmd_pid }}"
-
-    - name: Add slurmctld log file path
-      ansible.builtin.lineinfile:
-        path: "{{ slurm_confpth }}"
-        regexp: "SlurmctldLogFile="
-        line: "SlurmctldLogFile={{ slurmctld_log }}"
-
-    - name: Add slurmd log file path
-      ansible.builtin.lineinfile:
-        path: "{{ slurm_confpth }}"
-        regexp: "SlurmdLogFile="
-        line: "SlurmdLogFile={{ slurmd_log }}"
-
-    - name: Add accounting storage port no
-      ansible.builtin.lineinfile:
-        path: "{{ slurm_confpth }}"
-        regexp: "AccountingStoragePort="
-        line: "AccountingStoragePort={{ acct_port }}"
-
-    - name: Create slurm group
-      ansible.builtin.group:
-        name: slurm
-        state: present
-      tags: install
-
-    - name: Add the user 'slurm' with uid 6001 and a primary group of 'slurm'
-      ansible.builtin.user:
-        name: slurm
-        comment: Slurm User Account
-        uid: "{{ slurm_uid }}"
-        group: slurm
-      tags: install
-
-    - name: Create slurm log directory
-      ansible.builtin.file:
-        path: "{{ slurm_logpth }}"
-        state: directory
-        owner: slurm
-        group: slurm
-        mode: "{{ gen_mode }}"
-        recurse: yes
-      tags: install
-
-    - name: Give slurm user permission to spool
-      ansible.builtin.file:
-        path: "{{ spool_pth }}"
-        owner: slurm
-        group: slurm
-        state: directory
-        mode: "{{ gen_mode }}"
-        recurse: yes
-
-    - name: Give slurm user permission to spool directory
-      ansible.builtin.file:
-        path: "{{ spool_dir }}"
-        owner: slurm
-        group: slurm
-        state: directory
-        mode: "{{ common_mode }}"
-        recurse: yes
-
-    - name: Create slurm pid directory
-      ansible.builtin.file:
-        path: "{{ slurm_pidpth }}"
-        state: directory
-        owner: slurm
-        group: slurm
-        mode: "{{ gen_mode }}"
-        recurse: yes
-      tags: install
-
-    - name: Give slurm user permission to slurmctld
-      ansible.builtin.file:
-        path: "{{ slurmctld_pid }}"
-        owner: slurm
-        group: slurm
-        mode: "{{ gen_mode }}"
-        state: touch
-
-    - name: Give slurm user permission to slurmd
-      ansible.builtin.file:
-        path: "{{ slurmd_pid }}"
-        owner: slurm
-        group: slurm
-        mode: "{{ gen_mode }}"
-        state: touch
-
-    - name: Start munge service
-      ansible.builtin.systemd:
-        name: munge
-        state: restarted
-        enabled: yes
-      tags: install
-      failed_when: false
-
-    - name: Install lua and lmod for leap  OS
-      block:
-        - name: Install packages for lua_lmod
-          ansible.builtin.package:
-            name: "{{ lmod_packages }}"
-            state: present
-      when: os_supported_leap in compute_os
-
-    - name: Initialize grafana_status
+    - name: Check the status of slurmctld
       ansible.builtin.set_fact:
-        grafana_status: false
-        grafana_cred_status: false
-
-    - name: Check for grafana folder existence
-      ansible.builtin.stat:
-        path: "{{ grafana_conf_path }}"
-      register: grafana_file_status
-      delegate_to: localhost
-      run_once: true
-
-    - name: Check for grafana_username and password
-      ansible.builtin.set_fact:
-          grafana_cred_status: true
+        slurmctld_status: true
       when:
-        - grafana_username is defined
-        - grafana_password is defined
-        - grafana_username | length >= min_length_grafana
-        - grafana_password | length >= min_length_grafana
+        - "'slurmctld.service' in ansible_facts.services"
+        - "ansible_facts.services['slurmctld.service'].state == 'running'"
 
-    - name: Save grafana crendentials
+    - name: Check the status of slurmd
       ansible.builtin.set_fact:
-        grafana_svc_ip: "{{ lookup('ini', 'ip section=grafana_svc file=/opt/omnia/.data/grafana_svc_details.ini') }}"
-        grafana_svc_port: "{{ lookup('ini', 'port section=grafana_svc file=/opt/omnia/.data/grafana_svc_details.ini') }}"
-        grafana_status: true
-      delegate_to: localhost
-      run_once: true
-      when: grafana_file_status.stat.exists
+        slurmd_status: true
+      when:
+        - "'slurmd.service' in ansible_facts.services"
+        - "ansible_facts.services['slurmd.service'].state == 'running'"
+
+    - name: Initialize the slurm node params
+      ansible.builtin.set_fact:
+        node_fqdn: "None"
+        sockets: "0"
+        cores: "0"
+
+- name: Tasks for slurm_common role
+  when:
+    - hostvars['127.0.0.1']['slurm_support']
+    - not slurmctld_status
+    - not slurmd_status
+  block:
+    - name: Install common Python packages
+      ansible.builtin.include_tasks: install_python_packages.yml
+
+    - name: Install common packages for slurm on NFS
+      ansible.builtin.include_tasks: install_packages_nfs.yml
+      when: slurm_installation_type == nfs_share_slurm
+
+    - name: Install common packages for configless
+      ansible.builtin.include_tasks: install_packages.yml
+      when: slurm_installation_type ==  configless_slurm
+
+    - name: Update slurm group and permissions
+      ansible.builtin.include_tasks: update_log_files.yml
+
+    - name: Gather slurm node parameters
+      ansible.builtin.set_fact:
+        node_fqdn: "{{ hostvars[inventory_hostname]['ansible_facts']['hostname'] }}.{{ hostvars[inventory_hostname]['ansible_facts']['domain'] }}"
+        sockets: "{{ hostvars[inventory_hostname]['ansible_facts']['processor_count'] }}"
+        cores: "{{ hostvars[inventory_hostname]['ansible_facts']['processor_cores'] }}"

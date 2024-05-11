@@ -29,7 +29,7 @@
 - name: Check freeipa ui accessible or not
   ansible.builtin.uri:
     url: "https://{{ server_hostname }}"
-    status_code: "{{ return_status }}"
+    status_code: 200
     return_content: true
   register: freeipa_url_status
   failed_when: false
@@ -49,5 +49,5 @@
     freeipa_server_status: true
   when:
     - freeipa_server_authentication.rc == 0
-    - freeipa_url_status.status == return_status
+    - freeipa_url_status.status == 200
     - "'running' in ansible_facts.services['oddjobd.service'].state"

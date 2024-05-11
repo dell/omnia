@@ -1,4 +1,4 @@
-#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -15,6 +15,9 @@
 
 - name: Verify slurm is running
   ansible.builtin.include_tasks: pre_requisites.yml
+
+- name: Fetch software_config.json and check for intel_benchmarks support
+  ansible.builtin.include_tasks: fetch_software_config.yml
 
 - name: Install packages
   ansible.builtin.include_tasks: install_packages.yml

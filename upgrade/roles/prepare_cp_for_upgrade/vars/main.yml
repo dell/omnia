@@ -1,0 +1,54 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Usage: set_admin_nic_vars.yml
+python_version: python3.9
+network_address_script: "{{ role_path }}/../../../discovery/roles/discovery_validations/common/files/validate_network_address.py"
+network_spec: "{{  role_path }}/../../../input/network_spec.yml"
+
+success_msg_nic: "nic successfully validated"
+network_spec_syntax_fail_msg: "Failed. Syntax errors present in network_spec.yml. Fix errors and re-run playbook again."
+fail_msg_admin_nic_details: "Failed. Invalid admin_nic details (nic_name, netmask_bits, static_range or dynamic_range) in network_spec file."
+fail_msg_admin_nic_ip_details: "Ensure admin nic is configured with ip address."
+validate_nic_status: "Failed, please check the network interface status should be UP"
+admin_nic_netmask_fail_msg: "Failed, Admin nic netmask should be same as netmask in network_spec file."
+
+# Usage: configure_synclist_files.yml
+local_repo_config_file: "{{ role_path }}/../../../input/local_repo_config.yml"
+
+# Usage: configure_postgres.yml
+xcat_services:
+  - xcatd
+  - postgresql
+  - firewalld
+  - snmpd
+postgresql_conf_dir: /etc/systemd/system/postgresql.service.d
+postgresql_conf_dest: "{{ postgresql_conf_dir }}/postgresql.conf"
+
+pg_hba_conf_path: /var/lib/pgsql/data/pg_hba.conf
+postgres_file_path: "/opt/omnia/.postgres/"
+directory_permissions: "0600"
+utility_path: "{{ role_path }}/files/encrypt_pwd.py"
+encrypted_file_path: "/opt/omnia/.postgres/.encrypted_pwd"
+
+postgresql_conf_src: "{{ role_path }}/files/postgresql.conf"
+pgsqlsetup_path: /opt/xcat/bin/pgsqlsetup
+file_permission: "0755"
+
+# Usage: main.yml
+xcat_root_env: "/opt/xcat"
+xcat_path_env: "/opt/xcat/bin:/opt/xcat/sbin:/opt/xcat/share/xcat/tools"
+xcat_manpath_env: "/opt/xcat/share/man:$MANPATH"
+perl_badlang_env: 0

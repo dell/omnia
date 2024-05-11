@@ -13,53 +13,38 @@
 #  limitations under the License.
 ---
 
-- name: Enable epel release repo
-  ansible.builtin.command: dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm -y
-  changed_when: false
-  failed_when: false
-
-- name: Subscribe for code ready builder repo in RHEL
-  ansible.builtin.command: subscription-manager repos --enable "{{ rhel_code_ready_repo }}"
-  changed_when: false
-  when: not hostvars['127.0.0.1']['xcat_installation_status']
-
-- name: Add AMD GPU Repo for RHEL 8.x
-  ansible.builtin.yum_repository:
-    name: amd_gpu
-    description: AMD GPU Repository
-    baseurl: "{{ rhel_amd_gpu_base_url }}"
-    gpgcheck: true
-    gpgkey: "{{ rhel_rocm_gpg }}"
-    enabled: true
-
-- name: Verify dkms status
-  ansible.builtin.command: /usr/sbin/dkms status amdgpu
-  register: dkms_status
-  changed_when: false
-  failed_when: false
-
 - name: Install kernel mode driver
   ansible.builtin.package:
     name: amdgpu-dkms
     enablerepo: amd_gpu
     state: present
-  when: dkms_status.stdout | length == 0
 
 - name: Reboot after installing GPU drivers
   ansible.builtin.reboot:
-  when: dkms_status.stdout | length == 0
-
-- name: Add AMD ROCm repository for RHEL 8.x
-  ansible.builtin.yum_repository:
-    name: ROCm
-    description: AMD ROCm Repository
-    baseurl: "{{ rhel_rocm_base_url }}"
-    gpgcheck: true
-    gpgkey: "{{ rhel_rocm_gpg }}"
-    enabled: true
 
 - name: Install ROCm packages
   ansible.builtin.package:
     name: "{{ rocm_packages }}"
     enablerepo: ROCm
     state: present
+
+- name: Check if environment variables are set
+  ansible.builtin.command: echo $PATH
+  changed_when: false
+  failed_when: false
+  register: path_output
+
+- name: Perform Post Installation steps
+  when: "'rocm' not in path_output.stdout"
+  block:
+    - name: Check current environment variables
+      ansible.builtin.shell: echo $PATH
+      changed_when: false
+      register: environment_output
+
+    - name: Replace PATH variable
+      ansible.builtin.lineinfile:
+        path: /etc/bashrc
+        regexp: '^PATH=*'
+        insertafter: EOF
+        line: 'PATH={{ environment_output.stdout }}:/opt/rocm/bin/'

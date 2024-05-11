@@ -74,7 +74,13 @@
     success_msg: "{{ visualization_support_success_msg }}"
     fail_msg: "{{ visualization_support_fail_msg }}"
 
-- name: Waiting for {{ idrac_omnia_telemetry_support_false_warn_time }} seconds
+- name: Warning for all telemetry support category values set as false
+  ansible.builtin.pause:
+    seconds: "{{ pause_time_15 }}"
+    prompt: "{{ warning_telemetry_support_false }}"
+  when: not idrac_telemetry_support and not omnia_telemetry_support and not visualization_support
+
+- name: Please wait, This task will take few seconds
   ansible.builtin.pause:
     seconds: "{{ idrac_omnia_telemetry_support_false_warn_time }}"
     prompt: "{{ idrac_omnia_telemetry_support_warn_msg }}"
@@ -123,91 +129,33 @@
   ansible.builtin.include_tasks: validate_grafana_params.yml
   when: visualization_support
 
-- name: Set variable if k8s needs to be installed
-  when: idrac_telemetry_support or omnia_telemetry_support or visualization_support
-  block:
-    - name: Check k8s is installed or not
-      ansible.builtin.command: kubectl get pods -A
-      changed_when: false
-      failed_when: false
-      register: k8s_pods
+# Validate k8s inputs
+- name: Assert k8s_cni
+  ansible.builtin.assert:
+    that:
+      - k8s_cni == "calico" or k8s_cni == "flannel"
+    fail_msg: "{{ invalid_k8s_cni }}"
 
-    - name: Validate k8s_pod_net_cidr
-      when: "'nfs-client-provisioner' not in k8s_pods.stdout"
-      block:
-        - name: Assert kubernetes pod network CIDR
-          ansible.builtin.assert:
-            that:
-              - appliance_k8s_pod_net_cidr | ansible.utils.ipv4
-              - appliance_k8s_pod_net_cidr | length > 9
-              - '"/" in appliance_k8s_pod_net_cidr '
-            success_msg: "{{ success_msg_k8s_pod_network_cidr }}"
-            fail_msg: "{{ fail_msg_k8s_pod_network_cidr }}"
+- name: Assert pod external IP range
+  ansible.builtin.assert:
+    that:
+      - pod_external_ip_range | default("", true) | length > 9
+      - ("'/' in pod_external_ip_range") or ("'-' in pod_external_ip_range")
+    fail_msg: "{{ invalid_pod_external_ip_range }}"
 
-        - name: Set kubernetes pod CIDR
-          ansible.builtin.set_fact:
-            k8s_net_cidr: "{{ appliance_k8s_pod_net_cidr }}"
+- name: Assert kubernetes service addresses
+  ansible.builtin.assert:
+    that:
+      - k8s_service_addresses | default("", true) | length > 9
+      - '"/" in k8s_service_addresses'
+    fail_msg: "{{ invalid_k8s_service_addresses }}"
 
-- name: Set variable if metallb needs to be configured
-  when: omnia_telemetry_support or idrac_telemetry_support or visualization_support
-  block:
-    - name: Register IPAddressPool output
-      ansible.builtin.command: "kubectl get IPAddressPool -A"
-      changed_when: false
-      failed_when: false
-      register: ipaddresspool_output
-
-    - name: Validations for pod_external_ip_start_range and pod_external_ip_end_range
-      block:
-        - name: Validate format of pod_external_ip_start_range
-          ansible.builtin.assert:
-            that: pod_external_ip_start_range | regex_search('^[A-Za-z0-9]+\.[A-Za-z0-9]+\.\d+\.\d+$')
-            fail_msg: "{{ validation_error_msg_format_start_range }}"
-            success_msg: "{{ validation_success_msg_format_start_range }}"
-
-        - name: Validate format of pod_external_ip_end_range
-          ansible.builtin.assert:
-            that: pod_external_ip_end_range | regex_search('^[A-Za-z0-9]+\.[A-Za-z0-9]+\.\d+\.\d+$')
-            fail_msg: "{{ validation_error_msg_format_end_range }}"
-            success_msg: "{{ validation_success_msg_format_end_range }}"
-
-        - name: Split pod external IP ranges into octets
-          ansible.builtin.set_fact:
-            start_range_octets: "{{ pod_external_ip_start_range.split('.') }}"
-            end_range_octets: "{{ pod_external_ip_end_range.split('.') }}"
-
-        - name: Check if pod external IP range has 4 octets
-          ansible.builtin.assert:
-            that:
-              - start_range_octets | length == 4
-              - end_range_octets | length == 4
-            fail_msg: "{{ validation_error_msg_4_octets }}"
-            success_msg: "{{ validation_success_msg_4_octets }}"
-
-        - name: Check if third and fourth octets of pod external IP are within 0 to 255
-          ansible.builtin.assert:
-            that:
-              - 0 <= start_range_octets[2] | int <= 255
-              - 0 <= start_range_octets[3] | int <= 255
-              - 0 <= end_range_octets[2] | int <= 255
-              - 0 <= end_range_octets[3] | int <= 255
-            fail_msg: "{{ validation_error_msg_octet_range }}"
-            success_msg: "{{ validation_success_msg_octet_range }}"
-
-        - name: Check if third octet of pod external IP start range is less than or equal to third octet of end range
-          ansible.builtin.assert:
-            that:
-              - start_range_octets[2] | int <= end_range_octets[2] | int
-            fail_msg: "{{ validation_error_msg_octet_order }}"
-            success_msg: "{{ validation_success_msg_octet_order }}"
-
-        - name: Check if fourth octet of pod external IP start range is less than fourth octet of end range when third octets are the same
-          ansible.builtin.assert:
-            that:
-              - start_range_octets[2] != end_range_octets[2] or start_range_octets[3] | int < end_range_octets[3] | int
-            fail_msg: "{{ validation_error_msg_same_third_octet_order }}"
-            success_msg: "{{ validation_success_msg_same_third_octet_order }}"
-      when: "'metallb-system' not in ipaddresspool_output.stdout"
+- name: Assert kubernetes pod network CIDR
+  ansible.builtin.assert:
+    that:
+      - k8s_pod_network_cidr | default("", true) | length > 9
+      - '"/" in k8s_pod_network_cidr'
+    fail_msg: "{{ invalid_k8s_pod_network_cidr }}"
 
 # Encrypt telemetry_config.yml
 - name: Create ansible vault key

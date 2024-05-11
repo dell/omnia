@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,21 +14,25 @@
 ---
 
 - name: Saving distribution of os
-  set_fact:
+  ansible.builtin.set_fact:
     compute_os: "{{ ansible_facts['distribution'] | lower }}"
 
+- name: Validate share_path is NFS
+  ansible.builtin.include_tasks: validate_share_path.yml
+  when: k8s_support is true or
+        (slurm_support is true and slurm_installation_type == 'nfs_share') or
+        ucx_support is true or
+        openmpi_support is true
+
 - name: Prepare RHEL and Rocky nodes
-  include_tasks: prepare_rhel_nodes.yml
-  when: ( os_supported_leap not in compute_os )
-
-- name: Prepare leap nodes
-  include_tasks: prepare_leap_nodes.yml
-  when: ( os_supported_leap in compute_os ) and ( ansible_distribution_version >= os_supported_leap_version )
-
-- name: Deploy time ntp/chrony
-  include_tasks: ntp.yml
-  tags: install
+  ansible.builtin.include_tasks: prepare_rhel_nodes.yml
+  when:
+    - os_supported_redhat in compute_os or
+      os_supported_rocky in compute_os
 
 - name: Prepare hosts file
-  include_tasks: prepare_hosts_file.yml
-  tags: install
+  ansible.builtin.include_tasks: prepare_hosts_file.yml
+  when:
+    - slurm_support is true
+    - os_supported_redhat in compute_os or
+      os_supported_rocky in compute_os

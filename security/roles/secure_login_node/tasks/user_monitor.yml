@@ -13,14 +13,14 @@
 #  limitations under the License.
 ---
 
-- name: Install psacct on rocky
+- name: Install psacct on Rocky/Rhel
   ansible.builtin.package:
     name: "{{ psacct }}"
     state: present
-  when: os_leap not in ansible_distribution | lower
+  when: ansible_distribution | lower in [redhat_os, rocky_os]
 
-- name: Install acct on leap
+- name: Install acct on Ubuntu
   ansible.builtin.package:
     name: "{{ acct }}"
     state: present
-  when: os_leap in ansible_distribution | lower
+  when: ansible_distribution | lower == ubuntu_os

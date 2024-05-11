@@ -1,0 +1,141 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Set default ofed_config_status and cuda_config_status
+  ansible.builtin.set_fact:
+    ofed_input_status: false
+    cuda_input_status: false
+    ofed_config_status: false
+    cuda_config_status: false
+
+- name: Check if ofed_input_status is true
+  ansible.builtin.set_fact:
+    ofed_input_status: "{{ user_config.softwares | selectattr('name', 'equalto', 'ofed') | list | length > 0 }}"
+
+- name: Check if cuda_input_status is true
+  ansible.builtin.set_fact:
+    cuda_input_status: "{{ user_config.softwares | selectattr('name', 'equalto', 'cuda') | list | length > 0 }}"
+
+- name: Set ofed_config_status
+  when: ofed_input_status
+  block:
+    - name: Fetch ofed_version
+      ansible.builtin.set_fact:
+        ofed_version: "{{ user_config.softwares | selectattr('name', 'equalto', 'ofed') | map(attribute='version') | first }}"
+
+    - name: Set mlnx_ofed_directory
+      ansible.builtin.set_fact:
+        mlnx_ofed_directory: "{{ offline_iso_directory }}/ofed/{{ ofed_version }}/"
+
+    - name: Check mlnx_ofed_directory exists or not
+      ansible.builtin.stat:
+        path: "{{ mlnx_ofed_directory }}"
+      register: check_mlnx_ofed_dir
+
+    - name: Find OFED file
+      when: check_mlnx_ofed_dir.stat.exists
+      block:
+        - name: Find files inside mlnx_ofed_directory
+          ansible.builtin.find:
+            paths: "{{ mlnx_ofed_directory }}"
+            patterns: "*.iso"
+          register: find_ofed_file
+
+        - name: Set mlnx_ofed_path
+          ansible.builtin.set_fact:
+            mlnx_ofed_path: "{{ find_ofed_file.files[0].path }}"
+
+        - name: Check mlnx_ofed_path exists or not
+          ansible.builtin.stat:
+            path: "{{ mlnx_ofed_path }}"
+          register: check_mlnx_ofed
+
+        - name: Warning - Please wait, This task will take few seconds
+          ansible.builtin.pause:
+            seconds: "{{ warning_wait_time }}"
+            prompt: "{{ ofed_repo_warning_msg }}"
+          when: not check_mlnx_ofed.stat.exists
+
+        - name: Set ofed_config_status to true
+          ansible.builtin.set_fact:
+            ofed_config_status: true
+          when: check_mlnx_ofed.stat.exists
+
+    - name: Warning - Please wait, This task will take few seconds
+      ansible.builtin.pause:
+        seconds: "{{ warning_wait_time }}"
+        prompt: "{{ ofed_repo_warning_msg }}"
+      when: not check_mlnx_ofed_dir.stat.exists
+  rescue:
+    - name: Warning - Please wait, This task will take few seconds
+      ansible.builtin.pause:
+        seconds: "{{ warning_wait_time }}"
+        prompt: "{{ ofed_version_warning_msg }}"
+
+- name: Set cuda_config_status
+  when: cuda_input_status
+  block:
+    - name: Fetch cuda_version
+      ansible.builtin.set_fact:
+        cuda_version: "{{ user_config.softwares | selectattr('name', 'equalto', 'cuda') | map(attribute='version') | first }}"
+
+    - name: Set cuda_toolkit_directory
+      ansible.builtin.set_fact:
+        cuda_toolkit_directory: "{{ offline_iso_directory }}/cuda/{{ cuda_version }}/"
+
+    - name: Check cuda_toolkit_directory exists or not
+      ansible.builtin.stat:
+        path: "{{ cuda_toolkit_directory }}"
+      register: check_cuda_toolkit_dir
+
+    - name: Find CUDA file
+      when: check_cuda_toolkit_dir.stat.exists
+      block:
+        - name: Find files inside cuda_toolkit_directory
+          ansible.builtin.find:
+            paths: "{{ cuda_toolkit_directory }}"
+            patterns: "{{ cuda_search_pattern }}"
+          register: find_cuda_file
+
+        - name: Set cuda_toolkit_path
+          ansible.builtin.set_fact:
+            cuda_toolkit_path: "{{ find_cuda_file.files[0].path }}"
+
+        - name: Check cuda_toolkit_path exists or not
+          ansible.builtin.stat:
+            path: "{{ cuda_toolkit_path }}"
+          register: check_nvidia_cuda
+
+        - name: Warning - Please wait, This task will take few seconds
+          ansible.builtin.pause:
+            seconds: "{{ warning_wait_time }}"
+            prompt: "{{ cuda_repo_warning_msg }}"
+          when: not check_nvidia_cuda.stat.exists
+
+        - name: Set cuda_config_status to true
+          ansible.builtin.set_fact:
+            cuda_config_status: true
+          when: check_nvidia_cuda.stat.exists
+
+    - name: Warning - Please wait, This task will take few seconds
+      ansible.builtin.pause:
+        seconds: "{{ warning_wait_time }}"
+        prompt: "{{ cuda_repo_warning_msg }}"
+      when: not check_cuda_toolkit_dir.stat.exists
+  rescue:
+    - name: Warning - Please wait, This task will take few seconds
+      ansible.builtin.pause:
+        seconds: "{{ warning_wait_time }}"
+        prompt: "{{ cuda_version_warning_msg }}"

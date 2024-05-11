@@ -13,17 +13,20 @@
 # limitations under the License.
 ---
 
-- name: Enable telemetry on the control plane
-  when: omnia_telemetry_support
+- name: Check if telemetry support is required
+  when: telemetry_entry_present
   block:
-    - name: Update init files for omnia telemetry
-      ansible.builtin.include_tasks: ini_file_update.yml
+    - name: Enable telemetry on the control plane
+      when: omnia_telemetry_support
+      block:
+        - name: Update init files for omnia telemetry
+          ansible.builtin.include_tasks: ini_file_update.yml
 
-    - name: Update configuration files for omnia telemetry
-      ansible.builtin.include_tasks: config_file_update.yml
+        - name: Update configuration files for omnia telemetry
+          ansible.builtin.include_tasks: config_file_update.yml
 
-    - name: Initiate configuration file security implementation
-      ansible.builtin.include_tasks: config_file_security.yml
+        - name: Initiate configuration file security implementation
+          ansible.builtin.include_tasks: config_file_security.yml
 
-    - name: Create schema and table for omnia telemetry
-      ansible.builtin.include_tasks: create_omnia_telemetry_schema.yml
+        - name: Create schema and table for omnia telemetry
+          ansible.builtin.include_tasks: create_omnia_telemetry_schema.yml

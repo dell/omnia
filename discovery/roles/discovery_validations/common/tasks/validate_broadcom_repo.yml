@@ -1,0 +1,111 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Set default roce_config_status
+  ansible.builtin.set_fact:
+    roce_input_status: false
+    roce_config_status: false
+    roce_src_input_status: false
+    roce_src_config_status: false
+    roce_src_package_name: "omnia_default"
+
+- name: Get roce status
+  ansible.builtin.set_fact:
+    roce_input_status: true
+  loop: "{{ user_config.softwares | default([]) }}"
+  when:
+    - "'bcm_roce' in item.name"
+  loop_control:
+    loop_var: item
+
+- name: Get roce_src status only if bcm_roce present roce_status is true
+  ansible.builtin.set_fact:
+    roce_src_input_status: true
+  loop: "{{ user_config.bcm_roce | default([]) }}"
+  when:
+    - roce_input_status
+    - "'bcm_roce_libraries' in item.name"
+  loop_control:
+    loop_var: item
+
+- name: Set roce_config_status
+  when: roce_input_status
+  block:
+    - name: Fetch roce_version
+      ansible.builtin.set_fact:
+        roce_version: "{{ user_config.softwares | selectattr('name', 'equalto', 'bcm_roce') | map(attribute='version') | first }}"
+
+    - name: Check if any files exist with the Broadcom version in the specified path
+      ansible.builtin.find:
+        paths: "{{ repo_store_path }}/cluster/tarball/"
+        patterns: "(?i).*driver.*{{ roce_version }}.*"
+        use_regex: true
+      register: roce_file
+
+    - name: Warning - Please wait, This task will take few seconds
+      ansible.builtin.pause:
+        seconds: "{{ warning_wait_time }}"
+        prompt: "{{ roce_repo_warning_msg }}"
+      when: roce_file.matched == 0
+
+    - name: Set roce_config_status to true
+      ansible.builtin.set_fact:
+        roce_config_status: true
+      when: roce_file.matched > 0
+
+    - name: Set roce_package_name
+      ansible.builtin.set_fact:
+        roce_package_name: "{{ roce_file.files[0].path | basename }}"
+      when: roce_config_status
+  rescue:
+    - name: Warning - Please wait, This task will take few seconds
+      ansible.builtin.pause:
+        seconds: "{{ warning_wait_time }}"
+        prompt: "{{ roce_version_warning_msg }}"
+
+- name: Set roce_src_config_status
+  when: roce_src_input_status
+  block:
+    - name: Fetch roce_src_version
+      ansible.builtin.set_fact:
+        roce_src_version: "{{ user_config.bcm_roce | selectattr('name', 'equalto', 'bcm_roce_libraries') | map(attribute='version') | first }}"
+
+    - name: Check if any files exist with the Broadcom version in the specified path
+      ansible.builtin.find:
+        paths: "{{ repo_store_path }}/cluster/tarball/"
+        patterns: "(?i).*source.*{{ roce_version }}.*"
+        use_regex: true
+      register: roce_src_file
+
+    - name: Warning - Please wait, This task will take few seconds
+      ansible.builtin.pause:
+        seconds: "{{ warning_wait_time }}"
+        prompt: "{{ roce_src_repo_warning_msg }}"
+      when: roce_src_file.matched == 0
+
+    - name: Set roce_config_status to true
+      ansible.builtin.set_fact:
+        roce_src_config_status: true
+      when: roce_src_file.matched > 0
+
+    - name: Set roce_src_package_name
+      ansible.builtin.set_fact:
+        roce_src_package_name: "{{ roce_src_file.files[0].path | basename }}"
+      when: roce_src_config_status
+  rescue:
+    - name: Warning - Please wait, This task will take few seconds
+      ansible.builtin.pause:
+        seconds: "{{ warning_wait_time }}"
+        prompt: "{{ roce_src_version_warning_msg }}"

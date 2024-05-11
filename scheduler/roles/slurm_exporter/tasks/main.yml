@@ -12,9 +12,25 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+- name: Populate service facts
+  ansible.builtin.service_facts:
+
+- name: Set slurm_support variable
+  ansible.builtin.set_fact:
+    slurm_support: false
+
+- name: Load local_repo_access.yml file
+  ansible.builtin.include_vars: "{{ local_repo_access_dest_path }}"
+
+- name: Check if slurmctld is active on the slurm_control_node
+  ansible.builtin.set_fact:
+    slurm_support: true
+  when:
+    - "'slurmctld.service' in ansible_facts.services"
+    - "ansible_facts.services['slurmctld.service'].state == 'running'"
 
 - name: Tasks for slurm_exporter role
-  when: hostvars['127.0.0.1']['slurm_support']
+  when: hostvars['127.0.0.1'] and slurm_support
   block:
     - name: Verify if slurm-exporter is already installed
       ansible.builtin.command: ls /usr/bin/prometheus-slurm-exporter
@@ -38,23 +54,4 @@
     - name: Install prometheus on host
       ansible.builtin.include_tasks: install_prometheus.yml
       when:
-        - not hostvars['127.0.0.1']['k8s_support']
         - "'No such file' in k8s_installation_status.stderr"
-
-    - name: Configure grafana dashboard
-      ansible.builtin.include_tasks: configure_grafana.yml
-      when:
-        - grafana_status
-        - grafana_cred_status
-        - grafana_svc_ip != ""
-        - grafana_svc_port != ""
-
-    - name: Skipping grafana configuration - wait for 10 seconds
-      ansible.builtin.pause:
-        seconds: 10
-        prompt: "{{ grafana_install_msg }}"
-      when: 
-        - not grafana_status or
-          not grafana_cred_status or
-          grafana_svc_ip == "" or
-          grafana_svc_port == ""

@@ -1,0 +1,109 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Deploy Kserve pods
+  block:
+    # Install Kserve
+    - name: Install Kserve
+      ansible.builtin.command: kubectl apply -f {{ manifest_local_path }}/kserve_manifest.yaml
+      register: kserve_install_status
+      changed_when: kserve_install_status.changed
+      failed_when: kserve_install_status.rc != 0
+
+    - name: Wait for kserve to be available
+      ansible.builtin.command: kubectl wait --for=condition=ready pod -l control-plane=kserve-controller-manager -n kserve --timeout=300s
+      register: kserve_available_status
+      changed_when: kserve_available_status.changed
+      failed_when: kserve_available_status.rc != 0
+
+    # Wait for pods under kserve namespace to come up
+    - name: Check if namespace exists "{{ kserve_namespace }}"
+      ansible.builtin.shell: >
+        set -o pipefail && \
+        kubectl get ns "{{ kserve_namespace }}" 2>&1 | wc -l
+      register: kserve_namespace_count
+      changed_when: false
+
+    - name: Fail if namespace is not present "{{ kserve_namespace }}"
+      ansible.builtin.assert:
+        that:
+          - kserve_namespace_count.stdout | int ==2
+        fail_msg: "{{ fail_msg_kserve_ns }}"
+
+    - name: Verify pods under namespace "{{ kserve_namespace }}"
+      block:
+        - name: Wait for kserve pods to be running in namespace {{ kserve_namespace }}
+          ansible.builtin.shell: >
+            set -o pipefail && \
+            kubectl get pods -n '{{ kserve_namespace }}' 2>&1 | grep -v Running | wc -l
+          register: kserve_command_output
+          until: kserve_command_output.stdout | int < 2
+          retries: "{{ max_attempts }}"
+          delay: "{{ wait_time }}"
+          changed_when: false
+          failed_when: false
+
+        - name: Add to non running namespace list
+          ansible.builtin.set_fact:
+            non_running_pods_ns: "{{ non_running_pods_ns + [kserve_namespace] }}"
+          when: kserve_command_output.stdout | int >= 2
+
+    # Install kserve runtime
+    - name: Install kserve-runtime
+      ansible.builtin.command: kubectl apply -f {{ manifest_local_path }}/kserve_runtimes_manifest.yaml
+      register: kserve_runtime_install_status
+      changed_when: kserve_runtime_install_status.changed
+      failed_when: kserve_runtime_install_status.rc != 0
+
+    - name: Wait before applying ClusterStorageContainer configuration
+      ansible.builtin.pause:
+        seconds: "{{ wait_time }}"
+        prompt: "{{ wait_msg_kserve_pods_bringing_up }}"
+
+    - name: Configure ClusterStorageContainer for downloading inference model by storage init container
+      ansible.builtin.command: kubectl apply -f -
+      args:
+        stdin: |
+          apiVersion: serving.kserve.io/v1alpha1
+          kind: ClusterStorageContainer
+          metadata:
+            name: default
+          spec:
+            container:
+              name: storage-initializer
+              image: kserve/storage-initializer:v0.11.2
+              resources:
+                requests:
+                  memory: 100Mi
+                  cpu: 100m
+                limits:
+                  memory: 1Gi
+                  cpu: "1"
+              env:
+                - name: HTTP_PROXY
+                  value: "{{ http_proxy }}"
+                - name: HTTPS_PROXY
+                  value: "{{ https_proxy }}"
+            supportedUriFormats:
+              - prefix: gs://
+              - prefix: s3://
+              - prefix: hdfs://
+              - prefix: webhdfs://
+              - regex: "https://(.+?).blob.core.windows.net/(.+)"
+              - regex: "https://(.+?).file.core.windows.net/(.+)"
+              - regex: "https?://(.+)/(.+)"
+      register: command_result
+      changed_when: command_result.changed
+      failed_when: false

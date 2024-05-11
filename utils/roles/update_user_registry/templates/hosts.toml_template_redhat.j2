@@ -1,0 +1,12 @@
+{% for registry in user_registry|reverse %}
+{% if registry.host in hostlist %}
+
+[host."{{ registry.host }}"]
+capabilities = ["pull", "resolve"]
+{% if registry.cert_path is defined and registry.cert_path != "" %}
+ca = "/opt/omnia/registry/certs.d/{{ registry.host }}/ca.crt"
+{% else %}
+skip_verify = true
+{% endif %}
+{% endif %}
+{% endfor %}

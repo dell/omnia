@@ -1,0 +1,36 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Call the discover ranges python file
+- name: Create files for stanzas
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: touch
+    mode: "{{ file_perm }}"
+  with_items: "{{ stanza_paths }}"
+
+- name: Run bmc discover for static and discovery nodes
+  when: bmc_static_status or bmc_discover_range_status
+  block:
+    - name: Run bmc discover on ranges
+      ansible.builtin.command: |
+        {{ python_version }} {{ bmcdiscover_python }} {{ discover_ranges }} {{ discover_ip_file }}
+        {{ bmc_nic_subnet }} {{ static_ip_file }} {{ network_data.bmc_network.netmask_bits }} {{ network_data.bmc_network.static_range }}
+      changed_when: false
+      register: output_bmc_discover
+  rescue:
+    - name: Bmc discover not done properly
+      ansible.builtin.fail:
+        msg: "{{ output_bmc_discover.stderr }}"

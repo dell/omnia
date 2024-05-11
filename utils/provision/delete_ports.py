@@ -15,7 +15,7 @@
 import sys
 import subprocess
 
-sys.path.append('../../provision/roles/xcat_discovery_provision/files/utils/')
+sys.path.append('../../provision/roles/db_operations/files/')
 import omniadb_connection
 
 switch_ip = sys.argv[1]

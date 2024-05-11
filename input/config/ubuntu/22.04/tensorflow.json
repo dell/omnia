@@ -1,0 +1,45 @@
+{ 
+
+  "tensorflow": { 
+
+    "cluster": []
+
+  },
+  "tensorflow_cpu": {
+    "cluster": [ 
+      { 
+        "package": "docker.io/tensorflow/tensorflow",
+        "tag": "latest",
+        "type": "image"
+      }
+    ]    
+  },
+  "tensorflow_amd": { 
+
+    "cluster": [ 
+      { 
+        "package": "docker.io/rocm/tensorflow",
+        "tag": "latest",
+        "type": "image"
+      }
+    ]
+
+  },
+  "tensorflow_nvidia": { 
+
+    "cluster": [ 	
+      { 
+        "package": "nvcr.io/nvidia/tensorflow",
+        "tag": "23.12-tf2-py3",
+        "type": "image"
+      },
+      {
+        "package": "nvidia-container-toolkit",
+        "type": "deb", 
+        "repo_name": "nvidia-container-toolkit"
+      }	  
+    ]
+
+  }
+
+}

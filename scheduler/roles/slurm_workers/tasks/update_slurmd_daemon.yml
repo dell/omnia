@@ -1,0 +1,31 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Form the required regular expression
+  ansible.builtin.set_fact:
+    slurmd_replace: "ExecStart=/usr/sbin/slurmd -D --conf-server {{ hostvars[groups['slurm_control_node'][0]]['control_node'] }}"
+
+- name: Update slurmd daemon file
+  ansible.builtin.lineinfile:
+    path: "{{ slurmd_path }}"
+    regexp: "{{ slurmd_regex }}"
+    line: "{{ slurmd_replace }}"
+
+- name: Start slurmd on slurm nodes
+  ansible.builtin.systemd:
+    name: slurmd.service
+    state: restarted
+    enabled: true
+  failed_when: false

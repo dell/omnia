@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -17,6 +17,9 @@
   ansible.builtin.include_vars: "{{ role_path }}/../login_common/vars/main.yml"
 
 - name: Configure freeipa server
+  when:
+    - os_leap not in ansible_distribution | lower
+    - hostvars['127.0.0.1']['authentication_system'] == 'freeipa'
   block:
     - name: Update resolv.conf to edit mode
       ansible.builtin.command: chattr -i "{{ resolv_conf_path }}"
@@ -36,7 +39,3 @@
     - name: Update resolv.conf to read mode
       ansible.builtin.command: chattr +i "{{ resolv_conf_path }}"
       changed_when: true
-  when:
-    - os_leap not in ansible_distribution | lower
-    - hostvars['127.0.0.1']['freeipa_required']
-    - not hostvars['127.0.0.1']['ldap_required']

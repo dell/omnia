@@ -1,4 +1,4 @@
-#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,28 +13,30 @@
 #  limitations under the License.
 ---
 
-- name: Initialize variables
-  ansible.builtin.set_fact:
-    xcat_installation_status: false
-
 - name: Invalid inventory format
   ansible.builtin.fail:
     msg: "{{ invalid_inventory_fail_msg }}"
-  when: groups['manager'] is not defined or groups['compute'] is not defined
+  when: groups['slurm_control_node'] is not defined or groups['slurm_node'] is not defined
 
-- name: Gathering service facts
-  ansible.builtin.service_facts:
+- name: Assert cluster_os_type
+  ansible.builtin.assert:
+    that:
+      - cluster_os_type | lower == os_supported_rhel or
+        cluster_os_type | lower == os_supported_rocky
+    success_msg: "{{ cluster_os_type_success_msg }}"
+    fail_msg: "{{ cluster_os_type_fail_msg }}"
 
-- name: Set xcat_installation_status to true
+- name: Set fact for supported_os_version_status
   ansible.builtin.set_fact:
-    xcat_installation_status: true
-  when:
-    - "'xcatd.service' in ansible_facts.services"
-    - "'postgresql.service' in ansible_facts.services"
-    - "'running' in ansible_facts.services['xcatd.service'].state"
-    - "'running' in ansible_facts.services['postgresql.service'].state"
+    supported_os_version_status: false
 
-- name: Fail if xcat is not running
+- name: Set supported_os_version_status to true
+  ansible.builtin.set_fact:
+    supported_os_version_status: true
+  with_items: "{{ supported_rhel_os_version }}"
+  when: cluster_os_version | string in item
+
+- name: Validate cluster_os_version is supported
   ansible.builtin.fail:
-    msg: "{{ xcat_running_fail_msg }}"
-  when: not xcat_installation_status
+    msg: "{{ cluster_os_version_fail_msg }}"
+  when: not supported_os_version_status

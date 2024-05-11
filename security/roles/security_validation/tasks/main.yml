@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -16,6 +16,10 @@
 - name: Initialize variables
   ansible.builtin.set_fact:
     security_validation_status: true
+    authentication_system: ""
+    freeipa_support: false
+    openldap_support: false
+    enable_secure_login_node: false
 
 - name: Include security config file
   ansible.builtin.include_tasks: include_security_config.yml
@@ -23,26 +27,47 @@
 - name: Include security variable file login_node_security_config.yml
   ansible.builtin.include_vars: "{{ login_node_security_config_file }}"
 
+- name: Include local repo access variable file
+  ansible.builtin.include_vars: "{{ local_repo_access_config_file }}"
+
 - name: Set login_node_required status
   ansible.builtin.include_tasks: set_login_node_status.yml
 
-- name: Fetch freeIPA inputs
-  ansible.builtin.include_tasks: validate_input_params.yml
+- name: Fetch software_config.json and check for authentication system
+  ansible.builtin.include_tasks: fetch_software_config.yml
 
-- name: Fetch freeIPA inputs
-  ansible.builtin.include_tasks: fetch_freeipa_inputs.yml
-  when: freeipa_required
+- name: Initiate authentication system installation
+  when: freeipa_support or openldap_support
+  block:
+    - name: Fetch freeIPA inputs
+      ansible.builtin.include_tasks: validate_input_params.yml
 
-- name: Fetch security inputs
-  ansible.builtin.include_tasks: fetch_security_inputs.yml
-  when: enable_secure_login_node
+    - name: Validate inventory format
+      ansible.builtin.include_tasks: validate_inventory.yml
 
-- name: Fetch LDAP client inputs
-  ansible.builtin.include_tasks: fetch_ldap_client_inputs.yml
-  when: ldap_required
+    - name: Fetch freeIPA inputs
+      ansible.builtin.include_tasks: fetch_freeipa_inputs.yml
+      when: authentication_system == 'freeipa'
+
+    - name: Fetch security inputs
+      ansible.builtin.include_tasks: fetch_security_inputs.yml
+      when: enable_secure_login_node
+
+    - name: OpenLDAP Pre-requisites
+      ansible.builtin.include_tasks: ldap_prereq.yml
+      when: authentication_system == 'openldap'
+
+    - name: Fetch LDAP server inputs
+      ansible.builtin.include_tasks: fetch_ldap_server_input.yml
+      when: authentication_system == 'openldap'
+
+    - name: Generate LDAP password hashes
+      ansible.builtin.include_tasks: generate_ldap_password_hashes.yml
+      when: authentication_system == 'openldap'
+
+    - name: Fetch LDAP client inputs
+      ansible.builtin.include_tasks: fetch_ldap_client_inputs.yml
+      when: authentication_system == 'openldap'
 
 - name: Encrypt security_config.yml
   ansible.builtin.include_tasks: encrypt_security_config.yml
-
-- name: Check xcat installation status
-  ansible.builtin.include_tasks: xcat_status_check.yml

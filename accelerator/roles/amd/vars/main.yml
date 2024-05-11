@@ -18,17 +18,8 @@ os_redhat: "redhat"
 os_rocky: "rocky"
 os_centos: "centos"
 os_leap: "leap"
+os_ubuntu: "ubuntu"
 
 # Used: amd_rhel.yml
-rhel_code_ready_repo: codeready-builder-for-rhel-8-x86_64-rpms
-rhel_amd_gpu_base_url: "https://repo.radeon.com/amdgpu/{{ amd_gpu_version }}/rhel/{{ compute_os_version }}/main/x86_64"
-rhel_rocm_base_url: "https://repo.radeon.com/rocm/centos8/{{ amd_rocm_version }}"
-rhel_rocm_gpg: "https://repo.radeon.com/rocm/rocm.gpg.key"
 rocm_packages:
-  - rocm-dkms
-  - rocm-hip-sdk
-  - rocm-opencl-sdk
-
-# Used: validations.yml
-amd_gpu_url_failure_msg: "Please verify whether the amd gpu version is compatible with the RHEL OS provisioned in the cluster"
-rocm_url_failure_msg: "Please verify whether the ROCm version is compatible with the RHEL OS provisioned in the cluster"
+  - "rocm-hip-sdk{{ hostvars['127.0.0.1']['rocm_version'] }}*"

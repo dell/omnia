@@ -1,0 +1,6 @@
+#!/bin/sh
+while true
+do
+ {{ python_version }} "{{ role_path }}/files/duplicate_node_cleanup.py" "{{ db_file_path }}"
+ sleep 1800
+done

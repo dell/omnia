@@ -1,4 +1,4 @@
-#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,40 +13,18 @@
 #  limitations under the License.
 ---
 
-- name: Tasks for k8s_manager role
+- name: Perform k8s manager tasks
   when: hostvars['127.0.0.1']['k8s_support']
   block:
-    - name: Create directory for helm installer file
-      file:
-        path: "{{ helm_installer_file_directory }}"
-        state: directory
-        mode: "{{ helm_installer_file_directory_mode }}"
+    - name: Saving distribution of os
+      ansible.builtin.set_fact:
+        compute_os: "{{ ansible_facts['distribution'] | lower }}"
+  
+    - name: Fetch the nodes where k8s is running
+      ansible.builtin.include_tasks: fetch_k8s_nodes.yml
 
-    - name: Get helm installer
-      get_url:
-        url: "{{ helm_installer_url }}"
-        dest: "{{ helm_installer_file_dest }}"
-        mode: "{{ helm_installer_file_mode }}"
-      register: helm_installer
-      until: helm_installer is not failed
-      retries: 20
-      delay: 10
-      tags: manager
-
-    - name: Install helm
-      block:
-        - name: Install helm
-          ansible.builtin.command: "/bin/bash {{ helm_installer_file_dest }}"
-          changed_when: true
-          register: install_helm
-          until: install_helm is not failed
-          retries: 20
-          tags: manager
-      rescue:
-        - name: Install helm
-          ansible.builtin.shell: "export PATH=/usr/local/bin:$PATH && /bin/bash {{ helm_installer_file_dest }}"
-          changed_when: true
-          register: install_helm
-          until: install_helm is not failed
-          retries: 20
-          tags: manager
+    - name: Disable firewalld
+      ansible.builtin.include_tasks: disable_firewalld.yml
+      when:
+        - os_supported_redhat in compute_os or
+          os_supported_rocky in compute_os

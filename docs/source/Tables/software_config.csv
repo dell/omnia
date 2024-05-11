@@ -4,8 +4,6 @@
 ``string``
 
 Required","* The operating system running on the cluster (``rhel``, ``rocky``, and ``ubuntu``).
-* The file ``input/software_config.json`` is overwritten with the default value (based on the operating system) when ``prereq.sh`` is executed.
-
 **Default value**: ``ubuntu``."
 "**cluster_os_version**
 

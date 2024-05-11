@@ -28,6 +28,7 @@
   ansible.builtin.command: >-
     {{ ansible_vault_path.stdout.split(' ')[1] }} decrypt {{ security_config_file }} --vault-password-file {{ security_vaultname }}
   when: "'$ANSIBLE_VAULT;' in config_content.stdout"
+  changed_when: true
 
 - name: Include variable file security_config.yml
   block:

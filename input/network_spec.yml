@@ -1,0 +1,40 @@
+---
+    Networks:
+    - admin_network:
+        nic_name: "eno1"
+        netmask_bits: "16"
+        static_range: "10.5.0.1-10.5.0.200"
+        dynamic_range: "10.5.1.1-10.5.1.200"
+        correlation_to_admin: true
+        admin_uncorrelated_node_start_ip: "10.5.0.50"
+        network_gateway: ""
+        DNS: ""
+        MTU: "1500"
+
+    - bmc_network:
+        nic_name: ""
+        netmask_bits: ""
+        static_range: ""
+        dynamic_range: ""
+        reassignment_to_static: true
+        discover_ranges: ""
+        network_gateway: ""
+        MTU: "1500"
+
+#**********************************************************************
+# Following are the templates for providing additional network details
+#**********************************************************************
+
+#    - thor_network1:
+#       netmask_bits: "20"
+#       CIDR: "10.10.16.0"
+#       network_gateway: ""
+#       MTU: "1500"
+#       VLAN: ""
+#
+#    - thor_network2:
+#       netmask_bits: "20"
+#       static_range: "10.10.1.1-10.10.15.254"
+#       network_gateway: ""
+#       MTU: "1500"
+#       VLAN: "1"

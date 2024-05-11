@@ -18,7 +18,7 @@ unreachable_manager_fail_msg: "Failed. Unreachable manager node {{ unreachable_m
 Make sure all nodes in inventory is reachable and re-run the playbook."
 unreachable_compute1_fail_msg: "Failed. Unreachable compute node {{ unreachable_compute }}.
 Make sure all nodes in inventory is reachable and re-run the playbook."
-file_mode: 0644
+file_mode: "0644"
 unreachable_compute_path: /opt/omnia/unreachable_compute
 unreachable_compute2_fail_msg: "Failed. Unreachable compute nodes are mentioned in path {{ unreachable_compute_path }}.
 Make sure all nodes in inventory is reachable and re-run the playbook."

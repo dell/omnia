@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,47 +14,47 @@
 ---
 
 - name: Install packages for slurm restd
-  package:
+  ansible.builtin.package:
     name: "{{ slurm_restd_packages }}"
     state: present
   tags: install
   when: os_supported_leap not in compute_os
 
 - name: Install packages for slurm restd on leap
-  package:
+  ansible.builtin.package:
     name: "{{ slurm_restd_packages_leap }}"
     state: present
   tags: install
   when: os_supported_leap in compute_os
 
 - name: Download and untar jansson package
-  unarchive:
+  ansible.builtin.unarchive:
     src: "{{ jansson_src_url }}"
     dest: "{{ jansson_download_dir }}"
-    remote_src: yes
+    remote_src: true
   register: download_jansson
   until: download_jansson is not failed
   retries: "{{ download_retries }}"
 
 - name: Install required C packages
-  zypper:
+  community.general.zypper:
     name: "{{ slurm_gcc_leap }}"
     state: present
     type: pattern
   when: os_supported_leap in compute_os
 
 - name: Execute autoreconf
-  shell:  set -o pipefail && cd "{{ jansson_dir_path }}" && autoreconf -i
+  ansible.builtin.shell: set -o pipefail && cd "{{ jansson_dir_path }}" && autoreconf -i
   changed_when: false
 
 - name: Configure jansson
-  shell:  set -o pipefail && cd "{{ jansson_dir_path }}" && ./configure
+  ansible.builtin.shell: set -o pipefail && cd "{{ jansson_dir_path }}" && ./configure
   changed_when: false
 
 - name: Execute make
-  shell:  set -o pipefail && cd "{{ jansson_dir_path }}" && make
+  ansible.builtin.shell: set -o pipefail && cd "{{ jansson_dir_path }}" && make
   changed_when: false
 
 - name: Execute make install
-  shell:  set -o pipefail && cd "{{ jansson_dir_path }}" && make install
+  ansible.builtin.shell: set -o pipefail && cd "{{ jansson_dir_path }}" && make install
   changed_when: false

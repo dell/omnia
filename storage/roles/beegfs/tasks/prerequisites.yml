@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -27,16 +27,6 @@
       ansible.builtin.fail:
         msg: "{{ fail_msg_beegfs_ofed_path }}"
       when: not beegfs_ofed_path.stat.exists
-
-- name: Fetch SElinux mode
-  ansible.builtin.command: sestatus
-  register: selinux_status
-  changed_when: false
-
-- name: Check SELinux status
-  ansible.builtin.fail:
-    msg: "{{ selinux_fail_msg }}"
-  when: '"SELinux status:                 disabled" not in selinux_status.stdout_lines'
 
 - name: Unmount previous existence of BeeGFS client
   when: beegfs_unmount_client
@@ -71,17 +61,6 @@
     - name: Status of unmounting
       ansible.builtin.fail:
         msg: "{{ beegfs_mount_status_msg }}"
-
-- name: Fetch kernel version
-  ansible.builtin.command: uname -r
-  register: kernel_version
-  changed_when: false
-
-- name: Install kernel-devel package
-  ansible.builtin.command: "yum install kernel-devel-{{ kernel_version.stdout }} -y"
-  args:
-    warn: false
-  changed_when: false
 
 - name: Install common packages for BeeGFS client
   ansible.builtin.package:

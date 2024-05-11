@@ -1,0 +1,17 @@
+[Unit]
+Description=Slurm DBD accounting daemon
+After=network.target munge.service mariadb.service
+ConditionPathExists={{ slurm_nfs_folder }}/etc/slurm/slurmdbd.conf
+
+[Service]
+Type=forking
+EnvironmentFile=-/etc/sysconfig/slurmdbd
+Environment="LD_LIBRARY_PATH={{ slurm_nfs_folder }}/usr/lib64/"
+ExecStart={{ slurm_nfs_folder }}/usr/sbin/slurmdbd $SLURMDBD_OPTIONS
+ExecReload=/bin/kill -HUP $MAINPID
+PIDFile={{ slurm_nfs_folder }}/var/run/slurmdbd.pid
+LimitNOFILE=65536
+
+
+[Install]
+WantedBy=multi-user.target

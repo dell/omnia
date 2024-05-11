@@ -13,17 +13,30 @@
 #  limitations under the License.
 ---
 
-- name: Initiate loki configuration if visualization_support is true
-  when: visualization_support
+- name: Check if telemetry entry is present in software_config.json
+  when: telemetry_entry_present
   block:
-    - name: Build promtail image
-      ansible.builtin.import_tasks: promtail_image.yml
+    - name: Initiate loki configuration if visualization_support is true
+      when: visualization_support
+      block:
+        - name: Include local_repo_config.yml
+          ansible.builtin.include_vars:
+            file: "{{ local_repo_config_path }}"
 
-    - name: Deploy loki pod
-      ansible.builtin.import_tasks: k8s_loki_pod.yml
+        - name: Run prerequisite
+          ansible.builtin.include_tasks: prereq_{{ ansible_distribution | lower }}.yml
 
-    - name: Deploy loki service
-      ansible.builtin.import_tasks: loki_service.yml
+        - name: Enable buildkit
+          ansible.builtin.include_tasks: enable_buildkit.yml
 
-    - name: Configure loki in grafana
-      ansible.builtin.import_tasks: configure_loki_grafana.yml
+        - name: Build promtail image
+          ansible.builtin.import_tasks: promtail_image.yml
+
+        - name: Deploy loki pod
+          ansible.builtin.import_tasks: k8s_loki_pod.yml
+
+        - name: Deploy loki service
+          ansible.builtin.import_tasks: loki_service.yml
+
+        - name: Configure loki in grafana
+          ansible.builtin.import_tasks: configure_loki_grafana.yml
