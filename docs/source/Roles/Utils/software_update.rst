@@ -5,7 +5,7 @@ To install multiple packages on target nodes in a bulk operation, the ``software
 
 **Prerequisites**
 
-    * All target nodes should be running RHEL, Rocky, or Ubuntu OS.
+    * All target nodes should be running RHEL, Rocky Linux, or Ubuntu OS.
     * Download the packages using ``local_repo.yml``. For more information, `click here <../../LocalRepo/index.html>`_.
     * Verify that the cluster nodes are in the ``booted`` state. For more information, `click here <../InstallingProvisionTool/ViewingDB.html>`_.
 

@@ -30,7 +30,7 @@ Before you run the provision tool
 
 * To provision the bare metal servers, download one of the following ISOs to the control plane:
 
-    1. `Rocky 8 <https://rockylinux.org/>`_
+    1. `Rocky Linux 8 <https://rockylinux.org/>`_
 
     2. `RHEL 8.x <https://www.redhat.com/en/enterprise-linux-8>`_
 

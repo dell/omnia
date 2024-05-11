@@ -1,51 +1,5 @@
 Releases
-============
-
-1.6
-----
-
-*	Feature support on Ubuntu 22.04 OS:
-
-            *	`Local repository and registry creation for packages and container images. <../InstallationGuides/LocalRepo/index.html>`_
-
-            *	`Cluster provision with Ubuntu 22.04 OS. <../InstallationGuides/InstallingProvisionTool/index.html>`_
-
-            *	`AMD GPU driver and ROCm installation. <../Roles/Accelerator/index.html>`_
-
-            *	`IP configuration on the additional NICs: IPv4 support <../InstallationGuides/InstallingProvisionTool/AdditionalNIC.html>`_
-
-            *	`Kubernetes installation. <../InstallationGuides/BuildingClusters/index.html>`_
-
-            *	`NFS client/server configuration. <../InstallationGuides/BuildingClusters/NFS.html>`_
-
-            *	`OpenLDAP support with documented support for replication. <../Roles/Security/index.html>`_
-
-            *	AI Software Stack support including the installation of the following tools:
-
-                    *	`Jupyter notebook <../Roles/Platform/InstallJupyterhub.html>`_
-
-                    *    `Kubeflow <../Roles/Platform/kubeflow.html>`_
-
-                    *    `Pytorch <../Roles/Platform/Pytorch.html>`_
-
-                    *    `Tensorflow <../Roles/Platform/TensorFlow.html>`_
-
-                    *    `vLLM (MI210x support) <../Roles/Platform/SetupvLLM.html>`_
-
-
-*   Feature support on `RHEL 8.8 OS: <SupportMatrix/OperatingSystems/RedHat.html>`_
-
-            *   `Slurm installation in configless mode <../InstallationGuides/BuildingClusters/schedulerinputparams.html>`_
-
-            *   `Slurm installation in NFS mode <../InstallationGuides/BuildingClusters/schedulerinputparams.html>`_
-
-*	Additional Features
-
-            *	`OFED Installation <../InstallationGuides/LocalRepo/index.html>`_
-
-            *	`CUDA Driver installation <../Roles/Accelerator/index.html>`_
-
-            *	`Add <../InstallationGuides/addinganewnode.html>`_ / `remove <../InstallationGuides/deletenode.html>`_ nodes to the cluster.
+========
 
 1.5.1
 -----
@@ -152,7 +106,7 @@ Releases
 
 * Omnia clusters can be configured with password-less SSH for seamless execution of HPC jobs run by non-root users.
 
-* Accelerator drivers can be installed on Rocky target nodes in addition to RHEL.
+* Accelerator drivers can be installed on Rocky Linux target nodes in addition to RHEL.
 
 
 1.4
@@ -199,7 +153,7 @@ Releases
 
 * BeeGFS bolt-on support.
 
-* Lua and Lmod installation on manager and compute nodes running RedHat 8.x, Rocky 8.x and Leap 15.3.
+* Lua and Lmod installation on manager and compute nodes running RedHat 8.x, Rocky Linux 8.x and Leap 15.3.
 
 * Automated setup of FreeIPA client on all nodes.
 
@@ -229,12 +183,12 @@ Releases
 
 * Bugfix patch release which address the broken cobbler container issue.
 
-* Rocky 8.6 Support
+* Rocky Linux 8.6 Support
 
 1.2
 ------
 
-* Omnia supports Rocky 8.5 full OS on the Control Plane
+* Omnia supports Rocky Linux 8.5 full OS on the Control Plane
 
 * Omnia supports ansible version 2.12 (ansible-core) with python 3.6 support
 
@@ -244,7 +198,7 @@ Releases
 
 * cluster  node provisioning can be done via PXE and iDRAC
 
-* Omnia supports multiple operating systems on the cluster including support for Rocky 8.5 and OpenSUSE Leap 15.3
+* Omnia supports multiple operating systems on the cluster including support for Rocky Linux 8.5 and OpenSUSE Leap 15.3
 
 * Omnia can deploy cluster  nodes with a single NIC.
 
@@ -254,7 +208,7 @@ Releases
 
 * Omnia adheres to most of the requirements of NIST 800-53 and NIST 800-171 guidelines on the control plane and login node.
 
-* Omnia has extended the FreeIPA feature to provide authentication and authorization on Rocky Nodes.
+* Omnia has extended the FreeIPA feature to provide authentication and authorization on Rocky Linux Nodes.
 
 * Omnia uses [389ds}(https://directory.fedoraproject.org/) to provide authentication and authorization on Leap Nodes.
 

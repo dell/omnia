@@ -379,7 +379,7 @@ At any given time only one type of disk group can be created on the system. That
 
 2. Open all ports required by BeeGFS: 8008, 8003, 8004, 8005 and 8006
 
-3. Check the `support matrix for RHEL or Rocky <../Overview/SupportMatrix/OperatingSystems/index.html>`_ to verify your set-up.
+3. Check the `support matrix for RHEL or Rocky Linux <../Overview/SupportMatrix/OperatingSystems/index.html>`_ to verify your set-up.
 
 4. For further insight into the issue, check out ``/var/log/beegfs-client.log`` on nodes where the BeeGFS client is running.
 

@@ -331,7 +331,7 @@ Data security
 
 Omnia does not store data. The passwords Omnia accepts as input to configure the third party tools are validated and then encrypted using Ansible Vault. Run the following commands routinely on the control plane for the latest security updates.
 
-* For RHEL/Rocky OS
+* For RHEL/Rocky Linux OS
 
     ::
 

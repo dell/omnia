@@ -52,7 +52,7 @@ For information on deploying BeeGFS after setting up the cluster, `click here. <
                 }
             }
 
-    For RHEL or Rocky: ::
+    For RHEL or Rocky Linux: ::
 
             {
               "cuda": {
@@ -73,7 +73,7 @@ For information on deploying BeeGFS after setting up the cluster, `click here. <
 
     .. note::
     * If the package version is customized, ensure that the ``version`` value is updated in ``software_config.json```.
-    * If the target cluster runs on RHEL or Rocky, ensure the "dkms" package is included in ``input/config/<operating systen>/8.x/cuda.json`` as illustrated above.
+    * If the target cluster runs on RHEL or Rocky Linux, ensure the "dkms" package is included in ``input/config/<operating systen>/8.x/cuda.json`` as illustrated above.
 
 **Custom repositories**
 
@@ -208,7 +208,7 @@ For information on deploying kubeflow after setting up the cluster, `click here.
             }
 
 
-    For RHEL or Rocky: ::
+    For RHEL or Rocky Linux: ::
 
             {
               "ofed": {
