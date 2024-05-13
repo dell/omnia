@@ -146,7 +146,7 @@ Our thanks go to everyone who makes Omnia possible ([emoji key](https://allcontr
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Yash-shetty1"><img src="https://avatars.githubusercontent.com/u/169258785?v=4" width="100px;" alt="Yash-shetty1"/><br/><sub><b>Yash-shetty1</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=Yash-shetty1" title="Tests">⚠️</a></td>
     </tr>
     <tr>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/nethramg"><img src="https://avatars.githubusercontent.com/u/146437298?v=4" width="100px;" alt="nethramg"/><br /><sub><b>Nethravathi M G</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=nethramg" title="Code">💻</a><a href="#projectManagement-nethramg" title="Project Management">📆</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/nethramg"><img src="https://avatars.githubusercontent.com/u/146437298?v=4" width="100px;" alt="nethramg"/><br /><sub><b>Nethravathi M G</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=nethramg" title="Code">💻</a> <a href="#projectManagement-nethramg" title="Project Management">📆</a></td>
     </tr>
   </tbody>
 </table>
