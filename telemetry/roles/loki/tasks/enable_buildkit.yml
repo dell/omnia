@@ -19,7 +19,7 @@
   register: images_output
   until: images_output is success
   retries: "{{ image_retries }}"
-  delay: "{{ delay }}"
+  delay: "{{ delay_loki }}"
   changed_when: false
 
 - name: Execute make images
@@ -29,7 +29,7 @@
   register: install_output
   until: install_output is success
   retries: "{{ image_retries }}"
-  delay: "{{ delay }}"
+  delay: "{{ delay_loki }}"
   changed_when: false
 
 - name: Get container ID for buildkitd
