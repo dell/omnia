@@ -25,6 +25,12 @@ Current Status: ![GitHub](https://readthedocs.org/projects/omnia-doc/badge/?vers
 
 Omnia is made available under the [Apache 2.0 license](https://opensource.org/licenses/Apache-2.0)
 
+## Contributing To Omnia
+
+We encourage everyone to help us improve Omnia by contributing to the project. Contributions can be as small as documentation updates or adding example use cases, to adding commenting and properly styling code segments all the way up to full feature contributions. We ask that contributors follow our established [guidelines](https://omnia-doc.readthedocs.io/en/latest/Contributing/index.html) for contributing to the project.
+
+Contributions to Omnia are made through Pull Requests (PRs) to "[devel](https://github.com/dell/omnia/tree/devel)" branch. "[devel](https://github.com/dell/omnia/tree/devel)" is the bleeding edge branch of Omnia packed with experimental and untested features".
+
 ## Omnia Community Members:
 <img src="docs/source/images/logos/delltech.jpg" height="50px" alt="Dell Technologies">
 <img src="https://upload.wikimedia.org/wikipedia/commons/0/0e/Intel_logo_%282020%2C_light_blue%29.svg" height="50px" alt="Intel Corporation"> 
@@ -116,7 +122,10 @@ Our thanks go to everyone who makes Omnia possible ([emoji key](https://allcontr
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Subhankar-Adak"><img src="https://avatars.githubusercontent.com/u/140381176?v=4?s=100" width="100px;" alt="Subhankar-Adak"/><br /><sub><b>Subhankar-Adak</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=Subhankar-Adak" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/priti-parate"><img src="https://avatars.githubusercontent.com/u/140157516?v=4?s=100" width="100px;" alt="priti-parate"/><br /><sub><b>priti-parate</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=priti-parate" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/lavanya5899"><img src="https://avatars.githubusercontent.com/u/140372459?v=4?s=100" width="100px;" alt="Lavanya Adhikari"/><br /><sub><b>Lavanya Adhikari</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=lavanya5899" title="Code">💻</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/preeti-thankachan"><img src="https://avatars.githubusercontent.com/u/141405483?v=4?s=100" width="100px;" alt="preeti-thankachan"/><br /><sub><b>preeti-thankachan</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=preeti-thankachan" title="Tests">⚠️</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/preeti-thankachan"><img src="https://avatars.githubusercontent.com/u/141405483?v=4?s=100" width="100px;" alt="Preeti Thankachan"/><br /><sub><b>preeti-thankachan</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=preeti-thankachan" title="Tests">⚠️</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/glimchb"><img src="https://avatars.githubusercontent.com/u/36732377?v=4?s=100" width="100px;" alt="Boris Glimcher"/><br /><sub><b>Boris Glimcher</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=glimchb" title="Code">💻</a> <a href="#maintenance-glimchb" title="Maintenance">🚧</a><a href="https://github.com/dell/omnia/commits?author=glimchb" title="Documentation">📖</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/MoshiBin"><img src="https://avatars.githubusercontent.com/u/1297388?v=4?s=100" width="100px;" alt="Moshi Binyamini"/><br /><sub>
+<b>Moshi Binyamini</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=MoshiBin" title="Code">💻</a><a href="#maintenance-MoshiBin" title="Maintenance">🚧</a></td>
     </tr>
   </tbody>
 </table>
