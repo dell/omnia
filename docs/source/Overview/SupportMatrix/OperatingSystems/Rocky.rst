@@ -1,7 +1,7 @@
 Rocky Linux
 =============
 
-.. caution:: **THE Rocky Linux LINUX OS VERSION ON THE CLUSTER WILL BE UPGRADED TO THE LATEST 8.x VERSION AVAILABLE IRRESPECTIVE OF THE PROVISION_OS_VERSION PROVIDED IN PROVISION_CONFIG.YML.**
+.. caution:: **THE ROCKY LINUX OS VERSION ON THE CLUSTER WILL BE UPGRADED TO THE LATEST 8.x VERSION AVAILABLE IRRESPECTIVE OF THE PROVISION_OS_VERSION PROVIDED IN PROVISION_CONFIG.YML.**
 
 +------------+---------------+---------------+
 | OS Version | Control Plane | Cluster Nodes |
@@ -17,7 +17,7 @@ Rocky Linux
 
 .. note::
     * Always deploy the DVD (Full) Edition of the OS on cluster  nodes.
-    * AMD ROCm driver installation is not supported by Omnia on Rocky Linux cluster  nodes.
+    * AMD ROCm driver installation is not supported by Omnia on Rocky Linux cluster nodes.
 
 
 
