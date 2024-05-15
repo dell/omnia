@@ -5,5 +5,5 @@ Operating Systems
 
 .. toctree::
     RedHat
-    Rocky Linux
+    Rocky
     Ubuntu
