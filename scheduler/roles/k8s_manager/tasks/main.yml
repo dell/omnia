@@ -19,7 +19,7 @@
     - name: Saving distribution of os
       ansible.builtin.set_fact:
         compute_os: "{{ ansible_facts['distribution'] | lower }}"
-  
+
     - name: Fetch the nodes where k8s is running
       ansible.builtin.include_tasks: fetch_k8s_nodes.yml
 

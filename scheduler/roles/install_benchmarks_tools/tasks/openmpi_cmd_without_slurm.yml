@@ -33,7 +33,7 @@
 - name: Prepare for Openmpi compilation on 'Ubuntu' Linux
   when: ansible_distribution | lower == ubuntu_os
   block:
-    - name: Prepare for compilation of openmpi with ucx and without slurm 
+    - name: Prepare for compilation of openmpi with ucx and without slurm
       ansible.builtin.set_fact:
         openmpi_compile_cmd: "../configure --prefix={{ omnia_share_path }}/{{ benchmarks_dir_openmpi }} --enable-mpi1-compatibility
         --enable-orterun-prefix-by-default --with-ucx={{ omnia_share_path }}/{{ benchmarks_dir_ucx }}
@@ -41,7 +41,7 @@
       when:
         - ucx_installed
 
-    - name: Prepare for Openmpi compilation without slurm and ucx 
+    - name: Prepare for Openmpi compilation without slurm and ucx
       ansible.builtin.set_fact:
         openmpi_compile_cmd: "../configure --prefix={{ omnia_share_path }}/{{ benchmarks_dir_openmpi }} --enable-mpi1-compatibility
         --enable-orterun-prefix-by-default CC=gcc CXX=gcc++ 2>&1 | tee config.out "

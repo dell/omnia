@@ -53,6 +53,6 @@
   loop_control:
     loop_var: item
 
-- name: Set fact for share path 
+- name: Set fact for share path
   ansible.builtin.set_fact:
     share_exists: false

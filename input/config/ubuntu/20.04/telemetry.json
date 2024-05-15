@@ -17,17 +17,17 @@
         "repo_name": "docker-ce-repo"
       },
       {
-        "package": "docker-ce-cli=5:20.10.20~3-0~ubuntu-jammy",
+        "package": "docker-ce-cli=5:20.10.20~3-0~ubuntu-focal",
         "type": "deb",
         "repo_name": "docker-ce-repo"
       },
       {
-        "package": "docker-ce=5:20.10.20~3-0~ubuntu-jammy",
+        "package": "docker-ce=5:20.10.20~3-0~ubuntu-focal",
         "type": "deb",
         "repo_name": "docker-ce-repo"
       },
       {
-        "package": "docker-ce-rootless-extras=5:20.10.20~3-0~ubuntu-jammy",
+        "package": "docker-ce-rootless-extras=5:20.10.20~3-0~ubuntu-focal",
         "type": "deb",
         "repo_name": "docker-ce-repo"
       },
