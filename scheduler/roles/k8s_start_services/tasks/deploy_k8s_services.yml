@@ -54,6 +54,16 @@
   changed_when: true
 
 # NVIDIA PLUGIN
+- name: Copy nvidia_runtime_class.yml file
+  ansible.builtin.copy:
+    src: "{{ nvidia_runtime_source }}"
+    dest: "{{ nvidia_runtime_dest }}"
+    mode: "{{ file_mode }}"
+
+- name: Create RuntimeClass for nvidia-plugin
+  ansible.builtin.command: "kubectl apply -f {{ nvidia_runtime_dest }}"
+  changed_when: true
+
 - name: Install nvidia-device-plugin
   ansible.builtin.command: >
     helm install --namespace nvidia-device-plugin --create-namespace
