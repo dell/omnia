@@ -26,7 +26,7 @@ def process_deb_package(package, repo_store_path, status_file_path, cluster_os_t
     skip_repos = ['focal','jammy']
 
     omnia_always = ['amdgpu', 'cuda', 'ofed']
-    
+
     # Construct the path based on the provided repository store format
     if cluster_name == 'beegfs':
         deb_directory = os.path.join(repo_store_path, 'cluster', 'apt', 'beegfs',
@@ -87,6 +87,13 @@ def process_deb_package(package, repo_store_path, status_file_path, cluster_os_t
                     # Update user defined apt cache
                     subprocess.run(['apt-get', 'update', '-c', user_apt_conf_path], check=True)
                     subprocess.run(['apt-cache', 'show', package_name, '-c', user_apt_conf_path], check=True)
+                    split_package_name = package_name.split('=')[0]
+                    # Check if the package is installed
+                    result = subprocess.run(['dpkg', '-l', split_package_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                    if result.stdout.strip():
+                        # Package is installed, raise CalledProcessError to trigger download
+                        print(f"Package {package_name} is installed. Triggering download.")
+                        raise subprocess.CalledProcessError(returncode=0, cmd=f'dpkg -l {package_name}', output=result.stdout)
                     print(f"Package {package_name} is available in user repos. No need to download.")
                     status = "Skipped"
                 except subprocess.CalledProcessError:
