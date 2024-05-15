@@ -101,7 +101,7 @@ To reset a kubernetes cluster, use ``ansible-playbook reset_cluster_configuratio
 
 .. warning:: If you do not specify the tags ``slurm_cluster`` or ``k8s_cluster``, the ``reset_cluster_configuration.yml`` will reset the configuration for both Slurm and Kubernetes clusters.
 
-To skip confirmation while running the playbook, use ``ansible-playbook reset_cluster_configuration.yml -i inventory --extra-vars skip_confirmation=yes`` or ``ansible-playbook remove_node_configuration.yml -i inventory -e  skip_confirmation=yes``.
+To skip confirmation while running the playbook, use ``ansible-playbook reset_cluster_configuration.yml -i inventory --extra-vars skip_confirmation=yes`` or ``ansible-playbook reset_cluster_configuration.yml -i inventory -e  skip_confirmation=yes``.
 
 The inventory file passed for ``reset_cluster_configuration.yml`` should follow the below format. ::
 
@@ -170,7 +170,7 @@ Run the playbook using the following commands: ::
         cd utils
         ansible-playbook delete_node.yml -i inventory
 
-To skip confirmation while running the playbook, use ``ansible-playbook delete_node.yml -i inventory --extra-vars skip_confirmation=yes`` or ``ansible-playbook remove_node_configuration.yml -i inventory -e  skip_confirmation=yes``.
+To skip confirmation while running the playbook, use ``ansible-playbook delete_node.yml -i inventory --extra-vars skip_confirmation=yes`` or ``ansible-playbook delete_node.yml -i inventory -e  skip_confirmation=yes``.
 
 The inventory file passed for ``delete_node.yml`` should follow the below format. ::
 
