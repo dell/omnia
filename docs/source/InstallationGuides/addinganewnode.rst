@@ -63,7 +63,6 @@ Verify that the node has been provisioned successfully by `checking the Omnia no
     10.5.0.101
 
     [etcd]
-
     10.5.0.110
 
 
@@ -85,7 +84,6 @@ Verify that the node has been provisioned successfully by `checking the Omnia no
     10.5.0.101
 
     [etcd]
-
     10.5.0.110
 
 
