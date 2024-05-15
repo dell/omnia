@@ -5,6 +5,8 @@ Before you run the provision tool
 
 * All target bare-metal servers should be reachable to the chosen control plane.
 
+* The UEFI boot setting should be configured in the BIOS settings before initiating PXE boot on the nodes.
+
 * Set the IP address of the control plane. The control plane NIC connected to remote servers (through the switch) should be configured with two IPs (BMC IP and admin IP) in a shared LOM or hybrid set up. In the case dedicated network topology, a single IP (admin IP) is required.
 
 .. figure:: ../../images/ControlPlaneNic.png
@@ -28,7 +30,7 @@ Before you run the provision tool
 
 * To provision the bare metal servers, download one of the following ISOs to the control plane:
 
-    1. `Rocky 8 <https://rockylinux.org/>`_
+    1. `Rocky Linux 8 <https://rockylinux.org/>`_
 
     2. `RHEL 8.x <https://www.redhat.com/en/enterprise-linux-8>`_
 

@@ -1,26 +1,29 @@
 Setup Kserve
 --------------
 
-Kserve is an open-source serving platform that simplifies the deployment, scaling, and management of machine learning models in production environments, ensuring efficient and reliable inference capabilities. For more information, `click here. <https://kserve.github.io/website/0.11/get_started/>`_ Omnia deploys KServe (v0.11.0) on the kubernetes cluster. Once KServe is deployed, any inference service can be installed on the kubernetes cluster.
+Kserve is an open-source serving platform that simplifies the deployment, scaling, and management of machine learning models in production environments, ensuring efficient and reliable inference capabilities. For more information, `click here. <https://kserve.github.io/website/0.11/get_started/>`_ Omnia deploys Kserve (v0.11.2) on the kubernetes cluster. Once Kserve is deployed, any inference service can be installed on the kubernetes cluster.
 
+.. note:: Omnia 1.6 does not support deploying both Kserve and Kubeflow in the same Kubernetes cluster. If Kubeflow is already deployed on the cluster and you wish to deploy Kserve, you must first remove Kubeflow by following the steps `here <kubeflow.html>`_.
 
 **Prerequisites**
 
     * Ensure nerdctl and containerd is available on all cluster nodes.
 
-    * The cluster is deployed with Kubernetes.
+    * Ensure that Kubernetes is deployed and all pods are running on the cluster.
+
+    * It is advisable not to deploy Kserve immediately after deploying Kubernetes. Dell suggests allowing a 10-minute gap after Kubernetes installation for Kubernetes pods to stabilize.
 
     * MetalLB pod is up and running to provide an external IP to ``istio-ingressgateway``.
 
-    * The domain name on the kubernetes cluster should be **cluster.local**. The KServe inference service will not work with a custom ``cluster_name`` property on the kubernetes cluster.
+    * The domain name on the kubernetes cluster should be cluster.local. The Kserve inference service will not work with a custom ``cluster_name`` property on the kubernetes cluster.
 
-    * A local Kserve repository should be created using ``local_repo.yml``. For more information, `click here. <../../InstallationGuides/LocalRepo/kserve.html>`_
+    * Run ``local_repo.yml`` with ``kserve`` entry in ``software_config.json``.
 
-    * Ensure the passed inventory file includes a ``kube_control_plane`` and a ``kube_node`` listing all cluster nodes. `Click here <../../samplefiles.html>`_ for a sample file.
+    * Ensure the passed inventory file includes ``kube_control_plane`` and ``kube_node`` groups. `Click here <../../samplefiles.html>`_ for a sample file.
 
-    * To access NVIDIA or AMD GPU acceleration in inferencing, Kubernetes NVIDIA or AMD GPU device plugins need to be installed during Kubernetes deployment. ``kserve.yml`` does not deploy GPU device plugins.
+    * To access NVIDIA or AMD GPU accelerators for inferencing, Kubernetes NVIDIA or AMD GPU device plugin pods should be in running state. Kserve deployment does not deploy GPU device plugins.
 
-**Deploy KServe**
+**Deploy Kserve**
 
     1. Change directories to ``tools``. ::
 
@@ -30,7 +33,7 @@ Kserve is an open-source serving platform that simplifies the deployment, scalin
 
         ansible-playbook kserve.yml -i inventory
 
-    Post deployment, the following dependencies are installed:
+    Post deployment, the following dependencies are installed along with Kserve:
 
         * Istio (version: 1.17.0)
         * Certificate manager (version: 1.13.0)
@@ -60,21 +63,41 @@ Kserve is an open-source serving platform that simplifies the deployment, scalin
 **Prerequisites**
 
     * To deploy a model joblib file with PVC as model storage, `click here <https://kserve.github.io/website/0.11/modelserving/storage/pvc/pvc/>`_
-    * Verify that the inference service is up and running using the command: ``kubectl get isvc -A``.::
+    * As part of Kserve deployment, Omnia deploys ``ClusterStorageContainer`` for supporting inference model download from the following endpoints:
 
-            root@sparknode1:/tmp# kubectl get isvc -A
-            NAMESPACE     NAME           URL                                      READY   PREV   LATEST   PREVROLLEDOUTREVISION   LATESTREADYREVISION           AGE
-            default       sklearn-pvc    http://sklearn-pvc.default.example.com   True           100                              sklearn-pvc-predictor-00001   9m18s
-
+            * prefix: gs://
+            * prefix: s3://
+            * prefix: hdfs://
+            * prefix: webhdfs://
+            * regex: https://(.+?).blob.core.windows.net/(.+)
+            * regex: https://(.+?).file.core.windows.net/(.+)
+            * regex: "https?://(.+)/(.+)"
 
     * Pull the intended inference model and the corresponding runtime-specific images into the nodes.
-    * As part of the deployment, Omnia deploys `standard model runtimes. <https://github.com/kserve/kserve/releases/download/v0.11.0/kserve-runtimes.yaml>`_ If a custom model is deployed, deploy a custom runtime first.
-    * To avoid problems with image to digest mapping when pulling inference runtime images, `click here. <../../Troubleshooting/KnownIssues.html>`_
+    * As part of the deployment, Omnia deploys `standard model runtimes. <https://github.com/kserve/kserve/releases/download/v0.11.2/kserve-runtimes.yaml>`_ To deploy a custom model, you might need to deploy required model runtime first.
+    * To avoid problems with image to digest mapping when pulling inference runtime images, make the following config map changes:
 
+
+        1. Edit ``knative-serving`` config map by executing the following command: ::
+
+            kubectl edit configmap -n knative-serving config-deployment
+
+        2. Add ``docker.io`` and ``index.docker.io`` as part of ``registries-skipping-tag-resolving``
+
+            .. image:: ../../images/kserve_config_map.png
+
+    For more information, `click here. <../../Troubleshooting/knownissues.html>`_
 
 **Access the inference service**
 
-1. Use ``kubectl get svc -A`` to check the external IP of the service ``istio-ingressgateway``. ::
+1. Deploy the inference service and verify that the service is up and running using the command: ``kubectl get isvc -A``. ::
+
+    root@sparknode1:/tmp# kubectl get isvc -A
+    NAMESPACE     NAME           URL                                      READY   PREV   LATEST   PREVROLLEDOUTREVISION   LATESTREADYREVISION           AGE
+    default       sklearn-pvc    http://sklearn-pvc.default.example.com   True           100                              sklearn-pvc-predictor-00001   9m18s
+
+
+2. Use ``kubectl get svc -A`` to check the external IP of the service ``istio-ingressgateway``. ::
 
     root@sparknode1:/tmp# kubectl get svc -n istio-system
     NAME                    TYPE           CLUSTER-IP      EXTERNAL-IP   PORT(S)                                      AGE
@@ -82,7 +105,7 @@ Kserve is an open-source serving platform that simplifies the deployment, scalin
     istiod                  ClusterIP      10.233.18.185   <none>        15010/TCP,15012/TCP,443/TCP,15014/TCP        44h
     knative-local-gateway   ClusterIP      10.233.37.248   <none>        80/TCP                                       44h
 
-2. To access inferencing from the ingressgateway with HOST header, run the below command from the kube_control_plane or kube_node: ::
+3. To access inferencing from the ingressgateway with HOST header, run the below command from the kube_control_plane or kube_node: ::
 
         curl -v -H "Host: <service url>" -H "Content-Type: application/json" "http://<istio-ingress external IP>:<istio-ingress port>/v1/models/<model name>:predict" -d @./iris-input.json
 
@@ -109,8 +132,22 @@ For example: ::
         * Connection #0 to host 10.20.0.101 left intact
         {"predictions":[1,1]}
 
+.. note:: Refer to `image pull <../../Roles/Utils/pullimagestonodes.html>`_ in case of ImagePullBackOff issue while deploying inference service.
 
+**Remove Kserve**
 
+    1. Delete all artifacts from the namespace, by entering the following commands:
 
+        * ``kubectl delete all --all --namespace kserve``
+        * ``kubectl delete all --all --namespace knative-serving``
+        * ``kubectl delete all --all --namespace istio-system``
+        * ``kubectl delete all --all --namespace cert-manager``
 
+    2. Delete the namespace, by entering the following commands:
 
+        * ``kubectl delete ns kserve``
+        * ``kubectl delete ns knative-serving``
+        * ``kubectl delete ns istio-system``
+        * ``kubectl delete ns cert-manager``
+
+.. warning:: Please be careful about any other required deployments sharing the above namespace. Deleting artifacts using ``--all`` will delete all artifacts in the namespace.

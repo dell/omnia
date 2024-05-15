@@ -104,26 +104,6 @@ Re-run the playbook whose execution failed once the issue is resolved.
    * Refresh the key using ``ssh-keygen -R <hostname/server IP>``.
    * Retry login.
 
-⦾ **Why does the 'Fail if LDAP home directory exists' task fail during user_passwordless_ssh.yml?**
-
-.. image:: ../images/nfssharecheckfail.png
-
-**Potential Cause**: The required NFS share is not set up on the control plane.
-
-**Resolution**:
-
-If ``enable_omnia_nfs`` is true in ``input/omnia_config.yml``, follow the below steps to configure an NFS share on your LDAP server:
-
-    - From the kube_control_plane:
-
-        1. Add the LDAP server IP address to ``/etc/exports``.
-        2. Run ``exportfs -ra`` to enable the NFS configuration.
-
-    - From the LDAP server:
-
-        1. Add the required fstab entries in ``/etc/fstab`` (The corresponding entry will be available on the compute nodes in ``/etc/fstab``)
-        2. Mount the NFS share using ``mount manager_ip: /home/omnia-share /home/omnia-share``
-
 ⦾ **Why does the 'Import SCP from a local path' task fail during idrac.yml?**
 
 .. image:: ../images/ImportSCPiDRAC_fail.png
@@ -239,3 +219,17 @@ From Omnia 1.2.1, provisioning a server using BOSS controller is supported.
 
 While Omnia playbooks are licensed by Apache 2.0, Omnia deploys multiple softwares that are licensed separately by their respective developer communities. For a comprehensive list of software and their licenses, `click here <../Overview/SupportMatrix/omniainstalledsoftware.html>`_ .
 
+⦾ **Why does the task: TASK [hostname_validation : Verify the domain name is not blank in hostname] fail with an error message?**
+
+.. image::
+
+**Potential Cause**: Hostname is not configured properly with the domain name, on the target node.
+
+**Resolution**: Use the following commands to configure the hostname properly: ::
+
+
+        sysctl kernel.hostname=node001.omnia.test
+        hostnamectl set-hostname node001.omnia.test
+
+
+.. note:: ``node001.omnia.test`` is a sample hostname.

@@ -5,7 +5,7 @@ The provision tool is installed using an Ansible playbook. This playbook achieve
 
     * Discovers potential cluster nodes.
 
-    * Installs Rocky, Ubuntu, or RHEL on the discovered nodes.
+    * Installs Rocky Linux, Ubuntu, or RHEL on the discovered nodes.
 
 .. toctree::
 
@@ -15,4 +15,5 @@ The provision tool is installed using an Ansible playbook. This playbook achieve
     installprovisiontool
     ViewingDB
     AdditionalNIC
+    IPruleassignment
 

@@ -9,34 +9,90 @@ Input parameters for Local Repositories
    :keepspace:
    :class: longtable
 
-Below is a sample version of the file: ::
+Sample version of the file:
+
+* For Ubuntu:
+
+    ::
 
         {
             "cluster_os_type": "ubuntu",
             "cluster_os_version": "22.04",
             "repo_config": "partial",
             "softwares": [
-                {"name": "k8s", "version":"1.26.12"},
-                {"name": "jupyter"},
-                {"name": "openldap"},
-                {"name": "kubeflow"},
-                {"name": "beegfs", "version": "7.4.2"},
-                {"name": "nfs"},
-                {"name": "kserve"},
                 {"name": "amdgpu", "version": "6.0"},
                 {"name": "cuda", "version": "12.3.2"},
                 {"name": "ofed", "version": "24.01-0.3.3.1"},
-                {"name": "vllm"},
+                {"name": "openldap"},
+                {"name": "secure_login_node"},
+                {"name": "nfs"},
+                {"name": "beegfs", "version": "7.4.2"},
+                {"name": "k8s", "version":"1.26.12"},
+                {"name": "jupyter"},
+                {"name": "kubeflow"},
+                {"name": "kserve"},
                 {"name": "pytorch"},
                 {"name": "tensorflow"},
-                {"name": "bcm_roce", "version": "229.2.9.0"}
+                {"name": "vllm"},
+                {"name": "telemetry"},
+                {"name": "ucx", "version": "1.15.0"},
+                {"name": "openmpi", "version": "4.1.6"}
             ],
 
-            "kserve": [
-                {"name": "istio"},
-                {"name": "cert_manager"},
-                {"name": "knative"}
+            "amdgpu": [
+                {"name": "rocm", "version": "6.0" }
             ],
+            "vllm": [
+                {"name": "vllm_amd"},
+                {"name": "vllm_nvidia"}
+            ],
+            "pytorch": [
+                {"name": "pytorch_cpu"},
+                {"name": "pytorch_amd"},
+                {"name": "pytorch_nvidia"}
+            ],
+            "tensorflow": [
+                {"name": "tensorflow_cpu"},
+                {"name": "tensorflow_amd"},
+                {"name": "tensorflow_nvidia"}
+            ]
+        }
+
+* For RHEL/Rocky Linux OS:
+
+.. note:: For Rocky Linux OS, the "cluster_os_type" in the below sample will be "Rocky Linux".
+
+::
+
+        {
+            "cluster_os_type": "rhel",
+            "cluster_os_version": "8.8",
+            "repo_config": "partial",
+            "softwares": [
+                {"name": "amdgpu", "version": "6.0"},
+                {"name": "cuda", "version": "12.3.2"},
+                {"name": "ofed", "version": "24.01-0.3.3.1"},
+                {"name": "freeipa"},
+                {"name": "openldap"},
+                {"name": "secure_login_node"},
+                {"name": "nfs"},
+                {"name": "beegfs", "version": "7.4.2"},
+                {"name": "slurm"},
+                {"name": "k8s", "version":"1.26.12"},
+                {"name": "jupyter"},
+                {"name": "kubeflow"},
+                {"name": "kserve"},
+                {"name": "pytorch"},
+                {"name": "tensorflow"},
+                {"name": "vllm"},
+                {"name": "telemetry"},
+                {"name": "intel_benchmarks", "version": "2024.1.0"},
+                {"name": "amd_benchmarks"},
+                {"name": "utils"},
+                {"name": "ucx", "version": "1.15.0"},
+                {"name": "openmpi", "version": "4.1.6"}
+            ],
+
             "amdgpu": [
                 {"name": "rocm", "version": "6.0" }
             ],
@@ -56,6 +112,7 @@ Below is a sample version of the file: ::
             ]
 
         }
+
 
 For a list of accepted values in ``softwares``, go to ``input/config/<operating_system>/<operating_system_version>`` and view the list of JSON files available. The filenames present in this location (without the * .json extension) are a list of accepted software names. The repositories to be downloaded for each software are listed the corresponding JSON file. For example: For a cluster running Ubuntu 22.04, go to ``input/config/ubuntu/22.04/`` and view the file list:
 

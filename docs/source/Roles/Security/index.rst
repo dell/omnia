@@ -41,6 +41,8 @@ Create a new user on OpenLDAP
     * sn: The surname of the intended user.
     * cn: The given name of the intended user.
 
+.. note:: Omnia only supports ``/home`` as the ``homeDirectory``.
+
 Below is a sample file: ::
 
     # User Creation
@@ -149,7 +151,7 @@ To customize your installation of FreeIPA, enter the following parameters in ``i
 +-------------------------+-----------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Input Parameter         | Definition                                                      | Variable value                                                                                                                                        |
 +=========================+=================================================================+=======================================================================================================================================================+
-| kerberos_admin_password | "admin" user password for the IPA server on RockyOS and RedHat. | The password can be found in the file ``input/security_config.yml`` .                                                                                 |
+| kerberos_admin_password | "admin" user password for the IPA server on Rocky LinuxOS and RedHat. | The password can be found in the file ``input/security_config.yml`` .                                                                                 |
 +-------------------------+-----------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------+
 | ipa_server_hostname     | The hostname of the IPA server                                  | The hostname can be found on the manager node.                                                                                                        |
 +-------------------------+-----------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------+

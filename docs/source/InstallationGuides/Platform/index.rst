@@ -7,7 +7,7 @@ AI (Artificial Intelligence) tools are software applications or systems that use
 .. toctree::
     InstallJupyterhub
     kubeflow
-    SetupvLLM
+    vLLM/index
     Pytorch
     TensorFlow
     kserve

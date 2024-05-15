@@ -778,6 +778,16 @@
       "contributions": [
         "test"
       ]
+    },
+    {
+      "login": "nethramg",
+      "name": "Nethravathi M G",
+      "avatar_url": "https://avatars.githubusercontent.com/u/146437298?v=4",
+      "profile": "https://github.com/nethramg",
+      "contributions": [
+        "code",
+        "projectManagement"
+      ]
     }
   ],
   "contributorsPerLine": 7,

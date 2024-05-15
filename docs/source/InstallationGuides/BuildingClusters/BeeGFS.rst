@@ -46,7 +46,7 @@ To open the ports required, use the following steps:
 
 .. note:: BeeGFS services over RDMA is only supported on RHEL 8.3 and above due to limitations on BeeGFS. When setting up your cluster with RDMA support, check the BeeGFS documentation to provide appropriate values in ``input/storage_config.yml``.
 
-* If the cluster runs Rocky, ensure that versions running are compatible by checking our `support matrix <../../Overview/SupportMatrix/OperatingSystems/Rocky.html>`_.
+* If the cluster runs Rocky Linux, ensure that versions running are compatible by checking our `support matrix <../../Overview/SupportMatrix/OperatingSystems/Rocky Linux.html>`_.
 
 **Installing the BeeGFS client via Omnia**
 
@@ -73,4 +73,3 @@ If ``omnia.yml`` is not leveraged to set up BeeGFS, run the ``storage.yml`` play
     ansible-playbook storage.yml -i inventory
 
 
-.. note:: Once BeeGFS is successfully set up, set ``enable_omnia_nfs`` (``input/omnia_config.yml``) to false and  ``omnia_usrhome_share`` (``input/omnia_config.yml``) to an accessible share path in BeeGFS to use the path across the cluster for deployments.

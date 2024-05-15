@@ -5,9 +5,9 @@ Choose a server outside your intended cluster to function as your control plane.
 
 The control plane needs to be internet-capable with Github and a full OS installed.
 
-.. note:: Omnia can be run on control planes running RHEL, Rocky, and Ubuntu. For a complete list of versions supported, check out the `Support Matrix <../Overview/SupportMatrix/OperatingSystems/index.html>`_ .
+.. note:: Omnia can be run on control planes running RHEL, Rocky Linux, and Ubuntu. For a complete list of versions supported, check out the `Support Matrix <../Overview/SupportMatrix/OperatingSystems/index.html>`_ .
 
-For RHEL and Rocky installations:
+For RHEL and Rocky Linux installations:
 
 ::
 
@@ -20,7 +20,7 @@ For Ubuntu installations:
     apt install git -y
 
 
-.. note:: Optionally, if the control plane  has an Infiniband NIC installed on RHEL or Rocky, run the below command:
+.. note:: Optionally, if the control plane  has an Infiniband NIC installed on RHEL or Rocky Linux, run the below command:
 
     ``yum groupinstall "Infiniband Support" -y``
 
@@ -50,6 +50,7 @@ Run the script ``prereq.sh`` to verify the system is ready for Omnia deployment.
     ConfiguringSwitches/index
     ConfiguringStorage/index
     Benchmarks/index
+    pullimagestonodes
     deletenode
     CleanUpScript
 

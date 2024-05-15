@@ -1,25 +1,62 @@
 New Features
 ===========
 
-*	WACO support with Ubuntu 22.04 OS:
-    *	Local repository and registry creation for packages and container images.
-    *	Cluster provision with Ubuntu 22.04 OS.
-    *	AMD GPU driver and ROCm installation.
-    *	Broadcom RoCE driver installation.
-    *	IP configuration on the additional NICs: IPv4 support
-    *	Kubernetes installation.
-    *	NFS client/server configuration.
-    *	OpenLDAP support with documented support for replication.
-    *	AI Software Stack support including the installation of the following tools:
-        *	Jupyter notebook
-        *	Kubeflow
-        *	Kserve
-        *	Pytorch
-        *	Tensorflow
-        *	vLLM (MI210x support)
+* Enablement for AI
 
-*	Additional Features
-    *	RHEL 8.8 support
-    *	OFED Installation
-    *	CUDA Driver installation
-    *	Add/remove nodes to the cluster.
+    * Ubuntu 22.04.3 LTS with GA kernel and HWE kernel support
+
+    * Ubuntu 20.04.6 LTS
+
+    * Install AMD ROCm SDK on host OS
+
+    * Install Vanilla Kubernetes stack v1.26
+
+    * Install GPU device plugin for Kubernetes
+
+        - GPU device plugin for AMD
+        - GPU device plugin for Nvidia
+
+    * Submit Kubernetes jobs as a non-admin user
+
+    * Install Kubeflow
+
+    * Install vLLM Inference platform
+
+    * Install Kserve Inference platform
+
+    * Install Jupyter Notebook
+
+    * Install PyTorch
+
+    * Install TensorFlow
+
+* Additional Features
+
+    * Offline package repo and image registry creation for Ubuntu and RHEL/Rocky Linux
+
+    * Classless IP Addressing
+
+        * Additional NIC configuration
+        * IP rule assignment
+
+    * LDAP client and server configuration
+
+    * One-off Utility to add or remove a node
+
+    * HPC/AI cluster inventory partitioning
+
+        - CPU inventory
+        - AMD GPU inventory
+        - Nvidia GPU inventory
+
+    * Smoother Omnia upgrades on the control plane
+
+    * Slurm in configless or NFS in RHEL/Rocky Linux
+
+    * OpenMPI and UCX installation in share partition
+
+
+
+
+
+

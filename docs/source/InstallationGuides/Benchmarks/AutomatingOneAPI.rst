@@ -7,11 +7,11 @@ This topic explains how to automatically update servers for MPI jobs.
 
 **Pre-requisites**
 
+* A local repository has been set up by listing ``{"name": "intel_benchmarks", "version": "2024.1.0"},`` in ``input/software_config.json`` and running ``local_repo.yml``. For more information, `click here. <../LocalRepo/index.html>`_
 * ``discovery_provision.yml`` has been executed.
+* Verify that the target nodes are in the ``booted`` state. For more information, `click here <../InstallingProvisionTool/ViewingDB.html>`_.
 * The cluster has been set up with kubernetes.
 * An Omnia **slurm** cluster has been set up by ``omnia.yml`` running with at least 2 nodes: 1 slurm_control_node and 1 slurm_node.
-* A local repository has been set up by listing ``{"name": "intel_benchmarks"},`` in ``input/software_config.json`` and running ``local_repo.yml``. For more information, `click here. <../LocalRepo/index.html>`_
-* Verify that the target nodes are in the ``booted`` state. For more information, `click here <../InstallingProvisionTool/ViewingDB.html>`_.
 
 **To run the playbook**::
 

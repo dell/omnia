@@ -1,6 +1,6 @@
 How to replicate LDAP
 ----------------------
-Once Omnia has set up an LDAP server for the cluster, external LDAP servers can be replicated onto the cluster LDAP server using the following steps.
+Once Omnia has set up an OpenLDAP server for the cluster, external LDAP servers can be replicated onto the cluster OpenLDAP server using the following steps.
 
 **[Optional]Create a replication user**
 
@@ -11,6 +11,8 @@ Once Omnia has set up an LDAP server for the cluster, external LDAP servers can 
     * UID: The username of the replication user.
     * Description: A user-defined string describing the account.
     * UserPassword: The SHA encrypted value of the intended user password. This can be obtained using ``slappasswd``
+
+.. note:: In case of external LDAP server replication, ensure that the ``homeDirectory`` is always set to ``/home``.
 
 Below is a sample file: ::
 

@@ -40,9 +40,15 @@
       when: ansible_vault_search_key in omnia_config_content.stdout
       changed_when: false
 
-    - name: Fetch omnia_config.yml
-      ansible.builtin.set_fact:
-        fetch_var: "{{ lookup('file', old_input_location + '/' + omnia_config_file_name) | from_yaml }}"
+    - name: Fetch v1.5 omnia_config.yml
+      block:
+        - name: Fetch v1.5 omnia_config.yml
+          ansible.builtin.set_fact:
+            fetch_var: "{{ lookup('file', old_input_location + '/' + omnia_config_file_name) | from_yaml }}"
+      rescue:
+        - name: Failed to fetch v1.5 omnia_config.yml
+          ansible.builtin.fail:
+            msg: "{{ omnia_config_syntax_fail_msg }}"
 
     - name: Encrypt config files
       ansible.builtin.command: >-
@@ -94,7 +100,3 @@
     state: absent
   changed_when: false
   when: "'compute' in group_names"
-
-# - name: Reboot the host
-#  ansible.builtin.command: reboot
-#  changed_when: false

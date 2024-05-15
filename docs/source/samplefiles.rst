@@ -26,7 +26,7 @@ inventory file
 
 
 
-        #General Cluster Storage
+        #General Cluster authentication server
 
         [auth_server]
 
@@ -54,8 +54,19 @@ inventory file
 
         10.5.1.106
 
-.. note:: The auth_server is common to both slurm and kubernetes clusters.
+.. note::
 
+            * For Slurm, all the applicable inventory groups are ``slurm_control_node``, ``slurm_node``, and ``login``.
+            * For Kubernetes, all the applicable groups are ``kube_control_plane``, ``kube_node``, and ``etcd``.
+            * The centralized authentication server inventory group, that is ``auth_server``, is common for both Slurm and Kubernetes.
+
+inventory file to delete node from the cluster
+-------------------------------------------------
+
+::
+
+    [nodes]
+    10.5.0.33
 
 pxe_mapping_file.csv
 ------------------------------------
@@ -96,5 +107,13 @@ NFS Server inventory file
     #node10
 
 
+Inventory for iDRAC telemetry
+------------------------------
 
+::
+
+    [idrac]
+    10.10.0.1
+
+.. note:: Only iDRAC/BMC IP's should be provided.
 

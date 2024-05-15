@@ -15,6 +15,7 @@ Configuring the cluster
     schedulerinputparams
     schedulerprereqs
     installscheduler
+    install_kubernetes
     Authentication
     KubernetesAccess
     BeeGFS
