@@ -109,17 +109,11 @@ After executing ``scheduler.yml`` or ``omnia.yml``, there are some manual steps 
 
                 systemctl restart containerd
 
-        7. Execute the following command based on the OS type:
+        7. Execute the following command:
+            ::
 
-            - For RHEL
-                ::
+                 /etc/yum.repos.d/nvidia-container-toolkit.repo
 
-                    /etc/yum.repos.d/nvidia-container-toolkit.repo
-
-            - For Rocky Linux
-                ::
-
-                    rm -rf /etc/apt/sources.list.d/nvidia-container-toolkit.list
 
         **Steps for Ubuntu**
 
@@ -152,3 +146,8 @@ After executing ``scheduler.yml`` or ``omnia.yml``, there are some manual steps 
             ::
 
                 systemctl restart containerd
+
+        8.  Execute the following command:
+            ::
+
+                rm -rf /etc/apt/sources.list.d/nvidia-container-toolkit.list
