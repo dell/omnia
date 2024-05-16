@@ -41,7 +41,9 @@ Sample inventory: ::
 
 **Obtain External IP of Ingress Gateway**
 
-Once Kubeflow is deployed, you need to obtain the external IP address of the ingress gateway. Check the external IP address of the ingress gateway using command-line tools like ``kubectl``. This IP address will be used to access the Kubeflow dashboard.
+Once Kubeflow is deployed, you need to obtain the external IP address of the ingress gateway. Check the external IP address of the ingress gateway using command-line tools like ``kubectl``. This IP address will be used to access the Kubeflow dashboard. Run the following command:
+::
+    kubectl get svc -A
 
 **Accessing the Kubeflow Dashboard**
 
