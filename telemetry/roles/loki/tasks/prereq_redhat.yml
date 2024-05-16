@@ -14,11 +14,18 @@
 ---
 - name: Add Docker CE repository for RHEL
   ansible.builtin.command: yum-config-manager --add-repo "{{ docker_repo }}"
+  changed_when: false
 
 - name: Install Docker packages
   ansible.builtin.package:
-    name: "{{ docker_packages }}"
+    name: "{{ docker_packages_redhat }}"
     state: present
 
 - name: Start Docker Service
-  ansible.builtin.command: systemctl restart docker
+  ansible.builtin.systemd:
+    name: docker
+    state: restarted
+  register: docker_result
+  until: docker_result is succeeded
+  retries: "{{ package_retry }}"
+  delay: "{{ delay_loki }}"

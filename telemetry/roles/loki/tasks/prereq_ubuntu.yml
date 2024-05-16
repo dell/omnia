@@ -12,6 +12,10 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+- name: Initialize epoch version
+  ansible.builtin.set_fact:
+    epoch_version: ""
+
 - name: Install certificate package
   ansible.builtin.package:
     name: "{{ cert_packages }}"
@@ -21,22 +25,53 @@
   ansible.builtin.file:
     path: "{{ keyringsfile }}"
     state: directory
+    mode: "{{ dir_mode }}"
+
+- name: Set fact for OS release
+  ansible.builtin.set_fact:
+    os_release: "{{ ansible_distribution_release }}"
+
+- name: Clean apt cache
+  ansible.builtin.apt:
+    autoclean: true
+
+- name: Configure Omnia Repositories
+  ansible.builtin.template:
+    src: "{{ docker_repo_temp }}"
+    dest: "{{ sources_list_dest }}/docker.list"
     mode: "{{ file_mode }}"
 
 - name: Download Docker GPG key
-  ansible.builtin.command: curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-
-- name: Add Docker repository to Apt sources
-  ansible.builtin.shell: 'echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null'
+  ansible.builtin.get_url:
+    url: "{{ docker_gpg_url }}"
+    dest: "{{ gpg_path }}"
+    mode: "{{ file_mode }}"
+  changed_when: false
 
 - name: Update apt cache
   ansible.builtin.apt:
     update_cache: true
 
-- name: Install Docker packages
-  ansible.builtin.package:
-    name: "{{ docker_packages }}"
-    state: present
+- name: Get epoch number of docker-ce/docker-ce-cli
+  ansible.builtin.shell: "apt-cache show docker-ce | grep 'Version: 5:24.0.4' | awk '{print $2}'"
+  register: epoch_output
+  changed_when: false
+
+- name: Set fact for epoch version
+  ansible.builtin.set_fact:
+    epoch_version: "{{ epoch_output.stdout }}"
+
+- name: Installing packages for docker
+  ansible.builtin.command:
+    cmd: "apt install -y --allow-downgrades {{ item }}"
+  loop: "{{ docker_packages_ubuntu }}"
+  changed_when: false
 
 - name: Start Docker Service
-  ansible.builtin.command: systemctl restart docker
+  ansible.builtin.systemd:
+    name: docker
+    state: restarted
+  register: docker_result
+  until: docker_result is succeeded
+  retries: "{{ package_retry }}"
+  delay: "{{ delay_loki }}"
