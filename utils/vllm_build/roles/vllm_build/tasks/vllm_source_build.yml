@@ -31,4 +31,8 @@
   environment:
     BUILDKIT_HOST: "nerdctl-container://buildkitd"
   ansible.builtin.command: nerdctl build -f "{{ vllm_dir }}/Dockerfile.rocm" -t vllm-rocm:latest "{{ vllm_dir }}"
+  register: container_result
+  until: container_result is succeeded
+  retries: "{{ package_retry }}"
+  delay: "{{ buildkit_delay }}"
   changed_when: false
