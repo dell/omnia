@@ -32,7 +32,7 @@ New Features
 
 * Additional Features
 
-    * Offline package repo and image registry creation for Ubuntu and RHEL/Rocky Linux
+    * Offline package repo and image registry creation
 
     * Classless IP Addressing
 

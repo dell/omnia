@@ -5,14 +5,14 @@ Network Topology: Dedicated Setup
 
 Depending on internet access for host nodes, there are two ways to achieve a dedicated NIC setup:
 
-.. image:: ../../images/omnia_network_Dedicated.png
+.. image:: ../../images/omnia_network_Dedicated.jpg
 
 
 1. Dedicated Setup with dedicated public NIC on compute nodes
 
 
 
-When all compute nodes have their own public network access, ``primary_dns`` and ``secondary_dns`` in ``provision_config.yml`` become optional variables as the control plane is not required to be a gateway to the network. The network design would follow the below diagram:
+When all compute nodes have their own public network access, ``primary_dns`` and ``secondary_dns`` in ``provision_config.yml`` become optional variables as the control plane is not required to be a gateway to the network.
 
 
 
