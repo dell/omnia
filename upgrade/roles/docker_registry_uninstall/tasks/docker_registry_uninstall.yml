@@ -25,6 +25,7 @@
     path: "{{ item }}"
     state: absent
   with_items: "{{ docker_registry_file }}"
+  failed_when: false
 
 - name: Stop docker service
   ansible.builtin.service:
@@ -36,6 +37,7 @@
 - name: Reload systemd
   ansible.builtin.systemd:
     daemon_reload: true
+  failed_when: false
 
 - name: Remove docker packages
   ansible.builtin.command: dnf remove {{ docker_packages }} -y
@@ -47,3 +49,34 @@
     path: "{{ item }}"
     state: absent
   with_items: "{{ docker_del_files }}"
+  failed_when: false
+
+- name: Get list of interfaces under Docker zone
+  ansible.builtin.command: "firewall-cmd --zone=docker --list-interfaces"
+  register: docker_interfaces
+  changed_when: false
+  failed_when: false
+
+- name: Remove IP addresses assigned to Docker interfaces
+  ansible.builtin.command:
+    cmd: "set -o pipefail && ip -4 addr show {{ item }} | awk '/inet / {print $2}'"
+  with_items: "{{ docker_interfaces.stdout_lines }}"
+  register: docker_ip_addresses
+  changed_when: false
+  failed_when: false
+
+- name: Remove IP addresses if assigned
+  ansible.builtin.command:
+    cmd: "sudo ip addr del {{ item.stdout }} dev {{ item.item }}"
+  with_items: "{{ docker_ip_addresses.results }}"
+  when:
+    - item.stdout is defined
+    - item.stdout != ""
+  changed_when: false
+  failed_when: false
+
+- name: Delete docker interfaces
+  ansible.builtin.command: sudo ip link delete "{{ item }}"
+  loop: "{{ docker_interfaces.stdout_lines }}"
+  changed_when: false
+  failed_when: false
