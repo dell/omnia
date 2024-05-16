@@ -18,7 +18,7 @@ Install Kubernetes
 * The inventory file must contain:
 
     1. Exactly 1 ``kube_control_plane``.
-    2. Atleast 1 ``kube_node``.
+    2. At least 1 ``kube_node``.
     3. Odd number of etcd nodes.
 
 **To install Kubernetes**
