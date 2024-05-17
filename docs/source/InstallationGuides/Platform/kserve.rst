@@ -7,8 +7,6 @@ Kserve is an open-source serving platform that simplifies the deployment, scalin
 
 **Prerequisites**
 
-    * Ensure nerdctl and containerd is available on all cluster nodes.
-
     * Ensure that Kubernetes is deployed and all pods are running on the cluster.
 
     * It is advisable not to deploy Kserve immediately after deploying Kubernetes. Dell suggests allowing a 10-minute gap after Kubernetes installation for Kubernetes pods to stabilize.
