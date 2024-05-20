@@ -1,4 +1,4 @@
-#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -12,20 +12,12 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-- name: Add Docker CE repository for RHEL
-  ansible.builtin.command: yum-config-manager --add-repo "{{ docker_repo }}"
-  changed_when: false
 
-- name: Install Docker packages
-  ansible.builtin.package:
-    name: "{{ docker_packages_redhat }}"
-    state: present
+- name: Validate input parameters in kernel_param_update_config.yml
+  ansible.builtin.include_tasks: validate_input.yml
 
-- name: Start Docker Service
-  ansible.builtin.systemd:
-    name: docker
-    state: restarted
-  register: docker_result
-  until: docker_result is succeeded
-  retries: "{{ package_retry }}"
-  delay: "{{ buildkit_delay }}"
+- name: Adding kernel parameters for OS
+  ansible.builtin.include_tasks: "kcmdline_update_{{ ansible_distribution | lower }}.yml"
+
+- name: Reboot the nodes
+  ansible.builtin.include_tasks: reboot_nodes.yml
