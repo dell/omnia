@@ -133,4 +133,4 @@ Our thanks go to everyone who makes Omnia possible ([emoji key](https://allcontr
 <!-- markdownlint-restore -->
 <!-- prettier-ignore-end -->
 
-<!-- ALL-CONTRIBUTORS-LIST:END -->
+<!-- ALL-CONTRIBUTORS-LIST:END --> 
