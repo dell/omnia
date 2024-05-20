@@ -68,7 +68,7 @@ jobs:
         # Must follow the example syntax.
         override-deps: |
           ansible==6.7.0
-          ansible-lint==6.19.0
+          ansible-lint==6.13.1
         # [optional]
         # Arguments to be passed to the ansible-lint
 
