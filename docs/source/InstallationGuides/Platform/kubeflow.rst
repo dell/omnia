@@ -84,3 +84,7 @@ For more details, refer to Kubeflow manifest documentation link `here. <https://
                 /opt/omnia/kustomize/kustomize build example | kubectl delete -f -
 
         The second command does not utilize a loop and can be used as well, but the user needs to ensure that all resources are deleted. Re-run the command until all resources are deleted.
+
+    .. note:: If any pods are found under the namespace ``kubeflow-user-example-com``, delete the namespace with the following command:
+        ::
+            kubectl delete namespace kubeflow-user-example-com

@@ -27,11 +27,11 @@ Run either of the following commands:
 
     1. ::
 
-            ansible-playbook scheduler.yml -i inventory
+            ansible-playbook omnia.yml -i inventory
 
     2. ::
 
-            ansible-playbook omnia.yml -i inventory
+            ansible-playbook scheduler.yml -i inventory
 
 .. note:: To add new nodes in an existing cluster, click `here. <../addinganewnode.html>`_
 
