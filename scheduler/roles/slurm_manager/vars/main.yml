@@ -128,3 +128,4 @@ os_supported_leap: "leap"
 os_supported_redhat: "redhat"
 os_supported_rocky: "rocky"
 max_retries: 10
+dnf_conf_path: /etc/dnf/dnf.conf

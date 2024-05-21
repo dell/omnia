@@ -99,3 +99,4 @@ lmod_packages:
    - gnu-compilers-hpc
 grafana_conf_path: "/opt/omnia/.data/grafana_svc_details.ini"
 min_length_grafana: 5
+dnf_conf_path: /etc/dnf/dnf.conf
