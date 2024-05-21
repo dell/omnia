@@ -21,6 +21,10 @@
   ansible.builtin.include_tasks: amd_rhel.yml
   when: os_redhat in compute_os
 
+- name: Install AMD GPU drivers and software components for Rocky
+  ansible.builtin.include_tasks: amd_rocky.yml
+  when: os_rocky in compute_os
+
 - name: Install AMD GPU drivers and software components for Ubuntu
   ansible.builtin.include_tasks: amd_ubuntu.yml
   when: os_ubuntu in compute_os
