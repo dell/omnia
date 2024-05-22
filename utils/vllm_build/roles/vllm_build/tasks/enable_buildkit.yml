@@ -13,10 +13,11 @@
 #  limitations under the License.
 ---
 
-- name: Create buildkit directory 
+- name: Create buildkit directory
   ansible.builtin.file:
     path: "{{ buildkit_dir }}"
     state: directory
+    mode: "{{ dir_mode }}"
 
 - name: Clone buildkit repo
   ansible.builtin.git:
