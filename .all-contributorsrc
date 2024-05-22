@@ -385,7 +385,8 @@
       "contributions": [
         "test",
         "code",
-        "talk"
+        "talk",
+        "bug"
       ]
     },
     {
@@ -537,7 +538,8 @@
       "profile": "https://github.com/shridhar-sharma",
       "contributions": [
         "test",
-        "code"
+        "code",
+        "bug"
       ]
     },
     {
@@ -620,7 +622,8 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/141405483?v=4",
       "profile": "https://github.com/preeti-thankachan",
       "contributions": [
-        "test"
+        "test",
+        "bug"
       ]
     },
     {
@@ -749,7 +752,8 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/169248535?v=4",
       "profile": "https://github.com/balajikumaran-c-s",
       "contributions": [
-        "test"
+        "test",
+        "bug"
       ]
     },
     {
@@ -758,7 +762,8 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/140503786?v=4",
       "profile": "https://github.com/Amogha-Reddy",
       "contributions": [
-        "test"
+        "test",
+        "bug"
       ]
     },
     {
@@ -767,7 +772,8 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/162142649?v=4",
       "profile": "https://github.com/krsandeepit",
       "contributions": [
-        "test"
+        "test",
+        "bug"
       ]
     },
     {
@@ -776,7 +782,8 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/169258785?v=4",
       "profile": "https://github.com/Yash-shetty1",
       "contributions": [
-        "test"
+        "test",
+        "bug"
       ]
     },
     {
@@ -787,6 +794,15 @@
       "contributions": [
         "code",
         "projectManagement"
+      ]
+    },
+    {
+      "login": "AbdulRijwan",
+      "name": "Abdul Rijwan",
+      "avatar_url": "https://avatars.githubusercontent.com/u/170396052?v=4",
+      "profile": "https://github.com/AbdulRijwan",
+      "contributions": [
+        "infra"
       ]
     }
   ],
