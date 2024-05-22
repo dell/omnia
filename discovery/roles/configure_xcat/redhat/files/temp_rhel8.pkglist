@@ -8,3 +8,4 @@ util-linux
 tar
 bzip2
 perl-interpreter
+pciutils
