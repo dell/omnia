@@ -89,8 +89,6 @@ The default namespace is for deployment is ``vLLM``.
 
 3. To enable an endpoint, `click here <https://docs.vllm.ai/en/latest/getting_started/quickstart.html>`_.
 
-.. rubric:: Footnotes
-
 .. [1] This playbook is supported on Ubuntu 22.04 and RHEL 8.8.
 
 .. toctree::
