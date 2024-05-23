@@ -7,9 +7,13 @@ The upgrade feature in v1.6 helps customers to upgrade their Omnia setup from v1
 
     1. Ensure to choose a server outside your intended cluster to function as your control plane.
 
-    2. The control plane must have internet connectivity, GitHub installed, and run a full version of the operating system.
+    2. The control plane must have internet connectivity and run a full version of the operating system.
 
-    3. Clone the Omnia v1.6 github repository on to the control plane using the following command: ::
+    3. If GitHub is not installed on the control plane, install GitHub using the following command: ::
+
+           dnf install git -y
+
+    4. Clone the Omnia v1.6 github repository on to the control plane using the following command: ::
 
            git clone https://github.com/dell/omnia.git
 
@@ -20,3 +24,15 @@ Once the cloning process is done, follow the steps listed below to invoke the up
     prepare_config
     prepare_upgrade
     upgrade
+
+.. note::
+
+    * Upgrade flow tries best to map v1.5.1 input configurations to v1.6, but the user must review the same before running ``prepare_upgrade.yml``.
+    * Upgrade flow upgrades the existing Omnia v1.5.1 cluster and should not be combined with provisioning of new nodes for Omnia v1.6.
+    * Addition of new nodes can be performed after Omnia upgrade by providing suitable parameters in v1.6 input configurations files such as ``provision_config.yml``.
+    * Upgrade flow resets the existing kubernetes setup on the cluster and updates other relevant software as well. Hence, ensure there are no active jobs running on the cluster when the upgrade is planned.
+    * Omnia v1.6 upgrade feature disables the NFS server on the head node and configures it on the control plane. The NFS share directory mentioned in omnia_usrhome_share, provided in v1.5.1 omnia_config.yml, is unmounted from the cluster and deleted from the manager/head node while executing the prepare_upgrade.yml playbook. Hence, ensure the cluster does not have any Kubernetes jobs or any other active jobs running when the upgrade is planned.
+    * As part of upgrade, existing v1.5.1 features are migrated. The new Omnia v1.6 functionalities can be restricted depending on the way Omnia v1.5.1 was setup. For example:
+
+        - In Omnia v1.5.1 OpenLDAP client configuration was supported. If you had configured OpenLDAP client to external enterprise LDAP server in Omnia v1.5.1, then this configuration will not be restored during upgrade. In Omnia v1.6, Omnia installs OpenLDAP server and the user needs to reconfigure the OpenLDAP server to integrate it with an external LDAP server.
+        - The slurm setup in Omnia v1.5.1 cluster is upgraded to configless slurm in v1.6.
