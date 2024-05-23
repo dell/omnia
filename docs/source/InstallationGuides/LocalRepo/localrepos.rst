@@ -36,7 +36,7 @@ For information on deploying BeeGFS after setting up the cluster, `click here. <
             {"name": "cuda", "version": "12.3.2"},
 
 
-    For a list of repositories (and their types) configured for CUDA, view the ``input/config/<operating_system>/<operating_system_version>/cuda.json`` file. To customize your CUDA installation, update the file. URLs for different versions can be found `here <https://developer.nvidia.com/cuda-downloads>`_:
+    For a list of repositories (and their types) configured for CUDA, view the ``input/config/<cluster_os_type>/<cluster_os_version>/cuda.json`` file. To customize your CUDA installation, update the file. URLs for different versions can be found `here <https://developer.nvidia.com/cuda-downloads>`_:
 
     For Ubuntu: ::
 
@@ -73,7 +73,7 @@ For information on deploying BeeGFS after setting up the cluster, `click here. <
 
     .. note::
     * If the package version is customized, ensure that the ``version`` value is updated in ``software_config.json```.
-    * If the target cluster runs on RHEL or Rocky Linux, ensure the "dkms" package is included in ``input/config/<operating systen>/8.x/cuda.json`` as illustrated above.
+    * If the target cluster runs on RHEL or Rocky Linux, ensure the "dkms" package is included in ``input/config/<cluster_os_type>/8.x/cuda.json`` as illustrated above.
 
 **Custom repositories**
 
@@ -81,7 +81,7 @@ For information on deploying BeeGFS after setting up the cluster, `click here. <
 
                 {"name": "custom"},
 
-    Create a ``custom.json`` file in the following directory: ``input/config/<operating_system>/<operating_system_version>`` to define the repositories. For example, For a cluster running RHEL 8.8, go to ``input/config/rhel/8.8/`` and create the file there. The file is a JSON list consisting of the package name, repository type, URL (optional), and version (optional). Below is a sample version of the file: ::
+    Create a ``custom.json`` file in the following directory: ``input/config/<cluster_os_type>/<cluster_os_version>`` to define the repositories. For example, For a cluster running RHEL 8.8, go to ``input/config/rhel/8.8/`` and create the file there. The file is a JSON list consisting of the package name, repository type, URL (optional), and version (optional). Below is a sample version of the file: ::
 
             {
               "custom": {
@@ -191,7 +191,7 @@ For information on deploying kubeflow after setting up the cluster, `click here.
             {"name": "ofed", "version": "24.01-0.3.3.1"},
 
 
-    For a list of repositories (and their types) configured for OFED, view the ``input/config/<operating_system>/<operating_system_version>/ofed.json`` file. To customize your OFED installation, update the file.:
+    For a list of repositories (and their types) configured for OFED, view the ``input/config/<cluster_os_type>/<cluster_os_version>/ofed.json`` file. To customize your OFED installation, update the file.:
 
     For Ubuntu: ::
 
