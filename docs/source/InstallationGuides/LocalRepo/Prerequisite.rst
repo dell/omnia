@@ -51,6 +51,7 @@ Instructions to pull images from the user registries in the form of a digest:
                     "type": "image"
             },
 
+    * For "kserve" and "kubeflow" images sourced from ``gcr.io``, Omnia updates the image tag to ``omnia-kserve`` and ``omnia-kubeflow`` while pushing the images to ``user_registry``.
 
 .. note::
    * Enable a repository from your RHEL subscription, run the following commands: ::
