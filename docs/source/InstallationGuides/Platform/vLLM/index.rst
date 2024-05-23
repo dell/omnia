@@ -1,5 +1,5 @@
-Setup vLLM
------------
+Setup vLLM [1]_
+-----------------
 
 vLLM is a fast and easy-to-use library for LLM inference and serving. It is seamlessly integrated with popular HuggingFace models. It is also compatible with OpenAI API servers and GPUs (Both NVIDIA and AMD). vLLM 0.2.4 and above supports model inferencing and serving on AMD GPUs with ROCm. At the moment AWQ quantization is not supported in ROCm, but SqueezeLLM quantization has been ported. Data types currently supported in ROCm are FP16 and BF16.
 
@@ -88,6 +88,10 @@ The default namespace is for deployment is ``vLLM``.
                 print(f"Prompt: {prompt!r}, Generated text: {generated_text!r}")
 
 3. To enable an endpoint, `click here <https://docs.vllm.ai/en/latest/getting_started/quickstart.html>`_.
+
+.. rubric:: Footnotes
+
+.. [1] This playbook is supported on Ubuntu 22.04 and RHEL 8.8.
 
 .. toctree::
 
