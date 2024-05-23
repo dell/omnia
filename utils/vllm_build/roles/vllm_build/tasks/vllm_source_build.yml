@@ -18,6 +18,7 @@
   ansible.builtin.file:
     path: "{{ vllm_dir }}"
     state: directory
+    mode: "{{ dir_mode }}"
 
 - name: Clone vLLM repo
   ansible.builtin.git:

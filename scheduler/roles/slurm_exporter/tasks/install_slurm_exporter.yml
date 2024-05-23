@@ -115,7 +115,7 @@
   changed_when: false
 
 - name: Build the exporter
-  ansible.builtin.shell: "{{ go_exec_path }} build -o bin/prometheus-slurm-exporter {{ go_files }}"
+  ansible.builtin.shell: "{{ go_exec_path }} build -o bin/prometheus-slurm-exporter {{ go_files }}" # noqa: command-instead-of-shell
   args:
     chdir: "{{ slurm_exporter_inst_dir }}{{ prometheus_ver_dir }}"
   changed_when: false

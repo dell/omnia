@@ -48,7 +48,7 @@
     state: restarted
   loop:
     - sssd.service
-  loop_control: 
+  loop_control:
     loop_var: service
   when: hostvars['127.0.0.1']['authentication_type'] == "freeipa"
 
@@ -58,7 +58,7 @@
     state: restarted
   loop:
     - sshd.service
-  loop_control: 
+  loop_control:
     loop_var: service
 
 - name: Create SSH key pair if home directory exists

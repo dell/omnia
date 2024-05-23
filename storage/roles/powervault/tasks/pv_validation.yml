@@ -110,6 +110,7 @@
   register: disk_count
   when: powervault_disk_group_name | length > 1
   ignore_errors: true
+  changed_when: false
 
 - name: Assert if disk group name has space
   ansible.builtin.assert:

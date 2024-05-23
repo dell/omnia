@@ -176,11 +176,10 @@
   failed_when: false
 
 - name: Reload systemd
-  ansible.builtin.command: systemctl daemon-reload
-  changed_when: true
+  ansible.builtin.systemd:
+    daemon-reload: true
+  changed_when: false
   failed_when: false
-  args:
-    warn: false
 
 - name: Remove docker packages for RHEL/Rocky
   ansible.builtin.command: dnf remove -y {{ docker_packages }}
@@ -194,7 +193,7 @@
   changed_when: true
   failed_when: false
   when: control_plane_os in control_plane_os_ubuntu
-  
+
 - name: Remove docker files
   ansible.builtin.file:
     path: "{{ item }}"
