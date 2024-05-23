@@ -7,7 +7,7 @@ The local repository feature will help create offline repositories on the contro
 
     * A registry is created on the control plane at <Control Plane hostname>:5001.
 
-    * If ``repo_config`` in ``local_repo_config.yml`` is set to ``always`` or ``partial``, all images present in the ``input/config/<operating system>/<version>`` folder will be downloaded to the control plane.
+    * If ``repo_config`` in ``local_repo_config.yml`` is set to ``always`` or ``partial``, all images present in the ``input/config/<cluster_os_type>/<cluster_os_version>`` folder will be downloaded to the control plane.
 
 
         * If the image is defined using a tag, the image will be tagged using <control plane hostname>:5001/<image_name>:<version> and pushed to the Omnia local registry.
@@ -47,9 +47,9 @@ To fetch images from the ``user_registry`` or the Omnia local registry, run the 
 
     * For images coming from ``gcr.io``, digests are defined as tags are not available. Omnia gives a custom tag of ‘omnia’ to these images. If such images need to be taken from the ``user_registry``, use one of the below steps:
 
-        * Append 'omnia' to the end of the image name while pushing images to the ``user_registry``. Update the image definition in ``input/config/<operating system>/<version>/<software>.json`` to follow the same nomenclature.
+        * Append 'omnia' to the end of the image name while pushing images to the ``user_registry``. Update the image definition in ``input/config/<cluster_os_type>/<cluster_os_version>/<software>.json`` to follow the same nomenclature.
 
-        * If a different tag is provided, update the digest value in ``input/config/<operating system>/<version>/<software>.json`` as per the image digest in the ``user_directory``. To get the updated digest from the ``user_registry``, use the below steps:
+        * If a different tag is provided, update the digest value in ``input/config/<cluster_os_type>/<cluster_os_version>/<software>.json`` as per the image digest in the ``user_directory``. To get the updated digest from the ``user_registry``, use the below steps:
 
             * Check the tag of image: ``curl -k https://<user_registry>/v2/<image_name>/tags/list``
 
