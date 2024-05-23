@@ -86,7 +86,7 @@
     - name: Set PostgreSQL password for postgres user
       become: true
       become_user: postgres
-      ansible.builtin.shell: "echo \"ALTER USER postgres WITH PASSWORD '{{ postgresdb_password }}';\" | psql"
+      ansible.builtin.shell: "echo \"ALTER USER postgres WITH PASSWORD '{{ postgresdb_password }}';\" | psql" # noqa: yaml[line-length] risky-shell-pipe
       changed_when: false
       no_log: true
 
