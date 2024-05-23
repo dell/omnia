@@ -49,7 +49,7 @@ To fetch images from the ``user_registry`` or the Omnia local registry, run the 
 
         * Append 'omnia' to the end of the image name while pushing images to the ``user_registry``. Update the image definition in ``input/config/<cluster_os_type>/<cluster_os_version>/<software>.json`` to follow the same nomenclature.
 
-        * For "kserve" and "kubeflow" images sourced from ``gcr.io``, Omnia updates the image tag to ``omnia-kserve`` and ``omnia-kubeflow`` while pushing the images to ``user_registry``.
+        * For "kserve" and "kubeflow" images sourced from ``gcr.io``, Omnia updates the digest tag to ``omnia-kserve`` and ``omnia-kubeflow`` while pushing the images to ``user_registry``.
 
         * If a different tag is provided, update the digest value in ``input/config/<cluster_os_type>/<cluster_os_version>/<software>.json`` as per the image digest in the ``user_directory``. To get the updated digest from the ``user_registry``, use the below steps:
 
