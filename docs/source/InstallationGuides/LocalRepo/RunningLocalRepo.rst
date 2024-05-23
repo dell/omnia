@@ -45,7 +45,7 @@ To fetch images from the ``user_registry`` or the Omnia local registry, run the 
 
     * To configure additional local repositories after running ``local_repo.yml``, update ``software_config.json`` and re-run ``local_repo.yml``.
 
-    * For images coming from ``gcr.io``, digests are defined as tags are not available. Omnia gives a custom tag of ‘omnia’ to these images. If such images need to be taken from the ``user_registry``, use one of the below steps:
+    * For the digest tag defined images from ``gcr.io``, omnia gives a custom tag ``omnia`` to these images. If such images need to be taken from the ``user_registry``, use one of the below steps:
 
         * Append 'omnia' to the end of the image name while pushing images to the ``user_registry``. Update the image definition in ``input/config/<cluster_os_type>/<cluster_os_version>/<software>.json`` to follow the same nomenclature.
 
