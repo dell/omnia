@@ -114,7 +114,7 @@ Sample version of the file:
         }
 
 
-For a list of accepted values in ``softwares``, go to ``input/config/<operating_system>/<operating_system_version>`` and view the list of JSON files available. The filenames present in this location (without the * .json extension) are a list of accepted software names. The repositories to be downloaded for each software are listed the corresponding JSON file. For example: For a cluster running Ubuntu 22.04, go to ``input/config/ubuntu/22.04/`` and view the file list:
+For a list of accepted values in ``softwares``, go to ``input/config/<cluster_os_type>/<cluster_os_version>`` and view the list of JSON files available. The filenames present in this location (without the * .json extension) are a list of accepted software names. The repositories to be downloaded for each software are listed the corresponding JSON file. For example: For a cluster running Ubuntu 22.04, go to ``input/config/ubuntu/22.04/`` and view the file list:
 
 ::
 
