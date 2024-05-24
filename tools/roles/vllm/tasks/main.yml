@@ -30,7 +30,7 @@
 - name: Include local_repo_access.yml file
   ansible.builtin.include_vars: "{{ local_repo_access_path }}"
 
-# Print Warning message vLLM space requirement 
+# Print Warning message vLLM space requirement
 - name: Warning message vLLM space requirement
   ansible.builtin.pause:
     seconds: "{{ wait_time }}"

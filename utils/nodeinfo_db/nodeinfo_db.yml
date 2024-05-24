@@ -17,5 +17,5 @@
   hosts: localhost
   connection: local
   roles:
-    - { role: ../roles/common, tags: 'credentials_config' }
+    - { role: ../roles/common, tags: 'credentials_config' } # noqa: role-name[path]
     - nodeinfo_db
