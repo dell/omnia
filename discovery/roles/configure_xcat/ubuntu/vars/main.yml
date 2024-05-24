@@ -38,3 +38,12 @@ racadm_tar_url: "https://dl.dell.com/FOLDER08952875M/1/Dell-iDRACTools-Web-LX-11
 tarball_path: "{{ repo_store_path }}/cluster/tarball/"
 racadm_tar_dest: "{{ tarball_path }}/racadm.tar.gz"
 max_retries: 10
+
+# Usage: configure_kernel.yml
+hwe_search_key: "casper/hwe-initrd"
+xcat_plugin_path: "/opt/xcat/lib/perl/xCAT_plugin"
+debian_plugin_path: "{{ xcat_plugin_path }}/debian.pm"
+generic_patch_path:
+  - { src: "{{ role_path }}/../ubuntu/files/debian_generic.patch", dest: "{{ xcat_plugin_path }}/debian_generic.patch", mode: "755" }
+hwe_patch_path:
+  - { src: "{{ role_path }}/../ubuntu/files/debian_hwe.patch", dest: "{{ xcat_plugin_path }}/debian_hwe.patch", mode: "755" }
