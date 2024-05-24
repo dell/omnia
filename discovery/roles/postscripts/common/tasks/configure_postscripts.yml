@@ -61,39 +61,10 @@
     - cuda_config_status
     - cuda_repo_stat.stat.exists
 
-- name: Configure ROCm postscripts for ubuntu
-  when:
-    - provision_os in provision_os_ubuntu
-    - amdgpu_config_status
-  block:
-    - name: Configure postscripts for ROCm
-      ansible.builtin.command: chdef all -p postbootscripts=omnia_rocm
-      changed_when: true
-      when:
-        - provision_os_version == '22.04'
-        - ubuntu_kernel_flavor | default("generic", true) == 'generic'
-
-    - name: Configure postscripts for ROCm
-      ansible.builtin.command: chdef all -p postscripts=omnia_rocm
-      changed_when: true
-      when:
-        - provision_os_version == '22.04'
-        - ubuntu_kernel_flavor | default("generic", true) == 'hwe'
-
-    - name: Configure postscripts for ROCm
-      ansible.builtin.command: chdef all -p postscripts=omnia_rocm
-      changed_when: true
-      when:
-        - provision_os_version == '20.04'
-
-- name: Configure ROCm postscripts for RHEL and Rocky
-  when:
-    - provision_os not in provision_os_ubuntu
-    - amdgpu_config_status
-  block:
-    - name: Configure postscripts for ROCm
-      ansible.builtin.command: chdef all -p postscripts=omnia_rocm
-      changed_when: true
+- name: Configure postscripts for ROCm
+  ansible.builtin.command: chdef all -p postscripts=omnia_rocm
+  changed_when: true
+  when: amdgpu_config_status
 
 - name: Copy CPU GPU info script to postscripts
   ansible.builtin.template:
@@ -106,45 +77,7 @@
   ansible.builtin.command: chdef all -p postscripts=omnia_cpu_gpu_info
   changed_when: true
 
-- name: Configure RoCE postscripts for ubuntu
-  when:
-    - roce_config_status
-  block:
-    - name: Configure postscripts for RoCE
-      ansible.builtin.command: chdef all -p postbootscripts=omnia_roce
-      changed_when: true
-      when:
-        - provision_os_version == '22.04'
-        - ubuntu_kernel_flavor | default("generic", true) == 'generic'
-
-    - name: Configure postscripts for RoCE
-      ansible.builtin.command: chdef all -p postscripts=omnia_roce
-      changed_when: true
-      when:
-        - provision_os_version == '22.04'
-        - ubuntu_kernel_flavor | default("generic", true) == 'hwe'
-
-    - name: Configure postscripts for RoCE
-      ansible.builtin.command: chdef all -p postscripts=omnia_roce
-      changed_when: true
-      when:
-        - provision_os_version == '20.04'
-
-- name: Configure reboot scripts for ubuntu
-  when:
-    - provision_os in provision_os_ubuntu
-    - provision_os_version == '22.04'
-    - ubuntu_kernel_flavor | default("generic", true) == 'generic'
-  block:
-    - name: Copy reboot script to postscripts
-      ansible.builtin.copy:
-        src: "{{ item.src }}"
-        dest: "{{ item.dest }}"
-        mode: "{{ item.mode }}"
-      with_items: "{{ ubuntu_reboot_script_path }}"
-
-    - name: Configure reboot postbootscript
-      ansible.builtin.command: chdef all -p postbootscripts="omnia_reboot"
-      changed_when: true
-      when:
-        - roce_config_status or amdgpu_config_status
+- name: Configure postscripts for RoCE
+  ansible.builtin.command: chdef all -p postscripts=omnia_roce
+  changed_when: true
+  when: roce_config_status
