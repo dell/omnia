@@ -15,11 +15,11 @@
 
 # Global
 wait_time: "30"
-vllm_warning: "The vLLM container requires at least 60GB of storage. Additionally, the Storage for inference example relies on the inference model, so please ensure that the necessary storage is available."
+vllm_warning: "The vLLM container requires at least 60GB of storage. Additionally, the Storage for inference example relies on the inference model,
+so please ensure that the necessary storage is available."
 installation_success_status: "vLLM succesfully installed"
 installation_failed_status: "Failed to install vLLM"
 vllm_python_version: "python3.9"
-
 
 # For env proxy setup
 local_repo_access_path: "/opt/omnia/offline/local_repo_access.yml"
@@ -36,7 +36,7 @@ vllm_json_file: "{{ role_path }}/../../../input/config/{{ cluster_os_type }}/{{ 
 
 # Errors: check_prerequisites.yml
 error_check_gpu_failed: "GPU Driver absent. Skipping vLLM installation."
-error_check_container_engine_failed: "vLLM requires containerd as a prerequisite. Please execute scheduler.yml/omnia.yml and install k8s and excute vLLM again"
+error_check_container_engine_failed: "vLLM requires containerd as a prerequisite. Please execute scheduler.yml/omnia.yml and install k8s and execute vLLM again"
 error_dri_file_failed: "Unable to read dri files in /dev/dri folder"
 error_check_pytorch_failed: "Failed to install dependency - pytorch"
 
@@ -51,8 +51,10 @@ vllm_run_cmd_mid: " -v /opt/omnia/:/app/model "
 vllm_run_cmd_end: " /bin/bash -c 'export http_proxy={{ http_proxy }} && export https_proxy={{ https_proxy }} && python /app/model/vllm_example.py'"
 
 # Errors: vllm_install.yml
-error_pull_container: "Failed to install vLLM container on AMD GPU node. Please ensure you have enough disk space (recommended: 100 GB) or check your network connection to the local repository"
-error_vllm_package: "Failed to install vLLM on NVIDIA node. Please ensure you have enough disk space (recommended: 100 GB) or check your network connection to the local repository"
+error_pull_container: "Failed to install vLLM container on AMD GPU node. Please ensure you have enough disk space (recommended: 100 GB) or check
+your network connection to the local repository"
+error_vllm_package: "Failed to install vLLM on NVIDIA node. Please ensure you have enough disk space (recommended: 100 GB) or check your network connection
+to the local repository"
 
 # Usage: vllm_verify.yml
 vllm_example_src_file_path: "vllm_example.py"
