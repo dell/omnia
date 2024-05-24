@@ -72,7 +72,7 @@
 - name: Install xCAT and postgres packages (This task may take 10 mins)
   ansible.builtin.package:
     name: "{{ xcat_packages }}"
-    state: latest
+    state: latest # noqa: package-latest
   retries: "{{ package_retry }}"
 
 - name: Save xcat enviornment variables

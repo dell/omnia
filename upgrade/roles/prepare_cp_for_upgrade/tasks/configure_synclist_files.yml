@@ -33,14 +33,14 @@
       register: node_query_status
       no_log: true
 
-    - name: List booted nodes  
+    - name: List booted nodes
       ansible.builtin.set_fact:
         booted_nodes: "{{ node_query_status.query_result | map(attribute='node') | list }}"
-        #no_of_booted_nodes: "{{ node_query_status.rowcount }}"
+        # no_of_booted_nodes: "{{ node_query_status.rowcount }}"
 
     - name: Concatenate booted nodes
       ansible.builtin.set_fact:
-        booted_nodes_str: "{{ booted_nodes| default([])  | join(',') if booted_nodes | length > 1 else booted_nodes[0] }}"
+        booted_nodes_str: "{{ booted_nodes | default([]) | join(',') if booted_nodes | length > 1 else booted_nodes[0] }}"
       when: booted_nodes | length > 0
 
     - name: Updatenode
