@@ -1,10 +1,10 @@
 Prepare Config
 ===============
 
-This is first step of upgrade process and uses the ``prepare_config.yml`` playbook. This playbook performs the following tasks:
+This is the first step of upgrade process and uses the ``prepare_config.yml`` playbook. This playbook performs the following tasks:
 
     * Imports the input configuration parameters from Omnia v1.5.1 and generates the input configurations for v1.6
-    * Generates the Omnia v1.6 inventory using the v1.5.1 inventory as a base.
+    * Generates the inventory for Omnia v1.6 from the v1.5.1 inventory.
     * Sets the Omnia v1.6 execution environment by updating the ansible and python versions compatible to v1.6.
     * Creates backup of the Omnia v1.5.1 database.
 
@@ -24,7 +24,7 @@ Before executing ``prepare_config.yml``, user needs to update ``upgrade_config.y
 To execute the ``prepare_config.yml`` playbook, run the following command: ::
 
     cd omnia/upgrade
-    ansible-playbook prepare_config.yml -i <omnia_1.5.1_inventory_file_path>
+    ansible-playbook prepare_config.yml -i <Omnia_1.5.1_inventory_file_path>
 
 Expected output of this playbook execution:
 
@@ -38,26 +38,26 @@ Post ``prepare_config.yml`` execution, user must review or update the auto-popul
 
 .. note:: To view/update the encrypted input files, user can use the 'ansible-vault view' or 'ansible-vault edit' command. For sample commands, `click here <../Troubleshooting/troubleshootingguide.html#checking-and-updating-encrypted-parameters>`_.
 
-    * Review the ``software_config.json`` which contains a list of all softwares identified for the cluster. This is used to configure the Omnia v1.6 local repository. For more information about local repository, `click here <../InstallationGuides/LocalRepo/index.html>`_.
+* Review the ``software_config.json`` which contains a list of all softwares identified for the cluster. This is used to configure the Omnia v1.6 local repository. For more information about local repository, `click here <../InstallationGuides/LocalRepo/index.html>`_.
 
-        - Ensure that the ``scheduler_type`` entry in for Omnia v1.6 matches with v1.5.1. For example, if scheduler type is ``k8s,slurm`` in Omnia v1.5.1, then there must be a similar software entry in the ``software_config.json`` for v1.6.
+    - Ensure that the ``scheduler_type`` entry in for Omnia v1.6 matches with v1.5.1. For example, if scheduler type is ``k8s,slurm`` in Omnia v1.5.1, then there must be a corresponding software entry(s) in the ``software_config.json`` for v1.6.
 
-        - Similarly, if a security type (FreeIPA/OpenLDAP) is enabled in v1.5.1, then corresponding entry must be present in the ``software_config.json`` for Omnia v1.6.
+    - Similarly, if a security type (FreeIPA/OpenLDAP) is enabled in v1.5.1, then corresponding entry must be present in the ``software_config.json`` for Omnia v1.6.
 
-        - If telemetry was enabled in Omnia v1.5.1, then the Omnia v1.6 ``software_config.json`` list should also contain the ``telemetry`` entry.
+    - If telemetry is enabled in Omnia v1.5.1, then the Omnia v1.6 ``software_config.json`` list should also contain the ``telemetry`` entry.
 
-    * Add ``rhel_os_url`` in ``local repo_config.yml`` when the cluster OS type is RHEL.
+* Add ``rhel_os_url`` in ``local repo_config.yml`` when the cluster OS type is RHEL.
 
-    * Verify ``input/network_spec.yml`` for ``admin_network`` and ``bmc_network`` details.
+* Verify ``input/network_spec.yml`` for ``admin_network`` and ``bmc_network`` details.
 
-    * If Omnia v1.5.1 installation had slurm set up, ensure that the v1.6 ``omnia_config.yml`` has ``slurm_installation_type`` updated as "configless".
+* If Omnia v1.5.1 installation had slurm set up, ensure that the v1.6 ``omnia_config.yml`` has ``slurm_installation_type`` updated as "configless".
 
-    * The new inventory format for Omnia v1.6 lists all Omnia v1.5.1 manager nodes as ``kube_control_plane`` and/or ``slurm_control_node`` based on the ``scheduler_type``. All compute nodes will be listed as ``kube_node`` or ``slurm_node`` based on the ``scheduler_type``.
+* The new inventory format for Omnia v1.6 lists all Omnia v1.5.1 manager nodes as ``kube_control_plane`` and/or ``slurm_control_node`` based on the ``scheduler_type``. All compute nodes will be listed as ``kube_node`` or ``slurm_node`` based on the ``scheduler_type``.
 
-    * Verify ``nfs_client_params`` details in ``input/storage_config.yml`` file, as mentioned below:
+* Verify ``nfs_client_params`` details in ``input/storage_config.yml`` file, as mentioned below:
 
-        - Omnia v1.6 upgrade configures the NFS server on the control plane. Verify that the ``server_ip`` corresponds to the IP address of the control plane.
+    - Omnia v1.6 upgrade configures the NFS server on the control plane, when ``enable_omnia_nfs`` is set to true in v1.5.1 ``omnia_config.yml``. Verify that the ``server_ip`` corresponds to the IP address of the control plane.
 
-        - Depending on the ``scheduler_type``, that is, Slurm or Kubernetes, either ``k8s_share`` or ``slurm_share`` will be set to ``true``.
+    - Depending on the ``scheduler_type``, that is, Slurm or Kubernetes, either ``k8s_share`` or ``slurm_share`` will be set to ``true`` for Omnia NFS share.
 
-    * Ensure that the Omnia database backup has been created in the ``backup_location`` provided in ``upgrade_config.yml``.
+* Ensure that the Omnia database backup has been created in the ``backup_location`` provided in ``upgrade_config.yml``.
