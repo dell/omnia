@@ -112,7 +112,7 @@ After executing ``scheduler.yml`` or ``omnia.yml``, there are some manual steps 
         7.  Execute the following command:
             ::
 
-                /etc/yum.repos.d/nvidia-container-toolkit.repo
+                rm -rf /etc/yum.repos.d/nvidia-container-toolkit.repo
 
 
         **Steps for Ubuntu**
