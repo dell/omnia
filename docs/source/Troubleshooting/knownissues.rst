@@ -613,3 +613,14 @@ After performing all the above steps, re-run ``upgrade.yml`` playbook.
     - If none of the packages are dependent on the Epel repository, users can remove the Epel repository URL from ``omnia_repo_url_rhel``.
 
     - If any package required from the Epel repository is listed in the ``software_config.json`` file, it's advisable to either wait for the Epel repository to stabilize or host those Epel repository packages locally. Afterward, remove the Epel repository link from ``omnia_repo_url_rhel`` and provide the locally hosted URL for the Epel repository packages via the ``user_repo_url`` variable.
+
+⦾ **Why does the ``discovery_provision.yml`` playbook execution fail at task: "Prepare_cp needs to be executed"?**
+
+**Potential Cause**: Invalid input provided in ``network_spec.yml`` for ``admin_network`` or ``bmc_network`` fields.
+
+**Resolution**: Perform a cleanup using ``control_plane_cleanup.yml`` with ``--tags provision`` & then re-run the ``discovery_provision.yml`` playbook. Execute the following command:
+
+    ::
+
+        ansible-playbook utils/control_plane_cleanup.yml --tags provision
+        ansible-playbook discovery_provision.yml

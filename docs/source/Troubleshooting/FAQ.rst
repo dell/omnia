@@ -255,14 +255,3 @@ While Omnia playbooks are licensed by Apache 2.0, Omnia deploys multiple softwar
 
 
 .. note:: ``node001.omnia.test`` is a sample hostname.
-
-⦾ **Why does the ``discovery_provision.yml`` playbook execution fail at task: "Prepare_cp needs to be executed"?**
-
-**Potential Cause**: Invalid input provided in ``network_spec.yml`` for ``admin_network`` or ``bmc_network`` fields.
-
-**Resolution**: Perform a cleanup using ``control_plane_cleanup.yml`` with ``--tags provision`` & then re-run the ``discovery_provision.yml`` playbook. Execute the following command:
-
-    ::
-
-        ansible-playbook utils/control_plane_cleanup.yml --tags provision
-        ansible-playbook discovery_provision.yml
