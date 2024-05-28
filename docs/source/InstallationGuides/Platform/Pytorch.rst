@@ -33,6 +33,8 @@ PyTorch is a popular open-source deep learning framework, renowned for its dynam
 
     ansible-playbook pytorch.yml -i inventory
 
+.. note:: During the ``pytorch.yml`` playbook execution, nodes with AMD or Nvidia GPUs and drivers will install and test either the ``pytorch-AMD`` or ``pytorch-Nvidia`` containers, respectively. If neither GPU type is present with its drivers, it will install and test the ``pytorch-CPU`` container.
+
 **Accessing PyTorch (CPU)**
 
 1. Verify that the PyTorch image present in container engine images: ::

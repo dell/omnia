@@ -34,7 +34,6 @@ With an Ansible script, deploy vLLM on both the kube_node and kube_control_plane
 * Nerdctl does not support mounting directories as devices because it is not a feature of containerd (The runtime that nerdctl uses). Individual files need to be attached while running nerdctl.
 
 
-
 **Deploying vLLM**
 
 1. Change directories to the ``tools`` folder: ::
@@ -46,6 +45,8 @@ With an Ansible script, deploy vLLM on both the kube_node and kube_control_plane
     ansible-playbook vllm.yml -i inventory
 
 The default namespace is for deployment is ``vLLM``.
+
+.. note:: During the ``vllm.yml`` playbook execution, nodes with AMD or Nvidia GPUs and drivers will install and test either the vllm-AMD or vllm-Nvidia containers, respectively.
 
 **Accessing the vLLM (AMD)**
 

@@ -243,9 +243,7 @@ From Omnia 1.2.1, provisioning a server using BOSS controller is supported.
 
 While Omnia playbooks are licensed by Apache 2.0, Omnia deploys multiple softwares that are licensed separately by their respective developer communities. For a comprehensive list of software and their licenses, `click here <../Overview/SupportMatrix/omniainstalledsoftware.html>`_ .
 
-⦾ **Why does the task: TASK [hostname_validation : Verify the domain name is not blank in hostname] fail with an error message?**
-
-.. image::
+⦾ **Why does the task: TASK [hostname_validation : Verify the domain name is not blank in hostname] fail?**
 
 **Potential Cause**: Hostname is not configured properly with the domain name, on the target node.
 

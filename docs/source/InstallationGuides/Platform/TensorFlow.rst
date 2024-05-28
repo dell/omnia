@@ -35,6 +35,8 @@ With an Ansible script, deploy TensorFlow on both ``kube_node`` and the ``kube_c
 
     ansible-playbook tensorflow.yml -i inventory
 
+.. note:: During the ``tensorflow.yml`` playbook execution, nodes with AMD or Nvidia GPUs and drivers will install and test either the ``tensorflow-AMD`` or ``tensorflow-Nvidia`` containers, respectively. If neither GPU type is present with its drivers, it will install and test the ``tensorflow-CPU`` container.
+
 **Accessing TensorFlow (CPU)**
 
 1. Verify that the tensorflow image present in container engine images: ::
