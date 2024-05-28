@@ -1,7 +1,7 @@
 Frequently asked questions
 ==========================
 
-⦾ **Why is the provisioning status of the target servers stuck at 'installing' in cluster.nodeinfo (omniadb)?**
+⦾ **Why does the provisioning status of RHEL/Rocky Linux remote servers remain stuck at ‘installing’ in cluster.nodeinfo (omniadb)?**
 
 .. image:: ../images/InstallingStuckDB.png
 
@@ -28,6 +28,30 @@ Frequently asked questions
 
     * Create a virtual disk and PXE boot the node.
 
+⦾ **Why does the provisioning status of Ubuntu remote servers remain stuck at ‘bmc-ready’ or 'powering-on' in cluster.nodeinfo (omniadb)?**
+
+.. image:: ../images/ubuntu_pxe_failure.png
+
+**Potential Causes**:
+
+    * Disk partition may not have enough storage space per the requirements specified in ``input/provision_config`` (under ``disk_partition``)
+
+    * The provided ISO may be corrupt/incomplete.
+
+    * Hardware issues (Auto reboot may fail at POST)
+
+    * A virtual disk may not have been created
+
+
+**Resolution**:
+
+    * Add more space to the server or modify the requirements specified in ``input/provision_config`` (under ``disk_partition``)
+
+    * Download the ISO again, verify the checksum/ download size and re-run the provision tool.
+
+    * Resolve/replace the faulty hardware and PXE boot the node.
+
+    * Create a virtual disk and PXE boot the node.
 
 ⦾ **Why is the provisioning status of my target servers stuck at ‘powering-on’ in the cluster.info (omniadb)?**
 
@@ -233,3 +257,14 @@ While Omnia playbooks are licensed by Apache 2.0, Omnia deploys multiple softwar
 
 
 .. note:: ``node001.omnia.test`` is a sample hostname.
+
+⦾ **Why does the ``discovery_provision.yml`` playbook execution fail at task: "Prepare_cp needs to be executed"?**
+
+**Potential Cause**: Invalid input provided in ``network_spec.yml`` for ``admin_network`` or ``bmc_network`` fields.
+
+**Resolution**: Perform a cleanup using ``control_plane_cleanup.yml`` with ``--tags provision`` & then re-run the ``discovery_provision.yml`` playbook. Execute the following command:
+
+    ::
+
+        ansible-playbook utils/control_plane_cleanup.yml --tags provision
+        ansible-playbook discovery_provision.yml
