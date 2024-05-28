@@ -46,7 +46,7 @@ With an Ansible script, deploy vLLM on both the kube_node and kube_control_plane
 
 The default namespace is for deployment is ``vLLM``.
 
-.. note:: During the ``vllm.yml`` playbook execution, nodes with AMD or Nvidia GPUs and drivers will install and test either the vllm-AMD or vllm-Nvidia containers, respectively.
+.. note:: During the ``vllm.yml`` playbook execution, nodes with AMD or Nvidia GPUs and drivers will install and test either the ``vllm-AMD`` or ``vllm-Nvidia`` containers, respectively.
 
 **Accessing the vLLM (AMD)**
 
