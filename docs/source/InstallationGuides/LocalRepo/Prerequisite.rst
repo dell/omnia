@@ -15,6 +15,14 @@ For persistent offline local repositories, (If the parameter ``repo_config`` in 
 
 .. note:: This link explains how to build a mirror on an Ubuntu 20.04 server. Adapt the steps and scripts as required for any other version of Ubuntu.
 
+**Set the hostname of the control plane in the ``hostname``. ``domain name`` format.
+
+    .. include:: ../../Appendices/hostnamereqs.rst
+
+    For example, ``controlplane.omnia.test`` is acceptable. ::
+
+        hostnamectl set-hostname controlplane.omnia.test
+
 **When creating user registries**
 
 To avoid docker pull limits, provide docker credentials (``docker_username``, ``docker_password``) in ``input/provision_config_credentials.yml``.

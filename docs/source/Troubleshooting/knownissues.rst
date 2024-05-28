@@ -100,7 +100,7 @@ To enable the JSON gateway: ``json-gw enable``
 
 .. note:: If the playbook is already executed and the pods are in **ImagePullBack** state, then run ``kubeadm reset -f`` in all the nodes before re-executing the playbook with the docker credentials.
 
-⦾ **Why does the task 'Gather facts from all the nodes' get stuck when re-running ``omnia.yml``?**
+⦾ **Why does the task 'Gather facts from all the nodes' get stuck when re-running omnia.yml?**
 
 **Potential Cause**: Corrupted entries in the ``/root/.ansible/cp/`` folder. For more information on this issue, `check this out <https://github.com/ansible/ansible/issues/17349>`_!
 
@@ -115,7 +115,7 @@ Alternatively, run the task manually: ::
     cd omnia/utils/cluster
     ansible-playbook gather_facts_resolution.yml
 
-⦾ **What to do if the nodes in a Kubernetes cluster reboot:**
+⦾ **What to do if the nodes in a Kubernetes cluster reboot?**
 
 
 Wait for 15 minutes after the Kubernetes cluster reboots. Next, verify the status of the cluster using the following commands:
@@ -127,7 +127,7 @@ Wait for 15 minutes after the Kubernetes cluster reboots. Next, verify the statu
 * ``kubectl cluster-info`` on the kube_control_plane to verify that both the k8s master and kubeDNS are in the **Running** state.
 
 
-⦾ **What to do when the Kubernetes services are not in the  Running  state:**
+⦾ **What to do when the Kubernetes services are not in "Running" state:**
 
 
 1. Run ``kubectl get pods  all-namespaces`` to verify that all pods are in the **Running** state.
@@ -189,7 +189,7 @@ As defined in RFC 822, the only legal characters are the following:
 
 2. Re-run ``omnia.yml``
 
-⦾ **What to do if slurmd services do not start after running ``omnia.yml`` playbook?**
+⦾ **What to do if slurmd services do not start after running omnia.yml playbook?**
 
 Run the following command to manually restart slurmd services on the nodes ::
 
@@ -205,7 +205,7 @@ Run the following command to manually restart slurmd services on the nodes ::
 
 * Run ``systemctl status slurmd`` to manually restart the following service on all the cluster nodes.
 
-⦾ **What to do if new slurm node is not added to sinfo output of slurm control node when restart_slurm_services in omnia_config.yml is set to ``false``?**
+⦾ **What to do if new slurm node is not added to sinfo output of slurm control node when restart_slurm_services in omnia_config.yml is set to "false"?**
 
 * Run the following command on slurm control node: ::
 
@@ -304,7 +304,7 @@ Recommended Actions:
     * Reassign the conflicting network to a different subnet.
     * Update ``input/provision_config_credentials.yml`` with the ``docker_username`` and ``docker_password``.
 
-⦾ **Why does the task 'Install Packages' fail on the NFS node with the message: ``Failure in talking to yum: Cannot find a valid baseurl for repo: base/7/x86_64.``**
+⦾ **Why does the task 'Install Packages' fail on the NFS node with the message: Failure in talking to yum: Cannot find a valid baseurl for repo: base/7/x86_64.**
 
 
 **Potential Cause**:
@@ -322,23 +322,23 @@ Recommended Actions:
                 3. For connecting to PowerVault (Data Connection)
 
 
-⦾ **What to do when the JupyterHub or Prometheus UI is not accessible:**
+⦾ **What to do when the JupyterHub or Prometheus UI is not accessible?**
 
 Run the command ``kubectl get pods  namespace default`` to ensure **nfs-client** pod and all Prometheus server pods are in the **Running** state.
 
 
-⦾ **What to do if PowerVault throws the error: ``Error: The specified disk is not available. - Unavailable disk (0.x) in disk range '0.x-x'``:**
+⦾ **What to do if PowerVault throws the error: The specified disk is not available. - Unavailable disk (0.x) in disk range '0.x-x':**
 
 1. Verify that the disk in question is not part of any pool using: ``show disks``
 
 2. If the disk is part of a pool, remove it and try again.
 
-⦾ **Why does PowerVault throw the error: ``You cannot create a linear disk group when a virtual disk group exists on the system.``?**
+⦾ **Why does PowerVault throw the error: You cannot create a linear disk group when a virtual disk group exists on the system.?**
 
 At any given time only one type of disk group can be created on the system. That is, all disk groups on the system have to exclusively be linear or virtual. To fix the issue, either delete the existing disk group or change the type of pool you are creating.
 
 
-⦾ **Why does the task 'nfs_client: Mount NFS client' fail with the message ``No route to host``?**
+⦾ **Why does the task 'nfs_client: Mount NFS client' fail with the message "No route to host"?**
 
 **Potential Cause**:
 
@@ -361,7 +361,7 @@ At any given time only one type of disk group can be created on the system. That
 
 
 
-⦾ **Why does the ``BeeGFS-client`` service fail?**
+⦾ **Why does the "BeeGFS-client" service fail?**
 
 **Potential Causes**:
 
@@ -450,7 +450,7 @@ Reboot the NFS server (external to the cluster) to bring up the services again: 
 
 If your ``omnia.yml`` playbook execution fails while waiting for the MetalLB controller to be up and running, you need to wait for the MetalLB pods to come to running state and then re-run ``omnia.yml/scheduler.yml``.
 
-⦾ **What to do if omnia.yml playbook execution fails to execute ``kubeadm join`` or ``kubeadm init`` command?**
+⦾ **What to do if omnia.yml playbook execution fails to execute "kubeadm join" or "kubeadm init" command?**
 
 **Resolution**:
 
@@ -497,7 +497,7 @@ If kubeadm join/kubeadm init command fails, either one of the following should b
     * Ensure that ``storage.yml`` is executed on the same inventory which is being used for ``scheduler.yml``.
     * Ensure that ``server_share_path`` mentioned in ``storage_config.yml`` for ``k8s_share: true`` has an active nfs_server running on it.
 
-⦾ **Nfs-client provisioner is in "ContainerCreating" or "CrashLoopBackOff" state and ``kubectl describe <pod_name>`` shows the following output:**
+⦾ **Nfs-client provisioner is in "ContainerCreating" or "CrashLoopBackOff" state and "kubectl describe <pod_name>" shows the following output:**
 
 .. image:: ../images/NFS_helm_23743.png
 
@@ -514,7 +514,7 @@ If kubeadm join/kubeadm init command fails, either one of the following should b
 
         * Post deletion, the pod will be restarted and it will come to running state.
 
-⦾ **What to do if slurmctld services fails when ``slurm_installaton_type`` is nfs_share during omnia.yml execution?**
+⦾ **What to do if slurmctld services fails when slurm_installaton_type is nfs_share during omnia.yml execution?**
 
 **Potential Cause**: This issue may arise due to internal network issues.
 
@@ -566,7 +566,7 @@ If kubeadm join/kubeadm init command fails, either one of the following should b
 
 After performing all the above steps, re-run ``upgrade.yml`` playbook.
 
-⦾ **Why does the nvidia-device-plugin pods in ContainerCreating status fails with ``no runtime for "nvidia" in configured`` error?
+⦾ **Why does the nvidia-device-plugin pods in ContainerCreating status fails with "no runtime for "nvidia" in configured" error?
 
 .. image:: ../images/nvidia_noruntime.png
 
@@ -614,7 +614,7 @@ After performing all the above steps, re-run ``upgrade.yml`` playbook.
 
     - If any package required from the Epel repository is listed in the ``software_config.json`` file, it's advisable to either wait for the Epel repository to stabilize or host those Epel repository packages locally. Afterward, remove the Epel repository link from ``omnia_repo_url_rhel`` and provide the locally hosted URL for the Epel repository packages via the ``user_repo_url`` variable.
 
-⦾ **Why does the ``discovery_provision.yml`` playbook execution fail at task: "Prepare_cp needs to be executed"?**
+⦾ **Why does the discovery_provision.yml playbook execution fail at task: "Prepare_cp needs to be executed"?**
 
 **Potential Cause**: Invalid input provided in ``network_spec.yml`` for ``admin_network`` or ``bmc_network`` fields.
 
