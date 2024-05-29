@@ -6,11 +6,11 @@ After running ``discovery_provision.yml`` or ``discovery_provision.yml`` and the
 
 * All target nodes are provisioned and booted. `Click here to verify the status of all nodes. <ViewingDB.html>`_
 
-* Ensure that ``input/network_spec.yml`` file has been updated with all network information in addition to admin network and bmc network information. Below are all applicable properties of an additional network:
+* Ensure that ``input/network_spec.yml`` file has been updated with all network information in addition to ``admin_network`` and ``bmc_network`` information. Below are all applicable properties of an additional network:
 
     * ``nic_name``: The name of the NIC on which the administrative network is accessible to the control plane.
     * ``netmask_bits``: The 32-bit "mask" used to divide an IP address into subnets and specify the network's available hosts.
-    * ``static_range``: The static range of IPs to be provisioned on target nodes.
+    * ``static_range``: The static range of IPs to be provisioned on target nodes. This indicates that only a certain static range is available to Omnia.
 
 * In addition to the above mentioned properties, the following properties are applicable for configuring additional NICs
 
@@ -19,7 +19,7 @@ After running ``discovery_provision.yml`` or ``discovery_provision.yml`` and the
       .. note:: You can either use ``CIDR`` or ``static_range``. Simultaneous use of both parameters will result in an error message being displayed.
 
     * ``MTU``: Maximum transmission unit (MTU) is a measurement in bytes of the largest data packets that an Internet-connected device can accept. Default value of ``MTU`` is 1500. You can enter your desired value.
-    * ``VLAN``: A 12-bit field that identifies a virtual LAN (VLAN) and specifies the VLAN that an Ethernet frame belongs to. This property is not supported on clusters running Ubuntu.
+    * ``VLAN``: A 12-bit field that identifies a virtual LAN (VLAN) and specifies the VLAN that an ethernet frame belongs to. This property is not supported on clusters running Ubuntu.
 
 .. note::
 
@@ -79,7 +79,7 @@ Use the below commands to assign IPs to the NICs: ::
     cd server_spec_update
     ansible-playbook server_spec_update.yml -i inventory
 
-Where the inventory file passed includes user-defined groups,servers associated with them, and a mapping from the groups specified and the categories in ``input/server_spec.yml`` under [<group name>:vars]. Below is a sample: ::
+Where the inventory file passed includes user-defined groups, servers associated with them, and a mapping from the groups specified and the categories in ``input/server_spec.yml`` under [<group name>:vars]. Below is a sample: ::
 
     [node-group1]
     10.5.0.3

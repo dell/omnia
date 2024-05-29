@@ -31,12 +31,12 @@ Update the ``input/network_spec.yml`` file for all networks available for use by
          * ``netmask_bits``: The 32-bit "mask" used to divide an IP address into subnets and specify the network's available hosts.
          * ``static_range``: The static range of IPs to be provisioned on target nodes.
          * ``dynamic_range``: The dynamic range of IPs to be provisioned on target nodes.
-         * ``correlation_to_admin``: Boolean value used to indicate whether all other networks specified in the file (eg: ``bmc_network``) should be correlated to the admin network. For eg: if a target node is assigned the IP xx.yy.0.5 on the admin network, it will be assigned the IP aa.bb.0.5 on the BMC network. This value is irrelevant when discovering nodes using a mapping file.
+         * ``correlation_to_admin``: Boolean value used to indicate whether all other networks specified in the file (for example: ``bmc_network``) should be correlated to the admin network. For example, if a target node is assigned the IP xx.yy.0.5 on the admin network, it will be assigned the IP aa.bb.0.5 on the BMC network. This value is irrelevant when discovering nodes using a mapping file.
          * ``admin_uncorrelated_node_start_ip``: If ``correlation_to_admin`` is set to true but correlated IPs are not available on non-admin networks, provide an IP within the ``static_range`` of the admin network that can be used to assign admin static IPs to uncorrelated nodes. If this is empty, then the first IP in the ``static_range`` of the admin network is taken by default. This value is irrelevant when discovering nodes using a mapping file.
          * ``MTU``: Maximum transmission unit (MTU) is a measurement in bytes of the largest data packets that an Internet-connected device can accept.
-         * ``DNS``: A DNS server is a computer equipped with a database that stores the public IP addresses linked to the domain names of websites, enabling users to reach websites using their IP addresses.
+         * ``DNS``: A DNS server is a computer equipped with a database that stores the public IP addresses linked to the domain names of websites, enabling users to reach websites using their IP addresses. This is an optional detail.
 
-    * If the ``nic_name`` is the same on both the admin_network and the bmc_network, a LOM setup is assumed.
+    * If the ``nic_name`` is identical on both the ``admin_network`` and the ``bmc_network``, it indicates a LOM setup. Otherwise, it's a dedicated setup.
     * BMC network details are not required when target nodes are discovered using a mapping file.
     * If ``bmc_network`` properties are provided, target nodes will be discovered using the BMC method in addition to the methods whose details are explicitly provided in ``provision_config.yml``.
     * The following parameters are applicable for ``bmc_network``:
@@ -47,7 +47,9 @@ Update the ``input/network_spec.yml`` file for all networks available for use by
 .. caution::
     * Do not assign the subnet 10.4.0.0/24 to any interfaces in the network as nerdctl uses it by default.
     * If a DNS server is available on the network, ensure that the ranges provided in the ``input/network_spec.yml`` file do not include the IP ranges of the DNS server.
-    * All provided network ranges and nic IP addresses should be distinct with no overlap in the ``input/network_spec.yml``.
+    * All provided network ranges and NIC IP addresses should be distinct with no overlap in the ``input/network_spec.yml``.
+    * Ensure that all the iDRACs are reachable from the Control Plane.
+    * If ``bmc_network`` details are provided, target nodes will be discovered using the BMC method for all network ranges.
 
 A sample is provided below: ::
 
