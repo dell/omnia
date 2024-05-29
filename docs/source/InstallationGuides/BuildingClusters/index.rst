@@ -16,6 +16,7 @@ Configuring the cluster
     schedulerprereqs
     installscheduler
     install_kubernetes
+    k8s_plugin_roce_nic
     Authentication
     KubernetesAccess
     BeeGFS

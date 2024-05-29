@@ -151,3 +151,8 @@ After executing ``scheduler.yml`` or ``omnia.yml``, there are some manual steps 
             ::
 
                 rm -rf /etc/apt/sources.list.d/nvidia-container-toolkit.list
+
+
+**Optional installation**
+
+In addition to the above mentioned plugins, user can also install the *kubernetes device plugin for RoCE NIC*. For complete installation steps, `click here <k8s_plugin_roce_nic.html>`_.
