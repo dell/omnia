@@ -32,7 +32,7 @@ Frequently asked questions
 
     * Initiate PXE boot on the remote node after completion of the ``discovery_provision.yml`` playbook execution.
 
-⦾ **Why does the provisioning status of Ubuntu remote servers remain stuck at ‘bmc-ready’ or 'powering-on' in cluster.nodeinfo (omniadb)?**
+⦾ **Why does the provisioning status of Ubuntu remote servers remain stuck at ‘bmcready’ or 'powering-on' in cluster.nodeinfo (omniadb)?**
 
 .. image:: ../images/ubuntu_pxe_failure.png
 
