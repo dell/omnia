@@ -40,7 +40,7 @@ Post ``prepare_config.yml`` execution, user must review or update the auto-popul
 
 * Review the ``software_config.json`` which contains a list of all softwares identified for the cluster. This is used to configure the Omnia v1.6 local repository. For more information about local repository, `click here <../InstallationGuides/LocalRepo/index.html>`_.
 
-    - Ensure that the ``scheduler_type`` entry in for Omnia v1.6 matches with v1.5.1. For example, if scheduler type is ``k8s,slurm`` in Omnia v1.5.1, then there must be a corresponding software entry(s) in the ``software_config.json`` for v1.6.
+    - Ensure there is a software entry(s) corresponding to the ``scheduler_type`` configured in Omnia v1.5.1 input configuration. For example, if ``scheduler_type`` is ``k8s,slurm`` in Omnia v1.5.1, then there must be a corresponding software entry(s) in the v1.6 ``software_config.json``.
 
     - Similarly, if a security type (FreeIPA/OpenLDAP) is enabled in v1.5.1, then corresponding entry must be present in the ``software_config.json`` for Omnia v1.6.
 
