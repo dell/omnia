@@ -27,9 +27,7 @@ Run the playbook using the following commands: ::
 
     ansible-playbook kernel_param_update.yml -i inventory
 
-.. [1]
-
-        This playbook has been validated with the following kernel parameters:
+.. note:: This playbook has been validated with the following kernel parameters:
 
             * iommu=pt
             * intel_iommu=off
