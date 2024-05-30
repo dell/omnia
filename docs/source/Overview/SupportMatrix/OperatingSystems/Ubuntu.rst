@@ -11,6 +11,6 @@ OS Version Control Plane Cluster  Nodes
 .. [1] This version of Ubuntu does not support vLLM and racadm installation via Omnia.
 
 .. note::
-    * Only the live-server version of Ubuntu for provisioning via Omnia.
+    * Omnia uses only the "server install image" version of Ubuntu for provisioning the clusters.
     * Ubuntu does not support the use of Slurm as a clustering software. As a result, benchmarking software and FreeIPA is not supported on Ubuntu.
     * Ubuntu does not support the use of powervault storage.
