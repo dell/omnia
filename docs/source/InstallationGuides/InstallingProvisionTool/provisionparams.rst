@@ -1,7 +1,7 @@
 Input parameters for the provision tool
 -----------------------------------------
 
-Fill in all required parameters in ``input/provision_config.yml``, ``provision_config_credentials.yml``, ``input/software_config.json``.
+Fill in all required parameters in ``input/provision_config.yml``, ``input/provision_config_credentials.yml``, ``input/software_config.json``.
 
 .. caution:: Do not remove or comment any lines in the above specified ``.yml`` files.
 
