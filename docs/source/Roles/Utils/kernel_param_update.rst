@@ -1,4 +1,4 @@
-Update Kernel Parameters [1]_
+Update Kernel Parameters
 ========================
 
 In Omnia, ``kernel_param_update`` is a utility designed to help users to add or modify kernel command-line parameters on the operating systems of the specified nodes. This tool allows users to change the behaviour of certain aspects of the OS kernel at boot time, enabling users to overwrite default values and set specific hardware settings according to their requirements.
