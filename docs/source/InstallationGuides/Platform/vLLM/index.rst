@@ -1,5 +1,5 @@
-Setup vLLM [1]_
----------------
+Setup vLLM
+----------
 
 vLLM is a fast and easy-to-use library for LLM inference and serving. It is seamlessly integrated with popular HuggingFace models. It is also compatible with OpenAI API servers and GPUs (Both NVIDIA and AMD). vLLM 0.2.4 and above supports model inferencing and serving on AMD GPUs with ROCm. At the moment AWQ quantization is not supported in ROCm, but SqueezeLLM quantization has been ported. Data types currently supported in ROCm are FP16 and BF16.
 
@@ -7,7 +7,7 @@ For NVidia, vLLM is a Python library that also contains pre-compiled C++ and CUD
 
 With an Ansible script, deploy vLLM on both the kube_node and kube_control_plane. After the deployment of vLLM, access the vllm container (AMD GPU) and import the vLLM Python package (NVIDIA GPU). For more information, `click here <https://docs.vllm.ai/en/latest/getting_started/installation.html>`_
 
-.. note:: This playbook was validated using Ubuntu 22.04 and RHEL 8.8.
+.. note:: This playbook is supported on Ubuntu 22.04 and RHEL 8.8.
 
 **Pre requisites**
 
@@ -89,8 +89,6 @@ The default namespace is for deployment is ``vLLM``.
                 print(f"Prompt: {prompt!r}, Generated text: {generated_text!r}")
 
 3. To enable an endpoint, `click here <https://docs.vllm.ai/en/latest/getting_started/quickstart.html>`_.
-
-.. [1] This playbook is supported on Ubuntu 22.04 and RHEL 8.8.
 
 .. toctree::
 
