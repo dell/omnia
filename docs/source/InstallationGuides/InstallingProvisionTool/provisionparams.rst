@@ -84,11 +84,11 @@ A sample is provided below: ::
 
     * The ``input/provision_config_credentials.yml`` file is encrypted on the first run of the ``discovery_provision.yml`` or ``local_repo.yml`` playbooks.
 
-        To view the encrypted parameters: ::
+        * To view the encrypted parameters: ::
 
             ansible-vault view provision_config_credentials.yml --vault-password-file .provision_credential_vault_key
 
-        To edit the encrypted parameters: ::
+        * To edit the encrypted parameters: ::
 
             ansible-vault edit provision_config_credentials.yml --vault-password-file .provision_credential_vault_key
 
