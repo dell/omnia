@@ -3,7 +3,7 @@ Input parameters for the cluster
 
 These parameters are located in ``input/omnia_config.yml``, ``input/security_config.yml``, ``input/telemetry_config.yml`` and [optional] ``input/storage_config.yml``.
 
-.. caution:: Do not remove or comment any lines in the ``input/omnia_config.yml``, ``input/security_config.yml`` and [optional] ``input/storage_config.yml`` file.
+.. caution:: Do not remove or comment any lines in the ``input/omnia_config.yml``, ``input/security_config.yml``, ``input/telemetry_config.yml`` and [optional] ``input/storage_config.yml`` file.
 
 **omnia_config.yml**
 
@@ -56,7 +56,7 @@ Click here for more information on `OpenLDAP, FreeIPA <Authentication.html>`_, `
 
 .. note::
 
-    * The ``input/omnia_config.yml``, ``input/security_config.yml``, ``input/telemetry_config.yml`` files are encrypted during execution of ``omnia.yml`` playbook. Use the below command to view or edit the desired encrypted input files:
+    * The ``input/omnia_config.yml``, ``input/security_config.yml``, ``input/telemetry_config.yml`` files are encrypted during the execution of ``omnia.yml`` playbook. Use the below command to view or edit the desired encrypted input files:
 
         * To view the encrypted parameters: ::
 
