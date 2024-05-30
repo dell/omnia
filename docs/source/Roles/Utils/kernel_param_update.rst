@@ -19,6 +19,8 @@ For the supported kernel command-line parameters, `click here <https://docs.kern
 
         GRUB_CMDLINE_LINUX="panic_print=1 print-fatal-signals=1"
 
+.. note:: If you want to provide multiple kernel parameters, ensure that they are separated by a "space".
+
 **To run the playbook**
 
 Run the playbook using the following commands: ::
