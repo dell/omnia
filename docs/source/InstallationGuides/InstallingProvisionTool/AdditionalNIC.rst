@@ -23,21 +23,23 @@ After running ``discovery_provision.yml`` or ``discovery_provision.yml`` and the
 
 .. note::
 
-    * If a ``CIDR`` value is provided, the complete subnet is used for Omnia to assign IPs and where possible, the IPs will be correlated with the assignment on the admin network.
-    * If a VLAN is required, ensure that a VLAN ID is provided in the field ``vlan``. This field is not supported on admin or bmc networks.
+    * If a ``static_range`` value is provided, assigned IPs are not correlated.
+    * If a ``CIDR`` value is provided, the complete subnet is used for Omnia to assign IPs and where possible, the IPs will be correlated with the assignment on the admin network. Omnia performs correlation for additional networks if the subnet prefix for the admin network is a superset, and the additional network is a subset. For example, if the subnet prefix for the admin network is */16* and for the additional network it's */24*, Omnia attempts to correlate the IPs if the value for the ``correlate_to_admin`` field is set to true in ``input/network_spec.yml``.
+    * If a VLAN is required, ensure that a VLAN ID is provided in the ``vlan`` field in ``input/server_spec.yml`` and ensure that it's provided in the ``NIC.vlan_id(eth1.101)`` format , where "eth1.101" is the name of the additional NIC. This field is not supported on admin or bmc networks.
+    * While new networks can be added to the ``network_spec.yml`` file on subsequent runs of the ``server_spec_update.yml`` playbook, existing networks cannot be edited or deleted. If the user modifies or removes existing networks from ``input/network_spec.yml``, the playbook execution might fail. In that case, the user needs to `reprovision the node <../reprovisioningthecluster.html>`_.
 
 Below is a sample of additional NIC information in a ``input/network_spec.yml`` file: ::
 
            - thor_network1:
-              netmask_bits: "20"
-              CIDR: "10.10.16.0"
+              netmask_bits: "24"
+              CIDR: "10.23.1.0"
               network_gateway: ""
               MTU: "1500"
               VLAN: ""
 
            - thor_network2:
-              netmask_bits: "20"
-              static_range: "10.10.1.1-10.10.15.254"
+              netmask_bits: "24"
+              static_range: "10.23.2.1-10.23.2.254"
               network_gateway: ""
               MTU: "1500"
               VLAN: "1"
@@ -48,7 +50,7 @@ Below is a sample of additional NIC information in a ``input/network_spec.yml`` 
     * All NICs listed in the ``server_spec.yml`` file are grouped into categories (groups for servers). The string "Categories:" should not be edited out of the ``input/server_spec.yml`` file.
     * The name of the NIC specified in the file (in this sample, ``ensp0``, ``ensp0.5``, and ``eno1``) is the unique identifier of NICs in the file.
     * The property ``nictype`` indicates what kind of NIC is in use (ethernet, infiniband, or vlan). If the ``nictype`` is set to ``vlan``, ensure to specify a primary NIC for the VLAN using the property ``nicdevices``.
-    * While new groups can be added to the ``server_spec.yml`` file on subsequent runs of the playbook, existing groups cannot be edited or deleted.
+    * While new groups can be added to the ``server_spec.yml`` file on subsequent runs of the ``server_spec_update.yml`` playbook, existing groups cannot be edited or deleted. If the user modifies or removes existing groups from ``input/server_spec.yml``, the playbook execution might fail. In that case, the user needs to `reprovision the node <../reprovisioningthecluster.html>`_.
 
 .. note:: The ``nicnetwork`` property should match any of the networks specified in ``input/network_spec.yml``.
 
