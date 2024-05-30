@@ -82,7 +82,7 @@ A sample is provided below: ::
 
 .. note::
 
-    * The ``input/provision_config_credentials.yml`` file is encrypted on the first run of the provision tool:
+    * The ``input/provision_config_credentials.yml`` file is encrypted on the first run of the ``discovery_provision.yml`` or ``local_repo.yml`` playbooks.
 
         To view the encrypted parameters: ::
 

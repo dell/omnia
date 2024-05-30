@@ -54,3 +54,16 @@ These parameters are located in ``input/omnia_config.yml``, ``input/security_con
 
 Click here for more information on `OpenLDAP, FreeIPA <Authentication.html>`_, `Telemetry <../../Roles/Telemetry/index.html>`_, `BeeGFS <BeeGFS.html>`_ or, `NFS <NFS.html>`_.
 
+.. note::
+
+
+
+* The ``input/omnia_config.yml``, ``input/security_config.yml``, ``input/telemetry_config.yml`` files are encrypted during execution of ``omnia.yml`` playbook. Use the below command to view or edit the desired encrypted input files:
+
+    To view the encrypted parameters: ::
+
+    ansible-vault view <omnia_config.yml or security_config.yml or telemetry_config.yml> --vault-password-file .provision_credential_vault_key
+
+    To edit the encrypted parameters: ::
+
+    ansible-vault edit <omnia_config.yml or security_config.yml or telemetry_config.yml> --vault-password-file .provision_credential_vault_key

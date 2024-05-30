@@ -121,7 +121,7 @@ After successfully running ``discovery_provision.yml``, go to `Building Clusters
 
     * All ports required for xCAT to run will be opened (For a complete list, check out the `Security Configuration Document <../../SecurityConfigGuide/ProductSubsystemSecurity.html#firewall-settings>`_).
 
-    * After running ``discovery_provision.yml``, the file ``input/provision_config_credentials.yml`` will be encrypted. To edit the file, use the command: ``ansible-vault edit provision_config.yml --vault-password-file .provision_credential_vault_key``
+    * After running ``discovery_provision.yml``, the file ``input/provision_config_credentials.yml`` will be encrypted. To edit the file, use the command: ``ansible-vault edit provision_config_credentials.yml --vault-password-file .provision_credential_vault_key``
 
     * Post execution of ``discovery_provision.yml``, IPs/hostnames cannot be re-assigned by changing the mapping file. However, the addition of new nodes is supported as explained `here <../addinganewnode.html>`_.
 
