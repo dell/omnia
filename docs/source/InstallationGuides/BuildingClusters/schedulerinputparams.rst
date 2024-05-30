@@ -56,12 +56,16 @@ Click here for more information on `OpenLDAP, FreeIPA <Authentication.html>`_, `
 
 .. note::
 
-    * The ``input/omnia_config.yml``, ``input/security_config.yml``, ``input/telemetry_config.yml`` files are encrypted during the execution of ``omnia.yml`` playbook. Use the below command to view or edit the desired encrypted input files:
+    * The ``input/omnia_config.yml``, ``input/security_config.yml``, ``input/telemetry_config.yml`` files are encrypted during the execution of ``omnia.yml`` playbook. Use the below commands to edit the encrypted input files:
 
-        * To view the encrypted parameters: ::
+        * omnia_config.yml: ::
 
-            ansible-vault view <omnia_config.yml or security_config.yml or telemetry_config.yml> --vault-password-file .provision_credential_vault_key
+            ansible-vault edit omnia_config.yml --vault-password-file .omnia_vault_key
 
-        * To edit the encrypted parameters: ::
+        * security_config.yml: ::
 
-            ansible-vault edit <omnia_config.yml or security_config.yml or telemetry_config.yml> --vault-password-file .provision_credential_vault_key
+            ansible-vault edit security_config.yml --vault-password-file .security_vault.key
+
+        * telemetry_config.yml: ::
+
+            ansible-vault edit telemetry_config.yml --vault-password-file .telemetry_vault_key
