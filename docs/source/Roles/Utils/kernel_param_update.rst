@@ -1,5 +1,5 @@
-Update Kernel Parameters
-=========================
+Update Kernel Parameters [1]_
+========================
 
 In Omnia, ``kernel_param_update`` is a utility designed to help users to add or modify kernel command-line parameters on the operating systems of the specified nodes. This tool allows users to change the behaviour of certain aspects of the OS kernel at boot time, enabling users to overwrite default values and set specific hardware settings according to their requirements.
 For the supported kernel command-line parameters, `click here <https://docs.kernel.org/admin-guide/kernel-parameters.html>`_.
@@ -26,3 +26,12 @@ For the supported kernel command-line parameters, `click here <https://docs.kern
 Run the playbook using the following commands: ::
 
     ansible-playbook kernel_param_update.yml -i inventory
+
+.. [1] This playbook has been validated with the following kernel parameters:
+
+            * iommu=pt
+            * intel_iommu=off
+            * pci=realloc=off
+            * processor.max_cstate=0
+            * intel_idle.max_cstate=0
+            * intel_pstate=disable
