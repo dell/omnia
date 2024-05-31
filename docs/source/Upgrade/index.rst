@@ -11,7 +11,7 @@ The upgrade feature in v1.6 helps customers to upgrade their Omnia setup from v1
 
            dnf install git -y
 
-    3. Clone the Omnia v1.6 github repository on to the control plane using the following command: ::
+    3. Clone the Omnia v1.6 repository from GitHub and place it in a directory on the control plane. This directory must be different from the one containing the Omnia v1.5.1 repository. Execute the following command to perform the cloning operation: ::
 
            git clone https://github.com/dell/omnia.git
 
