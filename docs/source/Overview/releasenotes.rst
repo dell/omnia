@@ -4,48 +4,63 @@ Releases
 1.6
 ----
 
-*   Feature support on Ubuntu 22.04 OS:
+* Enablement for AI
 
-            *   `Local repository and registry creation for packages and container images. <../InstallationGuides/LocalRepo/index.html>`_
+    * Ubuntu 22.04.3 LTS with GA kernel and HWE kernel support
 
-            *   `Cluster provision with Ubuntu 22.04 OS. <../InstallationGuides/InstallingProvisionTool/index.html>`_
+    * Ubuntu 20.04.6 LTS
 
-            *   `AMD GPU driver and ROCm installation. <../Roles/Accelerator/index.html>`_
+    * Install AMD ROCm SDK on host OS
 
-            *   `IP configuration on the additional NICs: IPv4 support <../InstallationGuides/InstallingProvisionTool/AdditionalNIC.html>`_
+    * Install Vanilla Kubernetes stack v1.26
 
-            *   `Kubernetes installation. <../InstallationGuides/BuildingClusters/index.html>`_
+    * `Install GPU device plugin for Kubernetes <../InstallationGuides/BuildingClusters/install_kubernetes.html>`_
 
-            *   `NFS client/server configuration. <../InstallationGuides/BuildingClusters/NFS.html>`_
+        - GPU device plugin for AMD
+        - GPU device plugin for Nvidia
 
-            *   `OpenLDAP support with documented support for replication. <../Roles/Security/index.html>`_
+    * Submit Kubernetes jobs as a non-admin user
 
-            *   AI Software Stack support including the installation of the following tools:
+    * `Install Kubeflow <../InstallationGuides/Platform/kubeflow.html>`_
 
-                    *   `Jupyter notebook <../Roles/Platform/InstallJupyterhub.html>`_
+    * `Install vLLM Inference platform <../InstallationGuides/Platform/vLLM/index.html>`_
 
-                    *    `Kubeflow <../Roles/Platform/kubeflow.html>`_
+    * `Install Kserve Inference platform <../InstallationGuides/Platform/kserve.html>`_
 
-                    *    `Pytorch <../Roles/Platform/Pytorch.html>`_
+    * `Install Jupyter Notebook <../InstallationGuides/Platform/InstallJupyterhub.html>`_
 
-                    *    `Tensorflow <../Roles/Platform/TensorFlow.html>`_
+    * `Install PyTorch <../InstallationGuides/Platform/Pytorch.html>`_
 
-                    *    `vLLM (MI210x support) <../Roles/Platform/SetupvLLM.html>`_
+    * `Install TensorFlow <../InstallationGuides/Platform/TensorFlow.html>`_
 
+* Additional Features
 
-*   Feature support on `RHEL 8.8 OS: <SupportMatrix/OperatingSystems/RedHat.html>`_
+    * Offline package repo and image registry creation
 
-            *   `Slurm installation in configless mode <../InstallationGuides/BuildingClusters/schedulerinputparams.html>`_
+    * Classless IP Addressing
 
-            *   `Slurm installation in NFS mode <../InstallationGuides/BuildingClusters/schedulerinputparams.html>`_
+        * `Additional NIC configuration <../InstallationGuides/InstallingProvisionTool/AdditionalNIC.html>`_
+        * `IP rule assignment <../InstallationGuides/InstallingProvisionTool/IPruleassignment.html>`_
 
-*   Additional Features
+    * LDAP client and server configuration
 
-            *   `OFED Installation <../InstallationGuides/LocalRepo/index.html>`_
+    * One-off Utility to add or remove a node
 
-            *   `CUDA Driver installation <../Roles/Accelerator/index.html>`_
+    * HPC/AI cluster inventory partitioning
 
-            *   `Add <../InstallationGuides/addinganewnode.html>`_ / `remove <../InstallationGuides/deletenode.html>`_ nodes from the cluster.
+        - CPU inventory
+        - AMD GPU inventory
+        - Nvidia GPU inventory
+
+    * `Smoother Omnia upgrades on the control plane <../Upgrade/index.html>`_
+
+    * Slurm in configless or NFS in RHEL/Rocky Linux
+
+    * OpenMPI and UCX installation in share partition
+
+    * `Utility to update/modify Kernel command-line parameters <../Roles/Utils/kernel_param_update.html>`_
+
+    * `Install Kubernetes plugin for the RoCE NIC <../InstallationGuides/BuildingClusters/k8s_plugin_roce_nic.html>`_
 
 1.5.1
 -----
