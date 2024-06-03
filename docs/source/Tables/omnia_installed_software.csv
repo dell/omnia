@@ -68,7 +68,7 @@ apptainer,BSD 3-Clause License,Apptainer: Application containers for Linux,1.2
 metallb,Apache-2.0,A network load-balancer implementation for Kubernetes using standard routing protocols,1.3
 smartmontools,GNU GPL,Official read only mirror of the smartmontools project SVN,7.4
 pyinstaller,"GNU General Public License, Apache 2.0",Freeze (package) Python programs into stand-alone executables,6
-psutil,BSD 3-Clause License,Cross-platform lib for process and system monitoring in Python,5:09:05
+psutil,BSD 3-Clause License,Cross-platform lib for process and system monitoring in Python,05:09:05
 LDAP ToolBox,GNU General Public License v3.0 ,OpenLDAP server installation,2.5.16
 squid - ubuntu 20.04,Apache License 2.0,http proxy server,4.1
 squid - ubuntu 22.04,Apache License 2.0,http proxy server,5.7
@@ -91,7 +91,7 @@ Kserve,Apache License 2.0,"Deploys Kserve as inference platform on K8s cluster. 
 pyarrow,Apache License 2.0,Discovery provisioning,15.0.2
 vllm,Apache License 2.0,A high-throughput and memory-efficient inference and serving engine for LLMs,0.4.0
 ucx,BSD 3 Clause License,Benchmarks tools,1.15.0
-openmpi, 3-clause BSD license,Benchmarks tools,4.1.6
+openmpi,3-clause BSD license,Benchmarks tools,4.1.6
 Pytorch,Apache-2.0,PyTorch is a GPU accelerated tensor computational framework for Machine Learning.,latest image
 Pytorch Nvidia,NVIDIA DEEP LEARNING CONTAINER LICENSE,"The PyTorch NGC Container is optimized for GPU acceleration, and contains a validated set of libraries that enable and optimize GPU performance",23.12-py3
 Tensorflow Nvidia,NVIDIA DEEP LEARNING CONTAINER LICENSE,Tensorflow is a GPU accelerated tensor computational framework for Machine Learning.,23.12-tf2-py3
