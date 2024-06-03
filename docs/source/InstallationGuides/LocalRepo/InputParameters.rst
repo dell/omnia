@@ -22,6 +22,7 @@ Sample version of the file:
             "softwares": [
                 {"name": "amdgpu", "version": "6.0"},
                 {"name": "cuda", "version": "12.3.2"},
+                {"name": "bcm_roce", "version": "229.2.61.0"},
                 {"name": "ofed", "version": "24.01-0.3.3.1"},
                 {"name": "openldap"},
                 {"name": "secure_login_node"},
@@ -39,6 +40,9 @@ Sample version of the file:
                 {"name": "openmpi", "version": "4.1.6"}
             ],
 
+            "bcm_roce": [
+                    {"name": "bcm_roce_libraries", "version": "229.2.61.0"}
+            ],
             "amdgpu": [
                 {"name": "rocm", "version": "6.0" }
             ],

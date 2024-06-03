@@ -75,6 +75,66 @@ For information on deploying BeeGFS after setting up the cluster, `click here. <
     * If the package version is customized, ensure that the ``version`` value is updated in ``software_config.json```.
     * If the target cluster runs on RHEL or Rocky Linux, ensure the "dkms" package is included in ``input/config/<cluster_os_type>/8.x/cuda.json`` as illustrated above.
 
+**BCM RoCE**
+
+    To install RoCE, do the following:
+
+        * Include the following package name and version in ``input/software_config.json``: ::
+
+            {"name": "bcm_roce", "version": "229.2.61.0"}
+
+        * Add the following line to the ``softwares`` section: ::
+
+            "bcm_roce": [
+                        {"name": "bcm_roce_libraries", "version": "229.2.61.0"}
+                        ],
+
+        * A sample format is available `here <InputParameters.html>`_.
+
+    For a list of repositories (and their types) configured for RoCE, view the ``input/config/ubuntu/<cluster_os_verison>/bcm_roce.json``. To customize your RoCE installation, update the file. URLs for different versions can be found `here <>`_: ::
+
+        {
+          "bcm_roce": {
+            "cluster": [
+              {
+                "package": "bcm_roce_driver_{{ bcm_roce_version }}",
+                "type": "tarball",
+                "url": "",
+                "path": ""
+              }
+            ]
+          },
+          "bcm_roce_libraries": {
+            "cluster": [
+              {
+                "package": "bcm_roce_source_{{ bcm_roce_libraries_version }}",
+                "type": "tarball",
+                "url": "",
+                "path": ""
+              },
+              {"package": "libelf-dev", "type": "deb", "repo_name": "jammy"},
+              {"package": "gcc", "type": "deb", "repo_name": "jammy"},
+              {"package": "make", "type": "deb", "repo_name": "jammy"},
+              {"package": "libtool", "type": "deb", "repo_name": "jammy"},
+              {"package": "autoconf", "type": "deb", "repo_name": "jammy"},
+              {"package": "librdmacm-dev", "type": "deb", "repo_name": "jammy"},
+              {"package": "rdmacm-utils", "type": "deb", "repo_name": "jammy"},
+              {"package": "infiniband-diags", "type": "deb", "repo_name": "jammy"},
+              {"package": "ibverbs-utils", "type": "deb", "repo_name": "jammy"},
+              {"package": "perftest", "type": "deb", "repo_name": "jammy"},
+              {"package": "ethtool", "type": "deb", "repo_name": "jammy"},
+              {"package": "libibverbs-dev", "type": "deb", "repo_name": "jammy"},
+              {"package": "rdma-core", "type": "deb", "repo_name": "jammy"},
+              {"package": "strace", "type": "deb", "repo_name": "jammy"}
+            ]
+          }
+        }
+
+.. note::
+
+    * The RoCE driver is only supported on Ubuntu clusters.
+    * The only accepted URL for the RoCE driver is from the Dell Driver website.
+
 **Custom repositories**
 
     Include the following line under ``softwares`` in ``input/software_config.json``: ::

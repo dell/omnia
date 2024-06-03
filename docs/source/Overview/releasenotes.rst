@@ -1,6 +1,52 @@
 Releases
 ========
 
+1.6
+----
+
+*   Feature support on Ubuntu 22.04 OS:
+
+            *   `Local repository and registry creation for packages and container images. <../InstallationGuides/LocalRepo/index.html>`_
+
+            *   `Cluster provision with Ubuntu 22.04 OS. <../InstallationGuides/InstallingProvisionTool/index.html>`_
+
+            *   `AMD GPU driver and ROCm installation. <../Roles/Accelerator/index.html>`_
+
+            *   `IP configuration on the additional NICs: IPv4 support <../InstallationGuides/InstallingProvisionTool/AdditionalNIC.html>`_
+
+            *   `Kubernetes installation. <../InstallationGuides/BuildingClusters/index.html>`_
+
+            *   `NFS client/server configuration. <../InstallationGuides/BuildingClusters/NFS.html>`_
+
+            *   `OpenLDAP support with documented support for replication. <../Roles/Security/index.html>`_
+
+            *   AI Software Stack support including the installation of the following tools:
+
+                    *   `Jupyter notebook <../Roles/Platform/InstallJupyterhub.html>`_
+
+                    *    `Kubeflow <../Roles/Platform/kubeflow.html>`_
+
+                    *    `Pytorch <../Roles/Platform/Pytorch.html>`_
+
+                    *    `Tensorflow <../Roles/Platform/TensorFlow.html>`_
+
+                    *    `vLLM (MI210x support) <../Roles/Platform/SetupvLLM.html>`_
+
+
+*   Feature support on `RHEL 8.8 OS: <SupportMatrix/OperatingSystems/RedHat.html>`_
+
+            *   `Slurm installation in configless mode <../InstallationGuides/BuildingClusters/schedulerinputparams.html>`_
+
+            *   `Slurm installation in NFS mode <../InstallationGuides/BuildingClusters/schedulerinputparams.html>`_
+
+*   Additional Features
+
+            *   `OFED Installation <../InstallationGuides/LocalRepo/index.html>`_
+
+            *   `CUDA Driver installation <../Roles/Accelerator/index.html>`_
+
+            *   `Add <../InstallationGuides/addinganewnode.html>`_ / `remove <../InstallationGuides/deletenode.html>`_ nodes from the cluster.
+
 1.5.1
 -----
 
