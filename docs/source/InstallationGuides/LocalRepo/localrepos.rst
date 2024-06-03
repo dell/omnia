@@ -79,11 +79,11 @@ For information on deploying BeeGFS after setting up the cluster, `click here. <
 
     To install RoCE, do the following:
 
-        * Include the following package name and version in ``input/software_config.json``: ::
+        * Include the following line under ``softwares`` in ``input/software_config.json``: ::
 
             {"name": "bcm_roce", "version": "229.2.61.0"}
 
-        * Add the following line to the ``softwares`` section: ::
+        * Add the following line below the ``softwares`` section: ::
 
             "bcm_roce": [
                         {"name": "bcm_roce_libraries", "version": "229.2.61.0"}
