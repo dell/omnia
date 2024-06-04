@@ -81,7 +81,7 @@ Use the below commands to assign IPs to the NICs: ::
     cd server_spec_update
     ansible-playbook server_spec_update.yml -i inventory
 
-Where the inventory file passed includes user-defined groups, servers associated with them, and a mapping from the groups specified and the categories in ``input/server_spec.yml`` under [<group name>:vars]. Below is a sample: ::
+Where the inventory file passed includes user-defined groups, servers associated with them, and a mapping from the groups specified and the categories in ``input/server_spec.yml`` under ``[<group name>:vars]``. Below is a sample: ::
 
     [node-group1]
     10.5.0.3

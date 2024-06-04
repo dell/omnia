@@ -18,6 +18,8 @@ Configuring the cluster
     installscheduler
     install_kubernetes
     k8s_plugin_roce_nic
+    install_slurm
+    install_ucx_openmpi
     Authentication
     KubernetesAccess
     BeeGFS

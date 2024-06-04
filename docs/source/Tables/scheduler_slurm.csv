@@ -22,8 +22,8 @@
      Optional      ","* Indicates whether the slurm installation will support configless or nfs mode
      Choices:
 
-     * ``nfs_share``  <- default
-     * ``configless``                                          "
+     * ``nfs_share``  
+     * ``configless``  <- default                                        "
 "**restart_slurm_services**
 
      ``boolean``

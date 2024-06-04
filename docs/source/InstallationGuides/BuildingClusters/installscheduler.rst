@@ -36,28 +36,5 @@ To run ``omnia.yml``: ::
 
     * Use the ansible-vault view or edit commands and not the ansible-vault decrypt or encrypt commands. If you have used the ansible-vault decrypt or encrypt commands, provide 644 permission to the parameter files.
 
-**Slurm job based user access**
-
-To ensure security while running jobs on the cluster, users can be assigned permissions to access cluster  nodes only while their jobs are running. To enable the feature: ::
-
-    cd scheduler
-    ansible-playbook job_based_user_access.yml -i inventory
-
-.. note::
-
-    * The inventory queried in the above command is to be created by the user prior to running ``omnia.yml`` as ``scheduler.yml`` is invoked by ``omnia.yml``
-
-    * Only users added to the 'slurm' group can execute slurm jobs. To add users to the group, use the command: ``usermod -a -G slurm <username>``.
-
-**Configuring UCX and OpenMPI on the cluster**
-
-If a local repository for UCX and OpenMPI has been configured on the cluster, the following configurations take place when running ``omnia.yml`` or ``scheduler.yml``.
-
-    * UCX will be compiled and installed on the NFS share (based on the ``client_share_path`` provided in the ``nfs_client_params`` in  ``input/storage_config.yml``).
-    * If the cluster uses Slurm and UCX, OpenMPI is configured to compile with the UCX and Slurm on the NFS share (based on the ``client_share_path`` provided in the ``nfs_client_params`` in  ``input/storage_config.yml``).
-    * All corresponding compiled UCX and OpenMPI files will be saved to the ``<client_share_path>/compile`` directory on the nfs share.
-    * All corresponding UCX and OpenMPI executables will be saved to the ``<client_share_path>/benchmarks/`` directory on the nfs share.
-
-.. note:: The default OpenMPI version for Omnia is 4.1.6. If you change the version in the ``software.json`` file, make sure to update it in the ``openmpi.json`` file in the ``input/config`` directory as well.
 
 

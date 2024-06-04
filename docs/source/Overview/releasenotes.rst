@@ -8,7 +8,7 @@ Releases
 
     * `Ubuntu 22.04.3 LTS with GA kernel and HWE kernel support <SupportMatrix/OperatingSystems/Ubuntu.html>`_
 
-    * Ubuntu 20.04.6 LTS
+    * `Ubuntu 20.04.6 LTS <SupportMatrix/OperatingSystems/Ubuntu.html>`_
 
     * `Install AMD ROCm SDK on host OS <../Roles/Accelerator/index.html>`_
 
@@ -37,7 +37,7 @@ Releases
 
     * `Offline package repo and image registry creation <../InstallationGuides/LocalRepo/index.html>`_
 
-    * Classless IP Addressing
+    * `Classless IP Addressing <../InstallationGuides/InstallingProvisionTool/index.html>`_
 
         * `Additional NIC configuration <../InstallationGuides/InstallingProvisionTool/AdditionalNIC.html>`_
         * `IP rule assignment <../InstallationGuides/InstallingProvisionTool/IPruleassignment.html>`_
