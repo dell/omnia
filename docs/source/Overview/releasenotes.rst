@@ -6,9 +6,9 @@ Releases
 
 * Enablement for AI
 
-    * `Ubuntu 22.04.3 LTS with GA kernel and HWE kernel support <SupportMatrix/OperatingSystems/Ubuntu.html>`_
+    * Ubuntu 22.04.3 LTS with GA kernel and HWE kernel support
 
-    * `Ubuntu 20.04.6 LTS <SupportMatrix/OperatingSystems/Ubuntu.html>`_
+    * Ubuntu 20.04.6 LTS
 
     * `Install AMD ROCm SDK on host OS <../Roles/Accelerator/index.html>`_
 
