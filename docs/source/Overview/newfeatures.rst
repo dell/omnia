@@ -55,7 +55,7 @@ New Features
 
     * OpenMPI and UCX installation in share partition
 
-    * Utility to update/modify Kernel command-line parameters
+    * Utility to add/modify Kernel command-line parameters
 
     * Install Kubernetes plugin for the RoCE NIC
 

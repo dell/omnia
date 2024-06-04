@@ -6,9 +6,9 @@ Releases
 
 * Enablement for AI
 
-    * `Ubuntu 22.04.3 LTS with GA kernel and HWE kernel support <OperatingSystems/Ubuntu.html>`_
+    * `Ubuntu 22.04.3 LTS with GA kernel and HWE kernel support <SupportMatrix/OperatingSystems/Ubuntu.html>`_
 
-    * `Ubuntu 20.04.6 LTS <OperatingSystems/Ubuntu.html>`_
+    * `Ubuntu 20.04.6 LTS <SupportMatrix/OperatingSystems/Ubuntu.html>`_
 
     * `Install AMD ROCm SDK on host OS <../Roles/Accelerator/index.html>`_
 
@@ -58,7 +58,7 @@ Releases
 
     * `OpenMPI and UCX installation in share partition <../InstallationGuides/BuildingClusters/installscheduler.html>`_
 
-    * `Utility to update/modify Kernel command-line parameters <../Roles/Utils/kernel_param_update.html>`_
+    * `Utility to add/modify Kernel command-line parameters <../Roles/Utils/kernel_param_update.html>`_
 
     * `Install Kubernetes plugin for the RoCE NIC <../InstallationGuides/BuildingClusters/k8s_plugin_roce_nic.html>`_
 
