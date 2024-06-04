@@ -133,7 +133,7 @@ For information on deploying BeeGFS after setting up the cluster, `click here. <
 .. note::
 
     * The RoCE driver is only supported on Ubuntu clusters.
-    * The only accepted URL for the RoCE driver is from the Dell Driver website.
+    * The only accepted URL for the RoCE driver is from the `Dell support <https://www.dell.com/support/home/en-us>`_ site.
 
 **Custom repositories**
 
