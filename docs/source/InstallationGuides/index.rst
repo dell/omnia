@@ -7,17 +7,17 @@ Quick Installation Guide
 
 .. note:: Omnia can be run on control planes running RHEL, Rocky Linux, and Ubuntu. For a complete list of versions supported, check out the `Support Matrix <../Overview/SupportMatrix/OperatingSystems/index.html>`_.
 
-    To install Git on RHEL and Rocky Linux installations, use the following command: ::
+To install Git on RHEL and Rocky Linux installations, use the following command: ::
 
-        dnf install git -y
+    dnf install git -y
 
-    To install Git on Ubuntu installations, use the following command: ::
+To install Git on Ubuntu installations, use the following command: ::
 
-        apt install git -y
+    apt install git -y
 
-.. note:: Optionally, if the control plane has an Infiniband NIC installed on RHEL or Rocky Linux, run the below command: ::
-
-    yum groupinstall "Infiniband Support" -y
+.. note:: Optionally, if the control plane has an Infiniband NIC installed on RHEL or Rocky Linux, run the below command:
+    ::
+        yum groupinstall "Infiniband Support" -y
 
 * Clone the Omnia repository from GitHub on to the control plane, using the following command: ::
 
