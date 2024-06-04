@@ -56,7 +56,7 @@ Releases
 
     * `Slurm in configless or NFS in RHEL/Rocky Linux <../InstallationGuides/BuildingClusters/schedulerinputparams.html#id12>`_
 
-    * `OpenMPI and UCX installation in share partition <../InstallationGuides/BuildingClusters/installscheduler.html>`_
+    * `OpenMPI and UCX installation in share partition <../InstallationGuides/BuildingClusters/install_ucx_openmpi.html>`_
 
     * `Utility to add/modify Kernel command-line parameters <../Roles/Utils/kernel_param_update.html>`_
 
