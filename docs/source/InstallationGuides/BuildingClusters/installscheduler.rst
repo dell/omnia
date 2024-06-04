@@ -19,6 +19,7 @@ Building clusters
     ii. ``storage.yml``: This playbook sets up storage tools like `BeeGFS <BeeGFS.html>`_ and `NFS <NFS.html>`_.
     iii. ``scheduler.yml``: This playbook sets up job schedulers (Slurm or Kubernetes) on the cluster.
     iv. ``telemetry.yml``: This playbook sets up `Omnia telemetry and/or iDRAC telemetry <../../Roles/Telemetry/index.html>`_. It also installs `Grafana <https://grafana.com/>`_ and `Loki <https://grafana.com/oss/loki/>`_ as Kubernetes pods.
+    v. ``rocm_installation.yml``: This playbook sets up the `ROCm platform for AMD GPU accelerators <../../Roles/Accelerator/index.html#gpu-accelerator-configuration>`_.
 
 To run ``omnia.yml``: ::
 
