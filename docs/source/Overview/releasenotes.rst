@@ -6,7 +6,7 @@ Releases
 
 * Enablement for AI
 
-    * Ubuntu 22.04.3 LTS with GA kernel and HWE kernel support
+    * `Ubuntu 22.04.3 LTS with GA kernel and HWE kernel support <Overview/SupportMatrix/OperatingSystems/Ubuntu.html>`_
 
     * Ubuntu 20.04.6 LTS
 
