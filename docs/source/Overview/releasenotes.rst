@@ -6,11 +6,11 @@ Releases
 
 * Enablement for AI
 
-    * Ubuntu 22.04.3 LTS with GA kernel and HWE kernel support
+    * `Ubuntu 22.04.3 LTS with GA kernel and HWE kernel support <OperatingSystems/Ubuntu.html>`_
 
-    * Ubuntu 20.04.6 LTS
+    * `Ubuntu 20.04.6 LTS <OperatingSystems/Ubuntu.html>`_
 
-    * Install AMD ROCm SDK on host OS
+    * `Install AMD ROCm SDK on host OS <../Roles/Accelerator/index.html>`_
 
     * Install Vanilla Kubernetes stack v1.26
 
@@ -35,16 +35,16 @@ Releases
 
 * Additional Features
 
-    * Offline package repo and image registry creation
+    * `Offline package repo and image registry creation <../InstallationGuides/LocalRepo/index.html>`_
 
     * Classless IP Addressing
 
         * `Additional NIC configuration <../InstallationGuides/InstallingProvisionTool/AdditionalNIC.html>`_
         * `IP rule assignment <../InstallationGuides/InstallingProvisionTool/IPruleassignment.html>`_
 
-    * LDAP client and server configuration
+    * `LDAP client and server configuration <../InstallationGuides/BuildingClusters/Authentication.html>`_
 
-    * One-off Utility to add or remove a node
+    * One-off Utility to `add a node <../InstallationGuides/addinganewnode.html>`_ or to `remove a node <../InstallationGuides/deletenode.html>`_.
 
     * HPC/AI cluster inventory partitioning
 
@@ -54,9 +54,9 @@ Releases
 
     * `Smoother Omnia upgrades on the control plane <../Upgrade/index.html>`_
 
-    * Slurm in configless or NFS in RHEL/Rocky Linux
+    * `Slurm in configless or NFS in RHEL/Rocky Linux <../InstallationGuides/BuildingClusters/schedulerinputparams.html#id12>`_
 
-    * OpenMPI and UCX installation in share partition
+    * `OpenMPI and UCX installation in share partition <../InstallationGuides/BuildingClusters/installscheduler.html>`_
 
     * `Utility to update/modify Kernel command-line parameters <../Roles/Utils/kernel_param_update.html>`_
 
