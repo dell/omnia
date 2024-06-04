@@ -6,20 +6,20 @@ Releases
 
 * Enablement for AI
 
-    * Ubuntu 22.04.3 LTS with GA kernel and HWE kernel support
+    * `Ubuntu 22.04.3 LTS with GA kernel and HWE kernel support <SupportMatrix/OperatingSystems/Ubuntu.html>`_
 
     * Ubuntu 20.04.6 LTS
 
     * `Install AMD ROCm SDK on host OS <../Roles/Accelerator/index.html>`_
 
-    * Install Vanilla Kubernetes stack v1.26
+    * `Install Vanilla Kubernetes stack v1.26 <../InstallationGuides/BuildingClusters/install_kubernetes.html>`_
 
     * `Install GPU device plugin for Kubernetes <../InstallationGuides/BuildingClusters/install_kubernetes.html>`_
 
         - GPU device plugin for AMD
         - GPU device plugin for Nvidia
 
-    * Submit Kubernetes jobs as a non-admin user
+    * `Submit Kubernetes jobs as a non-admin user <../InstallationGuides/BuildingClusters/KubernetesAccess.html>`_
 
     * `Install Kubeflow <../InstallationGuides/Platform/kubeflow.html>`_
 
@@ -46,7 +46,7 @@ Releases
 
     * One-off Utility to `add a node <../InstallationGuides/addinganewnode.html>`_ or to `remove a node <../InstallationGuides/deletenode.html>`_.
 
-    * HPC/AI cluster inventory partitioning
+    * `HPC/AI cluster inventory partitioning <../InstallationGuides/PostProvisionScript.html>`_
 
         - CPU inventory
         - AMD GPU inventory
@@ -61,6 +61,8 @@ Releases
     * `Utility to add/modify Kernel command-line parameters <../Roles/Utils/kernel_param_update.html>`_
 
     * `Install Kubernetes plugin for the RoCE NIC <../InstallationGuides/BuildingClusters/k8s_plugin_roce_nic.html>`_
+
+    * `Updating kernels using software update utility <../Roles/Utils/software_update.html>`_
 
 1.5.1
 -----
