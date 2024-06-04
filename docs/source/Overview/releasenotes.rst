@@ -54,7 +54,7 @@ Releases
 
     * `Smoother Omnia upgrades on the control plane <../Upgrade/index.html>`_
 
-    * `Slurm in configless or NFS in RHEL/Rocky Linux <../InstallationGuides/BuildingClusters/schedulerinputparams.html#id12>`_
+    * `Slurm in configless or NFS in RHEL/Rocky Linux <InstallationGuides/BuildingClusters/install_slurm.html>`_
 
     * `OpenMPI and UCX installation in share partition <../InstallationGuides/BuildingClusters/install_ucx_openmpi.html>`_
 
