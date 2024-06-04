@@ -91,7 +91,7 @@ For information on deploying BeeGFS after setting up the cluster, `click here. <
 
         * A sample format is available `here <InputParameters.html>`_.
 
-    For a list of repositories (and their types) configured for RoCE, view the ``input/config/ubuntu/<cluster_os_verison>/bcm_roce.json``. To customize your RoCE installation, update the file. URLs for different versions can be found `here <>`_: ::
+    For a list of repositories (and their types) configured for RoCE, view the ``input/config/ubuntu/<cluster_os_verison>/bcm_roce.json``. To customize your RoCE installation, update the file. URLs for different versions can be found `here <https://www.dell.com/support/home/en-us>`_: ::
 
         {
           "bcm_roce": {
