@@ -12,7 +12,7 @@ Releases
 
 * Enablement for AI
 
-    * `Install AMD ROCm SDK on host OS <../Roles/Accelerator/index.html>`_
+    * `Install AMD ROCm SDK on host OS <../InstallationGuides/BuildingClusters/AMD_ROCm.html>`_
 
     * `Install Vanilla Kubernetes stack v1.26 <../InstallationGuides/BuildingClusters/install_kubernetes.html>`_
 

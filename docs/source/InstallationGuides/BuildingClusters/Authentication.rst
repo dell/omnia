@@ -225,4 +225,4 @@ Where inventory follows the format defined under inventory file in the provided 
 .. caution:: Do not run ssh-keygen commands after passwordless SSH is set up on the nodes.
 
 
- * `ReplicatingLDAP <ReplicatingLDAP.html>`_
+* `ReplicatingLDAP <ReplicatingLDAP.html>`_

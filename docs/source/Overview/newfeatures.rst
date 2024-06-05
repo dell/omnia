@@ -1,11 +1,13 @@
 New Features
 ===========
 
-* Enablement for AI
+* OS enablement
 
     * Ubuntu 22.04.3 LTS with GA kernel and HWE kernel support
 
     * Ubuntu 20.04.6 LTS
+
+* Enablement for AI
 
     * Install AMD ROCm SDK on host OS
 
