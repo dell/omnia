@@ -24,6 +24,7 @@ Configuring the cluster
     KubernetesAccess
     BeeGFS
     NFS
+    AMD_ROCm
 
 
 

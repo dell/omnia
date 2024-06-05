@@ -1,7 +1,7 @@
 Configuring specific local repositories
 -----------------------------------------
 
-**AMDGPU ROCm**
+**AMD GPU ROCm**
 
     To install ROCm, do the following:
 

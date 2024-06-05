@@ -1,24 +1,21 @@
-Alternate method to install the AMD ROCm platform
---------------------------------------------------
+Install the ROCm platform for AMD GPUs
+=======================================
 
-The accelerator role allows users to  set up the `AMD ROCm <https://rocm.docs.amd.com/projects/install-on-linux/en/latest/>`_ platform. This tools allow users to unlock the potential of installed AMD GPUs.
+This playbook sets up the `AMD ROCm <https://rocm.docs.amd.com/projects/install-on-linux/en/latest/>`_ platform on the clusters. This tool allows users to unlock the full potential of installed AMD GPUs.
 
 Ensure that the ROCm local repositories are configured using the `local_repo.yml <../../InstallationGuides/LocalRepo/index.html>`_ script.
 
 Ensure that the ``input/software_config.json`` contains valid amdgpu and rocm version. See `input parameters <../../InstallationGuides/LocalRepo/InputParameters.html>`_ for more information.
 
 .. note::
-	* Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to run ``accelerator.yml`` on RHEL target nodes.
-	* For RHEL target nodes not provisioned by Omnia, ensure that RedHat subscription is enabled on all target nodes. Every target node will require a RedHat subscription.
 	* AMD ROCm driver installation is not supported by Omnia on Rocky Linux cluster  nodes.
 
-To install all the latest GPU drivers and toolkits, run: ::
+To install all the latest AMD GPU drivers and toolkits, run the ``omnia.yml`` playbook using the following command: ::
 
-	cd accelerator
-	ansible-playbook accelerator.yml -i inventory
+    cd omnia
+    ansible-playbook omnia.yml -i inventory
 
-
-The following configurations take place when running ``accelerator.yml``
+The following configurations take place while executing ``rocm_installation.yml``:
 
 	i. Servers with AMD GPUs are identified and the latest GPU drivers and ROCm platforms are downloaded and installed.
 	ii. Servers with no GPU are skipped.
@@ -42,3 +39,4 @@ User permissions for ROCm platforms
 .. image:: ../../images/ROCm_user_permissions.png
 
 For any configuration changes, check out ROCm's official documentation `here. <https://rocm.docs.amd.com/projects/install-on-linux/en/latest/how-to/prerequisites.html>`_
+

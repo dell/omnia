@@ -1,5 +1,5 @@
-Upgrading Omnia
-================
+Upgrade Omnia v1.5.1 to v1.6
+=============================
 
 The upgrade feature in v1.6 helps customers to upgrade their Omnia setup from v1.5.1 to v1.6. This includes upgrading the essential software requirements, configurations, and cluster software.
 
@@ -34,3 +34,5 @@ Once the cloning process is done, follow the steps listed below to invoke the up
 
         - In Omnia v1.5.1 OpenLDAP client configuration was supported. If you had configured OpenLDAP client to external enterprise LDAP server in Omnia v1.5.1, then this configuration will not be restored during upgrade. In Omnia v1.6, Omnia installs OpenLDAP server and the user needs to reconfigure the OpenLDAP server to integrate it with an external LDAP server.
         - The slurm setup in Omnia v1.5.1 cluster is upgraded to configless slurm in v1.6.
+
+.. caution:: The NFS share directory mentioned in ``omnia_usrhome_share``, provided in v1.5.1 ``omnia_config.yml``, is unmounted from the cluster and deleted from the manager/head node while executing the ``prepare_upgrade.yml`` playbook.
