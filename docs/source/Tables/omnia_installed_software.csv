@@ -34,7 +34,7 @@ promtail,Apache-2.0,Promtail is an agent which ships the contents of local logs 
 Kube prometheus stack,Apache-2.0,"Kube Prometheus Stack is a collection of Kubernetes manifests, Grafana dashboards, and Prometheus rules.",25.0.0
 mailx,MIT License,mailx is a Unix utility program for sending and receiving mail.,12.5
 xorriso,GPL 3.0,It can load the management information of existing ISO images and it writes the session results to optical media or to filesystem objects,1.4.8
-openshift,Apache-2.0,On-premises platform as a service built around Linux containers orchestrated and managed by Kubernetes,0.12.1
+openshift-restclient-python,Apache-2.0,A python library for interacting with OpenShift via the OpenShift client binary,0.13.2
 grafana,GNU AFFERO GENERAL PUBLIC LICENSE,Grafana is the open source analytics & monitoring solution for every database.,8.3.2
 kubernetes.core,GPL 3.0,Performs CRUD operations on K8s objects,2.2.3
 community.grafana,GPL 3.0,Technical Support for open source grafana.,1.3
