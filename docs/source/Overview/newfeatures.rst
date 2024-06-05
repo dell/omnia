@@ -14,7 +14,7 @@ New Features
     * Install GPU device plugin for Kubernetes
 
         - GPU device plugin for AMD
-        - GPU device plugin for Nvidia
+        - GPU device plugin for NVIDIA
 
     * Submit Kubernetes jobs as a non-admin user
 
@@ -47,7 +47,7 @@ New Features
 
         - CPU inventory
         - AMD GPU inventory
-        - Nvidia GPU inventory
+        - NVIDIA GPU inventory
 
     * Smoother Omnia upgrades on the control plane
 

@@ -8,7 +8,7 @@ PyTorch is a popular open-source deep learning framework, renowned for its dynam
 
 * Ensure nerdctl is available on all cluster nodes.
 
-* If GPUs are present on the target nodes, install NVidia CUDA (with containerd) or AMD Rocm drivers during provisioning. CPUs do not require any additional drivers.
+* If GPUs are present on the target nodes, install NVIDIA CUDA (with containerd) or AMD Rocm drivers during provisioning. CPUs do not require any additional drivers.
 
 * Use ``local_repo.yml`` to create an offline PyTorch repository. For more information, `click here. <../../InstallationGuides/LocalRepo/PyTorch.html>`_
 
@@ -33,7 +33,7 @@ PyTorch is a popular open-source deep learning framework, renowned for its dynam
 
     ansible-playbook pytorch.yml -i inventory
 
-.. note:: During the ``pytorch.yml`` playbook execution, nodes with AMD or Nvidia GPUs and drivers will install and test either the ``pytorch-AMD`` or ``pytorch-Nvidia`` containers, respectively. If neither GPU type is present with its drivers, it will install and test the ``pytorch-CPU`` container.
+.. note:: During the ``pytorch.yml`` playbook execution, nodes with AMD or NVIDIA GPUs and drivers will install and test either the ``pytorch-AMD`` or ``pytorch-Nvidia`` containers, respectively. If neither GPU type is present with its drivers, it will install and test the ``pytorch-CPU`` container.
 
 **Accessing PyTorch (CPU)**
 
@@ -60,7 +60,7 @@ For more information, `click here <https://hub.docker.com/r/pytorch/pytorch/tags
 
 For more information, `click here <https://rocm.docs.amd.com/projects/install-on-linux/en/develop/how-to/3rd-party/pytorch-install.html>`_.
 
-**Accessing PyTorch (NVidia)**
+**Accessing PyTorch (NVIDIA)**
 
 1. Verify that the PyTorch image present in container engine images: ::
 

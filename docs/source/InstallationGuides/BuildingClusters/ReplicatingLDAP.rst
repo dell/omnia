@@ -1,5 +1,7 @@
 How to replicate LDAP
 ----------------------
+.. note:: This is a manual and optional configuration that the user can perform.
+
 Once Omnia has set up an OpenLDAP server for the cluster, external LDAP servers can be replicated onto the cluster OpenLDAP server using the following steps.
 
 **[Optional]Create a replication user**

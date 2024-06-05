@@ -1,11 +1,9 @@
 Centralized authentication on the cluster
 ==========================================
 
-The security feature allows users to set up FreeIPA and LDAP to help authenticate into HPC clusters.
+The security feature allows users to set up FreeIPA and OpenLDAP to help authenticate into HPC clusters.
 
-
-
-Configuring FreeIPA/LDAP security
+Configuring FreeIPA/OpenLDAP security
 ________________________________
 
 **Pre requisites**
@@ -135,7 +133,7 @@ Enter the following parameters in ``input/login_node_security_config.yml``.
 +--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 
-Installing LDAP Client
+Installing OpenLDAP Client
 ________________________
 
 .. caution:: No users/groups will be created by Omnia.
@@ -225,3 +223,6 @@ Use the below command to enable passwordless SSH: ::
 Where inventory follows the format defined under inventory file in the provided `Sample Files. <../../samplefiles.html>`_ The inventory file is case-sensitive. Follow the format provided in the sample file link.
 
 .. caution:: Do not run ssh-keygen commands after passwordless SSH is set up on the nodes.
+
+
+ * `ReplicatingLDAP <ReplicatingLDAP.html>`_
