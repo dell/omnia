@@ -59,6 +59,8 @@ New Features
 
     * Install Kubernetes plugin for the RoCE NIC
 
+    * Update kernels using the software update utility
+
 
 
 

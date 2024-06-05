@@ -62,7 +62,7 @@ Releases
 
     * `Install Kubernetes plugin for the RoCE NIC <../InstallationGuides/BuildingClusters/k8s_plugin_roce_nic.html>`_
 
-    * `Updating kernels using software update utility <../Roles/Utils/software_update.html>`_
+    * `Update kernels using the software update utility <../Roles/Utils/software_update.html>`_
 
 1.5.1
 -----
