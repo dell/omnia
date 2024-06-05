@@ -23,6 +23,12 @@
   ansible.builtin.command: kubectl wait --for=condition=ready --timeout="{{ grafana_pod_timeout }}" -n "{{ grafana_namespace }}" pod -l app="{{ grafana_k8s }}"
   changed_when: false
 
+- name: Create grafana-plugins folder if not exists
+  ansible.builtin.file:
+    path: "{{ mount_location + grafana_k8s + '/plugins/' }}"
+    state: directory
+    mode: "{{ directory_mode }}"
+
 - name: Unzip plugins at grafana-plugins folder
   ansible.builtin.unarchive:
     src: "{{ mount_location + grafana_plugins_folder_name + item }}"
