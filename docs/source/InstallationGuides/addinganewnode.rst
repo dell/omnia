@@ -9,13 +9,13 @@ A new node can be added using the following ways:
 
     * Update the existing mapping file by appending the new entry (without the disrupting the older entries) or provide a new mapping file by pointing ``pxe_mapping_file_path`` in ``provision_config.yml`` to the new location.
 
-    .. note:: When re-running ``discovery_provision.yml`` with a new mapping file, ensure that existing IPs from the current mapping file are not provided in the new mapping file. Any IP overlap between mapping files will result in PXE failure. This can only be resolved by running `the Clean Up script <CleanUpScript.html>`_ followed by ``discovery_provision.yml``.
+    .. note:: When re-running ``discovery_provision.yml`` with a new mapping file, ensure that existing IPs from the current mapping file are not provided in the new mapping file. Any IP overlap between mapping files will result in PXE failure. This can only be resolved by running the `Clean Up script <CleanUpScript.html>`_ followed by ``discovery_provision.yml``.
 
     * Run ``discovery_provision.yml``.::
 
         ansible-playbook discovery_provision.yml
 
-    *  Manually PXE boot the target servers after the ``discovery_provision.yml`` playbook (if ``bmc_ip`` is not provided in the mapping file) is executed and the target node lists as **booted** `in the nodeinfo table <InstallingProvisionTool/ViewingDB.html>`_
+    *  Manually PXE boot the target servers after the ``discovery_provision.yml`` playbook (if ``bmc_ip`` is not provided in the mapping file) is executed and the target node lists as **booted** in the `nodeinfo table <InstallingProvisionTool/ViewingDB.html>`_.
 
 
 * When target nodes were discovered using BMC:
@@ -39,10 +39,10 @@ A new node can be added using the following ways:
 
         ansible-playbook discovery_provision.yml
 
-    * Manually PXE boot the target servers after the ``discovery_provision.yml`` playbook is executed and the target node lists as **booted** `in the nodeinfo table <InstallingProvsionTool/ViewingDB.html>`_
+    * Manually PXE boot the target servers after the ``discovery_provision.yml`` playbook is executed and the target node lists as **booted** in the `nodeinfo table <InstallingProvisionTool/ViewingDB.html>`_.
 
 
-Verify that the node has been provisioned successfully by `checking the Omnia nodeinfo table. <InstallingProvisionTool/ViewingDB.html>`_
+Verify that the node has been provisioned successfully by checking the Omnia `nodeinfo table <InstallingProvisionTool/ViewingDB.html>`_.
 
 **Adding new compute nodes to the cluster**
 

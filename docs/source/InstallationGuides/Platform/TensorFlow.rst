@@ -12,7 +12,7 @@ With an Ansible script, deploy TensorFlow on both ``kube_node`` and the ``kube_c
 
 * If GPUs are present on the target nodes, install NVIDIA CUDA (with containerd) or AMD ROCm drivers during provisioning. CPUs do not require any additional drivers.
 
-* Use ``local_repo.yml`` to create an offline TensorFlow repository. For more information, `click here <../../>`_.
+* Use ``local_repo.yml`` to create an offline TensorFlow repository.
 
 **[Optional prerequisites]**
 

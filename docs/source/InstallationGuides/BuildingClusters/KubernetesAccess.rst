@@ -5,7 +5,7 @@ Omnia grants Kubernetes node access to users defined on the ``kube_control_plane
 
 **Prerequisites**
 
-* Ensure the Kubernetes cluster is up and running.
+* Ensure that the Kubernetes cluster is up and running.
 
 **Input parameters**
 
@@ -21,7 +21,7 @@ Omnia grants Kubernetes node access to users defined on the ``kube_control_plane
     | Required      |                                                                                            |
     +---------------+--------------------------------------------------------------------------------------------+
 
-* Verify that all intended users have a home directory (in the format ``/home/<user_name>``) set up on the kube_control_plane.
+* Verify that all intended users have a home directory (in the format ``/home/<user_name>``) set up on the ``kube_control_plane``.
 
 * The passed inventory should contain a defined ``kube_control_plane``.
 

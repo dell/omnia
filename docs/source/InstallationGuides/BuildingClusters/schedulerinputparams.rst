@@ -44,7 +44,7 @@ These parameters are located in ``input/omnia_config.yml``, ``input/security_con
 
 **telemetry_config.yml**
 
-.. csv-table:: Parameters
+.. csv-table:: Parameters for Telemetry
    :file: ../../Tables/telemetry_config.csv
    :header-rows: 1
    :keepspace:

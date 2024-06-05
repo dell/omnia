@@ -7,8 +7,7 @@ Ensure that the ROCm local repositories are configured using the `local_repo.yml
 
 Ensure that the ``input/software_config.json`` contains valid amdgpu and rocm version. See `input parameters <../../InstallationGuides/LocalRepo/InputParameters.html>`_ for more information.
 
-.. note::
-	* AMD ROCm driver installation is not supported by Omnia on Rocky Linux cluster  nodes.
+.. note:: AMD ROCm driver installation is not supported by Omnia on Rocky Linux cluster nodes.
 
 To install all the latest AMD GPU drivers and toolkits, run the ``omnia.yml`` playbook using the following command: ::
 

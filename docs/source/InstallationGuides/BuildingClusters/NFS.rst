@@ -16,7 +16,7 @@ Network File System (NFS) is a networking protocol for distributed file sharing.
     |                       | * For a bolt-on set up where there is a pre-existing NFS server, set ``nfs_server`` to ``false``.                                                           |
     |      ``JSON List``    | * When ``nfs_server`` is set to ``true``, an NFS share is created on a server IP in the cluster for access by all other cluster nodes.                      |
     |                       | * Ensure that the value of ``share_path`` in ``input/omnia_config.yml`` matches at least one of the ``client_share_path`` values in the JSON list provided. |
-    |      Required         | * For more information on the different kinds of configuration available, `click here. <NFS.html>`_                                                         |
+    |      Required         |                                                                                                                                                             |
     +-----------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 
@@ -38,7 +38,7 @@ Network File System (NFS) is a networking protocol for distributed file sharing.
 
       - **k8s_share**: Indicates that the target cluster uses Kubernetes.
 
-     .. note:: To install any Benchmarking software like UCX or OpenMPI, at least **slurm_share** or **k8s_share** should be set to true. If both are set to true, a higher precedence is given to **slurm_share**.
+     .. note:: To install any benchmarking software like UCX or OpenMPI, ``slurm_share`` or ``k8s_share`` must be set to true. If both are set to true, a higher precedence is given to ``slurm_share``.
 
   To configure all cluster nodes to access a single external NFS server export, use the below sample: ::
 
@@ -55,7 +55,7 @@ Network File System (NFS) is a networking protocol for distributed file sharing.
         - { server_ip: 198.168.0.2, server_share_path: "/mnt/share2", client_share_path: "/mnt/mount2", client_mount_options: "nosuid,rw,sync,hard", nfs_server: false, slurm_share: true, k8s_share: true }
 
 
-* Ensure that an NFS local repository is created by including ``{"name": "nfs"},`` in ``input/software_config.json``. For more information, `click here. <../InstallationGuides/LocalRepo/index.html>`_
+* Ensure that an NFS local repository is created by including ``{"name": "nfs"},`` in ``input/software_config.json``. For more information, `click here <../LocalRepo/index.html>`_.
 * If the intended cluster will run Slurm, set the value of ``slurm_installation_type`` in ``input/omnia_config.yml`` to ``nfs_share``.
 * If an external NFS share is used, make sure that ``/etc/exports`` on the NFS server is populated with the same paths listed as ``server_share_path`` in the ``nfs_client_params`` in ``input/storage_config.yml``.
 * Omnia supports all NFS mount options. Without user input, the default mount options are nosuid,rw,sync,hard,intr.

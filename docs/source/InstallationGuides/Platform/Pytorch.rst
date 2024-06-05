@@ -10,7 +10,7 @@ PyTorch is a popular open-source deep learning framework, renowned for its dynam
 
 * If GPUs are present on the target nodes, install NVIDIA CUDA (with containerd) or AMD Rocm drivers during provisioning. CPUs do not require any additional drivers.
 
-* Use ``local_repo.yml`` to create an offline PyTorch repository. For more information, `click here. <../../InstallationGuides/LocalRepo/PyTorch.html>`_
+* Use ``local_repo.yml`` to create an offline PyTorch repository.
 
 
 

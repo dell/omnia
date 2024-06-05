@@ -4,7 +4,7 @@ After running ``discovery_provision.yml`` or ``discovery_provision.yml`` and the
 
 **Prerequisites**
 
-* All target nodes are provisioned and booted. `Click here to verify the status of all nodes. <ViewingDB.html>`_
+* All target nodes are provisioned and booted. `Click here <ViewingDB.html>`_ to know how to verify the status of the nodes.
 
 * Ensure that ``input/network_spec.yml`` file has been updated with all network information in addition to ``admin_network`` and ``bmc_network`` information. Below are all applicable properties of an additional network:
 
