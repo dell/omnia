@@ -1,7 +1,7 @@
 NICs
 =====
 
-    .. csv-table:: Testing matrix for PowerEdge servers
-      :file: ../../../Tables/testing-matrix-servers.csv
+    .. csv-table:: Supported NICs
+      :file: ../../../Tables/supported-nics.csv
       :header-rows: 1
       :keepspace:
