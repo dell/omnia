@@ -1,15 +1,27 @@
 Control plane logs
 -------------------
 
+.. caution:: It is not recommended to delete the below log files or the directories they reside in.
+
+CLI logs
+----------
 All log files can be viewed using CLI. Alternatively, most log files can be viewed using the Dashboard tab ( |Dashboard| ) on the grafana UI.
 
-.. caution:: It is not recommended to delete the below log files or the directories they reside in.
+However, there are few log files which can be viewed exclusively using CLI. They are:
+
+.. csv-table:: Exclusive CLI log files
+   :file: ../Tables/CLI_exclusive_logs.csv
+   :header-rows: 1
+   :keepspace:
 
 .. note:: Log files are rotated periodically as a storage consideration. To customize how often logs are rotated, edit the ``/etc/logrotate.conf`` file on the node.
 
+Loki logs
+----------
+
 Below is a list of all logs available to Loki and can be accessed from the dashboard:
 
-.. csv-table:: Log files
+.. csv-table:: Loki log files
    :file: ../Tables/ControlPlaneLogs.csv
    :header-rows: 1
    :keepspace:
