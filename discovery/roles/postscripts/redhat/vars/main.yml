@@ -46,3 +46,7 @@ configeth_postscripts_path: "{{ postscripts_path }}/configeth"
 configeth_check_key: 'ipv4.dns "${NAMESERVERS}"'
 configeth_patch_path:
   - { src: "{{ role_path }}/../redhat/files/configeth.patch", dest: "/install/postscripts/configeth.patch", mode: "755" }
+
+# Usage: configure_postscripts.yml
+omnia_disable_repo_postscripts_path:
+  - { src: "{{ role_path }}/../redhat/files/omnia_disable_repo", dest: "/install/postscripts/omnia_disable_repo", mode: "755" }

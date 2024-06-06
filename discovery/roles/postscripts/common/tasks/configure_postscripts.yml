@@ -19,7 +19,6 @@
 
 - name: Configure ubuntu postscripts
   ansible.builtin.include_tasks: "{{ role_path }}/../{{ control_plane_os }}/tasks/configure_postscripts.yml"
-  when: control_plane_os in control_plane_os_ubuntu
 
 - name: Configure ntp postscripts
   ansible.builtin.include_tasks: configure_postscripts_ntp.yml
