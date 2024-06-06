@@ -23,9 +23,9 @@ BOSS Controller Cards
 +=====================================================+
 | Dell Boot Optimized Storage Solution-N1 (BOSS-N1)   |
 +-----------------------------------------------------+
-| Dell Boot Optimized Storage Solution-N2 (BOSS-N2)   |
+| Dell Boot Optimized Storage Solution-S2 (BOSS-S1)   |
 +-----------------------------------------------------+
-| Dell Boot Optimized Storage Solution-S1 (BOSS-S1)   |
+| Dell Boot Optimized Storage Solution-S2 (BOSS-S2)   |
 +-----------------------------------------------------+
 
 
