@@ -1,7 +1,7 @@
 #!/bin/bash
 ################################################################################################################
 #  omnia_disable_repo:
-#      Disable omnia repository
+#      Disable online repository
 #
 #################################################################################################################
 internet_repo_file_list="oracle-linux-ol8.repo uek-ol8.repo Rocky-AppStream.repo Rocky-BaseOS.repo Rocky-Extras.repo CentOS-Base.repo"
