@@ -55,7 +55,7 @@ Lmod,MIT License,"An Environment Module System based on Lua, Reads TCL Modules, 
 Lua,MIT License,"Lua is a lightweight, high-level, multi-paradigm programming language designed primarily for embedded use in applications.",5.3.4
 ansible posix,GNU General Public License,Ansible Collection targeting POSIX and POSIX-ish platforms.,1.4.0
 xCAT,Eclipse Public License 1.0,Provisioning tool ,2.16.5
-CUDA Toolkit,NVIDIA License,The NVIDIA® CUDA® Toolkit provides a development environment for creating high performance GPU-accelerated applications.,2.13.2 (Default)
+CUDA Toolkit,NVIDIA License,The NVIDIA® CUDA® Toolkit provides a development environment for creating high performance GPU-accelerated applications.,12.3.2 (Default)
 MLNX-OFED,BSD License,MLNX_OFED is an NVIDIA tested and packaged version of OFED that supports two interconnect types using the same RDMA (remote DMA) and kernel bypass APIs called OFED verbs – InfiniBand and Ethernet.,24.01-0.3.3.1 (Default)
 ansible pylibssh,LGPL 2.1,Python bindings to client functionality of libssh specific to Ansible use case.,1.0.0
 perl-DBD-Pg,GNU General Public License v3,DBD::Pg - PostgreSQL database driver for the DBI module,3.7.4
