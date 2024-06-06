@@ -18,3 +18,8 @@ tls_cert_source: "/etc/pki/tls/certs"
 rhel_cert_file: "ldapserver.crt"
 rhel_cert_key: "ldapserver.key"
 ssl_limit: 365
+firewall_ports:
+  - 389/tcp
+  - 636/tcp
+  - 389/udp
+  - 636/udp

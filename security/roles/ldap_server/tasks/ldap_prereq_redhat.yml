@@ -86,3 +86,23 @@
          | basename }}" # noqa var-naming
         ldaptoolbox_openldap_olcTLSCertificateKeyFile: "{{ tls_certificates_directory_path }}/{{ hostvars['127.0.0.1']['tls_certificate_key']
          | basename }}" # noqa var-naming
+
+- name: Start and enable firewalld
+  ansible.builtin.service:
+    name: firewalld
+    state: started
+    enabled: true
+
+- name: Add openldap ports to firwalld
+  ansible.builtin.command: firewall-cmd --add-port="{{ item }}" --permanent
+  changed_when: false
+  with_items: "{{ firewall_ports }}"
+
+- name: Reload firewalld
+  ansible.builtin.command: firewall-cmd --reload
+  changed_when: false
+
+- name: Stop firewalld
+  ansible.builtin.service:
+    name: firewalld
+    state: stopped
