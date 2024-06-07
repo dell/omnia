@@ -29,9 +29,8 @@ To create local repositories, run the following commands: ::
 Verify changes made by the playbook by running ``cat /etc/containerd/certs.d/_default/hosts.toml`` on compute nodes.
 
 .. note::
-    * View the status of packages for the current run of ``local_repo.yml`` in ``/opt/omnia/offline/download_package_status.csv``.
-        * Packages which are already a part of AppStream or BaseOS repositories (for RHEL or Rocky Linux OS) and Focal or Jammy repositories (for Ubuntu) show up as ``Skipped``.
-        * ``local_repo.yml`` playbook execution fails if any software package download fails. Packages that fail are marked with a "Failed" status. In such a scenario, the user needs to re-run the ``local_repo.yml`` playbook. For more information, `click here <../../Troubleshooting/FAQ.html>`_.
+    * View the status of packages for the current run of ``local_repo.yml`` in ``/opt/omnia/offline/download_package_status.csv``. Packages which are already a part of AppStream or BaseOS repositories (for RHEL or Rocky Linux OS) and Focal or Jammy repositories (for Ubuntu) show up as ``Skipped``.
+    * ``local_repo.yml`` playbook execution fails if any software package download fails. Packages that fail are marked with a "Failed" status. In such a scenario, the user needs to re-run the ``local_repo.yml`` playbook. For more information, `click here <../../Troubleshooting/FAQ.html>`_.
     * If ``repo_config`` is set to ``partial``, packages which are part of the ``user_repo_url`` or images which are part of ``user_registry`` have a ``Skipped`` status in ``/opt/omnia/offline/download_package_status.csv``.
     * If any software packages failed to download during the execution of this script, scripts that rely on the package for their working (that is, scripts that install the software)  may fail.
 
