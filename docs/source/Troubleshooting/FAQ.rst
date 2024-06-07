@@ -264,3 +264,18 @@ While Omnia playbooks are licensed by Apache 2.0, Omnia deploys multiple softwar
 
 
 .. note:: ``node001.omnia.test`` is a sample hostname.
+
+⦾ **local_repo.yml playbook execution fails at the TASK [parse_and_download : Display Failed Packages]**
+
+.. image:: ../images/package_failure_local_repo
+
+**Potential Cause**: This is encountered if Omnia fails to download any software package, mentioned in the ``software_config.json``, while executing ``local_repo.yml`` playbook. Download failures can occur if the URL to download the software packages or the provided Docker credentials are incorrect.
+
+**Resolution**: Re-run the ``local_repo.yml`` playbook while ensuring the following:
+
+    * URL to download the software packages mentioned in ``input/software_config.json``, is correct and reachable.
+    * Docker credentials provided in ``input/provision_config_credentials`` is correct.
+
+If the ``local_repo.yml`` is executed successfully without any package download failures, an "ok" message is displayed as shown below:
+
+.. image:: ../images/local_repo_success.png
