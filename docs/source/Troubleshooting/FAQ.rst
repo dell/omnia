@@ -269,7 +269,7 @@ While Omnia playbooks are licensed by Apache 2.0, Omnia deploys multiple softwar
 
 .. image:: ../images/package_failure_local_repo.png
 
-**Potential Cause**: This issue is encountered if Omnia fails to download any software package, mentioned in the ``software_config.json``, while executing ``local_repo.yml`` playbook. Download failures can occur if:
+**Potential Cause**: This issue is encountered if Omnia fails to download any software package while executing ``local_repo.yml`` playbook. Download failures can occur if:
 
     * The URL to download the software packages mentioned in the ``<cluster_os_type>/<cluster_os_version>/<software>.json`` is incorrect or the repository is unreachable.
     * The provided Docker credentials are incorrect or if you encounter a Docker pull limit issue. For more information, `click here <https://www.docker.com/increase-rate-limits/#:~:text=You%20have%20reached%20your%20pull%20rate%20limit.%20You,account%20to%20a%20Docker%20Pro%20or%20Team%20subscription.>`_.
