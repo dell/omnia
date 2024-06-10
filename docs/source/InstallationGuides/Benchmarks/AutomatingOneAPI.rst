@@ -8,10 +8,20 @@ This topic explains how to automatically update servers for MPI jobs.
 **Pre-requisites**
 
 * A local repository has been set up by listing ``{"name": "intel_benchmarks", "version": "2024.1.0"},`` in ``input/software_config.json`` and running ``local_repo.yml``. For more information, `click here. <../LocalRepo/index.html>`_
-* ``discovery_provision.yml`` has been executed.
+* ``discovery_provision.yml`` playbook has been executed.
 * Verify that the target nodes are in the ``booted`` state. For more information, `click here <../InstallingProvisionTool/ViewingDB.html>`_.
-* The cluster has been set up with kubernetes.
-* An Omnia **slurm** cluster has been set up by ``omnia.yml`` running with at least 2 nodes: 1 slurm_control_node and 1 slurm_node.
+* The cluster has been set up with Slurm. For more information, `click here <../BuildingClusters/install_slurm.html>`_.
+* An Omnia **slurm** cluster has been set up by ``omnia.yml`` with at least 2 nodes: 1 ``slurm_control_node`` and 1 ``slurm_node``.
+
+**Sample inventory**
+::
+    [slurm_control_node]
+
+    10.5.1.101
+
+    [slurm_node]
+
+    10.5.1.103
 
 **To run the playbook**::
 
@@ -22,7 +32,7 @@ This topic explains how to automatically update servers for MPI jobs.
 
 **To execute multi-node jobs**
 
-* Ensuree to have NFS shares on each node.
+* Ensure to have NFS share on each node.
 * Copy slurm script to NFS share and execute it from there.
 * Load all the necessary modules using module load: ::
 

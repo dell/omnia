@@ -6,10 +6,20 @@ This topic explains how to automatically update AMD servers for MPI jobs. To man
 **Pre-requisites**
 
 * A local repository has been set up by listing ``{"name": "amd_benchmarks"},`` in ``input/software_config.json`` and running ``local_repo.yml``. For more information, `click here. <../LocalRepo/index.html>`_
-* ``discovery_provision.yml`` has been executed.
+* ``discovery_provision.yml`` playbook has been executed.
 * Verify that the target nodes are in the ``booted`` state. For more information, `click here <../InstallingProvisionTool/ViewingDB.html>`_.
-* An Omnia **slurm** cluster has been set up by ``omnia.yml`` running with at least 2 nodes: 1 slurm_control_node and 1 slurm_node.
+* An Omnia **slurm** cluster has been set up by ``omnia.yml`` with at least 2 nodes: 1 ``slurm_control_node`` and 1 ``slurm_node``.
 * A local OpenMPI repository has been created. For more information, `click here <../LocalRepo/localrepos.html>`_.
+
+**Sample inventory**
+::
+    [slurm_control_node]
+
+    10.5.1.101
+
+    [slurm_node]
+
+    10.5.1.103
 
 **To run the playbook**::
 
