@@ -9,7 +9,9 @@
      Choices:                    
                                  
      * ``""calico""``  <-   default
-     * ``""flannel""``             "
+     * ``""flannel""`` 
+
+.. note:: While setting up Kubernetes for the RoCE NIC, ensure that this value is always set to ``flannel``. For more information, `click here <k8s_plugin_roce_nic.html>`_.            "
 "**pod_external_ip_range**
 
      ``string``
