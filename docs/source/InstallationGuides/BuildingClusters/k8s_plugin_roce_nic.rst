@@ -1,5 +1,5 @@
-Kubernetes plugin for RoCE NIC
-===============================
+Kubernetes plugin for the RoCE NIC
+===================================
 
 Install the plugin
 -------------------
