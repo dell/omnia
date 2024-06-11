@@ -1,7 +1,7 @@
 Input parameters for the provision tool
 -----------------------------------------
 
-Fill in all required parameters in ``input/provision_config.yml``, ``input/provision_config_credentials.yml``, ``input/software_config.json``.
+Fill in all required parameters in ``input/provision_config.yml``, ``input/provision_config_credentials.yml``, ``input/software_config.json``, and ``input/network_spec.yml``.
 
 .. caution:: Do not remove or comment any lines in the above specified ``.yml`` files.
 
@@ -47,6 +47,7 @@ Update the ``input/network_spec.yml`` file for all networks available for use by
 .. caution::
     * Do not assign the subnet 10.4.0.0/24 to any interfaces in the network as nerdctl uses it by default.
     * If a DNS server is available on the network, ensure that the ranges provided in the ``input/network_spec.yml`` file do not include the IP ranges of the DNS server.
+    * Omnia v1.6 does not support the configuration of a DNS server on the control plane.
     * All provided network ranges and NIC IP addresses should be distinct with no overlap in the ``input/network_spec.yml``.
     * Ensure that all the iDRACs are reachable from the Control Plane.
     * If ``bmc_network`` details are provided, target nodes will be discovered using the BMC method for all network ranges.
