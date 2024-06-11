@@ -53,7 +53,7 @@ Run either of the following commands:
 
             ansible-playbook scheduler.yml -i inventory
 
-.. note:: To add new nodes in an existing cluster, click `here. <../addinganewnode.html>`_
+.. note:: To add new nodes to an existing cluster, click `here. <../addinganewnode.html>`_
 
 **Additional installations**
 
