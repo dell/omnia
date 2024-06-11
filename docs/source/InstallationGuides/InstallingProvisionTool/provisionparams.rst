@@ -34,7 +34,6 @@ Update the ``input/network_spec.yml`` file for all networks available for use by
          * ``correlation_to_admin``: Boolean value used to indicate whether all other networks specified in the file (for example: ``bmc_network``) should be correlated to the admin network. For example, if a target node is assigned the IP xx.yy.0.5 on the admin network, it will be assigned the IP aa.bb.0.5 on the BMC network. This value is irrelevant when discovering nodes using a mapping file.
          * ``admin_uncorrelated_node_start_ip``: If ``correlation_to_admin`` is set to true but correlated IPs are not available on non-admin networks, provide an IP within the ``static_range`` of the admin network that can be used to assign admin static IPs to uncorrelated nodes. If this is empty, then the first IP in the ``static_range`` of the admin network is taken by default. This value is irrelevant when discovering nodes using a mapping file.
          * ``MTU``: Maximum transmission unit (MTU) is a measurement in bytes of the largest data packets that an Internet-connected device can accept.
-         * ``DNS``: A DNS server is a computer equipped with a database that stores the public IP addresses linked to the domain names of websites, enabling users to reach websites using their IP addresses. This is an optional detail.
 
     * If the ``nic_name`` is identical on both the ``admin_network`` and the ``bmc_network``, it indicates a LOM setup. Otherwise, it's a dedicated setup.
     * BMC network details are not required when target nodes are discovered using a mapping file.
@@ -46,7 +45,6 @@ Update the ``input/network_spec.yml`` file for all networks available for use by
 
 .. caution::
     * Do not assign the subnet 10.4.0.0/24 to any interfaces in the network as nerdctl uses it by default.
-    * If a DNS server is available on the network, ensure that the ranges provided in the ``input/network_spec.yml`` file do not include the IP ranges of the DNS server.
     * Omnia v1.6 does not support the configuration of a DNS server on the control plane.
     * All provided network ranges and NIC IP addresses should be distinct with no overlap in the ``input/network_spec.yml``.
     * Ensure that all the iDRACs are reachable from the Control Plane.
@@ -64,7 +62,6 @@ A sample is provided below: ::
                 correlation_to_admin: true
                 admin_uncorrelated_node_start_ip: "10.5.0.50"
                 network_gateway: ""
-                DNS: ""
                 MTU: "1500"
 
             - bmc_network:
