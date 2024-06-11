@@ -24,7 +24,22 @@ Install Kubernetes
 
     1. Exactly 1 ``kube_control_plane``.
     2. At least 1 ``kube_node``.
-    3. Odd number of etcd nodes.
+    3. Odd number of ``etcd`` nodes.
+
+**Sample inventory**
+::
+
+    [kube_control_plane]
+
+    10.5.1.101
+
+    [etcd]
+
+    10.5.1.101
+
+    [kube_node]
+
+    10.5.1.102
 
 **To install Kubernetes**
 
