@@ -33,13 +33,13 @@ Install Kubernetes
 
     10.5.1.101
 
-    [etcd]
-
-    10.5.1.101
-
     [kube_node]
 
     10.5.1.102
+
+    [etcd]
+
+    10.5.1.101
 
 **To install Kubernetes**
 

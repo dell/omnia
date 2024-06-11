@@ -25,7 +25,22 @@ Install Slurm
 
     1. Exactly 1 ``slurm_control_node``.
     2. At least 1 ``slurm_node``.
-    3. At least one ``login``` node (Optional).
+    3. At least one ``login`` node (Optional).
+
+**Sample inventory**
+::
+
+    [slurm_control_node]
+
+    10.5.1.101
+
+    [slurm_node]
+
+    10.5.1.103
+
+    [login]
+
+    10.5.1.105
 
 **To install Slurm**
 
