@@ -4,7 +4,7 @@ Switches
 +------------------------------+----------------------------------------------------------------------------------------------------------------+
 | Switch Type                  | Switch Model                                                                                                   |
 +==============================+================================================================================================================+
-| Mellanox InfiniBand Switches | 1. NVIDIA MQM8700-HS2F Quantum HDR InfiniBand Switch 40 QSFP56                                                 |
+| NVIDIA InfiniBand Switches   | 1. NVIDIA MQM8700-HS2F Quantum HDR InfiniBand Switch 40 QSFP56                                                 |
 |                              | 2. NVIDIA QUANTUM-2 QM9700                                                                                     |
 +------------------------------+----------------------------------------------------------------------------------------------------------------+
 
@@ -28,5 +28,7 @@ Switches
     * Omnia requires that OS10 be installed on ethernet switches.
 
     * Omnia requires that MLNX-OS be installed on Infiniband switches.
+
+    * Ethernet switches running SONiC OS will have be configured manually by users.
 
 

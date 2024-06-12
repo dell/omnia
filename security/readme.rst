@@ -146,9 +146,6 @@ ________________________
 
 Manager and compute nodes will have LDAP client installed and configured if ``ldap_required`` is set to true. The login node does not have LDAP client installed.
 
-.. caution:: No users/groups will be created by Omnia.
-
-
 **Running the security role**
 
 Run: ::
