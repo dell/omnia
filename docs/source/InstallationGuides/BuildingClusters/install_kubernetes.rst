@@ -126,6 +126,7 @@ After executing ``scheduler.yml`` or ``omnia.yml``, there are some manual steps 
         1.	Check the values of http_proxy and https_proxy environment variables from ``/opt/omnia/offline/local_repo_access.yml`` on the control plane.
         2.	Establish a secure connection (SSH protocol) to node containing the NVIDIA GPU, and configure the http_proxy environment variables as shown below:
             ::
+
                 export http_proxy=http://<Control Plane IP>:3128
                 export https_proxy=http://<Control Plane IP>:3128
 
