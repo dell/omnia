@@ -1,7 +1,7 @@
 Validation Matrix
 ------------------
 
-The following devices have been validated for Omnia v1.6.
+Omnia v1.6 deployment has been validated on the following devices and their combinations.
 
 Servers
 +++++++++
