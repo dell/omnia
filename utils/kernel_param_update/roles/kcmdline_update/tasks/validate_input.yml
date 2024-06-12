@@ -13,6 +13,13 @@
 # limitations under the License.
 ---
 
+- name: Inventory not provided
+  ansible.builtin.fail:
+    msg: "{{ empty_inventory_fail_msg }}"
+  when:
+    - groups['all'] is defined
+    - (groups['all'] | length == 0)
+
 - name: Include variables from kernel_param_update_config.yml
   ansible.builtin.include_vars:
     file: "{{ kcmdline_config_file }}"

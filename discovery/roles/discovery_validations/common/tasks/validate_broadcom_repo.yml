@@ -85,7 +85,7 @@
     - name: Check if any files exist with the Broadcom version in the specified path
       ansible.builtin.find:
         paths: "{{ repo_store_path }}/cluster/tarball/"
-        patterns: "(?i).*source.*{{ roce_version }}.*"
+        patterns: "(?i).*source.*{{ roce_src_version }}.*"
         use_regex: true
       register: roce_src_file
 

@@ -67,7 +67,8 @@
   ansible.builtin.set_fact:
     valid_nodes: {}
     invalid_nodes: []
-    ip_list: []
+    reachable_nodes: []
+    node_list: ""
     verify_node: []
 
 - name: Set valid nodes
@@ -95,122 +96,50 @@
     msg: "{{ warn_msg_for_invalid_node }}"
   with_items: "{{ invalid_nodes }}"
 
-- name: Ensure omnia telemetry service stopped and disabled on booted node
-  ansible.builtin.systemd_service:
-    name: omnia_telemetry
-    state: stopped
-    enabled: false
-  become: true
-  when: item.value.status == 'booted'
+- name: Check reachability for valid nodes
+  ansible.builtin.command: ping -c3 "{{ item.value.admin_ip }}"
+  register: ip_reachable
+  changed_when: false
   failed_when: false
-  delegate_to: "{{ item.value.admin_ip }}"
-  changed_when: true
+  when: item.value.status == 'booted'
   loop: "{{ query('ansible.builtin.dict', valid_nodes) }}"
   loop_control:
     label: "{{ item.key }}"
 
-- name: Remove telemetry binary if exists
-  ansible.builtin.file:
-    state: absent
-    path: "{{ omnia_telemetry_file }}"
-  when: item.value.status == 'booted'
-  failed_when: false
-  delegate_to: "{{ item.value.admin_ip }}"
-  changed_when: true
-  loop: "{{ query('ansible.builtin.dict', valid_nodes) }}"
-  loop_control:
-    label: "{{ item.key }}"
-
-- name: Remove telemetry service
-  ansible.builtin.file:
-    state: absent
-    path: "{{ omnia_telemetry_servicepath }}"
-  when: item.value.status == 'booted'
-  failed_when: false
-  delegate_to: "{{ item.value.admin_ip }}"
-  changed_when: true
-  loop: "{{ query('ansible.builtin.dict', valid_nodes) }}"
-  loop_control:
-    label: "{{ item.key }}"
-
-- name: Set ip list whcih need to remove from host file
+- name: Set Reachable nodes
   ansible.builtin.set_fact:
-    ip_list: "{{ ip_list + [item.value.admin_ip] }}"
+    reachable_nodes: "{{ reachable_nodes + [item.item.value.admin_ip] }}"
+  when:
+    - item.skipped is not defined
+    - ping_msg not in item.stdout
+  loop: "{{ ip_reachable.results }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+
+- name: Set variable to remove host entry
+  ansible.builtin.set_fact:
+    node_list: "{{ node_list | default('') + '/' + item.value.node + '/d; ' }}"
+  when: item.value.admin_ip in reachable_nodes
   loop: "{{ query('ansible.builtin.dict', valid_nodes) }}"
   loop_control:
     label: "{{ item.key }}"
 
-- name: Copy python file to remove host entry
-  ansible.builtin.copy:
-    src: "{{ remove_host_entry }}"
-    dest: "{{ dest_remove_host_entry }}"
-    force: false
-    owner: root
-    group: root
-    mode: "{{ file_permission }}"
-  when: item.value.status == 'booted'
-  failed_when: false
-  delegate_to: "{{ item.value.admin_ip }}"
+- name: Remove trailing semicolon and whitespace
+  ansible.builtin.set_fact:
+    node_list: "{{ node_list[:-2] }}"
+
+- name: Update reachable nodes
+  ansible.builtin.include_tasks: update_reachable_nodes.yml
+  when:
+    - reachable_nodes | length > 0
+    - item.value.status == 'booted'
+    - item.value.admin_ip in reachable_nodes
   loop: "{{ query('ansible.builtin.dict', valid_nodes) }}"
   loop_control:
     label: "{{ item.key }}"
 
-- name: Remove entry from /etc/hosts file
-  ansible.builtin.command: |
-    {{ python_3 }} {{ dest_remove_host_entry }} "{{ ip_list | join(', ') }}"
-  when: item.value.status == 'booted'
-  failed_when: false
-  changed_when: false
-  delegate_to: "{{ item.value.admin_ip }}"
-  loop: "{{ query('ansible.builtin.dict', valid_nodes) }}"
-  loop_control:
-    label: "{{ item.key }}"
-
-- name: Remove copied file
-  ansible.builtin.file:
-    path: "{{ dest_remove_host_entry }}"
-    state: absent
-  when: item.value.status == 'booted'
-  failed_when: false
-  delegate_to: "{{ item.value.admin_ip }}"
-  loop: "{{ query('ansible.builtin.dict', valid_nodes) }}"
-  loop_control:
-    label: "{{ item.key }}"
-
-- name: Delete node object of valid nodes and remove from omnia generated files
-  environment:
-    XCATROOT: "{{ xcat_root_env }}"
-    PATH: "{{ ansible_env.PATH }}:{{ xcat_path_env }}"
-    MANPATH: "{{ xcat_manpath_env }}"
-    PERL_BADLANG: "{{ perl_badlang_env }}"
-  ansible.builtin.command: |
-    {{ python_version }} {{ delete_node_info }} {{ item.value.node }} {{ inv_file_folder }} {{ item.value.service_tag }}
-  failed_when: false
-  changed_when: false
-  loop: "{{ query('ansible.builtin.dict', valid_nodes) }}"
-  loop_control:
-    label: "{{ item.key }}"
-
-- name: Delete ssh key for node admin ip
-  ansible.builtin.command: ssh-keygen -R "{{ item.value.admin_ip }}"
-  failed_when: false
-  changed_when: true
-  loop: "{{ query('ansible.builtin.dict', valid_nodes) }}"
-  loop_control:
-    label: "{{ item.key }}"
-
-- name: Delete ssh key for node name
-  ansible.builtin.command: ssh-keygen -R "{{ item.value.node }}"
-  failed_when: false
-  changed_when: true
-  loop: "{{ query('ansible.builtin.dict', valid_nodes) }}"
-  loop_control:
-    label: "{{ item.key }}"
-
-- name: Delete ssh key for node hostname
-  ansible.builtin.command: ssh-keygen -R "{{ item.value.hostname }}"
-  failed_when: false
-  changed_when: true
+- name: Delete nodes details
+  ansible.builtin.include_tasks: delete_nodes.yml
   loop: "{{ query('ansible.builtin.dict', valid_nodes) }}"
   loop_control:
     label: "{{ item.key }}"

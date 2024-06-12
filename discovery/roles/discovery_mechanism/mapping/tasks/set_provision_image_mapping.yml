@@ -19,6 +19,8 @@
       ansible.builtin.command: nodeset {{ mapping_node_group }} osimage={{ hostvars['localhost']['provision_os_image'] }}
       changed_when: true
       register: set_osimage_mapping
+      until: set_osimage_mapping is not failed
+      retries: "{{ max_retries }}"
 
     - name: Installation status for mapping
       ansible.builtin.debug:

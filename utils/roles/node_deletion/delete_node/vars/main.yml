@@ -21,14 +21,12 @@ omnia_telemetry_file: "/opt/omnia/telemetry/omnia_telemetry"
 omnia_telemetry_servicepath: "/etc/systemd/omnia_telemetry.service"
 delete_node_info: "{{ role_path }}/files/delete_node_info.py"
 inv_file_folder: /opt/omnia/omnia_inventory/
-
 python_version: "python3.9"
-python_3: "python3"
-remove_host_entry: "{{ role_path }}/files/remove_host_entry.py"
-dest_remove_host_entry: "/opt/omnia/remove_host_entry.py"
-file_permission: "0500"
 
 xcat_root_env: "/opt/xcat"
 xcat_path_env: "/opt/xcat/bin:/opt/xcat/sbin:/opt/xcat/share/xcat/tools"
 xcat_manpath_env: "/opt/xcat/share/man:$MANPATH"
 perl_badlang_env: 0
+
+ping_msg: "100% packet loss"
+update_nodes_rescue_msg: "Failed to remove telemetry service and host entry!!"

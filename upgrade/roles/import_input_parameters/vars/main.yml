@@ -27,6 +27,14 @@ import_input_parameters_config_file_array:
     vault_password_file: ""
   - file: "telemetry_config.yml"
     vault_password_file: ".telemetry_vault_key"
+  - file: "accelerator_config.yml"
+    vault_password_file: ""
+  - file: "login_node_security_config.yml"
+    vault_password_file: ""
+  - file: "passwordless_ssh_config.yml"
+    vault_password_file: ""
+  - file: "rhsm_config.yml"
+    vault_password_file: ""
 
 import_input_parameters_new_config_file_array: []
 

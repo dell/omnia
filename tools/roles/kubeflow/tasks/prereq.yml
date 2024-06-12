@@ -159,7 +159,7 @@
 
 - name: Copy rendered YAML file to compute nodes
   ansible.builtin.copy:
-    src: "{{ role_path }}/tasks/crd_mpijobs_kubeflow.yml"
+    src: "{{ role_path }}/files/crd_mpijobs_kubeflow.yml"
     dest: "{{ kubeflow_dir_path }}/kubeflow"
     mode: "{{ file_permission }}"
 

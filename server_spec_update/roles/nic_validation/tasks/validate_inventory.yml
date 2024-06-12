@@ -37,7 +37,6 @@
       - item.key | ansible.utils.ipaddr
     fail_msg: "{{ inventory_ip_fail_msg }}{{ item.key }}"
   with_dict: "{{ hostvars }}"
-  no_log: true
 
 - name: Validate categories provided from host
   ansible.builtin.assert:
@@ -46,7 +45,6 @@
       - item.value.Categories | length > 0
     fail_msg: "{{ host_category_fail_msg }} {{ item.key }}"
   with_dict: "{{ hostvars }}"
-  no_log: true
 
 - name: Validate categories in inventory with server_spec
   ansible.builtin.assert:
@@ -55,4 +53,3 @@
     fail_msg: "Failed, {{ item.key }} : {{ item.value.Categories }} {{ inventory_category_fail_msg }}"
   with_dict: "{{ hostvars }}"
   when: item.value.Categories is defined
-  no_log: true

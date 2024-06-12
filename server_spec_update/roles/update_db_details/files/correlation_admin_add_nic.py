@@ -22,7 +22,7 @@ import calculate_ip_details
 
 def check_valid_nb(nic_nb, admin_nb):
 
-    if int(admin_nb) > int(nic_nb):
+    if int(admin_nb) <= int(nic_nb):
         return True
     else:
         return False

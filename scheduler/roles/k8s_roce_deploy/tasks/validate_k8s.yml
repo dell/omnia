@@ -1,0 +1,35 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Check if kubernetes cluster is UP
+  ansible.builtin.command: kubectl get nodes -A
+  register: kubectl_nodes
+  failed_when: false
+  changed_when: false
+
+- name: Ensure Kubernetes is running
+  ansible.builtin.fail:
+    msg: "{{ k8s_fail_msg }}"
+  when: "'Ready' not in kubectl_nodes.stdout"
+
+- name: Check for Flannel pods in kube-system namespace
+  ansible.builtin.command: kubectl get pods -n kube-system
+  register: kubectl_pods
+  changed_when: false
+
+- name: Ensure Flannel pods are present
+  ansible.builtin.fail:
+    msg: "{{ flannel_fail_msg }}"
+  when: "'flannel' not in kubectl_pods.stdout"

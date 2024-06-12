@@ -12,6 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+- name: Validate inputs
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Validate inputs for kernel_param_update
+      ansible.builtin.include_role:
+        name: kcmdline_update
+        tasks_from: validate_input.yml
+
 
 - name: Update kernel parameters for OS
   hosts: all

@@ -44,7 +44,7 @@
 nfs_client_params: # Value auto populated by Omnia 1.5-1.6 upgrade script
 {% for params in nfs_client_params %}
 {% if params.server_ip is not none and params.server_share_path is not none and params.client_share_path is not none and params.client_mount_options is not none %}
-- { server_ip: "{{ params.server_ip }}", server_share_path: "{{ params.server_share_path }}", client_share_path: "{{ params.client_share_path }}", client_mount_options: "{{ params.client_mount_options }}", nfs_server=false, k8s_share=false, slurm_share=false }
+- { server_ip: "{{ params.server_ip }}", server_share_path: "{{ params.server_share_path }}", client_share_path: "{{ params.client_share_path }}", client_mount_options: "{{ params.client_mount_options }}", nfs_server: false, k8s_share: false, slurm_share: false }
 {% endif %}
 {% endfor %}
 {% if enable_omnia_nfs %}
