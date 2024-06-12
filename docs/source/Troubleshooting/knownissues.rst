@@ -648,12 +648,12 @@ After performing all the above steps, re-run ``upgrade.yml`` playbook.
 
 	    .. image:: ../images/nfs_slurm_error.png
 
-	* **Playbook execution is successful but the slurm nodes are inactive.**
+	* **Playbook execution is successful but the slurm services are inactive.**
 
 **Potential Cause**:
 
-	1. While updating the ``slurm_installation_type`` from ``nfs_share`` to ``configless`` in ``input/omnia.yml``, the previous configuration remains as active which can cause the config deletion and addition to fail intermittently.
-	2. ``SLURM_CONF`` path is not removed from ``LD_LIBRARY_PATH`` while resetting a slurm cluster in ``nfs_share`` mode.
+	1. While updating the ``slurm_installation_type`` from ``nfs_share`` to ``configless`` in ``input/omnia.yml``, the previous 'slurm' user is active, which can cause the deletion and addition of the configurations to fail intermittently.
+	2. NFS share path is not removed from ``LD_LIBRARY_PATH`` environment variable while resetting a slurm cluster in ``nfs_share`` mode.
 
 **Resolution**: Perform the following steps:
 
