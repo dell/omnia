@@ -641,3 +641,26 @@ After performing all the above steps, re-run ``upgrade.yml`` playbook.
 
         ansible-playbook utils/control_plane_cleanup.yml --tags provision
         ansible-playbook discovery_provision.yml
+
+⦾ **After resetting an existing slurm cluster using reset_cluster_config.yml, issues are faced while changing the slurm_installation_type from nfs_share to configless in input/omnia.yml. Post update, possible scenarios observed while executing omnia.yml playbook are:**
+
+	* **Playbook execution fails at TASK: [slurm_common : Add the user 'slurm' with uid 6001 and a primary group of 'slurm'].**
+	* **Playbook execution is successful but the slurm nodes are inactive.**
+
+**Potential Cause**:
+
+	1. While updating the ``slurm_installation_type`` from ``nfs_share`` to ``configless`` in ``input/omnia.yml``, the previous configuration remains as active which can cause the config deletion and addition to fail intermittently.
+	2. ``SLURM_CONF`` path is not removed from ``LD_LIBRARY_PATH`` while resetting a slurm cluster in ``nfs_share`` mode.
+
+**Resolution**: Perform the following steps:
+
+	1. Remove the NFS share path from ``LD_LIBRARY_PATH``.
+	2. Remove ``slurmd.service`` file from all the compute nodes in the slurm cluster.
+	3. Re-run ``omnia.yml`` playbook.
+
+⦾ **While upgrading Omnia in an NFS-Bolt-On setup, the prepare_config.yml playbook fails to import the nfs_client_params mentioned in input/storage_config.yml for v1.5.1 to Omnia v1.6. Consequently, if the same NFS-Bolt-On share doubles as the Omnia share, the prepare_upgrade playbook fails to unmount it on the headnode.**
+
+**Resolution**: Perform the following steps:
+
+	1. After executing the ``prepare_config.yml`` playbook, you need to manually update the ``input/storage_config.yml`` of Omnia v1.6 with the correct ``nfs_client_params``, as mentioned in the ``input/storage_config.yml`` of Omnia v1.5.1.
+	2. Manually unmount the NFS share from the headnode mentioned in ``omnia_user_home`` and re-run the ``prepare_upgrade.yml`` playbook.
