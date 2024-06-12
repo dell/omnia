@@ -645,6 +645,9 @@ After performing all the above steps, re-run ``upgrade.yml`` playbook.
 ⦾ **After resetting an existing slurm cluster using reset_cluster_config.yml, issues are faced while changing the slurm_installation_type from nfs_share to configless in input/omnia.yml. Post update, possible scenarios observed while executing omnia.yml playbook are:**
 
 	* **Playbook execution fails at TASK: [slurm_common : Add the user 'slurm' with uid 6001 and a primary group of 'slurm'].**
+
+	    .. image:: ../images/nfs_slurm_error.png
+
 	* **Playbook execution is successful but the slurm nodes are inactive.**
 
 **Potential Cause**:
