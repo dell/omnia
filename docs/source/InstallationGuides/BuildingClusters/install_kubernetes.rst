@@ -43,13 +43,13 @@ Install Kubernetes
 
 .. note:: If an additional NIC other than admin NIC is present on the cluster, inventory should be updated with argument ``ip``, and ``ip`` should have the value of required admin IP in case node has more than one network interface. If ``kube_control_plane`` has 2 interfaces ``eno1`` and ``eno2`` with IPs ``eno1=10.5.0.3`` and ``eno2=198.168.0.19``, inventory should have the following format:
 
-    ::
-        [kube_control_plane]
-        10.5.0.3 ip=10.5.0.3
-        [kube_node]
-        10.5.0.4 ip=10.5.0.4
-        [etcd]
-        10.5.0.3 ip=10.5.0.3
+::
+    [kube_control_plane]
+    10.5.0.3 ip=10.5.0.3
+    [kube_node]
+    10.5.0.4 ip=10.5.0.4
+    [etcd]
+    10.5.0.3 ip=10.5.0.3
 
 **To install Kubernetes**
 
