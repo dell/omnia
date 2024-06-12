@@ -7,7 +7,7 @@ In a **Dedicated Setup**, all the cluster nodes (head, login, and compute) have 
 
 * **Public Network (Blue line)**: This indicates the iDRAC network which is connected to the external public network.
 
-* **iDRAC Network a.k.a. BMC Network (Red line)**: This indicates the private iDRAC network used by the control plane to control the cluster nodes using out-of-band management.
+* **iDRAC Network (Red line)**: This indicates the private iDRAC network used by the control plane to control the cluster nodes using out-of-band management.
 
 * **Cluster Network (Green line)**: This indicates the admin network utilized by Omnia to provision the cluster nodes.
 
