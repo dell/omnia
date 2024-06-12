@@ -5,5 +5,5 @@ To enable internet access within the container, user needs to export ``http_prox
 
 ::
 
-    export http_proxy=http://cp-ip:3128
-    export https_proxy=http://cp-ip:3128
+    export http_proxy=http://<Control Plane IP>:3128
+    export https_proxy=http://<Control Plane IP>:3128

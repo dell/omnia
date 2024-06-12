@@ -26,6 +26,8 @@ Install Kubernetes
     2. At least 1 ``kube_node``.
     3. Odd number of ``etcd`` nodes.
 
+.. note:: Ensure that the inventory includes an ``[etcd]`` node. etcd is a consistent and highly-available key value store used as Kubernetes' backing store for all cluster data. For more information, `click here. <https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/>`_
+
 **Sample inventory**
 ::
 
@@ -122,7 +124,11 @@ After executing ``scheduler.yml`` or ``omnia.yml``, there are some manual steps 
         **Steps for RHEL/Rocky Linux**
 
         1.	Check the values of http_proxy and https_proxy environment variables from ``/opt/omnia/offline/local_repo_access.yml`` on the control plane.
-        2.	SSH to node with the NVIDIA GPU and set http_proxy environment variables.
+        2.	Establish a secure connection (SSH protocol) to node containing the NVIDIA GPU, and configure the http_proxy environment variables as shown below:
+            ::
+                export http_proxy=http://<Control Plane IP>:3128
+                export https_proxy=http://<Control Plane IP>:3128
+
         3.	Execute the following command:
             ::
 
@@ -153,7 +159,11 @@ After executing ``scheduler.yml`` or ``omnia.yml``, there are some manual steps 
         **Steps for Ubuntu**
 
         1.	Check http_proxy and https_proxy values from ``/opt/omnia/offline/local_repo_access.yml`` on ControlPlane.
-        2.	SSH to node with GPU and set http proxy environment variables.
+        2.	Establish a secure connection (SSH protocol) to node containing the NVIDIA GPU, and configure the http_proxy environment variables as shown below:
+            ::
+                export http_proxy=http://<Control Plane IP>:3128
+                export https_proxy=http://<Control Plane IP>:3128
+
         3.	Execute the following command:
             ::
 

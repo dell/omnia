@@ -47,6 +47,7 @@ The inventory should contain auth_server as per the inventory file in `samplefil
     * To customize the security features on the login node, update the desired parameters in ``input/login_node_security_config.yml``.
     * If a subsequent run of ``security.yml`` fails, the ``security_config.yml`` file will be unencrypted.
 
+.. note:: Installation of OpenLDAP server or FreeIPA server on Control Plane is not supported.
 
 .. caution:: No users will be created by Omnia.
 
