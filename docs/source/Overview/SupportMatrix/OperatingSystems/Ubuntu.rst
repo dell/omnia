@@ -12,5 +12,6 @@ OS Version Control Plane Cluster Nodes
 
 .. note::
     * Omnia supports only the "server install image" version of Ubuntu on the control plane and the cluster nodes.
-    * Ubuntu does not support the use of Slurm as a clustering software. As a result, FreeIPA is not supported on Ubuntu.
+    * Omnia does not currently support Slurm on Ubuntu.
+    * FreeIPA installation is not supported on Ubuntu.
     * PowerVault storage devices are not compatible with the Ubuntu operating system. As a result, Omnia running on Ubuntu clusters does not support the configuration of PowerVault storage devices.
