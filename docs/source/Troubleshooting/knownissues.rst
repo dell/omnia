@@ -661,9 +661,41 @@ After performing all the above steps, re-run ``upgrade.yml`` playbook.
 	2. Remove ``slurmd.service`` file from all the compute nodes in the slurm cluster.
 	3. Re-run ``omnia.yml`` playbook.
 
-⦾ **While upgrading Omnia in an NFS-Bolt-On setup, the prepare_config.yml playbook fails to import the nfs_client_params mentioned in input/storage_config.yml for v1.5.1 to Omnia v1.6. Consequently, if the same NFS-Bolt-On share doubles as the Omnia share, the prepare_upgrade playbook fails to unmount it on the headnode.**
+⦾ **While upgrading Omnia in an NFS-Bolt-On setup, the prepare_config.yml playbook fails to import the nfs_client_params mentioned in input/storage_config.yml for v1.5.1 to Omnia v1.6. Consequently, if the same NFS-Bolt-On share doubles as the Omnia share, the prepare_upgrade.yml playbook fails to unmount it on the head node.**
 
-**Resolution**: Perform the following steps:
+**Potential Cause**: This issue occurs when ``client_share_path`` or ``client_mount_options`` in ``nfs_client_params`` is left empty.
 
-	1. After executing the ``prepare_config.yml`` playbook, you need to manually update the ``input/storage_config.yml`` of Omnia v1.6 with the correct ``nfs_client_params``, as mentioned in the ``input/storage_config.yml`` of Omnia v1.5.1.
-	2. Manually unmount the NFS share from the headnode mentioned in ``omnia_user_home`` and re-run the ``prepare_upgrade.yml`` playbook.
+**Resolution**: Perform the following steps based on your cluster configuration:
+
+	* When ``enable_omnia_nfs`` is set to ``true`` in `storage_config.yml <../InstallationGuides/BuildingClusters/schedulerinputparams.html#id17>`_
+
+	    After executing the ``prepare_config.yml`` playbook, you need to manually update the ``nfs_client_params`` in ``input/storage_config.yml`` of Omnia v1.6, in the format `mentioned here <../InstallationGuides/BuildingClusters/NFS.html>`_. Ensure that the values for ``server_ip``, ``server_share_path``, ``client_share_path``, and ``client_mount_options`` are the same between Omnia v1.5.1 and v1.6. For example:
+
+        ::
+
+            # ``nfs_client_params`` in Omnia v1.5.1:
+
+                { server_ip: 10.6.0.4, server_share_path: "/mnt/nfs_shares/users1", client_share_path: “/users1”, client_mount_options: }
+                { server_ip: 10.6.0.4, server_share_path: "/mnt/nfs_shares/users1", client_share_path: “/users2”, client_mount_options: }
+
+            # ``nfs_client_params`` in Omnia v1.6 should be updated as:
+
+                { server_ip: 10.6.0.4, server_share_path: "/mnt/nfs_shares/users1", client_share_path: “/users1”, client_mount_options: , nfs_server: false, slurm_share: false, k8s_share: false }
+                { server_ip: 10.6.0.4, server_share_path: "/mnt/nfs_shares/users1", client_share_path: “/users2”, client_mount_options: , nfs_server: false, slurm_share: false, k8s_share: false }
+
+	* When ``enable_omnia_nfs`` is set to ``false`` in `storage_config.yml <../InstallationGuides/BuildingClusters/schedulerinputparams.html#id17>`_ and ``server_share_path`` is set to ``/mnt/nfs_shares/appshare``
+
+	    ::
+
+            # ``nfs_client_params`` in Omnia v1.5.1:
+
+                { server_ip: 10.6.0.4, server_share_path: "/mnt/nfs_shares/users", client_share_path: , client_mount_options: }
+                { server_ip: 10.6.0.4, server_share_path: "/mnt/nfs_shares/appshare", client_share_path: , client_mount_options: }
+
+            # ``nfs_client_params`` in Omnia v1.6 should be updated as:
+
+                { server_ip: 10.6.0.4, server_share_path: "/mnt/nfs_shares/users", client_share_path: , client_mount_options: "", nfs_server: false, slurm_share: false, k8s_share: false }
+                { server_ip: 10.6.0.4, server_share_path: "/mnt/nfs_shares/appshare", client_share_path: "/home", client_mount_options: "", nfs_server: false, slurm_share: true, k8s_share: true }
+
+        .. note:: When ``enable_omnia_nfs`` is set to ``false``, the ``prepare_upgrade.yml`` playbook execution fails while attempting to delete the nfs_share directory from manager node. In such a scenario, the user needs to manually unmount the NFS share from the head node mentioned in ``server_share_path`` and re-run the ``prepare_upgrade.yml`` playbook.
+

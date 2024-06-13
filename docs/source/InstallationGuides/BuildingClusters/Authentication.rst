@@ -134,57 +134,57 @@ ________________________________
 
 Enter the following parameters in ``input/login_node_security_config.yml``.
 
-+--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Variable                 | Details                                                                                                                                                                        |
-+==========================+================================================================================================================================================================================+
-| **max_failures**         | The number of login failures that can take place before the account is   locked out.                                                                                           |
-|      ``integer``         |                                                                                                                                                                                |
-|      Optional            |      **Default values**: ``3``                                                                                                                                                 |
-+--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-|**failure_reset_interval**| Period (in seconds) after which the number of failed login attempts is   reset. Min value: 30; Max value: 60.                                                                  |
-|      ``integer``         |                                                                                                                                                                                |
-|      Optional            |      **Default values**: ``60``                                                                                                                                                |
-+--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| **lockout_duration**     | Period (in seconds) for which users are locked out. Min value: 5; Max   value: 10.                                                                                             |
-|      ``integer``         |                                                                                                                                                                                |
-|      Optional            |      **Default values**: ``10``                                                                                                                                                |
-+--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-|**session_timeout**       | User sessions that have been idle for a specific period can be ended   automatically. Min value: 90; Max value: 180.                                                           |
-|      ``integer``         |                                                                                                                                                                                |
-|      Optional            |      **Default values**: ``180``                                                                                                                                               |
-+--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-|**alert_email_address**   | Email address used for sending alerts in case of authentication failure.   When blank, authentication failure alerts are disabled. Currently, only one   email ID is accepted. |
-|      ``string``          |                                                                                                                                                                                |
-|      Optional            |                                                                                                                                                                                |
-+--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-|**user**                  | Access control list of users. Accepted formats are username@ip   (root@1.2.3.4) or username (root). Multiple users can be separated using   whitespaces.                       |
-|      ``string``          |                                                                                                                                                                                |
-|      Optional            |                                                                                                                                                                                |
-+--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-|**allow_deny**            | This variable decides whether users are to be allowed or denied access.   Ensure that AllowUsers or DenyUsers entries on sshd configuration file are   not commented.          |
-|      ``string``          |                                                                                                                                                                                |
-|      Optional            |      Choices:                                                                                                                                                                  |
-|                          |                                                                                                                                                                                |
-|                          |      * ``allow`` <- Default                                                                                                                                                    |
-|                          |      * ``deny``                                                                                                                                                                |
-+--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| restrict_program_support | This variable is used to disable services. Root access is   mandatory.                                                                                                         |
-|      ``boolean``         |                                                                                                                                                                                |
-|      Optional            |      Choices:                                                                                                                                                                  |
-|                          |                                                                                                                                                                                |
-|                          |      * ``false`` <- Default                                                                                                                                                    |
-|                          |      * ``true``                                                                                                                                                                |
-+--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-|**restrict_softwares**    | List of services to be disabled (Comma-separated). Example:   'telnet,lpd,bluetooth'                                                                                           |
-|      ``string``          |                                                                                                                                                                                |
-|      Optional            |      Choices:                                                                                                                                                                  |
-|                          |                                                                                                                                                                                |
-|                          |      * ``telnet``                                                                                                                                                              |
-|                          |      * ``lpd``                                                                                                                                                                 |
-|                          |      * ``bluetooth``                                                                                                                                                           |
-|                          |      * ``rlogin``                                                                                                                                                              |
-|                          |      * ``rexec``                                                                                                                                                               |
-+--------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
++-----------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Variable                    | Details                                                                                                                                                                        |
++=============================+================================================================================================================================================================================+
+| **max_failures**            | The number of login failures that can take place before the account is   locked out.                                                                                           |
+|      ``integer``            |                                                                                                                                                                                |
+|      Optional               |      **Default values**: ``3``                                                                                                                                                 |
++-----------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|**failure_reset_interval**   | Period (in seconds) after which the number of failed login attempts is   reset. Min value: 30; Max value: 60.                                                                  |
+|      ``integer``            |                                                                                                                                                                                |
+|      Optional               |      **Default values**: ``60``                                                                                                                                                |
++-----------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| **lockout_duration**        | Period (in seconds) for which users are locked out. Min value: 5; Max   value: 10.                                                                                             |
+|      ``integer``            |                                                                                                                                                                                |
+|      Optional               |      **Default values**: ``10``                                                                                                                                                |
++-----------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|**session_timeout**          | User sessions that have been idle for a specific period can be ended   automatically. Min value: 90; Max value: 180.                                                           |
+|      ``integer``            |                                                                                                                                                                                |
+|      Optional               |      **Default values**: ``180``                                                                                                                                               |
++-----------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|**alert_email_address**      | Email address used for sending alerts in case of authentication failure.   When blank, authentication failure alerts are disabled. Currently, only one   email ID is accepted. |
+|      ``string``             |                                                                                                                                                                                |
+|      Optional               |                                                                                                                                                                                |
++-----------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|**user**                     | Access control list of users. Accepted formats are username@ip   (root@1.2.3.4) or username (root). Multiple users can be separated using   whitespaces.                       |
+|      ``string``             |                                                                                                                                                                                |
+|      Optional               |                                                                                                                                                                                |
++-----------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|**allow_deny**               | This variable decides whether users are to be allowed or denied access.   Ensure that AllowUsers or DenyUsers entries on sshd configuration file are   not commented.          |
+|      ``string``             |                                                                                                                                                                                |
+|      Optional               |      Choices:                                                                                                                                                                  |
+|                             |                                                                                                                                                                                |
+|                             |      * ``allow`` <- Default                                                                                                                                                    |
+|                             |      * ``deny``                                                                                                                                                                |
++-----------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|**restrict_program_support** | This variable is used to disable services. Root access is   mandatory.                                                                                                         |
+|      ``boolean``            |                                                                                                                                                                                |
+|      Optional               |      Choices:                                                                                                                                                                  |
+|                             |                                                                                                                                                                                |
+|                             |      * ``false`` <- Default                                                                                                                                                    |
+|                             |      * ``true``                                                                                                                                                                |
++-----------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|**restrict_softwares**       | List of services to be disabled (Comma-separated). Example:   'telnet,lpd,bluetooth'                                                                                           |
+|      ``string``             |                                                                                                                                                                                |
+|      Optional               |      Choices:                                                                                                                                                                  |
+|                             |                                                                                                                                                                                |
+|                             |      * ``telnet``                                                                                                                                                              |
+|                             |      * ``lpd``                                                                                                                                                                 |
+|                             |      * ``bluetooth``                                                                                                                                                           |
+|                             |      * ``rlogin``                                                                                                                                                              |
+|                             |      * ``rexec``                                                                                                                                                               |
++-----------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 Advanced Settings
 ------------------
@@ -196,17 +196,10 @@ IPA services are used to provide account management and centralized authenticati
 
 To customize your installation of FreeIPA, enter the following parameters in ``input/security_config.yml``.
 
-+-------------------------+-----------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Input Parameter         | Definition                                                      | Variable value                                                                                                                                        |
-+=========================+=================================================================+=======================================================================================================================================================+
-| kerberos_admin_password | "admin" user password for the IPA server on Rocky OS and RedHat.| The password can be found in the file ``input/security_config.yml`` .                                                                                 |
-+-------------------------+-----------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------+
-| ipa_server_hostname     | The hostname of the IPA server                                  | The hostname can be found on the control plane.                                                                                                       |
-+-------------------------+-----------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------+
-| domain_name             | Domain name                                                     | The domain name can be found in the file ``input/security_config.yml``.                                                                               |
-+-------------------------+-----------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------+
-| ipa_server_ipadress     | The IP address of the IPA server                                | The IP address can be found on the IPA server on the control plane using ``ip a``. This IP address should be accessible from the NFS node.            |
-+-------------------------+-----------------------------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------+
+.. csv-table:: Parameters for FreeIPA setup
+   :file: ../../Tables/security_config_freeipa.csv
+   :header-rows: 1
+   :keepspace:
 
 
 To set up IPA services for the NFS node in the target cluster, run the following command from the ``utils/cluster`` folder on the control plane: ::
@@ -222,6 +215,5 @@ To set up IPA services for the NFS node in the target cluster, run the following
     * Use the format specified under `NFS inventory in the Sample Files <../../samplefiles.html#nfs-server-inventory-file>`_ for inventory.
 
     * Omnia only supports ``/home`` as the ``homeDirectory``.
-
 
 * `Replicating the OpenLDAP server <ReplicatingLDAP.html>`_

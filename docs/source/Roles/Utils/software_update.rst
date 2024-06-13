@@ -1,11 +1,11 @@
 Software Update
 ++++++++++++++++++
 
-To install multiple packages on target nodes in a bulk operation, the ``software_update.yml`` playbook can be leveraged.
+To install multiple packages on cluster nodes in a bulk operation, the ``software_update.yml`` playbook can be leveraged.
 
 **Prerequisites**
 
-    * All target nodes should be running RHEL, Rocky Linux, or Ubuntu OS.
+    * All cluster nodes should be running RHEL, Rocky Linux, or Ubuntu OS.
     * Download the packages using ``local_repo.yml``. For more information, `click here <../../LocalRepo/index.html>`_.
     * Verify that the cluster nodes are in the ``booted`` state. For more information, `click here <../InstallingProvisionTool/ViewingDB.html>`_.
 
@@ -22,7 +22,7 @@ To run the playbook, run the following commands: ::
     cd utils/software_update
     ansible-playbook software_update.yml -i inventory
 
-Inventory should contain the IP/hostname/service tag of the target nodes. For example, ::
+Inventory should contain the IP/hostname/service tag of the cluster nodes. For example, ::
 
     10.5.0.101
     10.5.0.102

@@ -3,7 +3,7 @@ ____
 
 Network File System (NFS) is a networking protocol for distributed file sharing. A file system defines the way data in the form of files is stored and retrieved from storage devices, such as hard disk drives, solid-state drives and tape drives. NFS is a network file sharing protocol that defines the way files are stored and retrieved from storage devices across networks.
 
-.. note:: NFS is a mandatory feature for all clusters set up by Omnia.
+.. note:: NFS is a mandatory feature for all clusters set up by Omnia. Omnia sets up the NFS share internally.
 
 **Pre requisites**
 
@@ -34,6 +34,8 @@ Network File System (NFS) is a networking protocol for distributed file sharing.
 
       - **nfs_server**: Indicates whether an external NFS server is available (``false``) or an NFS server will need to be created (``true``).
 
+      - **client_mount_options**: Indicates the NFS share mount options.
+
       - **slurm_share**: Indicates that the target cluster uses Slurm.
 
       - **k8s_share**: Indicates that the target cluster uses Kubernetes.
@@ -58,7 +60,7 @@ Network File System (NFS) is a networking protocol for distributed file sharing.
 * Ensure that an NFS local repository is created by including ``{"name": "nfs"},`` in ``input/software_config.json``. For more information, `click here <../LocalRepo/index.html>`_.
 * If the intended cluster will run Slurm, set the value of ``slurm_installation_type`` in ``input/omnia_config.yml`` to ``nfs_share``.
 * If an external NFS share is used, make sure that ``/etc/exports`` on the NFS server is populated with the same paths listed as ``server_share_path`` in the ``nfs_client_params`` in ``input/storage_config.yml``.
-* Omnia supports all NFS mount options. Without user input, the default mount options are nosuid,rw,sync,hard,intr.
+* Omnia supports all NFS mount options. Without user input, the default mount options are ``nosuid,rw,sync,hard,intr``.
 
 
 **Running the playbook**
