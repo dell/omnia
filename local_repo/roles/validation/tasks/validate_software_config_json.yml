@@ -171,7 +171,7 @@
       ansible.builtin.assert:
         that:
           - item.name not in specific_softwares or (item.version is defined and item.version != "")
-      loop: "{{ software_config.softwares + software_config.amdgpu | default([]) }}"
+      loop: "{{ software_config.softwares + software_config.amdgpu + software_config.bcm_roce | default([]) }}"
       when: item.name is defined
       loop_control:
         loop_var: item

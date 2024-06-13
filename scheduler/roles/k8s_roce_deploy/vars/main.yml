@@ -1,0 +1,68 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Usage: validate_inventory.yml
+invalid_kube_inventory_fail_msg: "Failed. Invalid inventory format. Please specify kube_control_plane and kube_node"
+kube_one_node_validation_fail_msg: "Failed. There should be exactly one entry for kube_control_plane in the inventory"
+kube_one_node_validation_success_msg: "One kube_control_plane exists in the inventory"
+kube_node_validation_fail_msg: "Failed. At least one kube_node should be present in the inventory."
+kube_node_validation_success_msg: "At least one kube_node exists in the inventory"
+
+# Usage: validate_k8s.yml
+k8s_fail_msg: "Kubernetes is not running! Please use omnia.yml/scheduler.yml to bring up k8s cluster"
+flannel_fail_msg: "Flannel CNI is not running! Please bring up k8s cluster with flannel as CNI."
+
+# Usage: validate_software_config.yml
+software_config_json_file: "{{ role_path }}/../../../input/software_config.json"
+roce_plugin_false_fail_msg: "roce_plugin is not mentioned in software_config.json.
+Please add roce_plugin in software_config.json and re-run local_repo.yml"
+local_repo_access_dest_path: "/opt/omnia/offline/local_repo_access.yml"
+compute_os_ubuntu: "ubuntu"
+rhel_roce_plugin_support_fail_msg: "Roce plugin is supported only on ubuntu OS"
+roce_packages_file: "{{ role_path }}/../../../input/config/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/roce_plugin.json"
+
+# Usage: validate_roce_plugin_config.yml
+roce_plugin_config_file: "{{ role_path }}/../../../input/roce_plugin_config.yml"
+name_definition_fail_msg: "One or more interfaces are missing 'name'"
+name_definition_success_msg: "All interfaces have 'name' defined"
+name_unique_fail_msg: "Interface names are not unique"
+name_unique_success_msg: "All interface names are unique"
+range_gateway_definition_fail_msg: "One or more interfaces are missing 'range' or 'gateway'"
+range_gateway_definition_success_msg: "All interfaces have 'range' and 'gateway' defined"
+range_unique_fail_msg: "Range values are not unique"
+range_unique_success_msg: "All range values are unique"
+gateway_unique_fail_msg: "Gateway values are not unique"
+gateway_unique_success_msg: "All gateway values are unique"
+
+# Usage: create_config_files.yml
+rdma_patch_file_dest: "/tmp/rdma-plugin.patch"
+file_permission: "0755"
+roce_nad_tmp_folder: "/tmp/roce"
+dir_permission: "0755"
+
+# Usage: apply_network_services.yml
+multus_pod_network_url: "{{ hostvars['localhost']['offline_manifest_path'] }}/multus-daemonset.yaml"
+whereabouts_git_url: "{{ hostvars['localhost']['offline_git_path'] }}/whereabouts.tar.gz"
+whereabouts_dest_folder: "/tmp/whereabouts.tar.gz"
+tmp_folder: "/tmp"
+wherabout_crds_folder: "/tmp/whereabouts/doc/crds/"
+rdma_plugin_git_url: "{{ hostvars['localhost']['offline_git_path'] }}/k8s-rdma-shared-dev-plugin.tar.gz"
+rdma_plugin_dest_folder: "/tmp/k8s-rdma-shared-dev-plugin.tar.gz"
+rdma_plugin_folder: "/tmp/k8s-rdma-shared-dev-plugin"
+rdma_plugin_commit_id: c94b2cef
+git_permissions: "0644"
+
+# Usage: deploy_rocepod.yml
+rocepod_file_dest: "/tmp/rocepod.yml"

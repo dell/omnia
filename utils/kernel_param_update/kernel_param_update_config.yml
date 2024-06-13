@@ -21,6 +21,6 @@
 # This variable contains the list of kernel command line
 # Use space(' ') as a delimeter in case of multiple parameters
 # Example:
-# grub_commandline_kernel: “iommu=pt intel_iommu=off pci=realloc=off pci=realloc=off processor.max_cstate=0 intel_idle.max_cstate=0 intel_pstate=disable”
+# grub_commandline_kernel: “iommu=pt intel_iommu=off pci=realloc=off processor.max_cstate=0 intel_idle.max_cstate=0 intel_pstate=disable”
 
 grub_commandline_kernel: ""

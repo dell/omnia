@@ -15,6 +15,7 @@
 import subprocess
 import sys
 import yaml
+import time
 
 db_path = sys.argv[2]
 sys.path.insert(0, db_path)
@@ -92,7 +93,9 @@ def update_node_obj():
                             subprocess.run(command)
 
             command = ["updatenode", node_name, "-P", "confignetwork,omnia_hostname"]
-            subprocess.Popen(command, shell=False)
+            subprocess.run(command)
+            time.sleep(1)
+
     # Close the cursor and connection
     cursor.close()
     conn.close()

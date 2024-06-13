@@ -1,0 +1,20 @@
+diff --git a/deployment/k8s/base/configmap.yaml b/deployment/k8s/base/configmap.yaml
+index 89df3bd..9e11579 100644
+--- a/deployment/k8s/base/configmap.yaml
++++ b/deployment/k8s/base/configmap.yaml
+@@ -20,6 +20,15 @@ data:
+                "deviceIDs": ["1017"],
+                "ifNames": ["ib3", "ib4"]
+              }
++           },
++           {
++             "resourceName": "hca_shared_devices_c",
++             "rdmaHcaMax": 1000,
++             "selectors": {
++                "vendors": ["14e4"],
++                "deviceIDs": ["1750","1760"],
++                "ifNames": {{ interface_names_list }}
++              }
+            }
+         ]
+     }

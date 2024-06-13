@@ -51,7 +51,7 @@ def process_image_tag_package(package_name, repo_config, nerdctl_registry_host, 
     except Exception as err:
         print(f"An error occurred: {err}")
         print(f"Exception occured while trying to access registry {nerdctl_registry_host}.")
-        return False
+        return "Failed"
 
 def process_image_digest_package(package_name, repo_config, nerdctl_registry_host, image_digest, new_tag):
     """
@@ -87,7 +87,7 @@ def process_image_digest_package(package_name, repo_config, nerdctl_registry_hos
     except Exception as err:
         print(f"An error occurred: {err}")
         print(f"Exception occured while trying to access registry {nerdctl_registry_host}.")
-        return False
+        return "Failed"
 
 def check_image_in_registry(image_name, image_version, user_registries):
     """

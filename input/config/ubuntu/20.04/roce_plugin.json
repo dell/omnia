@@ -1,0 +1,43 @@
+{
+    "roce_plugin": {
+      "cluster": [ 
+      {
+        "package": "multus-daemonset",
+        "type": "manifest",
+        "url": "https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-cni/master/deployments/multus-daemonset.yml"
+      },
+      {
+        "package": "whereabouts",
+        "url": "https://github.com/k8snetworkplumbingwg/whereabouts.git",
+        "type": "git",
+        "version": "v0.6.3"
+      },
+      {
+        "package": "k8s-rdma-shared-dev-plugin",
+        "url": "https://github.com/Mellanox/k8s-rdma-shared-dev-plugin.git",
+        "type": "git",
+        "version": "master"
+      },
+      {
+        "package": "ghcr.io/k8snetworkplumbingwg/multus-cni",
+        "tag": "snapshot",
+        "type": "image"
+      },
+      {
+        "package": "ghcr.io/k8snetworkplumbingwg/whereabouts",
+        "tag": "latest",
+        "type": "image"
+      },
+      {
+        "package": "ghcr.io/mellanox/k8s-rdma-shared-dev-plugin",
+        "tag": "latest",
+        "type": "image"
+      },
+      {
+        "package": "docker.io/roman8rcm/roce-test",
+        "tag": "229.2.32.0",
+        "type": "image"
+      }
+      ]
+    }
+  }

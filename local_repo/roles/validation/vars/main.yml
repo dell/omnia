@@ -60,6 +60,7 @@ specific_softwares:
   - 'rocm'
   - 'intel_benchmarks'
   - 'openmpi'
+  - 'bcm_roce_libraries'
 versions_fail_msg: "Versions were not defined for the following softwares: {{ failed_softwares | join(', ') }} in software_config.json.
 Refer examples/template_{{ cluster_os_type }}_software_config.json and define version details accordingly in input/software_config.json"
 cluster_os_type_fail_msg: "Failed. The supported values of cluster_os_type are rhel, rocky, ubuntu."

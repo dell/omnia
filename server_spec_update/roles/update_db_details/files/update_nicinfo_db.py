@@ -56,7 +56,7 @@ def generate_ip(nw_name):
                                                                                 net_bits,
                                                                                 admin_nb)
                     op = uncorrelated_add_ip.check_presence_ip(cursor, col, nic_ip)
-                    if not op and nic_ip < end_ip:
+                    if not op and ipaddress.IPv4Address(nic_ip) < end_ip:
                         return nic_ip
                     elif op:
                         nic_ip = uncorrelated_add_ip.cal_uncorrelated_add_ip(cursor, col, nic_mode, nic_range)
@@ -91,6 +91,7 @@ def update_db_nicinfo():
                                     db_data[temp] = nic_device
 
                             nic_ip = generate_ip(nic_nw)
+                            print("IP for", nic_nw, ":", nic_ip)
                             temp = nic_nw + '_ip'
                             db_data[temp] = str(nic_ip)
                 insert_nicinfo_db.insert_nic_info(node_detail, db_data)

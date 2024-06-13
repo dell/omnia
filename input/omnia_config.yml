@@ -48,6 +48,7 @@ restart_slurm_services: true
 # Kubernetes SDN network.
 # It can either be "calico" or "flannel".
 # Default value assigned is "calico".
+# While setting up Kubernetes plugin for RoCE NIC, ensure that this value is set to "flannel"
 k8s_cni: "calico"
 
 # These addresses will be used by Loadbalancer for assigning External IPs to K8s services

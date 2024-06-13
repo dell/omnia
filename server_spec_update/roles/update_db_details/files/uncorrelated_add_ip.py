@@ -66,7 +66,9 @@ def cal_uncorrelated_add_ip(cursor, col, nic_mode, nic_range):
     """
     # create start and end ip
     start_nic_ip = nic_range.split('-')[0]
+    start_nic_ip = ipaddress.IPv4Address(start_nic_ip)
     end_nic_ip = nic_range.split('-')[1]
+    end_nic_ip = ipaddress.IPv4Address(end_nic_ip)
     cursor.execute("SELECT EXISTS(SELECT 1 FROM cluster.nicinfo LIMIT 1)")
     rows_exist = cursor.fetchone()[0]
     if nic_mode == "static":
@@ -76,8 +78,8 @@ def cal_uncorrelated_add_ip(cursor, col, nic_mode, nic_range):
             last_nic_ip = cursor.fetchone()
             if last_nic_ip is None:
                 return str(start_nic_ip)
-            elif start_nic_ip <= last_nic_ip[0] <= end_nic_ip:
-                nic_ip = cal_nic_ip(cursor, col, last_nic_ip[0], end_nic_ip)
+            elif start_nic_ip <= ipaddress.IPv4Address(last_nic_ip[0]) <= end_nic_ip:
+                nic_ip = cal_nic_ip(cursor, col, last_nic_ip[0], str(end_nic_ip))
                 return str(nic_ip)
         else:
             return str(start_nic_ip)
@@ -88,8 +90,8 @@ def cal_uncorrelated_add_ip(cursor, col, nic_mode, nic_range):
             last_nic_ip = cursor.fetchone()
             if last_nic_ip is None:
                 return str(start_nic_ip)
-            else:
-                nic_ip = cal_nic_ip(cursor, col, start_nic_ip, end_nic_ip)
+            elif start_nic_ip <= ipaddress.IPv4Address(last_nic_ip[0]) <= end_nic_ip:
+                nic_ip = cal_nic_ip(cursor, col, last_nic_ip[0], str(end_nic_ip))
                 return str(nic_ip)
         else:
             return str(start_nic_ip)

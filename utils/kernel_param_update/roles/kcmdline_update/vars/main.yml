@@ -19,6 +19,9 @@ grub_path: /etc/default/grub
 
 # Usage: reboot_nodes.yml
 reboot_fail_msg: "Failed. Nodes should be rebooted manually."
+reboot_warning_msg: "[Warning] - Nodes will be rebooted"
+warning_wait_time: 30
 
 # Usage: validate_input.yml
 validation_fail_msg: "grub_commandline_kernel variable is either undefined, not a string, or empty"
+empty_inventory_fail_msg: "Failed. inventory not provided. Re-run playbook with inventory providing -i inventory."

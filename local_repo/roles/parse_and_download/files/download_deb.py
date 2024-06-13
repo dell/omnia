@@ -24,7 +24,7 @@ def process_deb_package(package, repo_store_path, status_file_path, cluster_os_t
     user_apt_conf_path= "/etc/apt/user_apt.conf"
     # Specify the repository names that should be skipped
     skip_repos = ['focal','jammy']
-
+    download_flag = False
     omnia_always = ['amdgpu', 'cuda', 'ofed']
 
     # Construct the path based on the provided repository store format
@@ -92,8 +92,10 @@ def process_deb_package(package, repo_store_path, status_file_path, cluster_os_t
                     result = subprocess.run(['dpkg', '-l', split_package_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
                     if result.stdout.strip():
                         # Package is installed, raise CalledProcessError to trigger download
+                        download_flag = True
                         print(f"Package {package_name} is installed. Triggering download.")
                         raise subprocess.CalledProcessError(returncode=0, cmd=f'dpkg -l {package_name}', output=result.stdout)
+
                     print(f"Package {package_name} is available in user repos. No need to download.")
                     status = "Skipped"
                 except subprocess.CalledProcessError:
@@ -119,16 +121,28 @@ def process_deb_package(package, repo_store_path, status_file_path, cluster_os_t
                             dependency = parts[1]
                             dependency = dependency.split(':')[0]
                             dependencies.append(dependency)
+
                 if repo_name != 'ldap':
                     for dependency in dependencies:
+                        download_dependency_command = ['apt-get', 'download', dependency, '-o', f'Dir::Cache={deb_directory}']
                         try:
-                            subprocess.run(['apt-cache', 'show', dependency, '-c', user_apt_conf_path], check=True)
-                            print(f"Dependency {dependency} is available in user repos. No need to download.")
+                            # Checking flag if package is downloaded
+                            if download_flag == True:
+                                raise subprocess.CalledProcessError(returncode=0, cmd=f'dpkg -l {dependency}', output=result.stdout)
+                            else:
+                                subprocess.run(['apt-cache', 'show', dependency, '-c', user_apt_conf_path], check=True)
+                                print(f"Dependency {dependency} is available in user repos. No need to download.")
                         except subprocess.CalledProcessError:
-                            os.makedirs(deb_directory, exist_ok=True)
-                            os.chdir(deb_directory)
-                            command = ['apt-get' ,'download', dependency, '-o', f'Dir::Cache={deb_directory}']
-                            subprocess.run(command, check=True)
+                            try:
+                                os.makedirs(deb_directory, exist_ok=True)
+                                os.chdir(deb_directory)
+                                subprocess.run(download_dependency_command, check=True)
+                            except subprocess.CalledProcessError as e:
+                                print(f"Failed to download {dependency}: {e}")
+                            except Exception as e:
+                                print(f"An unexpected error occurred while downloading {dependency}: {e}")
+                        except Exception as e:
+                            print(f"An unexpected error occurred while downloading dependencies: {e}")
 
             elif repo_config == 'never' and cluster_name not in omnia_always:
                 status = "Skipped"

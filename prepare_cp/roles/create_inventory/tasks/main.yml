@@ -19,16 +19,30 @@
     state: directory
     mode: "{{ inventory_dir_mode }}"
 
-- name: Delete existing omnia created inventory files
+- name: Check each inventory file presence
   ansible.builtin.file:
     path: "{{ item }}"
-    state: absent
+    state: touch
+    mode: "{{ inventory_file_mode }}"
   with_items: "{{ inventory_file_path_list }}"
 
-- name: Regenerate inventory files with group name
-  ansible.builtin.lineinfile:
+- name: Read content of all inventory files
+  ansible.builtin.slurp:
     path: "{{ inventory_directory_path }}/{{ item }}"
-    create: true
-    line: "[{{ item }}]"
-    mode: "{{ inventory_file_mode }}"
+  register: inventory_content
   with_items: "{{ inventory_file_name_list }}"
+
+- name: Truncate content of inventory file where group name is absent
+  ansible.builtin.command: truncate -s 0 "{{ item.invocation.module_args.path }}"
+  with_items: "{{ inventory_content.results }}"
+  when: item.item not in item.content | b64decode
+  changed_when: true
+
+- name: Add Group Name to inventory files where group name is absent
+  ansible.builtin.lineinfile:
+    path: "{{ item.invocation.module_args.path }}"
+    line: "[{{ item.item }}]"
+    create: true
+    mode: "{{ inventory_file_mode }}"
+  with_items: "{{ inventory_content.results }}"
+  when: item.item not in item.content | b64decode

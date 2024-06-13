@@ -1,0 +1,40 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Fetch all interface names in a list
+- name: Fetch all interface names
+  ansible.builtin.set_fact:
+    interface_names_list: "{{ hostvars['localhost']['interfaces'] | map(attribute='name') | to_json }}"
+
+- name: Copy rdma-plugin.patch file to /tmp directory
+  ansible.builtin.template:
+    src: rdma-plugin.patch.j2
+    dest: "{{ rdma_patch_file_dest }}"
+    mode: "{{ file_permission }}"
+
+# Create NetworkAttachmentDefinition files for every interface
+- name: Create directory for NetworkAttachmentDefinition files
+  ansible.builtin.file:
+    path: "{{ roce_nad_tmp_folder }}"
+    state: directory
+    recurse: true
+    mode: "{{ dir_permission }}"
+
+- name: Create NetworkAttachmentDefinition files
+  ansible.builtin.template:
+    src: "interface_attachment_definition.yml.j2"
+    dest: "{{ roce_nad_tmp_folder }}/roce-{{ item.0 + 1 }}.yml"
+    mode: "{{ file_permission }}"
+  with_indexed_items: "{{ hostvars['localhost']['interfaces'] }}"

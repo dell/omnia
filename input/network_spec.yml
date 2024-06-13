@@ -23,6 +23,7 @@
 
 #**********************************************************************
 # Following are the templates for providing additional network details
+# If vlan creation is required ensure vlan name is provided in the format NIC.vlan_id(eth1.101) in server_spec.yml 
 #**********************************************************************
 
 #    - thor_network1:

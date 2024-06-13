@@ -29,6 +29,10 @@
   loop: "{{ import_input_parameters_config_file_array | zip(stdout_array) | list }}"
   no_log: true
 
+- name: Store input files to be read
+  ansible.builtin.set_fact:
+    input_filenames: "{{ import_input_parameters_new_config_file_array | map(attribute='file_entry.file') | list }}"
+
 - name: Read config files
   block:
     - name: Decrypt config files
@@ -40,13 +44,10 @@
       no_log: true
       changed_when: false
 
-    - name: Read existing parameters from old input directory
+    - name: Read existing parameters from input files
       ansible.builtin.include_vars:
-        dir: "{{ old_input_location }}"
-        ignore_unknown_extensions: true
-        extensions:
-          - 'yml'
-          - 'yaml'
+        file: "{{ old_input_location }}/{{ item }}"
+      with_items: "{{ input_filenames }}"
       changed_when: false
 
   rescue:

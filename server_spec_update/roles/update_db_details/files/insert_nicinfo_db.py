@@ -64,12 +64,20 @@ def insert_nic_info(ip, db_data):
             columns = ', '.join(db_data.keys())
             placeholders = ', '.join(f'%({col})s' for col in db_data.keys())
             query = f"INSERT INTO cluster.nicinfo ({columns}) VALUES ({placeholders})"
-            cursor.execute(query, db_data)
+            try:
+                print("DB data=", db_data)
+                cursor.execute(query, db_data)
+            except Exception as e:
+                print(e)
         elif op:
             set_clause = ', '.join(f'{col} = COALESCE({col}, %({col})s)' if col != 'category' and col.endswith(
                 'ip') else f'{col} = %({col})s' for col in db_data.keys())
             query = f"UPDATE cluster.nicinfo SET {set_clause} WHERE id = {id_no[0]}"
-            cursor.execute(query, db_data)
+            try:
+                print("DB data=", db_data)
+                cursor.execute(query, db_data)
+            except Exception as e:
+                print(e)
 
     else:
         print(ip, " Not present in the DB. Please provide proper IP")

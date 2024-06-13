@@ -12,10 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+- name: Reboot nodes
+  ansible.builtin.pause:
+    seconds: "{{ warning_wait_time }}"
+    prompt: "{{ reboot_warning_msg }}"
 
-- name: Reboot node
+- name: Initiate reboot
   block:
-    - name: Reboot node (This task will take some time)
+    - name: Rebooting node (This task will take some time)
       ansible.builtin.reboot:
   rescue:
     - name: Failed to reboot node

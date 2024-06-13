@@ -17,3 +17,7 @@
   ansible.builtin.command: |
      {{ python_version }} {{ update_node_objects_path }} {{ network_spec_file_path }} {{ omnia_db_path }}
   changed_when: false
+
+- name: Successful execution of server_spec_update.yml
+  ansible.builtin.debug:
+    msg: "{{ server_sepc_update_success_msg }}"
