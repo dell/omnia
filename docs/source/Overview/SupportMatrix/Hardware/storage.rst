@@ -32,3 +32,6 @@ BOSS Controller Cards
 .. versionadded:: 1.2.1
     BOSS controller cards
 
+.. versionadded:: 1.6
+    BOSS N1
+
