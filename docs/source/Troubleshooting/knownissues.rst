@@ -685,7 +685,7 @@ After performing all the above steps, re-run ``upgrade.yml`` playbook.
                 ::
                     { server_ip: localhost, server_share_path: /mnt/omnia_home_share, client_share_path: /home, client_mount_options: "nosuid,rw,sync,hard,intr", nfs_server: true, slurm_share: true, k8s_share: true }
 
-	* When ``enable_omnia_nfs`` is set to ``false`` and ``omnia_usr_home`` is set to ``/mnt/nfs_shares/appshare`` in Omnia v1.5.1
+	* When ``enable_omnia_nfs`` is set to ``false`` and ``omnia_usrhome_share`` is set to ``/mnt/nfs_shares/appshare`` in Omnia v1.5.1
 
             # For example, if the ``nfs_client_params`` in Omnia v1.5.1 is: ::
 
@@ -697,5 +697,5 @@ After performing all the above steps, re-run ``upgrade.yml`` playbook.
                             { server_ip: 10.6.0.4, server_share_path: "/mnt/nfs_shares/users", client_share_path: , client_mount_options: "", nfs_server: false, slurm_share: false, k8s_share: false }
                             { server_ip: 10.6.0.4, server_share_path: "/mnt/nfs_shares/appshare", client_share_path: "/home", client_mount_options: "", nfs_server: false, slurm_share: true, k8s_share: true }
 
-    .. note:: When ``enable_omnia_nfs`` is set to ``false``, the ``prepare_upgrade.yml`` playbook execution fails while attempting to delete the nfs_share directory from manager node. In such a scenario, the user needs to manually unmount the NFS share from the head node mentioned in ``server_share_path`` and re-run the ``prepare_upgrade.yml`` playbook.
+    .. note:: When ``enable_omnia_nfs`` is set to ``false``, the ``prepare_upgrade.yml`` playbook execution fails while attempting to delete the nfs_share directory from the manager node. In such a scenario, the user needs to manually unmount the Omnia NFS share from the head node and re-run the ``prepare_upgrade.yml`` playbook.
 
