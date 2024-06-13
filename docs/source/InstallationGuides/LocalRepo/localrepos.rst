@@ -387,7 +387,7 @@ UCX is deployed on the cluster when the ``local_repo.yml`` is run then `omnia.ym
 
         * A sample format is available `here. <InputParameters.html>`_
 
-For information on deploying vLLM after setting up the cluster, `click here. <../../InstallingProvisionTool/Platform/SetupvLLM.html>`_
+For information on deploying vLLM after setting up the cluster, `click here. <../../InstallingProvisionTool/Platform/vLLM/index.html>`_
 
 **Intel benchmarks**
 
