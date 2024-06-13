@@ -667,28 +667,32 @@ After performing all the above steps, re-run ``upgrade.yml`` playbook.
 
 **Resolution**: Perform the following steps based on your cluster configuration:
 
-	* When ``enable_omnia_nfs`` is set to ``true``:
+    After executing the ``prepare_config.yml`` playbook, you need to manually update the ``nfs_client_params`` in ``input/storage_config.yml`` of Omnia v1.6, in the format `mentioned here <../InstallationGuides/BuildingClusters/NFS.html>`_. Ensure that the values for ``server_ip``, ``server_share_path``, ``client_share_path``, and ``client_mount_options`` are the same between Omnia v1.5.1 and v1.6. For example:
 
-	    After executing the ``prepare_config.yml`` playbook, you need to manually update the ``nfs_client_params`` in ``input/storage_config.yml`` of Omnia v1.6, in the format `mentioned here <../InstallationGuides/BuildingClusters/NFS.html>`_. Ensure that the values for ``server_ip``, ``server_share_path``, ``client_share_path``, and ``client_mount_options`` are the same between Omnia v1.5.1 and v1.6. For example:
+	* When ``enable_omnia_nfs`` is set to ``true`` in Omnia v1.5.1
 
-            # ``nfs_client_params`` in Omnia v1.5.1: ::
+            # For example, if ``nfs_client_params`` in Omnia v1.5.1 is: ::
 
-                { server_ip: 10.6.0.4, server_share_path: "/mnt/nfs_shares/users1", client_share_path: “/users1”, client_mount_options: }
-                { server_ip: 10.6.0.4, server_share_path: "/mnt/nfs_shares/users1", client_share_path: “/users2”, client_mount_options: }
+                - { server_ip: 10.6.0.4, server_share_path: "/mnt/nfs_shares/users1", client_share_path: “/users1”, client_mount_options: }
+                - { server_ip: 10.6.0.4, server_share_path: "/mnt/nfs_shares/users1", client_share_path: “/users2”, client_mount_options: }
 
-            # ``nfs_client_params`` in Omnia v1.6 should be updated as: ::
+            # Then the ``nfs_client_params`` in Omnia v1.6 should be updated as: ::
 
-                { server_ip: 10.6.0.4, server_share_path: "/mnt/nfs_shares/users1", client_share_path: “/users1”, client_mount_options: , nfs_server: false, slurm_share: false, k8s_share: false }
-                { server_ip: 10.6.0.4, server_share_path: "/mnt/nfs_shares/users1", client_share_path: “/users2”, client_mount_options: , nfs_server: false, slurm_share: false, k8s_share: false }
+                - { server_ip: 10.6.0.4, server_share_path: "/mnt/nfs_shares/users1", client_share_path: “/users1”, client_mount_options: , nfs_server: false, slurm_share: false, k8s_share: false }
+                - { server_ip: 10.6.0.4, server_share_path: "/mnt/nfs_shares/users1", client_share_path: “/users2”, client_mount_options: , nfs_server: false, slurm_share: false, k8s_share: false }
 
-	* When ``enable_omnia_nfs`` is set to ``false`` and ``server_share_path`` is set to ``/mnt/nfs_shares/appshare``:
+            .. note:: Do not remove the auto populated entries in ``nfs_client_params`` from ``input/storage_config.yml``. The default entry is similar to:
+                ::
+                    { server_ip: localhost, server_share_path: /mnt/omnia_home_share, client_share_path: /home, client_mount_options: "nosuid,rw,sync,hard,intr", nfs_server: true, slurm_share: true, k8s_share: true }
 
-            # ``nfs_client_params`` in Omnia v1.5.1: ::
+	* When ``enable_omnia_nfs`` is set to ``false`` and ``omnia_usr_home`` is set to ``/mnt/nfs_shares/appshare`` in Omnia v1.5.1
+
+            # For example, if the ``nfs_client_params`` in Omnia v1.5.1 is: ::
 
                             { server_ip: 10.6.0.4, server_share_path: "/mnt/nfs_shares/users", client_share_path: , client_mount_options: }
                             { server_ip: 10.6.0.4, server_share_path: "/mnt/nfs_shares/appshare", client_share_path: , client_mount_options: }
 
-            # ``nfs_client_params`` in Omnia v1.6 should be updated as: ::
+            # The the ``nfs_client_params`` in Omnia v1.6 should be updated as: ::
 
                             { server_ip: 10.6.0.4, server_share_path: "/mnt/nfs_shares/users", client_share_path: , client_mount_options: "", nfs_server: false, slurm_share: false, k8s_share: false }
                             { server_ip: 10.6.0.4, server_share_path: "/mnt/nfs_shares/appshare", client_share_path: "/home", client_mount_options: "", nfs_server: false, slurm_share: true, k8s_share: true }
