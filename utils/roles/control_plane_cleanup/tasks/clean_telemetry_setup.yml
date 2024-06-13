@@ -177,7 +177,7 @@
 
 - name: Reload systemd
   ansible.builtin.systemd:
-    daemon-reload: true
+    daemon_reload: true
   changed_when: false
   failed_when: false
 
