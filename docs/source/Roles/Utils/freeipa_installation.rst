@@ -3,18 +3,18 @@ FreeIPA installation on the NFS node
 
 IPA services are used to provide account management and centralized authentication. If admin user intends to install the FreeIPA authentication on the NFS node (server connected to the storage devices), then the following playbook can be utilized.
 
-To install FreeIPA on NFS node, enter the following parameters in ``input/security_config.yml``. Ensure to provide ``ipa_server_hostname`` and ``ipa_server_ipadress`` as extra arguments during playbook execution.
+To install FreeIPA on NFS node, get the values of ``kerberos_admin_password`` and ``domain_name`` from ``input/security_config.yml``. Ensure to provide the below ``ipa_server_hostname`` and ``ipa_server_ipadress`` as extra arguments along with  during playbook execution.
 
 +-------------------------+-----------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Input Parameter         | Definition                                                      | Variable value                                                                                                                                             |
 +=========================+=================================================================+============================================================================================================================================================+
 | kerberos_admin_password | "admin" user password for the IPA server on Rocky OS and RedHat.| The password can be found in the file ``input/security_config.yml`` .                                                                                      |
 +-------------------------+-----------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| ipa_server_hostname     | The hostname of the IPA server                                  | The hostname can be found on the kube_control_plane.                                                                                                       |
+| ipa_server_hostname     | The hostname of the IPA server                                  | The hostname can be found on the ``auth_server``.                                                                                                          |
 +-------------------------+-----------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | domain_name             | Domain name                                                     | The domain name can be found in the file ``input/security_config.yml``.                                                                                    |
 +-------------------------+-----------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| ipa_server_ipadress     | The IP address of the IPA server                                | The IP address can be found on the IPA server on the kube_control_plane using the ``ip a`` command. This IP address should be accessible from the NFS node.|
+| ipa_server_ipadress     | The IP address of the IPA server                                | The IP address can be found on the IPA server on the ``auth_server`` using the ``ip a`` command. This IP address should be accessible from the NFS node.   |
 +-------------------------+-----------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 To set up IPA services for the NFS node in the target cluster, run the following command from the ``utils/cluster`` folder on the control plane: ::

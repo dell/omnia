@@ -699,3 +699,13 @@ After performing all the above steps, re-run ``upgrade.yml`` playbook.
 
     .. note:: When ``enable_omnia_nfs`` is set to ``false``, the ``prepare_upgrade.yml`` playbook execution fails while attempting to delete the nfs_share directory from the manager node. In such a scenario, the user needs to manually unmount the Omnia NFS share from the head node and re-run the ``prepare_upgrade.yml`` playbook.
 
+⦾ **While executing discovery_provision.yml playbook from the control plane, some of the cluster nodes fail to boot up and omniadb captures the node status as "failed".**
+
+.. image:: ../images/waco_node_boot_failure.png
+
+**Potential Cause**: This issue is encountered due to any configuration failure during node provisioning.
+
+**Resolution**: Perform the following steps:
+
+    1. Delete the failed node from the db using ``delete_node.yml`` playbook utility. For more information, `click here <../InstallationGuides/deletenode.html#delete-provisioned-node>`_.
+    2. Re-provision the node by re-running the ``discovery_provision.yml`` playbook.
