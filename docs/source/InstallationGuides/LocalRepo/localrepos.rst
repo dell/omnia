@@ -300,7 +300,7 @@ For more information on OpenLDAP, `click here <../BuildingClusters/Authenticatio
 
             {"name": "openmpi", "version":"4.1.6"},
 
-OpenMPI is deployed on the cluster when the above configurations are complete and `omnia.yml <../BuildingClusters/index.html>`_ is run.
+OpenMPI is deployed on the cluster when the above configurations are complete and `omnia.yml <../BuildingClusters/installscheduler.html>`_ playbook is executed.
 
 For more information on OpenMPI configurations, `click here <../BuildingClusters/install_ucx_openmpi.html>`_.
 
@@ -368,7 +368,7 @@ For information on deploying TensorFlow after setting up the cluster, `click her
 
             {"name": "ucx", "version":"1.15.0"},
 
-UCX is deployed on the cluster when the ``local_repo.yml`` playbook is executed executed, followed by the execution `omnia.yml <../BuildingClusters/index.html>`_.
+UCX is deployed on the cluster when ``local_repo.yml`` playbook is executed, followed by the execution of `omnia.yml <../BuildingClusters/installscheduler.html>`_.
 
 For more information on UCX configurations, `click here <../BuildingClusters/install_ucx_openmpi.html>`_.
 
