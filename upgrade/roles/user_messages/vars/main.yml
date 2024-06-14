@@ -30,6 +30,7 @@ user_msg_prepare_config: |
 
    prepare_upgrade.yml cleans up the various software packages on Omnia 1.5.1 cluster and the control plane. This includes Kubernetes, Telemetry, etc.
    It also creates the Omnia 1.6 local repo, upgrades xCAT on control plane, and restores the Omnia Database from the backup.
+   NOTE: Omnia NFS share of Omnia 1.5.1 is deleted while running prepare_upgrade.yml,hence we recommend users to take backup of the share before proceeding .
 
    ****************************************************************************************************************************************************
 

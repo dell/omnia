@@ -31,6 +31,7 @@
     - encrypt_inputs
     - backup_omniadb
     - upgrade_inventory
+    - backup_telemetry
 
 - name: Display User Message
   hosts: localhost

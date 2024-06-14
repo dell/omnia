@@ -1,0 +1,58 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Get external IP of timescaledb service
+  ansible.builtin.command: kubectl get svc "{{ timescaledb_k8s_name }}" -n "{{ telemetry_namespace }}" -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+  register: timescaledb_service_external_ip
+  failed_when: false
+  changed_when: false
+
+- name: Get timescaledb pod name
+  ansible.builtin.command: kubectl get pod -n "{{ telemetry_namespace }}" -l app="{{ timescaledb_k8s_name }}" -o jsonpath="{.items[0].metadata.name}"
+  register: timescaledb_pod_name
+  changed_when: false
+  failed_when: false
+
+- name: Get pod status
+  ansible.builtin.command: kubectl get pod  -n "{{ telemetry_namespace }}" "{{ timescaledb_pod_name.stdout }}" -o jsonpath='{.status.phase}'
+  register: pod_status
+  failed_when: false
+  changed_when: false
+
+- name: Print pod status
+  ansible.builtin.debug:
+    msg: "The timescaledb pod status is {{ pod_status.stdout }}.Telemetry backup will be taken only when pod is in running state."
+
+- name: Dump database
+  ansible.builtin.command: kubectl exec -it "{{ timescaledb_pod_name.stdout }}" -n "{{ telemetry_namespace }}" -- pg_dump -d "postgres://{{ timescaledb_user }}:{{ timescaledb_password }}@{{ timescaledb_service_external_ip.stdout }}:5432/{{ database_name }}" --format=plain --quote-all-identifiers --no-tablespaces  --no-owner --no-privileges --file="{{ dump_file }}" # noqa: yaml[line-length]
+  become: true
+  changed_when: false
+  register: dump_telemetry_result
+  when:
+    - "'running' in pod_status.stdout | lower"
+
+- name: Read file path parameters from upgrade_config.yml
+  ansible.builtin.include_vars:
+    file: upgrade_config.yml
+  changed_when: false
+
+- name: Copy telemetry backup file to backup_location
+  ansible.builtin.copy:
+    src: "{{ telemetry_backup_file_path }}"
+    dest: "{{ backup_location }}"
+    mode: "{{ file_permission }}"
+  when:
+    - dump_telemetry_result.rc is defined
+    - dump_telemetry_result.rc==0
