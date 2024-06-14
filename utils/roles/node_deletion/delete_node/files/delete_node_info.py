@@ -29,7 +29,7 @@ def delete_node_info_from_cp(nodename):
     
     try:
         # Delete the entry from /etc/hosts
-        command = ['makehosts', '-d', nodename]
+        command = ['/opt/xcat/sbin/makehosts', '-d', nodename]
         temp = subprocess.run(command, shell=False, check=True)
 
         # Delete the nodes from xcat
@@ -37,13 +37,13 @@ def delete_node_info_from_cp(nodename):
         temp = subprocess.run(command, shell=False, check=True)
 
         # Run DHCP and dns
-        command = ['makedhcp', '-a']
+        command = ['/opt/xcat/sbin/makedhcp', '-a']
         temp = subprocess.run(command, shell=False, check=True)
 
-        command = ['makedhcp', '-n']
+        command = ['/opt/xcat/sbin/makedhcp', '-n']
         temp = subprocess.run(command, shell=False, check=True)
 
-        command = ['makedns', '-n']
+        command = ['/opt/xcat/sbin/makedns', '-n']
         temp = subprocess.run(command, shell=False, check=True)
         
     except subprocess.CalledProcessError as e:
