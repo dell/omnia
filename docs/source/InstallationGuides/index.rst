@@ -3,6 +3,12 @@ Quick Installation Guide
 
 * Choose a server outside your intended cluster to function as your control plane.
 
+* Ensure that the control plane server meets the below mentioned space requirements:
+
+    * For all available software packages that Omnia supports: 50GB
+    * For the complete set of software images (in ``/var``): 500GB
+    * For storing offline repositories (the file path should be specified in ``repo_store_path`` in ``input/local_repo_config.yml``): 50GB
+
 * The control plane needs to be internet-capable with Git installed. Additionally, the control plane must have a full-featured operating system installed.
 
 .. note:: Omnia can be run on control planes running RHEL, Rocky Linux, and Ubuntu. For a complete list of versions supported, check out the `Support Matrix <../Overview/SupportMatrix/OperatingSystems/index.html>`_.

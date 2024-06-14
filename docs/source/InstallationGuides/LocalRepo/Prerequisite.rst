@@ -7,7 +7,7 @@ If all available software stacks are configured, the free space required on the 
 
     * For packages: 50GB
     * For images (in ``/var``): 500GB
-    * For storing repositories (the file path should be specified in ``repo_store_path`` in ``input/local_repo_config.yml``): 50GB.
+    * For storing repositories (the file path should be specified in ``repo_store_path`` in ``input/local_repo_config.yml``): 50GB
 
 **On Ubuntu clusters**
 
