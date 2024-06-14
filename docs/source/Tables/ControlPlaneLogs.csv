@@ -6,8 +6,6 @@ Accelerator Logs,/var/log/omnia/accelerator.log,Accelerator Log,This log is conf
 Monitor Logs,/var/log/omnia/monitor.log,Monitor Log,This log is configured by Default.
 Network Logs,/var/log/omnia/network.log,Network Log,This log is configured by Default.
 Platform Logs,/var/log/omnia/platforms.log,Platform Log,This log is configured by Default.
-Discovery Logs,/var/log/omnia/discovery.log,Discovery Log,This log is configured by Default.
-Prepare control plane logs,/var/log/omnia/prepare_cp.log,Preparing control plane log,This log is configured by Default.
 Provision Logs,/var/log/omnia/provision.log,Provision Log,This log is configured by Default.
 Scheduler Logs,/var/log/omnia/scheduler.log,Scheduler Log,This log is configured by Default.
 Security Logs,/var/log/omnia/security.log,Security Log,This log is configured by Default.

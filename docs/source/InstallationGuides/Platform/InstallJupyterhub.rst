@@ -10,7 +10,7 @@ Using Jupyterhub helm chart (version 3.2.0), Omnia installs Jupyterhub (version 
 * Ensure the passed inventory file includes ``kube_control_plane`` and ``kube_node`` groups. `Click here <../../samplefiles.html>`_ for a sample file.
 * Review the ``tools/jupyter_config.yml`` file to ensure that the deployment meets your requirements. If not, modify the file.
 * Run ``local_repo.yml`` with ``jupyter`` entry in ``software_config.json``.
-* Omnia deploys the ``quay.io/jupyterhub/k8s-singleuser-sample:3.2.0`` image irrespective of whether the intended notebooks are CPU-only, NVidia GPU, or AMD GPU.  To use a custom image, modify the ``omnia/tools/roles/jupyter_config.yml`` file.
+* Omnia deploys the ``quay.io/jupyterhub/k8s-singleuser-sample:3.2.0`` image irrespective of whether the intended notebooks are CPU-only, NVIDIA GPU, or AMD GPU.  To use a custom image, modify the ``omnia/tools/roles/jupyter_config.yml`` file.
 * Ensure that NFS storage provisioner has been deployed on the cluster using ``storage.yml`` followed by ``scheduler.yml`` or ``omnia.yml``. Verify that the required NFS storage provisioner is deployed using the below command: ::
 
     [root@node3 ~]# kubectl get pod -A
@@ -53,7 +53,7 @@ Using Jupyterhub helm chart (version 3.2.0), Omnia installs Jupyterhub (version 
 
     The IP address is listed against ``proxy-public`` under ``External IP``.
 
-3. The Jupyterhub GUI should be accessible from the control plane GUI via the external IP mentioned above. Use any browser to log in. Currently Jupyterhub authentication is not linked with openLDAP.
+3. The Jupyterhub GUI should be accessible from the ``kube_control_plane`` via the external IP mentioned above. Use any browser to log in. Currently Jupyterhub authentication is not linked with openLDAP.
 
 .. image:: ../../images/Jupyterhub_Login.png
 

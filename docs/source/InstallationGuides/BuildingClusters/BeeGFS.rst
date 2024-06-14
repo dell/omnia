@@ -46,7 +46,7 @@ To open the ports required, use the following steps:
 
 .. note:: BeeGFS services over RDMA is only supported on RHEL 8.3 and above due to limitations on BeeGFS. When setting up your cluster with RDMA support, check the BeeGFS documentation to provide appropriate values in ``input/storage_config.yml``.
 
-* If the cluster runs Rocky Linux, ensure that versions running are compatible by checking our `support matrix <../../Overview/SupportMatrix/OperatingSystems/Rocky Linux.html>`_.
+* If the cluster runs Rocky Linux, ensure that versions running are compatible by checking our `support matrix <../../Overview/SupportMatrix/OperatingSystems/Rocky.html>`_.
 
 **Installing the BeeGFS client via Omnia**
 
@@ -63,11 +63,11 @@ After the required parameters are filled in ``input/storage_config.yml``, Omnia 
 .. note::
     * BeeGFS client-server communication can take place over TCP or RDMA. If RDMA support is required, set ``beegfs_rdma_support`` should be set to true. Also, OFED should be installed on all cluster nodes.
     * For BeeGFS communication happening over RDMA, the ``beegfs_mgmt_server`` should be provided with the Infiniband IP of the management server.
-    * The parameter inventory refers to the `inventory file <../../samplefiles.html>`_ listing all relevant nodes.)
+    * The parameter inventory refers to the `inventory file <../../samplefiles.html>`_ listing all relevant nodes.
 
-If ``input/storage_config.yml`` is populated before running ``omnia.yml``, BeeGFS client will be set up during the run of ``omnia.yml``.
+If ``input/storage_config.yml`` is populated before running ``omnia.yml``, BeeGFS client will be set up during the execution of ``omnia.yml``.
 
-If ``omnia.yml`` is not leveraged to set up BeeGFS, run the ``storage.yml`` playbook : ::
+If ``omnia.yml`` is not leveraged to set up BeeGFS, execute the ``storage.yml`` playbook : ::
 
     cd storage
     ansible-playbook storage.yml -i inventory

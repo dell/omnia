@@ -13,7 +13,7 @@
 
 
 * In the above case, user is required to create custom.json under ``input/config/<cluster_os_type>/<cluster_os_version>/custom.json``. For example: ``input/config/ubuntu/22.04/custom.json``
-* This json should contain the list of packages, either .deb (for Ubuntu) or .rpm (for RHEL/Rocky), which are to be installed on remote nodes.                                               "
+* This json should contain the list of packages, either .deb (for Ubuntu) or .rpm (for RHEL/Rocky), which are to be installed on the cluster nodes.                                               "
 "package_list   
      ``string``
      Required  
@@ -30,7 +30,7 @@
 "reboot_required 
      ``boolean``
      Required   
-                ","Indicates whether the remote nodes listed will be rebooted.
+                ","Indicates whether the cluster nodes listed will be rebooted or not.
                                                            
 Choices:                                                   
                                                            

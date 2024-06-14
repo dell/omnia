@@ -1,5 +1,5 @@
 Setup vLLM
------------
+----------
 
 vLLM is a fast and easy-to-use library for LLM inference and serving. It is seamlessly integrated with popular HuggingFace models. It is also compatible with OpenAI API servers and GPUs (Both NVIDIA and AMD). vLLM 0.2.4 and above supports model inferencing and serving on AMD GPUs with ROCm. At the moment AWQ quantization is not supported in ROCm, but SqueezeLLM quantization has been ported. Data types currently supported in ROCm are FP16 and BF16.
 
@@ -7,7 +7,7 @@ For NVidia, vLLM is a Python library that also contains pre-compiled C++ and CUD
 
 With an Ansible script, deploy vLLM on both the kube_node and kube_control_plane. After the deployment of vLLM, access the vllm container (AMD GPU) and import the vLLM Python package (NVIDIA GPU). For more information, `click here <https://docs.vllm.ai/en/latest/getting_started/installation.html>`_
 
-.. note:: This playbook was validated using Ubuntu 22.04 and RHEL 8.8.
+.. note:: This playbook is supported on Ubuntu 22.04 and RHEL 8.8.
 
 **Pre requisites**
 
@@ -19,7 +19,7 @@ With an Ansible script, deploy vLLM on both the kube_node and kube_control_plane
 
 * Ensure the ``kube_node``, ``kube_control_plane`` is setup and working. If NVidia or AMD GPU acceleration is required for the task, install the NVidia (with containerd) or AMD ROCm GPU drivers during provisioning.
 
-* Use ``local_repo.yml`` to create an offline vLLM repository. For more information, `click here. <../../InstallationGuides/LocalRepo/localrepos.html>`_
+* Use ``local_repo.yml`` to create an offline vLLM repository. For more information, `click here. <../../LocalRepo/localrepos.html>`_
 
 **[Optional prerequisites]**
 
@@ -34,7 +34,6 @@ With an Ansible script, deploy vLLM on both the kube_node and kube_control_plane
 * Nerdctl does not support mounting directories as devices because it is not a feature of containerd (The runtime that nerdctl uses). Individual files need to be attached while running nerdctl.
 
 
-
 **Deploying vLLM**
 
 1. Change directories to the ``tools`` folder: ::
@@ -46,6 +45,8 @@ With an Ansible script, deploy vLLM on both the kube_node and kube_control_plane
     ansible-playbook vllm.yml -i inventory
 
 The default namespace is for deployment is ``vLLM``.
+
+.. note:: During the ``vllm.yml`` playbook execution, nodes with AMD or Nvidia GPUs and drivers will install and test either the ``vllm-AMD`` or ``vllm-Nvidia`` containers, respectively.
 
 **Accessing the vLLM (AMD)**
 

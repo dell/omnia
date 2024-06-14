@@ -1,7 +1,7 @@
 Frequently asked questions
 ==========================
 
-⦾ **Why is the provisioning status of the target servers stuck at 'installing' in cluster.nodeinfo (omniadb)?**
+⦾ **Why does the provisioning status of RHEL/Rocky Linux remote servers remain stuck at ‘installing’ in cluster.nodeinfo (omniadb)?**
 
 .. image:: ../images/InstallingStuckDB.png
 
@@ -9,7 +9,7 @@ Frequently asked questions
 
 **Potential Causes**:
 
-    * Disk partition may not have enough storage space per the requirements specified in ``input/provision_config`` (under ``disk_partition``)
+    * Disk partition may not have enough storage space per the requirements specified in ``input/provision_config`` (under ``disk_partition``).
 
     * The provided ISO may be corrupt/incomplete.
 
@@ -17,16 +17,49 @@ Frequently asked questions
 
     * A virtual disk may not have been created
 
+    * Re-run of the ``discovery_provision.yml`` playbook on the control plane while provisioning is in-progress on the remote nodes.
+
 
 **Resolution**:
 
-    * Add more space to the server or modify the requirements specified in ``input/provision_config`` (under ``disk_partition``)
+    * Add more space to the server or modify the requirements specified in ``input/provision_config`` (under ``disk_partition``).
 
     * Download the ISO again, verify the checksum/ download size and re-run the provision tool.
 
     * Resolve/replace the faulty hardware and PXE boot the node.
 
     * Create a virtual disk and PXE boot the node.
+
+    * Initiate PXE boot on the remote node after completion of the ``discovery_provision.yml`` playbook execution.
+
+⦾ **Why does the provisioning status of Ubuntu remote servers remain stuck at ‘bmcready’ or 'powering-on' in cluster.nodeinfo (omniadb)?**
+
+.. image:: ../images/ubuntu_pxe_failure.png
+
+**Potential Causes**:
+
+    * Disk partition may not have enough storage space per the requirements specified in ``input/provision_config`` (under ``disk_partition``).
+
+    * The provided ISO may be corrupt/incomplete.
+
+    * Hardware issues (Auto reboot may fail at POST)
+
+    * A virtual disk may not have been created
+
+    * Re-run of the ``discovery_provision.yml`` playbook on the control plane while provisioning is in-progress on the remote nodes.
+
+
+**Resolution**:
+
+    * Add more space to the server or modify the requirements specified in ``input/provision_config`` (under ``disk_partition``).
+
+    * Download the ISO again, verify the checksum/ download size and re-run the provision tool.
+
+    * Resolve/replace the faulty hardware and PXE boot the node.
+
+    * Create a virtual disk and PXE boot the node.
+
+    * Initiate PXE boot on the remote node after completion of the ``discovery_provision.yml`` playbook execution.
 
 
 ⦾ **Why is the provisioning status of my target servers stuck at ‘powering-on’ in the cluster.info (omniadb)?**
@@ -92,7 +125,7 @@ Re-run the playbook whose execution failed once the issue is resolved.
     * PXE boot the target node manually.
     * Duplicate node objects (identified by service tag) will be deleted automatically. To manually delete node objects, use ``utils/delete_node.yml``.
 
-⦾ What to do if user login fails when accessing a cluster node:
+⦾ **What to do if user login fails when accessing a cluster node?**
 
 .. image:: ../images/UserLoginError.png
 
@@ -219,9 +252,7 @@ From Omnia 1.2.1, provisioning a server using BOSS controller is supported.
 
 While Omnia playbooks are licensed by Apache 2.0, Omnia deploys multiple softwares that are licensed separately by their respective developer communities. For a comprehensive list of software and their licenses, `click here <../Overview/SupportMatrix/omniainstalledsoftware.html>`_ .
 
-⦾ **Why does the task: TASK [hostname_validation : Verify the domain name is not blank in hostname] fail with an error message?**
-
-.. image::
+⦾ **Why does the task: TASK [hostname_validation : Verify the domain name is not blank in hostname] fail?**
 
 **Potential Cause**: Hostname is not configured properly with the domain name, on the target node.
 
@@ -233,3 +264,23 @@ While Omnia playbooks are licensed by Apache 2.0, Omnia deploys multiple softwar
 
 
 .. note:: ``node001.omnia.test`` is a sample hostname.
+
+⦾ **local_repo.yml playbook execution fails at the TASK [parse_and_download : Display Failed Packages]**
+
+.. image:: ../images/package_failure_local_repo.png
+
+**Potential Cause**: This issue is encountered if Omnia fails to download any software package while executing ``local_repo.yml`` playbook. Download failures can occur if:
+
+    * The URL to download the software packages mentioned in the ``<cluster_os_type>/<cluster_os_version>/<software>.json`` is incorrect or the repository is unreachable.
+    * The provided Docker credentials are incorrect or if you encounter a Docker pull limit issue. For more information, `click here <https://www.docker.com/increase-rate-limits/#:~:text=You%20have%20reached%20your%20pull%20rate%20limit.%20You,account%20to%20a%20Docker%20Pro%20or%20Team%20subscription.>`_.
+    * If the disk space is insufficient while downloading the package.
+
+**Resolution**: Re-run the ``local_repo.yml`` playbook while ensuring the following:
+
+    * URL to download the software packages mentioned in ``<cluster_os_type>/<cluster_os_version>/<software>.json`` is correct, and the repository is reachable.
+    * Docker credentials provided in ``input/provision_config_credentials`` is correct.
+    * Sufficient disk space is available while downloading the package. For disk space considerations, see `local repo <../InstallationGuides/LocalRepo/Prerequisite.html>`_.
+
+If the ``local_repo.yml`` is executed successfully without any package download failures, a "success" message is displayed as shown below:
+
+.. image:: ../images/local_repo_success.png

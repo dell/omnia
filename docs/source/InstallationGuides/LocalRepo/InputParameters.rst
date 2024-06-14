@@ -22,6 +22,7 @@ Sample version of the file:
             "softwares": [
                 {"name": "amdgpu", "version": "6.0"},
                 {"name": "cuda", "version": "12.3.2"},
+                {"name": "bcm_roce", "version": "229.2.61.0"},
                 {"name": "ofed", "version": "24.01-0.3.3.1"},
                 {"name": "openldap"},
                 {"name": "secure_login_node"},
@@ -39,6 +40,9 @@ Sample version of the file:
                 {"name": "openmpi", "version": "4.1.6"}
             ],
 
+            "bcm_roce": [
+                {"name": "bcm_roce_libraries", "version": "229.2.61.0"}
+            ],
             "amdgpu": [
                 {"name": "rocm", "version": "6.0" }
             ],
@@ -60,7 +64,7 @@ Sample version of the file:
 
 * For RHEL/Rocky Linux OS:
 
-.. note:: For Rocky Linux OS, the "cluster_os_type" in the below sample will be "Rocky Linux".
+.. note:: For Rocky Linux OS, the ``cluster_os_type`` in the below sample will be ``rocky``.
 
 ::
 
@@ -114,7 +118,7 @@ Sample version of the file:
         }
 
 
-For a list of accepted values in ``softwares``, go to ``input/config/<operating_system>/<operating_system_version>`` and view the list of JSON files available. The filenames present in this location (without the * .json extension) are a list of accepted software names. The repositories to be downloaded for each software are listed the corresponding JSON file. For example: For a cluster running Ubuntu 22.04, go to ``input/config/ubuntu/22.04/`` and view the file list:
+For a list of accepted values in ``softwares``, go to ``input/config/<cluster_os_type>/<cluster_os_version>`` and view the list of JSON files available. The filenames present in this location (without the * .json extension) are a list of accepted software names. The repositories to be downloaded for each software are listed the corresponding JSON file. For example, for a cluster running Ubuntu 22.04, go to ``input/config/ubuntu/22.04/`` and view the file list:
 
 ::
 
@@ -133,7 +137,7 @@ For a list of accepted values in ``softwares``, go to ``input/config/<operating_
     tensorflow.json
     vllm.json
 
-For a list of repositories (and their types) configured for amdgpu, view the ``amdgpu.json``` file: ::
+For a list of repositories (and their types) configured for AMD GPUs, view the ``amdgpu.json``` file: ::
 
     {
       "amdgpu": {

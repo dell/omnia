@@ -7,7 +7,7 @@ The local repository feature will help create offline repositories on the contro
 
     * A registry is created on the control plane at <Control Plane hostname>:5001.
 
-    * If ``repo_config`` in ``local_repo_config.yml`` is set to ``always`` or ``partial``, all images present in the ``input/config/<operating system>/<version>`` folder will be downloaded to the control plane.
+    * If ``repo_config`` in ``local_repo_config.yml`` is set to ``always`` or ``partial``, all images present in the ``input/config/<cluster_os_type>/<cluster_os_version>`` folder will be downloaded to the control plane.
 
 
         * If the image is defined using a tag, the image will be tagged using <control plane hostname>:5001/<image_name>:<version> and pushed to the Omnia local registry.
@@ -30,6 +30,7 @@ Verify changes made by the playbook by running ``cat /etc/containerd/certs.d/_de
 
 .. note::
     * View the status of packages for the current run of ``local_repo.yml`` in ``/opt/omnia/offline/download_package_status.csv``. Packages which are already a part of AppStream or BaseOS repositories (for RHEL or Rocky Linux OS) and Focal or Jammy repositories (for Ubuntu) show up as ``Skipped``.
+    * ``local_repo.yml`` playbook execution fails if any software package download fails. Packages that fail are marked with a "Failed" status. In such a scenario, the user needs to re-run the ``local_repo.yml`` playbook. For more information, `click here <../../Troubleshooting/FAQ.html>`_.
     * If ``repo_config`` is set to ``partial``, packages which are part of the ``user_repo_url`` or images which are part of ``user_registry`` have a ``Skipped`` status in ``/opt/omnia/offline/download_package_status.csv``.
     * If any software packages failed to download during the execution of this script, scripts that rely on the package for their working (that is, scripts that install the software)  may fail.
 
@@ -45,11 +46,13 @@ To fetch images from the ``user_registry`` or the Omnia local registry, run the 
 
     * To configure additional local repositories after running ``local_repo.yml``, update ``software_config.json`` and re-run ``local_repo.yml``.
 
-    * For images coming from ``gcr.io``, digests are defined as tags are not available. Omnia gives a custom tag of ‘omnia’ to these images. If such images need to be taken from the ``user_registry``, use one of the below steps:
+    * Images downloaded from ``gcr.io`` into the local registry are no longer accessible using digest values. These images are tagged with the 'omnia' tag. Choose one of the following methods when pushing these images to the cluster nodes:
 
-        * Append 'omnia' to the end of the image name while pushing images to the ``user_registry``. Update the image definition in ``input/config/<operating system>/<version>/<software>.json`` to follow the same nomenclature.
+        * Append 'omnia' to the end of the image name while pushing images to the ``user_registry``. Update the image definition in ``input/config/<cluster_os_type>/<cluster_os_version>/<software>.json`` to follow the same nomenclature.
 
-        * If a different tag is provided, update the digest value in ``input/config/<operating system>/<version>/<software>.json`` as per the image digest in the ``user_directory``. To get the updated digest from the ``user_registry``, use the below steps:
+        * For "kserve" and "kubeflow" images sourced from ``gcr.io``, Omnia updates the digest tag to ``omnia-kserve`` and ``omnia-kubeflow`` while pushing the images to ``user_registry``.
+
+        * If a different tag is provided, update the digest value in ``input/config/<cluster_os_type>/<cluster_os_version>/<software>.json`` as per the image digest in the ``user_directory``. To get the updated digest from the ``user_registry``, use the below steps:
 
             * Check the tag of image: ``curl -k https://<user_registry>/v2/<image_name>/tags/list``
 

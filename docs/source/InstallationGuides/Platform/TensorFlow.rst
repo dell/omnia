@@ -10,17 +10,17 @@ With an Ansible script, deploy TensorFlow on both ``kube_node`` and the ``kube_c
 
 * Ensure nerdctl is available on all cluster nodes.
 
-* If GPUs are present on the target nodes, install NVidia CUDA (with containerd) or AMD ROCm drivers during provisioning. CPUs do not require any additional drivers.
+* If GPUs are present on the target nodes, install NVIDIA CUDA (with containerd) or AMD ROCm drivers during provisioning. CPUs do not require any additional drivers.
 
-* Use ``local_repo.yml`` to create an offline TensorFlow repository. For more information, `click here <../../>`_.
+* Use ``local_repo.yml`` to create an offline TensorFlow repository.
 
 **[Optional prerequisites]**
 
 * Ensure the system has enough space.
 
-* Ensure the passed inventory file includes a ``kube_control_plane`` and a ``kube_node`` listing all cluster nodes. `Click here <../../samplefiles.html>`_ for a sample file.
+* Ensure the inventory file includes a ``kube_control_plane`` and a ``kube_node`` listing all cluster nodes. `Click here <../../samplefiles.html>`_ for a sample file.
 
-* Nerdctl does not support mounting directories as devices because it is not a feature of containerd (The runtime that nerdctl uses). Individual files need to be attached while running nerdctl.
+* Nerdctl does not support mounting directories as devices because it is not a feature of containerd (runtime that nerdctl uses). Individual files need to be attached while running nerdctl.
 
 * Container Network Interface should be enabled with nerdctl.
 
@@ -34,6 +34,8 @@ With an Ansible script, deploy TensorFlow on both ``kube_node`` and the ``kube_c
 2. Run the ``tensorflow.yml`` playbook: ::
 
     ansible-playbook tensorflow.yml -i inventory
+
+.. note:: During the ``tensorflow.yml`` playbook execution, nodes with AMD or NVIDIA GPUs and drivers will install and test either the ``tensorflow-AMD`` or ``tensorflow-Nvidia`` containers, respectively. If neither GPU type is present with its drivers, it will install and test the ``tensorflow-CPU`` container.
 
 **Accessing TensorFlow (CPU)**
 
@@ -60,7 +62,7 @@ For more information, `click here <https://www.tensorflow.org/install/docker>`_.
 
 For more information, `click here <https://rocm.docs.amd.com/projects/install-on-linux/en/latest/how-to/3rd-party/tensorflow-install.html>`_.
 
-**Accessing TensorFlow (NVidia)**
+**Accessing TensorFlow (NVIDIA)**
 
 1. Verify that the tensorflow image present in container engine images: ::
 

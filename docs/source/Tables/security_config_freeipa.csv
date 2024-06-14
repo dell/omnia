@@ -17,3 +17,7 @@ Parameter,Details
      Required","* ``kerberos_admin_password`` used by IPA admin user. The IPA server requires an administrative user, named 'admin'.
 * The password must be at least 8 characters long.
 * The password must not contain -,\, ',"""
+"domain name
+     ``string``
+     Required","* This variable is a mandatory requirement for FreeIPA setup
+* **Default value**: ``""omnia.test""``"

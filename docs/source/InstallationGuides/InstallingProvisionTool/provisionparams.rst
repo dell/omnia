@@ -1,7 +1,7 @@
 Input parameters for the provision tool
 -----------------------------------------
 
-Fill in all required parameters in ``input/provision_config.yml``, ``provision_config_credentials.yml``, ``input/software_config.json``.
+Fill in all required parameters in ``input/provision_config.yml``, ``input/provision_config_credentials.yml``, ``input/software_config.json``, and ``input/network_spec.yml``.
 
 .. caution:: Do not remove or comment any lines in the above specified ``.yml`` files.
 
@@ -31,12 +31,11 @@ Update the ``input/network_spec.yml`` file for all networks available for use by
          * ``netmask_bits``: The 32-bit "mask" used to divide an IP address into subnets and specify the network's available hosts.
          * ``static_range``: The static range of IPs to be provisioned on target nodes.
          * ``dynamic_range``: The dynamic range of IPs to be provisioned on target nodes.
-         * ``correlation_to_admin``: Boolean value used to indicate whether all other networks specified in the file (eg: ``bmc_network``) should be correlated to the admin network. For eg: if a target node is assigned the IP xx.yy.0.5 on the admin network, it will be assigned the IP aa.bb.0.5 on the BMC network. This value is irrelevant when discovering nodes using a mapping file.
+         * ``correlation_to_admin``: Boolean value used to indicate whether all other networks specified in the file (for example: ``bmc_network``) should be correlated to the admin network. For example, if a target node is assigned the IP xx.yy.0.5 on the admin network, it will be assigned the IP aa.bb.0.5 on the BMC network. This value is irrelevant when discovering nodes using a mapping file.
          * ``admin_uncorrelated_node_start_ip``: If ``correlation_to_admin`` is set to true but correlated IPs are not available on non-admin networks, provide an IP within the ``static_range`` of the admin network that can be used to assign admin static IPs to uncorrelated nodes. If this is empty, then the first IP in the ``static_range`` of the admin network is taken by default. This value is irrelevant when discovering nodes using a mapping file.
          * ``MTU``: Maximum transmission unit (MTU) is a measurement in bytes of the largest data packets that an Internet-connected device can accept.
-         * ``DNS``: A DNS server is a computer equipped with a database that stores the public IP addresses linked to the domain names of websites, enabling users to reach websites using their IP addresses.
 
-    * If the ``nic_name`` is the same on both the admin_network and the bmc_network, a LOM setup is assumed.
+    * If the ``nic_name`` is identical on both the ``admin_network`` and the ``bmc_network``, it indicates a LOM setup. Otherwise, it's a dedicated setup.
     * BMC network details are not required when target nodes are discovered using a mapping file.
     * If ``bmc_network`` properties are provided, target nodes will be discovered using the BMC method in addition to the methods whose details are explicitly provided in ``provision_config.yml``.
     * The following parameters are applicable for ``bmc_network``:
@@ -46,8 +45,10 @@ Update the ``input/network_spec.yml`` file for all networks available for use by
 
 .. caution::
     * Do not assign the subnet 10.4.0.0/24 to any interfaces in the network as nerdctl uses it by default.
-    * If a DNS server is available on the network, ensure that the ranges provided in the ``input/network_spec.yml`` file do not include the IP ranges of the DNS server.
-    * All provided network ranges and nic IP addresses should be distinct with no overlap in the ``input/network_spec.yml``.
+    * Omnia v1.6 does not support the configuration of a DNS server on the control plane.
+    * All provided network ranges and NIC IP addresses should be distinct with no overlap in the ``input/network_spec.yml``.
+    * Ensure that all the iDRACs are reachable from the Control Plane.
+    * If ``bmc_network`` details are provided, target nodes will be discovered using the BMC method for all network ranges.
 
 A sample is provided below: ::
 
@@ -61,7 +62,6 @@ A sample is provided below: ::
                 correlation_to_admin: true
                 admin_uncorrelated_node_start_ip: "10.5.0.50"
                 network_gateway: ""
-                DNS: ""
                 MTU: "1500"
 
             - bmc_network:
@@ -80,13 +80,13 @@ A sample is provided below: ::
 
 .. note::
 
-    * The ``input/provision_config_credentials.yml`` file is encrypted on the first run of the provision tool:
+    * The ``input/provision_config_credentials.yml`` file is encrypted on the first execution of the ``discovery_provision.yml`` or ``local_repo.yml`` playbooks.
 
-        To view the encrypted parameters: ::
+        * To view the encrypted parameters: ::
 
             ansible-vault view provision_config_credentials.yml --vault-password-file .provision_credential_vault_key
 
-        To edit the encrypted parameters: ::
+        * To edit the encrypted parameters: ::
 
             ansible-vault edit provision_config_credentials.yml --vault-password-file .provision_credential_vault_key
 

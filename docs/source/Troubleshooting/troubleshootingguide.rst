@@ -141,3 +141,11 @@ If you encounter image download failures while executing ``local_repo.yml``, do 
             ::
 
                     systemctl restart nerdctl-registry
+
+
+Troubleshooting task failures during omnia.yml playbook execution
+------------------------------------------------------------------
+
+During the execution of the omnia.yml playbook, if a task fails for any host listed in the inventory, it has the potential to trigger a cascading effect, leading to subsequent tasks in the playbook also failing.
+
+In this scenario, the user needs to troubleshoot the initial point of failure, that is, the first task that failed.

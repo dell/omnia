@@ -1,5 +1,5 @@
-Red Hat Enterprise Linux
-========================
+Red Hat Enterprise Linux (RHEL)
+===============================
 
 ========== ============= =============
 OS Version Control Plane Cluster  Nodes
@@ -11,4 +11,4 @@ OS Version Control Plane Cluster  Nodes
 
 .. [1] This version of RHEL does not support vLLM installation via Omnia.
 
-.. note::  Always deploy the DVD Edition of the OS on cluster  nodes to access offline repos.
+.. note::  Always deploy the "Server with GUI" edition of the RHEL OS on the control plane.

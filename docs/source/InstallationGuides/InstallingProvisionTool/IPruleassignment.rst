@@ -46,4 +46,6 @@ This playbook is used for updating IP rule of the additional configured NICs.
              - { nic_name: enp129s0f0np0, gateway: 10.11.1.254, metric: 101 }
              - { nic_name: enp33s0f0np0, gateway: 10.11.2.254, metric: 102 }
 
-* For an example inventory template, go to ``omnia/examples/ip_rule_inv_template``.
+For an example inventory template, go to ``omnia/examples/ip_rule_inv_template``.
+
+.. note:: To implement IP rule changes, user must reboot the nodes.

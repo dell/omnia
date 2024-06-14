@@ -8,9 +8,9 @@ PyTorch is a popular open-source deep learning framework, renowned for its dynam
 
 * Ensure nerdctl is available on all cluster nodes.
 
-* If GPUs are present on the target nodes, install NVidia CUDA (with containerd) or AMD Rocm drivers during provisioning. CPUs do not require any additional drivers.
+* If GPUs are present on the target nodes, install NVIDIA CUDA (with containerd) or AMD Rocm drivers during provisioning. CPUs do not require any additional drivers.
 
-* Use ``local_repo.yml`` to create an offline PyTorch repository. For more information, `click here. <../../InstallationGuides/LocalRepo/PyTorch.html>`_
+* Use ``local_repo.yml`` to create an offline PyTorch repository.
 
 
 
@@ -18,9 +18,9 @@ PyTorch is a popular open-source deep learning framework, renowned for its dynam
 
 * Ensure the system has enough space.
 
-* Ensure the passed inventory file includes a ``kube_control_plane`` and a ``kube_node`` listing all cluster nodes. `Click here <../../samplefiles.html>`_ for a sample file.
+* Ensure the inventory file includes a ``kube_control_plane`` and a ``kube_node`` listing all cluster nodes. `Click here <../../samplefiles.html>`_ for a sample file.
 
-* Nerdctl does not support mounting directories as devices because it is not a feature of containerd (The runtime that nerdctl uses). Individual files need to be attached while running nerdctl.
+* Nerdctl does not support mounting directories as devices because it is not a feature of containerd (runtime that nerdctl uses). Individual files need to be attached while running nerdctl.
 
 
 **Deploying PyTorch**
@@ -32,6 +32,8 @@ PyTorch is a popular open-source deep learning framework, renowned for its dynam
 2. Run the ``pytorch.yml`` playbook: ::
 
     ansible-playbook pytorch.yml -i inventory
+
+.. note:: During the ``pytorch.yml`` playbook execution, nodes with AMD or NVIDIA GPUs and drivers will install and test either the ``pytorch-AMD`` or ``pytorch-Nvidia`` containers, respectively. If neither GPU type is present with its drivers, it will install and test the ``pytorch-CPU`` container.
 
 **Accessing PyTorch (CPU)**
 
@@ -46,7 +48,7 @@ PyTorch is a popular open-source deep learning framework, renowned for its dynam
 For more information, `click here <https://hub.docker.com/r/pytorch/pytorch/tags>`_.
 
 
-**Accessing PyTorch (AMD)**
+**Accessing PyTorch (AMD GPU)**
 
 1. Verify that the PyTorch image present in container engine images: ::
 
@@ -58,7 +60,7 @@ For more information, `click here <https://hub.docker.com/r/pytorch/pytorch/tags
 
 For more information, `click here <https://rocm.docs.amd.com/projects/install-on-linux/en/develop/how-to/3rd-party/pytorch-install.html>`_.
 
-**Accessing PyTorch (NVidia)**
+**Accessing PyTorch (NVIDIA GPU)**
 
 1. Verify that the PyTorch image present in container engine images: ::
 

@@ -3,13 +3,18 @@ Install Kubernetes
 
 **Prerequisites**
 
-* Once all the required parameters in `omnia_config.yml <schedulerinputparams.html>`_ are filled in, ``omnia.yml`` can be used to set up Kubernetes.
-* Ensure that ``k8s`` entry is present in the ``softwares`` list in ``software_config.yml``, as mentioned below:
+* Ensure that ``k8s`` entry is present in the ``softwares`` list in ``software_config.json``, as mentioned below:
     ::
 
         "softwares": [
                         {"name": "k8s", "version":"1.26.12"},
                      ]
+
+* Ensure to run ``local_repo.yml`` with the ``k8s`` entry present in ``software_config.json``, to download all required Kubernetes packages and images.
+
+* Once all the required parameters in `omnia_config.yml <schedulerinputparams.html#id12>`_ are filled in, ``omnia.yml`` can be used to set up Kubernetes.
+
+* Ensure that ``k8s_share`` is set to ``true`` in `storage_config.yml <schedulerinputparams.html#id16>`_, for one of the entries in ``nfs_client_params``.
 
 **Inventory details**
 
@@ -18,22 +23,54 @@ Install Kubernetes
 * The inventory file must contain:
 
     1. Exactly 1 ``kube_control_plane``.
-    2. Atleast 1 ``kube_node``.
-    3. Odd number of etcd nodes.
+    2. At least 1 ``kube_node``.
+    3. Odd number of ``etcd`` nodes.
+
+.. note:: Ensure that the inventory includes an ``[etcd]`` node. etcd is a consistent and highly-available key value store used as Kubernetes' backing store for all cluster data. For more information, `click here. <https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/>`_
+
+**Sample inventory**
+::
+
+    [kube_control_plane]
+
+    10.5.1.101
+
+    [kube_node]
+
+    10.5.1.102
+
+    [etcd]
+
+    10.5.1.101
+
+.. note::
+    If an additional NIC other than admin NIC is present on the cluster, inventory should be updated with argument ``ip``, and ``ip`` should have the value of required admin IP in case node has more than one network interface. If ``kube_control_plane`` has 2 interfaces ``eno1`` and ``eno2`` with IPs ``eno1=10.5.0.3`` and ``eno2=198.168.0.19``, inventory should have the following format: ::
+
+        [kube_control_plane]
+
+        10.5.0.3 ip=10.5.0.3
+
+        [kube_node]
+
+        10.5.0.4 ip=10.5.0.4
+
+        [etcd]
+
+        10.5.0.3 ip=10.5.0.3
 
 **To install Kubernetes**
 
-Run the following commands one after the other:
+Run either of the following commands:
 
     1. ::
 
-            ansible-playbook scheduler.yml -i inventory
+            ansible-playbook omnia.yml -i inventory
 
     2. ::
 
-            ansible-playbook omnia.yml -i inventory
+            ansible-playbook scheduler.yml -i inventory
 
-.. note:: To add new nodes in an existing cluster, click `here. <../addinganewnode.html>`_
+.. note:: To add new nodes to an existing cluster, click `here. <../addinganewnode.html>`_
 
 **Additional installations**
 
@@ -79,15 +116,20 @@ Omnia installs the following packages on top of the Kubernetes stack:
 
 **Additional configurations for nvidia-device-plugin**
 
-After executing ``scheduler.yml`` or ``omnia.yml``, there are some manual steps which user needs to perform for nvidia device plugin to detect GPU on the nodes.
+After executing ``scheduler.yml`` or ``omnia.yml``, there are some manual steps which user needs to perform for the NVIDIA device plugin to detect GPU on the nodes.
 
-    * First, install nvidia-container-toolkit from `this link <https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html>`_. This must be installed on servers running Nvidia GPU.
+    * First, install "nvidia-container-toolkit" from `this link <https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html>`_. This must be installed on servers running NVIDIA GPUs.
     * As per the `nvidia-container-toolkit installation guide <https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html>`_, follow the below steps based on the OS running on your cluster.
 
         **Steps for RHEL/Rocky Linux**
 
         1.	Check the values of http_proxy and https_proxy environment variables from ``/opt/omnia/offline/local_repo_access.yml`` on the control plane.
-        2.	SSH to node with the Nvidia GPU and set http_proxy environment variables.
+        2.	Establish a secure connection (SSH protocol) to node containing the NVIDIA GPU, and configure the http_proxy environment variables as shown below:
+            ::
+
+                export http_proxy=http://<Control Plane IP>:3128
+                export https_proxy=http://<Control Plane IP>:3128
+
         3.	Execute the following command:
             ::
 
@@ -109,10 +151,20 @@ After executing ``scheduler.yml`` or ``omnia.yml``, there are some manual steps 
 
                 systemctl restart containerd
 
+        7.  Execute the following command:
+            ::
+
+                rm -rf /etc/yum.repos.d/nvidia-container-toolkit.repo
+
+
         **Steps for Ubuntu**
 
         1.	Check http_proxy and https_proxy values from ``/opt/omnia/offline/local_repo_access.yml`` on ControlPlane.
-        2.	SSH to node with GPU and set http proxy environment variables.
+        2.	Establish a secure connection (SSH protocol) to node containing the NVIDIA GPU, and configure the http_proxy environment variables as shown below:
+            ::
+                export http_proxy=http://<Control Plane IP>:3128
+                export https_proxy=http://<Control Plane IP>:3128
+
         3.	Execute the following command:
             ::
 
@@ -140,3 +192,13 @@ After executing ``scheduler.yml`` or ``omnia.yml``, there are some manual steps 
             ::
 
                 systemctl restart containerd
+
+        8.  Execute the following command:
+            ::
+
+                rm -rf /etc/apt/sources.list.d/nvidia-container-toolkit.list
+
+
+**Optional installation**
+
+In addition to the above mentioned plugins, user can also install the *kubernetes device plugin for RoCE NIC*. For complete installation steps, `click here <k8s_plugin_roce_nic.html>`_.

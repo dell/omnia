@@ -1,11 +1,13 @@
 New Features
-===========
+============
 
-* Enablement for AI
+* OS enablement
 
     * Ubuntu 22.04.3 LTS with GA kernel and HWE kernel support
 
     * Ubuntu 20.04.6 LTS
+
+* Enablement for AI
 
     * Install AMD ROCm SDK on host OS
 
@@ -14,7 +16,7 @@ New Features
     * Install GPU device plugin for Kubernetes
 
         - GPU device plugin for AMD
-        - GPU device plugin for Nvidia
+        - GPU device plugin for NVIDIA
 
     * Submit Kubernetes jobs as a non-admin user
 
@@ -32,7 +34,7 @@ New Features
 
 * Additional Features
 
-    * Offline package repo and image registry creation for Ubuntu and RHEL/Rocky Linux
+    * Offline package repo and image registry creation
 
     * Classless IP Addressing
 
@@ -47,13 +49,19 @@ New Features
 
         - CPU inventory
         - AMD GPU inventory
-        - Nvidia GPU inventory
+        - NVIDIA GPU inventory
 
     * Smoother Omnia upgrades on the control plane
 
     * Slurm in configless or NFS in RHEL/Rocky Linux
 
     * OpenMPI and UCX installation in share partition
+
+    * Utility to add/modify Kernel command-line parameters
+
+    * Install Kubernetes plugin for the RoCE NIC
+
+    * Update kernels using the software update utility
 
 
 

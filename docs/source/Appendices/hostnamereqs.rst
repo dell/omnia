@@ -1,5 +1,5 @@
 **Hostname requirements**
-		* The hostname should not contain the following characters: , (comma), \. (period) or _ (underscore). However, the **domain name** is allowed commas and periods.
+		* The hostname should not contain the following characters: , (comma), \. (period) or _ (underscore). However, the **domain name** is allowed with commas and periods.
 		* The hostname cannot start or end with a hyphen (-).
 		* No upper case characters are allowed in the hostname.
 		* The hostname cannot start with a number.

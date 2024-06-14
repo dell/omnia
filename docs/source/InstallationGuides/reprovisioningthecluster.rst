@@ -3,7 +3,7 @@ Re-provisioning the cluster
 
 **Pre-requisites**
 
-    * Run the `delete node playbook. <deletenode.html#delete-node-from-the-cluster>`_ for every target node.
+    * Run the `delete node playbook <deletenode.html#delete-provisioned-node>`_ for every target node.
 
 In the event that an existing Omnia cluster needs a different OS version or a fresh installation, the cluster can be re-provisioned.
 

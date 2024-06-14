@@ -1,27 +1,20 @@
 Network Topology: Dedicated Setup
 =================================
 
+.. image:: ../../images/omnia_network_Dedicated.jpg
 
+In a **Dedicated Setup**, all the cluster nodes (head, login, and compute) have dedicated iDRAC connection.
 
-Depending on internet access for host nodes, there are two ways to achieve a dedicated NIC setup:
+* **Public Network (Blue line)**: This indicates the iDRAC network which is connected to the external public network.
 
-.. image:: ../../images/omnia_network_Dedicated.png
+* **iDRAC Network (Red line)**: This indicates the private iDRAC network used by the control plane to control the cluster nodes using out-of-band management.
 
+* **Cluster Network (Green line)**: This indicates the admin network utilized by Omnia to provision the cluster nodes.
 
-1. Dedicated Setup with dedicated public NIC on compute nodes
+* **IB Network (Yellow line)**: The network used by the applications on the cluster nodes to communicate among each other.
 
-
-
-When all compute nodes have their own public network access, ``primary_dns`` and ``secondary_dns`` in ``provision_config.yml`` become optional variables as the control plane is not required to be a gateway to the network. The network design would follow the below diagram:
-
-
-
-2. Dedicated Setup with single NIC on compute nodes
-
-
-
-When all compute nodes rely on the control plane for public network access, the variables ``primary_dns`` and ``secondary_dns`` in ``provision_config.yml`` are used to indicate that the control plane is the gateway for all compute nodes to get internet access. Since all public network traffic will be routed through the control plane, the user may have to take precautions to avoid bottlenecks in such a set-up.
-
+**Recommended discovery mechanism**
 
 * `mapping <../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/mappingfile.html>`_
+* `bmc <../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/bmc.html>`_
 

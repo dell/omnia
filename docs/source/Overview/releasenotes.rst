@@ -1,6 +1,71 @@
 Releases
 ========
 
+1.6
+----
+
+* OS enablement
+
+    * `Ubuntu 22.04.3 LTS with GA kernel and HWE kernel support <SupportMatrix/OperatingSystems/Ubuntu.html>`_
+
+    * `Ubuntu 20.04.6 LTS <SupportMatrix/OperatingSystems/Ubuntu.html>`_
+
+* Enablement for AI
+
+    * `Install AMD ROCm SDK on host OS <../InstallationGuides/BuildingClusters/AMD_ROCm.html>`_
+
+    * `Install Vanilla Kubernetes stack v1.26 <../InstallationGuides/BuildingClusters/install_kubernetes.html>`_
+
+    * `Install GPU device plugin for Kubernetes <../InstallationGuides/BuildingClusters/install_kubernetes.html>`_
+
+        - GPU device plugin for AMD
+        - GPU device plugin for NVIDIA
+
+    * `Submit Kubernetes jobs as a non-admin user <../InstallationGuides/BuildingClusters/KubernetesAccess.html>`_
+
+    * `Install Kubeflow <../InstallationGuides/Platform/kubeflow.html>`_
+
+    * `Install vLLM Inference platform <../InstallationGuides/Platform/vLLM/index.html>`_
+
+    * `Install Kserve Inference platform <../InstallationGuides/Platform/kserve.html>`_
+
+    * `Install Jupyter Notebook <../InstallationGuides/Platform/InstallJupyterhub.html>`_
+
+    * `Install PyTorch <../InstallationGuides/Platform/Pytorch.html>`_
+
+    * `Install TensorFlow <../InstallationGuides/Platform/TensorFlow.html>`_
+
+* Additional Features
+
+    * `Offline package repo and image registry creation <../InstallationGuides/LocalRepo/index.html>`_
+
+    * `Classless IP Addressing <../InstallationGuides/InstallingProvisionTool/index.html>`_
+
+        * `Additional NIC configuration <../InstallationGuides/InstallingProvisionTool/AdditionalNIC.html>`_
+        * `IP rule assignment <../InstallationGuides/InstallingProvisionTool/IPruleassignment.html>`_
+
+    * `LDAP client and server configuration <../InstallationGuides/BuildingClusters/Authentication.html>`_
+
+    * One-off Utility to `add a node <../InstallationGuides/addinganewnode.html>`_ or to `remove a node <../InstallationGuides/deletenode.html>`_.
+
+    * `HPC/AI cluster inventory partitioning <../InstallationGuides/PostProvisionScript.html>`_
+
+        - CPU inventory
+        - AMD GPU inventory
+        - NVIDIA GPU inventory
+
+    * `Smoother Omnia upgrades on the control plane <../Upgrade/index.html>`_
+
+    * `Slurm in configless or NFS in RHEL/Rocky Linux <../InstallationGuides/BuildingClusters/install_slurm.html>`_
+
+    * `OpenMPI and UCX installation in share partition <../InstallationGuides/BuildingClusters/install_ucx_openmpi.html>`_
+
+    * `Utility to add/modify Kernel command-line parameters <../Roles/Utils/kernel_param_update.html>`_
+
+    * `Install Kubernetes plugin for the RoCE NIC <../InstallationGuides/BuildingClusters/k8s_plugin_roce_nic.html>`_
+
+    * `Update kernels using the software update utility <../Roles/Utils/software_update.html>`_
+
 1.5.1
 -----
 
@@ -68,9 +133,9 @@ Releases
 1.4.3
 ------
 
-*  XE 9640, R760 XA, R760 XD2 are now supported as control planes or target nodes with Nvidia H100 accelerators.
+*  XE 9640, R760 XA, R760 XD2 are now supported as control planes or target nodes with NVIDIA H100 accelerators.
 
-* Added ability for split port configuration on NVIDIA Quantum-2-based QM9700 (Nvidia InfiniBand NDR400 switches).
+* Added ability for split port configuration on NVIDIA Quantum-2-based QM9700 (NVIDIA InfiniBand NDR400 switches).
 
 * Extended password-less SSH support for multiple user configuration in a single execution.
 
@@ -96,7 +161,7 @@ Releases
 
 * R660, R6625 and C6620 platforms are now supported as control planes or target nodes.
 
-* One touch provisioning now allows for OFED installation, NVIDIA   CUDA-toolkit installation along with iDRAC and InfiniBand IP configuration on   target nodes.
+* One touch provisioning now allows for OFED installation, NVIDIA CUDA-toolkit installation along with iDRAC and InfiniBand IP configuration on   target nodes.
 
 * Potential servers can now be discovered via iDRAC.
 

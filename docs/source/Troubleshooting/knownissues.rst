@@ -7,7 +7,6 @@ Due to internal MAC ID conflicts on the target nodes, the MAC address will be li
 
 .. image:: ../images/MACConflict.png
 
-
 ⦾ **Why does the task Assign admin NIC IP fail during discovery_provision.yml with errors?**
 
 .. image:: ../images/AdminNICErrors.png
@@ -35,13 +34,13 @@ Due to internal MAC ID conflicts on the target nodes, the MAC address will be li
 
 ⦾ **Why does the Task [infiniband_switch_config : Authentication failure response] fail with the message 'Status code was -1 and not [302]: Request failed: <urlopen error [Errno 111] Connection refused>' on Infiniband Switches when running infiniband_switch_config.yml?**
 
-To configure a new Infiniband Switch, HTTP and JSON gateway must be enabled. To verify that they are enabled, run:
+**Potential Cause**: To configure a new Infiniband Switch, HTTP and JSON gateway must be enabled. To verify that they are enabled, run:
 
 To check if HTTP is enabled: ``show web``
 
 To check if JSON Gateway is enabled: ``show json-gw``
 
-To correct the issue, run:
+**Resolution**: To correct the issue, run:
 
 To enable the HTTP gateway: ``web http enable``
 
@@ -63,11 +62,11 @@ To enable the JSON gateway: ``json-gw enable``
 
 **Resolution**:
 
-1. Create a Non-RAID or virtual disk on the server.
+* Create a Non-RAID or virtual disk on the server.
 
-2. Check if other systems except for the control plane have xcatd running. If yes, then stop the xCAT service using the following commands: ``systemctl stop xcatd``.
+* Check if other systems except for the control plane have ``xcatd`` running. If yes, then stop the xCAT service using the following commands: ``systemctl stop xcatd``.
 
-3. On the server, go to **BIOS Setup -> Network Settings -> PXE Device**. For each listed device (typically 4), configure an active NIC under ``PXE device settings``
+* On the server, go to **BIOS Setup -> Network Settings -> PXE Device**. For each listed device (typically 4), configure an active NIC under ``PXE device settings``
 
 
 ⦾ **Why does running local_repo.yml fail with connectivity errors?**
@@ -89,9 +88,7 @@ To enable the JSON gateway: ``json-gw enable``
 
 ⦾ **Why do Kubernetes Pods show "ImagePullBack" or "ErrPullImage" errors in their status?**
 
-**Potential Cause**:
-
-    * The errors occur when the Docker pull limit is exceeded.
+**Potential Cause**: The errors occur when the Docker pull limit is exceeded.
 **Resolution**:
 
     * Ensure that the ``docker_username`` and ``docker_password`` are provided in ``input/provision_config_credentials.yml``.
@@ -100,7 +97,7 @@ To enable the JSON gateway: ``json-gw enable``
 
 .. note:: If the playbook is already executed and the pods are in **ImagePullBack** state, then run ``kubeadm reset -f`` in all the nodes before re-executing the playbook with the docker credentials.
 
-⦾ **Why does the task 'Gather facts from all the nodes' get stuck when re-running ``omnia.yml``?**
+⦾ **Why does the task 'Gather facts from all the nodes' get stuck when re-running omnia.yml?**
 
 **Potential Cause**: Corrupted entries in the ``/root/.ansible/cp/`` folder. For more information on this issue, `check this out <https://github.com/ansible/ansible/issues/17349>`_!
 
@@ -115,20 +112,20 @@ Alternatively, run the task manually: ::
     cd omnia/utils/cluster
     ansible-playbook gather_facts_resolution.yml
 
-⦾ **What to do if the nodes in a Kubernetes cluster reboot:**
+⦾ **What to do if the nodes in a Kubernetes cluster reboot?**
 
+**Resolution**: Wait for 15 minutes after the Kubernetes cluster reboots. Next, verify the status of the cluster using the following commands:
 
-Wait for 15 minutes after the Kubernetes cluster reboots. Next, verify the status of the cluster using the following commands:
-
-* ``kubectl get nodes`` on the kube_control_plane to get the real-time k8s cluster status.
+* ``kubectl get nodes`` on the kube_control_plane to get the real-time kubernetes cluster status.
 
 * ``kubectl get pods  all-namespaces`` on the kube_control_plane to check which the pods are in the **Running** state.
 
-* ``kubectl cluster-info`` on the kube_control_plane to verify that both the k8s master and kubeDNS are in the **Running** state.
+* ``kubectl cluster-info`` on the kube_control_plane to verify that both the kubernetes master and kubeDNS are in the **Running** state.
 
 
-⦾ **What to do when the Kubernetes services are not in the  Running  state:**
+⦾ **What to do when the Kubernetes services are not in "Running" state:**
 
+**Resolution**:
 
 1. Run ``kubectl get pods  all-namespaces`` to verify that all pods are in the **Running** state.
 
@@ -153,6 +150,8 @@ Wait for 15 minutes after the Kubernetes cluster reboots. Next, verify the statu
 
 ⦾ **What to do if pulling the Kserve inference model fail with "Unable to fetch image "kserve/sklearnserver:v0.11.2": failed to resolve image to digest: Get "https://index.docker.io/v2/": dial tcp 3.219.239.5:443: i/o timeout."?**
 
+**Resolution**:
+
 1. Edit the kubernetes configuration map: ::
 
         kubectl edit configmap -n knative-serving config-deployment
@@ -166,7 +165,8 @@ For more information, `click here. <https://github.com/kserve/kserve/issues/3372
 
 **Potential Cause**: The control_plane playbook does not support hostnames with an underscore in it such as 'mgmt_station'.
 
-As defined in RFC 822, the only legal characters are the following:
+**Resolution**: As defined in RFC 822, the only legal characters are the following:
+
 1. Alphanumeric (a-z and 0-9): Both uppercase and lowercase letters are acceptable, and the hostname is not case-sensitive. In other words, omnia.test is identical to OMNIA.TEST and Omnia.test.
 
 2. Hyphen (-): Neither the first nor the last character in a hostname field should be a hyphen.
@@ -179,23 +179,29 @@ As defined in RFC 822, the only legal characters are the following:
 
 **Potential Cause**: Your Docker pull limit has been exceeded. For more information, `click here. <https://www.docker.com/increase-rate-limits>`_
 
+**Resolution**:
+
 1. Delete Kubeflow deployment by executing the following command in kube_control_plane: ``kfctl delete -V -f /root/k8s/omnia-kubeflow/kfctl_k8s_istio.v1.0.2.yaml``
 
 2. Re-execute ``kubeflow.yml`` after 8-9 hours
 
 ⦾ **What to do when omnia.yml fails while completing the security role, and returns the following error message: 'Error: kinit: Connection refused while getting default cache'?**
 
+**Resolution**:
+
 1. Start the sssd-kcm.socket: ``systemctl start sssd-kcm.socket``
 
 2. Re-run ``omnia.yml``
 
-⦾ **What to do if slurmd services do not start after running ``omnia.yml`` playbook?**
+⦾ **What to do if slurmd services do not start after running omnia.yml playbook?**
 
-Run the following command to manually restart slurmd services on the nodes ::
+**Resolution**: Run the following command to manually restart slurmd services on the nodes ::
 
     systemctl restart slurmd
 
 ⦾ **What to do when Slurm services do not start automatically after the cluster reboots:**
+
+**Resolution**:
 
 * Manually restart the slurmd services on the kube_control_plane by running the following commands: ::
 
@@ -205,7 +211,9 @@ Run the following command to manually restart slurmd services on the nodes ::
 
 * Run ``systemctl status slurmd`` to manually restart the following service on all the cluster nodes.
 
-⦾ **What to do if new slurm node is not added to sinfo output of slurm control node when restart_slurm_services in omnia_config.yml is set to ``false``?**
+⦾ **What to do if new slurm node is not added to sinfo output of slurm control node when restart_slurm_services in omnia_config.yml is set to "false"?**
+
+**Resolution**:
 
 * Run the following command on slurm control node: ::
 
@@ -219,7 +227,7 @@ Run the following command to manually restart slurmd services on the nodes ::
 
 **Potential Cause**: The ``slurm.conf`` is not configured properly.
 
-Recommended Actions:
+**Resolution**:
 
 1. Run the following commands: ::
 
@@ -230,12 +238,9 @@ Recommended Actions:
 
 ⦾ **What causes the "Ports are Unavailable" error?**
 
-
 **Potential Cause:** Slurm database connection fails.
 
-
-
-**Recommended Actions:**
+**Resolution:**
 
 1. Run the following commands:::
 
@@ -266,17 +271,13 @@ Recommended Actions:
 
 ⦾ **Why does the task 'nfs_client: Mount NFS client' fail with ``Failed to mount NFS client. Make sure NFS Server is running on IP xx.xx.xx.xx``?**
 
-**Potential Cause**:
-
-* The required services for NFS may not have been running:
+**Potential Cause**: The required services for NFS may not have been running:
 
     - nfs
     - rpc-bind
     - mountd
 
-**Resolution**:
-
-* Enable the required services using ``firewall-cmd  --permanent  --add-service=<service name>`` and then reload the firewall using ``firewall-cmd  --reload``.
+**Resolution**: Enable the required services using ``firewall-cmd  --permanent  --add-service=<service name>`` and then reload the firewall using ``firewall-cmd  --reload``.
 
 ⦾ **What to do when omnia.yml execution fails with nfs-server.service might not be running on NFS Server. Please check or start services?**
 
@@ -294,22 +295,20 @@ Recommended Actions:
 .. image:: ../images/nerdctlError.png
 
 
-**Potential Cause**:
+**Potential Causes**:
 
     * The subnet 10.4.0.0/24 has been assigned to the admin, bmc, or additional network. nerdctl uses this subnet by default and cannot be assigned to any other interface in the system.
     * The docker pull limit has been breached.
 
-**Resolution**:
+**Resolutions**:
 
     * Reassign the conflicting network to a different subnet.
     * Update ``input/provision_config_credentials.yml`` with the ``docker_username`` and ``docker_password``.
 
-⦾ **Why does the task 'Install Packages' fail on the NFS node with the message: ``Failure in talking to yum: Cannot find a valid baseurl for repo: base/7/x86_64.``**
+⦾ **Why does the task 'Install Packages' fail on the NFS node with the message: Failure in talking to yum: Cannot find a valid baseurl for repo: base/7/x86_64.**
 
 
-**Potential Cause**:
-
-    There are connections missing on the NFS node.
+**Potential Cause**: There are connections missing on the NFS node.
 
 **Resolution**:
 
@@ -322,31 +321,30 @@ Recommended Actions:
                 3. For connecting to PowerVault (Data Connection)
 
 
-⦾ **What to do when the JupyterHub or Prometheus UI is not accessible:**
+⦾ **What to do when the JupyterHub or Prometheus UI is not accessible?**
 
-Run the command ``kubectl get pods  namespace default`` to ensure **nfs-client** pod and all Prometheus server pods are in the **Running** state.
+**Resolution**: Run the command ``kubectl get pods  namespace default`` to ensure **nfs-client** pod and all Prometheus server pods are in the **Running** state.
 
 
-⦾ **What to do if PowerVault throws the error: ``Error: The specified disk is not available. - Unavailable disk (0.x) in disk range '0.x-x'``:**
+⦾ **What to do if PowerVault throws the error: The specified disk is not available. - Unavailable disk (0.x) in disk range '0.x-x':**
+
+**Resolution**:
 
 1. Verify that the disk in question is not part of any pool using: ``show disks``
 
 2. If the disk is part of a pool, remove it and try again.
 
-⦾ **Why does PowerVault throw the error: ``You cannot create a linear disk group when a virtual disk group exists on the system.``?**
+⦾ **Why does PowerVault throw the error: You cannot create a linear disk group when a virtual disk group exists on the system.?**
 
-At any given time only one type of disk group can be created on the system. That is, all disk groups on the system have to exclusively be linear or virtual. To fix the issue, either delete the existing disk group or change the type of pool you are creating.
+**Potential Cause**: At any given time only one type of disk group can be created on the system. That is, all disk groups on the system have to exclusively be linear or virtual.
 
+**Resolution**: To fix the issue, either delete the existing disk group or change the type of pool you are creating.
 
-⦾ **Why does the task 'nfs_client: Mount NFS client' fail with the message ``No route to host``?**
+⦾ **Why does the task 'nfs_client: Mount NFS client' fail with the message "No route to host"?**
 
-**Potential Cause**:
+**Potential Cause**: There's a mismatch in the share path listed in ``/etc/exports`` and in ``omnia_config.yml`` under ``nfs_client_params``.
 
-* There's a mismatch in the share path listed in ``/etc/exports`` and in ``omnia_config.yml`` under ``nfs_client_params``.
-
-**Resolution**:
-
-* Ensure that the input paths are a perfect match to avoid any errors.
+**Resolution**: Ensure that the input paths are a perfect match to avoid any errors.
 
 
 ⦾ **Why is my NFS mount not visible on the client?**
@@ -361,7 +359,7 @@ At any given time only one type of disk group can be created on the system. That
 
 
 
-⦾ **Why does the ``BeeGFS-client`` service fail?**
+⦾ **Why does the "BeeGFS-client" service fail?**
 
 **Potential Causes**:
 
@@ -373,7 +371,7 @@ At any given time only one type of disk group can be created on the system. That
 
 
 
-**Resolution**:
+**Resolutions**:
 
 1. If SELinux is enabled, update the file ``/etc/sysconfig/selinux`` and reboot the server.
 
@@ -450,15 +448,32 @@ Reboot the NFS server (external to the cluster) to bring up the services again: 
 
 If your ``omnia.yml`` playbook execution fails while waiting for the MetalLB controller to be up and running, you need to wait for the MetalLB pods to come to running state and then re-run ``omnia.yml/scheduler.yml``.
 
-⦾ **What to do if omnia.yml playbook execution fails to execute ``kubeadm join`` or ``kubeadm init`` command?**
+⦾ **What to do if omnia.yml playbook execution fails to execute "kubeadm join" or "kubeadm init" command?**
 
-**Resolution**:
+**Potential Cause**: An additional active NIC other than the admin NIC is present on the ``kube_control_plane``, with an active internet connection and lower metric value.
 
-If kubeadm join/kubeadm init command fails, either one of the following should be done:
+**Resolution**: Perform the following steps:
 
-    * Re-run ``omnia.yml/scheduler.yml``.
-    * Run ``kubeadm reset -f`` on the node where kubeadm join/kubeadm init command fails and run ``omnia.yml/scheduler.yml``.
-    * Reset cluster using ``utils/reset_cluster_configuration.yml`` and then run ``scheduler.yml/omnia.yml``.
+1. If ``kubeadm join``/ ``kubeadm init`` command fails, either one of the following should be done:
+
+    * Run ``kubeadm reset -f`` on the node where ``kubeadm join``/ ``kubeadm init`` command fails.
+    * Reset the cluster using ``utils/reset_cluster_configuration.yml``.
+
+2. After the cluster has been reset, inventory should be updated with argument ``ip``, and ``ip`` should have the value of required admin IP in case node has more than one network interface. If ``kube_control_plane`` has 2 interfaces ``eno1`` and ``eno2`` with IPs ``eno1=10.5.0.3`` and ``eno2=198.168.0.19``, inventory should have the following format: ::
+
+    [kube_control_plane]
+
+    10.5.0.3 ip=10.5.0.3
+
+    [kube_node]
+
+    10.5.0.4 ip=10.5.0.4
+
+    [etcd]
+
+    10.5.0.3 ip=10.5.0.3
+
+3. Re-run ``omnia.yml`` playbook with the updated inventory file.
 
 ⦾ **What to do if local_repo.yml execution fails with the following error:**
 
@@ -497,7 +512,7 @@ If kubeadm join/kubeadm init command fails, either one of the following should b
     * Ensure that ``storage.yml`` is executed on the same inventory which is being used for ``scheduler.yml``.
     * Ensure that ``server_share_path`` mentioned in ``storage_config.yml`` for ``k8s_share: true`` has an active nfs_server running on it.
 
-⦾ **Nfs-client provisioner is in "ContainerCreating" or "CrashLoopBackOff" state and ``kubectl describe <pod_name>`` shows the following output:**
+⦾ **Nfs-client provisioner is in "ContainerCreating" or "CrashLoopBackOff" state and "kubectl describe <pod_name>" shows the following output:**
 
 .. image:: ../images/NFS_helm_23743.png
 
@@ -514,7 +529,7 @@ If kubeadm join/kubeadm init command fails, either one of the following should b
 
         * Post deletion, the pod will be restarted and it will come to running state.
 
-⦾ **What to do if slurmctld services fails when ``slurm_installaton_type`` is nfs_share during omnia.yml execution?**
+⦾ **What to do if slurmctld services fails when slurm_installaton_type is nfs_share during omnia.yml execution?**
 
 **Potential Cause**: This issue may arise due to internal network issues.
 
@@ -566,7 +581,7 @@ If kubeadm join/kubeadm init command fails, either one of the following should b
 
 After performing all the above steps, re-run ``upgrade.yml`` playbook.
 
-⦾ **Why does the nvidia-device-plugin pods in ContainerCreating status fails with ``no runtime for "nvidia" in configured`` error?
+⦾ **Why does the nvidia-device-plugin pods in ContainerCreating status fails with "no runtime for "nvidia" in configured" error?**
 
 .. image:: ../images/nvidia_noruntime.png
 
@@ -613,3 +628,82 @@ After performing all the above steps, re-run ``upgrade.yml`` playbook.
     - If none of the packages are dependent on the Epel repository, users can remove the Epel repository URL from ``omnia_repo_url_rhel``.
 
     - If any package required from the Epel repository is listed in the ``software_config.json`` file, it's advisable to either wait for the Epel repository to stabilize or host those Epel repository packages locally. Afterward, remove the Epel repository link from ``omnia_repo_url_rhel`` and provide the locally hosted URL for the Epel repository packages via the ``user_repo_url`` variable.
+
+⦾ **Why does the discovery_provision.yml playbook execution fail at task: "Prepare_cp needs to be executed"?**
+
+**Potential Cause**: Invalid input provided in ``network_spec.yml`` for ``admin_network`` or ``bmc_network`` fields.
+
+**Resolution**: Perform a cleanup using ``control_plane_cleanup.yml`` with ``--tags provision`` & then re-run the ``discovery_provision.yml`` playbook. Execute the following command:
+
+    ::
+
+        ansible-playbook utils/control_plane_cleanup.yml --tags provision
+        ansible-playbook discovery_provision.yml
+
+⦾ **After resetting an existing slurm cluster using reset_cluster_config.yml, issues are faced while changing the slurm_installation_type from nfs_share to configless in input/omnia.yml. Post update, possible scenarios observed while executing omnia.yml playbook are:**
+
+	* **Playbook execution fails at TASK: [slurm_common : Add the user 'slurm' with uid 6001 and a primary group of 'slurm'].**
+
+	    .. image:: ../images/nfs_slurm_error.png
+
+	* **Playbook execution is successful but the slurm services are inactive.**
+
+**Potential Causes**:
+
+	1. While updating the ``slurm_installation_type`` from ``nfs_share`` to ``configless`` in ``input/omnia.yml``, the previous 'slurm' user is active, which can cause the deletion and addition of the configurations to fail intermittently.
+	2. NFS share path is not removed from ``LD_LIBRARY_PATH`` environment variable while resetting a slurm cluster in ``nfs_share`` mode.
+
+**Resolution**: Perform the following steps:
+
+	1. Remove the NFS share path from ``LD_LIBRARY_PATH``.
+	2. Remove ``slurmd.service`` file from all the compute nodes in the slurm cluster.
+	3. Re-run ``omnia.yml`` playbook.
+
+⦾ **While upgrading Omnia in an NFS-Bolt-On setup, the prepare_config.yml playbook fails to import the nfs_client_params mentioned in input/storage_config.yml for v1.5.1 to Omnia v1.6. Consequently, if the same NFS-Bolt-On share doubles as the Omnia share, the prepare_upgrade.yml playbook fails to unmount it on the head node.**
+
+**Potential Cause**: This issue occurs when ``client_share_path`` or ``client_mount_options`` in ``nfs_client_params`` is left empty.
+
+**Resolution**: Perform the following steps based on your cluster configuration:
+
+    After executing the ``prepare_config.yml`` playbook, you need to manually update the ``nfs_client_params`` in ``input/storage_config.yml`` of Omnia v1.6, in the format `mentioned here <../InstallationGuides/BuildingClusters/NFS.html>`_. Ensure that the values for ``server_ip``, ``server_share_path``, ``client_share_path``, and ``client_mount_options`` are the same between Omnia v1.5.1 and v1.6.
+
+	* When ``enable_omnia_nfs`` is set to ``true`` in Omnia v1.5.1, update the ``nfs_client_params`` in the format added below
+
+            # For example, if ``nfs_client_params`` in Omnia v1.5.1 is: ::
+
+                - { server_ip: 10.6.0.4, server_share_path: "/mnt/nfs_shares/users1", client_share_path: “/users1”, client_mount_options: }
+                - { server_ip: 10.6.0.4, server_share_path: "/mnt/nfs_shares/users1", client_share_path: “/users2”, client_mount_options: }
+
+            # Then the ``nfs_client_params`` in Omnia v1.6 should be updated as: ::
+
+                - { server_ip: 10.6.0.4, server_share_path: "/mnt/nfs_shares/users1", client_share_path: “/users1”, client_mount_options: , nfs_server: false, slurm_share: false, k8s_share: false }
+                - { server_ip: 10.6.0.4, server_share_path: "/mnt/nfs_shares/users1", client_share_path: “/users2”, client_mount_options: , nfs_server: false, slurm_share: false, k8s_share: false }
+
+            .. note:: Do not remove the auto populated entries in ``nfs_client_params`` from ``input/storage_config.yml``. The default entry is similar to:
+                ::
+                    { server_ip: localhost, server_share_path: /mnt/omnia_home_share, client_share_path: /home, client_mount_options: "nosuid,rw,sync,hard,intr", nfs_server: true, slurm_share: true, k8s_share: true }
+
+	* When ``enable_omnia_nfs`` is set to ``false`` and ``omnia_usrhome_share`` is set to ``/mnt/nfs_shares/appshare`` in Omnia v1.5.1,  update the ``nfs_client_params`` in the format added below
+
+            # For example, if the ``nfs_client_params`` in Omnia v1.5.1 is: ::
+
+                            { server_ip: 10.6.0.4, server_share_path: "/mnt/nfs_shares/users", client_share_path: , client_mount_options: }
+                            { server_ip: 10.6.0.4, server_share_path: "/mnt/nfs_shares/appshare", client_share_path: , client_mount_options: }
+
+            # Then the ``nfs_client_params`` in Omnia v1.6 should be updated as: ::
+
+                            { server_ip: 10.6.0.4, server_share_path: "/mnt/nfs_shares/users", client_share_path: , client_mount_options: , nfs_server: false, slurm_share: false, k8s_share: false }
+                            { server_ip: 10.6.0.4, server_share_path: "/mnt/nfs_shares/appshare", client_share_path: "/home", client_mount_options: , nfs_server: false, slurm_share: true, k8s_share: true }
+
+    .. note:: When ``enable_omnia_nfs`` is set to ``false``, the ``prepare_upgrade.yml`` playbook execution fails while attempting to delete the nfs_share directory from the manager node. In such a scenario, the user needs to manually unmount the Omnia NFS share from the head node and re-run the ``prepare_upgrade.yml`` playbook.
+
+⦾ **While executing discovery_provision.yml playbook from the control plane, some of the cluster nodes fail to boot up and omniadb captures the node status as "failed".**
+
+.. image:: ../images/waco_node_boot_failure.png
+
+**Potential Cause**: This issue is encountered due to any configuration failure during node provisioning.
+
+**Resolution**: Perform the following steps:
+
+    1. Delete the failed node from the db using ``delete_node.yml`` playbook utility. For more information, `click here <../InstallationGuides/deletenode.html#delete-provisioned-node>`_.
+    2. Re-provision the node by re-running the ``discovery_provision.yml`` playbook.

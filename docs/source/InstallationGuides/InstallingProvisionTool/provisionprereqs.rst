@@ -18,7 +18,7 @@ Before you run the provision tool
             *Control plane NIC IP configuration in a dedicated setup*
 
 
-* Set the hostname of the control plane using the ``hostname``. ``domain name`` format.
+* Set the hostname of the control plane in the ``hostname``. ``domain name`` format.
 
     .. include:: ../../Appendices/hostnamereqs.rst
 

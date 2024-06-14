@@ -3,7 +3,7 @@ Input parameters for the cluster
 
 These parameters are located in ``input/omnia_config.yml``, ``input/security_config.yml``, ``input/telemetry_config.yml`` and [optional] ``input/storage_config.yml``.
 
-.. caution:: Do not remove or comment any lines in the ``input/omnia_config.yml``, ``input/security_config.yml`` and [optional] ``input/storage_config.yml`` file.
+.. caution:: Do not remove or comment any lines in the ``input/omnia_config.yml``, ``input/security_config.yml``, ``input/telemetry_config.yml`` and [optional] ``input/storage_config.yml`` file.
 
 **omnia_config.yml**
 
@@ -44,7 +44,7 @@ These parameters are located in ``input/omnia_config.yml``, ``input/security_con
 
 **telemetry_config.yml**
 
-.. csv-table:: Parameters
+.. csv-table:: Parameters for Telemetry
    :file: ../../Tables/telemetry_config.csv
    :header-rows: 1
    :keepspace:
@@ -54,3 +54,18 @@ These parameters are located in ``input/omnia_config.yml``, ``input/security_con
 
 Click here for more information on `OpenLDAP, FreeIPA <Authentication.html>`_, `Telemetry <../../Roles/Telemetry/index.html>`_, `BeeGFS <BeeGFS.html>`_ or, `NFS <NFS.html>`_.
 
+.. note::
+
+    * The ``input/omnia_config.yml``, ``input/security_config.yml``, ``input/telemetry_config.yml`` files are encrypted during the execution of ``omnia.yml`` playbook. Use the below commands to edit the encrypted input files:
+
+        * ``omnia_config.yml``: ::
+
+            ansible-vault edit omnia_config.yml --vault-password-file .omnia_vault_key
+
+        * ``security_config.yml``: ::
+
+            ansible-vault edit security_config.yml --vault-password-file .security_vault.key
+
+        * ``telemetry_config.yml``: ::
+
+            ansible-vault edit telemetry_config.yml --vault-password-file .telemetry_vault_key

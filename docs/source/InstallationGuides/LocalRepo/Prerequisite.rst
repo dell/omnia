@@ -7,15 +7,25 @@ If all available software stacks are configured, the free space required on the 
 
     * For packages: 50GB
     * For images (in ``/var``): 500GB
-    * For storing repositories (the file path should be specified in ``repo_store_path`` in ``input/local_repo_config.yml``): 50GB.
+    * For storing repositories (the file path should be specified in ``repo_store_path`` in ``input/local_repo_config.yml``): 50GB
 
 **On Ubuntu clusters**
 
-For persistent offline local repositories, (If the parameter ``repo_config`` in ``input/software_config`` is set to ``always``), click `here <https://help.ubuntu.com/community/Debmirror>`_ to set up the required repositories.
+For persistent offline local repositories, (If the parameter ``repo_config`` in ``input/software_config`` is set to ``always``), `click here <https://help.ubuntu.com/community/Debmirror>`_ to set up the required repositories.
 
 .. note:: This link explains how to build a mirror on an Ubuntu 20.04 server. Adapt the steps and scripts as required for any other version of Ubuntu.
 
+**Set the hostname of the control plane in the "hostname.domain name" format.**
+
+    .. include:: ../../Appendices/hostnamereqs.rst
+
+    For example, ``controlplane.omnia.test`` is acceptable. ::
+
+        hostnamectl set-hostname controlplane.omnia.test
+
 **When creating user registries**
+
+.. note:: Omnia supports only nerdctl and docker registries as ``user_registry``.
 
 To avoid docker pull limits, provide docker credentials (``docker_username``, ``docker_password``) in ``input/provision_config_credentials.yml``.
 
@@ -51,6 +61,7 @@ Instructions to pull images from the user registries in the form of a digest:
                     "type": "image"
             },
 
+    * For "kserve" and "kubeflow" images sourced from ``gcr.io``, Omnia updates the digest tag to ``omnia-kserve`` and ``omnia-kubeflow`` while pushing the images to ``user_registry``.
 
 .. note::
    * Enable a repository from your RHEL subscription, run the following commands: ::

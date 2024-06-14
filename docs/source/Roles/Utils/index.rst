@@ -6,7 +6,7 @@ The Utilities role allows users to set up certain tasks such as
 .. toctree::
     software_update
     KernelUpdate
-    cleanupscript
+    kernel_param_update
     portcleanup
     timescaledb_utility
     freeipa_installation
