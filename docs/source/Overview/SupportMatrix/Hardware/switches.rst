@@ -27,10 +27,10 @@ Switches
 
     * The switches that have reached EOL might not function properly. It is recommended by Omnia to use switch models mentioned in support matrix.
 
-    * Omnia requires that OS10 be installed on ethernet switches.
+    * Omnia requires OS10 to be installed on ethernet switches.
 
-    * Omnia requires that MLNX-OS be installed on Infiniband switches.
+    * Omnia requires MLNX-OS to be installed on Infiniband switches.
 
-    * Ethernet switches running SONiC OS will have be configured manually by users.
+    * Ethernet switches running SONiC OS will have to be configured manually by users.
 
 

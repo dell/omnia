@@ -14,7 +14,7 @@ Rocky Linux
 .. [1] This version of Rocky Linux does not support vLLM installation via Omnia.
 
 .. note::
-    Always deploy the "Server with GUI" edition of OS on the control plane.
+    Always deploy the "Server with GUI" edition of the Rocky Linux OS on the control plane.
 
 
 
