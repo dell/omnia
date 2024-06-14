@@ -14,9 +14,9 @@ Install Slurm
 
 * Ensure to run ``local_repo.yml`` with the ``slurm`` entry present in ``software_config.json``, to download all required slurm packages.
 
-* Once all the required parameters in `omnia_config.yml <schedulerinputparams.html#id12>`_ are filled in, ``omnia.yml`` can be used to set up Slurm.
+* Once all the required parameters in `omnia_config.yml <schedulerinputparams.html#id13>`_ are filled in, ``omnia.yml`` can be used to set up Slurm.
 
-* When ``slurm_installation_type`` is ``nfs_share`` in ``omnia_config.yml``, ensure that ``slurm_share`` is set to ``true`` in `storage_config.yml <schedulerinputparams.html#id16>`_, for one of the entries in ``nfs_client_params``.
+* When ``slurm_installation_type`` is ``nfs_share`` in ``omnia_config.yml``, ensure that ``slurm_share`` is set to ``true`` in `storage_config.yml <schedulerinputparams.html#id17>`_, for one of the entries in ``nfs_client_params``.
 
 
 **Inventory details**
@@ -56,7 +56,7 @@ Run either of the following commands:
 
             ansible-playbook scheduler.yml -i inventory
 
-.. note:: To add new nodes in an existing cluster, click `here. <../addinganewnode.html>`_
+.. note:: To add new nodes to an existing cluster, click `here. <../addinganewnode.html>`_
 
 **Slurm job based user access**
 

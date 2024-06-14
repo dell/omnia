@@ -125,7 +125,7 @@ Re-run the playbook whose execution failed once the issue is resolved.
     * PXE boot the target node manually.
     * Duplicate node objects (identified by service tag) will be deleted automatically. To manually delete node objects, use ``utils/delete_node.yml``.
 
-⦾ What to do if user login fails when accessing a cluster node:
+⦾ **What to do if user login fails when accessing a cluster node?**
 
 .. image:: ../images/UserLoginError.png
 

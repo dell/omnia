@@ -13,7 +13,7 @@ This is the second step of upgrade process and uses the ``prepare_upgrade.yml`` 
     * In case where ``enable_omnia_nfs`` is set to true in v1.5.1 ``omnia_config.yml`` and the head node acts as the NFS server, the upgrade process disables the NFS server running on the head node and removes the NFS share mentioned in ``omnia_usrhome_share`` from the head node. The NFS server will be set up on the control plane as per Omnia v1.6.
     * Prepares the control plane which includes upgrading xCAT, setting up Omnia telemetry binaries for cluster, restoring the OmniaDB backup to v1.6 format.
 
-.. caution:: The NFS share directory mentioned in ``omnia_usrhome_share``, provided in v1.5.1 ``omnia_config.yml``, is unmounted from the cluster and deleted from the head node while executing the ``prepare_upgrade.yml`` playbook.
+.. caution:: The NFS share directory mentioned in ``omnia_usrhome_share``, provided in v1.5.1 ``omnia_config.yml``, is unmounted from the cluster and deleted from the head node, along with all the user data while executing the ``prepare_upgrade.yml`` playbook. Hence, it is recommended that you take a backup of the Omnia NFS share before executing the ``prepare_upgrade.yml`` playbook.
 
 To execute the ``prepare_upgrade.yml`` playbook, run the following command: ::
 

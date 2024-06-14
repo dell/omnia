@@ -10,7 +10,7 @@ Before you build clusters
      * For Slurm, all the applicable inventory groups are ``slurm_control_node``, ``slurm_node``, and ``login``.
      * The centralized authentication server inventory group, that is ``auth_server``, is common for both Slurm and Kubernetes.
 
-* Verify that all nodes are assigned a group. The inventory file is case-sensitive. Follow the format provided in the `sample file link <./../samplefiles.html>`_.
+* Verify that all nodes are assigned a group. The inventory file is case-sensitive. Follow the format provided in the `sample file link <../../samplefiles.html>`_.
 
 .. note::
     * The inventory file accepts both IPs and FQDNs as long as they can be resolved by DNS.

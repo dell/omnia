@@ -18,9 +18,9 @@ With an Ansible script, deploy TensorFlow on both ``kube_node`` and the ``kube_c
 
 * Ensure the system has enough space.
 
-* Ensure the passed inventory file includes a ``kube_control_plane`` and a ``kube_node`` listing all cluster nodes. `Click here <../../samplefiles.html>`_ for a sample file.
+* Ensure the inventory file includes a ``kube_control_plane`` and a ``kube_node`` listing all cluster nodes. `Click here <../../samplefiles.html>`_ for a sample file.
 
-* Nerdctl does not support mounting directories as devices because it is not a feature of containerd (The runtime that nerdctl uses). Individual files need to be attached while running nerdctl.
+* Nerdctl does not support mounting directories as devices because it is not a feature of containerd (runtime that nerdctl uses). Individual files need to be attached while running nerdctl.
 
 * Container Network Interface should be enabled with nerdctl.
 

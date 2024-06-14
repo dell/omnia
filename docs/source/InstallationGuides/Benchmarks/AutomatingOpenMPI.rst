@@ -1,7 +1,7 @@
 Installing pmix and updating slurm configuration for AMD processors
 --------------------------------------------------------------------
 
-This topic explains how to automatically update AMD servers for MPI jobs. To manually install pmix and update the slurm configuration, `click here. <OpenMPI_AOCC.html>`_
+This topic explains how to automatically update AMD servers for MPI jobs.
 
 .. caution:: This utility is not supported on Ubuntu clusters.
 

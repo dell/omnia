@@ -1,5 +1,5 @@
-vLLM enablement for AMD MI300
-------------------------------
+vLLM enablement for AMD MI300 GPU
+----------------------------------
 
 .. note:: This whole execution will take approximately 3-4 hours.
 

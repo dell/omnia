@@ -121,7 +121,7 @@ Use the below command to enable passwordless SSH: ::
 
     ansible-playbook user_passwordless_ssh.yml -i inventory
 
-Where inventory follows the format defined under inventory file in the provided `Sample Files. <../../samplefiles.html>`_ The inventory file is case-sensitive. Follow the format provided in the sample file link.
+Where inventory follows the format defined under inventory file in the provided `Sample Files. <../../sample files.html>`_ The inventory file is case-sensitive. Follow the format provided in the sample file link.
 
 .. caution:: Do not run ssh-keygen commands after passwordless SSH is set up on the nodes.
 
@@ -130,7 +130,7 @@ ________________________________
 
 **Prerequisites**
 
-* Run ``local_repo.yml`` to create an offline repository of all utilities used to secure the login node. For more information, `click here. <../../InstallationGuides/LocalRepo/SecureLoginNode.html>`_
+* Run ``local_repo.yml`` to create an offline repository of all utilities used to secure the login node. For more information, `click here. <../../InstallationGuides/LocalRepo/index.html>`_
 
 Enter the following parameters in ``input/login_node_security_config.yml``.
 

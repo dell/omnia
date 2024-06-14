@@ -85,7 +85,7 @@ Optional","* User defined disk partition applied to remote servers.
 
 ``string``
 
-Required","Timezone to be used during OS provisioning. Available timezones are provided `here <../../Appendix.html>`_.
+Required","Timezone to be used during OS provisioning. Available timezones are provided `here <../../Appendices/Timezones.html>`_.
 
 Choices:
 
