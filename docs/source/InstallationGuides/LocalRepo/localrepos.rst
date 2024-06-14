@@ -27,7 +27,7 @@ Configuring specific local repositories
 
             {"name": "beegfs", "version": "7.4.2"},
 
-For information on deploying BeeGFS after setting up the cluster, `click here. <../../Roles/Storage/index.html>`_
+For information on deploying BeeGFS after setting up the cluster, `click here <../BuildingClusters/BeeGFS.html>`_.
 
 **CUDA**
 
@@ -209,7 +209,7 @@ For information on deploying BeeGFS after setting up the cluster, `click here. <
 
             {"name": "freeipa"},
 
-For information on deploying FreeIPA after setting up the cluster, `click here. <../../Roles/Security/index.html>`_
+For more information on FreeIPA, `click here <../BuildingClusters/Authentication.html#configuring-freeipa-openldap-security>`_.
 
 **Jupyterhub**
 
@@ -217,7 +217,7 @@ For information on deploying FreeIPA after setting up the cluster, `click here. 
 
             {"name": "jupyter"},
 
-For information on deploying Jupyterhub after setting up the cluster, `click here. <../../InstallingProvisionTool/Platform/InstallJupyterhub.html>`_
+For information on deploying Jupyterhub after setting up the cluster, `click here <../Platform/InstallJupyterhub.html>`_.
 
 **Kserve**
 
@@ -225,7 +225,7 @@ For information on deploying Jupyterhub after setting up the cluster, `click her
 
                 {"name": "kserve"},
 
-For information on deploying Kserve after setting up the cluster, `click here. <../../InstallingProvisionTool/Platform/kserve.html>`_
+For information on deploying Kserve after setting up the cluster, `click here <../Platform/kserve.html>`_.
 
 **Kubeflow**
 
@@ -233,7 +233,7 @@ For information on deploying Kserve after setting up the cluster, `click here. <
 
             {"name": "kubeflow"},
 
-For information on deploying kubeflow after setting up the cluster, `click here. <../../InstallingProvisionTool/Platform/kubeflow.html>`_
+For information on deploying kubeflow after setting up the cluster, `click here <../Platform/kubeflow.html>`_.
 
 
 **Kubernetes**
@@ -242,7 +242,9 @@ For information on deploying kubeflow after setting up the cluster, `click here.
 
             {"name": "k8s", "version":"1.26.12"},
 
-    .. note:: The version of the software provided above is the only version of the software Omnia supports.
+For more information about installing Kubernetes, `click here <../BuildingClusters/install_kubernetes.html>`_.
+
+.. note:: The version of the software provided above is the only version of the software Omnia supports.
 
 **OFED**
 
@@ -290,7 +292,7 @@ For information on deploying kubeflow after setting up the cluster, `click here.
 
             {"name": "openldap"},
 
-Features that are part of the OpenLDAP repository are enabled by running `security.yml <../../Roles/Security/index.html>`_
+For more information on OpenLDAP, `click here <../BuildingClusters/Authentication.html#configuring-freeipa-openldap-security>`_.
 
 **OpenMPI**
 
@@ -299,6 +301,8 @@ Features that are part of the OpenLDAP repository are enabled by running `securi
             {"name": "openmpi", "version":"4.1.6"},
 
 OpenMPI is deployed on the cluster when the above configurations are complete and `omnia.yml <../BuildingClusters/index.html>`_ is run.
+
+For more information on OpenMPI configurations, `click here <../BuildingClusters/install_ucx_openmpi.html>`_.
 
 .. note:: The default OpenMPI version for Omnia is 4.1.6. If you change the version in the ``software.json`` file, make sure to update it in the ``openmpi.json`` file in the ``input/config`` directory as well.
 
@@ -324,7 +328,7 @@ OpenMPI is deployed on the cluster when the above configurations are complete an
 
         * A sample format is available `here. <InputParameters.html>`_
 
-For information on deploying Pytorch after setting up the cluster, `click here. <../../InstallingProvisionTool/Platform/Pytorch.html>`_
+For information on deploying Pytorch after setting up the cluster, `click here. <../Platform/Pytorch.html>`_
 
 **Secure Login Node**
 
@@ -332,7 +336,7 @@ For information on deploying Pytorch after setting up the cluster, `click here. 
 
             {"name": "secure_login_node"},
 
-Features that are part of the secure_login_node repository are enabled by running `security.yml <../../Roles/Security/index.html>`_
+For more information on configuring login node security, `click here <../BuildingClusters/Authentication.html#configuring-login-node-security>`_.
 
 **TensorFlow**
 
@@ -356,7 +360,7 @@ Features that are part of the secure_login_node repository are enabled by runnin
 
         * A sample format is available `here. <InputParameters.html>`_
 
-For information on deploying TensorFlow after setting up the cluster, `click here. <../../InstallingProvisionTool/Platform/TensorFlow.html>`_
+For information on deploying TensorFlow after setting up the cluster, `click here <../Platform/TensorFlow.html>`_.
 
 **Unified Communication X**
 
@@ -364,7 +368,9 @@ For information on deploying TensorFlow after setting up the cluster, `click her
 
             {"name": "ucx", "version":"1.15.0"},
 
-UCX is deployed on the cluster when the ``local_repo.yml`` is run then `omnia.yml is run. <../BuildingClusters/index.html>`_
+UCX is deployed on the cluster when the ``local_repo.yml`` playbook is executed executed, followed by the execution `omnia.yml <../BuildingClusters/index.html>`_.
+
+For more information on UCX configurations, `click here <../BuildingClusters/install_ucx_openmpi.html>`_.
 
 **vLLM**
 
@@ -387,7 +393,7 @@ UCX is deployed on the cluster when the ``local_repo.yml`` is run then `omnia.ym
 
         * A sample format is available `here. <InputParameters.html>`_
 
-For information on deploying vLLM after setting up the cluster, `click here. <../Platform/vLLM/index.html>`_
+For information on deploying vLLM after setting up the cluster, `click here <../Platform/vLLM/index.html>`_.
 
 **Intel benchmarks**
 
@@ -395,11 +401,13 @@ For information on deploying vLLM after setting up the cluster, `click here. <..
 
             {"name": "intel_benchmarks", "version": "2024.1.0"},
 
+For more information on Intel benchmarks, `click here <../Benchmarks/AutomatingOneAPI.html>`_.
+
 **AMD benchmarks**
 
     To install AMD benchmarks, include the following line under ``softwares`` in ``input/software_config.json``: ::
 
             {"name": "amd_benchmarks"},
 
-
+For more information on AMD benchmarks, `click here <../Benchmarks/AutomatingOpenMPI.html>`_.
 
