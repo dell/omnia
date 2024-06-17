@@ -182,7 +182,8 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/115771515?v=4",
       "profile": "https://github.com/Aditya-DP",
       "contributions": [
-        "code"
+        "code",
+        "bug"
       ]
     },
     {
@@ -191,7 +192,8 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/125246792?v=4",
       "profile": "https://github.com/Katakam-Rakesh",
       "contributions": [
-        "code"
+        "code",
+        "bug"
       ]
     },
     {
@@ -604,7 +606,10 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/140157516?v=4",
       "profile": "https://github.com/priti-parate",
       "contributions": [
-        "code"
+        "code",
+        "bug",
+        "talk",
+        "mentoring"
       ]
     },
     {
@@ -763,7 +768,8 @@
       "profile": "https://github.com/Amogha-Reddy",
       "contributions": [
         "test",
-        "bug"
+        "bug",
+        "code"
       ]
     },
     {
@@ -793,7 +799,8 @@
       "profile": "https://github.com/nethramg",
       "contributions": [
         "code",
-        "projectManagement"
+        "projectManagement",
+        "talk"
       ]
     },
     {
