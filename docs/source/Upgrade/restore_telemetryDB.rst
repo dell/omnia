@@ -1,7 +1,7 @@
 Restoring Telemetry database post Omnia upgrade
 ================================================
 
-After upgrading Omnia, if you want to retain the telemetry data from Omnia v1.5.1, you need to manually restore the telemetry database from the ``backup_location`` configured in `upgrade_config,yml <upgrade.html>`_. Perform the following steps to do so:
+After upgrading Omnia, if you want to retain the telemetry data from Omnia v1.5.1, you need to manually restore the telemetry database from the ``backup_location`` configured while executing the `prepare_config.yml <prepare_config.html>`_ playbook. Perform the following steps to do so:
 
 1. Copy the backed up telemetry database from the ``backup_location`` configured in ``upgrade_config,yml`` to ``/opt/omnia/telemetry/iDRAC-Referencing-Tools``.
 
