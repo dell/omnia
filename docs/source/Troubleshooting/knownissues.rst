@@ -707,3 +707,9 @@ After performing all the above steps, re-run ``upgrade.yml`` playbook.
 
     1. Delete the failed node from the db using ``delete_node.yml`` playbook utility. For more information, `click here <../InstallationGuides/deletenode.html#delete-provisioned-node>`_.
     2. Re-provision the node by re-running the ``discovery_provision.yml`` playbook.
+
+⦾ **Kserve deployment fails on RHEL 8.8 clusters. Cleaning up the cluster doesn't resolve the issue.**
+
+**Potential Cause**:
+
+**Resolution**:
