@@ -18,13 +18,13 @@ For instructions to set up Kubernetes, `click here <../BuildingClusters/install_
 
 **Deploy Kubeflow**
 
-    1. Change directories to ``tools``: ::
+1. Change directories to ``tools``: ::
 
-        cd tools
+    cd tools
 
-    2. Execute the ``kubeflow.yml`` playbook: ::
+2. Execute the ``kubeflow.yml`` playbook: ::
 
-        ansible-playbook kubeflow.yml -i inventory
+    ansible-playbook kubeflow.yml -i inventory
 
 Sample inventory: ::
 
@@ -67,7 +67,7 @@ After obtaining the external IP address of the ingress gateway, you can access t
 
 To log in to the Kubeflow dashboard and start using its features, you need to provide the default username and password. For more information, `click here <https://github.com/kubeflow/manifests?tab=readme-ov-file#connect-to-your-kubeflow-cluster>`_. ::
 
-The Kubeflow manifest documentation is present `here. <https://github.com/kubeflow/manifests?tab=readme-ov-file#overview>`_
+The Kubeflow manifest documentation is present `here <https://github.com/kubeflow/manifests?tab=readme-ov-file#kubeflow-manifests>`_.
 
 .. note:: Refer to `image pull <../pullimagestonodes.html>`_ in case of ImagePullBackOff issue while deploying any user defined task.
 
