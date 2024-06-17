@@ -12,18 +12,19 @@ Ensure that you have executed ``local_repo.yml`` with Kubeflow specified in the 
 
 First, ensure that you have a Kubernetes cluster deployed on your compute node.
 
-    Instructions to set up Kubernetes:
-
-        * Run the ``omnia.yml`` or ``scheduler.yml`` playbook to deploy Kubernetes.
-        * Ensure dynamic NFS provisioning is enabled through the ``storage.yml`` playbook.
+For instructions to set up Kubernetes, `click here <../BuildingClusters/install_kubernetes.html>`_.
 
 .. note:: The playbooks automate the process, ensuring consistency across deployments.
 
 **Deploy Kubeflow**
 
-Commands to install Kubeflow: ::
+    1. Change directories to ``tools``: ::
 
-    ansible-playbook tools/kubeflow.yml -i inventory
+        cd tools
+
+    2. Execute the ``kubeflow.yml`` playbook: ::
+
+        ansible-playbook kubeflow.yml -i inventory
 
 Sample inventory: ::
 
@@ -62,14 +63,11 @@ After obtaining the external IP address of the ingress gateway, you can access t
 
         .. image:: ../../images/dex_login.png
 
-**Logging into the Kubeflow dashboard**
+**Login to the Kubeflow dashboard**
 
-To log in to the Kubeflow dashboard and start using its features, you need to provide the default username and password. ::
+To log in to the Kubeflow dashboard and start using its features, you need to provide the default username and password. For more information, `click here <https://github.com/kubeflow/manifests?tab=readme-ov-file#connect-to-your-kubeflow-cluster>`_. ::
 
-        Username: user@example.com
-        Password: 12341234
-
-For more details, refer to Kubeflow manifest documentation link `here. <https://github.com/kubeflow/manifests?tab=readme-ov-file#overview>`_
+The Kubeflow manifest documentation is present `here. <https://github.com/kubeflow/manifests?tab=readme-ov-file#overview>`_
 
 .. note:: Refer to `image pull <../pullimagestonodes.html>`_ in case of ImagePullBackOff issue while deploying any user defined task.
 
