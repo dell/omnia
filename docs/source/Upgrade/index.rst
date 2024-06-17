@@ -34,5 +34,9 @@ Once the cloning process is done, follow the steps listed below to invoke the up
 
         - In Omnia v1.5.1 OpenLDAP client configuration was supported. If you had configured OpenLDAP client to external enterprise LDAP server in Omnia v1.5.1, then this configuration will not be restored during upgrade. In Omnia v1.6, Omnia installs OpenLDAP server and the user needs to reconfigure the OpenLDAP server to integrate it with an external LDAP server.
         - The slurm setup in Omnia v1.5.1 cluster is upgraded to configless slurm in v1.6.
+    * While the Omnia upgrade process does attempt an automatic backup of the Telemetry database, it is recommended to manually create a backup before initiating the upgrade for added precaution. After the upgrade, the restoration of the telemetry database must be performed manually by the user.
+
+
+
 
 .. caution:: The NFS share directory mentioned in ``omnia_usrhome_share``, provided in v1.5.1 ``omnia_config.yml``, is unmounted from the cluster and deleted from the head node, along with all the user data while executing the ``prepare_upgrade.yml`` playbook. Hence, it is recommended that you take a backup of the Omnia NFS share before executing the ``prepare_upgrade.yml`` playbook.
