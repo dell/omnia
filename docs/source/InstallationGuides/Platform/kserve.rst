@@ -5,6 +5,8 @@ Kserve is an open-source serving platform that simplifies the deployment, scalin
 
 .. note:: Omnia 1.6 does not support deploying both Kserve and Kubeflow in the same Kubernetes cluster. If Kubeflow is already deployed on the cluster and you wish to deploy Kserve, you must first remove Kubeflow by following the steps `here <kubeflow.html>`_.
 
+.. caution:: Kserve deployment occasionally fails on RHEL 8.8 clusters. `Reprovision the cluster <../reprovisioningthecluster.html>`_ and re-deploy Kserve. For more information, refer to the `known issues <../../Troubleshooting/knownissues.html>`_ section.
+
 **Prerequisites**
 
     * Ensure that Kubernetes is deployed and all pods are running on the cluster.
@@ -23,7 +25,7 @@ Kserve is an open-source serving platform that simplifies the deployment, scalin
 
 **Deploy Kserve**
 
-    1. Change directories to ``tools``. ::
+    1. Change directories to ``tools`` ::
 
         cd tools
 

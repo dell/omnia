@@ -707,3 +707,12 @@ After performing all the above steps, re-run ``upgrade.yml`` playbook.
 
     1. Delete the failed node from the db using ``delete_node.yml`` playbook utility. For more information, `click here <../InstallationGuides/deletenode.html#delete-provisioned-node>`_.
     2. Re-provision the node by re-running the ``discovery_provision.yml`` playbook.
+
+⦾ **Kserve deployment occasionally fails on RHEL 8.8 clusters.**
+
+**Potential Cause**: This is a known issue. For more information, check the links attached below:
+
+    1. `Reference 1 <https://github.com/istio/istio/issues/31352>`_
+    2. `Reference 2 <https://github.com/istio/istio/issues/22677>`_
+
+**Resolution**: Reprovision the cluster and re-deploy Kserve. The steps to deploy Kserve are located `here <../InstallationGuides/Platform/kserve.html>`_.
