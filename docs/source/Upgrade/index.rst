@@ -36,7 +36,7 @@ Once the cloning process is done, follow the steps listed below to invoke the up
         - The slurm setup in Omnia v1.5.1 cluster is upgraded to configless slurm in v1.6.
     * While the Omnia upgrade process does attempt an automatic backup of the Telemetry database, it is recommended to manually create a backup before initiating the upgrade for added precaution. After the upgrade, the restoration of the telemetry database must be performed manually by the user.
 
-
-
+        * Omnia recommends to stop the telemetry services in Omnia v1.5.1 by configuring ``idrac_telemetry_support`` and ``omnia_telemetry_support`` to ``false`` in ``input/telemetry_config.yml``, followed by the execution of the ``telemetry.yml`` playbook before proceeding with the upgrade flow.
+        * For a successful restoration of the telemetry database in Omnia v1.6, ensure ``input/telemetry_config.yml`` has ``idrac_telemetry_support`` set to ``false`` and ``omnia_telemetry_support`` set to ``true``, after executing ``prepare_config.yml``.
 
 .. caution:: The NFS share directory mentioned in ``omnia_usrhome_share``, provided in v1.5.1 ``omnia_config.yml``, is unmounted from the cluster and deleted from the head node, along with all the user data while executing the ``prepare_upgrade.yml`` playbook. Hence, it is recommended that you take a backup of the Omnia NFS share before executing the ``prepare_upgrade.yml`` playbook.

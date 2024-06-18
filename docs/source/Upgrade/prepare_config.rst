@@ -9,7 +9,7 @@ This is the first step of upgrade process and uses the ``prepare_config.yml`` pl
     * Creates backup of the Omnia v1.5.1 database.
     * Creates a backup of the Omnia v1.5.1 telemetry database if the ``timescaledb`` pod is in ``running`` state.
 
-.. note:: Post upgrade, restoring the Omnia telemetry database in Omnia v1.6 is completely manual and user-driven.
+.. note:: Post upgrade, restoring the Omnia telemetry database in Omnia v1.6 is completely manual and user-driven. Omnia recommends to set ``idrac_telemetry_support`` and omnia_telemetry_support to false in input/telemetry_config.yml before executing the prepare_config.yml playbook. After prepare_config.yml has been
 
 Before executing ``prepare_config.yml``, user needs to update ``upgrade_config.yml`` with the following details:
 
