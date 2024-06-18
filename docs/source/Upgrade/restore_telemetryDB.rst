@@ -22,13 +22,13 @@ After upgrading Omnia, if you want to retain the telemetry data from Omnia v1.5.
 
         psql -U <timescaledb_user>
 
-      where "timescaledb_user" is the configured ``timescaledb`` user name.
+      where "timescaledb_user" is the configured ``timescaledb`` username for telemetry.
 
     * Drop the current database using the command below: ::
 
          DROP DATABASE telemetry_metrics;
 
-        .. note:: If there are processes which is preventing you to drop the database, then terminate those processes and try again.
+    .. note:: If there are processes which is preventing you to drop the database, then terminate those processes and try again.
 
     * Create an empty telemetry database for Omnia v1.6 using the command below: ::
 
@@ -40,7 +40,7 @@ After upgrading Omnia, if you want to retain the telemetry data from Omnia v1.5.
 
         psql --dbname=telemetry_metrics --host=<pod_external_ip> --port=5432 --username=<timescaledb_user> -v ON_ERROR_STOP=1 --echo-errors -c "SELECT public.timescaledb_pre_restore();" -f telemetry_tsdb_dump.sql -c "SELECT public.timescaledb_post_restore();"
 
-        .. note:: Execute the following command to obtain the ``pod_external_ip`` and ``port`` for the ``timescaledb`` pod: ::
+    .. note:: Execute the following command to obtain the ``pod_external_ip`` and ``port`` for the ``timescaledb`` pod: ::
 
             kubectl get svc -A output
 
@@ -55,7 +55,7 @@ After upgrading Omnia, if you want to retain the telemetry data from Omnia v1.5.
 Next steps
 ============
 
-1. Connect to the ``telemetry_metrics`` database and verify if the restored telemetry data is present in ``public.timeseries_metrics`` and ``omnia_telemtry.metrics`` tables.
+1. Connect to the ``telemetry_metrics`` database and verify if the restored telemetry data is present in ``public.timeseries_metrics`` and ``omnia_telemetry.metrics`` tables.
 
 2. Post verification, you can choose to restart the Omnia telemetry services. Run the ``telemetry.yml`` playbook after modifying the ``input/telemetry_config.yml`` as per your requirements. For more information regarding the telemetry parameters, `click here <../InstallationGuides/BuildingClusters/schedulerinputparams.html#id18>`_. Execute the following command: ::
 
