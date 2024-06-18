@@ -13,3 +13,5 @@ To execute the ``upgrade.yml`` playbook, run the following command: ::
 Where inventory refers to the auto-generated inventory file in Omnia v1.6 format.
 
 This is the final step, and once the upgrade.yml playbook is executed successfully, the upgrade process is complete!
+
+Optional - `Restore Telemetry database post upgrade <restore_telemetryDB.html>`_
