@@ -7,6 +7,9 @@ This is the first step of upgrade process and uses the ``prepare_config.yml`` pl
     * Generates the inventory for Omnia v1.6 from the v1.5.1 inventory.
     * Sets the Omnia v1.6 execution environment by updating the ansible and python versions compatible to v1.6.
     * Creates backup of the Omnia v1.5.1 database.
+    * Creates a backup of the Omnia v1.5.1 telemetry database if the ``timescaledb`` pod is in ``running`` state.
+
+.. note:: Post upgrade, restoring the Omnia telemetry database in Omnia v1.6 is completely manual and user-driven.
 
 Before executing ``prepare_config.yml``, user needs to update ``upgrade_config.yml`` with the following details:
 
@@ -30,7 +33,8 @@ Expected output of this playbook execution:
 
     * Auto-populated Omnia v1.6 configuration files in the ``<omnia_1.6_location>/omnia/input``.
     * Auto-generated inventory file in Omnia v1.6 format. This is available in the ``<omnia_1.6_location>/omnia/upgrade`` folder and will be used later during the execution of `upgrade.yml <upgrade.html>`_.
-    * Backup of the omnia v1.5.1 database is created at the ``backup_location`` specified in the ``upgrade_config.yml``. The backup file is named as ``backup.sql``.
+    * Backup of the Omnia v1.5.1 database is created at the ``backup_location`` specified in the ``upgrade_config.yml``. The backup file is named as ``backup.sql``.
+    * Backup of the Omnia v1.5.1 telemetry database is created at the ``backup_location`` specified in the ``upgrade_config.yml``. The backup file is named as ``telemetry_tsdb_dump.sql``.
 
 **Review or Update the auto-generated config files**
 

@@ -3,11 +3,14 @@ Restoring Telemetry database post Omnia upgrade
 
 After upgrading Omnia, if you want to retain the telemetry data from Omnia v1.5.1, you need to manually restore the telemetry database from the ``backup_location`` configured while executing the `prepare_config.yml <prepare_config.html>`_ playbook. Perform the following steps to do so:
 
-1. Copy the backed up telemetry database from the ``backup_location`` configured in ``upgrade_config,yml`` to ``/opt/omnia/telemetry/iDRAC-Referencing-Tools``.
+1. Copy the backed up telemetry database file, that is ``telemetry_tsdb_dump.sql``, from the ``backup_location`` to ``/opt/omnia/telemetry/iDRAC-Referencing-Tools``.
 
-2. Stop the Omnia telemetry services on all the cluster nodes.
+2. Stop the Omnia telemetry services on all the cluster nodes. Run the ``telemetry.yml`` playbook after setting the ``idrac_telemetry_support``, ``omnia_telemetry_support``, and ``visualization_support`` parameters to ``false`` in ``input/telemetry_config.yml``. Execute the following command: ::
 
-3. In order to execute the psql commands, connect to the ``timescaledb`` pod using the following steps:
+    cd telemetry
+    ansible-playbook telemetry.yml -i ../upgrade/inventory
+
+3. Connect to the ``timescaledb`` pod and execute the psql commands. Perform the following steps:
 
     * Execute the following command: ::
 
@@ -15,30 +18,48 @@ After upgrading Omnia, if you want to retain the telemetry data from Omnia v1.5.
 
     * Verify that the dump file is present using the ``ls`` command.
 
-4. Now, connect to the ``telemetry_metrics`` database using the following command: ::
+    * Connect to the psql client using the following command: ::
 
-    psql -U omnia
+        psql -U <timescaledb_user>
 
-5. Execute the following command to obtain the ``pod_external_ip`` for the timescale database: ::
+      where "timescaledb_user" is the configured ``timescaledb`` user name.
 
-    kubectl get svc -A output
+        * Drop the current database using the command below: ::
 
-6. Execute the following command to initiate the database restore operation: ::
+            DROP DATABASE telemetry_metrics;
 
-    psql --dbname=telemetry_metrics --host=<pod_external_ip> --port=5432 --username=omnia --file=telemetry_tsdb_dump.sql < telemetry_tsdb_dump.sql
+        .. note:: If there are processes which is preventing you to drop the database, then terminate those processes and try again.
+
+        * Create an empty telemetry database for Omnia v1.6 using the command below: ::
+
+            CREATE DATABASE telemetry_metrics;
+
+    * Exit from the psql client using ``\q`` command.
+
+    * Execute the following command to initiate the database restore operation: ::
+
+        psql --dbname=telemetry_metrics --host=<pod_external_ip> --port=5432 --username=<timescaledb_user> -v ON_ERROR_STOP=1 --echo-errors -c "SELECT public.timescaledb_pre_restore();" -f telemetry_tsdb_dump.sql -c "SELECT public.timescaledb_post_restore();"
+
+        .. note:: Execute the following command to obtain the ``pod_external_ip`` and ``port`` for the ``timescaledb`` pod: ::
+
+            kubectl get svc -A output
+
+    * Drop the ``insert_block_trigger`` if it exists using the following commands: ::
+
+        Psql -U omnia
+        \c telemetry_metrics
+        DROP TRIGGER ts_insert_blocker ON public.timeseries_metrics;
+        DROP TRIGGER ts_insert_blocker ON omnia_telemetry.metrics;
 
 
 Next steps
 ============
 
-1. Use the following command to see and verify the restored data: ::
+1. Connect to the ``telemetry_metrics`` database and verify if the restored telemetry data is present in ``public.timeseries_metrics`` and ``omnia_telemtry.metrics`` tables.
 
-    timescaledb-0:/go/src/github.com/telemetry-reference-tools# psql -U omnia
+2. Post verification, you can choose to restart the Omnia telemetry services. Run the ``telemetry.yml`` playbook after modifying the ``input/telemetry_config.yml`` as per your requirements. For more information regarding the telemetry parameters, `click here <../InstallationGuides/BuildingClusters/schedulerinputparams.html#id18>`_. Execute the following command: ::
 
-2. Restart the Omnia telemetry services on all the cluster nodes.
+    cd telemetry
+    ansible-playbook telemetry.yml -i ../upgrade/inventory
 
-3. Check and see if the number of rows have increased in the timescale database. This signifies that the restoration has taken place successfully.
-
-4. Check the status both ``omnia_telemtry.service`` and public ``time_series`` metrics.
-
-5. Restart the node.
+3. After telemetry services are enabled, check ``omnia_telemtry.metrics`` and ``public.timeseries_metrics`` tables to see if the number of rows have increased. This signifies that the fresh telemetry data from Omnia v1.6 is getting updated in the database.
