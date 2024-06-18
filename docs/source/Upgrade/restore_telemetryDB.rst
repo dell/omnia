@@ -1,7 +1,7 @@
 Restoring Telemetry database post Omnia upgrade
 ================================================
 
-After upgrading Omnia, if you want to retain the telemetry data from Omnia v1.5.1, you need to manually restore the telemetry database from the ``backup_location`` configured while executing the `prepare_config.yml <prepare_config.html>`_ playbook. Perform the following steps to do so:
+After upgrading Omnia, if you want to retain the telemetry data from Omnia v1.5.1, you need to manually restore the telemetry database from the ``telemetry_tsdb_dump.sql`` file. Perform the following steps to do so:
 
 1. Copy the backed up telemetry database file, that is ``telemetry_tsdb_dump.sql``, from the ``backup_location`` to ``/opt/omnia/telemetry/iDRAC-Referencing-Tools``.
 
@@ -24,15 +24,15 @@ After upgrading Omnia, if you want to retain the telemetry data from Omnia v1.5.
 
       where "timescaledb_user" is the configured ``timescaledb`` user name.
 
-        * Drop the current database using the command below: ::
+    * Drop the current database using the command below: ::
 
-            DROP DATABASE telemetry_metrics;
+         DROP DATABASE telemetry_metrics;
 
         .. note:: If there are processes which is preventing you to drop the database, then terminate those processes and try again.
 
-        * Create an empty telemetry database for Omnia v1.6 using the command below: ::
+    * Create an empty telemetry database for Omnia v1.6 using the command below: ::
 
-            CREATE DATABASE telemetry_metrics;
+         CREATE DATABASE telemetry_metrics;
 
     * Exit from the psql client using ``\q`` command.
 
@@ -46,7 +46,7 @@ After upgrading Omnia, if you want to retain the telemetry data from Omnia v1.5.
 
     * Drop the ``insert_block_trigger`` if it exists using the following commands: ::
 
-        Psql -U omnia
+        psql -U omnia
         \c telemetry_metrics
         DROP TRIGGER ts_insert_blocker ON public.timeseries_metrics;
         DROP TRIGGER ts_insert_blocker ON omnia_telemetry.metrics;
