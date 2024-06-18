@@ -28,7 +28,7 @@ After upgrading Omnia, if you want to retain the telemetry data from Omnia v1.5.
 
          DROP DATABASE telemetry_metrics;
 
-    .. note:: If there are processes which is preventing you to drop the database, then terminate those processes and try again.
+    .. note:: If there are processes which are preventing you to drop the database, then terminate those processes and try again.
 
     * Create an empty telemetry database for Omnia v1.6 using the command below: ::
 
@@ -48,8 +48,8 @@ After upgrading Omnia, if you want to retain the telemetry data from Omnia v1.5.
 
         psql -U omnia
         \c telemetry_metrics
-        DROP TRIGGER ts_insert_blocker ON public.timeseries_metrics;
-        DROP TRIGGER ts_insert_blocker ON omnia_telemetry.metrics;
+        DROP TRIGGER IF EXISTS ts_insert_blocker ON public.timeseries_metrics;
+        DROP TRIGGER IF EXISTS ts_insert_blocker ON omnia_telemetry.metrics;
 
 
 Next steps
