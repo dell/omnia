@@ -40,8 +40,8 @@ After upgrading Omnia, if you want to retain the telemetry data from Omnia v1.5.
 
         psql --dbname=telemetry_metrics --host=<pod_external_ip> --port=5432 --username=<timescaledb_user> -v ON_ERROR_STOP=1 --echo-errors -c "SELECT public.timescaledb_pre_restore();" -f telemetry_tsdb_dump.sql -c "SELECT public.timescaledb_post_restore();"
 
-    .. note:: Execute the following command to obtain the ``pod_external_ip`` and ``port`` for the ``timescaledb`` pod: ::
-
+    .. note:: Execute the following command to obtain the ``pod_external_ip`` and ``port`` for the ``timescaledb`` pod:
+        ::
             kubectl get svc -A output
 
     * Drop the ``insert_block_trigger`` if it exists using the following commands: ::
