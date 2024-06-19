@@ -12,82 +12,82 @@ Perform the following steps to configure OpenLDAP as a proxy server:
 		rm -rf /usr/local/openldap/etc/openldap/slapd.d/
 		mkdir /usr/local/openldap/etc/openldap/slapd.d/
 
-2. Now, locate the ``slapd.conf`` config file present in ``/usr/local/openldap/etc/openldap/`` and modify the file to add the new LDAP configurations. Add the following lines to the config file:
-    ::
-        # Load dynamic backend modules:
-        modulepath      /usr/local/openldap/libexec/openldap
-        moduleload      back_ldap.la
-        moduleload      back_meta.la
+2. Now, locate the ``slapd.conf`` config file present in ``/usr/local/openldap/etc/openldap/`` and modify the file to add the new LDAP configurations. Add the following lines to the config file: ::
 
-        #######################################################################
-        # Meta database definitions
-        #######################################################################
-        database        meta
-        suffix          "dc=omnia,dc=test"
-        rootdn          cn=admin,dc=omnia,dc=test
-        rootpw          Dell1234
-        uri             "ldap://10.5.0.104:389/dc=omnia,dc=test"
-        idassert-bind
-         bindmethod=simple
-         binddn="cn=admin,dc=omnia,dc=test"
-         credentials="Dell1234"
-         flags=override
-         mode=none
-        TLSCACertificateFile    /etc/openldap/certs/ldapserver.crt
-        TLSCertificateFile      /etc/openldap/certs/ldapserver.crt
-        TLSCertificateKeyFile   /etc/pki/tls/certs/ldapserver.key
+    # Load dynamic backend modules:
+    modulepath      /usr/local/openldap/libexec/openldap
+    moduleload      back_ldap.la
+    moduleload      back_meta.la
+
+    #######################################################################
+    # Meta database definitions
+    #######################################################################
+    database        meta
+    suffix          "dc=omnia,dc=test"
+    rootdn          cn=admin,dc=omnia,dc=test
+    rootpw          Dell1234
+    uri             "ldap://10.5.0.104:389/dc=omnia,dc=test"
+    idassert-bind
+     bindmethod=simple
+     binddn="cn=admin,dc=omnia,dc=test"
+     credentials="Dell1234"
+     flags=override
+     mode=none
+    TLSCACertificateFile    /etc/openldap/certs/ldapserver.crt
+    TLSCertificateFile      /etc/openldap/certs/ldapserver.crt
+    TLSCertificateKeyFile   /etc/pki/tls/certs/ldapserver.key
 
 
 	Change the **<paramater>** values in the config file, as described below:
 
-	* **database**: Database used in the ``slapd.conf`` file, that captures the details of the external LDAP server to be used. For example, ``meta``.
-	* **suffix**: Captures the domain name of the user, to refine the user search while attempting to authenticate the user. For example, ``"dc=omnia,dc=test"``.
-	* **rootdn**: Admin or root username of the internal OpenLDAP server set up by Omnia. For example, ``cn=admin,dc=omnia,dc=test``.
-	* **rootpw**: Admin password for the internal OpenLDAP server. For example, ``Dell1234``.
+* **database**: Database used in the ``slapd.conf`` file, that captures the details of the external LDAP server to be used. For example, ``meta``.
+* **suffix**: Captures the domain name of the user, to refine the user search while attempting to authenticate the user. For example, ``"dc=omnia,dc=test"``.
+* **rootdn**: Admin or root username of the internal OpenLDAP server set up by Omnia. For example, ``cn=admin,dc=omnia,dc=test``.
+* **rootpw**: Admin password for the internal OpenLDAP server. For example, ``Dell1234``.
 
-	* **uri**: Captures the IP of the external LDAP server along with the port and the domain of the user in ``"ldap://<IP  of external LDAP server>:<Port number>/<suffix>"`` format. For example, ``"ldap://10.5.0.104:389/dc=omnia,dc=test"``.
-	* **binddn**: Admin username for the external LDAP server.
-	* **credentials**: Admin password for the external LDAP server.
+* **uri**: Captures the IP of the external LDAP server along with the port and the domain of the user in ``"ldap://<IP  of external LDAP server>:<Port number>/<suffix>"`` format. For example, ``"ldap://10.5.0.104:389/dc=omnia,dc=test"``.
+* **binddn**: Admin username for the external LDAP server.
+* **credentials**: Admin password for the external LDAP server.
 
-	* **TLSCACertificateFile**: Omnia, by default uses the TLSA certificate present in ``/etc/openldap/certs/ldapserver.crt``.
-	* **TLSCertificateFile**: Omnia, by default uses the TLS certificate present in ``/etc/openldap/certs/ldapserver.crt``.
-	* **TLSCertificateKeyFile**: Omnia uses the key file present in ``/etc/pki/tls/certs/ldapserver.key`` to access the TLSA and TLS certificates.
+* **TLSCACertificateFile**: Omnia, by default uses the TLSA certificate present in ``/etc/openldap/certs/ldapserver.crt``.
+* **TLSCertificateFile**: Omnia, by default uses the TLS certificate present in ``/etc/openldap/certs/ldapserver.crt``.
+* **TLSCertificateKeyFile**: Omnia uses the key file present in ``/etc/pki/tls/certs/ldapserver.key`` to access the TLSA and TLS certificates.
 
-	.. note::
+.. note::
 		* If you have your own set of TLS/TLSA certificates which you want to utilize, then you can provide the path to them in the config file.
-		* Multiple external LDAP servers can also be configured on the proxy server. The OpenLDAP proxy server allows users from multiple external LDAP servers to authenticate onto the cluster. You can provide two sets of external LDAP server details as shown below:
-		    ::
+		* Multiple external LDAP servers can also be configured on the proxy server. The OpenLDAP proxy server allows users from multiple external LDAP servers to authenticate onto the cluster. You can provide two sets of external LDAP server details as shown below: ::
 
-				uri             "ldap://10.5.0.104:389/dc=omnia1,dc=test"
-				idassert-bind
-  	 			 bindmethod=simple
-  	 			 binddn="cn=admin,dc=omnia,dc=test"
-  	 		 	 credentials="Dell1234"
-  	 			 flags=override
-  	 			 mode=none
+            uri             "ldap://10.5.0.104:389/dc=omnia1,dc=test"
+            idassert-bind
+             bindmethod=simple
+             binddn="cn=admin,dc=omnia,dc=test"
+             credentials="Dell1234"
+             flags=override
+             mode=none
 
-				uri             "ldap://10.5.0.105:389/dc=omnia2,dc=test"
-				idassert-bind
-  	 			 bindmethod=simple
-  	 			 binddn="cn=admin,dc=omnia,dc=test"
-  	 		 	 credentials="Dell12345"
-  	 			 flags=override
-  	 			 mode=none
+            uri             "ldap://10.5.0.105:389/dc=omnia2,dc=test"
+            idassert-bind
+             bindmethod=simple
+             binddn="cn=admin,dc=omnia,dc=test"
+             credentials="Dell12345"
+             flags=override
+             mode=none
+
+3. Once the new configurations are present in the ``slapd.conf`` file, execute the following OpenLDAP server slaptest command to apply the configurations: ::
+
+    slaptest -f /usr/local/openldap/etc/openldap/slapd.conf -F /usr/local/openldap/etc/openldap/slapd.d
 
 
-3. Once the new configurations are present in the ``slapd.conf`` file, execute the following OpenLDAP server slaptest command to apply the configurations:
-    ::
-        slaptest -f /usr/local/openldap/etc/openldap/slapd.conf -F /usr/local/openldap/etc/openldap/slapd.d
+4. Change the schema ownership to LDAP and set the necessary file permissions (770). Execute the following commands to do so: ::
 
-4. Change the schema ownership to LDAP and set the necessary file permissions (770). Execute the following commands to do so:
-    ::
-        chown -R ldap:ldap /usr/local/openldap/etc/openldap/slapd.d/
-        chown root:ldap /usr/local/openldap/etc/openldap/slapd.d/
-        chmod -R 754 /usr/local/openldap/etc/openldap/slapd.d/
-        chmod 770 /usr/local/openldap/etc/openldap/slapd.d/
+    chown -R ldap:ldap /usr/local/openldap/etc/openldap/slapd.d/
+    chown root:ldap /usr/local/openldap/etc/openldap/slapd.d/
+    chmod -R 754 /usr/local/openldap/etc/openldap/slapd.d/
+    chmod 770 /usr/local/openldap/etc/openldap/slapd.d/
 
-5. Restart the internal OpenLDAP server to seal in the configurations. Execute the following command to restart the server:
-    ::
-         systemctl restart slapd-ltb.service
+5. Restart the internal OpenLDAP server to seal in the configurations. Execute the following command to restart the server: ::
+
+    systemctl restart slapd-ltb.service
+
 
 Once these configurations are applied on the internal OpenLDAP server, it sets up the external LDAP server as an authentication server. The internal OpenLDAP server doesn't store any kind of user data and no users can be created/modified from here.
