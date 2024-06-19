@@ -1,7 +1,7 @@
 Running prereq.sh
 =================
 
-.. caution:: Minimal OS version of RHEL and Rocky Linux and "desktop image" version of Ubuntu is not supported on the control plane.
+.. caution:: The "desktop image" version of Ubuntu is not supported on the control plane.
 
 ``prereq.sh`` is used to install the software utilized by Omnia on the control plane including Python (3.9), Ansible (2.14).  ::
 
