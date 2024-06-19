@@ -54,8 +54,8 @@ Change the **<paramater>** values in the config file, as described below:
 * **TLSCertificateKeyFile**: Omnia uses the key file present in ``/etc/pki/tls/certs/ldapserver.key`` to access the TLSA and TLS certificates.
 
 .. note::
-		* If you have your own set of TLS/TLSA certificates which you want to utilize, then you can provide the path to them in the config file.
-		* Multiple external LDAP servers can also be configured on the proxy server. The OpenLDAP proxy server allows users from multiple external LDAP servers to authenticate onto the cluster. You can provide two sets of external LDAP server details as shown below:
+    * If you have your own set of TLS/TLSA certificates which you want to utilize, then you can provide the path to them in the config file.
+    * Multiple external LDAP servers can also be configured on the proxy server. The OpenLDAP proxy server allows users from multiple external LDAP servers to authenticate onto the cluster. You can provide two sets of external LDAP server details as shown below:
 		::
                 uri             "ldap://10.5.0.104:389/dc=omnia1,dc=test"
                 idassert-bind
