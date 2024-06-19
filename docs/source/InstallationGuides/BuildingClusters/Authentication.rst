@@ -192,3 +192,5 @@ Advanced Settings
 * To install FreeIPA server on the NFS node, `click here <../../Roles/Utils/freeipa_installation.html>`_.
 
 * To replicate the OpenLDAP server `click here <ReplicatingLDAP.html>`_.
+
+* To set up the internal OpenLDAP server as a proxy, `click here <OpenLDAP_proxy.html>`_.
