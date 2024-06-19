@@ -1,5 +1,5 @@
 Setting up OpenLDAP as a proxy server
-======================================
+=======================================
 
 Omnia allows the internal OpenLDAP server to be configured as a proxy, where it utilizes the external LDAP servers as a backend database to store user data and acts as an authentication entity to allow/deny them access to the cluster. OpenLDAP client will be configured through the proxy server which means that there won't be any direct communication between OpenLDAP client and the external LDAP server.
 
