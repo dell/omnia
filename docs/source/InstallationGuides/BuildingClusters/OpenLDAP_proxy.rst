@@ -56,12 +56,14 @@ Change the **<paramater>** values in the config file, as described below:
 .. note:: If you have your own set of TLS/TLSA certificates which you want to utilize, then you can provide the path to them in the config file.
 
 .. note::
-   * Enable a repository from your RHEL subscription, run the following commands: ::
+   * Multiple external LDAP servers can also be configured on the proxy server. The OpenLDAP proxy server allows users from multiple external LDAP servers to authenticate onto the cluster. You can provide two sets of external LDAP server details as shown below: ::
 
-            subscription-manager repos --enable=rhel-8-for-x86_64-appstream-rpms
-            subscription-manager repos --enable=rhel-8-for-x86_64-baseos-rpms
+            uri "ldap://10.5.0.104:389/dc=omnia1,dc=test"
+            idassert-bind
+            bindmethod=simple
+            binddn="cn=admin,dc=omnia,dc=test"
 
-* Multiple external LDAP servers can also be configured on the proxy server. The OpenLDAP proxy server allows users from multiple external LDAP servers to authenticate onto the cluster. You can provide two sets of external LDAP server details as shown below:
+* :
     ::
         uri "ldap://10.5.0.104:389/dc=omnia1,dc=test"
         idassert-bind
