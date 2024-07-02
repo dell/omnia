@@ -12,31 +12,57 @@ Perform the following steps to configure OpenLDAP as a proxy server:
 		rm -rf /usr/local/openldap/etc/openldap/slapd.d/
 		mkdir /usr/local/openldap/etc/openldap/slapd.d/
 
-2. Now, locate the ``slapd.conf`` config file present in ``/usr/local/openldap/etc/openldap/`` and modify the file to add the new LDAP configurations. Add the following lines to the config file: ::
+2. Now, locate the ``slapd.conf`` config file present in ``/usr/local/openldap/etc/openldap/`` and modify the file to add the new LDAP configurations. Add the following lines to the config file based on the operating system running on the cluster:
 
-    # Load dynamic backend modules:
-    modulepath      /usr/local/openldap/libexec/openldap
-    moduleload      back_ldap.la
-    moduleload      back_meta.la
+    For RHEL/Rocky Linux: ::
 
-    #######################################################################
-    # Meta database definitions
-    #######################################################################
-    database        meta
-    suffix          "dc=omnia,dc=test"
-    rootdn          cn=admin,dc=omnia,dc=test
-    rootpw          Dell1234
-    uri             "ldap://10.5.0.104:389/dc=omnia,dc=test"
-    idassert-bind
-     bindmethod=simple
-     binddn="cn=admin,dc=omnia,dc=test"
-     credentials="Dell1234"
-     flags=override
-     mode=none
-    TLSCACertificateFile    /etc/openldap/certs/ldapserver.crt
-    TLSCertificateFile      /etc/openldap/certs/ldapserver.crt
-    TLSCertificateKeyFile   /etc/pki/tls/certs/ldapserver.key
+        # Load dynamic backend modules:
+        modulepath      /usr/local/openldap/libexec/openldap
+        moduleload      back_ldap.la
+        moduleload      back_meta.la
 
+        #######################################################################
+        # Meta database definitions
+        #######################################################################
+        database        meta
+        suffix          "dc=omnia,dc=test"
+        rootdn          cn=admin,dc=omnia,dc=test
+        rootpw          Dell1234
+        uri             "ldap://10.5.0.104:389/dc=omnia,dc=test"
+        idassert-bind
+         bindmethod=simple
+         binddn="cn=admin,dc=omnia,dc=test"
+         credentials="Dell1234"
+         flags=override
+         mode=none
+        TLSCACertificateFile    /etc/openldap/certs/ldapserver.crt
+        TLSCertificateFile      /etc/openldap/certs/ldapserver.crt
+        TLSCertificateKeyFile   /etc/pki/tls/certs/ldapserver.key
+
+    For Ubuntu: ::
+
+        # Load dynamic backend modules:
+        modulepath      /usr/local/openldap/libexec/openldap
+        moduleload      back_ldap.la
+        moduleload      back_meta.la
+
+        #######################################################################
+        # Meta database definitions
+        #######################################################################
+        database        meta
+        suffix          "dc=omnia,dc=test"
+        rootdn          cn=admin,dc=omnia,dc=test
+        rootpw          Dell1234
+        uri             "ldap://10.5.0.104:389/dc=omnia,dc=test"
+        idassert-bind
+         bindmethod=simple
+         binddn="cn=admin,dc=omnia,dc=test"
+         credentials="Dell1234"
+         flags=override
+         mode=none
+        TLSCACertificateFile    /etc/ssl/certs/ca-certificates.crt
+        TLSCertificateFile      /etc/ssl/certs/ssl-cert-snakeoil.pem
+        TLSCertificateKeyFile   /etc/ssl/private/ssl-cert-snakeoil.key
 
 Change the **<paramater>** values in the config file, as described below:
 
