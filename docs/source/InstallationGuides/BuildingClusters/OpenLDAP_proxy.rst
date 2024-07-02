@@ -92,13 +92,11 @@ Change the **<paramater>** values in the config file, as described below:
     Use the same certificates and keys in the ``slapd.conf`` file, as shown below:
 
         Ubuntu: ::
-
               TLSCACertificateFile    /etc/ssl/certs/omnia_ca_cert.crt
               TLSCertificateFile      /etc/ssl/certs/omnia_cert.pem
               TLSCertificateKeyFile   /etc/ssl/private/omnia_cert_key.key
 
         RHEL/ROCKY: ::
-
               TLSCACertificateFile    /etc/pki/tls/certs/omnia_ca_cert.crt
               TLSCertificateFile      /etc/pki/tls/certs/omnia_cert.pem
               TLSCertificateKeyFile   /etc/pki/tls/certs/omnia_cert_key.key
