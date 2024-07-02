@@ -75,9 +75,9 @@ Change the **<paramater>** values in the config file, as described below:
 * **binddn**: Admin username for the external LDAP server.
 * **credentials**: Admin password for the external LDAP server.
 
-* **TLSCACertificateFile**: Omnia, by default uses the TLSA certificate present in ``/etc/openldap/certs/ldapserver.crt``.
-* **TLSCertificateFile**: Omnia, by default uses the TLS certificate present in ``/etc/openldap/certs/ldapserver.crt``.
-* **TLSCertificateKeyFile**: Omnia uses the key file present in ``/etc/pki/tls/certs/ldapserver.key`` to access the TLSA and TLS certificates.
+* **TLSCACertificateFile**: Omnia, by default, creates the TLSA certificate in ``/etc/openldap/certs/ldapserver.crt`` for RHEL/Rocky Linux or in ``/etc/ssl/certs/ca-certificates.crt`` for Ubuntu.
+* **TLSCertificateFile**: Omnia, by default, creates the TLS certificate in ``/etc/openldap/certs/ldapserver.crt`` for RHEL/Rocky Linux or in ``/etc/ssl/certs/ssl-cert-snakeoil.pem`` for Ubuntu.
+* **TLSCertificateKeyFile**: Omnia, by default, creates the certificate key file in ``/etc/pki/tls/certs/ldapserver.key`` for RHEL/Rocky Linux or in ``/etc/ssl/private/ssl-cert-snakeoil.key`` for Ubuntu.
 
 .. note::
    * If you have your own set of TLS/TLSA certificates and certificate key that you want to utilize instead of the default one provided by Omnia, then you can provide the path to them in the config file.
