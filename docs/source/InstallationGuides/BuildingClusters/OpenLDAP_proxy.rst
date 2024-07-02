@@ -81,28 +81,28 @@ Change the **<paramater>** values in the config file, as described below:
 
 .. note::
    * If you have your own set of TLS certificates and keys that you want to utilize instead of the default ones created by Omnia, then you can provide the path to them in the ``input/security_config.yml`` file. During ``omnia.yml`` execution, the user provided certificates and key files are copied from the control plane to the ``auth_server`` (OpenLDAP). An example for the ``input/security_config.yml`` file for the proxy OpenLDAP server is provided below:
-   ::
+        ::
 
-        # Certificate Authority(CA) issued certificate file path
-        tls_ca_certificate: "/root/certificates/omnia_ca_cert.crt"
-        # OpenLDAP Certificate file path
-        tls_certificate: "/root/certificates/omnia_cert.pem"
-        # OpenLDAP Certificate key file path
-        tls_certificate_key: "/root/certificates/omnia_cert_key.key"
+            # Certificate Authority(CA) issued certificate file path
+            tls_ca_certificate: "/root/certificates/omnia_ca_cert.crt"
+            # OpenLDAP Certificate file path
+            tls_certificate: "/root/certificates/omnia_cert.pem"
+            # OpenLDAP Certificate key file path
+            tls_certificate_key: "/root/certificates/omnia_cert_key.key"
 
-   Use the same certificates and keys in the ``slapd.conf`` file, as shown below:
+      Use the same certificates and keys in the ``slapd.conf`` file, as shown below:
 
-   Ubuntu: ::
+        Ubuntu: ::
 
-         TLSCACertificateFile    /etc/ssl/certs/omnia_ca_cert.crt
-         TLSCertificateFile      /etc/ssl/certs/omnia_cert.pem
-         TLSCertificateKeyFile   /etc/ssl/private/omnia_cert_key.key
+              TLSCACertificateFile    /etc/ssl/certs/omnia_ca_cert.crt
+              TLSCertificateFile      /etc/ssl/certs/omnia_cert.pem
+              TLSCertificateKeyFile   /etc/ssl/private/omnia_cert_key.key
 
-   RHEL/ROCKY: ::
+        RHEL/ROCKY: ::
 
-         TLSCACertificateFile    /etc/pki/tls/certs/omnia_ca_cert.crt
-         TLSCertificateFile      /etc/pki/tls/certs/omnia_cert.pem
-         TLSCertificateKeyFile   /etc/pki/tls/certs/omnia_cert_key.key
+              TLSCACertificateFile    /etc/pki/tls/certs/omnia_ca_cert.crt
+              TLSCertificateFile      /etc/pki/tls/certs/omnia_cert.pem
+              TLSCertificateKeyFile   /etc/pki/tls/certs/omnia_cert_key.key
 
    * Multiple external LDAP servers can also be configured on the proxy server. The OpenLDAP proxy server allows users from multiple external LDAP servers to authenticate onto the cluster. You can provide two sets of external LDAP server details as shown below: ::
 
