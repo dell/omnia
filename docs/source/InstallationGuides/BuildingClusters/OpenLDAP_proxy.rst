@@ -89,7 +89,7 @@ Change the **<paramater>** values in the config file, as described below:
            # OpenLDAP Certificate key file path
            tls_certificate_key: "/root/certificates/omnia_cert_key.key"
 
-      Use the same certificates and keys in the ``slapd.conf`` file, as shown below:
+   Use the same certificates and keys in the ``slapd.conf`` file, as shown below:
 
         Ubuntu: ::
 
