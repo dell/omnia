@@ -11,4 +11,3 @@ OS Version Control Plane Cluster  Nodes
 
 .. [1] This version of RHEL does not support vLLM installation via Omnia.
 
-.. note::  Always deploy the "Server with GUI" edition of the RHEL OS on the control plane.
