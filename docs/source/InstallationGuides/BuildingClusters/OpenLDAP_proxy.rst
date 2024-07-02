@@ -121,7 +121,7 @@ Change the **<paramater>** values in the config file, as described below:
              flags=override
              mode=none
 
-3. Once the new configurations are present in the ``slapd.conf`` file, execute the following OpenLDAP server slaptest command to apply the configurations: ::
+3. Once the new configurations are present in the ``slapd.conf`` file, execute the following OpenLDAP server "slaptest" command to apply the configurations: ::
 
     slaptest -f /usr/local/openldap/etc/openldap/slapd.conf -F /usr/local/openldap/etc/openldap/slapd.d
 
