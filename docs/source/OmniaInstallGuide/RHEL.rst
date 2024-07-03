@@ -1,7 +1,7 @@
 Install Omnia on Red Hat Enterprise Linux (RHEL) clusters
 ===========================================================
 
-* Step 1: `Run the prereq.sh script to <../InstallationGuides/RunningInit/index.html>`_.
+* Step 1: `Run the prereq.sh script <../InstallationGuides/RunningInit/index.html>`_.
 * Step 2: `Create offline repositories on the control plane, which will be accessed by all the cluster nodes <../InstallationGuides/LocalRepo/index.html>`_.
 * Step 3: `Install, configure, and execute the cluster provision tool. This tool discovers potential cluster nodes and installs OS on them <../InstallationGuides/InstallingProvisionTool/index.html>`_.
 * Step 4: `Create cluster inventory files out of all the cluster nodes <../InstallationGuides/PostProvisionScript.html>`_.
