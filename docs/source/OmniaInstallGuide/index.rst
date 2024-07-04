@@ -23,7 +23,7 @@ Prerequisites
 
           apt install git -y
 
-.. note:: Optionally if the control plane server running on RHEL or Rocky Linux has an Infiniband NIC installed, run the below command to install the hardware drivers and Infiniband-related packages:
+.. note:: If the control plane server (running on RHEL or Rocky Linux OS) has an Infiniband NIC installed, run the below command to install the hardware drivers and Infiniband-related packages:
     ::
         yum groupinstall "Infiniband Support" -y
 
