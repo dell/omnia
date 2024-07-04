@@ -1,4 +1,4 @@
-﻿Software ,Disc utilization(size)
+﻿Software ,Disc utilization (size)
 AMD ROCM,4GB
 CUDA,4GB
 OFED,1 GB
@@ -14,10 +14,10 @@ Kubeflow,96 GB
 Kserve,2 GB
 Pytorch,111 GB
 Tensorflow,57 GB
-VLLM,77 GB
+vLLM,77 GB
 Telemetry,1 GB
 Intel benchmarks,28 GB
-AMD bench marks,skipped
+AMD benchmarks,skipped
 Utils,200 KB
 UCX,3 MB
 OpenMPI,17 MB
