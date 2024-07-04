@@ -10,3 +10,7 @@ Install Omnia on Ubuntu clusters
     - `Install Kubernetes on the cluster <../InstallationGuides/BuildingClusters/install_kubernetes.html>`_
     - `Set up centralized authentication on the cluster <../InstallationGuides/BuildingClusters/Authentication.html>`_
 * Step 6: `Install AI tools on the cluster <../InstallationGuides/Platform/index.html>`_
+
+.. note::
+    - Slurm installation is not supported on Ubuntu.
+    - FreeIPA configuration is not supported on Ubuntu.
