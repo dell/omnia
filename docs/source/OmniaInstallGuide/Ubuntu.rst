@@ -12,5 +12,5 @@ Install Omnia on Ubuntu clusters
 * Step 6: `Install AI tools on the cluster <../InstallationGuides/Platform/index.html>`_
 
 .. note::
-    - Slurm installation is not supported on Ubuntu.
-    - FreeIPA configuration is not supported on Ubuntu.
+    - Slurm installation is not supported on Ubuntu clusters.
+    - FreeIPA configuration is not supported on Ubuntu clusters.
