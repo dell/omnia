@@ -10,8 +10,8 @@ Prerequisites
 
 3. Ensure that the control plane server meets the space requirements, based on the OS:
 
-    - `RHEL/RockyLinux <../>`_
-    - `Ubuntu <../>`_
+    - `RHEL/RockyLinux <SpaceRequirements/RHELSpace.html>`_
+    - `Ubuntu <SpaceRequirements/UbuntuSpace.html>`_
 
 4. The control plane needs to be internet-capable with Git installed. If Git is not installed, use the following commands to install it:
 
