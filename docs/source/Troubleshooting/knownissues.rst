@@ -444,33 +444,6 @@ Reboot the NFS server (external to the cluster) to bring up the services again: 
 
 If your ``omnia.yml`` playbook execution fails while waiting for the MetalLB controller to be up and running, you need to wait for the MetalLB pods to come to running state and then re-run ``omnia.yml/scheduler.yml``.
 
-⦾ **What to do if omnia.yml playbook execution fails to execute "kubeadm join" or "kubeadm init" command?**
-
-**Potential Cause**: An additional active NIC other than the admin NIC is present on the ``kube_control_plane``, with an active internet connection and lower metric value.
-
-**Resolution**: Perform the following steps:
-
-1. If ``kubeadm join``/ ``kubeadm init`` command fails, either one of the following should be done:
-
-    * Run ``kubeadm reset -f`` on the node where ``kubeadm join``/ ``kubeadm init`` command fails.
-    * Reset the cluster using ``utils/reset_cluster_configuration.yml``.
-
-2. After the cluster has been reset, inventory should be updated with argument ``ip``, and ``ip`` should have the value of required admin IP in case node has more than one network interface. If ``kube_control_plane`` has 2 interfaces ``eno1`` and ``eno2`` with IPs ``eno1=10.5.0.3`` and ``eno2=198.168.0.19``, inventory should have the following format: ::
-
-    [kube_control_plane]
-
-    10.5.0.3 ip=10.5.0.3
-
-    [kube_node]
-
-    10.5.0.4 ip=10.5.0.4
-
-    [etcd]
-
-    10.5.0.3 ip=10.5.0.3
-
-3. Re-run ``omnia.yml`` playbook with the updated inventory file.
-
 ⦾ **What to do if local_repo.yml execution fails with the following error:**
 
 .. image:: ../images/local_repo_permissions_error.png
