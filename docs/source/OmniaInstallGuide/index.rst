@@ -13,7 +13,7 @@ Prerequisites
     - `RHEL/RockyLinux <SpaceRequirements/RHELSpace.html>`_
     - `Ubuntu <SpaceRequirements/UbuntuSpace.html>`_
 
-4. The control plane needs to be internet-capable with Git installed. If Git is not installed, use the following commands to install it:
+4. The control plane needs to be internet-capable with Git installed. If Git is not installed, use the below commands to install it.
 
     - To install Git on RHEL and Rocky Linux installations, use the following command: ::
 
@@ -23,10 +23,9 @@ Prerequisites
 
           apt install git -y
 
-.. note:: Optionally, if the control plane has an Infiniband NIC installed on RHEL or Rocky Linux, run the below command:
-    ::
-        yum groupinstall "Infiniband Support" -y
+.. note:: Optionally, if the control plane has an Infiniband NIC installed on RHEL or Rocky Linux, run the below command: ::
 
+        yum groupinstall "Infiniband Support" -y
 
 
 Cloning the Omnia repository from Github
