@@ -1,6 +1,6 @@
 ﻿Software ,Disc utilization (size)
-AMD ROCM,4GB
-CUDA,4GB
+AMD ROCM,4 GB
+CUDA,4 GB
 OFED,1 GB
 FreeIPA,skipped
 OpenLDAP,6 MB
@@ -8,7 +8,7 @@ Secure login node,65 MB
 NFS,skipped
 BeeGFS,3 MB
 Slurm,190 MB
-Kubernetes,5GB
+Kubernetes,5 GB
 Jupyterhub,3.5 GB
 Kubeflow,96 GB
 Kserve,2 GB
