@@ -23,7 +23,7 @@ Prerequisites
 
           apt install git -y
 
-.. note:: Optionally, if the control plane has an Infiniband NIC installed on RHEL or Rocky Linux, run the below command:
+.. note:: Optionally if the control plane server running on RHEL or Rocky Linux has an Infiniband NIC installed, run the below command to install the hardware drivers and Infiniband-related packages:
     ::
         yum groupinstall "Infiniband Support" -y
 
@@ -31,7 +31,7 @@ Prerequisites
 Cloning the Omnia repository from Github
 -----------------------------------------
 
-Clone the Omnia repository from GitHub on to the control plane server, using the following command: ::
+Clone the Omnia repository from GitHub on to the control plane server using the following command: ::
 
     git clone https://github.com/dell/omnia.git
 
@@ -39,7 +39,7 @@ Clone the Omnia repository from GitHub on to the control plane server, using the
 Change directory to Omnia
 --------------------------
 
-Once the cloning process is complete, change directory to Omnia, using the following command: ::
+Once the cloning process is complete, change directory to Omnia using the following command: ::
 
     cd omnia
 
