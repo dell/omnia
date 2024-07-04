@@ -25,7 +25,7 @@ Prerequisites
 
 .. note:: Optionally, if the control plane has an Infiniband NIC installed on RHEL or Rocky Linux, run the below command: ::
 
-        yum groupinstall "Infiniband Support" -y
+    yum groupinstall "Infiniband Support" -y
 
 
 Cloning the Omnia repository from Github
