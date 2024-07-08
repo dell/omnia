@@ -145,6 +145,8 @@ For information on deploying BeeGFS after setting up the cluster, `click here <.
 
         * A sample format is available `here <InputParameters.html>`_.
 
+.. note:: The RoCE plugin is only supported on Ubuntu clusters.
+
 **Custom repositories**
 
     Include the following line under ``softwares`` in ``input/software_config.json``: ::
