@@ -1,6 +1,15 @@
 Kubernetes plugin for RoCE NIC
 ===================================
 
+.. caution:: Kubernetes plugin for the RoCE NIC is only supported on the Ubuntu clusters (not on RHEL/Rocky Linux clusters).
+
+Few important things to keep in mind before proceeding with the installation:
+
+1. Defined network interfaces with their respective IP ranges (start and end) should be assigned.
+2. Number of entries in the ``input/roce_plugin_config.yml`` should be equal to number of RoCE interfaces available in the RoCE pod.
+3. VLAN NICs are not supported.
+4. This playbook supports the deployment of up to 8 RoCE NIC interfaces.
+
 Install the plugin
 -------------------
 
@@ -17,37 +26,58 @@ Install the plugin
    :header-rows: 1
    :keepspace:
 
-* ``name``:  This field captures the interface name of the RoCE NIC.
-* ``range``: This field captures the IP range for the RoCE NIC.
-* ``gateway``: This field captures the gateway value to the RoCE NIC interface.
 
       Here is an example of the ``input/roce_plugin_config.yml``: ::
 
           interfaces:
             - name: eth1
               range: 192.168.1.0/24
+              range_start:
+              range_end:
               gateway: 192.168.1.1
+              route: 192.168.1.0/24
             - name: eth2
               range: 192.168.2.0/24
-              gateway: 192.168.2.1
+              range_start:
+              range_end:
+              gateway:
+              route:
             - name: eth3
               range: 192.168.3.0/24
-              gateway: 192.168.3.1
+              range_start:
+              range_end:
+              gateway:
+              route:
             - name: eth4
               range: 192.168.4.0/24
-              gateway: 192.168.4.1
+              range_start:
+              range_end:
+              gateway:
+              route:
             - name: eth5
               range: 192.168.5.0/24
-              gateway: 192.168.5.1
+              range_start:
+              range_end:
+              gateway:
+              route:
             - name: eth6
               range: 192.168.6.0/24
-              gateway: 192.168.6.1
+              range_start:
+              range_end:
+              gateway:
+              route:
             - name: eth7
               range: 192.168.7.0/24
-              gateway: 192.168.7.1
+              range_start:
+              range_end:
+              gateway:
+              route:
             - name: eth8
               range: 192.168.8.0/24
-              gateway: 192.168.8.1
+              range_start:
+              range_end:
+              gateway:
+              route:
 
 **To run the playbook**
 
