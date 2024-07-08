@@ -15,11 +15,11 @@ Install the plugin
 
 **Prerequisites**
 
-    * Ensure Kubernetes is set up on the cluster with ``flannel`` as the input for the ``k8s_cni`` parameter. For The complete list of parameters, `click here <schedulerinputparams.html#id11>`_.
-    * Ensure that the ``bcm_roce`` drivers are installed on the nodes.
-    * Ensure that additional NICs have been configured using the ``server_spec_update.yml`` playbook. For more information on how to configure additional NICs, `click here <../InstallingProvisionTool/AdditionalNIC.html>`_.
-    * Ensure that the ``{"name": "roce_plugin"}`` entry is present in the ``software_config.json`` and the same config has been used while executing the ``local_repo.yml`` playbook.
-    * Ensure to update the below mentioned parameters in ``input/roce_plugin_config.yml``:
+* Ensure Kubernetes is set up on the cluster with ``flannel`` as the input for the ``k8s_cni`` parameter. For The complete list of parameters, `click here <schedulerinputparams.html#id11>`_.
+* Ensure that the ``bcm_roce`` drivers are installed on the nodes.
+* Ensure that additional NICs have been configured using the ``server_spec_update.yml`` playbook. For more information on how to configure additional NICs, `click here <../InstallingProvisionTool/AdditionalNIC.html>`_.
+* Ensure that the ``{"name": "roce_plugin"}`` entry is present in the ``software_config.json`` and the same config has been used while executing the ``local_repo.yml`` playbook.
+* Ensure to update the below mentioned parameters in ``input/roce_plugin_config.yml``:
 
 .. csv-table:: Parameters for RoCE NIC
    :file: ../../Tables/roce_config.csv
