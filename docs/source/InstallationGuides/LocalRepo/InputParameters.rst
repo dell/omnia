@@ -29,6 +29,7 @@ Sample version of the file:
                 {"name": "nfs"},
                 {"name": "beegfs", "version": "7.4.2"},
                 {"name": "k8s", "version":"1.26.12"},
+                {"name": "roce_plugin"},
                 {"name": "jupyter"},
                 {"name": "kubeflow"},
                 {"name": "kserve"},
