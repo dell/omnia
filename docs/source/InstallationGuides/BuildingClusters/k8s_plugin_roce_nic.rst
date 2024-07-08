@@ -9,7 +9,7 @@ Few important things to keep in mind before proceeding with the installation:
 2. Number of entries in the ``input/roce_plugin_config.yml`` should be equal to number of RoCE interfaces available in the RoCE pod.
 3. VLAN NICs are not supported.
 4. This playbook supports the deployment of up to 8 RoCE NIC interfaces.
-5. Omnia does not validate any parameter entries in the ``input/roce_plugin_config.yml``. It is the user's responsibility to provide correct inputs for the required parameters. In case of any errors due to incorrect entries, delete and re-install the plugin.
+5. Omnia does not validate any parameter entries in the ``input/roce_plugin_config.yml``. It is the user's responsibility to provide correct inputs for the required parameters. In case of any errors due to incorrect entries, delete and re-install the plugin with correct inputs.
 
 Install the plugin
 -------------------
@@ -88,6 +88,25 @@ Run the playbook using the following commands: ::
     ansible-playbook deploy_roce_plugin.yml -i inventory
 
 Where the inventory should be the same as the one used to setup Kubernetes on the cluster.
+
+.. note:: A config file named ``roce_plugin.json`` is located at omnia\input\config\ubuntu\22.04\roce_plugin.json. This config file contains all the details about the Kubernetes plugin for the RoCE NIC. Here is an example of the config file: ::
+
+       {
+         "package": "whereabouts",
+         "url": "https://github.com/k8snetworkplumbingwg/whereabouts.git",
+         "type": "git",
+         "version": "master",
+         "commit": "638d58"
+       },
+       {
+         "package": "k8s-rdma-shared-dev-plugin",
+         "url": "https://github.com/Mellanox/k8s-rdma-shared-dev-plugin.git",
+         "type": "git",
+         "version": "master",
+         "commit": "c94b2cef"
+       },
+
+    * The ``version`` and the ``commit`` attributes are set to the default value verified by Omnia. If you want to update these attributes, you may do so at your own responsibility.
 
 Delete the plugin
 ------------------
