@@ -1,4 +1,4 @@
-﻿Variables,Details
+﻿Parameters,Details
 "**nfs_client_params**
 
      ``JSON List``
@@ -7,7 +7,7 @@
 * For a bolt-on set up where there is a pre-existing NFS export, set ``nfs_server`` to ``false``.
 * When ``nfs_server`` is set to ``true``, an NFS share is created on the control plane for access by all cluster nodes.
 * For more information on the different kinds of configuration available, `click here. <NFS.html>`_"
-"beegfs_rdma_support
+"**beegfs_rdma_support**
      ``boolean``
      Optional","This variable is used if user has RDMA-capable network hardware (e.g.,   InfiniBand)
 
@@ -16,27 +16,27 @@ Choices:
      * ``false`` <- Default
 
      * ``true``"
-"beegfs_ofed_kernel_modules_path
+"**beegfs_ofed_kernel_modules_path**
      ``string``
      Optional
 ","* The path where separate OFED kernel modules are installed.
 * Ensure that the path provided here exists on all target nodes.
      **Default value**: ``""/usr/src/ofa_kernel/default/include""``
 "
-"beegfs_mgmt_server
+"**beegfs_mgmt_server**
      ``string``
      Required
 ","BeeGFS management server IP.
 
 .. note:: The provided IP should have an   explicit BeeGFS management server running .
 "
-"beegfs_mounts
+"**beegfs_mounts**
      ``string``
      Optional
    ","Beegfs-client file system mount location. If ``storage_yml`` is being   used to change the BeeGFS mounts location, set ``beegfs_unmount_client`` to   ``true``.
      **Default value**: ""/mnt/beegfs""
 "
-"beegfs_unmount_client
+"**beegfs_unmount_client**
      ``boolean``
      Optional
 ","Changing this value to true will unmount running instance of BeeGFS   client and should only be used when decommisioning BeeGFS, changing the mount   location or changing the BeeGFS version.
@@ -47,7 +47,7 @@ Choices:
 
      * ``true``
 "
-"beegfs_version_change
+"**beegfs_version_change**
      ``boolean``
      Optional
 ","Use this variable to change the BeeGFS version on the target nodes.

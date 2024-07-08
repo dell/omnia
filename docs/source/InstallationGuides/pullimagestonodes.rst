@@ -93,7 +93,7 @@ Follow the steps below to download packages/images:
           Example: ::
 
               export http_proxy=http://10.5.255.254:3128
-              export https_proxy= http://10.5.255.254:3128
+              export https_proxy=http://10.5.255.254:3128
 
           To pull any specific image to a particular node, do the following:
 

@@ -1,0 +1,37 @@
+﻿Parameters,Details
+"**name**
+
+     ``string``
+
+     Required    ","* The interface name of the RoCE NIC.
+**Example**: ``eth1``"
+"**range**
+     ``string``
+     Required","* The IP range for this interface which should be assigned inside rocepod. It is specified in CIDR notation.
+**Example**: ``192.168.1.0/24``"
+"**range_start**
+     ``string``
+     Optional
+","* This specifies the starting IP address within the defined range for assigning IPs to network interfaces.
+**Example**: ``192.168.0.100``
+"
+"**range_end**
+     ``string``
+     Optional
+","* This specifies the ending IP address within the defined range for assigning IPs to network interfaces.
+**Example**: ``192.168.0.200``"
+"**gateway**
+     ``string``
+     Optional
+   ","* This specifies the IP address of the gateway for the network.
+**Example**: ``192.168.1.1``
+"
+"**route**
+     ``string``
+     Optional
+","* This specifies additional routing rules for the network interface. Routes determine the paths that packets take to reach specific networks or hosts.
+**Example**: 192.168.1.0/24
+"
+,
+,
+,

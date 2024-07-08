@@ -12,6 +12,11 @@ Install the plugin
     * Ensure that the ``{"name": "roce_plugin"}`` entry is present in the ``software_config.json`` and the same config has been used while executing the ``local_repo.yml`` playbook.
     * Ensure to update the below mentioned parameters in ``input/roce_plugin_config.yml``:
 
+            .. csv-table:: Parameters for RoCE NIC
+               :file: ../../Tables/roce_config.csv
+               :header-rows: 1
+               :keepspace:
+
             * ``name``:  This field captures the interface name of the RoCE NIC.
             * ``range``: This field captures the IP range for the RoCE NIC.
             * ``gateway``: This field captures the gateway value to the RoCE NIC interface.
