@@ -45,6 +45,7 @@ Optional ","This field captures the gateway value to the RoCE NIC interface.
 
 Optional","
 *This specifies additional routing rules for the network interface. Routes determine the paths that packets take to reach specific networks or hosts.
+
 * This parameter is mandatory if ``gateway`` is provided.
 
 **Example**: ``192.168.1.0/24``
