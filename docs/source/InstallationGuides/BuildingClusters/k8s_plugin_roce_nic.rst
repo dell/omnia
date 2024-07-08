@@ -9,7 +9,7 @@ Few important things to keep in mind before proceeding with the installation:
 2. Number of entries in the ``input/roce_plugin_config.yml`` should be equal to number of RoCE interfaces available in the RoCE pod.
 3. VLAN NICs are not supported.
 4. This playbook supports the deployment of up to 8 RoCE NIC interfaces.
-5. Omnia does not validate any parameter entries in the ``input/roce_plugin_config.yml``. It is the user's responsibility to provide correct inputs for the required parameters. In case of any errors due to incorrect entries, delete and re-install the plugin with correct inputs.
+5. Omnia does not validate any parameter entries in the ``input/roce_plugin_config.yml``. It is the user's responsibility to provide correct inputs for the required parameters. In case of any errors encountered due to incorrect entries, delete and re-install the plugin with the correct inputs.
 
 Install the plugin
 -------------------
