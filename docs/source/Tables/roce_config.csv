@@ -11,7 +11,7 @@ Required    ","This field captures the interface name of the RoCE NIC.
 
 ``string``
 
-Required","The IP range for this interface which should be assigned inside rocepod. It is specified in CIDR notation.
+Required","This field captures the IP range for the RoCE interface. The IPs within this range are assigned to the RoCE pod. This parameter is provided in the CIDR format, that is, ``<IP>/<subnet>``.
 
 **Example**: ``192.168.1.0/24``
 "
@@ -19,7 +19,7 @@ Required","The IP range for this interface which should be assigned inside rocep
 
 ``string``
 
-Optional","This specifies the starting IP address within the defined range for assigning IPs to network interfaces.
+Optional","This field specifies the starting IP address within the defined IP range.
 
 **Example**: ``192.168.0.100``
 "
@@ -27,7 +27,7 @@ Optional","This specifies the starting IP address within the defined range for a
 
 ``string``
 
-Optional","This specifies the ending IP address within the defined range for assigning IPs to network interfaces.
+Optional","This specifies the ending IP address within the defined IP range.
 
 **Example**: ``192.168.0.200``
 "
@@ -44,8 +44,8 @@ Optional ","This field captures the gateway value to the RoCE NIC interface.
 ``string``
 
 Optional","
-* This specifies additional routing rules for the network interface. Routes determine the paths that packets take to reach specific networks or hosts.
+* This specifies additional routing rules for the RoCE network interface. Route determines the path that data takes to reach specific networks or hosts.
 
-* This parameter is mandatory if ``gateway`` is provided.
+* This parameter is mandatory if ``gateway`` value is provided.
 **Example**: ``192.168.1.0/24``
 "
