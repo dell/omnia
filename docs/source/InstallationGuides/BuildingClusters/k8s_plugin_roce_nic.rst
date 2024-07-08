@@ -89,7 +89,7 @@ Run the playbook using the following commands: ::
 
 Where the inventory should be the same as the one used to setup Kubernetes on the cluster.
 
-.. note:: A config file named ``roce_plugin.json`` is located at omnia\input\config\ubuntu\22.04\roce_plugin.json. This config file contains all the details about the Kubernetes plugin for the RoCE NIC. Here is an example of the config file: ::
+.. note:: A config file named ``roce_plugin.json`` is located in ``omnia\input\config\ubuntu\22.04\``. This config file contains all the details about the Kubernetes plugin for the RoCE NIC. Here is an example of the config file: ::
 
        {
          "package": "whereabouts",
@@ -106,7 +106,7 @@ Where the inventory should be the same as the one used to setup Kubernetes on th
          "commit": "c94b2cef"
        },
 
-    * The ``version`` and the ``commit`` attributes are set to the default value verified by Omnia. If you want to update these attributes, you may do so at your own responsibility.
+    * The ``version`` and the ``commit`` attributes mentioned here are set to the default values verified by Omnia. If you want to update these attributes, you may do so at your own responsibility.
 
 Delete the plugin
 ------------------
