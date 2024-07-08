@@ -27,7 +27,7 @@ Install the plugin
    :keepspace:
 
 
-      Here is an example of the ``input/roce_plugin_config.yml``: ::
+Here is an example of the ``input/roce_plugin_config.yml``: ::
 
           interfaces:
             - name: eth1
