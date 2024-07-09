@@ -135,6 +135,18 @@ For information on deploying BeeGFS after setting up the cluster, `click here <.
     * The RoCE driver is only supported on Ubuntu clusters.
     * The only accepted URL for the RoCE driver is from the `Dell support <https://www.dell.com/support/home/en-us>`_ site.
 
+**Kubernetes plugin for the RoCE NIC**
+
+    To install Kubernetes plugin for the RoCE NIC, do the following:
+
+        * Include the following line under ``softwares`` in ``input/software_config.json``: ::
+
+            {"name": "roce_plugin"},
+
+        * A sample format is available `here <InputParameters.html>`_.
+
+.. note:: The RoCE plugin is only supported on Ubuntu clusters.
+
 **Custom repositories**
 
     Include the following line under ``softwares`` in ``input/software_config.json``: ::
