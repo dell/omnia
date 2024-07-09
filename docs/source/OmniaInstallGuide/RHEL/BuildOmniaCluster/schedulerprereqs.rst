@@ -1,7 +1,7 @@
 Before you build clusters
 --------------------------
 
-* `Ensure that all cluster nodes are up and running <../InstallingProvisionTool/ViewingDB.html>`_.
+* `Ensure that all cluster nodes are up and running <../Provision/ViewingDB.html>`_.
 
 * Verify that the inventory file is updated as mentioned in the `inventory sample file <../../samplefiles.html>`_.
 
