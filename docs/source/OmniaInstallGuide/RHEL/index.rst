@@ -8,3 +8,8 @@ Install Omnia on Red Hat Enterprise Linux (RHEL) clusters
     CreateInventory
     BuildOmniaCluster/index
     InstallAITools/index
+
+.. toctree::
+    RHELSpace
+    Prereq.sh/index
+    CreateLocalRepo/index
