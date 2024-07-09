@@ -131,6 +131,7 @@ For a list of accepted values in ``softwares``, go to ``input/config/<cluster_os
     k8s.json
     kserve.json
     kubeflow.json
+    roce_plugin.json
     nfs.json
     ofed.json
     openldap.json
@@ -138,7 +139,7 @@ For a list of accepted values in ``softwares``, go to ``input/config/<cluster_os
     tensorflow.json
     vllm.json
 
-For a list of repositories (and their types) configured for AMD GPUs, view the ``amdgpu.json``` file: ::
+For a list of repositories (and their types) configured for AMD GPUs, view the ``amdgpu.json`` file: ::
 
     {
       "amdgpu": {
