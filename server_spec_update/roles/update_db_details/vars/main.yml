@@ -1,0 +1,25 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Usage: update_network_info.yml
+python_version: "python3.9"
+update_network_db: "{{ role_path }}/files/update_nicinfo_db.py"
+server_spec_path: "{{ role_path }}/../../../input/server_spec.yml"
+metadata_nicinfo_path: "/opt/omnia/.data/nic_metadata.yml"
+node_db_path: "{{ role_path }}/../../../discovery/roles/db_operations/files"
+update_network_db_fail_msg: "Failed. Unable to configure networks on the nodes.
+Please verify inputs in server_spec.yml & network_spec.yml, and re-run the playbook.
+Make sure no changes are made to the existing groups in the server_spec.yml and existing networks in the network_spec.yml.
+For any changes add new groups in server_spec.yml or new networks in network_spec.yml"

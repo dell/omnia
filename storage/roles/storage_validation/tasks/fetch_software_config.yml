@@ -1,0 +1,149 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Initialise variables
+  ansible.builtin.set_fact:
+    beegfs_support: false
+    nfs_support: false
+
+- name: Load software_config.json
+  ansible.builtin.include_vars:
+    file: "{{ software_config_json_file }}"
+    name: software_config
+
+- name: Set facts for cluster
+  ansible.builtin.set_fact:
+    cluster_os_type: "{{ software_config.cluster_os_type }}"
+    repo_config: "{{ software_config.repo_config }}"
+
+- name: Include variable file local_repo_config.yml
+  ansible.builtin.include_vars: "{{ local_repo_config_file }}"
+
+- name: Check beegfs support
+  ansible.builtin.set_fact:
+    beegfs_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'beegfs') | list | length > 0 }}"
+
+- name: Check nfs support
+  ansible.builtin.set_fact:
+    nfs_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'nfs') | list | length > 0 }}"
+
+- name: Check if k8s support is true
+  ansible.builtin.set_fact:
+    k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'k8s') | list | length > 0 }}"
+
+- name: Check if slurm support is true
+  ansible.builtin.set_fact:
+    slurm_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'slurm') | list | length > 0 }}"
+
+- name: Check if ucx is true
+  ansible.builtin.set_fact:
+    ucx_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'ucx') | list | length > 0 }}"
+
+- name: Check if openmpi is true
+  ansible.builtin.set_fact:
+    openmpi_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'openmpi') | list | length > 0 }}"
+
+- name: Validate beegfs version
+  when: beegfs_support
+  block:
+    - name: Extract beegfs version
+      ansible.builtin.set_fact:
+        beegfs_client_version: "{{ software_config.softwares | selectattr('name', 'equalto', 'beegfs') | map(attribute='version') | first }}"
+  rescue:
+    - name: Unable to fetch beegfs version
+      ansible.builtin.fail:
+        msg: "{{ beegfs_version_fail_msg }}"
+
+- name: Validate beegfs repo incase of always
+  when: beegfs_support and repo_config == "always" and cluster_os_type in ["rhel","rocky"]
+  block:
+    - name: Check beegfs_directory
+      ansible.builtin.stat:
+        path: "{{ beegfs_directory_rhel_rocky }}"
+      register: check_beegfs_directory
+
+    - name: Validate beegfs_directory existence
+      ansible.builtin.assert:
+        that: check_beegfs_directory.stat.exists
+        fail_msg: "{{ beegfs_repo_failure_msg }}"
+
+- name: Initialize nfs_client_support
+  ansible.builtin.set_fact:
+    nfs_client_support: false
+
+- name: Include storage_config.yml file
+  block:
+    - name: Include storage_config.yml file
+      ansible.builtin.include_vars: "{{ storage_config_vars }}"
+      register: include_storage_config
+  rescue:
+    - name: Failed to storage_config.yml
+      ansible.builtin.fail:
+        msg: "{{ storage_config_syntax_fail_msg }} Error: {{ include_storage_config.message }}"
+
+- name: Set facts for cluster
+  ansible.builtin.set_fact:
+    cluster_os_type: "{{ software_config.cluster_os_type }}"
+
+- name: Check if nfs_client_params has exactly one entry with k8s_share as true
+  ansible.builtin.assert:
+    that: nfs_client_params | selectattr('k8s_share', 'defined') | selectattr('k8s_share', 'equalto', true) | list | length == 1
+    fail_msg: "{{ nfs_client_params_k8s_share_fail_msg }}"
+    success_msg: "{{ nfs_client_params_k8s_share_success_msg }}"
+  when: k8s_support
+
+- name: Check if nfs_client_params has exactly one entry with slurm_share as true
+  ansible.builtin.assert:
+    that: nfs_client_params | selectattr('slurm_share', 'defined') | selectattr('slurm_share', 'equalto', true) | list | length == 1
+    fail_msg: "{{ nfs_client_params_slurm_share_fail_msg }}"
+    success_msg: "{{ nfs_client_params_slurm_share_success_msg }}"
+  when:
+    - slurm_support
+    - slurm_installation_type == "nfs_share"
+    - cluster_os_type not in compute_os_ubuntu
+
+# Check if both slurm_share and k8s_share not are defined for benchmarks
+- name: Fail if both slurm_share and k8s_share not are defined for benchmarks
+  ansible.builtin.assert:
+    that: ( nfs_client_params | selectattr('slurm_share', 'defined') | selectattr('slurm_share', 'equalto', true) | list | length == 1)
+      or (nfs_client_params | selectattr('k8s_share', 'defined') | selectattr('k8s_share', 'equalto', true) | list | length == 1)
+    fail_msg: "{{ nfs_client_params_benchmarks_fail_msg }}"
+    success_msg: "{{ nfs_client_params_benchmarks_success_msg }}"
+  when:
+    - (ucx_support is true) or (openmpi_support is true)
+
+- name: Print the Warning message for slurm_share with ubuntu
+  ansible.builtin.pause:
+    seconds: "{{ warning_wait_time }}"
+    prompt: "{{ slurm_share_on_ubuntu_warning_msg }}"
+  when:
+    - ( nfs_client_params | selectattr('slurm_share', 'defined') | selectattr('slurm_share', 'equalto', true) | list | length == 1)
+    - cluster_os_type == compute_os_ubuntu
+
+- name: Update nfs_client_support
+  ansible.builtin.set_fact:
+    nfs_client_support: true
+  when:
+    - item.server_ip | default("", true) | length > 1 or
+      item.server_share_path | default("", true) | length > 1 or
+      item.client_share_path | default("", true) | length > 1 or
+      item.client_mount_options | default("", true) | length > 1
+  with_items: "{{ nfs_client_params }}"
+
+- name: Check for nfs_client_params in storage_config.yml
+  ansible.builtin.assert:
+    that: nfs_client_support is true
+    fail_msg: "{{ nfs_client_params_failure_msg }}"
+  when: nfs_support

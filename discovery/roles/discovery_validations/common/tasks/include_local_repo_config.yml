@@ -1,0 +1,113 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Set facts with omnia_default version
+  ansible.builtin.set_fact:
+    beegfs_version: "omnia_default"
+    amdgpu_version: "omnia_default"
+    rocm_version: "omnia_default"
+
+- name: Include local_repo_config.yml vars
+  block:
+    - name: Include local_repo_config.yml vars
+      ansible.builtin.include_vars: "{{ local_repo_config_file }}"
+      register: include_local_repo_config
+      no_log: true
+  rescue:
+    - name: Failed to local_repo_config.yml
+      ansible.builtin.fail:
+        msg: "{{ local_repo_config_syntax_fail_msg }} Error: {{ include_local_repo_config.message }}"
+
+- name: Load software_config.json as user_config
+  block:
+    - name: Load software_config.json as user_config
+      ansible.builtin.include_vars:
+        file: "{{ software_config_file }}"
+        name: user_config
+      register: include_software_config
+      no_log: true
+  rescue:
+    - name: Failed to load software_config.json as user_config
+      ansible.builtin.fail:
+        msg: "{{ software_config_syntax_fail_msg }} Error: {{ include_software_config.message }}"
+
+- name: Fail if user_config variables not present
+  ansible.builtin.fail:
+    msg: "{{ invalid_software_config_fail_msg }}"
+  when:
+    - user_config.cluster_os_type is not defined or
+      user_config.cluster_os_version is not defined or
+      user_config.repo_config is not defined or
+      user_config.cluster_os_type | length < 1 or
+      user_config.cluster_os_version | length < 1 or
+      user_config.repo_config | length < 1 or
+      user_config.softwares is not defined
+
+- name: Set facts for cluster
+  ansible.builtin.set_fact:
+    repo_config: "{{ user_config.repo_config }}"
+    provision_os: "{{ user_config.cluster_os_type }}"
+    provision_os_version: "{{ user_config.cluster_os_version }}"
+    softwares: "{{ user_config.softwares }}"
+    cluster_os_version: "{{ user_config.cluster_os_version }}"
+
+- name: Set variable 'os_release' to 'jammy' if OS is Ubuntu and version is 22.04
+  ansible.builtin.set_fact:
+    os_release: "jammy"
+  when: provision_os == 'ubuntu' and provision_os_version == '22.04'
+
+- name: Set variable 'os_release' to 'focal' if OS is Ubuntu and version is 20.04
+  ansible.builtin.set_fact:
+    os_release: "focal"
+  when: provision_os == 'ubuntu' and provision_os_version == '20.04'
+
+- name: Generate software JSON file names
+  ansible.builtin.set_fact:
+    software_names: "{{ user_config.softwares | map(attribute='name') | select('defined') | list }}"
+
+- name: Generate software names having subgroup
+  ansible.builtin.set_fact:
+    subgroup_software_names: "{{ subgroup_software_names | default([]) + [item] }}"
+  loop: "{{ software_names }}"
+  when: item in user_config | dict2items | map(attribute='key') | list
+  # noqa: var-naming[no-jinja]
+
+- name: Update software versions from software_config.json (softwares)
+  ansible.builtin.set_fact:
+    "{{ item.name }}_version": "{{ item.version }}"
+  loop: "{{ user_config.softwares | default([]) }}"
+  when: item.version is defined
+  loop_control:
+    loop_var: item
+  # noqa: var-naming[no-jinja]
+
+- name: Update software versions from software_config.json (subgroup)
+  ansible.builtin.include_tasks: validate_software_config_subgroup_json.yml
+  loop: "{{ subgroup_software_names }}"
+  loop_control:
+    loop_var: item
+  vars:
+    subgroup_software_name: "{{ item }}"
+  when: subgroup_software_name is defined
+  # noqa: var-naming[no-jinja]
+
+- name: Update software versions from software_config.json (amdgpu)
+  ansible.builtin.set_fact:
+    "{{ item.name }}_version": "{{ item.version }}"
+  loop: "{{ user_config.amdgpu | default([]) }}"
+  when: item.version is defined
+  loop_control:
+    loop_var: item
+  # noqa: var-naming[no-jinja]

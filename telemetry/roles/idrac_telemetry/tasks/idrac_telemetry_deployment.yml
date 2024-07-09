@@ -65,7 +65,7 @@
             containers:
               - name: activemq
                 image: rmohr/activemq:5.10.0
-                imagePullPolicy: "Always"
+                imagePullPolicy: "IfNotPresent"
                 ports:
                   - containerPort: "{{ activemq_http_port_1 }}"
                   - containerPort: "{{ activemq_http_port_2 }}"
@@ -89,12 +89,12 @@
                   - name: MYSQL_USER
                     valueFrom:
                       secretKeyRef:
-                        name: "{{ secrets_name }}"
+                        name: "{{ mysqldb_secrets_name }}"
                         key: sqldb_user
                   - name: MYSQL_PASSWORD
                     valueFrom:
                       secretKeyRef:
-                        name: "{{ secrets_name }}"
+                        name: "{{ mysqldb_secrets_name }}"
                         key: sqldb_password
                   - name: MYSQL_HOST
                     value: mysqldb

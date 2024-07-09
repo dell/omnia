@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,45 +13,51 @@
 # limitations under the License.
 ---
 
-- name: Check node reachable
-  hosts: manager, compute, login
-  tasks:
-    - name: Check node reachable
-      ansible.builtin.include_role:
-        name: scheduler/roles/node_validation
-        tasks_from: validate_node_reachable.yml
+- name: Update Inventory with ansible_host information
+  ansible.builtin.import_playbook: utils/servicetag_host_mapping.yml
+  when: not ( update_inventory_executed | default(false) | bool )
+
+- name: Gather facts from all the nodes
+  hosts: slurm_control_node, kube_control_plane, slurm_node, kube_node, login, etcd
 
 - name: Validate all input parameters
   hosts: localhost
   connection: local
   gather_facts: true
   roles:
-    - scheduler/roles/cluster_validation
-    - security/roles/security_validation
-    - storage/roles/storage_validation
-    - telemetry/roles/telemetry_validation
+    - role: scheduler/roles/cluster_validation     # noqa:role-name[path]
+    - role: security/roles/security_validation     # noqa:role-name[path]
+    - role: storage/roles/storage_validation       # noqa:role-name[path]
+    - role: telemetry/roles/telemetry_validation   # noqa:role-name[path]
 
-- name: Check internet access
-  hosts: manager, compute, login
+- name: Update Repositories/Registries on nodes
+  ansible.builtin.import_playbook: utils/update_user_repo.yml
+  when: not ( update_user_repo_executed | default(false) | bool )
+
+- name: Set flag
+  hosts: localhost
+  connection: local
   gather_facts: false
-  any_errors_fatal: true
   tasks:
-    - name: Check internet access
-      ansible.builtin.include_role:
-        name: scheduler/roles/node_validation
-        tasks_from: validate_internet_access.yml
+    - name: Set flag to indicate update_user_repo.yml has been executed
+      ansible.builtin.set_fact:
+        update_user_repo_executed: true
+
+    - name: Set flag to indicate servicetag_host_mapping.yml has been executed
+      ansible.builtin.set_fact:
+        update_inventory_executed: true
+
+- name: Import playbook to install ROCm on nodes
+  ansible.builtin.import_playbook: utils/rocm_installation.yml
 
 - name: Configure security on nodes
   ansible.builtin.import_playbook: security/security.yml
 
-- name: Execute slurm/kubernetes
-  ansible.builtin.import_playbook: scheduler/scheduler.yml
-
 - name: Import playbook to configure storage on nodes
   ansible.builtin.import_playbook: storage/storage.yml
 
-- name: Passwordless SSH between manager and compute nodes
-  ansible.builtin.import_playbook: utils/passwordless_ssh.yml
+- name: Execute slurm/kubernetes
+  ansible.builtin.import_playbook: scheduler/scheduler.yml
 
 - name: Import playbook to start telemetry services
   ansible.builtin.import_playbook: telemetry/telemetry.yml

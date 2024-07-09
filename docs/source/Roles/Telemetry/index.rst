@@ -3,6 +3,8 @@ Telemetry and visualizations
 
 The telemetry feature allows the set up  of Omnia telemetry (to poll values from all Omnia provisioned nodes in the cluster) and/or iDRAC telemetry (To poll values from all eligible iDRACs in the cluster). It also installs `Grafana <https://grafana.com/>`_ and `Loki <https://grafana.com/oss/loki/>`_ as Kubernetes pods.
 
+.. note:: In order to enable telemetry feature in Omnia, ensure to add ``telemetry`` in ``software_config.json``.
+
 To initiate telemetry support, fill out the following parameters in ``input/telemetry_config.yml``:
 
 .. csv-table:: Parameters
@@ -12,7 +14,7 @@ To initiate telemetry support, fill out the following parameters in ``input/tele
 
 .. [1] Boolean parameters do not need to be passed with double or single quotes.
 
-Once you have executed ``provision.yml`` and has also provisioned the cluster, initiate telemetry on the cluster as part of ``omnia.yml``, which configures the cluster with scheduler, storage and authentication using the below command. ::
+Once you have executed ``discovery_provision.yml`` and has also provisioned the cluster, initiate telemetry on the cluster as part of ``omnia.yml``, which configures the cluster with scheduler, storage and authentication using the below command. ::
 
     ansible-playbook omnia.yml -i inventory
 
@@ -22,9 +24,9 @@ Optionally, you can initiate only telemetry using the below command: ::
 
 .. note::
 
-    * Depending on the type of telemetry initiated, include the following groups in the inventory:
+    * Depending on the type of telemetry initiated, include the following possible groups in the inventory:
 
-        * omnia_telemetry: manager, compute, [optional] login
+        * omnia_telemetry: slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login, etcd
 
         * idrac_telemetry: idrac
 
@@ -45,8 +47,8 @@ To modify how data is collected from the cluster, modify the variables in ``omni
 .. note::
     * Currently, changing the ``grafana_username`` and ``grafana_password`` values is not supported via ``telemetry.yml``.
     * The passed inventory should have an idrac group, if ``idrac_telemetry_support`` is true.
-    * If ``omnia_telemetry_support`` is true, then the inventory should have manager and compute groups along with optional login group.
-    * Rocky 8.7 is not compatible with the Kubernetes installed by ``telemetry.yml`` due to known issues with cri-o. For more information, `click here <https://github.com/cri-o/cri-o/issues/6197>`_.
+    * If ``omnia_telemetry_support`` is true, then the inventory should have control plane and cluster node groups (as specified in the sample files) along with optional login group.
+    * Rocky Linux 8.7 is not compatible with the Kubernetes installed by ``telemetry.yml`` due to known issues with cri-o. For more information, `click here <https://github.com/cri-o/cri-o/issues/6197>`_.
     * If a subsequent run of ``telemetry.yml`` fails, the ``telemetry_config.yml`` file will be unencrypted.
 
 **To access the Grafana UI**
@@ -95,7 +97,7 @@ Datasources configured by Omnia can be viewed as seen below.
 
     iii. The log browser allows you to filter logs by job, node and/or user.
 
-Ex: ::
+Example ::
 
     (job)= "cluster deployment logs") |= "nodename"
     (job="compute log messages") |= "nodename" |="node_username"
@@ -120,8 +122,11 @@ Ex: ::
         * **hostname**: The hostname of the cluster node.
         * **time**: The timestamp at which the metric was polled from the cluster node.
 
-    If you are more comfortable using SQL queries over the query builder, click on **Edit SQL** to directly provide your query.
-    Optionally, the data returned from a query can be viewed as a graph.
+    *iDRAC telemetry data from Grafana*
+
+    .. image:: ../../images/idractelemetry.png
+
+.. note:: If you are more comfortable using SQL queries over the query builder, click on **Edit SQL** to directly provide your query. Optionally, the data returned from a query can be viewed as a graph.
 
 **Visualizations**
 

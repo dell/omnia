@@ -20,21 +20,23 @@
     mode: "{{ file_mode }}"
     force: true
 
-- name: Update group information on manager node
-  when: inventory_hostname in groups['manager']
+- name: Update group information on slurm_control_node
+  when:
+    - "'slurm_control_node' in groups"
+    - inventory_hostname in groups['slurm_control_node']
   block:
-    - name: Update the group information on manager node
+    - name: Update the group information on slurm_control_node
       ansible.builtin.lineinfile:
         path: "{{ init_file_path }}"
         regexp: "group_info=(.*)$"
-        line: "group_info=manager"
+        line: "group_info=slurm_control_node"
       when: "'login' in groups"
 
-    - name: Update the group information on manager node when login node not present
+    - name: Update the group information on slurm_control_node node when login node not present
       ansible.builtin.lineinfile:
         path: "{{ init_file_path }}"
         regexp: "group_info=(.*)$"
-        line: "group_info=manager,login"
+        line: "group_info=slurm_control_node,login"
       when: "'login' not in groups"
 
 - name: Update group information on login nodes
@@ -42,8 +44,19 @@
     - "'login' in groups"
     - inventory_hostname in groups['login']
   block:
-    - name: Update the group information for manager node
+    - name: Update the group information for login node
       ansible.builtin.lineinfile:
         path: "{{ init_file_path }}"
         regexp: "group_info=(.*)$"
         line: "group_info=login"
+
+- name: Update group information on kube_control_plane nodes
+  when:
+    - "'kube_control_plane' in groups"
+    - inventory_hostname in groups['kube_control_plane']
+  block:
+    - name: Update the group information on kube_control_plane
+      ansible.builtin.lineinfile:
+        path: "{{ init_file_path }}"
+        regexp: "group_info=(.*)$"
+        line: "group_info=kube_control_plane"

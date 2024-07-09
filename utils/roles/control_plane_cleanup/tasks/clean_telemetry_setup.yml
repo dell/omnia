@@ -12,10 +12,120 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+- name: Set control_plane_os
+  ansible.builtin.set_fact:
+    control_plane_os: "{{ ansible_distribution | lower }}"
 
 - name: Reset kubeadm
   ansible.builtin.command: kubeadm reset --cri-socket={{ crio_socket }} -f
   changed_when: false
+  failed_when: false
+
+- name: Stop kubelet service
+  ansible.builtin.service:
+    name: kubelet
+    state: stopped
+  failed_when: false
+
+- name: Remove kubelet service
+  ansible.builtin.file:
+    path: "/etc/systemd/system/kubelet.service"
+    state: absent
+  failed_when: false
+
+- name: Check if crictl is present
+  ansible.builtin.stat:
+    path: "{{ bin_dir }}/crictl"
+    get_attributes: false
+    get_checksum: false
+    get_mime: false
+  register: crictl
+
+- name: Stop all cri containers
+  ansible.builtin.shell: "set -o pipefail && {{ bin_dir }}/crictl ps -q | xargs -r {{ bin_dir }}/crictl -t 60s stop -t {{ grace_period }}"
+  args:
+    executable: /bin/bash
+  register: remove_all_cri_containers
+  retries: 5
+  until: remove_all_cri_containers.rc == 0
+  delay: 5
+  when:
+    - crictl.stat.exists
+  failed_when: false
+  changed_when: true
+
+- name: Force remove all cri containers
+  ansible.builtin.command: "{{ bin_dir }}/crictl rm -a -f"
+  register: remove_all_cri_containers
+  retries: 5
+  until: remove_all_cri_containers.rc == 0
+  delay: 5
+  when:
+    - crictl.stat.exists
+  failed_when: false
+  changed_when: true
+
+- name: Stop all cri pods
+  ansible.builtin.shell: "set -o pipefail && {{ bin_dir }}/crictl pods -q | xargs -r {{ bin_dir }}/crictl -t 60s stop"
+  args:
+    executable: /bin/bash
+  register: remove_all_cri_containers
+  retries: 5
+  until: remove_all_cri_containers.rc == 0
+  delay: 5
+  when:
+    - crictl.stat.exists
+  failed_when: false
+  changed_when: true
+
+- name: Remove all cri pods
+  block:
+    - name: Force remove all cri pods
+      ansible.builtin.command: "{{ bin_dir }}/crictl rmp -a -f"
+      register: remove_all_cri_containers
+      retries: 5
+      until: remove_all_cri_containers.rc == 0
+      delay: 5
+      when:
+        - crictl.stat.exists
+      failed_when: false
+      changed_when: true
+
+  rescue:
+    - name: Force remove all cri pods (rescue)
+      ansible.builtin.shell: "set -o pipefail && ip netns list | cut -d' ' -f 1 | xargs -n1 ip netns delete && {{ bin_dir }}/crictl rmp -a -f"
+      failed_when: false
+      changed_when: true
+
+- name: Get container ID for buildkitd
+  ansible.builtin.shell: >
+    set -o pipefail
+    && nerdctl ps -q -a -f name=buildkitd | head -n 1
+  register: buildkit_container_id
+  changed_when: false
+  failed_when: false
+
+- name: Stop buildkitd container
+  ansible.builtin.command: nerdctl stop {{ buildkit_container_id.stdout }}
+  when: buildkit_container_id.stdout is defined and buildkit_container_id.stdout != ''
+  changed_when: false
+  failed_when: false
+
+- name: Remove buildkitd container
+  ansible.builtin.command: nerdctl rm {{ buildkit_container_id.stdout }}
+  when: buildkit_container_id.stdout is defined and buildkit_container_id.stdout != ''
+  changed_when: false
+  failed_when: false
+
+- name: Remove kubernetes folder
+  ansible.builtin.file:
+    path: "{{ kube_folder_path }}"
+    state: absent
+
+- name: Remove runc package
+  ansible.builtin.package:
+    name: runc
+    state: absent
   failed_when: false
 
 - name: Remove /etc/exports entries
@@ -57,3 +167,40 @@
     path: "{{ item }}"
     state: absent
   with_items: "{{ metallb_files }}"
+
+- name: Stop docker service
+  ansible.builtin.service:
+    name: docker.service
+    state: stopped
+    enabled: false
+  failed_when: false
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+  changed_when: false
+  failed_when: false
+
+- name: Remove docker packages for RHEL/Rocky
+  ansible.builtin.command: dnf remove -y {{ docker_packages }}
+  changed_when: true
+  failed_when: false
+  when: control_plane_os in control_plane_os_redhat or
+          control_plane_os in control_plane_os_rocky
+
+- name: Remove docker packages for Ubuntu
+  ansible.builtin.command: apt remove -y {{ docker_packages }}
+  changed_when: true
+  failed_when: false
+  when: control_plane_os in control_plane_os_ubuntu
+
+- name: Remove docker files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  with_items: "{{ docker_del_files }}"
+
+- name: Remove docker.list file
+  ansible.builtin.file:
+    path: "{{ docker_list_path }}"
+    state: absent

@@ -1,4 +1,4 @@
-#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -21,21 +21,35 @@ ansible_cfg_dest:
   - { path: "{{ playbook_dir }}/telemetry/ansible.cfg", log_path: "/var/log/omnia/omnia_telemetry.log", regexp: "/var/log/omnia.log" }
   - { path: "{{ playbook_dir }}/platforms/ansible.cfg", log_path: "/var/log/omnia/omnia_platforms.log", regexp: "/var/log/omnia.log" }
 
+# Usage: fetch_software_config.yml
+software_config_json_file: "{{ role_path }}/../../../input/software_config.json"
+local_repo_access_dest_path: "/opt/omnia/offline/local_repo_access.yml"
+k8s_packages_file: "{{ role_path }}/../../../input/config/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/k8s.json"
+success_msg_ucx_version: "Success. ucx version is mentioned."
+fail_msg_ucx_version: "Failed. ucx version is not provided in software_config.json. Please include ucx version in input/software_config.json and rerun the playbook." # noqa: yaml[line-length]
+success_msg_openmpi_version: "Success. openmpi version is mentioned."
+fail_msg_openmpi_version: "Failed. openmpi version is not provided in software_config.json. Please include openmpi version in input/software_config.json and rerun the playbook." # noqa: yaml[line-length]
+compute_os_ubuntu: "ubuntu"
+
 # Usage: fetch_omnia_inputs.yml
 config_filename: "omnia_config.yml"
 config_vaultname: .omnia_vault_key
-vault_key_permission: 0644
+vault_key_permission: "0644"
 min_length: 8
 max_length: 30
 omnia_config_syntax_fail_msg: "Failed. Syntax errors present in omnia_config.yml. Fix errors and re-run playbook again."
 fail_msg_mariadb_password: "maria_db password not given in correct format."
 success_msg_mariadb_password: "mariadb_password validated"
 success_msg_k8s_version: "Kubernetes Version Validated"
-fail_msg_k8s_version: "Failed. Kubernetes Version is unsupported or incorrect in omnia_config.yml"
+fail_msg_k8s_version: "Failed. Kubernetes Version is unsupported or incorrect in software_config.json"
 success_msg_k8s_cni: "Kubernetes CNI Validated"
 fail_msg_k8s_cni: "Kubernetes CNI not correct."
-success_msg_k8s_pod_network_cidr: "Kubernetes pod network cidr validated"
-fail_msg_k8s_pod_network_cidr: "Kubernetes pod network cidr not given in correct format"
+success_msg_pod_external_ip_range: "pod_external_ip_range validated"
+fail_msg_pod_external_ip_range: "pod_external_ip_range is not given in correct format in omnia_config.yml"
+success_msg_k8s_service_addresses: "k8s_service_addresses validated"
+fail_msg_k8s_service_addresses: "k8s_service_addresses value not given in correct format in omnia_config.yml"
+success_msg_k8s_pod_network_cidr: "k8s_pod_network_cidr validated"
+fail_msg_k8s_pod_network_cidr: "k8s_pod_network_cidr is not given in correct format"
 file_perm: '0755'
 ldap_required_success_msg: "ldap_required variable successfully validated"
 ldap_required_fail_msg: "Failed. ldap_required should be either true or false"
@@ -46,6 +60,22 @@ ldap_freeipa_failure_msg: "Failed. Both ldap_required and freeipa_required canno
 enable_omnia_nfs_success_msg: "enable_omnia_nfs successfully validated"
 enable_omnia_nfs_fail_msg: "Failed. enable_omnia_nfs should be either true or false"
 input_config_failure_msg: "None of the parameters in omnia_config.yml should be empty."
+slurm_installation_type_empty_failure_msg: "Slurm Installation type cannot be empty in omnia_config.yml"
+slurm_installation_type_wrong_failure_msg: "Slurm Installation Type should be either nfs_share or configless in omnia_config.yml"
+restart_services_success_msg: "restart_slurm_services successfully validated"
+restart_services_failure_msg: "Failed. restart_slurm_services accepts true or false in omnia_config.yml"
+ubuntu_slurm_support_fail_msg: "Failed. Slurm is not supported on ubuntu. Remove slurm from software_config.json and rerun the playbook"
+
+# Usage: fetch_storage_config.yml
+storage_config_filename: "storage_config.yml"
+storage_config_syntax_fail_msg: "Failed. Syntax errors present in storage_config.yml. Fix errors and re-run playbook again."
+nfs_client_params_failure_msg: "nfs_client_params variable can not be kept empty in input/storage_config.yml. It should have atleast one nfs share details."
+nfs_client_params_k8s_share_fail_msg: "Exactly one entry should be present in nfs_client_params with k8s_share as true in input/storage_config.yml"
+nfs_client_params_k8s_share_success_msg: "Entry found in nfs_client_params with k8s_share as true"
+nfs_client_params_slurm_share_fail_msg: "Exactly one entry should be present in nfs_client_params with slurm_share as true in input/storage_config.yml"
+nfs_client_params_slurm_share_success_msg: "Entry found in nfs_client_params with slurm_share as true"
+nfs_client_params_benchmarks_fail_msg: "Atleast one out of k8s_share or slurm_share should be true in input/storage_config.yml when ucx/openmpi are installed on cluster nodes." # noqa: yaml[line-length]
+nfs_client_params_benchmarks_success_msg: "Entry found in nfs_client_params with slurm_share or k8s_share as true"
 
 # Usage: validate_scheduler_type.yml
 scheduler_type_success_msg: "scheduler_type successfully validated"
@@ -53,21 +83,42 @@ scheduler_type_fail_msg: "Failed. Invalid scheduler_type in omnia_config.yml. To
 To install k8s provide scheduler_type: k8s. To install slurm and k8s provide scheduler_type: slurm,k8s"
 install_scheduler_msg: "Installing job scheduler:"
 
-# Usage: validations.yml
-skip_tag_fail_msg: "Can't skip both slurm and kubernetes"
-manager_group_fail_msg: "manager group should contain exactly 1 node"
-manager_group_success_msg: "manager group check passed"
-compute_group_fail_msg: "compute group should contain atleast 1 node"
-compute_group_success_msg: "compute group check passed"
-disjoint_fail_msg: "manager and compute groups should be disjoint"
-disjoint_success_msg: "manager and compute groups are disjoint"
-nfs_node_group_fail_msg: "nfs_node group should contain exactly 1 node"
-nfs_node_group_success_msg: "nfs_node group check passed"
-invalid_inventory_fail_msg: "Failed. Invalid inventory format. Provide inventory with manager and compute group."
+# Usage: validatios.yml
+empty_inventory_fail_msg: "Failed. inventory not provided. Re-run playbook with inventory by providing -i inventory.
+Inventory support groups are slurm_control_node, slurm_node, kube_control_plane, kube_node, etcd, auth_server, login"
+
+# Usage: k8s_validations.yml
+invalid_kube_inventory_fail_msg: "Failed. k8s software is present in software_config.json.
+Invalid inventory format, specify kube_control_plane, kube_node and etcd"
+kube_one_node_validation_fail_msg: "Failed. k8s software is present in software_config.json.
+There should be exactly one entry for kube_control_plane in the inventory"
+kube_one_node_validation_success_msg: "One kube_control_plane exists in the inventory"
+kube_node_validation_fail_msg: "Failed. k8s software is present in software_config.json.
+At least one kube_node should be present in the inventory."
+kube_node_validation_success_msg: " At least one kube_node exists in the inventory"
+etcd_node_validation_fail_msg: "Failed. k8s software is present in software_config.json.
+etcd group in inventory must have atleast one node and total node count must be odd."
+etcd_node_validation_success_msg: "etcd should have odd number of nodes in the inventory"
+unreachable_kube_control_plane_fail_msg: "Failed. Unreachable node mentioned in inventory for kube_control_plane.
+Re-run playbook with reachable kube_control_plane."
+ansible_collection_folder: "/root/.ansible/collections/ansible_collections/"
+kubespray_certificate_key_taskfile_path: "kubernetes_sigs/kubespray/roles/kubernetes/control-plane/tasks/kubeadm-setup.yml"
+
+# Usage: slurm_validations.yml
+invalid_slurm_inventory_fail_msg: "Failed. slurm software is present in software_config.json.
+Invalid inventory format, specify slurm_control_node and slurm_node."
+slurm_one_node_validation_fail_msg: "Failed. slurm software is present in software_config.json.
+There should be exactly one entry for slurm_control_node in the inventory."
+slurm_one_node_validation_success_msg: "One slurm_control_node exists in the inventory"
+slurm_node_validation_fail_msg: "Failed. slurm software is present in software_config.json.
+At least one slurm_node should be present in the inventory."
+slurm_node_validation_success_msg: "At least one slurm_node exists in the inventory"
+unreachable_slurm_control_node_fail_msg: "Failed. Unreachable node mentioned in inventory for slurm_control_node.
+Re-run playbook with reachable slurm_control_node."
 
 # Usage: install_packages.yml
 ansible_base_version: '2.9'
-ipaddr_collection: ansible.utils:2.5.2
+ipaddr_collection: ansible.utils:2.10.3
 ansible_collection_nfs: ansible.posix:1.4.0
 
 # Usage: fetch_ldap_client_inputs.yml
@@ -82,4 +133,4 @@ ldap_ca_cert_path_failure_msg: "Failed. The mentioned certificate does not exist
 multiple_login_node_fail_msg: "Failed. Currently only one login node supported in inventory"
 warning_wait_time: 10
 login_node_warning_msg: "[WARNING] login group with ip for login node not present in the inventory.
-Proceeding execution with manager and compute nodes"
+Proceeding execution with provided nodes"

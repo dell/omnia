@@ -1,0 +1,173 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+---
+
+
+- name: Load software_config.json
+  ansible.builtin.include_vars:
+    file: "{{ software_config_json_file }}"
+    name: software_config
+
+- name: Assert cluster_os_type, cluster_os_version, repo_config
+  ansible.builtin.assert:
+    that:
+      - software_config.cluster_os_type is defined
+      - software_config.cluster_os_version is defined
+      - software_config.repo_config is defined
+    fail_msg: "{{ software_config_parameters_fail_msg }}"
+
+- name: Set facts for cluster
+  ansible.builtin.set_fact:
+    cluster_os_type: "{{ software_config.cluster_os_type }}"
+    cluster_os_version: "{{ software_config.cluster_os_version }}"
+    repo_config: "{{ software_config.repo_config }}"
+
+- name: Read package details from tensorflow.json
+  ansible.builtin.include_vars:
+    file: "{{ tensorflow_json_file }}"
+  register: tensorflow_packages
+
+- name: Set packages variables
+  when: tensorflow_packages.ansible_facts
+  block:
+    - name: Assign image pull commands
+      ansible.builtin.set_fact:
+        tensorflow_cpu_image_package: "{{ tensorflow_packages.ansible_facts.tensorflow_cpu.cluster[0].package }}"
+        tensorflow_cpu_image_version: "{{ tensorflow_packages.ansible_facts.tensorflow_cpu.cluster[0].tag }}"
+        tensorflow_amd_image_package: "{{ tensorflow_packages.ansible_facts.tensorflow_amd.cluster[0].package }}"
+        tensorflow_amd_image_version: "{{ tensorflow_packages.ansible_facts.tensorflow_amd.cluster[0].tag }}"
+
+    - name: Assign NVIDIA image pull commands
+      ansible.builtin.set_fact:
+        tensorflow_nvidia_image_package: "{{ tensorflow_packages.ansible_facts.tensorflow_nvidia.cluster[item_index].package }}"
+        tensorflow_nvidia_image_version: "{{ tensorflow_packages.ansible_facts.tensorflow_nvidia.cluster[item_index].tag }}"
+      when: tensorflow_packages.ansible_facts.tensorflow_nvidia.cluster[item_index].tag is defined
+      loop: "{{ tensorflow_packages.ansible_facts.tensorflow_nvidia.cluster }}"
+      loop_control:
+        index_var: item_index
+
+    - name: Combine the tensorflow image and version
+      ansible.builtin.set_fact:
+        tensorflow_cpu_image: "{{ tensorflow_cpu_image_package }}:{{ tensorflow_cpu_image_version }}"
+        tensorflow_amd_image: "{{ tensorflow_amd_image_package }}:{{ tensorflow_amd_image_version }}"
+        tensorflow_nvidia_image: "{{ tensorflow_nvidia_image_package }}:{{ tensorflow_nvidia_image_version }}"
+
+    - name: Validate image pull commands
+      ansible.builtin.assert:
+        that:
+          - tensorflow_cpu_image is defined
+          - tensorflow_amd_image is defined
+          - tensorflow_nvidia_image is defined
+
+    - name: Assign image pull commands
+      ansible.builtin.set_fact:
+        cpu_image_run_cmd: "nerdctl run -it --rm -v /opt/omnia/:/tmp/ {{ tensorflow_cpu_image }} python /tmp/tensorflow_example.py"
+        nvidia_image_run_cmd: "nerdctl run --gpus all -it --rm -v /opt/omnia/:/tmp/  {{ tensorflow_nvidia_image }} python /tmp/tensorflow_example.py"
+        amd_run_cmd_end: " --group-add video --ipc=host --shm-size 8G -v /opt/omnia/:/tmp/  {{ tensorflow_amd_image }} python /tmp/tensorflow_example.py"
+
+- name: Initialize processing_unit
+  ansible.builtin.set_fact:
+    processing_unit: "cpu"
+
+- name: Check and set processing_unit
+  when: processing_unit == "cpu"
+  block:
+    - name: Check AMD GPU
+      ansible.builtin.command: rocminfo
+      register: amd_gpu
+      changed_when: true
+      failed_when: false
+
+    - name: Modify processing_unit_amd
+      ansible.builtin.set_fact:
+        processing_unit: "amd"
+      when: amd_gpu.rc == 0
+
+    - name: Check Nvidia GPU
+      ansible.builtin.command: nvidia-smi
+      register: nvidia_gpu
+      changed_when: true
+      failed_when: false
+
+    - name: Modify processing_unit_nvidia
+      ansible.builtin.set_fact:
+        processing_unit: "nvidia"
+      when: nvidia_gpu.rc == 0
+
+- name: Check and create omnia folder
+  block:
+    - name: Check if omnia folder exists
+      ansible.builtin.stat:
+        path: "{{ omnia_foler_path }}"
+      register: omnia_folder_stat
+
+    - name: Create omnia folder if it doesn't exist
+      ansible.builtin.file:
+        path: "{{ omnia_foler_path }}"
+        state: "{{ omnia_foler_stat }}"
+        mode: "{{ omnia_foler_mode }}"
+      when: not omnia_folder_stat.stat.exists
+
+- name: Check container engine package
+  ansible.builtin.command: nerdctl -v
+  register: container_engine_package_status
+  changed_when: false
+  failed_when: false
+
+- name: Container Engine not present
+  ansible.builtin.debug:
+    msg: "Warning: {{ error_check_container_engine_failed }}"
+  when: container_engine_package_status.rc != 0
+
+- name: Updating container prerequisites installation_status
+  ansible.builtin.set_fact:
+    installation_status: "{{ installation_failed_status }}: {{ error_check_container_engine_failed }}"
+  when: container_engine_package_status.rc != 0
+
+- name: Check prerequisites (AMD)
+  when: processing_unit == "amd"
+  block:
+    - name: List files in /dev/dri
+      ansible.builtin.command: ls /dev/dri
+      register: dri_files
+      changed_when: false
+
+    - name: Dynamic tensorflow_run_cmd
+      ansible.builtin.set_fact:
+        dynamic_run_cmd: "{{ ' --device /dev/dri/' + dri_files.stdout_lines | reject('match', '^by-path') | join(' --device /dev/dri/') }}"
+      when: dri_files.rc == 0
+
+    - name: Construct tensorflow_run_cmd
+      ansible.builtin.set_fact:
+        amd_image_run_cmd: "{{ amd_run_cmd_start + dynamic_run_cmd + amd_run_cmd_end }}"
+      when: dri_files.rc == 0
+
+    - name: Updating prerequisites installation_status
+      ansible.builtin.set_fact:
+        installation_status: "{{ installation_failed_status }}: {{ error_dri_file_failed }}"
+      when: dri_files.rc != 0
+
+- name: Check prerequisites (nvidia)
+  when: processing_unit == "nvidia"
+  block:
+    - name: Install nvidia-container-toolkit
+      ansible.builtin.package:
+        name: "{{ nvidia_container_toolkit }}"
+        state: present
+
+- name: Modify tensorflow_prerequisite_status
+  ansible.builtin.set_fact:
+    tensorflow_prerequisite_status: true
+  when: installation_status == installation_success_status

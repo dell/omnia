@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -15,15 +15,19 @@
 
 #***********************************************************************
 # DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.                  
-# SIMPLY APPEND THE REQUIRD VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
+# SIMPLY APPEND THE REQUIRED VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
 #***********************************************************************
 
-# Boolean indicating whether FreeIPA is required or not
-# It can be set to true or false
-# By default it is set to true indicating FreeIPA will be installed on all the nodes
-# If freeipa_required is set to false, then FreeIPA will not be installed
-freeipa_required: true
+# This variable is used to accept the domain name the user intends to configure
+# This variable is a mandatory requirement of both FreeIPA and OpenLDAP Client
+# Eg: ipa.test
+# This field is mandatory for both OpenLDAP and FreeIPA Authentication
+# For FreeIPA - the format is omnia.test
+# For OpenLDAP - if dc=omnia,dc=test, Provide omnia.test
+# For OpenLDAP - If dc=dell,dc=omnia,dc=com Provide dell.omnia.com
+domain_name: "omnia.test"
 
+# ---------------------------FreeIPA---------------------------
 # A Kerberos realm is the domain over which a Kerberos authentication server has the authority to authenticate a user, host or service.
 # A realm name is often, but not always the upper case version of the name of the DNS domain over which it presides
 realm_name: "OMNIA.TEST"
@@ -42,55 +46,43 @@ directory_manager_password: ""
 # The password must not contain -,\, ',"
 kerberos_admin_password: ""
 
-# This variable is used to accept the domain name the user intends to configure
-# This variable is a mandatory requirement of both FreeIPA and LDAP Client
-# Eg: ipa.test
-# This field is mandatory for both LDAP and FreeIPA Authentication
-# For FreeIPA - the format is omnia.test
-# For LDAP - if dc=omnia,dc=test, Provide omnia.test
-# For LDAP - If dc=dell,dc=omnia,dc=com Provide dell.omnia.com
-domain_name: "omnia.test"
-
-# Boolean indicating whether ldap client is required or not
-# It can be set to true or false
-# By default it is set to false indicating FreeIPA will be installed on all the nodes
-# If ldap_required is set to True, then FreeIPA will not be installed
-ldap_required: false
-
-# This field accepts Valid LDAP Server IP
-# This cannot be blank when ldap_reqired is set to true
-ldap_server_ip: ""
-
+# ---------------------------OpenLDAP---------------------------
 # Connection Type can be TLS, SSL
-# If TLS is given, make sure valid server certificate path is provided
-# If SSL is provided, then secure ldap connection occrs on the port 636
+# If TLS is given, valid server certificates are mandatory
+# If SSL is provided, then secure OpenLDAP connection occurs on the port 636
 ldap_connection_type: "TLS"
 
-# This variable accepts Server Certificate Path
+# These variables accept Certificate file Paths
 # Make sure certificate is present in the path provided
 # The certificate should have .pem or .crt extension.
-# This variable is mandatory if connection type is TLS
-ldap_ca_cert_path: "/etc/openldap/certs/omnialdap.pem"
+# The certificate key should have .key extension
+# These variable are optional i.e. if not provided, self signed certificates will be created
+# The variables accepts values as follows
+# Certificate Authority(CA) issued certificate file path
+tls_ca_certificate: ""
+# OpenLDAP Certificate file path
+tls_certificate: ""
+# OpenLDAP Certificate key file path
+tls_certificate_key: ""
 
-# This variable accepts the user home directory path for ldap configuration
-# If nfs mount is created for user home, make sure you provide the
-# LDAP users mount home directory path
-# Default value is /home/omnia-share
-user_home_dir: "/home/omnia-share"
+# OpenLDAP server is configured using three admin users for configuration, database, and monitor
+# By default the user for configuration and database is admin
+# Monitor admin username is not to be provided as it is by default set to "monitor"
+# It is mandatory to provide password for the admin users
+# Update this variable if these users are different from admin
+# The password must be at least 8 characters long
+# The password must not contain -,\, ',"
+openldap_db_username: "admin"
+openldap_db_password: ""
+openldap_config_username: "admin"
+openldap_config_password: ""
+openldap_monitor_password: ""
 
-# If LDAP server is configured with bind dn then bind dn user to be provided
-# By default the bind dn user is admin
-# Update this variable if bind dn is different from admin
-# If this value is not provided (when bind is configured in server)
-# then ldap authentication fails
-ldap_bind_username: "admin"
-
-# If LDAP server is configured with bind dn then bind dn password to be provided
-# If this value is not provided (when bind is configured in server)
-# then ldap authentication fails
-ldap_bind_password: ""
-
-# Boolean indicating whether login node is requires security features or not
-# It can be set to true or false
-# By default it is set to false indicating security features will not be configured
-enable_secure_login_node: false
+# OpenLDAP server is configured using organizations
+# These organizations and its units are necessary for user creation and group mapping 
+# Eg. openldap_organization: "omnia", openldap_organizational_unit: "People"
+# Here user belongs to Omnia organization and is part of People unit
+# The default values are openldap_organization: "omnia", openldap_organizational_unit: "People"
+# Variables can be updated based om user requirements
+openldap_organization: "omnia"
+openldap_organizational_unit: "People"

@@ -1,0 +1,53 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Create and update repositories
+  environment:
+    XCATROOT: "{{ xcat_root_env }}"
+    PATH: "{{ ansible_env.PATH }}:{{ xcat_path_env }}"
+    MANPATH: "{{ xcat_manpath_env }}"
+    PERL_BADLANG: "{{ perl_badlang_env }}"
+  block:
+    - name: Set control_plane_os
+      ansible.builtin.set_fact:
+        control_plane_os: "{{ ansible_distribution | lower }}"
+
+    - name: Include vars for {{ control_plane_os }}
+      ansible.builtin.include_vars: "{{ role_path }}/../{{ control_plane_os }}/vars/main.yml"
+
+    - name: Check configure_xcat role pre-requisites
+      ansible.builtin.include_tasks: pre_requisites.yml
+
+    - name: Configure proxy
+      ansible.builtin.include_tasks: configure_proxy.yml
+
+    - name: Configure basic xcat details
+      ansible.builtin.include_tasks: configure_basic_xcat_details.yml
+
+    - name: Create bmc passwd in xcat passwd table
+      ansible.builtin.include_tasks: configure_xcat_passwd.yml
+
+    - name: Update networks table
+      ansible.builtin.include_tasks: update_xcat_network.yml
+      when: bmc_nic != ""
+
+    - name: Create xcat osimage
+      ansible.builtin.include_tasks: create_osimage.yml
+
+    - name: Fetch osimage name
+      ansible.builtin.include_tasks: fetch_osimage.yml
+
+    - name: Configure xCAT on {{ control_plane_os }}
+      ansible.builtin.include_tasks: "{{ role_path }}/../{{ control_plane_os }}/tasks/main.yml"

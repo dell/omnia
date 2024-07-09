@@ -13,6 +13,11 @@
 # limitations under the License.
 ---
 
+# Usage: main.yml
+control_plane_os_redhat: "redhat"
+control_plane_os_rocky: "rocky"
+control_plane_os_ubuntu: "ubuntu"
+
 # Usage: clean_provision_setup.yml
 xcat_packages_path: "/opt/xcat/share/xcat/tools/go-xcat"
 xcat_cert_path: "/root/.xcat"
@@ -30,29 +35,36 @@ xcat_del_files:
   - "/opt/xcat/"
   - "/mnt/xcat"
   - "{{ playbook_dir }}/../provision/roles/xcat_repo_manipulate/files/pxe_mapping_file.csv"
-  - /root/xcat-dbback
-  - /opt/racadm
-  - /opt/omnia/
-  - /var/lib/dhcpd/dhcpd6.leases
-  - /var/lib/dhcpd/dhcpd.leases~
-  - /var/lib/dhcpd/dhcpd.leases.rpmsave
-  - /var/lib/dhcpd
-  - /var/lib/dhclient
-  - /etc/dhcp/dhcpd.conf.rpmsave
-  - /etc/dhcp/dhcpd.conf.xcatbak
-  - /etc/dhcp/dhclient.conf
-pg_dir_path: "/var/lib/pgsql"
+  - "/root/xcat-dbback"
+  - "/opt/racadm"
+  - "/opt/omnia/.data"
+  - "/opt/omnia/omnia_service_script.sh"
+  - "/opt/omnia/duplicate_node_cleanup_script.sh"
+  - "/opt/omnia/pxe_mapping_file.csv"
+  - "/opt/omnia/omnia_inventory"
+  - "/var/lib/dhcpd/dhcpd6.leases"
+  - "/var/lib/dhcpd/dhcpd.leases~"
+  - "/var/lib/dhcpd/dhcpd.leases.rpmsave"
+  - "/var/lib/dhcpd"
+  - "/var/lib/dhcp"
+  - "/var/lib/dhclient"
+  - "/etc/dhcp/dhcpd.conf.rpmsave"
+  - "/etc/dhcp/dhcpd.conf.xcatbak"
+  - "/etc/dhcp/dhclient.conf"
+  - "/opt/omnia/dynamic.stanzas"
+  - "/opt/omnia/static.stanzas"
+  - "/opt/omnia/discover.stanzas"
+  - "/opt/omnia/dynamic_ip_list"
+  - /tmp/certs.d/
+  - /tmp/conf
+  - /tmp/repos
+  - /opt/omnia/telemetry
+  - /opt/omnia/temp_pxe_file.csv
+  - /opt/omnia/.postgres/
+  - /opt/omnia/.bcm_roce
+
 omnia_dir: "/opt/omnia"
 file_permission: "754"
-xcat_download_files:
-  - /root/xcat
-  - /etc/yum.repos.d/xcat-core.repo
-  - /etc/yum.repos.d/xcat-dep.repo
-xcat_package: xCAT
-postgres_packages:
-  - postgresql*
-  - perl-DBD-Pg
-control_plane_os_redhat: "redhat"
 
 # Usage:clean_telemetry_setup.yml
 exports_path: /etc/exports
@@ -73,19 +85,28 @@ database_folders:
 metallb_files:
   - "/var/lib/ipaddresspool.yaml"
   - "/var/lib/l2advertisement.yaml"
-
-# Usage: clean_docker_registry.yml
-docker_registry_file: /etc/systemd/system/docker-registry.service
-docker_packages: "docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin docker-ce-rootless-extras"
+bin_dir: /usr/local/bin
+grace_period: 0
+docker_packages: "docker-ce docker-ce-cli docker-buildx-plugin"
 docker_del_files:
   - /var/lib/docker
-  - /var/lib/containerd
-  - /opt/omnia/containerd
   - /etc/yum.repos.d/docker-ce.repo
-  - /docker-registry
+kube_folder_path: /root/.kube
 
 # Usage:include_telemetry_config.yml
 telemetry_config_file: "{{ role_path }}/../../../input/telemetry_config.yml"
 telemetry_vault_filename: "{{ role_path }}/../../../input/.telemetry_vault_key"
 telemetry_config_syntax_fail_msg: "Failed.Syntax errors present in telemetry_config.yml.Fix errors and re-run playbook again."
 vault_file_perm: '0644'
+
+# Usage: clean_offline_setup.yml
+local_repo_config_file: "{{ role_path }}/../../../input/local_repo_config.yml"
+local_repo_config_syntax_fail_msg: "Failed. Syntax errors present in local_repo_config.yml. Fix errors and re-run playbook again. Common syntax Errors:
+indentation errors, improper quotes, improper space or tab, missing colon, missing comma etc. "
+docker_list_path: "/etc/apt/sources.list.d/docker.list"
+
+# Usage: clean_nfs_server.yml
+storage_config_path: "{{ role_path }}/../../../input/storage_config.yml"
+provision_metadata_path: "/opt/omnia/.data/metadata.yml"
+exports_file_path: /etc/exports
+cleanup_nfs_server_fail_msg: "Failed to cleanup nfs server. Check syntax error in input/storage_config.yml and re-run playbook again."

@@ -4,12 +4,9 @@ Additional utilities
 The Utilities role allows users to set up certain tasks such as
 
 .. toctree::
-    epel
-    kernel_upgrade
-    rhsm_subscription
-    configuringPXE
-    freeipa_installation
-    cleanupscript
-    OSPackageUpdate
+    software_update
+    KernelUpdate
+    kernel_param_update
     portcleanup
     timescaledb_utility
+    freeipa_installation

@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+    # Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,63 +13,41 @@
 # limitations under the License.
 ---
 
-- name: Include provision_validation_vars role vars
-  ansible.builtin.include_vars: "{{ item }}"
-  with_items: "{{ provision_validation_vars }}"
+- name: Initialize the variable
+  ansible.builtin.set_fact:
+    md_status: false
 
-- name: Common packages installation for provision
-  ansible.builtin.include_tasks: package_installation.yml
+- name: Check for data folder existsence
+  ansible.builtin.stat:
+    path: "{{ meta_dest }}"
+  register: data_folder_status
 
-- name: Create the provision ini file
-  ansible.builtin.include_tasks: create_provision_ini.yml
+- name: Check metadata.yml file existence
+  ansible.builtin.stat:
+    path: "{{ meta_path }}"
+  register: metadata_status
 
-- name: Include provision configuration variables
-  ansible.builtin.include_tasks: include_provision_config.yml
+- name: Status of metadata file
+  ansible.builtin.set_fact:
+    md_status: true
+  when:
+    - data_folder_status.stat.exists
+    - metadata_status.stat.exists
 
-- name: Create metadata
-  ansible.builtin.include_tasks: metadata/main.yml
+- name: Discovery.yml needs to be executed
+  ansible.builtin.fail:
+    msg: "{{ discovery_execution_req }}"
+  when: not md_status
 
-- name: Validate network interface type
-  ansible.builtin.include_tasks: validate_network_interface.yml
-
-- name: Validate the nic parameters
-  ansible.builtin.include_tasks: validate_cp_nic.yml
-
-- name: Validate discovery parameters
-  ansible.builtin.include_tasks: validate_discovery_params.yml
-
-- name: Validate provision parameters
-  ansible.builtin.include_tasks: validate_provision_vars.yml
-
-- name: Validate disk partition parameters
-  ansible.builtin.include_tasks: validate_disk_partition_vars.yml
-  with_items: "{{ disk_partition }}"
-
-- name: Validate domain_name
-  ansible.builtin.include_tasks: validate_domain_name.yml
-
-- name: Validate postscripts path
-  ansible.builtin.include_tasks: validate_postscripts_path.yml
-
-- name: Validate rhel_repo_path
-  ansible.builtin.include_tasks: validate_repo_path.yml
-
-- name: Validate apptainer_support
-  ansible.builtin.include_tasks: validate_apptainer_support.yml
-
-# Encrypt provision_config.yml after all the validations are successful
-
-- name: Encrypt config file once validations are successful
+- name: Include the metadata file
+  when: md_status
   block:
-    - name: Encrypt provision_config.yml
-      ansible.builtin.command: >-
-        {{ ansible_vault_path.stdout.split(' ')[1] }} encrypt {{ provision_config_filename }}
-        --vault-password-file {{ provision_vault_path }}
-      changed_when: false
-      tags: init
+    - name: Include metadata.yml file
+      ansible.builtin.include_vars: "{{ meta_path }}"
+      no_log: true
 
-    - name: Update provision_config.yml permission
-      ansible.builtin.file:
-        path: "{{ provision_config_filename }}"
-        mode: "{{ conf_file_mode }}"
-      tags: init
+    - name: Set facts for discovery mechanism
+      ansible.builtin.set_fact:
+        discovery_mech_mapping: "{{ md_discovery_mech_mapping }}"
+        discovery_mech_bmc: "{{ md_discovery_mech_bmc }}"
+        discovery_mech_switch_based: "{{ md_discovery_mech_switch_based }}"

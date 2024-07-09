@@ -12,19 +12,40 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+- name: Populate service facts
+  ansible.builtin.service_facts:
+
+- name: Set slurm_support variable
+  ansible.builtin.set_fact:
+    slurm_support: false
+
+- name: Load local_repo_access.yml file
+  ansible.builtin.include_vars: "{{ local_repo_access_dest_path }}"
+
+- name: Check if slurmctld is active on the slurm_control_node
+  ansible.builtin.set_fact:
+    slurm_support: true
+  when:
+    - "'slurmctld.service' in ansible_facts.services"
+    - "ansible_facts.services['slurmctld.service'].state == 'running'"
+
+- name: Saving distribution of os
+  ansible.builtin.set_fact:
+    compute_os: "{{ ansible_facts['distribution'] | lower }}"
 
 - name: Tasks for slurm_restd role
-  when: hostvars['127.0.0.1']['slurm_support']
+  when: hostvars['127.0.0.1'] and slurm_support
   block:
     - name: Install jansson
-      include_tasks: install_jansson.yml
+      ansible.builtin.include_tasks: install_jansson.yml
 
     - name: Install libjwt
-      include_tasks: install_libjwt.yml
+      ansible.builtin.include_tasks: install_libjwt.yml
 
-    - name: Configure slurm restd in leap
-      include_tasks: configure_restd_leap.yml
-      when: os_supported_leap in compute_os
+   # --- Not supporting leap installation --- #
+   # - name: Configure slurm restd in leap
+   #   ansible.builtin.include_tasks: configure_restd_leap.yml
+   #   when: os_supported_leap in compute_os
 
     - name: Generate Token
-      include_tasks: generate_token.yml
+      ansible.builtin.include_tasks: generate_token.yml

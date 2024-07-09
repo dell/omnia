@@ -1,0 +1,28 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Usage: amd_validation.yml
+software_config_json_file: "{{ role_path }}/../../../input/software_config.json"
+
+# Usage: validate_amdgpu_rocm_repo.yml
+amdgpu_input_fail_msg: "Failed, software_config.json does not have the amdgpu software stack."
+amdgpu_version_fail_msg: "Failed, software_config.json does not have the version for AMDGPU."
+amdgpu_repo_fail_msg: "Failed, local_repo.yml is not executed for downloading AMDGPU packages."
+rocm_version_fail_msg: "Failed, software_config.json does not have the version for ROCM."
+rocm_repo_fail_msg: "Failed, local_repo.yml is not executed for downloading ROCM packages."
+
+# Usage: include_local_repo_config.yml
+local_repo_config_file: "{{ role_path }}/../../../input/local_repo_config.yml"
+local_repo_config_syntax_fail_msg: "Failed. Syntax errors present in local_repo_config.yml. Fix errors and re-run playbook again."

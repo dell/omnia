@@ -1,0 +1,17 @@
+#!/bin/bash
+################################################################################################################
+#  omnia_disable_repo:
+#      Disable online repository
+#
+#################################################################################################################
+internet_repo_file_list="oracle-linux-ol8.repo uek-ol8.repo Rocky-AppStream.repo Rocky-BaseOS.repo Rocky-Extras.repo CentOS-Base.repo"
+
+for repo_file in $internet_repo_file_list
+do
+  if [ -f /etc/yum.repos.d/$repo_file ]; then
+    echo "Disabling repos $repo_file" >> /var/log/xcat/xcat.log
+    sed -i -e 's/enabled=1/enabled=0/' /etc/yum.repos.d/$repo_file
+  fi
+done
+
+dnf clean all

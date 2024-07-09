@@ -1,0 +1,45 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Include roce_plugin_config.yml file
+  ansible.builtin.include_vars: "{{ roce_plugin_config_file }}"
+
+- name: Delete rocepod from the cluster
+  ansible.builtin.command: "kubectl delete -f {{ rocepod_file_dest }}"
+  changed_when: false
+  failed_when: false
+
+- name: Uninstall macvlan
+  ansible.builtin.command: "kubectl delete -f {{ roce_nad_tmp_folder }}"
+  changed_when: true
+  failed_when: false
+
+- name: Uninstall RDMA plugin
+  ansible.builtin.command: "kubectl delete -k {{ rdma_plugin_folder }}/deployment/k8s/overlay/"
+  changed_when: true
+  failed_when: false
+
+- name: Uninstall whereabouts plugin
+  ansible.builtin.command: "kubectl delete -f {{ wherabout_crds_folder }}"
+  changed_when: true
+  failed_when: false
+
+- name: Delete directories
+  ansible.builtin.file:
+    state: absent
+    path: "{{ item }}"
+  with_items: "{{ files_list }}"
+  changed_when: true
+  failed_when: false

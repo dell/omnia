@@ -16,6 +16,7 @@
 - name: Initialize username
   ansible.builtin.set_fact:
     user: "{{ item }}"
+    ssh_user_directory: "{{ user_home_dir }}/{{ item }}/.ssh"
 
 - name: Check ldap home directory exists - {{ user }}
   ansible.builtin.stat:
@@ -27,20 +28,21 @@
     msg: "{{ ldap_home_dir_fail_msg }}"
   when: not ldap_directory.stat.exists
 
-- name: Create ldif file to add ssh public key to LDAP user invetory - {{ user }}
-  ansible.builtin.shell: set -o pipefail && echo -e "{{ ldap_create_ssh_ldif_cmd }}" > "{{ user_home_path }}"/sshpubkey.ldif
+- name: Create authorized_keys file if not exists
+  ansible.builtin.file:
+    path: "{{ ssh_user_directory }}/authorized_keys"
+    state: touch
+    mode: "{{ ssh_file_perm }}"
+    owner: "{{ user }}"
+    group: "{{ user }}"
+
+- name: Add ssh public key to LDAP user authorized keys - {{ user }}
+  ansible.builtin.shell: cat {{ publickey_file_path }} >> {{ ssh_user_directory }}/authorized_keys
   changed_when: false
 
-- name: Add public key to ldap - {{ user }}
-  ansible.builtin.shell: set -o pipefail && ldapmodify -Y EXTERNAL -H ldapi:/// -f "{{ user_home_path }}"/sshpubkey.ldif
-  changed_when: false
-  failed_when: false
-  register: ldap_modify_output
-
-- name: Fail if public key to ldap task not successful - {{ user }}
-  ansible.builtin.fail:
-    msg: "{{ fail_msg_ldap_sshpubkey }} {{ ldap_modify_output.stderr }}"
-  when:
-    - ldap_modify_output.stderr is defined
-    - ldap_modify_output.stderr | length > 1
-    - ldap_key_command_fail_search in ldap_modify_output.stderr
+- name: Change SSH key pair ownership - {{ user }}
+  ansible.builtin.file:
+    path: "{{ ssh_user_directory }}"
+    owner: "{{ user }}"
+    group: "{{ user }}"
+    recurse: true

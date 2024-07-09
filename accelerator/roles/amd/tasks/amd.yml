@@ -13,9 +13,6 @@
 #  limitations under the License.
 ---
 
-- name: Validate input parameters of amd accelerator
-  ansible.builtin.include_tasks: validate_inputs.yml
-
 - name: Install AMD GPU drivers and software components for CentOS
   ansible.builtin.include_tasks: amd_centos.yml
   when: os_centos in compute_os
@@ -23,6 +20,14 @@
 - name: Install AMD GPU drivers and software components for RHEL
   ansible.builtin.include_tasks: amd_rhel.yml
   when: os_redhat in compute_os
+
+- name: Install AMD GPU drivers and software components for Rocky
+  ansible.builtin.include_tasks: amd_rocky.yml
+  when: os_rocky in compute_os
+
+- name: Install AMD GPU drivers and software components for Ubuntu
+  ansible.builtin.include_tasks: amd_ubuntu.yml
+  when: os_ubuntu in compute_os
 
 - name: Install AMD GPU drivers and software components for Leap
   ansible.builtin.include_tasks: amd_leap.yml

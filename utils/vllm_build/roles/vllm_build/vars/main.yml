@@ -1,0 +1,55 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Usage prereq.yml
+sources_list_dest: /etc/apt/sources.list.d
+docker_repo_temp: templates/docker_repo.j2
+dir_mode: "755"
+file_mode: "0644"
+keyringsfile: /etc/apt/keyrings
+docker_repo: https://download.docker.com/linux/centos/docker-ce.repo
+docker_packages_ubuntu:
+ - docker-ce={{ epoch_version }}
+ - docker-ce-cli={{ epoch_version }}
+ - docker-buildx-plugin
+ - docker-compose-plugin
+docker_packages_redhat:
+ - docker-ce-24.0.4
+ - docker-ce-cli-24.0.4
+ - docker-buildx-plugin
+ - docker-compose-plugin
+cert_packages:
+ - curl
+ - ca-certificates
+gpg_path: /etc/apt/keyrings/docker.asc
+docker_gpg_url: https://download.docker.com/linux/ubuntu/gpg
+package_retry: 10
+
+# Usage: main.yml
+vllm_version: "v0.3.2"
+vllm_repo: "https://github.com/vllm-project/vllm.git"
+vllm_dir: "/vllm"
+vllm_container_name: "vllm-rocm"
+vllm_container_tag: "latest"
+
+# Usage: enable_buildkit.yml
+buildkit_version: "v0.13.1"
+builldkit_repo: "https://github.com/moby/buildkit.git"
+buildkit_dir: "/buildkit"
+image_retries: 5
+buildkit_delay: 10
+
+# Usage: vllm_local_repo_push.yml
+nerdctl_registry_port: "5001"

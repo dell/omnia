@@ -1,27 +1,20 @@
 Network Topology: Dedicated Setup
 =================================
 
-Depending on internet access for host nodes, there are two ways to achieve a dedicated NIC setup:
+.. image:: ../../images/omnia_network_Dedicated.jpg
 
-.. image:: ../../images/omnia_network_Dedicated.png
+In a **Dedicated Setup**, all the cluster nodes (head, login, and compute) have dedicated iDRAC connection.
 
+* **Public Network (Blue line)**: This indicates the iDRAC network which is connected to the external public network.
 
-1. Dedicated Setup with dedicated public NIC on cluster  nodes
+* **iDRAC Network (Red line)**: This indicates the private iDRAC network used by the control plane to control the cluster nodes using out-of-band management.
 
+* **Cluster Network (Green line)**: This indicates the admin network utilized by Omnia to provision the cluster nodes.
 
-
-When all cluster  nodes have their own public network access, ``primary_dns`` and ``secondary_dns`` in ``provision_config.yml`` become optional variables as the control plane is not required to be a gateway to the network. The network design would follow the below diagram:
-
-
-
-2. Dedicated Setup with single NIC on cluster  nodes
-
-
-
-When all cluster  nodes rely on the control plane for public network access, the variables ``primary_dns`` and ``secondary_dns`` in ``provision_config.yml`` are used to indicate that the control plane is the gateway for all cluster  nodes to get internet access. Since all public network traffic will be routed through the control plane, the user may have to take precautions to avoid bottlenecks in such a set-up.
+* **IB Network (Yellow line)**: The network used by the applications on the cluster nodes to communicate among each other.
 
 **Recommended discovery mechanism**
 
-* `mapping <../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/mapping.html>`_
-* `snmpwalk <../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/snmpwalk.html>`_
+* `mapping <../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/mappingfile.html>`_
+* `bmc <../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/bmc.html>`_
 

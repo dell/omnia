@@ -1,0 +1,27 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Usage: kcmdline_update_redhat.yml kcmdline_update_rocky.yml kcmdline_update_ubuntu.yml
+kcmdline_config_file: "{{ role_path }}../../../kernel_param_update_config.yml"
+grub_path: /etc/default/grub
+
+# Usage: reboot_nodes.yml
+reboot_fail_msg: "Failed. Nodes should be rebooted manually."
+reboot_warning_msg: "[Warning] - Nodes will be rebooted"
+warning_wait_time: 30
+
+# Usage: validate_input.yml
+validation_fail_msg: "grub_commandline_kernel variable is either undefined, not a string, or empty"
+empty_inventory_fail_msg: "Failed. inventory not provided. Re-run playbook with inventory providing -i inventory."

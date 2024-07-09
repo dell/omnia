@@ -1,25 +1,19 @@
 Installing the provision tool
 =============================
 
-This playbook achieves the following tasks:
+The provision tool is installed using an Ansible playbook. This playbook achieves the following tasks:
 
-    * Discovers potential cluster nodes
+    * Discovers potential cluster nodes.
 
-    * Installs Rocky or RHEL on the nodes
-
-    * Assigns admin/infiniband IPs with optional DHCP routing
-
-    * Creates access to offline repositories
-
-    * Configures a docker registry to pull images from the internet and store them locally
-
-    * Optionally installs OFED and CUDA
+    * Installs Rocky Linux, Ubuntu, or RHEL on the discovered nodes.
 
 .. toctree::
 
     provisionprereqs
     DiscoveryMechanisms/index
+    provisionparams
     installprovisiontool
     ViewingDB
-    provisionservers
+    AdditionalNIC
+    IPruleassignment
 

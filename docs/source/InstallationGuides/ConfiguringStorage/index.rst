@@ -1,5 +1,5 @@
-Configuring storage
-=====================
+Configuring PowerVault
+=======================
 
 **Configuring Powervault storage**
 
@@ -61,7 +61,7 @@ Fill out all required parameters in ``storage/powervault_input.yml``:
 |      ``string``                |                                                                                                                                                                                                                                                           |
 |      Required                  |      **Default values**: ``omnia``                                                                                                                                                                                                                        |
 +--------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| powervault_volumes             | Specify the volume details for powervault and NFS Server   node. Multiple volumes can be defined as comma separated values. example:   omnia_home1, omnia_home2.                                                                                          |
+| powervault_volumes             | Specify the volume details for powervault and NFS Server   node. Multiple volumes can be defined as comma-separated values. example:   omnia_home1, omnia_home2.                                                                                          |
 |      ``string``                |                                                                                                                                                                                                                                                           |
 |      Required                  |      **Default values**: ``omnia_home``                                                                                                                                                                                                                   |
 +--------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -104,7 +104,6 @@ Run the playbook: ::
 
 * ``powervault_username`` and ``powervault_password`` are the credentials used to administrate the array.
 
-.. note:: Once the storage is successfully set up, set ``enable_omnia_nfs`` (``input/omnia_config.yml``) to false and  ``omnia_usrhome_share`` (``input/omnia_config.yml``) to an accessible share path in BeeGFS to use the path across the cluster for deployments.
 
 **Configuring NFS servers**
 
@@ -122,7 +121,7 @@ To configure an NFS server, enter the following parameters in ``storage/nfs_serv
 |      Required      |                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 |                    |      	* ``server_share_path``: The path at which volume is mounted on   nfs node                                                                                                                                                                                                                                                                                                                                                                 |
 |                    |      	* ``server_export_options``: Default value is- rw,sync,no_root_squash   (unless specified otherwise). For a list of accepted options, `click here   <https://linux.die.net/man/5/exports>`_                                                                                                                                                                                                                                                |
-|                    |      	* ``client_shared_path``: The path at which volume is mounted on manager,   compute, login node. This value is taken as server_share_path unless   specified otherwise.                                                                                                                                                                                                                                                                    |
+|                    |      	* ``client_shared_path``: The path at which volume is mounted on all nodes. This value is taken as ``server_share_path`` unless   specified otherwise.                                                                                                                                                                                                                                                                                     |
 |                    |      	* ``client_mount_options``: Default value is- nosuid,rw,sync,hard,intr   (unless specified otherwise). For a list of accepted options, `click here   <https://man7.org/linux/man-pages/man8/mount.8.html>`_                                                                                                                                                                                                                                |
 |                    |                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 |                    | Must specify atleast 1 volume                                                                                                                                                                                                                                                                                                                                                                                                                       |
@@ -135,7 +134,7 @@ Run the playbook: ::
     cd storage
     ansible-playbook nfs_sas.yml -i /root/inventory -e powervault_username="xxxxx" -e powervault_password="xxxxxx"
 
-* Where the ``inventory`` refers to a list of all nodes in the format of `NFS server inventory file <../../samplefiles.html>`_
+* Where the ``inventory`` refers to a list of all nodes in the format of `NFS server inventory file <../../samplefiles.html#nfs-server-inventory-file>`_
 * To set up NFS client services, `click here <../BuildingClusters/NFS.html>`_
 
 

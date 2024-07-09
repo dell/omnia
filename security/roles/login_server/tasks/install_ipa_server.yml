@@ -24,7 +24,7 @@
       ansible.builtin.command: >-
         ipa-server-install -n '{{ hostvars['127.0.0.1']['domain_name'] }}' --hostname='{{ server_hostname }}'
         -a '{{ hostvars['127.0.0.1']['kerberos_admin_password'] }}' -p '{{ hostvars['127.0.0.1']['directory_manager_password'] }}'
-        -r '{{ hostvars['127.0.0.1']['realm_name'] }}' --setup-dns --auto-forwarders --auto-reverse -U
+        -r '{{ hostvars['127.0.0.1']['realm_name'] }}' -U
       changed_when: true
       no_log: true
       register: install_ipa_server
@@ -36,7 +36,7 @@
       ansible.builtin.command: >-
         ipa-server-install -n '{{ hostvars['127.0.0.1']['domain_name'] }}' --hostname='{{ server_hostname }}'
         -a '{{ hostvars['127.0.0.1']['kerberos_admin_password'] }}' -p '{{ hostvars['127.0.0.1']['directory_manager_password'] }}'
-        -r '{{ hostvars['127.0.0.1']['realm_name'] }}' --setup-dns --no-forwarders --no-reverse --no-ntp -U
+        -r '{{ hostvars['127.0.0.1']['realm_name'] }}' --no-ntp -U
       changed_when: true
       no_log: true
       register: install_ipa_server

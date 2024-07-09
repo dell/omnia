@@ -1,0 +1,45 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Verify if the node has accelerator
+  ansible.builtin.shell: >
+    set -o pipefail |
+    lspci | grep "Display controller: Advanced Micro Devices, Inc. \[AMD/ATI\] \| Processing accelerators: Advanced Micro Devices, Inc. \[AMD/ATI\]"
+  register: lspci_output
+  changed_when: false
+  failed_when: false
+
+- name: Install AMD ROCm software components
+  when:
+    - lspci_output.stdout | length > 0
+    - hostvars['127.0.0.1']['rocm_config_status']
+  block:
+    - name: Verify dkms status
+      ansible.builtin.command: /usr/sbin/dkms status amdgpu
+      register: dkms_status
+      changed_when: false
+      failed_when: dkms_status.stdout | length == 0 or dkms_status.rc != 0
+
+    - name: Install AMD GPU drivers and software components
+      ansible.builtin.include_tasks: install_rocm.yml
+      when:
+        - dkms_status.stdout | length > 0
+  rescue:
+    - name: Warning, AMDGPU driver not found
+      ansible.builtin.pause:
+        prompt: "{{ amdgpu_warning_msg }}"
+        seconds: "{{ warning_time }}"
+      when:
+        - dkms_status.stdout | length == 0 or dkms_status.rc != 0

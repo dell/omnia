@@ -1,15 +1,27 @@
 Control plane logs
 -------------------
 
-All log files can be viewed via CLI. Alternatively, most log files can be viewed via the Dashboard tab ( |Dashboard| ) on the grafana UI.
-
 .. caution:: It is not recommended to delete the below log files or the directories they reside in.
 
-.. note:: Log files are rotated periodically as a storage consideration. To customize how often logs are rotated, edit the ``/etc/logrotate.conf`` file on the node.
+.. note::
+    * Log files are rotated periodically as a storage consideration. To customize how often logs are rotated, edit the ``/etc/logrotate.conf`` file on the node.
+    * If you want log files for specific playbook execution, ensure to use the ``cd`` command to move into the specific directory before executing the playbook. For example, if you want local repo logs, ensure to enter ``cd local_repo`` before executing the playbook. If the directory is not changed, all the playbook execution log files will be consolidated and provided as part of omnia logs located in ``/var/log/omnia.log``.
 
-Below is a list of all logs available to Loki and can be accessed on the dashboard:
+CLI logs
+----------
+All log files can be viewed using CLI. However, there are few log files which can be viewed exclusively using CLI. They are:
 
-.. csv-table:: Log files
+.. csv-table:: Exclusive CLI log files
+   :file: ../Tables/CLI_exclusive_logs.csv
+   :header-rows: 1
+   :keepspace:
+
+Loki logs
+----------
+
+Almost all log files can be viewed using the Dashboard tab ( |Dashboard| ) on the Grafana UI. Below is a list of all logs available to Loki and can be accessed from the dashboard:
+
+.. csv-table:: Loki log files
    :file: ../Tables/ControlPlaneLogs.csv
    :header-rows: 1
    :keepspace:
@@ -28,7 +40,7 @@ Logs of individual containers
 Provisioning logs
 --------------------
 
-Logs pertaining to actions taken during ``provision.yml``  can be viewed in ``/var/log/xcat/cluster.log`` and ``/var/log/xcat/computes.log`` on the control plane.
+Logs pertaining to actions taken during ``discovery_provision.yml``  can be viewed in ``/var/log/xcat/cluster.log`` and ``/var/log/xcat/computes.log`` on the control plane.
 
 .. note::  As long as a node has been added to a cluster by Omnia, deployment events taking place on the node will be updated in ``/var/log/xcat/cluster.log``.
 
@@ -55,12 +67,12 @@ After `telemetry.yml <../Roles/Telemetry/index.html>`_ is run, Grafana services 
     .. image:: ../images/Grafana_Loki.png
 
     iv. The log browser allows users to filter logs by job, node, user, etc.
-        Ex: ::
+        Example ::
 
             (job= "cluster deployment logs") |= "nodename"
             (job="compute log messages") |= "nodename" |="node_username"
 
-Custom dashboards can be created per user requirement.
+Custom dashboards can be created as per your requirement.
 
 .. |Dashboard| image:: ../images/Visualization/DashBoardIcon.png
     :height: 25px

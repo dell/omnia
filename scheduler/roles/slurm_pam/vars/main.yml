@@ -14,10 +14,10 @@
 ---
 
 # Usage: main.yml
-manager_group_fail_msg: "manager group should contain exactly 1 node"
-manager_group_success_msg: "manager group check passed"
-compute_group_fail_msg: "compute group should contain atleast 1 node"
-compute_group_success_msg: "compute group check passed"
+slurm_control_node_group_fail_msg: "Slurm control node group should contain exactly 1 node"
+slurm_control_node_group_success_msg: "Slurm control node group check passed"
+slurm_node_group_fail_msg: "Slurm node group should contain atleast 1 node"
+slurm_node_group_success_msg: "Slurm node group check passed"
 
 # Usage: slurm_pam_compute.yml
 pam_sshd_path: /etc/pam.d/sshd
@@ -39,3 +39,10 @@ system_auth_regexp: "^account     required"
 # Usage: slurm_pam_manager.yml
 task_plugin_manager: "TaskPlugin=task/cgroup,task/cray_arises"
 pam_sshd_config_manager: "account    sufficient     pam_slurm_adopt.so action_no_jobs=deny"
+local_repo_access_dest_path: "/opt/omnia/offline/local_repo_access.yml"
+slurm_installation_type: "{{ hostvars['localhost']['slurm_installation_type'] }}"
+slurm_share_path: "{{ hostvars['localhost']['share_path'] }}"
+slurm_nfs_folder: /slurm
+share_path_empty_failure_msg: "share_path cannot be empty , please provide a proper path in omnia_config.yml"
+slurm_installation_type_empty_failure_msg: "Slurm Installation type cannot be empty in omnia_config.yml"
+slurm_installation_type_wrong_failure_msg: "Slurm Installation Type should be either nfs_share or configless in omnia_config.yml"

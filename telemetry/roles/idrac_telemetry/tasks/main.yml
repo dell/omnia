@@ -13,14 +13,17 @@
 # limitations under the License.
 ---
 
-- name: Deploy idrac-telemetry
-  when: idrac_telemetry_support is true
+- name: Check if telemetry entry is present in software_config.json
+  when: telemetry_entry_present
   block:
-    - name: Deploy mysqldb pod for idrac credentials
-      ansible.builtin.include_tasks: mysqldb_deployment.yml
+    - name: Deploy idrac-telemetry
+      when: idrac_telemetry_support is true
+      block:
+        - name: Deploy mysqldb pod for idrac credentials
+          ansible.builtin.include_tasks: mysqldb_deployment.yml
 
-    - name: Deploy idrac_telemetry pods
-      ansible.builtin.include_tasks: idrac_telemetry_deployment.yml
+        - name: Deploy idrac_telemetry pods
+          ansible.builtin.include_tasks: idrac_telemetry_deployment.yml
 
-    - name: Collect iDRAC IP from AWX and initiate telemetry collection
-      ansible.builtin.include_tasks: initiate_telemetry.yml
+        - name: Collect iDRAC IP from AWX and initiate telemetry collection
+          ansible.builtin.include_tasks: initiate_telemetry.yml

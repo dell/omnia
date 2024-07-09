@@ -1,0 +1,86 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+
+- name: Install tensorflow (CPU)
+  environment:
+    http_proxy: "{{ http_proxy }}"
+    https_proxy: "{{ https_proxy }}"
+  when: processing_unit == "cpu"
+  block:
+    - name: Pull CPU container image
+      ansible.builtin.command: "nerdctl pull {{ tensorflow_cpu_image }}"
+      changed_when: false
+      failed_when: false
+      register: cpu_deployment_output
+
+    - name: Failed to pull cpu container
+      ansible.builtin.debug:
+        msg: "Warning: {{ error_pull_container }}"
+      when: cpu_deployment_output.rc != 0
+
+    - name: Updating tensorflow installation_status (CPU)
+      ansible.builtin.set_fact:
+        installation_status: "{{ installation_failed_status }}: {{ error_pull_container }}"
+      when: cpu_deployment_output.rc != 0
+
+- name: Install tensorflow (AMD)
+  environment:
+    http_proxy: "{{ http_proxy }}"
+    https_proxy: "{{ https_proxy }}"
+  when: processing_unit == "amd"
+  block:
+    - name: Pull AMD GPU container image
+      ansible.builtin.command: "nerdctl pull {{ tensorflow_amd_image }}"
+      changed_when: false
+      failed_when: false
+      register: amd_deployment_output
+
+    - name: Failed to pull AMD GPU container
+      ansible.builtin.debug:
+        msg: "Warning: {{ error_pull_container }}"
+      when: amd_deployment_output.rc != 0
+
+    - name: Updating tensorflow installation_status (AMD)
+      ansible.builtin.set_fact:
+        installation_status: "{{ installation_failed_status }}: {{ error_pull_container }}"
+      when: amd_deployment_output.rc != 0
+
+- name: Install tensorflow (NVIDIA)
+  environment:
+    http_proxy: "{{ http_proxy }}"
+    https_proxy: "{{ https_proxy }}"
+  when: processing_unit == "nvidia"
+  block:
+    - name: Pull NVIDIA GPU container image
+      ansible.builtin.command: "nerdctl pull {{ tensorflow_nvidia_image }}"
+      changed_when: false
+      failed_when: false
+      register: nvidia_deployment_output
+
+    - name: Failed to pull NVIDIA GPU container
+      ansible.builtin.debug:
+        msg: "Warning: {{ error_pull_container }}"
+      when: nvidia_deployment_output.rc != 0
+
+    - name: Updating tensorflow installation_status (NVIDIA)
+      ansible.builtin.set_fact:
+        installation_status: "{{ installation_failed_status }}: {{ error_pull_container }}"
+      when: nvidia_deployment_output.rc != 0
+
+- name: Modify tensorflow_installation_status
+  ansible.builtin.set_fact:
+    tensorflow_installation_status: true
+  when: installation_status == installation_success_status

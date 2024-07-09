@@ -1,0 +1,174 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+- name: Verify Kubernetes is deployed on cluster
+  ansible.builtin.command: kubectl get node
+  register: k8s_return_code
+  changed_when: false
+  failed_when: false
+
+- name: Fail if Kubernetes is not deployed on node
+  ansible.builtin.assert:
+    that:
+      - k8s_return_code.rc == 0
+    fail_msg: "{{ k8s_not_deployed }}"
+
+- name: Check if Kserve already deployed
+  ansible.builtin.command: kubectl get namespace kserve
+  register: namespace_output
+  changed_when: false
+  failed_when: false
+
+- name: Fail task if kserve namespace exists
+  ansible.builtin.fail:
+    msg: "{{ kserve_exist }}"
+  when: namespace_output.rc == 0
+
+- name: Set kubeflow software status
+  ansible.builtin.set_fact:
+    kubeflow_software_status: false
+
+- name: Get kubeflow software status
+  ansible.builtin.set_fact:
+    kubeflow_software_status: true
+  loop: "{{ software_config.softwares | default([]) }}"
+  when:
+    - "'kubeflow' in item.name"
+  loop_control:
+    loop_var: item
+
+- name: Check kubeflow software status
+  ansible.builtin.assert:
+    that: kubeflow_software_status
+    fail_msg: "{{ kubeflow_software_failure_msg }}"
+
+- name: Get kubeflow local git repo status
+  ansible.builtin.uri:
+    url: "{{ offline_git_path }}/{{ kubeflow_git_repo_path }}.tar.gz"
+    return_content: false
+  register: kubeflow_repo_status
+
+- name: Get kustomize local repo status
+  ansible.builtin.uri:
+    url: "{{ offline_tarball_path }}/{{ kustomize_git_repo_path }}.tar.gz"
+    return_content: false
+  register: kustomize_repo_status
+
+- name: Validate kubeflow local git repo
+  ansible.builtin.assert:
+    that: kubeflow_repo_status.status == 200
+    fail_msg: "{{ kubeflow_repo_failure_msg }}"
+
+- name: Validate kustomize local path
+  ansible.builtin.assert:
+    that: kustomize_repo_status.status == 200
+    fail_msg: "{{ kustomize_repo_failure_msg }}"
+
+- name: Remove kubeflow directory if exists
+  ansible.builtin.command: rm -rf "{{ kubeflow_dir_path }}"
+  changed_when: false
+
+- name: Create kubeflow directory
+  ansible.builtin.command: mkdir -p "{{ kubeflow_dir_path }}"
+  changed_when: false
+
+- name: Remove kustomize directory if exists
+  ansible.builtin.command: rm -rf "{{ kustomize_dir }}"
+  changed_when: false
+
+- name: Create kustomize directory
+  ansible.builtin.command: mkdir -p "{{ kustomize_dir }}"
+  changed_when: false
+
+- name: Get kubeflow git repo tarball
+  ansible.builtin.get_url:
+    url: "{{ offline_git_path }}/{{ kubeflow_git_repo_path }}.tar.gz"
+    dest: "{{ kubeflow_dir_path }}"
+    mode: "{{ file_permission }}"
+
+- name: Setup kubeflow repo to control plane
+  ansible.builtin.unarchive:
+    src: "{{ kubeflow_dir_path }}/{{ kubeflow_git_repo_path }}.tar.gz"
+    dest: "{{ kubeflow_dir_path }}"
+    remote_src: true
+
+- name: Get kustomize repo tarball
+  ansible.builtin.get_url:
+    url: "{{ offline_tarball_path }}/{{ kustomize_git_repo_path }}.tar.gz"
+    dest: "{{ kustomize_dir }}"
+    mode: "{{ file_permission }}"
+
+- name: Setup kustomize repo to control plane
+  ansible.builtin.unarchive:
+    src: "{{ kustomize_dir }}/{{ kustomize_git_repo_path }}.tar.gz"
+    dest: "{{ kustomize_dir }}"
+    remote_src: true
+
+- name: Make kustomize executable
+  ansible.builtin.command:
+    cmd: chmod a+x "{{ kustomize_binary_path }}"
+  changed_when: false
+
+- name: Set Linux max user instance
+  ansible.builtin.command: "sysctl fs.inotify.max_user_instances={{ max_user_instances }}"
+  changed_when: false
+
+- name: Set Linux max watches
+  ansible.builtin.command: "sysctl fs.inotify.max_user_watches={{ max_user_watches }}"
+  changed_when: false
+
+- name: Replace value of jupyter-web secure cookies
+  ansible.builtin.lineinfile:
+    path: "{{ jw_app }}"
+    regexp: '^(.*_APP_SECURE_COOKIES=).*'
+    line: 'JWA_APP_SECURE_COOKIES=false'
+
+- name: Replace value of tensorboard-web-app secure cookies
+  ansible.builtin.lineinfile:
+    path: "{{ tb_app }}"
+    regexp: '^(.*_APP_SECURE_COOKIES=).*'
+    line: 'TWA_APP_SECURE_COOKIES=false'
+
+- name: Replace value of volume-web-app secure cookies
+  ansible.builtin.lineinfile:
+    path: "{{ vw_app }}"
+    regexp: '^(.*_APP_SECURE_COOKIES=).*'
+    line: 'VWA_APP_SECURE_COOKIES=false'
+
+- name: Get kubeflow CRD information
+  ansible.builtin.shell: kubectl get crd | grep mpijobs.kubeflow.org
+  register: crd_info
+  changed_when: false
+  ignore_errors: true
+
+- name: Delete CRD
+  ansible.builtin.command: kubectl delete crd mpijobs.kubeflow.org
+  when: crd_info.stdout | length > 0
+  changed_when: false
+
+- name: Copy rendered YAML file to compute nodes
+  ansible.builtin.copy:
+    src: "{{ role_path }}/files/crd_mpijobs_kubeflow.yml"
+    dest: "{{ kubeflow_dir_path }}/kubeflow"
+    mode: "{{ file_permission }}"
+
+- name: Apply CRD YAML
+  ansible.builtin.command: kubectl apply -f "{{ kubeflow_dir_path }}/kubeflow/crd_mpijobs_kubeflow.yml"
+  changed_when: false
+
+- name: Change istio ingressgateway service from ClusterIP  to LoadBalancer
+  ansible.builtin.replace:
+    path: "{{ istio_ingressgateway_service_yaml_file_path }}"
+    regexp: 'ClusterIP'
+    replace: 'LoadBalancer'

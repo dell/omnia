@@ -13,15 +13,19 @@
 # limitations under the License.
 ---
 
+# local repo
+software_config_file: "{{ role_path }}/../../../input/software_config.json"
+local_repo_access_path: "/opt/omnia/offline/local_repo_access.yml"
+telemetry_packages_file: "{{ role_path }}/../../../input/config/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/telemetry.json"
+
 slurm_telemetry_support: false
 
 # Usage: include_provision_config.yml
 provision_config_file: "{{ role_path }}/../../../input/provision_config.yml"
 fail_msg_provision_config_file: "provision_config.yml file doesn't exist."
-provision_vault_filename: "{{ role_path }}/../../../input/.provision_vault_key"
 
 # Usage: pre-requisites.yml
-os_supported_leap: "leap"
+os_supported_ubuntu: "ubuntu"
 selinux_warning: "Warning! SELinux status is disabled by user. No SELinux policy is loaded"
 telemetry_config_file: "{{ role_path }}/../../../input/telemetry_config.yml"
 fail_msg_telemetry_config_file: "telemetry_config.yml file doesn't exist."
@@ -29,7 +33,7 @@ pip_packages:
   - openshift
   - omsdk
   - PyMySQL
-mysqldb_collection_name: community.mysql:3.1.0
+mysqldb_collection_name: community.mysql:3.7.2
 retry_count: 3
 rhel_epel_repo8: https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
 max_retries: 20
@@ -48,6 +52,10 @@ omnia_telemetry_support_fail_msg: "Failed. omnia_telemetry_support accepts boole
 visualization_support_success_msg: "visualization_support_ validated"
 visualization_support_fail_msg: "Failed. visualization_support accepts boolean value true or false"
 idrac_omnia_telemetry_support_false_warn_time: 10
+pause_time_15: 15
+warning_telemetry_support_false: "Warning. telemetry entry is present in software_config.json, but all telemetry support categories \
+(idrac_telemetry_support, omnia_telemetry_support and visualization_support) are false in input/telemetry_config.yml. \
+omnia does not deploy telemetry feature if none of the support category is true."
 idrac_omnia_telemetry_support_warn_msg: "Warning. Both idrac_telemetry_support and omnia_telemetry_support are false"
 vault_filename: "{{ role_path }}/../../../input/.telemetry_vault_key"
 login_vars_fail_msg: "Username/password validation in telemetry_config.yml failed. Please check the requirements."
@@ -65,21 +73,6 @@ idrac_exec_msg: "Since the absence of idrac group in inventory and existence of 
                    iDRAC telemetry execution will be skipped"
 advanced_vars_fail_msg: "Please give correct inputs for advanced configurations (mysqldb credentials) for idrac telemetry in telemetry_config.yml.
                   Advanced configurations include inputs related to mysqldb for storing idrac credentials"
-validation_error_msg_format_start_range: "Invalid Format! pod_external_ip_start_range accepts this format x.y.240.100"
-validation_error_msg_format_end_range: "Invalid Format! pod_external_ip_end_range accepts this format x.y.240.105"
-validation_error_msg_4_octets: "Validation Error: The pod external IP range should have 4 octets."
-validation_error_msg_octet_range: "Validation Error: The third and fourth octets of the pod external IP should be between 0 and 255."
-validation_error_msg_octet_order: "Validation Error: The third octet of the pod external IP start range should be less than or equal
-                                    to the third octet of the end range."
-validation_error_msg_same_third_octet_order: "Validation Error: The fourth octet of the pod external IP start range should be
-                                               less than the fourth octet of the end range when the third octets are the same."
-validation_success_msg_format_start_range: "pod_external_ip_start_range format is valid."
-validation_success_msg_format_end_range: "pod_external_ip_end_range is valid."
-validation_success_msg_4_octets: "Pod external IP range has 4 octets."
-validation_success_msg_octet_range: "Third and fourth octets of pod external IP are within the valid range."
-validation_success_msg_octet_order: "Third octet of the pod external IP start range is less than or equal to the third octet of the end range."
-validation_success_msg_same_third_octet_order: "Fourth octet of the pod external IP start range is less than the fourth octet of the end range
-                                                 when the third octets are different."
 
 # Usage: validate_omnia_telemetry.yml
 min_interval: 60
@@ -93,11 +86,18 @@ fuzzy_offset_fail_msg: "Failed. fuzzy_offset accepts integer values greater than
 metric_collection_timeout_fail_msg: "Failed. metric_collection_timeout accepts integer values greater than 0 and less than omnia_telemetry_collection_interval"
 telemetry_config_syntax_fail_msg: "Failed. Syntax errors present in telemetry_config.yml. Fix errors and re-run playbook again. Common syntax Errors:
 indentation errors, improper quotes, improper space or tab, missing colon, missing comma etc. "
-inventory_fail_msg: "Inventory comprising manager and compute groups should be passed when omnia_telemetry_support is true."
+k8s_inventory_fail_msg: "Inventory comprising kube_control_plane, kube_node and etcd groups should be passed when k8s entry present in \
+software_config.json and omnia_telemetry_support is true."
 inventory_success_msg: "Inventory is passed."
-manager_group_fail_msg: "Manager group should contain exactly 1 node"
-compute_group_fail_msg: "Compute group should contain atleast 1 node"
+kube_control_plane_group_fail_msg: "kube_control_plane group should contain exactly 1 node in inventory"
+kube_node_group_fail_msg: "kube_node group should contain atleast 1 node in inventory"
+etcd_group_fail_msg: "etcd group should contain atleast 1 node in inventory"
+etcd_odd_entry_fail_msg: "etcd group should have odd number of nodes in inventory"
 login_group_fail_msg: "Login group should contain exactly 1 node"
+slurm_inventory_fail_msg: "Inventory comprising slurm_control_node and slurm_node groups should be passed when slurm entry present in \
+software_config.json and omnia_telemetry_support is true."
+slurm_control_node_group_fail_msg: "slurm_control_node group should contain exactly 1 node in inventory"
+slurm_node_group_fail_msg: "slurm_node group should contain atleast 1 node in inventory"
 
 # Usage: set_docker_os.yml
 docker_rocky_os: "8.5"
@@ -107,3 +107,9 @@ slurm_telemetry_dockerfile_path: "{{ playbook_dir }}/roles/slurm_telemetry/files
 fail_msg_grafana_credentials: "Failed. Incorrect grafana_username or grafana_password format provided"
 mount_validation_msg: "Make sure mount location value is not null"
 min_length_grafana: 5
+
+# K8s Input validation
+invalid_k8s_cni: "Invalid k8s_cni entry in telemetry_config.yml. Enter either calico or flannel"
+invalid_pod_external_ip_range: "Invalid pod_external_ip_range in telemetry_config.yml."
+invalid_k8s_service_addresses: "Invalid k8s_service_addresses in telemetry_config.yml."
+invalid_k8s_pod_network_cidr: "Invalid k8s_pod_network_cidr in telemetry_config.yml."

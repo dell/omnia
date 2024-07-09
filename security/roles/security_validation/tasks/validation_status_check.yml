@@ -18,10 +18,6 @@
     security_validation_status: false
   when: security_validation_status is not defined
 
-- name: Include security config file
-  ansible.builtin.include_tasks: include_security_config.yml
-  when: security_validation_status
-
 - name: Validate security parameters if security_validation_status is false
   ansible.builtin.include_role:
     name: "{{ role_path }}"

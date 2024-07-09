@@ -21,7 +21,7 @@
    switch_ports_empty: "Failed. Please provide switch_ports details to be deleted in switch inventory"
    fail_switch_inventory: "Failed. Please provide proper switch details in switch_based_deletion_config.yml"
    delete_ports: delete_ports.py
-   python_version: "python3.8"
+   python_version: "python3.9"
    ping_file_path: "{{ playbook_dir }}/../../provision/roles/provision_validation/files/switch_v3_ping.py"
   tasks:
     - name: Include vars

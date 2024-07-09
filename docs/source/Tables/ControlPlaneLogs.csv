@@ -1,5 +1,7 @@
 ﻿Name,Location,Purpose,Additional Information
-Omnia Logs,/var/log/omnia.log,Omnia Log,This log is configured by Default. This log can be used to track all changes made by all playbooks in the omnia directory.
+Omnia Logs,/var/log/omnia.log,Omnia Log,"This log is configured by Default. This log can be used to track all changes made by all playbooks in the omnia directory.
+
+.. Note:: User can view the combined logs for ``discovery_provision.yml`` and ``omnia.yml`` execution in ``omnia.log`` file."
 Accelerator Logs,/var/log/omnia/accelerator.log,Accelerator Log,This log is configured by Default.
 Monitor Logs,/var/log/omnia/monitor.log,Monitor Log,This log is configured by Default.
 Network Logs,/var/log/omnia/network.log,Network Log,This log is configured by Default.

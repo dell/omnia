@@ -3,12 +3,14 @@
 
 ``boolean`` [1]_
 
-Required	","* Enables iDRAC telemetry support and visualizations. 
+Required	","* Enables iDRAC telemetry support and visualizations.
+* Provide iDRAC IPs of the required nodes under idrac group in inventory files. 
 * **Values:** 
 
 	* ``false`` <- **Default**
 
 	* ``true``
+
 
 .. note:: When ``idrac_telemetry_support`` is ``true``, ``mysqldb_user``, ``mysqldb_password`` and ``mysqldb_root_password`` become mandatory. "
 "**omnia_telemetry_support**
@@ -36,37 +38,38 @@ Required	","* Enables visualizations.
 
 	* ``true``
 
+
 .. note:: When ``visualization_support`` is true, ``grafana_username`` and ``grafana_password`` become mandatory."
-"**appliance_k8s_pod_net_cidr**
+"**k8s_service_addresses**
 
 ``string``
 
-Required	","* Kubernetes pod network CIDR for appliance k8s network.
-* Make sure this value does not overlap with any of the host networks.
-* **Default value:** ``""192.168.0.0/16""``"
-"**pod_external_ip_start_range**
+Required","* Kubernetes internal network for services.
+* This network must be unused in your network infrastructure.
+* **Default value:** ``""10.233.0.0/18""``"
+"**k8s_cni**
 
 ``string``
 
-Required	","* The start of the range that will be used by Loadbalancer for assigning IPs to K8s services in admin NIC subnet configured on the control plane.
-* The first and second octets (x,y) are not used/validated by Omnia. These values are internally calculated based on the value of ``admin_nic_subnet`` in ``input/provision_config.yml``.
-* If ``pod_external_ip_start_range``: ""x.y.240.100"" and ``pod_external_ip_end_range``: ""x.y.240.105"" and
-* If ``admin_nic_subnet`` provided in provision_config.yml is 10.5.0.0, ``pod_external_ip_start_range`` will be 10.5.240.100 and ``pod_external_ip_end_range`` will be 10.5.240.105
-.. note:: Make sure the IP range is not assigned to any node in the cluster.
-
-* **Default value**: ``""x.y.240.100""``"
-"**pod_external_ip_end_range**
+Required","* Kubernetes SDN network.
+* Accepted values: ""calico"" or ""flannel"".
+* **Default value:** ``""calico""``."
+"**k8s_pod_network_cidr**
 
 ``string``
 
-Required	","* The end of the range that will be used by Loadbalancer for assigning IPs to K8s services in admin NIC subnet configured on the control plane.
-* The first and second octets (x,y) are not used/validated by Omnia. These values are internally calculated based on the value of ``admin_nic_subnet`` in ``input/provision_config.yml``.
-* To create a meaningful range, the third octet of ``pod_external_ip_end_range`` should equal or exceed the third octet of ``pod_external_ip_start_range``. If the third octets are equal, the forth octet of ``pod_external_ip_end_range`` should exceed the forth octet of ``pod_external_ip_start_range``.
-* If ``pod_external_ip_start_range``: ""x.y.240.100"" and ``pod_external_ip_end_range``: ""x.y.240.105"" and
-* If ``admin_nic_subnet`` provided in provision_config.yml is 10.5.0.0, ``pod_external_ip_start_range`` will be 10.5.240.100 and ``pod_external_ip_end_range`` will be 10.5.240.105
-.. note:: Make sure the IP range is not assigned to any node in the cluster.
+Required	","* Kubernetes pod network CIDR for internal network. When used, it will assign IP addresses from this range to individual pods.
+* This network must be unused in your network infrastructure
+* **Default value:** ``""10.233.64.0/18""``"
+"**pod_external_ip_range**
 
-* **Default value**: ``""x.y.240.105""``"
+``string``
+
+Required	","* These addresses will be used by Loadbalancer for assigning External IPs to K8s services running on control plane.
+* Make sure the IP range is not assigned to any node in the cluster.
+* If ``admin_nic`` network provided in ``network_spec.yml`` is in ``""10.11.0.0""`` network, then ``pod_external_ip_range`` should be in same network such as ``""10.11.0.60-10.11.0.70""``.
+* Acceptable formats: ``""10.11.0.100-10.11.0.150""`` , ``""10.11.0.0/16""``
+* Provide a different IP range than that of external IP range mentioned in ``omnia_config.yml``."
 "**timescaledb_user**
 
 ``string``
@@ -135,7 +138,7 @@ Required	","* This variable denotes the time interval (seconds) of telemetry dat
 ``boolean``  [1]_
 
 Required	","* This variable is used to enable metric collection part of the regular metric group.
-* For a list of regular metrics collected, `click here. <TelemetryMetrics.html#regular-metrics>`_
+* For a list of regular metrics collected, `click here. <../../Roles/Telemetry/TelemetryMetrics.html#regular-metrics>`_
 * **Values:**
 	* ``true`` <- **Default**
 
@@ -145,7 +148,7 @@ Required	","* This variable is used to enable metric collection part of the regu
 ``boolean``  [1]_
 
 Required	","* This variable is used to enable metric collection part of the health check metric group.
-* For a list of health metrics collected, `click here. <TelemetryMetrics.html#health-metrics>`_
+* For a list of health metrics collected, `click here. <../../Roles/Telemetry/TelemetryMetrics.html#health-metrics>`_
 * **Values:** 
 	* ``true`` <- **Default**
 
@@ -155,7 +158,7 @@ Required	","* This variable is used to enable metric collection part of the heal
 ``boolean``  [1]_
 
 Required	","* This variable is used to enable metric collection related to GPU.
-* For a list of GPU metrics collected, `click here. <TelemetryMetrics.html#health-metrics>`_
+* For a list of GPU metrics collected, `click here. <../../Roles/Telemetry/TelemetryMetrics.html#gpu-metrics>`_
 
 
 * **Values:**

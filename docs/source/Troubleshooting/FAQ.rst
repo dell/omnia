@@ -1,7 +1,7 @@
 Frequently asked questions
 ==========================
 
-⦾ **Why is the provisioning status of the target servers stuck at 'installing' in cluster.nodeinfo (omniadb)?**
+⦾ **Why does the provisioning status of RHEL/Rocky Linux remote servers remain stuck at ‘installing’ in cluster.nodeinfo (omniadb)?**
 
 .. image:: ../images/InstallingStuckDB.png
 
@@ -9,24 +9,57 @@ Frequently asked questions
 
 **Potential Causes**:
 
-    * Disk partition may not have enough storage space per the requirements specified in ``input/provision_config`` (under ``disk_partition``)
+    * Disk partition may not have enough storage space per the requirements specified in ``input/provision_config`` (under ``disk_partition``).
 
     * The provided ISO may be corrupt/incomplete.
 
     * Hardware issues (Auto reboot may fail at POST)
 
-    * A virtual disk may not be created
+    * A virtual disk may not have been created
+
+    * Re-run of the ``discovery_provision.yml`` playbook on the control plane while provisioning is in-progress on the remote nodes.
 
 
 **Resolution**:
 
-    * Add more space to the server or modify the requirements specified in ``input/provision_config`` (under ``disk_partition``)
+    * Add more space to the server or modify the requirements specified in ``input/provision_config`` (under ``disk_partition``).
 
     * Download the ISO again, verify the checksum/ download size and re-run the provision tool.
 
     * Resolve/replace the faulty hardware and PXE boot the node.
 
     * Create a virtual disk and PXE boot the node.
+
+    * Initiate PXE boot on the remote node after completion of the ``discovery_provision.yml`` playbook execution.
+
+⦾ **Why does the provisioning status of Ubuntu remote servers remain stuck at ‘bmcready’ or 'powering-on' in cluster.nodeinfo (omniadb)?**
+
+.. image:: ../images/ubuntu_pxe_failure.png
+
+**Potential Causes**:
+
+    * Disk partition may not have enough storage space per the requirements specified in ``input/provision_config`` (under ``disk_partition``).
+
+    * The provided ISO may be corrupt/incomplete.
+
+    * Hardware issues (Auto reboot may fail at POST)
+
+    * A virtual disk may not have been created
+
+    * Re-run of the ``discovery_provision.yml`` playbook on the control plane while provisioning is in-progress on the remote nodes.
+
+
+**Resolution**:
+
+    * Add more space to the server or modify the requirements specified in ``input/provision_config`` (under ``disk_partition``).
+
+    * Download the ISO again, verify the checksum/ download size and re-run the provision tool.
+
+    * Resolve/replace the faulty hardware and PXE boot the node.
+
+    * Create a virtual disk and PXE boot the node.
+
+    * Initiate PXE boot on the remote node after completion of the ``discovery_provision.yml`` playbook execution.
 
 
 ⦾ **Why is the provisioning status of my target servers stuck at ‘powering-on’ in the cluster.info (omniadb)?**
@@ -45,13 +78,13 @@ Frequently asked questions
 
 .. image:: ../images/PXEBootFail.png
 
-1. Rectify any probable causes like incorrect/unavailable credentials (``switch_snmp3_username`` and ``switch_snmp3_password`` provided in ``input/provision_config.yml``), network glitches or incorrect switch IP/port details.
+1. Rectify any probable causes like incorrect/unavailable credentials (``switch_snmp3_username`` and ``switch_snmp3_password`` provided in ``input/provision_config.yml``), network glitches, having multiple NICs with the same IP address as the control plane, or incorrect switch IP/port details.
 2. Run the clean up script by: ::
 
      cd utils
      ansible-playbook control_plane_cleanup.yml
 
-3. Re-run the provision tool (``ansible-playbook provision.yml``).
+3. Re-run the provision tool (``ansible-playbook discovery_provision.yml``).
 
 
 ⦾ **What to do if playbook execution fails due to external (network, hardware etc) failure:**
@@ -68,32 +101,31 @@ Re-run the playbook whose execution failed once the issue is resolved.
 
     Run ``kinit admin`` on the node and provide the ``kerberos_admin_password`` when prompted. (This password is also entered in ``input/security_config.yml``.)
 
+
+⦾ **Why am I unable to login using LDAP credentials after successfully creating a user account?**
+
+**Potential Cause**:
+
+    Whitespaces in the LDIF file may have caused an encryption error. Verify whether there are any whitespaces in the file by running ``cat -vet <filename>``.
+
+ **Resolution:**
+
+    Remove the whitespaces and re-run the LDIF file.
+
 ⦾ **Why are the status and admin_mac fields not populated for specific target nodes in the cluster.nodeinfo table?**
 
 **Causes**:
 
     * Nodes do not have their first PXE device set as designated active NIC for PXE booting.
-    * Nodes that have been discovered via SNMP or mapping file have not been PXE booted.
+    * Nodes that have been discovered via multiple discovery mechanisms may list multiple times. Duplicate node entries will not list MAC addresses.
 
 **Resolution**:
 
     * Configure the first PXE device to be active for PXE booting.
     * PXE boot the target node manually.
+    * Duplicate node objects (identified by service tag) will be deleted automatically. To manually delete node objects, use ``utils/delete_node.yml``.
 
-⦾ **Why does the provision.yml fail at 'provision validation: Install common packages for provision' on RHEL nodes running 8.5 or earlier?**
-
-.. image:: ../images/RedHat_provisionerror_sshpass.PNG
-
-**Potential Cause**:
-    * sshpass is not available in any of the repositories on the control plane.
-
-**Resolution**:
-
-   * Enable RedHat subscription or ensure that sshpass is available to install or download to the control plane (from any local repository).
-
-.. note:: This error can also take place when task ``cluster_preperation : Install sshpass`` is executed during ``omnia.yml``.
-
-⦾ What to do if user login fails when accessing a cluster node:
+⦾ **What to do if user login fails when accessing a cluster node?**
 
 .. image:: ../images/UserLoginError.png
 
@@ -105,37 +137,13 @@ Re-run the playbook whose execution failed once the issue is resolved.
    * Refresh the key using ``ssh-keygen -R <hostname/server IP>``.
    * Retry login.
 
-⦾ **Why does the 'Fail if LDAP home directory exists' task fail during user_passwordless_ssh.yml?**
-
-.. image:: ../images/nfssharecheckfail.png
-
-**Potential Cause**: The required NFS share is not set up on the control plane.
-
-**Resolution**:
-
-If ``enable_omnia_nfs`` is true in ``input/omnia_config.yml``, follow the below steps to configure an NFS share on your LDAP server:
-    - From the manager node:
-        1. Add the LDAP server IP address to ``/etc/exports``.
-        2. Run ``exportfs -ra`` to enable the NFS configuration.
-    - From the LDAP server:
-        1. Add the required fstab entries in ``/etc/fstab`` (The corresponding entry will be available on the compute nodes in ``/etc/fstab``)
-        2. Mount the NFS share using ``mount manager_ip: /home/omnia-share /home/omnia-share``
-
 ⦾ **Why does the 'Import SCP from a local path' task fail during idrac.yml?**
 
 .. image:: ../images/ImportSCPiDRAC_fail.png
 
-**Potential Cause**: The target server may be hung during the booting process.
+**Potential Cause**: The target server may be stalled during the booting process.
 
 **Resolution**: Bring the target node up and re-run the script.
-
-⦾ **Why does the 'Verify primary_dns is  reachable' task fail during provision.yml?**
-
-.. image:: ../images/primarydns_verify_failure.png
-
-Currently, the ``primary_dns`` value stored in ``input/provision_config.yml`` cannot be part of any of the subnets (``admin_nic_subnet``, ``ib_nic_subnet`` and ``bmc_nic_subnet``) also defined in ``input/provision_config.yml``.
-
-Ex: If the ``primary_dns`` is set to 10.15.0.7, the subnet ``10.15.0.0`` cannot be used for ``admin_nic_subnet``, ``ib_nic_subnet`` or ``bmc_nic_subnet``.
 
 ⦾ **Why is the node status stuck at 'powering-on' or 'powering-off' after a control plane reboot?**
 
@@ -145,7 +153,7 @@ Ex: If the ``primary_dns`` is set to 10.15.0.7, the subnet ``10.15.0.0`` cannot 
 
 For more information, `click here <https://github.com/xcat2/xcat-core/issues/7374>`_
 
-⦾ **Why do subscription errors occur on RHEL control planes when rhel_repo_local_path (in input/provision_config.yml) is not provided & control plane does not have an active subscription?**
+⦾ **Why do subscription errors occur on RHEL control planes when rhel_repo_local_path (in input/provision_config.yml) is not provided and control plane does not have an active subscription?**
 
 .. image:: ../images/SubscriptionErrors.png
 
@@ -153,9 +161,9 @@ For many of Omnia's features to work, RHEL control planes need access to the fol
 
     1. AppStream
     2. BaseOS
-    3. CRB
 
-This can only be achieved using local repos specified in rhel_repo_local_path  (``input/provision_config.yml``) OR having an active, available RedHat subscription.
+
+This can only be achieved using local repos specified in rhel_repo_local_path  (``input/provision_config.yml``).
 
 .. note::
     To enable the repositories, run the following commands: ::
@@ -172,11 +180,11 @@ This can only be achieved using local repos specified in rhel_repo_local_path  (
 
 .. image::  ../images/RepoURLError.png
 
-**Potential Cause**: The ``repo_url``, ``repo_name`` or ``repo`` provided in ``rhel_repo_local_path`` (``input/provision_config.yml``) may not be valid.
+**Potential Cause**: The ``repo_url``, ``repo_name`` or ``repo`` provided in ``rhel_repo_local_path`` (``input/provision_config.yml``) may not have been valid.
 
 Omnia does not validate the input of ``rhel_repo_local_path``.
 
-**Resolution**: Ensure the correct values are passed before re-running ``provision.yml``.
+**Resolution**: Ensure the correct values are passed before re-running ``discovery_provision.yml``.
 
 ⦾ **How to add a new node for provisioning**
 
@@ -185,11 +193,11 @@ Omnia does not validate the input of ``rhel_repo_local_path``.
 
     * Update the existing mapping file by appending the new entry (without the disrupting the older entries) or provide a new mapping file by pointing ``pxe_mapping_file_path`` in ``provision_config.yml`` to the new location.
 
-    * Run ``provision.yml``.
+    * Run ``discovery_provision.yml``.
 
 2. Using the switch IP:
 
-    * Run ``provision.yml`` once the switch has discovered the potential new node.
+    * Run ``discovery_provision.yml`` once the switch has discovered the potential new node.
 
 ⦾ **Why does the task: 'BeeGFS: Rebuilding BeeGFS client module' fail?**
 
@@ -214,11 +222,6 @@ Omnia does not validate the input of ``rhel_repo_local_path``.
     Changing the ``breakout_value`` on a split port is currently not supported. Ensure the port is un-split before assigning a new ``breakout_value``.
 
 
-⦾ **How to enable DHCP routing on Compute Nodes:**
-
-To enable routing, update the ``primary_dns`` and ``secondary_dns`` in ``provision_config.yml`` with the appropriate IPs (hostnames are currently not supported). For compute nodes that are not directly connected to the internet (ie only host network is configured), this configuration allows for internet connectivity.
-
-
 ⦾ **What to do if the LC is not ready:**
 
 
@@ -241,20 +244,51 @@ To enable routing, update the ``primary_dns`` and ``secondary_dns`` in ``provisi
 
 **Resolution**: Manually input the username and password to your docker account on the control plane.
 
-
-⦾ **Is Disabling 2FA supported by Omnia?**
-
-* Disabling 2FA is not supported by Omnia and must be manually disabled.
-
 ⦾ **Is provisioning servers using BOSS controller supported by Omnia?**
 
-Provisioning server using BOSS controller is now supported by Omnia 1.2.1.
-
-⦾ **How many IPs are required within the PXE NIC range?**
-
-Ensure that the number of IPs available between ``pxe_nic_start_range`` and ``pxe_nic_end_range`` is double the number of iDRACs available to account for potential stale entries in the mapping DB.
+From Omnia 1.2.1, provisioning a server using BOSS controller is supported.
 
 ⦾ **What are the licenses required when deploying a cluster through Omnia?**
 
 While Omnia playbooks are licensed by Apache 2.0, Omnia deploys multiple softwares that are licensed separately by their respective developer communities. For a comprehensive list of software and their licenses, `click here <../Overview/SupportMatrix/omniainstalledsoftware.html>`_ .
 
+⦾ **Why does the task: TASK [hostname_validation : Verify the domain name is not blank in hostname] fail?**
+
+**Potential Cause**: Hostname is not configured properly with the domain name, on the target node.
+
+**Resolution**: Use the following commands to configure the hostname properly: ::
+
+
+        sysctl kernel.hostname=node001.omnia.test
+        hostnamectl set-hostname node001.omnia.test
+
+
+.. note:: ``node001.omnia.test`` is a sample hostname.
+
+⦾ **local_repo.yml playbook execution fails at the TASK [parse_and_download : Display Failed Packages]**
+
+.. image:: ../images/package_failure_local_repo.png
+
+**Potential Cause**: This issue is encountered if Omnia fails to download any software package while executing ``local_repo.yml`` playbook. Download failures can occur if:
+
+    * The URL to download the software packages mentioned in the ``<cluster_os_type>/<cluster_os_version>/<software>.json`` is incorrect or the repository is unreachable.
+    * The provided Docker credentials are incorrect or if you encounter a Docker pull limit issue. For more information, `click here <https://www.docker.com/increase-rate-limits/#:~:text=You%20have%20reached%20your%20pull%20rate%20limit.%20You,account%20to%20a%20Docker%20Pro%20or%20Team%20subscription.>`_.
+    * If the disk space is insufficient while downloading the package.
+
+**Resolution**: Re-run the ``local_repo.yml`` playbook while ensuring the following:
+
+    * URL to download the software packages mentioned in ``<cluster_os_type>/<cluster_os_version>/<software>.json`` is correct, and the repository is reachable.
+    * Docker credentials provided in ``input/provision_config_credentials`` is correct.
+    * Sufficient disk space is available while downloading the package. For disk space considerations, see `local repo <../InstallationGuides/LocalRepo/Prerequisite.html>`_.
+
+If the ``local_repo.yml`` is executed successfully without any package download failures, a "success" message is displayed as shown below:
+
+.. image:: ../images/local_repo_success.png
+
+⦾ **Why does the provisioning status of Kubernetes RoCE pod remain stuck at 'Pending' or 'ContainerCreating' state?**
+
+.. image:: ../images/roce_pod_failure.png
+
+**Potential Cause**: This issue is encountered if incorrect parameter values are provided during the installation of the Kubernetes plugin for the RoCE NIC. For more information about the parameters and their accepted values, `click here <../InstallationGuides/BuildingClusters/k8s_plugin_roce_nic.html>`_.
+
+**Resolution**: If the RoCE pod is in 'Pending' or 'ContainerCreating' state, describe the pod to check for issues. If there is a mistake in the parameter values provided, use ``delete_roce_plugin.yml`` to delete the configurations made for the Kubernetes RoCE plugin, append the ``input/roce_plugin_config.yml`` with correct values and re-deploy the RoCE pod by executing ``deploy_roce_plugin.yml``.

@@ -1,0 +1,46 @@
+﻿Parameter,Details
+"**cluster_os_type**
+
+``string``
+
+Required","* The operating system running on the cluster (``rhel``, ``rocky``, and ``ubuntu``).
+**Default value**: ``ubuntu``."
+"**cluster_os_version**
+
+``string``
+
+Required","* The OS Version that will be provisoned on compute nodes.
+* For RHEL, the accepted values are 8.6, 8.7, and 8.8.
+* For Rocky, the accepted values are 8.6, 8.7, and 8.8.
+* For Ubuntu, the accepted values are 20.04, 22.04.
+* **Default value**: 22.04"
+"**repo_config**
+
+``string``
+
+Required","* The type of offline configuration user needs.
+* When the value is set to ``always``, Omnia creates a local repository/registry on the Control plane hosting all the packages/images required for the cluster.
+* When the value is set to ``partial``, Omnia creates a local repository/registry on the Control plane hosting all the packages/images except those listed in the ``user_repo_url/user_registry`` in ``input/local_repo_config.yml``.
+* When the value is set to ``never``, Omnia does not create a local repository/registry. All the packages/images are directly downloaded on the cluster.
+.. note::
+  * After ``local_repo.yml`` has run, the value of ``repo_config`` in ``input/software_config.json`` cannot be updated without running the `control_plane_cleanup.yml <../CleanUpScript.html>`_ script first.
+  * Irrespective of the value of ``repo_config``, all local repositories that are not available as images, debian packages, or RPMs will be downloaded and configured locally on the control plane. Additionally, AMD GPU drivers, CUDA, and OFED are downloaded by default.
+
+* **Accepted values**:
+
+  * ``always``
+  * ``partial`` <- Default
+  * ``never``
+	"
+"**softwares**
+
+``JSON list``
+
+Required","* A JSON list of required software and (optionally) the software revision.
+* The following software should be listed with a version in the list: BeeGFS, AMD GPU, Kubernetes, CUDA, OFED, UCX, and ROCm.
+* A minimum of one software should be provided in the list for ``local_repo.yml`` to execute correctly.
+* The ``<os_type>_software_config.json`` will have the basic softwares present in it. To add additional software stacks, add the software under ``input/software_config.json``.
+* For the list of all applicable softwares based on your <cluster_os_type>, refer the templates at ``examples/template_<os>_software_config.json``. Supported ``<os>`` are RHEL, Rocky, and Ubuntu.
+
+.. note:: The accepted names for software is taken from ``input/config/<cluster_os_type>/<cluster_os_version>``.
+"

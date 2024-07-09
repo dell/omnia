@@ -1,0 +1,53 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Pull images
+  environment:
+    http_proxy: "{{ http_proxy }}"
+    https_proxy: "{{ https_proxy }}"
+  block:
+    - name: Set empty image list
+      ansible.builtin.set_fact:
+        list_image_versions: []
+
+    - name: Parse images with tag
+      ansible.builtin.set_fact:
+        list_image_versions: "{{ list_image_versions + [item.package + ':' + item.tag] }}"
+      loop: "{{ custom_image_json['custom_image']['cluster'] }}"
+      when: item.type == 'image' and item.tag is defined
+
+    - name: Parse images with digest for always or partial case
+      ansible.builtin.set_fact:
+        list_image_versions: "{{ list_image_versions + [item.package + ':omnia'] }}"
+      loop: "{{ custom_image_json['custom_image']['cluster'] }}"
+      when: repo_config_value != 'never' and item.type == 'image' and item.digest is defined
+
+    - name: Parse images with digest for never case
+      ansible.builtin.set_fact:
+        list_image_versions: "{{ list_image_versions + [item.package + '@sha256:' + item.digest] }}"
+      loop: "{{ custom_image_json['custom_image']['cluster'] }}"
+      when: repo_config_value == 'never' and item.type == 'image' and item.digest is defined
+
+    - name: Check for Empty image list
+      ansible.builtin.debug:
+        msg: "{{ empty_image_list_msg }}"
+      when: list_image_versions | length == 0
+
+    - name: Pull images in node
+      ansible.builtin.command: nerdctl pull {{ item }}
+      with_items: "{{ list_image_versions }}"
+      changed_when: true
+      failed_when: false
+      when: list_image_versions | length > 0

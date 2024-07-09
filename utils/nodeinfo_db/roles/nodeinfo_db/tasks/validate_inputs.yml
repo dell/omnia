@@ -1,0 +1,89 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+
+- name: Validate user input config
+  block:
+    - name: Set show_column_list variable
+      ansible.builtin.set_fact:
+        show_column_list: "{{ show_column_list | default(nodeinfo_db_default_show_column_list, true) }}"
+
+    - name: Split default_show_column_list into list
+      ansible.builtin.set_fact:
+        default_attributes: "{{ nodeinfo_db_default_show_column_list.split(',') }}"
+
+    - name: Split show_column_list into list
+      ansible.builtin.set_fact:
+        user_attributes: "{{ show_column_list.split(',') }}"
+
+    - name: Split column_name into list
+      ansible.builtin.set_fact:
+        filter_attributes: "{{ filter_value | selectattr('column_name', '!=', '') | map(attribute='column_name') | list }}"
+
+    - name: Split column_value into list
+      ansible.builtin.set_fact:
+        filter_attributes_value: "{{ filter_value | selectattr('column_value', '!=', '') | map(attribute='column_value') | list }}"
+
+    - name: Set filter_attributes_length and filter_attributes_value_length
+      ansible.builtin.set_fact:
+        filter_attributes_length: "{{ filter_attributes | length }}"
+        filter_attributes_value_length: "{{ filter_attributes_value | length }}"
+
+    - name: Check filter_attributes_length equal to filter_attributes_value_length
+      ansible.builtin.fail:
+        msg: "{{ nodeinfo_db_error_filter_attributes_length }}"
+      when: filter_attributes_length != filter_attributes_value_length
+
+    - name: Check if any attribute does not exist in omniadb table
+      ansible.builtin.fail:
+        msg: "{{ nodeinfo_db_error_attribute }}"
+      when: attribute not in nodeinfo_db_default_show_column_list
+      loop: "{{ user_attributes }}"
+      loop_control:
+        loop_var: attribute
+
+    - name: Check if any filter_attributes does not exist in omniadb table
+      ansible.builtin.fail:
+        msg: "{{ nodeinfo_db_error_filter_attributes }}"
+      when: attribute not in nodeinfo_db_default_show_column_list
+      loop: "{{ filter_attributes }}"
+      loop_control:
+        loop_var: attribute
+
+    - name: Set SQL query based on user input show_column_list
+      ansible.builtin.set_fact:
+        query_part1: "SELECT {{ show_column_list }} FROM cluster.nodeinfo "
+
+    - name: Initialize SQL query based on user input filter has no values
+      ansible.builtin.set_fact:
+        query_part2: ""
+
+    - name: Set SQL query based on user input filter
+      ansible.builtin.set_fact:
+        query_part2: |
+          WHERE {% for name in filter_attributes %}
+            {{ name }} = '{{ filter_attributes_value[filter_attributes.index(name)] }}'
+            {% if not loop.last %} AND {% endif %}
+          {% endfor %}
+      when: filter_attributes_length == filter_attributes_value_length and filter_attributes_length != "0"
+
+    - name: Set Complete query based on user input
+      ansible.builtin.set_fact:
+        query: "{{ query_part1 + query_part2 }}"
+
+  rescue:
+    - name: Handle the rescue condition
+      ansible.builtin.fail:
+        msg: "{{ nodeinfo_db_error_rescue_condition }}"

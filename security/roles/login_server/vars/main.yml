@@ -14,7 +14,6 @@
 ---
 
 # Usage: check_prerequisites.yml
-return_status: 200
 ipa_admin_username: admin
 
 # Usage: install_packages.yml

@@ -17,6 +17,7 @@
   ansible.builtin.command: cat "{{ telemetry_package_list }}"
   register: telemetry_packages
   delegate_to: localhost
+  connection: local
   changed_when: false
 
 - name: Install telemetry package

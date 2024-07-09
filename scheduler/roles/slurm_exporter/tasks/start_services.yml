@@ -1,4 +1,4 @@
-# Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@
   ansible.builtin.service:
     name: firewalld
     state: started
-    enabled: yes
+    enabled: true
   tags: firewalld
 
 - name: Firewall port addition for slurm exporter
@@ -43,14 +43,14 @@
   ansible.builtin.service:
     name: firewalld
     state: stopped
-    enabled: no
+    enabled: false
   tags: firewalld
 
 - name: Create systemd unit file
   ansible.builtin.copy:
     src: "{{ role_path }}/files/prometheus-slurm-exporter.service"
     dest: "{{ systemd_path_dest }}"
-    remote_src: no
+    remote_src: false
     mode: "{{ file_permission }}"
 
 - name: Update the port in service file
@@ -64,4 +64,4 @@
   ansible.builtin.systemd:
     name: prometheus-slurm-exporter
     state: restarted
-    enabled: yes
+    enabled: true

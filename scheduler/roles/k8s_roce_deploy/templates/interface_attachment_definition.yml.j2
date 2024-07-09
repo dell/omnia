@@ -1,0 +1,34 @@
+{% set ipam_fields = [] %}
+{% if item.1.range %}
+  {% set _ =  ipam_fields.append('"range": "' ~ item.1.range ~ '"') %}
+{% endif %}
+{% if item.1.range_start %}
+  {% set _ =  ipam_fields.append('"range_start": "' ~ item.1.range_start ~ '"') %}
+{% endif %}
+{% if item.1.range_end %}
+  {% set _ =  ipam_fields.append('"range_end": "' ~ item.1.range_end ~ '"') %}
+{% endif %}
+{% if item.1.route %}
+  {% set _ =  ipam_fields.append('"routes": [{ "dst": "' ~ item.1.route ~ '" }]') %}
+{% endif %}
+{% if item.1.gateway %}
+  {% set _ =  ipam_fields.append('"gateway": "' ~ item.1.gateway ~ '"') %}
+{% endif %}
+
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: roce-{{ item.0 + 1 }}
+spec:
+  config: '{
+      "cniVersion": "0.3.0",
+      "name": "whereaboutsexample-{{ item.0 + 1 }}",
+      "type": "macvlan",
+      "master": "{{ item.1.name }}",
+      "mode": "bridge",
+      "ipam": {
+        "type": "whereabouts",
+        {% if ipam_fields | length > 0 %}{{ ipam_fields | join(',\n        ') }}{% endif %}
+        
+      }
+    }'

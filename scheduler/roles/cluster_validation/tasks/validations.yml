@@ -1,4 +1,4 @@
-#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,19 +13,23 @@
 #  limitations under the License.
 ---
 
-- name: Invalid inventory format
+- name: Inventory not provided
   ansible.builtin.fail:
-    msg: "{{ invalid_inventory_fail_msg }}"
-  when: groups['manager'] is not defined or groups['compute'] is not defined
+    msg: "{{ empty_inventory_fail_msg }}"
+  when:
+    - groups['all'] is defined
+    - (groups['all'] | length == 0)
 
-- name: Manager group to contain exactly 1 node
-  ansible.builtin.assert:
-    that: "groups['manager'] | length | int == 1"
-    fail_msg: "{{ manager_group_fail_msg }}"
-    success_msg: "{{ manager_group_success_msg }}"
+# Validate K8s requirements for all the nodes
+- name: Validate K8s nodes requirements
+  when: k8s_support is true
+  ansible.builtin.include_tasks: k8s_validations.yml
 
-- name: Compute group to contain atleast 1 node
-  ansible.builtin.assert:
-    that: "groups['compute'] | length | int >= 1"
-    fail_msg: "{{ compute_group_fail_msg }}"
-    success_msg: "{{ compute_group_success_msg }}"
+# Validate slurm requirements for all the nodes
+- name: Validate Slurm nodes requirements
+  when: slurm_support is true
+  ansible.builtin.include_tasks: slurm_validations.yml
+
+- name: Set validate validate_slurm_k8s_inventory to true
+  ansible.builtin.set_fact:
+    validate_slurm_k8s_inventory: true

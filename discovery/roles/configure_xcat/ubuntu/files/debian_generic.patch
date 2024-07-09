@@ -1,0 +1,14 @@
+--- debian.pm	2024-05-22 09:23:20.550315043 +0000
++++ debian_generic.pm	2024-05-22 09:24:56.404909599 +0000
+@@ -850,11 +850,6 @@
+                             and -r "$pkgdir/install/netboot/initrd.gz"
+                             and $initrdpath = "$pkgdir/install/netboot/initrd.gz"
+                         ) or
+-                        (-r "$pkgdir/casper/hwe-vmlinuz"
+-                            and $kernpath = "$pkgdir/casper/hwe-vmlinuz"
+-                            and -r "$pkgdir/casper/hwe-initrd"
+-                            and $initrdpath = "$pkgdir/casper/hwe-initrd"
+-                        ) or
+                         (-r "$pkgdir/casper/vmlinuz"
+                             and $kernpath = "$pkgdir/casper/vmlinuz"
+                             and -r "$pkgdir/casper/initrd"

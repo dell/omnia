@@ -1,0 +1,77 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+- name: Initialize epoch version
+  ansible.builtin.set_fact:
+    epoch_version: ""
+
+- name: Install certificate package
+  ansible.builtin.package:
+    name: "{{ cert_packages }}"
+    state: present
+
+- name: Create directory /etc/apt/keyrings
+  ansible.builtin.file:
+    path: "{{ keyringsfile }}"
+    state: directory
+    mode: "{{ dir_mode }}"
+
+- name: Set fact for OS release
+  ansible.builtin.set_fact:
+    os_release: "{{ ansible_distribution_release }}"
+
+- name: Clean apt cache
+  ansible.builtin.apt:
+    autoclean: true
+
+- name: Configure Docker Repository
+  ansible.builtin.template:
+    src: "{{ docker_repo_temp }}"
+    dest: "{{ sources_list_dest }}/docker.list"
+    mode: "{{ file_mode }}"
+
+- name: Download Docker gpgkey
+  ansible.builtin.get_url:
+    url: "{{ docker_gpg_url }}"
+    dest: "{{ gpg_path }}"
+    mode: "{{ file_mode }}"
+  changed_when: false
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+
+- name: Get epoch number of docker-ce/docker-ce-cli
+  ansible.builtin.shell: "set -o pipefail | apt-cache show docker-ce | grep 'Version: 5:24.0.4' | awk '{print $2}'"
+  register: epoch_output
+  changed_when: false
+
+- name: Set fact for epoch version
+  ansible.builtin.set_fact:
+    epoch_version: "{{ epoch_output.stdout }}"
+
+- name: Installing packages for docker
+  ansible.builtin.command:
+    cmd: "apt install -y --allow-downgrades {{ item }}"
+  loop: "{{ docker_packages_ubuntu }}"
+  changed_when: false
+
+- name: Start Docker Service
+  ansible.builtin.systemd:
+    name: docker
+    state: restarted
+  register: docker_result
+  until: docker_result is succeeded
+  retries: "{{ package_retry }}"
+  delay: "{{ buildkit_delay }}"

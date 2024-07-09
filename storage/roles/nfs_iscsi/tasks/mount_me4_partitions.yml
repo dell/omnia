@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -75,8 +75,6 @@
     mount | grep me4
   failed_when: false
   changed_when: false
-  args:
-    warn: false
   register: me4_mounted_partitions
 
 - name: Set file system on partition
@@ -99,8 +97,6 @@
 - name: Mount K8s partition on K8s NFS share
   command: "mount {{ item.0 }}1 {{ item.1.location }}"
   changed_when: true
-  args:
-    warn: false
   when: item.1.location not in me4_mounted_partitions.stdout
   with_together:
      - "{{ mounted_pv_disks }}"

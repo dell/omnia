@@ -1,0 +1,26 @@
+[Unit]
+Description=Slurm node daemon
+After=munge.service network.target remote-fs.target
+ConditionPathExists={{ slurm_nfs_folder }}/etc/slurm/slurm.conf
+
+[Service]
+Type=forking
+EnvironmentFile=-/etc/sysconfig/slurmd
+Environment="LD_LIBRARY_PATH={{ slurm_nfs_folder }}/usr/lib64/"
+ExecStart={{ slurm_nfs_folder }}/sbin/slurmd -d {{ slurm_nfs_folder }}/usr/sbin/slurmstepd -f {{ slurm_nfs_folder }}/etc/slurm/slurm.conf
+
+ExecReload=/bin/kill -HUP $MAINPID
+PIDFile={{ slurm_nfs_folder }}/var/run/slurmd.pid
+KillMode=mixed
+LimitNOFILE=131072
+LimitMEMLOCK=infinity
+LimitSTACK=infinity
+Delegate=yes
+Restart=on-failure
+RestartSec=2
+killasgroup=true
+stopasgroup=true
+
+
+[Install]
+WantedBy=multi-user.target

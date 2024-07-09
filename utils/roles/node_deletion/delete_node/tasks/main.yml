@@ -1,0 +1,170 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Initialize variables
+  ansible.builtin.set_fact:
+    ip_addresses: []
+    non_ip_addresses: []
+
+- name: Get IP addresses from inventory
+  ansible.builtin.set_fact:
+    ip_addresses: "{{ ip_addresses + [item] }}"
+  with_items: "{{ groups['nodes'] }}"
+  when: item is match('^(\d{1,3}\.){3}\d{1,3}$')
+
+- name: Get items which are not IP addresses from inventory
+  ansible.builtin.set_fact:
+    non_ip_addresses: "{{ groups['nodes'] | difference(ip_addresses) }}"
+
+- name: Set variables based on inventory item types
+  ansible.builtin.set_fact:
+    only_ip_present: "{{ true if (ip_addresses | length > 0 and non_ip_addresses | length == 0) else false }}"
+    only_non_ip_present: "{{ true if (ip_addresses | length == 0 and non_ip_addresses | length > 0) else false }}"
+
+- name: Get node details from DB if inventory values are IP
+  community.postgresql.postgresql_query:
+    db: omniadb
+    login_user: postgres
+    query: SELECT node,status,admin_ip,service_tag,hostname FROM cluster.nodeinfo where (node!='control_plane') AND (admin_ip='{{ item }}');
+    login_password: "{{ hostvars['localhost']['postgresdb_password'] }}"
+  become_user: postgres
+  register: ip_query_status
+  with_items: "{{ ip_addresses }}"
+  no_log: true
+
+- name: Get node details from DB if inventory values are not IP address
+  community.postgresql.postgresql_query:
+    db: omniadb
+    login_user: postgres
+    query: SELECT node,status,admin_ip,service_tag,hostname FROM cluster.nodeinfo where (node!='control_plane') AND (service_tag='{{ item | upper }}' OR node='{{ item }}' OR hostname='{{ item }}'); # noqa: yaml[line-length]
+    login_password: "{{ hostvars['localhost']['postgresdb_password'] }}"
+  become_user: postgres
+  register: non_ip_query_status
+  with_items: "{{ non_ip_addresses }}"
+  no_log: true
+
+- name: Set query result
+  ansible.builtin.set_fact:
+    query_results: >-
+      {{
+        only_ip_present | ternary(ip_query_status.results,
+        only_non_ip_present | ternary( non_ip_query_status.results, ip_query_status.results + non_ip_query_status.results))
+      }}
+
+- name: Initialize variables for valid and invalid nodes
+  ansible.builtin.set_fact:
+    valid_nodes: {}
+    invalid_nodes: []
+    reachable_nodes: []
+    node_list: ""
+    verify_node: []
+
+- name: Set valid nodes
+  ansible.builtin.set_fact:
+    valid_nodes: "{{ valid_nodes | combine({item.item: {'node': item.query_result[0].node,
+      'admin_ip': item.query_result[0].admin_ip,
+      'status': item.query_result[0].status,
+      'hostname': item.query_result[0].hostname,
+      'service_tag': item.query_result[0].service_tag}}) }}"
+  when: item.rowcount!=0
+  loop: "{{ query_results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Set invalid nodes
+  ansible.builtin.set_fact:
+    invalid_nodes: "{{ invalid_nodes + [item.item] }}"
+  when: item.rowcount==0
+  loop: "{{ query_results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Warning for invalid nodes
+  ansible.builtin.debug:
+    msg: "{{ warn_msg_for_invalid_node }}"
+  with_items: "{{ invalid_nodes }}"
+
+- name: Check reachability for valid nodes
+  ansible.builtin.command: ping -c3 "{{ item.value.admin_ip }}"
+  register: ip_reachable
+  changed_when: false
+  failed_when: false
+  when: item.value.status == 'booted'
+  loop: "{{ query('ansible.builtin.dict', valid_nodes) }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: Set Reachable nodes
+  ansible.builtin.set_fact:
+    reachable_nodes: "{{ reachable_nodes + [item.item.value.admin_ip] }}"
+  when:
+    - item.skipped is not defined
+    - ping_msg not in item.stdout
+  loop: "{{ ip_reachable.results }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+
+- name: Set variable to remove host entry
+  ansible.builtin.set_fact:
+    node_list: "{{ node_list | default('') + '/' + item.value.node + '/d; ' }}"
+  when: item.value.admin_ip in reachable_nodes
+  loop: "{{ query('ansible.builtin.dict', valid_nodes) }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: Remove trailing semicolon and whitespace
+  ansible.builtin.set_fact:
+    node_list: "{{ node_list[:-2] }}"
+
+- name: Update reachable nodes
+  ansible.builtin.include_tasks: update_reachable_nodes.yml
+  when:
+    - reachable_nodes | length > 0
+    - item.value.status == 'booted'
+    - item.value.admin_ip in reachable_nodes
+  loop: "{{ query('ansible.builtin.dict', valid_nodes) }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: Delete nodes details
+  ansible.builtin.include_tasks: delete_nodes.yml
+  loop: "{{ query('ansible.builtin.dict', valid_nodes) }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: Remove node from omnia DB
+  community.postgresql.postgresql_query:
+    db: omniadb
+    login_user: postgres
+    query: DELETE FROM cluster.nodeinfo where ('{{ item.value.node }}'<>'control_plane') AND node='{{ item.value.node }}';
+    login_password: "{{ hostvars['localhost']['postgresdb_password'] }}"
+  become_user: postgres
+  no_log: true
+  register: query_status
+  loop: "{{ query('ansible.builtin.dict', valid_nodes) }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: Verify removed nodes
+  ansible.builtin.set_fact:
+    verify_node: "{{ verify_node + [item.item.key] }}"
+  when: item.rowcount==1
+  loop: "{{ query_status.results }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+
+- name: Following nodes removed
+  ansible.builtin.debug:
+    msg: "{{ verify_node | join(', ') }}"

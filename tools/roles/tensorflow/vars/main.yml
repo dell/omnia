@@ -1,0 +1,59 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+
+# global
+installation_success_status: "Tensorflow succesfully installed"
+installation_failed_status: "Failed to install tensorflow"
+
+# For env proxy setup
+local_repo_access_path: "/opt/omnia/offline/local_repo_access.yml"
+
+# tensorflow.json file path
+tensorflow_json_file: "{{ role_path }}/../../../input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/tensorflow.json"
+
+# Usage: check_prerequisites.yml for validate_software_config_json.yml
+software_config_json_file: "{{ role_path }}/../../../input/software_config.json"
+software_config_parameters_fail_msg: "Failed. Please ensure cluster_os_type, cluster_os_verion, repo_config are defined in software_config.json"
+
+# Nvidia: check_prerequisites.yml
+nvidia_container_toolkit: "nvidia-container-toolkit"
+
+# Errors: check_prerequisites.yml
+error_check_gpu_failed: "GPU Driver absent. Skipping tensorflow installation."
+error_check_container_engine_failed: "tensorflow requires containerd as a prerequisite. Please execute scheduler.yml/omnia.yml and install k8s and
+execute tensorflow again"
+error_dri_file_failed: "Unable to read dri files in /dev/dri folder"
+
+# CMD: check_prerequisites.yml
+amd_run_cmd_start: "nerdctl run -it --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --device=/dev/kfd "
+
+# check_prerequisites.yml - Create omnia folder if it doesn't exist
+omnia_foler_path: "/opt/omnia"
+omnia_foler_stat: "directory"
+omnia_foler_mode: "0755"
+
+# Errors: tensorflow_install.yml
+error_pull_container: "Unable to  pull container image"
+
+# Usage: tensorflow_verify.yml
+example_src_file_path: "tensorflow_example.py"
+example_file_path: "/opt/omnia/tensorflow_example.py"
+example_file_owner: "root"
+example_file_group: "root"
+example_file_mode: "0755"
+
+# Error: tensorflow_verify.yml
+error_example_failed: "Unable to  execute tensorflow sample model"

@@ -78,7 +78,7 @@ When connecting to a new or factory reset switch, the configuration wizard reque
 If the user enters 'yes', they will also be prompted to enter the hostname for the switch, DHCP details, IPv6 details, etc.
 
 .. note::
-    * Currently, Omnia only supports the splitting of switch ports. Switch ports cannot be un-split using this script. For information on manually un-splitting ports, `click here <https://docs.nvidia.com/networking/display/MLNXOSv3101110/InfiniBand+Interface+Commands#heading-interfaceibport-typesplit-2>`_.
+    * Currently, Omnia only supports the splitting of switch ports. Switch ports cannot be un-split using this script. For information on manually un-splitting ports, `click here <https://docs.nvidia.com/networking/display/mlnxosv3105000/infiniband+interface#src-111591326_InfiniBandInterface-UnsplittingaSplitPort>`_.
 
     * When initializing a factory reset switch, the user needs to ensure DHCP is enabled and an IPv6 address is not assigned.
 

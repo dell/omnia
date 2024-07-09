@@ -1,0 +1,41 @@
+---
+Networks:
+  - admin_network:
+      nic_name: "{{ admin_nic }}" # Value auto populated by Omnia 1.5-1.6 upgrade script
+      netmask_bits: "{{ import_input_parameters_admin_network_netmask_bits }}"
+      static_range: "{{ import_input_parameters_admin_network_static_range }}" # Value auto populated by Omnia 1.5-1.6 upgrade script
+      dynamic_range: "{{ import_input_parameters_admin_network_dynamic_range }}" # Value auto populated by Omnia 1.5-1.6 upgrade script
+      correlation_to_admin: {{ "true" }}
+      admin_uncorrelated_node_start_ip: "{{ import_input_parameters_uncorrelated_node_start_ip }}" # Value auto populated by Omnia 1.5-1.6 upgrade script
+      network_gateway: "{{ import_input_parameters_admin_network_network_gateway }}"
+      DNS: "{{ import_input_parameters_admin_network_dns }}"
+      MTU: "{{ import_input_parameters_admin_network_mtu }}"
+
+  - bmc_network:
+      nic_name: "{{ bmc_network_nic }}"
+      netmask_bits: "{{ import_input_parameters_bmc_network_netmask_bits }}"
+      static_range: "{{ import_input_parameters_bmc_network_static_range }}" # Value auto populated by Omnia 1.5-1.6 upgrade script
+      dynamic_range: "{{ import_input_parameters_bmc_network_dynamic_range }}" # Value auto populated by Omnia 1.5-1.6 upgrade script
+      reassignment_to_static: {{ "true" }}
+      discover_range: "{{ import_input_parameters_bmc_network_discover_range }}" # Value auto populated by Omnia 1.5-1.6 upgrade script
+      network_gateway: "{{ import_input_parameters_bmc_network_network_gateway }}"
+      MTU: "{{ import_input_parameters_bmc_network_mtu }}"
+
+#**********************************************************************
+# Following are the templates for providing additional network details
+#**********************************************************************
+
+#  - thor_network1:
+#      netmask_bits: "{{ import_input_parameters_thor_network1_netmask_bits }}"
+#      CIDR: "{{ import_input_parameters_thor_network1_cidr }}"
+#      network_gateway: "{{ import_input_parameters_thor_network1_network_gateway }}"
+#      MTU: "{{ import_input_parameters_thor_network1_mtu }}"
+#      VLAN: "{{ import_input_parameters_thor_network1_vlan }}"
+
+#  - thor_network2:
+#      netmask_bits: "{{ import_input_parameters_thor_network2_netmask_bits }}"
+#      static_range: "{{ import_input_parameters_thor_network2_static_range }}"
+#      network_gateway: "{{ import_input_parameters_thor_network2_network_gateway }}"
+#      MTU: "{{ import_input_parameters_thor_network2_mtu }}"
+#      VLAN: "{{ import_input_parameters_thor_network2_vlan }}"
+

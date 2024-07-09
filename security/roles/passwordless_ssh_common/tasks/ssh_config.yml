@@ -29,6 +29,7 @@
     regexp: '^(services(.*)ssh(.*))'
   check_mode: true
   register: sssd_line
+  when: hostvars['127.0.0.1']['authentication_type'] == "freeipa"
 
 - name: Change sssd config - {{ user }}
   ansible.builtin.lineinfile:
@@ -37,19 +38,32 @@
     backrefs: true
     regexp: '^(services(.*)$)'
     line: '\1, ssh'
-  when: not sssd_line.found
+  when:
+    - hostvars['127.0.0.1']['authentication_type'] == "freeipa"
+    - not sssd_line.found
 
-- name: Restart sssd and sshd - {{ user }}
+- name: Restart sssd - {{ user }}
   ansible.builtin.service:
-    name: "{{ item }}"
+    name: "{{ service }}"
     state: restarted
   loop:
     - sssd.service
+  loop_control:
+    loop_var: service
+  when: hostvars['127.0.0.1']['authentication_type'] == "freeipa"
+
+- name: Restart sshd - {{ user }}
+  ansible.builtin.service:
+    name: "{{ service }}"
+    state: restarted
+  loop:
     - sshd.service
+  loop_control:
+    loop_var: service
 
 - name: Create SSH key pair if home directory exists
   run_once: true
-  delegate_to: "{{ groups['manager'][0] }}"
+  delegate_to: "{{ groups['auth_server'][0] }}"
   block:
     - name: Create ssh directory if it does not exist - {{ user }}
       ansible.builtin.file:

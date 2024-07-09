@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,11 +17,25 @@
   ansible.builtin.set_fact:
     storage_validation_status: true
 
-- name: Check xcat installation status
-  ansible.builtin.include_tasks: xcat_status_check.yml
+- name: Local local_repo_access.yml file
+  ansible.builtin.include_vars: "{{ local_repo_access_dest_path }}"
 
-- name: Validate beefs variables
+- name: Fetch omnia_config.yml
+  ansible.builtin.include_tasks: fetch_omnia_config.yml
+
+- name: Fetch software_config.json and check for beegfs and nfs support
+  ansible.builtin.include_tasks: fetch_software_config.yml
+
+- name: Validate inventory format
+  ansible.builtin.include_tasks: validate_inventory.yml
+  when: not ( validate_slurm_k8s_inventory | default(false) | bool )
+
+- name: Validate beegfs variables
   ansible.builtin.include_tasks: validate_beegfs_vars.yml
 
+- name: Include provision metadata file
+  ansible.builtin.include_tasks: include_provision_metadata.yml
+
 - name: Validate nfs variables
-  ansible.builtin.include_tasks: validate_nfs_vars.yml
+  ansible.builtin.include_tasks: fetch_nfs_client_params.yml
+  with_items: "{{ nfs_client_params }}"

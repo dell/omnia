@@ -1,0 +1,46 @@
+{
+    "beegfs": {
+        "cluster": [
+            {
+                "package": "wget",
+                "type": "deb",
+                "repo_name": "jammy"
+            },
+            {
+                "package": "elfutils",
+                "type": "deb",
+                "repo_name": "jammy"
+            },
+            {
+                "package": "libelf-dev",
+                "type": "deb",
+                "repo_name": "jammy"
+            },
+            {
+                "package": "ufw",
+                "type": "deb",
+                "repo_name": "jammy"
+            },
+            {
+                "package": "beegfs-client",
+                "type": "deb",
+                "repo_name": "beegfs"
+            },
+            {
+                "package": "beegfs-helperd",
+                "type": "deb",
+                "repo_name": "beegfs"
+            },
+            {
+                "package": "beegfs-utils",
+                "type": "deb",
+                "repo_name": "beegfs"
+            },
+            {
+                "package": "libbeegfs-ib",
+                "type": "deb",
+                "repo_name": "beegfs"
+            }
+        ]
+    }
+}

@@ -1,0 +1,63 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+user_msg_prepare_config: |
+
+   ***************************************************************************************************************************************************
+   STEP 1 OF UPGRADE: PREPARE_CONFIG COMPLETED SUCCESSFULLY.
+
+   Omnia 1.5.1 input configurations have been imported and populated into the Omnia 1.6 input files at {{ role_path }}/../../../input
+   Backup of Omnia 1.5.1 database has been taken at the 'backup_location' as mentioned in upgrade_config.yml
+   IMPORTANT: Request user to cross-verify the auto-generated configuration parameters, before proceeding further.
+
+   Once the configurations are verified, user can trigger prepare_upgrade.yml as below:
+
+        ansible-playbook prepare_upgrade.yml -i <omnia_1.5.1_inventory_file_path>
+
+   Where <omnia_1.5.1_inventory_file_path> is the absolute file path of Omnia 1.5.1 inventory
+
+   prepare_upgrade.yml cleans up the various software packages on Omnia 1.5.1 cluster and the control plane. This includes Kubernetes, Telemetry, etc.
+   It also creates the Omnia 1.6 local repo, upgrades xCAT on control plane, and restores the Omnia Database from the backup.
+   NOTE: Omnia NFS share of Omnia 1.5.1 is deleted while running prepare_upgrade.yml,hence we recommend users to take backup of the share before proceeding .
+
+   ****************************************************************************************************************************************************
+
+
+user_msg_prepare_upgrade: |
+
+   ***************************************************************************************************************************************************
+   STEP 2 OF UPGRADE: PREPARE_UPGRADE COMPLETED SUCCESSFULLY.
+
+   Omnia 1.5.1 control plane and cluster cleanup have completed successfully.
+   On the control plane, Omnia 1.6 local_repo is configured, xCAT is upgraded, and Omnia Database is restored from the backup.
+
+   User can now trigger upgrade.yml as below:
+
+        ansible-playbook upgrade.yml -i <omnia_1.6_generated_inventory>
+
+   Where <omnia_1.6_generated_inventory> is the Omnia 1.6 inventory file, auto-generated in Step 1, and is available in 'upgrade' folder
+   After executing upgrade.yml, the cluster will be fully upgraded to Omnia 1.6
+
+   ****************************************************************************************************************************************************
+
+
+user_msg_upgrade: |
+
+   ***************************************************************************************************************************************************
+   STEP 3 OF UPGRADE: UPGRADE.YML COMPLETED SUCCESSFULLY.
+
+   The control plane and cluster has been upgraded to Omnia 1.6.
+
+   ****************************************************************************************************************************************************

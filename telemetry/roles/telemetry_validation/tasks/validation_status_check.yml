@@ -18,7 +18,7 @@
     telemetry_validation_status: false
   when: telemetry_validation_status is not defined
 
-- name: Validate telemetry parameters if telemetry_validation_status is false
+- name: Validate telemetry parameters
   ansible.builtin.include_role:
     name: "{{ role_path }}"
   when: not telemetry_validation_status

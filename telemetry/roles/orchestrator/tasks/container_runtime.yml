@@ -1,0 +1,73 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Configure runc
+- name: Configure runc
+  ansible.builtin.get_url:
+    url: "{{ runc_url }}"
+    dest: "{{ runc_dest }}"
+    mode: "{{ runc_permission }}"
+
+# Configure crictl
+- name: Download crictl archive
+  ansible.builtin.get_url:
+    url: "{{ crictl_url }}"
+    dest: "{{ crictl_archive_dest }}"
+    mode: "{{ crictl_permission }}"
+
+- name: Extract crictl archive
+  ansible.builtin.unarchive:
+    src: "{{ crictl_archive_dest }}"
+    dest: "{{ crictl_dest }}"
+    mode: "{{ crictl_permission }}"
+
+- name: Install crictl config
+  ansible.builtin.template:
+    src: crictl.yaml.j2
+    dest: /etc/crictl.yaml
+    owner: root
+    mode: "{{ permission_644 }}"
+
+# Containerd configuration required by K8s on Control plane installation with deploy_container_engine value as false
+- name: Containerd | Generate default base_runtime_spec
+  register: ctr_oci_spec
+  ansible.builtin.command: "{{ containerd_bin_dir }}/ctr oci spec"
+  check_mode: false
+  changed_when: false
+
+- name: Containerd | Store generated default base_runtime_spec
+  ansible.builtin.set_fact:
+    containerd_default_base_runtime_spec: "{{ ctr_oci_spec.stdout | from_json }}"
+
+- name: Containerd | Write base_runtime_specs
+  ansible.builtin.copy:
+    content: "{{ item.value }}"
+    dest: "{{ containerd_cfg_dir }}/{{ item.key }}"
+    owner: "root"
+    mode: "{{ permission_644 }}"
+  with_dict: "{{ containerd_base_runtime_specs | default({}) }}"
+
+- name: Containerd | Copy containerd config file
+  ansible.builtin.template:
+    src: config.toml.j2
+    dest: "{{ containerd_cfg_dir }}/config.toml"
+    owner: "root"
+    mode: "{{ permission_644 }}"
+
+- name: Restart containerd
+  ansible.builtin.systemd:
+    name: containerd
+    state: restarted
+    enabled: true

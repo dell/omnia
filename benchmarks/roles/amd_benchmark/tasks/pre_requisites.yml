@@ -1,4 +1,4 @@
-#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@
   ansible.builtin.set_fact:
     slurm_installation_status: true
   when:
-    - "'compute' in group_names or 'login' in group_names"
+    - "'slurm_node' in group_names or 'login' in group_names"
     - "'slurmd.service' in ansible_facts.services"
     - "'running' in ansible_facts.services['slurmd.service'].state"
 
@@ -32,7 +32,7 @@
   ansible.builtin.set_fact:
     slurm_installation_status: true
   when:
-    - "'manager' in group_names"
+    - "'slurm_control_node' in group_names"
     - "'slurmctld.service' in ansible_facts.services"
     - "'running' in ansible_facts.services['slurmctld.service'].state"
 

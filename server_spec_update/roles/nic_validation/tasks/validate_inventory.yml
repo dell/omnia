@@ -1,0 +1,55 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Include server_spec.yml
+  block:
+    - name: Include server_spec file
+      ansible.builtin.include_vars: "{{ server_spec }}"
+      register: include_server_spec
+      no_log: true
+      tags: init
+  rescue:
+    - name: Failed to include server_spec.yml
+      ansible.builtin.fail:
+        msg: "{{ server_spec_syntax_fail_msg }} Error: {{ include_server_spec.message }}"
+
+- name: Parse server_spec data
+  ansible.builtin.set_fact:
+    category_data: "{{ category_data | default({}) | combine({item.key: item.value}) }}"
+  with_dict: "{{ Categories }}"
+
+- name: Validate hosts in inventory file
+  ansible.builtin.assert:
+    that:
+      - item.key.split('.') | map('int') | list | length == 4
+      - item.key | ansible.utils.ipaddr
+    fail_msg: "{{ inventory_ip_fail_msg }}{{ item.key }}"
+  with_dict: "{{ hostvars }}"
+
+- name: Validate categories provided from host
+  ansible.builtin.assert:
+    that:
+      - item.value.Categories is defined
+      - item.value.Categories | length > 0
+    fail_msg: "{{ host_category_fail_msg }} {{ item.key }}"
+  with_dict: "{{ hostvars }}"
+
+- name: Validate categories in inventory with server_spec
+  ansible.builtin.assert:
+    that:
+      - item.value.Categories in category_data.keys()
+    fail_msg: "Failed, {{ item.key }} : {{ item.value.Categories }} {{ inventory_category_fail_msg }}"
+  with_dict: "{{ hostvars }}"
+  when: item.value.Categories is defined

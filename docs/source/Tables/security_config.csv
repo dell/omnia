@@ -1,0 +1,8 @@
+﻿Parameter,Details
+"domain_name
+     ``string``
+     Required  ","* Sets the intended domain name.        
+* If dc=omnia,dc=test, Provide ``omnia.test``
+* If dc=dell,dc=omnia,dc=com Provide ``dell.omnia.com``  
+                                   
+    **Default values**: ``omnia.test``	"

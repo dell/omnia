@@ -14,21 +14,26 @@
 ---
 
 # Usage: install_slurm_exporter.yml
-installation_dir: "/var/lib/"
-slurm_exporter_inst_dir: "/var/lib/slurm-exporter"
-go_pack_url: "https://dl.google.com/go/go1.15.linux-amd64.tar.gz"
+installation_dir: "/var/lib"
+slurm_exporter_inst_dir: "/var/lib/slurm-exporter/"
+local_repo_access_dest_path: "/opt/omnia/offline/local_repo_access.yml"
+go_pack_url: "{{ offline_tarball_path }}/go.tar.gz"
 max_retries: 5
 download_go_fail_msg: "Failed to download go package from url {{ go_pack_url }}. Verify dns entries in /etc/resolv.conf and check internet access in the node."
 extended_path: "{{ installation_dir }}/go/bin"
 go_exec_path: "{{ installation_dir }}/go/bin/go"
-slurm_exporter_git_repo: "https://github.com/vpenso/prometheus-slurm-exporter.git"
-go_modules_path: "{{ slurm_exporter_inst_dir }}/go/modules"
-slurm_exporter_exec: "{{ slurm_exporter_inst_dir }}/bin/prometheus-slurm-exporter"
+go_files: "{main,accounts,cpus,nodes,partitions,queue,scheduler,users,node,sshare,gpus}.go"
+slurm_exporter_git_repo: "{{ offline_tarball_path }}/prometheus-slurm-exporter.tar.gz"
+prometheus_ver_dir: "prometheus-slurm-exporter-0.20"
+go_modules_path: "{{ slurm_exporter_inst_dir }}{{ prometheus_ver_dir }}"
+slurm_exporter_exec: "{{ slurm_exporter_inst_dir }}{{ prometheus_ver_dir }}/bin/prometheus-slurm-exporter"
+download_slurm_exporter_fail_msg: "Failed to download slurm exporter from {{ slurm_exporter_git_repo }}"
 system_path: "/usr/bin"
 stable_commit_id: "00a7dee"
+bashrc_path: "/etc/bashrc"
 
 # Usage: install_prometheus.yml
-prometheus_git_repo: "https://github.com/prometheus/prometheus/releases/download/v2.23.0/prometheus-2.23.0.linux-amd64.tar.gz"
+prometheus_git_repo: "{{ offline_tarball_path }}/prometheus.tar.gz"
 prometheus_inst_path: "/var/lib/prometheus-2.23.0.linux-amd64/"
 prometheus_exec_path: "{{ prometheus_inst_path }}/prometheus"
 system_local_path: "/usr/local/bin"

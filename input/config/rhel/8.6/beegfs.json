@@ -1,0 +1,13 @@
+{
+    "beegfs": {
+        "cluster": [
+            {"package": "wget", "type": "rpm", "repo_name": "appstream"},
+            {"package": "elfutils-libelf-devel", "type": "rpm", "repo_name": "baseos"},
+            {"package": "firewalld", "type": "rpm", "repo_name": "baseos"},
+            {"package": "beegfs-client", "type": "rpm", "repo_name": "beegfs"},
+            {"package": "beegfs-helperd", "type": "rpm", "repo_name": "beegfs"},
+            {"package": "beegfs-utils", "type": "rpm", "repo_name": "beegfs"},
+            {"package": "libbeegfs-ib", "type": "rpm", "repo_name": "beegfs"}
+        ]
+    }
+}

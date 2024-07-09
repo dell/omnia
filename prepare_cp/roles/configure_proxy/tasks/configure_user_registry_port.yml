@@ -1,0 +1,32 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Create empty list for ports
+  ansible.builtin.set_fact:
+    ports_list: []
+
+- name: Extract ports from user_registry
+  ansible.builtin.set_fact:
+    ports_list: "{{ ports_list + [item.host.split(':')[1] | default(5000)] }}"
+  loop: "{{ user_registry }}"
+
+- name: Ensure user_registry SSL_ports ACL is present in squid.conf
+  ansible.builtin.lineinfile:
+    path: "{{ squid_proxy_conf_path }}"
+    line: "acl SSL_ports port {{ item }}"
+    insertafter: "acl SSL_ports port 443"
+    regexp: "^acl SSL_ports port {{ item }}$"
+  loop: "{{ ports_list }}"
+  register: configure_proxy_port

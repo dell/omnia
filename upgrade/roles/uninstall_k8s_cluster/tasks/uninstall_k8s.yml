@@ -1,0 +1,66 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Reset kubeadm
+  ansible.builtin.command: "kubeadm reset -f"
+  changed_when: true
+  failed_when: false
+
+- name: Uninstall k8s packages
+  ansible.builtin.package:
+    name: "{{ k8s_packages }}"
+    state: absent
+
+# - name: Remove unused dependencies on ubuntu
+#   ansible.builtin.command: sudo apt autoremove
+#   become: true
+#   when: cluster_os|lower == "ubuntu"
+
+- name: Autoremove unneeded packages installed as dependencies
+  ansible.builtin.dnf:
+    autoremove: true
+
+- name: Remove K8s files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  with_items: "{{ k8s_files }}"
+
+- name: Remove kubernetes repo
+  ansible.builtin.file:
+    path: "{{ k8s_repo_file }}"
+    state: absent
+
+- name: Clear iptables and rules
+  ansible.builtin.shell:
+    cmd: "{{ item }}"  # noqa: no-changed-when command-instead-of-shell
+  become: true
+  with_items: "{{ clear_iptables_cmds }}"
+
+- name: Remove docker on K8s node
+  ansible.builtin.include_tasks: remove_docker_k8s.yml
+  tags: remove_docker
+
+- name: Clean the repos cache
+  ansible.builtin.command: dnf clean all
+  changed_when: true
+
+- name: Update the repos cache
+  ansible.builtin.command: dnf makecache
+  changed_when: true
+
+- name: Reload systemd manager
+  ansible.builtin.systemd:
+    daemon-reload: true

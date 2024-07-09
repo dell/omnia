@@ -30,6 +30,7 @@
         idrac_ip: "{{ item }}"
         idrac_user: "{{ idrac_username }}"
         idrac_password: "{{ idrac_password }}"
+        validate_certs: false
       register: idrac_system_info_cli
 
     - name: Set fact for idrac_system_info
@@ -53,6 +54,7 @@
         idrac_ip: "{{ item }}"
         idrac_user: "{{ idrac_username }}"
         idrac_password: "{{ idrac_password }}"
+        validate_certs: false
       register: idrac_firmware_info_cli
 
     - name: Set fact for idrac_system_info

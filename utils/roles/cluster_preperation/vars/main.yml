@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -32,4 +32,4 @@ This may be due to incorrect password in provision_password of provision_config.
 provision_config_filename: "{{ role_path }}/../../../input/provision_config.yml"
 provision_vault_path: "{{ role_path }}/../../../input/.provision_vault_key"
 ansible_vault_search_key: "$ANSIBLE_VAULT;"
-conf_file_mode: 0644
+conf_file_mode: "0644"

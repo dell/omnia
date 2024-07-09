@@ -1,0 +1,11 @@
+--- confignetwork	2024-04-18 08:56:17.838790100 +0000
++++ updateconfignetwork	2024-04-18 08:58:42.997492598 +0000
+@@ -361,7 +361,7 @@
+     fi
+ 
+     if [ -n "$nics_list" ]; then
+-      if [ $is_redhat -eq 1 ]; then
++      if [ $is_redhat -eq 1 ] || [ $is_debian -eq 1 ]; then
+         num=1
+         max=`echo "$nics_list"|wc -l`
+         ((max+=1))

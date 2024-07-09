@@ -1,5 +1,3 @@
-MAC,Hostname,IP
-xx:yy:zz:aa:bb:cc,manager,10.5.0.101
-aa:bb:cc:dd:ee:ff,login,10.5.0.102
-aa:bb:cc:xx:yy:zz,node1,10.5.0.103
-dd:ee:ff:aa:bb:cc,node2,10.5.0.104
+SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_IP
+6XCVT4,n1,xx:yy:zz:aa:bb:cc,10.5.0.101,10.3.0.101
+V345H5,n2,aa:bb:cc:dd:ee:ff,10.5.0.102,10.3.0.102

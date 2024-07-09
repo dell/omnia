@@ -17,21 +17,27 @@
   ansible.builtin.set_fact:
     telemetry_validation_status: true
 
-- name: Validate telemetry_config.yml
-  ansible.builtin.include_tasks: validate_telemetry_config.yml
+- name: Read software config file
+  ansible.builtin.include_tasks: read_software_config.yml
 
-- name: Include provision_config.yml for timezone
-  ansible.builtin.include_tasks: include_provision_config.yml
-  when: idrac_telemetry_support or omnia_telemetry_support or visualization_support
+- name: Proceed with telemetry validation if telemetry entry present in software_config.json
+  when: telemetry_entry_present
+  block:
+    - name: Validate telemetry_config.yml
+      ansible.builtin.include_tasks: validate_telemetry_config.yml
 
-- name: Check pre-requisites for telemetry and visualizations
-  ansible.builtin.include_tasks: pre-requisites.yml
-  when: idrac_telemetry_support or omnia_telemetry_support or visualization_support
+    - name: Include provision_config.yml for timezone
+      ansible.builtin.include_tasks: include_provision_config.yml
+      when: idrac_telemetry_support or omnia_telemetry_support or visualization_support
 
-- name: Create iDRAC inventory
-  ansible.builtin.include_tasks: create_idrac_inventory.yml
-  when: idrac_telemetry_support
+    - name: Check pre-requisites for telemetry and visualizations
+      ansible.builtin.include_tasks: pre-requisites.yml
+      when: idrac_telemetry_support or omnia_telemetry_support or visualization_support
 
-- name: Set the docker version for slurm telemetry
-  ansible.builtin.include_tasks: set_docker_os.yml
-  when: slurm_telemetry_support
+    - name: Create iDRAC inventory
+      ansible.builtin.include_tasks: create_idrac_inventory.yml
+      when: idrac_telemetry_support
+
+    - name: Set the docker version for slurm telemetry
+      ansible.builtin.include_tasks: set_docker_os.yml
+      when: slurm_telemetry_support

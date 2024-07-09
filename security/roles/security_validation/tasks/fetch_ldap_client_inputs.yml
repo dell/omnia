@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -17,21 +17,7 @@
   ansible.builtin.fail:
     msg: "{{ ldap_client_config_failure_msg }}"
   when:
-    - ( domain_name | default("", true) |  length < 1 or
-      ldap_server_ip | default("", true) | length < 1 or
-      ldap_connection_type | default("", true) |  length < 1 or
-      ldap_ca_cert_path | default("", true) | length < 1 )
-
-- name: Test reachablility of LDAP server
-  ansible.builtin.command: ping -c3 {{ ldap_server_ip }}
-  changed_when: false
-  failed_when: false
-  register: ldap_server_reachable
-
-- name: Verify LDAP server reachability
-  ansible.builtin.fail:
-    msg: "{{ ldap_server_failure_msg }}"
-  when: ping_msg in ldap_server_reachable.stdout
+    - domain_name | default("", true) |  length < 1
 
 - name: Validate LDAP Connection type
   ansible.builtin.assert:
@@ -42,18 +28,3 @@
         ldap_connection_type == 'ssl'
     success_msg: "{{ ldap_connection_type_success_msg }}"
     fail_msg: "{{ ldap_connection_type_fail_msg }}"
-
-- name: Validate cert path when connection type is TLS
-  block:
-    - name: Verify the certificate path when connection type is TLS
-      ansible.builtin.stat:
-        path: "{{ ldap_ca_cert_path }}"
-      register: stat_results
-
-    - name: Validate the certificate existence
-      ansible.builtin.fail:
-        msg: "{{ ldap_ca_cert_path_failure_msg }}"
-      when: not stat_results.stat.exists
-  when:
-    - ldap_connection_type == 'TLS' or
-      ldap_connection_type == 'tls'

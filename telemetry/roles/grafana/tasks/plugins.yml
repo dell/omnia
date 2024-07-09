@@ -13,11 +13,6 @@
 # limitations under the License.
 ---
 
-- name: Install git
-  ansible.builtin.package:
-    name: git
-    state: present
-
 - name: Git clone grafana plugin repo
   ansible.builtin.git:
     repo: "{{ grafana_plugins_github_repo }}"
@@ -27,6 +22,12 @@
 - name: Wait for grafana pod to come to ready state
   ansible.builtin.command: kubectl wait --for=condition=ready --timeout="{{ grafana_pod_timeout }}" -n "{{ grafana_namespace }}" pod -l app="{{ grafana_k8s }}"
   changed_when: false
+
+- name: Create grafana-plugins folder if not exists
+  ansible.builtin.file:
+    path: "{{ mount_location + grafana_k8s + '/plugins/' }}"
+    state: directory
+    mode: "{{ directory_mode }}"
 
 - name: Unzip plugins at grafana-plugins folder
   ansible.builtin.unarchive:
