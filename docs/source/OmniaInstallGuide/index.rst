@@ -49,4 +49,7 @@ Install Omnia
 
 Based on your OS type on the control plane, follow the flow mentioned in the below options:
 
-* `Install Omnia on Red Hat Enterprise Linux (RHEL) clusters <RHEL/index.html>`_
+.. toctree::
+    RHEL/index
+    RockyLinux
+    Ubuntu
