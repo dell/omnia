@@ -52,6 +52,6 @@ Based on your OS type on the control plane, follow the flow mentioned in the bel
 `RHEL <RHEL/index.html>`_
 
 .. toctree::
-    RHEL
+    RHEL/index
     RockyLinux
     Ubuntu
