@@ -1,5 +1,5 @@
-Install Omnia on Red Hat Enterprise Linux (RHEL) or Rocky Linux clusters
-=========================================================================
+Install Omnia on Red Hat Enterprise Linux (RHEL) clusters
+============================================================
 
 .. toctree::
     RHELSpace
