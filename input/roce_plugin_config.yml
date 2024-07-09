@@ -14,36 +14,68 @@
 ---
 
 # This config file will be used for deploying k8s roce plugin.
+# Roce plugin is supported only on Ubuntu OS.
 
 
-# Define network interfaces with their respective IP ranges and gateways which should be assigned inside the pod in this dictionary
+# Define network interfaces with their respective IP ranges which should be assigned inside the pod in this dictionary
 # Number of entries in this dictionary should be equal to number of bcm roce interfaces which must be used for roce pod.
 # VLAN nics are not supported for roce plugin deployment
-# name: The name of the interface of the roce nic
-# range: The IP range for this interface which should be assigned inside rocepod
-# gateway: The gateway for this interface which should be assigned inside rocepod
+# A limit of 8 roce interfaces is supported by the rocepod deployed.
+# name (Mandatory): The name of the interface of the roce nic
+# range (Mandatory): The IP range for this interface which should be assigned inside rocepod. It is specified in CIDR notation.
+# range_start (Optional): This specifies the starting IP address within the defined range for assigning IPs to network interfaces.
+# range_end (Optional): This specifies the ending IP address within the defined range for assigning IPs to network interfaces.
+# gateway (Optional): This specifies the IP address of the gateway for the network.
+# route (Optional): This specifies additional routing rules for the network interface. Routes determine the paths that packets take to reach specific networks or hosts.
+# Omnia does not validate the inputs, it is user's responsibility to provide inputs for the required parameters.
+# Eg: If user wants to restrict the IP range, range_start and range_end should be provided with range.
+# Eg2: If gateway is to be set, then user should provide gateway and route along with range.
 interfaces:
   - name: eth1
     range: 192.168.1.0/24
+    range_start:
+    range_end:
     gateway: 192.168.1.1
+    route: 192.168.1.0/24
   - name: eth2
     range: 192.168.2.0/24
-    gateway: 192.168.2.1
+    range_start:
+    range_end:
+    gateway: 
+    route:
   - name: eth3
     range: 192.168.3.0/24
-    gateway: 192.168.3.1
+    range_start:
+    range_end:
+    gateway: 
+    route:
   - name: eth4
     range: 192.168.4.0/24
-    gateway: 192.168.4.1
+    range_start:
+    range_end:
+    gateway: 
+    route:
   - name: eth5
     range: 192.168.5.0/24
-    gateway: 192.168.5.1
+    range_start:
+    range_end:
+    gateway: 
+    route:
   - name: eth6
     range: 192.168.6.0/24
-    gateway: 192.168.6.1
+    range_start:
+    range_end:
+    gateway: 
+    route:
   - name: eth7
     range: 192.168.7.0/24
-    gateway: 192.168.7.1
+    range_start:
+    range_end:
+    gateway: 
+    route:
   - name: eth8
     range: 192.168.8.0/24
-    gateway: 192.168.8.1
+    range_start:
+    range_end:
+    gateway: 
+    route:
