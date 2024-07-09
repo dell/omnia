@@ -52,6 +52,7 @@ For a better understanding of what Omnia does, check out our `docs <https://omni
 .. toctree::
    Overview/index
    Upgrade/index
+   InstallationGuides/index
    OmniaInstallGuide/index
    Roles/index
    Logging/index
