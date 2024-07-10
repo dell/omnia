@@ -49,7 +49,10 @@ Install Omnia
 
 Based on your OS type on the control plane, follow the flow mentioned in the below options:
 
+* `RHEL <RHEL/index.html>`_
+
 .. toctree::
+   :hidden:
     RHEL/index
     RockyLinux
     Ubuntu
