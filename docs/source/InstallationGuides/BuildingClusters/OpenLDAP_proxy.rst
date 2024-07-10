@@ -94,9 +94,11 @@ Change the **<paramater>** values in the config file, as described below:
 * **rootpw**: Admin password for the internal OpenLDAP server. For example, ``Dell1234``.
 
 * **uri**: Captures the IP of the external LDAP server along with the port and the domain of the user in ``"ldap://<IP  of external LDAP server>:<Port number>/<suffix>"`` format. For example, ``"ldap://10.5.0.104:389/dc=omnia,dc=test"``.
-* **suffixmassage**: ``suffixmassage`` allows you to dynamically move the LDAP client information from the existing internal OpenLDAP server to the external LDAP server that you want to configure as a proxy. This is provided in the ``suffixmassage <suffix1> <suffix2>`` format where,
-    * ``<suffix1>`` is the internal OpenLDAP server suffix (base DN).
-    * ``<suffix2>`` is the external LDAP server suffix (base DN).
+* **suffixmassage**: ``suffixmassage`` allows you to dynamically move the LDAP client information from the existing internal OpenLDAP server to the external LDAP server that you want to configure as a proxy. This is provided in the ``suffixmassage <suffix1> <suffix2>`` format.
+
+        * ``<suffix1>`` is the internal OpenLDAP server suffix (base DN).
+        * ``<suffix2>`` is the external LDAP server suffix (base DN).
+
 * **binddn**: Admin username and domain of the external LDAP server.
 * **credentials**: Admin password for the external LDAP server.
 
