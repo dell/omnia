@@ -45,10 +45,11 @@
   ansible.builtin.include_tasks: configure_user_registry_port.yml
 
 - name: Configure squid proxy
-  ansible.builtin.replace:
+  ansible.builtin.lineinfile:
     path: "{{ squid_proxy_conf_path }}"
     regexp: "{{ squid_proxy_conf_regxp }}"
-    replace: "{{ squid_proxy_conf_replace }}"
+    insertafter: EOF
+    line: "{{ squid_proxy_conf_replace }}"
   register: configure_proxy
 
 - name: Restart squid service
