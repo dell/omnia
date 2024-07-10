@@ -2,6 +2,7 @@ Install Omnia on Red Hat Enterprise Linux (RHEL) clusters
 ============================================================
 
 .. toctree::
+    :maxdepth: 2
 
     RHELSpace
     Prereq.sh/index
