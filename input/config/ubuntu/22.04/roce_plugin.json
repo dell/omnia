@@ -10,13 +10,15 @@
         "package": "whereabouts",
         "url": "https://github.com/k8snetworkplumbingwg/whereabouts.git",
         "type": "git",
-        "version": "v0.6.3"
+        "version": "master",
+        "commit": "638d58"
       },
       {
         "package": "k8s-rdma-shared-dev-plugin",
         "url": "https://github.com/Mellanox/k8s-rdma-shared-dev-plugin.git",
         "type": "git",
-        "version": "master"
+        "version": "master",
+        "commit": "c94b2cef"
       },
       {
         "package": "ghcr.io/k8snetworkplumbingwg/multus-cni",
