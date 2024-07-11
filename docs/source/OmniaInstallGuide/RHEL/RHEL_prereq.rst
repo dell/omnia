@@ -19,6 +19,3 @@ Prerequisites
 
     git clone https://github.com/dell/omnia.git
 
-6. Once the cloning process is complete, change directory to Omnia using the following command: ::
-
-    cd omnia

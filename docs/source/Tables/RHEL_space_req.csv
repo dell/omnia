@@ -2,10 +2,10 @@
 AMD ROCM,4 GB
 CUDA,4 GB
 OFED,1 GB
-FreeIPA,skipped
+FreeIPA,NA [1]_
 OpenLDAP,6 MB
 Secure login node,65 MB
-NFS,skipped
+NFS,NA [1]_
 BeeGFS,3 MB
 Slurm,190 MB
 Kubernetes,5 GB
@@ -17,7 +17,7 @@ Tensorflow,57 GB
 vLLM,77 GB
 Telemetry,1 GB
 Intel benchmarks,28 GB
-AMD benchmarks,skipped
+AMD benchmarks,NA [1]_
 Utils,200 KB
 UCX,3 MB
 OpenMPI,17 MB

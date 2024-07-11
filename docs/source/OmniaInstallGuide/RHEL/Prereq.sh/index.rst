@@ -1,8 +1,9 @@
 Step 1: Running prereq.sh
 ===========================
 
-The ``prereq.sh`` script installs the software utilized by Omnia on the control plane, including Python (3.9) and Ansible (2.14). Use the following command to execute the ``prereq.sh`` script: ::
+The ``prereq.sh`` script installs the software utilized by Omnia on the control plane. Use the following command to execute the ``prereq.sh`` script: ::
 
+    cd omnia
     ./prereq.sh
 
 .. note::
