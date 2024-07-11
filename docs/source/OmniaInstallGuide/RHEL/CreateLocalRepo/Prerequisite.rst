@@ -3,11 +3,11 @@ Prerequisites
 
 1. Set the hostname of the control plane in the "hostname.domain name" format.
 
-    .. include:: ../../Appendices/hostnamereqs.rst
+.. include:: ../../Appendices/hostnamereqs.rst
 
-    For example, ``controlplane.omnia.test`` is acceptable. ::
+For example, ``controlplane.omnia.test`` is acceptable. ::
 
-        hostnamectl set-hostname controlplane.omnia.test
+    hostnamectl set-hostname controlplane.omnia.test
 
 2. Creating user registries
 
