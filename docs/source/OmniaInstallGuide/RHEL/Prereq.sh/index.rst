@@ -1,4 +1,4 @@
-Step 1: Running prereq.sh
+Step 1: Execute prereq.sh
 ===========================
 
 The ``prereq.sh`` script installs the software utilized by Omnia on the control plane. Use the following command to execute the ``prereq.sh`` script: ::
