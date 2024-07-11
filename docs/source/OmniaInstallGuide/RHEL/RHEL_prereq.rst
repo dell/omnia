@@ -11,15 +11,13 @@ Prerequisites
 
     dnf install git -y
 
-.. note:: If the control plane server has an Infiniband NIC installed, run the below command to install the hardware drivers and Infiniband-related packages:  ::
+.. note:: If the control plane server has an Infiniband NIC installed, run the below command to install the hardware drivers and Infiniband-related packages: ::
 
     yum groupinstall "Infiniband Support" -y
-
 
 5. Clone the Omnia repository from GitHub on to the control plane server using the following command: ::
 
     git clone https://github.com/dell/omnia.git
-
 
 6. Once the cloning process is complete, change directory to Omnia using the following command: ::
 
