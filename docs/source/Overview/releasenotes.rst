@@ -1,6 +1,23 @@
 Releases
 ========
 
+1.7
+-----
+
+* OS enablement
+
+    * `RHEL 8.9 <SupportMatrix/OperatingSystems/RedHat.html>`_
+    * `RHEL 8.10 <SupportMatrix/OperatingSystems/RedHat.html>`_
+    * `Rocky Linux 8.9 <SupportMatrix/OperatingSystems/Rocky.html>`_
+    * `Rocky Linux 8.10 <SupportMatrix/OperatingSystems/Rocky.html>`_
+
+* `Configuring the internal OpenLDAP server as a proxy server <../InstallationGuides/BuildingClusters/OpenLDAP_proxy.html>`_
+
+* NVIDIA container toolkit for Kubernetes setup
+
+* XE9680 with NVIDIA H200 (Leander) accelerators is now supported as a control plane or a target node.
+
+
 1.6
 ----
 
@@ -133,7 +150,7 @@ Releases
 1.4.3
 ------
 
-*  XE 9640, R760 XA, R760 XD2 are now supported as control planes or target nodes with NVIDIA H100 accelerators.
+* XE9640, R760xa, R760xd2 are now supported as control planes or target nodes with NVIDIA H100 accelerators.
 
 * Added ability for split port configuration on NVIDIA Quantum-2-based QM9700 (NVIDIA InfiniBand NDR400 switches).
 
@@ -147,7 +164,7 @@ Releases
 1.4.2
 -------
 
-*  XE9680, R760, R7625, R6615, R7615 are now supported as control planes or target nodes.
+* XE9680, R760, R7625, R6615, R7615 are now supported as control planes or target nodes.
 
 * Added ability for switch-based discovery of remote servers and PXE provisioning.
 
