@@ -1,4 +1,4 @@
-Step 4: Configuring the cluster
+Step 5: Configure the cluster
 ================================
 
 **Features enabled by omnia.yml**

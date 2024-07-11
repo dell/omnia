@@ -1,5 +1,5 @@
-Installing the provision tool
-=============================
+Step 3: Install the provision tool
+======================================
 
 The provision tool is installed using an Ansible playbook. This playbook achieves the following tasks:
 
