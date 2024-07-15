@@ -16,6 +16,15 @@ Perform the following steps to configure OpenLDAP as a proxy server:
 
     For RHEL/Rocky Linux: ::
 
+        include        /usr/local/openldap/etc/openldap/schema/core.schema
+        include        /usr/local/openldap/etc/openldap/schema/cosine.schema
+        include        /usr/local/openldap/etc/openldap/schema/nis.schema
+        include        /usr/local/openldap/etc/openldap/schema/inetorgperson.schema
+
+
+        pidfile         /usr/local/openldap/var/run/slapd.pid
+        argsfile        /usr/local/openldap/var/run/slapd.args
+
         # Load dynamic backend modules:
         modulepath      /usr/local/openldap/libexec/openldap
         moduleload      back_ldap.la
@@ -25,13 +34,15 @@ Perform the following steps to configure OpenLDAP as a proxy server:
         # Meta database definitions
         #######################################################################
         database        meta
-        suffix          "dc=omnia,dc=test"
-        rootdn          cn=admin,dc=omnia,dc=test
+        suffix          "dc=phantom,dc=test"
+        rootdn          cn=admin,dc=phantom,dc=test
         rootpw          Dell1234
-        uri             "ldap://10.5.0.104:389/dc=omnia,dc=test"
+
+        uri             "ldap://10.5.0.104:389/dc=phantom,dc=test"
+        suffixmassage   "dc=phantom,dc=test" "dc=perf,dc=test"
         idassert-bind
          bindmethod=simple
-         binddn="cn=admin,dc=omnia,dc=test"
+         binddn="cn=admin,dc=perf,dc=test"
          credentials="Dell1234"
          flags=override
          mode=none
@@ -41,6 +52,15 @@ Perform the following steps to configure OpenLDAP as a proxy server:
 
     For Ubuntu: ::
 
+        include        /usr/local/openldap/etc/openldap/schema/core.schema
+        include        /usr/local/openldap/etc/openldap/schema/cosine.schema
+        include        /usr/local/openldap/etc/openldap/schema/nis.schema
+        include        /usr/local/openldap/etc/openldap/schema/inetorgperson.schema
+
+
+        pidfile         /usr/local/openldap/var/run/slapd.pid
+        argsfile        /usr/local/openldap/var/run/slapd.args
+
         # Load dynamic backend modules:
         modulepath      /usr/local/openldap/libexec/openldap
         moduleload      back_ldap.la
@@ -50,13 +70,15 @@ Perform the following steps to configure OpenLDAP as a proxy server:
         # Meta database definitions
         #######################################################################
         database        meta
-        suffix          "dc=omnia,dc=test"
-        rootdn          cn=admin,dc=omnia,dc=test
+        suffix          "dc=phantom,dc=test"
+        rootdn          cn=admin,dc=phantom,dc=test
         rootpw          Dell1234
-        uri             "ldap://10.5.0.104:389/dc=omnia,dc=test"
+
+        uri             "ldap://10.5.0.104:389/dc=phantom,dc=test"
+        suffixmassage   "dc=phantom,dc=test" "dc=perf,dc=test"
         idassert-bind
          bindmethod=simple
-         binddn="cn=admin,dc=omnia,dc=test"
+         binddn="cn=admin,dc=perf,dc=test"
          credentials="Dell1234"
          flags=override
          mode=none
@@ -67,12 +89,17 @@ Perform the following steps to configure OpenLDAP as a proxy server:
 Change the **<paramater>** values in the config file, as described below:
 
 * **database**: Database used in the ``slapd.conf`` file, that captures the details of the external LDAP server to be used. For example, ``meta``.
-* **suffix**: Captures the domain name of the user, to refine the user search while attempting to authenticate the user. For example, ``"dc=omnia,dc=test"``.
+* **suffix**: Captures the domain name of internal OpenLDAP user, to refine the user search while attempting to authenticate the user. For example, ``"dc=omnia,dc=test"``.
 * **rootdn**: Admin or root username of the internal OpenLDAP server set up by Omnia. For example, ``cn=admin,dc=omnia,dc=test``.
 * **rootpw**: Admin password for the internal OpenLDAP server. For example, ``Dell1234``.
 
 * **uri**: Captures the IP of the external LDAP server along with the port and the domain of the user in ``"ldap://<IP  of external LDAP server>:<Port number>/<suffix>"`` format. For example, ``"ldap://10.5.0.104:389/dc=omnia,dc=test"``.
-* **binddn**: Admin username for the external LDAP server.
+* **suffixmassage**: ``suffixmassage`` allows you to dynamically move the LDAP client information from the existing internal OpenLDAP server to the external LDAP server that you want to configure as a proxy. This is provided in the ``suffixmassage <suffix1> <suffix2>`` format.
+
+        * ``<suffix1>`` is the internal OpenLDAP server suffix (base DN).
+        * ``<suffix2>`` is the external LDAP server suffix (base DN).
+
+* **binddn**: Admin username and domain of the external LDAP server.
 * **credentials**: Admin password for the external LDAP server.
 
 * **TLSCACertificateFile**: Omnia, by default, creates the TLSA certificate in ``/etc/openldap/certs/ldapserver.crt`` for RHEL/Rocky Linux or in ``/etc/ssl/certs/ca-certificates.crt`` for Ubuntu.
@@ -80,6 +107,8 @@ Change the **<paramater>** values in the config file, as described below:
 * **TLSCertificateKeyFile**: Omnia, by default, creates the certificate key file in ``/etc/pki/tls/certs/ldapserver.key`` for RHEL/Rocky Linux or in ``/etc/ssl/private/ssl-cert-snakeoil.key`` for Ubuntu.
 
 .. note::
+   * The values for ``suffix`` and ``rootdn`` parameters in the ``slapd.conf`` file must be the same as those provided in the ``input/security_config.yml`` file.
+
    * If you have your own set of TLS certificates and keys that you want to utilize instead of the default ones created by Omnia, then you can provide the path to them in the ``input/security_config.yml`` file. During ``omnia.yml`` execution, the user provided certificates and key files are copied from the control plane to the ``auth_server`` (OpenLDAP). An example for the certificate and key entries in the ``input/security_config.yml`` file for the proxy OpenLDAP server is provided below: ::
 
            # Certificate Authority(CA) issued certificate file path

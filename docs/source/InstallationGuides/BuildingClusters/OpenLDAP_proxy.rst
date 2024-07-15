@@ -107,6 +107,8 @@ Change the **<paramater>** values in the config file, as described below:
 * **TLSCertificateKeyFile**: Omnia, by default, creates the certificate key file in ``/etc/pki/tls/certs/ldapserver.key`` for RHEL/Rocky Linux or in ``/etc/ssl/private/ssl-cert-snakeoil.key`` for Ubuntu.
 
 .. note::
+   * The values for ``suffix`` and ``rootdn`` parameters in the ``slapd.conf`` file must be the same as those provided in the ``input/security_config.yml`` file.
+
    * If you have your own set of TLS certificates and keys that you want to utilize instead of the default ones created by Omnia, then you can provide the path to them in the ``input/security_config.yml`` file. During ``omnia.yml`` execution, the user provided certificates and key files are copied from the control plane to the ``auth_server`` (OpenLDAP). An example for the certificate and key entries in the ``input/security_config.yml`` file for the proxy OpenLDAP server is provided below: ::
 
            # Certificate Authority(CA) issued certificate file path
