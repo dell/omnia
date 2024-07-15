@@ -5,7 +5,7 @@ Omnia Installation Guide
 
 * `Quick installation guide for Rocky Linux clusters <>`_
 
-* `Quick installation guide for Ubuntu clusters <>`_
+* `Quick installation guide for Ubuntu clusters <Ubuntu/index.html>`_
 
 * `Maintenance <>`_
 
