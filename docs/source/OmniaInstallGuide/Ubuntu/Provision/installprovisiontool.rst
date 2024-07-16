@@ -35,7 +35,7 @@ depending on the values provided in ``input/software_config.json``.
 
 
 Running the provision tool
-============================
+----------------------------
 
 To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, ``input/network_spec.yml``, and ``input/provision_config_credentials.yml`` are updated and then execute: ::
 
