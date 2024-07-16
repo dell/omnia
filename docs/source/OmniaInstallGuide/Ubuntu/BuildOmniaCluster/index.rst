@@ -17,7 +17,6 @@ Step 5: Configure the cluster
     schedulerprereqs
     installscheduler
     install_kubernetes
-    install_slurm
     Authentication
     BeeGFS
     NFS

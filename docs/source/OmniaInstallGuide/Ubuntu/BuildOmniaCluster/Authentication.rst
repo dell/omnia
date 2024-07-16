@@ -3,12 +3,10 @@ Centralized authentication on the cluster
 
 The security feature allows cluster admin users to set up FreeIPA or OpenLDAP in order to allow or deny user access.
 
-Configuring FreeIPA/OpenLDAP security
-______________________________________
+.. note:: FreeIPA configuration is not supported on Ubuntu (only supported on RHEL/Rocky Linux).
 
-.. note:: Omnia supports OpenLDAP configuration on Ubuntu, RHEL, and Rocky Linux.
-
-.. note:: FreeIPA configuration is not supported on Ubuntu.
+Configuring OpenLDAP security
+_______________________________
 
 **Pre requisites**
 
@@ -17,26 +15,19 @@ ______________________________________
 * Enter the following parameters in ``input/security_config.yml``.
 
 .. csv-table:: Parameters for Authentication
-   :file: ../../Tables/security_config.csv
+   :file: ../../../Tables/security_config.csv
    :header-rows: 1
    :keepspace:
 
 .. csv-table:: Parameters for OpenLDAP configuration
-   :file: ../../Tables/security_config_ldap.csv
+   :file: ../../../Tables/security_config_ldap.csv
    :header-rows: 1
    :keepspace:
-
-.. csv-table:: Parameters for FreeIPA configuration
-   :file: ../../Tables/security_config_freeipa.csv
-   :header-rows: 1
-   :keepspace:
-
-.. [1] Boolean parameters do not need to be passed with double or single quotes.
 
 Running the security role
 --------------------------
 
-The wrapper playbook ``omnia.yml`` handles execution of the security or authentication role. Alternatively: ::
+The wrapper playbook ``omnia.yml`` handles execution of the security or authentication role. Alternatively, execute the ``security.yml`` playbook: ::
 
     cd security
     ansible-playbook security.yml -i inventory
@@ -47,7 +38,7 @@ The inventory should contain auth_server as per the inventory file in `samplefil
     * To customize the security features on the login node, update the desired parameters in ``input/login_node_security_config.yml``.
     * If a subsequent run of ``security.yml`` fails, the ``security_config.yml`` file will be unencrypted.
 
-.. note:: Installation of OpenLDAP server or FreeIPA server on Control Plane is not supported.
+.. note:: Installation of OpenLDAP server on the control plane is not supported.
 
 .. caution:: No users will be created by Omnia.
 
@@ -91,14 +82,14 @@ Below is a sample file: ::
 2. Run the command ``ldapadd -D <enter admin binddn > -w < bind_password > -f create_user.ldif`` to execute the LDIF file and create the account.
 3. To set up a password for this account, use the command ``ldappasswd -D <enter admin binddn > -w < bind_password > -S <user_dn>``. The value of ``user_dn`` is the distinguished name that indicates where the user was created. (In this example, ``uid=ldapuser,ou=People,dc=omnia,dc=test``)
 
-Setting up Passwordless SSH for the OpenLDAP/FreeIPA users
+Setting up Passwordless SSH for the OpenLDAP users
 -----------------------------------------------------------
 
-Once user accounts are created, admins can enable passwordless SSH for users to run HPC jobs on the cluster nodes.
+Once user accounts are created, admins can enable password-less SSH for users to run HPC jobs on the cluster nodes.
 
 .. note:: Once user accounts are created on the auth server, use the accounts to login to the cluster nodes to reset the password and create a corresponding home directory.
 
-To customize your setup of passwordless ssh, input parameters in ``input/passwordless_ssh_config.yml``.
+To customize your setup of password-less SSH, input custom parameters in ``input/passwordless_ssh_config.yml``.
 
 +-----------------------+--------------------------------------------------------------------------------------------------------------------+
 | Parameter             | Details                                                                                                            |
@@ -111,19 +102,17 @@ To customize your setup of passwordless ssh, input parameters in ``input/passwor
 |      ``string``       |                                                                                                                    |
 |      Required         |      Choices:                                                                                                      |
 |                       |                                                                                                                    |
-|                       |      * ``freeipa``                                                                                                 |
-|                       |                                                                                                                    |
-|                       |      * ``ldap``   <- Default                                                                                       |
+|                       |      ``ldap``   <- Default                                                                                         |
 +-----------------------+--------------------------------------------------------------------------------------------------------------------+
 
 
-Use the below command to enable passwordless SSH: ::
+Use the below command to enable password-less SSH: ::
 
     ansible-playbook user_passwordless_ssh.yml -i inventory
 
 Where inventory follows the format defined under inventory file in the provided `Sample Files. <../../sample files.html>`_ The inventory file is case-sensitive. Follow the format provided in the sample file link.
 
-.. caution:: Do not run ssh-keygen commands after passwordless SSH is set up on the nodes.
+.. caution:: Do not run SSH-keygen commands after password-less SSH is set up on the nodes.
 
 Configuring login node security
 ________________________________
