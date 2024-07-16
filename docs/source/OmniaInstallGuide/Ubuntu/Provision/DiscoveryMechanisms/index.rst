@@ -1,17 +1,37 @@
 Discovery Mechanisms
------------------------
+=====================
 
 Depending on the values provided in ``input/provision_config.yml``, target nodes can be discovered in one of three ways:
 
 .. toctree::
+    :hidden:
+
     mappingfile
     switch-based
     bmc
 
 
-**switch_based**
+switch_based
+------------
 
 Omnia can query known switches (by SNMPv3 username/password) for information on target node MAC IDs.
+
++---------------------------------------------------------+------------------------------------------------------+
+| Pros                                                    | Cons                                                 |
++=========================================================+======================================================+
+| The whole discovery process is totally automatic.       | Users need to enable IPMI on target servers.         |
++---------------------------------------------------------+-----------------------------------+------------------+
+| Admin IP, BMC IP and Infiniband IP address configuration| Servers require a manual PXE boot after the first run|
+| is automatic on the target nodes.                       | of the provision tool.                               |
++---------------------------------------------------------+------------------------------------------------------+
+| Re-provisioning of servers will be automatic.           |                                                      |
++---------------------------------------------------------+------------------------------------------------------+
+| PXE booting servers is supported via split ports on the |                                                      |
+| switch.                                                 |                                                      |
++---------------------------------------------------------+------------------------------------------------------+
+
+
+
 
 **Pros**
 

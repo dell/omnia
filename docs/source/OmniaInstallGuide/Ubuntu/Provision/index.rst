@@ -3,11 +3,11 @@ Step 3: Install the provision tool
 
 The provision tool is installed using an Ansible playbook. This playbook achieves the following tasks:
 
-    * Discovers potential cluster nodes.
-
-    * Installs Rocky Linux, Ubuntu, or RHEL on the discovered nodes.
+* Discovers potential cluster nodes.
+* Installs "server install image" of Ubuntu OS on the discovered cluster nodes.
 
 .. toctree::
+    :hidden:
 
     provisionprereqs
     DiscoveryMechanisms/index
