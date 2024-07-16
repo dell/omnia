@@ -27,7 +27,7 @@ Configuring specific local repositories
 
             {"name": "beegfs", "version": "7.4.2"},
 
-For information on deploying BeeGFS after setting up the cluster, `click here <../BuildingClusters/BeeGFS.html>`_.
+For information on deploying BeeGFS after setting up the cluster, `click here <../BuildOmniaCluster/BeeGFS.html>`_.
 
 **CUDA**
 
@@ -188,7 +188,7 @@ For information on deploying BeeGFS after setting up the cluster, `click here <.
 
             {"name": "jupyter"},
 
-For information on deploying Jupyterhub after setting up the cluster, `click here <../Platform/InstallJupyterhub.html>`_.
+For information on deploying Jupyterhub after setting up the cluster, `click here <../InstallAITools/InstallJupyterhub.html>`_.
 
 **Kserve**
 
@@ -196,7 +196,7 @@ For information on deploying Jupyterhub after setting up the cluster, `click her
 
                 {"name": "kserve"},
 
-For information on deploying Kserve after setting up the cluster, `click here <../Platform/kserve.html>`_.
+For information on deploying Kserve after setting up the cluster, `click here <../InstallAITools/kserve.html>`_.
 
 **Kubeflow**
 
@@ -204,7 +204,7 @@ For information on deploying Kserve after setting up the cluster, `click here <.
 
             {"name": "kubeflow"},
 
-For information on deploying kubeflow after setting up the cluster, `click here <../Platform/kubeflow.html>`_.
+For information on deploying kubeflow after setting up the cluster, `click here <../InstallAITools/kubeflow.html>`_.
 
 
 **Kubernetes**
@@ -213,7 +213,7 @@ For information on deploying kubeflow after setting up the cluster, `click here 
 
             {"name": "k8s", "version":"1.26.12"},
 
-For more information about installing Kubernetes, `click here <../BuildingClusters/install_kubernetes.html>`_.
+For more information about installing Kubernetes, `click here <../BuildOmniaCluster/install_kubernetes.html>`_.
 
 .. note:: The version of the software provided above is the only version of the software Omnia supports.
 
@@ -224,7 +224,7 @@ For more information about installing Kubernetes, `click here <../BuildingCluste
             {"name": "ofed", "version": "24.01-0.3.3.1"},
 
 
-    For a list of repositories (and their types) configured for OFED, view the ``input/config/<cluster_os_type>/<cluster_os_version>/ofed.json`` file. To customize your OFED installation, update the file.:
+    For a list of repositories (and their types) configured for OFED, view the ``input/config/<cluster_os_type>/<cluster_os_version>/ofed.json`` file. To customize your OFED installation, update the file.
 
     For Ubuntu: ::
 
@@ -249,7 +249,7 @@ For more information about installing Kubernetes, `click here <../BuildingCluste
 
             {"name": "openldap"},
 
-For more information on OpenLDAP, `click here <../BuildingClusters/Authentication.html#configuring-freeipa-openldap-security>`_.
+For more information on OpenLDAP, `click here <../BuildOmniaCluster/Authentication.html#configuring-openldap-security>`_.
 
 **OpenMPI**
 
@@ -257,9 +257,9 @@ For more information on OpenLDAP, `click here <../BuildingClusters/Authenticatio
 
             {"name": "openmpi", "version":"4.1.6"},
 
-OpenMPI is deployed on the cluster when the above configurations are complete and `omnia.yml <../BuildingClusters/installscheduler.html>`_ playbook is executed.
+OpenMPI is deployed on the cluster when the above configurations are complete and `omnia.yml <../BuildOmniaCluster/installscheduler.html>`_ playbook is executed.
 
-For more information on OpenMPI configurations, `click here <../BuildingClusters/install_ucx_openmpi.html>`_.
+For more information on OpenMPI configurations, `click here <../BuildOmniaCluster/install_ucx_openmpi.html>`_.
 
 .. note:: The default OpenMPI version for Omnia is 4.1.6. If you change the version in the ``software.json`` file, make sure to update it in the ``openmpi.json`` file in the ``input/config`` directory as well.
 
@@ -285,7 +285,7 @@ For more information on OpenMPI configurations, `click here <../BuildingClusters
 
         * A sample format is available `here. <InputParameters.html>`_
 
-For information on deploying Pytorch after setting up the cluster, `click here. <../Platform/Pytorch.html>`_
+For information on deploying Pytorch after setting up the cluster, `click here. <../InstallAITools/Pytorch.html>`_
 
 **Secure Login Node**
 
@@ -293,7 +293,7 @@ For information on deploying Pytorch after setting up the cluster, `click here. 
 
             {"name": "secure_login_node"},
 
-For more information on configuring login node security, `click here <../BuildingClusters/Authentication.html#configuring-login-node-security>`_.
+For more information on configuring login node security, `click here <../BuildOmniaCluster/Authentication.html#configuring-login-node-security>`_.
 
 **TensorFlow**
 
@@ -317,7 +317,7 @@ For more information on configuring login node security, `click here <../Buildin
 
         * A sample format is available `here. <InputParameters.html>`_
 
-For information on deploying TensorFlow after setting up the cluster, `click here <../Platform/TensorFlow.html>`_.
+For information on deploying TensorFlow after setting up the cluster, `click here <../InstallAITools/TensorFlow.html>`_.
 
 **Unified Communication X (UCX)**
 
@@ -325,9 +325,9 @@ For information on deploying TensorFlow after setting up the cluster, `click her
 
             {"name": "ucx", "version":"1.15.0"},
 
-UCX is deployed on the cluster when ``local_repo.yml`` playbook is executed, followed by the execution of `omnia.yml <../BuildingClusters/installscheduler.html>`_.
+UCX is deployed on the cluster when ``local_repo.yml`` playbook is executed, followed by the execution of `omnia.yml <../BuildOmniaCluster/installscheduler.html>`_.
 
-For more information on UCX configurations, `click here <../BuildingClusters/install_ucx_openmpi.html>`_.
+For more information on UCX configurations, `click here <../BuildOmniaCluster/install_ucx_openmpi.html>`_.
 
 **vLLM**
 
@@ -350,7 +350,7 @@ For more information on UCX configurations, `click here <../BuildingClusters/ins
 
         * A sample format is available `here. <InputParameters.html>`_
 
-For information on deploying vLLM after setting up the cluster, `click here <../Platform/vLLM/index.html>`_.
+For information on deploying vLLM after setting up the cluster, `click here <../InstallAITools/vLLM/index.html>`_.
 
 **Intel benchmarks**
 
