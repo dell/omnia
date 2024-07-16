@@ -27,6 +27,7 @@ Input parameters for Local Repositories
                 {"name": "nfs"},
                 {"name": "beegfs", "version": "7.4.2"},
                 {"name": "k8s", "version":"1.26.12"},
+                {"name": "roce_plugin"},
                 {"name": "jupyter"},
                 {"name": "kubeflow"},
                 {"name": "kserve"},
@@ -72,6 +73,7 @@ For a list of accepted values in ``softwares``, go to ``input/config/<cluster_os
     k8s.json
     kserve.json
     kubeflow.json
+    roce_plugin.json
     nfs.json
     ofed.json
     openldap.json
