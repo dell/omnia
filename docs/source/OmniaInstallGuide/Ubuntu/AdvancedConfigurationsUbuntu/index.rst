@@ -1,5 +1,5 @@
-Advanced configurations for RHEL clusters
-==========================================
+Advanced configurations for Ubuntu clusters
+=============================================
 
 .. toctree::
     CustomLocalRepo
