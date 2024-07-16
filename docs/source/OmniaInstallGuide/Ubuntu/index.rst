@@ -14,3 +14,6 @@ Install Omnia on Ubuntu clusters
     InstallAITools/index
     AdvancedConfigurationsRHEL/index
 
+.. note::
+    - Slurm installation is not supported on Ubuntu clusters.
+    - FreeIPA configuration is not supported on Ubuntu clusters.

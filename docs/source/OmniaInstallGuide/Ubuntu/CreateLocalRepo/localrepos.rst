@@ -52,28 +52,7 @@ For information on deploying BeeGFS after setting up the cluster, `click here <.
                 }
             }
 
-    For RHEL or Rocky Linux: ::
-
-            {
-              "cuda": {
-                "cluster": [
-                  { "package": "cuda",
-                    "type": "iso",
-                    "url": "https://developer.download.nvidia.com/compute/cuda/12.3.2/local_installers/cuda-repo-rhel8-12-3-local-12.3.2_545.23.08-1.x86_64.rpm",
-                    "path": ""
-                  },
-                  { "package": "dkms",
-                    "type": "rpm",
-                    "repo_name": "epel"
-                  }
-                ]
-              }
-            }
-
-
-    .. note::
-    * If the package version is customized, ensure that the ``version`` value is updated in ``software_config.json```.
-    * If the target cluster runs on RHEL or Rocky Linux, ensure the "dkms" package is included in ``input/config/<cluster_os_type>/8.x/cuda.json`` as illustrated above.
+.. note:: If the package version is customized, ensure that the ``version`` value is updated in ``software_config.json```.
 
 **BCM RoCE**
 
@@ -203,14 +182,6 @@ For information on deploying BeeGFS after setting up the cluster, `click here <.
               }
             }
 
-**FreeIPA**
-
-    To install FreeIPA, include the following line under ``softwares`` in ``input/software_config.json``: ::
-
-            {"name": "freeipa"},
-
-For more information on FreeIPA, `click here <../BuildingClusters/Authentication.html#configuring-freeipa-openldap-security>`_.
-
 **Jupyterhub**
 
     To install Jupyterhub, include the following line under ``softwares`` in ``input/software_config.json``: ::
@@ -269,20 +240,6 @@ For more information about installing Kubernetes, `click here <../BuildingCluste
                 }
             }
 
-
-    For RHEL or Rocky Linux: ::
-
-            {
-              "ofed": {
-                "cluster": [
-                  { "package": "ofed",
-                    "type": "iso",
-                    "url": "https://content.mellanox.com/ofed/MLNX_OFED-24.01-0.3.3.1/MLNX_OFED_LINUX-24.01-0.3.3.1-rhel8.7-x86_64.iso",
-                    "path": ""
-                  }
-                ]
-              }
-            }
 
 .. note:: If the package version is customized, ensure that the ``version`` value is updated in ``software_config.json``.
 
@@ -362,7 +319,7 @@ For more information on configuring login node security, `click here <../Buildin
 
 For information on deploying TensorFlow after setting up the cluster, `click here <../Platform/TensorFlow.html>`_.
 
-**Unified Communication X**
+**Unified Communication X (UCX)**
 
     To install UCX, include the following line under ``softwares`` in ``input/software_config.json``: ::
 
