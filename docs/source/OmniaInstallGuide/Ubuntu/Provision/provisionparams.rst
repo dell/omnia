@@ -6,22 +6,21 @@ Fill in all required parameters in ``input/provision_config.yml``, ``input/provi
 .. caution:: Do not remove or comment any lines in the above specified ``.yml`` files.
 
 .. csv-table:: provision_config.yml
-   :file: ../../Tables/Provision_config.csv
+   :file: ../../../Tables/Provision_config.csv
    :header-rows: 1
    :keepspace:
 
 .. csv-table:: provision_config_credentials.yml
-   :file: ../../Tables/Provision_creds.csv
+   :file: ../../../Tables/Provision_creds.csv
    :header-rows: 1
    :keepspace:
 
 .. csv-table:: software_config.json
-   :file: ../../Tables/software_config.csv
+   :file: ../../../Tables/software_config.csv
    :header-rows: 1
    :keepspace:
 
 .. [1] Boolean parameters do not need to be passed with double or single quotes.
-
 
 Update the ``input/network_spec.yml`` file for all networks available for use by the control plane.
 
@@ -73,9 +72,6 @@ A sample is provided below: ::
                 discover_ranges: ""
                 network_gateway: ""
                 MTU: "1500"
-
-
-
 
 
 .. note::

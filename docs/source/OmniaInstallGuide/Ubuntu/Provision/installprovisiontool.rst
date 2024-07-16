@@ -1,14 +1,14 @@
 Provisioning the cluster
---------------------------
+============================
 
 Edit the ``input/provision_config.yml``, ``input/provision_config.yml``, and ``input/network_spec.yml`` files to update the required variables. A list of the variables required is available by `discovery mechanism <DiscoveryMechanisms/index.html>`_.
 
     .. note:: The first PXE device on target nodes should be the designated active NIC for PXE booting.
 
-    .. image:: ../../images/BMC_PXE_Settings.png
+    .. image:: ../../../images/BMC_PXE_Settings.png
 
 Optional configurations managed by the provision tool
-+++++++++++++++++++++++++++++++++++++++++++++++++++++
+-------------------------------------------------------
 
 **Using multiple versions of a given OS**
 
@@ -20,7 +20,7 @@ Omnia now supports deploying different versions of the same OS. With each run of
 
 depending on the values provided in ``input/software_config.json``.
 
-.. note::  While Omnia deploys the minimal version of the OS, the multiple version feature requires that the Rocky Linux full (DVD) version of the OS be provided.
+.. note::  While Omnia deploys the minimal version of the OS on the cluster nodes, the multiple version feature requires that the Rocky Linux full (DVD) version of the OS be provided.
 
 **Disk partitioning**
 
@@ -35,17 +35,16 @@ depending on the values provided in ``input/software_config.json``.
 
 
 Running the provision tool
-++++++++++++++++++++++++++++
+============================
 
-To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, ``input/network_spec.yml``, and ``input/provision_config_credentials.yml`` are updated and then run::
+To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, ``input/network_spec.yml``, and ``input/provision_config_credentials.yml`` are updated and then execute: ::
 
     ansible-playbook discovery_provision.yml
 
 
 ``discovery_provision.yml`` runs in three stages that can be called individually:
 
-.. caution:: Always execute ``discovery_provision.yml`` within the ``omnia`` directory. That is, always change directories (``cd omnia``) to the path where the playbook resides before running the playbook.
-
+.. caution:: Always execute ``discovery_provision.yml`` within the ``omnia`` directory. That is, always change directories ( using ``cd omnia``) to the path where the playbook resides before running the playbook.
 
 **Preparing the control plane**
 

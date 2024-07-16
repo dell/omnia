@@ -51,7 +51,7 @@ Manually collect PXE NIC information for target servers and manually define them
 | MAC addresses.                                          | required in the network.                             |
 +---------------------------------------------------------+-----------------------------------+------------------+
 |                                                         | Servers require a manual PXE boot if iDRAC IPs are   |
-|                                                         |  not configured.                                     |
+|                                                         | not configured.                                      |
 +---------------------------------------------------------+------------------------------------------------------+
 
 For more information regarding mapping files, `click here <mappingfile.html>`_

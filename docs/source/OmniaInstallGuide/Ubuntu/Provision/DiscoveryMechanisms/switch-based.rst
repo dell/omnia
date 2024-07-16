@@ -38,7 +38,7 @@ switch_based
 * Target servers should be configured to boot in PXE mode with appropriate NIC as the first boot device.
 
 * Set the IP address of the control plane. The control plane NIC connected to remote servers (through the switch) should be configured with two IPs (BMC IP and admin IP) in a shared LOM or hybrid set up. In the case dedicated network topology, a single IP (admin IP) is required.
-.. image:: ../../../images/ControlPlaneNic.png
+.. image:: ../../../../images/ControlPlaneNic.png
 
 .. caution::
     * Do not use daisy chain ports or the port used to connect to the control plane in ``switch_based_details`` in ``input/provision_config.yml``. This can cause IP conflicts on servers attached to potential target ports.
@@ -50,7 +50,7 @@ switch_based
     * If any of the target nodes have a pre-provisioned BMC IP, ensure that these IPs are not part of the ``static_range`` specified in ``input/network_spec.yml`` under the ``bmc_network`` to avoid any bmc IP conflicts.
     * In case of a duplicate node object, duplicate BMC nodes will be deleted automatically by the **duplicate_node_cleanup** service that runs every 30 minutes. When nodes are discovered via mapping and switch details, the nodes discovered via switch details will not be deleted. Delete the node manually `using the delete node playbook. <../../deletenode.html#delete-provisioned-node>`_
 
-To clear the configuration on Omnia provisioned switches and ports, `click here <../../../Roles/Utils/portcleanup.html>`_.
+To clear the configuration on Omnia provisioned switches and ports, `click here <../../../../Roles/Utils/portcleanup.html>`_.
 
 To continue to the next steps:
 
