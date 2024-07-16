@@ -3,7 +3,7 @@ Prerequisites
 
 1. Choose a server outside your intended cluster to function as your Omnia control plane.
 
-2. Ensure that the control plane has a full-featured RHEL operating system (OS) installed. For a complete list of supported OS versions, check out the `Support Matrix <../Overview/SupportMatrix/OperatingSystems/index.html>`_.
+2. Ensure that the control plane has the "server install image" of the Ubuntu operating system (OS) installed. For a complete list of supported OS versions, check out the `Support Matrix <../../Overview/SupportMatrix/OperatingSystems/index.html>`_.
 
 3. Ensure that the control plane meets the `space requirements <RHELSpace.html>`_ indicated by Omnia.
 

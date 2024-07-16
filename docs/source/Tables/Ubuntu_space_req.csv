@@ -4,7 +4,7 @@ CUDA,3.1 GB
 OFED,286 MB
 OpenLDAP,5 MB
 Secure login node,70 MB
-NFS,skipped
+NFS,NA [1]_
 BeeGFS,19 MB
 Kubernetes,5 GB
 Jupyterhub,3 GB

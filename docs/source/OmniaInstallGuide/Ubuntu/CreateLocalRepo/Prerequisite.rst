@@ -9,7 +9,11 @@ For example, ``controlplane.omnia.test`` is acceptable. ::
 
     hostnamectl set-hostname controlplane.omnia.test
 
-2. Creating user registries
+2. To set up persistent offline local repositories, (If the parameter repo_config in input/software_config is set to always), `click here <https://help.ubuntu.com/community/Debmirror>`_.
+
+.. note:: The above link explains how to build a mirror on an Ubuntu 20.04 server. Adapt the steps and scripts as required for other versions of Ubuntu OS.
+
+3. Creating user registries
 
 .. note:: The ``user_registry`` in ``input/local_repo_config.yml`` supports only nerdctl and docker registries.
 
@@ -48,45 +52,4 @@ Instructions to pull images from the user registries in the form of a digest:
             },
 
     * For "kserve" and "kubeflow" images sourced from ``gcr.io``, Omnia updates the digest tag to ``omnia-kserve`` and ``omnia-kubeflow`` while pushing the images to ``user_registry``.
-
-.. note::
-   * Enable a repository from your RHEL subscription, run the following commands: ::
-
-            subscription-manager repos --enable=rhel-8-for-x86_64-appstream-rpms
-            subscription-manager repos --enable=rhel-8-for-x86_64-baseos-rpms
-
-    * Enable an offline repository by creating a ``.repo`` file in ``/etc/yum.repos.d/``. Refer the below sample content: ::
-
-                [RHEL-8-appstream]
-
-                name=Red Hat AppStream repo
-
-                baseurl=http://xx.yy.zz/pub/Distros/RedHat/RHEL8/8.6/AppStream/x86_64/os/
-
-                enabled=1
-
-                gpgcheck=0
-
-                [RHEL-8-baseos]
-
-                name=Red Hat BaseOS repo
-
-                baseurl=http://xx.yy.zz/pub/Distros/RedHat/RHEL8/8.6/BaseOS/x86_64/os/
-
-                enabled=1
-
-                gpgcheck=0
-
-
-
-    * Verify your changes by running: ::
-
-            yum repolist enabled
-            Updating Subscription Management repositories.
-            Unable to read consumer identity
-            This system is not registered with an entitlement server. You can use subscription-manager to register.
-                repo id                                                           repo name
-                RHEL-8-appstream-partners                                         Red Hat Enterprise Linux 8.6.0 Partners (AppStream)
-                RHEL-8-baseos-partners                                            Red Hat Enterprise Linux 8.6.0 Partners (BaseOS)
-
 
