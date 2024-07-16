@@ -6,3 +6,5 @@ Advanced configurations for Ubuntu clusters
     install_ucx_openmpi
     k8s_plugin_roce_nic
     KubernetesAccess
+    ConfiguringStorage/index
+    ConfiguringSwitches/index
