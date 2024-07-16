@@ -14,4 +14,4 @@ Omnia Installation Guide
 
     RHEL/index
     RockyLinux
-    Ubuntu
+    Ubuntu/index

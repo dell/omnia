@@ -1,11 +1,11 @@
-Install Omnia on Red Hat Enterprise Linux (RHEL) clusters
-============================================================
+Install Omnia on Ubuntu clusters
+===================================
 
 .. toctree::
     :maxdepth: 2
 
-    RHEL_prereq
-    RHELSpace
+    Ubuntu_prereq
+    UbuntuSpace
     Prereq.sh/index
     CreateLocalRepo/index
     Provision/index
