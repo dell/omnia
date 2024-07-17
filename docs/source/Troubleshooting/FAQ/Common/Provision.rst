@@ -24,3 +24,42 @@ Provision
      ansible-playbook control_plane_cleanup.yml
 
 3. Re-run the provision tool (``ansible-playbook discovery_provision.yml``).
+
+⦾ **Why are the status and admin_mac fields not populated for specific target nodes in the cluster.nodeinfo table?**
+
+**Causes**:
+
+    * Nodes do not have their first PXE device set as designated active NIC for PXE booting.
+    * Nodes that have been discovered via multiple discovery mechanisms may list multiple times. Duplicate node entries will not list MAC addresses.
+
+**Resolution**:
+
+    * Configure the first PXE device to be active for PXE booting.
+    * PXE boot the target node manually.
+    * Duplicate node objects (identified by service tag) will be deleted automatically. To manually delete node objects, use ``utils/delete_node.yml``.
+
+⦾ **What to do if user login fails when accessing a cluster node?**
+
+.. image:: ../../../images/UserLoginError.png
+
+**Potential Cause**: SSH key on the control plane may be outdated.
+
+**Resolution**:
+
+   * Refresh the key using ``ssh-keygen -R <hostname/server IP>``.
+   * Retry login.
+
+⦾ **Why is the node status stuck at 'powering-on' or 'powering-off' after a control plane reboot?**
+
+**Potential Cause**: The nodes were powering off or powering on during the control plane reboot/shutdown.
+
+**Resolution**: In the case of a planned shutdown, ensure that the control plane is shut down after the compute nodes. When powering back up, the control plane should be powered on and xCAT services resumed before bringing up the compute nodes. In short, have the control plane as the first node up and the last node down.
+
+For more information, `click here <https://github.com/xcat2/xcat-core/issues/7374>`_
+
+⦾ **What to do if the Lifecycle Controller (LC) is not ready?**
+
+**Resolution**:
+
+* Verify that the LC is in a ready state for all servers using: ``racadm getremoteservicesstatus``
+* PXE boot the target server.

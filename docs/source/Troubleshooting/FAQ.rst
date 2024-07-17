@@ -99,7 +99,7 @@ Re-run the playbook whose execution failed once the issue is resolved.
 
 **Resolution**:
 
-    Run ``kinit admin`` on the node and provide the ``kerberos_admin_password`` when prompted. (This password is also entered in ``input/security_config.yml``.)
+    Run ``kinit admin`` on the node and provide the ``kerberos_admin_password`` when prompted. (This password is also entered in ``input/security_config.yml``)
 
 
 ⦾ **Why am I unable to login using LDAP credentials after successfully creating a user account?**
