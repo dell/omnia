@@ -3,6 +3,7 @@ Troubleshooting
 
 .. toctree::
     knownissues
-    FAQ
+    FAQ/index
     troubleshootingguide
+    FAQ
 
