@@ -1,16 +1,16 @@
 Centralized authentication on the cluster
 ==========================================
 
-The security feature allows cluster admin users to set up FreeIPA or OpenLDAP in order to allow or deny user access.
+The security feature allows cluster admin users to set up OpenLDAP in order to allow or deny user access to the cluster.
 
-.. note:: FreeIPA configuration is not supported on Ubuntu (only supported on RHEL/Rocky Linux).
+.. note:: FreeIPA configuration is not supported on Ubuntu (only supported on RHEL/Rocky Linux). OpenLDAP is provided as an alternative for Ubuntu.
 
 Configuring OpenLDAP security
 _______________________________
 
 **Pre requisites**
 
-* Run ``local_repo.yml`` to create offline repositories of FreeIPA or OpenLDAP. If both were downloaded, ensure that the non-required system is removed from ``input/software_config.json`` before running ``security.yml``. For more information, `click here <../../InstallationGuides/LocalRepo/index.html>`_.
+* Run ``local_repo.yml`` to create offline repositories of OpenLDAP. If both were downloaded, ensure that the non-required system is removed from ``input/software_config.json`` before running ``security.yml``. For more information, `click here <../../InstallationGuides/LocalRepo/index.html>`_.
 
 * Enter the following parameters in ``input/security_config.yml``.
 
@@ -32,7 +32,7 @@ The wrapper playbook ``omnia.yml`` handles execution of the security or authenti
     cd security
     ansible-playbook security.yml -i inventory
 
-The inventory should contain auth_server as per the inventory file in `samplefiles <../../samplefiles.html#inventory-file>`_. The inventory file is case-sensitive. Follow the format provided in the sample file link.
+The inventory should contain the auth_server as per the inventory file in `samplefiles <../../samplefiles.html#inventory-file>`_. The inventory file is case-sensitive. Follow the format provided in the sample file link.
 
     * Do not include the IP of the control plane or local host as the ``auth_server group`` in the inventory file.
     * To customize the security features on the login node, update the desired parameters in ``input/login_node_security_config.yml``.
@@ -94,11 +94,11 @@ To customize your setup of password-less SSH, input custom parameters in ``input
 +-----------------------+--------------------------------------------------------------------------------------------------------------------+
 | Parameter             | Details                                                                                                            |
 +=======================+====================================================================================================================+
-| user_name             | The list of users that requires password-less SSH. Separate the list of users using a comma.                       |
+| user_name             | The list of users that requires passwordless SSH. Separate the list of users using a comma.                        |
 |      ``string``       |  Eg: ``user1,user2,user3``                                                                                         |
 |      Required         |                                                                                                                    |
 +-----------------------+--------------------------------------------------------------------------------------------------------------------+
-| authentication_type   | Indicates whether LDAP or FreeIPA is in use on the cluster.                                                        |
+| authentication_type   | Indicates whether LDAP is in use on the cluster.                                                                   |
 |      ``string``       |                                                                                                                    |
 |      Required         |      Choices:                                                                                                      |
 |                       |                                                                                                                    |
@@ -110,7 +110,7 @@ Use the below command to enable password-less SSH: ::
 
     ansible-playbook user_passwordless_ssh.yml -i inventory
 
-Where inventory follows the format defined under inventory file in the provided `Sample Files. <../../sample files.html>`_ The inventory file is case-sensitive. Follow the format provided in the sample file link.
+Where inventory follows the format defined under inventory file in the provided `Sample Files <../../sample files.html>`_. The inventory file is case-sensitive. Follow the format provided in the sample file link.
 
 .. caution:: Do not run SSH-keygen commands after password-less SSH is set up on the nodes.
 
@@ -177,8 +177,6 @@ Enter the following parameters in ``input/login_node_security_config.yml``.
 
 Advanced Settings
 ------------------
-
-* To install FreeIPA server on the NFS node, `click here <../../Roles/Utils/freeipa_installation.html>`_.
 
 * To replicate the OpenLDAP server `click here <ReplicatingLDAP.html>`_.
 
