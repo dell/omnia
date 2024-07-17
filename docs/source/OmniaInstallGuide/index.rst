@@ -7,7 +7,7 @@ Omnia Installation Guide
 
 * `Quick installation guide for Ubuntu clusters <Ubuntu/index.html>`_
 
-* `Maintenance <>`_
+* `Maintenance <Maintenance/index.html>`_
 
 .. toctree::
     :hidden:
@@ -15,3 +15,4 @@ Omnia Installation Guide
     RHEL/index
     RockyLinux
     Ubuntu/index
+    Maintenance/index
