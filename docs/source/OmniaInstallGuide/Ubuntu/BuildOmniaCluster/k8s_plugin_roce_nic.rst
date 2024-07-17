@@ -24,7 +24,7 @@ Install the plugin
 * Ensure to update the below mentioned parameters in ``input/roce_plugin_config.yml``:
 
 .. csv-table:: Parameters for RoCE NIC
-   :file: ../../Tables/roce_config.csv
+   :file: ../../../Tables/roce_config.csv
    :header-rows: 1
    :keepspace:
 
