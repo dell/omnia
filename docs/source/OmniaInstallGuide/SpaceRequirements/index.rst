@@ -1,3 +1,0 @@
-.. toc::
-    RHELSpace
-    UbuntuSpace
