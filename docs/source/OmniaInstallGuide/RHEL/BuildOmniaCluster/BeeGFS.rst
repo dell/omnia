@@ -3,7 +3,7 @@ BeeGFS bolt on
 
 BeeGFS is a hardware-independent POSIX parallel file system (a.k.a. Software-defined Parallel Storage) developed with a strong focus on performance and designed for ease of use, simple installation, and management.
 
-.. image:: ../../images/BeeGFS_Structure.jpg
+.. image:: ../../../images/BeeGFS_Structure.jpg
 
 
 **Pre Requisites before installing BeeGFS client**
