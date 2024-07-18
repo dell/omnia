@@ -51,12 +51,12 @@ Due to internal MAC ID conflicts on the target nodes, the MAC address will be li
 * On the server, go to **BIOS Setup -> Network Settings -> PXE Device**. For each listed device (typically 4), configure an active NIC under ``PXE device settings``
 
 
-⦾ **``discovery_provision.yml`` fails to check for duplicate disk_partition values in provision_config.yml**
+⦾ **discovery_provision.yml fails to check for duplicate disk_partition values in provision_config.yml**
 
 **Resolution**: User needs to ensure that there are no duplicate entries for the same partition in provision_config.yml.
 
 
-⦾ **After executing ``disocvery_provision.yml``, the node status in OmniaDB reflects as "standingby"?**
+⦾ **After executing disocvery_provision.yml, why does the node status in OmniaDB display "standingby"?**
 
 **Resolution**: For any discovery mechanism other than switch-based, do the following:
 

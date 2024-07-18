@@ -4,6 +4,7 @@ Kubernetes
 ⦾ **Why do Kubernetes Pods show "ImagePullBack" or "ErrPullImage" errors in their status?**
 
 **Potential Cause**: The errors occur when the Docker pull limit is exceeded.
+
 **Resolution**:
 
     * Ensure that the ``docker_username`` and ``docker_password`` are provided in ``input/provision_config_credentials.yml``.
@@ -108,8 +109,8 @@ Kubernetes
 
 ⦾ **Why does the nvidia-device-plugin pods in ContainerCreating status fails with "no runtime for "nvidia" in configured" error?**
 
-.. image:: ../images/nvidia_noruntime.png
+.. image:: ../../../images/nvidia_noruntime.png
 
 **Potential Cause**: nvidia-container-toolkit is not installed on GPU nodes.
 
-**Resolution**: Go to `Install Kubernetes <../../../OmniaInstallGuide/Ubuntu/BuildingOmniaCluster/install_kubernetes.html>`_ and follow the steps to download nvidia-container-toolkit and perform the necessary configurations based on the OS running on the cluster.
+**Resolution**: Go to `Install Kubernetes <../../../OmniaInstallGuide/Ubuntu/BuildOmniaCluster/install_kubernetes.html>`_ and follow the steps to download nvidia-container-toolkit and perform the necessary configurations based on the OS running on the cluster.

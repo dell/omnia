@@ -5,14 +5,14 @@ Network
 
 **Potential Cause**: To configure a new Infiniband Switch, HTTP and JSON gateway must be enabled. To verify that they are enabled, run:
 
-To check if HTTP is enabled: ``show web``
+* Check if HTTP is enabled: ``show web``
 
-To check if JSON Gateway is enabled: ``show json-gw``
+* Check if JSON Gateway is enabled: ``show json-gw``
 
 **Resolution**: To correct the issue, run:
 
-To enable the HTTP gateway: ``web http enable``
+* Enable the HTTP gateway: ``web http enable``
 
-To enable the JSON gateway: ``json-gw enable``
+* Enable the JSON gateway: ``json-gw enable``
 
 
