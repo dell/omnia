@@ -1,5 +1,5 @@
-Ubuntu FAQs
-===========
+FAQs related to Ubuntu clusters
+=================================
 
 .. toctree::
 

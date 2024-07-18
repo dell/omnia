@@ -1,5 +1,5 @@
-RHEL FAQs
-===========
+FAQs related to RHEL clusters
+==============================
 
 .. toctree::
 
