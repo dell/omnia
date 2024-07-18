@@ -19,6 +19,7 @@
 
 - name: Check node accelerator status
   ansible.builtin.shell: |
+    set -o pipefail
     lspci | grep -i "{{ gaudi_device_pattern }}"
   register: lspci_output
   changed_when: false
