@@ -4,15 +4,18 @@
 ``string``
 
 Required","* The operating system running on the cluster.
-**Value**: ``ubuntu``."
-"**cluster_os_version**
+
+* **Value**: ``ubuntu``."
+"**cluster_os_type**
 
 ``string``
 
 Required","* The OS Version that will be provisoned on compute nodes.
+
 * For Ubuntu, the accepted values are 20.04, 22.04.
+
 * **Default value**: 22.04"
-"**repo_config**
+"**cluster_os_type**
 
 ``string``
 
@@ -30,9 +33,9 @@ Required","* The type of offline configuration user needs.
   * ``partial`` <- Default
   * ``never``
 	"
-"**softwares**
+"**cluster_os_type**
 
-``JSON list``
+``string``
 
 Required","* A JSON list of required software and (optionally) the software version.
 * The following software should be listed with a version in the list: BeeGFS, AMD GPU, Kubernetes, CUDA, OFED, UCX, and ROCm.
