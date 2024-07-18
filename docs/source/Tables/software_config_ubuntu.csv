@@ -6,7 +6,7 @@
 Required","* The operating system running on the cluster.
 
 * **Value**: ``ubuntu``."
-"**cluster_os_type**
+"**cluster_os_version**
 
 ``string``
 
@@ -15,7 +15,7 @@ Required","* The OS Version that will be provisoned on compute nodes.
 * For Ubuntu, the accepted values are 20.04, 22.04.
 
 * **Default value**: 22.04"
-"**cluster_os_type**
+"**repo_config**
 
 ``string``
 
