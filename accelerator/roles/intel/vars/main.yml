@@ -13,7 +13,7 @@
 # limitations under the License.
 ---
 
-ansible_become: yes
+ansible_become: true
 ansible_become_user: root
 
 gaudi_device_pattern: "Processing accelerators: Habana Labs Ltd."
@@ -45,8 +45,8 @@ apt_base_packages:
   - libibverbs-dev
   - liblzma-dev
   - librdmacm-dev
-  - linux-headers-{{ansible_kernel}}
-  - linux-modules-extra-{{ansible_kernel}}
+  - linux-headers-{{ ansible_kernel }}
+  - linux-modules-extra-{{ ansible_kernel }}
   - lsof
   - moreutils
   - numactl
