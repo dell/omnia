@@ -134,3 +134,4 @@ omnia_repo_url_ubuntu:
   - { url: "https://nvidia.github.io/libnvidia-container/stable/deb/amd64 /", gpgkey: "https://nvidia.github.io/libnvidia-container/gpgkey" }
   - { url: "http://ppa.launchpad.net/deadsnakes/ppa/ubuntu {{ os_release }} main", gpgkey: "" }
   - { url: "https://a2o.github.io/snoopy-packages/repo/ubuntu {{ os_release }} stable", publickey: "https://a2o.github.io/snoopy-packages/snoopy-packages-key.pub" }
+  - { url: "https://vault.habana.ai/artifactory/debian {{ os_release }} main", publickey: " https://vault.habana.ai/artifactory/api/gpg/key/public" }
