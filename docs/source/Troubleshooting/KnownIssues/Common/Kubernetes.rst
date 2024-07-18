@@ -59,3 +59,57 @@ Kubernetes
 2. Hyphen (-): Neither the first nor the last character in a hostname field should be a hyphen.
 
 3. Period (.): The period should be used only to delimit fields in a hostname (For example, dvader.empire.gov)
+
+
+⦾ **What to do if omnia.yml playbook execution fails with MetalLB, a load-balancer for bare metal Kubernetes cluster?**
+
+**Resolution**: If your ``omnia.yml`` playbook execution fails while waiting for the MetalLB controller to be up and running, you need to wait for the MetalLB pods to come to running state and then re-run ``omnia.yml/scheduler.yml``.
+
+
+⦾ **omnia.yml or scheduler.yml playbook execution fails with the following error:**
+
+.. image:: ../../../images/kubespray_error.png
+
+**Potential Cause**: This error occurs when the Kubespray collection is not installed during the execution of ``prepare_cp.yml``.
+
+**Resolution**: Re-run ``prepare_cp.yml``.
+
+
+⦾ **NFS-client provisioner is in "ContainerCreating" or "CrashLoopBackOff" state.**
+
+.. image:: ../../../images/NFS_container_creating_error.png
+
+.. image:: ../../../images/NFS_crash_loop_back_off_error.png
+
+**Potential Cause**: This issue usually occurs when ``server_share_path`` given in ``storage_config.yml`` for ``k8s_share`` does not have an NFS server running.
+
+**Resolution**:
+
+    * Ensure that ``storage.yml`` is executed on the same inventory which is being used for ``scheduler.yml``.
+    * Ensure that ``server_share_path`` mentioned in ``storage_config.yml`` for ``k8s_share: true`` has an active nfs_server running on it.
+
+⦾ **Nfs-client provisioner is in "ContainerCreating" or "CrashLoopBackOff" state and "kubectl describe <pod_name>" shows the following output:**
+
+.. image:: ../../../images/NFS_helm_23743.png
+
+**Potential Cause**: This is a known issue. For more information, click `here. <https://github.com/helm/charts/issues/23743>`_
+
+**Resolution**:
+
+    1. Wait for some time for the pods to come up. **OR**
+    2. Do the following:
+
+        * Run the following command to delete the pod: ::
+
+            kubectl delete pod <pod_name> -n <namespace>
+
+        * Post deletion, the pod will be restarted and it will come to running state.
+
+
+⦾ **Why does the nvidia-device-plugin pods in ContainerCreating status fails with "no runtime for "nvidia" in configured" error?**
+
+.. image:: ../images/nvidia_noruntime.png
+
+**Potential Cause**: nvidia-container-toolkit is not installed on GPU nodes.
+
+**Resolution**: Go to `Install Kubernetes <../../../OmniaInstallGuide/Ubuntu/BuildingOmniaCluster/install_kubernetes.html>`_ and follow the steps to download nvidia-container-toolkit and perform the necessary configurations based on the OS running on the cluster.

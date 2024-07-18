@@ -28,3 +28,24 @@ For more information, `click here. <https://github.com/kserve/kserve/issues/3372
 ⦾ **What to do when the JupyterHub or Prometheus UI is not accessible?**
 
 **Resolution**: Run the command ``kubectl get pods  namespace default`` to ensure **nfs-client** pod and all Prometheus server pods are in the **Running** state.
+
+
+⦾ **What to do when JupyterHub pods are in 'ImagePullBackOff' or 'ErrImagePull' status after executing jupyterhub.yml:**
+
+**Potential Cause**: Your Docker pull limit has been exceeded. For more information, `click here <https://www.docker.com/increase-rate-limits>`_.
+
+**Resolution**:
+
+1. Delete Jupyterhub deployment by executing the following command on the kube_control_plane: ``helm delete jupyterhub -n jupyterhub``
+
+2. Re-execute ``jupyterhub.yml`` after 8-9 hours.
+
+
+⦾ **Kserve deployment occasionally fails on RHEL 8.8 clusters.**
+
+**Potential Cause**: This is a known issue. For more information, check the links attached below:
+
+    1. `Reference 1 <https://github.com/istio/istio/issues/31352>`_
+    2. `Reference 2 <https://github.com/istio/istio/issues/22677>`_
+
+**Resolution**: Reprovision the cluster and re-deploy Kserve. The steps to deploy Kserve are located `here <../../../OmniaInstallGuide/Ubuntu/InstallAITools/kserve.html>`_.

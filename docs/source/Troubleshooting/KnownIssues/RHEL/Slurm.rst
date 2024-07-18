@@ -70,3 +70,30 @@ Slurm
     slurmctl restart slurmctld on slurm_control_node
     systemctl restart slurmdbd on slurm_control_node
     systemctl restart slurmd on slurm_node
+
+
+⦾ **What to do if slurmctld services fails during omnia.yml execution, when slurm_installaton_type is nfs_share ?**
+
+**Potential Cause**: This issue may arise due to internal network issues.
+
+**Resolution**: Re-run the playbook with same configuration and verify the status of slurmctld service in the slurm control node.
+
+
+⦾ **After resetting an existing slurm cluster using reset_cluster_config.yml, issues are faced while changing the slurm_installation_type from nfs_share to configless in input/omnia.yml. Post update, possible scenarios observed while executing omnia.yml playbook are:**
+
+	* **Playbook execution fails at TASK: [slurm_common : Add the user 'slurm' with uid 6001 and a primary group of 'slurm'].**
+
+	    .. image:: ../../../images/nfs_slurm_error.png
+
+	* **Playbook execution is successful but the slurm services are inactive.**
+
+**Potential Causes**:
+
+	1. While updating the ``slurm_installation_type`` from ``nfs_share`` to ``configless`` in ``input/omnia.yml``, the previous 'slurm' user is active, which can cause the deletion and addition of the configurations to fail intermittently.
+	2. NFS share path is not removed from ``LD_LIBRARY_PATH`` environment variable while resetting a slurm cluster in ``nfs_share`` mode.
+
+**Resolution**: Perform the following steps:
+
+	1. Remove the NFS share path from ``LD_LIBRARY_PATH``.
+	2. Remove ``slurmd.service`` file from all the compute nodes in the slurm cluster.
+	3. Re-run ``omnia.yml`` playbook.

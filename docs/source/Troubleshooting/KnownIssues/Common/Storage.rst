@@ -85,3 +85,12 @@ Storage
 3. Check the `support matrix for RHEL or Rocky Linux <../../../Overview/SupportMatrix/OperatingSystems/index.html>`_ to verify your setup.
 
 4. For further insight into the issue, check out ``/var/log/beegfs-client.log`` on nodes where the BeeGFS client is running.
+
+
+⦾ **What to do if NFS clients are unable to access the share after an NFS server reboot?**
+
+Reboot the NFS server (external to the cluster) to bring up the services again: ::
+
+    systemctl disable nfs-server
+    systemctl enable nfs-server
+    systemctl restart nfs-server

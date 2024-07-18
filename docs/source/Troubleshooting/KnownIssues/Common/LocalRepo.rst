@@ -32,3 +32,41 @@ Local Repositories
 
     * Reassign the conflicting network to a different subnet.
     * Update ``input/provision_config_credentials.yml`` with the ``docker_username`` and ``docker_password``.
+
+
+⦾ **What to do if local_repo.yml execution fails with the following error:**
+
+.. image:: ../../../images/local_repo_permissions_error.png
+
+**Potential Cause**: Executing ``local_repo.yml`` with ``repo_store_path`` set as an NFS share, but lacking the necessary permissions to access it from the control plane.
+
+**Resolution**: Provide the required (read, write, and execute) permissions for the NFS share. Verify the permissions of NFS share from the root user of the control plane.
+
+
+⦾ **Why does the task ‘Parse and Download: Display Failed Packages’ fail while running prepare_upgrade.yml?**
+
+.. image:: ../../../images/upgrade_failed_packages.png
+
+**Potential Cause**: This issue may arise while setting up of local repo for Omnia v1.6 and can occur due to internet connection issues on control plane.
+
+**Resolution**: Verify that the internet connectivity on control plane is stable and re-run the ``prepare_upgrade.yml`` playbook.
+
+
+⦾ **While executing local_repo.yml playbook, subgroup entries for applicable software is not validated during playbook execution.**
+
+**Resolution**: User must provide the software subgroup (if required) for the respective software in ``input/software_config.json``.
+
+
+⦾ **The "TASK [configure_repos : Generate metadata for repositories]" fails during the execution of local_repo.yml on RHEL clusters if the Epel repository is unstable.**
+
+**Potential Cause**: If the external Epel repository link mentioned in ``omnia_repo_url_rhel`` is not stable, then it can cause failures in ``local_repo.yml`` playbook execution.
+
+**Resolution**:
+
+1. Check if the Epel repository link mentioned in ``omnia_repo_url_rhel`` is accessible.
+
+2. Verify the required software listed in ``software_config.json``, by examining the corresponding ``<software>.json`` files located in the ``input/config/rhel/`` directory. User can do either of the following, based on the findings:
+
+    - If none of the packages are dependent on the Epel repository, users can remove the Epel repository URL from ``omnia_repo_url_rhel``.
+
+    - If any package required from the Epel repository is listed in the ``software_config.json`` file, it's advisable to either wait for the Epel repository to stabilize or host those Epel repository packages locally. Afterward, remove the Epel repository link from ``omnia_repo_url_rhel`` and provide the locally hosted URL for the Epel repository packages via the ``user_repo_url`` variable.

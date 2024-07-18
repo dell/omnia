@@ -51,3 +51,45 @@ Due to internal MAC ID conflicts on the target nodes, the MAC address will be li
 * On the server, go to **BIOS Setup -> Network Settings -> PXE Device**. For each listed device (typically 4), configure an active NIC under ``PXE device settings``
 
 
+⦾ **``discovery_provision.yml`` fails to check for duplicate disk_partition values in provision_config.yml**
+
+**Resolution**: User needs to ensure that there are no duplicate entries for the same partition in provision_config.yml.
+
+
+⦾ **After executing ``disocvery_provision.yml``, the node status in OmniaDB reflects as "standingby"?**
+
+**Resolution**: For any discovery mechanism other than switch-based, do the following:
+
+    1. Execute the following command: ::
+
+        chdef <node> status=””
+
+    2. Then run: ::
+
+        rinstall <node>
+
+    Where <node> refers to the node column in the OmniaDB, which has a “standingby” status.
+
+
+⦾ **Why does the discovery_provision.yml playbook execution fail at task: "Prepare_cp needs to be executed"?**
+
+**Potential Cause**: Invalid input provided in ``network_spec.yml`` for ``admin_network`` or ``bmc_network`` fields.
+
+**Resolution**: Perform a cleanup using ``control_plane_cleanup.yml`` with ``--tags provision`` & then re-run the ``discovery_provision.yml`` playbook. Execute the following command:
+
+    ::
+
+        ansible-playbook utils/control_plane_cleanup.yml --tags provision
+        ansible-playbook discovery_provision.yml
+
+
+⦾ **While executing discovery_provision.yml playbook from the control plane, some of the cluster nodes fail to boot up and omniadb captures the node status as "failed".**
+
+.. image:: ../../../images/waco_node_boot_failure.png
+
+**Potential Cause**: This issue is encountered due to any configuration failure during node provisioning.
+
+**Resolution**: Perform the following steps:
+
+    1. Delete the failed node from the db using ``delete_node.yml`` playbook utility. For more information, `click here <../../../OmniaInstallGuide/Maintenance/deletenode.html>`_.
+    2. Re-provision the node by re-running the ``discovery_provision.yml`` playbook.
