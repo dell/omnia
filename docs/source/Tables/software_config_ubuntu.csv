@@ -3,15 +3,13 @@
 
 ``string``
 
-Required","* The operating system running on the cluster (``rhel``, ``rocky``, and ``ubuntu``).
-**Default value**: ``ubuntu``."
+Required","* The operating system running on the cluster.
+**Value**: ``ubuntu``."
 "**cluster_os_version**
 
 ``string``
 
 Required","* The OS Version that will be provisoned on compute nodes.
-* For RHEL, the accepted values are 8.6, 8.7, and 8.8.
-* For Rocky, the accepted values are 8.6, 8.7, and 8.8.
 * For Ubuntu, the accepted values are 20.04, 22.04.
 * **Default value**: 22.04"
 "**repo_config**
@@ -36,11 +34,11 @@ Required","* The type of offline configuration user needs.
 
 ``JSON list``
 
-Required","* A JSON list of required software and (optionally) the software revision.
+Required","* A JSON list of required software and (optionally) the software version.
 * The following software should be listed with a version in the list: BeeGFS, AMD GPU, Kubernetes, CUDA, OFED, UCX, and ROCm.
 * A minimum of one software should be provided in the list for ``local_repo.yml`` to execute correctly.
 * The ``<os_type>_software_config.json`` will have the basic softwares present in it. To add additional software stacks, add the software under ``input/software_config.json``.
-* For the list of all applicable softwares based on your ``<cluster_os_type>``, refer the templates at ``examples/template_<os>_software_config.json``. Supported OS's are RHEL, Rocky, and Ubuntu.
+* For the list of all applicable softwares based on your ``<cluster_os_type>``, refer the templates at ``examples/template_<os>_software_config.json``. For example, ``examples/template_ubuntu_software_config.json``.
 
 .. note:: The accepted names for software is taken from ``input/config/<cluster_os_type>/<cluster_os_version>``.
 "

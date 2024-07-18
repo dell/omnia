@@ -4,7 +4,7 @@ Input parameters for Local Repositories
 * Input all required values in ``input/software_config.json``.
 
 .. csv-table:: Parameters for Software Configuration
-   :file: ../../../Tables/software_config.csv
+   :file: ../../../Tables/software_config_rhel.csv
    :header-rows: 1
    :keepspace:
    :class: longtable
