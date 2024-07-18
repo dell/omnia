@@ -85,7 +85,7 @@ Optional","* User defined disk partition applied to remote servers.
 
 ``string``
 
-Required","Timezone to be used during OS provisioning. Available timezones are provided `here <../../Appendices/Timezones.html>`_.
+Required","Timezone to be used during OS provisioning. Available timezones are provided `here <../../../Appendices/Timezones.html>`_.
 
 Choices:
 
@@ -116,4 +116,4 @@ Required","Default lease time for IPs assigned by DHCP. Range: 21600-86400
 Optional","* This is a user-configured variable that is used to specify the kernel flavor on Ubuntu 22.04.
 * This variable is only supported when the cluster runs Ubuntu 22.04.
 * To specify this variable, ensure to append the string ``ubuntu_kernel_flavor: generic`` or ``ubuntu_kernel_flavor: hwe`` to the end of the ``input/provision_config.yml`` file.
-* **Accepted values**: **generic**, hwe."
+* **Accepted values**: ``generic``, ``hwe``."
