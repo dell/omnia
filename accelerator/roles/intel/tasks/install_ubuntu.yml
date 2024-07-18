@@ -1,0 +1,115 @@
+# Copyright 2024 Intel Corporation.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Check if accelerator is present on node
+  ansible.builtin.include_tasks: verify_has_accelerators.yml
+
+- name: Include accelerator_config
+  ansible.builtin.include_vars: "{{ role_path }}/../../../input/accelerator_config.yml"
+
+- name: Common setups
+  block:
+  - name: Gather package facts
+    package_facts:
+      manager: auto
+
+  - name: Check if kernel supported
+    fail:
+      msg: "Kernel not supported"
+    when: ansible_kernel is version('5.4.0', '<')
+
+  # TODO: check if this is the right place to do this.
+  - name: Base dependencies
+    apt:
+      name: "{{ apt_base_packages | list }}"
+      state: latest
+      update_cache: true
+
+  # TODO: check with Dell first (this might have side effects)
+  # required by kubeflow: https://github.com/kubeflow/manifests/issues/2087
+  - name: Increase fs.inotify.max_user_instances
+    sysctl:
+      name: fs.inotify.max_user_instances
+      value: '1280'
+      state: present
+      reload: yes
+      sysctl_set: yes
+      ignoreerrors: no
+      sysctl_file: /etc/sysctl.d/99-sysctl.conf
+
+- name: Setup compute nodes
+  block:
+  # TODO: need to move Tuned outside of the Gaudi installation playbook
+  - name: Start Tuned service
+    systemd_service:
+      name: tuned
+      state: started
+      enabled: true
+
+  - name: Set Tuned profile
+    shell: "tuned-adm profile accelerator-performance"
+
+  # This number was defined by Habana team and is the number used in IDC clusters
+  - ansible.posix.sysctl:
+      name: vm.nr_hugepages
+      value: '156300'
+      state: present
+
+  - name: Init version status
+    set_fact:
+      version_defined: ""
+
+  - name: Check version status
+    set_fact:
+      version_defined: true
+    when: 
+    - gaudi_driver_version is defined
+    - gaudi_driver_version | length > 0
+    - gaudi_driver_version != "latest"
+
+  - name: Update apt and install habanalabs dependencies
+    vars:
+      pacakge_version: "{{ '=' if version_defined else '' }}{{ gaudi_driver_version if version_defined else '' }}"
+      habana_packages_with_version: "{{ habana_packages | product([pacakge_version]) | map('join') | list }}"
+    apt: 
+      name: "{{ habana_packages_with_version | list }}"
+      update_cache: true
+
+  - name: Get Secure Boot Status
+    shell: "mokutil --sb-state | grep SecureBoot"
+    register: sb_out
+    failed_when: (sb_out.stdout.find('enabled') != -1)
+
+  - name: Add the habanalabs kernel module
+    modprobe:
+      name: habanalabs
+      state: present
+
+  - name: Add the habanalabs_cn kernel module
+    modprobe:
+      name: habanalabs_cn
+      state: present
+
+  - name: Add the habanalabs_en kernel module
+    modprobe:
+      name: habanalabs_en
+      state: present
+
+  # - name: Reboot node after core dependencies installation
+  #   ansible.builtin.reboot:
+  #     msg: "Rebooting machine in 5 seconds"
+  #     post_reboot_delay: 30
+
+  when: node_has_accelerator

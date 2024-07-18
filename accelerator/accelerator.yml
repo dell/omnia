@@ -1,4 +1,5 @@
 # Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Intel Corporation.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -37,7 +38,7 @@
   gather_facts: true
   roles:
     - common
-  tags: amd, nvidia
+  tags: amd, nvidia, intel
 
 - name: Perform GPU driver and ROCm installation for AMD Accelerators
   hosts: all
@@ -66,3 +67,11 @@
 #     - name: Reboot node
 #       ansible.builtin.reboot:
 #   tags: nvidia
+
+- name: Install Habana drivers on nodes
+  hosts: all
+  gather_facts: true
+  any_errors_fatal: true
+  roles:
+    - intel
+  tags: intel

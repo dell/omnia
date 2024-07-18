@@ -1,7 +1,7 @@
 Accelerator
 ============
 
-The accelerator role allows users to  set up the `AMD ROCm <https://www.amd.com/en/graphics/servers-solutions-rocm>`_ platform or the `CUDA Nvidia toolkit <https://developer.nvidia.com/cuda-zone>`_. These tools allow users to unlock the potential of installed GPUs.
+The accelerator role allows users to set up the `AMD ROCm <https://www.amd.com/en/graphics/servers-solutions-rocm>`_ platform, the `CUDA Nvidia toolkit <https://developer.nvidia.com/cuda-zone>`_ or the `Intel Gaudi <https://docs.habana.ai/en/latest/index.html>`_ platform. These tools allow users to unlock the potential of installed GPUs.
 
 Enter all required parameters in ``input/accelerator_config.yml``.
 
@@ -28,7 +28,10 @@ Enter all required parameters in ``input/accelerator_config.yml``.
 |    ``string``        |                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 |     Optional         |      **Default values**: ``latest-dkms``                                                                                                                                                                                                                                                                                                                                                                                                |
 +----------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-
+| gaudi_driver_version | Required Intel Gaudi driver version. By default latest driver is installed. Default: latest.                                                                                                                                                                                                                                                                                                                                            |
+|      ``string``      |                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+|      Optional        |       **Default values**: ``latest``                                                                                                                                                                                                                                                                                                                                                                                                    |
++----------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 .. note::
 	* Nodes provisioned using the Omnia provision tool do not require a RedHat subscription to run ``accelerator.yml`` on RHEL target nodes.
@@ -45,5 +48,6 @@ To install all the latest GPU drivers and toolkits, run: ::
 The following configurations take place when running ``accelerator.yml``
 	i. Servers with AMD GPUs are identified and the latest GPU drivers and ROCm platforms are downloaded and installed.
 	ii. Servers with NVIDIA GPUs are identified and the specified CUDA toolkit is downloaded and installed.
-	iii. For the rare servers with both NVIDIA and AMD GPUs installed, all the above mentioned download-ables are installed to the server.
-	iv. Servers with neither GPU are skipped.
+	iii. Servers with Gaudi Accelerators are identified and the latest drivers and tools are downloaded and installed.
+	iv. For the rare servers with both NVIDIA and AMD GPUs installed, all the above mentioned download-ables are installed to the server.
+	v. Servers with neither GPU are skipped.

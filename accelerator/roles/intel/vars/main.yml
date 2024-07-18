@@ -1,0 +1,55 @@
+# Copyright 2024 Intel Corporation.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+ansible_become: yes
+ansible_become_user: root
+
+gaudi_device_pattern: "Processing accelerators: Habana Labs Ltd."
+
+synapseai_apt_key_url: "https://vault.habana.ai/artifactory/api/gpg/key/public"
+
+synapseai_apt_repo_source: "deb https://vault.habana.ai/artifactory/debian jammy main"
+
+habana_packages:
+  - habanalabs-container-runtime
+  - habanalabs-dkms
+  - habanalabs-firmware
+  - habanalabs-firmware-tools
+  - habanalabs-graph
+  - habanalabs-qual
+  - habanalabs-rdma-core
+  - habanalabs-thunk
+  - habanatools
+
+apt_base_packages:
+  - cmake
+  - curl
+  - dkms
+  - ethtool
+  - gcc
+  - iproute2
+  - libbz2-dev
+  - libelf-dev
+  - libibverbs-dev
+  - liblzma-dev
+  - librdmacm-dev
+  - linux-headers-{{ansible_kernel}}
+  - linux-modules-extra-{{ansible_kernel}}
+  - lsof
+  - moreutils
+  - numactl
+  - tuned
+  - unzip
+  - wget
