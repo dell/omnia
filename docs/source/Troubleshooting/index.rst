@@ -7,5 +7,4 @@ Troubleshooting
     knownissues
     FAQ/index
     troubleshootingguide
-    FAQ
 
