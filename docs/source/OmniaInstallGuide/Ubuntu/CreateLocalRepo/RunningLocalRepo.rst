@@ -1,7 +1,7 @@
-Running local repo
-===================
+Execute local repo playbook
+=============================
 
-The local repository feature will help create offline repositories on the control plane which all the cluster nodes will access.
+The local repository feature helps create offline repositories on the control plane, which all the cluster nodes can access.
 
 **Configurations made by the playbook**
 

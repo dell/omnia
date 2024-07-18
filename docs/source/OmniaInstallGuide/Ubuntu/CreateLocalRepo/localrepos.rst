@@ -1,5 +1,5 @@
-Configuring specific local repositories
------------------------------------------
+Configure specific local repositories
+========================================
 
 **AMD GPU ROCm**
 
