@@ -104,7 +104,7 @@ For a list of repositories (and their types) configured for AMD GPUs, view the `
 * Input the required values in ``input/local_repo_config.yml``.
 
 .. csv-table:: Parameters for Local Repository Configuration
-   :file: ../../../Tables/local_repo_config.csv
+   :file: ../../../Tables/local_repo_config_rhel.csv
    :header-rows: 1
    :widths: auto
 
