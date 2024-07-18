@@ -12,15 +12,9 @@ Optional configurations managed by the provision tool
 
 **Using multiple versions of a given OS**
 
-Omnia now supports deploying different versions of the same OS. With each run of ``discovery_provision.yml``, a new deployable OS image is created with a distinct type:
+Omnia now supports deploying different versions of the same OS. With each run of ``discovery_provision.yml``, a new deployable OS image is created with a distinct type depending on the values provided in ``input/software_config.json``. Supported OS's are:
 
-    * Rocky Linux: 8.6, 8.7, 8.8
-    * RHEL: 8.6, 8.7, 8.8
     * Ubuntu: 20.04, 22.04
-
-depending on the values provided in ``input/software_config.json``.
-
-.. note::  While Omnia deploys the minimal version of the OS on the cluster nodes, the multiple version feature requires that the Rocky Linux full (DVD) version of the OS be provided.
 
 **Disk partitioning**
 
