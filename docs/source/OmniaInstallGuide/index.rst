@@ -13,7 +13,6 @@ Omnia Installation Guide
     RHEL/index
     Ubuntu/index
     Maintenance/index
-    samplefiles
 
 .. toctree::
 
