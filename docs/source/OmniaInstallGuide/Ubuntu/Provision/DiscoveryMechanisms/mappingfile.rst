@@ -1,6 +1,6 @@
 mapping
 --------------
-Manually collect PXE NIC information for target servers and define them to Omnia (using the ``pxe_mapping_file`` variable in ``input/provision_config.yml```) using a mapping file using the below format:
+Manually collect PXE NIC information for target servers and define them to Omnia (using the ``pxe_mapping_file`` variable in ``input/provision_config.yml``) using a mapping file using the below format:
 
 **pxe_mapping_file.csv**
 
@@ -23,6 +23,6 @@ Manually collect PXE NIC information for target servers and define them to Omnia
 
 .. caution:: If incorrect details are provided in the mapping file and the same is passed on to the Omnia DB (this takes place when ``discovery.yml`` or ``discovery_provision.yml`` is run), delete the nodes with incorrect information using the `linked script. <../../../Maintenance/deletenode.html>`_ After deletion, provide correct details in the mapping file and re-run ``discovery_provision.yml`` or ``discovery/discovery.yml``. If the ``bmc_ip`` alone is incorrect, manually PXE boot the target server to update the database.
 
-To continue to the next steps:
+Next step:
 
 * `Provisioning the cluster <../installprovisiontool.html>`_

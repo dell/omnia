@@ -54,6 +54,31 @@ For information on deploying BeeGFS after setting up the cluster, `click here <.
 
 .. note:: If the package version is customized, ensure that the ``version`` value is updated in ``software_config.json```.
 
+**OFED**
+
+    To install OFED, include the following line under ``softwares`` in ``input/software_config.json``: ::
+
+            {"name": "ofed", "version": "24.01-0.3.3.1"},
+
+
+    For a list of repositories (and their types) configured for OFED, view the ``input/config/<cluster_os_type>/<cluster_os_version>/ofed.json`` file. To customize your OFED installation, update the file.
+
+    For Ubuntu: ::
+
+            {
+                "ofed": {
+                  "cluster": [
+                    { "package": "ofed",
+                      "type": "iso",
+                      "url": "https://content.mellanox.com/ofed/MLNX_OFED-24.01-0.3.3.1/MLNX_OFED_LINUX-24.01-0.3.3.1-ubuntu20.04-x86_64.iso",
+                      "path": ""
+                    }
+                  ]
+                }
+            }
+
+.. note:: If the package version is customized, ensure that the ``version`` value is updated in ``software_config.json``.
+
 **BCM RoCE**
 
     To install RoCE, do the following:
@@ -113,6 +138,165 @@ For information on deploying BeeGFS after setting up the cluster, `click here <.
 
     * The RoCE driver is only supported on Ubuntu clusters.
     * The only accepted URL for the RoCE driver is from the `Dell support <https://www.dell.com/support/home/en-us>`_ site.
+
+**Kubernetes**
+
+    To install Kubernetes, include the following line under ``softwares`` in ``input/software_config.json``: ::
+
+            {"name": "k8s", "version":"1.26.12"},
+
+For more information about installing Kubernetes, `click here <../BuildOmniaCluster/install_kubernetes.html>`_.
+
+.. note:: The version of the software provided above is the only version of the software Omnia supports.
+
+**Jupyterhub**
+
+    To install Jupyterhub, include the following line under ``softwares`` in ``input/software_config.json``: ::
+
+            {"name": "jupyter"},
+
+For information on deploying Jupyterhub after setting up the cluster, `click here <../InstallAITools/InstallJupyterhub.html>`_.
+
+**Kserve**
+
+    To install Kserve, include the following line under ``softwares`` in ``input/software_config.json``: ::
+
+                {"name": "kserve"},
+
+For information on deploying Kserve after setting up the cluster, `click here <../InstallAITools/kserve.html>`_.
+
+**Kubeflow**
+
+    To install kubeflow, include the following line under ``softwares`` in ``input/software_config.json``: ::
+
+            {"name": "kubeflow"},
+
+For information on deploying kubeflow after setting up the cluster, `click here <../InstallAITools/kubeflow.html>`_.
+
+**Pytorch**
+
+    To install PyTorch, do the following:
+
+        * Include the following line under ``softwares`` in ``input/software_config.json``:
+
+            ::
+
+                {"name": "pytorch"},
+
+        * Add the following line below the ``softwares`` section:
+
+            ::
+
+                "pytorch": [
+                    {"name": "pytorch_cpu"},
+                    {"name": "pytorch_amd"},
+                    {"name": "pytorch_nvidia"}
+                ],
+
+        * A sample format is available `here. <InputParameters.html>`_
+
+For information on deploying Pytorch after setting up the cluster, `click here. <../InstallAITools/Pytorch.html>`_
+
+**TensorFlow**
+
+    To install TensorFlow, do the following:
+
+        * Include the following line under ``softwares`` in ``input/software_config.json``:
+
+            ::
+
+                {"name": "tensorflow"},
+
+        * Add the following line below the ``softwares`` section:
+
+            ::
+
+                "tensorflow": [
+                    {"name": "tensorflow_cpu"},
+                    {"name": "tensorflow_amd"},
+                    {"name": "tensorflow_nvidia"}
+                ]
+
+        * A sample format is available `here. <InputParameters.html>`_
+
+For information on deploying TensorFlow after setting up the cluster, `click here <../InstallAITools/TensorFlow.html>`_.
+
+**vLLM**
+
+    To install vLLM, do the following:
+
+        * Include the following line under ``softwares`` in ``input/software_config.json``:
+
+            ::
+
+                {"name": "vLLM"},
+
+        * Add the following line below the ``softwares`` section:
+
+             ::
+
+                "vllm": [
+                    {"name": "vllm_amd"},
+                    {"name": "vllm_nvidia"}
+                ],
+
+        * A sample format is available `here. <InputParameters.html>`_
+
+For information on deploying vLLM after setting up the cluster, `click here <../InstallAITools/vLLM/index.html>`_.
+
+**OpenLDAP**
+
+    To install OpenLDAP, include the following line under ``softwares`` in ``input/software_config.json``: ::
+
+            {"name": "openldap"},
+
+For more information on OpenLDAP, `click here <../BuildOmniaCluster/Authentication.html#configuring-openldap-security>`_.
+
+**Secure Login Node**
+
+    To secure the login node, include the following line under ``softwares`` in ``input/software_config.json``: ::
+
+            {"name": "secure_login_node"},
+
+For more information on configuring login node security, `click here <../BuildOmniaCluster/Authentication.html#configuring-login-node-security>`_.
+
+**OpenMPI**
+
+    To install OpenMPI, include the following line under ``softwares`` in ``input/software_config.json``: ::
+
+            {"name": "openmpi", "version":"4.1.6"},
+
+OpenMPI is deployed on the cluster when the above configurations are complete and `omnia.yml <../BuildOmniaCluster/installscheduler.html>`_ playbook is executed.
+
+For more information on OpenMPI configurations, `click here <../AdvancedConfigurationsUbuntu/install_ucx_openmpi.html>`_.
+
+.. note:: The default OpenMPI version for Omnia is 4.1.6. If you change the version in the ``software.json`` file, make sure to update it in the ``openmpi.json`` file in the ``input/config`` directory as well.
+
+**Unified Communication X (UCX)**
+
+    To install UCX, include the following line under ``softwares`` in ``input/software_config.json``: ::
+
+            {"name": "ucx", "version":"1.15.0"},
+
+UCX is deployed on the cluster when ``local_repo.yml`` playbook is executed, followed by the execution of `omnia.yml <../BuildOmniaCluster/installscheduler.html>`_.
+
+For more information on UCX configurations, `click here <../AdvancedConfigurationsUbuntu/install_ucx_openmpi.html>`_.
+
+**Intel benchmarks**
+
+    To install Intel benchmarks, include the following line under ``softwares`` in ``input/software_config.json``: ::
+
+            {"name": "intel_benchmarks", "version": "2024.1.0"},
+
+For more information on Intel benchmarks, `click here <../Benchmarks/AutomatingOneAPI.html>`_.
+
+**AMD benchmarks**
+
+    To install AMD benchmarks, include the following line under ``softwares`` in ``input/software_config.json``: ::
+
+            {"name": "amd_benchmarks"},
+
+For more information on AMD benchmarks, `click here <../Benchmarks/AutomatingOpenMPI.html>`_.
 
 **Custom repositories**
 
@@ -181,190 +365,3 @@ For information on deploying BeeGFS after setting up the cluster, `click here <.
                 ]
               }
             }
-
-**Jupyterhub**
-
-    To install Jupyterhub, include the following line under ``softwares`` in ``input/software_config.json``: ::
-
-            {"name": "jupyter"},
-
-For information on deploying Jupyterhub after setting up the cluster, `click here <../InstallAITools/InstallJupyterhub.html>`_.
-
-**Kserve**
-
-    To install Kserve, include the following line under ``softwares`` in ``input/software_config.json``: ::
-
-                {"name": "kserve"},
-
-For information on deploying Kserve after setting up the cluster, `click here <../InstallAITools/kserve.html>`_.
-
-**Kubeflow**
-
-    To install kubeflow, include the following line under ``softwares`` in ``input/software_config.json``: ::
-
-            {"name": "kubeflow"},
-
-For information on deploying kubeflow after setting up the cluster, `click here <../InstallAITools/kubeflow.html>`_.
-
-
-**Kubernetes**
-
-    To install Kubernetes, include the following line under ``softwares`` in ``input/software_config.json``: ::
-
-            {"name": "k8s", "version":"1.26.12"},
-
-For more information about installing Kubernetes, `click here <../BuildOmniaCluster/install_kubernetes.html>`_.
-
-.. note:: The version of the software provided above is the only version of the software Omnia supports.
-
-**OFED**
-
-    To install OFED, include the following line under ``softwares`` in ``input/software_config.json``: ::
-
-            {"name": "ofed", "version": "24.01-0.3.3.1"},
-
-
-    For a list of repositories (and their types) configured for OFED, view the ``input/config/<cluster_os_type>/<cluster_os_version>/ofed.json`` file. To customize your OFED installation, update the file.
-
-    For Ubuntu: ::
-
-            {
-                "ofed": {
-                  "cluster": [
-                    { "package": "ofed",
-                      "type": "iso",
-                      "url": "https://content.mellanox.com/ofed/MLNX_OFED-24.01-0.3.3.1/MLNX_OFED_LINUX-24.01-0.3.3.1-ubuntu20.04-x86_64.iso",
-                      "path": ""
-                    }
-                  ]
-                }
-            }
-
-
-.. note:: If the package version is customized, ensure that the ``version`` value is updated in ``software_config.json``.
-
-**OpenLDAP**
-
-    To install OpenLDAP, include the following line under ``softwares`` in ``input/software_config.json``: ::
-
-            {"name": "openldap"},
-
-For more information on OpenLDAP, `click here <../BuildOmniaCluster/Authentication.html#configuring-openldap-security>`_.
-
-**OpenMPI**
-
-    To install OpenMPI, include the following line under ``softwares`` in ``input/software_config.json``: ::
-
-            {"name": "openmpi", "version":"4.1.6"},
-
-OpenMPI is deployed on the cluster when the above configurations are complete and `omnia.yml <../BuildOmniaCluster/installscheduler.html>`_ playbook is executed.
-
-For more information on OpenMPI configurations, `click here <../BuildOmniaCluster/install_ucx_openmpi.html>`_.
-
-.. note:: The default OpenMPI version for Omnia is 4.1.6. If you change the version in the ``software.json`` file, make sure to update it in the ``openmpi.json`` file in the ``input/config`` directory as well.
-
-**Pytorch**
-
-    To install PyTorch, do the following:
-
-        * Include the following line under ``softwares`` in ``input/software_config.json``:
-
-            ::
-
-                {"name": "pytorch"},
-
-        * Add the following line below the ``softwares`` section:
-
-            ::
-
-                "pytorch": [
-                    {"name": "pytorch_cpu"},
-                    {"name": "pytorch_amd"},
-                    {"name": "pytorch_nvidia"}
-                ],
-
-        * A sample format is available `here. <InputParameters.html>`_
-
-For information on deploying Pytorch after setting up the cluster, `click here. <../InstallAITools/Pytorch.html>`_
-
-**Secure Login Node**
-
-    To secure the login node, include the following line under ``softwares`` in ``input/software_config.json``: ::
-
-            {"name": "secure_login_node"},
-
-For more information on configuring login node security, `click here <../BuildOmniaCluster/Authentication.html#configuring-login-node-security>`_.
-
-**TensorFlow**
-
-    To install TensorFlow, do the following:
-
-        * Include the following line under ``softwares`` in ``input/software_config.json``:
-
-            ::
-
-                {"name": "tensorflow"},
-
-        * Add the following line below the ``softwares`` section:
-
-            ::
-
-                "tensorflow": [
-                    {"name": "tensorflow_cpu"},
-                    {"name": "tensorflow_amd"},
-                    {"name": "tensorflow_nvidia"}
-                ]
-
-        * A sample format is available `here. <InputParameters.html>`_
-
-For information on deploying TensorFlow after setting up the cluster, `click here <../InstallAITools/TensorFlow.html>`_.
-
-**Unified Communication X (UCX)**
-
-    To install UCX, include the following line under ``softwares`` in ``input/software_config.json``: ::
-
-            {"name": "ucx", "version":"1.15.0"},
-
-UCX is deployed on the cluster when ``local_repo.yml`` playbook is executed, followed by the execution of `omnia.yml <../BuildOmniaCluster/installscheduler.html>`_.
-
-For more information on UCX configurations, `click here <../BuildOmniaCluster/install_ucx_openmpi.html>`_.
-
-**vLLM**
-
-    To install vLLM, do the following:
-
-        * Include the following line under ``softwares`` in ``input/software_config.json``:
-
-            ::
-
-                {"name": "vLLM"},
-
-        * Add the following line below the ``softwares`` section:
-
-             ::
-
-                "vllm": [
-                    {"name": "vllm_amd"},
-                    {"name": "vllm_nvidia"}
-                ],
-
-        * A sample format is available `here. <InputParameters.html>`_
-
-For information on deploying vLLM after setting up the cluster, `click here <../InstallAITools/vLLM/index.html>`_.
-
-**Intel benchmarks**
-
-    To install Intel benchmarks, include the following line under ``softwares`` in ``input/software_config.json``: ::
-
-            {"name": "intel_benchmarks", "version": "2024.1.0"},
-
-For more information on Intel benchmarks, `click here <../Benchmarks/AutomatingOneAPI.html>`_.
-
-**AMD benchmarks**
-
-    To install AMD benchmarks, include the following line under ``softwares`` in ``input/software_config.json``: ::
-
-            {"name": "amd_benchmarks"},
-
-For more information on AMD benchmarks, `click here <../Benchmarks/AutomatingOpenMPI.html>`_.
-

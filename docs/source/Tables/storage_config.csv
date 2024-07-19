@@ -4,6 +4,7 @@
      ``JSON List``
 
      Required    ","* This JSON list contains all parameters required to set up NFS.
+* Indicates if ``k8s_share`` or ``slurm_share`` is true.
 * For a bolt-on set up where there is a pre-existing NFS export, set ``nfs_server`` to ``false``.
 * When ``nfs_server`` is set to ``true``, an NFS share is created on the control plane for access by all cluster nodes.
 * For more information on the different kinds of configuration available, `click here. <NFS.html>`_"

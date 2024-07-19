@@ -30,7 +30,7 @@ The local repository feature helps create offline repositories on the control pl
 
 .. note::
     * View the status of packages for the current run of ``local_repo.yml`` in ``/opt/omnia/offline/download_package_status.csv``. Packages which are already a part of Focal or Jammy repositories show up as ``Skipped``.
-    * ``local_repo.yml`` playbook execution fails if any software package download fails. Packages that fail are marked with a "Failed" status. In such a scenario, the user needs to re-run the ``local_repo.yml`` playbook. For more information, `click here <../../../Troubleshooting/FAQ.html>`_.
+    * ``local_repo.yml`` playbook execution fails if any software package download fails. Packages that fail are marked with a "Failed" status. In such a scenario, the user needs to re-run the ``local_repo.yml`` playbook. For more information, `click here <../../../Troubleshooting/FAQ/Common/LocalRepo.html>`_.
     * If ``repo_config`` is set to ``partial``, packages which are part of the ``user_repo_url`` or images which are part of ``user_registry`` have a ``Skipped`` status in ``/opt/omnia/offline/download_package_status.csv``.
     * If any software packages fail to download during the execution of this script, other scripts that rely on the package (that is, scripts that install the software) may fail.
 
@@ -41,7 +41,7 @@ The local repository feature helps create offline repositories on the control pl
 
 .. note::
 
-    * After ``local_repo.yml`` has run, the value of ``repo_config`` in ``input/software_config.json`` cannot be updated without running the `control_plane_cleanup.yml <../CleanUpScript.html>`_ script first.
+    * After ``local_repo.yml`` has run, the value of ``repo_config`` in ``input/software_config.json`` cannot be updated without running the `control_plane_cleanup.yml <../../Maintenance/cleanup.html>`_ script first.
 
     * To configure additional local repositories after running ``local_repo.yml``, update ``software_config.json`` and re-run ``local_repo.yml``.
 

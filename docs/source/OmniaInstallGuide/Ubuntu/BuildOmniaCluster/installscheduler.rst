@@ -15,11 +15,11 @@ Building clusters
 
 3. ``omnia.yml`` is a wrapper playbook comprising of:
 
-    i. ``security.yml``: This playbook sets up centralized authentication (LDAP/FreeIPA) on the cluster. For more information, `click here. <Authentication.html>`_
+    i. ``security.yml``: This playbook sets up centralized authentication (OpenLDAP) on the cluster. For more information, `click here. <Authentication.html>`_
     ii. ``storage.yml``: This playbook sets up storage tools like `BeeGFS <BeeGFS.html>`_ and `NFS <NFS.html>`_.
-    iii. ``scheduler.yml``: This playbook sets up job schedulers (`Slurm <install_slurm.html>`_ or `Kubernetes <install_kubernetes.html>`_) on the cluster.
-    iv. ``telemetry.yml``: This playbook sets up `Omnia telemetry and/or iDRAC telemetry <../../Roles/Telemetry/index.html>`_. It also installs `Grafana <https://grafana.com/>`_ and `Loki <https://grafana.com/oss/loki/>`_ as Kubernetes pods.
-    v. ``rocm_installation.yml``: This playbook sets up the `ROCm platform for AMD GPU accelerators <../../BuildingClusters/AMD_ROCm.html>`_.
+    iii. ``scheduler.yml``: This playbook sets up the `Kubernetes <install_kubernetes.html>`_) job scheduler on the cluster.
+    iv. ``telemetry.yml``: This playbook sets up `Omnia telemetry and/or iDRAC telemetry <../../../Roles/Telemetry/index.html>`_. It also installs `Grafana <https://grafana.com/>`_ and `Loki <https://grafana.com/oss/loki/>`_ as Kubernetes pods.
+    v. ``rocm_installation.yml``: This playbook sets up the `ROCm platform for AMD GPUs <AMD_ROCm.html>`_.
 
 To run ``omnia.yml``: ::
 
@@ -35,5 +35,5 @@ To run ``omnia.yml``: ::
 
     * Use the ansible-vault view or edit commands and not the ansible-vault decrypt or encrypt commands. If you have used the ansible-vault decrypt or encrypt commands, provide 644 permission to the parameter files.
 
-4. Once ``omnia.yml`` playbook is successfully executed, the cluster is up and running with the required application stack. Now you can install `AI tools <../Platform/index.html>`_ or utilize the cluster for job execution.
+4. Once ``omnia.yml`` playbook is successfully executed, the cluster is up and running with the required application stack. Now, you can install `AI tools <../InstallAITools/index.html>`_ or utilize the cluster for job execution.
 

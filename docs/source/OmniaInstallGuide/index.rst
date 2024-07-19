@@ -7,9 +7,16 @@ Omnia Installation Guide
 
 * `Maintenance <Maintenance/index.html>`_
 
+* `Sample Files <samplefiles.html>`_
+
 .. toctree::
     :hidden:
 
     RHEL/index
     Ubuntu/index
     Maintenance/index
+    samplefiles
+
+.. toctree::
+
+    samplefiles

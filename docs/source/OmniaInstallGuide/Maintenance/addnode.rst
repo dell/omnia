@@ -9,13 +9,13 @@ A new node can be added using the following ways:
 
     * Update the existing mapping file by appending the new entry (without the disrupting the older entries) or provide a new mapping file by pointing ``pxe_mapping_file_path`` in ``provision_config.yml`` to the new location.
 
-    .. note:: When re-running ``discovery_provision.yml`` with a new mapping file, ensure that existing IPs from the current mapping file are not provided in the new mapping file. Any IP overlap between mapping files will result in PXE failure. This can only be resolved by running the `Clean Up script <CleanUpScript.html>`_ followed by ``discovery_provision.yml``.
+    .. note:: When re-running ``discovery_provision.yml`` with a new mapping file, ensure that existing IPs from the current mapping file are not provided in the new mapping file. Any IP overlap between mapping files will result in PXE failure. This can only be resolved by running the `Clean Up script <cleanup.html>`_ followed by ``discovery_provision.yml``.
 
     * Run ``discovery_provision.yml``.::
 
         ansible-playbook discovery_provision.yml
 
-    *  Manually PXE boot the target servers after the ``discovery_provision.yml`` playbook (if ``bmc_ip`` is not provided in the mapping file) is executed and the target node lists as **booted** in the `nodeinfo table <InstallingProvisionTool/ViewingDB.html>`_.
+    *  Manually PXE boot the target servers after the ``discovery_provision.yml`` playbook (if ``bmc_ip`` is not provided in the mapping file) is executed and the target node lists as **booted** in the `nodeinfo table <../Ubuntu/Provision/ViewingDB.html>`_.
 
 
 * When target nodes were discovered using BMC:
@@ -39,10 +39,10 @@ A new node can be added using the following ways:
 
         ansible-playbook discovery_provision.yml
 
-    * Manually PXE boot the target servers after the ``discovery_provision.yml`` playbook is executed and the target node lists as **booted** in the `nodeinfo table <InstallingProvisionTool/ViewingDB.html>`_.
+    * Manually PXE boot the target servers after the ``discovery_provision.yml`` playbook is executed and the target node lists as **booted** in the `nodeinfo table <../Ubuntu/Provision/ViewingDB.html>`_.
 
 
-Verify that the node has been provisioned successfully by checking the Omnia `nodeinfo table <InstallingProvisionTool/ViewingDB.html>`_.
+Verify that the node has been provisioned successfully by checking the Omnia `nodeinfo table <../Ubuntu/Provision/ViewingDB.html>`_.
 
 **Adding new compute nodes to the cluster**
 
@@ -132,7 +132,7 @@ In the above examples, nodes 10.5.0.105 and 10.5.0.106 have been added to the cl
     * Do not change the kube_control_plane/slurm_control_node/auth_server in the existing inventory. Simply add the new node information in the kube_node/slurm_node group.
     * When re-running ``omnia.yml`` to add a new node, ensure that the ``input/security_config.yml`` and ``input/omnia_config.yml`` are not edited between runs.
 
-3. To install `security <BuildingClusters/Authentication.html>`_, `job scheduler <BuildingClusters/installscheduler.html>`_ and storage tools (`NFS <BuildingClusters/NFS.html>`_, `BeeGFS <BuildingClusters/BeeGFS.html>`_) on the node, run ``omnia.yml``: ::
+3. To install security, job scheduler, and storage tools (NFS, BeeGFS) on the node, execute ``omnia.yml``: ::
 
     ansible-playbook omnia.yml -i inventory
 

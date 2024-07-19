@@ -9,7 +9,7 @@ BeeGFS is a hardware-independent POSIX parallel file system (a.k.a. Software-def
 **Pre Requisites before installing BeeGFS client**
 
 * Ensure that the BeeGFS server is set up using the `linked steps <../../../Appendices/BeeGFSServer.html>`_.
-* Ensure that a ``connAuthFile`` is configured on the server as explained `here <../../../Appendices/BeeGFSServer.html>`_
+* Ensure that a ``connAuthFile`` is configured on the server as explained `here <../../../Appendices/BeeGFSServer.html>`_.
 
 .. caution:: Configuring a ``connAuthFile`` is now mandatory. Services will no longer start if a ``connAuthFile`` is not configured
 

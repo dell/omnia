@@ -1,11 +1,12 @@
-Configuring PowerVault
+Configuring Storage
 =======================
 
-**Configuring Powervault storage**
+Configuring PowerVault storage
+--------------------------------
 
-To configure powervault ME4 and ME5 storage arrays, follow the below steps:
+To configure PowerVault ME4 and ME5 storage arrays, follow the below steps:
 
-Fill out all required parameters in ``storage/powervault_input.yml``:
+1. Fill out all required parameters in ``storage/powervault_input.yml``:
 
 .. caution:: Do not remove or comment any lines in the ``storage/powervault_input.yml`` file.
 
@@ -95,19 +96,19 @@ Fill out all required parameters in ``storage/powervault_input.yml``:
 |      Optional                  |      **Default values**: ``public``                                                                                                                                                                                                                       |
 +--------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-Run the playbook: ::
+2. Run the playbook: ::
 
     cd storage
     ansible-playbook powervault.yml -i inventory -e powervault_username="" -e powervault_password=""
 
-* Where the ``inventory`` refers to a list of all nodes separated by a newline.
-
+* The ``inventory`` refers to a list of all nodes separated by a newline.
 * ``powervault_username`` and ``powervault_password`` are the credentials used to administrate the array.
 
 
-**Configuring NFS servers**
+Configuring NFS servers
+--------------------------
 
-To configure an NFS server, enter the following parameters in ``storage/nfs_server_input.yml``
+1. To configure an NFS server, enter the following parameters in ``storage/nfs_server_input.yml``
 
 +--------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Parameter          | Details                                                                                                                                                                                                                                                                                                                                                                                                                                             |
@@ -129,13 +130,13 @@ To configure an NFS server, enter the following parameters in ``storage/nfs_serv
 |                    |      **Default values**: `` - { name: omnia_home, server_share_path:   /home/omnia_home, server_export_options: }``                                                                                                                                                                                                                                                                                                                                 |
 +--------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-Run the playbook: ::
+2. Run the playbook: ::
 
     cd storage
     ansible-playbook nfs_sas.yml -i /root/inventory -e powervault_username="xxxxx" -e powervault_password="xxxxxx"
 
-* Where the ``inventory`` refers to a list of all nodes in the format of `NFS server inventory file <../../samplefiles.html#nfs-server-inventory-file>`_
-* To set up NFS client services, `click here <../BuildingClusters/NFS.html>`_
+* Where the ``inventory`` refers to a list of all nodes separated by a newline.
+* To set up NFS client services, `click here <../../BuildOmniaCluster/NFS.html>`_
 
 
 

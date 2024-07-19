@@ -7,7 +7,7 @@ The provision tool is installed using an Ansible playbook. This playbook achieve
 * Installs "server install image" of Ubuntu OS on the discovered cluster nodes.
 
 .. toctree::
-    :hidden:
+    :maxdepth: 2
 
     provisionprereqs
     DiscoveryMechanisms/index

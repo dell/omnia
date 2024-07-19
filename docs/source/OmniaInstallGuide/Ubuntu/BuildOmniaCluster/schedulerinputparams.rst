@@ -13,10 +13,6 @@ omnia_config.yml
    :header-rows: 1
    :keepspace:
 
-.. csv-table:: Parameters for slurm setup
-   :file: ../../../Tables/scheduler_slurm.csv
-   :header-rows: 1
-   :keepspace:
 
 security_config.yml
 ---------------------
@@ -31,10 +27,6 @@ security_config.yml
    :header-rows: 1
    :keepspace:
 
-.. csv-table:: Parameters for FreeIPA configuration
-   :file: ../../../Tables/security_config_freeipa.csv
-   :header-rows: 1
-   :keepspace:
 
 
 storage_config.yml
@@ -56,7 +48,7 @@ telemetry_config.yml
 .. [1] Boolean parameters do not need to be passed with double or single quotes.
 
 
-Click here for more information on `OpenLDAP, FreeIPA <Authentication.html>`_, `Telemetry <../../Roles/Telemetry/index.html>`_, `BeeGFS <BeeGFS.html>`_ or, `NFS <NFS.html>`_.
+Click here for more information on `OpenLDAP <Authentication.html>`_, `Telemetry <../../../Roles/Telemetry/index.html>`_, `BeeGFS <BeeGFS.html>`_ or, `NFS <NFS.html>`_.
 
 .. note::
 
