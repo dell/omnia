@@ -53,13 +53,11 @@ For a better understanding of what Omnia does, check out our `docs <https://omni
     :maxdepth: 2
    Overview/index
    Upgrade/index
-   InstallationGuides/index
    OmniaInstallGuide/index
    Roles/index
    Logging/index
    Troubleshooting/index
    SecurityConfigGuide/index
-   samplefiles
    limitations
    bestpractices
    Contributing/index
