@@ -50,6 +50,7 @@ For a better understanding of what Omnia does, check out our `docs <https://omni
 **Table Of Contents**
 
 .. toctree::
+    :maxdepth: 2
    Overview/index
    Upgrade/index
    InstallationGuides/index

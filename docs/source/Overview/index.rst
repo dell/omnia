@@ -8,6 +8,7 @@ Omnia: Overview
 
 
 .. toctree::
+    :maxdepth: 2
     architecture
     newfeatures
     releasenotes

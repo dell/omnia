@@ -3,8 +3,6 @@ Omnia Installation Guide
 
 * `Quick installation guide for RHEL clusters <RHEL/index.html>`_
 
-* `Quick installation guide for Rocky Linux clusters <>`_
-
 * `Quick installation guide for Ubuntu clusters <Ubuntu/index.html>`_
 
 * `Maintenance <Maintenance/index.html>`_
@@ -13,6 +11,5 @@ Omnia Installation Guide
     :hidden:
 
     RHEL/index
-    RockyLinux
     Ubuntu/index
     Maintenance/index
