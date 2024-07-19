@@ -62,7 +62,7 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
 
             * Node status must be "booted" in DB.
             * Node's service tag information is present in DB.
-        * Nodes are not removed from the inventory files even if they are physically disconnected. Ensure to run the `delete node playbook <../../../Maintenance/deletenode.html>`_ to remove the node.
+        * Nodes are not removed from the inventory files even if they are physically disconnected. Ensure to run the `delete node playbook <../../Maintenance/deletenode.html>`_ to remove the node.
         * To regenerate an inventory file, use the playbook ``omnia/utils/inventory_tagging.yml``.
 
 
@@ -93,9 +93,6 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
 
         cd provision
         ansible-playbook provision.yml
-
-----
-----
 
 .. note::
 
@@ -138,8 +135,8 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
 
     * If a subsequent run of ``discovery_provision.yml`` fails, the ``input/provision_config.yml`` file will be unencrypted.
 
-** Next steps**:
+**Next steps**:
 
-* After successfully running ``discovery_provision.yml``, go to `Building Clusters <../BuildOmniaCluster/index.html>`_ to setup Slurm, Kubernetes, NFS, BeeGFS, and Authentication.
+* After successfully running ``discovery_provision.yml``, go to `Building Clusters <../BuildOmniaCluster/index.html>`_ to setup Kubernetes, NFS, BeeGFS, and Authentication.
 
 * To create a node inventory in ``/opt/omnia``, `click here <../CreateInventory.html>`_.

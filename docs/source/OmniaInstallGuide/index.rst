@@ -7,8 +7,6 @@ Omnia Installation Guide
 
 * `Maintenance <Maintenance/index.html>`_
 
-* `Sample Files <samplefiles.html>`_
-
 .. toctree::
     :hidden:
 
