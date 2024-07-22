@@ -6,6 +6,7 @@ Omnia: Overview
 .. toctree::
 
     architecture
+    omnia_explained
     newfeatures
     releasenotes
     SupportMatrix/index
