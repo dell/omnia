@@ -9,7 +9,7 @@ omnia_config.yml
 -------------------
 
 .. csv-table:: Parameters for kubernetes setup
-   :file: ../../../Tables/scheduler_k8s.csv
+   :file: ../../../Tables/scheduler_k8s_ubuntu.csv
    :header-rows: 1
    :keepspace:
 

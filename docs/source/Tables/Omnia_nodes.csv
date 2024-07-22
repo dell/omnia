@@ -1,5 +1,5 @@
 ﻿Component,Description
-Control Plane,"Server where provisioning software is installed and used as the single point to perform system management over the entire cluster. On this node, a database is configured to store the cluster details. Network services (dhcp, tftp, http, etc) are enabled to respond in Operating system deployment."
+Control Plane,"A server (a.k.a. node) where provisioning software is installed and used as the single point to perform system management over the entire cluster. On this node, a database is configured to store the cluster details. Network services (dhcp, tftp, http, etc) are enabled to respond in Operating system deployment."
 Cluster Node,Any node provisioned by Omnia apart from the control plane can be termed as a cluster node.
 Kube Control Plane,"Servers where kubernetes control plane components (apiserver, scheduler, controller) will run."
 Kube Node,Kubernetes node where the pods will run.
