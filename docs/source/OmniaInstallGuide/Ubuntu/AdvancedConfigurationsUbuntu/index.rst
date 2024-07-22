@@ -1,5 +1,5 @@
 Advanced configurations for Ubuntu clusters
-=============================================
+==============================================
 
 .. toctree::
     :maxdepth: 2
