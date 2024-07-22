@@ -9,18 +9,18 @@ Before you run the provision tool
 
 * Set the IP address of the control plane. The control plane NIC connected to remote servers (through the switch) should be configured with two IPs (BMC IP and admin IP) in a shared LOM or hybrid set up. In the case dedicated network topology, a single IP (admin IP) is required.
 
-.. figure:: ../../images/ControlPlaneNic.png
+.. figure:: ../../../images/ControlPlaneNic.png
 
             *Control plane NIC IP configuration in a LOM setup*
 
-.. figure:: ../../images/ControlPlane_DedicatedNIC.png
+.. figure:: ../../../images/ControlPlane_DedicatedNIC.png
 
             *Control plane NIC IP configuration in a dedicated setup*
 
 
 * Set the hostname of the control plane in the ``hostname``. ``domain name`` format.
 
-    .. include:: ../../Appendices/hostnamereqs.rst
+    .. include:: ../../../Appendices/hostnamereqs.rst
 
     For example, ``controlplane.omnia.test`` is acceptable. ::
 
@@ -30,11 +30,7 @@ Before you run the provision tool
 
 * To provision the bare metal servers, download one of the following ISOs to the control plane:
 
-    1. `Rocky Linux 8 <https://rockylinux.org/>`_
-
-    2. `RHEL 8.x <https://www.redhat.com/en/enterprise-linux-8>`_
-
-    3. `Ubuntu <https://ubuntu.com/download/server>`_
+    `RHEL 8.x <https://www.redhat.com/en/enterprise-linux-8>`_
 
 .. note:: Ensure the ISO provided has downloaded seamlessly (No corruption). Verify the SHA checksum/ download size of the ISO file before provisioning to avoid future failures.
 
@@ -51,22 +47,10 @@ Note the compatibility between cluster OS and control plane OS below:
         | RHEL [1]_           | Rocky              | Yes              |
         +---------------------+--------------------+------------------+
         |                     |                    |                  |
-        | Rocky               | Rocky              | Yes              |
-        +---------------------+--------------------+------------------+
-        |                     |                    |                  |
-        | Ubuntu              | Ubuntu             | Yes              |
-        +---------------------+--------------------+------------------+
-        |                     |                    |                  |
-        | Rocky               | Ubuntu             | No               |
-        +---------------------+--------------------+------------------+
-        |                     |                    |                  |
         | RHEL                | Ubuntu             | No               |
         +---------------------+--------------------+------------------+
         |                     |                    |                  |
         | Ubuntu              | RHEL               | No               |
-        +---------------------+--------------------+------------------+
-        |                     |                    |                  |
-        | Ubuntu              | Rocky              | No               |
         +---------------------+--------------------+------------------+
 
 .. [1] Ensure that control planes running RHEL have an active subscription or are configured to access local repositories. The following repositories should be enabled on the control plane: **AppStream**, **BaseOS**.
