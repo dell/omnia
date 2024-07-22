@@ -8,7 +8,7 @@ The security feature allows cluster admin users to set up OpenLDAP in order to a
 Configuring OpenLDAP security
 _______________________________
 
-**Pre requisites**
+**Prerequisites**
 
 * Run ``local_repo.yml`` to create offline repositories of OpenLDAP. If both were downloaded, ensure that the non-required system is removed from ``input/software_config.json`` before running ``security.yml``. For more information, `click here <../CreateLocalRepo/index.html>`_.
 

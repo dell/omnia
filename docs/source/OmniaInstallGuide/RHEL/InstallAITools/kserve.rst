@@ -5,7 +5,7 @@ Kserve is an open-source serving platform that simplifies the deployment, scalin
 
 .. note:: Omnia 1.6 does not support deploying both Kserve and Kubeflow in the same Kubernetes cluster. If Kubeflow is already deployed on the cluster and you wish to deploy Kserve, you must first remove Kubeflow by following the steps `here <kubeflow.html>`_.
 
-.. caution:: Kserve deployment occasionally fails on RHEL 8.8 clusters. `Reprovision the cluster <../reprovisioningthecluster.html>`_ and re-deploy Kserve. For more information, refer to the `known issues <../../Troubleshooting/knownissues.html>`_ section.
+.. caution:: Kserve deployment occasionally fails on RHEL 8.8 clusters. `Reprovision the cluster <../../Maintenance/reprovision.html>`_ and re-deploy Kserve. For more information, refer to the `known issues <../../../Troubleshooting/KnownIssues/RHEL/AITools.html>`_ section.
 
 **Prerequisites**
 
@@ -84,9 +84,9 @@ Kserve is an open-source serving platform that simplifies the deployment, scalin
 
         2. Add ``docker.io`` and ``index.docker.io`` as part of ``registries-skipping-tag-resolving``
 
-            .. image:: ../../images/kserve_config_map.png
+            .. image:: ../../../images/kserve_config_map.png
 
-    For more information, `click here. <../../Troubleshooting/knownissues.html>`_
+    For more information, `click here. <../../../Troubleshooting/KnownIssues/Common/AITools.html>`_
 
 **Access the inference service**
 
@@ -132,7 +132,7 @@ For example: ::
         * Connection #0 to host 10.20.0.101 left intact
         {"predictions":[1,1]}
 
-.. note:: Refer to `image pull <../../Roles/Utils/pullimagestonodes.html>`_ in case of ImagePullBackOff issue while deploying inference service.
+.. note:: Refer to `image pull <../pullimagestonodes.html>`_ in case of ImagePullBackOff issue while deploying inference service.
 
 **Remove Kserve**
 

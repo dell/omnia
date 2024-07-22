@@ -12,7 +12,7 @@ Ensure that you have executed ``local_repo.yml`` with Kubeflow specified in the 
 
 First, ensure that you have a Kubernetes cluster deployed on your compute node.
 
-For instructions to set up Kubernetes, `click here <../BuildingClusters/install_kubernetes.html>`_.
+For instructions to set up Kubernetes, `click here <../BuildOmniaCluster/install_kubernetes.html>`_.
 
 .. note:: The playbooks automate the process, ensuring consistency across deployments.
 
@@ -61,7 +61,7 @@ After obtaining the external IP address of the ingress gateway, you can access t
         * Open any browser of your choice and go to ``http://external_ip:80``.
         * You will be redirected to the Dex login page. You can find a sample image below.
 
-        .. image:: ../../images/dex_login.png
+        .. image:: ../../../images/dex_login.png
 
 **Login to the Kubeflow dashboard**
 

@@ -110,7 +110,7 @@ Use the local repository feature to create a customized set of local repositorie
       }
     }
 
-2. Enter the parameters required in ``input/local_repo_config.yml`` as explained `here <../CreateLocalRepo/RunningLocalRepo.html>`_.
+2. Enter the parameters required in ``input/local_repo_config.yml`` as explained `here <../CreateLocalRepo/InputParameters.html#id2>`_.
 
 3. Run the following commands: ::
 

@@ -13,7 +13,7 @@ Configuring UCX and OpenMPI on the cluster
 
 * Ensure to run ``local_repo.yml`` with the ``ucx`` and ``openmpi`` entry present in ``software_config.json``, to download all required UCX and OpenMPI packages.
 
-* To install any benchmarking software like UCX or OpenMPI, at least ``slurm_share`` or ``k8s_share`` is set to ``true`` in `storage_config.yml <schedulerinputparams.html#id17>`_, for one of the entries in ``nfs_client_params``. If both are set to true, a higher precedence is given to ``slurm_share``.
+* To install any benchmarking software like UCX or OpenMPI, at least ``slurm_share`` or ``k8s_share`` is set to ``true`` in `storage_config.yml <../BuildOmniaCluster/schedulerinputparams.html#storage-config-yml>`_, for one of the entries in ``nfs_client_params``. If both are set to true, a higher precedence is given to ``slurm_share``.
 
 **Inventory details**
 
@@ -42,4 +42,4 @@ Run either of the following commands:
             * All corresponding compiled UCX and OpenMPI files will be saved to the ``<client_share_path>/compile`` directory on the nfs share.
             * All corresponding UCX and OpenMPI executables will be saved to the ``<client_share_path>/benchmarks/`` directory on the nfs share.
             * The default OpenMPI version for Omnia is 4.1.6. If you change the version in the ``software.json`` file, make sure to update it in the ``openmpi.json`` file in the ``input/config`` directory as well.
-            * To add new nodes in an existing cluster, click `here <../addinganewnode.html>`_.
+            * To add new nodes in an existing cluster, click `here <../../Maintenance/addnode.html>`_.

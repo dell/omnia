@@ -7,3 +7,4 @@ This topic highlights the known issues in RHEL clusters related to:
 
     Slurm
     Security
+    AITools

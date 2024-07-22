@@ -10,9 +10,9 @@ ______________________________________
 
 .. note:: FreeIPA configuration is not supported on Ubuntu.
 
-**Pre requisites**
+**Prerequisites**
 
-* Run ``local_repo.yml`` to create offline repositories of FreeIPA or OpenLDAP. If both were downloaded, ensure that the non-required system is removed from ``input/software_config.json`` before running ``security.yml``. For more information, `click here <../../InstallationGuides/LocalRepo/index.html>`_.
+* Run ``local_repo.yml`` to create offline repositories of FreeIPA or OpenLDAP. If both were downloaded, ensure that the non-required system is removed from ``input/software_config.json`` before running ``security.yml``. For more information, `click here <../CreateLocalRepo/index.html>`_.
 
 * Enter the following parameters in ``input/security_config.yml``.
 
@@ -130,7 +130,7 @@ ________________________________
 
 **Prerequisites**
 
-* Run ``local_repo.yml`` to create an offline repository of all utilities used to secure the login node. For more information, `click here. <../../InstallationGuides/LocalRepo/index.html>`_
+* Run ``local_repo.yml`` to create an offline repository of all utilities used to secure the login node. For more information, `click here. <../CreateLocalRepo/index.html>`_
 
 Enter the following parameters in ``input/login_node_security_config.yml``.
 
@@ -189,7 +189,7 @@ Enter the following parameters in ``input/login_node_security_config.yml``.
 Advanced Settings
 ------------------
 
-* To install FreeIPA server on the NFS node, `click here <../../Roles/Utils/freeipa_installation.html>`_.
+* To install FreeIPA server on the NFS node, `click here <../../../Roles/Utils/freeipa_installation.html>`_.
 
 * To replicate the OpenLDAP server `click here <ReplicatingLDAP.html>`_.
 

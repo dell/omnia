@@ -120,7 +120,7 @@ If ``enable_split_port`` is **false**, run::
 
     * Passwords should contain at least one of each: Lowercase, uppercase and digits.
 
- * The inventory file should be a list of IPs separated by newlines. Check out the ``switch_inventory`` section in `Sample Files <https://omnia-doc.readthedocs.io/en/latest/samplefiles.html>`_
+ * The inventory file should be a list of IPs separated by newlines. Check out the ``switch_inventory`` section in `Sample Files <../../../samplefiles.html#switch-inventory>`_
 
 * Where ``ib_default_password`` is the password used to authenticate into factory reset/fresh-install switches.
 

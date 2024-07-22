@@ -14,7 +14,7 @@ Install Kubernetes
 
 * Once all the required parameters in `omnia_config.yml <schedulerinputparams.html#id12>`_ are filled in, ``omnia.yml`` can be used to set up Kubernetes.
 
-* Ensure that ``k8s_share`` is set to ``true`` in `storage_config.yml <schedulerinputparams.html#id16>`_, for one of the entries in ``nfs_client_params``.
+* Ensure that ``k8s_share`` is set to ``true`` in `storage_config.yml <schedulerinputparams.html#storage-config-yml>`_, for one of the entries in ``nfs_client_params``.
 
 **Inventory details**
 
@@ -70,7 +70,7 @@ Run either of the following commands:
 
             ansible-playbook scheduler.yml -i inventory
 
-.. note:: To add new nodes to an existing cluster, click `here. <../addinganewnode.html>`_
+.. note:: To add new nodes to an existing cluster, click `here. <../../Maintenance/addnode.html>`_
 
 **Additional installations**
 
@@ -114,6 +114,3 @@ Omnia installs the following packages on top of the Kubernetes stack:
 
     Click `here <https://github.com/NVIDIA/k8s-device-plugin>`_ for more information.
 
-**Optional installation**
-
-In addition to the above mentioned plugins, user can also install the *kubernetes device plugin for RoCE NIC*. For complete installation steps, `click here <k8s_plugin_roce_nic.html>`_.
