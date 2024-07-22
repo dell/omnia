@@ -21,13 +21,6 @@ Configure specific local repositories
 
         * A sample format is available `here. <InputParameters.html>`_
 
-**BeeGFS**
-
-    To install BeeGFS, include the following line under ``softwares`` in ``input/software_config.json``: ::
-
-            {"name": "beegfs", "version": "7.4.2"},
-
-For information on deploying BeeGFS after setting up the cluster, `click here <../BuildOmniaCluster/BeeGFS.html>`_.
 
 **CUDA**
 
@@ -78,6 +71,16 @@ For information on deploying BeeGFS after setting up the cluster, `click here <.
             }
 
 .. note:: If the package version is customized, ensure that the ``version`` value is updated in ``software_config.json``.
+
+
+**BeeGFS**
+
+    To install BeeGFS, include the following line under ``softwares`` in ``input/software_config.json``: ::
+
+            {"name": "beegfs", "version": "7.4.2"},
+
+For information on deploying BeeGFS after setting up the cluster, `click here <../BuildOmniaCluster/BeeGFS.html>`_.
+
 
 **BCM RoCE**
 
@@ -148,6 +151,25 @@ For information on deploying BeeGFS after setting up the cluster, `click here <.
 For more information about installing Kubernetes, `click here <../BuildOmniaCluster/install_kubernetes.html>`_.
 
 .. note:: The version of the software provided above is the only version of the software Omnia supports.
+
+
+**OpenLDAP**
+
+    To install OpenLDAP, include the following line under ``softwares`` in ``input/software_config.json``: ::
+
+            {"name": "openldap"},
+
+For more information on OpenLDAP, `click here <../BuildOmniaCluster/Authentication.html#configuring-openldap-security>`_.
+
+
+**Secure Login Node**
+
+    To secure the login node, include the following line under ``softwares`` in ``input/software_config.json``: ::
+
+            {"name": "secure_login_node"},
+
+For more information on configuring login node security, `click here <../BuildOmniaCluster/Authentication.html#configuring-login-node-security>`_.
+
 
 **Jupyterhub**
 
@@ -244,21 +266,6 @@ For information on deploying TensorFlow after setting up the cluster, `click her
 
 For information on deploying vLLM after setting up the cluster, `click here <../InstallAITools/vLLM/index.html>`_.
 
-**OpenLDAP**
-
-    To install OpenLDAP, include the following line under ``softwares`` in ``input/software_config.json``: ::
-
-            {"name": "openldap"},
-
-For more information on OpenLDAP, `click here <../BuildOmniaCluster/Authentication.html#configuring-openldap-security>`_.
-
-**Secure Login Node**
-
-    To secure the login node, include the following line under ``softwares`` in ``input/software_config.json``: ::
-
-            {"name": "secure_login_node"},
-
-For more information on configuring login node security, `click here <../BuildOmniaCluster/Authentication.html#configuring-login-node-security>`_.
 
 **OpenMPI**
 
@@ -272,6 +279,7 @@ For more information on OpenMPI configurations, `click here <../AdvancedConfigur
 
 .. note:: The default OpenMPI version for Omnia is 4.1.6. If you change the version in the ``software.json`` file, make sure to update it in the ``openmpi.json`` file in the ``input/config`` directory as well.
 
+
 **Unified Communication X (UCX)**
 
     To install UCX, include the following line under ``softwares`` in ``input/software_config.json``: ::
@@ -282,6 +290,7 @@ UCX is deployed on the cluster when ``local_repo.yml`` playbook is executed, fol
 
 For more information on UCX configurations, `click here <../AdvancedConfigurationsUbuntu/install_ucx_openmpi.html>`_.
 
+
 **Intel benchmarks**
 
     To install Intel benchmarks, include the following line under ``softwares`` in ``input/software_config.json``: ::
@@ -290,6 +299,7 @@ For more information on UCX configurations, `click here <../AdvancedConfiguratio
 
 For more information on Intel benchmarks, `click here <../Benchmarks/AutomatingOneAPI.html>`_.
 
+
 **AMD benchmarks**
 
     To install AMD benchmarks, include the following line under ``softwares`` in ``input/software_config.json``: ::
@@ -297,6 +307,7 @@ For more information on Intel benchmarks, `click here <../Benchmarks/AutomatingO
             {"name": "amd_benchmarks"},
 
 For more information on AMD benchmarks, `click here <../Benchmarks/AutomatingOpenMPI.html>`_.
+
 
 **Custom repositories**
 
