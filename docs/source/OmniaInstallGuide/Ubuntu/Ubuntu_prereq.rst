@@ -1,7 +1,7 @@
 Prerequisites
 =================
 
-1. Choose a server outside your intended cluster to function as your Omnia control plane.
+1. Choose a server outside your intended cluster to function as your Omnia control plane. To know more information about setting up the control plane, `click here <../setup_CP.html>`_.
 
 2. Ensure that the control plane has the "server install image" of the Ubuntu operating system (OS) installed. For a complete list of supported OS versions, check out the `Support Matrix <../../Overview/SupportMatrix/OperatingSystems/index.html>`_.
 
