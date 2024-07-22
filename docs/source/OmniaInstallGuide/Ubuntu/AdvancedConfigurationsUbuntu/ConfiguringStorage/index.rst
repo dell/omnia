@@ -105,8 +105,8 @@ To configure PowerVault ME4 and ME5 storage arrays, follow the below steps:
 * ``powervault_username`` and ``powervault_password`` are the credentials used to administrate the array.
 
 
-Configuring NFS servers
---------------------------
+Configuring NFS server server connected to PowerVault
+------------------------------------------------------
 
 1. To configure an NFS server, enter the following parameters in ``storage/nfs_server_input.yml``
 

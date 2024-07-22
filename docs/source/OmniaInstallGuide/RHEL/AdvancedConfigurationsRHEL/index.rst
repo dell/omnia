@@ -2,6 +2,8 @@ Advanced configurations for RHEL clusters
 ==========================================
 
 .. toctree::
+    :maxdepth: 2
+
     CustomLocalRepo
     install_ucx_openmpi
     KubernetesAccess
