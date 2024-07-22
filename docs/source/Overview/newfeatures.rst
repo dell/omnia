@@ -12,7 +12,7 @@ New Features
 
 * NVIDIA container toolkit for Kubernetes setup
 
-* XE9680 with NVIDIA H200 (Leander) accelerators is now supported as a control plane or a target node.
+* XE9680 with NVIDIA H200 (Leander) accelerators is now supported as a control plane or a cluster node.
 
 
 
