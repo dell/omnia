@@ -1,0 +1,7 @@
+﻿Component,Description
+Control Plane,
+Login Node,
+Slurm Control Node,
+Kube Control Plane,
+Cluster Node,
+,
