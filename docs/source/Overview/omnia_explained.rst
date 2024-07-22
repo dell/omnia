@@ -1,5 +1,5 @@
-What Omnia does
-=================
+An Omnia cluster
+==================
 
 Omnia can deploy and configure PowerEdge servers, and build clusters that use Slurm or Kubernetes (or both) for workload management. Omnia installs software from a variety of sources, including:
 
