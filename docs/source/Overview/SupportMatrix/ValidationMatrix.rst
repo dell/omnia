@@ -1,10 +1,10 @@
-Validation Matrix
-------------------
+Hardware Validated by Omnia
+============================
 
 Omnia v1.6 deployment has been validated on the following devices and their combinations.
 
 Servers
-+++++++++
+--------
     .. csv-table:: Testing matrix for PowerEdge servers
       :file: ../../Tables/testing-matrix-servers.csv
       :header-rows: 1
@@ -12,7 +12,7 @@ Servers
 
 
 NICs
-+++++
+-----
 
     +--------------------------------------------------+
     | NIC                                              |
@@ -31,7 +31,7 @@ NICs
     +--------------------------------------------------+
 
 GPUs a.k.a. Accelerators
-++++++++++++++++++++++++++
+-------------------------
 
     +---------+-------------------------+
     | GPU     | Models                  |
@@ -42,7 +42,7 @@ GPUs a.k.a. Accelerators
     +---------+-------------------------+
 
 Switches
-+++++++++
+---------
 
     +------------------------------+----------------------------------------------------------------------------------------------------------------+
     | Switch Type                  | Switch Model                                                                                                   |
@@ -58,7 +58,7 @@ Switches
     +------------------------------+----------------------------------------------------------------------------------------------------------------+
 
 Storage
-++++++++
+--------
 
 **Powervault Storage**
 
