@@ -12,7 +12,7 @@ Edit the ``input/provision_config.yml``, ``input/provision_config.yml``, and ``i
 
 **Using multiple versions of a given OS**
 
-Omnia now supports deploying different versions of the same OS. With each run of ``discovery_provision.yml``, a new deployable OS image is created with a distinct type depending on the values provided in ``input/software_config.json``. Supported OS's are:
+Omnia now supports deploying different versions of the same OS. With each run of ``discovery_provision.yml``, a new deployable OS image is created with a distinct type depending on the values provided in ``input/software_config.json``. Supported Ubuntu OS's are:
 
     * Ubuntu 20.04
     * Ubuntu 22.04
@@ -26,7 +26,6 @@ Omnia now supports deploying different versions of the same OS. With each run of
         disk_partition:
             - { mount_point: "/var", desired_capacity: "102400" }
             - { mount_point: "swap", desired_capacity: "10240" }
-
 
 
 Running the provision tool

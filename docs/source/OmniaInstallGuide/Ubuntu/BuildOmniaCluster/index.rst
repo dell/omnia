@@ -1,8 +1,7 @@
 Step 5: Configure the cluster
 ================================
 
-Additional features enabled by omnia.yml
-------------------------------------------
+**Features enabled by omnia.yml**:
 
     * **Centralized authentication**: Once all the required parameters in `security_config.yml <schedulerinputparams.html#security-config-yml>`_ are filled in, ``omnia.yml`` can be used to set up OpenLDAP.
 

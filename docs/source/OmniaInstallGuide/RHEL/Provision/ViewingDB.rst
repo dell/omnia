@@ -1,7 +1,8 @@
 Checking node status
 ----------------------
+
 Via CLI
-+++++++
+--------
 
 Run ``nodels all nodelist.status`` for a list of nodes and their statuses. ::
 
@@ -12,17 +13,14 @@ Run ``nodels all nodelist.status`` for a list of nodes and their statuses. ::
 
 Possible values of node status are powering-off, powering-on, bmcready, installing, booting, post-booting, booted, failed.
 
-.. caution::
-    * Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect. This will also allow the above command to work correctly. If the new environment variables still do not come into effect, enable manually using: ::
+.. caution:: Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect. This will also allow the above command to work correctly. If the new environment variables still do not come into effect, enable manually using:
+    ::
+        source /etc/profile.d/xcat.sh
 
-            source /etc/profile.d/xcat.sh
+Via Omnia database [omniadb]
+-----------------------------
 
-
-
-Via omniadb
-++++++++++++++++++
-
-1. To access the DB, run: ::
+1. To access the omniadb, execute: ::
 
             psql -U postgres
 
@@ -47,6 +45,6 @@ Possible values of node status are powering-off, powering-on, bmcready, installi
 
 .. note::
     * The ``gpu_count`` in the DB is only updated every time a cluster node is PXE booted.
-    * Nodes listed as "failed" can be diagnosed using the ``/var/log/xcat/xcat.log`` file on the target node. Correct any underlying issues and `re-provision the node <../reprovisioningthecluster.html>`_.
-    * Information on debugging nodes stuck at 'powering-on', 'bmcready' or 'installing' for longer than expected is available `here. <../../Troubleshooting/FAQ.html>`_ Correct any underlying issue on the node and `re-provision the node <../reprovisioningthecluster.html>`_.
+    * Nodes listed as "failed" can be diagnosed using the ``/var/log/xcat/xcat.log`` file on the target node. Correct any underlying issues and `re-provision the node <../../Maintenance/reprovision.html>`_.
+    * Information on debugging nodes stuck at 'powering-on', 'bmcready' or 'installing' for longer than expected is available `here. <../../../Troubleshooting/FAQ/Common/Provision.html>`_ Correct any underlying issue on the node and `re-provision the node <../../Maintenance/reprovision.html>`_.
     * A blank node status indicates that no attempt to provision has taken place. Attempt a manual PXE boot on the node to initiate provisioning.

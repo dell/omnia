@@ -10,3 +10,4 @@ Advanced configurations for Ubuntu clusters
     KubernetesAccess
     ConfiguringStorage/index
     ConfiguringSwitches/index
+    IPruleassignment

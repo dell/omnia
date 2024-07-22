@@ -15,5 +15,3 @@ The provision tool is installed using an Ansible playbook. This playbook achieve
     installprovisiontool
     ViewingDB
     AdditionalNIC
-    IPruleassignment
-

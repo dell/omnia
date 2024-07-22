@@ -13,14 +13,14 @@ Run ``nodels all nodelist.status`` for a list of nodes and their statuses. ::
 
 Possible values of node status are powering-off, powering-on, bmcready, installing, booting, post-booting, booted, failed.
 
-.. caution:: Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect. This will also allow the above command to work correctly. If the new environment variables still do not come into effect, enable manually using: ::
-
-    source /etc/profile.d/xcat.sh
+.. caution:: Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect. This will also allow the above command to work correctly. If the new environment variables still do not come into effect, enable manually using:
+    ::
+        source /etc/profile.d/xcat.sh
 
 Via Omnia database [omniadb]
 -----------------------------
 
-1. To access the Omnia DB, execute: ::
+1. To access the omniadb, execute: ::
 
             psql -U postgres
 
