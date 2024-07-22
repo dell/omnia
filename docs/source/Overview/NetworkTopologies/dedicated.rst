@@ -11,7 +11,7 @@ In a **Dedicated Setup**, all the cluster nodes (head, login, and compute) have 
 
 * **Cluster Network (Green line)**: This indicates the admin network utilized by Omnia to provision the cluster nodes.
 
-* **IB Network (Yellow line)**: The network used by the applications on the cluster nodes to communicate among each other.
+* **InfiniBand (IB) Network (Yellow line)**: The network used by the applications on the cluster nodes to communicate among each other.
 
 **Recommended discovery mechanism**
 

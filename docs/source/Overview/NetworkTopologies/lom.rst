@@ -12,7 +12,7 @@ In a shared **LOM Setup**, the entire cluster network is shared between the iDRA
 
 * **Cluster Network (Green line)**: This indicates the admin network utilized by Omnia to provision all the cluster nodes (login, head, and compute).
 
-* **IB Network (Yellow line)**: The network used by the applications on the head and compute nodes to communicate among each other.
+* **InfiniBand (IB) Network (Yellow line)**: The network used by the applications on the head and compute nodes to communicate among each other.
 
 **Recommended discovery mechanism**
 
