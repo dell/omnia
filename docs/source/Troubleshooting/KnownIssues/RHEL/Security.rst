@@ -1,5 +1,5 @@
-Security
-=========
+Centralized authentication
+=============================
 
 ⦾ **Why would FreeIPA server/client installation fail? (version 1.5 and below)**
 

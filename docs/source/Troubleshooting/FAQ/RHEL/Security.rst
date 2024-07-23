@@ -1,5 +1,5 @@
-Security
-=========
+Centralized authentication
+=============================
 
 ⦾ **Why don't IPA commands work after setting up FreeIPA on the cluster?**
 

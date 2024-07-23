@@ -1,5 +1,5 @@
-Security
-=========
+Centralized authentication
+=============================
 
 ⦾ **What to do when omnia.yml fails while completing the security role, and returns the following error message: 'Error: kinit: Connection refused while getting default cache'?**
 
