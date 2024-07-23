@@ -1,7 +1,7 @@
 TimescaleDB utility
--------------------
+---------------------
 
-Telemetry metrics stored in a timescaleDB can be copied locally in a csv format. This file can be used to generate insights into key statistics in your cluster.
+Telemetry metrics stored in a timescaleDB can be copied locally in a ``.csv`` format. This file can be used to generate insights into key statistics in your cluster.
 
 To customize the local copy of the timescale DB, fill out the below parameters in ``utils/timescaledb_utility/timescaledb_utility_config.yml``.
 

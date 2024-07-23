@@ -1,4 +1,4 @@
-Updating kernels
+Update Kernels
 =================
 
 **Pre requisites**:
