@@ -11,16 +11,16 @@ Omnia "AI" cluster
 
 Components of an AI-driven Omnia cluster are:
 
-1. **Compute nodes**: In an AI cluster, a compute node is nothing but a ``kube_node``.
-2. **Control plane**: It's the heart of the cluster. It hosts the Omnia provisioning and monitoring tool.
-3. **Head node**: In an AI workload-driven Omnia cluster, the head node is nothing but the ``kube_control_plane`` used to manage Kubernetes jobs on the cluster.
+* **Compute nodes**: In an AI cluster, a compute node is nothing but a ``kube_node``.
+* **Control plane**: It's the heart of the cluster. It hosts the Omnia provisioning and monitoring tool.
+* **Head node**: In an AI workload-driven Omnia cluster, the head node is nothing but the ``kube_control_plane`` used to manage Kubernetes jobs on the cluster.
 
 Omnia "HPC" cluster
 --------------------
 
 Components of an HPC Omnia cluster are:
 
-1. **Compute nodes**: In an HPC cluster, a compute node is nothing but a ``slurm_node``.
-2. **Control plane**: It's the heart of the cluster. It hosts the Omnia provisioning and monitoring tool.
-3. **Head node**: In an HPC cluster, the head node is nothing but the ``slurm_control_node`` used to manage slurm jobs on the cluster.
-4. **[Optional] Login node**: In Omnia, a login node serves as an extra layer of authentication. Users are required to authenticate themselves through this additional login node, which is configured by Omnia. This setup allows the cluster administrator to limit direct access to the head node (also referred to as ``slurm_control_node``) by users. The login node acts as a gateway for users to securely access the cluster.
+* **Compute nodes**: In an HPC cluster, a compute node is nothing but a ``slurm_node``.
+* **Control plane**: It's the heart of the cluster. It hosts the Omnia provisioning and monitoring tool.
+* **Head node**: In an HPC cluster, the head node is nothing but the ``slurm_control_node`` used to manage slurm jobs on the cluster.
+* **[Optional] Login node**: In Omnia, a login node serves as an extra layer of authentication. Users are required to authenticate themselves through this additional login node, which is configured by Omnia. This setup allows the cluster administrator to limit direct access to the head node (also referred to as ``slurm_control_node``) by users. The login node acts as a gateway for users to securely access the cluster.
