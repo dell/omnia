@@ -8,7 +8,7 @@ The telemetry feature allows the set up  of Omnia telemetry (to poll values from
 To initiate telemetry support, fill out the following parameters in ``input/telemetry_config.yml``:
 
 .. csv-table:: Parameters
-   :file: ../../Tables/telemetry_config.csv
+   :file: ../Tables/telemetry_config.csv
    :header-rows: 1
    :keepspace:
 
@@ -26,9 +26,9 @@ Optionally, you can initiate only telemetry using the below command: ::
 
     * Depending on the type of telemetry initiated, include the following possible groups in the inventory:
 
-        * omnia_telemetry: slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login, etcd
+        * omnia_telemetry: ``slurm_control_node``, ``slurm_node``, ``kube_control_plane``, ``kube_node``, ``auth_server``, ``login``, ``etcd``
 
-        * idrac_telemetry: idrac
+        * idrac_telemetry: ``idrac``
 
     * If you would like a local backup of the timescaleDB used to store telemetry data, `click here <../Utils/timescaledb_utility.html>`_.
 
@@ -61,31 +61,31 @@ To modify how data is collected from the cluster, modify the variables in ``omni
 i. Find the IP address of the Grafana service using ``kubectl get svc -n grafana``
 
 
-.. image:: ../../images/grafanaIP.png
+.. image:: ../images/grafanaIP.png
 
 
 ii. Login to the Grafana UI by connecting to the cluster IP of grafana service obtained above via port 5000. That is ``http://xx.xx.xx.xx:5000/login``
 
 
-.. image:: ../../images/Grafana_login.png
+.. image:: ../images/Grafana_login.png
 
 
 iii. Enter the ``grafana_username`` and ``grafana_password`` as mentioned in ``input/telemetry_config.yml``.
 
 
-.. image:: ../../images/Grafana_Dashboards.png
+.. image:: ../images/Grafana_Dashboards.png
 
 
 Loki log collections can viewed on the explore section of the grafana UI.
 
 
-.. image:: ../../images/Grafana_Loki.png
+.. image:: ../images/Grafana_Loki.png
 
 
 Datasources configured by Omnia can be viewed as seen below.
 
 
-.. image:: ../../images/GrafanaDatasources.png
+.. image:: ../images/GrafanaDatasources.png
 
 **To use Loki for log filtering**
 
@@ -93,7 +93,7 @@ Datasources configured by Omnia can be viewed as seen below.
 
     ii. In the Explore page, select **control-plane-loki**.
 
-    .. image:: ../../images/Grafana_ControlPlaneLoki.png
+    .. image:: ../images/Grafana_ControlPlaneLoki.png
 
     iii. The log browser allows you to filter logs by job, node and/or user.
 
@@ -109,7 +109,7 @@ Example ::
 
     ii. In the Explore page, select **telemetry-postgres**.
 
-    .. image:: ../../images/Grafana_Telemetry_PostGRES.png
+    .. image:: ../images/Grafana_Telemetry_PostGRES.png
 
     iii. The query builder allows you to create SQL commands that can be used to query the ``omnia_telemetry.metrics`` table. Filter the data required using the following fields:
 
@@ -124,7 +124,7 @@ Example ::
 
     *iDRAC telemetry data from Grafana*
 
-    .. image:: ../../images/idractelemetry.png
+    .. image:: ../images/idractelemetry.png
 
 .. note:: If you are more comfortable using SQL queries over the query builder, click on **Edit SQL** to directly provide your query. Optionally, the data returned from a query can be viewed as a graph.
 

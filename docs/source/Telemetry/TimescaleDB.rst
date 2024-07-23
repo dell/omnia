@@ -10,7 +10,7 @@ Timescale DB
 
 2. Check the external port on which timescaleDB is running (``kubectl get svc -A``):
 
-    .. image:: ../../images/TimescaleDB_Ports.png
+    .. image:: ../images/TimescaleDB_Ports.png
 
 3. Connect to DB (``psql -h <EXTERNAL-IP:of timescaledb> -p <timescaledb_port> -U <timescaledb_username> -d telemetry_metrics``)
 
@@ -31,11 +31,11 @@ For iDRAC telemetry: ::
 
 *Query for Omnia telemetry*
 
-    .. image:: ../../images/TimescaleDB_table.png
+    .. image:: ../images/TimescaleDB_table.png
 
 *Query for iDRAC telemetry*
 
-    .. image:: ../../images/publictimeseries.png
+    .. image:: ../images/publictimeseries.png
 
 For the entire set of iDRAC telemetry metrics, `click here <https://github.com/dell/iDRAC-Telemetry-Reference-Tools>`_.
 

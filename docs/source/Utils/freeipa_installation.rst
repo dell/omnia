@@ -23,11 +23,11 @@ To set up IPA services for the NFS node in the target cluster, run the following
     ansible-playbook install_ipa_client.yml -i inventory -e kerberos_admin_password="" -e ipa_server_hostname="" -e domain_name="" -e ipa_server_ipadress=""
 
 
-.. include:: ../../Appendices/hostnamereqs.rst
+.. include:: ../Appendices/hostnamereqs.rst
 
 .. note::
 
-    * Use the format specified under `NFS inventory in the Sample Files <../../samplefiles.html#nfs-server-inventory-file>`_ for inventory.
+    * Use the format specified under `NFS inventory in the Sample Files <../OmniaInstallGuide/samplefiles.html#nfs-server-inventory-file>`_ for inventory.
 
     * Omnia only supports ``/home`` as the ``homeDirectory``.
 
@@ -37,6 +37,6 @@ To set up IPA services for the NFS node in the target cluster, run the following
        ansible-playbook install_ipa_client.yml -i inventory -e kerberos_admin_password="" -e ipa_server_hostname="" -e domain_name="" -e ipa_server_ipadress=""
 
 
-.. include:: ../../Appendices/hostnamereqs.rst
+.. include:: ../Appendices/hostnamereqs.rst
 
-.. note:: Use the format specified under `NFS inventory in the Sample Files <../../samplefiles.html#nfs-server-inventory-file>`_ for inventory.
+.. note:: Use the format specified under `NFS inventory in the Sample Files <../OmniaInstallGuide/samplefiles.html#nfs-server-inventory-file>`_ for inventory.

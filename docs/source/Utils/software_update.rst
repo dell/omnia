@@ -6,8 +6,8 @@ To install multiple packages on cluster nodes in a bulk operation, the ``softwar
 **Prerequisites**
 
     * All cluster nodes should be running RHEL, Rocky Linux, or Ubuntu OS.
-    * Download the packages using ``local_repo.yml``. For more information, `click here <../../InstallationGuides/LocalRepo/index.html>`_.
-    * Verify that the cluster nodes are in the ``booted`` state. For more information, `click here <../../InstallationGuides/InstallingProvisionTool/ViewingDB.html>`_.
+    * Download the packages using ``local_repo.yml``.
+    * Verify that the cluster nodes are in the ``booted`` state.
 
 
 To customize the software update, enter the following parameters in ``utils/software_update/software_update_config.yml``:

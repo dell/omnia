@@ -2,7 +2,7 @@ Additional metric information
 -------------------------------
 
 .. csv-table:: Omnia telemetry metrics
-   :file: ../../Tables/Metrics.csv
+   :file: ../Tables/Metrics.csv
    :header-rows: 1
    :keepspace:
 

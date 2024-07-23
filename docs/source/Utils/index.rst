@@ -1,7 +1,7 @@
-Additional utilities
-=====================
+Utilities provided by Omnia
+==============================
 
-The Utilities role allows users to set up certain tasks such as
+Omnia provides an array of utilities as separate playbooks. Using these playbooks, you can do things like:
 
 .. toctree::
     software_update
