@@ -11,16 +11,16 @@ Omnia "AI" cluster
 
 Components of an AI-driven Omnia cluster are:
 
-1. Compute nodes
-2. Control plane
-3. Head node - From an AI perspective, the head node is nothing but the ``kube_control_plane`` used to manage Kubernetes jobs on the cluster.
+1. **Compute nodes**
+2. **Control plane**
+3. **Head node**: From an AI perspective, the head node is nothing but the ``kube_control_plane`` used to manage Kubernetes jobs on the cluster.
 
 Omnia "HPC" cluster
 --------------------
 
 Components of an HPC Omnia cluster are:
 
-1. Compute nodes
-2. Control plane
-3. Head node - From an HPC perspective, the head node is nothing but the ``slurm_control_node`` used to manage slurm jobs on the cluster.
-4. [Optional] Login node
+1. **Compute nodes**
+2. **Control plane**
+3. **Head node**: From an HPC perspective, the head node is nothing but the ``slurm_control_node`` used to manage slurm jobs on the cluster.
+4. **[Optional] Login node**: In an Omnia HPC cluster, a login node serves as an extra layer of authentication. Users are required to authenticate themselves through this additional login node, which is configured by Omnia. This setup allows the cluster administrator to limit direct access to the head node (also referred to as ``slurm_control_node``) by users. The login node acts as a gateway for users to securely access the cluster.
