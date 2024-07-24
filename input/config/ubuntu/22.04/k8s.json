@@ -94,7 +94,7 @@
     {
       "package": "mpi-operator",
       "type": "manifest",
-      "url": "https://raw.githubusercontent.com/kubeflow/mpi-operator/v0.4.0/deploy/v2beta1/mpi-operator.yaml"
+      "url": "https://raw.githubusercontent.com/kubeflow/mpi-operator/v0.5.0/deploy/v2beta1/mpi-operator.yaml"
     },
     {
       "package": "xilinx-device-plugin",
