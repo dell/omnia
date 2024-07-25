@@ -18,5 +18,11 @@
     - hostvars['127.0.0.1']['k8s_support']
     - "'kube_control_plane' in group_names"
   block:
+    - name: Change containerd runtime
+      when:
+        - accelerator_type is defined
+        - accelerator_type == "habana"
+      ansible.builtin.include_tasks: change_containerd_runtime.yml
+
     - name: Deploy K8s services
       ansible.builtin.include_tasks: deploy_k8s_services.yml

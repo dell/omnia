@@ -66,6 +66,9 @@
   roles:
     - k8s_prepare_services
 
+- name: Check for Intel Gaudi accelerator
+  ansible.builtin.import_playbook: ../utils/check_intel_gaudi_device.yml
+
 - name: Start K8s worker servers on kube control nodes
   hosts: kube_control_plane
   gather_facts: false
