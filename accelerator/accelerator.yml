@@ -20,7 +20,7 @@
   connection: local
   roles:
     - accelerator_validation
-  tags: amd, nvidia
+  tags: amd, nvidia, intel
 
 - name: Update Repositories/Registries on nodes
   ansible.builtin.import_playbook: ../utils/update_user_repo.yml

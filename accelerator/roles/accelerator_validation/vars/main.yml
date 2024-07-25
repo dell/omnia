@@ -26,3 +26,7 @@ rocm_repo_fail_msg: "Failed, local_repo.yml is not executed for downloading ROCM
 # Usage: include_local_repo_config.yml
 local_repo_config_file: "{{ role_path }}/../../../input/local_repo_config.yml"
 local_repo_config_syntax_fail_msg: "Failed. Syntax errors present in local_repo_config.yml. Fix errors and re-run playbook again."
+
+# Usage: validate_intel_gaudi.yml
+intel_gaudi_input_fail_msg: "Failed, software_config.json does not have the intelgaudi software stack."
+intel_gaudi_repo_fail_msg: "Failed, local_repo.yml is not executed for downloading Intel Gaudi driver packages."

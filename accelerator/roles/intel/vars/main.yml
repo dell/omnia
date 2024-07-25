@@ -13,16 +13,9 @@
 # limitations under the License.
 ---
 
-ansible_become: true
-ansible_become_user: root
+intel_gaudi_device_pattern: "Processing accelerators: Habana Labs Ltd."
 
-gaudi_device_pattern: "Processing accelerators: Habana Labs Ltd."
-
-synapseai_apt_key_url: "https://vault.habana.ai/artifactory/api/gpg/key/public"
-
-synapseai_apt_repo_source: "deb https://vault.habana.ai/artifactory/debian jammy main"
-
-habana_packages:
+intel_habana_packages:
   - habanalabs-container-runtime
   - habanalabs-dkms
   - habanalabs-firmware
@@ -33,7 +26,7 @@ habana_packages:
   - habanalabs-thunk
   - habanatools
 
-apt_base_packages:
+intel_apt_base_packages:
   - cmake
   - curl
   - dkms

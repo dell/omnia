@@ -20,10 +20,12 @@
 - name: Check node accelerator status
   ansible.builtin.shell: |
     set -o pipefail
-    lspci | grep -i "{{ gaudi_device_pattern }}"
+    lspci | grep -i "{{ intel_gaudi_device_pattern }}"
   register: lspci_output
   changed_when: false
   failed_when: false
+  args:
+    executable: /bin/bash
 
 - name: Update node accelerator status
   ansible.builtin.set_fact:

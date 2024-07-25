@@ -1,48 +1,48 @@
 {
-    "gaudi": {
+    "intelgaudi": {
       "cluster": [
       { 
-        "package": "habanalabs-dkms={{ gaudi_version }}",
+        "package": "habanalabs-dkms={{ intelgaudi_version }}",
         "type": "deb",
         "repo_name": "gaudi"
       },
       { 
-        "package": "habanalabs-firmware={{ gaudi_version }}",
+        "package": "habanalabs-firmware={{ intelgaudi_version }}",
         "type": "deb",
         "repo_name": "gaudi"
       },
       { 
-        "package": "habanalabs-firmware-tools={{ gaudi_version }}",
+        "package": "habanalabs-firmware-tools={{ intelgaudi_version }}",
         "type": "deb",
         "repo_name": "gaudi"
       },
       { 
-        "package": "habanalabs-graph={{ gaudi_version }}",
+        "package": "habanalabs-graph={{ intelgaudi_version }}",
         "type": "deb",
         "repo_name": "gaudi"
       },
       { 
-        "package": "habanalabs-qual={{ gaudi_version }}",
+        "package": "habanalabs-qual={{ intelgaudi_version }}",
         "type": "deb",
         "repo_name": "gaudi"
       },
       { 
-        "package": "habanalabs-rdma-core={{ gaudi_version }}",
+        "package": "habanalabs-rdma-core={{ intelgaudi_version }}",
         "type": "deb",
         "repo_name": "gaudi"
       },
       { 
-        "package": "habanalabs-thunk={{ gaudi_version }}",
+        "package": "habanalabs-thunk={{ intelgaudi_version }}",
         "type": "deb",
         "repo_name": "gaudi"
       },
       { 
-        "package": "habanatools={{ gaudi_version }}",
+        "package": "habanatools={{ intelgaudi_version }}",
         "type": "deb",
         "repo_name": "gaudi"
       },
       { 
-        "package": "habanalabs-container-runtime={{ gaudi_version }}",
+        "package": "habanalabs-container-runtime={{ intelgaudi_version }}",
         "type": "deb",
         "repo_name": "gaudi"
       }

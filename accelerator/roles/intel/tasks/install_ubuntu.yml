@@ -19,7 +19,8 @@
 - name: Include accelerator_config
   ansible.builtin.include_vars: "{{ role_path }}/../../../input/accelerator_config.yml"
 
-- name: Common setups
+- name: Install drivers on Gaudi nodes
+  when: node_has_accelerator
   block:
     - name: Gather package facts
       ansible.builtin.package_facts:
@@ -30,38 +31,11 @@
         msg: "Kernel not supported"
       when: ansible_kernel is version('5.4.0', '<')
 
-    # TODO: check if this is the right place to do this.
-    - name: Base dependencies  # noqa package-latest
+    - name: Base dependencies
       ansible.builtin.apt:
-        name: "{{ apt_base_packages | list }}"
+        name: "{{ intel_apt_base_packages | list }}"
         state: latest
         update_cache: true
-
-    # TODO: check with Dell first (this might have side effects)
-    # required by kubeflow: https://github.com/kubeflow/manifests/issues/2087
-    - name: Increase fs.inotify.max_user_instances
-      ansible.posix.sysctl:
-        name: fs.inotify.max_user_instances
-        value: '1280'
-        state: present
-        reload: true
-        sysctl_set: true
-        ignoreerrors: false
-        sysctl_file: /etc/sysctl.d/99-sysctl.conf
-
-- name: Setup compute nodes
-  when: node_has_accelerator
-  block:
-    # TODO: need to move Tuned outside of the Gaudi installation playbook
-    - name: Start Tuned service
-      ansible.builtin.systemd_service:
-        name: tuned
-        state: started
-        enabled: true
-
-    - name: Set Tuned profile
-      ansible.builtin.command: "tuned-adm profile accelerator-performance"
-      changed_when: true
 
     # This number was defined by Habana team and is the number used in IDC clusters
     - name: Set the number of hugepages
@@ -70,24 +44,9 @@
         value: '156300'
         state: present
 
-    - name: Init version status
-      ansible.builtin.set_fact:
-        version_defined: ""
-
-    - name: Check version status
-      ansible.builtin.set_fact:
-        version_defined: true
-      when:
-        - gaudi_driver_version is defined
-        - gaudi_driver_version | length > 0
-        - gaudi_driver_version != "latest"
-
     - name: Update apt and install habanalabs dependencies
-      vars:
-        package_version: "{{ '=' if version_defined else '' }}{{ gaudi_driver_version if version_defined else '' }}"
-        habana_packages_with_version: "{{ habana_packages | product([package_version]) | map('join') | list }}"
       ansible.builtin.apt:
-        name: "{{ habana_packages_with_version | list }}"
+        name: "{{ intel_habana_packages | list }}"
         update_cache: true
 
     - name: Get Secure Boot Status
@@ -97,6 +56,8 @@
       register: sb_out
       failed_when: (sb_out.stdout.find('enabled') != -1)
       changed_when: false
+      args:
+        executable: /bin/bash
 
     - name: Add the habanalabs kernel module
       community.general.modprobe:
@@ -112,8 +73,3 @@
       community.general.modprobe:
         name: habanalabs_en
         state: present
-
-    # - name: Reboot node after core dependencies installation
-    #   ansible.builtin.reboot:
-    #     msg: "Rebooting machine in 5 seconds"
-    #     post_reboot_delay: 30
