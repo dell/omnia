@@ -52,19 +52,18 @@ For a better understanding of what Omnia does, check out our `docs <https://omni
 .. toctree::
     :maxdepth: 2
 
-   Overview/index
-   Upgrade/index
-   OmniaInstallGuide/index
-   Utils/index
-   Telemetry/index
-   Logging/index
-   Troubleshooting/index
-   SecurityConfigGuide/index
-   limitations
-   bestpractices
-   Contributing/index
-   appendix
-
+    Overview/index
+    Upgrade/index
+    OmniaInstallGuide/index
+    Utils/index
+    Telemetry/index
+    Logging/index
+    Troubleshooting/index
+    SecurityConfigGuide/index
+    limitations
+    bestpractices
+    Contributing/index
+    appendix
 
 .. |Omnia version| image:: https://img.shields.io/github/v/release/dell/omnia?include_prereleases
 .. |Downloads| image:: https://img.shields.io/github/downloads/dell/omnia/total
