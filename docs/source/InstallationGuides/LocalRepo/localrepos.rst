@@ -75,7 +75,7 @@ For information on deploying BeeGFS after setting up the cluster, `click here <.
     * If the package version is customized, ensure that the ``version`` value is updated in ``software_config.json```.
     * If the target cluster runs on RHEL or Rocky Linux, ensure the "dkms" package is included in ``input/config/<cluster_os_type>/8.x/cuda.json`` as illustrated above.
 
-**BCM RoCE**
+**Broadcom RoCE**
 
     To install RoCE, do the following:
 

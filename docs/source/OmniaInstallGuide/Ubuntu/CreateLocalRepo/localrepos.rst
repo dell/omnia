@@ -82,7 +82,7 @@ Configure specific local repositories
 For information on deploying BeeGFS after setting up the cluster, `click here <../BuildOmniaCluster/BeeGFS.html>`_.
 
 
-**BCM RoCE**
+**Broadcom RoCE**
 
     To install RoCE, do the following:
 
