@@ -52,6 +52,12 @@ For a better understanding of what Omnia does, check out our `docs <https://omni
 .. toctree::
     :maxdepth: 2
 
+    Overview/index
+    Upgrade/index
+    OmniaInstallGuide/index
+    Utils/index
+    Telemetry/index
+
    Overview/index
    Upgrade/index
    OmniaInstallGuide/index
