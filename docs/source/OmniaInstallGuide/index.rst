@@ -7,6 +7,10 @@ Omnia Installation Guide
 
 * `Maintenance <Maintenance/index.html>`_
 
+
+.. image:: ../images/installation_flow.png
+
+
 .. toctree::
     :hidden:
 
