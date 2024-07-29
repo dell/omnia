@@ -1,7 +1,8 @@
 Network Topologies
 ===================
 
- .. toctree::
+.. toctree::
+
     dedicated
     lom
-    Hybrid
+    hybrid
