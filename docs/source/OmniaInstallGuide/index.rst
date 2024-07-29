@@ -7,6 +7,8 @@ Omnia Installation Guide
 
 * `Maintenance <Maintenance/index.html>`_
 
+* `Sample Files <samplefiles.html>`_
+
 
 .. image:: ../images/installation_flow.png
 
@@ -17,7 +19,4 @@ Omnia Installation Guide
     RHEL/index
     Ubuntu/index
     Maintenance/index
-
-.. toctree::
-
     samplefiles
