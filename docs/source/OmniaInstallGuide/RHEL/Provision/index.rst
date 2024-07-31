@@ -1,10 +1,11 @@
-Step 3: Install the provision tool
-======================================
+Step 3: Discover and provision the cluster
+===========================================
 
-The provision tool is installed using an Ansible playbook. This playbook achieves the following tasks:
+The ``discovery_provision.yml`` playbook achieves the following tasks:
 
-1. Discovers potential cluster nodes.
-2. Installs minimal version of RHEL OS on the discovered cluster nodes.
+1. Installation and configuration of the provision tool.
+2. Discovery of potential cluster nodes.
+3. Provisioning the minimal version of RHEL OS on the discovered cluster nodes.
 
 .. toctree::
     :maxdepth: 2
