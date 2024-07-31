@@ -3,7 +3,7 @@ Configure specific local repositories
 
 **AMD GPU ROCm**
 
-    To install ROCm, do the following:
+    To install AMD ROCm, do the following:
 
         * Include the following line under ``softwares`` in ``input/software_config.json``:
 
@@ -21,6 +21,27 @@ Configure specific local repositories
 
         * A sample format is available `here. <InputParameters.html>`_
 
+**Intel Gaudi**
+
+    To install Intel Gaudi, do the following:
+
+        * Include the following line under ``softwares`` in ``input/software_config.json``:
+
+            ::
+
+                {"name": "gaudi", "version": "1.16.2-2"},
+
+        * Add the following line below the ``softwares`` section:
+
+            ::
+
+                "gaudi": [
+                                {"name": "habana"}
+                          ]
+
+        * A sample format is available `here. <InputParameters.html>`_
+
+.. note:: If the ``habana`` subgroup is specified, the cluster provisioning process installs both the Intel Gaudi drivers and the habana software stack. However, if the subgroup is not mentioned, only the Intel Gaudi drivers are installed.
 
 **CUDA**
 

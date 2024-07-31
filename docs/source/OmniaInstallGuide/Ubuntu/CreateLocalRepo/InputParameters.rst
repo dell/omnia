@@ -36,7 +36,8 @@ Input parameters for Local Repositories
                 {"name": "vllm"},
                 {"name": "telemetry"},
                 {"name": "ucx", "version": "1.15.0"},
-                {"name": "openmpi", "version": "4.1.6"}
+                {"name": "openmpi", "version": "4.1.6"},
+                {"name": "gaudi", "version": "1.16.2-2"}
             ],
 
             "bcm_roce": [
@@ -44,6 +45,9 @@ Input parameters for Local Repositories
             ],
             "amdgpu": [
                 {"name": "rocm", "version": "6.0" }
+            ],
+            "gaudi": [
+                {"name": "habana"}
             ],
             "vllm": [
                 {"name": "vllm_amd"},
