@@ -36,13 +36,13 @@ Required","* The type of offline configuration user needs.
   * ``always``
   * ``partial`` <- Default
   * ``never``	"
-"**cluster_os_type**
+"**softwares**
 
-``string``
+``JSON list``
 
 Required","* A JSON list of required software and (optionally) the software version.
 
-* The following software should be listed with a version in the list: BeeGFS, AMD GPU, Kubernetes, CUDA, OFED, UCX, and ROCm.
+* The following software should be listed with a version in the list: BeeGFS, AMD GPU, Intel Gaudi, Kubernetes, CUDA, OFED, UCX, and ROCm.
 
 * A minimum of one software should be provided in the list for ``local_repo.yml`` to execute correctly.
 
