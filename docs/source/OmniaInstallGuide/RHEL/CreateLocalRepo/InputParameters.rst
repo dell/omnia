@@ -82,7 +82,7 @@ For a list of accepted values in ``softwares``, go to ``input/config/<cluster_os
     tensorflow.json
     vllm.json
 
-For a list of repositories (and their types) configured for AMD GPUs, view the ``amdgpu.json``` file: ::
+For a list of repositories (and their types) configured for AMD GPUs, view the ``amdgpu.json`` file: ::
 
     {
       "amdgpu": {
