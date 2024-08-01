@@ -10,7 +10,7 @@ Omnia Installation Guide
 * `Sample Files <samplefiles.html>`_
 
 
-.. image:: ../images/installation_flow.png
+.. image:: ../images/Visio/Installation_flow_test.png
 
 
 .. toctree::

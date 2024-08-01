@@ -16,3 +16,5 @@ The ``discovery_provision.yml`` playbook achieves the following tasks:
     installprovisiontool
     ViewingDB
     AdditionalNIC
+
+.. image:: ../../../images/Visio/Discovery_Provision.png

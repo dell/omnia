@@ -23,5 +23,5 @@ Step 5: Configure the cluster
     AMD_ROCm
 
 
-
+.. image:: ../../../images/Visio/Configure_K8s_Cluster.png
 

@@ -25,6 +25,8 @@ Step 5: Configure the cluster
     NFS
     AMD_ROCm
 
+.. image:: ../../../images/Visio/Configure_K8s_Cluster.png
 
+.. image:: ../../../images/Visio/Configure_Slurm_Cluster.png
 
 
