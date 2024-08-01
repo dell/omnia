@@ -82,3 +82,23 @@
       ansible.builtin.set_fact:
         installation_status: "{{ installation_failed_status }}: {{ error_example_failed }}"
       when: nvidia_container_example_run.rc != 0
+
+- name: Example pytorch inference (GAUDI)
+  when: processing_unit == "gaudi"
+  block:
+    - name: Run gaudi container with example file
+      ansible.builtin.command: "{{ gaudi_image_run_cmd }}"
+      when: copy_example_file is succeeded
+      changed_when: false
+      failed_when: false
+      register: gaudi_container_example_run
+
+    - name: Example container inference failed (GAUDI)
+      ansible.builtin.debug:
+        msg: "Warning:  {{ error_example_failed }}"
+      when: gaudi_container_example_run.rc != 0
+
+    - name: Updating pytorch verification status (GAUDI)
+      ansible.builtin.set_fact:
+        installation_status: "{{ installation_failed_status }}: {{ error_example_failed }}"
+      when: gaudi_container_example_run.rc != 0

@@ -47,6 +47,8 @@
         pytorch_cpu_image_version: "{{ pytorch_packages.ansible_facts.pytorch_cpu.cluster[0].tag }}"
         pytorch_amd_image_package: "{{ pytorch_packages.ansible_facts.pytorch_amd.cluster[0].package }}"
         pytorch_amd_image_version: "{{ pytorch_packages.ansible_facts.pytorch_amd.cluster[0].tag }}"
+        pytorch_gaudi_image_package: "{{ pytorch_packages.ansible_facts.pytorch_gaudi.cluster[0].package }}"
+        pytorch_gaudi_image_version: "{{ pytorch_packages.ansible_facts.pytorch_gaudi.cluster[0].tag }}"
 
     - name: Assign NVIDIA image pull commands
       ansible.builtin.set_fact:
@@ -62,6 +64,7 @@
         pytorch_cpu_image: "{{ pytorch_cpu_image_package }}:{{ pytorch_cpu_image_version }}"
         pytorch_amd_image: "{{ pytorch_amd_image_package }}:{{ pytorch_amd_image_version }}"
         pytorch_nvidia_image: "{{ pytorch_nvidia_image_package }}:{{ pytorch_nvidia_image_version }}"
+        pytorch_gaudi_image: "{{ pytorch_gaudi_image_package }}:{{ pytorch_gaudi_image_version }}"
 
     - name: Validate image pull commands
       ansible.builtin.assert:
@@ -69,12 +72,14 @@
           - pytorch_cpu_image is defined
           - pytorch_amd_image is defined
           - pytorch_nvidia_image is defined
+          - pytorch_gaudi_image is defined
 
     - name: Assign image pull commands
       ansible.builtin.set_fact:
         cpu_image_run_cmd: "nerdctl run -it --rm -v /opt/omnia/:/workspace/ {{ pytorch_cpu_image }} python ./pytorch_example.py"
         nvidia_image_run_cmd: "nerdctl run --gpus all -it --rm -v /opt/omnia/:/workspace/ {{ pytorch_nvidia_image }} python ./pytorch_example.py"
         amd_run_cmd_end: " --group-add video --ipc=host --shm-size 8G -v /opt/omnia/:/var/lib/jenkins {{ pytorch_amd_image }} python ./pytorch_example.py"
+        gaudi_image_run_cmd: "nerdctl run -it --privileged -e HABANA_VISIBLE_DEVICES=all -e OMPI_MCA_btl_vader_single_copy_mechanism=none --cap-add=sys_nice --net=host --ipc=host -v /opt/omnia/:/workspace/ {{ pytorch_gaudi_image }} python /workspace/pytorch_example.py"
 
 - name: Initialize processing_unit
   ansible.builtin.set_fact:
@@ -104,6 +109,17 @@
       ansible.builtin.set_fact:
         processing_unit: "nvidia"
       when: nvidia_gpu.rc == 0
+
+    - name: Check Gaudi HPU
+      ansible.builtin.command: hl-smi
+      register: gaudi_gpu
+      changed_when: true
+      failed_when: false
+
+    - name: Modify processing_unit_gaudi
+      ansible.builtin.set_fact:
+        processing_unit: "gaudi"
+      when: gaudi_gpu.rc == 0
 
 - name: Check and create omnia folder
   block:
