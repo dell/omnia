@@ -1,7 +1,7 @@
 Network Topology: Dedicated Setup
 =================================
 
-.. image:: ../../images/omnia_network_Dedicated.jpg
+.. image:: ../../images/Dedicated_NT.png
 
 In a **Dedicated Setup**, all the cluster nodes (head, login, and compute) have dedicated iDRAC connection.
 

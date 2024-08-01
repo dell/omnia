@@ -3,7 +3,7 @@ Network Topology: Hybrid setup
 
 For an environment containing both LOM and BMC ports, the provision tool needs to be run twice to correctly manage all servers in the network.
 
-.. image:: ../../images/omnia_network_Hybrid.jpg
+.. image:: ../../images/Hybrid_NT.png
 
 In a **Hybrid Setup**, the control plane and special nodes such as the head and login node are connected to the public network, while the iDRAC and the compute nodes use a shared LOM network.
 

@@ -8,9 +8,9 @@ Omnia: Overview
 
     architecture
     omnia_stack
-    omnia_explained
     newfeatures
     releasenotes
     SupportMatrix/index
     NetworkTopologies/index
+    omnia_explained
     more_info
