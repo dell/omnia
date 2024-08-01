@@ -15,8 +15,13 @@
 
 intel_gaudi_device_pattern: "Processing accelerators: Habana Labs Ltd."
 
+intel_gaudi_kernel_module_to_load:
+  - habanalabs
+  - habanalabs_cn
+  - habanalabs_en
+
+# TODO: move to a central config file
 intel_habana_packages:
-  - habanalabs-container-runtime
   - habanalabs-dkms
   - habanalabs-firmware
   - habanalabs-firmware-tools
@@ -26,6 +31,7 @@ intel_habana_packages:
   - habanalabs-thunk
   - habanatools
 
+# TODO: move to a central config file
 intel_apt_base_packages:
   - cmake
   - curl
@@ -43,6 +49,5 @@ intel_apt_base_packages:
   - lsof
   - moreutils
   - numactl
-  - tuned
   - unzip
   - wget

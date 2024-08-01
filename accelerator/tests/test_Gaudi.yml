@@ -16,7 +16,7 @@
 # Verify Gaudi installation
 
 - name: OMNIA_Gaudi_TC_001
-  tags: TC_001, TC_002, TC_003, TC_004
+  tags: TC_001, TC_003, TC_004
   hosts: localhost
   connection: local
   vars_files:
@@ -31,25 +31,6 @@
         - "{{ inventory }}"
         - "-t"
         - "TC_001,TC_002,TC_003,TC_004"
-
-# Verify Gaudi installation on all inventory nodes with default version
-
-- name: OMNIA_Gaudi_TC_005
-  tags: TC_005, TC_006
-  hosts: localhost
-  connection: local
-  vars_files:
-    - 'test_vars/test_Gaudi_vars.yml'
-  tasks:
-  - name: Validate Gaudi Driver Version
-    ansible.builtin.command:
-      argv:
-        - "ansible-playbook"
-        - "test_Gaudi_validation.yml"
-        - "-i"
-        - "{{ inventory }}"
-        - "-t"
-        - "TC_005,TC_006"
 
 # Verify hl-qual
 

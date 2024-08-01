@@ -16,9 +16,6 @@
 - name: Check if accelerator is present on node
   ansible.builtin.include_tasks: verify_has_accelerators.yml
 
-- name: Include accelerator_config
-  ansible.builtin.include_vars: "{{ role_path }}/../../../input/accelerator_config.yml"
-
 - name: Install drivers on Gaudi nodes
   when: node_has_accelerator
   block:
@@ -37,13 +34,6 @@
         state: latest
         update_cache: true
 
-    # This number was defined by Habana team and is the number used in IDC clusters
-    - name: Set the number of hugepages
-      ansible.posix.sysctl:
-        name: vm.nr_hugepages
-        value: '156300'
-        state: present
-
     - name: Update apt and install habanalabs dependencies
       ansible.builtin.apt:
         name: "{{ intel_habana_packages | list }}"
@@ -59,17 +49,8 @@
       args:
         executable: /bin/bash
 
-    - name: Add the habanalabs kernel module
+    - name: Add Gaudi kernel modules
       community.general.modprobe:
-        name: habanalabs
+        name: "{{ item }}"
         state: present
-
-    - name: Add the habanalabs_cn kernel module
-      community.general.modprobe:
-        name: habanalabs_cn
-        state: present
-
-    - name: Add the habanalabs_en kernel module
-      community.general.modprobe:
-        name: habanalabs_en
-        state: present
+      loop: "{{ intel_gaudi_kernel_module_to_load }}"

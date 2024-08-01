@@ -45,6 +45,96 @@
         "package": "habanalabs-container-runtime={{ intelgaudi_version }}",
         "type": "deb",
         "repo_name": "gaudi"
+      },
+      {
+        "package": "cmake",
+        "type": "deb",
+        "repo_name": "gaudi"
+      },
+      {
+        "package": "curl",
+        "type": "deb",
+        "repo_name": "gaudi"
+      },
+      {
+        "package": "dkms",
+        "type": "deb",
+        "repo_name": "gaudi"
+      },
+      {
+        "package": "ethtool",
+        "type": "deb",
+        "repo_name": "gaudi"
+      },
+      {
+        "package": "gcc",
+        "type": "deb",
+        "repo_name": "gaudi"
+      },
+      {
+        "package": "iproute2",
+        "type": "deb",
+        "repo_name": "gaudi"
+      },
+      {
+        "package": "libbz2-dev",
+        "type": "deb",
+        "repo_name": "gaudi"
+      },
+      {
+        "package": "libelf-dev",
+        "type": "deb",
+        "repo_name": "gaudi"
+      },
+      {
+        "package": "libibverbs-dev",
+        "type": "deb",
+        "repo_name": "gaudi"
+      },
+      {
+        "package": "liblzma-dev",
+        "type": "deb",
+        "repo_name": "gaudi"
+      },
+      {
+        "package": "librdmacm-dev",
+        "type": "deb",
+        "repo_name": "gaudi"
+      },
+      {
+        "package": "linux-headers-{{ ansible_kernel }}",
+        "type": "deb",
+        "repo_name": "gaudi"
+      },
+      {
+        "package": "linux-modules-extra-{{ ansible_kernel }}",
+        "type": "deb",
+        "repo_name": "gaudi"
+      },
+      {
+        "package": "lsof",
+        "type": "deb",
+        "repo_name": "gaudi"
+      },
+      {
+        "package": "moreutils",
+        "type": "deb",
+        "repo_name": "gaudi"
+      },
+      {
+        "package": "numactl",
+        "type": "deb",
+        "repo_name": "gaudi"
+      },
+      {
+        "package": "unzip",
+        "type": "deb",
+        "repo_name": "gaudi"
+      },
+      {
+        "package": "wget",
+        "type": "deb",
+        "repo_name": "gaudi"
       }
       ]
     }
