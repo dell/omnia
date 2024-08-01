@@ -60,14 +60,14 @@
 - name: Add nodes to kubernetes cluster
   ansible.builtin.import_playbook: "{{ playbook_dir }}/playbooks/k8s_add_node.yml"
 
+- name: Check for Intel Gaudi accelerator
+  ansible.builtin.import_playbook: ../utils/check_intel_gaudi_device.yml
+
 - name: Prepare kube control plane and kube nodes for kubernetes services installations
   hosts: kube_control_plane, kube_node
   gather_facts: false
   roles:
     - k8s_prepare_services
-
-- name: Check for Intel Gaudi accelerator
-  ansible.builtin.import_playbook: ../utils/check_intel_gaudi_device.yml
 
 - name: Start K8s worker servers on kube control nodes
   hosts: kube_control_plane

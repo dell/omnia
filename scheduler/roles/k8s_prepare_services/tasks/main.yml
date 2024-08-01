@@ -18,3 +18,9 @@
   block:
     - name: Tasks for downloading k8s images
       ansible.builtin.include_tasks: download_service_images.yml
+
+    - name: Change containerd runtime
+      when:
+        - accelerator_type is defined
+        - accelerator_type == "habana"
+      ansible.builtin.include_tasks: change_containerd_runtime.yml

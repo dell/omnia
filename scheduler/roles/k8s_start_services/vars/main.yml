@@ -41,5 +41,3 @@ habana_device_plugin_yaml_url: "{{ hostvars['localhost']['offline_manifest_path'
 nfs_dir_mode: "0777"
 pod_wait_time: 300
 nfs_subdir_external_provisioner_repo: "{{ hostvars['localhost']['offline_tarball_path'] }}/nfs-subdir-external-provisioner-4.0.18.tar.gz"
-containerd_cfg_file_path: "/etc/containerd/config.toml"
-habana_container_runtime_cfg_file_path: "/etc/habana-container-runtime/config.toml"
