@@ -92,8 +92,7 @@
   when:
     - "'habanalabs-device-plugin-daemonset' not in k8s_pods.stdout"
     - k8s_version >= minimal_gaudi_k8s_version
-    - accelerator_type is defined
-    - accelerator_type == "habana"
+    - hostvars['localhost']['is_gaudi_cluster'] is defined
 
 # MPI OPERATOR
 - name: Install MPI Operator
