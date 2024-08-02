@@ -1,17 +1,19 @@
 Network Topology: Dedicated Setup
 =================================
 
+.. note:: The following diagram is for representational purposes only.
+
 .. image:: ../../images/Dedicated_NT.png
 
-In a **Dedicated Setup**, all the cluster nodes (head, login, and compute) have dedicated iDRAC connection.
+In a **Dedicated Setup**, all the cluster nodes (head, compute, and login [optional]) have dedicated iDRAC connection.
 
-* **Public Network (Blue line)**: This indicates the iDRAC network which is connected to the external public network.
+* **Public Network (Blue line)**: This indicates the external public network which is connected to the internet. NIC2 of the Control plane, Head node, and Login node [optional] is connected to the public network.
 
-* **iDRAC Network (Red line)**: This indicates the private iDRAC network used by the control plane to control the cluster nodes using out-of-band management.
+* **BMC Network (Red line)**: This indicates the private BMC (iDRAC) network used by the control plane to control the cluster nodes using out-of-band management.
 
-* **Cluster Network (Green line)**: This indicates the admin network utilized by Omnia to provision the cluster nodes.
+* **Admin Network (Green line)**: This indicates the admin network utilized by Omnia to provision the cluster nodes. NIC1 of all the nodes are connected to the private switch.
 
-* **InfiniBand (IB) Network (Yellow line)**: The network used by the applications on the cluster nodes to communicate among each other.
+* **IB / Additional Ethernet Network (Yellow line)**: This indicates the Infiniband (IB) or the additional ethernet network used by applications on the cluster nodes to communicate among each other, using Mellanox or high-speed ethernet switch. Control plane connectivity is optional for this switch.
 
 **Recommended discovery mechanism**
 

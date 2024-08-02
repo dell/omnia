@@ -1,18 +1,17 @@
 Network Topology: LAN on motherboard (LOM) Setup
 ==================================================
 
-
-A LOM port could be shared with the host operating system production traffic. Also, LOM ports can be dedicated for server management. For example, with a four-port LOM adapter, LOM ports one and two could be used for production data while three and four could be used for iDRAC, VNC, RDP, or other operating system-based management data.
+.. note:: The following diagram is for representational purposes only.
 
 .. image:: ../../images/LOM_NT.png
 
 In a shared **LOM Setup**, the entire cluster network is shared between the iDRAC and the cluster nodes.
 
-* **Public Network (Blue line)**: This indicates that only the control plane and login node is connected to the external public network.
+* **Public Network (Blue line)**: This indicates the external public network which is connected to the internet. NIC2 of the Control plane, and Login node [optional] is connected to the public network.
 
-* **Cluster Network (Green line)**: This indicates the admin network utilized by Omnia to provision all the cluster nodes (login, head, and compute).
+* **Admin Network and BMC network (Green line)**: This indicates the admin network and the BMC network utilized by Omnia to provision the cluster nodes and to control the cluster nodes using out-of-band management. NIC1 of all the nodes are connected to the private switch.
 
-* **InfiniBand (IB) Network (Yellow line)**: The network used by the applications on the head and compute nodes to communicate among each other.
+* **IB / Additional Ethernet Network (Yellow line)**: This indicates the Infiniband (IB) or the additional ethernet network used by applications on the cluster nodes to communicate among each other, using Mellanox or high-speed ethernet switch. Control plane connectivity is optional for this switch.
 
 **Recommended discovery mechanism**
 
