@@ -18,7 +18,7 @@
   block:
     - name: Check Intel Gaudi device for nodes
       ansible.builtin.include_tasks: check_prerequisite.yml
-    
+
     - name: Install prerequisite
       ansible.builtin.include_tasks: install_prerequisite_ubuntu.yml
       when:

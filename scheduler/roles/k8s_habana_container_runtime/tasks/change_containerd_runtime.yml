@@ -14,25 +14,25 @@
 ---
 
 - name: Uncomment habana-container-runtime config mount_accelerators line
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: "{{ habana_container_runtime_cfg_file_path }}"
     regexp: '^#mount_accelerators = false'
     line: 'mount_accelerators = false'
 
 - name: Uncomment habana-container-runtime config visible_devices_all_as_default line
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: "{{ habana_container_runtime_cfg_file_path }}"
     regexp: '^#visible_devices_all_as_default = false'
     line: 'visible_devices_all_as_default = false'
 
 - name: Replace the Default Runtime
-  replace:
+  ansible.builtin.replace:
     path: "{{ containerd_cfg_file_path }}"
     regexp: 'default_runtime_name.*=.*"runc"'
     replace: 'default_runtime_name = "habana"'
 
 - name: Add habana-container-runtime Configuration Block 1
-  blockinfile:
+  ansible.builtin.blockinfile:
     path: "{{ containerd_cfg_file_path }}"
     marker: "# {mark} ANSIBLE MANAGED BLOCK 1"
     insertafter: '\[plugins."io.containerd.grpc.v1.cri".containerd.runtimes\]'
@@ -45,7 +45,7 @@
       {% endfilter %}
 
 - name: Add habana-container-runtime Configuration Block 2
-  blockinfile:
+  ansible.builtin.blockinfile:
     path: "{{ containerd_cfg_file_path }}"
     marker: "# {mark} ANSIBLE MANAGED BLOCK 2"
     block: |
@@ -55,11 +55,11 @@
       {% endfilter %}
 
 - name: Restart Containerd
-  service:
+  ansible.builtin.service:
     name: containerd
     state: restarted
 
 - name: Restart Kubelet
-  service:
+  ansible.builtin.service:
     name: kubelet
     state: restarted

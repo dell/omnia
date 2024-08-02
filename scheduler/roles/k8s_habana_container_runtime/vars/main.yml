@@ -13,7 +13,4 @@
 # limitations under the License.
 ---
 
-- name: Install habana container runtime package
-  ansible.builtin.apt:
-    name: habanalabs-container-runtime
-    update_cache: true
+containerd_cfg_file_path: "/etc/containerd/config.toml"
