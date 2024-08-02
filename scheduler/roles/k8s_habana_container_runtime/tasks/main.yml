@@ -13,25 +13,20 @@
 # limitations under the License.
 ---
 
-- name: Check Intel Gaudi HPU
-  hosts: kube_node
-  tasks:
-    - name: Check hl-smi
-      ansible.builtin.command: hl-smi
-      register: hlsmi_run
-      changed_when: true
-      failed_when: false
+- name: Tasks for k8s_habana_container_runtime role
+  when: hostvars['127.0.0.1']['k8s_support']
+  block:
+    - name: Check Intel Gaudi device for nodes
+      ansible.builtin.include_tasks: check_prerequisite.yml
+    
+    - name: Install prerequisite
+      ansible.builtin.include_tasks: install_prerequisite_ubuntu.yml
+      when:
+        - accelerator_type is defined
+        - accelerator_type == "habana"
 
-    - name: Set fact when Habana software was detected
-      when: hlsmi_run.rc == 0
-      ansible.builtin.set_fact:
-        accelerator_type: "habana"
-
-    - name: Set fact for localhost
-      ansible.builtin.set_fact:
-        is_gaudi_cluster: true
-      delegate_to: localhost
-      delegate_facts: True
+    - name: Change containerd runtime for Habana k8s device plugin
+      ansible.builtin.include_tasks: change_containerd_runtime.yml
       when:
         - accelerator_type is defined
         - accelerator_type == "habana"
