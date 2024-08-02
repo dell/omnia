@@ -1,47 +1,47 @@
 {
     "intelgaudi": {
       "cluster": [
-      { 
+      {
         "package": "habanalabs-dkms={{ intelgaudi_version }}",
         "type": "deb",
         "repo_name": "gaudi"
       },
-      { 
+      {
         "package": "habanalabs-firmware={{ intelgaudi_version }}",
         "type": "deb",
         "repo_name": "gaudi"
       },
-      { 
+      {
         "package": "habanalabs-firmware-tools={{ intelgaudi_version }}",
         "type": "deb",
         "repo_name": "gaudi"
       },
-      { 
+      {
         "package": "habanalabs-graph={{ intelgaudi_version }}",
         "type": "deb",
         "repo_name": "gaudi"
       },
-      { 
+      {
         "package": "habanalabs-qual={{ intelgaudi_version }}",
         "type": "deb",
         "repo_name": "gaudi"
       },
-      { 
+      {
         "package": "habanalabs-rdma-core={{ intelgaudi_version }}",
         "type": "deb",
         "repo_name": "gaudi"
       },
-      { 
+      {
         "package": "habanalabs-thunk={{ intelgaudi_version }}",
         "type": "deb",
         "repo_name": "gaudi"
       },
-      { 
+      {
         "package": "habanatools={{ intelgaudi_version }}",
         "type": "deb",
         "repo_name": "gaudi"
       },
-      { 
+      {
         "package": "habanalabs-container-runtime={{ intelgaudi_version }}",
         "type": "deb",
         "repo_name": "gaudi"
@@ -49,92 +49,92 @@
       {
         "package": "cmake",
         "type": "deb",
-        "repo_name": "gaudi"
+        "repo_name": "jammy"
       },
       {
         "package": "curl",
         "type": "deb",
-        "repo_name": "gaudi"
+        "repo_name": "jammy"
       },
       {
         "package": "dkms",
         "type": "deb",
-        "repo_name": "gaudi"
+        "repo_name": "jammy"
       },
       {
         "package": "ethtool",
         "type": "deb",
-        "repo_name": "gaudi"
+        "repo_name": "jammy"
       },
       {
         "package": "gcc",
         "type": "deb",
-        "repo_name": "gaudi"
+        "repo_name": "jammy"
       },
       {
         "package": "iproute2",
         "type": "deb",
-        "repo_name": "gaudi"
+        "repo_name": "jammy"
       },
       {
         "package": "libbz2-dev",
         "type": "deb",
-        "repo_name": "gaudi"
+        "repo_name": "jammy"
       },
       {
         "package": "libelf-dev",
         "type": "deb",
-        "repo_name": "gaudi"
+        "repo_name": "jammy"
       },
       {
         "package": "libibverbs-dev",
         "type": "deb",
-        "repo_name": "gaudi"
+        "repo_name": "jammy"
       },
       {
         "package": "liblzma-dev",
         "type": "deb",
-        "repo_name": "gaudi"
+        "repo_name": "jammy"
       },
       {
         "package": "librdmacm-dev",
         "type": "deb",
-        "repo_name": "gaudi"
+        "repo_name": "jammy"
       },
       {
         "package": "linux-headers-{{ ansible_kernel }}",
         "type": "deb",
-        "repo_name": "gaudi"
+        "repo_name": "jammy"
       },
       {
         "package": "linux-modules-extra-{{ ansible_kernel }}",
         "type": "deb",
-        "repo_name": "gaudi"
+        "repo_name": "jammy"
       },
       {
         "package": "lsof",
         "type": "deb",
-        "repo_name": "gaudi"
+        "repo_name": "jammy"
       },
       {
         "package": "moreutils",
         "type": "deb",
-        "repo_name": "gaudi"
+        "repo_name": "jammy"
       },
       {
         "package": "numactl",
         "type": "deb",
-        "repo_name": "gaudi"
+        "repo_name": "jammy"
       },
       {
         "package": "unzip",
         "type": "deb",
-        "repo_name": "gaudi"
+        "repo_name": "jammy"
       },
       {
         "package": "wget",
         "type": "deb",
-        "repo_name": "gaudi"
+        "repo_name": "jammy"
       }
       ]
     }
