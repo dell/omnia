@@ -26,5 +26,5 @@
 
 # TODO: need a way to differentiate platforms, then run different validations
 - name: Check xcat installation status
-  ansible.builtin.include_tasks: validate_intel_gaudi.yml
-
+  ansible.builtin.include_tasks: validate_amd.yml
+# ansible.builtin.include_tasks: validate_intel_gaudi.yml
