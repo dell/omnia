@@ -14,7 +14,7 @@ Install Omnia on Ubuntu clusters
     CreateLocalRepo/index
     Provision/index
     CreateInventory
-    BuildOmniaCluster/index
+    OmniaCluster/index
     InstallAITools/index
     AdvancedConfigurationsUbuntu/index
 
