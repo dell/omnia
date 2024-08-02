@@ -13,15 +13,11 @@ Step 5: Configure the cluster
 .. toctree::
     :maxdepth: 2
 
-    schedulerinputparams
     schedulerprereqs
-    installscheduler
-    install_kubernetes
-    Authentication
-    BeeGFS
-    NFS
-    AMD_ROCm
-
+    schedulerinputparams
+    GPU_library/index
+    Storage/index
+    BuildingCluster/index
 
 .. image:: ../../../images/Visio/Configure_K8s_Cluster.png
 

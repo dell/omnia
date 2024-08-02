@@ -14,6 +14,10 @@ To initiate telemetry support, fill out the following parameters in ``input/tele
 
 .. [1] Boolean parameters do not need to be passed with double or single quotes.
 
+.. note:: The ``input/telemetry_config.yml`` file is encrypted during the execution of ``omnia.yml`` playbook. Use the below commands to edit the encrypted input files:
+    ::
+        ansible-vault edit telemetry_config.yml --vault-password-file .telemetry_vault_key
+
 Once you have executed ``discovery_provision.yml`` and has also provisioned the cluster, initiate telemetry on the cluster as part of ``omnia.yml``, which configures the cluster with scheduler, storage and authentication using the below command. ::
 
     ansible-playbook omnia.yml -i inventory

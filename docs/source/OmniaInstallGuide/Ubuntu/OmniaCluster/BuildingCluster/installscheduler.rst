@@ -1,5 +1,5 @@
-Building clusters
-------------------
+Cluster formation
+====================
 
 1. In the ``input/omnia_config.yml``, ``input/security_config.yml``, ``input/telemetry_config.yml`` and [optional] ``input/storage_config.yml`` files, provide the `required details <schedulerinputparams.html>`_.
 
@@ -8,15 +8,12 @@ Building clusters
 
 .. include:: ../../Appendices/hostnamereqs.rst
 
-.. note::
-     * Omnia creates a log file which is available at: ``/var/log/omnia.log``.
-     * If only Slurm is being installed on the cluster, docker credentials are not required.
-
+.. note:: Omnia creates a log file which is available at: ``/var/log/omnia.log``.
 
 3. ``omnia.yml`` is a wrapper playbook comprising of:
 
     i. ``security.yml``: This playbook sets up centralized authentication (OpenLDAP) on the cluster. For more information, `click here. <Authentication.html>`_
-    ii. ``storage.yml``: This playbook sets up storage tools like `BeeGFS <BeeGFS.html>`_ and `NFS <NFS.html>`_.
+    ii. ``storage.yml``: This playbook sets up storage tools such as, `NFS <NFS.html>`_.
     iii. ``scheduler.yml``: This playbook sets up the `Kubernetes <install_kubernetes.html>`_) job scheduler on the cluster.
     iv. ``telemetry.yml``: This playbook sets up `Omnia telemetry and/or iDRAC telemetry <../../../Roles/Telemetry/index.html>`_. It also installs `Grafana <https://grafana.com/>`_ and `Loki <https://grafana.com/oss/loki/>`_ as Kubernetes pods.
     v. ``rocm_installation.yml``: This playbook sets up the `ROCm platform for AMD GPU accelerators <AMD_ROCm.html>`_.
@@ -24,7 +21,6 @@ Building clusters
 To run ``omnia.yml``: ::
 
         ansible-playbook omnia.yml -i inventory
-
 
 .. note::
     * If you want to view or edit the ``omnia_config.yml`` file, run the following command:
