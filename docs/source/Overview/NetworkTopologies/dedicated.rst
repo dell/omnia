@@ -5,7 +5,7 @@ Network Topology: Dedicated Setup
 
 .. image:: ../../images/Dedicated_NT.png
 
-In a **Dedicated Setup**, all the cluster nodes (head, compute, and login [optional]) have dedicated iDRAC connection.
+In a **Dedicated Setup**, all the cluster nodes (Head, Compute, and Login [optional]) have dedicated iDRAC connection.
 
 * **Public Network (Blue line)**: This indicates the external public network which is connected to the internet. NIC2 of the Control plane, Head node, and Login node [optional] is connected to the public network.
 
