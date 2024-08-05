@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Intel Corporation.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,9 +13,22 @@
 # limitations under the License.
 ---
 
-# Usage: validate_amd.yml
-offline_rocm_directory: "{{ repo_store_path }}/cluster/apt"
+- name: Check hl-smi
+  ansible.builtin.command: hl-smi
+  register: hlsmi_run
+  changed_when: true
+  failed_when: false
 
-# Usage: validate_intel_gaudi.yml
-offline_gaudi_directory: "{{ repo_store_path }}/cluster/{{ control_plane_os }}/{{ control_plane_os_version }}/deb"
-gaudi_search_pattern: "habanalabs*.deb"
+- name: Set fact when Habana software was detected
+  when: hlsmi_run.rc == 0
+  ansible.builtin.set_fact:
+    accelerator_type: "habana"
+
+- name: Set fact for localhost
+  ansible.builtin.set_fact:
+    is_gaudi_cluster: true
+  delegate_to: localhost
+  delegate_facts: true
+  when:
+    - accelerator_type is defined
+    - accelerator_type == "habana"

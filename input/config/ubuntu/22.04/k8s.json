@@ -92,9 +92,14 @@
       "url": "https://raw.githubusercontent.com/ROCm/k8s-device-plugin/r1.16/k8s-ds-amdgpu-dp.yaml"
     },
     {
+      "package": "habana-device-plugin",
+      "type": "manifest",
+      "url": "https://vault.habana.ai/artifactory/docker-k8s-device-plugin/habana-k8s-device-plugin.yaml"
+    },
+    {
       "package": "mpi-operator",
       "type": "manifest",
-      "url": "https://raw.githubusercontent.com/kubeflow/mpi-operator/v0.4.0/deploy/v2beta1/mpi-operator.yaml"
+      "url": "https://raw.githubusercontent.com/kubeflow/mpi-operator/v0.5.0/deploy/v2beta1/mpi-operator.yaml"
     },
     {
       "package": "xilinx-device-plugin",
@@ -234,6 +239,11 @@
     {
       "package": "nvcr.io/nvidia/k8s-device-plugin",
       "tag": "v0.14.4",
+      "type": "image"
+    },
+    {
+      "package": "vault.habana.ai/docker-k8s-device-plugin/docker-k8s-device-plugin",
+      "tag": "1.16.2",
       "type": "image"
     },
     {

@@ -60,6 +60,12 @@
 - name: Add nodes to kubernetes cluster
   ansible.builtin.import_playbook: "{{ playbook_dir }}/playbooks/k8s_add_node.yml"
 
+- name: Prepare habana container runtime
+  hosts: kube_node
+  gather_facts: false
+  roles:
+    - k8s_habana_container_runtime
+
 - name: Prepare kube control plane and kube nodes for kubernetes services installations
   hosts: kube_control_plane, kube_node
   gather_facts: false

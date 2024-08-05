@@ -80,6 +80,28 @@
         installation_status: "{{ installation_failed_status }}: {{ error_pull_container }}"
       when: nvidia_deployment_output.rc != 0
 
+- name: Install pytorch (GAUDI)
+  environment:
+    http_proxy: "{{ http_proxy }}"
+    https_proxy: "{{ https_proxy }}"
+  when: processing_unit == "gaudi"
+  block:
+    - name: Pull GAUDI HPU container image
+      ansible.builtin.command: "nerdctl pull {{ pytorch_gaudi_image }}"
+      changed_when: false
+      failed_when: false
+      register: gaudi_deployment_output
+
+    - name: Failed to pull GAUDI HPU container
+      ansible.builtin.debug:
+        msg: "Warning: {{ error_pull_container }}"
+      when: gaudi_deployment_output.rc != 0
+
+    - name: Updating pytorch installation_status (GAUDI)
+      ansible.builtin.set_fact:
+        installation_status: "{{ installation_failed_status }}: {{ error_pull_container }}"
+      when: gaudi_deployment_output.rc != 0
+
 - name: Modify pytorch_installation_status
   ansible.builtin.set_fact:
     pytorch_installation_status: true

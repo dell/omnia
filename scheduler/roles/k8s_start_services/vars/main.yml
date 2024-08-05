@@ -13,6 +13,8 @@
 #  limitations under the License.
 ---
 docker_login_fail_msg: "Docker login failed! Please check the credentials and re-execute playbook."
+k8s_version: "{{ hostvars['localhost']['k8s_version'] }}"
+minimal_gaudi_k8s_version: "1.27"
 k8s_images:
   - registry.k8s.io/nfd/node-feature-discovery:v0.12.1
   - docker.io/rocm/k8s-device-plugin:latest
@@ -35,6 +37,7 @@ gpu_discovery_feature: true
 xilinx_device_plugin_yaml_url: "{{ hostvars['localhost']['offline_manifest_path'] }}/xilinx-device-plugin.yaml"
 spark_operator_repo: "{{ hostvars['localhost']['offline_tarball_path'] }}/spark-operator-v1beta2-1.3.8-3.1.1.tar.gz"
 rocm_device_plugin_yaml_url: "{{ hostvars['localhost']['offline_manifest_path'] }}/rocm-device-plugin.yaml"
+habana_device_plugin_yaml_url: "{{ hostvars['localhost']['offline_manifest_path'] }}/habana-k8s-device-plugin.yaml"
 nfs_dir_mode: "0777"
 pod_wait_time: 300
 nfs_subdir_external_provisioner_repo: "{{ hostvars['localhost']['offline_tarball_path'] }}/nfs-subdir-external-provisioner-4.0.18.tar.gz"

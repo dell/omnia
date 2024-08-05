@@ -85,6 +85,15 @@
     -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/imagePullPolicy", "value":"IfNotPresent"}]'
   changed_when: true
 
+# HABANA PLUGIN
+- name: Deploy Habana Device plugin
+  ansible.builtin.command: "kubectl create -f '{{ habana_device_plugin_yaml_url }}'"
+  changed_when: true
+  when:
+    - "'habanalabs-device-plugin-daemonset' not in k8s_pods.stdout"
+    - k8s_version >= minimal_gaudi_k8s_version
+    - hostvars['localhost']['is_gaudi_cluster'] is defined
+
 # MPI OPERATOR
 - name: Install MPI Operator
   ansible.builtin.command: "kubectl create -f '{{ mpi_operator_yaml_url }}'"

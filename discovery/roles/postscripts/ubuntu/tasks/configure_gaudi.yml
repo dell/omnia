@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Intel Corporation.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,9 +13,9 @@
 # limitations under the License.
 ---
 
-# Usage: validate_amd.yml
-offline_rocm_directory: "{{ repo_store_path }}/cluster/apt"
-
-# Usage: validate_intel_gaudi.yml
-offline_gaudi_directory: "{{ repo_store_path }}/cluster/{{ control_plane_os }}/{{ control_plane_os_version }}/deb"
-gaudi_search_pattern: "habanalabs*.deb"
+- name: Copy Gaudi script to postscripts
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  with_items: "{{ gaudi_postscripts_path }}"

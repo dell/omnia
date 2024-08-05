@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Intel Corporation.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,9 +13,21 @@
 # limitations under the License.
 ---
 
-# Usage: validate_amd.yml
-offline_rocm_directory: "{{ repo_store_path }}/cluster/apt"
+- name: Initialise node accelerator status
+  ansible.builtin.set_fact:
+    node_has_accelerator: false
 
-# Usage: validate_intel_gaudi.yml
-offline_gaudi_directory: "{{ repo_store_path }}/cluster/{{ control_plane_os }}/{{ control_plane_os_version }}/deb"
-gaudi_search_pattern: "habanalabs*.deb"
+- name: Check node accelerator status
+  ansible.builtin.shell: |
+    set -o pipefail
+    lspci | grep -i "{{ intel_gaudi_device_pattern }}"
+  register: lspci_output
+  changed_when: false
+  failed_when: false
+  args:
+    executable: /bin/bash
+
+- name: Update node accelerator status
+  ansible.builtin.set_fact:
+    node_has_accelerator: true
+  when: lspci_output.stdout | length > 0

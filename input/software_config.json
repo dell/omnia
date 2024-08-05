@@ -11,7 +11,8 @@
         {"name": "roce_plugin"},
         {"name": "jupyter"},
         {"name": "pytorch"},
-        {"name": "tensorflow"}
+        {"name": "tensorflow"},
+        {"name": "intelgaudi", "version": "1.16.2-2"}
     ],
 
     "bcm_roce": [
@@ -23,7 +24,8 @@
     "pytorch": [
         {"name": "pytorch_cpu"},
         {"name": "pytorch_amd"},
-        {"name": "pytorch_nvidia"}
+        {"name": "pytorch_nvidia"},
+        {"name": "pytorch_gaudi"}
     ],
     "tensorflow": [
         {"name": "tensorflow_cpu"},

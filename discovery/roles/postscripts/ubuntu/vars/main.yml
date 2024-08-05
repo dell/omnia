@@ -1,4 +1,5 @@
 # Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Intel Corporation.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -46,3 +47,7 @@ omnia_ubuntu_postscripts_path:
 # Usage: configure_roce.yml
 roce_postscripts_path:
   - { src: "{{ role_path }}/../ubuntu/templates/omnia_roce.j2", dest: "/install/postscripts/omnia_roce", mode: "755" }
+
+# Usage: configure_gaudi.yml
+gaudi_postscripts_path:
+  - { src: "{{ role_path }}/templates/omnia_gaudi.j2", dest: "/install/postscripts/omnia_gaudi", mode: "755" }

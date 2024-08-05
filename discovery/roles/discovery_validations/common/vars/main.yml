@@ -247,3 +247,9 @@ validate_cidr: "{{ role_path }}/files/validate_cidr.py"
 range_ip_check_fail_msg: "Failed. input ip range should be valid IP address (Eg. 192.168.1.1-198.168.1.254)."
 fail_static_ip_range: "Failed, Network static overlaps with"
 fail_cidr_ip_range: "Failed, Cidr overlaps with"
+
+# Usage: validate_intel_gaudi_repo.yml
+intel_gaudi_input_warning_msg: "[WARNING] software_config.json does not have the intel gaudi software stack.
+Hence intel gaudi drivers will not be installed on the nodes post provisioning."
+intel_gaudi_repo_warning_msg: "[WARNING] local_repo.yml is not executed for downloading intelgaudi packages.
+Intel Gaudi drivers will not be installed on the nodes post provisioning."

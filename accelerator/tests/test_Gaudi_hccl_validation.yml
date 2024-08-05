@@ -1,0 +1,130 @@
+# Copyright 2024 Intel Corporation.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Verify HCCL
+  hosts: GPU_node
+  vars:
+    ansible_become: yes
+    ansible_become_user: root
+
+    habana_tests:
+      log_level_all: "4"
+      enable_console: "true"
+      habana_logs: "/var/log/habana_logs"
+      gc_kernel_path: "/usr/lib/habanalabs/libtpc_kernels.so"
+      habana_scal_bin_path: "/opt/habanalabs/engines_fw"
+      habana_plugins_lib_path: "/opt/habanalabs/habana_plugins"
+      data_loader_aeon_lib_path: "/usr/lib/habanalabs/libaeon.so"
+      rdma_core_root: "/opt/habanalabs/rdma-core/src"
+      rdma_core_lib: "/opt/habanalabs/rdma-core/src/build/lib"
+
+    habana_extra:
+      hccl_comm_id: "127.0.0.1:5555"
+  tasks:
+  - name: Checking for the right amount of HPU devices
+    shell: "lspci | grep 'accelerators.*Habana' | wc -l"
+    register: hpu_dev
+    failed_when: ( hpu_dev.stdout != "8" )
+
+  - name: Setting python version used for the test runs
+    set_fact:
+      pver: "{{ '.'.join(ansible_python_version.split('.')[0:2]) }}"
+
+  - name: Create test folder
+    ansible.builtin.tempfile:
+      state: directory
+      suffix: omnia_gaudi_hccl_test
+    register: test_folder
+
+  - name: Git clone hccl_demo
+    git:
+      repo: 'https://github.com/HabanaAI/hccl_demo.git'
+      dest: "{{ test_folder.path }}"
+
+  - name: Build hccl_demo
+    shell: "cd {{ test_folder.path }} && make clean"
+
+  - name: hccl_demo all_reduce single node test
+    environment:
+      __python_cmd: "python{{ pver }}"
+      LOG_LEVEL_ALL: "{{ habana_tests['log_level_all'] }}"
+      ENABLE_CONSOLE: "{{ habana_tests['enable_console'] }}"
+      HABANA_LOGS: "{{ habana_tests['habana_logs'] }}"
+      GC_KERNEL_PATH: "{{ habana_tests['gc_kernel_path'] }}"
+      HABANA_SCAL_BIN_PATH: "{{ habana_tests['habana_scal_bin_path'] }}"
+      HABANA_PLUGINS_LIB_PATH: "{{ habana_tests['habana_plugins_lib_path'] }}"
+      DATA_LOADER_AEON_LIB_PATH: "{{ habana_tests['data_loader_aeon_lib_path'] }}"
+      RDMA_CORE_ROOT: "{{ habana_tests['rdma_core_root'] }}"
+      RDMA_CORE_LIB: "{{ habana_tests['rdma_core_lib'] }}"
+      HCCL_COMM_ID: "{{ habana_extra['hccl_comm_id'] }}"
+    shell: "cd {{ test_folder.path }} && python3 run_hccl_demo.py -clean --test all_reduce --nranks 8 --loop 1000 --node_id 0 --size 256m --ranks_per_node 8"
+    register: hccl_demo_all_reduce_single_node_test_result
+    failed_when: ((hccl_demo_all_reduce_single_node_test_result.stdout | regex_search('.NW Bandwidth.*:(.*)MB\/s','\\1') | first | int <= 255000) or (hccl_demo_all_reduce_single_node_test_result.stdout | regex_search('.Algo Bandwidth.*:(.*)MB\/s','\\1') | first | int <= 146000))
+
+  - name: hccl_demo all_gather single node test
+    environment:
+      __python_cmd: "python{{ pver }}"
+      LOG_LEVEL_ALL: "{{ habana_tests['log_level_all'] }}"
+      ENABLE_CONSOLE: "{{ habana_tests['enable_console'] }}"
+      HABANA_LOGS: "{{ habana_tests['habana_logs'] }}"
+      GC_KERNEL_PATH: "{{ habana_tests['gc_kernel_path'] }}"
+      HABANA_SCAL_BIN_PATH: "{{ habana_tests['habana_scal_bin_path'] }}"
+      HABANA_PLUGINS_LIB_PATH: "{{ habana_tests['habana_plugins_lib_path'] }}"
+      DATA_LOADER_AEON_LIB_PATH: "{{ habana_tests['data_loader_aeon_lib_path'] }}"
+      RDMA_CORE_ROOT: "{{ habana_tests['rdma_core_root'] }}"
+      RDMA_CORE_LIB: "{{ habana_tests['rdma_core_lib'] }}"
+      HCCL_COMM_ID: "{{ habana_extra['hccl_comm_id'] }}"
+    shell: "cd {{ test_folder.path }} && python3 run_hccl_demo.py -clean --test all_gather --nranks 8 --loop 1000 --node_id 0 --size 4m --ranks_per_node 8"
+    register: hccl_demo_all_gather_single_node_test_result
+    failed_when: ((hccl_demo_all_gather_single_node_test_result.stdout | regex_search('.NW Bandwidth.*:(.*)MB\/s','\\1') | first | int <= 254000) or (hccl_demo_all_gather_single_node_test_result.stdout | regex_search('.Algo Bandwidth.*:(.*)MB\/s','\\1') | first | int <= 36000))
+
+  - name: hccl_demo reduce_scatter single node test
+    environment:
+      __python_cmd: "python{{ pver }}"
+      LOG_LEVEL_ALL: "{{ habana_tests['log_level_all'] }}"
+      ENABLE_CONSOLE: "{{ habana_tests['enable_console'] }}"
+      HABANA_LOGS: "{{ habana_tests['habana_logs'] }}"
+      GC_KERNEL_PATH: "{{ habana_tests['gc_kernel_path'] }}"
+      HABANA_SCAL_BIN_PATH: "{{ habana_tests['habana_scal_bin_path'] }}"
+      HABANA_PLUGINS_LIB_PATH: "{{ habana_tests['habana_plugins_lib_path'] }}"
+      DATA_LOADER_AEON_LIB_PATH: "{{ habana_tests['data_loader_aeon_lib_path'] }}"
+      RDMA_CORE_ROOT: "{{ habana_tests['rdma_core_root'] }}"
+      RDMA_CORE_LIB: "{{ habana_tests['rdma_core_lib'] }}"
+      HCCL_COMM_ID: "{{ habana_extra['hccl_comm_id'] }}"
+    shell: "cd {{ test_folder.path }} && python3 run_hccl_demo.py -clean --test reduce_scatter --nranks 8 --loop 1000 --node_id 0 --size 64m"
+    register: hccl_demo_reduce_scatter_single_node_test_result
+    failed_when: ((hccl_demo_reduce_scatter_single_node_test_result.stdout | regex_search('.NW Bandwidth.*:(.*)MB\/s','\\1') | first | int <= 253000) or (hccl_demo_reduce_scatter_single_node_test_result.stdout | regex_search('.Algo Bandwidth.*:(.*)MB\/s','\\1') | first | int <= 285000))
+
+  - name: hccl_demo all2all single node test
+    environment:
+      __python_cmd: "python{{ pver }}"
+      LOG_LEVEL_ALL: "{{ habana_tests['log_level_all'] }}"
+      ENABLE_CONSOLE: "{{ habana_tests['enable_console'] }}"
+      HABANA_LOGS: "{{ habana_tests['habana_logs'] }}"
+      GC_KERNEL_PATH: "{{ habana_tests['gc_kernel_path'] }}"
+      HABANA_SCAL_BIN_PATH: "{{ habana_tests['habana_scal_bin_path'] }}"
+      HABANA_PLUGINS_LIB_PATH: "{{ habana_tests['habana_plugins_lib_path'] }}"
+      DATA_LOADER_AEON_LIB_PATH: "{{ habana_tests['data_loader_aeon_lib_path'] }}"
+      RDMA_CORE_ROOT: "{{ habana_tests['rdma_core_root'] }}"
+      RDMA_CORE_LIB: "{{ habana_tests['rdma_core_lib'] }}"
+      HCCL_COMM_ID: "{{ habana_extra['hccl_comm_id'] }}"
+    shell: "cd {{ test_folder.path }} && python3 run_hccl_demo.py -clean --test all2all --nranks 8 --loop 1000 --node_id 0 --size 4m --ranks_per_node 8"
+    register: hccl_demo_all2all_single_node_test_result
+    failed_when: ((hccl_demo_all2all_single_node_test_result.stdout | regex_search('.NW Bandwidth.*:(.*)MB\/s','\\1') | first | int <= 253000) or (hccl_demo_all2all_single_node_test_result.stdout | regex_search('.Algo Bandwidth.*:(.*)MB\/s','\\1') | first | int <= 285000))
+
+  - name: Remove hccl_demo directory
+    file:
+      state: absent
+      path: "{{ test_folder.path }}"

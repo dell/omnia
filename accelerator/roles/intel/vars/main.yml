@@ -1,0 +1,53 @@
+# Copyright 2024 Intel Corporation.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+intel_gaudi_device_pattern: "Processing accelerators: Habana Labs Ltd."
+
+intel_gaudi_kernel_module_to_load:
+  - habanalabs
+  - habanalabs_cn
+  - habanalabs_en
+
+# TODO: move to a central config file
+intel_habana_packages:
+  - habanalabs-dkms
+  - habanalabs-firmware
+  - habanalabs-firmware-tools
+  - habanalabs-graph
+  - habanalabs-qual
+  - habanalabs-rdma-core
+  - habanalabs-thunk
+  - habanatools
+
+# TODO: move to a central config file
+intel_apt_base_packages:
+  - cmake
+  - curl
+  - dkms
+  - ethtool
+  - gcc
+  - iproute2
+  - libbz2-dev
+  - libelf-dev
+  - libibverbs-dev
+  - liblzma-dev
+  - librdmacm-dev
+  - linux-headers-{{ ansible_kernel }}
+  - linux-modules-extra-{{ ansible_kernel }}
+  - lsof
+  - moreutils
+  - numactl
+  - unzip
+  - wget

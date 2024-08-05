@@ -80,3 +80,8 @@
   ansible.builtin.command: chdef all -p postscripts=omnia_roce
   changed_when: true
   when: roce_config_status
+
+- name: Configure postscripts for Intel Gaudi
+  ansible.builtin.command: chdef all -p postscripts=omnia_gaudi
+  changed_when: true
+  when: intel_gaudi_config_status
