@@ -148,6 +148,7 @@ Our thanks go to everyone who makes Omnia possible ([emoji key](https://allcontr
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/nethramg"><img src="https://avatars.githubusercontent.com/u/146437298?v=4" width="100px;" alt="nethramg"/><br /><sub><b>Nethravathi M G</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=nethramg" title="Code">💻</a> <a href="#projectManagement-nethramg" title="Project Management">📆</a> <a href="#talk-nethramg" title="Talks">📢</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/AbdulRijwan"><img src="https://avatars.githubusercontent.com/u/170396052?v=4" width="100px;" alt="AbdulRijwan"/><br/><sub><b>Abdul Rijwan</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=AbdulRijwan" title="Infrastructure">🚇</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/dweineha"><img src="https://avatars.githubusercontent.com/u/42206500?v=4" width="100px;" alt="dweineha"/><br/><sub><b>David Weinehall</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=AbdulRijwan" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
