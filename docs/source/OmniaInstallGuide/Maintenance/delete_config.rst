@@ -15,7 +15,7 @@ Use this playbook to remove the Slurm and/or Kubernetes configuration and stop a
 
 **To run the playbook**
 
-1. Insert the IP of the compute node(s) to be removed, in the existing inventory file as shown below:
+* Insert the IP of the compute node(s) to be removed, in the existing inventory file as shown below:
 
 *Existing Kubernetes inventory*
 ::
