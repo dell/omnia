@@ -25,7 +25,7 @@ Run the playbook using the following commands: ::
     * To reset a slurm cluster, use ``ansible-playbook reset_cluster_configuration.yml -i inventory --tags slurm_cluster``.
     * To reset a kubernetes cluster, use ``ansible-playbook reset_cluster_configuration.yml -i inventory --tags k8s_cluster``.
 
-.. warning:: If you do not specify the tags ``slurm_cluster`` or ``k8s_cluster``, the ``reset_cluster_configuration.yml`` will reset the configuration for both Slurm and Kubernetes clusters.
+.. caution:: If you do not specify the tags ``slurm_cluster`` or ``k8s_cluster``, the ``reset_cluster_configuration.yml`` will reset the configuration for both Slurm and Kubernetes clusters.
 
 * To skip confirmation while running the playbook, use ``ansible-playbook reset_cluster_configuration.yml -i inventory --extra-vars skip_confirmation=yes`` or ``ansible-playbook reset_cluster_configuration.yml -i inventory -e  skip_confirmation=yes``.
 
@@ -48,12 +48,12 @@ The inventory file passed for ``reset_cluster_configuration.yml`` should follow 
         10.5.1.105
 
 
-
         #General Cluster Storage
 
         [auth_server]
 
         10.5.1.106
+
 
         #AI Scheduler: Kubernetes
 
