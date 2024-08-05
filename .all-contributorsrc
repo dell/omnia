@@ -811,6 +811,15 @@
       "contributions": [
         "infra"
       ]
+    },
+    {
+      "login": "dweineha",
+      "name": "David Weinehall",
+      "avatar_url": "https://avatars.githubusercontent.com/u/42206500?v=4",
+      "profile": "https://github.com/dweineha",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
