@@ -22,6 +22,7 @@ Run the playbook using the following commands: ::
         ansible-playbook reset_cluster_configuration.yml -i inventory
 
 * To specify only Slurm or Kubernetes clusters while running the playbook, use the tags ``slurm_cluster`` or ``k8s_cluster``. That is:
+
     * To reset a slurm cluster, use ``ansible-playbook reset_cluster_configuration.yml -i inventory --tags slurm_cluster``.
     * To reset a kubernetes cluster, use ``ansible-playbook reset_cluster_configuration.yml -i inventory --tags k8s_cluster``.
 

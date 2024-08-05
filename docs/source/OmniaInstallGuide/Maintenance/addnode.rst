@@ -5,26 +5,29 @@ Adding new nodes
 
 A new node can be provisioned using the following ways, based on the `discovery mechanism <../Ubuntu/Provision/DiscoveryMechanisms/index.html>`_ used:
 
-* Using a **mapping file**:
+1. Using a **mapping file**:
 
     * Update the existing mapping file by appending the new entry (without the disrupting the older entries) or provide a new mapping file by pointing ``pxe_mapping_file_path`` in ``provision_config.yml`` to the new location.
 
     .. note:: When re-running ``discovery_provision.yml`` with a new mapping file, ensure that existing IPs from the current mapping file are not provided in the new mapping file. Any IP overlap between mapping files will result in PXE failure. This can only be resolved by running the `Clean Up script <cleanup.html>`_ followed by ``discovery_provision.yml``.
 
-    * Run ``discovery_provision.yml``.::
+    * Run ``discovery_provision.yml``. ::
 
         ansible-playbook discovery_provision.yml
 
     *  Manually PXE boot the target servers after the ``discovery_provision.yml`` playbook (if ``bmc_ip`` is not provided in the mapping file) is executed and the target node lists as **booted** in the `nodeinfo table <../Ubuntu/Provision/ViewingDB.html>`_.
 
 
-* Using **BMC** method:
+
+2. Using **BMC** method:
 
     * Run ``discovery_provision.yml`` once the node has joined the cluster using an IP that exists within the provided range. ::
 
         ansible-playbook discovery_provision.yml
 
-* Using **switch-based** method:
+
+
+3. Using **switch-based** method:
 
     * Edit or append JSON list stored in ``switch_based_details`` in ``input/provision_config.yml``.
 

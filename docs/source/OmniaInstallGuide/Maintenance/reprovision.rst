@@ -94,7 +94,7 @@ In the event that an existing Omnia cluster needs a different OS version or a fr
 In the above examples, nodes 10.5.0.105 and 10.5.0.106 have been added to the cluster as compute nodes.
 
 .. note::
-    * Do not change the kube_control_plane/slurm_control_node/auth_server in the existing inventory. Simply add the new node information in the kube_node/slurm_node group.
+    * Do not change the ``kube_control_plane``, ``slurm_control_node`` and/or ``auth_server`` in the existing inventory file. Simply add the new node information in the ``kube_node``and/or ``slurm_node`` group.
     * When re-running ``omnia.yml`` to add a new node, ensure that the ``input/security_config.yml`` and ``input/omnia_config.yml`` are not edited between runs.
 
 * To install security, job scheduler, and storage tools (NFS, BeeGFS) on the node, run ``omnia.yml``: ::

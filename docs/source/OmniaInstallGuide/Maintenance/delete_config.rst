@@ -88,6 +88,8 @@ Use this playbook to remove the Slurm and/or Kubernetes configuration and stop a
        ansible-playbook remove_node_configuration.yml -i inventory
 
 * To specify only Slurm or Kubernetes nodes while running the playbook, use the tags ``slurm_node`` or ``kube_node``. That is:
+
     * To remove only Slurm nodes, use ``ansible-playbook remove_node_configuration.yml -i inventory --tags slurm_node``.
     * To remove only Kubernetes nodes, use ``ansible-playbook remove_node_configuration.yml -i inventory --tags kube_node``.
+
 * To skip confirmation while running the playbook, use ``ansible-playbook remove_node_configuration.yml -i inventory --extra-vars skip_confirmation=yes`` or ``ansible-playbook remove_node_configuration.yml -i inventory -e  skip_confirmation=yes``.
