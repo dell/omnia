@@ -83,6 +83,7 @@ Use this playbook to remove the Slurm and/or Kubernetes configuration and stop a
     10.5.0.101
 
 * Run the playbook using the following commands:
+
     ::
         cd utils
         ansible-playbook remove_node_configuration.yml -i inventory
