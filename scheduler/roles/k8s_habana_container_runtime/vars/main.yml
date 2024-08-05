@@ -14,3 +14,4 @@
 ---
 
 containerd_cfg_file_path: "/etc/containerd/config.toml"
+habana_container_runtime_cfg_file_path: "/etc/habana-container-runtime/config.toml"
