@@ -15,7 +15,7 @@ Use this playbook to remove the Slurm and/or Kubernetes configuration and stop a
 
 **To run the playbook**
 
-* Insert the IP of the compute node(s) to be removed, in the existing inventory file as shown below:
+1. Insert the IP of the compute node(s) to be removed, in the existing inventory file as shown below:
 
 *Existing Kubernetes inventory*
 ::
@@ -83,9 +83,9 @@ Use this playbook to remove the Slurm and/or Kubernetes configuration and stop a
     10.5.0.101
 
 * Run the playbook using the following commands:
-::
-    cd utils
-    ansible-playbook remove_node_configuration.yml -i inventory
+    ::
+        cd utils
+        ansible-playbook remove_node_configuration.yml -i inventory
 
 * To specify only Slurm or Kubernetes nodes while running the playbook, use the tags ``slurm_node`` or ``kube_node``. That is:
     * To remove only Slurm nodes, use ``ansible-playbook remove_node_configuration.yml -i inventory --tags slurm_node``.
