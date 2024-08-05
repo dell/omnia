@@ -3,9 +3,9 @@ Adding new nodes
 
 **Provisioning the new node**
 
-A new node can be added using the following ways:
+A new node can be provisioned using the following ways, based on the `discovery mechanism <../Ubuntu/Provision/DiscoveryMechanisms/index.html>`_ used:
 
-* If ``pxe_mapping_file_path`` is provided in ``input/provision_config.yml```:
+* Using a **mapping file**:
 
     * Update the existing mapping file by appending the new entry (without the disrupting the older entries) or provide a new mapping file by pointing ``pxe_mapping_file_path`` in ``provision_config.yml`` to the new location.
 
@@ -18,14 +18,13 @@ A new node can be added using the following ways:
     *  Manually PXE boot the target servers after the ``discovery_provision.yml`` playbook (if ``bmc_ip`` is not provided in the mapping file) is executed and the target node lists as **booted** in the `nodeinfo table <../Ubuntu/Provision/ViewingDB.html>`_.
 
 
-* When target nodes were discovered using BMC:
+* Using **BMC** method:
 
     * Run ``discovery_provision.yml`` once the node has joined the cluster using an IP that exists within the provided range. ::
 
-
         ansible-playbook discovery_provision.yml
 
-* When target nodes were discovered using ``switch_based_details`` in ``input/provision_config.yml``:
+* Using **switch-based** method:
 
     * Edit or append JSON list stored in ``switch_based_details`` in ``input/provision_config.yml``.
 
@@ -64,7 +63,6 @@ Verify that the node has been provisioned successfully by checking the Omnia `no
 
     [etcd]
     10.5.0.110
-
 
 
 *Updated kubernetes inventory with the new node information*
@@ -132,7 +130,7 @@ In the above examples, nodes 10.5.0.105 and 10.5.0.106 have been added to the cl
     * Do not change the kube_control_plane/slurm_control_node/auth_server in the existing inventory. Simply add the new node information in the kube_node/slurm_node group.
     * When re-running ``omnia.yml`` to add a new node, ensure that the ``input/security_config.yml`` and ``input/omnia_config.yml`` are not edited between runs.
 
-3. To install security, job scheduler, and storage tools (NFS, BeeGFS) on the node, execute ``omnia.yml``: ::
+2. Once the new node IPs have been provided in the inventory, you can install security tools (OpenLDAP, FreeIPA), job schedulers (Kubernetes, Slurm), and storage tools (NFS, BeeGFS) on the nodes by executing ``omnia.yml``: ::
 
     ansible-playbook omnia.yml -i inventory
 

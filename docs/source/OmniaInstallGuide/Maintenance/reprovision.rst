@@ -7,10 +7,10 @@ In the event that an existing Omnia cluster needs a different OS version or a fr
 
 * Run the `delete node playbook <deletenode.html#delete-provisioned-node>`_ for every target node.
 
-.. note:: If a re-deployment with no modifications is required, execute the following commands: ::
-
-    cd omnia
-    ansible-playbook discovery_provision.yml
+.. note:: If a re-deployment with no modifications is required, execute the following commands:
+    ::
+        cd omnia
+        ansible-playbook discovery_provision.yml
 
 **Setting up the cluster**
 
