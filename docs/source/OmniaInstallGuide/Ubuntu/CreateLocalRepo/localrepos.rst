@@ -94,15 +94,6 @@ Configure specific local repositories
 .. note:: If the package version is customized, ensure that the ``version`` value is updated in ``software_config.json``.
 
 
-**BeeGFS**
-
-    To install BeeGFS, include the following line under ``softwares`` in ``input/software_config.json``: ::
-
-            {"name": "beegfs", "version": "7.4.2"},
-
-For information on deploying BeeGFS after setting up the cluster, `click here <../BuildOmniaCluster/BeeGFS.html>`_.
-
-
 **Broadcom RoCE**
 
     To install RoCE, do the following:
@@ -167,9 +158,9 @@ For information on deploying BeeGFS after setting up the cluster, `click here <.
 
     To install Kubernetes, include the following line under ``softwares`` in ``input/software_config.json``: ::
 
-            {"name": "k8s", "version":"1.26.12"},
+            {"name": "k8s", "version":"1.29.5"},
 
-For more information about installing Kubernetes, `click here <../BuildOmniaCluster/install_kubernetes.html>`_.
+For more information about installing Kubernetes, `click here <../OmniaCluster/BuildingCluster/install_kubernetes.html>`_.
 
 .. note:: The version of the software provided above is the only version of the software Omnia supports.
 
@@ -180,7 +171,7 @@ For more information about installing Kubernetes, `click here <../BuildOmniaClus
 
             {"name": "openldap"},
 
-For more information on OpenLDAP, `click here <../BuildOmniaCluster/Authentication.html#configuring-openldap-security>`_.
+For more information on OpenLDAP, `click here <../OmniaCluster/BuildingCluster/Authentication.html#configuring-openldap-security>`_.
 
 
 **Secure Login Node**
@@ -189,7 +180,7 @@ For more information on OpenLDAP, `click here <../BuildOmniaCluster/Authenticati
 
             {"name": "secure_login_node"},
 
-For more information on configuring login node security, `click here <../BuildOmniaCluster/Authentication.html#configuring-login-node-security>`_.
+For more information on configuring login node security, `click here <../OmniaCluster/BuildingCluster/Authentication.html#configuring-login-node-security>`_.
 
 
 **Jupyterhub**
