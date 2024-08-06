@@ -22,7 +22,7 @@ Starting from version 1.7, Omnia will be executed within a Python virtual enviro
 Deactivate and Re-Activate the Omnia virtual environment
 ----------------------------------------------------------
 
-* If you want to deactivate the virtual environment set up by the ``prereq.sh``, use the following command from within the activated virtual environment: ::
+* If you want to deactivate the virtual environment set up by the ``prereq.sh`` script, use the following command from within the activated virtual environment: ::
 
     deactivate
 
