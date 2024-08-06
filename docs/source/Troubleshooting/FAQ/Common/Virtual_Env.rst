@@ -16,4 +16,4 @@ Virtual environment
 
 * To verify that the virtual environment is active, check if the following prompt is displayed:
 
-.. image:: ../../../images/virtual_env_2.png
+    .. image:: ../../../images/virtual_env_2.png
