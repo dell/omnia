@@ -10,4 +10,5 @@ The ``local_repo.yml`` playbook creates offline repositories on the control plan
     RunningLocalRepo
 
 .. image:: ../../../images/Visio/Local_repo.png
+    :width: 600pt
 

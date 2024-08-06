@@ -10,3 +10,4 @@ Advanced configurations for Ubuntu clusters
     KubernetesAccess
     ConfiguringSwitches/index
     IPruleassignment
+    AdditionalNIC
