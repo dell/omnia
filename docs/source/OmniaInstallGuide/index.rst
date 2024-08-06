@@ -10,7 +10,7 @@ Omnia Installation Guide
 * `Sample Files <samplefiles.html>`_
 
 
-.. image:: ../images/Visio/Installation_flow.png
+.. image:: ../images/Installation_flow.png
     :width: 400pt
 
 

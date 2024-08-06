@@ -19,6 +19,4 @@ Step 5: Configure the cluster
     Storage/index
     BuildingCluster/index
 
-.. image:: ../../../images/Visio/Configure_K8s_Cluster.png
-    :width: 600pt
 
