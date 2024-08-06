@@ -21,8 +21,3 @@ Starting from version 1.7, Omnia will be executed within a Python virtual enviro
 .. note::
     * Omnia recommends to disable SELinux before proceeding with the installation. If SELinux is not disabled, it will be disabled by the script and the you will be prompted to reboot the control plane.
     * The file ``input/software_config.json`` is overwritten with the default values (based on the operating system) when ``prereq.sh`` is executed.
-
-
-
-
-
