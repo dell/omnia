@@ -11,7 +11,7 @@ Omnia Installation Guide
 
 
 .. image:: ../images/installation_flow.png
-    :width: 400pt
+    :width: 800pt
 
 
 .. toctree::
