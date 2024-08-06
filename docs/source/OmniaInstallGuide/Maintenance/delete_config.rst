@@ -10,7 +10,7 @@ Use this playbook to remove the Slurm and/or Kubernetes configuration and stop a
 
 **Configurations performed by the playbook**
 
-    * Nodes specified in the ``slurm_node group`` or ``kube_node group`` in the inventory file will be removed from the Slurm or Kubernetes cluster respectively.
+    * Nodes specified in the ``slurm_node`` or ``kube_node`` group in the inventory file will be removed from the Slurm or Kubernetes cluster respectively.
     * Slurm and Kubernetes services are stopped and uninstalled. OS startup service list will be updated to disable Slurm and Kubernetes.
 
 **To run the playbook**
