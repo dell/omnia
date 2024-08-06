@@ -16,7 +16,7 @@ Starting from version 1.7, Omnia will be executed within a Python virtual enviro
 
 * Once the virtual environment is active, the following prompt will be displayed: ::
 
-    (omnia) [root@<control_plane_name)> omnia]#
+    (omnia) [root@<control_plane_name> omnia]#
 
 .. note::
     * Omnia recommends to disable SELinux before proceeding with the installation. If SELinux is not disabled, it will be disabled by the script and the you will be prompted to reboot the control plane.
