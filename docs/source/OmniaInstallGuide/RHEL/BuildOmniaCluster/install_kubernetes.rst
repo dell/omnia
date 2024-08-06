@@ -1,4 +1,4 @@
-Install Kubernetes
+Set up Kubernetes
 ===================
 
 **Prerequisites**

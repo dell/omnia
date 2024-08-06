@@ -1,4 +1,4 @@
-Install Slurm
+Set up Slurm
 ==============
 
 .. note:: Omnia supports slurm installation only on RHEL and Rocky Linux (not supported on Ubuntu).

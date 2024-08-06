@@ -1,5 +1,5 @@
-Kubernetes
-=============
+Set up Kubernetes
+==================
 
 **Prerequisites**
 
