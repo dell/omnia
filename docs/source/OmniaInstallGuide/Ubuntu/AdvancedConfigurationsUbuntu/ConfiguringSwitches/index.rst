@@ -13,5 +13,3 @@ Configuring switches
     ethernet-Z
 
 
-,
-
