@@ -20,7 +20,7 @@ To configure TuneD profiles, list all the nodes for which you want to apply the 
 In the ``utils/performance_profile_config.yml`` file, under ``intel_gpu``, add or alter the values based on the following list of parameters:
 
 .. csv-table:: Parameters for TuneD configuration
-   :file: ../../../Tables/tuned_config.csv
+   :file: ../Tables/tuned_config.csv
    :header-rows: 1
    :keepspace:
 
@@ -29,7 +29,7 @@ Here's a sample of the ``utils/performance_profile_config.yml`` file:
 .. image:: ../images/tuned_config.png
 
 .. note:: For Intel Gaudi accelerators, Omnia recommends to add the ``vm.nr_hugepages`` parameter and set its value to 156300. Check out the sample image below: ::
-    .. image:: ../images/tuneD_intel_habana
+    .. image:: ../images/tuneD_intel_habana.png
 
 * **To run the playbook**
 
