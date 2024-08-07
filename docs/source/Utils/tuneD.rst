@@ -32,7 +32,7 @@ Here's a sample of the ``utils/performance_profile_config.yml`` file:
     ::
         .. image:: ../images/tuneD_intel_habana.png
 
-* **To run the playbook**
+* **Execute the playbook**
 
 Run the playbook using the following commands: ::
 
