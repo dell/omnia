@@ -1,7 +1,10 @@
 Configuring infiniband switches
 --------------------------------
 
+.. note:: Omnia is specifically designed to support the configuration of Infiniband switches that run on the NVIDIA MLNX-OS network operating system.
+
 Depending on the number of ports available on your Infiniband switch, they can be classified into:
+
     - EDR Switches (36 ports)
     - HDR Switches (40 ports)
     - NDR Switches (32 ports)
@@ -91,13 +94,13 @@ If the user enters 'yes', they will also be prompted to enter the hostname for t
 If ``enable_split_port`` is **true**, run::
 
    cd network
-    ansible-playbook infiniband_switch_config.yml -i inventory -e ib_username="" -e ib_password="" -e ib_admin_password="" -e ib_monitor_password=""  -e ib_default_password="" -e ib_switch_type=""
+   ansible-playbook infiniband_switch_config.yml -i switch_inventory -e ib_username="" -e ib_password="" -e ib_admin_password="" -e ib_monitor_password=""  -e ib_default_password="" -e ib_switch_type=""
 
 
 If ``enable_split_port`` is **false**, run::
 
     cd network
-    ansible-playbook infiniband_switch_config.yml -i inventory -e ib_username="" -e ib_password=""  -e ib_switch_type=""
+    ansible-playbook infiniband_switch_config.yml -i switch_inventory -e ib_username="" -e ib_password=""  -e ib_switch_type=""
 
 
 * Where ``ib_username`` is the username used to authenticate into the switch.
@@ -120,7 +123,7 @@ If ``enable_split_port`` is **false**, run::
 
     * Passwords should contain at least one of each: Lowercase, uppercase and digits.
 
- * The inventory file should be a list of IPs separated by newlines. Check out the **switch_inventory** section in `Sample Files <../../../samplefiles.html#switch-inventory>`_.
+* The inventory file should be a list of switch IPs separated by newlines. Refer to the switch_inventory section in `Sample Files <../../../samplefiles.html#switch-inventory>`_ for more information.
 
 * Where ``ib_default_password`` is the password used to authenticate into factory reset/fresh-install switches.
 

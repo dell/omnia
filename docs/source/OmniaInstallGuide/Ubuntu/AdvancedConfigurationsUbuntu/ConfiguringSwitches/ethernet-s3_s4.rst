@@ -1,6 +1,8 @@
 Configuring ethernet switches (S3 and S4 series)
 ------------------------------------------------
 
+.. note:: Omnia is specifically designed to support the configuration of Ethernet switches that run on the Dell SmartFabric OS10 network operating system.
+
 * Edit the ``network/ethernet_tor_input.yml`` file for all S3* and S4* PowerSwitches such as S3048-ON, S4048T-ON, S4112F-ON, S4048-ON, S4048T-ON, S4112F-ON, S4112T-ON, and S4128F-ON.
 
 .. caution:: Do not remove or comment any lines in the ``network/ethernet_tor_input.yml`` file.
@@ -67,13 +69,11 @@ Configuring ethernet switches (S3 and S4 series)
 
     cd network
 
-    ansible-playbook ethernet_switch_config.yml -i inventory -e ethernet_switch_username=”” -e ethernet_switch_password=””
+    ansible-playbook ethernet_switch_config.yml -i switch_inventory -e ethernet_switch_username=”” -e ethernet_switch_password=””
 
-* Where ``ethernet_switch_username`` is the username used to authenticate into the switch.
+* The ``inventory`` file should be a list of switch IPs separated by newlines. Refer to the switch_inventory section in `Sample Files <../../../samplefiles.html#switch-inventory>`_ for more information.
 
-* The inventory file should be a list of IPs separated by newlines. Check out the switch_inventory section in `Sample Files <https://omnia-doc.readthedocs.io/en/latest/samplefiles.html>`_
-
-* Where ``ethernet_switch_password`` is the password used to authenticate into the switch.
+* The ``ethernet_switch_username`` and ``ethernet_switch_password`` are the credentials used to authenticate and access the switch using the management port.
 
 
 

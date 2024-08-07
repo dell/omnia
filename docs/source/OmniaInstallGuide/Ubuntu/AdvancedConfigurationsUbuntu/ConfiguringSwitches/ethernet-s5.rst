@@ -1,6 +1,7 @@
 Configuring ethernet switches (S5 series)
 ------------------------------------------------
 
+.. note:: Omnia is specifically designed to support the configuration of Ethernet switches that run on the Dell SmartFabric OS10 network operating system.
 
 * Edit the ``network/ethernet_sseries_input.yml`` file for all S5* PowerSwitches such as S5232F-ON.
 
@@ -69,13 +70,11 @@ Configuring ethernet switches (S5 series)
 
     cd network
 
-    ansible-playbook ethernet_switch_config.yml -i inventory -e ethernet_switch_username=”” -e ethernet_switch_password=””
+    ansible-playbook ethernet_switch_config.yml -i switch_inventory -e ethernet_switch_username=”” -e ethernet_switch_password=””
 
-* Where ``ethernet_switch_username`` is the username used to authenticate into the switch.
+* The ``inventory`` file should be a list of switch IPs separated by newlines. Refer to the switch_inventory section in `Sample Files <../../../samplefiles.html#switch-inventory>`_ for more information.
 
-* The inventory file should be a list of IPs separated by newlines. Check out the **switch_inventory** section in `Sample Files <../../../samplefiles.html#switch-inventory>`_
-
-* Where ``ethernet_switch_password`` is the password used to authenticate into the switch.
+* The ``ethernet_switch_username`` and ``ethernet_switch_password`` are the credentials used to authenticate and access the switch using the management port.
 
 
 

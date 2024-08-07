@@ -1,6 +1,7 @@
 Configuring ethernet switches (Z series)
 -----------------------------------------
 
+.. note:: Omnia is specifically designed to support the configuration of Ethernet switches that run on the Dell SmartFabric OS10 network operating system.
 
 * Edit the ``network/ethernet_zseries_input.yml`` file for all Z series PowerSwitches such as Z9332F-ON, Z9262-ON and Z9264F-ON. The default configuration is written for a Z9264F-ON switch.
 
@@ -73,10 +74,10 @@ Configuring ethernet switches (Z series)
 
     cd network
 
-    ansible-playbook ethernet_switch_config.yml -i inventory -e ethernet_switch_username=”” -e ethernet_switch_password=””
+    ansible-playbook ethernet_switch_config.yml -i switch_inventory -e ethernet_switch_username=”” -e ethernet_switch_password=””
 
 * The ``inventory`` file should be a list of switch IPs separated by newlines. Refer to the switch_inventory section in `Sample Files <../../../samplefiles.html#switch-inventory>`_ for more information.
 
-* The ``ethernet_switch_username`` and ``ethernet_switch_password`` are the credentials used to authenticate and access the switch.
+* The ``ethernet_switch_username`` and ``ethernet_switch_password`` are the credentials used to authenticate and access the switch using the management port.
 
 
