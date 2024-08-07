@@ -3,9 +3,9 @@ Install the ROCm platform for AMD GPUs
 
 This playbook sets up the `AMD ROCm <https://rocm.docs.amd.com/projects/install-on-linux/en/latest/>`_ platform on the clusters. This tool allows users to unlock the full potential of installed AMD GPUs.
 
-Ensure that the ROCm local repositories are configured using the `local_repo.yml <../CreateLocalRepo/localrepos.html#configure-specific-local-repositories>`_ script.
+Ensure that the ROCm local repositories are configured using the `local_repo.yml <../../CreateLocalRepo/localrepos.html#configure-specific-local-repositories>`_ script.
 
-Ensure that the ``input/software_config.json`` contains valid amdgpu and rocm version. See `input parameters <../CreateLocalRepo/InputParameters.html>`_ for more information.
+Ensure that the ``input/software_config.json`` contains valid amdgpu and rocm version. See `input parameters <../../CreateLocalRepo/InputParameters.html>`_ for more information.
 
 To install all the latest AMD GPU drivers and toolkits, run the ``omnia.yml`` playbook using the following command: ::
 
@@ -33,7 +33,7 @@ User permissions for ROCm platforms
 
         /opt/rocm/bin/<rocm command>
 
-.. image:: ../../../images/ROCm_user_permissions.png
+.. image:: ../../../../images/ROCm_user_permissions.png
 
 For any configuration changes, check out ROCm's official documentation `here. <https://rocm.docs.amd.com/projects/install-on-linux/en/latest/how-to/prerequisites.html>`_
 
