@@ -10,3 +10,4 @@ Omnia provides an array of utilities as separate playbooks. Using these playbook
     portcleanup
     timescaledb_utility
     freeipa_installation
+    tuneD

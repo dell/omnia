@@ -14,7 +14,7 @@ Cluster formation
 
     i. ``security.yml``: This playbook sets up centralized authentication (OpenLDAP) on the cluster. For more information, `click here. <Authentication.html>`_
     ii. ``storage.yml``: This playbook sets up storage tools such as, `NFS <NFS.html>`_.
-    iii. ``scheduler.yml``: This playbook sets up the `Kubernetes <install_kubernetes.html>`_) job scheduler on the cluster.
+    iii. ``scheduler.yml``: This playbook sets up the (`Kubernetes <install_kubernetes.html>`_) job scheduler on the cluster.
     iv. ``telemetry.yml``: This playbook sets up `Omnia telemetry and/or iDRAC telemetry <../../../Roles/Telemetry/index.html>`_. It also installs `Grafana <https://grafana.com/>`_ and `Loki <https://grafana.com/oss/loki/>`_ as Kubernetes pods.
     v. ``rocm_installation.yml``: This playbook sets up the `ROCm platform for AMD GPU accelerators <AMD_ROCm.html>`_.
 
