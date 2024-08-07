@@ -1,0 +1,19 @@
+﻿Parameters,Details
+"**performance_profile**
+String
+Required","The field captures the TuneD performance profile which will be configured on the nodes. You can find all the default available profiles in the ``/usr/lib/tuned`` folder.
+
+**Example**: ``accelerator-performance``"
+"**tuned_profile_plugin**
+String
+Optional","If the user wants to customise the default performance profiles that come with the TuneD package, they can do so by adding the parameters here or by altering the default values present here.
+
+**Example**: If you have selected ``accelerator-performance`` set as your TuneD profile, then you can alter the values of parameters such as ``force_latency`` and ``vm.swappiness``. If required, you can also add supported TuneD parameters such as ``vm.nr_hugepages`` with their desired values."
+"**reboot_required**
+String
+Required","The value provided for this field denotes if the device should be rebooted after TuneD profile configuration.
+
+**Choices**:
+
+``Yes``
+``No`` -> default"

@@ -8,16 +8,16 @@ For the supported kernel command-line parameters, `click here <https://docs.kern
 
 * **Create an Inventory file**
 
-    List all the nodes you wish to update the kernel parameters for, in a simple inventory file. For example: ::
+List all the nodes you wish to update the kernel parameters for, in a simple inventory file. For example: ::
 
-        node3
-        node1
+    node3
+    node1
 
 * **Configure kernel parameters**
 
-    Specify the kernel parameters you want to add or alter in the ``kernel_param_update_config.yml`` file. For example: ::
+Specify the kernel parameters you want to add or alter in the ``utils/kernel_param_update_config.yml`` file. For example: ::
 
-        GRUB_CMDLINE_LINUX="panic_print=1 print-fatal-signals=1"
+    GRUB_CMDLINE_LINUX="panic_print=1 print-fatal-signals=1"
 
 .. note:: If you want to provide multiple kernel parameters, ensure that they are separated by a "space".
 
