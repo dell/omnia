@@ -2,7 +2,7 @@ Configuring ethernet switches (Z series)
 -----------------------------------------
 
 
-* Edit the ``network/ethernet_zseries_input.yml`` file for all Z series PowerSwitches such as Z9332F-ON, Z9262-ON and Z9264F-ON. The default configuration is written for Z9264F-ON.
+* Edit the ``network/ethernet_zseries_input.yml`` file for all Z series PowerSwitches such as Z9332F-ON, Z9262-ON and Z9264F-ON. The default configuration is written for a Z9264F-ON switch.
 
 .. caution:: Do not remove or comment any lines in the ``network/ethernet_zseries_input.yml`` file.
 
@@ -75,11 +75,8 @@ Configuring ethernet switches (Z series)
 
     ansible-playbook ethernet_switch_config.yml -i inventory -e ethernet_switch_username=”” -e ethernet_switch_password=””
 
-* Where ``ethernet_switch_username`` is the username used to authenticate into the switch.
+* The ``inventory`` file should be a list of switch IPs separated by newlines. Refer to the switch_inventory section in `Sample Files <../../../samplefiles.html#switch-inventory>`_ for more information.
 
-* The inventory file should be a list of IPs separated by newlines. Check out the switch_inventory section in `Sample Files <../../../samplefiles.html#switch-inventory>`_
-
-* Where ``ethernet_switch_password`` is the password used to authenticate into the switch.
-
+* The ``ethernet_switch_username`` and ``ethernet_switch_password`` are the credentials used to authenticate and access the switch.
 
 

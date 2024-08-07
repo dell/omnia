@@ -11,6 +11,6 @@ Omnia: Overview
     newfeatures
     releasenotes
     SupportMatrix/index
-    NetworkTopologies/index
     omnia_explained
+    NetworkTopologies/index
     more_info

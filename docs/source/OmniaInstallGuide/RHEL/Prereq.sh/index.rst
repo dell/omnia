@@ -5,7 +5,7 @@ Starting from version 1.7, Omnia will be executed within a Python virtual enviro
 
 .. caution:: To run Omnia, it is essential to use the Python virtual environment that is created using the ``prereq.sh`` script.
 
-* Use the following command to execute the ``prereq.sh`` script: ::
+* Use the following command to execute the ``prereq.sh`` script on the control plane: ::
 
     cd omnia
     source prereq.sh
