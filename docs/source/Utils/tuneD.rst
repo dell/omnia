@@ -29,10 +29,10 @@ Here's a sample of the ``utils/performance_profile_config.yml`` file:
 .. image:: ../images/tuned_config.png
 
 .. note:: For Intel Gaudi accelerators, Omnia recommends to add the ``vm.nr_hugepages`` parameter and set its value to 156300. Check out the sample image below:
-    ::
-        .. image:: ../images/tuneD_intel_habana.png
 
-* **Execute the playbook**
+    .. image:: ../images/tuneD_intel_habana.png
+
+* **Execute the the playbook**
 
 Run the playbook using the following commands: ::
 
