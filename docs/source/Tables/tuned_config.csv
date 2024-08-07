@@ -13,6 +13,7 @@ String
 
 Optional","If the user wants to customise the default performance profiles that come with the TuneD package, they can do so by adding the parameters here or by altering the default values present here.
 
+
 **Example**: If you have selected ``accelerator-performance`` set as your TuneD profile, then you can alter the values of parameters such as ``force_latency`` and ``vm.swappiness``. If required, you can also add supported TuneD parameters such as ``vm.nr_hugepages`` with their desired values.
 "
 "**reboot_required**
