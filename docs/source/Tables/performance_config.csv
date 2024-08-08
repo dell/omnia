@@ -1,5 +1,5 @@
 ﻿Parameters,Details
-"**performance_profile**
+"**profile_name**
 
 String
 
@@ -9,7 +9,7 @@ Required","The field captures the performance profile which will be configured o
 
 **Example**: ``accelerator-performance``
 "
-"**tuned_profile_plugin**
+"**profile_parameter**
 
 String
 
