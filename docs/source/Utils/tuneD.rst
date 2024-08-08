@@ -29,6 +29,7 @@ Here's a sample of the ``utils/performance_config.yml`` file:
 .. image:: ../images/tuned_config.png
 
 .. note:: For Intel Gaudi accelerators, Omnia recommends to add the ``vm.nr_hugepages`` as a ``profile_parameter`` under ``sysctl`` and set its value to 156300. Check out the sample image below:
+
     .. image:: ../images/tuneD_intel_habana.png
         :width: 300pt
 
