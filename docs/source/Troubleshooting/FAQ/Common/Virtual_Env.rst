@@ -11,7 +11,7 @@ Virtual environment
 
 * Executing ``./prereq.sh`` installs all the packages and sets up the virtual environment - but doesn't activate it. You can activate the Python virtual environment using the following command: ::
 
-    source /opt/omnia17_ven/bin/activate
+    source /opt/omnia17_venv/bin/activate
 
  .. image:: ../../../images/virtual_env_2.png
 
