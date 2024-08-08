@@ -1,0 +1,34 @@
+﻿Parameters,Details
+"**performance_profile**
+
+String
+
+Required","The field captures the performance profile which will be configured on the nodes. To see and get a brief summary of all of the available profiles, use the ``tuned-adm list`` command.
+
+
+
+**Example**: ``accelerator-performance``
+"
+"**tuned_profile_plugin**
+
+String
+
+Optional","If you want to customise the default performance profiles, you can do so by adding the parameters here or by altering the default values present here.
+
+
+
+**Example**: If you have selected ``accelerator-performance`` as your performance profile, then you can alter the values of parameters such as ``force_latency`` and ``vm.swappiness``. If required, you can also add supported other supported parameters such as ``vm.nr_hugepages`` with their desired values.
+
+"
+"**reboot_required**
+
+String
+
+Required","The value provided for this field denotes if the device should be rebooted after peformance profile configuration.
+
+**Choices**:
+
+``Yes``
+
+``No`` -> default
+"

@@ -1,26 +1,26 @@
-TuneD accelerator configuration
-================================
+Performance profile configuration
+==================================
 
-.. caution:: TuneD profile installation and accelerator configuration is supported exclusively for Intel Gaudi accelerators present in Ubuntu clusters.
+.. caution:: Performance profile installation and accelerator configuration is supported exclusively for Intel Gaudi accelerators present in Ubuntu clusters.
 
-TuneD profiles enable you to optimize system performance for specific workloads. Omnia supports the configuration of TuneD profiles for Ubuntu clusters that have Intel Gaudi GPUs. These profiles come with predefined settings tailored to different use cases.
-For more information related to TuneD, `click here <https://ubuntu.com/server/docs/tuned>`_.
+Performance profiles enable you to optimize system performance for specific workloads. Omnia supports the configuration of performance profiles for Ubuntu clusters that have Intel Gaudi GPUs. These profiles come with predefined settings tailored to different use cases.
+For more information, `click here <https://ubuntu.com/server/docs/tuned>`_.
 
 **Prerequisites**
 
 * **Create an Inventory file**
 
-To configure TuneD profiles, list all the nodes for which you want to apply the profiles in an inventory file. For example: ::
+To configure performance profiles, list all the nodes for which you want to apply the profiles in an inventory file. For example: ::
 
     node3
     node1
 
-* **Configure TuneD profiles**
+* **Configure Performance profiles**
 
 In the ``utils/performance_profile_config.yml`` file, under ``intel_gpu``, add or alter the values based on the following list of parameters:
 
-.. csv-table:: Parameters for TuneD configuration
-   :file: ../Tables/tuned_config.csv
+.. csv-table:: Parameters for performance profile configuration
+   :file: ../Tables/performance_config.csv
    :header-rows: 1
    :keepspace:
 
