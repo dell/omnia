@@ -1,5 +1,5 @@
 ﻿Parameters,Details
-"**profile_name**
+"**performance_profile**
 
 String
 
@@ -9,11 +9,11 @@ Required","The field captures the performance profile which will be configured o
 
 **Example**: ``accelerator-performance``
 "
-"**profile_parameter**
+"**performance_profile_plugin**
 
 String
 
-Optional","If you want to customise the default performance profiles, you can do so by adding the parameters here or by altering the default values present here.
+Optional","If you want to customise the default performance profiles, you can do so by adding multiple plugins/parameters or by altering the default values present here. If there is no need to modify the profile, the ``performance_profile_plugin`` section can be left as it is. By default, it takes the pre-defined plugin values placed in the profile.
 
 
 
@@ -28,7 +28,7 @@ Required","The value provided for this field denotes if the device should be reb
 
 **Choices**:
 
-``Yes``
+``yes``
 
-``No`` -> default
+``no`` -> default
 "
