@@ -29,15 +29,15 @@ Configure specific local repositories
 
             ::
 
-                {"name": "gaudi", "version": "1.16.2-2"},
+                {"name": "intelgaudi", "version": "1.16.2-2"},
 
         * Add the following line below the ``softwares`` section:
 
             ::
 
-                "gaudi": [
+                "intelgaudi": [
                                 {"name": "habana"}
-                          ]
+                              ]
 
         * A sample format is available `here. <InputParameters.html>`_
 

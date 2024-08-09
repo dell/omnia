@@ -88,7 +88,8 @@ software_config.json for Ubuntu
                 {"name": "vllm"},
                 {"name": "telemetry"},
                 {"name": "ucx", "version": "1.15.0"},
-                {"name": "openmpi", "version": "4.1.6"}
+                {"name": "openmpi", "version": "4.1.6"},
+                {"name": "intelgaudi", "version": "1.16.2-2"}
             ],
 
             "bcm_roce": [
@@ -97,6 +98,9 @@ software_config.json for Ubuntu
             "amdgpu": [
                 {"name": "rocm", "version": "6.0" }
             ],
+            "intelgaudi": [
+                {"name": "habana"}
+            ],
             "vllm": [
                 {"name": "vllm_amd"},
                 {"name": "vllm_nvidia"}
@@ -104,7 +108,8 @@ software_config.json for Ubuntu
             "pytorch": [
                 {"name": "pytorch_cpu"},
                 {"name": "pytorch_amd"},
-                {"name": "pytorch_nvidia"}
+                {"name": "pytorch_nvidia"},
+                {"name": "pytorch_gaudi"}
             ],
             "tensorflow": [
                 {"name": "tensorflow_cpu"},
