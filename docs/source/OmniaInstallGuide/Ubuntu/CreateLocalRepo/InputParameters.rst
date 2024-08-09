@@ -56,7 +56,8 @@ Input parameters for Local Repositories
             "pytorch": [
                 {"name": "pytorch_cpu"},
                 {"name": "pytorch_amd"},
-                {"name": "pytorch_nvidia"}
+                {"name": "pytorch_nvidia"},
+                {"name": "pytorch_gaudi"}
             ],
             "tensorflow": [
                 {"name": "tensorflow_cpu"},

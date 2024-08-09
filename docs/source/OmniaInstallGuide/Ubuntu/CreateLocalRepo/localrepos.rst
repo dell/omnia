@@ -224,7 +224,8 @@ For information on deploying kubeflow after setting up the cluster, `click here 
                 "pytorch": [
                     {"name": "pytorch_cpu"},
                     {"name": "pytorch_amd"},
-                    {"name": "pytorch_nvidia"}
+                    {"name": "pytorch_nvidia"},
+                    {"name": "pytorch_gaudi"}
                 ],
 
         * A sample format is available `here. <InputParameters.html>`_
