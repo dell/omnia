@@ -11,3 +11,5 @@ Advanced configurations for Ubuntu clusters
     ConfiguringSwitches/index
     IPruleassignment
     AdditionalNIC
+    ROCm_accelerator
+    Habana_accelerator
