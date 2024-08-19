@@ -181,7 +181,7 @@ For information on deploying BeeGFS after setting up the cluster, `click here <.
 
     To install Kubernetes, include the following line under ``softwares`` in ``input/software_config.json``: ::
 
-            {"name": "k8s", "version":"1.26.12"},
+            {"name": "k8s", "version":"1.29.5"},
 
 For more information about installing Kubernetes, `click here <../BuildOmniaCluster/install_kubernetes.html>`_.
 

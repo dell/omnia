@@ -27,7 +27,7 @@ Input parameters for Local Repositories
                 {"name": "nfs"},
                 {"name": "beegfs", "version": "7.4.2"},
                 {"name": "slurm"},
-                {"name": "k8s", "version":"1.26.12"},
+                {"name": "k8s", "version":"1.29.5"},
                 {"name": "jupyter"},
                 {"name": "kubeflow"},
                 {"name": "kserve"},

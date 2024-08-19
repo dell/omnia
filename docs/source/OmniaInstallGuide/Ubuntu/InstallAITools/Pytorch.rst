@@ -71,3 +71,14 @@ For more information, `click here <https://rocm.docs.amd.com/projects/install-on
     nerdctl  run --gpus all -it --rm nvcr.io/nvidia/pytorch:23.12-py3
 
 For more information, `click here <https://catalog.ngc.nvidia.com/orgs/nvidia/containers/pytorch>`_.
+
+**Accessing PyTorch (Intel Gaudi accelerator)**
+
+1. Verify that the PyTorch image present in container engine images: ::
+
+    nerdctl images
+
+2. Use the container image per your needs: ::
+
+    nerdctl run -it --privileged -e HABANA_VISIBLE_DEVICES=all -e OMPI_MCA_btl_vader_single_copy_mechanism=none --cap-add=sys_nice --net=host --ipc=host vault.habana.ai/gaudi-docker/1.16.2/ubuntu22.04/habanalabs/pytorch-installer-2.2.2:latest
+
