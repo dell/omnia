@@ -3,7 +3,7 @@ Performance profile configuration
 
 .. caution:: Performance profile installation and accelerator configuration is supported exclusively for Intel Gaudi accelerators present in Ubuntu clusters.
 
-Performance profiles enable you to optimize system performance for specific workloads. Omnia supports the configuration of performance profiles for Ubuntu clusters that have Intel Gaudi GPUs. These profiles come with predefined settings tailored to different use cases.
+Performance profiles enable you to optimize system performance for specific workloads. Omnia supports the configuration of performance profiles for Ubuntu clusters that have Intel Gaudi accelerators. These profiles come with predefined settings tailored to different use cases.
 For more information, `click here <https://ubuntu.com/server/docs/tuned>`_.
 
 **Prerequisites**
