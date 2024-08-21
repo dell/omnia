@@ -128,6 +128,7 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
         - ``/docker-registry``
         - ``/opt/omnia``
         - ``/var/log/omnia``
+        - ``/opt/omnia17_venv/``
     * On subsequent runs of ``discovery_provision.yml``, if users are unable to log into the server, refresh the ssh key manually and retry. ::
 
         ssh-keygen -R <node IP>
