@@ -53,7 +53,8 @@ if [[ $gaudi_check == *"Habana Labs Ltd"*  ]]; then
       habanalabs-qual \
       habanalabs-rdma-core \
       habanalabs-thunk \
-      habanatools
+      habanatools \
+      habanalabs-firmware-odm
 
     # This number was defined by Habana team and is the number used in IDC clusters
     sysctl -w vm.nr_hugepages=156300

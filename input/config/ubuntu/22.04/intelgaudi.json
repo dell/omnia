@@ -47,6 +47,11 @@
         "repo_name": "gaudi"
       },
       {
+        "package": "habanalabs-firmware-odm={{ intelgaudi_version }}",
+        "type": "deb",
+        "repo_name": "gaudi"
+      },
+      {
         "package": "cmake",
         "type": "deb",
         "repo_name": "jammy"

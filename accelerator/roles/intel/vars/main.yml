@@ -30,6 +30,7 @@ intel_habana_packages:
   - habanalabs-rdma-core
   - habanalabs-thunk
   - habanatools
+  - habanalabs-firmware-odm
 
 # TODO: move to a central config file
 intel_apt_base_packages:

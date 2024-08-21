@@ -1,0 +1,41 @@
+#!/bin/bash
+################################################################################################################
+#  omnia_gaudi_update_fw:
+#      Update Intel Gaudi firmware on all the cluster nodes
+#
+#################################################################################################################
+echo "--------------------------" >> /var/log/xcat/xcat.log
+echo "Update firmware on Intel Gaudi accelerators" >> /var/log/xcat/xcat.log
+
+gaudi_check=`lspci | grep -i "Processing accelerators: Habana Labs Ltd."`
+
+validate_ubuntu_os="$(cat /etc/os-release | grep 'ID=ubuntu' | wc -l)"
+
+export DEBIAN_FRONTEND=noninteractive
+
+# on node with gaudi
+if [[ $gaudi_check == *"Habana Labs Ltd"*  ]]; then
+
+  if [[ $validate_ubuntu_os == "1" ]]; then
+
+    echo "Update Intel Gaudi firmware" >> /var/log/xcat/xcat.log
+
+    #Unload Gaudi driver
+    modprobe -r habanalabs && modprobe -r habanalabs_cn && modprobe -r habanalabs_en
+
+    #Reset Gaudi devices
+    hl-fw-loader -R -y
+
+    #Update Gaudi firmware to the default version
+    hl-fw-loader -y
+
+    #load Gaudi driver
+    modprobe habanalabs_en && modprobe habanalabs_cn && modprobe habanalabs
+
+    
+    echo "Intel Gaudi firmware update completed" >> /var/log/xcat/xcat.log
+
+  fi
+
+fi
+echo "-----------------------------" >> /var/log/xcat/xcat.log
