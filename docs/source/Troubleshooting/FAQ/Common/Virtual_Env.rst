@@ -1,11 +1,12 @@
 Virtual environment
 =====================
 
-⦾ **What to do if the prereq.sh script execution doesn't activate the Python virtual environment?**
+⦾ **After executing prereq.sh script, why do I see the error displayed below?**
 
 .. image:: ../../../images/virtual_env_1.png
+    :width: 600pt
 
-**Potential Cause**: Incorrect syntax used while executing the ``prereq.sh`` script.
+**Potential Cause**: The virtual environment created by the ``prereq.sh`` script is not activated. The activation of the virtual environment is completely user-driven.
 
 **Resolution**:
 
