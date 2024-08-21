@@ -1,0 +1,58 @@
+# Copyright 2024 Intel Corporation.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Check bring_up_ports.sh exists or not
+  ansible.builtin.stat:
+    path: "{{ intel_bring_up_ports_script_path }}"
+  register: check_bring_up_script
+
+- name: Create bring_up_ports.sh
+  when: not check_bring_up_script.stat.exists
+  ansible.builtin.blockinfile:
+    path: "{{ intel_bring_up_ports_script_path }}"
+    create: yes
+    block: |
+      #!/bin/bash
+      /opt/habanalabs/qual/gaudi2/bin/manage_network_ifs.sh --up
+      RET_CODE=$?
+      if [ "${RET_CODE}" -eq "1" ]; then
+        echo "One or more Gaudi 2 ports are down." >> /dev/stderr
+        return 1
+      fi
+
+- name: Change permission on bring_up_ports.sh file
+  file:
+    path: "{{ intel_bring_up_ports_script_path }}"
+    state: file
+    owner: root
+    group: root
+    mode: 0755
+
+- name: Check for existing cron job
+  ansible.builtin.shell: |
+    set -o pipefail
+    crontab -l | grep -q "{{ intel_bring_up_ports_script_path }}"
+  args:
+    executable: /bin/bash
+  register: cron_job_check
+  ignore_errors: yes
+  changed_when: false
+
+- name: Create cronjob for bringing up Gaudi 2 ports
+  when: cron_job_check.rc != 0
+  ansible.builtin.cron:
+    name: "Bring up Gaudi 2 ports"
+    special_time: reboot
+    job: "{{ intel_bring_up_ports_script_path }}"
