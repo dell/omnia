@@ -24,6 +24,6 @@ Virtual environment
 
 ⦾ **While executing any Omnia playbook, why do I encounter a "No such file or directory" or "Install ansible" error?**
 
-**Potential Cause**: Ansible is not installed on the control plane server.
+**Potential Cause**: Omnia playbooks are being executed outside of the Omnia virtual environment.
 
-**Resolution**: Ansible is mandatory for Omnia's functionality. Use the ``prereq.sh`` script to install set up the Omnia virtual environment and install Ansible on the control plane. For more information, `click here <../../../OmniaInstallGuide/Ubuntu/Prereq.sh/index.html>`_.
+**Resolution**: Use the ``prereq.sh`` script to set up the Omnia virtual environment and install Ansible on the control plane. Activate the virtual environment following the steps provided `here <../../../OmniaInstallGuide/Ubuntu/Prereq.sh/index.html>`_ and then execute the playbooks.
