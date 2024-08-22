@@ -22,7 +22,11 @@ Virtual environment
     (omnia) [root@<control_plane_name> omnia]#
 
 
-⦾ **While executing any Omnia playbook, why do I encounter a "No such file or directory" or "Install ansible" error?**
+⦾ **While executing any Omnia playbook, why do I encounter a "Command not found" or "Command 'ansible-playbook' not found" error?**
+
+.. image:: ../../../images/virtual_env_error_1.png
+
+.. image:: ../../../images/virtual_env_error_2.png
 
 **Potential Cause**: Omnia playbooks are being executed outside of the Omnia virtual environment.
 
