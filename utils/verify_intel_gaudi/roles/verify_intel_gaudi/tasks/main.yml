@@ -33,7 +33,7 @@
   when: lspci_output.stdout | length > 0
 
 - name: Include omnia_config.yml
-  ansible.builtin.include_vars: "{{ role_path }}/../../../input/omnia_config.yml"
+  ansible.builtin.include_vars: "{{ role_path }}/../../../../../input/omnia_config.yml"
 
 - name: Verify hl-qual on Gaudi nodes
   ansible.builtin.include_tasks: hlqual_validation.yml

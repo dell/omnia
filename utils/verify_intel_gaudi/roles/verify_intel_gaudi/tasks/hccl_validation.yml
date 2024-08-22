@@ -33,9 +33,14 @@
     suffix: omnia_gaudi_hccl_test
   register: test_folder
 
+- name: Local local_repo_access.yml file
+  ansible.builtin.include_vars: "{{ local_repo_access_dest_path }}"
+  delegate_to: localhost
+  delegate_facts: yes
+
 - name: Get hccl_demo git repo tarball
   ansible.builtin.get_url:
-    url: "{{ offline_git_path }}/hccl_demo.tar.gz"
+    url: "{{ hostvars['localhost']['offline_git_path'] }}/hccl_demo.tar.gz"
     dest: "{{ test_folder.path }}"
     mode: "644"
 
