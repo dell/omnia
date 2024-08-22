@@ -25,6 +25,7 @@ Virtual environment
 ⦾ **While executing any Omnia playbook, why do I encounter a "Command not found" or "Command 'ansible-playbook' not found" error?**
 
 .. image:: ../../../images/virtual_env_error_1.png
+    :width: 650pt
 
 .. image:: ../../../images/virtual_env_error_2.png
 
