@@ -73,7 +73,7 @@ def check_gaudi_existence():
     Method to check whether Gaudi is present
     '''
     gaudi_output = invoke_commands.call_command_with_pipe\
-        ("lspci|grep \"Habana Labs Ltd. Device\"")
+        ("lspci|grep \"Processing accelerators: Habana Labs Ltd.\"")
     if (gaudi_output is not None) and len(gaudi_output)>0:
         dict_component_existence["intelgaudi"] = True
     else:
