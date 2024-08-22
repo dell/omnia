@@ -52,6 +52,3 @@ roce_postscripts_path:
 gaudi_postscripts_path:
   - { src: "{{ role_path }}/templates/omnia_gaudi.j2", dest: "/install/postscripts/omnia_gaudi", mode: "755" }
 
-# Usage: update_gaudi_firmware.yml
-gaudi_postscripts_path:
-  - { src: "{{ role_path }}/templates/omnia_gaudi_update_fw.j2", dest: "/install/postscripts/omnia_gaudi_update_fw", mode: "755" }

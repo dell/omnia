@@ -17,7 +17,6 @@
   ansible.builtin.set_fact:
     intel_gaudi_config_status: false
     intel_gaudi_input_status: false
-    intel_guadi_update_fw: false
 
 - name: Get intel gaudi status
   ansible.builtin.set_fact:

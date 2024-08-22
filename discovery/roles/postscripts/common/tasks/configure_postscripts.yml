@@ -85,10 +85,3 @@
   ansible.builtin.command: chdef all -p postscripts=omnia_gaudi
   changed_when: true
   when: intel_gaudi_config_status
-
-- name: Configure postscripts for Intel Gaudi firmware update
-  ansible.builtin.command: chdef all -p postscripts=omnia_gaudi_update_fw
-  changed_when: true
-  when: 
-    - intel_gaudi_config_status
-    - intel_guadi_update_fw
