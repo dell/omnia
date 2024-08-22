@@ -13,8 +13,13 @@
 # limitations under the License.
 ---
 
+# TODO: This playbook need to be called during the default omnia
+# provisioning of Gaudi devices.
+# This will make sure the device will function properly and help early
+# detection of HW/SW missing requirements.
+
 - name: Verify Intel Gaudi installation
-  hosts: slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login, etcd
+  hosts: slurm_node, kube_node
   gather_facts: true
   any_errors_fatal: true
   roles:

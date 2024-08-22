@@ -50,12 +50,6 @@
 - name: Import playbook to install ROCm on nodes
   ansible.builtin.import_playbook: utils/rocm_installation.yml
 
-# By default, this will run verify steps for Intel Gaudi installation.
-# If you want to skip this verify, you can add `--skip-tags verify_intel_gaudi_install` option to ansible-playbook.
-- name: Import playbook to verify Intel Gaudi Installation
-  ansible.builtin.import_playbook: utils/verify_intel_gaudi_installation.yml
-  tags: verify_intel_gaudi_install
-
 - name: Configure security on nodes
   ansible.builtin.import_playbook: security/security.yml
 
