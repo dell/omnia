@@ -22,7 +22,7 @@
     path: "{{ verify_intel_gaudi_habana_tests['habana_logs'] }}"
     state: directory
     recurse: true
-    mode: '0777'
+    mode: "{{ verify_intel_gaudi_habana_tests['habana_logs_permission'] }}"
 
 - name: Run hl_qual hardware sanity check test
   environment:

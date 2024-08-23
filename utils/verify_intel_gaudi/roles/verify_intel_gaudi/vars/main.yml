@@ -19,17 +19,20 @@ verify_intel_gaudi_with_sanity_test_only: true
 local_repo_access_dest_path: "/opt/omnia/offline/local_repo_access.yml"
 
 verify_intel_gaudi_device_pattern: "Processing accelerators: Habana Labs Ltd."
+gaudi2_pci_vendor_device_class: "1da3:1020:1200"
 
 verify_intel_gaudi_habana_tests:
   log_level_all: "4"
   enable_console: "true"
   habana_logs: "/var/log/habana_logs"
+  habana_logs_permission: "0777"
   gc_kernel_path: "/usr/lib/habanalabs/libtpc_kernels.so"
   habana_scal_bin_path: "/opt/habanalabs/engines_fw"
   habana_plugins_lib_path: "/opt/habanalabs/habana_plugins"
   data_loader_aeon_lib_path: "/usr/lib/habanalabs/libaeon.so"
   rdma_core_root: "/opt/habanalabs/rdma-core/src"
   rdma_core_lib: "/opt/habanalabs/rdma-core/src/build/lib"
+  targz_permission: "644"
 
 verify_intel_gaudi_habana_extra:
   hccl_comm_id: "127.0.0.1:5555"

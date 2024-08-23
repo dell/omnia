@@ -20,7 +20,7 @@
 - name: Check node has Gaudi2 or not
   ansible.builtin.shell: |
     set -o pipefail
-    lspci -n -d 1da3:1020:1200
+    lspci -n -d {{ gaudi2_pci_vendor_device_class }}
   register: lspci_output
   changed_when: false
   failed_when: false
@@ -31,9 +31,6 @@
   ansible.builtin.set_fact:
     node_has_accelerator: true
   when: lspci_output.stdout | length > 0
-
-- name: Include omnia_config.yml
-  ansible.builtin.include_vars: "{{ role_path }}/../../../../../input/omnia_config.yml"
 
 - name: Verify hl-qual on Gaudi nodes
   ansible.builtin.include_tasks: hlqual_validation.yml

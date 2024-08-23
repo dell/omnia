@@ -42,7 +42,7 @@
   ansible.builtin.get_url:
     url: "{{ hostvars['localhost']['offline_git_path'] }}/hccl_demo.tar.gz"
     dest: "{{ test_folder.path }}"
-    mode: "644"
+    mode: "{{ verify_intel_gaudi_habana_tests['targz_permission'] }}"
 
 - name: Untar hccl_demo git repo
   ansible.builtin.unarchive:
