@@ -1,4 +1,5 @@
 # Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Intel Corporation.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,6 +25,7 @@ from collections import defaultdict
 import utility
 import data_collector_nvidia_gpu
 import data_collector_amd_gpu
+import data_collector_gaudi
 import prerequisite
 
 class HealthCheckMetricCollector:
@@ -128,6 +130,35 @@ class HealthCheckMetricCollector:
 
         # get thermal health details for AMD GPU
         health_metrics['gpu_thermal'] = data_collector_amd_gpu.get_gpu_health_thermal()
+
+        self.gpu_health_metrics(health_metrics)
+
+    def get_gaudi_metrics(self):
+        '''
+        This method collects all the gaudi health metrics
+        '''
+        health_metrics = defaultdict(list)
+        # run hl-smi command and store output in a variable
+        gaudi_metrics_cmd_output = data_collector_gaudi.get_gaudi_metrics_output()
+
+        # get driver health details for Gaudi
+        health_metrics['gpu_driver'] = data_collector_gaudi.get_gpu_health_driver(gaudi_metrics_cmd_output)
+        # get nvlink health details for Gaudi
+        health_metrics['gpu_nvlink'] = None
+
+        # get pcie health details for Gaudi
+        health_metrics['gpu_pcie'] = data_collector_gaudi.get_gpu_health_pcie(gaudi_metrics_cmd_output)
+
+        # get pmu health details for Gaudi
+        health_metrics['gpu_pmu'] = None
+
+        # get power health details for Gaudi
+        gpu_power_max,gpu_power_avg = data_collector_gaudi.get_gpu_health_power(gaudi_metrics_cmd_output)
+        health_metrics['gpu_power_max'] = gpu_power_max
+        health_metrics['gpu_power_avg'] = gpu_power_avg
+
+        # get thermal health details for Gaudi
+        health_metrics['gpu_thermal'] = data_collector_gaudi.get_gpu_health_thermal(gaudi_metrics_cmd_output)
 
         self.gpu_health_metrics(health_metrics)
 
@@ -287,7 +318,10 @@ class HealthCheckMetricCollector:
         # Run only when amd gpu present
         if prerequisite.dict_component_existence['amdgpu']:
             self.get_amd_metrics()
-        if prerequisite.dict_component_existence['nvidiagpu'] is False and prerequisite.dict_component_existence['amdgpu'] is False:
+        # Run only when gaudi present
+        if prerequisite.dict_component_existence['intelgaudi']:
+            self.get_gaudi_metrics()
+        if prerequisite.dict_component_existence['nvidiagpu'] is False and prerequisite.dict_component_existence['amdgpu'] is False and prerequisite.dict_component_existence['intelgaudi'] is False:
             self.health_check_metric_output_dict["gpu_health_driver"] = \
                 utility.Result.UNKNOWN.value
             self.health_check_metric_output_dict["gpu_health_nvlink"] = \
