@@ -15,10 +15,10 @@
 
 input_params_folder: "../input"
 Control_plane_dir: "../"
-Gaudi_validation_script_path: test_Gaudi_validation.yml 
+Gaudi_validation_script_path: test_Gaudi_validation.yml
 inventory: ../inventory.ini
 
-Gaudi_Default_version: "1.17.0"
+Gaudi_Default_version: "1.17.1"
 
 version_pass: 'Gaudi driver version installed on the nodes matched successfully with the default version'
 version_fail: 'Gaudi driver version installed on the nodes does not matched with the default version'
