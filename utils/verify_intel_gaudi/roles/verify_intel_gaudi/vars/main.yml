@@ -13,10 +13,13 @@
 # limitations under the License.
 ---
 
-# This variable controls running hardware sanity test only or not, when verify Intel Gaudi installation with hl_qual.
-verify_intel_gaudi_with_sanity_test_only: true
-
 local_repo_access_dest_path: "/opt/omnia/offline/local_repo_access.yml"
+
+omnia_config_filename: "{{ role_path }}/../../../../input/omnia_config.yml"
+omnia_vault_path: "{{ role_path }}/../../../../../input/.omnia_vault_key"
+ansible_vault_search_key: "$ANSIBLE_VAULT;"
+omnia_config_syntax_fail_msg: "Failed. Syntax errors present in omnia_config.yml. Fix errors and re-run playbook again."
+omnia_config_file_permission: '0644'
 
 verify_intel_gaudi_device_pattern: "Processing accelerators: Habana Labs Ltd."
 gaudi2_pci_vendor_device_class: "1da3:1020:1200"

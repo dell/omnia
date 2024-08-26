@@ -32,6 +32,11 @@
     node_has_accelerator: true
   when: lspci_output.stdout | length > 0
 
+- name: Include omnia_config.yml
+  block:
+    - ansible.builtin.include_tasks: include_omnia_config.yml
+  delegate_to: localhost
+
 - name: Verify hl-qual on Gaudi nodes
   ansible.builtin.include_tasks: hlqual_validation.yml
   when: node_has_accelerator
