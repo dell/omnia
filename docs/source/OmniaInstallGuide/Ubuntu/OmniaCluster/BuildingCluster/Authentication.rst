@@ -38,7 +38,10 @@ The inventory should contain the auth_server as per the inventory file in `sampl
     * To customize the security features on the login node, update the desired parameters in ``input/login_node_security_config.yml``.
     * If a subsequent run of ``security.yml`` fails, the ``security_config.yml`` file will be unencrypted.
 
-.. note:: Installation of OpenLDAP server on the control plane is not supported.
+.. note::
+
+    * Installation of OpenLDAP server on the control plane is not supported.
+    * After the execution of ``security.yml`` or ``omnia.yml`` playbook, Omnia sets up the internal OpenLDAP server for user authentication. You can find the OpenLDAP server running under the ``slapd-ltd.service``.
 
 .. caution:: No users will be created by Omnia.
 
