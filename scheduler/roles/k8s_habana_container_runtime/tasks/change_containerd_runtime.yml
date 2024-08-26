@@ -42,6 +42,7 @@
         runtime_type = "io.containerd.runc.v2"
         [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.habana.options]
           BinaryName = "/usr/bin/habana-container-runtime"
+          systemdCgroup = true
       {% endfilter %}
 
 - name: Add habana-container-runtime Configuration Block 2

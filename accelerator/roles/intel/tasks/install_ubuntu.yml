@@ -39,16 +39,6 @@
         name: "{{ intel_habana_packages | list }}"
         update_cache: true
 
-    - name: Get Secure Boot Status
-      ansible.builtin.shell: |
-        set -o pipefail
-        mokutil --sb-state | grep SecureBoot
-      register: sb_out
-      failed_when: (sb_out.stdout.find('enabled') != -1)
-      changed_when: false
-      args:
-        executable: /bin/bash
-
     - name: Add Gaudi kernel modules
       community.general.modprobe:
         name: "{{ item }}"
