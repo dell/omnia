@@ -41,7 +41,7 @@ The inventory should contain the auth_server as per the inventory file in `sampl
 .. note::
 
     * Installation of OpenLDAP server on the control plane is not supported.
-    * After the execution of ``security.yml`` or ``omnia.yml`` playbook, Omnia sets up the internal OpenLDAP server for user authentication. You can find the OpenLDAP server running under the ``slapd-ltd.service``.
+    * Omnia sets up the internal OpenLDAP server for user authentication after the execution of ``security.yml`` or ``omnia.yml`` playbook. If login fails for an OpenLDAP user, then check if the ``slapd-ltd.service`` is running on the authentication server. For more information, `click here <../../../../Troubleshooting/FAQ/Common/Security.html>`_.
 
 .. caution:: No users will be created by Omnia.
 
