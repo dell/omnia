@@ -3,7 +3,7 @@ New Features
 
 * Added support for Intel Gaudi 3 accelerators.
 
-* Configuring the internal OpenLDAP server as a proxy server.
+* The internal OpenLDAP server can now be configured as a proxy server.
 
 * Kubernetes version upgraded to 1.29.5 (Previously 1.26.12).
 
