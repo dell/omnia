@@ -1,21 +1,18 @@
 New Features
 ============
 
-* OS enablement
+* Added support for Intel Gaudi 3 accelerators.
 
-    * RHEL 8.9
-    * RHEL 8.10
-    * Rocky Linux 8.9
-    * Rocky Linux 8.10
+* Configuring the internal OpenLDAP server as a proxy server.
 
-* Configuring the internal OpenLDAP server as a proxy server
+* Kubernetes version upgraded to 1.29.5 (Previously 1.26.12).
 
-* NVIDIA container toolkit for Kubernetes setup
+* Python version upgraded to 3.11 (Previously 3.9).
+
+* Ansible version upgraded to 9.5.1 (Previously 2.14).
+
+* Omnia now executes exclusively within a virtual environment created by the ``prereq.sh`` script.
+
+* Added support for NVIDIA container toolkit for NVIDIA accelerators in a Kubernetes cluster.
 
 * XE9680 with NVIDIA H200 (Leander) accelerators is now supported as a control plane or a cluster node.
-
-
-
-
-
-
