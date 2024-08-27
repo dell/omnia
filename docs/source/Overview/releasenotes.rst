@@ -12,7 +12,7 @@ Releases
 
 * Python version upgraded to 3.11 (Previously 3.9).
 
-* Ansible version upgraded to 9.5.1 (Previously 2.14).
+* Ansible version upgraded to 9.5.1 (Previously 7.7.0).
 
 * Omnia now executes exclusively within a virtual environment created by the ``prereq.sh`` script.
 
