@@ -16,7 +16,7 @@
 # Usage: main.yml
 
 # Usage: python_package_installation.yml
-python_version: python3.9
+python_version: "{{ ansible_python_interpreter }}" 
 pyinstaller_python_package: pyinstaller
 psutil_python_package: psutil
 

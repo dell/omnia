@@ -42,7 +42,7 @@ def update_networks_table():
         netmask = details[0]
         subnet = details[1]
         network_name = create_network_name("bmc_network", subnet)
-        command = f"chdef -t network -o {network_name} net={subnet} mask={netmask} staticrange={start_ip}-{end_ip}"
+        command = f"/opt/xcat/bin/chdef -t network -o {network_name} net={subnet} mask={netmask} staticrange={start_ip}-{end_ip}"
         command_list = command.split()
         try:
             subprocess.run(command_list, capture_output=True)

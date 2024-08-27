@@ -90,7 +90,7 @@
       with_items: "{{ doxcat_patch_path }}"
 
 - name: Create genesis image
-  ansible.builtin.command: "mknb {{ control_plane_arch }}"
+  ansible.builtin.command: "{{ xcat_sbin_path }}/mknb {{ control_plane_arch }}"
   changed_when: true
   when:
     - genesis_image_creation or

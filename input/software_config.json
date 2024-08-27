@@ -7,7 +7,7 @@
         {"name": "bcm_roce", "version": "229.2.61.0"},
         {"name": "openldap"},
         {"name": "nfs"},
-        {"name": "k8s", "version":"1.26.12"},
+        {"name": "k8s", "version":"1.29.5"},
         {"name": "roce_plugin"},
         {"name": "jupyter"},
         {"name": "pytorch"},
@@ -20,6 +20,9 @@
     ],
    "amdgpu": [
         {"name": "rocm", "version": "6.0" }
+    ],
+   "intelgaudi": [
+        {"name": "habana"}
     ],
     "pytorch": [
         {"name": "pytorch_cpu"},

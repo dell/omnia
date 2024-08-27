@@ -14,7 +14,7 @@
 ---
 
 # Usage: update_network_info.yml
-python_version: "python3.9"
+python_version: "{{ ansible_python_interpreter }}" 
 update_network_db: "{{ role_path }}/files/update_nicinfo_db.py"
 server_spec_path: "{{ role_path }}/../../../input/server_spec.yml"
 metadata_nicinfo_path: "/opt/omnia/.data/nic_metadata.yml"

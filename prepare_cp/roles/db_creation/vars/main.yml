@@ -14,6 +14,6 @@
 ---
 
 # Usage: omniadb_tables_creation.yml
-python_version: "python3.9"
+python_version: "{{ ansible_python_interpreter }}" 
 postgres_utility_path: "{{ role_path }}/files/create_omniadb_tables.py"
 db_path: "{{ role_path }}/../../../discovery/roles/db_operations/files"

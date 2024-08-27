@@ -50,7 +50,7 @@ def delete_misc_networks():
     omnia_networks()
     for i in nw_names:
         if i not in omnia_nw_names:
-            command = f"rmdef -t network {i}"
+            command = f"/opt/xcat/bin/rmdef -t network {i}"
             command_list = command.split()
             subprocess.run(command_list, capture_output=True)
 

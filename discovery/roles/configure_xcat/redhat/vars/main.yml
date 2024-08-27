@@ -20,6 +20,7 @@ postgresql_service: "postgresql.service"
 # Usage: main.yml
 os_supported_rhel: "redhat"
 provision_os_rhel: "rhel"
+xcat_path: /opt/xcat/bin
 
 # Usage: configure_kickstart.yml
 xcat_rhel8_path:

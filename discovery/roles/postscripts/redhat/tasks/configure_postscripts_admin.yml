@@ -44,5 +44,5 @@
       with_items: "{{ configeth_patch_path }}"
 
 - name: Configure network and hostname postbootscripts
-  ansible.builtin.command: chdef all -p postbootscripts="confignetwork -s,omnia_hostname"
+  ansible.builtin.command: "{{ xcat_path }}/chdef all -p postbootscripts=\"confignetwork -s,omnia_hostname\""
   changed_when: true

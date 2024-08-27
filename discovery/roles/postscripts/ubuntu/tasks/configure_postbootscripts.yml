@@ -14,13 +14,13 @@
 ---
 
 - name: Configure default postbootscripts
-  ansible.builtin.command: chdef all postbootscripts="otherpkgs"
+  ansible.builtin.command: "{{ xcat_path }}/chdef all postbootscripts=\"otherpkgs\""
   changed_when: true
 
 - name: Configure hostname postbootscripts
-  ansible.builtin.command: chdef all -p postbootscripts="omnia_hostname"
+  ansible.builtin.command: "{{ xcat_path }}/chdef all -p postbootscripts=\"omnia_hostname\""
   changed_when: true
 
 - name: Configure syncfiles postbootscripts
-  ansible.builtin.command: chdef all -p postbootscripts="syncfiles"
+  ansible.builtin.command: "{{ xcat_path }}/chdef all -p postbootscripts=\"syncfiles\""
   changed_when: true

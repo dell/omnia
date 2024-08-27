@@ -101,7 +101,7 @@ local_repo_access_config_file: "/opt/omnia/offline/local_repo_access.yml"
 
 # Usage: generate_ldap_password_hashes.yml
 hashing_python_file: "{{ role_path }}/files/generate_hash.py"
-python_version: python3.9
+python_version: "{{ ansible_python_interpreter }}" 
 
 # Usage: ldap_prereq.yml
 ldap_dir: "/opt/omnia/ldap"

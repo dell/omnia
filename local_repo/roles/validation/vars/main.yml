@@ -26,7 +26,10 @@ jq_package: jq
 repo_pkgs:
   - createrepo
   - yum-utils
-python_version: python3.9
+  - wget
+  - unzip
+  - tar
+python_version: "{{ ansible_python_interpreter }}"
 python_package:
   - requests==2.31.0
   - pyopenssl==21.0.0
@@ -58,6 +61,7 @@ specific_softwares:
   - 'bcm_roce'
   - 'ucx'
   - 'rocm'
+  - 'intelgaudi'
   - 'intel_benchmarks'
   - 'openmpi'
   - 'bcm_roce_libraries'
@@ -192,3 +196,6 @@ subgroup_warning_msg: "bcm_roce_libraries attribute is not mentioned in the bcm_
  so bcm_roce_libraries will not be installed on the nodes post provisioning."
 bcm_roce_libraries_warning_msg: "bcm_roce_libraries object not found in bcm_roce.json,
  so bcm_roce_libraries will not be installed during post provisioning."
+
+# Usage: validate_domain_name.yml
+server_domain_name_blank_msg: "Failed. domain_name is not set in hostname. It should have hostname.domain_name format"

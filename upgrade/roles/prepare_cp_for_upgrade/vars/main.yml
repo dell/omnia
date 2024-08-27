@@ -27,6 +27,7 @@ admin_nic_netmask_fail_msg: "Failed, Admin nic netmask should be same as netmask
 
 # Usage: configure_synclist_files.yml
 local_repo_config_file: "{{ role_path }}/../../../input/local_repo_config.yml"
+xcat_path: /opt/xcat/bin
 
 # Usage: configure_postgres.yml
 xcat_services:

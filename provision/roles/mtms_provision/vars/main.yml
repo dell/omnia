@@ -35,3 +35,4 @@ xcat_manpath_env: "/opt/xcat/share/man:$MANPATH"
 perl_badlang_env: 0
 on_timeout: "300"
 on_timeout_msg: " Wait for 5 mins before powering on the nodes, as iDRACs take time to power off properly."
+xcat_path: /opt/xcat/bin

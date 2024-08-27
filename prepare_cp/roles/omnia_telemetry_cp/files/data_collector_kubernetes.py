@@ -96,16 +96,20 @@ def get_kubectl_get_nodes():
                 total_nodes=len(nodes_json["items"])
                 if total_nodes>0:
                     for index in range(total_nodes):
+                        scheduling_disabled = "False"
+                        # Check if node is unschedulable
+                        if "unschedulable" in nodes_json["items"][index]["spec"].keys():
+                            scheduling_disabled = nodes_json["items"][index]["spec"]["unschedulable"]
                         #Get the status and check if it is "Ready" or not
                         kubelet_status = next( key for key in nodes_json["items"][index]["status"]["conditions"] if key["type"] == "Ready")
-                        if kubelet_status["status"] != "True":
+                        if (scheduling_disabled != "False") or (kubelet_status["status"] != "True"):
                             flag_all_nodes_up = "False"
                             # In case single node is present, then that is both master and child node
                             if total_nodes==1:
                                 flag_child_nodes_up = "False"
                             else:
                                 #Check if non Ready node is a child node
-                                if "node-role.kubernetes.io/master" not in nodes_json["items"][index]["metadata"]["labels"].keys():
+                                if "node-role.kubernetes.io/control-plane" not in nodes_json["items"][index]["metadata"]["labels"].keys():
                                     flag_child_nodes_up = "False"
                                     #break since we found non ready status in child nodes
                                     break

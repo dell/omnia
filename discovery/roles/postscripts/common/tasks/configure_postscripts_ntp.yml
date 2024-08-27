@@ -14,9 +14,9 @@
 ---
 
 - name: Setup ntp
-  ansible.builtin.command: makentp
+  ansible.builtin.command: "{{ xcat_path }}/makentp"
   changed_when: true
 
 - name: Configure postscripts for ntp
-  ansible.builtin.command: chdef all -p postscripts=setupntp
+  ansible.builtin.command: "{{ xcat_path }}/chdef all -p postscripts=setupntp"
   changed_when: true

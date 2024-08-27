@@ -16,7 +16,7 @@
 - name: Fetch otherpkgdir path
   ansible.builtin.shell: >
     set -o pipefail && \
-    lsdef -t osimage -o {{ provision_os_image }} -i otherpkgdir | grep otherpkgdir
+    {{ xcat_path }}/lsdef -t osimage -o {{ provision_os_image }} -i otherpkgdir | grep otherpkgdir
   changed_when: false
   register: fetch_otherpkgdir
 
@@ -101,5 +101,5 @@
     mode: "{{ other_pkg_list_mode }}"
 
 - name: Configure omnia pkglist to osimage
-  ansible.builtin.command: chdef -t osimage -o {{ provision_os_image }} otherpkglist={{ other_pkg_list_dest }}
+  ansible.builtin.command: "{{ xcat_path }}/chdef -t osimage -o {{ provision_os_image }} otherpkglist={{ other_pkg_list_dest }}"
   changed_when: true

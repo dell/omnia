@@ -17,5 +17,5 @@
   ansible.builtin.include_vars: "{{ metadata_path }}"
 
 - name: Configure site table
-  ansible.builtin.command: chdef -t site nameservers="{{ md_pxe_nic_ip }}"
+  ansible.builtin.command: "{{ xcat_path }}/chdef -t site nameservers=\"{{ md_pxe_nic_ip }}\""
   changed_when: true

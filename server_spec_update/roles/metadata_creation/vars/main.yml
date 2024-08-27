@@ -22,5 +22,5 @@ meta_user: "root"
 meta_group: "root"
 
 # Usage: validate_metadata_params.yml
-python_version: "python3.9"
+python_version: "{{ ansible_python_interpreter }}" 
 validate_nic_metadata_py: "{{ role_path }}/files/nic_metadata_validation.py"

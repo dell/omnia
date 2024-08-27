@@ -20,5 +20,5 @@
 
 - name: Set the values for variable
   ansible.builtin.set_fact:
-    node_detail: "{{ inventory_hostname }}"
+    node_detail: "{{ ansible_host }}"
     categories: "{{ Categories }}"

@@ -14,7 +14,7 @@
 ---
 
 # Usage: validate_mapping_file.yml
-python_version: "python3.9"
+python_version: "{{ ansible_python_interpreter }}" 
 validate_mapping_py: "{{ role_path }}/../mapping/files/validate_mapping_file.py"
 pxe_path_fail_msg: "Failed. Please provide a valid pxe_mapping_file_path in provision_config.yml"
 mapping_file_key: "ADMIN_MAC"

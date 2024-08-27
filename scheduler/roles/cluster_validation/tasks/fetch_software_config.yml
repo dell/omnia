@@ -102,6 +102,10 @@
     - name: Load k8s.json
       ansible.builtin.set_fact:
         k8s_packages_json: "{{ lookup('file', k8s_packages_file) | from_json }}"
+  rescue:
+    - name: Unable to fetch k8s version
+      ansible.builtin.fail:
+        msg: "{{ k8s_version_fail_msg }}"
 
 - name: Local local_repo_access.yml file
   ansible.builtin.include_vars: "{{ local_repo_access_dest_path }}"

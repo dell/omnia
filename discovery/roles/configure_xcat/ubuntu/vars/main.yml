@@ -32,6 +32,7 @@ remoteshell_script_path: /install/postscripts/remoteshell
 remoteshell_regexp: "^(.*)MaxStartups 1024(.*)"
 pre_scripts_ubuntu_path:
   - { src: "{{ role_path }}/../ubuntu/templates/temp_pre_scripts_ubuntu.j2", dest: "/opt/xcat/share/xcat/install/scripts/pre.ubuntu.subiquity", mode: "0644" }
+xcat_path: /opt/xcat/bin
 
 # Usage: racadm_config.yml
 racadm_tar_url: "https://dl.dell.com/FOLDER08952875M/1/Dell-iDRACTools-Web-LX-11.0.0.0-5139_A00.tar.gz"

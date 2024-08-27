@@ -13,6 +13,12 @@
 #  limitations under the License.
 ---
 
+- name: Servicetag Host mapping # noqa: role-name[path]
+  hosts: localhost
+  gather_facts: true
+  roles:
+    - ../utils/roles/servicetag_host_mapping
+
 - name: Additional nic update
   hosts: localhost
   connection: local

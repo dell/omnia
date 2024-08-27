@@ -16,5 +16,5 @@
 # Usage: update_metadata.yml
 meta_path: "/opt/omnia/.data/nic_metadata.yml"
 conf_file_mode: "0644"
-python_version: "python3.9"
+python_version: "{{ ansible_python_interpreter }}" 
 update_nic_metadata_py: "{{ role_path }}/files/update_nic_metadata.py"

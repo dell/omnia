@@ -16,7 +16,7 @@
 - name: Task for set PXE to nodes for bmc
   block:
     - name: Set PXE to node object for bmc - {{ item }}
-      ansible.builtin.command: rsetboot {{ item }} net
+      ansible.builtin.command: "{{ xcat_path }}/rsetboot {{ item }} net"
       changed_when: true
       register: set_pxe_bmc
   rescue:
@@ -29,7 +29,7 @@
 - name: Task to power on the nodes for bmc
   block:
     - name: Power on the node - {{ item }}
-      ansible.builtin.command: rpower {{ item }} on
+      ansible.builtin.command: "{{ xcat_path }}/rpower {{ item }} on"
       changed_when: true
       register: power_on_status
 

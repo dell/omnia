@@ -44,6 +44,6 @@
       when: booted_nodes | length > 0
 
     - name: Updatenode
-      ansible.builtin.command: updatenode "{{ booted_nodes_str }}" -F
+      ansible.builtin.command: "{{ xcat_path }}/updatenode \"{{ booted_nodes_str }}\" -F"
       when: booted_nodes | length  > 0
       changed_when: true

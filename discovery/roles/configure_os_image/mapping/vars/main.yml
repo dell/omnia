@@ -18,3 +18,4 @@ mapping_xcat_install_success_msg: "Discovery tasks executed successfully for dis
 Configure PXE and reboot the cluster nodes manually if bmc IP not given for provisioning servers."
 mapping_set_osimage_warning_msg: "[WARNING] nodeset command is not successful for discoverd nodes using mapping. Error:"
 mapping_node_group: "mapping"
+xcat_sbin_path: /opt/xcat/sbin

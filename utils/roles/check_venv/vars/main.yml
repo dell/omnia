@@ -1,0 +1,21 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Usage: check_venv.yml
+venv_active_fail_msg: "The virtual environment for omnia might not be active.Please activate the virtual environment."
+venv_not_by_omnia_fail_msg: " This venv {{ venv_path }} is not created by omnia prereq.sh. Please deactivate this virtual environment . Re-run the prereq.sh script to set up the omnia virtual environment. If pre-req.sh has already been run,please activate the omnia virtual environment.Then, re-run the playbook. "
+collections_path_not_match_waring_msg: "[WARNING]: Expected collection path {{ venv_path }}, but got {{ omnia_collection_path[0] }}. In this case, ansible collections might get installed outside the virtual environment."
+Installed_ansible_collections_path_info_msg:  "Ansible collections will be installed under path {{ omnia_collection_path[0] }} with the current ansible configuration"
+venv_active_success_msg: "The playbook is running inside a virtual environment: {{ venv_path }}"

@@ -14,13 +14,13 @@
 ---
 
 - name: Update IPMI table
-  ansible.builtin.command: "chtab key=ipmi passwd.username={{ bmc_username }} passwd.password={{ bmc_password }}"
+  ansible.builtin.command: "{{ xcat_sbin_path }}/chtab key=ipmi passwd.username={{ bmc_username }} passwd.password={{ bmc_password }}"
   changed_when: true
 
 - name: Check for IPMI entries in password table
   ansible.builtin.shell: >
     set -o pipefail && \
-    tabdump passwd | grep ipmi | wc -l
+    {{ xcat_sbin_path }}/tabdump passwd | grep ipmi | wc -l
   register: ipmi_entries
   changed_when: true
 

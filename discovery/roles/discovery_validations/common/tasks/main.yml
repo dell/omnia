@@ -88,7 +88,7 @@
   ansible.builtin.include_tasks: validate_broadcom_repo.yml
 
 - name: Validate Intel Gaudi repo
-  ansible.builtin.include_tasks: validate_intel_gaudi_repo.yml
+  ansible.builtin.include_tasks: validate_intelgaudi_repo.yml
 
 # Encrypt provision_config_credentials.yml after all the validations are successful
 

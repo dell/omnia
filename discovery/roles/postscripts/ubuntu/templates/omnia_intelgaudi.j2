@@ -1,0 +1,30 @@
+#!/bin/bash
+################################################################################################################
+#  omnia_intelgaudi:
+#      Install Intel Gaudi drivers on all the cluster nodes
+#
+#################################################################################################################
+echo "--------------------------" >> /var/log/xcat/xcat.log
+echo "Checking for Intel Gaudi cards" >> /var/log/xcat/xcat.log
+gaudi_check_processing_xlr8r=`lspci | grep "Processing accelerators: Habana Labs Ltd"`
+validate_ubuntu_os="$(cat /etc/os-release | grep 'ID=ubuntu' | wc -l)"
+if [[ $gaudi_check_processing_xlr8r == *"Habana Labs Ltd"* ]]; then
+  echo "Installing Intel Gaudi" >> /var/log/xcat/xcat.log
+  if [[ $validate_ubuntu_os == "1"  ]]
+  then
+
+    echo "deb [trusted=yes] http://{{ admin_nic_ip }}:80/install{{ repo_store_path }}/cluster/apt/intelgaudi/{{ intelgaudi_version }} ./" >> /etc/apt/sources.list.d/intelgaudi.list
+
+    sudo apt-get update
+    sudo apt install dkms libelf-dev -y
+    sudo apt install linux-headers-$(uname -r) -y
+    sudo apt install -y habanalabs-dkms
+
+
+    rm /etc/apt/sources.list.d/intelgaudi.list
+
+    apt-get update
+    echo "Intel Gaudi driver installation completed" >> /var/log/xcat/xcat.log
+  fi
+  echo "-----------------------------" >> /var/log/xcat/xcat.log
+fi

@@ -31,7 +31,7 @@
     - name: Base dependencies
       ansible.builtin.apt:
         name: "{{ intel_apt_base_packages | list }}"
-        state: latest
+        state: latest  # noqa package-latest
         update_cache: true
 
     - name: Update apt and install habanalabs dependencies
@@ -54,3 +54,6 @@
         name: "{{ item }}"
         state: present
       loop: "{{ intel_gaudi_kernel_module_to_load }}"
+
+    - name: Import playbook to set performance profile on nodes 
+      ansible.builtin.import_playbook: "{{ performance_profile_path }}" 

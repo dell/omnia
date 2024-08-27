@@ -148,10 +148,10 @@ def run_bmc_discover(final_range, stanza_path, bmc_mode):
     """
     command_list = ""
     if bmc_mode == "static" or bmc_mode == "discovery":
-        command = f"bmcdiscover --range {final_range} -z"
+        command = f"/opt/xcat/bin/bmcdiscover --range {final_range} -z"
         command_list = command.split()
     elif bmc_mode == "dynamic":
-        command = f"bmcdiscover --range {final_range} -z -w"
+        command = f"/opt/xcat/bin/bmcdiscover --range {final_range} -z -w"
         command_list = command.split()
     try:
         node_objs = subprocess.run(command_list, capture_output=True, timeout=600)

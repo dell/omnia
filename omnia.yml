@@ -13,6 +13,19 @@
 # limitations under the License.
 ---
 
+- name: Check if virtual environment is active
+  ansible.builtin.import_playbook: utils/check_venv.yml
+  when: not ( check_venv_executed | default(false) | bool )
+
+- name: Set flag
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Set flag to indicate check_venv.yml has been executed
+      ansible.builtin.set_fact:
+        check_venv_executed: true
+
 - name: Update Inventory with ansible_host information
   ansible.builtin.import_playbook: utils/servicetag_host_mapping.yml
   when: not ( update_inventory_executed | default(false) | bool )
@@ -50,6 +63,9 @@
 - name: Import playbook to install ROCm on nodes
   ansible.builtin.import_playbook: utils/rocm_installation.yml
 
+- name: Import playbook to set performance profile on nodes with Intel Gaudi accelerator
+  ansible.builtin.import_playbook: utils/performance_profile/performance_profile.yml
+
 - name: Configure security on nodes
   ansible.builtin.import_playbook: security/security.yml
 
@@ -59,5 +75,6 @@
 - name: Execute slurm/kubernetes
   ansible.builtin.import_playbook: scheduler/scheduler.yml
 
-- name: Import playbook to start telemetry services
-  ansible.builtin.import_playbook: telemetry/telemetry.yml
+# Commenting as k8s deployment changes has to be made in telemetry
+# - name: Import playbook to start telemetry services
+#   ansible.builtin.import_playbook: telemetry/telemetry.yml

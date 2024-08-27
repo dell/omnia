@@ -18,6 +18,7 @@ xcat_root_env: "/opt/xcat"
 xcat_path_env: "/opt/xcat/bin:/opt/xcat/sbin:/opt/xcat/share/xcat/tools"
 xcat_manpath_env: "/opt/xcat/share/man:$MANPATH"
 perl_badlang_env: 0
+xcat_path: /opt/xcat/bin
 
 # Usage: check_nodes_all.yml
 all_nodes_warning_msg: "[WARNING] Not found any nodes using the given discovery mechanism.

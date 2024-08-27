@@ -26,19 +26,20 @@ warning_wait_time: 30
 reprovision_warning_msg: "[WARNING] xcatd services are not running in the server. Re-provisioning of nodes will be skipped for the given inventory."
 control_plane_os_redhat: "redhat"
 control_plane_os_rocky: "rocky"
+xcat_path: /opt/xcat/bin
+xcat_sbin_path: /opt/xcat/sbin
 
 # Usage: package_installation.yml
 ansible_galaxy_collection:
   - ansible.utils:2.5.2
   - community.general:4.8.7
-python_version: python3.9
-snmp_python_package: easysnmp
+python_version: "{{ ansible_python_interpreter }}" 
+#snmp_python_package: easysnmp
 postgres_python_package: psycopg2-binary
 requests_python_package: requests
 pyarrow_python_package: pyarrow
 pandas_python_package: pandas
 passlib_python_package: passlib
-pip_version: pip3.9
 netaddr_pip_package: netaddr
 pexpect_pip_package: pexpect
 

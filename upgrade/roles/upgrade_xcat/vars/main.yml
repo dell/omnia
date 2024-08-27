@@ -43,3 +43,4 @@ max_retries: 10
 
 # Usage: update_xcat_tables.yml
 metadata_path: /opt/omnia/.data/metadata.yml
+xcat_path: /opt/xcat/bin

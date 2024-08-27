@@ -18,7 +18,7 @@ network_spec: "{{ role_path }}/../../../input/network_spec.yml"
 network_spec_syntax_fail_msg: "Failed. Syntax errors present in network_spec.yml. Fix errors and re-run playbook again."
 
 # Usage: validate_server_spec.yml
-python_version: "python3.9"
+python_version: "{{ ansible_python_interpreter }}" 
 validate_server_spec_py: "{{ role_path }}/files/validate_server_spec.py"
 server_spec: "{{ role_path }}/../../../input/server_spec.yml"
 
@@ -49,3 +49,7 @@ fail_cidr_ip_range: "Failed, Cidr overlaps with"
 meta_path: "/opt/omnia/.data/metadata.yml"
 fail_msg_metadata_missing: "Failed, discovery_provision.yml not executed hence metadata is missing. Execute discovery_provision.yml playbook and run again."
 fail_msg_invalid_metadata: "Failed. Invalid entries in metadata.yml. Execute discovery_provision.yml playbook and run again."
+
+# Usage: validate_inventory.yml
+validate_inventory_py: "{{ role_path }}/files/validate_inventory_file.py"
+inventory_fail_msg: "Failed, invalid inventory format: "

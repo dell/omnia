@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+- name: Check if virtual environment is active
+  ansible.builtin.import_playbook: ../utils/check_venv.yml
+  when: not ( hostvars['127.0.0.1']['check_venv_executed'] | default(false) | bool )
 
 - name: Update Inventory with ansible_host information
   ansible.builtin.import_playbook: ../utils/servicetag_host_mapping.yml
@@ -77,6 +80,12 @@
   gather_facts: false
   roles:
     - k8s_start_services
+
+- name: Install nvidia-container-toolkit on nodes with Nvidia GPU
+  hosts: kube_control_plane, kube_node, etcd
+  gather_facts: false
+  roles:
+    - k8s_nvidia_container_toolkit
 
 - name: Apply common Slurm installation and config
   hosts: slurm_control_node, slurm_node, login

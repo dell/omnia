@@ -69,11 +69,11 @@ def update_node_obj():
                 # updating node objects
                 if network_nic is not None and network_ip is not None and network_type is not None:
                     if network_type != "vlan":
-                        command = ["chdef", node_name, f"nictypes.{network_nic}={network_type}"]
+                        command = ["/opt/xcat/bin/chdef", node_name, f"nictypes.{network_nic}={network_type}"]
                         subprocess.run(command)
-                        command = ["chdef", node_name, f"nicips.{network_nic}={network_ip}"]
+                        command = ["/opt/xcat/bin/chdef", node_name, f"nicips.{network_nic}={network_ip}"]
                         subprocess.run(command)
-                        command = ["chdef", node_name, f"nicnetworks.{network_nic}={network_name}"]
+                        command = ["/opt/xcat/bin/chdef", node_name, f"nicnetworks.{network_nic}={network_name}"]
                         subprocess.run(command)
                     else:
                         sql_query_network = f"SELECT {network_name}_device FROM cluster.nicinfo WHERE id = %s"
@@ -81,18 +81,18 @@ def update_node_obj():
                         primary_nic = cursor.fetchone()
  
                         if primary_nic[0]:
-                            command = ["chdef", node_name, f"nictypes.{primary_nic[0]}=ethernet"]
+                            command = ["/opt/xcat/bin/chdef", node_name, f"nictypes.{primary_nic[0]}=ethernet"]
                             subprocess.run(command)
-                            command = ["chdef", node_name, f"nicips.{network_nic}={network_ip}"]
+                            command = ["/opt/xcat/bin/chdef", node_name, f"nicips.{network_nic}={network_ip}"]
                             subprocess.run(command)
-                            command = ["chdef", node_name, f"nicnetworks.{network_nic}={network_name}"]
+                            command = ["/opt/xcat/bin/chdef", node_name, f"nicnetworks.{network_nic}={network_name}"]
                             subprocess.run(command)
-                            command = ["chdef", node_name, f"nictypes.{network_nic}={network_type}", f"nicdevices.{network_nic}={primary_nic[0]}"]
+                            command = ["/opt/xcat/bin/chdef", node_name, f"nictypes.{network_nic}={network_type}", f"nicdevices.{network_nic}={primary_nic[0]}"]
                             subprocess.run(command)
-                            command = ["chdef", node_name, f"nichostnamesuffixes.{network_nic}=-{primary_nic[0]}"]
+                            command = ["/opt/xcat/bin/chdef", node_name, f"nichostnamesuffixes.{network_nic}=-{primary_nic[0]}"]
                             subprocess.run(command)
 
-            command = ["updatenode", node_name, "-P", "confignetwork,omnia_hostname"]
+            command = ["/opt/xcat/bin/updatenode", node_name, "-P", "confignetwork,omnia_hostname"]
             subprocess.run(command)
             time.sleep(1)
 

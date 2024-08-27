@@ -15,6 +15,7 @@
 import psycopg2 as pg
 from cryptography.fernet import Fernet
 
+
 def create_connection():
     with open('/opt/omnia/.postgres/.postgres_pass.key', 'rb') as passfile:
         key = passfile.read()

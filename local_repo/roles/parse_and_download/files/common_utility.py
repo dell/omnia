@@ -124,7 +124,12 @@ def run_createrepo_on_ubuntu_directories(repo_store_path, cluster_os_type, clust
     if len(version_variables.get('amdgpu_version', '').strip()) > 0:
         base_directories.append(os.path.join(repo_store_path, 'cluster', 'apt', 'amdgpu',
                     version_variables.get('amdgpu_version', '')))
-
+    if len(version_variables.get('intelgaudi_version', '').strip()) > 0:
+        base_directories.append(os.path.join(repo_store_path, 'cluster', 'apt', 'intelgaudi',
+                    version_variables.get('intelgaudi_version', '')))
+        if os.path.exists(os.path.join(repo_store_path, 'cluster', 'apt', 'habana')):
+            base_directories.append(os.path.join(repo_store_path, 'cluster', 'apt', 'habana',
+                        version_variables.get('intelgaudi_version', '')))
     for directory in base_directories:
         if os.path.exists(directory):
             run_dpkg_scan(directory)

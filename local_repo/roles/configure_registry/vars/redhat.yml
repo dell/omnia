@@ -29,3 +29,8 @@ nerdctl_folder_dest: "{{ temp_download_dir }}/nerdctl"
 nerdctl_folder_permission: "+x"
 nerdctl_executable_dest: "/usr/local/bin/"
 max_retries: 10
+cni_download_dir: "/opt/cni"
+cni_bin_download_dir: "/opt/cni/bin"
+cni_url: "https://github.com/containernetworking/plugins/releases/download/v1.4.0/cni-plugins-linux-amd64-v1.4.0.tgz"
+cni_archive_dest: "{{ cni_bin_download_dir }}/cni-plugins-linux-amd64-v1.4.0.tgz"
+cni_mode: "u+rwx,go+rx"

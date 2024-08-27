@@ -13,6 +13,6 @@
 #  limitations under the License.
 ---
 
-python: python3.9
+python: "{{ ansible_python_interpreter }}"
 servicetag_host_mapping_script: "{{ role_path }}/files/servicetag_host_mapping.py"
 file_path: "/../../../discovery/roles/db_operations/files/"

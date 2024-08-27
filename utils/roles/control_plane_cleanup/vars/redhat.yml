@@ -28,6 +28,7 @@ nerdctl_del_files:
   - /var/lib/containerd/
   - /etc/systemd/system/nerdctl-registry.service
   - /var/lib/nerdctl/1935db59
+  - /opt/cni
   - /tmp/nerdctl
   - /tmp/nerdctl-1.5.0-linux-amd64.tar.gz
   - /tmp/containerd.io-1.6.16-3.1.el8.x86_64.rpm

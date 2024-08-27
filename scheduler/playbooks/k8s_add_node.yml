@@ -27,10 +27,11 @@
     kube_network_plugin: "{{ hostvars['localhost']['k8s_cni'] }}"
     kube_service_addresses: "{{ hostvars['localhost']['k8s_service_addresses'] }}"
     kube_pods_subnet: "{{ hostvars['localhost']['k8s_pod_network_cidr'] }}"
-    metallb_enabled: true
-    metallb_speaker_enabled: true
     kube_proxy_strict_arp: true
     kube_proxy_mode: 'iptables'
+    metallb_enabled: true
+    metallb_speaker_enabled: true
+    metallb_namespace: "metallb-system"
     metallb_config:
       address_pools:
         primary:
@@ -54,20 +55,20 @@
           - host: https://mirror.gcr.io
             capabilities: ["pull", "resolve"]
             skip_verify: false
-    kubeadm_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/kubeadm.tar.gz"
-    kubectl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/kubectl.tar.gz"
-    kubelet_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/kubelet.tar.gz"
-    crictl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/cri-tools-v1.26.1.tar.gz"
-    calicoctl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/calicoctl-v3.25.2.tar.gz"
-    calico_crds_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/calicocrds-v3.25.2.tar.gz"
+    kubeadm_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/kubeadm-{{ hostvars['localhost']['k8s_version'] }}.tar.gz"
+    kubectl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/kubectl-{{ hostvars['localhost']['k8s_version'] }}.tar.gz"
+    kubelet_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/kubelet-{{ hostvars['localhost']['k8s_version'] }}.tar.gz"
+    crictl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/cri-tools-v1.29.0.tar.gz"
+    calicoctl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/calicoctl-v3.27.3.tar.gz"
+    calico_crds_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/calicocrds-v3.27.3.tar.gz"
     cni_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/cni-plugins-v1.3.0.tar.gz"
-    nerdctl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/nerdctl-v1.5.0.tar.gz"
-    runc_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/runc.amd64.tar.gz"
+    nerdctl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/nerdctl-v1.7.4.tar.gz"
+    runc_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/runc.amd64.v1.1.12.tar.gz"
     docker_rh_repo_base_url: ""
     docker_rh_repo_gpgkey: ""
-    etcd_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/etcd-v3.5.10.tar.gz"
-    containerd_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/containerd-1.7.5.tar.gz"
-    helm_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/helm-v3.12.3.tar.gz"
+    etcd_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/etcd-v3.5.12.tar.gz"
+    containerd_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/containerd-1.7.16.tar.gz"
+    helm_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/helm-v3.14.2.tar.gz"
     http_proxy: "{{ hostvars['localhost']['http_proxy'] }}"
     https_proxy: "{{ hostvars['localhost']['https_proxy'] }}"
 
@@ -85,9 +86,10 @@
     kube_network_plugin: "{{ hostvars['localhost']['k8s_cni'] }}"
     kube_service_addresses: "{{ hostvars['localhost']['k8s_service_addresses'] }}"
     kube_pods_subnet: "{{ hostvars['localhost']['k8s_pod_network_cidr'] }}"
+    kube_proxy_strict_arp: true
     metallb_enabled: true
     metallb_speaker_enabled: true
-    kube_proxy_strict_arp: true
+    metallb_namespace: "metallb-system"
     metallb_config:
       address_pools:
         primary:
@@ -111,19 +113,19 @@
           - host: https://mirror.gcr.io
             capabilities: ["pull", "resolve"]
             skip_verify: false
-    kubeadm_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/kubeadm.tar.gz"
-    kubectl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/kubectl.tar.gz"
-    kubelet_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/kubelet.tar.gz"
-    crictl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/cri-tools-v1.26.1.tar.gz"
-    calicoctl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/calicoctl-v3.25.2.tar.gz"
-    calico_crds_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/calicocrds-v3.25.2.tar.gz"
+    kubeadm_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/kubeadm-{{ hostvars['localhost']['k8s_version'] }}.tar.gz"
+    kubectl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/kubectl-{{ hostvars['localhost']['k8s_version'] }}.tar.gz"
+    kubelet_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/kubelet-{{ hostvars['localhost']['k8s_version'] }}.tar.gz"
+    crictl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/cri-tools-v1.29.0.tar.gz"
+    calicoctl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/calicoctl-v3.27.3.tar.gz"
+    calico_crds_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/calicocrds-v3.27.3.tar.gz"
     cni_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/cni-plugins-v1.3.0.tar.gz"
-    nerdctl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/nerdctl-v1.5.0.tar.gz"
-    runc_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/runc.amd64.tar.gz"
+    nerdctl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/nerdctl-v1.7.4.tar.gz"
+    runc_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/runc.amd64.v1.1.12.tar.gz"
     docker_rh_repo_base_url: ""
     docker_rh_repo_gpgkey: ""
-    etcd_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/etcd-v3.5.10.tar.gz"
-    containerd_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/containerd-1.7.5.tar.gz"
-    helm_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/helm-v3.12.3.tar.gz"
+    etcd_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/etcd-v3.5.12.tar.gz"
+    containerd_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/containerd-1.7.16.tar.gz"
+    helm_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/helm-v3.14.2.tar.gz"
     http_proxy: "{{ hostvars['localhost']['http_proxy'] }}"
     https_proxy: "{{ hostvars['localhost']['https_proxy'] }}"

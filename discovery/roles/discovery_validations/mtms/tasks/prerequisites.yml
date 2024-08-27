@@ -14,5 +14,5 @@
 ---
 
 - name: Install iprange package
-  ansible.builtin.command: "{{ pip_version }} install {{ iprange_package }}"
+  ansible.builtin.command: "{{ python_version }} -m pip install {{ iprange_package }}"
   changed_when: true

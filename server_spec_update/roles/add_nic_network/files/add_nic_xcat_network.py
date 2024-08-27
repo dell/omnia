@@ -32,7 +32,7 @@ def run_command_nw_update(col, start_ip, end_ip, netmask_bits, nic_mode, mtu):
     netmask = details[0]
     subnet = details[1]
     nic_range = start_ip + '-' + end_ip
-    command = f"chdef -t network -o {col} net={subnet} mask={netmask} staticrange={start_ip}-{end_ip} mtu={mtu}"
+    command = f"/opt/xcat/bin/chdef -t network -o {col} net={subnet} mask={netmask} staticrange={start_ip}-{end_ip} mtu={mtu}"
     command_list = command.split()
     try:
         subprocess.run(command_list, capture_output=True)

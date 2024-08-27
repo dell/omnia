@@ -14,7 +14,7 @@
 ---
 
 # Usage: update_new_nic_network.yml
-python_version: "python3.9"
+python_version: "{{ ansible_python_interpreter }}" 
 update_nic_nw_path: "{{ role_path }}/files/add_nic_xcat_network.py"
 nw_spec_path: "{{ role_path }}/../../../input/network_spec.yml"
 cal_path: "{{ role_path }}/../../../discovery/roles/discovery_mechanism/mtms/files"

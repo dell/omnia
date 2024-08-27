@@ -21,6 +21,9 @@
 - name: Validate control plane OS
   ansible.builtin.include_tasks: validate_cp_os.yml
 
+- name: Validate domain_name
+  ansible.builtin.include_tasks: validate_domain_name.yml
+
 - name: Install prerequisites
   ansible.builtin.include_tasks: prerequisites_{{ ansible_distribution | lower }}.yml
 

@@ -13,6 +13,10 @@
 #  limitations under the License.
 ---
 
+- name: Check if virtual environment is active
+  ansible.builtin.import_playbook: check_venv.yml
+  when: not ( check_venv_executed | default(false) | bool )
+    
 - name: Warning and User confirmation for removing cluster
   hosts: localhost
   connection: local
