@@ -14,5 +14,3 @@ New Features
 * Omnia now executes exclusively within a virtual environment created by the ``prereq.sh`` script.
 
 * Added support for NVIDIA container toolkit for NVIDIA accelerators in a Kubernetes cluster.
-
-* XE9680 with NVIDIA H200 (Leander) accelerators is now supported as a control plane or a cluster node.

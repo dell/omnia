@@ -18,9 +18,6 @@ Releases
 
 * Added support for NVIDIA container toolkit for NVIDIA accelerators in a Kubernetes cluster.
 
-* XE9680 with NVIDIA H200 (Leander) accelerators is now supported as a control plane or a cluster node.
-
-
 1.6
 ----
 
