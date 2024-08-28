@@ -1,11 +1,12 @@
-Set up CP
-==============
+Configure Control Plane (OIM)
+===============================
 
-* Step 1
-* Step 2
-* Step 3
-* Step 4
-* Step 5
-* Step 6
-* Step 7
-* Step 8
+* Identify a node to function as a control plane (CP). Ensure that the node is not part of any existing cluster.
+* Check the space requirements for the CP. Add or remove disk space based on the packages that you require. ##provide a link to the space req page##
+* Install the supported OS on the CP. ##provide a link to the OS matrix##
+* Ensure that the CP has access to the internet.
+* Configure the CP NIC.
+* Install GIT on the control plane.
+* Set the hostname of the CP based on the hostname requirements. ##provide a link to the hostname requirements page##
+* Configure the YUM repository on the CP. [Optional: only applicable to RHEL OS]
+* Clone the Omnia repository from GitHub onto the CP.

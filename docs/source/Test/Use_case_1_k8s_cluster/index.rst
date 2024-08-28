@@ -1,5 +1,5 @@
-k8s cluster
-==============
+Create a Kubernetes Cluster with Ubuntu, RHEL, or Rocky Linux OS
+===================================================================
 
 .. toctree::
 
