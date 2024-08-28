@@ -4,6 +4,7 @@ Kubernetes Controllers,Apache License 2.0,HPC Workload Manager,1.29.5
 MariaDB,GPL 2.0,Relational database used by Slurm,10.3
 Docker CE,Apache License 2.0,Docker Service,20.10.2
 NVIDIA container runtime,Apache License 2.0,NVIDIA container runtime library,3.4.2
+habanalabs-container-runtime,Apache License 2.0,Intel Habana container runtime library,1.17.1-40
 Python-pip,MIT License,Python Package,24
 kubelet,Apache License 2.0,"Provides external, versioned ComponentConfig API types for configuring the kubelet",1.29.5
 kubeadm,Apache License 2.0,Provides “fast paths” for creating Kubernetes clusters.,1.29.5
