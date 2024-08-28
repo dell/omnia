@@ -37,7 +37,7 @@ Input parameters for Local Repositories
                 {"name": "telemetry"},
                 {"name": "ucx", "version": "1.15.0"},
                 {"name": "openmpi", "version": "4.1.6"},
-                {"name": "intelgaudi", "version": "1.16.2-2"}
+                {"name": "intelgaudi", "version": "1.17.1-40"}
             ],
 
             "bcm_roce": [
