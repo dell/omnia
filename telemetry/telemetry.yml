@@ -59,3 +59,10 @@
   roles:
     - omnia_telemetry_acquisition
   tags: omnia_telemetry
+
+# Assuming Dell would add this role to deploy Prometheus to monitor compute clusters 
+- name: Install Prometheus for compute clusters
+  hosts: kube_control_plane
+  gather_facts: false
+  roles:
+    - prometheus_gaudi
