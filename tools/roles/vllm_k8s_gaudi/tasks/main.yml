@@ -1,0 +1,32 @@
+# Copyright 2024 Intel Corporation.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Update pvc file
+  ansible.builtin.template:
+    src: persistent_volume_claim.yml.j2
+    dest: "{{ vllm_gaudi_llama3_dest }}persistent_volume_claim.yml"
+    mode: "{{ vllm_gaudi_llama3_mode }}"
+
+- name: Create pvc by k8s
+  ansible.builtin.command: kubectl apply -f "{{ vllm_gaudi_llama3_dest }}persistent_volume_claim.yml"
+
+- name: Update vllm deployment file
+  ansible.builtin.template:
+    src: gaudi-llama3.yml.j2
+    dest: "{{ vllm_gaudi_llama3_dest }}{{ vllm_gaudi_llama3_file }}"
+    mode: "{{ vllm_gaudi_llama3_mode }}"
+
+- name: Install vllm and run llama3 on gaudi by k8s
+  ansible.builtin.command: kubectl apply -f "{{ vllm_gaudi_llama3_dest }}{{ vllm_gaudi_llama3_file }}"
