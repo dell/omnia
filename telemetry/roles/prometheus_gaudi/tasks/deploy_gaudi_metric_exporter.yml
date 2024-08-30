@@ -1,0 +1,66 @@
+# Copyright 2024 Intel Corporation.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+
+
+# Assuming Prometheus was deployed and name space monitoring was created
+
+- name: Define base URL variable
+  set_fact:
+    base_url: "https://vault.habana.ai/artifactory/gaudi-metric-exporter/yaml/"
+    ds_name: "/metric-exporter-daemonset.yaml"
+    svc_name: "/metric-exporter-service.yaml"
+    sm_name: "/metric-exporter-serviceMonitor.yaml"
+
+- name: Define full URL
+  set_fact:
+    ds_url: >
+      {{ base_url }}{{ metric_exporter_version }}{{ ds_name }}
+    svc_url: >
+      {{ base_url }}{{ metric_exporter_version }}{{ svc_name }}
+    sm_url: >
+      {{ base_url }}{{ metric_exporter_version }}{{ sm_name }}
+
+- name: Deploy Gaudi metric exporter daemonset
+  kubernetes.core.k8s:
+    definition: '{{ item }}'
+  with_items:
+    - '{{ lookup("url", "{{ ds_url }}", split_lines=False) | from_yaml_all | list }}'
+  when: item is not none
+
+- name: Deploy Gaudi metric exporter service
+  kubernetes.core.k8s:
+    definition: '{{ item }}'
+  with_items:
+    - '{{ lookup("url", "{{ svc_url }}", split_lines=False) | from_yaml_all | list }}'
+  when: item is not none
+
+- name: Deploy Gaudi metric exporter service monitor
+  kubernetes.core.k8s:
+    definition: '{{ item }}'
+  with_items:
+    - '{{ lookup("url", "{{ sm_url }}", split_lines=False) | from_yaml_all | list }}'
+  when: item is not none
+
+- name: Add label to the service monitor so it will be scraped by Prometheus
+  kubernetes.core.k8s:
+    state: patched
+    kind: ServiceMonitor
+    namespace: monitoring
+    name: metric-exporter
+    definition:
+      metadata:
+        labels:
+          release: monitoring
