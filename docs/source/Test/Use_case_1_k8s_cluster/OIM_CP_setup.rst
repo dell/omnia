@@ -10,3 +10,4 @@ Configure Control Plane (OIM)
 * Set the hostname of the CP based on the hostname requirements. ##provide a link to the hostname requirements page##
 * Configure the YUM repository on the CP. [Optional: only applicable to RHEL OS]
 * Clone the Omnia repository from GitHub onto the CP.
+* [Optional] Set up a proxy server for the CP.

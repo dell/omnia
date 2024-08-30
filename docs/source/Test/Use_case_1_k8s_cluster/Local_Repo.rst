@@ -1,7 +1,8 @@
 Create Local Repositories on OIM
 ==================================
 
-* Before you create local repositories.
+[Optional] To store the software packages offline, download the packages manually and keep it in an user registry/user repo.
+
 * Edit the input/software_config.json file as per the packages that you require on the cluster:
 
     - Go to input/software_config.json file.
@@ -10,8 +11,13 @@ Create Local Repositories on OIM
 
 * Open the input/local_repo_config.yml file and modify as required:
 
-    - To download the packages to the default omnia_repo, add the following parameters: ##add parameter table##
-    - [Optional] To download the packages to an user-defined repository, specify the repository and registry URLs to the following parameters: ##add parameter table##
+    - To download the packages to the default omnia_repo, add the following parameters:
+
+            * ##add parameter table for RHEL##
+            * ##add parameter table for Ubuntu##
+            * ##add parameter table for Rocky##
+
+    - [Optional] To access (pull or download?) the packages to an user-defined repository, specify the repository and registry URLs to the following parameters: ##add parameter table##
 
 * Open the input/provision_config_credentials.yml file and specify your docker enterprise account details to avoid docker pull limit issues: ##add parameter table##
 * To create local repositories, execute the local_repo.yml playbook using the following command:
