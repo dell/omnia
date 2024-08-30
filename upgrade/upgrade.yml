@@ -15,14 +15,28 @@
 
 # This playbook should be invoked with omnia 1.6 format inventory
 
+- name: Set upgrade status
+  hosts: all,localhost
+  connection: local
+  tasks:
+    - name: Validate omnia version
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}/roles/validate_omnia_version"  # noqa:role-name[path]
+
 - name: Invoke omnia.yml
   ansible.builtin.import_playbook: "{{ playbook_dir}}/../omnia.yml"
+  when: upgrade_status | bool
 
 - name: Encrypt input files
   hosts: localhost
   connection: local
-  roles:
-    - encrypt_inputs
+  tasks:
+    - name: Conditionally encrypt inputs
+      when: upgrade_status
+      block:
+        - name: Invoke encrypt inputs
+          ansible.builtin.include_role:
+            name: encrypt_inputs
 
 - name: Display User Message
   hosts: localhost

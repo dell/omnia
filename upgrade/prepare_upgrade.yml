@@ -13,53 +13,122 @@
 # limitations under the License.
 ---
 
-# This playbook should be invoked with -i option pointing to omnia 1.5 inventory file
-- name: Validate parameters from Omnia 1.5 to Omnia 1.6
+- name: Set upgrade status
   hosts: localhost
   connection: local
-  roles:
-    - encrypt_inputs
-    - validate_input_configs
+  tasks:
+    - name: Validate omnia version
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}/roles/validate_omnia_version"  # noqa:role-name[path]
+
+# This playbook should be invoked with -i option pointing to omnia 1.5 inventory file
+- name: Validate parameters
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Validate parameters
+      when: upgrade_status
+      block:
+        - name: Encrypt inputs
+          ansible.builtin.include_role:
+            name: encrypt_inputs
+
+        - name: Validate input configs
+          ansible.builtin.include_role:
+            name: validate_input_configs
 
 - name: Cleanup Control plane
   hosts: localhost
   connection: local
-  roles:
-    - docker_registry_uninstall
-    - telemetry_uninstall
+  tasks:
+    - name: Cleanup Control plane
+      when: upgrade_status
+      block:
+        - name: Docker registry uninstall
+          ansible.builtin.include_role:
+            name: docker_registry_uninstall
+
+        - name: Telemetry uninstall
+          ansible.builtin.include_role:
+            name: telemetry_uninstall
 
 # Uninstall k8s on omnia 1.5 cluster
 - name: Uninstall kubernetes on k8s worker
   hosts: compute
-  roles:
-    - uninstall_k8s_cluster
-    - preinstall_cluster_cleanup
+  tasks:
+    - name: Uninstall kubernetes
+      when: upgrade_status
+      block:
+        - name: Uninstall k8s cluster
+          ansible.builtin.include_role:
+            name: uninstall_k8s_cluster
+
+        - name: Preinstall cluster cleanup
+          ansible.builtin.include_role:
+            name: preinstall_cluster_cleanup
 
 - name: Uninstall kubernetes on k8s manager
   hosts: manager
-  roles:
-    - uninstall_k8s_cluster
-    - preinstall_cluster_cleanup
+  tasks:
+    - name: Uninstall kubernetes
+      when: upgrade_status
+      block:
+        - name: Uninstall k8s cluster
+          ansible.builtin.include_role:
+            name: uninstall_k8s_cluster
+
+        - name: Preinstall cluster cleanup
+          ansible.builtin.include_role:
+            name: preinstall_cluster_cleanup
 
 - name: Uninstall openldap
   hosts: manager, compute, login
-  roles:
-    - uninstall_open_ldap
+  tasks:
+    - name: Uninstall openldap
+      when: upgrade_status
+      block:
+        - name: Uninstall open_ldap
+          ansible.builtin.include_role:
+            name: uninstall_open_ldap
 
 - name: Run local_repo.yml on new input directory
   ansible.builtin.import_playbook: "{{ playbook_dir}}/../local_repo/local_repo.yml"
+  when: upgrade_status
 
 - name: Invoke omnia 1.6 prepare_cp roles # noqa:role-name[path]
   hosts: localhost
   connection: local
-  roles:
-    - "{{ playbook_dir }}/../prepare_cp/roles/configure_proxy"  # noqa:role-name[path]
-    - "{{ playbook_dir }}/../prepare_cp/roles/omnia_telemetry_cp" # noqa:role-name[path]
-    - "{{ playbook_dir }}/../prepare_cp/roles/omnia_appliance_cp" # noqa:role-name[path]
-    - upgrade_omniadb
-    - upgrade_xcat
-    - prepare_cp_for_upgrade
-    - metadata_update
+  tasks:
+    - name: Invoke omnia 1.6 prepare_cp
+      when: upgrade_status
+      block:
+        - name: Invoke configure proxy
+          ansible.builtin.include_role:
+            name: "{{ playbook_dir }}/../prepare_cp/roles/configure_proxy"  # noqa:role-name[path]
+
+        - name: Invoke telemetry cp
+          ansible.builtin.include_role:
+            name: "{{ playbook_dir }}/../prepare_cp/roles/omnia_telemetry_cp" # noqa:role-name[path]
+
+        - name: Invoke omnia appliance
+          ansible.builtin.include_role:
+            name: "{{ playbook_dir }}/../prepare_cp/roles/omnia_appliance_cp" # noqa:role-name[path]
+
+        - name: Upgrade omniadb
+          ansible.builtin.include_role:
+            name: upgrade_omniadb
+
+        - name: Upgrade xcat
+          ansible.builtin.include_role:
+            name: upgrade_xcat
+
+        - name: Invoke prepare_cp
+          ansible.builtin.include_role:
+            name: prepare_cp_for_upgrade
+
+        - name: Import input parameters
+          ansible.builtin.include_role:
+            name: metadata_update
 
 - name: Display User Message
   hosts: localhost
@@ -69,6 +138,12 @@
       ansible.builtin.include_role:
         name: "{{ playbook_dir }}/roles/user_messages"  # noqa:role-name[path]
 
-    - name: Print user message
+    - name: Print user upgrade message
       ansible.builtin.debug:
         msg: "{{ user_msg_prepare_upgrade.split('\n') }}"
+      when: upgrade_status
+
+    - name: Print user message
+      ansible.builtin.debug:
+        msg: "{{ user_msg_prepare_upgrade2.split('\n') }}"
+      when: not upgrade_status
