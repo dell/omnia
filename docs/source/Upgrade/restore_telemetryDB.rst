@@ -1,7 +1,7 @@
 Restoring Telemetry database post Omnia upgrade
 ================================================
 
-After upgrading Omnia, if you want to retain the telemetry data from Omnia v1.5.1, you need to manually restore the telemetry database from the ``telemetry_tsdb_dump.sql`` file. Perform the following steps to do so:
+After upgrading Omnia, if you want to retain the telemetry data from Omnia v1.5.1 or v1.6, you need to manually restore the telemetry database from the ``telemetry_tsdb_dump.sql`` file. Perform the following steps to do so:
 
 1. Copy the backed up telemetry database file, that is ``telemetry_tsdb_dump.sql``, from the ``backup_location`` to ``/opt/omnia/telemetry/iDRAC-Referencing-Tools``.
 
@@ -62,4 +62,4 @@ Next steps
     cd telemetry
     ansible-playbook telemetry.yml -i ../upgrade/inventory
 
-3. After telemetry services are enabled, check ``omnia_telemetry.metrics`` and ``public.timeseries_metrics`` tables to see if the number of rows have increased. This signifies that the fresh telemetry data from Omnia v1.6 is getting updated in the database.
+3. After telemetry services are enabled, check ``omnia_telemetry.metrics`` and ``public.timeseries_metrics`` tables to see if the number of rows have increased. This signifies that the fresh telemetry data from Omnia v1.6.1 is getting updated in the database.
