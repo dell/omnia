@@ -38,6 +38,7 @@ xilinx_device_plugin_yaml_url: "{{ hostvars['localhost']['offline_manifest_path'
 spark_operator_repo: "{{ hostvars['localhost']['offline_tarball_path'] }}/spark-operator-v1beta2-1.3.8-3.1.1.tar.gz"
 rocm_device_plugin_yaml_url: "{{ hostvars['localhost']['offline_manifest_path'] }}/rocm-device-plugin.yaml"
 habana_device_plugin_yaml_url: "{{ hostvars['localhost']['offline_manifest_path'] }}/habana-device-plugin.yaml"
+node_label_for_habana_device_plugin: "intel.com/gaudi.present"
 nfs_dir_mode: "0777"
 pod_wait_time: 300
 nfs_subdir_external_provisioner_repo: "{{ hostvars['localhost']['offline_tarball_path'] }}/nfs-subdir-external-provisioner-4.0.18.tar.gz"
