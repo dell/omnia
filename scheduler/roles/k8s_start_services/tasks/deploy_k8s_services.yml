@@ -87,12 +87,36 @@
 
 # HABANA PLUGIN
 - name: Deploy Habana Device plugin
-  ansible.builtin.command: "kubectl create -f '{{ habana_device_plugin_yaml_url }}'"
-  changed_when: true
   when:
     - "'habanalabs-device-plugin-daemonset' not in k8s_pods.stdout"
     - k8s_version >= minimal_gaudi_k8s_version
     - hostvars['localhost']['is_gaudi_cluster'] is defined
+  block:
+    - name: Label nodes with Gaudi
+      ansible.builtin.command: "kubectl label nodes {{ item }} {{ node_label_for_habana_device_plugin }}=true --overwrite"
+      when: "hostvars[item]['node_has_gaudi'] | default(false)"
+      loop: "{{ groups['kube_node'] | default([]) }}"
+
+    - name: Download habana-device-plugin yaml file
+      ansible.builtin.uri:
+        url: "{{ habana_device_plugin_yaml_url }}"
+        return_content: true
+      register: habana_device_plugin_yaml_content
+
+    - name: Modify habana-device-plugin yaml file
+      ansible.builtin.set_fact:
+        with_node_selector: |
+          {{ habana_device_plugin_yaml_content.content }}
+                nodeSelector:
+                  {{ node_label_for_habana_device_plugin }}: 'true'
+
+    - name: Install habana-device-plugin
+      ansible.builtin.shell: |
+        set -o pipefail
+        echo "{{ with_node_selector }}" | kubectl create -f - 
+      changed_when: true
+      args:
+        executable: /bin/bash
 
 # MPI OPERATOR
 - name: Install MPI Operator
