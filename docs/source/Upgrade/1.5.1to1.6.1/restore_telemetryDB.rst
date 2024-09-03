@@ -30,7 +30,7 @@ After upgrading Omnia, if you want to retain the telemetry data from Omnia v1.5.
 
     .. note:: If there are processes which are preventing you to drop the database, then terminate those processes and try again.
 
-    * Create an empty telemetry database for Omnia v1.6 using the command below: ::
+    * Create an empty telemetry database for Omnia v1.6.1 using the command below: ::
 
          CREATE DATABASE telemetry_metrics;
 
@@ -62,4 +62,4 @@ Next steps
     cd telemetry
     ansible-playbook telemetry.yml -i ../upgrade/inventory
 
-3. After telemetry services are enabled, check ``omnia_telemetry.metrics`` and ``public.timeseries_metrics`` tables to see if the number of rows have increased. This signifies that the fresh telemetry data from Omnia v1.6 is getting updated in the database.
+3. After telemetry services are enabled, check ``omnia_telemetry.metrics`` and ``public.timeseries_metrics`` tables to see if the number of rows have increased. This signifies that the fresh telemetry data from Omnia v1.6.1 is getting updated in the database.
