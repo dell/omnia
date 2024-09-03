@@ -57,7 +57,7 @@ Next steps
 
 1. Connect to the ``telemetry_metrics`` database and verify if the restored telemetry data is present in ``public.timeseries_metrics`` and ``omnia_telemetry.metrics`` tables.
 
-2. Post verification, you can choose to restart the Omnia telemetry services. Run the ``telemetry.yml`` playbook after modifying the ``input/telemetry_config.yml`` as per your requirements. For more information regarding the telemetry parameters, `click here <../InstallationGuides/BuildingClusters/schedulerinputparams.html#id18>`_. Execute the following command: ::
+2. Post verification, you can choose to restart the Omnia telemetry services. Run the ``telemetry.yml`` playbook after modifying the ``input/telemetry_config.yml`` as per your requirements. For more information regarding the telemetry parameters, `click here <../../InstallationGuides/BuildingClusters/schedulerinputparams.html#id18>`_. Execute the following command: ::
 
     cd telemetry
     ansible-playbook telemetry.yml -i ../upgrade/inventory
