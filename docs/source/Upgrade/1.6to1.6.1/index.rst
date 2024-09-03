@@ -1,7 +1,9 @@
 Upgrade Omnia v1.6 to v1.6.1
 ==============================
 
-The upgrade feature in v1.6 helps customers to upgrade their Omnia setup from v1.5.1 to v1.6. This includes upgrading the essential software requirements, configurations, and cluster software.
+The upgrade feature in v1.6.1 helps customers to upgrade their Omnia setup from v1.6 to v1.6.1. This includes upgrading the essential software requirements, configurations, and cluster software.
+
+.. note:: Omnia v1.6.1 addresses the issue of the unavailable dependent package 'libssl1.1_1.1.1f-1ubuntu2.22_amd64' required by Omnia 1.6 on Ubuntu 22.04 OS. For more information, see the `release notes <../../Overview/releasenotes.html#id1>`_.
 
 **Prerequisites**
 
