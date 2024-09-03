@@ -13,3 +13,4 @@ Prerequisites
 
     git clone https://github.com/dell/omnia.git
 
+5. [Optional] `Set up a proxy server for the CP <Setup_CP_proxy.html>`_.
