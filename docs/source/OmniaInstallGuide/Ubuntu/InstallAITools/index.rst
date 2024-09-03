@@ -9,6 +9,7 @@ AI (Artificial Intelligence) tools are software applications or systems that use
 
     InstallJupyterhub
     kubeflow
+    DeepSpeed
     vLLM/index
     Pytorch
     TensorFlow

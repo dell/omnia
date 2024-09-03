@@ -92,6 +92,7 @@ The default namespace is for deployment is ``vLLM``.
 
 .. toctree::
 
+    vllmintelgaudi
     vllmMI300
     vllmInternet
     benchmarktesting
