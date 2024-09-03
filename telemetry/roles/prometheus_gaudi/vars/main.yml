@@ -1,1 +1,3 @@
-metric_exporter_version: "1.17.1"
+gaudi_metric_exporter_daemonset_url: "{{ hostvars['localhost']['offline_manifest_path'] }}/metric-exporter-daemonset.yaml"
+gaudi_metric_exporter_service_url: "{{ hostvars['localhost']['offline_manifest_path'] }}/metric-exporter-service.yaml"
+gaudi_metric_exporter_serviceMonitor_url: "{{ hostvars['localhost']['offline_manifest_path'] }}/metric-exporter-serviceMonitor.yaml"

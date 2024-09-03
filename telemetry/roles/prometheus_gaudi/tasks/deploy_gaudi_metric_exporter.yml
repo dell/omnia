@@ -17,41 +17,25 @@
 
 # Assuming Prometheus was deployed and name space monitoring was created
 
-- name: Define base URL variable
-  set_fact:
-    base_url: "https://vault.habana.ai/artifactory/gaudi-metric-exporter/yaml/"
-    ds_name: "/metric-exporter-daemonset.yaml"
-    svc_name: "/metric-exporter-service.yaml"
-    sm_name: "/metric-exporter-serviceMonitor.yaml"
-
-- name: Define full URL
-  set_fact:
-    ds_url: >
-      {{ base_url }}{{ metric_exporter_version }}{{ ds_name }}
-    svc_url: >
-      {{ base_url }}{{ metric_exporter_version }}{{ svc_name }}
-    sm_url: >
-      {{ base_url }}{{ metric_exporter_version }}{{ sm_name }}
-
 - name: Deploy Gaudi metric exporter daemonset
   kubernetes.core.k8s:
     definition: '{{ item }}'
   with_items:
-    - '{{ lookup("url", "{{ ds_url }}", split_lines=False) | from_yaml_all | list }}'
+    - '{{ lookup("url", "{{ gaudi_metric_exporter_daemonset_url }}", split_lines=False) | from_yaml_all | list }}'
   when: item is not none
 
 - name: Deploy Gaudi metric exporter service
   kubernetes.core.k8s:
     definition: '{{ item }}'
   with_items:
-    - '{{ lookup("url", "{{ svc_url }}", split_lines=False) | from_yaml_all | list }}'
+    - '{{ lookup("url", "{{ gaudi_metric_exporter_service_url }}", split_lines=False) | from_yaml_all | list }}'
   when: item is not none
 
 - name: Deploy Gaudi metric exporter service monitor
   kubernetes.core.k8s:
     definition: '{{ item }}'
   with_items:
-    - '{{ lookup("url", "{{ sm_url }}", split_lines=False) | from_yaml_all | list }}'
+    - '{{ lookup("url", "{{ gaudi_metric_exporter_serviceMonitor_url }}", split_lines=False) | from_yaml_all | list }}'
   when: item is not none
 
 - name: Add label to the service monitor so it will be scraped by Prometheus

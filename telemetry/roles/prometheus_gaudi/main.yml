@@ -1,0 +1,2 @@
+- name: Deploy Gaudi metric exporter
+  ansible.builtin.import_tasks: deploy_gaudi_metric_exporter.yml
