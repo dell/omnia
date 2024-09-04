@@ -17,13 +17,15 @@ If you want to revert back to the default configuration, execute the following c
 
 * Step 1: ::
 
-    kubectl delete -f <filename>.yml
+    kubectl delete -f <DeepSpeed_configuration_filename>.yml
 
-*where <filename>.yml is the YAML configuration file applied to deploy the DeepSpeed MPIJob.*
+*where <DeepSpeed_configuration_filename>.yml is the YAML configuration file applied to deploy the DeepSpeed MPIJob.*
 
 * Step 2: ::
 
-    kubectl delete -f pvc.yml
+    kubectl delete -f <PVC_filename>.yml
+
+*where <PVC_filename>.yml is the PVC configuration file applied to deploy the DeepSpeed MPIJob.*
 
 * Step 3: ::
 
