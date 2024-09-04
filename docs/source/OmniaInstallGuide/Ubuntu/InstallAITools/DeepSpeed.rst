@@ -49,7 +49,7 @@ After you have completed all the prerequisites, do the following to deploy a Dee
 
     e. Finally, apply the file using the following command: ::
 
-        kubectl apply -f <filename>.yml
+        kubectl apply -f <DeepSpeed_configuration_filename>.yml
 
    *Expected output*: ::
 
@@ -76,7 +76,7 @@ After you have completed all the prerequisites, do the following to deploy a Dee
     c. Add the necessary details such as name, namespace, and storage size for the DeepSpeed MPIJobs. Use the same configurations as provided in the ``<DeepSpeed_configuration_filename>.yml`` file.
     d. Finally, apply the file using the following command: ::
 
-        kubectl apply -f pvc.yml
+        kubectl apply -f <PVC_filename>.yml
 
    *Expected output*: ::
 
