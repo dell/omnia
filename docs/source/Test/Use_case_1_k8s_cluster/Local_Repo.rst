@@ -7,7 +7,7 @@ Create Local Repositories on OIM
 
     - Go to input/software_config.json file.
     - Ensure you have the following entries in order to set up a K8s cluster (k8s entry must be present). ##add the bare-basic structure of the json file for a k8s cluster##
-    - For other software packages, AI tools, and GPU drivers/tools - modify as needed. For more information on how to modify, see ##link to other optional packages page##.
+    - For other software packages, AI tools, and GPU drivers/tools - modify as needed. For more information on how to modify, `click here <../../OmniaInstallGuide/Ubuntu/CreateLocalRepo/localrepos.html>`_.
 
 * Open the input/local_repo_config.yml file and modify as required:
 

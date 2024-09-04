@@ -10,7 +10,7 @@ Discover & Provision the OS on the nodes
     - For switch-based discovery mechanism, see the table below: ##add parameter table##
     - For pxe-mapping discovery mechanism, see the table below: ##add parameter table##
 
-* Open the input/provision_config_credentials.yml file and modify the default values as required. For more details, see the table below.
+* Open the input/provision_config_credentials.yml file and modify the default values as required. For more details, `link <../../OmniaInstallGuide/Ubuntu/Provision/provisionparams.html#id4>`_.
 * Open the input/network_spec.yml file and modify the default values as required. For more details, see the table below.
 
     - [Optional] If you want to use discover your nodes using iDRAC (BMC), fill the following parameters in network_spec.yml: ##add parameter table##
