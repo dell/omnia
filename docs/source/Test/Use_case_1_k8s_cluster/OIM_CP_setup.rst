@@ -11,3 +11,5 @@ Configure Control Plane (OIM)
 * Configure the YUM repository on the CP. [Optional: only applicable to RHEL OS]
 * Clone the Omnia repository from GitHub onto the CP.
 * [Optional] Set up a proxy server for the CP.
+
+.. image:: ../../images/Visio/Set_up_OIM.png

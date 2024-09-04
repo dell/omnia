@@ -21,3 +21,6 @@ Create Local Repositories on OIM
 
 * Open the input/provision_config_credentials.yml file and specify your docker enterprise account details to avoid docker pull limit issues: ##add parameter table##
 * To create local repositories, execute the local_repo.yml playbook using the following command:
+
+
+.. image:: ../../images/Visio/Create_local_repo.png

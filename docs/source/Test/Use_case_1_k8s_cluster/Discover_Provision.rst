@@ -16,3 +16,6 @@ Discover & Provision the OS on the nodes
     - [Optional] If you want to use discover your nodes using iDRAC (BMC), fill the following parameters in network_spec.yml: ##add parameter table##
 
 * To provision the cluster nodes, execute the discovery_provision.yml using the following command:
+
+
+.. image:: ../../images/Visio/Discovery_Provision.png
