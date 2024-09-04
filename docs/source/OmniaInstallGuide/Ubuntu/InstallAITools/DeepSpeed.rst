@@ -43,8 +43,10 @@ After you have completed all the prerequisites, do the following to deploy a Dee
     b. Open the ``ds_configuration.yml`` file.
     c. Add the necessary details such as proxy settings, Hugging Face token, and allocated resources for the DeepSpeed MPIJob.
     d. After modifying the file, you have two choices:
+
         - Directly copy the modified file to your ``kube_control_plane``.
         - Create a new blank ``<DeepSpeed_configuration_filename>.yml`` file, paste the modified contents into it, and save it on your ``kube_control_plane``.
+
     e. Finally, apply the file using the following command: ::
 
         kubectl apply -f <filename>.yml
