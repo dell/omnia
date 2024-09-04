@@ -40,7 +40,7 @@ storage_config.yml
 .. [1] Boolean parameters do not need to be passed with double or single quotes.
 
 
-Click here for more information on `OpenLDAP <Authentication.html>`_, `BeeGFS <BeeGFS.html>`_ or, `NFS <NFS.html>`_.
+Click here for more information on `OpenLDAP <BuildingCluster/Authentication.html>`_, `BeeGFS <Storage/BeeGFS.html>`_ or, `NFS <Storage/NFS.html>`_.
 
 .. note::
 

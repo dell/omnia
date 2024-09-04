@@ -9,7 +9,7 @@ Before you run the provision tool
 
 * Admin and BMC network switches should be configured before running the provision tool. For more information on configuring the switches, `click here <../AdvancedConfigurationsUbuntu/ConfiguringSwitches/index.html>`_.
 
-* Set the IP address of the control plane. The control plane NIC connected to remote servers (through the switch) should be configured with two IPs (BMC IP and admin IP) in a `shared LOM <../../../Overview/NetworkTopologies/lom.html>`_ or `hybrid <../../../Overview/NetworkTopologies/Hybrid.html>`_ setup. In the case of a `dedicated <../../../Overview/NetworkTopologies/dedicated.html>`_ setup, a single IP (admin IP) is required.
+* Set the IP address of the control plane. The control plane NIC connected to remote servers (through the switch) should be configured with two IPs (BMC IP and admin IP) in a `shared LOM <../../../Overview/NetworkTopologies/lom.html>`_ or `hybrid <../../../Overview/NetworkTopologies/hybrid.html>`_ setup. In the case of a `dedicated <../../../Overview/NetworkTopologies/dedicated.html>`_ setup, a single IP (admin IP) is required.
 
 .. figure:: ../../../images/ControlPlaneNic.png
 

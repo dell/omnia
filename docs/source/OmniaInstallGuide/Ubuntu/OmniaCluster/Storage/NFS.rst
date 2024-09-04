@@ -53,7 +53,7 @@ Network File System (NFS) is a networking protocol for distributed file sharing.
         - { server_ip: 198.168.0.2, server_share_path: "/mnt/share2", client_share_path: "/mnt/mount2", client_mount_options: "nosuid,rw,sync,hard", nfs_server: false, slurm_share: true, k8s_share: true }
 
 
-* Ensure that an NFS local repository is created by including ``{"name": "nfs"},`` in ``input/software_config.json``. For more information, `click here <../LocalRepo/index.html>`_.
+* Ensure that an NFS local repository is created by including ``{"name": "nfs"},`` in ``input/software_config.json``. For more information, `click here <../../CreateLocalRepo/InputParameters.html>`_.
 * If an external NFS share is used, make sure that ``/etc/exports`` on the NFS server is populated with the same paths listed as ``server_share_path`` in the ``nfs_client_params`` in ``input/storage_config.yml``.
 * Omnia supports all NFS mount options. Without user input, the default mount options are ``nosuid,rw,sync,hard,intr``.
 
@@ -65,7 +65,7 @@ Execute the ``storage.yml`` playbook: ::
     cd storage
     ansible-playbook storage.yml -i inventory
 
-Use the linked `inventory file <../../samplefiles.html#inventory-file>`_ for the above playbook.
+Use the linked `inventory file <../../../samplefiles.html#inventory-file>`_ for the above playbook.
 
 
 Post configuration, enable the following services (using this command: ``firewall-cmd --permanent --add-service=<service name>``) and then reload the firewall (using this command: ``firewall-cmd --reload``).

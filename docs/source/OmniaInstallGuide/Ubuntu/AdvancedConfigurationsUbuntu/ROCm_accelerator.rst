@@ -6,7 +6,7 @@ The accelerator role allows users to  set up the `AMD ROCm <https://rocm.docs.am
 **Prerequisites**
 
 * The ROCm local repositories must be configured using the `local_repo.yml <../CreateLocalRepo/index.html>`_ script.
-* The ``input/software_config.json`` must contain valid amdgpu and rocm version. See `input parameters <../CreateLocalRepo/InputParameters.html>`_ for more information.
+* The ``input/software_config.json`` must contain valid ``amdgpu`` and ``rocm`` version. See `input parameters <../CreateLocalRepo/InputParameters.html>`_ for more information.
 
 **Playbook configurations**
 

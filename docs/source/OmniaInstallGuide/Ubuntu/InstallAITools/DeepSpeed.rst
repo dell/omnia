@@ -14,7 +14,7 @@ Before deploying a DeepSpeed MPIJob, the following prerequisites must be fulfill
 
 3. Verify that the cluster nodes have sufficient allocatable resources for the ``hugepages-2Mi`` and ``Intel Gaudi accelerator``. To check the allocatable resources on all nodes, run: ::
 
-    kubectl describe <node-name> | grep -A 10 "Allocatable"
+    kubectl describe <intel-gaudi-node-name> | grep -A 10 "Allocatable"
 
 4. [Optional] If required, you can adjust the resource parameters in the ``ds-configurator.yml`` file based on the availability of resources on the nodes.
 
@@ -37,15 +37,23 @@ After you have completed all the prerequisites, do the following to deploy a Dee
        NAME        STATUS  AGE
        workloads   Active  14s
 
-3. Apply the YAML configuration file for the MPIJob. This file should define the DeepSpeed job using the Kubeflow MPIJob resource as a reference. Execute the following command: ::
+3. Open the ``ds_configuration.yml`` file present in the ``examples`` folder and modify the parameters for the DeepSpeed MPIJob. This file defines the DeepSpeed job using the Kubeflow job resource as a reference. After making modifications to the file, you have two options. First, you can directly copy the file to your ``kube_control_plane``. Alternatively, you can create a new blank ``<name>.yml`` file and copy the modified contents to the new file, and then place it on your ``kube_control_plane``. Finally, apply the file using the following command: ::
 
-    kubectl apply -f example.yml
+    kubectl apply -f <filename>.yml
 
    *Expected output*: ::
 
        mpijob.kubeflow.org/gaudi-llm-ds-ft created
 
-4. Check the status of the pods to ensure that the MPIJob is being initialized correctly. Execute the following command to get the pod status: ::
+4. Apply the Persistent Volume Claim (PVC) configuration, required to access shared storage. Execute the following command: ::
+
+    kubectl apply -f pvc.yml
+
+   *Expected output*: ::
+
+       persistentvolumeclaim/shared-model created
+
+5. Check the status of the pods to ensure that the MPIJob is being initialized correctly. Execute the following command to get the pod status: ::
 
     kubectl get pod -n workloads
 
@@ -55,21 +63,13 @@ After you have completed all the prerequisites, do the following to deploy a Dee
        gaudi-llm-ds-ft-launcher-zp9mw   0/1    Pending    0         8s
        gaudi-llm-ds-ft-worker-0         0/1    Pending    0         8s
 
-5. After some time (approx 30 minutes), check the status of the pods again to verify if they are up and running. Execute the same command from step 4.
+6. After some time (approx 30 minutes), check the status of the pods again to verify if they are up and running. Execute the same command from step 4.
 
    *Expected output (when pods are running)*: ::
 
        NAME                             READY  STATUS    RESTARTS  AGE
        gaudi-llm-ds-ft-launcher-zp9mw   1/1    Running   0         33s
        gaudi-llm-ds-ft-worker-0         1/1    Running   0         33s
-
-6. [Optional] If your job requires shared storage, apply the Persistent Volume Claim (PVC) configuration. Execute the following command: ::
-
-    kubectl apply -f pvc.yml
-
-   *Expected output*: ::
-
-       persistentvolumeclaim/shared-model created
 
 7. [Optional] To better understand the MPIJob resource, you can use the following command: ::
 
@@ -80,3 +80,9 @@ After you have completed all the prerequisites, do the following to deploy a Dee
        GROUP: kubeflow.org
        KIND: MPIJob
        VERSION: v2beta1
+
+*Final output*:
+
+Once DeepSpeed deployment is complete, the following output is displayed while checking the status of the pods using the ``kubectl get pod -n workloads`` command:
+
+.. image:: ../../../images/DeepSpeed.png

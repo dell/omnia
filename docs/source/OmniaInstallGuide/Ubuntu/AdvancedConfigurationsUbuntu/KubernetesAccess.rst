@@ -55,4 +55,4 @@ Omnia grants Kubernetes node access to users defined on the ``kube_control_plane
 To run the playbook, use the below command: ::
 
     cd scheduler
-    ansible-playbook -i  inventory k8s_access.yml
+    ansible-playbook k8s_access.yml -i inventory

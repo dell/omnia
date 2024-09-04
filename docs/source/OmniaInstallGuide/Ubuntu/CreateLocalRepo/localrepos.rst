@@ -286,7 +286,7 @@ For information on deploying vLLM after setting up the cluster, `click here <../
 
             {"name": "openmpi", "version":"4.1.6"},
 
-OpenMPI is deployed on the cluster when the above configurations are complete and `omnia.yml <../BuildOmniaCluster/installscheduler.html>`_ playbook is executed.
+OpenMPI is deployed on the cluster when the above configurations are complete and `omnia.yml <../OmniaCluster/BuildingCluster/installscheduler.html>`_ playbook is executed.
 
 For more information on OpenMPI configurations, `click here <../AdvancedConfigurationsUbuntu/install_ucx_openmpi.html>`_.
 

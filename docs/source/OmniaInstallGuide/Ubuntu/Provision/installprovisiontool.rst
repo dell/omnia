@@ -137,6 +137,6 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
 
 **Next steps**:
 
-* After successfully running ``discovery_provision.yml``, go to `Building Clusters <../BuildOmniaCluster/index.html>`_ to setup Kubernetes, NFS, BeeGFS, and Authentication.
+* Create a node inventory in ``/opt/omnia``. To know more, `click here <../CreateInventory.html>`_.
 
-* To create a node inventory in ``/opt/omnia``, `click here <../CreateInventory.html>`_.
+* After creating an inventory, go to `Building Clusters <../OmniaCluster/index.html>`_ to setup Kubernetes, NFS, BeeGFS, and Authentication.
