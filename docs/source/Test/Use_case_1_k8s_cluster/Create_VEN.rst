@@ -7,3 +7,4 @@ Create a Virtual Environment
 * [Optional/Additional] Deactivate the virtual environment.
 
 .. image:: ../../images/Visio/Create_virtual_env.png
+    :width: 600pt

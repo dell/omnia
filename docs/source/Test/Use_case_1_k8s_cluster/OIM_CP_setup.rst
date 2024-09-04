@@ -13,3 +13,4 @@ Configure Control Plane (OIM)
 * [Optional] Set up a proxy server for the CP.
 
 .. image:: ../../images/Visio/Set_up_OIM.png
+    :width: 600pt

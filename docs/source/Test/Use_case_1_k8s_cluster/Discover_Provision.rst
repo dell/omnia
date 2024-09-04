@@ -19,3 +19,4 @@ Discover & Provision the OS on the nodes
 
 
 .. image:: ../../images/Visio/Discovery_Provision.png
+    :width: 600pt
