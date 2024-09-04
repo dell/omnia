@@ -15,18 +15,22 @@ In order to configure Kubeflow with *mpi-operator* API version v2beta1, execute 
 
 If you want to revert back to the default configuration, execute the following commands step-by-step:
 
-1. ::
+* Step 1: ::
+
     kubectl delete -f <filename>.yml
 
 *where <filename>.yml is the YAML configuration file applied to deploy the DeepSpeed MPIJob.*
 
-2. ::
+* Step 2: ::
+
     kubectl delete -f pvc.yml
 
-3. ::
+* Step 3: ::
+
     kubectl delete ns workloads
 
-4. ::
+* Step 4: ::
+
     cd tools
     ansible-playbook configure_mpi_operator.yml -i <kubeflow inventory> --tags mpiv1
 
