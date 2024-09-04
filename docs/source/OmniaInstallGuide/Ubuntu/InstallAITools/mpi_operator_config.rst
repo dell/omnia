@@ -19,7 +19,7 @@ If you want to revert back to the default configuration, execute the following c
 
     kubectl delete -f <filename>.yml
 
-*where <filename>.yml is the YAML configuration file applied to deploy the DeepSpeed MPIJob.*
+   *where <filename>.yml is the YAML configuration file applied to deploy the DeepSpeed MPIJob.*
 
 * Step 2: ::
 
