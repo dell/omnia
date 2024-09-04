@@ -8,7 +8,7 @@ In order to configure Kubeflow with *mpi-operator* API version v2beta1, execute 
     cd tools
     ansible-playbook configure_mpi_operator.yml -i <kubeflow inventory> --tags mpiv2beta1
 
-*Expected result*: The v1 mpi-operator and the training operator of Kubeflow is uninstalled.
+*Expected result*: The mpi-operator API version v1 and the training operator of Kubeflow is uninstalled. The mpi-operator API version v2beta1 is installed.
 
 [Optional] Revert back to the default configuration
 ------------------------------------------------------
