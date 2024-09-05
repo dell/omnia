@@ -1,7 +1,9 @@
-Deploying Llama 3.1-8B on the cluster
-=======================================
+Deploying Dell Enterprise Pretrained model on the cluster
+===========================================================
 
-This guide provides a step-by-step approach to deploy the Meta-Llama-3.1-8b-Instruct model on a kubernetes cluster, specifically optimized for NVIDIA platforms. The model, sourced from the `Dell Enterprise Hub <https://dell.huggingface.co/>`_, is fully containerized and validated to run seamlessly on the latest Dell hardware. By following this documentation, users can deploy the model, run inferences, or delete the service using a Python script.
+This guide provides a step-by-step approach to deploy the pretrained model from `Dell Enterprise Hub <https://dell.huggingface.co/>`_. The Meta-Llama-3.1-8b-Instruct model will be deployed as a sample model on a ``kube_control_plane`` node, specifically optimized for NVIDIA platforms. The model is containerized and validated to run seamlessly on the latest Dell hardware. By following this documentation, users can deploy the model, run inferences, or delete the service using a standalone Python script. This feature is designed from cluster user point of view.
+
+The python script is located in the ``omnia/example/ai_examples/dell_pretrained_model`` directory. The python script file is named ``dell_pretrained_model_nvidia.py``.
 
 Prerequisites
 --------------
@@ -21,6 +23,8 @@ Before deployment, the following prerequisites must be fulfilled:
 
 .. note:: If you're executing the script within the Omnia virtual environment, the requests module is already installed and available on the cluster. In case you run the script outside of the Omnia virtual environment, you might need to install the module manually.
 
+4. The ``dell_pretrained_model_nvidia.py`` file present in the ``omnia/example/ai_examples/dell_pretrained_model`` must be copied to the ``kube_control_plane`` from the control plane server.
+
 Usage Instructions
 --------------------
 
@@ -30,25 +34,25 @@ Follow the below steps to use the Python script in order to deploy, infer, or de
 
     To deploy the model and create the associated service, run: ::
 
-        python dell_pretrained_model_nvidia.py --deploy
+        python3 dell_pretrained_model_nvidia.py --deploy
 
 2. **Execute an inference job**
 
     * To execute an inference job from the ``kube_control_plane`` using the default query, run: ::
 
-        python dell_pretrained_model_nvidia.py --infer
+        python3 dell_pretrained_model_nvidia.py --infer
 
     * To execute an inference job from the ``kube_control_plane`` using a specific query, run: ::
 
-        python dell_pretrained_model_nvidia.py --infer "<Your_query_here>"
+        python3 dell_pretrained_model_nvidia.py --infer "<Your_query_here>"
 
     * To execute an inference job from outside of the ``kube_control_plane`` using a specific service IP and default query, run: ::
 
-        python dell_pretrained_model_nvidia.py --infer --service-ip <service_IP>
+        python3 dell_pretrained_model_nvidia.py --infer --service-ip <pretrained-model-service-ip>
 
     * To execute an inference job from outside of the ``kube_control_plane`` using a specific service IP and a specific query, run: ::
 
-        python dell_pretrained_model_nvidia.py --infer "<Your_query_here>" --service-ip <service_IP>
+        python3 dell_pretrained_model_nvidia.py --infer "<Your_query_here>" --service-ip <pretrained-model-service-ip>
 
     .. note:: If you're not aware of the ``service_IP`` of the pretrained model service, use the following command: ::
 
@@ -60,7 +64,7 @@ Follow the below steps to use the Python script in order to deploy, infer, or de
 
     To delete the deployed model and service, run: ::
 
-        python dell_pretrained_model_nvidia.py --delete
+        python3 dell_pretrained_model_nvidia.py --delete
 
 Additional Instructions
 -------------------------
