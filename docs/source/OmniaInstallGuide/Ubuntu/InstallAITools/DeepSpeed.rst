@@ -1,5 +1,5 @@
-Setup DeepSpeed
-=================
+Setup DeepSpeed for clusters containing Intel Gaudi accelerators
+==================================================================
 
 DeepSpeed is a deep learning optimization library developed by Microsoft, designed to make training large-scale machine learning models more efficient and scalable. It provides several key features that help accelerate training and reduce the resource requirements for training state-of-the-art models.
 

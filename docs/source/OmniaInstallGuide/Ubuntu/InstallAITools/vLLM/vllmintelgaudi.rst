@@ -1,5 +1,5 @@
-vLLM enablement for Intel Gaudi accelerators
-===============================================
+vLLM enablement for clusters containing Intel Gaudi accelerators
+===================================================================
 
 Prerequisites
 --------------
@@ -10,15 +10,15 @@ Before enabling the vLLM capabilities of the cluster running Intel Gaudi acceler
 
     kubectl describe <intel-gaudi-node-name> | grep -A 10 "Allocatable"
 
-2. [Optional] If required, you can adjust the resource parameters in the ``<filename>.yml`` file based on the availability of resources on the nodes.
+2. [Optional] If required, you can adjust the resource parameters in the ``vllm_configuration.yml`` file based on the availability of resources on the nodes.
 
 
-Deploy vLLM for Intel Gaudi
------------------------------
+Deploy vLLM (Intel)
+----------------------
 
 After you have completed all the prerequisites, do the following to deploy vLLM on a cluster running with Intel Gaudi accelerators:
 
-1. Create a namespace to manage all your DeepSpeed workloads. Execute the following command: ::
+1. Create a namespace to manage on your ``kube_control_plane`` according to the details provided in ``vllm_configuration.yml`` file. Execute the following command: ::
 
     kubectl create ns workloads
 
@@ -33,17 +33,17 @@ After you have completed all the prerequisites, do the following to deploy vLLM 
 
 3. To create a configuration file for vLLM deployment, follow these steps:
 
-    a. Locate the ``<filename>.yml`` file in the ``examples/<directory>/`` folder.
-    b. Open the ``<filename>.yml`` file.
+    a. Locate the ``vllm_configuration.yml`` file in the ``examples/vllm`` folder.
+    b. Open the ``vllm_configuration.yml`` file.
     c. Add the necessary details such as Hugging Face token, and allocated resources for the vLLM deployment.
     d. After modifying the file, you have two choices:
 
         - Directly copy the modified file to your ``kube_control_plane``.
-        - Create a new blank ``<name>.yml`` file, paste the modified contents into it, and save it on your ``kube_control_plane``.
+        - Create a new blank ``<vLLM_configuration_filename>.yml`` file, paste the modified contents into it, and save it on your ``kube_control_plane``.
 
     e. Finally, apply the file using the following command: ::
 
-        kubectl apply -f <name>.yml
+        kubectl apply -f <vLLM_configuration_filename>.yml
 
    *Expected output*: ::
 
@@ -68,7 +68,7 @@ After you have completed all the prerequisites, do the following to deploy vLLM 
             requests:
               storage: <storage-size>
 
-    c. Add the necessary details such as name, namespace, and storage size for the DeepSpeed MPIJobs. Use the same configurations as provided in the ``<name>.yml`` file.
+    c. Add the necessary details such as name, namespace, and storage size for the vLLM deployment. Use the same configurations as provided in the ``<vLLM_configuration_filename>.yml`` file.
     d. Finally, apply the file using the following command: ::
 
         kubectl apply -f <PVC_filename>.yml
@@ -112,3 +112,9 @@ After you have completed all the prerequisites, do the following to deploy vLLM 
 
        NAME             ENDPOINTS               AGE
        vllm-llama-svc   10.233.108.196:8000     82s
+
+*Final output*:
+
+Once vLLM deployment is complete, the following output is displayed while executing the ``curl -X POST -d "param1=value1&param2=value2" <Intel_node_IP>:<port>`` command:
+
+.. image:: ../../../images/vllm_intel.png
