@@ -24,4 +24,4 @@ Create Local Repositories on OIM
 
 
 .. image:: ../../images/Visio/Create_local_repo.png
-    :width: 600pt
+    :width: 300pt

@@ -25,4 +25,4 @@ Create an inventory file from the list of provisioned nodes
     10.5.1.106
 
 .. image:: ../../images/Visio/Create_inventory.png
-    :width: 600pt
+    :width: 300pt

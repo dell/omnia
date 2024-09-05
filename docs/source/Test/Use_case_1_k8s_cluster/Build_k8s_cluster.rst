@@ -13,4 +13,4 @@ Build a Kubernetes cluster
 * [Additional] You can check if the cluster has been set up using the following command:
 
 .. image:: ../../images/Visio/Build_k8s_cluster.png
-    :width: 400pt
+    :width: 300pt
