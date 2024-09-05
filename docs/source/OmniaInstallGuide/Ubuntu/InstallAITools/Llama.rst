@@ -54,7 +54,7 @@ Follow the below steps to use the Python script in order to deploy, infer, or de
 
         kubectl get svc
 
-       *Where the service IP address will be listed under the ``EXTERNAL-IP` column.
+       Where the service IP address will be listed under the ``EXTERNAL-IP`` column.
 
 3. **Delete the deployed model and service**
 

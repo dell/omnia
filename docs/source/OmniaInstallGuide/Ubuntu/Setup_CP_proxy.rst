@@ -1,7 +1,9 @@
 Configure a proxy server for the Control Plane (OIM)
 ======================================================
 
-Omnia users can now configure a proxy server for the Control Plane. This means that the Control Plane will not have direct access to the internet but via a proxy server. To set up the control plane with a proxy server, do the following:
+.. note:: You can skip the proxy setup using ``site_config.yml`` input file if you have direct internet access on the control plane.
+
+Control Plane proxy configuration is now available for Omnia users. This means that the Control Plane will not have direct access to the internet but via a proxy server. To set up the control plane with a proxy server, do the following:
 
 1. Go to ``omnia/input`` folder.
 
@@ -10,20 +12,37 @@ Omnia users can now configure a proxy server for the Control Plane. This means t
 +-----------------------------+-------------------------------------------------------------------------------------------------------------------------------+
 | Parameter                   |     Description                                                                                                               |
 +=============================+===============================================================================================================================+
-| **http_proxy**              |     * This variable points to the HTTP proxy server and the port associated with the proxy server.                            |
-|   (Optional)                |     * **Example:** ``"http://corporate-proxy:3128"``                                                                          |
+| **http_proxy**              |                                                                                                                               |
+|   (Mandatory)               |     * This variable points to the HTTP proxy server and the port associated with the proxy server.                            |
+|                             |     * **Example:** ``"http://corporate-proxy:3128"``                                                                          |
 +-----------------------------+-------------------------------------------------------------------------------------------------------------------------------+
-| **http_proxy**              |     * This variable points to the HTTPS proxy server and the port associated with the proxy server.                           |
-|   (Optional)                |     * **Example:** ``"https://corporate-proxy:3128"``                                                                         |
+| **https_proxy**             |                                                                                                                               |
+|   (Mandatory)               |     * This variable points to the HTTPS proxy server and the port associated with the proxy server.                           |
+|                             |     * **Example:** ``"https://corporate-proxy:3128"``                                                                         |
 +-----------------------------+-------------------------------------------------------------------------------------------------------------------------------+
-| **no_proxy**                |     * Mandatory if the control plane is behind a proxy server.                                                                |
-|   (Optional)                |     * This variable is configured with the control plane hostname and the admin network IP.                                   |
+| **no_proxy**                |                                                                                                                               |
+|   (Optional)                |     * This variable is configured with the control plane hostname, admin network IP or any internal cluster network.          |
 |                             |     * This value is required to exclude the internal cluster network from the proxy server.                                   |
-|                             |     * **Example:** ``controlplane.omnia.test,10.5.0.0/16``                                                                    |
+|                             |     * **Example:** ``controlplane.omnia.test,10.5.0.1``                                                                       |
 +-----------------------------+-------------------------------------------------------------------------------------------------------------------------------+
 
-3. Configure the ``http_proxy`` and ``https_proxy`` environment variables on the control plane server. Run the following commands: ::
+    Sample input: ::
 
-       export http_proxy=http://<Control Plane IP>:<port>
-       export https_proxy=http://<Control Plane IP>:<port>
-       export no_proxy="<Control Plane hostname>","<Admin Network IP>"
+        proxy:
+           - { http_proxy: "http://corporate-proxy:3128", https_proxy: "http://corporate-proxy:3128", no_proxy: "controlplane.omnia.test,10.5.0.1" }
+
+3. Configure the ``http_proxy``, ``https_proxy``, and ``no_proxy`` environment variables on the control plane server.
+
+    * Execute the following commands to temporarily update the proxy environment variable: ::
+
+       export http_proxy=http://<Corporate_proxy>:<port>
+       export https_proxy=http://<Corporate_proxy>:<port>
+       export no_proxy="<Control_plane_hostname>","<Admin_Network_IP>"
+
+    * For persistent proxy, update the ``/etc/environment`` or ``/root/.bashrc`` with the proxy environment details. ::
+
+        http_proxy=http://<Corporate_proxy>:<port>
+        https_proxy=http://<Corporate_proxy>:<port>
+        no_proxy="<Control_plane_hostname>","<Admin_Network_IP>"
+
+.. caution:: You must configure the proxy environment variables on the control plane before running any Omnia playbooks.
