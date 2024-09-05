@@ -14,10 +14,10 @@ Before deployment, the following prerequisites must be fulfilled:
 
 3. Python 3.x must be installed on the cluster. The script relies on several Python modules, including:
 
-    * Standard Library Modules: Already included with Python 3.x (subprocess, time, argparse, logging, sys, ipaddress).
-    * Third-Party Modules: The requests module must be installed manually if not available by default. You can install it using the following command: ::
+   * **Standard Library Modules**: Already included with Python 3.x (subprocess, time, argparse, logging, sys, ipaddress).
+   * **Third-Party Modules**: The requests module must be installed manually if not available by default. You can install it using the following command: ::
 
-        pip install requests
+       pip install requests
 
 .. note:: If you're executing the script within the Omnia virtual environment, the requests module is already installed and available on the cluster. In case you run the script outside of the Omnia virtual environment, you might need to install the module manually.
 
