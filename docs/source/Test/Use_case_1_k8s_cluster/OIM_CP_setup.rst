@@ -13,4 +13,4 @@ Configure Control Plane (OIM)
 * [Optional] Set up a proxy server for the CP. `Click here <../../OmniaInstallGuide/Ubuntu/Setup_CP_proxy.html>`_
 
 .. image:: ../../images/Visio/Set_up_OIM.png
-    :width: 600pt
+    :width: 300pt
