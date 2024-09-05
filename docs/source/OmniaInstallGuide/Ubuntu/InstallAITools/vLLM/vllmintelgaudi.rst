@@ -117,4 +117,4 @@ After you have completed all the prerequisites, do the following to deploy vLLM 
 
 Once vLLM deployment is complete, the following output is displayed while executing the ``curl -X POST -d "param1=value1&param2=value2" <Intel_node_IP>:<port>`` command:
 
-.. image:: ../../../images/vllm_intel.png
+.. image:: ../../../../images/vllm_intel.png
