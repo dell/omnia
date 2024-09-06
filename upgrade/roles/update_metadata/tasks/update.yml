@@ -13,10 +13,12 @@
 # limitations under the License.
 ---
 
-- name: Set message facts
-  ansible.builtin.set_fact:
-    user_msg_prepare_config: "{{ user_msg_prepare_config }}"
-    user_msg_prepare_upgrade: "{{ user_msg_prepare_upgrade }}"
-    user_msg_prepare_config2: "{{ user_msg_prepare_config2 }}"
-    user_msg_prepare_upgrade2: "{{ user_msg_prepare_upgrade2 }}"
-    user_msg_upgrade: "{{ user_msg_upgrade }}"
+- name: Read file path parameters from upgrade_config.yml
+  ansible.builtin.include_vars:
+    file: upgrade_config.yml
+  changed_when: false
+
+- name: Upgrade task files to destination path using shell command
+  ansible.builtin.shell:
+    cmd: "cp -r {{ old_input_location }} ../"
+  changed_when: false
