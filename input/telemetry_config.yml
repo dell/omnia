@@ -159,3 +159,7 @@ grafana_password: ""
 # both timescale and mysql databases will be mounted to this location.
 # '/' is mandatory at the end of the path.
 mount_location: "/opt/omnia/telemetry/"
+
+# This variable is used to enable Gaudi Prometheus metric exporter
+# Accepted values:  true or false
+prometheus_gaudi: false
