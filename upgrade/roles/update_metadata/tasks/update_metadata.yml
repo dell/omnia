@@ -15,12 +15,12 @@
 
 - name: Check metadata.yml file existence
   ansible.builtin.stat:
-    path: "{{ metadata_yaml_file_ptah }}"
+    path: "{{ metadata_yaml_file_path }}"
   register: metadata_status
 
 - name: Create metadata.yml file if it doesn't exists
   ansible.builtin.file:
-    path: "{{ metadata_yaml_file_ptah }}"
+    path: "{{ metadata_yaml_file_path }}"
     state: touch
     mode: "{{ file_permissions }}"
     group: root
@@ -31,7 +31,7 @@
   block:
     - name: Update installed_version
       ansible.builtin.lineinfile:
-        path: "{{ metadata_yaml_file_ptah }}"
+        path: "{{ metadata_yaml_file_path }}"
         regexp: '^installed_version:(.*)$'
         insertafter: "EOF"
         state: present

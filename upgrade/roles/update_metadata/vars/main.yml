@@ -17,5 +17,5 @@
 dir_mode: "0755"
 
 # Usage: update_metadata.yml
-metadata_yaml_file_ptah: "/opt/omnia/.data/metadata.yml"
+metadata_yaml_file_path: "/opt/omnia/.data/metadata.yml"
 file_permissions: "0644"
