@@ -162,4 +162,4 @@ mount_location: "/opt/omnia/telemetry/"
 
 # This variable is used to enable Gaudi Prometheus metric exporter
 # Accepted values:  true or false
-prometheus_gaudi: false
+prometheus_gaudi_support: false
