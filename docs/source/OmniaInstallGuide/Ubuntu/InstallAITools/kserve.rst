@@ -1,7 +1,7 @@
 Setup Kserve
 --------------
 
-Kserve is an open-source serving platform that simplifies the deployment, scaling, and management of machine learning models in production environments, ensuring efficient and reliable inference capabilities. For more information, `click here. <https://kserve.github.io/website/0.11/get_started/>`_ Omnia deploys Kserve (v0.11.2) on the kubernetes cluster. Once Kserve is deployed, any inference service can be installed on the kubernetes cluster.
+Kserve is an open-source serving platform that simplifies the deployment, scaling, and management of machine learning models in production environments, ensuring efficient and reliable inference capabilities. For more information, `click here. <https://kserve.github.io/website/0.11/get_started/>`_ Omnia deploys Kserve (v0.13.0) on the kubernetes cluster. Once Kserve is deployed, any inference service can be installed on the kubernetes cluster.
 
 .. note:: Omnia 1.6 does not support deploying both Kserve and Kubeflow in the same Kubernetes cluster. If Kubeflow is already deployed on the cluster and you wish to deploy Kserve, you must first remove Kubeflow by following the steps `here <kubeflow.html>`_.
 
@@ -33,9 +33,9 @@ Kserve is an open-source serving platform that simplifies the deployment, scalin
 
     Post deployment, the following dependencies are installed along with Kserve:
 
-        * Istio (version: 1.17.0)
-        * Certificate manager (version: 1.13.0)
-        * Knative (version: 1.11.0)
+        * Istio (version: 1.20.4)
+        * Certificate manager (version: 1.14.5)
+        * Knative (version: 1.13.1)
 
     To verify the installation, run ``kubectl get pod -A`` and look for the namespaces: ``cert-manager``, ``istio-system``, ``knative-serving``, and ``kserve``. ::
 
