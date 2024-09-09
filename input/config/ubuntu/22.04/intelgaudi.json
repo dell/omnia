@@ -135,6 +135,12 @@
         "package": "wget",
         "type": "deb",
         "repo_name": "jammy"
+      },
+      {
+        "package": "hccl_demo",
+        "type": "git",
+        "url": "https://github.com/HabanaAI/hccl_demo.git",
+        "version": "main"
       }
       ]
     }

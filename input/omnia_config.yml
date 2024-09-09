@@ -68,3 +68,11 @@ k8s_service_addresses: "10.233.0.0/18"
 # This network must be unused in your network infrastructure.
 # Default value is "10.233.64.0/18"
 k8s_pod_network_cidr: "10.233.64.0/18"
+
+
+#----------------------------VERIFY INTEL GAUDI INSTALLATION------------------------------------------------------
+
+# It's recommended to do extensive tests hl_qual and hccl when installing a new Gaudi node. This takes around 20mins.
+# To do that during provisioning this variable has to be set to false. By default only sanity tests are run on gaudi
+# nodes and this takes around 2 mins.
+verify_intel_gaudi_with_sanity_test_only: true
