@@ -3,7 +3,7 @@ Setup Kserve
 
 Kserve is an open-source serving platform that simplifies the deployment, scaling, and management of machine learning models in production environments, ensuring efficient and reliable inference capabilities. For more information, `click here. <https://kserve.github.io/website/0.11/get_started/>`_ Omnia deploys Kserve (v0.11.2) on the kubernetes cluster. Once Kserve is deployed, any inference service can be installed on the kubernetes cluster.
 
-.. note:: Omnia 1.6 does not support deploying both Kserve and Kubeflow in the same Kubernetes cluster. If Kubeflow is already deployed on the cluster and you wish to deploy Kserve, you must first remove Kubeflow by following the steps `here <kubeflow.html>`_.
+.. note:: Omnia 1.6.1 does not support deploying both Kserve and Kubeflow in the same Kubernetes cluster. If Kubeflow is already deployed on the cluster and you wish to deploy Kserve, you must first remove Kubeflow by following the steps `here <kubeflow.html>`_.
 
 .. caution:: Kserve deployment occasionally fails on RHEL 8.8 clusters. `Reprovision the cluster <../reprovisioningthecluster.html>`_ and re-deploy Kserve. For more information, refer to the `known issues <../../Troubleshooting/knownissues.html>`_ section.
 
