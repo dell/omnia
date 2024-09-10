@@ -37,7 +37,7 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
 
     ansible-playbook discovery_provision.yml
 
-.. note:: If the ``input/software_config.json`` has AMD ROCm and NVIDIA CUDA drivers mentioned, provisioning the cluster will also install the AMD and NVIDIA accelerator drivers.
+.. note:: If the ``input/software_config.json`` has AMD ROCm and NVIDIA CUDA drivers mentioned, the AMD and NVIDIA accelerator drivers are installed on the nodes post provisioning.
 
 ``discovery_provision.yml`` runs in three stages that can be called individually:
 
