@@ -30,3 +30,10 @@
       when:
         - accelerator_type is defined
         - accelerator_type == "habana"
+
+    - name: Set fact for nodes with Gaudi
+      ansible.builtin.set_fact:
+        node_has_gaudi: true
+      when:
+        - accelerator_type is defined
+        - accelerator_type == "habana"
