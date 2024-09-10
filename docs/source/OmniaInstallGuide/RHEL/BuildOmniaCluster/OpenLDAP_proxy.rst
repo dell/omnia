@@ -126,7 +126,7 @@ Change the **<paramater>** values in the config file, as described below:
               TLSCertificateFile      /etc/ssl/certs/omnia_cert.pem
               TLSCertificateKeyFile   /etc/ssl/private/omnia_cert_key.key
 
-        RHEL/ROCKY: ::
+        RHEL/ROCKY LINUX: ::
 
               TLSCACertificateFile    /etc/pki/tls/certs/omnia_ca_cert.crt
               TLSCertificateFile      /etc/pki/tls/certs/omnia_cert.pem

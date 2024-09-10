@@ -9,7 +9,9 @@ Input parameters for Local Repositories
    :keepspace:
    :class: longtable
 
-* Sample version for RHEL:
+* Sample version for RHEL/Rocky Linux:
+
+.. note:: For Rocky Linux OS, the ``cluster_os_type`` in the below sample will be ``rocky``.
 
 ::
 

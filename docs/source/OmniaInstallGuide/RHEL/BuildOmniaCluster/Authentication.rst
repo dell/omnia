@@ -189,7 +189,7 @@ Enter the following parameters in ``input/login_node_security_config.yml``.
 Advanced Settings
 ------------------
 
-* To install FreeIPA server on the NFS node, `click here <../../../Roles/Utils/freeipa_installation.html>`_.
+* To install FreeIPA server on the NFS node, `click here <../../../Utils/freeipa_installation.html>`_.
 
 * To replicate the OpenLDAP server `click here <ReplicatingLDAP.html>`_.
 

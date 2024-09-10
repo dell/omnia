@@ -12,11 +12,12 @@ Edit the ``input/provision_config.yml``, ``input/provision_config.yml``, and ``i
 
 **Using multiple versions of a given OS**
 
-Omnia now supports deploying different versions of the same OS. With each run of ``discovery_provision.yml``, a new deployable OS image is created with a distinct type depending on the values provided in ``input/software_config.json``. Supported RHEL OS's are:
+Omnia now supports deploying different versions of the same OS. With each run of ``discovery_provision.yml``, a new deployable OS image is created with a distinct type depending on the values provided in ``input/software_config.json``. Supported RHEL/Rocky Linux OS's are:
 
-    * RHEL 8.6
-    * RHEL 8.7
-    * RHEL 8.8
+    * RHEL 8.6, 8.7, 8.8
+    * Rocky Linux 8.6, 8.7, 8.8
+
+.. note:: While Omnia deploys the minimal version of the OS, the multiple version feature requires that the Rocky Linux full (DVD) version of the OS be provided.
 
 **Disk partitioning**
 
