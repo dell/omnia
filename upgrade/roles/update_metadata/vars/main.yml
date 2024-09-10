@@ -13,10 +13,9 @@
 # limitations under the License.
 ---
 
-- name: Set message facts
-  ansible.builtin.set_fact:
-    user_msg_prepare_config: "{{ user_msg_prepare_config }}"
-    user_msg_prepare_upgrade: "{{ user_msg_prepare_upgrade }}"
-    user_msg_prepare_config2: "{{ user_msg_prepare_config2 }}"
-    user_msg_prepare_upgrade2: "{{ user_msg_prepare_upgrade2 }}"
-    user_msg_upgrade: "{{ user_msg_upgrade }}"
+# Usage: update.yml
+dir_mode: "0755"
+
+# Usage: update_metadata.yml
+metadata_yaml_file_path: "/opt/omnia/.data/metadata.yml"
+file_permissions: "0644"
