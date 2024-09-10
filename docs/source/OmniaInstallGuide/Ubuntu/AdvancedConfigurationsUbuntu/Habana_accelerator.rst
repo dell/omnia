@@ -23,3 +23,5 @@ To install all the latest drivers and toolkits, run: ::
 
 	cd accelerator
 	ansible-playbook accelerator.yml -i inventory
+
+.. note:: While executing the ``accelerator.yml`` playbook for Intel Gaudi nodes, a Cron job is run which brings up the Intel Gaudi scale-out network interfaces.
