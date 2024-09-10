@@ -9,3 +9,5 @@ Advanced configurations for RHEL clusters
     KubernetesAccess
     ConfiguringStorage/index
     ConfiguringSwitches/index
+    ROCm_accelerator
+    PowerScale_CSI
