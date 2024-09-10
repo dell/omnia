@@ -13,34 +13,81 @@
 # limitations under the License.
 ---
 
-# This playbook should be invoked with -i option pointing to omnia 1.5 inventory file
-- name: Set ansible and python versions for omnia 1.6
-  hosts: localhost
-  connection: local
-  tasks:
-    - name: Invoke omnia 1.6 pre-req
-      ansible.builtin.command: sh "{{ playbook_dir }}/../prereq.sh"
-      changed_when: true
-
-- name: Import parameters from Omnia 1.5 to Omnia 1.6
+- name: Validate parameters 
   hosts: localhost
   connection: local
   roles:
     - validate_upgrade_config
-    - import_input_parameters
-    - encrypt_inputs
-    - backup_omniadb
-    - upgrade_inventory
-    - backup_telemetry
+
+- name: Set upgrade status
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Validate omnia version
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}/roles/validate_omnia_version"  # noqa:role-name[path]
+
+    - name: Invoke omnia 1.6 pre-req
+      ansible.builtin.command: sh "{{ playbook_dir }}/../prereq.sh"
+      changed_when: true
+      when: upgrade_status
+
+- name: Import parameters from Omnia
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Import parameters and backup Omniadb
+      when: upgrade_status
+      block:
+        - name: Import input parameters
+          ansible.builtin.include_role:
+            name: import_input_parameters
+
+        - name: Encrypt inputs
+          ansible.builtin.include_role:
+            name: encrypt_inputs
+
+        - name: Backup omniadb
+          ansible.builtin.include_role:
+            name: backup_omniadb
+
+        - name: Upgrade inventory
+          ansible.builtin.include_role:
+            name: upgrade_inventory
+
+        - name: Backup telemetry
+          ansible.builtin.include_role:
+            name: backup_telemetry
+
+- name: Invoke specific tasks from update_metadata role
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Include only update tasks from upgrade
+      ansible.builtin.include_role:
+        name: update_metadata
+        tasks_from: update.yml
+      when: not upgrade_status
+
+    - name: Include only update_metadata tasks
+      ansible.builtin.include_role:
+        name: update_metadata
+        tasks_from: update_metadata.yml
 
 - name: Display User Message
   hosts: localhost
   connection: local
   tasks:
     - name: Include user message
-      ansible.builtin.include_role:  # noqa:role-name[path]
-        name: "{{ playbook_dir }}/roles/user_messages"
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}/roles/user_messages"  # noqa:role-name[path]
+
+    - name: Print user upgrade message
+      ansible.builtin.debug:
+        msg: "{{ user_msg_prepare_config.split('\n') }}"
+      when: upgrade_status
 
     - name: Print user message
       ansible.builtin.debug:
-        msg: "{{ usr_msg_prepare_config.split('\n') }}"
+        msg: "{{ user_msg_prepare_config2.split('\n') }}"
+      when: not upgrade_status
