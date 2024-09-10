@@ -3,7 +3,11 @@ Step 1: Execute prereq.sh
 
 Starting from version 1.7, Omnia will be executed within a Python virtual environment. To set up this environment, the ``prereq.sh`` script is utilized. This script installs the necessary Python 3.11, creates the Python virtual environment, as well as installs Ansible 9.5.1 version and other software packages required by Omnia on the control plane. The predefined path for this virtual environment is ``/opt/omnia17_ven``. This approach ensures that Omnia has the correct dependencies and runs smoothly within a controlled and isolated environment.
 
-.. caution:: To run Omnia, it is crucial to use the Python virtual environment created by the ``prereq.sh`` script. Do not delete the virtual environment directory (``/opt/omnia17_venv/``) as it is necessary for the proper functioning of Omnia.
+.. caution::
+
+    * To run Omnia, it is crucial to use the Python virtual environment created by the ``prereq.sh`` script. Do not delete the virtual environment directory (``/opt/omnia17_venv/``) as it is necessary for the proper functioning of Omnia.
+    * If you have a proxy server set up for your control plane, you must configure the proxy environment variables on the control plane before running any Omnia playbooks. For more information, `click here <../Setup_CP_proxy.html>`_.
+
 
 * Use the following command to execute the ``prereq.sh`` script on the control plane: ::
 

@@ -8,9 +8,9 @@ Using Jupyterhub helm chart (version 3.2.0), Omnia installs Jupyterhub (version 
 * Ensure that Kubernetes is deployed and all pods are running on the cluster.
 * MetalLB pod is up and running to provide external IP to jupyterhub service.
 * Ensure the passed inventory file includes ``kube_control_plane`` and ``kube_node`` groups. `Click here <../../samplefiles.html>`_ for a sample file.
-* Review the ``tools/jupyter_config.yml`` file to ensure that the deployment meets your requirements. If not, modify the file.
+* Review the ``tools/jupyterhub_config.yml`` file to ensure that the deployment meets your requirements. If not, modify the file.
 * Run ``local_repo.yml`` with ``jupyter`` entry in ``software_config.json``.
-* Omnia deploys the ``quay.io/jupyterhub/k8s-singleuser-sample:3.2.0`` image irrespective of whether the intended notebooks are CPU-only, NVIDIA GPU, or AMD GPU.  To use a custom image, modify the ``omnia/tools/roles/jupyter_config.yml`` file.
+* Omnia deploys the ``quay.io/jupyterhub/k8s-singleuser-sample:3.2.0`` image irrespective of whether the intended notebooks are CPU-only, NVIDIA GPU, or AMD GPU.  To use a custom image, modify the ``omnia/tools/roles/jupyterhub_config.yml`` file.
 * Ensure that NFS storage provisioner has been deployed on the cluster using ``storage.yml`` followed by ``scheduler.yml`` or ``omnia.yml``. Verify that the required NFS storage provisioner is deployed using the below command: ::
 
     [root@node3 ~]# kubectl get pod -A
@@ -78,7 +78,7 @@ Using Jupyterhub helm chart (version 3.2.0), Omnia installs Jupyterhub (version 
 
 **Redeploy Jupyterhub with new configurations**
 
-1. Update the ``tools/jupyter_config.yml`` file with the new configuration.
+1. Update the ``tools/jupyterhub_config.yml`` file with the new configuration.
 2. Re-run the ``jupyterhub.yml`` playbook. ::
 
         cd tools
