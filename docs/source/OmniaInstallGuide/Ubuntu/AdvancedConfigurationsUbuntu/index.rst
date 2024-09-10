@@ -13,3 +13,4 @@ Advanced configurations for Ubuntu clusters
     AdditionalNIC
     ROCm_accelerator
     Habana_accelerator
+    PowerScale_CSI
