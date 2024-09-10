@@ -70,7 +70,10 @@ To log in to the Kubeflow dashboard and start using its features, you need to pr
 
 The Kubeflow manifest documentation is present `here <https://github.com/kubeflow/manifests?tab=readme-ov-file#kubeflow-manifests>`_.
 
-.. note:: Refer to `image pull <../pullimagestonodes.html>`_ in case of ImagePullBackOff issue while deploying any user defined task.
+.. note::
+
+    * Refer to `image pull <../pullimagestonodes.html>`_ in case of ImagePullBackOff issue while deploying any user defined task.
+    * To configure Kubeflow mpi operator version v2beta1, `click here <mpi_operator_config.html>`_.
 
 **Remove Kubeflow**
 

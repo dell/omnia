@@ -1,7 +1,7 @@
 MPI-Operator configuration for DeepSpeed deployment
 =======================================================
 
-While deploying Kubernetes on a cluster, Omnia sets the *mpi-operator* API version set to ``v2beta1``. But if you choose to deploy Kubeflow on that same Kubernetes cluster, the *mpi-operator* API version automatically changes to ``v1``.
+While deploying Kubernetes on a cluster, Omnia sets the *mpi-operator* API version to ``v2beta1``. But if you choose to deploy Kubeflow on that same Kubernetes cluster, the *mpi-operator* API version automatically changes to ``v1``.
 
 In order to configure Kubeflow with *mpi-operator* API version v2beta1, execute the following command: ::
 

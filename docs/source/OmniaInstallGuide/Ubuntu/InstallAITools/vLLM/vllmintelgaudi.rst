@@ -33,7 +33,7 @@ After you have completed all the prerequisites, do the following to deploy vLLM 
 
 3. To create a configuration file for vLLM deployment, follow these steps:
 
-    a. Locate the ``vllm_configuration.yml`` file in the ``examples/vllm`` folder.
+    a. Locate the ``vllm_configuration.yml`` file in the ``examples/ai_examples/vllm`` folder.
     b. Open the ``vllm_configuration.yml`` file.
     c. Add the necessary details such as Hugging Face token, and allocated resources for the vLLM deployment.
     d. After modifying the file, you have two choices:
