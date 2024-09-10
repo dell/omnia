@@ -32,17 +32,29 @@ Prerequisites
 4. Update the following parameters in the ``secret.yml`` file and keep the rest as default values:
 
     * replication:
+
         enabled: false
+
     * snapshot:
+
         enabled: true
+
     * resizer:
+
         enabled: false
+
     * healthMonitor:
+
         enabled: false
+
     * endpointPort:8080
+
     * skipCertificateValidation: true
+
     * isiAccessZone: System
+
     * isiPath: /ifs/data/csi
+
     * controllerCount: 1
 
 Installation Process
@@ -71,10 +83,10 @@ Installation Process
  .. note::
 
      * There isn't a separate playbook to run for PowerScale CSI driver installation. Running ``omnia.yml`` with necessary inputs installs the driver. If Kubernetes is already deployed on the cluster, then user can also run the ``scheduler.yml`` playbook to install the CSI driver.
-     * After running ``omnia.yml`` playbook, the ``secret.yml`` file will be encrypted. User can use below command to decrypt and edit it if required:
-        ::
-            ansible-vault edit /tmp/secret_config.yaml --vault-password-file
-            scheduler/roles/k8s_csi_powerscale_plugin/files/.csi_powerscale_secret_vault
+     * After running ``omnia.yml`` playbook, the ``secret.yml`` file will be encrypted. User can use below command to decrypt and edit it if required: ::
+
+         ansible-vault edit /tmp/secret_config.yaml --vault-password-file
+         scheduler/roles/k8s_csi_powerscale_plugin/files/.csi_powerscale_secret_vault
 
  .. caution:: Do not delete the vault key file ``.csi_powerscale_secret_vault``, otherwise users will not be able to decrypt the ``secret.yml`` file anymore.
 
