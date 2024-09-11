@@ -8,10 +8,19 @@ For the supported kernel command-line parameters, `click here <https://docs.kern
 
 * **Create an Inventory file**
 
-List all the nodes you wish to update the kernel parameters for, in a simple inventory file. For example: ::
+List all the nodes you wish to update the kernel parameters for, in an inventory file, in the below specified format. For example: ::
 
-    node3
-    node1
+    [node-group-1]
+    10.5.0.101
+
+    [node-group-2]
+    10.5.0.102
+
+    [node-group-1:vars]
+    Categories=group-1
+
+    [node-group-2:vars]
+    Categories=group-2
 
 * **Configure kernel parameters**
 
