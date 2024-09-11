@@ -107,9 +107,9 @@ Omnia installs the following packages on top of the Kubernetes stack:
 
     The HABANA device plugin for Kubernetes is a “DaemonSet” that allows you to automatically:
 
-        i. Enable the registration of Intel Gaudi GPUs in your Kubernetes cluster.
+        i. Enable the registration of Intel Gaudi accelerators in your Kubernetes cluster.
         ii. Keep track of device health.
-        iii. Run jobs on the Intel Gaudi GPUs.
+        iii. Run jobs on the Intel Gaudi accelerators.
 
     Click `here <https://docs.habana.ai/en/latest/Orchestration/Gaudi_Kubernetes/Device_Plugin_for_Kubernetes.html>`_ for more information.
 
