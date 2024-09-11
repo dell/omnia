@@ -100,12 +100,12 @@ Omnia installs the following packages on top of the Kubernetes stack:
 
     Click `here <https://github.com/NVIDIA/k8s-device-plugin>`_ for more information.
 
-6.  *habanalabs-device-plugin*
+6.  *gaudi-device-plugin*
 
-    The HABANA device plugin is a Kubernetes device plugin implementation that enables the registration of Intel Gaudi AI accelerators in a container cluster. This plugin enables the efficient utilization of Gaudi accelerators for compute workloads within the cluster.
-    For the habanalabs-device-plugin to function seamlessly, Omnia installs the “habanalabs-container-runtime” as part of the ``omnia.yml`` or ``scheduler.yml`` playbook execution.
+    The Gaudi device plugin is a Kubernetes device plugin implementation that enables the registration of Intel Gaudi AI accelerators in a container cluster. This plugin enables the efficient utilization of Gaudi accelerators for compute workloads within the cluster.
+    For the gaudi-device-plugin to function seamlessly, Omnia installs the “habanalabs-container-runtime” as part of the ``omnia.yml`` or ``scheduler.yml`` playbook execution.
 
-    The HABANA device plugin for Kubernetes is a “DaemonSet” that allows you to automatically:
+    The Gaudi device plugin for Kubernetes is a “DaemonSet” that allows you to automatically:
 
         i. Enable the registration of Intel Gaudi accelerators in your Kubernetes cluster.
         ii. Keep track of device health.
