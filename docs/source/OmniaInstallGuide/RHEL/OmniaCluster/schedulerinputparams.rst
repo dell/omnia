@@ -1,9 +1,9 @@
 Input parameters for the cluster
 ===================================
 
-These parameters are located in ``input/omnia_config.yml``, ``input/security_config.yml``, ``input/telemetry_config.yml`` and [optional] ``input/storage_config.yml``.
+These parameters are located in ``input/omnia_config.yml``, ``input/security_config.yml``, and ``input/storage_config.yml``. To initiate telemetry support, fill out `these parameters <../../../Telemetry/index.html#id13>`_ in ``input/telemetry_config.yml``.
 
-.. caution:: Do not remove or comment any lines in the ``input/omnia_config.yml``, ``input/security_config.yml``, ``input/telemetry_config.yml`` and [optional] ``input/storage_config.yml`` file.
+.. caution:: Do not remove or comment any lines in the ``input/omnia_config.yml``, ``input/security_config.yml``, ``input/telemetry_config.yml``, and ``input/storage_config.yml`` file.
 
 omnia_config.yml
 -------------------
