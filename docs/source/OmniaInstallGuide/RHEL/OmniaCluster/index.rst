@@ -15,15 +15,15 @@ Step 5: Configure the cluster
 .. toctree::
     :maxdepth: 2
 
-    schedulerinputparams
     schedulerprereqs
+    schedulerinputparams
     installscheduler
-    install_kubernetes
-    install_slurm
-    Authentication
-    BeeGFS
-    NFS
-    AMD_ROCm
+    GPU_library/index
+    Storage/index
+    BuildingCluster/index
+
+
+
 
 
 

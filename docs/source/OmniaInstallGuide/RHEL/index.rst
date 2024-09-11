@@ -10,7 +10,7 @@ Install Omnia on Red Hat Enterprise Linux (RHEL) or Rocky Linux clusters
     CreateLocalRepo/index
     Provision/index
     ViewInventory
-    BuildOmniaCluster/index
+    OmniaCluster/index
     InstallAITools/index
     AdvancedConfigurationsRHEL/index
 

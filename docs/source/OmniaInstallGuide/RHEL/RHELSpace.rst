@@ -1,5 +1,5 @@
-Space requirements for the control plane running on RHEL OS
-===============================================================
+Space requirements for the control plane running on RHEL or Rocky Linux OS
+=============================================================================
 
 * For all available software packages that Omnia supports: 50GB
 * For the complete set of software images (in ``/`` or ``/var`` partition): 500GB
