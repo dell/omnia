@@ -30,20 +30,6 @@ Configuring specific local repositories
 
     For a list of repositories (and their types) configured for CUDA, view the ``input/config/<cluster_os_type>/<cluster_os_version>/cuda.json`` file. To customize your CUDA installation, update the file. URLs for different versions can be found `here <https://developer.nvidia.com/cuda-downloads>`_:
 
-    For Ubuntu: ::
-
-            {
-                "cuda": {
-                  "cluster": [
-                    { "package": "cuda",
-                      "type": "iso",
-                      "url": "https://developer.download.nvidia.com/compute/cuda/12.3.2/local_installers/cuda-repo-ubuntu2204-12-3-local_12.3.2-545.23.08-1_amd64.deb",
-                      "path": ""
-                    }
-                  ]
-                }
-            }
-
     For RHEL or Rocky Linux: ::
 
             {
@@ -77,21 +63,6 @@ Configuring specific local repositories
 
     For a list of repositories (and their types) configured for OFED, view the ``input/config/<cluster_os_type>/<cluster_os_version>/ofed.json`` file. To customize your OFED installation, update the file.:
 
-    For Ubuntu: ::
-
-            {
-                "ofed": {
-                  "cluster": [
-                    { "package": "ofed",
-                      "type": "iso",
-                      "url": "https://content.mellanox.com/ofed/MLNX_OFED-24.01-0.3.3.1/MLNX_OFED_LINUX-24.01-0.3.3.1-ubuntu20.04-x86_64.iso",
-                      "path": ""
-                    }
-                  ]
-                }
-            }
-
-
     For RHEL or Rocky Linux: ::
 
             {
@@ -114,68 +85,8 @@ Configuring specific local repositories
 
             {"name": "beegfs", "version": "7.4.2"},
 
-For information on deploying BeeGFS after setting up the cluster, `click here <../BuildOmniaCluster/BeeGFS.html>`_.
+    For information on deploying BeeGFS after setting up the cluster, `click here <../OmniaCluster/Storage/BeeGFS.html>`_.
 
-
-**Broadcom RoCE**
-
-    To install RoCE, do the following:
-
-        * Include the following line under ``softwares`` in ``input/software_config.json``: ::
-
-            {"name": "bcm_roce", "version": "229.2.61.0"}
-
-        * Add the following line below the ``softwares`` section: ::
-
-            "bcm_roce": [
-                        {"name": "bcm_roce_libraries", "version": "229.2.61.0"}
-                        ],
-
-        * A sample format is available `here <InputParameters.html>`_.
-
-    For a list of repositories (and their types) configured for RoCE, view the ``input/config/ubuntu/<cluster_os_verison>/bcm_roce.json``. ::
-
-        {
-          "bcm_roce": {
-            "cluster": [
-              {
-                "package": "bcm_roce_driver_{{ bcm_roce_version }}",
-                "type": "tarball",
-                "url": "",
-                "path": ""
-              }
-            ]
-          },
-          "bcm_roce_libraries": {
-            "cluster": [
-              {
-                "package": "bcm_roce_source_{{ bcm_roce_libraries_version }}",
-                "type": "tarball",
-                "url": "",
-                "path": ""
-              },
-              {"package": "libelf-dev", "type": "deb", "repo_name": "jammy"},
-              {"package": "gcc", "type": "deb", "repo_name": "jammy"},
-              {"package": "make", "type": "deb", "repo_name": "jammy"},
-              {"package": "libtool", "type": "deb", "repo_name": "jammy"},
-              {"package": "autoconf", "type": "deb", "repo_name": "jammy"},
-              {"package": "librdmacm-dev", "type": "deb", "repo_name": "jammy"},
-              {"package": "rdmacm-utils", "type": "deb", "repo_name": "jammy"},
-              {"package": "infiniband-diags", "type": "deb", "repo_name": "jammy"},
-              {"package": "ibverbs-utils", "type": "deb", "repo_name": "jammy"},
-              {"package": "perftest", "type": "deb", "repo_name": "jammy"},
-              {"package": "ethtool", "type": "deb", "repo_name": "jammy"},
-              {"package": "libibverbs-dev", "type": "deb", "repo_name": "jammy"},
-              {"package": "rdma-core", "type": "deb", "repo_name": "jammy"},
-              {"package": "strace", "type": "deb", "repo_name": "jammy"}
-            ]
-          }
-        }
-
-.. note::
-
-    * The RoCE driver is only supported on Ubuntu clusters.
-    * The only accepted URL for the RoCE driver is from the `Dell support <https://www.dell.com/support/home/en-us>`_ site.
 
 **Kubernetes**
 
@@ -183,7 +94,7 @@ For information on deploying BeeGFS after setting up the cluster, `click here <.
 
             {"name": "k8s", "version":"1.29.5"},
 
-For more information about installing Kubernetes, `click here <../BuildOmniaCluster/install_kubernetes.html>`_.
+For more information about installing Kubernetes, `click here <../OmniaCluster/BuildingCluster/install_kubernetes.html>`_.
 
 .. note:: The version of the software provided above is the only version of the software Omnia supports.
 
@@ -194,7 +105,7 @@ For more information about installing Kubernetes, `click here <../BuildOmniaClus
 
             {"name": "freeipa"},
 
-For more information on FreeIPA, `click here <../BuildOmniaCluster/Authentication.html#configuring-freeipa-openldap-security>`_.
+    For more information on FreeIPA, `click here <../OmniaCluster/BuildingCluster/Authentication.html#configuring-freeipa-openldap-security>`_.
 
 
 **OpenLDAP**
@@ -203,7 +114,7 @@ For more information on FreeIPA, `click here <../BuildOmniaCluster/Authenticatio
 
             {"name": "openldap"},
 
-For more information on OpenLDAP, `click here <../BuildOmniaCluster/Authentication.html#configuring-freeipa-openldap-security>`_.
+    For more information on OpenLDAP, `click here <../OmniaCluster/BuildingCluster/Authentication.html#configuring-freeipa-openldap-security>`_.
 
 
 **Secure Login Node**
@@ -212,7 +123,7 @@ For more information on OpenLDAP, `click here <../BuildOmniaCluster/Authenticati
 
             {"name": "secure_login_node"},
 
-For more information on configuring login node security, `click here <../BuildOmniaCluster/Authentication.html#configuring-login-node-security>`_.
+    For more information on configuring login node security, `click here <../OmniaCluster/BuildingCluster/Authentication.html#configuring-login-node-security>`_.
 
 
 **Jupyterhub**
@@ -221,7 +132,7 @@ For more information on configuring login node security, `click here <../BuildOm
 
             {"name": "jupyter"},
 
-For information on deploying Jupyterhub after setting up the cluster, `click here <../InstallAITools/InstallJupyterhub.html>`_.
+    For information on deploying Jupyterhub after setting up the cluster, `click here <../InstallAITools/InstallJupyterhub.html>`_.
 
 
 **Kserve**
@@ -230,7 +141,7 @@ For information on deploying Jupyterhub after setting up the cluster, `click her
 
                 {"name": "kserve"},
 
-For information on deploying Kserve after setting up the cluster, `click here <../InstallAITools/kserve.html>`_.
+    For information on deploying Kserve after setting up the cluster, `click here <../InstallAITools/kserve.html>`_.
 
 
 **Kubeflow**
@@ -239,7 +150,7 @@ For information on deploying Kserve after setting up the cluster, `click here <.
 
             {"name": "kubeflow"},
 
-For information on deploying kubeflow after setting up the cluster, `click here <../InstallAITools/kubeflow.html>`_.
+    For information on deploying kubeflow after setting up the cluster, `click here <../InstallAITools/kubeflow.html>`_.
 
 
 **Pytorch**
@@ -322,9 +233,9 @@ For information on deploying vLLM after setting up the cluster, `click here <../
 
             {"name": "openmpi", "version":"4.1.6"},
 
-OpenMPI is deployed on the cluster when the above configurations are complete and `omnia.yml <../BuildOmniaCluster/installscheduler.html>`_ playbook is executed.
+OpenMPI is deployed on the cluster when the above configurations are complete and `omnia.yml <../OmniaCluster/BuildingCluster/installscheduler.html>`_ playbook is executed.
 
-For more information on OpenMPI configurations, `click here <../BuildOmniaCluster/install_ucx_openmpi.html>`_.
+For more information on OpenMPI configurations, `click here <../AdvancedConfigurationsRHEL/install_ucx_openmpi.html>`_.
 
 .. note:: The default OpenMPI version for Omnia is 4.1.6. If you change the version in the ``software.json`` file, make sure to update it in the ``openmpi.json`` file in the ``input/config`` directory as well.
 
@@ -335,9 +246,9 @@ For more information on OpenMPI configurations, `click here <../BuildOmniaCluste
 
             {"name": "ucx", "version":"1.15.0"},
 
-UCX is deployed on the cluster when ``local_repo.yml`` playbook is executed, followed by the execution of `omnia.yml <../BuildOmniaCluster/installscheduler.html>`_.
+UCX is deployed on the cluster when ``local_repo.yml`` playbook is executed, followed by the execution of `omnia.yml <../OmniaCluster/BuildingCluster/installscheduler.html>`_.
 
-For more information on UCX configurations, `click here <../BuildOmniaCluster/install_ucx_openmpi.html>`_.
+For more information on UCX configurations, `click here <../AdvancedConfigurationsRHEL/install_ucx_openmpi.html>`_.
 
 
 **Intel benchmarks**

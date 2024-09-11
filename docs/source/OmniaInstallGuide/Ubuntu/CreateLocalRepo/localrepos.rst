@@ -154,6 +154,14 @@ Configure specific local repositories
     * The RoCE driver is only supported on Ubuntu clusters.
     * The only accepted URL for the RoCE driver is from the `Dell support <https://www.dell.com/support/home/en-us>`_ site.
 
+**BeeGFS**
+
+    To install BeeGFS, include the following line under ``softwares`` in ``input/software_config.json``: ::
+
+            {"name": "beegfs", "version": "7.4.2"},
+
+    For information on deploying BeeGFS after setting up the cluster, `click here <../OmniaCluster/Storage/BeeGFS.html>`_.
+
 **Kubernetes**
 
     To install Kubernetes, include the following line under ``softwares`` in ``input/software_config.json``: ::

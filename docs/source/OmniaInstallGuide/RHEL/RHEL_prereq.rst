@@ -1,7 +1,7 @@
 Prerequisites
 =================
 
-1. Choose a server outside of your intended cluster with the mentioned `storage requirements <RHELSpace.html>`_ to function as your Omnia control plane. To know more information about setting up the control plane, `click here <../setup_CP.html>`_.
+1. Choose a server outside of your intended cluster with the mentioned `storage requirements <RHELSpace.html>`_ to function as your Omnia control plane.
 
 2. Ensure that the control plane has a full-featured RHEL operating system (OS) installed. For a complete list of supported OS versions, check out the `Support Matrix <../../Overview/SupportMatrix/OperatingSystems/index.html>`_.
 
