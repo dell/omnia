@@ -1,7 +1,7 @@
-Alternate method to install the Intel Gaudi Habana platform
-=============================================================
+Alternate method to install the Intel Habana platform
+=========================================================
 
-The accelerator role allows users to set up the `Intel Gaudi Habana <https://docs.habana.ai/en/latest/Installation_Guide/Bare_Metal_Fresh_OS.html>`_ platform. This tools allow users to unlock the potential of installed Intel Gaudi accelerators.
+The accelerator role allows users to set up the `Intel Habana <https://docs.habana.ai/en/latest/Installation_Guide/Bare_Metal_Fresh_OS.html>`_ platform. This tools allow users to unlock the potential of installed Intel Gaudi accelerators.
 
 **Prerequisites**
 
