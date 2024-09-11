@@ -1,5 +1,5 @@
-Before you build clusters
---------------------------
+Prerequisites before building a cluster
+------------------------------------------
 
 * `Ensure that all cluster nodes are up and running <../InstallingProvisionTool/ViewingDB.html>`_.
 
