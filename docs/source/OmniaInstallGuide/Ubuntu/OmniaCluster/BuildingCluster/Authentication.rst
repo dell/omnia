@@ -10,7 +10,11 @@ _______________________________
 
 **Prerequisites**
 
-* Run ``local_repo.yml`` to create offline repositories of OpenLDAP. For more information, `click here <../../CreateLocalRepo/InputParameters.html>`_.
+* Ensure that the following entry is present in the ``input/software_config.json``: ::
+
+    {"name": "openldap"}
+
+* Run ``local_repo.yml`` to create offline repositories of OpenLDAP. For more information, `click here <../../CreateLocalRepo/localrepos.html>`_.
 
 * Enter the following parameters in ``input/security_config.yml``.
 
@@ -121,7 +125,11 @@ ________________________________
 
 **Prerequisites**
 
-* Run ``local_repo.yml`` to create an offline repository of all utilities used to secure the login node. For more information, `click here. <../../CreateLocalRepo/InputParameters.html>`_
+* Ensure that the following entry is present in the ``input/software_config.json``: ::
+
+    {"name": "secure_login_node"}
+
+* Run ``local_repo.yml`` to create an offline repository of all utilities used to secure the login node. For more information, `click here. <../../CreateLocalRepo/localrepos.html>`_
 
 Enter the following parameters in ``input/login_node_security_config.yml``.
 
