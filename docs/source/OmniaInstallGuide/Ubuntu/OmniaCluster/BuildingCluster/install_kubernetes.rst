@@ -12,9 +12,9 @@ Set up Kubernetes
 
 * Ensure to run ``local_repo.yml`` with the ``k8s`` entry present in ``software_config.json``, to download all required Kubernetes packages and images.
 
-* Once all the required parameters in `omnia_config.yml <schedulerinputparams.html#id12>`_ are filled in, ``omnia.yml`` can be used to set up Kubernetes.
+* Once all the required parameters in `omnia_config.yml <../schedulerinputparams.html#id12>`_ are filled in, ``omnia.yml`` can be used to set up Kubernetes.
 
-* Ensure that ``k8s_share`` is set to ``true`` in `storage_config.yml <schedulerinputparams.html#storage-config-yml>`_, for one of the entries in ``nfs_client_params``.
+* Ensure that ``k8s_share`` is set to ``true`` in `storage_config.yml <../schedulerinputparams.html#storage-config-yml>`_, for one of the entries in ``nfs_client_params``.
 
 **Inventory details**
 
@@ -115,4 +115,4 @@ Omnia installs the following packages on top of the Kubernetes stack:
 
 **Optional installation**
 
-* `Kubernetes device plugin for the RoCE NIC <../AdvancedConfigurationsUbuntu/k8s_plugin_roce_nic.html>`_
+* `Kubernetes device plugin for the RoCE NIC <../../AdvancedConfigurationsUbuntu/k8s_plugin_roce_nic.html>`_

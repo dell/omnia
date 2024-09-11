@@ -20,7 +20,7 @@ Upgrade
 
 **Resolution**: Perform the following steps based on your cluster configuration:
 
-    After executing the ``prepare_config.yml`` playbook, you need to manually update the ``nfs_client_params`` in ``input/storage_config.yml`` of Omnia v1.6, in the format `mentioned here <../../../OmniaInstallGuide/Ubuntu/BuildOmniaCluster/NFS.html>`_. Ensure that the values for ``server_ip``, ``server_share_path``, ``client_share_path``, and ``client_mount_options`` are the same between Omnia v1.5.1 and v1.6.
+    After executing the ``prepare_config.yml`` playbook, you need to manually update the ``nfs_client_params`` in ``input/storage_config.yml`` of Omnia v1.6, in the format `mentioned here <../../../OmniaInstallGuide/Ubuntu/OmniaCluster/Storage/NFS.html>`_. Ensure that the values for ``server_ip``, ``server_share_path``, ``client_share_path``, and ``client_mount_options`` are the same between Omnia v1.5.1 and v1.6.
 
 	* When ``enable_omnia_nfs`` is set to ``true`` in Omnia v1.5.1, update the ``nfs_client_params`` in the format added below
 

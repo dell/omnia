@@ -113,4 +113,4 @@ Kubernetes
 
 **Potential Cause**: nvidia-container-toolkit is not installed on GPU nodes.
 
-**Resolution**: Go to `Install Kubernetes <../../../OmniaInstallGuide/Ubuntu/BuildOmniaCluster/install_kubernetes.html>`_ and follow the steps to download nvidia-container-toolkit and perform the necessary configurations based on the OS running on the cluster.
+**Resolution**: Install Kubernetes, download nvidia-container-toolkit, and perform the necessary configurations based on the OS running on the cluster.

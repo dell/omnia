@@ -56,7 +56,7 @@ Logs pertaining to actions taken by Omnia or iDRAC telemetry can be viewed in ``
 Grafana Loki
 --------------
 
-After `telemetry.yml <../Roles/Telemetry/index.html>`_ is run, Grafana services are installed on the control plane.
+After `telemetry.yml <../Telemetry/index.html>`_ is run, Grafana services are installed on the control plane.
 
     i. Get the Grafana IP using ``kubectl get svc -n grafana``.
 

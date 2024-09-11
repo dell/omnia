@@ -36,7 +36,9 @@ For more information, `click here. <https://github.com/kserve/kserve/issues/3372
 
 **Resolution**:
 
-1. Delete Jupyterhub deployment by executing the following command on the kube_control_plane: ``helm delete jupyterhub -n jupyterhub``
+1. Delete Jupyterhub deployment by executing the following command on the ``kube_control_plane``: ::
+
+    helm delete jupyterhub -n jupyterhub
 
 2. Re-execute ``jupyterhub.yml`` after 8-9 hours.
 

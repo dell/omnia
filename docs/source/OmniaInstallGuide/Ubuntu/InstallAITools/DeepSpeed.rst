@@ -104,6 +104,6 @@ After you have completed all the prerequisites, do the following to deploy a Dee
 
 *Final output*:
 
-Once DeepSpeed deployment is complete (~ after approx 30 minutes), the following output is displayed while checking the status of the pods using the ``kubectl get pod -n workloads`` command. In the below image you can see that the launcher goes to a **Completed** status and the worker nodes are not present, signifying a successful deployment:
+Once DeepSpeed deployment is complete (~ after approx 30 minutes), the following output is displayed while checking the status of the pods using the ``kubectl get pod -n workloads`` command. In the below image you can see that the launcher goes to a **Completed** status, and the worker pods are not present as they have exited successfully, signifying a successful deployment:
 
 .. image:: ../../../images/DeepSpeed.png

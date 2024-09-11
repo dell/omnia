@@ -299,7 +299,7 @@ For more information on OpenMPI configurations, `click here <../AdvancedConfigur
 
             {"name": "ucx", "version":"1.15.0"},
 
-UCX is deployed on the cluster when ``local_repo.yml`` playbook is executed, followed by the execution of `omnia.yml <../BuildOmniaCluster/installscheduler.html>`_.
+UCX is deployed on the cluster when ``local_repo.yml`` playbook is executed, followed by the execution of `omnia.yml <../OmniaCluster/BuildingCluster/installscheduler.html>`_.
 
 For more information on UCX configurations, `click here <../AdvancedConfigurationsUbuntu/install_ucx_openmpi.html>`_.
 

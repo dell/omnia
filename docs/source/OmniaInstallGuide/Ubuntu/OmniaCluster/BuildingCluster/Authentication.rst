@@ -36,7 +36,7 @@ The wrapper playbook ``omnia.yml`` handles execution of the security or authenti
     cd security
     ansible-playbook security.yml -i inventory
 
-The inventory should contain the auth_server as per the inventory file in `sample files <../../../samplefiles.html#inventory-file>`_. The inventory file is case-sensitive. Follow the format provided in the sample file link.
+The inventory should contain the ``auth_server`` as per the inventory file in `sample files <../../../samplefiles.html#inventory-file>`_. The inventory file is case-sensitive. Follow the format provided in the sample file link.
 
     * Do not include the IP of the control plane or local host as the ``auth_server group`` in the inventory file.
     * To customize the security features on the login node, update the desired parameters in ``input/login_node_security_config.yml``.
