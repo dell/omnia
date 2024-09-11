@@ -12,6 +12,14 @@ ______________________________________
 
 **Prerequisites**
 
+* To set up FreeIPA, ensure that the following entry is present in the ``input/software_config.json``: ::
+
+    {"name": "freeipa"}
+
+* To set up OpenLDAP, ensure that the following entry is present in the ``input/software_config.json``: ::
+
+    {"name": "openldap"}
+
 * Run ``local_repo.yml`` to create offline repositories of FreeIPA or OpenLDAP. If both were downloaded, ensure that the non-required system is removed from ``input/software_config.json`` before running ``security.yml``. For more information, `click here <../CreateLocalRepo/index.html>`_.
 
 * Enter the following parameters in ``input/security_config.yml``.
@@ -129,6 +137,10 @@ Configuring login node security
 ________________________________
 
 **Prerequisites**
+
+* Ensure that the following entry is present in the ``input/software_config.json``: ::
+
+      {"name": "secure_login_node"}
 
 * Run ``local_repo.yml`` to create an offline repository of all utilities used to secure the login node. For more information, `click here. <../CreateLocalRepo/index.html>`_
 
