@@ -56,7 +56,7 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
         * ``compute_cpu_intel``
         * ``compute_gpu_amd``
         * ``compute_gpu_nvidia``
-        * ``compute_servicetag_ip``
+        * ``compute_hostname_ip``
 
     .. note::
 
