@@ -6,7 +6,7 @@ Omnia provides an array of utilities as separate playbooks. Using these playbook
 .. toctree::
     software_update
     KernelUpdate
-    kernel_param_update
+    AdditionalNIC
     portcleanup
     timescaledb_utility
     freeipa_installation
