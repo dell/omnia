@@ -22,3 +22,4 @@ Limitations
 - Installation of vLLM and racadam via Omnia is not supported on Ubuntu 20.04.
 - Omnia v1.6 does not support configuration of a DNS server on the control plane; that is, the ``DNS`` parameter in `input/network_spec.yml <InstallationGuides/InstallingProvisionTool/provisionparams.html>`_ is not supported.
 - The "desktop image" version of Ubuntu is not supported on the control plane.
+- Omnia does not allow users to perform downgrade operations, which means that once they have upgraded their setup, they cannot revert back to a previous version of Omnia.
