@@ -123,7 +123,7 @@ The ``server_spec_update.yml`` playbook can be used to do the following tasks:
 
 .. note::
 
-    * If OS Kernel command-line parameter configuration is not required on the nodes, the user can leave the ``cmdine`` entry empty in ``input/server_spec.yml``.
+    * If OS Kernel command-line parameter configuration is not required on the nodes, the user can leave the ``cmdine`` entry empty in ``input/server_spec.yml`` or remove the ``os`` section.
     * The ``nicnetwork`` details must be consistent with the network names specified in the ``input/network_spec.yml`` file.
     * While new groups can be added to the ``input/server_spec.yml`` file on subsequent runs of the ``server_spec_update.yml`` playbook, existing groups cannot be edited or deleted. If the user modifies or removes existing groups from ``input/server_spec.yml``, the playbook execution might fail. In that case, the user needs to `reprovision the node <../../Maintenance/reprovision.html>`_.
     * This playbook has been validated with the following Kernel parameters:
