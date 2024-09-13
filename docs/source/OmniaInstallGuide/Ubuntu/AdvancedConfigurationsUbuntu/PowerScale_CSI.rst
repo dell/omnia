@@ -1,17 +1,19 @@
 Deploy CSI drivers for Dell PowerScale storage solutions
 ===========================================================
 
-Dell PowerScale is a flexible and secure scale-out NAS (network attached storage) solution designed to simplify storage requirements for AI and HPC workloads. To enable the PowerScale storage solution on the Kubernetes clusters, Omnia installs the Dell CSI PowerScale driver (version 2.11.0) on the nodes using helm charts. Once the PowerScale driver is installed, you can connect the PowerScale nodes for storage requirements on Kubernetes clusters.
+Dell PowerScale is a flexible and secure scale-out NAS (network attached storage) solution designed to simplify storage requirements for AI and HPC workloads. To enable the PowerScale storage solution on the Kubernetes clusters, Omnia installs the Dell CSI PowerScale driver (version 2.11.0) on the nodes using helm charts. Once the PowerScale CSI driver is installed, the PowerScale nodes can be connected to the Kubernetes clusters for storage requirements.
 To know more about the CSI PowerScale driver, `click here <https://dell.github.io/csm-docs/docs/deployment/helm/drivers/installation/isilon/>`_.
 
-.. note:: Omnia doesn't configure any PowerScale device via OneFS (operating system for PowerScale). Omnia configures the deployed Kubernetes cluster to interact with the PowerScale OneFS portal, and reference the necessary details from there.
+.. caution:: PowerScale CSI driver installation is only supported on RHEL 8.8, Rocky OLinux 8.8, and Ubuntu 22.04 clusters.
+
+.. note:: Omnia doesn't configure any PowerScale device via OneFS (operating system for PowerScale). Omnia configures the deployed Kubernetes cluster to interact with the PowerScale node.
 
 Prerequisites
 --------------
 
 1. Download the ``secret.yml`` file template from this `link <https://github.com/dell/csi-powerscale/blob/main/samples/secret/secret.yaml>`_.
 
-2. Update the following parameters in the ``secret.yml`` file as per your cluster details and keep the rest as default values:
+2. Update the following parameters in the ``secret.yml`` file as per your cluster details and keep the rest as default values. For example:
 
     *	clusterName: "omniacluster"
     *	username: "root"
@@ -29,7 +31,7 @@ Prerequisites
 
     wget https://raw.githubusercontent.com/dell/helm-charts/csi-isilon-2.11.0/charts/csi-isilon/values.yaml
 
-4. Update the following parameters in the ``secret.yml`` file and keep the rest as default values:
+4. Update the following parameters in the ``values.yml`` file and keep the rest as default values. Refer the below sample:
 
     * replication:
 
@@ -57,6 +59,13 @@ Prerequisites
 
     * controllerCount: 1
 
+.. note:: In order to integrate PowerScale solution to the deployed Kubernetes cluster, Omnia 1.7 requires the following fixed parameter values in ``values.yml`` file:
+
+    * Snapshot: true
+    * Replication: false
+    * controllerCount: 1
+    * skipCertificateValidation: true
+
 Installation Process
 ---------------------
 
@@ -81,14 +90,20 @@ Installation Process
     ansible-playbook omnia.yml -i <inventory_filepath>
 
  .. note::
-
-     * There isn't a separate playbook to run for PowerScale CSI driver installation. Running ``omnia.yml`` with necessary inputs installs the driver. If Kubernetes is already deployed on the cluster, then user can also run the ``scheduler.yml`` playbook to install the CSI driver.
+     * There isn't a separate playbook to run for PowerScale CSI driver installation. Running ``omnia.yml`` with necessary inputs installs the driver. If Kubernetes is already deployed on the cluster, users can also run the ``scheduler.yml`` playbook to install the PowerScale CSI driver.
      * After running ``omnia.yml`` playbook, the ``secret.yml`` file will be encrypted. User can use below command to decrypt and edit it if required: ::
 
-         ansible-vault edit /tmp/secret_config.yaml --vault-password-file
+         ansible-vault edit </tmp/secret_config.yml> --vault-password-file
          scheduler/roles/k8s_csi_powerscale_plugin/files/.csi_powerscale_secret_vault
 
  .. caution:: Do not delete the vault key file ``.csi_powerscale_secret_vault``, otherwise users will not be able to decrypt the ``secret.yml`` file anymore.
+
+Expected Results
+------------------
+
+* After the successful execution of the ``omnia.yml`` playbook, the PowerScale CSI drivers are installed on the nodes.
+* If there are errors during CSI driver installation, the whole ``omnia.yml`` playbook execution does not stop or fail. It pauses for 10 seconds with CSI driver installation failure error message and then proceeds with rest of the playbook execution.
+* For an unsuccessful driver installation scenario, the user first needs to follow the `removal <>`_ steps manually on the ``kube_control_plane`` and then re-run the ``omnia.yml`` playbook for CSI driver installation.
 
 Post-requisites
 ----------------
@@ -115,13 +130,11 @@ PowerScale driver installation doesn't create any storage class by default. User
       RootClientEnab1ed: "true"
       csi.storage.k8s.io/fstype: "nfs"
 
-.. note:: Refer to the OneFS portal for the value references while creating a storage class.
-
 **Create Persistent Volume Claim (PVC)**:
 
 Once the storage class is created, the same can be used to create PVC.
 
-*Sample PVC creation*: ::
+*Sample deployment with PVC*: ::
 
     apiVersion: v1
     kind: PersistentVolumeClaim
@@ -169,7 +182,17 @@ Once the storage class is created, the same can be used to create PVC.
               persistentVolumeClaim:
                 claimName: pvc-powerscale
 
-*Result*: Once the above manifest is applied, a PVC is created under name ``pvc-powerscale`` and is in ``Bound`` status. Use the ``kubectl get pvc -A`` command to bring up the PVC information. User can also verify the same information from the OneFS portal.
+*Expected Result*:
+
+* Once the above manifest is applied, a PVC is created under name ``pvc-powerscale`` and is in ``Bound`` status. Use the ``kubectl get pvc -A`` command to bring up the PVC information. For example: ::
+
+    root@node001:/opt/omnia/csi-driver-powerscale/csi-powerscale/dell-csi-helm-installer# kubectl get pvc -A
+    NAMESPACE   NAME                STATUS   VOLUME           CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE
+    default     pvc-powerscale      Bound    k8s-b00f77b817   1Gi        RWX            ps01           <unset>                 27h
+
+* User can also verify the same information from the OneFS portal. In the sample image below, it is mapped with the ``VOLUME`` entry from the above example: ``k8s-b00f77b817``:
+
+.. image:: ../../../images/CSI_OneFS.png
 
 Removal
 --------
@@ -188,8 +211,7 @@ To remove the PowerScale driver manually, do the following:
 
     ./csi-uninstall.sh --namespace isilon
 
-4. After running the previous command, the PowerScale driver is removed. But, the ``secret.yml`` file and the created PVC is not removed. Manually search for the files in the Isilon namespace and remove them.
-
+4. After running the previous command, the PowerScale driver is removed. But, the ``secret.yml`` file and the created PVC files are not removed. Users needs to manually remove the files from the ``isilon`` namespace.
 
 .. note:: In case OneFS portal credential changes, users need to perform following steps to update the changes to the ``secret.yml`` manually:
 
