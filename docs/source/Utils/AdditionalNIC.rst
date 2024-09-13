@@ -1,6 +1,11 @@
 Configuring additional NICs and Kernel Parameters on the nodes
 ----------------------------------------------------------------
-After the ``discovery_provision.yml`` playbook has been executed and the nodes have booted up, additional NICs and OS Kernel command-line parameters can be configured on the cluster nodes using the ``server_spec_update.yml`` playbook. For more information about the supported kernel command-line parameters, `click here <https://docs.kernel.org/admin-guide/kernel-parameters.html>`_.
+After the ``discovery_provision.yml`` playbook has been executed and the nodes have booted up, additional NICs or OS Kernel command-line parameters can be configured on the cluster nodes using the ``server_spec_update.yml`` playbook. For more information about the supported kernel command-line parameters, `click here <https://docs.kernel.org/admin-guide/kernel-parameters.html>`_.
+The ``server_spec_update.yml`` playbook can be used to do the following tasks:
+
+    * Configure additional NICs on the nodes.
+    * Configure OS Kernel command-line parameters on the nodes.
+    * Configure both additional NICs and OS Kernel command-line parameters on the nodes.
 
 **Prerequisites**
 
@@ -54,6 +59,7 @@ After the ``discovery_provision.yml`` playbook has been executed and the nodes h
 
 .. note::
 
+    * If OS Kernel command-line parameter configuration is not required on the nodes, the user can leave the ``cmdine`` entry empty in ``input/server_spec.yml``.
     * The ``nicnetwork`` details must be consistent with the network names specified in the ``input/network_spec.yml`` file.
     * While new groups can be added to the ``input/server_spec.yml`` file on subsequent runs of the ``server_spec_update.yml`` playbook, existing groups cannot be edited or deleted. If the user modifies or removes existing groups from ``input/server_spec.yml``, the playbook execution might fail. In that case, the user needs to `reprovision the node <../../Maintenance/reprovision.html>`_.
 
