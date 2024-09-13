@@ -25,3 +25,10 @@ Create Local Repositories on OIM
 
 .. image:: ../../images/Visio/Create_local_repo.png
     :width: 300pt
+
+
+.. csv-table:: Parameters for Software Configuration
+   :file: ../../../Tables/software_config_ubuntu.csv
+   :header-rows: 1
+   :keepspace:
+   :class: longtable
