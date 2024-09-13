@@ -4,7 +4,7 @@ Deploy CSI drivers for Dell PowerScale storage solutions
 Dell PowerScale is a flexible and secure scale-out NAS (network attached storage) solution designed to simplify storage requirements for AI and HPC workloads. To enable the PowerScale storage solution on the Kubernetes clusters, Omnia installs the Dell CSI PowerScale driver (version 2.11.0) on the nodes using helm charts. Once the PowerScale CSI driver is installed, the PowerScale nodes can be connected to the Kubernetes clusters for storage requirements.
 To know more about the CSI PowerScale driver, `click here <https://dell.github.io/csm-docs/docs/deployment/helm/drivers/installation/isilon/>`_.
 
-.. caution:: PowerScale CSI driver installation is only supported on RHEL 8.8, Rocky OLinux 8.8, and Ubuntu 22.04 clusters.
+.. caution:: PowerScale CSI driver installation is only supported on RHEL 8.8, Rocky Linux 8.8, and Ubuntu 22.04 clusters.
 
 .. note:: Omnia doesn't configure any PowerScale device via OneFS (operating system for PowerScale). Omnia configures the deployed Kubernetes cluster to interact with the PowerScale node.
 
@@ -98,12 +98,12 @@ Installation Process
 
 .. caution:: Do not delete the vault key file ``.csi_powerscale_secret_vault``, otherwise users will not be able to decrypt the ``secret.yml`` file anymore.
 
-Expected playbook execution results
---------------------------------------
+Expected Results
+------------------
 
 * After the successful execution of the ``omnia.yml`` playbook, the PowerScale CSI drivers are installed on the nodes.
 * If there are errors during CSI driver installation, the whole ``omnia.yml`` playbook execution does not stop or fail. It pauses for 10 seconds with CSI driver installation failure error message and then proceeds with rest of the playbook execution.
-* For an unsuccessful driver installation scenario, the user first needs to follow the `removal <>`_ steps manually on the ``kube_control_plane`` and then re-run the ``omnia.yml`` playbook for CSI driver installation.
+* For an unsuccessful driver installation scenario, the user first needs to follow the `removal <PowerScale_CSI.html#removal>`_ steps manually on the ``kube_control_plane`` and then re-run the ``omnia.yml`` playbook for CSI driver installation.
 
 Post-requisites
 ----------------
