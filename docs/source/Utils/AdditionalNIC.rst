@@ -72,6 +72,8 @@ The ``server_spec_update.yml`` playbook can be used to do the following tasks:
                       nictypes: "vlan"
                       nicdevices: "ensp0"
 
+
+
 * *Configure OS Kernel command-line parameters on the nodes.*
 
     * Do not change anything in the ``input/network_spec.yml`` file.
@@ -83,6 +85,8 @@ The ``server_spec_update.yml`` playbook can be used to do the following tasks:
                - os:
                    - kernel:
                        - cmdline: "iommu=pt intel_iommu=off pci=realloc=off processor.max_cstate=0 intel_idle.max_cstate=0 intel_pstate=disable"
+
+
 
 * *Configure both additional NICs and OS Kernel command-line parameters on the nodes.*
 
@@ -122,7 +126,7 @@ The ``server_spec_update.yml`` playbook can be used to do the following tasks:
     * If OS Kernel command-line parameter configuration is not required on the nodes, the user can leave the ``cmdine`` entry empty in ``input/server_spec.yml``.
     * The ``nicnetwork`` details must be consistent with the network names specified in the ``input/network_spec.yml`` file.
     * While new groups can be added to the ``input/server_spec.yml`` file on subsequent runs of the ``server_spec_update.yml`` playbook, existing groups cannot be edited or deleted. If the user modifies or removes existing groups from ``input/server_spec.yml``, the playbook execution might fail. In that case, the user needs to `reprovision the node <../../Maintenance/reprovision.html>`_.
-    * This playbook has been validated with the following kernel parameters:
+    * This playbook has been validated with the following Kernel parameters:
 
             * iommu=pt
             * intel_iommu=off
@@ -133,7 +137,7 @@ The ``server_spec_update.yml`` playbook can be used to do the following tasks:
 
 **Executing the playbook**
 
-After you have filled up the ``input/network_spec.yml`` and ``input/server_spec.yml`` with all the necessary details based on the configuration required, do the following to execute the playbook:
+After you have filled up the ``input/network_spec.yml`` and ``input/server_spec.yml`` with all the necessary details based on the configuration(s) required, do the following to execute the playbook:
 
 * First, create an inventory while referencing the sample inventory format is present in ``examples/server_spec_inv`` and also attached below: ::
 
