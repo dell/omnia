@@ -1,5 +1,5 @@
-Advanced configurations for RHEL clusters
-==========================================
+Advanced configurations for RHEL/Rocky Linux clusters
+========================================================
 
 .. toctree::
     :maxdepth: 2
