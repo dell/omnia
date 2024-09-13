@@ -111,6 +111,7 @@ For a list of repositories (and their types) configured for AMD GPUs, view the `
 .. csv-table:: Parameters for Local Repository Configuration
    :file: ../../../Tables/local_repo_config_ubuntu.csv
    :header-rows: 1
+   :keepspace:
    :class: longtable
 
 * Input ``docker_username`` and ``docker_password`` in ``input/provision_config_credentials.yml``  to avoid image pullback errors.
