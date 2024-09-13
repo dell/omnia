@@ -93,8 +93,7 @@ Installation Process
      * There isn't a separate playbook to run for PowerScale CSI driver installation. Running ``omnia.yml`` with necessary inputs installs the driver. If Kubernetes is already deployed on the cluster, users can also run the ``scheduler.yml`` playbook to install the PowerScale CSI driver.
      * After running ``omnia.yml`` playbook, the ``secret.yml`` file will be encrypted. User can use below command to decrypt and edit it if required: ::
 
-         ansible-vault edit </tmp/secret_config.yml> --vault-password-file
-         scheduler/roles/k8s_csi_powerscale_plugin/files/.csi_powerscale_secret_vault
+         ansible-vault edit </tmp/secret_config.yml> --vault-password-file scheduler/roles/k8s_csi_powerscale_plugin/files/.csi_powerscale_secret_vault
 
 .. caution:: Do not delete the vault key file ``.csi_powerscale_secret_vault``, otherwise users will not be able to decrypt the ``secret.yml`` file anymore.
 
