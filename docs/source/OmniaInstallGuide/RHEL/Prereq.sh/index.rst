@@ -34,5 +34,5 @@ Deactivate the Omnia virtual environment
 
  .. image:: ../../../images/virtual_env_deactivate.png
 
-.. caution:: If you want to delete and recreate the Omnia-created virtual environment, ensure to back up the pip packages before doing so. To backup the packages, run the ``pip freeze >> omnia_venv_pip_reqs.txt`` command from within the activated virtual environment. This command creates a backup file called ``omnia_venv_pip_reqs.txt`` in the current directory. After you have recreated the virtual environment using the ``prereq.sh`` script, restore the pip packages from the activated virtual environment using the ``pip3 install -r omnia_venv_pip_reqs.txt`` command.
+.. caution:: If you want to delete and recreate the Omnia-created virtual environment, ensure to back up the pip packages before doing so. To backup the packages, run the ``pip freeze >> omnia_venv_pip_reqs.txt`` command from within the activated virtual environment. This command creates a backup file called ``omnia_venv_pip_reqs.txt`` in the current directory. After you have recreated the virtual environment using the ``prereq.sh`` script, restore the pip packages from the activated virtual environment using the ``pip install -r omnia_venv_pip_reqs.txt`` command.
 
