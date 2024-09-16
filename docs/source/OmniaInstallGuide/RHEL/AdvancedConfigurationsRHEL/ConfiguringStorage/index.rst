@@ -134,7 +134,7 @@ Run the playbook: ::
     ansible-playbook nfs_sas.yml -i /root/inventory -e powervault_username="xxxxx" -e powervault_password="xxxxxx"
 
 * Where the ``inventory`` refers to a list of all nodes separated by a newline.
-* To set up NFS client services, `click here <../../BuildOmniaCluster/NFS.html>`_
+* To set up NFS client services, `click here <../../OmniaCluster/Storage/NFS.html>`_
 
 
 

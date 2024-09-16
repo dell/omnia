@@ -1,10 +1,10 @@
 Building clusters
 ------------------
 
-1. In the ``input/omnia_config.yml``, ``input/security_config.yml``, ``input/telemetry_config.yml`` and [optional] ``input/storage_config.yml`` files, provide the `required details <schedulerinputparams.html>`_.
+1. In the ``input/omnia_config.yml``, ``input/security_config.yml``, ``input/telemetry_config.yml`` and [optional] ``input/storage_config.yml`` files, provide the `required details <../schedulerinputparams.html>`_.
 
 
-2. Create an inventory file in the *omnia* folder. Check out the `sample inventory <../../samplefiles.html>`_ for more information. If a hostname is used to refer to the target nodes, ensure that the domain name is included in the entry. IP addresses are also accepted in the inventory file.
+2. Create an inventory file in the *omnia* folder. Check out the `sample inventory <../../../samplefiles.html>`_ for more information. If a hostname is used to refer to the target nodes, ensure that the domain name is included in the entry. IP addresses are also accepted in the inventory file.
 
 .. include:: ../../Appendices/hostnamereqs.rst
 
@@ -16,10 +16,10 @@ Building clusters
 3. ``omnia.yml`` is a wrapper playbook comprising of:
 
     i. ``security.yml``: This playbook sets up centralized authentication (LDAP/FreeIPA) on the cluster. For more information, `click here. <Authentication.html>`_
-    ii. ``storage.yml``: This playbook sets up storage tools like `BeeGFS <BeeGFS.html>`_ and `NFS <NFS.html>`_.
+    ii. ``storage.yml``: This playbook sets up storage tools like `BeeGFS <../Storage/BeeGFS.html>`_ and `NFS <../Storage/NFS.html>`_.
     iii. ``scheduler.yml``: This playbook sets up job schedulers (`Slurm <install_slurm.html>`_ or `Kubernetes <install_kubernetes.html>`_) on the cluster.
-    iv. ``telemetry.yml``: This playbook sets up `Omnia telemetry and/or iDRAC telemetry <../../../Roles/Telemetry/index.html>`_. It also installs `Grafana <https://grafana.com/>`_ and `Loki <https://grafana.com/oss/loki/>`_ as Kubernetes pods.
-    v. ``rocm_installation.yml``: This playbook sets up the `ROCm platform for AMD GPU accelerators <AMD_ROCm.html>`_.
+    iv. ``telemetry.yml``: This playbook sets up `Omnia telemetry and/or iDRAC telemetry <../../../../Telemetry/index.html>`_. It also installs `Grafana <https://grafana.com/>`_ and `Loki <https://grafana.com/oss/loki/>`_ as Kubernetes pods.
+    v. ``rocm_installation.yml``: This playbook sets up the `ROCm platform for AMD GPU accelerators <../GPU_library/AMD_ROCm.html>`_.
 
 To run ``omnia.yml``: ::
 

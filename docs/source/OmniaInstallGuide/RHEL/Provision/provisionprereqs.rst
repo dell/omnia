@@ -32,8 +32,8 @@ Before you run the provision tool
 
 * To provision the bare metal servers, download one of the following ISOs to the control plane:
 
-    `RHEL 8.x <https://www.redhat.com/en/enterprise-linux-8>`_
-    `Rocky Linux 8.x <https://rockylinux.org/>`_
+    * `RHEL 8.x <https://www.redhat.com/en/enterprise-linux-8>`_
+    * `Rocky Linux 8.x <https://rockylinux.org/>`_
 
 .. note:: Ensure the ISO provided has downloaded seamlessly (No corruption). Verify the SHA checksum/ download size of the ISO file before provisioning to avoid future failures.
 

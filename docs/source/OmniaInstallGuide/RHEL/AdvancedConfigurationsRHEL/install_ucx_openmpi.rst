@@ -13,7 +13,7 @@ Configuring UCX and OpenMPI on the cluster
 
 * Ensure to run ``local_repo.yml`` with the ``ucx`` and ``openmpi`` entry present in ``software_config.json``, to download all required UCX and OpenMPI packages.
 
-* To install any benchmarking software like UCX or OpenMPI, at least ``slurm_share`` or ``k8s_share`` is set to ``true`` in `storage_config.yml <../BuildOmniaCluster/schedulerinputparams.html#storage-config-yml>`_, for one of the entries in ``nfs_client_params``. If both are set to true, a higher precedence is given to ``slurm_share``.
+* To install any benchmarking software like UCX or OpenMPI, at least ``slurm_share`` or ``k8s_share`` is set to ``true`` in `storage_config.yml <../OmniaCluster/schedulerinputparams.html#storage-config-yml>`_, for one of the entries in ``nfs_client_params``. If both are set to true, a higher precedence is given to ``slurm_share``.
 
 **Inventory details**
 

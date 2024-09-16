@@ -3,9 +3,9 @@ Setup vLLM
 
 vLLM is a fast and easy-to-use library for LLM inference and serving. It is seamlessly integrated with popular HuggingFace models. It is also compatible with OpenAI API servers and GPUs (Both NVIDIA and AMD). vLLM 0.2.4 and above supports model inferencing and serving on AMD GPUs with ROCm. At the moment AWQ quantization is not supported in ROCm, but SqueezeLLM quantization has been ported. Data types currently supported in ROCm are FP16 and BF16.
 
-For NVidia, vLLM is a Python library that also contains pre-compiled C++ and CUDA (12.1) binaries.
+For NVIDIA, vLLM is a Python library that also contains pre-compiled C++ and CUDA (12.1) binaries.
 
-With an Ansible script, deploy vLLM on both the kube_node and kube_control_plane. After the deployment of vLLM, access the vllm container (AMD GPU) and import the vLLM Python package (NVIDIA GPU). For more information, `click here <https://docs.vllm.ai/en/latest/getting_started/installation.html>`_
+With an Ansible script, deploy vLLM on both the ``kube_node`` and ``kube_control_plane``. After the deployment of vLLM, access the vLLM container (AMD GPU) and import the vLLM Python package (NVIDIA GPU). For more information, `click here <https://docs.vllm.ai/en/latest/getting_started/installation.html>`_
 
 .. note:: This playbook is supported on Ubuntu 22.04 and RHEL 8.8.
 
@@ -15,11 +15,11 @@ With an Ansible script, deploy vLLM on both the kube_node and kube_control_plane
 
 * Only AMD GPUs from the MI200s (gfx90a) are supported.
 
-* For nodes using NVidia, ensure that the GPU has a compute capacity that is higher than 7 (Eg: V100, T4, RTX20xx, A100, L4, H100, etc).
+* For nodes using NVIDIA, ensure that the GPU has a compute capacity that is higher than 7 (Eg: V100, T4, RTX20xx, A100, L4, H100, etc).
 
-* Ensure the ``kube_node``, ``kube_control_plane`` is setup and working. If NVidia or AMD GPU acceleration is required for the task, install the NVidia (with containerd) or AMD ROCm GPU drivers during provisioning.
+* Ensure the ``kube_node``, ``kube_control_plane`` is setup and working. If NVIDIA or AMD GPU acceleration is required for the task, install the NVIDIA (with containerd) or AMD ROCm GPU drivers during provisioning.
 
-* Use ``local_repo.yml`` to create an offline vLLM repository. For more information, `click here. <../../LocalRepo/localrepos.html>`_
+* Use ``local_repo.yml`` to create an offline vLLM repository. For more information, `click here. <../../CreateLocalRepo/localrepos.html>`_
 
 **[Optional prerequisites]**
 
@@ -27,9 +27,9 @@ With an Ansible script, deploy vLLM on both the kube_node and kube_control_plane
 
 * Ensure the passed inventory file has a ``kube_control_plane`` and ``kube_node`` listing all cluster nodes.
 
-* Update the ``/input/software_config.json`` file with the correct vLLM version required. The default value is ``vllm-v0.2.4`` for AMD container and ``vllm latest`` for NVidia.
+* Update the ``/input/software_config.json`` file with the correct vLLM version required. The default value is ``vllm-v0.2.4`` for AMD container and ``vllm latest`` for NVIDIA.
 
-* Omnia deploys the vLLM pip installation for NVidia GPU, or ``embeddedllminfo/vllm-rocm:vllm-v0.2.4`` container image for AMD GPU.
+* Omnia deploys the vLLM pip installation for NVIDIA GPU, or ``embeddedllminfo/vllm-rocm:vllm-v0.2.4`` container image for AMD GPU.
 
 * Nerdctl does not support mounting directories as devices because it is not a feature of containerd (The runtime that nerdctl uses). Individual files need to be attached while running nerdctl.
 
@@ -46,7 +46,7 @@ With an Ansible script, deploy vLLM on both the kube_node and kube_control_plane
 
 The default namespace is for deployment is ``vLLM``.
 
-.. note:: During the ``vllm.yml`` playbook execution, nodes with AMD or Nvidia GPUs and drivers will install and test either the ``vllm-AMD`` or ``vllm-Nvidia`` containers, respectively.
+.. note:: During the ``vllm.yml`` playbook execution, nodes with AMD or NVIDIA GPUs and drivers will install and test either the ``vllm-AMD`` or ``vllm-Nvidia`` containers, respectively.
 
 **Accessing the vLLM (AMD)**
 

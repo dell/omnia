@@ -20,7 +20,7 @@ ______________________________________
 
     {"name": "openldap"}
 
-* Run ``local_repo.yml`` to create offline repositories of FreeIPA or OpenLDAP. If both were downloaded, ensure that the non-required system is removed from ``input/software_config.json`` before running ``security.yml``. For more information, `click here <../CreateLocalRepo/index.html>`_.
+* Run ``local_repo.yml`` to create offline repositories of FreeIPA or OpenLDAP. If both were downloaded, ensure that the non-required system is removed from ``input/software_config.json`` before running ``security.yml``. For more information, `click here <../../CreateLocalRepo/index.html>`_.
 
 * Enter the following parameters in ``input/security_config.yml``.
 
@@ -49,7 +49,7 @@ The wrapper playbook ``omnia.yml`` handles execution of the security or authenti
     cd security
     ansible-playbook security.yml -i inventory
 
-The inventory should contain auth_server as per the inventory file in `samplefiles <../../samplefiles.html#inventory-file>`_. The inventory file is case-sensitive. Follow the format provided in the sample file link.
+The inventory should contain auth_server as per the inventory file in `sample files <../../../samplefiles.html#inventory-file>`_. The inventory file is case-sensitive. Follow the format provided in the sample file link.
 
     * Do not include the IP of the control plane or local host as the ``auth_server group`` in the inventory file.
     * To customize the security features on the login node, update the desired parameters in ``input/login_node_security_config.yml``.
@@ -129,7 +129,7 @@ Use the below command to enable passwordless SSH: ::
 
     ansible-playbook user_passwordless_ssh.yml -i inventory
 
-Where inventory follows the format defined under inventory file in the provided `Sample Files. <../../sample files.html>`_ The inventory file is case-sensitive. Follow the format provided in the sample file link.
+Where inventory follows the format defined under inventory file in the provided `sample files. <../../../sample files.html>`_ The inventory file is case-sensitive. Follow the format provided in the sample file link.
 
 .. caution:: Do not run ssh-keygen commands after passwordless SSH is set up on the nodes.
 
@@ -142,7 +142,7 @@ ________________________________
 
       {"name": "secure_login_node"}
 
-* Run ``local_repo.yml`` to create an offline repository of all utilities used to secure the login node. For more information, `click here. <../CreateLocalRepo/index.html>`_
+* Run ``local_repo.yml`` to create an offline repository of all utilities used to secure the login node. For more information, `click here. <../../CreateLocalRepo/index.html>`_
 
 Enter the following parameters in ``input/login_node_security_config.yml``.
 
@@ -201,8 +201,8 @@ Enter the following parameters in ``input/login_node_security_config.yml``.
 Advanced Settings
 ------------------
 
-* To install FreeIPA server on the NFS node, `click here <../../../Utils/freeipa_installation.html>`_.
+* To install FreeIPA server on the NFS node, `click here <../../../../Utils/freeipa_installation.html>`_.
 
-* To replicate the OpenLDAP server `click here <ReplicatingLDAP.html>`_.
+* To replicate the OpenLDAP server `click here <../ReplicatingLDAP.html>`_.
 
-* To set up the internal OpenLDAP server as a proxy, `click here <OpenLDAP_proxy.html>`_.
+* To set up the internal OpenLDAP server as a proxy, `click here <../OpenLDAP_proxy.html>`_.

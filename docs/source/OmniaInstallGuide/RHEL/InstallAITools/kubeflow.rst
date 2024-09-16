@@ -12,7 +12,7 @@ Ensure that you have executed ``local_repo.yml`` with Kubeflow specified in the 
 
 First, ensure that you have a Kubernetes cluster deployed on your compute node.
 
-For instructions to set up Kubernetes, `click here <../BuildOmniaCluster/install_kubernetes.html>`_.
+For instructions to set up Kubernetes, `click here <../OmniaCluster/BuildingCluster/install_kubernetes.html>`_.
 
 .. note:: The playbooks automate the process, ensuring consistency across deployments.
 
