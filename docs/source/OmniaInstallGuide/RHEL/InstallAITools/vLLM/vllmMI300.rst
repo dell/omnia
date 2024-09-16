@@ -3,7 +3,7 @@ vLLM enablement for AMD MI300 GPU
 
 .. note:: This whole execution will take approximately 3-4 hours.
 
-* MI300 support is enabled with vllm version 0.3.2
+* MI300 support is enabled with vLLM version 0.3.2
 * The ``vllm_build.yml`` file is located inside ``omnia/utils/vllm_build``.
 
 Follow the below steps to setup the vLLM:

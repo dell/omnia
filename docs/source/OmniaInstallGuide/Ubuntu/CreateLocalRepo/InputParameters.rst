@@ -104,7 +104,7 @@ For a list of repositories (and their types) configured for AMD GPUs, view the `
       }
     }
 
-.. note:: To configure a locally available repository that does not have a pre-defined json file, `click here <CustomLocalRepo.html>`_.
+.. note:: To configure a locally available repository that does not have a pre-defined json file, `click here <../AdvancedConfigurationsUbuntu/CustomLocalRepo.html>`_.
 
 * Input the required values in ``input/local_repo_config.yml``.
 
