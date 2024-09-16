@@ -20,6 +20,6 @@ Limitations
 - Currently, Omnia only supports the splitting of switch ports. Switch ports cannot be un-split using the `switch configuration script <InstallationGuides/ConfiguringSwitches/index.html>`_.
 - The IP subnet 10.4.0.0 cannot be used for any networks on the Omnia cluster as it is reserved for Nerdctl.
 - Installation of vLLM and racadam via Omnia is not supported on Ubuntu 20.04.
-- Omnia v1.6 does not support configuration of a DNS server on the control plane; that is, the ``DNS`` parameter in `input/network_spec.yml <InstallationGuides/InstallingProvisionTool/provisionparams.html>`_ is not supported.
+- Omnia v1.6 does not support configuration of a DNS server on the control plane; that is, the ``DNS`` parameter in ``input/network_spec.yml`` is not supported.
 - The "desktop image" version of Ubuntu is not supported on the control plane.
 - Omnia does not allow users to perform downgrade operations, which means that once they have upgraded, they cannot revert back to a previous version of Omnia.
