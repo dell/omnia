@@ -6,7 +6,7 @@ To know more about the CSI PowerScale driver, `click here <https://dell.github.i
 
 .. caution:: PowerScale CSI driver installation is only supported on RHEL 8.8, Rocky Linux 8.8, and Ubuntu 22.04 clusters.
 
-.. note:: Omnia doesn't configure any PowerScale device via OneFS (operating system for PowerScale). Omnia configures the deployed Kubernetes cluster to interact with the PowerScale node.
+.. note:: Omnia doesn't configure any PowerScale device via OneFS (operating system for PowerScale). Omnia configures the deployed Kubernetes cluster to interact with the PowerScale storage.
 
 Prerequisites
 --------------
@@ -31,7 +31,7 @@ Prerequisites
 
     wget https://raw.githubusercontent.com/dell/helm-charts/csi-isilon-2.11.0/charts/csi-isilon/values.yaml
 
-4. Update the following parameters in the ``values.yml`` file and keep the rest as default values. Refer the below sample:
+4. Update the following parameters in the ``values.yml`` file and keep the rest as default values. Refer the below sample values:
 
     * replication:
 
@@ -93,7 +93,7 @@ Installation Process
      * There isn't a separate playbook to run for PowerScale CSI driver installation. Running ``omnia.yml`` with necessary inputs installs the driver. If Kubernetes is already deployed on the cluster, users can also run the ``scheduler.yml`` playbook to install the PowerScale CSI driver.
      * After running ``omnia.yml`` playbook, the ``secret.yml`` file will be encrypted. User can use below command to decrypt and edit it if required: ::
 
-         ansible-vault edit </tmp/secret_config.yml> --vault-password-file scheduler/roles/k8s_csi_powerscale_plugin/files/.csi_powerscale_secret_vault
+         ansible-vault edit <secret.yml filepath> --vault-password-file scheduler/roles/k8s_csi_powerscale_plugin/files/.csi_powerscale_secret_vault
 
 .. caution:: Do not delete the vault key file ``.csi_powerscale_secret_vault``, otherwise users will not be able to decrypt the ``secret.yml`` file anymore.
 
@@ -102,7 +102,7 @@ Expected Results
 
 * After the successful execution of the ``omnia.yml`` playbook, the PowerScale CSI drivers are installed on the nodes.
 * If there are errors during CSI driver installation, the whole ``omnia.yml`` playbook execution does not stop or fail. It pauses for 10 seconds with CSI driver installation failure error message and then proceeds with rest of the playbook execution.
-* For an unsuccessful driver installation scenario, the user first needs to follow the manual removal steps on the ``kube_control_plane`` and then re-run the ``omnia.yml`` playbook for CSI driver installation.
+* For an unsuccessful driver installation scenario, the user first needs to follow the manual removal steps mentioned below from the ``kube_control_plane``, and then re-run the ``omnia.yml`` playbook for CSI driver installation.
 
 Post-requisites
 ----------------
@@ -210,16 +210,16 @@ To remove the PowerScale driver manually, do the following:
 
     ./csi-uninstall.sh --namespace isilon
 
-4. After running the previous command, the PowerScale driver is removed. But, the ``secret.yml`` file and the created PVC files are not removed. Users needs to manually remove the files from the ``isilon`` namespace.
+4. After running the previous command, the PowerScale driver is removed. But, the secret and the created PVC are not removed. Users needs to manually remove them from the ``isilon`` namespace.
 
 .. note:: In case OneFS portal credential changes, users need to perform following steps to update the changes to the ``secret.yml`` manually:
 
-    1. Update the ``new_secret.yml`` file with the changed credentials.
-    2. Login to the ``kube_control_plane`` and copy the file to the control plane.
-    3. Delete the existing file by executing the following command: ::
+    1. Update the ``secret.yml`` file with the changed credentials.
+    2. Login and copy the ``secret.yml`` file to the ``kube_control_plane``.
+    3. Delete the existing secret by executing the following command: ::
 
         kubectl delete secret isilon-creds -n isilon
 
-    4. Apply the ``new_secret_file`` by executing the following command: ::
+    4. Create the new secret from the updated ``secret.yml`` file by executing the following command: ::
 
-        kubectl apply -f new_secret_file.yml
+        kubectl create secret generic isilon-creds -n isilon --from-file=config=<updated secret.yml filepath>
