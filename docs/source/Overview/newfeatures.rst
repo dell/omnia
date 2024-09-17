@@ -14,3 +14,24 @@ New Features
 * Omnia now executes exclusively within a virtual environment created by the ``prereq.sh`` script.
 
 * Added support for NVIDIA container toolkit for NVIDIA accelerators in a Kubernetes cluster.
+
+* Set OS Kernel command-line parameters and/or configure additional NICs on the nodes using a single playbook.
+
+* Sample playbook for a pre-trained Generative AI model - Llama 3.1
+
+* Added support for corporate proxy on RHEL, Rocky Linux, and Ubuntu clusters.
+
+* Intel Gaudi accelerator status verification using HCCL, qual.
+
+* CSI drivers for Kubernetes access to PowerScale (without SSL certificate)
+
+* Monitoring for Intel Gaudi accelerators:
+
+    * Omnia telemetry
+    * iDRAC telemetry
+
+* AI tools:
+
+    * DeepSpeed and Kubeflow as part of Intel Gaudi AI stack
+    * Parity for Kserve, Tensorflow, and Jupyterhub
+    * vLLM enablement on clusters containing Intel Gaudi nodes

@@ -33,7 +33,7 @@ Discovery Logs,/var/log/omnia/discovery.log,Discovery log,This log is configured
 Prepare control plane Logs,/var/log/omnia/prepare_cp.log,Preparing control plane log,This log is configured by Default.
 Tools Logs,/var/log/omnia/tools.log,Tools log,This log is configured by Default.
 Upgrade Logs,/var/log/omnia/upgrade.log,Upgrade log,This log is configured by Default.
-Kernel Parameters Update Logs,/var/log/omnia/kernel_param_update.log,IP rule assignment log,This log is configured by Default.
+Kernel Parameters Update Logs,/var/log/omnia/kernel_param_update.log,Kernel Parameter update log,This log is configured by Default.
 IP Rule Assignment Logs,/var/log/omnia/ip_rule_assignment.log,IP rule assignment log,This log is configured by Default.
 Software Update Logs,/var/log/omnia/software_update.log,Software update log,This log is configured by Default.
 Performance Profile Logs,/var/log/omnia/performance_profile.log,Peformance profile log,This log is configured by Default.
