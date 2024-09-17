@@ -21,7 +21,7 @@ New Features
 
 * CSI drivers for Kubernetes access to PowerScale (without SSL certificate)
 
-* Added support for Intel Gaudi accelerators:
+* Added support for Intel Gaudi 3 accelerators:
 
     * Software stack installation
 

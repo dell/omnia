@@ -24,7 +24,7 @@ Releases
 
 * CSI drivers for Kubernetes access to PowerScale (without SSL certificate)
 
-* Added support for Intel Gaudi accelerators:
+* Added support for Intel Gaudi 3 accelerators:
 
     * Software stack installation
 
@@ -42,6 +42,10 @@ Releases
     * DeepSpeed and Kubeflow as part of Intel Gaudi AI stack
     * Parity for Kserve, Tensorflow, and Jupyterhub
     * vLLM enablement on clusters containing Intel Gaudi nodes
+
+1.6.1
+-------
+Omnia v1.6.1 addresses an issue caused due to the unavailability of the dependent package ‘libssl1.1_1.1.1f-1ubuntu2.22_amd64’ required by Omnia v1.6 for the Ubuntu 22.04 operating system. The focus of this release is to resolve this issue and ensure the proper functionality of Omnia on Ubuntu 22.04 OS.
 
 1.6
 ----
