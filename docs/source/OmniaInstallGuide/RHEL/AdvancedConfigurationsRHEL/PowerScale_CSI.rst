@@ -108,7 +108,7 @@ Expected Results
 Post-requisites
 ----------------
 
-**Create storage class**:
+**Create storage class**
 
 PowerScale driver installation doesn't create any storage class by default. Users need to create storage class manually post installation of the PowerScale CSI driver. A sample storage class manifest is available `here <https://github.com/dell/csi-powerscale/blob/main/samples/storageclass/isilon.yaml>`_. Use this sample manifest to create a ``StorageClass`` to provision storage; update the manifest as per the requirements.
 
@@ -136,7 +136,7 @@ Use the following command to apply the storageclass: ::
 
     kubectl apply -f <storageclass name>
 
-**Create Persistent Volume Claim (PVC)**:
+**Create Persistent Volume Claim (PVC)**
 
 Once the storage class is created, the same can be used to create PVC.
 
