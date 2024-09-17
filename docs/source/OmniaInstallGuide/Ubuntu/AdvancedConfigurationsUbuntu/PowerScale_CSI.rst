@@ -227,8 +227,6 @@ To remove the PowerScale driver manually, do the following:
 
  .. image:: ../../../images/CSI_delete_deployment.png
 
-  [Optional] To verify that the deployment has been successfully deleted, run the ``kubectl get deployment -A`` command again after executing the ``kubectl delete`` command. If your ``<deployment name>`` is absent, then the deletion is successful.
-
 4. Use the following command to get the name of your storageclass: ::
 
     kubectl get storageclass
@@ -240,8 +238,6 @@ To remove the PowerScale driver manually, do the following:
     kubectl delete <storageclass name>
 
  .. image:: ../../../images/CSI_delete_storageclass.png
-
-  [Optional] To verify that the storageclass has been successfully deleted, run the ``kubectl get storageclass`` command again after executing the ``kubectl delete`` command. If your ``<storageclass name>`` is absent, then the deletion is successful.
 
 6. Execute the following command to switch to the ``dell-csi-helm-installer`` directory: ::
 

@@ -60,7 +60,7 @@ Prerequisites
     * isiPath: /ifs/data/csi
 
 
-.. note:: In order to integrate PowerScale solution to the deployed Kubernetes cluster, Omnia 1.7 requires the following fixed parameter values in ``values.yml`` file:
+.. note:: In order to integrate PowerScale solution to the deployed Kubernetes cluster, Omnia 1.7 requires the following fixed parameter values in ``values.yaml`` file:
 
     * controllerCount: 1
     * Replication: false
@@ -94,7 +94,7 @@ Installation Process
      * There isn't a separate playbook to run for PowerScale CSI driver installation. Running ``omnia.yml`` with necessary inputs installs the driver. If Kubernetes is already deployed on the cluster, users can also run the ``scheduler.yml`` playbook to install the PowerScale CSI driver.
      * After running ``omnia.yml`` playbook, the ``secret.yaml`` file will be encrypted. User can use below command to decrypt and edit it if required: ::
 
-         ansible-vault edit <secret.yml filepath> --vault-password-file scheduler/roles/k8s_csi_powerscale_plugin/files/.csi_powerscale_secret_vault
+         ansible-vault edit <secret.yaml filepath> --vault-password-file scheduler/roles/k8s_csi_powerscale_plugin/files/.csi_powerscale_secret_vault
 
 .. caution:: Do not delete the vault key file ``.csi_powerscale_secret_vault``, otherwise users will not be able to decrypt the ``secret.yaml`` file anymore.
 
@@ -129,6 +129,12 @@ PowerScale driver installation doesn't create any storage class by default. User
       Isipath: /ifs/data/csi/
       RootClientEnab1ed: "true"
       csi.storage.k8s.io/fstype: "nfs"
+
+**Apply storage class**
+
+Use the following command to apply the storageclass: ::
+
+    kubectl apply -f <storageclass name>
 
 **Create Persistent Volume Claim (PVC)**:
 
@@ -182,6 +188,12 @@ Once the storage class is created, the same can be used to create PVC.
               persistentVolumeClaim:
                 claimName: pvc-powerscale
 
+**Apply PVC**
+
+Use the following command to apply the PVC: ::
+
+    kubectl apply -f <PVC name>
+
 *Expected Result*:
 
 * Once the above manifest is applied, a PVC is created under name ``pvc-powerscale`` and is in ``Bound`` status. Use the ``kubectl get pvc -A`` command to bring up the PVC information. For example: ::
@@ -203,24 +215,48 @@ To remove the PowerScale driver manually, do the following:
 
 1. Login to the ``kube_control_plane``.
 
-2. Execute the following command: ::
+2. Use the following command to bring up the list of all deployments on your cluster: ::
+
+    kubectl get deployment -A
+
+ .. image:: ../../../images/CSI_get_deployment.png
+
+3. Get the name of your deployment and run the following command to delete your deployment: ::
+
+    kubectl delete deployment <deployment name>
+
+ .. image:: ../../../images/CSI_delete_deployment.png
+
+4. Use the following command to get the name of your storageclass: ::
+
+    kubectl get storageclass
+
+ .. image:: ../../../images/CSI_get_storageclass.png
+
+5. Run the following command to delete your storageclass: ::
+
+    kubectl delete <storageclass name>
+
+ .. image:: ../../../images/CSI_delete_storageclass.png
+
+6. Execute the following command to switch to the ``dell-csi-helm-installer`` directory: ::
 
     cd /opt/omnia/csi-driver-powerscale/csi-powerscale/dell-csi-helm-installer
 
-3. Once you're in the ``dell-csi-helm-installer`` directory, use the following command to trigger the ``csi-uninstall`` script: ::
+7. Once you're inside the ``dell-csi-helm-installer`` directory, use the following command to trigger the ``csi-uninstall`` script: ::
 
     ./csi-uninstall.sh --namespace isilon
 
-4. After running the previous command, the PowerScale driver is removed. But, the secret and the created PVC are not removed. Users needs to manually remove them from the ``isilon`` namespace.
+8. After running the previous command, the PowerScale driver is removed. But, the secret and the created PVC are not removed. Users needs to manually remove them from the ``isilon`` namespace.
 
-.. note:: In case OneFS portal credential changes, users need to perform following steps to update the changes to the ``secret.yml`` manually:
+.. note:: In case OneFS portal credential changes, users need to perform following steps to update the changes to the ``secret.yaml`` manually:
 
-    1. Update the ``secret.yml`` file with the changed credentials.
-    2. Login and copy the ``secret.yml`` file to the ``kube_control_plane``.
+    1. Update the ``secret.yaml`` file with the changed credentials.
+    2. Login and copy the ``secret.yaml`` file to the ``kube_control_plane``.
     3. Delete the existing secret by executing the following command: ::
 
         kubectl delete secret isilon-creds -n isilon
 
-    4. Create the new secret from the updated ``secret.yml`` file by executing the following command: ::
+    4. Create the new secret from the updated ``secret.yaml`` file by executing the following command: ::
 
-        kubectl create secret generic isilon-creds -n isilon --from-file=config=<updated secret.yml filepath>
+        kubectl create secret generic isilon-creds -n isilon --from-file=config=<updated secret.yaml filepath>
