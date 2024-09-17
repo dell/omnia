@@ -11,9 +11,9 @@ To know more about the CSI PowerScale driver, `click here <https://dell.github.i
 Prerequisites
 --------------
 
-1. Download the ``secret.yml`` file template from this `link <https://github.com/dell/csi-powerscale/blob/main/samples/secret/secret.yaml>`_.
+1. Download the ``secret.yaml`` file template from this `link <https://github.com/dell/csi-powerscale/blob/main/samples/secret/secret.yaml>`_.
 
-2. Update the following parameters in the ``secret.yml`` file as per your cluster details and keep the rest as default values. For example:
+2. Update the following parameters in the ``secret.yaml`` file as per your cluster details and keep the rest as default values. For example:
 
     *	clusterName: "omniacluster"
     *	username: "root"
@@ -27,11 +27,13 @@ Prerequisites
 
    .. image:: ../../../images/CSI_1.png
 
-3. Download the ``values.yml`` files template using the following command: ::
+3. Download the ``values.yaml`` files template using the following command: ::
 
     wget https://raw.githubusercontent.com/dell/helm-charts/csi-isilon-2.11.0/charts/csi-isilon/values.yaml
 
-4. Update the following parameters in the ``values.yml`` file and keep the rest as default values. Refer the below sample values:
+4. Update the following parameters in the ``values.yaml`` file and keep the rest as default values. Refer the below sample values:
+
+    * controllerCount: 1
 
     * replication:
 
@@ -57,19 +59,18 @@ Prerequisites
 
     * isiPath: /ifs/data/csi
 
-    * controllerCount: 1
 
 .. note:: In order to integrate PowerScale solution to the deployed Kubernetes cluster, Omnia 1.7 requires the following fixed parameter values in ``values.yml`` file:
 
-    * Snapshot: true
-    * Replication: false
     * controllerCount: 1
+    * Replication: false
+    * Snapshot: true
     * skipCertificateValidation: true
 
 Installation Process
 ---------------------
 
-1. Once ``secret.yml`` and ``values.yml`` is filled up with the necessary details, copy both files to any directory on the control plane. For example, ``/tmp/secret.yml`` and ``/tmp/values.yml``.
+1. Once ``secret.yaml`` and ``values.yaml`` is filled up with the necessary details, copy both files to any directory on the control plane. For example, ``/tmp/secret.yaml`` and ``/tmp/values.yaml``.
 
 2. Add the ``csi_driver_powerscale`` entry along with the driver version to the ``omnia/input/software_config.json`` file: ::
 
@@ -82,7 +83,7 @@ Installation Process
     cd local_repo
     ansible-playbook local_repo.yml
 
-4. Add the filepath of the ``secret.yml`` and ``values.yml`` file to the ``csi_powerscale_driver_secret_file_path`` and ``csi_powerscale_driver_values_file_path`` variables respectively, present in the ``omnia/input/omnia_config.yml`` file.
+4. Add the filepath of the ``secret.yaml`` and ``values.yaml`` file to the ``csi_powerscale_driver_secret_file_path`` and ``csi_powerscale_driver_values_file_path`` variables respectively, present in the ``omnia/input/omnia_config.yml`` file.
 
 5. Execute the ``omnia.yml`` playbook to install the PowerScale CSI driver: ::
 
@@ -91,11 +92,11 @@ Installation Process
 
 .. note::
      * There isn't a separate playbook to run for PowerScale CSI driver installation. Running ``omnia.yml`` with necessary inputs installs the driver. If Kubernetes is already deployed on the cluster, users can also run the ``scheduler.yml`` playbook to install the PowerScale CSI driver.
-     * After running ``omnia.yml`` playbook, the ``secret.yml`` file will be encrypted. User can use below command to decrypt and edit it if required: ::
+     * After running ``omnia.yml`` playbook, the ``secret.yaml`` file will be encrypted. User can use below command to decrypt and edit it if required: ::
 
          ansible-vault edit <secret.yml filepath> --vault-password-file scheduler/roles/k8s_csi_powerscale_plugin/files/.csi_powerscale_secret_vault
 
-.. caution:: Do not delete the vault key file ``.csi_powerscale_secret_vault``, otherwise users will not be able to decrypt the ``secret.yml`` file anymore.
+.. caution:: Do not delete the vault key file ``.csi_powerscale_secret_vault``, otherwise users will not be able to decrypt the ``secret.yaml`` file anymore.
 
 Expected Results
 ------------------
