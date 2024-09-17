@@ -130,6 +130,12 @@ PowerScale driver installation doesn't create any storage class by default. User
       RootClientEnab1ed: "true"
       csi.storage.k8s.io/fstype: "nfs"
 
+**Apply storage class**
+
+Use the following command to apply the storageclass: ::
+
+    kubectl apply -f <storageclass name>
+
 **Create Persistent Volume Claim (PVC)**:
 
 Once the storage class is created, the same can be used to create PVC.
@@ -182,6 +188,12 @@ Once the storage class is created, the same can be used to create PVC.
               persistentVolumeClaim:
                 claimName: pvc-powerscale
 
+**Apply PVC**
+
+Use the following command to apply the PVC: ::
+
+    kubectl apply -f <PVC name>
+
 *Expected Result*:
 
 * Once the above manifest is applied, a PVC is created under name ``pvc-powerscale`` and is in ``Bound`` status. Use the ``kubectl get pvc -A`` command to bring up the PVC information. For example: ::
@@ -209,13 +221,13 @@ To remove the PowerScale driver manually, do the following:
 
  .. image:: ../../../images/CSI_get_deployment.png
 
-3. Get the name of your CSI deployment and run the following command to delete your deployment: ::
+3. Get the name of your deployment and run the following command to delete your deployment: ::
 
-    kubectl delete deployment <CSI deployment name>
+    kubectl delete deployment <deployment name>
 
  .. image:: ../../../images/CSI_delete_deployment.png
 
-* [Optional] To verify that the deployment has been successfully deleted, run the ``kubectl get deployment -A`` command again after executing the ``kubectl delete`` command. If your ``<CSI deployment name>`` is absent, then the deletion is successful.
+  [Optional] To verify that the deployment has been successfully deleted, run the ``kubectl get deployment -A`` command again after executing the ``kubectl delete`` command. If your ``<deployment name>`` is absent, then the deletion is successful.
 
 4. Use the following command to get the name of your storageclass: ::
 
@@ -229,7 +241,7 @@ To remove the PowerScale driver manually, do the following:
 
  .. image:: ../../../images/CSI_delete_storageclass.png
 
-* [Optional] To verify that the storageclass has been successfully deleted, run the ``kubectl get storageclass`` command again after executing the ``kubectl delete`` command. If your ``<storageclass name>`` is absent, then the deletion is successful.
+  [Optional] To verify that the storageclass has been successfully deleted, run the ``kubectl get storageclass`` command again after executing the ``kubectl delete`` command. If your ``<storageclass name>`` is absent, then the deletion is successful.
 
 6. Execute the following command to switch to the ``dell-csi-helm-installer`` directory: ::
 
