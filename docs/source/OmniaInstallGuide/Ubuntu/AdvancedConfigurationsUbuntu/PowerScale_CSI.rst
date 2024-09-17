@@ -188,11 +188,11 @@ Once the storage class is created, the same can be used to create PVC.
               persistentVolumeClaim:
                 claimName: pvc-powerscale
 
-**Apply PVC**
+**Apply the deployment manifest along with PVC**
 
-Use the following command to apply the PVC: ::
+Use the following command to apply the manifest: ::
 
-    kubectl apply -f <PVC name>
+    kubectl apply -f <manifest_filepath>
 
 *Expected Result*:
 
@@ -219,25 +219,17 @@ To remove the PowerScale driver manually, do the following:
 
     kubectl get deployment -A
 
- .. image:: ../../../images/CSI_get_deployment.png
-
 3. Get the name of your deployment and run the following command to delete your deployment: ::
 
     kubectl delete deployment <deployment name>
-
- .. image:: ../../../images/CSI_delete_deployment.png
 
 4. Use the following command to get the name of your storageclass: ::
 
     kubectl get storageclass
 
- .. image:: ../../../images/CSI_get_storageclass.png
-
 5. Run the following command to delete your storageclass: ::
 
     kubectl delete <storageclass name>
-
- .. image:: ../../../images/CSI_delete_storageclass.png
 
 6. Execute the following command to switch to the ``dell-csi-helm-installer`` directory: ::
 
