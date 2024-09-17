@@ -4,8 +4,6 @@ Releases
 1.7
 -----
 
-* Added support for Intel Gaudi 3 accelerators.
-
 * The internal OpenLDAP server can now be configured as a proxy server.
 
 * Kubernetes version upgraded to 1.29.5 (Previously 1.26.12).
@@ -24,14 +22,20 @@ Releases
 
 * Added support for corporate proxy on RHEL, Rocky Linux, and Ubuntu clusters.
 
-* Intel Gaudi accelerator status verification using HCCL, qual.
-
 * CSI drivers for Kubernetes access to PowerScale (without SSL certificate)
 
-* Monitoring for Intel Gaudi accelerators:
+* Added support for Intel Gaudi accelerators:
 
-    * Omnia telemetry
-    * iDRAC telemetry
+    * Software stack installation
+
+    * Accelerator status verification using HCCL, qual.
+
+    * Inventory tagging for the Gaudi accelerators
+
+    * Monitoring for the Gaudi accelerators via:
+
+        * Omnia telemetry
+        * iDRAC telemetry
 
 * AI tools:
 
