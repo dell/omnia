@@ -57,7 +57,7 @@ To modify how data is collected from the cluster, modify the variables in ``omni
 
 **To access the Grafana UI**
 
-*Pre requisites*
+*Prerequisites*
 
     * ``visualisation_support`` should be set to true when running ``telemetry.yml`` or ``omnia.yml``.
 
@@ -68,7 +68,7 @@ i. Find the IP address of the Grafana service using ``kubectl get svc -n grafana
 .. image:: ../images/grafanaIP.png
 
 
-ii. Login to the Grafana UI by connecting to the cluster IP of grafana service obtained above via port 5000. That is ``http://xx.xx.xx.xx:5000/login``
+ii. Login to the Grafana UI by connecting to the cluster IP of grafana service obtained above via port 5000, that's ``http://xx.xx.xx.xx:5000/login``
 
 
 .. image:: ../images/Grafana_login.png
