@@ -22,21 +22,21 @@ Accessing the Prometheus server for Kubernetes and Gaudi metrics
 
 **Access the Prometheus server from the Kube control plane or kube node**
 
-* After you have executed the ``telemetry.yml`` playbook, run the following command to bring up all the services that are currently running on the Kubernetes cluster: ::
+1. After you have executed the ``telemetry.yml`` playbook, run the following command to bring up all the services that are currently running on the Kubernetes cluster: ::
 
     kubectl get svc -A
 
-* Locate the ``prometheus-kube-prometheus-prometheus`` service under the ``monitoring`` namespace. You can access the Prometheus server with the corresponding ``CLUSTER-IP`` of the Prometheus service.
+2. Locate the ``prometheus-kube-prometheus-prometheus`` service under the ``monitoring`` namespace. You can access the Prometheus server with the corresponding ``CLUSTER-IP`` of the Prometheus service.
 
 **Access the Prometheus server from the Omnia control plane**
 
-* After you have executed the ``telemetry.yml`` playbook, run the following command to bring up all the services that are currently running on the Kubernetes cluster: ::
+3. After you have executed the ``telemetry.yml`` playbook, run the following command to bring up all the services that are currently running on the Kubernetes cluster: ::
 
     kubectl get svc -A
 
-* Locate the ``prometheus-kube-prometheus-prometheus`` service under the ``monitoring`` namespace.
+4. Locate the ``prometheus-kube-prometheus-prometheus`` service under the ``monitoring`` namespace.
 
-* Update the Prometheus service ``TYPE``:
+5. Update the Prometheus service ``TYPE``:
 
     - Use the following command to change the Prometheus service type to ``LoadBalancer`` and assign an ``EXTERNAL-IP``: ::
 
@@ -46,27 +46,29 @@ Accessing the Prometheus server for Kubernetes and Gaudi metrics
 
         kubectl patch service prometheus-kube-prometheus-prometheus -n monitoring -p '{"spec": {"type": "NodePort"}}'
 
-* To access the Prometheus server from any browser, you can use ``<EXTERNAL IP>:9090`` from the ``kube_control_plane``, or ``<Kube Node IP>:<Kube Node port>`` from the ``kube_node``.
+6. To access the Prometheus server from any browser, you can use ``<EXTERNAL IP>:9090`` from the ``kube_control_plane``, or ``<Kube Node IP>:<Kube Node port>`` from the ``kube_node``.
 
 Visualize the Prometheus metrics using Grafana
 -------------------------------------------------
 
-* Find the IP address of the Grafana service using ``kubectl get svc -n grafana``
+1. Find the IP address of the Grafana service using ``kubectl get svc -n grafana``
 
   .. image:: ../images/grafanaIP.png
 
-* Login to the Grafana UI by connecting to the cluster IP of grafana service obtained above via port 5000, that's ``http://xx.xx.xx.xx:5000/login``
+2. Login to the Grafana UI by connecting to the cluster IP of grafana service obtained above via port 5000, that's ``http://xx.xx.xx.xx:5000/login``
 
   .. image:: ../images/Grafana_login.png
 
-* Add the Prometheus data source to Grafana
+3. Add the Prometheus data source to Grafana
 
   .. image:: ../images/Prometheus_datasource.png
 
-* Add the Prometheus server URL to the datasource configuration window, for example - ``http://10.50.3.101:9090``
+4. Add the Prometheus server URL to the datasource configuration window, for example - ``http://10.50.3.101:9090``
 
   .. image:: ../images/Prometheus_datasource2.png
 
-* Click ``Save & test``. A green checkbox pops up signifying successful configuration of the Prometheus datasource.
+5. Click ``Save & test``. A green checkbox pops up signifying successful configuration of the Prometheus datasource.
 
-* From the dashboard menu on the left, create a dashboard with your own settings or import an existing one from `Grafana dashboards <https://grafana.com/grafana/dashboards/>`_. Set the datasource to ``Prometheus`` while configuring the dashboard. For more information on how to import dashboards, `click here <https://grafana.com/docs/grafana/latest/dashboards/build-dashboards/import-dashboards/>`_
+6. From the dashboard menu on the left, create a dashboard with your own settings or import an existing one from `Grafana dashboards <https://grafana.com/grafana/dashboards/>`_. Set the datasource to ``Prometheus`` while configuring the dashboard. For more information on how to import dashboards, `click here <https://grafana.com/docs/grafana/latest/dashboards/build-dashboards/import-dashboards/>`_
+
+7. Click ``Load`` to bring up the Grafana dashboard with the Prometheus metrics.
