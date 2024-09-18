@@ -46,13 +46,13 @@ The ``server_spec_update.yml`` playbook can be used to do the following tasks:
 
     * Fill up all the necessary details for the additional NICs in the ``input/network_spec.yml`` file. You can refer the following sample: ::
 
-        - thor_network1:
+        - nic_network1:
            netmask_bits: "24"
            CIDR: "10.23.1.0"
            network_gateway: ""
            MTU: "1500"
            VLAN: ""
-        - thor_network2:
+        - nic_network2:
            netmask_bits: "24"
            static_range: "10.23.2.1-10.23.2.254"
            network_gateway: ""
@@ -65,10 +65,10 @@ The ``server_spec_update.yml`` playbook can be used to do the following tasks:
           - group-1:
               - network:
                   - ensp0:
-                      nicnetwork: "thor_network1"
+                      nicnetwork: "nic_network1"
                       nictypes: "ethernet"
                   - ensp0.5:
-                      nicnetwork: "thor_network2"
+                      nicnetwork: "nic_network2"
                       nictypes: "vlan"
                       nicdevices: "ensp0"
 
@@ -92,13 +92,13 @@ The ``server_spec_update.yml`` playbook can be used to do the following tasks:
 
     * Fill up all the necessary details for the additional NICs in the ``input/network_spec.yml`` file. You can refer the following sample: ::
 
-        - thor_network1:
+        - nic_network1:
            netmask_bits: "24"
            CIDR: "10.23.1.0"
            network_gateway: ""
            MTU: "1500"
            VLAN: ""
-        - thor_network2:
+        - nic_network2:
            netmask_bits: "24"
            static_range: "10.23.2.1-10.23.2.254"
            network_gateway: ""
@@ -111,10 +111,10 @@ The ``server_spec_update.yml`` playbook can be used to do the following tasks:
           - group-1:
               - network:
                   - ensp0:
-                      nicnetwork: "thor_network1"
+                      nicnetwork: "nic_network1"
                       nictypes: "ethernet"
                   - ensp0.5:
-                      nicnetwork: "thor_network2"
+                      nicnetwork: "nic_network2"
                       nictypes: "vlan"
                       nicdevices: "ensp0"
               - os:
@@ -135,7 +135,10 @@ The ``server_spec_update.yml`` playbook can be used to do the following tasks:
             * intel_idle.max_cstate=0
             * intel_pstate=disable
 
-.. caution:: When running the playbook for multiple times, it’s the user's responsibility to ensure that they only provide new or updated values for the command-line parameters. The same parameters with their original values should not be re-provided to avoid configuration conflicts.
+.. caution::
+
+    * If duplicate entries of the same command line parameter is provided but with different values, then the playbook picks up to the last provided value overwriting any previous entries. For example, if the user provides ``"intel_iommu=on intel_iommu=off"`` as the parameters, the configuration will ultimately be set to ``"intel_iommu=off"``, as this is the last value provided.
+    * Similarly, if the ``server_spec_update.yml`` playbook is executed with a command line parameter, such as ``"intel_iommu=off"``, and is later rerun with the same parameter but an updated value, such as ``"intel_iommu=on"``, the playbook will assign the latest value for that parameter. As a result, it will ultimately set ``"intel_iommu=on"`` for the configuration. This behavior ensures that the most recent configuration is applied during execution.
 
 **Executing the playbook**
 
