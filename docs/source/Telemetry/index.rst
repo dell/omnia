@@ -141,7 +141,7 @@ If ``idrac_telemetry_support`` and ``visualisation_support`` is set to true, Par
     TelemetryMetrics
     MetricInfo
     TimescaleDB
-
+    Prometheus_k8s
 
 
 
