@@ -5,8 +5,8 @@ Prometheus metrics visualization refers to the process of displaying the metrics
 
 **Prerequisites**
 
-* The ``k8s_prometheus_support`` variable in ``input/telemetry_config.yml`` must be ``true``. All the variables and their related information for the config file can be found `here <index.html#id13>`_.
-* To enable visualization for the supported Intel Gaudi metrics using Grafana, the ``prometheus_gaudi_support`` and ``visualization_support`` variables in ``input/telemetry_config.yml`` must be set to ``true`` in addition to the above mentioned variable.
+* To view the Kubernetes and Intel Gaudi metrics from the Prometheus UI, the ``k8s_prometheus_support`` and ``prometheus_gaudi_support`` variables in ``input/telemetry_config.yml`` must be set to ``true``. All the variables and their related information for the configuration file can be found `here <index.html#id13>`_.
+* To enable visualization for the supported metrics using Grafana, the ``visualization_support`` variable in ``input/telemetry_config.yml`` must be set to ``true`` in addition to the above mentioned variables.
 
 **Execute the telemetry playbook**
 
@@ -15,14 +15,14 @@ With the above mentioned variable values provided to the ``input/telemetry_confi
     cd telemetry
     ansible-playbook telemetry.yml -i <inventory filepath>
 
-.. note:: The provided inventory file must contain a ``kube_control_plane``, one or many ``kube_node``, and an ``etcd`` node.
+.. note:: The provided inventory file must contain a ``kube_control_plane``, single or multiple ``kube_node``, and an ``etcd`` node.
 
 Accessing the Prometheus server for Kubernetes and Gaudi metrics
 ------------------------------------------------------------------
 
 **Access the Prometheus server from the Kube control plane or kube node**
 
-1. After you have executed the ``telemetry.yml`` playbook, run the following command to bring up all the services that are currently running on the Kubernetes cluster: ::
+1. After you have executed the ``telemetry.yml`` playbook, run the following command on the ``kube_control_plane`` to bring up all the services that are currently running on the Kubernetes cluster: ::
 
     kubectl get svc -A
 
@@ -38,7 +38,7 @@ Accessing the Prometheus server for Kubernetes and Gaudi metrics
 
 5. Update the Prometheus service ``TYPE``:
 
-    - Use the following command to change the Prometheus service type to ``LoadBalancer`` and assign an ``EXTERNAL-IP``: ::
+    - Use the following command to change the Prometheus service type to ``LoadBalancer`` and automatically assign an ``EXTERNAL-IP``: ::
 
         kubectl patch service prometheus-kube-prometheus-prometheus -n monitoring -p '{"spec": {"type": "LoadBalancer"}}'
 
@@ -46,7 +46,7 @@ Accessing the Prometheus server for Kubernetes and Gaudi metrics
 
         kubectl patch service prometheus-kube-prometheus-prometheus -n monitoring -p '{"spec": {"type": "NodePort"}}'
 
-6. To access the Prometheus server from any browser, you can use ``<EXTERNAL IP>:9090`` from the ``kube_control_plane``, or ``<Kube Node IP>:<Kube Node port>`` from the ``kube_node``.
+6. To access the Prometheus server from any browser, you can use ``<EXTERNAL IP>:9090`` from the ``kube_control_plane``, or ``<Kube control plane IP>:<Kube Node port>`` from the ``kube_node``.
 
 Visualize the Prometheus metrics using Grafana
 -------------------------------------------------

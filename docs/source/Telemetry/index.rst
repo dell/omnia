@@ -30,9 +30,11 @@ Optionally, you can initiate only telemetry using the below command: ::
 
     * Depending on the type of telemetry initiated, include the following possible groups in the inventory:
 
-        * omnia_telemetry: ``slurm_control_node``, ``slurm_node``, ``kube_control_plane``, ``kube_node``, ``auth_server``, ``login``, ``etcd``
+        * omnia_telemetry: ``slurm_control_node``, ``slurm_node``, ``login``, ``kube_control_plane``, ``kube_node``, ``etcd``, ``auth_server``
 
         * idrac_telemetry: ``idrac``
+
+        * k8s_telemetry on Prometheus: ``kube_control_plane``, ``kube_node``, ``etcd``
 
     * If you would like a local backup of the timescaleDB used to store telemetry data, `click here <../Utils/timescaledb_utility.html>`_.
 

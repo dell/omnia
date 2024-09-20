@@ -40,6 +40,37 @@ Required	","* Enables visualizations.
 
 
 .. note:: When ``visualization_support`` is true, ``grafana_username`` and ``grafana_password`` become mandatory."
+"**k8s_prometheus_support**
+
+``boolean``
+
+Optional	","* This variable signifies whether Kubernetes metrics will be collected by the Prometheus metrics exporter or not.
+* If the variable value is ``true``, Kube Prometheus will be deployed on the ``kube_control_plane``. Kube Prometheus is a set of Kubernetes manifests, tools, and configurations that makes it easier to set up and manage Prometheus monitoring in a Kubernetes environment.
+* For the complete list of Kubernetes metrics collected by Prometheus, `click here <https://v1-29.docs.kubernetes.io/docs/reference/instrumentation/metrics/#list-of-stable-kubernetes-metrics>`_
+* **Values:**
+	* ``true`` 
+
+	* ``false`` <- **Default**"
+"**prometheus_scrape_interval**
+
+``integer``
+
+Optional	","* Providing values to this variable is mandatory if ``k8s_prometheus_support`` is ``true``.
+* This variable determines how frequently (time interval in seconds) the Prometheus exporter gathers the metrics from the target nodes.
+* This variable accepts values in seconds.
+* **Default value:** 15"
+"**prometheus_gaudi_support**
+
+``boolean``
+
+Optional	","* This variable signifies whether Intel Gaudi metrics will be collected by the Gaudi Prometheus metrics exporter or not.
+* The ``k8s_prometheus_support`` variable must be ``true`` for the metrics to be collected.
+* **Values:**
+	* ``true`` 
+
+	* ``false`` <- **Default**
+
+.. note:: Support for Intel Gaudi metrics collection via Prometheus exporter is only available for clusters running on Ubuntu 22.04 OS."
 "**k8s_service_addresses**
 
 ``string``
@@ -207,34 +238,3 @@ Optional","* At this location grafana persistent volume will be created.
 * If using telemetry, all telemetry related files will also be stored and both timescale and mysql databases will be mounted to this location.
 * '/' is mandatory at the end of the path.
 * **Default value:** ""/opt/omnia/telemetry/"""
-"**k8s_prometheus_support**
-
-``boolean``
-
-Optional	","* This variable signifies whether Kubernetes metrics will be collected by the Prometheus metrics exporter or not.
-* If the variable value is ``true``, Kube Prometheus will be deployed on the ``kube_control_plane``. Kube Prometheus is a set of Kubernetes manifests, tools, and configurations that makes it easier to set up and manage Prometheus monitoring in a Kubernetes environment.
-* For the complete list of Kubernetes metrics collected by Prometheus, `click here <https://v1-29.docs.kubernetes.io/docs/reference/instrumentation/metrics/#list-of-stable-kubernetes-metrics>`_
-* **Values:**
-	* ``true`` 
-
-	* ``false`` <- **Default**"
-"**prometheus_scrape_interval**
-
-``integer``
-
-Optional	","* Providing values to this variable is mandatory if ``k8s_prometheus_support`` is ``true``.
-* This variable determines how frequently (time interval in seconds) the Prometheus exporter gathers the metrics from the target nodes.
-* This variable accpets values in seconds.
-* **Default value:** 15"
-"**prometheus_gaudi_support**
-
-``boolean``
-
-Optional	","* This variable signifies whether Intel Gaudi metrics will be collected by the Gaudi Prometheus metrics exporter or not.
-* The ``k8s_prometheus_support`` variable must be ``true`` for the metrics to be collected.
-* **Values:**
-	* ``true`` 
-
-	* ``false`` <- **Default**
-
-.. note:: Support for Intel Gaudi metrics collection via Prometheus exporter is only available for clusters running on Ubuntu 22.04 OS."
