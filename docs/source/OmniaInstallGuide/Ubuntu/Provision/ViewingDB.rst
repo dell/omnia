@@ -4,14 +4,14 @@ Checking node status
 Via CLI
 --------
 
-Run ``nodels all nodelist.status`` for a list of nodes and their statuses. ::
+Run ``nodels all nodelist.status`` for a list of nodes and their statuses. Here's an example of this command output: ::
 
     omnia-node00001: installing
     omnia-node00002: booted
     omnia-node00003: powering-on
     omnia-node00004: booted
 
-Possible values of node status are powering-off, powering-on, bmcready, installing, booting, post-booting, booted, failed.
+Possible values of node status are ``powering-off``, ``powering-on``, ``bmcready``, ``installing``, ``booting``, ``post-booting``, ``booted``, and ``failed``.
 
 .. caution:: Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect. This will also allow the above command to work correctly. If the new environment variables still do not come into effect, enable manually using:
     ::
@@ -40,11 +40,10 @@ Via Omnia database [omniadb]
           3 | xxxxxxx     | node3         | node3.new.dev | f4:02:70:b8:bc:2a | 10.5.0.10    | 10.30.0.10 | booted | mapping             |          |           |             |             | amd | amd |         2 |         1
         (3 rows)
 
-
-Possible values of node status are ``powering-off``, ``powering-on``, ``bmcready``, ``installing``, ``booting``, ``post-booting``, ``booted``, and ``failed``.
+Possible values of node status are ``powering-off``, ``powering-on``, ``bmcready``, ``installing``, ``booting``, ``post-booting``, ``booted``, ``failed``, ``ping``, ``noping``, and ``standingby``.
 
 .. note::
-    * The ``gpu_count`` in the DB is only updated every time a cluster node is PXE booted.
+    * The ``gpu_count`` in the database is only updated every time a cluster node is PXE booted.
     * Nodes listed as "failed" can be diagnosed using the ``/var/log/xcat/xcat.log`` file on the target node. Correct any underlying issues and `re-provision the node <../../Maintenance/reprovision.html>`_.
-    * Information on debugging nodes stuck at 'powering-on', 'bmcready' or 'installing' for longer than expected is available `here <../../../Troubleshooting/FAQ/Common/Provision.html>`_. Correct any underlying issue on the node and `re-provision the node <../../Maintenance/reprovision.html>`_.
+    * Information on debugging nodes stuck at ``powering-on``, ``bmcready``, or ``installing`` for longer than expected is available `here <../../../Troubleshooting/FAQ/Common/Provision.html>`_. Correct any underlying issue on the node and `re-provision the node <../../Maintenance/reprovision.html>`_.
     * A blank node status indicates that no attempt to provision has taken place. Attempt a manual PXE boot on the node to initiate provisioning.
