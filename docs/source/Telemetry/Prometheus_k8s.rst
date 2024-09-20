@@ -30,7 +30,7 @@ Accessing the Prometheus server for Kubernetes and Gaudi metrics
 
 **Access the Prometheus server from the Omnia control plane**
 
-3. After you have executed the ``telemetry.yml`` playbook, run the following command to bring up all the services that are currently running on the Kubernetes cluster: ::
+3. After you have executed the ``telemetry.yml`` playbook, run the following command on the ``kube_control_plane`` to bring up all the services that are currently running on the Kubernetes cluster: ::
 
     kubectl get svc -A
 
@@ -46,7 +46,7 @@ Accessing the Prometheus server for Kubernetes and Gaudi metrics
 
         kubectl patch service prometheus-kube-prometheus-prometheus -n monitoring -p '{"spec": {"type": "NodePort"}}'
 
-6. To access the Prometheus server from any browser, you can use ``<EXTERNAL IP>:9090`` from the ``kube_control_plane``, or ``<Kube control plane IP>:<Kube Node port>`` from the ``kube_node``.
+6. To access the Prometheus server from any browser, you can use ``<EXTERNAL IP>:9090`` from the Omnia control plane or ``kube_control_plane``, and ``<Kube control plane IP>:<Kube Node port>`` from the ``kube_node``.
 
 Visualize the Prometheus metrics using Grafana
 -------------------------------------------------
