@@ -38,6 +38,8 @@ Releases
         * iDRAC telemetry
         * Kubernetes telemetry via Prometheus exporter
 
+* Visualization of the Kubernetes and Intel Gaudi metrics using Grafana
+
 * AI tools:
 
     * DeepSpeed and Kubeflow as part of Intel Gaudi AI stack
