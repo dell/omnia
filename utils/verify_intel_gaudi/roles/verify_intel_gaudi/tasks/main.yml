@@ -35,7 +35,7 @@
 - name: Include omnia_config.yml
   block:
     - ansible.builtin.include_tasks: include_omnia_config.yml
-  delegate_to: localhost
+  delegate_to: 127.0.0.1
 
 - name: Verify hl-qual on Gaudi nodes
   ansible.builtin.include_tasks: hlqual_validation.yml
