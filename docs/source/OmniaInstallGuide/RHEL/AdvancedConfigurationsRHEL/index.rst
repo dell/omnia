@@ -12,3 +12,5 @@ Advanced configurations for RHEL/Rocky Linux clusters
     AdditionalNIC
     ROCm_accelerator
     PowerScale_CSI
+    AutomatingOneAPI
+    AutomatingOneMPI
