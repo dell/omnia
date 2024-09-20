@@ -3,5 +3,5 @@ Disk partition may not have enough storage space per the requirements specified 
 The provided ISO may be corrupt/incomplete.,"Download the ISO again, verify the checksum/download size and run the ``discovery_provision.yml`` playbook."
 Hardware issues (Auto reboot may fail at POST),Resolve/replace the faulty hardware and PXE boot the node.
 A virtual disk may not have been created,Create a virtual disk and PXE boot the node.
-Re-run of the discovery_provision.yml playbook on the control plane while provisioning is in-progress on the remote nodes.,Initiate PXE boot on the remote node after completion of the ``discovery_provision.yml`` playbook execution.
+Re-run of the ``discovery_provision.yml`` playbook on the control plane while provisioning is in-progress on the remote nodes.,Initiate PXE boot on the remote node after completion of the ``discovery_provision.yml`` playbook execution.
 The ``nfs-server`` service may not be running. This failure can occur due to low memory.,Increase memory if its low and restart the ``nfs-server`` service using the ``systemctl start nfs-server`` command and then PXE boot the node.
