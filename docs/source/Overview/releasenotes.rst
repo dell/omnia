@@ -36,6 +36,7 @@ Releases
 
         * Omnia telemetry
         * iDRAC telemetry
+        * Kubernetes telemetry via Prometheus exporter
 
 * AI tools:
 

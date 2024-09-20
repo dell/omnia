@@ -33,6 +33,9 @@ New Features
 
         * Omnia telemetry
         * iDRAC telemetry
+        * Kubernetes telemetry via Prometheus exporter
+
+* Visualization of the Kubernetes and Intel Gaudi metrics using Grafana
 
 * AI tools:
 
