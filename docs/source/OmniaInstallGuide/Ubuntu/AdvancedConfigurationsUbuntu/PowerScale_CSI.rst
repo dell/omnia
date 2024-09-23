@@ -8,6 +8,30 @@ To know more about the CSI PowerScale driver, `click here <https://dell.github.i
 
 .. note:: Omnia doesn't configure any PowerScale device via OneFS (operating system for PowerScale). Omnia configures the deployed Kubernetes cluster to interact with the PowerScale storage.
 
+PowerScale SmartConnect [Optional]
+-------------------------------------
+
+* To utilize the PowerScale SmartConnect hostname, it is necessary for the user to have an upstream DNS server that includes mappings for hostname to PowerScale IP addresses (delegation mapping). During the provisioning of cluster nodes, users can specify the IP of the upstream ``DNS`` server in the ``input/network_spec.yml`` file. This ensures that the Omnia cluster recognizes and is aware of the upstream DNS server, enabling the use of PowerScale SmartConnect hostname functionality. For example: ::
+
+    ---
+        Networks:
+        - admin_network:
+            nic_name: <network name>
+            netmask_bits: "16"
+            static_range: <static ip range>
+            dynamic_range: <dynamic ip range>
+            correlation_to_admin: true
+            admin_uncorrelated_node_start_ip: ""
+            network_gateway: ""
+            DNS: <upstream DNS server>
+            MTU: "1500"
+
+* If the user did not specify the upstream DNS server during the provisioning process and wishes to utilize PowerScale SmartConnect afterwards, it is necessary to update the upstream DNS server details in the ``installer-config.yaml`` file. This file can be found in the ``/etc/netplan/`` directory. For example, in the ``/etc/netplan/00-installer-config.yaml``, user needs to add: ::
+
+    nameservers:
+    addresses:
+    - <upstream DNS server>
+
 Prerequisites
 --------------
 
@@ -19,6 +43,7 @@ Prerequisites
     *	username: <username>
     *	password: <password>
     *	endpoint: <endpoint_IP>
+        .. note:: If PowerScale SmartConnect is enabled, user can provide the PowerScale hostname for ``endpoint``. Otherwise user can provide PowerScale IP address as well.
     *	endpointPort: <endpoint_port>
     *	isDefault: true
     *	isiPath: "/ifs/data/csi"
@@ -126,10 +151,12 @@ PowerScale driver installation doesn't create any storage class by default. User
     parameters :
       clusterName: omniacluster
       AccessZone: System
-      AzServiceIP: 100.67.170.140
+      AzServiceIP: <PowerScale SmartConnect hostname or PowerScale IP>
       Isipath: /ifs/data/csi/
       RootClientEnab1ed: "true"
       csi.storage.k8s.io/fstype: "nfs"
+
+.. note:: If PowerScale SmartConnect is enabled, user can provide the PowerScale hostname for ``AzServiceIP``. Otherwise user can provide PowerScale IP address as well.
 
 **Apply storage class**
 
@@ -181,9 +208,9 @@ Once the storage class is created, the same can be used to create PVC.
                   mountPath: /data
               env:
                 - name: http_proxy
-                  value: "http://100.67.255.254:3128"
+                  value: "http://<control plane IP>:3128"
                 - name: https_proxy
-                  value: "http://100.67.255.254:3128"
+                  value: "http://<control plane IP>:3128"
           volumes:
             - name: data
               persistentVolumeClaim:
@@ -209,8 +236,6 @@ Use the following command to apply the manifest: ::
 
 Removal
 --------
-
-There is no dedicated playbook to remove only the PowerScale CSI driver while keeping Kubernetes cluster intact. Omnia removes the PowerScale CSI driver as part of the ``reset_cluster_configuration.yml`` playbook. This playbook destroys the Kubernetes cluster. For more information on this playbook, `click here <../../Maintenance/reset.html>`_.
 
 To remove the PowerScale driver manually, do the following:
 

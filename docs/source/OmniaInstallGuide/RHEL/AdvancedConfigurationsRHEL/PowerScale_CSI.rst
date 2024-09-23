@@ -23,7 +23,7 @@ PowerScale SmartConnect [Optional]
             correlation_to_admin: true
             admin_uncorrelated_node_start_ip: ""
             network_gateway: ""
-            **DNS: <upstream DNS server>**
+            DNS: <upstream DNS server>
             MTU: "1500"
 
 * If the user did not specify the upstream DNS server during the provisioning process and wishes to utilize PowerScale SmartConnect afterwards, it is necessary to update the upstream DNS server details in the ``installer-config.yaml`` file. This file can be found in the ``/etc/netplan/`` directory. For example, in the ``/etc/netplan/00-installer-config.yaml``, user needs to add: ::
