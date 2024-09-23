@@ -15,6 +15,10 @@ The ``upgrade_cp.yml`` playbook performs the following tasks:
 * Upgrades ``omnia_telemetry`` binaries on nodes where the telemetry service is running.
 * Upgrades iDRAC telemetry services on the control plane.
 
+**Pre-check before Upgrade**
+
+If you have deployed a telemetry service in your Kubernetes cluster, it is important to ensure that the cluster is running properly before you initiate the upgrade process. As part of the upgrade precheck, Omnia verifies if there are any issues with the cluster, such as non-running pods, LoadBalancer services without external IPs, or unbounded PVCs. If any of these issues are detected, you will need to address them before you can proceed with the upgrade.
+
 **Steps to be performed for Upgrade**
 
 To upgrade the Omnia control plane, do the following:
