@@ -1,4 +1,4 @@
-Configure a proxy server for the Control Plane (OIM)
+Configure a proxy server for the Control Plane
 ======================================================
 
 .. note:: You can skip the proxy setup using ``site_config.yml`` input file if you have direct internet access on the control plane.
