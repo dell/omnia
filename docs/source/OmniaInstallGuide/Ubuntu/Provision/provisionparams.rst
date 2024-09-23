@@ -22,6 +22,11 @@ Fill in all required parameters in ``input/provision_config.yml``, ``input/provi
 
 .. [1] Boolean parameters do not need to be passed with double or single quotes.
 
+.. csv-table:: Network Spec
+   :file: ../../../Tables/network_spec.csv
+   :header-rows: 1
+   :keepspace:
+
 Update the ``input/network_spec.yml`` file for all networks available for use by the control plane.
 
     * The following ``admin_network`` details are mandatory:
