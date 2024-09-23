@@ -208,9 +208,9 @@ Once the storage class is created, the same can be used to create PVC.
                   mountPath: /data
               env:
                 - name: http_proxy
-                  value: "http://100.67.255.254:3128"
+                  value: "http://<control plane IP>:3128"
                 - name: https_proxy
-                  value: "http://100.67.255.254:3128"
+                  value: "http://<control plane IP>:3128"
           volumes:
             - name: data
               persistentVolumeClaim:
