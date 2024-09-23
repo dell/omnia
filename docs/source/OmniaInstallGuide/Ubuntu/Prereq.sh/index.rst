@@ -29,14 +29,13 @@ Starting from version 1.7, Omnia will be executed within a Python virtual enviro
     * The file ``input/software_config.json`` is overwritten with the default values (based on the operating system) when ``prereq.sh`` is executed.
 
 
-Deactivate the Omnia virtual environment
----------------------------------------------
+.. note::
 
-* If you want to deactivate the virtual environment set up by the ``prereq.sh`` script, use the following command from within the activated virtual environment: ::
+    If you want to deactivate the virtual environment set up by the ``prereq.sh`` script, use the following command from within the activated virtual environment: ::
 
-    deactivate
+        deactivate
 
- .. image:: ../../../images/virtual_env_deactivate.png
+   .. image:: ../../../images/virtual_env_deactivate.png
 
 .. caution:: If you want to delete and recreate the Omnia-created virtual environment, ensure to back up the pip packages before doing so. To backup the packages, run the ``pip freeze >> omnia_venv_pip_reqs.txt`` command from within the activated virtual environment. This command creates a backup file called ``omnia_venv_pip_reqs.txt`` in the current directory. After you have recreated the virtual environment using the ``prereq.sh`` script, restore the pip packages from the activated virtual environment using the ``pip install -r omnia_venv_pip_reqs.txt`` command.
 
