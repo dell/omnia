@@ -11,7 +11,7 @@ To know more about the CSI PowerScale driver, `click here <https://dell.github.i
 PowerScale SmartConnect [Optional]
 -------------------------------------
 
-* To utilize the PowerScale SmartConnect hostname, it is necessary for the user to have an upstream DNS server that includes mappings for hostname to PowerScale IP addresses (delegation mapping). During the provisioning of cluster nodes, users can specify the IP of the upstream ``DNS`` server in the ``input/network_spec.yml`` file. This ensures that the Omnia cluster recognizes and is aware of the upstream DNS server, enabling the use of PowerScale SmartConnect hostname functionality. For example: ::
+* To utilize the PowerScale SmartConnect hostname, it is necessary for the user to have an upstream DNS server that includes delegation mappings of hostname to PowerScale IP addresses. During the provisioning of cluster nodes, users can specify the IP of the upstream ``DNS`` server in the ``input/network_spec.yml`` file. This ensures that the Omnia cluster recognizes and is aware of the upstream DNS server, enabling the use of PowerScale SmartConnect hostname functionality. For example: ::
 
     ---
         Networks:
@@ -26,7 +26,7 @@ PowerScale SmartConnect [Optional]
             DNS: <upstream DNS server>
             MTU: "1500"
 
-* If the user did not specify the upstream DNS server during the provisioning process and wishes to utilize PowerScale SmartConnect afterwards, it is necessary to update the upstream DNS server details in the ``installer-config.yaml`` file. This file can be found in the ``/etc/netplan/`` directory. For example, in the ``/etc/netplan/00-installer-config.yaml``, user needs to add: ::
+* If the user did not specify the upstream DNS server during the provisioning process and wishes to utilize PowerScale SmartConnect afterwards, it is necessary to update the upstream DNS server details in ``/etc/netplan/``. For example, in the ``/etc/netplan/00-installer-config.yaml``, user needs to add: ::
 
     nameservers:
     addresses:
@@ -43,7 +43,7 @@ Prerequisites
     *	username: <username>
     *	password: <password>
     *	endpoint: <endpoint_IP>
-        .. note:: If PowerScale SmartConnect is enabled, user can provide the PowerScale hostname for ``endpoint``. Otherwise user can provide PowerScale IP address as well.
+    .. note:: If PowerScale SmartConnect hostname is configured, user can provide the PowerScale hostname for ``endpoint``. Otherwise user can provide PowerScale IP address as well.
     *	endpointPort: <endpoint_port>
     *	isDefault: true
     *	isiPath: "/ifs/data/csi"
@@ -156,7 +156,7 @@ PowerScale driver installation doesn't create any storage class by default. User
       RootClientEnab1ed: "true"
       csi.storage.k8s.io/fstype: "nfs"
 
-.. note:: If PowerScale SmartConnect is enabled, user can provide the PowerScale hostname for ``AzServiceIP``. Otherwise user can provide PowerScale IP address as well.
+.. note:: If PowerScale SmartConnect hostname is configured, user can provide the PowerScale hostname for ``AzServiceIP``. Otherwise user can provide PowerScale IP address as well.
 
 **Apply storage class**
 
