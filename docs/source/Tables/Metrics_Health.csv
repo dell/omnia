@@ -10,31 +10,31 @@ beegfs -beegfsstat,"* Unknown
 gpu_driver_health:gpu,"* Unknown
 * Fail
 * Pass","* AMD/NVIDIA/Intel  accelerators are not present.
-* GPU drivers are not installed including ROCm, Habana, and CUDA.               "
+* GPU drivers are not installed.               "
 gpu_health_nvlink:gpu [1]_,"* Unknown
 * Fail
 * Pass","* AMD/NVIDIA/Intel  accelerators are not present.
 * NVLinks are not present.
-* GPU drivers are not installed including ROCm, Habana, and CUDA.
+* GPU drivers are not installed.
 "
 gpu_health_pcie:gpu,"* Unknown
 * Fail
 * Pass","* AMD/NVIDIA/Intel  accelerators are not present.
-* GPU drivers are not installed including ROCm, Habana, and CUDA.
+* GPU drivers are not installed.
           "
 gpu_health_pmu:gpu,"* Unknown
 * Fail
 * Pass","* AMD/NVIDIA/Intel  accelerators are not present.
-* GPU drivers are not installed including ROCm, Habana, and CUDA.
+* GPU drivers are not installed.
    "
 gpu_health_power:gpu,"* Unknown
 * Fail
 * Pass","* AMD/NVIDIA/Intel  accelerators are not present.
-* GPU drivers are not installed including ROCm, Habana, and CUDA.
+* GPU drivers are not installed.
            "
 gpu_health_thermal:gpu,"* Unknown
 * Metric Value","* AMD/NVIDIA/Intel  accelerators are not present.
-* GPU drivers are not installed including ROCm, Habana, and CUDA.
+* GPU drivers are not installed.
 "
 Kubernetespodsstatus,"* Unknown
 * Fail
