@@ -24,12 +24,12 @@ To create local repositories, run the following commands: ::
     cd local_repo
     ansible-playbook local_repo.yml
 
-.. caution:: During the execution of ``local_repo.yml``, Omnia 1.6 will remove packages such as ``podman``, ``containers-common``, and ``buildah`` (if they are already installed), as they conflict with the installation of ``containerd.io`` on RHEL/Rocky Linux OS control plane.
+.. caution:: During the execution of ``local_repo.yml``, Omnia 1.7 will remove packages such as ``podman``, ``containers-common``, and ``buildah`` (if they are already installed), as they conflict with the installation of ``containerd.io`` on RHEL/Rocky Linux OS control plane.
 
 Verify changes made by the playbook by running ``cat /etc/containerd/certs.d/_default/hosts.toml`` on compute nodes.
 
 .. note::
-    * View the status of packages for the current run of ``local_repo.yml`` in ``/opt/omnia/offline/download_package_status.csv``. Packages which are already a part of AppStream or BaseOS repositories (for RHEL or Rocky Linux OS) and Focal or Jammy repositories (for Ubuntu) show up as ``Skipped``.
+    * View the status of packages for the current run of ``local_repo.yml`` in ``/opt/omnia/offline/download_package_status.csv``. Packages which are already a part of AppStream or BaseOS repositories show up as ``Skipped``.
     * ``local_repo.yml`` playbook execution fails if any software package download fails. Packages that fail are marked with a "Failed" status. In such a scenario, the user needs to re-run the ``local_repo.yml`` playbook. For more information, `click here <../../../Troubleshooting/FAQ/Common/LocalRepo.html>`_.
     * If ``repo_config`` is set to ``partial``, packages which are part of the ``user_repo_url`` or images which are part of ``user_registry`` have a ``Skipped`` status in ``/opt/omnia/offline/download_package_status.csv``.
     * If any software packages failed to download during the execution of this script, scripts that rely on the package for their working (that is, scripts that install the software)  may fail.
