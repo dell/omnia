@@ -15,11 +15,11 @@ Prerequisites
 
 2. Update the following parameters in the ``secret.yaml`` file as per your cluster details and keep the rest as default values. For example:
 
-    *	clusterName: "omniacluster"
-    *	username: "root"
-    *	password: "Dell1234"
-    *	endpoint: "100.67.170.140"
-    *	endpointPort: 8080
+    *	clusterName: <desired cluster name>
+    *	username: <username>
+    *	password: <password>
+    *	endpoint: <endpoint_IP>
+    *	endpointPort: <endpoint_port>
     *	isDefault: true
     *	isiPath: "/ifs/data/csi"
 
