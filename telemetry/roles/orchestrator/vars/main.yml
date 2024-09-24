@@ -25,9 +25,9 @@ runc_url: "{{ offline_tarball_path }}/runc.amd64.tar.gz"
 runc_dest: "/usr/local/bin/runc"
 runc_permission: "+x"
 
-crictl_url: "{{ offline_tarball_path }}/cri-tools-v1.26.1.tar.gz"
-crictl_archive_dest: /tmp/cri-tools-v1.26.1.tar.gz
-crictl_dest: /usr/local/bin/
+crictl_url: "{{ offline_tarball_path }}/cri-tools-v1.29.0.tar.gz"
+crictl_archive_dest: /tmp/cri-tools-v1.29.0.tar.gz
+crictl_dest: /usr/bin/
 crictl_permission: "+x"
 cri_socket: "unix:///var/run/containerd/containerd.sock"
 permission_644: "0644"
@@ -62,7 +62,7 @@ nerdctl_registry_restart_fail_msg: "nerdctl-registry service failed to restart"
 # helm
 helm_stable_repo_url: https://charts.helm.sh/stable
 # dashboard
-k8s_dashboard_yaml_url: https://raw.githubusercontent.com/kubernetes/dashboard/v2.2.0/aio/deploy/recommended.yaml
+k8s_dashboard_yaml_url: https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml
 k8s_dashboard_admin_file_dest: /opt/omnia/k8s_dashboard_admin.yaml
 k8s_dashboard_admin_file_mode: "0655"
 
