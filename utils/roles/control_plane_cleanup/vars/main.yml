@@ -65,6 +65,8 @@ xcat_del_files:
 
 omnia_dir: "/opt/omnia"
 file_permission: "754"
+xcat_path: /opt/xcat/bin
+xcat_sbin_path: /opt/xcat/sbin
 
 # Usage:clean_telemetry_setup.yml
 exports_path: /etc/exports

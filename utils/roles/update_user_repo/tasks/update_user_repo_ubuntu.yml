@@ -18,6 +18,7 @@
     beegfs_version: "{{ software_version_default }}"
     amdgpu_version: "{{ software_version_default }}"
     rocm_version: "{{ software_version_default }}"
+    intelgaudi_version: "{{ software_version_default }}"
 
 - name: Set facts for cluster
   ansible.builtin.set_fact:

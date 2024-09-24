@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#!/usr/bin/env python3.9
+#!/usr/bin/env python3.11
 
 '''
     This module contains tasks required to delete node details from control plane- DB and inventory files

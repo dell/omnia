@@ -12,7 +12,10 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-
+- name: Check if virtual environment is active
+  ansible.builtin.import_playbook: check_venv.yml
+  when: not ( check_venv_executed | default(false) | bool )
+  
 - name: Regenerate omnia_inventory Files
   hosts: localhost
   connection: local

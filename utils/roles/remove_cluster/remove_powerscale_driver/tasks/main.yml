@@ -1,0 +1,55 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Check if isilon namespace is present
+- name: Check if isilon namespace is present
+  ansible.builtin.command:
+    cmd: kubectl get ns -n isilon
+  register: output_result
+  failed_when: false
+  changed_when: false
+
+- name: Remove csi powerscale driver
+  when: output_result.rc == 0
+  block:
+
+    - name: Execute the uninstallation script
+      ansible.builtin.command:
+        cmd: "./csi-uninstall.sh --namespace isilon"
+        chdir: "{{ csi_powerscale_path }}/{{ csi_powerscale_git | regex_replace('\\.tar\\.gz$', '') }}/dell-csi-helm-installer"
+      register: uninstallation_result
+      failed_when: false
+      changed_when: uninstallation_result.changed
+
+    - name: Verify csi driver uninstallation
+      ansible.builtin.debug:
+        msg: "{{ fail_msg_csi_powerscale_driver_uninstallation }}"
+      when: uninstallation_result.rc != 0
+
+      # Remove isilon namespace
+    - name: Remove isilon namespace
+      ansible.builtin.command:
+        cmd: kubectl delete ns isilon
+      when: uninstallation_result.rc == 0
+      register: deletion_result
+      failed_when: false
+      changed_when: deletion_result.changed
+
+      # Clean the folder /opt/omnia/csi-driver-powerscale directory
+    - name: Remove /opt/omnia/csi-driver-powerscale directory if alreday present
+      ansible.builtin.file:
+        path: "{{ csi_powerscale_path }}"
+        state: absent
+      when: uninstallation_result.rc == 0

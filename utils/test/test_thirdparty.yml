@@ -15,7 +15,7 @@
 - name: Validate pdsh, pdsh-rcmd-ssh, clustershell installation after execution of omnia.yml
   hosts: localhost
   vars_files:
-    - {{ playbook_dir }}/test_vars/test_thirdparty_vars.yml
+    - "{{ playbook_dir }}/test_vars/test_thirdparty_vars.yml"
   tasks:
     - name: Validate pdsh installation
       block:
