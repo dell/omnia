@@ -22,6 +22,11 @@
       "repo_name": "docker-ce-repo"
     },
     {
+      "package": "nvidia-container-toolkit",
+      "type": "rpm",
+      "repo_name": "nvidia-repo"
+    },
+    {
       "package": "kubectl",
       "type": "tarball",
       "url": "https://dl.k8s.io/release/v{{ k8s_version }}/bin/linux/amd64/kubectl"
