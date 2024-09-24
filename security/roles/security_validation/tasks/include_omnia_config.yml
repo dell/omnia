@@ -13,11 +13,6 @@
 #  limitations under the License.
 ---
 
-- name: Fetch ansible-vault path
-  ansible.builtin.command: whereis ansible-vault
-  changed_when: false
-  register: ansible_vault_path
-
 - name: Check if omnia config file is encrypted
   ansible.builtin.command: cat {{ omnia_config_file }}
   changed_when: false
@@ -26,7 +21,7 @@
 
 - name: Decrpyt omnia_config.yml
   ansible.builtin.command: >-
-    {{ ansible_vault_path.stdout.split(' ')[1] }} decrypt {{ omnia_config_file }} --vault-password-file {{ omnia_vaultname }}
+    ansible-vault decrypt {{ omnia_config_file }} --vault-password-file {{ omnia_vaultname }}
   when: "'$ANSIBLE_VAULT;' in config_content.stdout"
   changed_when: true
 
@@ -60,7 +55,7 @@
 
 - name: Encrypt input config file
   ansible.builtin.command: >-
-    {{ ansible_vault_path.stdout.split(' ')[1] }} encrypt {{ omnia_config_file }} --vault-password-file {{ omnia_vaultname }}
+    ansible-vault encrypt {{ omnia_config_file }} --vault-password-file {{ omnia_vaultname }}
   changed_when: false
 
 - name: Update config_content permission

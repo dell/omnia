@@ -18,19 +18,19 @@
     http_proxy: "{{ http_proxy }}"
     https_proxy: "{{ https_proxy }}"
   block:
-    - name: Install python3.9
+    - name: Install {{ python_version }}
       ansible.builtin.package:
         name: "{{ python_packages }}"
         state: present
 
     - name: Install required ansible packages
       ansible.builtin.command:
-        cmd: "python3.9 -m pip install {{ ansible_name }}=={{ secure_ansible_version }} {{ cryptography_name }}=={{ cryptography_version }}"
+        cmd: "{{ python_version }} -m pip install {{ ansible_name }}=={{ secure_ansible_version }} {{ cryptography_name }}=={{ cryptography_version }}"
       changed_when: false
 
     - name: Install required ansible jinja packages
       ansible.builtin.command:
-        cmd: "python3.9 -m pip install {{ jinja_name }}=={{ jinja_version }}"
+        cmd: "{{ python_version }} -m pip install {{ jinja_name }}=={{ jinja_version }}"
       changed_when: false
 
 - name: Install community_general_collection repo tarball
