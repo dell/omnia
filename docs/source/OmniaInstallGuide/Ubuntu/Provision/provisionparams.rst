@@ -41,6 +41,7 @@ Fill in all required parameters in ``input/provision_config.yml``, ``input/provi
    :header-rows: 1
    :keepspace:
 
+.. note:: While provisioning the cluster, ensure to add an upstream DNS server IP against the ``DNS`` entry in `input/network_spec.yml`` if you intend to use the PowerScale SmartConnect hostname later. For more information, `click here <../AdvancedConfigurationsUbuntu/PowerScale_CSI.html>`_.
 
 .. note::
 
@@ -49,7 +50,6 @@ Fill in all required parameters in ``input/provision_config.yml``, ``input/provi
     * If ``bmc_network`` properties are provided, target nodes will be discovered using the BMC method in addition to the methods whose details are explicitly provided in ``provision_config.yml``.
     * The strings ``admin_network`` and ``bmc_network`` in the ``input/network_spec.yml`` file should not be edited. Also, the properties ``nic_name``, ``static_range``, and ``dynamic_range`` cannot be edited on subsequent runs of the provision tool.
     * ``netmask_bits`` are mandatory and should be same for both ``admin_network`` and ``bmc_network`` (that is, between 1 and 32; 1 and 32 are also acceptable values).
-    * While provisioning the cluster, ensure to add a Upstream DNS server IP against the ``DNS`` entry if you intend to use PowerScale SmartConnect hostname later. For more information, `click here <../AdvancedConfigurationsUbuntu/PowerScale_CSI.html>`_.
 
 .. caution::
     * Do not assign the subnet 10.4.0.0/24 to any interfaces in the network as nerdctl uses it by default.
