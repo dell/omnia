@@ -13,9 +13,7 @@
 #  limitations under the License.
 ---
 file_permission: 755
-download_dest: /tmp/kustomize_v5.0.3_linux_amd64.tar.gz
 kustomize_binary_path: /opt/omnia/kustomize/kustomize
-branch: v1.8-branch
 deployment_success_message: Deployment is successful
 deployment_failure_message: Deployment is not ready
 warning_msg: Do not continue, if kubeflow deployment is running for first time
@@ -39,9 +37,20 @@ k8s_not_deployed: "Kubernetes is prerequisite for deploying kubeflow. Please dep
 jw_app: /opt/omnia/kubeflow/kubeflow/apps/jupyter/jupyter-web-app/upstream/base/params.env
 tb_app: /opt/omnia/kubeflow/kubeflow/apps/tensorboard/tensorboards-web-app/upstream/base/params.env
 vw_app: /opt/omnia/kubeflow/kubeflow/apps/volumes-web-app/upstream/base/params.env
-istio_ingressgateway_service_yaml_file_path: /opt/omnia/kubeflow/kubeflow/common/istio-1-17/istio-install/base/patches/service.yaml
+istio_ingressgateway_service_yaml_file_path: /opt/omnia/kubeflow/kubeflow/common/istio-1-22/istio-install/base/patches/service.yaml
 kserve_exist: "Kserve is already deployed, please remove kserve to deploy kubeflow."
 # usage main.yml
 local_repo_access_config_file: "/opt/omnia/offline/local_repo_access.yml"
 istio_module_dir: /etc/modules-load.d
 istio_module_file: /etc/modules-load.d/99-istio-modules.conf
+
+# Usage: validate_inventory.yml
+kubeflow_empty_inventory_fail_msg: "Failed. Inventory not provided. Re-run playbook with inventory by providing -i inventory."
+kubeflow_invalid_kube_inventory_fail_msg: "Failed. Kubeflow software is present in software_config.json.
+Invalid inventory format, specify kube_control_plane, kube_node"
+kubeflow_kube_one_node_validation_fail_msg: "Failed. kubeflow software is present in software_config.json.
+There should be exactly one entry for kube_control_plane in the inventory"
+kubeflow_kube_one_node_validation_success_msg: "One kube_control_plane exists in the inventory"
+kubeflow_kube_node_validation_fail_msg: "Failed. kubeflow software is present in software_config.json.
+At least one kube_node should be present in the inventory."
+kubeflow_kube_node_validation_success_msg: "At least one kube_node exists in the inventory"
