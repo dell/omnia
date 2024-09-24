@@ -10,17 +10,19 @@ Fill in all required parameters in ``input/provision_config.yml``, ``input/provi
    :header-rows: 1
    :keepspace:
 
+.. [1] Boolean parameters do not need to be passed with double or single quotes.
+
 .. csv-table:: provision_config_credentials.yml
    :file: ../../../Tables/Provision_creds.csv
    :header-rows: 1
    :keepspace:
 
 .. csv-table:: software_config.json
-   :file: ../../../Tables/software_config.csv
+   :file: ../../../Tables/software_config_rhel.csv
    :header-rows: 1
    :keepspace:
 
-.. [1] Boolean parameters do not need to be passed with double or single quotes.
+
 
 Update the ``input/network_spec.yml`` file for all networks available for use by the control plane.
 
