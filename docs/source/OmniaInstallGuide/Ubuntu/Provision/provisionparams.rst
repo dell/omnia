@@ -49,10 +49,10 @@ Fill in all required parameters in ``input/provision_config.yml``, ``input/provi
     * If ``bmc_network`` properties are provided, target nodes will be discovered using the BMC method in addition to the methods whose details are explicitly provided in ``provision_config.yml``.
     * The strings ``admin_network`` and ``bmc_network`` in the ``input/network_spec.yml`` file should not be edited. Also, the properties ``nic_name``, ``static_range``, and ``dynamic_range`` cannot be edited on subsequent runs of the provision tool.
     * ``netmask_bits`` are mandatory and should be same for both ``admin_network`` and ``bmc_network`` (that is, between 1 and 32; 1 and 32 are also acceptable values).
+    * While provisioning the cluster, ensure to add a Upstream DNS server IP against the ``DNS`` entry if you intend to use PowerScale SmartConnect hostname later. For more information, `click here <../AdvancedConfigurationsUbuntu/PowerScale_CSI.html>`_.
 
 .. caution::
     * Do not assign the subnet 10.4.0.0/24 to any interfaces in the network as nerdctl uses it by default.
-    * Omnia v1.6 does not support the configuration of a DNS server on the control plane.
     * All provided network ranges and NIC IP addresses should be distinct with no overlap in the ``input/network_spec.yml``.
     * Ensure that all the iDRACs are reachable from the Control Plane.
 
@@ -68,6 +68,7 @@ A sample of the ``input/network_spec.yml`` is provided below: ::
                 correlation_to_admin: true
                 admin_uncorrelated_node_start_ip: "10.5.0.50"
                 network_gateway: ""
+                DNS: ""
                 MTU: "1500"
 
             - bmc_network:

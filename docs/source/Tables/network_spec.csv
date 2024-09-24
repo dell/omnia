@@ -38,6 +38,11 @@ Optional","* If ``correlation_to_admin`` is set to true but correlated IPs are n
 ``integer``
 
 Mandatory",The network gateway IP is the assigned IP address of the NIC that connects a local network to external networks.
+,"**DNS**
+
+``integer``
+
+Optional","The IP of the extrernal DNS server. A DNS server, or Domain Name System server, translates domain names into IP addresses that computers use to identify each other on the network."
 ,"**MTU**
 
 ``integer``
