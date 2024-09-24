@@ -22,9 +22,9 @@
       {"package": "wget", "type": "rpm", "repo_name": "appstream"},
       {"package": "psacct", "type": "rpm", "repo_name": "baseos"},
       {"package": "psacct", "type": "rpm", "repo_name": "baseos"},
-      {"package": "python3.9", "type": "rpm", "repo_name": "appstream"},
+      {"package": "python3.11", "type": "rpm", "repo_name": "appstream"},
       { 
-        "package": "ansible==7.7.0", 
+        "package": "ansible==9.5.1", 
         "type": "pip_module"
       },
       { 

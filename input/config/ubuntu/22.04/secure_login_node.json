@@ -21,9 +21,9 @@
     {"package": "tar", "type": "deb", "repo_name": "jammy"},
     {"package": "wget", "type": "deb", "repo_name": "jammy"},
     {"package": "acct", "type": "deb", "repo_name": "jammy"},
-    {"package": "python3.9", "type": "deb", "repo_name": "deadsnake-ppa"},
+    {"package": "python3.11", "type": "deb", "repo_name": "deadsnake-ppa"},
     { 
-      "package": "ansible==7.7.0", 
+      "package": "ansible==9.5.1", 
       "type": "pip_module"
     },
     { 

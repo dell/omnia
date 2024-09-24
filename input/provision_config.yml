@@ -13,10 +13,10 @@
 #  limitations under the License.
 ---
 
-#***********************************************************************
+# ***********************************************************************
 # DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.
 # SIMPLY APPEND THE REQUIRED VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
-#***********************************************************************
+# ***********************************************************************
 
 #### Mandatory
 # Path where user has placed the iso image that needs to be provisioned on target nodes.
@@ -106,3 +106,10 @@ language: "en-US"
 # Default: 86400
 # Max: 31536000
 default_lease_time: "86400"
+
+#### Mandatory
+# The variable decides the NTP will be configured in the cluster by setting up NTP server in control plane.
+# If ntp_support is set to false, NTP will not be configured in the cluster.
+# In a proxy environment, setting up NTP server in control plane can result in failure due to unreachable public NTP pools and is not recommended.
+# Default value is true
+ntp_support: true
