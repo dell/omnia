@@ -20,10 +20,12 @@
     executable: pip3
 
 - name: Install paramiko
-  ansible.builtin.command: pip3 install paramiko -i http://pypi.douban.com/simple/ --trusted-host pypi.douban.com
+  ansible.builtin.pip:
+    name: paramiko
+    state: present
+    executable: pip3
+    extra_args: "-i https://pypi.org/simple/"
   delegate_to: localhost
-  run_once: true
-  changed_when: false
 
 - name: Check if ethernet_tor_input.yml exists
   ansible.builtin.stat:
