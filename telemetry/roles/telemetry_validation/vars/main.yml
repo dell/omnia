@@ -30,9 +30,10 @@ selinux_warning: "Warning! SELinux status is disabled by user. No SELinux policy
 telemetry_config_file: "{{ role_path }}/../../../input/telemetry_config.yml"
 fail_msg_telemetry_config_file: "telemetry_config.yml file doesn't exist."
 pip_packages:
-  - openshift
-  - omsdk
-  - PyMySQL
+  - openshift==0.13.2
+  - omsdk==1.2.513
+  - PyMySQL==1.1.1
+  - pysnmp==6.1.3
 mysqldb_collection_name: community.mysql:3.7.2
 retry_count: 3
 rhel_epel_repo8: https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
