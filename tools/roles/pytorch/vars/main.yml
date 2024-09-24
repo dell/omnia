@@ -34,7 +34,7 @@ pytorch_json_file: "{{ role_path }}/../../../input/config/{{ cluster_os_type }}/
 # Errors: check_prerequisites.yml
 error_check_gpu_failed: "GPU Driver absent. Skipping pytorch installation."
 error_check_container_engine_failed: "pytorch requires containerd as a prerequisite. Please execute scheduler.yml/omnia.yml and install k8s and execute
-pytorch again"
+ pytorch again"
 error_dri_file_failed: "Unable to read dri files in /dev/dri folder"
 
 # CMD: check_prerequisites.yml

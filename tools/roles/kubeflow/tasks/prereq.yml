@@ -120,14 +120,6 @@
     cmd: chmod a+x "{{ kustomize_binary_path }}"
   changed_when: false
 
-- name: Set Linux max user instance
-  ansible.builtin.command: "sysctl fs.inotify.max_user_instances={{ max_user_instances }}"
-  changed_when: false
-
-- name: Set Linux max watches
-  ansible.builtin.command: "sysctl fs.inotify.max_user_watches={{ max_user_watches }}"
-  changed_when: false
-
 - name: Replace value of jupyter-web secure cookies
   ansible.builtin.lineinfile:
     path: "{{ jw_app }}"

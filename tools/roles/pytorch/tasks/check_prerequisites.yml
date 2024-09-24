@@ -59,7 +59,7 @@
       loop_control:
         index_var: item_index
 
-    - name: Combine the pythorch image and version
+    - name: Combine the pytorch image and version
       ansible.builtin.set_fact:
         pytorch_cpu_image: "{{ pytorch_cpu_image_package }}:{{ pytorch_cpu_image_version }}"
         pytorch_amd_image: "{{ pytorch_amd_image_package }}:{{ pytorch_amd_image_version }}"
@@ -79,7 +79,8 @@
         cpu_image_run_cmd: "nerdctl run -it --rm -v /opt/omnia/:/workspace/ {{ pytorch_cpu_image }} python ./pytorch_example.py"
         nvidia_image_run_cmd: "nerdctl run --gpus all -it --rm -v /opt/omnia/:/workspace/ {{ pytorch_nvidia_image }} python ./pytorch_example.py"
         amd_run_cmd_end: " --group-add video --ipc=host --shm-size 8G -v /opt/omnia/:/var/lib/jenkins {{ pytorch_amd_image }} python ./pytorch_example.py"
-        gaudi_image_run_cmd: "nerdctl run -it --privileged -e HABANA_VISIBLE_DEVICES=all -e OMPI_MCA_btl_vader_single_copy_mechanism=none --cap-add=sys_nice --net=host --ipc=host -v /opt/omnia/:/workspace/ {{ pytorch_gaudi_image }} python /workspace/pytorch_example.py"
+        gaudi_image_run_cmd: "nerdctl run -it --privileged -e HABANA_VISIBLE_DEVICES=all -e OMPI_MCA_btl_vader_single_copy_mechanism=none --cap-add=sys_nice
+           --net=host --ipc=host -v /opt/omnia/:/workspace/ {{ pytorch_gaudi_image }} python /workspace/pytorch_example.py"
 
 - name: Initialize processing_unit
   ansible.builtin.set_fact:

@@ -51,8 +51,8 @@ vllm_run_cmd_mid: " -v /opt/omnia/:/app/model "
 vllm_run_cmd_end: " /bin/bash -c 'export http_proxy={{ http_proxy }} && export https_proxy={{ https_proxy }} && python /app/model/vllm_example.py'"
 
 # Errors: vllm_install.yml
-error_pull_container: "Failed to install vLLM container on AMD GPU node. Please ensure you have enough disk space (recommended: 100 GB) or check
-your network connection to the local repository"
+error_pull_container: "Failed to install vLLM container on AMD GPU node. Please ensure you have enough disk space (recommended: 100 GB) or check your
+network connection to the local repository"
 error_vllm_package: "Failed to install vLLM on NVIDIA node. Please ensure you have enough disk space (recommended: 100 GB) or check your network connection
 to the local repository"
 
