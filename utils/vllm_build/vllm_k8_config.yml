@@ -18,9 +18,9 @@ spec:
           - name: HUGGING_FACE_HUB_TOKEN
             value: "xxxxxxxxxxxxxxxxxxxxx"
           - name: HTTP_PROXY
-            value: "http://10.20.0.1:3128"
+            value: "http://<admin_nic_ip>:3128"
           - name: HTTPS_PROXY
-            value: "http://10.20.0.1:3128"
+            value: "http://<admin_nic_ip>:3128"
         image: vllm-rocm:latest
         imagePullPolicy: IfNotPresent
         name: vllm-container
