@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,9 +24,9 @@
       ansible.builtin.fail:
         msg: "{{ provision_package_fail_msg }}"
 
-- name: Install python snmp
-  ansible.builtin.command: "{{ python_version }} -m pip install {{ snmp_python_package }}"
-  changed_when: true
+# - name: Install python snmp
+#   ansible.builtin.command: "{{ python_version }} -m pip install {{ snmp_python_package }}"
+#   changed_when: true
 
 - name: Install python postgres
   ansible.builtin.command: "{{ python_version }} -m pip install {{ postgres_python_package }}"
@@ -49,7 +49,7 @@
   changed_when: true
 
 - name: Install netaddr and pexpect
-  ansible.builtin.command: "{{ pip_version }} install {{ item }}"
+  ansible.builtin.command: "{{ python_version }} -m pip install {{ item }}"
   changed_when: true
   with_items:
     - "{{ netaddr_pip_package }}"
@@ -62,3 +62,7 @@
   until: ansible_collection_install is not failed
   retries: "{{ max_retries }}"
   with_items: "{{ ansible_galaxy_collection }}"
+
+- name: Install python commented config parser
+  ansible.builtin.command: "{{ python_version }} -m pip install {{ commentedconfigparser_python_package }}"
+  changed_when: true

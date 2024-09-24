@@ -1,19 +1,13 @@
 #!/bin/bash
 ################################################################################################################
-#  omnia_gaudi:
+#  omnia_intelgaudi:
 #      Install Intel Gaudi drivers on all the cluster nodes
 #
 #################################################################################################################
 echo "--------------------------" >> /var/log/xcat/xcat.log
-echo "Checking for Intel Gaudi accelerators" >> /var/log/xcat/xcat.log
-
-gaudi_check=`lspci | grep -i "Processing accelerators: Habana Labs Ltd."`
-
+echo "Checking for Intel Gaudi cards" >> /var/log/xcat/xcat.log
+gaudi_check_processing_xlr8r=`lspci | grep "Processing accelerators: Habana Labs Ltd"`
 validate_ubuntu_os="$(cat /etc/os-release | grep 'ID=ubuntu' | wc -l)"
-
-HEADER_VER=$(uname -r)
-
-export DEBIAN_FRONTEND=noninteractive
 
 cron_job_for_scale_out_interfaces() {
 
@@ -65,38 +59,18 @@ rm $temp_crontab
 
 }
 
-# on node with gaudi
-if [[ $gaudi_check == *"Habana Labs Ltd"*  ]]; then
+if [[ $gaudi_check_processing_xlr8r == *"Habana Labs Ltd"* ]]; then
+  echo "Installing Intel Gaudi" >> /var/log/xcat/xcat.log
+  if [[ $validate_ubuntu_os == "1"  ]]
+  then
 
-  if [[ $validate_ubuntu_os == "1" ]]; then
-
-    echo "Installing Intel Gaudi drivers" >> /var/log/xcat/xcat.log
-
-    echo "deb [trusted=yes] http://{{ admin_nic_ip }}:80/install{{ repo_store_path }}/cluster/{{ provision_os }}/{{ provision_os_version }}/deb ./" >> /etc/apt/sources.list.d/intelgaudi.list
+    echo "deb [trusted=yes] http://{{ admin_nic_ip }}:80/install{{ repo_store_path }}/cluster/apt/intelgaudi/{{ intelgaudi_version }} ./" >> /etc/apt/sources.list.d/intelgaudi.list
 
     sudo apt-get update
+    sudo apt install dkms libelf-dev -y
+    sudo apt install linux-headers-$(uname -r) -y
 
-    apt install -y cmake \
-      curl \
-      dkms \
-      ethtool \
-      gcc \
-      iproute2 \
-      libbz2-dev \
-      libelf-dev \
-      libibverbs-dev \
-      liblzma-dev \
-      librdmacm-dev \
-      linux-headers-${HEADER_VER} \
-      linux-modules-extra-${HEADER_VER} \
-      lsof \
-      moreutils \
-      numactl \
-      unzip \
-      wget
-
-    apt install -y habanalabs-container-runtime \
-      habanalabs-dkms \
+    sudo apt install -y habanalabs-dkms \
       habanalabs-firmware \
       habanalabs-firmware-tools \
       habanalabs-graph \
@@ -105,19 +79,14 @@ if [[ $gaudi_check == *"Habana Labs Ltd"*  ]]; then
       habanalabs-thunk \
       habanatools
 
-    # This number was defined by Habana team and is the number used in IDC clusters
-    echo "vm.nr_hugepages=156300" > /etc/sysctl.d/90-gaudi.conf
-
     rm /etc/apt/sources.list.d/intelgaudi.list
 
     apt-get update
+    echo "Intel Gaudi driver installation completed" >> /var/log/xcat/xcat.log
 
     # make sure Gaudi scale out interfaces are up after rebooting
     cron_job_for_scale_out_interfaces
-
-    echo "Intel Gaudi drivers installation completed" >> /var/log/xcat/xcat.log
-
+    
   fi
-
+  echo "-----------------------------" >> /var/log/xcat/xcat.log
 fi
-echo "-----------------------------" >> /var/log/xcat/xcat.log

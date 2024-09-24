@@ -20,7 +20,7 @@
 - name: Check diskful osimage is created
   ansible.builtin.shell: >
     set -o pipefail && \
-    lsdef -t osimage | grep "{{ osimage_search_key }}" | grep "{{ provision_os }}" | grep "{{ provision_os_version }}"
+    {{ xcat_path }}/lsdef -t osimage | grep "{{ osimage_search_key }}" | grep "{{ provision_os }}" | grep "{{ provision_os_version }}"
   changed_when: false
   failed_when: false
   register: diskful_osimage_check
@@ -32,5 +32,5 @@
     - provision_os in diskful_osimage_check.stdout
 
 - name: Create diskful osimage
-  ansible.builtin.command: copycds {{ iso_file_path }}
+  ansible.builtin.command: "{{ xcat_sbin_path }}/copycds {{ iso_file_path }}"
   changed_when: true

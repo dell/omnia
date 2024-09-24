@@ -42,7 +42,7 @@ def create_node_object(conn):
             cursor.execute(sql)
             row_output = cursor.fetchone()
 
-            command = ["chdef", row_output[0], f"groups={groups_switch_based}", "mgt=ipmi", "cons=ipmi", f"ip={row_output[1]}", f"bmc={row_output[2]}", "netboot=xnba", "installnic=mac", "primarynic=mac", f"switch={row_output[3]}", f"switchport={row_output[4]}"]
+            command = ["/opt/xcat/bin/chdef", row_output[0], f"groups={groups_switch_based}", "mgt=ipmi", "cons=ipmi", f"ip={row_output[1]}", f"bmc={row_output[2]}", "netboot=xnba", "installnic=mac", "primarynic=mac", f"switch={row_output[3]}", f"switchport={row_output[4]}"]
             subprocess.run(command)
 
             print(f"Created node object with name {row_output[0]}")

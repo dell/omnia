@@ -19,6 +19,7 @@
     login_user: postgres
     query: SELECT admin_ip,hostname,node FROM cluster.nodeinfo where (node!='control_plane');
     login_password: "{{ hostvars['localhost']['postgresdb_password'] }}"
+  become: true
   become_user: postgres
   register: query_status
   failed_when: false

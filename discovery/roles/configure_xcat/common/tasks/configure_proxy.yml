@@ -13,16 +13,40 @@
 # limitations under the License.
 ---
 
+- name: Gathering service facts
+  ansible.builtin.service_facts:
+
 - name: Ensure admin subnet is present in squid.conf
   ansible.builtin.lineinfile:
     path: "{{ squid_proxy_conf_path }}"
     line: "acl localnet src {{ pxe_nic_subnet }}/{{ network_data.admin_network.netmask_bits }}"
     insertafter: "^acl localnet src 192.168.0.0/16"
-  register: configure_proxy
+  register: configure_proxy_admin_subnet
+
+- name: Configure proxy details in squid.conf
+  when: proxy_status
+  block:
+    - name: Set proxy_host and proxy_port variables
+      ansible.builtin.set_fact:
+        proxy_host: "{{ proxy[0].http_proxy | regex_search('http://([^:]+):', '\\1') }}"
+        proxy_port: "{{ proxy[0].http_proxy | regex_search(':(\\d+)', '\\1') }}"
+
+    - name: Update proxy configuration
+      ansible.builtin.lineinfile:
+        path: "{{ squid_proxy_conf_path }}"
+        line: "{{ item.line }}"
+        insertafter: "{{ item.insertafter }}"
+      register: configure_proxy_input
+      with_items:
+        - { line: "cache_peer {{ proxy_host[0] }} parent {{ proxy_port[0] }} 0 no-query default", insertafter: "EOF" }
+        - { line: "never_direct allow localnet", insertafter: "^http_access allow localnet" }
 
 - name: Start and enable squid service
   ansible.builtin.service:
     name: squid
     state: restarted
     enabled: true
-  when: configure_proxy.changed # noqa: no-handler
+  when:
+    - configure_proxy_admin_subnet.changed or
+      configure_proxy_input.changed or
+      "'running' not in ansible_facts.services['squid.service'].state" # noqa: no-handler

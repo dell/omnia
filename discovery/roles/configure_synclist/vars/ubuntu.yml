@@ -15,8 +15,10 @@
 
 # Usage: create_files_local_repo.yml
 repo_config_template_src: "{{ role_path }}/templates/repo_config_template_ubuntu.j2"
+repo_config_template_intelgaudi_src: "{{ role_path }}/templates/repo_config_template_intelgaudi_ubuntu.j2"
 cluster_repo_template_src: "{{ role_path }}/templates/cluster_repo_template_ubuntu.j2"
 repo_config_file: "{{ temp_dir_repo }}/{{ item.name }}-{{ item.version }}.list"
+repo_config_file_intelgaudi: "{{ temp_dir_repo }}/{{ item.name }}-{{ intelgaudi_version }}.list"
 cluster_repo_config_file: "{{ temp_dir_repo }}/cluster-deb.list"
 file_mode: "0644"
 dir_mode: "0755"
@@ -25,6 +27,8 @@ omnia_repo_template_src: "{{ role_path }}/templates/omnia_repo_config_ubuntu.j2"
 beegfs_file_path: "{{ repo_store_path }}/cluster/apt/beegfs/{{ beegfs_version }}"
 amdgpu_file_path: "{{ repo_store_path }}/cluster/apt/amdgpu/{{ amdgpu_version }}"
 rocm_file_path: "{{ repo_store_path }}/cluster/apt/rocm/{{ rocm_version }}"
+intelgaudi_file_path: "{{ repo_store_path }}/cluster/apt/intelgaudi/{{ intelgaudi_version }}"
+habana_file_path: "{{ repo_store_path }}/cluster/apt/habana/{{ intelgaudi_version }}"
 software_config_json_file: "{{ role_path }}/../../../input/software_config.json"
 local_repo_config_file: "{{ role_path }}/../../../input/local_repo_config.yml"
 local_repo_config_syntax_fail_msg: "Failed. Syntax errors present in local_repo_config.yml. Fix errors and re-run playbook again."
@@ -35,6 +39,3 @@ base_url_ubuntu: "/install{{ repo_store_path }}/cluster/{{ provision_os }}/{{ pr
 # Usage: configure_synclist.yml
 synclists_src_path: "{{ role_path }}/templates/ubuntu.synclist.j2"
 synclists_dest_path: "{{ synclists_dir }}/ubuntu.synclist"
-
-# Usage: create_files_local_registry.yml
-config_omnia_registry_src_path: "../templates/config_omnia_registry_ubuntu.toml.j2"

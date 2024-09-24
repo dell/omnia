@@ -14,7 +14,7 @@
 ---
 
 - name: Configure postbootscripts
-  ansible.builtin.command: chdef all postbootscripts="otherpkgs"
+  ansible.builtin.command: "{{ xcat_path }}/chdef all postbootscripts=\"otherpkgs\""
   changed_when: true
 
 - name: Configure admin postbootscripts

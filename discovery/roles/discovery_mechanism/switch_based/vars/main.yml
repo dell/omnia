@@ -31,3 +31,5 @@ create_node_object_path_switch_based: "{{ role_path }}/../switch_based/files/cre
 switch_based_nodes_warning_msg: "[WARNING] switch_based node objects not found. Skipping remaining provisioning tasks for switch_based discovery."
 switch_based_node_group: "switch_based"
 warning_wait_time: 10
+xcat_path: /opt/xcat/bin
+xcat_sbin_path: /opt/xcat/sbin

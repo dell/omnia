@@ -64,11 +64,11 @@ def create_switch_object(conn,switch_ip,switch_snmp_username,switch_snmp_passwor
             omniadb_connection.insert_switch_info(cursor,switch_name,ip)
 
             # Create switch object
-            command = ["chdef", switch_name, f"ip={ip}", f"groups={switch_group}"]
+            command = ["/opt/xcat/bin/chdef", switch_name, f"ip={ip}", f"groups={switch_group}"]
             subprocess.run(command)
 
             # Update xcat switches table with switch credentials
-            command = ["tabch", f"switch={switch_name}", f"switches.snmpversion={switch_snmp_version}", f"switches.username={switch_snmp_username}", f"switches.password={switch_snmp_password}", f"switches.auth={switch_auth_type}"]
+            command = ["/opt/xcat/sbin/tabch", f"switch={switch_name}", f"switches.snmpversion={switch_snmp_version}", f"switches.username={switch_snmp_username}", f"switches.password={switch_snmp_password}", f"switches.auth={switch_auth_type}"]
             subprocess.run(command)
 
             print(f"Created node object for switch: {switch_name}")

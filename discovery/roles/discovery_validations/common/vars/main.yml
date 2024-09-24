@@ -30,19 +30,19 @@ user_fail_msg: "Failed. Omnia playbooks should run as root user."
 
 # Usage: package_installation.yml
 ansible_galaxy_collection:
-  - ansible.utils:2.5.2
-  - community.general:4.8.7
-python_version: python3.9
-snmp_python_package: easysnmp
+  - ansible.utils:2.12.0
+  - community.general:8.6.0
+python_version: "{{ ansible_python_interpreter }}"
+# snmp_python_package: easysnmp
 postgres_python_package: psycopg2-binary
 requests_python_package: requests
 pyarrow_python_package: pyarrow
 pandas_python_package: pandas
 passlib_python_package: passlib
-pip_version: pip3.9
 netaddr_pip_package: netaddr
 pexpect_pip_package: pexpect
 max_retries: 10
+commentedconfigparser_python_package: "commented-configparser"
 
 # Usage: create_provision_ini.yml
 provision_conf_path: "/opt/omnia/.data/provision.ini"
@@ -184,6 +184,7 @@ nodename_chars_fail_msg: "Failed. node_name empty or invalid in provision_config
 node_name should not contain _ or . or space or node- as it might result in issues with provisioning/authentication tools like FreeIPA."
 ubuntu_kernel_fail_msg: "Failed. ubuntu_kernel_flavor should be either hwe or generic"
 ubuntu22_version: "22.04"
+ntp_support_fail_msg: "Failed. ntp_support in provision_config.yml should be either true or false"
 
 # Usage: validate_domain_name.yml
 domain_name_success_msg: "domain_name successfully validated"
@@ -222,6 +223,12 @@ Hence ROCm will not be installed on the nodes post provisioning."
 rocm_repo_warning_msg: "[WARNING] local_repo.yml is not executed for downloading ROCM packages.
 ROCm will not be installed on the nodes post provisioning."
 
+# Usage: validate_intelgaudi_repo.yml
+intelgaudi_version_warning_msg: "[WARNING] software_config.json does not have the version for 'intelgaudi'.
+Hence Habana stack will not be installed on the nodes post provisioning."
+intelgaudi_repo_warning_msg: "[WARNING] local_repo.yml is not executed for downloading 'intelgaudi' packages.
+Habana stack will not be installed on the nodes post provisioning."
+
 # Usage: validate_broadcom_repo.yml
 roce_version_warning_msg: "[WARNING] software_config.json does not have the version for bcm_roce.
 Hence RoCE drivers will not be installed on the nodes post provisioning."
@@ -248,8 +255,9 @@ range_ip_check_fail_msg: "Failed. input ip range should be valid IP address (Eg.
 fail_static_ip_range: "Failed, Network static overlaps with"
 fail_cidr_ip_range: "Failed, Cidr overlaps with"
 
-# Usage: validate_intel_gaudi_repo.yml
-intel_gaudi_input_warning_msg: "[WARNING] software_config.json does not have the intel gaudi software stack.
-Hence intel gaudi drivers will not be installed on the nodes post provisioning."
-intel_gaudi_repo_warning_msg: "[WARNING] local_repo.yml is not executed for downloading intelgaudi packages.
-Intel Gaudi drivers will not be installed on the nodes post provisioning."
+# Usage: validate_site_config.yml
+site_config_file: "{{ role_path }}/../../../../input/site_config.yml"
+invalid_proxy_failure_msg: "Failed. Both http_proxy and https_proxy should be set for proxy variable provided in site_config.yml"
+proxy_env_fail_msg: "Failed. proxy values provided for http_proxy {{ proxy[0].http_proxy }} and https_proxy {{ proxy[0].https_proxy }} in site_config.yml
+should be set as environment variables http_proxy and https_proxy in control plane."
+update_repos_fail_msg: "Failed. Failed to update repos. Verify proxy configuration in control plane for acccessing internet."

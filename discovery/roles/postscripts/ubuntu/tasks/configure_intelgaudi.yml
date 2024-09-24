@@ -1,4 +1,4 @@
-# Copyright 2024 Intel Corporation.
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,9 +13,9 @@
 # limitations under the License.
 ---
 
-- name: Copy Gaudi script to postscripts
+- name: Copy Intel Gaudi script to postscripts
   ansible.builtin.template:
     src: "{{ item.src }}"
     dest: "{{ item.dest }}"
     mode: "{{ item.mode }}"
-  with_items: "{{ gaudi_postscripts_path }}"
+  with_items: "{{ intelgaudi_postscripts_path }}"
