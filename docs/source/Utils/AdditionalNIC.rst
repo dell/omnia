@@ -168,7 +168,7 @@ In the above sample inventory file, ``[node-group1]`` and ``[node-group2]`` are 
     cd utils/server_spec_update
     ansible-playbook server_spec_update.yml -i <inventory_file_path>
 
-.. note:: In Omnia v1.6, while executing ``server_spec_update.yml``, the user needs to ensure that only admin IP addresses are used in the inventory file, not service tags or node names.
+.. note:: In Omnia v1.7, while executing ``server_spec_update.yml``, the user needs to ensure that only admin IP addresses are used in the inventory file, not service tags or node names.
 
 Based on the provided sample files, server 10.5.0.3 has been mapped to node-group1 which corresponds to group-1. Therefore, the NICs ensp0 and ensp0.5 will be configured in an ethernet VLAN group with ensp0 as the primary device.
 
