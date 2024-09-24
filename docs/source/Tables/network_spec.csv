@@ -4,7 +4,7 @@
 
 
 
-.. note:: This name cannot be modified. This is mandatory for discovery and provisioning of the cluster nodes.","**nic_name**
+This name cannot be modified. This is mandatory for discovery and provisioning of the cluster nodes.","**nic_name**
 
 ``string``
 
@@ -55,7 +55,7 @@ Mandatory",Maximum transmission unit (MTU) is a measurement in bytes of the larg
 
 
 
-.. note:: This name cannot be modified. This is mandatory while using the BMC discovery mechanism.","**nic_name**
+This name cannot be modified. This is mandatory while using the BMC discovery mechanism.","**nic_name**
 
 ``string``
 
