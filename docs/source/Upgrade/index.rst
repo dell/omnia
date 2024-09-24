@@ -42,7 +42,20 @@ To upgrade the Omnia control plane, do the following:
 
         source /opt/omnia/omnia161_venv/bin/activate
 
-4. Finally, execute the ``upgrade_cp.yml`` playbook using the following command: ::
+4. Update the ``input/upgrade_config.yml`` file with the following details:
+
+    +-----------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``installed_omnia_path``    | * This variable points to the the path or location of the directory where the Omnia 1.6.1 source code is currently installed.                   |
+    |      Required               | * **Example**: ``/root/omnia161/omnia``                                                                                                         |
+    |                             | .. note:: Verify that the directory has not been altered since the last execution of ``discovery_provision.yml`` and ``omnia.yml`` playbooks.   |
+    +-----------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------+
+    | ``backup_location``         | * This variable points to the directory where OmniaDB backups should be stored during the upgrade process.                                      |
+    |    Optional                 | * This is an user-created directory and this must be created prior to running ``upgrade_cp.yml`` playbook.                                      |
+    |                             | * If this directory is not created or provided by the user, Omnia stores the OmniaDB backup files at ``/opt/omnia/backup_before_upgrade``       |
+    |                             | * **Example**: ``/root/omnia-backups``                                                                                                          |
+    +-----------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------+
+
+5. Finally, execute the ``upgrade_cp.yml`` playbook using the following command: ::
 
     cd upgrade
     ansible-playbook upgrade_cp.yml
