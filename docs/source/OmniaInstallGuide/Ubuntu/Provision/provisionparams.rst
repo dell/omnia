@@ -3,7 +3,7 @@ Input parameters for the provision tool
 
 Fill in all required parameters in ``input/provision_config.yml``, ``input/provision_config_credentials.yml``, ``input/software_config.json``, and ``input/network_spec.yml``.
 
-.. caution:: Do not remove or comment any lines in the above specified ``.yml`` files.
+.. caution:: Do not remove or comment any lines in the above mentioned ``.yml`` files.
 
 .. csv-table:: provision_config.yml
    :file: ../../../Tables/Provision_config.csv
@@ -31,7 +31,7 @@ Fill in all required parameters in ``input/provision_config.yml``, ``input/provi
 
 
 .. csv-table:: software_config.json
-   :file: ../../../Tables/software_config.csv
+   :file: ../../../Tables/software_config_ubuntu.csv
    :header-rows: 1
    :keepspace:
 
@@ -56,7 +56,7 @@ Fill in all required parameters in ``input/provision_config.yml``, ``input/provi
     * All provided network ranges and NIC IP addresses should be distinct with no overlap in the ``input/network_spec.yml``.
     * Ensure that all the iDRACs are reachable from the Control Plane.
 
-A sample is provided below: ::
+A sample of the ``input/network_spec.yml`` is provided below: ::
 
         ---
             Networks:
