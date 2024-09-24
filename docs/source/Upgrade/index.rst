@@ -3,6 +3,8 @@ Upgrade Omnia control plane
 
 To upgrade the Omnia version version 1.6.1 to version 1.7 on your control plane, you can use the ``upgrade_cp.yml`` playbook in Omnia 1.7. This ensures that your control plane is running the latest version and includes any new features and improvements that are available.
 
+.. caution:: Omnia does not allow you to perform downgrade operations, which means that once you have upgraded, you cannot revert back to a previous version of Omnia.
+
 **Tasks performed by the playbook**
 
 The ``upgrade_cp.yml`` playbook performs the following tasks:
