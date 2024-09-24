@@ -33,6 +33,7 @@
   when: not local_installer
 
 - name: Check if correct cuda_toolkit file exists
+  when: local_installer
   block:
     - name: Verify if cuda_toolkit offline path is given
       ansible.builtin.assert:
@@ -56,5 +57,3 @@
 
     - name: Install nfs server setup
       ansible.builtin.include_tasks: initiate_nfs_server.yml
-
-  when: local_installer

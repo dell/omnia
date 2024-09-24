@@ -14,6 +14,8 @@
 ---
 
 - name: Install cuda toolkit when node has nvidia gpu accelerator installed
+  when:
+    - cuda_node_status
   block:
     - name: Include vars file of accelerator role
       ansible.builtin.include_vars: "{{ role_path }}/../../../input/accelerator_config.yml"
@@ -38,6 +40,3 @@
     - name: Install cuda on leap nodes
       ansible.builtin.include_tasks: install_cuda_leap.yml
       when: os_supported_leap in ansible_facts['distribution'] | lower
-
-  when:
-    - cuda_node_status

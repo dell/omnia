@@ -13,18 +13,33 @@
 # limitations under the License.
 ---
 
-- name: Saving distribution of os
+- name: Saving distribution and version of OS
   ansible.builtin.set_fact:
     control_plane_os: "{{ ansible_distribution | lower }}"
-
-- name: Saving distribution version of os
-  ansible.builtin.set_fact:
     control_plane_os_version: "{{ ansible_distribution_version | lower }}"
 
 - name: Include local_repo variables
   ansible.builtin.include_tasks: include_local_repo_config.yml
 
-# TODO: need a way to differentiate platforms, then run different validations
 - name: Check xcat installation status
   ansible.builtin.include_tasks: validate_amd.yml
-# ansible.builtin.include_tasks: validate_intel_gaudi.yml
+
+- name: Check xcat installation status
+  ansible.builtin.include_tasks: validate_intel_gaudi.yml
+
+- name: Debug intel_gaudi_config_status
+  ansible.builtin.debug:
+    msg: "intel_gaudi_config_status is {{ hostvars['localhost']['intel_gaudi_config_status'] }}"
+
+- name: Debug amdgpu_config_status
+  ansible.builtin.debug:
+    msg: "amdgpu_config_status is {{ hostvars['localhost']['amdgpu_config_status'] }}"
+
+- name: Check if both intel_gaudi_config_status and amdgpu_config_status are false
+  ansible.builtin.fail:
+    msg: " {{ driver_not_found_msg }} "
+  when: >
+    hostvars['localhost']['intel_gaudi_config_status'] is defined and
+    hostvars['localhost']['amdgpu_config_status'] is defined and
+    not hostvars['localhost']['intel_gaudi_config_status'] | bool and
+    not hostvars['localhost']['amdgpu_config_status'] | bool

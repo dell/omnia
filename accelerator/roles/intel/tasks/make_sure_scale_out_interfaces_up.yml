@@ -31,7 +31,6 @@
         echo "One or more Gaudi 2 ports are down." >> /dev/stderr
         return 1
       fi
-
 - name: Change permission on bring_up_ports.sh file
   file:
     path: "{{ intel_bring_up_ports_script_path }}"

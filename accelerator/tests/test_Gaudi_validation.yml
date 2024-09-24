@@ -19,19 +19,20 @@
   hosts: GPU_node
   vars_files: 'test_vars/test_Gaudi_vars.yml'
   tasks:
-  - name: Validate the Gaudi Driver Version
-    tags: TC_001
-    block:
-    - name: Getting the version
-      ansible.builtin.command: hl-smi -v
-      register: gaudi_installed_version
-      changed_when: false
-    - name: Checking Version
-      ansible.builtin.assert:
-        that:
-          - "Gaudi_Default_version in gaudi_installed_version.stdout"
-        success_msg: "{{ version_pass }}"
-        fail_msg: "{{ version_fail }}"
+    - name: Validate the Gaudi Driver Version
+      tags: TC_001
+      block:
+        - name: Getting the version
+          ansible.builtin.command: hl-smi -v
+          register: gaudi_installed_version
+          changed_when: false
+
+        - name: Checking Version
+          ansible.builtin.assert:
+            that:
+              - "Gaudi_Default_version in gaudi_installed_version.stdout"
+            success_msg: "{{ version_pass }}"
+            fail_msg: "{{ version_fail }}"
 
 # Validating for Nodes with NO GPU
 
@@ -40,17 +41,17 @@
   hosts: no_GPU_node
   vars_files: 'test_vars/test_Gaudi_vars.yml'
   tasks:
-  - name: Validate Gaudi Driver Version
-    block:
-    - name: Getting the version
-      ansible.builtin.command: hl-smi -v
-      register: gaudi_installed_version
-      changed_when: false
-      ignore_errors: true
+    - name: Validate Gaudi Driver Version
+      block:
+        - name: Getting the version
+          ansible.builtin.command: hl-smi -v
+          register: gaudi_installed_version
+          changed_when: false
+          ignore_errors: true
 
-    - name: Verify Gaudi Driver Installation is not successful
-      ansible.builtin.assert:
-        that:
-          - "gaudi_installed_version.rc != 0"
-        success_msg: "{{ Not_installed_pass }}"
-        fail_msg: "{{ Not_installed_fail }}"
+        - name: Verify Gaudi Driver Installation is not successful
+          ansible.builtin.assert:
+            that:
+              - "gaudi_installed_version.rc != 0"
+            success_msg: "{{ Not_installed_pass }}"
+            fail_msg: "{{ Not_installed_fail }}"

@@ -37,6 +37,5 @@
 - name: Mount NFS client
   ansible.builtin.command: "mount -o {{ client_mount_options }} -t nfs {{ server_ip }}:{{ cuda_nfs_path }} {{ cuda_nfs_path }}"
   changed_when: true
-  args:
-    warn: false
   when: cuda_nfs_path not in mounted_share.stdout
+  # noqa command-instead-of-module

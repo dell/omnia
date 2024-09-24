@@ -18,6 +18,7 @@
   when:
     - os_supported_rhel in ansible_facts['distribution'] | lower
     - not hostvars['127.0.0.1']['xcat_installation_status']
+  changed_when: false
 
 - name: Download development packages
   ansible.builtin.package:
@@ -35,6 +36,7 @@
     disable_gpg_check: true
 
 - name: Install cuda toolkit using offline path
+  when: hostvars['localhost']['local_installer']
   block:
     - name: Install packages from cuda rpm file
       ansible.builtin.yum:
@@ -42,9 +44,8 @@
         state: present
         disable_gpg_check: true
 
-  when: hostvars['localhost']['local_installer']
-
 - name: Install latest cuda toolkit using network way
+  when: not hostvars['localhost']['local_installer']
   block:
     - name: Set Redhat distro
       ansible.builtin.set_fact:
@@ -53,8 +54,6 @@
     - name: Add cuda repository
       ansible.builtin.command: dnf config-manager --add-repo "{{ cuda_repo_url }}"
       changed_when: false
-
-  when: not hostvars['localhost']['local_installer']
 
 - name: Delete xorg.conf file if present
   ansible.builtin.file:
@@ -85,6 +84,7 @@
   register: path_output
 
 - name: Perform Post Installation steps
+  when: "'cuda' not in path_output.stdout"
   block:
     - name: Check current environment variables
       ansible.builtin.shell: echo $PATH
@@ -97,8 +97,6 @@
         regexp: '^PATH=*'
         insertafter: EOF
         line: 'PATH={{ environment_output.stdout }}:/usr/local/cuda/bin'
-
-  when: "'cuda' not in path_output.stdout"
 
 - name: Enable nvidia-persistenced systemd service
   ansible.builtin.service:

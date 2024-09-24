@@ -31,7 +31,7 @@
     - name: Base dependencies
       ansible.builtin.apt:
         name: "{{ intel_apt_base_packages | list }}"
-        state: latest
+        state: latest  # noqa package-latest
         update_cache: true
 
     - name: Update apt and install habanalabs dependencies
@@ -45,5 +45,5 @@
         state: present
       loop: "{{ intel_gaudi_kernel_module_to_load }}"
 
-- name: Set cron job for scale out interfaces
-  ansible.builtin.include_tasks: make_sure_scale_out_interfaces_up.yml
+    - name: Set cron job for scale out interfaces
+      ansible.builtin.include_tasks: make_sure_scale_out_interfaces_up.yml

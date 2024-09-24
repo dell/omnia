@@ -15,6 +15,8 @@
 
 - name: Set default intel gaudi status
   ansible.builtin.set_fact:
+    habana_config_status: false
+    habana_input_status: false
     intel_gaudi_config_status: false
     intel_gaudi_input_status: false
 
@@ -35,8 +37,18 @@
   loop_control:
     loop_var: item
 
-- name: Failed, Intel Gaudi software stack not present in software_config.json
-  ansible.builtin.fail:
+- name: Get habana status only if intel gaudi is present gaudi_status is true
+  ansible.builtin.set_fact:
+    habana_input_status: true
+  loop: "{{ user_config.gaudi | default([]) }}"
+  when:
+    - intel_gaudi_input_status
+    - "'habana' in item.name"
+  loop_control:
+    loop_var: item
+
+- name: Display failure message if Intel Gaudi software stack is not present
+  ansible.builtin.debug:
     msg: "{{ intel_gaudi_input_fail_msg }}"
   when: not intel_gaudi_input_status
 
@@ -47,18 +59,46 @@
       ansible.builtin.set_fact:
         intelgaudi_version: "{{ user_config.softwares | selectattr('name', 'equalto', 'intelgaudi') | map(attribute='version') | first }}"
 
+    - name: Set intelgaudi_version
+      ansible.builtin.set_fact:
+        intelgaudi_directory: "{{ offline_intelgaudi_directory }}/intelgaudi/{{ intelgaudi_version }}/"
+
+    - name: Set gaudi_directory
+      ansible.builtin.set_fact:
+        gaudi_directory: "{{ intelgaudi_directory }}"
+
+    - name: Check gaudi_directory exists or not
+      ansible.builtin.stat:
+        path: "{{ gaudi_directory }}"
+      register: check_gaudi_dir
+
+    - name: Set intel_gaudi_config_status to true
+      ansible.builtin.set_fact:
+        intel_gaudi_config_status: true
+      when: check_gaudi_dir.stat.exists
+
+  rescue:
+    - name: Intel Gaudi not found
+      ansible.builtin.debug:
+        msg: "{{ intel_gaudi_repo_fail_msg }}"
+      when: not check_gaudi_dir.stat.exists
+
+- name: Set habana_config_status
+  when: habana_config_status
+  block:
+
     - name: Check driver packages inside offline_gaudi_directory
       ansible.builtin.find:
         paths: "{{ offline_gaudi_directory }}"
         patterns: "{{ gaudi_search_pattern }}"
       register: check_driver_packages
 
-    - name: Set intel_gaudi_config_status to true
+    - name: Set habana_config_status to true
       ansible.builtin.set_fact:
-        intel_gaudi_config_status: true
+        habana_config_status: true
       when: check_driver_packages.matched > 0
   rescue:
-    - name: Failed, Intel Gaudi driver packages not found
-      ansible.builtin.fail:
+    - name: Intel Gaudi driver packages not found
+      ansible.builtin.debug:
         msg: "{{ intel_gaudi_repo_fail_msg }}"
       when: check_driver_packages.matched == 0
