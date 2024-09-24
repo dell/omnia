@@ -74,3 +74,37 @@
     src: "{{ nerdctl_folder_dest }}"
     dest: "{{ nerdctl_executable_dest }}"
     mode: preserve
+
+# Download and install CNI
+- name: Create /opt/cni/ directory
+  ansible.builtin.file:
+    path: "{{ cni_download_dir }}"
+    state: directory
+    mode: "{{ directory_permissions }}"
+
+- name: Create /opt/cni/bin/ directory
+  ansible.builtin.file:
+    path: "{{ cni_bin_download_dir }}"
+    state: directory
+    mode: "{{ directory_permissions }}"
+
+- name: Download CNI archive
+  ansible.builtin.get_url:
+    url: "{{ cni_url }}"
+    dest: "{{ cni_archive_dest }}"
+    mode: "{{ directory_permissions }}"
+  register: download_cni
+  until: download_cni is not failed
+  retries: "{{ max_retries }}"
+
+- name: Extract cni archive
+  ansible.builtin.unarchive:
+    src: "{{ cni_archive_dest }}"
+    dest: "{{ cni_bin_download_dir }}"
+    mode: "{{ directory_permissions }}"
+
+- name: Set execute permissions for extracted CNI files
+  ansible.builtin.file:
+    path: "{{ cni_bin_download_dir }}"
+    recurse: true
+    mode: "{{ cni_mode }}"

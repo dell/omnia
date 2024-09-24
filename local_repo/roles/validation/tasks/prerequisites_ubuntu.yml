@@ -27,9 +27,18 @@
   until: community_crypto_collection is not failed
   retries: "{{ max_retries }}"
 
+- name: Update repo - Ubuntu
+  ansible.builtin.command: apt update
+  changed_when: false
+
 - name: Install jq package
   ansible.builtin.apt:
     name: "{{ jq_package }}"
+    state: present
+
+- name: Install dpkg package
+  ansible.builtin.apt:
+    name: "{{ dpkg_package }}"
     state: present
 
 - name: Install pip modules

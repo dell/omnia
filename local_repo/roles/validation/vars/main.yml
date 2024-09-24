@@ -26,11 +26,15 @@ jq_package: jq
 repo_pkgs:
   - createrepo
   - yum-utils
-python_version: python3.9
+  - wget
+  - unzip
+  - tar
+python_version: "{{ ansible_python_interpreter }}"
 python_package:
   - requests==2.31.0
   - pyopenssl==21.0.0
   - urllib3==1.26.5
+dpkg_package: "dpkg-dev"
 # Usage: validate_cp_os.yml
 control_plane_os_redhat: "redhat"
 control_plane_os_rocky: "rocky"
@@ -58,6 +62,7 @@ specific_softwares:
   - 'bcm_roce'
   - 'ucx'
   - 'rocm'
+  - 'intelgaudi'
   - 'intel_benchmarks'
   - 'openmpi'
   - 'bcm_roce_libraries'
@@ -192,3 +197,13 @@ subgroup_warning_msg: "bcm_roce_libraries attribute is not mentioned in the bcm_
  so bcm_roce_libraries will not be installed on the nodes post provisioning."
 bcm_roce_libraries_warning_msg: "bcm_roce_libraries object not found in bcm_roce.json,
  so bcm_roce_libraries will not be installed during post provisioning."
+
+# Usage: validate_domain_name.yml
+server_domain_name_blank_msg: "Failed. domain_name is not set in hostname. It should have hostname.domain_name format"
+
+# Usage: validate_site_config.yml
+site_config_file: "{{ role_path }}/../../../input/site_config.yml"
+invalid_proxy_failure_msg: "Failed. Both http_proxy and https_proxy should be set for proxy variable provided in site_config.yml"
+proxy_env_fail_msg: "Failed. proxy values provided for http_proxy {{ proxy[0].http_proxy }} and https_proxy {{ proxy[0].https_proxy }} in site_config.yml
+should be set as environment variables http_proxy and https_proxy in control plane."
+update_repos_fail_msg: "Failed. Failed to update repos. Verify proxy configuration in control plane for acccessing internet."

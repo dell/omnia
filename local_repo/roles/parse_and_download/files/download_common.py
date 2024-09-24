@@ -1,3 +1,17 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
 Module to handle download processes for various package types such as pip_module,git,
 tarball,manifest,ansible-galaxy collection.
@@ -5,6 +19,7 @@ tarball,manifest,ansible-galaxy collection.
 
 import subprocess
 import os
+import sys
 import tarfile
 from jinja2 import Template
 import shutil
@@ -19,7 +34,8 @@ def process_pip_package(package, repo_store_path, status_file_path):
         repo_store_path: Path to the repository store.
         status_file_path: Path to the status file.
     """
-
+    
+    python_version = os.path.basename(sys.executable)
     package_name = package['package']
     version = package.get('version', None)
     package_type = package['type']
@@ -34,7 +50,7 @@ def process_pip_package(package, repo_store_path, status_file_path):
 
     # Download the package
     download_command = [
-        'python3.9', '-m', 'pip', 'download',
+        python_version, '-m', 'pip', 'download',
         package_name,
         '-d', pip_modules_directory
     ]

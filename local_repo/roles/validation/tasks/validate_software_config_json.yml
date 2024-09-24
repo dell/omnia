@@ -19,6 +19,7 @@
     amdgpu_version: "omnia_default"
     rocm_version: "omnia_default"
     bcm_roce_libraries_version: "omnia_default"
+    intelgaudi_version: "omnia_default"
 
 - name: Check that the software_config.json exists
   ansible.builtin.stat:
