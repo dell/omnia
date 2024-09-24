@@ -7,6 +7,7 @@ Use this playbook to remove the Slurm and/or Kubernetes configuration and stop a
     * All target nodes should be drained before executing the playbook. If a job is running on any target nodes, the playbook may timeout waiting for the node state to change.
     * When running ``remove_node_configuration.yml``, ensure that the ``input/storage_config.yml`` and ``input/omnia_config.yml`` have not been edited since ``omnia.yml`` was run.
 
+.. caution:: While attempting to remove a slurm_node configured on a cluster, the ``slurmctld`` services might fail on the ``slurm_control_node``. This happens only when there is a single ``slurm_node`` present in the cluster.
 
 **Configurations performed by the playbook**
 
