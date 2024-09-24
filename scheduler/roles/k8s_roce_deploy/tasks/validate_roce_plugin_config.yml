@@ -30,13 +30,12 @@
     fail_msg: "{{ name_unique_fail_msg }}"
     success_msg: "{{ name_unique_success_msg }}"
 
-- name: Ensure all interfaces have range and gateway defined
+- name: Ensure all interfaces have range defined
   ansible.builtin.assert:
     that:
       - interfaces | map(attribute='range') | select('defined') | list | length == interfaces | length
-      - interfaces | map(attribute='gateway') | select('defined') | list | length == interfaces | length
-    fail_msg: "{{ range_gateway_definition_fail_msg }}"
-    success_msg: "{{ range_gateway_definition_success_msg }}"
+    fail_msg: "{{ range_definition_fail_msg }}"
+    success_msg: "{{ range_definition_success_msg }}"
 
 - name: Check for unique range values
   ansible.builtin.assert:
@@ -44,10 +43,3 @@
       - interfaces | map(attribute='range') | length == interfaces | map(attribute='range') | unique | length
     fail_msg: "{{ range_unique_fail_msg }}"
     success_msg: "{{ range_unique_success_msg }}"
-
-- name: Check for unique gateway values
-  ansible.builtin.assert:
-    that:
-      - interfaces | map(attribute='gateway') | length == interfaces | map(attribute='gateway') | unique | length
-    fail_msg: "{{ gateway_unique_fail_msg }}"
-    success_msg: "{{ gateway_unique_success_msg }}"

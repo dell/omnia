@@ -11,10 +11,21 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
 ---
-# Usage: prerequisite_ucx.yml, prerequisite_openmpi.yml
-gcc_package_names: 
-  - gcc-c++
-  - make
-clang_package: clang
+
+- name: Define variables
+  ansible.builtin.set_fact:
+    install_nvidia_container_toolkit: false
+
+- name: Check if nvidia gpu is present
+  ansible.builtin.shell: >
+    set -o pipefail && \
+    lspci | grep -i nvidia
+  register: lspci_status
+  changed_when: false
+  failed_when: false
+
+- name: Update nvidia container toolkit install status
+  ansible.builtin.set_fact:
+    install_nvidia_container_toolkit: true
+  when: "'NVIDIA' in lspci_status.stdout"

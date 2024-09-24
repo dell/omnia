@@ -11,10 +11,14 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
 ---
-# Usage: prerequisite_ucx.yml, prerequisite_openmpi.yml
-gcc_package_names: 
-  - gcc-c++
-  - make
-clang_package: clang
+
+- name: Install nvidia container toolkit if k8s_support is true
+  when: hostvars['127.0.0.1']['k8s_support']
+  block:
+    - name: Check pre-requisite for nvidia container toolkit
+      ansible.builtin.include_tasks: check_pre_requisite.yml
+
+    - name: Install and configure nvidia container toolkit
+      ansible.builtin.include_tasks: install_nvidia_container_toolkit.yml
+      when: install_nvidia_container_toolkit

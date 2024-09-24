@@ -24,6 +24,7 @@
 
 - name: Validate share path for ucx and openmpi
   ansible.builtin.include_tasks: validate_share_path.yml
+  when: ucx_software_status or openmpi_software_status
 
 - name: Install the prerequisites for installing the ucx
   when:
