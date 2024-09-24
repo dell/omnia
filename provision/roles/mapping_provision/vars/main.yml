@@ -14,7 +14,7 @@
 ---
 
 # Usage: mapping_provision.yml
-python_version: "python3.9"
+python_version: "{{ ansible_python_interpreter }}"
 rinstall_nodes_py: "{{ role_path }}/files/rinstall_nodes.py"
 prov_db_path: "{{ role_path }}/../../../discovery/roles/db_operations/files"
 mapping_provision_msg: " nodes will be booted automatically. Ensure that IPMI is enabled on them. Remaining nodes,
