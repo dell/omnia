@@ -18,18 +18,6 @@
   changed_when: false
   register: hostname_result
 
-- name: Download libssl package
-  when: cluster_os_version == "22.04"
-  block:
-    - name: Get libssl package
-      ansible.builtin.get_url:
-        url: "{{ libssl_package_url }}"
-        dest: "{{ libssl_package_dest }}"
-        mode: "{{ apt_file_mode }}"
-      register: download_libssl
-      until: download_libssl is not failed
-      retries: "{{ max_retries }}"
-
 # creating apt.conf
 - name: Execute apt update on /etc/apt/custom_sources/sources.list.d
   block:

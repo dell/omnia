@@ -69,11 +69,6 @@
     dest: "{{ containerd_certs_dir }}/{{ hostname_result.stdout }}:{{ nerdctl_registry_port }}/ca.crt"
     mode: "{{ file_permission }}"
 
-- name: Fetch control_plane hostname
-  ansible.builtin.command: hostname
-  changed_when: false
-  register: cp_hostname
-
 - name: Check /etc/hosts has control plane hostname
   ansible.builtin.command: cat "{{ hosts_file }}"
   changed_when: false
@@ -84,5 +79,5 @@
     path: "{{ hosts_file }}"
     insertafter: "EOF"
     state: present
-    line: "127.0.0.1 {{ cp_hostname.stdout }}"
-  when: cp_hostname.stdout not in hosts_file_content.stdout
+    line: "127.0.0.1 {{ cp_hostname }}"
+  when: cp_hostname not in hosts_file_content.stdout

@@ -25,7 +25,7 @@ def process_deb_package(package, repo_store_path, status_file_path, cluster_os_t
     # Specify the repository names that should be skipped
     skip_repos = ['focal','jammy']
     download_flag = False
-    omnia_always = ['amdgpu', 'cuda', 'ofed']
+    omnia_always = ['amdgpu', 'intelgaudi', 'cuda', 'ofed']
 
     # Construct the path based on the provided repository store format
     if cluster_name == 'beegfs':
@@ -37,6 +37,12 @@ def process_deb_package(package, repo_store_path, status_file_path, cluster_os_t
     elif cluster_name == 'rocm':
         deb_directory = os.path.join(repo_store_path, 'cluster', 'apt', 'rocm',
                 version_variables.get('rocm_version', ''))
+    elif cluster_name == 'intelgaudi':
+        deb_directory = os.path.join(repo_store_path, 'cluster', 'apt', 'intelgaudi',
+                version_variables.get('intelgaudi_version', ''))
+    elif cluster_name == 'habana':
+        deb_directory = os.path.join(repo_store_path, 'cluster', 'apt', 'habana',
+                version_variables.get('intelgaudi_version', ''))
     else:
         deb_directory = os.path.join(repo_store_path, 'cluster', cluster_os_type, cluster_os_version, 'deb')
 
@@ -71,7 +77,7 @@ def process_deb_package(package, repo_store_path, status_file_path, cluster_os_t
                             dependencies.append(dependency)
 
                 # Download each dependency
-                if repo_name != 'ldap':
+                if repo_name not in ['ldap','intelgaudi']:
                     for dependency in dependencies:
                         download_dependency_command = ['apt-get', 'download', dependency, '-o', f'Dir::Cache={deb_directory}']
                         try:
@@ -122,7 +128,7 @@ def process_deb_package(package, repo_store_path, status_file_path, cluster_os_t
                             dependency = dependency.split(':')[0]
                             dependencies.append(dependency)
 
-                if repo_name != 'ldap':
+                if repo_name not in ['ldap','intelgaudi']:
                     for dependency in dependencies:
                         download_dependency_command = ['apt-get', 'download', dependency, '-o', f'Dir::Cache={deb_directory}']
                         try:

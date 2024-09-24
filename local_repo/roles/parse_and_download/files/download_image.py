@@ -75,13 +75,23 @@ def process_image_digest_package(package_name, repo_config, nerdctl_registry_hos
             return "Success"
         else:
             pull_command = ["nerdctl", "pull", f"{package_name}@sha256:{image_digest}"]
+            pull_command_all_platforms = ["nerdctl", "pull", f"{package_name}@sha256:{image_digest}", "--all-platforms"]
             tag_command = ["nerdctl", "tag", f"{package_name}@sha256:{image_digest}", f"{nerdctl_registry_host}/{package_name.split('/', 1)[-1]}:{new_tag}"]
             push_command = ["nerdctl", "push", f"{nerdctl_registry_host}/{package_name.split('/', 1)[-1]}:{new_tag}"]
             try:
                 subprocess.run(pull_command, check=True)
                 subprocess.run(tag_command, check=True)
-                subprocess.run(push_command, check=True)
-                return "Success"
+                push_command_output = subprocess.run(push_command, capture_output=True, text=True)
+                if push_command_output.returncode == 0:
+                    return "Success"
+                else:
+                    if "failed to create a tmp single-platform image" in push_command_output.stderr:
+                        subprocess.run(pull_command_all_platforms, check=True)
+                        subprocess.run(tag_command, check=True)
+                        subprocess.run(push_command, check=True)
+                        return "Success"
+                    else:
+                        raise subprocess.CalledProcessError(returncode=1, cmd="failed to push image to private registry")
             except subprocess.CalledProcessError as e:
                 return "Failed"
     except Exception as err:
