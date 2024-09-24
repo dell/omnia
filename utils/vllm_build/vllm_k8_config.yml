@@ -5,32 +5,31 @@ metadata:
 spec:
   predictor:
     containers:
-    - args:
-        - "--port"
-        - "8080"
-        - "--model"
-        - "meta-llama/Meta-Llama-3-70B-Instruct"
-      command:
-        - "python3"
-        - "-m"
-        - "vllm.entrypoints.api_server"
-      env:
-      - name: HUGGING_FACE_HUB_TOKEN
-        value: "xxxxxxxxxxxxxxxxxxxxx"
-      - name: HTTP_PROXY
-        value: "http://10.20.0.1:3128"
-      - name: HTTPS_PROXY
-        value: "http://10.20.0.1:3128"
-      image: vllm-rocm:latest
-      imagePullPolicy: IfNotPresent
-      name: vllm-container
-      resources:
-        limits:
-          cpu: "4"
-          memory: 600Gi
-          amd.com/gpu: "4"
-        requests:
-          cpu: "1"
-          memory: 200Gi
-          amd.com/gpu: "4"
-          
+      - args:
+          - "--port"
+          - "8080"
+          - "--model"
+          - "meta-llama/Meta-Llama-3-70B-Instruct"
+        command:
+          - "python3"
+          - "-m"
+          - "vllm.entrypoints.api_server"
+        env:
+          - name: HUGGING_FACE_HUB_TOKEN
+            value: "xxxxxxxxxxxxxxxxxxxxx"
+          - name: HTTP_PROXY
+            value: "http://10.20.0.1:3128"
+          - name: HTTPS_PROXY
+            value: "http://10.20.0.1:3128"
+        image: vllm-rocm:latest
+        imagePullPolicy: IfNotPresent
+        name: vllm-container
+        resources:
+          limits:
+            cpu: "4"
+            memory: 600Gi
+            amd.com/gpu: "4"
+          requests:
+            cpu: "1"
+            memory: 200Gi
+            amd.com/gpu: "4"

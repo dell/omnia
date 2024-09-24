@@ -13,6 +13,10 @@
 # limitations under the License.
 ---
 
+- name: Check if virtual environment is active
+  ansible.builtin.import_playbook: check_venv.yml
+  when: not ( check_venv_executed | default(false) | bool )
+
 - name: Update repo and registry
   hosts: slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login, etcd
   roles:

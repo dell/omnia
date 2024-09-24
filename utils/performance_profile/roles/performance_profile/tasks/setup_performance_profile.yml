@@ -1,0 +1,80 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Load configuration from performance_profile_config.yml
+  ansible.builtin.include_vars:
+    file: "{{ performance_profile_config_path }}"
+    name: performance_profile_config
+
+- name: Install tuned package
+  ansible.builtin.package:
+    name: tuned
+    state: present
+
+- name: Enable and start tuned service
+  ansible.builtin.service:
+    name: tuned
+    enabled: true
+    state: started
+
+- name: Ensure performance profile directory exists
+  ansible.builtin.stat:
+    path: "{{ default_profile_path }}"
+  register: parent_profile
+
+- name: Fail if performance profile does not exist
+  ansible.builtin.fail:
+    msg: "{{ profile_doesnt_exist_msg }}"
+  when: not parent_profile.stat.exists
+
+- name: Create a new directory for the modified profile
+  ansible.builtin.file:
+    path: "{{ modified_profile_path }}"
+    state: directory
+    mode: "{{ modified_profile_permissions }}"
+  when: performance_profile_plugins is defined and performance_profile_plugins | length > 0
+
+- name: Updating tuned.conf
+  ansible.builtin.template:
+    src: "{{ tuned_conf_template_path }}"
+    dest: "{{ modified_tuned_conf_path }}"
+    mode: "{{ modified_tuned_conf_permissions }}"
+  when: performance_profile_plugins is defined and performance_profile_plugins | length > 0
+
+- name: Remove tuned.conf if it exists when performance_profile_plugin is empty
+  ansible.builtin.file:
+    path: "{{ modified_tuned_conf_path }}"
+    state: absent
+  when: performance_profile_plugins is not defined or performance_profile_plugins | length == 0
+
+- name: Apply the performance profile
+  ansible.builtin.command:
+    cmd: tuned-adm profile {{ performance_profile_name }}
+  register: output
+  changed_when: output.rc != 0
+
+- name: Verify the active performance profile
+  ansible.builtin.command:
+    cmd: tuned-adm active
+  register: active_profile
+  changed_when: false
+
+- name: Display the active performance profile
+  ansible.builtin.debug:
+    msg: "{{ active_profile.stdout }}"
+
+- name: Include reboot task if required
+  ansible.builtin.include_tasks: "{{ reboot_node_file_path }}"
+  when: performance_profile_config.intel_gpu.reboot_required | default(false)

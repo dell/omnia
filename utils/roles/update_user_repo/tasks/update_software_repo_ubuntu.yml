@@ -13,6 +13,11 @@
 # limitations under the License.
 ---
 
+- name: Set default habana_config_status
+  ansible.builtin.set_fact:
+    habana_config_status: false
+    intelgaudi_config_status: false
+
 - name: Update beegfs,amdgpu,rocm repo when repo_config=partial,always
   when: (software_config['repo_config']|lower == "partial") or (software_config['repo_config']|lower == "always")
   block:
@@ -22,7 +27,33 @@
     - name: Generate software repository configurations
       ansible.builtin.include_tasks: create_software_repo_ubuntu.yml
       loop: "{{ software_config.softwares + software_config.amdgpu | default([]) }}"
-      when: "'beegfs' in item.name or 'amdgpu' in item.name or 'rocm' in item.name"
+      when: "'beegfs' in item.name or 'amdgpu' in item.name or 'rocm' in item.name or 'intelgaudi' in item.name"
+      loop_control:
+        loop_var: item
+
+    - name: Set intelgaudi config status
+      ansible.builtin.set_fact:
+        intelgaudi_config_status: true
+        intelgaudi_version: "{{ item.version }}"
+      loop: "{{ software_config.softwares | default([]) }}"
+      when: "'intelgaudi' in item.name"
+      loop_control:
+        loop_var: item
+
+    - name: Set habana config status
+      ansible.builtin.set_fact:
+        habana_config_status: true
+        habana_version: "{{ intelgaudi_version }}"
+      loop: "{{ software_config.intelgaudi | default([]) }}"
+      when: "intelgaudi_config_status and 'habana' in item.name"
+      loop_control:
+        loop_var: item
+
+    - name: Generate software repository configurations for intelgaudi
+      ansible.builtin.include_tasks: create_software_repo_ubuntu.yml
+      loop:
+        - { name: "habana", version: "{{ habana_version }}" }
+      when: habana_config_status
       loop_control:
         loop_var: item
 

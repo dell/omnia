@@ -18,6 +18,7 @@
     beegfs_version: "omnia_default"
     amdgpu_version: "omnia_default"
     rocm_version: "omnia_default"
+    intelgaudi_version: "omnia_default"
 
 - name: Load software_config.json as software_config
   block:

@@ -50,22 +50,22 @@
 
     - name: Execute hostname_validation role
       ansible.builtin.include_role:
-        name: "{{ playbook_dir }}/../../security/roles/hostname_validation"
+        name: "{{ playbook_dir }}/../../security/roles/hostname_validation" # noqa role-name[path]
         tasks_from: validate_hostname
 
     - name: Add ports of manager and login node to firewall
       ansible.builtin.include_role:
-        name: "{{ playbook_dir }}/../../security/roles/login_common"
+        name: "{{ playbook_dir }}/../../security/roles/login_common" # noqa role-name[path]
         tasks_from: firewall_settings
 
     - name: Enable module idm in Rocky or Centos >= 8.0
       ansible.builtin.include_role:
-        name: "{{ playbook_dir }}/../../security/roles/login_common"
+        name: "{{ playbook_dir }}/../../security/roles/login_common" # noqa role-name[path]
         tasks_from: enable_dnf_module
 
     - name: Update Packages
       ansible.builtin.include_role:
-        name: "{{ playbook_dir }}/../../security/roles/login_common"
+        name: "{{ playbook_dir }}/../../security/roles/login_common" # noqa role-name[path]
         tasks_from: update_package
 
     - name: Include login_node vars
@@ -76,15 +76,13 @@
 
     - name: Execute firewall_settings from login_node role
       ansible.builtin.include_role:
-        name: "{{ playbook_dir }}/../../security/roles/login_node"
+        name: "{{ playbook_dir }}/../../security/roles/login_node" # noqa role-name[path]
         tasks_from: firewall_settings
 
     - name: Install DL1 - client(It may take 5-10 mins)
-      ansible.builtin.command: yum module install idm:DL1/client -y
+      ansible.builtin.command: yum module install idm:DL1/client -y # noqa command-instead-of-module
       changed_when: true
       failed_when: false
-      args:
-        warn: false
       when: ansible_distribution | lower == os_redhat
 
     - name: Install freeipa client package
@@ -96,8 +94,6 @@
       ansible.builtin.command: rm -rf {{ cert_path }}
       changed_when: false
       failed_when: false
-      args:
-        warn: false
       when: ansible_distribution | lower == os_redhat
 
     - name: Add host name in hosts file

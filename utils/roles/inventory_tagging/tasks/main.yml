@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,8 +13,17 @@
 # limitations under the License.
 ---
 
+- name: Install python commented config parser
+  ansible.builtin.command: "{{ python_version }} -m pip install {{ commentedconfigparser_python_package }}"
+  changed_when: true
+
 - name: Generate inventory files
-  ansible.builtin.command: "{{ python_version }} {{ script_name }} {{ db_path }} {{ omnia_inventory_dir_path }}"
+  ansible.builtin.command: >
+    {{ python_version }} {{ script_name }}
+    --inventory_files='{{ inventory_files | to_json }}'
+    --vendors='{{ vendors | to_json }}'
+    --inventory_dir_location='{{ omnia_inventory_dir_path }}'
+    --db_path='{{ db_path }}'
   changed_when: false
 
 - name: Display Inventory File Location

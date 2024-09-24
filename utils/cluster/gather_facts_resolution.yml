@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,9 +16,9 @@
 - name: Fetch gather_facts playbook
   hosts: localhost
   connection: local
-  gather_facts: no
+  gather_facts: false
   vars:
     cp_path: "/root/.ansible/cp/"
   tasks:
     - name: Include gather_facts playbook
-      include_tasks: "{{ playbook_dir }}/../roles/cluster_validation/tasks/gather_fact_resolution.yml"
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../scheduler/roles/cluster_validation/tasks/gather_fact_resolution.yml"
