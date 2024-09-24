@@ -42,4 +42,3 @@
     - name: Message if nerdctl-registry restart fails
       ansible.builtin.debug:
         msg: "{{ nerdctl_registry_restart_fail_msg }}"
-

@@ -95,12 +95,10 @@ def get_gpu_health_power(gaudi_metrics_cmd_output):
         grep "Power Limit" cannot work in the systemd process
         so just find the first "Power Limit" and use the substring
         Expected output should be like:
-
         ================ HL-SMI LOG ================
         ...
         "                Power Limit             : 550 W\n"
         ...
-
         find the line and capture the value 550
         '''
         power_limit_output = invoke_commands.run_command(cmd)

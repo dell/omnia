@@ -98,13 +98,14 @@
     pg_hba_conf_update: "{{ pg_hba_conf_content.content | b64decode | regex_search('^local\\s+all\\s+postgres\\s+md5', multiline=True) is not none }}"
 
 - name: Check pg_hba_conf_update status
-  when: pg_hba_conf_update == false
+  when: not pg_hba_conf_update
   block:
     - name: Set PostgreSQL password for postgres user
       become: true
       become_user: postgres
-      ansible.builtin.shell: "echo \"ALTER USER postgres WITH PASSWORD '{{ postgresdb_password }}';\" | psql"
+      ansible.builtin.shell: "echo \"ALTER USER postgres WITH PASSWORD '{{ postgresdb_password }}';\" | psql" # noqa: risky-shell-pipe
       no_log: true
+      changed_when: false
 
     - name: Replace peer to md5 in pg_hba.conf
       ansible.builtin.replace:

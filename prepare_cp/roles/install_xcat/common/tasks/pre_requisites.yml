@@ -41,7 +41,7 @@
     validation_status: true
 
 - name: Check output of network table
-  ansible.builtin.command: lsdef -t network
+  ansible.builtin.command: "{{ xcat_path }}/lsdef -t network"
   changed_when: false
   failed_when: false
   register: network_table_check
@@ -63,7 +63,7 @@
   ansible.builtin.service_facts:
 
 - name: Check output of site table
-  ansible.builtin.command: tabdump site
+  ansible.builtin.command: "{{ xcat_sbin_path }}/tabdump site"
   changed_when: false
   failed_when: false
   register: site_table_check

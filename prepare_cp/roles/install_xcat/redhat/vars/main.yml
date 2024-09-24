@@ -24,6 +24,7 @@ common_packages_xcat:
   - unzip
   - bzip2
   - tar
+  - chrony
 common_packages_provision:
   - python3-netaddr
   - openssl
@@ -109,6 +110,7 @@ doxcat_patch_path:
 untar_genesis_fail_msg: "Failed. Unable to untar {{ xcat_genesis_tar_file }}.
 {{ xcat_genesis_tar_file }} not downloaded successfully during prereq.sh or while cloning the github repository.
 Please re-run pre_req.sh again and verify the file is downloaded successfully."
+xcat_sbin_path: /opt/xcat/sbin
 
 # Usage: configure_postgres.yml
 xcat_services:

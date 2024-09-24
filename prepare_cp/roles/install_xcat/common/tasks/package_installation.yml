@@ -18,9 +18,9 @@
     name: "{{ common_packages_xcat }}"
     state: present
 
-- name: Install python snmp
-  ansible.builtin.command: "{{ python_version }} -m pip install {{ snmp_python_package }}"
-  changed_when: true
+# - name: Install python snmp
+#   ansible.builtin.command: "{{ python_version }} -m pip install {{ snmp_python_package }}"
+#   changed_when: true
 
 - name: Install python postgres
   ansible.builtin.command: "{{ python_version }} -m pip install {{ postgres_python_package }}"
@@ -43,7 +43,7 @@
   changed_when: true
 
 - name: Install netaddr and pexpect
-  ansible.builtin.command: "{{ pip_version }} install {{ item }}"
+  ansible.builtin.command: "{{ python_version }} -m pip install {{ item }}"
   changed_when: true
   with_items:
     - "{{ netaddr_pip_package }}"
