@@ -19,7 +19,7 @@ control_plane_os_rocky: "rocky"
 psql_devel_packages:
   - postgresql-devel
   - python3-devel
-python_version: python3.9
+python_version: "{{ ansible_python_interpreter }}"
 omnia_service_shell_file_path: /opt/omnia/omnia_service_script.sh
 shell_file_permissions: "0777"
 omnia_service_path: /etc/systemd/system/omnia.service

@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-import configparser
+import commentedconfigparser
 import os
 import syslog
 from psycopg2.extensions import cursor
@@ -87,6 +87,7 @@ def get_updated_cpu_gpu_info(node: str) -> tuple:
     no_gpu_str = "No GPU Found"
     intel_cpu_str = "Intel CPU Found"
     amd_cpu_str = "AMD CPU Found"
+    intel_gpu_str = "Intel GPU Found"
     no_cpu_str = "No CPU Found"
     
     # Initialize variables
@@ -120,6 +121,11 @@ def get_updated_cpu_gpu_info(node: str) -> tuple:
                         # Check if the AMD GPU str is present in the line
                         elif amd_gpu_str in line:
                             gpu = "amd"
+                            gpu_count = get_count(line)
+                            gpu_found = True
+                        # Check if the Intel GPU str is present in the line
+                        elif intel_gpu_str in line:
+                            gpu = "intel"
                             gpu_count = get_count(line)
                             gpu_found = True
                         # Check if the No GPU str is present in the line
@@ -198,7 +204,7 @@ def remove_servicetag_inventory(inventory_file: str, service_tag: str) -> None:
     """
     try:
         # Read the inventory file
-        config = configparser.ConfigParser(allow_no_value=True)
+        config = commentedconfigparser.CommentedConfigParser(allow_no_value=True)
         config.read(inventory_file, encoding='utf-8')
         
         # Change the permission of the file
@@ -214,9 +220,7 @@ def remove_servicetag_inventory(inventory_file: str, service_tag: str) -> None:
         with open(inventory_file, 'w', encoding='utf-8') as configfile:
             config.write(configfile, space_around_delimiters=False)
 
-    except (configparser.DuplicateOptionError,
-            configparser.DuplicateSectionError,
-            configparser.NoSectionError,
+    except (OSError,
             Exception) as err:
         syslog.syslog(syslog.LOG_ERR, f"parse_syslog:remove_servicetag_inventory: {str(type(err))} {str(err)}")
     finally:
@@ -233,7 +237,7 @@ def add_servicetag_inventory(inventory_file: str, service_tag: str) -> None:
     """
     try:
         # Read the config file
-        config = configparser.ConfigParser(allow_no_value=True)
+        config = commentedconfigparser.CommentedConfigParser(allow_no_value=True)
         config.read(inventory_file, encoding='utf-8')
         
         # Change the permission of the file
@@ -246,10 +250,7 @@ def add_servicetag_inventory(inventory_file: str, service_tag: str) -> None:
         with open(inventory_file, 'w', encoding='utf-8') as configfile:
             config.write(configfile, space_around_delimiters=False)
 
-    except (configparser.DuplicateOptionError,
-            configparser.DuplicateSectionError,
-            configparser.NoSectionError,
-            OSError,
+    except (OSError,
             Exception) as err:
         syslog.syslog(syslog.LOG_ERR, f"parse_syslog:add_servicetag_inventory: {str(type(err))} {str(err)}")
     finally:
@@ -294,16 +295,26 @@ def update_inventory(node_info_db: tuple, updated_node_info: tuple) -> None:
                 # Add service tag and admin ip to compute_servicetag_ip inventory file
                 service_tag_ip_str = f"{service_tag} ansible_host={admin_ip}"
                 add_servicetag_inventory("compute_servicetag_ip", service_tag_ip_str)
-        
+
         # Update inventory files if the GPU has been modified
         if updated_gpu != db_gpu:
             if db_gpu:
                 # Remove existing service tag from corresponding inventory file
-                inventory_file_str = "compute_gpu_nvidia" if db_gpu == "nvidia" else "compute_gpu_amd"
+                if db_gpu == "nvidia":
+                    inventory_file_str = "compute_gpu_nvidia"
+                elif db_gpu == "amd":
+                    inventory_file_str = "compute_gpu_amd"
+                elif db_gpu == "intel":
+                    inventory_file_str = "compute_gpu_intel"
                 remove_servicetag_inventory(inventory_file_str, service_tag)
             if updated_gpu:
                 # Add service tag to corresponding inventory file
-                inventory_file_str = "compute_gpu_nvidia" if updated_gpu == "nvidia" else "compute_gpu_amd"
+                if updated_gpu == "nvidia":
+                    inventory_file_str = "compute_gpu_nvidia"
+                elif updated_gpu == "amd":
+                    inventory_file_str = "compute_gpu_amd"
+                elif updated_gpu == "intel":
+                    inventory_file_str = "compute_gpu_intel"
                 add_servicetag_inventory(inventory_file_str, service_tag)
     except Exception as e:
         syslog.syslog(syslog.LOG_ERR, f"parse_syslog:update_inventory: Exception occurred: {str(type(e))} {str(e)}")

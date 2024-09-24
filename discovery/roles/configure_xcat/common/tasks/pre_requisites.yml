@@ -19,7 +19,7 @@
     repo_validation_status: true
 
 - name: Check output of network table
-  ansible.builtin.command: lsdef -t network
+  ansible.builtin.command: "{{ xcat_path }}/lsdef -t network"
   changed_when: false
   failed_when: false
   register: network_table_check

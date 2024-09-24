@@ -26,5 +26,5 @@
     mode: "{{ file_permission }}"
 
 - name: Configure synclist to osimage
-  ansible.builtin.command: "chdef -t osimage -o {{ provision_os_image }} synclists={{ synclists_dest_path }}"
+  ansible.builtin.command: "{{ xcat_path }}/chdef -t osimage -o {{ provision_os_image }} synclists={{ synclists_dest_path }}"
   changed_when: true

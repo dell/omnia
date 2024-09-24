@@ -28,3 +28,4 @@ dhcp_config_fail_msg: "Failed. makedhcp -n command is not successful. Error:"
 hosts_entry_warning_msg: "[WARNING] makehosts command is not successful. Error:"
 dhcp_config_apply_fail_msg: "Failed. makedhcp -a command is not successful. Error:"
 dns_config_warning_msg: "[WARNING] makedns -n command is not successful. Error:"
+xcat_sbin_path: /opt/xcat/sbin

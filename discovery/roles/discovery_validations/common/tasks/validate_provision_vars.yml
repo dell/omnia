@@ -157,3 +157,9 @@
     - provision_os | lower == os_supported_ubuntu
     - provision_os_version | string == ubuntu22_version
     - ubuntu_kernel_flavor is defined
+
+- name: Assert ntp_support
+  ansible.builtin.assert:
+    that:
+      - ntp_support == true or ntp_support == false
+    fail_msg: "{{ ntp_support_fail_msg }}"

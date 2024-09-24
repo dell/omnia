@@ -30,6 +30,5 @@ cuda_search_pattern: "*.deb"
 # Usage: validate_amdgpu_rocm_repo.yml
 offline_rocm_directory: "{{ repo_store_path }}/cluster/apt"
 
-# Usage: validate_intel_gaudi_repo.yml
-offline_gaudi_directory: "{{ repo_store_path }}/cluster/{{ provision_os }}/{{ provision_os_version }}/deb"
-gaudi_search_pattern: "habanalabs*.deb"
+# Usage: validate_intelgaudi_repo.yml
+offline_intelgaudi_directory: "{{ repo_store_path }}/cluster/apt"

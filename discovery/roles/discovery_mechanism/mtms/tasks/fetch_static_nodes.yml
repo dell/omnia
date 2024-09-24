@@ -14,7 +14,7 @@
 ---
 
 - name: Fetch nodes with group {{ bmc_static_node_group }}
-  ansible.builtin.command: lsdef {{ bmc_static_node_group }}
+  ansible.builtin.command: "{{ xcat_path }}/lsdef {{ bmc_static_node_group }}"
   changed_when: false
   register: check_static_nodes
   failed_when: false

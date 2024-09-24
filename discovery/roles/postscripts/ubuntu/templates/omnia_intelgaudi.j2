@@ -1,0 +1,92 @@
+#!/bin/bash
+################################################################################################################
+#  omnia_intelgaudi:
+#      Install Intel Gaudi drivers on all the cluster nodes
+#
+#################################################################################################################
+echo "--------------------------" >> /var/log/xcat/xcat.log
+echo "Checking for Intel Gaudi cards" >> /var/log/xcat/xcat.log
+gaudi_check_processing_xlr8r=`lspci | grep "Processing accelerators: Habana Labs Ltd"`
+validate_ubuntu_os="$(cat /etc/os-release | grep 'ID=ubuntu' | wc -l)"
+
+cron_job_for_scale_out_interfaces() {
+
+echo "Set cron job for Gaudi scale out interfaces" >> /var/log/xcat/xcat.log
+
+if [ ! -f /opt/habanalabs/qual/gaudi2/bin/manage_network_ifs.sh ] ; then
+  echo "File /opt/habanalabs/qual/gaudi2/bin/manage_network_ifs.sh not found, stop setting." >> /var/log/xcat/xcat.log
+  return 1
+fi
+
+base_dir="/opt/omnia/cronjobs"
+
+mkdir -p $base_dir
+
+script_to_run="$base_dir/bring_up_ports.sh"
+
+cat <<'EOF' > $script_to_run
+#!/bin/bash
+/opt/habanalabs/qual/gaudi2/bin/manage_network_ifs.sh --up
+RET_CODE=$?
+if [ "${RET_CODE}" -eq "1" ]; then
+  echo "One or more Gaudi 2 ports are down." >> /dev/stderr
+  return 1
+fi
+EOF
+
+chmod +x $script_to_run
+
+if ! systemctl is-active --quiet cron; then
+  echo "Cron service is not active, start and enable cron now." >> /var/log/xcat/xcat.log
+  sudo systemctl start cron
+  sudo systemctl enable cron
+fi
+
+cron_job="@reboot $script_to_run"
+
+temp_crontab=$(mktemp)
+
+crontab -l > $temp_crontab 2>/dev/null
+
+if grep -q "$cron_job" $temp_crontab ; then
+  echo "Cron job already configured." >> /var/log/xcat/xcat.log
+else
+  echo $cron_job >> $temp_crontab
+  crontab $temp_crontab
+fi
+
+rm $temp_crontab
+
+}
+
+if [[ $gaudi_check_processing_xlr8r == *"Habana Labs Ltd"* ]]; then
+  echo "Installing Intel Gaudi" >> /var/log/xcat/xcat.log
+  if [[ $validate_ubuntu_os == "1"  ]]
+  then
+
+    echo "deb [trusted=yes] http://{{ admin_nic_ip }}:80/install{{ repo_store_path }}/cluster/apt/intelgaudi/{{ intelgaudi_version }} ./" >> /etc/apt/sources.list.d/intelgaudi.list
+
+    sudo apt-get update
+    sudo apt install dkms libelf-dev -y
+    sudo apt install linux-headers-$(uname -r) -y
+
+    sudo apt install -y habanalabs-dkms \
+      habanalabs-firmware \
+      habanalabs-firmware-tools \
+      habanalabs-graph \
+      habanalabs-qual \
+      habanalabs-rdma-core \
+      habanalabs-thunk \
+      habanatools
+
+    rm /etc/apt/sources.list.d/intelgaudi.list
+
+    apt-get update
+    echo "Intel Gaudi driver installation completed" >> /var/log/xcat/xcat.log
+
+    # make sure Gaudi scale out interfaces are up after rebooting
+    cron_job_for_scale_out_interfaces
+    
+  fi
+  echo "-----------------------------" >> /var/log/xcat/xcat.log
+fi

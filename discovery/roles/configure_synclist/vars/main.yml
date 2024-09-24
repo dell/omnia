@@ -35,12 +35,16 @@ pip_conf_dest: "/tmp/conf/pip.conf"
 
 # usage: create_files_local_registry.yml
 nerdctl_registry_port: 5001
+config_omnia_registry_src_path: "{{ role_path }}/templates/config_omnia_registry.toml.j2"
 
 # usage: configure_synclist.yml
 synclists_dir: "/install/synclists"
+xcat_path: /opt/xcat/bin
 
 # Usage: create_files_local_repo_redhat.yml, create_files_local_repo_ubuntu.yml, create_files_local_repo_rocky.yml
 beegfs_name: "beegfs"
 amdgpu_name: "amdgpu"
 rocm_name: "rocm"
+intelgaudi_name: "intelgaudi"
+habana_name: "habana"
 software_config_default: "omnia_default"

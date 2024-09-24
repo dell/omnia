@@ -20,6 +20,7 @@ postgresql_service: "postgresql.service"
 # Usage: main.yml
 os_supported_rhel: "redhat"
 provision_os_rhel: "rhel"
+xcat_path: /opt/xcat/bin
 
 # Usage: configure_kickstart.yml
 xcat_rhel8_path:
@@ -72,6 +73,8 @@ This might be due to internet connectivity issue when accessing the epel reposit
 apptainer_packages: "apptainer fakeroot fakeroot-libs squashfuse squashfuse-libs"
 telemetry_pckg_path: "{{ role_path }}/../redhat/files/telemetry_pkglist"
 telemetry_pkg_list_src: "{{ role_path }}/../redhat/files/telemetry.pkglist"
+download_racadm_warning_msg: "[WARNING] Failed to download racadm package {{ racadm_url }}. This can be due to internet connectivity issue. Please verify the connectivity and try again. Skipping racadm configuration in the cluster." # noqa: yaml[line-length]
+warning_time: 30
 
 # Usage: manage_subscription_manager.yml
 rhsm_release_file_path: "/opt/omnia/.data/rhsm_release"

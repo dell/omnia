@@ -84,5 +84,5 @@
     line: 'echo "PATH=$PATH:/opt/dell/srvadmin/sbin:/usr/local/sbin:/usr/local/bin/:/usr/local/cuda/bin" >> /etc/bashrc'
 
 - name: Update osimage with cuda repository
-  ansible.builtin.command: chdef -t osimage -o {{ provision_os_image }} -p pkgdir={{ cuda_core_path }}
+  ansible.builtin.command: "{{ xcat_path }}/chdef -t osimage -o {{ provision_os_image }} -p pkgdir={{ cuda_core_path }}"
   changed_when: true

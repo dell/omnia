@@ -27,7 +27,7 @@
     - name: Fetch ubuntu 22 directory name
       ansible.builtin.shell: >
         set -o pipefail && \
-        lsdef -t osimage -o {{ provision_os_image }} | grep osvers
+        {{ xcat_path }}/lsdef -t osimage -o {{ provision_os_image }} | grep osvers
       changed_when: false
       register: fetch_ubuntu22_directory
 
@@ -39,7 +39,7 @@
       ansible.builtin.file:
         path: "{{ ubuntu22_unwanted_package }}"
         state: absent
-    
+
     - name: Copy ubuntu kickstart files to xcat configuration path
       ansible.builtin.template:
         src: "{{ item.src }}"

@@ -35,7 +35,7 @@ def get_node_obj():
        Returns:
          formed a list of node object names
     """
-    command = "lsdef"
+    command = "/opt/xcat/bin/lsdef"
     node_objs = subprocess.run(command.split(), capture_output=True)
     temp = str(node_objs.stdout).split('\n')
     for i in range(0, len(temp) - 1):
@@ -77,21 +77,21 @@ def update_node_obj_nm():
             if mode is None:
                 print("No device is found!")
             if mode == "static":
-                command = ["chdef", node_name[0], f"ip={admin_ip[0]}", f"groups={groups_static}",
+                command = ["/opt/xcat/bin/chdef", node_name[0], f"ip={admin_ip[0]}", f"groups={groups_static}",
                            f"chain={chain_setup},{chain_os}"]
                 subprocess.run(command)
             if mode == "discovery":
-                command = ["chdef", node_name[0], f"ip={admin_ip[0]}", f"groups={groups_discover}",
+                command = ["/opt/xcat/bin/chdef", node_name[0], f"ip={admin_ip[0]}", f"groups={groups_discover}",
                            f"chain={chain_setup},{chain_os}"]
                 subprocess.run(command)
             if mode == "dynamic":
                 sql = "select bmc_ip from cluster.nodeinfo where service_tag = '" + serial_output[i] + "'"
                 cursor.execute(sql)
                 bmc_ip = cursor.fetchone()
-                command = ["chdef", node_name[0], f"ip={admin_ip[0]}", f"groups={groups_dynamic}",
+                command = ["/opt/xcat/bin/chdef", node_name[0], f"ip={admin_ip[0]}", f"groups={groups_dynamic}",
                            f"chain={chain_setup},{chain_os}"]
                 subprocess.run(command)
-                command = ["chdef", node_name[0], f" bmc={bmc_ip[0]}"]
+                command = ["/opt/xcat/bin/chdef", node_name[0], f" bmc={bmc_ip[0]}"]
                 subprocess.run(command)
 
     cursor.close()

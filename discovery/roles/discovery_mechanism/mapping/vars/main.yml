@@ -16,6 +16,7 @@
 # Usage: main.yml
 discovery_mech_vars_common:
   - "{{ role_path }}/../common/vars/main.yml"
+xcat_path: /opt/xcat/bin
 
 # Usage: update_db_mapping.yml
 mapping_file_db_path: "{{ role_path }}/../mapping/files/mapping_file_db.py"
@@ -32,3 +33,4 @@ warning_wait_time: 10
 
 # Usage: set_provision_image_mapping.yml
 max_retries: 5
+xcat_sbin_path: /opt/xcat/sbin
