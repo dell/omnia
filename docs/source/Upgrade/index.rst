@@ -10,7 +10,7 @@ To upgrade the Omnia version version 1.6.1 to version 1.7 on your control plane,
 The ``upgrade_cp.yml`` playbook performs the following tasks:
 
 * Validates whether upgrade can be performed on the Omnia control plane.
-* Takes backup of the Omnia database and telemetry pods in provided location.
+* Takes backup of Kubernetes etcd, Omnia database, and telemetry pods in provided location.
 * Regenerates the inventory files with hostname values.
 * Imports input parameters from provided source code path of already installed Omnia version.
 * Upgrades the software version for nerdctl and kubernetes on the control plane.
