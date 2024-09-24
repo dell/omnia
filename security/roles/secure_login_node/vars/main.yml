@@ -25,18 +25,19 @@ alerting_file_path: /root/auth_failure_check.yml
 hosts_file_mode: "0644"
 local_repo_access_path: "/opt/omnia/offline/local_repo_access.yml"
 ansible_name: "ansible"
-secure_ansible_version: "7.7.0"
+secure_ansible_version: "9.5.1"
 cryptography_name: "cryptography"
 cryptography_version: "41.0.7"
 jinja_name: "jinja2"
 jinja_version: "3.1.2"
 ansible_galaxy_path: "community.general.tar.gz"
 file_mode: "0644"
+python_version: "{{ ansible_python_interpreter.split('/')[-1] }}"
 
 # Usage: configure_alerting_ubuntu
 python_packages:
-  - python3.9
-  - python3.9-distutils
+  - "{{ python_version }}"
+  - "{{ python_version }}-distutils"
   - python3-pip
 
 # Usage: install_snoopy.yml

@@ -26,8 +26,11 @@
     auth_failure_mail_sender: omnia-alert
     file_mode: 644
   tasks:
-    - name: Check auth failure in last {{ auth_failure_check_time }} minutes
-      ansible.builtin.shell: journalctl -u sshd --since "{{ auth_failure_check_time }} minutes ago" | grep "{{ auth_failure_search_key }}"
+    - name: Check auth failure in last {{ auth_failure_check_time }} minutes  # noqa name[template]
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          journalctl -u sshd --since "{{ auth_failure_check_time }} minutes ago" | grep "{{ auth_failure_search_key }}"
       changed_when: false
       failed_when: false
       register: auth_failure_check

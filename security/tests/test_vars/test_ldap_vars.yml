@@ -29,7 +29,7 @@ ldap_add_user_fail_msg: "LDAP user creation failed"
 ldap_user_search_client_success_msg: "Created user available on client nodes"
 ldap_user_search_client_fail_msg: "Created user is not available on client nodes"
 
-##Client Packages Messages and User Creation message
+## Client Packages Messages and User Creation message
 openldap_success_msg: "Openldap installed successfully"
 openldap_fail_msg: "Openldap not installed"
 sssd_success_msg: "SSSD installed successfully"
