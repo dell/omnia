@@ -22,6 +22,7 @@ amdgpu_version_fail_msg: "Failed, software_config.json does not have the version
 amdgpu_repo_fail_msg: "Failed, local_repo.yml is not executed for downloading AMDGPU packages."
 rocm_version_fail_msg: "Failed, software_config.json does not have the version for ROCM."
 rocm_repo_fail_msg: "Failed, local_repo.yml is not executed for downloading ROCM packages."
+amdgpu_fail_msg: "An error occurred while setting the rocm_config_status."
 
 # Usage: include_local_repo_config.yml
 local_repo_config_file: "{{ role_path }}/../../../input/local_repo_config.yml"
@@ -30,3 +31,6 @@ local_repo_config_syntax_fail_msg: "Failed. Syntax errors present in local_repo_
 # Usage: validate_intel_gaudi.yml
 intel_gaudi_input_fail_msg: "Failed, software_config.json does not have the intelgaudi software stack."
 intel_gaudi_repo_fail_msg: "Failed, local_repo.yml is not executed for downloading Intel Gaudi driver packages."
+
+# Usage accelerator_validation/main.yml
+driver_not_found_msg: "Both intel_gaudi_config_status and amdgpu_config_status are false. The playbook will fail."
