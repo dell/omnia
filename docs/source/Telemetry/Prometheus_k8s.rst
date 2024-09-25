@@ -3,6 +3,11 @@ View the Kubernetes and Intel Gaudi metrics from the Prometheus UI and Grafana
 
 Prometheus metrics visualization refers to the process of displaying the metrics collected by the Prometheus exporter in a visual format, enabling easier analysis and interpretation. Using the Prometheus UI and integration with tools like Grafana, users can create custom dashboards, graphs, and charts to visualize metric trends and monitor system health.
 
+**Supported metrics**
+
+* The list of Kubernetes metrics collected by the Prometheus exporter can be found `here <https://v1-29.docs.kubernetes.io/docs/reference/instrumentation/metrics/#list-of-stable-kubernetes-metrics>`_.
+* The list of Intel Gaudi metrics collected by the Prometheus exporter is `linked here <Gaudi_metrics.html>`_.
+
 **Prerequisites**
 
 * To view the Kubernetes and Intel Gaudi metrics from the Prometheus UI, the ``k8s_prometheus_support`` and ``prometheus_gaudi_support`` variables in ``input/telemetry_config.yml`` must be set to ``true``. All the variables and their related information for the configuration file can be found `here <index.html#id13>`_.
