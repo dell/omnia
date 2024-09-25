@@ -206,6 +206,21 @@
         "package": "docker.io/grafana/grafana-enterprise",
         "tag": "8.3.2",
         "type": "image"
+      },
+      {
+        "package": "metric-exporter-daemonset",
+        "type": "manifest",
+        "url": "https://vault.habana.ai/artifactory/gaudi-metric-exporter/yaml/1.17.1/metric-exporter-daemonset.yaml"
+      },
+      {
+        "package": "metric-exporter-service",
+        "type": "manifest",
+        "url": "https://vault.habana.ai/artifactory/gaudi-metric-exporter/yaml/1.17.1/metric-exporter-service.yaml"
+      },
+      {
+        "package": "metric-exporter-serviceMonitor",
+        "type": "manifest",
+        "url": "https://vault.habana.ai/artifactory/gaudi-metric-exporter/yaml/1.17.1/metric-exporter-serviceMonitor.yaml"
       }
       ]
     }
