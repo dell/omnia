@@ -1,7 +1,7 @@
 Upgrade Omnia control plane
 ==============================
 
-To upgrade the Omnia version version 1.6.1 to version 1.7 on your control plane, you can use the ``upgrade_cp.yml`` playbook in Omnia 1.7. This ensures that your control plane is running the latest version and includes any new features and improvements that are available.
+To upgrade the Omnia version 1.6.1 to version 1.7 on your control plane, you can use the ``upgrade_cp.yml`` playbook in Omnia 1.7. This ensures that your control plane is running the latest version and includes any new features and improvements that are available.
 
 .. caution:: Omnia does not allow users to perform downgrade operations, which means that once they have upgraded, they cannot revert back to a previous version of Omnia.
 
@@ -64,9 +64,9 @@ To upgrade the Omnia control plane, do the following:
 
 .. note::
 
-    * After upgrading your Omnia control plane to version 1.7, you will not be able to use the new features for cluster configuration that are available in version 1.7 on your existing clusters. These new features will only be available on fresh installations of Omnia 1.7.
-    * After upgrading your Omnia control plane running on RHEL/Rocky Linux 8.6/8.7, new features of Omnia 1.7 for cluster configuration are not supported. This means that you will not be able to use the new features and improvements that are available in version 1.7 for configuring your existing clusters.
-    * After the upgrade, you need to activate the virtual environment using the ``source /opt/omnia/omnia161_venv/bin activate`` command prior to installing the below software versions:
+    * After upgrading your Omnia control plane to version 1.7, the new cluster configuration features added in this version won’t work with any of your existing clusters. These new features will only be available when you create new clusters on RHEL/Rocky Linux 8.8 or Ubuntu 22.04 platforms, using Omnia 1.7.
+    * The new cluster configuration features in Omnia 1.7 are not supported on RHEL/Rocky Linux 8.6 or 8.7. This means that even if you upgrade your Omnia control plane to version 1.7, these features won’t function on those platforms.
+    * After the upgrade, you need to activate the virtual environment using the ``source /opt/omnia/omnia161_venv/bin/activate`` command prior to installing the below software versions:
 
         - Kubernetes 1.26.12
         - KServe 0.11.2
