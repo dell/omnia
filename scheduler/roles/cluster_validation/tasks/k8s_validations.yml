@@ -74,3 +74,11 @@
     path: "{{ ansible_collection_folder }}{{ kubespray_certificate_key_taskfile_path }}"
     insertafter: "- name: Set kubeadm certificate key"
     line: "  no_log: true"
+
+- name: Install ansible galaxy collection
+  ansible.builtin.command: ansible-galaxy collection install "{{ item }}"
+  changed_when: true
+  register: ansible_collection_install
+  until: ansible_collection_install is not failed
+  retries: "{{ max_retries }}"
+  with_items: "{{ ansible_galaxy_collection }}"

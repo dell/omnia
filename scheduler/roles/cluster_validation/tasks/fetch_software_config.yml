@@ -43,6 +43,15 @@
     - slurm_support is true
     - cluster_os_type == compute_os_ubuntu
 
+- name: Check if csi powerscale driver installation is required 
+  ansible.builtin.set_fact:
+    csi_driver_powerscale_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'csi_driver_powerscale') | list | length > 0 }}"
+
+- name: Load csi_driver_powerscale.json
+  ansible.builtin.set_fact:
+    csi_driver_powerscale_packages_json: "{{ lookup('file', csi_driver_powerscale_packages_file) | from_json }}"
+  when: csi_driver_powerscale_support
+
 - name: Check if ucx is true
   ansible.builtin.set_fact:
     ucx_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'ucx') | list | length > 0 }}"
@@ -102,6 +111,10 @@
     - name: Load k8s.json
       ansible.builtin.set_fact:
         k8s_packages_json: "{{ lookup('file', k8s_packages_file) | from_json }}"
+  rescue:
+    - name: Unable to fetch k8s version
+      ansible.builtin.fail:
+        msg: "{{ k8s_version_fail_msg }}"
 
 - name: Local local_repo_access.yml file
   ansible.builtin.include_vars: "{{ local_repo_access_dest_path }}"

@@ -11,10 +11,18 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
 ---
-# Usage: prerequisite_ucx.yml, prerequisite_openmpi.yml
-gcc_package_names: 
-  - gcc-c++
-  - make
-clang_package: clang
+
+- name: Install nvidia-container-toolkit
+  ansible.builtin.package:
+    name: nvidia-container-toolkit
+    state: present
+
+- name: Configure nvidia-container-toolkit runtime
+  ansible.builtin.command: nvidia-ctk runtime configure --runtime=containerd
+  changed_when: false
+
+- name: Restart containerd
+  ansible.builtin.systemd:
+    name: containerd
+    state: restarted

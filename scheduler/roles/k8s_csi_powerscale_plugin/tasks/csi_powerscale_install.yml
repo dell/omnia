@@ -1,0 +1,44 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Deploy external-snapshotter config CRDs
+  ansible.builtin.command:
+    cmd: "kubectl apply -f client/config/crd/"
+    chdir: "{{ csi_powerscale_path }}/csi-powerscale/external-snapshotter/"
+  register: install_result
+  failed_when: false
+  changed_when: install_result.changed
+
+- name: Deploy external-snapshotter snapshot-controller CRDs
+  ansible.builtin.command:
+    cmd: "kubectl apply -f deploy/kubernetes/snapshot-controller/"
+    chdir: "{{ csi_powerscale_path }}/csi-powerscale/external-snapshotter/"
+  register: install_result
+  failed_when: false
+  changed_when: install_result.changed
+
+- name: Execute CSI driver installation script
+  ansible.builtin.command:
+    cmd: "./csi-install.sh --namespace isilon --values {{ csi_powerscale_values_path }}"
+    chdir: "{{ csi_powerscale_path }}/{{ csi_powerscale_git | regex_replace('\\.tar\\.gz$', '') }}/dell-csi-helm-installer"
+  register: install_result
+  failed_when: false
+  changed_when: install_result.changed
+
+- name: Verify csi driver installation
+  ansible.builtin.pause:
+    seconds: "{{ wait_time }}"
+    prompt: "{{ fail_msg_csi_powerscale_driver }}"
+  when: install_result.rc != 0

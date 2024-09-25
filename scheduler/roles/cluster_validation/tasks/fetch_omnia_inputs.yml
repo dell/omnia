@@ -106,7 +106,7 @@
       ansible.builtin.assert:
         that:
           - k8s_version | default("", true) | length > 1
-          - "'1.26.12' in k8s_version"
+          - "'1.29.5' in k8s_version"
         success_msg: "{{ success_msg_k8s_version }}"
         fail_msg: "{{ fail_msg_k8s_version }}"
 
@@ -141,6 +141,52 @@
           - '"/" in k8s_pod_network_cidr'
         success_msg: "{{ success_msg_k8s_pod_network_cidr }}"
         fail_msg: "{{ fail_msg_k8s_pod_network_cidr }}"
+
+    - name: Assert kubernetes topology manager policy
+      ansible.builtin.assert:
+        that:
+          - topology_manager_policy | default("", true) | length > 1
+          - "topology_manager_policy in supported_topology_manager_policy"
+        success_msg: "{{ success_msg_k8s_toplogy_manager_policy }}"
+        fail_msg: "{{ fail_msg_k8s_toplogy_manager_policy }}"
+
+    - name: Assert kubernetes topology manager scope
+      ansible.builtin.assert:
+        that:
+          - topology_manager_scope | default("", true) | length > 1
+          - "topology_manager_scope in supported_topology_manager_scope"
+        success_msg: "{{ success_msg_k8s_toplogy_manager_scope }}"
+        fail_msg: "{{ fail_msg_k8s_toplogy_manager_scope }}"
+
+- name: Initialize flag for csi powerscale driver installation
+  ansible.builtin.set_fact:
+    csi_driver_powerscale_precheck_pass: false
+
+- name: Validate csi powerscale variables
+  when: csi_driver_powerscale_support
+  block:
+    - name: Validate that csi_powerscale_driver_secret_file_path contains a valid path
+      ansible.builtin.assert:
+        that:
+          - csi_powerscale_driver_secret_file_path is defined
+          - csi_powerscale_driver_secret_file_path | length > 0
+        success_msg: "{{ csi_driver_secret_file_path_success_msg }}"
+        fail_msg: "{{ csi_driver_secret_file_path_fail_msg }}"
+
+    - name: Validate that csi_powerscale_driver_values_file_path contains a valid path
+      ansible.builtin.assert:
+        that:
+          - csi_powerscale_driver_values_file_path is defined
+          - csi_powerscale_driver_values_file_path | length > 0
+        success_msg: "{{ csi_driver_values_file_path_success_msg }}"
+        fail_msg: "{{ csi_driver_values_file_path_fail_msg }}"
+
+    - name: Validate user input for csi powerscale driver
+      ansible.builtin.include_tasks: csi_powerscale_driver_input_validation.yml
+
+    - name: Set flag for csi powerscale driver installation to true after assertion pass
+      ansible.builtin.set_fact:
+        csi_driver_powerscale_precheck_pass: true
 
 - name: Save input variables from file
   ansible.builtin.set_fact:

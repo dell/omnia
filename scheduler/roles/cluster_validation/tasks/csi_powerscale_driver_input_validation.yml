@@ -1,0 +1,218 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Encryption for secret file
+- name: Check if csi_powerscale_secret_vault exists
+  ansible.builtin.stat:
+    path: "{{ role_path }}/../k8s_csi_powerscale_plugin/files/{{ csi_powerscale_secret_vaultname }}"
+  register: vault_key_result
+
+- name: Create ansible vault key if it does not exist
+  ansible.builtin.set_fact:
+    vault_key: "{{ lookup('password', '/dev/null chars=ascii_letters') }}"
+  when: not vault_key_result.stat.exists
+
+- name: Save vault key
+  ansible.builtin.lineinfile:
+    path: "{{ role_path }}/../k8s_csi_powerscale_plugin/files/{{ csi_powerscale_secret_vaultname }}"
+    line: "{{ vault_key }}"
+    mode: "{{ vault_key_permission }}"
+    owner: root
+    create: true
+  when: not vault_key_result.stat.exists
+
+- name: Check if secret file is encrypted
+  ansible.builtin.command: cat "{{ hostvars['localhost']['csi_powerscale_driver_secret_file_path'] }}"
+  changed_when: false
+  register: config_content
+
+- name: Decrpyt secret file
+  ansible.builtin.command: >-
+    ansible-vault decrypt {{ hostvars['localhost']['csi_powerscale_driver_secret_file_path'] }}
+    --vault-password-file {{ role_path }}/../k8s_csi_powerscale_plugin/files/{{ csi_powerscale_secret_vaultname }}
+  when: "'$ANSIBLE_VAULT;' in config_content.stdout"
+  changed_when: false
+
+- name: Load secret file for input validation
+  ansible.builtin.include_vars:
+    file: "{{ hostvars['localhost']['csi_powerscale_driver_secret_file_path'] }}"
+    name: clusters
+
+- name: Encrypt secret file
+  ansible.builtin.command: >-
+    ansible-vault encrypt {{ hostvars['localhost']['csi_powerscale_driver_secret_file_path'] }}
+    --vault-password-file {{ role_path }}/../k8s_csi_powerscale_plugin/files/{{ csi_powerscale_secret_vaultname }}
+  changed_when: false
+
+# Validate secret file
+- name: Validate isilonClusters configuration
+  block:
+    - name: Ensure isilonClusters is a list
+      ansible.builtin.assert:
+        that:
+          - clusters.isilonClusters is defined
+          - clusters.isilonClusters is iterable
+          - clusters.isilonClusters | length > 0
+        msg: "isilonClusters must be defined and must contain at least one entry."
+
+    - name: Validate each cluster entry
+      block:
+        - name: Validate clusterName is a non-empty string
+          ansible.builtin.assert:
+            that:
+              - item.clusterName is defined
+              - item.clusterName | length > 0
+            msg: "clusterName must be a non-empty string."
+          loop: "{{ clusters.isilonClusters }}"
+
+        - name: Validate username is a non-empty string
+          ansible.builtin.assert:
+            that:
+              - item.username is defined
+              - item.username | length > 0
+            msg: "username must be a non-empty string."
+          loop: "{{ clusters.isilonClusters }}"
+
+        - name: Validate password is a non-empty string
+          ansible.builtin.assert:
+            that:
+              - item.password is defined
+              - item.password | length > 0
+            msg: "password must be a non-empty string."
+          loop: "{{ clusters.isilonClusters }}"
+
+        - name: Validate endpoint is a valid IP address
+          ansible.builtin.assert:
+            that:
+              - item.endpoint is defined
+              - item.endpoint | length > 0
+            msg: "endpoint must be a valid IP address."
+          loop: "{{ clusters.isilonClusters }}"
+
+        - name: Validate endpointPort is a valid port number
+          ansible.builtin.assert:
+            that:
+              - item.endpointPort is defined
+              - item.endpointPort is integer
+              - item.endpointPort > 0 and item.endpointPort < 65536
+            msg: "endpointPort must be a valid port number between 1 and 65535."
+          loop: "{{ clusters.isilonClusters }}"
+
+        - name: Validate isDefault is a boolean
+          ansible.builtin.assert:
+            that:
+              - item.isDefault is defined
+              - item.isDefault is boolean
+            msg: "isDefault must be a boolean value."
+          loop: "{{ clusters.isilonClusters }}"
+
+        - name: Validate skipCertificateValidation is a boolean
+          ansible.builtin.assert:
+            that:
+              - item.skipCertificateValidation is defined
+              - item.skipCertificateValidation is boolean
+            msg: "skipCertificateValidation must be a boolean value."
+          loop: "{{ clusters.isilonClusters }}"
+
+        - name: Validate isiPath is a valid Unix absolute path
+          ansible.builtin.assert:
+            that:
+              - item.isiPath is defined
+              - item.isiPath is match('^/[^/].*')
+            msg: "isiPath must be a valid Unix absolute path."
+          loop: "{{ clusters.isilonClusters }}"
+
+        - name: Validate isiVolumePathPermissions is a valid octal mode number
+          ansible.builtin.assert:
+            that:
+              - item.isiVolumePathPermissions is defined
+              - item.isiVolumePathPermissions is string
+              - item.isiVolumePathPermissions | length > 0
+            msg: "isiVolumePathPermissions must be a valid octal mode number."
+          loop: "{{ clusters.isilonClusters }}"
+
+# Validate mandate user input in values file for csi driver
+- name: Load values.yaml file
+  ansible.builtin.include_vars:
+    file: "{{ hostvars['localhost']['csi_powerscale_driver_values_file_path'] }}"
+    name: csi_powerscale_values_file
+
+- name: Validate replication enabled
+  ansible.builtin.assert:
+    that:
+      - csi_powerscale_values_file.controller.replication.enabled is defined
+      - csi_powerscale_values_file.controller.replication.enabled in [false]
+    msg: "Invalid replication enabled value: {{ csi_powerscale_values_file.controller.replication.enabled }}. It must be false."
+
+- name: Validate resizer enabled
+  ansible.builtin.assert:
+    that:
+      - csi_powerscale_values_file.controller.resizer.enabled is defined
+      - csi_powerscale_values_file.controller.resizer.enabled in [false]
+    msg: "Invalid resizer enabled value: {{ csi_powerscale_values_file.controller.resizer.enabled }}. It must be false."
+
+- name: Validate snapshot enabled
+  ansible.builtin.assert:
+    that:
+      - csi_powerscale_values_file.controller.snapshot.enabled is defined
+      - csi_powerscale_values_file.controller.snapshot.enabled in [true]
+    msg: "Invalid snapshot enabled value: {{ csi_powerscale_values_file.controller.snapshot.enabled }}. It must be true."
+
+- name: Validate endpointPort
+  ansible.builtin.assert:
+    that:
+      - csi_powerscale_values_file.endpointPort is defined
+      - csi_powerscale_values_file.endpointPort | int >= 1
+      - csi_powerscale_values_file.endpointPort | int <= 65535
+    msg: "Invalid endpointPort: {{ csi_powerscale_values_file.endpointPort }}. It must be between 1 and 65535."
+
+- name: Validate skipCertificateValidation
+  ansible.builtin.assert:
+    that:
+      - csi_powerscale_values_file.skipCertificateValidation is defined
+      - csi_powerscale_values_file.skipCertificateValidation in [true, false]
+    msg: "Invalid skipCertificateValidation value: {{ csi_powerscale_values_file.skipCertificateValidation }}. It must be true or false."
+
+- name: Set skipCertificateValidation to be used later
+  ansible.builtin.set_fact:
+    skip_certificate_validation_value: csi_powerscale_values_file.skipCertificateValidation
+
+- name: Validate isiAuthType
+  ansible.builtin.assert:
+    that:
+      - csi_powerscale_values_file.isiAuthType is defined
+      - csi_powerscale_values_file.isiAuthType in [0, 1]
+    msg: "Invalid isiAuthType: {{ csi_powerscale_values_file.isiAuthType }}. It must be 0 (basic authentication) or 1 (session-based authentication)."
+
+- name: Validate isiAccessZone
+  ansible.builtin.assert:
+    that:
+      - csi_powerscale_values_file.isiAccessZone is defined
+      - csi_powerscale_values_file.isiAccessZone | length > 0
+    msg: "Invalid isiAccessZone: {{ csi_powerscale_values_file.isiAccessZone }}. It must be a non-empty string."
+
+- name: Validate isiPath
+  ansible.builtin.assert:
+    that:
+      - csi_powerscale_values_file.isiPath is defined
+      - csi_powerscale_values_file.isiPath | regex_search('^/[^/].*')  # Basic validation for Unix absolute path
+    msg: "Invalid isiPath: {{ csi_powerscale_values_file.isiPath }}. It must be a valid Unix absolute path."
+
+- name: Validate isiVolumePathPermissions
+  ansible.builtin.assert:
+    that:
+      - csi_powerscale_values_file.isiVolumePathPermissions is defined
+      - csi_powerscale_values_file.isiVolumePathPermissions | length > 0
+    msg: "Invalid isiVolumePathPermissions: {{ csi_powerscale_values_file.isiVolumePathPermissions }}. It must be a valid octal mode number."

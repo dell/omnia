@@ -11,10 +11,19 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
 ---
-# Usage: prerequisite_ucx.yml, prerequisite_openmpi.yml
-gcc_package_names: 
-  - gcc-c++
-  - make
-clang_package: clang
+
+- name: CSI powerscale driver installation
+  when: hostvars['localhost']['csi_driver_powerscale_precheck_pass']
+  block:
+    - name: Fetch required files to kube control plane
+      ansible.builtin.include_tasks: csi_powerscale_prereq.yml
+
+    - name: Configure secret
+      ansible.builtin.include_tasks: csi_powerscale_config_secret.yml
+
+    - name: Configure certificate
+      ansible.builtin.include_tasks: csi_powerscale_config_certificate.yml
+
+    - name: Install powerscale driver
+      ansible.builtin.include_tasks: csi_powerscale_install.yml
