@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -37,6 +37,16 @@
   with_items: "{{ inventory_content.results }}"
   when: item.item not in item.content | b64decode
   changed_when: true
+
+- name: Add header comment to inventory files where header comment is absent
+  ansible.builtin.lineinfile:
+    path: "{{ item.invocation.module_args.path }}"
+    line: "{{ inventory_header }}"
+    insertbefore: BOF
+    create: true
+    mode: "{{ inventory_file_mode }}"
+  with_items: "{{ inventory_content.results }}"
+  when: inventory_header not in item.content | b64decode
 
 - name: Add Group Name to inventory files where group name is absent
   ansible.builtin.lineinfile:

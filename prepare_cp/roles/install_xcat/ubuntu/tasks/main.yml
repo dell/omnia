@@ -32,4 +32,3 @@
 
 - name: Configure postgres
   ansible.builtin.include_tasks: configure_postgres.yml
-

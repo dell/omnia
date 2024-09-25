@@ -97,6 +97,7 @@ xcat_genesis_deb_file: "{{ xcat_genesis_deb_dir }}/xcat-genesis-base-amd64_2.16.
 untar_genesis_deb_fail_msg: "Failed. Unable to untar {{ xcat_genesis_tar_deb_file }}.
 {{ xcat_genesis_tar_deb_file }} not downloaded successfully during prereq.sh or while cloning the github repository.
 Please re-run pre_req.sh again and verify the file is downloaded successfully."
+xcat_sbin_path: /opt/xcat/sbin
 
 # Usage: configure_postgres.yml
 postgres_file_path: "/opt/omnia/.postgres/"

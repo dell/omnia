@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 # Copyright 2024 Intel Corporation.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -132,7 +132,6 @@ class GPUMetricCollector:
             self.gpu_unit["gpu_utilization"] = "percent"
         else:
             self.gpu_metric_output_dict["gpu_utilization:average"] = utility.Result.NO_DATA.value
-
     def metric_collector(self, aggregation_level):
         '''
         This method collects all the gpu metric parameters.
@@ -143,6 +142,7 @@ class GPUMetricCollector:
         # Run only when amd gpu present
         if prerequisite.dict_component_existence['amdgpu']:
             self.get_amd_metrics()
+
         # Run only when gaudi present
         if prerequisite.dict_component_existence['intelgaudi']:
             self.get_gaudi_metrics()

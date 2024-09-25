@@ -15,7 +15,7 @@
 
 # Usage: configue_proxy_ubuntu.yml
 squid_proxy_conf_path: /etc/squid/squid.conf
-squid_proxy_conf_regxp: "^#http_access allow localnet"
+squid_proxy_conf_regxp: "^#(.*)http_access allow localnet"
 squid_proxy_conf_replace: "http_access allow localnet"
 repo_update_fail_msg: "Failed. Unable to run apt update.
 Please make sure all required repos are reachable. Remove or Update unreachable repos configured and re-run the playbook."
