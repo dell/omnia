@@ -131,8 +131,8 @@ Expected Results
 * If there are errors during CSI driver installation, the whole ``omnia.yml`` playbook execution does not stop or fail. It pauses for 10 seconds with CSI driver installation failure error message and then proceeds with rest of the playbook execution.
 * For an unsuccessful driver installation scenario, the user first needs to follow the manual removal steps mentioned below from the ``kube_control_plane``, and then re-run the ``omnia.yml`` playbook for CSI driver installation.
 
-Post-requisites
-----------------
+Post installation
+--------------------
 
 **Create storage class**
 
