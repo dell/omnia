@@ -26,11 +26,7 @@ PowerScale SmartConnect [Optional]
             DNS: <upstream DNS server>
             MTU: "1500"
 
-* If the user did not specify the upstream DNS server during the provisioning process and wishes to utilize PowerScale SmartConnect afterwards, it is necessary to update the upstream DNS server details in ``/etc/netplan/``. For example, in the ``/etc/netplan/00-installer-config.yaml``, user needs to add: ::
-
-    nameservers:
-    addresses:
-    - <upstream DNS server>
+* If the user did not specify the upstream DNS server during the provisioning process and wishes to utilize PowerScale SmartConnect afterwards, then the user must first add the upstream DNS server IP to the ``DNS`` entry in ``input/network_spec.yml``  and then re-run the ``discovery-provision.yml`` playbook.
 
 Prerequisites
 --------------

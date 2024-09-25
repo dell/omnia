@@ -26,11 +26,7 @@ PowerScale SmartConnect [Optional]
             DNS: <upstream DNS server>
             MTU: "1500"
 
-* If the user did not specify the upstream DNS server during the provisioning process and wishes to utilize PowerScale SmartConnect afterwards, it is necessary to update the upstream DNS server details in ``/etc/netplan/``. For example, in the ``/etc/netplan/00-installer-config.yaml``, user needs to add: ::
-
-    nameservers:
-    addresses:
-    - <upstream DNS server>
+* If the user did not specify the upstream DNS server during the provisioning process and wishes to utilize PowerScale SmartConnect afterwards, then the user must first add the upstream DNS server IP to the ``DNS`` entry in ``input/network_spec.yml``  and then re-run the ``discovery-provision.yml`` playbook.
 
 Prerequisites
 --------------
@@ -132,7 +128,7 @@ Expected Results
 * For an unsuccessful driver installation scenario, the user first needs to follow the manual removal steps mentioned below from the ``kube_control_plane``, and then re-run the ``omnia.yml`` playbook for CSI driver installation.
 
 Post installation
---------------------
+-------------------
 
 **Create storage class**
 
@@ -156,7 +152,7 @@ PowerScale driver installation doesn't create any storage class by default. User
       RootClientEnab1ed: "true"
       csi.storage.k8s.io/fstype: "nfs"
 
-.. note:: If PowerScale SmartConnect hostname is configured, user can provide the PowerScale hostname for ``AzServiceIP``. Otherwise user can provide PowerScale IP address as well.
+.. note:: If PowerScale SmartConnect hostname is configured and the delegated host list is set up in the external DNS server, then the user can provide the PowerScale hostname for ``AzServiceIP``. Otherwise user can provide PowerScale IP address as well.
 
 **Apply storage class**
 
