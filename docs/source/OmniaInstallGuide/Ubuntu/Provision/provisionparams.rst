@@ -41,7 +41,7 @@ Fill in all required parameters in ``input/provision_config.yml``, ``input/provi
    :header-rows: 1
    :keepspace:
 
-.. note:: While provisioning the cluster, ensure to add an upstream DNS server IP against the ``DNS`` entry in ``input/network_spec.yml`` if you intend to use the PowerScale SmartConnect hostname later. For more information, `click here <../AdvancedConfigurationsUbuntu/PowerScale_CSI.html>`_.
+.. note:: While provisioning the cluster, ensure to add an upstream DNS server IP against the ``DNS`` entry in ``input/network_spec.yml`` if you intend to use the PowerScale SmartConnect hostname later. For more information, `click here <../AdvancedConfigurationsUbuntu/PowerScale_CSI.html#powerscale-smartconnect-optional>`_.
 
 .. note::
 
