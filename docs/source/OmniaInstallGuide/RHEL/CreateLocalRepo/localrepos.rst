@@ -87,6 +87,13 @@ Configuring specific local repositories
 
     For information on deploying BeeGFS after setting up the cluster, `click here <../OmniaCluster/Storage/BeeGFS.html>`_.
 
+**NFS**
+
+    To install NFS, include the following line under ``softwares`` in ``input/software_config.json``: ::
+
+            {"name": "nfs"},
+
+    For information on deploying NFS after setting up the cluster, `click here <../OmniaCluster/Storage/NFS.html>`_.
 
 **Kubernetes**
 
@@ -94,10 +101,19 @@ Configuring specific local repositories
 
             {"name": "k8s", "version":"1.29.5"},
 
-For more information about installing Kubernetes, `click here <../OmniaCluster/BuildingCluster/install_kubernetes.html>`_.
+    For more information about installing Kubernetes, `click here <../OmniaCluster/BuildingCluster/install_kubernetes.html>`_.
 
 .. note:: The version of the software provided above is the only version of the software Omnia supports.
 
+**Slurm**
+
+    To install Slurm, include the following line under ``softwares`` in ``input/software_config.json``: ::
+
+            {"name": "slurm"},
+
+    For more information about installing Kubernetes, `click here <../OmniaCluster/BuildingCluster/install_slurm.html>`_.
+
+.. note:: Omnia recommends to install Slurm with ``always`` and ``partial`` scenarios of ``repo_config`` in ``input/software_config.json``. This is due to intermittent connectivity issues with the EPEL8 repositories.
 
 **FreeIPA**
 
@@ -125,6 +141,22 @@ For more information about installing Kubernetes, `click here <../OmniaCluster/B
 
     For more information on configuring login node security, `click here <../OmniaCluster/BuildingCluster/Authentication.html#configuring-login-node-security>`_.
 
+
+**Telemetry**
+
+    To install Telemetry, include the following line under ``softwares`` in ``input/software_config.json``: ::
+
+            {"name": "telemetry"},
+
+    For information on deploying Telemetry after setting up the cluster, `click here <../../../Telemetry/index.html>`_.
+
+**PowerScale CSI driver**
+
+    To install PowerScale CSI driver, include the following line under ``softwares`` in ``input/software_config.json``: ::
+
+            {"name": "csi_driver_powerscale", "version":"v2.11.0"},
+
+    For information on PowerScale CSI driver, `click here <../AdvancedConfigurationsRHEL/PowerScale_CSI.html>`_.
 
 **Jupyterhub**
 

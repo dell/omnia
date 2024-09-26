@@ -77,3 +77,11 @@ Slurm
 **Potential Cause**: This issue may arise due to internal network issues.
 
 **Resolution**: Re-run the playbook with same configuration and verify the status of slurmctld service in the slurm control node.
+
+⦾ **Why does the "TASK: Install packages for slurm" fail with the following error message?**
+
+.. image:: ../../../images/slurm_epel.png
+
+**Potential Cause**: This is due to intermittent connectivity issues with the EPEL8 repositories from where the Slurm packages are downloaded.
+
+**Resolution**: User needs to wait for the EPEL8 repositories to be reachable and then re-run the ``local_repo.yml`` playbook to download and install the Slurm packages.

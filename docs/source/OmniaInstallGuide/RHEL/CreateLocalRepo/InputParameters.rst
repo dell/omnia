@@ -41,7 +41,8 @@ Input parameters for Local Repositories
                 {"name": "amd_benchmarks"},
                 {"name": "utils"},
                 {"name": "ucx", "version": "1.15.0"},
-                {"name": "openmpi", "version": "4.1.6"}
+                {"name": "openmpi", "version": "4.1.6"},
+                {"name": "csi_driver_powerscale", "version":"v2.11.0"}
             ],
 
             "amdgpu": [

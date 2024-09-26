@@ -162,6 +162,14 @@ Configure specific local repositories
 
     For information on deploying BeeGFS after setting up the cluster, `click here <../OmniaCluster/Storage/BeeGFS.html>`_.
 
+**NFS**
+
+    To install NFS, include the following line under ``softwares`` in ``input/software_config.json``: ::
+
+            {"name": "nfs"},
+
+    For information on deploying NFS after setting up the cluster, `click here <../OmniaCluster/Storage/NFS.html>`_.
+
 **Kubernetes**
 
     To install Kubernetes, include the following line under ``softwares`` in ``input/software_config.json``: ::
@@ -190,6 +198,22 @@ For more information on OpenLDAP, `click here <../OmniaCluster/BuildingCluster/A
 
 For more information on configuring login node security, `click here <../OmniaCluster/BuildingCluster/Authentication.html#configuring-login-node-security>`_.
 
+
+**Telemetry**
+
+    To install Telemetry, include the following line under ``softwares`` in ``input/software_config.json``: ::
+
+            {"name": "telemetry"},
+
+    For information on deploying Telemetry after setting up the cluster, `click here <../../../Telemetry/index.html>`_.
+
+**PowerScale CSI driver**
+
+    To install PowerScale CSI driver, include the following line under ``softwares`` in ``input/software_config.json``: ::
+
+            {"name": "csi_driver_powerscale", "version":"v2.11.0"},
+
+    For information on PowerScale CSI driver, `click here <../AdvancedConfigurationsUbuntu/PowerScale_CSI.html>`_.
 
 **Jupyterhub**
 
