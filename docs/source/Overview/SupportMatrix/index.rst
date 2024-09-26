@@ -7,4 +7,3 @@ Support Matrix
     Hardware/index
     OperatingSystems/index
     omniainstalledsoftware
-    ValidationMatrix
