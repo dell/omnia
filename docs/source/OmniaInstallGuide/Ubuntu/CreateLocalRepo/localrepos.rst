@@ -176,7 +176,7 @@ Configure specific local repositories
 
             {"name": "k8s", "version":"1.29.5"},
 
-For more information about installing Kubernetes, `click here <../OmniaCluster/BuildingCluster/install_kubernetes.html>`_.
+    For more information about installing Kubernetes, `click here <../OmniaCluster/BuildingCluster/install_kubernetes.html>`_.
 
 .. note:: The version of the software provided above is the only version of the software Omnia supports.
 
@@ -334,25 +334,6 @@ For more information on OpenMPI configurations, `click here <../AdvancedConfigur
 UCX is deployed on the cluster when ``local_repo.yml`` playbook is executed, followed by the execution of `omnia.yml <../OmniaCluster/BuildingCluster/installscheduler.html>`_.
 
 For more information on UCX configurations, `click here <../AdvancedConfigurationsUbuntu/install_ucx_openmpi.html>`_.
-
-
-**Intel benchmarks**
-
-    To install Intel benchmarks, include the following line under ``softwares`` in ``input/software_config.json``: ::
-
-            {"name": "intel_benchmarks", "version": "2024.1.0"},
-
-For more information on Intel benchmarks, `click here <../Benchmarks/AutomatingOneAPI.html>`_.
-
-
-**AMD benchmarks**
-
-    To install AMD benchmarks, include the following line under ``softwares`` in ``input/software_config.json``: ::
-
-            {"name": "amd_benchmarks"},
-
-For more information on AMD benchmarks, `click here <../Benchmarks/AutomatingOpenMPI.html>`_.
-
 
 **Custom repositories**
 
