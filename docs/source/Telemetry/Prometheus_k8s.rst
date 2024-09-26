@@ -53,8 +53,20 @@ Accessing the Prometheus server for Kubernetes and Gaudi metrics
 
 6. To access the Prometheus server from any browser, you can use ``<EXTERNAL IP>:9090`` from the Omnia control plane or ``kube_control_plane``, and ``<Kube control plane IP>:<Kube Node port>`` from the ``kube_node``.
 
-Visualize the Prometheus metrics using Grafana
--------------------------------------------------
+7. Once you navigate to ``<EXTERNAL IP>:9090`` from your browser, the Prometheus UI is displayed. A sample image of the UI is provided below:
+
+    .. image:: ../images/Prometheus_ui.png
+
+8. From the UI, you can click the "Globe" button (highlighted in yellow in the following image) to open up the Metrics Explorer.
+
+    .. image:: ../images/Prometheus_ui_2.png
+
+9. Use the **Metrics Explorer** to get all the available Kubernetes and Intel Gaudi metrics. A sample image of the Metrics Explorer is provided below:
+
+    .. image:: ../images/Prometheus_ui_3.png
+
+Visualize the Kubernetes and Intel Gaudi metrics using Grafana
+----------------------------------------------------------------
 
 1. Find the IP address of the Grafana service using ``kubectl get svc -n grafana``
 

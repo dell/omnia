@@ -72,7 +72,7 @@ Slurm
     systemctl restart slurmd on slurm_node
 
 
-⦾ **What to do if slurmctld services fails during omnia.yml execution, when slurm_installaton_type is nfs_share ?**
+⦾ **What to do if slurmctld services fails during omnia.yml execution, when slurm_installaton_type is nfs_share?**
 
 **Potential Cause**: This issue may arise due to internal network issues.
 
@@ -82,6 +82,13 @@ Slurm
 
 .. image:: ../../../images/slurm_epel.png
 
-**Potential Cause**: This is due to intermittent connectivity issues with the EPEL8 repositories from where the Slurm packages are downloaded.
+**Potential Cause**: This error can happen:
 
-**Resolution**: User needs to wait for the EPEL8 repositories to be reachable and then re-run the ``local_repo.yml`` playbook to download and install the Slurm packages.
+    * Due to intermittent connectivity issues with the EPEL8 repositories from where the Slurm packages are downloaded.
+    * Due to Slurm packages not downloaded successfully during ``local_repo.yml`` execution.
+
+**Resolution**:
+
+    * While installing Slurm, Omnia recommends users to proceed with ``always`` or ``partial`` scenarios of ``repo_config`` in ``input/software_config.json``.
+    * If the user still wants to proceed with the ``never`` scenario, they must wait for the EPEL8 repositories to be reachable and then re-run the ``local_repo.yml`` playbook to download and install the Slurm packages.
+    * If the user doesn't want to wait, they can change ``repo_config`` in ``input/software_config.json`` to ``always`` or ``partial``, execute ``control_plane_cleanup.yml``, and then re-run ``local_repo.yml`` to download the Slurm packages. After the packages are downloaded successfully, users need to provision the cluster and run ``omnia.yml`` to install the slurm packages on the cluster nodes.
