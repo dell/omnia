@@ -44,7 +44,7 @@ To upgrade the Omnia control plane, do the following:
 
         source /opt/omnia/omnia161_venv/bin/activate
 
-4. Update the ``input/upgrade_config.yml`` file with the following details:
+4. Update the ``omnia/upgrade/upgrade_config.yml`` file with the following details:
 
     +-----------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------+
     | ``installed_omnia_path``    | * This variable points to the the path or location of the directory where the Omnia 1.6.1 source code is currently installed.                   |
