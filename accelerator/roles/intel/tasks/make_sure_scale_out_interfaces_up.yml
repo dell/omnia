@@ -18,6 +18,25 @@
     path: "{{ intel_bring_up_ports_script_path }}"
   register: check_bring_up_script
 
+- name: Init gaudi_ver variable
+  ansible.builtin.set_fact:
+    gaudi_ver: "gaudi2"
+
+- name: Check node has Gaudi3 or not
+  ansible.builtin.shell: |
+    set -o pipefail
+    lspci -n -d {{ gaudi3_pci_vendor_device_class }}
+  register: lspci_output
+  changed_when: false
+  failed_when: false
+  args:
+    executable: /bin/bash
+
+- name: Set gaudi_ver variable
+  ansible.builtin.set_fact:
+    gaudi_ver: "gaudi3"
+  when: lspci_output.stdout | length > 0
+
 - name: Create bring_up_ports.sh
   when: not check_bring_up_script.stat.exists
   ansible.builtin.blockinfile:
@@ -26,10 +45,10 @@
     mode: "{{ file_permissions }}"
     block: |
       #!/bin/bash
-      /opt/habanalabs/qual/gaudi2/bin/manage_network_ifs.sh --up
+      /opt/habanalabs/qual/{{gaudi_ver}}/bin/manage_network_ifs.sh --up
       RET_CODE=$?
       if [ "${RET_CODE}" -eq "1" ]; then
-        echo "One or more Gaudi 2 ports are down." >> /dev/stderr
+        echo "One or more Gaudi ports are down." >> /dev/stderr
         return 1
       fi
 
@@ -51,9 +70,10 @@
   failed_when: false
   changed_when: false
 
-- name: Create cronjob for bringing up Gaudi 2 ports
+- name: Create cronjob for bringing up Gaudi ports
   when: cron_job_check.rc != 0
   ansible.builtin.cron:
-    name: "Bring up Gaudi 2 ports"
+    name: "Bring up Gaudi ports"
     special_time: reboot
     job: "{{ intel_bring_up_ports_script_path }}"
+
