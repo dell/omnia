@@ -3,7 +3,11 @@ Building an Omnia Cluster
 
 .. toctree::
 
+    AMD_ROCm
     Authentication
-    installscheduler
+    NFS
+    BeeGFS
     install_kubernetes
+    installscheduler
+
 

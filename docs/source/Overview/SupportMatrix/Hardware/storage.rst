@@ -38,3 +38,5 @@ PowerScale Storage
 
 .. versionadded:: 1.7
     PowerScale H500, PowerScale F710
+
+.. note:: Omnia does not support configuring PowerScale; it only allows users to add an existing PowerScale node to a Kubernetes cluster.
