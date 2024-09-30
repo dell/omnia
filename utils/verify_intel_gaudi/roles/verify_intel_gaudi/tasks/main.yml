@@ -15,7 +15,24 @@
 
 - name: Initialise node accelerator status
   ansible.builtin.set_fact:
-    node_has_accelerator: false
+    node_has_gaudi2: false
+    node_has_gaudi3: false
+
+- name: Check node has Gaudi3 or not
+  ansible.builtin.shell: |
+    set -o pipefail
+    lspci -n -d {{ gaudi3_pci_vendor_device_class }}
+  register: lspci_output
+  changed_when: false
+  failed_when: false
+  args:
+    executable: /bin/bash
+
+ name: Update node accelerator status
+  ansible.builtin.set_fact:
+    node_has_gaudi3: true
+  when: lspci_output.stdout | length > 0
+
 
 - name: Check node has Gaudi2 or not
   ansible.builtin.shell: |
@@ -26,21 +43,28 @@
   failed_when: false
   args:
     executable: /bin/bash
+  when: node_has_gaudi3 == false
 
 - name: Update node accelerator status
   ansible.builtin.set_fact:
-    node_has_accelerator: true
+    node_has_gaudi2: true
+  when: node_has_gaudi3 == false 
   when: lspci_output.stdout | length > 0
 
 - name: Include omnia_config.yml
   block:
     - ansible.builtin.include_tasks: include_omnia_config.yml
-  delegate_to: localhost
+  delegate_to: 127.0.0.1
 
-- name: Verify hl-qual on Gaudi nodes
-  ansible.builtin.include_tasks: hlqual_validation.yml
-  when: node_has_accelerator
+- name: Verify hl-qual on Gaudi3 nodes
+  ansible.builtin.include_tasks: hlqual_gaudi3_validation.yml
+  when: node_has_gaudi3
+
+- name: Verify hl-qual on Gaudi2 nodes
+  ansible.builtin.include_tasks: hlqual_gaudi2_validation.yml
+  when: node_has_gaudi2
+
 
 - name: Verify hccl on Gaudi nodes
   ansible.builtin.include_tasks: hccl_validation.yml
-  when: node_has_accelerator
+  when: node_has_gaudi2 or node_has_gaudi3
