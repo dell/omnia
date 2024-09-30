@@ -6,8 +6,7 @@ Building an Omnia Cluster
 
     AMD_ROCm
     Authentication
-    NFS
-    BeeGFS
+    Storage/index
     install_kubernetes
     installscheduler
 

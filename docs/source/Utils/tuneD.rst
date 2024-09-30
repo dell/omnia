@@ -52,4 +52,5 @@ Here's an example for adding/modifying multiple plugins in the ``performance_pro
 
 Run the playbook using the following commands: ::
 
+    cd utils/performance_profile
     ansible-playbook performance_profile.yml -i inventory
