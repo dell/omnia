@@ -18,9 +18,6 @@ Step 5: Configure the cluster
 
     schedulerprereqs
     schedulerinputparams
-    installscheduler
-    GPU_library/index
-    Storage/index
     BuildingCluster/index
 
 

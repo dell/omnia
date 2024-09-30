@@ -29,9 +29,7 @@ BeeGFS is a hardware-independent POSIX parallel file system (a.k.a. Software-def
         | 8006 | Helper service (beegfs-helperd)   |
         +------+-----------------------------------+
 
-
-
-To open the ports required, use the following steps:
+ To open the ports required, use the following steps:
 
     1. ``firewall-cmd --permanent --zone=public --add-port=<port number>/tcp``
 
@@ -41,11 +39,9 @@ To open the ports required, use the following steps:
 
     4. ``systemctl status firewalld``
 
-
-
-
 .. note:: BeeGFS services over RDMA is only supported on RHEL 8.3 and above due to limitations on BeeGFS. When setting up your cluster with RDMA support, check the BeeGFS documentation to provide appropriate values in ``input/storage_config.yml``.
 
+* If the cluster runs Rocky Linux, ensure that versions running are compatible by checking our `support matrix <../../../../Overview/SupportMatrix/OperatingSystems/Rocky.html>`_.
 
 **Installing the BeeGFS client via Omnia**
 
