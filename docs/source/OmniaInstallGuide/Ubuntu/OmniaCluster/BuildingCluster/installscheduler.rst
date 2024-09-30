@@ -9,7 +9,7 @@ Cluster formation
 
 .. note:: Omnia creates a log file which is available at: ``/var/log/omnia.log``.
 
-3. ``omnia.yml`` is a wrapper playbook of 6 playbooks and achieves the following tasks:
+3. ``omnia.yml`` is a wrapper playbook and achieves the following tasks:
 
     i. ``security.yml``: This playbook sets up centralized authentication (OpenLDAP) on the cluster. For more information, `click here. <Authentication.html>`_
     ii. ``storage.yml``: This playbook sets up storage tools such as, `NFS <../Storage/NFS.html>`_.
