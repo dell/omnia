@@ -116,3 +116,4 @@ Omnia installs the following packages on top of the Kubernetes stack:
 **Optional installation**
 
 * `Kubernetes device plugin for the RoCE NIC <../../AdvancedConfigurationsUbuntu/k8s_plugin_roce_nic.html>`_
+* `PowerScale CSI drivers <../../AdvancedConfigurationsUbuntu/PowerScale_CSI.html>`_

@@ -114,3 +114,6 @@ Omnia installs the following packages on top of the Kubernetes stack:
 
     Click `here <https://github.com/NVIDIA/k8s-device-plugin>`_ for more information.
 
+**Optional installation**
+
+* `PowerScale CSI drivers <../../AdvancedConfigurationsRHEL/PowerScale_CSI.html>`_
