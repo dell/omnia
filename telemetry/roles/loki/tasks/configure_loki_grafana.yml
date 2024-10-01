@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,9 +13,25 @@
 #  limitations under the License.
 ---
 
+- name: Wait for grafana pod to come to ready state
+  block:    
+    - name: Wait for grafana pod to come to ready state
+      ansible.builtin.command: kubectl wait --for=condition=ready --timeout="{{ pod_timeout }}" -n "{{ grafana_namespace }}" pod -l app="{{ grafana_k8s_name }}"
+      changed_when: false
+  rescue:
+    - name: Failed - grafana pod is not running
+      ansible.builtin.fail:
+        msg: "{{ grafana_pod_wait_fail_msg }}"
+
 - name: Wait for loki pod to come to ready state
-  ansible.builtin.command: kubectl wait --for=condition=ready --timeout={{ pod_timeout }} -n "{{ grafana_namespace }}" pod -l app="{{ loki_k8s_name }}"
-  changed_when: false
+  block:    
+    - name: Wait for loki pod to come to ready state
+      ansible.builtin.command: kubectl wait --for=condition=ready --timeout={{ pod_timeout }} -n "{{ grafana_namespace }}" pod -l app="{{ loki_k8s_name }}"
+      changed_when: false
+  rescue:
+    - name: Failed - loki pod is not running
+      ansible.builtin.fail:
+        msg: "{{ loki_pod_wait_fail_msg }}"
 
 - name: Get loki service ip
   ansible.builtin.command: kubectl get svc loki -n {{ grafana_namespace }} -o=jsonpath='{.spec.clusterIP}'
@@ -27,7 +43,26 @@
   changed_when: false
   register: loki_svc_port
 
+- name: Verify grafana url is reachable
+  environment:
+    no_proxy: "{{ grafana_svc_ip.stdout }}"
+  block:
+    - name: Verify grafana url is reachable
+      ansible.builtin.uri:
+        url: "http://{{ grafana_svc_ip.stdout }}:{{ grafana_svc_port.stdout }}"
+      register: grafana_url_status
+      until: grafana_url_status.status == 200
+      retries: "{{ url_retries }}"
+      failed_when: false
+
+    - name: Unreachable grafana url
+      ansible.builtin.fail:
+        msg: "{{ grafana_url_unreachable_fail_msg }}"
+      when: grafana_url_status.status != 200
+
 - name: Create loki datasource in grafana
+  environment:
+    no_proxy: "{{ grafana_svc_ip.stdout }}"
   block:
     - name: Create loki datasource in grafana
       community.grafana.grafana_datasource:
@@ -37,6 +72,7 @@
         grafana_password: "{{ grafana_password }}"
         ds_type: loki
         ds_url: "http://{{ loki_svc_ip.stdout }}:{{ loki_svc_port.stdout }}"
+        use_proxy: false
       no_log: true
       register: create_loki_datasource
   rescue:
@@ -45,6 +81,8 @@
         msg: "Error: {{ create_loki_datasource.msg }}"
 
 - name: Import loki dashboard in grafana
+  environment:
+    no_proxy: "{{ grafana_svc_ip.stdout }}"
   block:
     - name: Import loki dashboard in grafana
       community.grafana.grafana_dashboard:
@@ -55,6 +93,7 @@
         commit_message: Updated by ansible
         overwrite: true
         path: "{{ role_path }}/files/loki_dashboard.json"
+        use_proxy: false
       no_log: true
       register: import_loki_dashboard
   rescue:

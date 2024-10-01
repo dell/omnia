@@ -1,4 +1,4 @@
-# Copyright 2024 Intel Corporation.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,16 @@
 # limitations under the License.
 ---
 
-gaudi_metric_exporter_daemonset_url: "{{ hostvars['localhost']['offline_manifest_path'] }}/metric-exporter-daemonset.yaml"
-gaudi_metric_exporter_service_url: "{{ hostvars['localhost']['offline_manifest_path'] }}/metric-exporter-service.yaml"
-gaudi_metric_exporter_servicemonitor_url: "{{ hostvars['localhost']['offline_manifest_path'] }}/metric-exporter-serviceMonitor.yaml"
+- name: Initialise install_loki variable
+  ansible.builtin.set_fact:
+    install_loki: false
+
+- name: Check loki pod status
+  ansible.builtin.command: "kubectl get pods -A"
+  register: pod_status
+  changed_when: false
+
+- name: Set loki installation status to true
+  ansible.builtin.set_fact:
+    install_loki: true
+  when: "'loki' not in pod_status.stdout"

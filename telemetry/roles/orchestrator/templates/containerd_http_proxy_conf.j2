@@ -1,0 +1,4 @@
+[Service]
+Environment="HTTP_PROXY={{ proxy[0].http_proxy | default('', true) }}"
+Environment="HTTPS_PROXY={{ proxy[0].http_proxy | default('', true) }}"
+Environment="NO_PROXY=localhost,{{ cp_hostname }},*.{{ cp_domain_name }},{{ cp_ip_addresses | join(',') }},{{ pod_external_ip_range }},{{ k8s_service_addresses }},{{ k8s_pod_network_cidr }}{% if no_proxy_input_status %},{{ proxy[0].no_proxy }}{% endif %}"

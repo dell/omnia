@@ -1,0 +1,16 @@
+# Prometheus configuration
+prometheus:
+  prometheusSpec:
+    scrapeInterval: "{{ hostvars['localhost']['prometheus_scrape_interval'] }}s"
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: "{{ prometheus.storage }}" 
+          storageClassName: "{{ prometheus.storageClassName }}"
+
+# Grafana Configuration (Grafana is disabled here)
+grafana:
+  enabled: false

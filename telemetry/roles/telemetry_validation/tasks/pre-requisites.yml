@@ -35,14 +35,16 @@
       when: '"SELinux status:                 enabled" in sestatus_current.stdout_lines'
       changed_when: true
 
-- name: Install openshift using pip3
+- name: Install PyYAML using pip3
+  ansible.builtin.pip:
+    name: PyYAML
+    state: present
+    executable: pip3
+    extra_args: --ignore-installed
+
+- name: Install python packages using pip3
   ansible.builtin.pip:
     name: "{{ item }}"
     state: present
     executable: pip3
   with_items: "{{ pip_packages }}"
-
-- name: Install sqldb collection
-  ansible.builtin.command: ansible-galaxy collection install "{{ mysqldb_collection_name }}"
-  changed_when: false
-  retries: "{{ retry_count }}"

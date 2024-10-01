@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,48 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
-- name: Initialize variables
-  ansible.builtin.set_fact:
-    vault_filename: "{{ playbook_dir }}/../input/.telemetry_vault_key"
-    telemetry_config_file: "{{ playbook_dir }}/../input/telemetry_config.yml"
-
-- name: Check telemetry_config.yml file is encrypted
-  ansible.builtin.command: cat {{ telemetry_config_file }}
-  changed_when: false
-  register: config_content
-  no_log: true
-
-- name: Decrpyt telemetry_config.yml
-  ansible.builtin.command: >-
-    ansible-vault decrypt {{ telemetry_config_file }}
-    --vault-password-file {{ vault_filename }}
-  changed_when: false
-  when: "'$ANSIBLE_VAULT;' in config_content.stdout"
-
-- name: Include telemetry_config.yml
-  ansible.builtin.include_vars: "{{ telemetry_config_file }}"
-  no_log: true
-
-- name: Create ansible vault key
-  ansible.builtin.set_fact:
-    vault_key: "{{ lookup('password', '/dev/null chars=ascii_letters') }}"
-  when: "'$ANSIBLE_VAULT;' not in config_content.stdout"
-
-- name: Save vault key
-  ansible.builtin.lineinfile:
-    path: "{{ vault_filename }}"
-    line: "{{ vault_key }}"
-    mode: "{{ vault_file_perm }}"
-    owner: root
-    create: true
-  when: "'$ANSIBLE_VAULT;' not in config_content.stdout"
-
-- name: Encrypt telemetry_config.yml file
-  ansible.builtin.command: >-
-    ansible-vault encrypt {{ telemetry_config_file }}
-    --vault-password-file {{ vault_filename }}
-  changed_when: false
 
 # Include and initialize variables
 - name: Initiate telemetry process if idrac_support is enabled
@@ -133,9 +91,25 @@
     - name: Add iDRAC details in mysqldb
       when: telemetry_idrac is defined and (telemetry_idrac | length > 0)
       block:
+        - name: Wait for idrac-telemetry pod to come to ready state
+          block:
+            - name: Wait for idrac-telemetry pod to come to ready state
+              ansible.builtin.command: kubectl wait --for=condition=ready --timeout=10m -n "{{ namespace }}" pod -l app="{{ idrac_telemetry_k8s_name }}"
+              changed_when: false
+          rescue:
+            - name: Failed - idrac-telemetry pod is not running
+              ansible.builtin.fail:
+                msg: "{{ idrac_telemetry_pod_wait_fail_msg }}"
+
         - name: Wait for mysqldb pod to come to ready state
-          ansible.builtin.command: kubectl wait --for=condition=ready --timeout=10m -n "{{ namespace }}" pod -l app="{{ mysqldb_k8s_name }}"
-          changed_when: false
+          block:
+            - name: Wait for mysqldb pod to come to ready state
+              ansible.builtin.command: kubectl wait --for=condition=ready --timeout=10m -n "{{ namespace }}" pod -l app="{{ mysqldb_k8s_name }}"
+              changed_when: false
+          rescue:
+            - name: Failed - mysqldb pod is not running
+              ansible.builtin.fail:
+                msg: "{{ mysqldb_pod_wait_fail_msg }}"
 
         - name: Get mysqlDB svc IP
           ansible.builtin.command: kubectl get svc "{{ mysqldb_k8s_name }}" -n "{{ namespace }}" -o=jsonpath='{.spec.clusterIP}'
@@ -148,33 +122,59 @@
           register: mysql_svc_port
 
         - name: Add iDRAC host in mysqlDB
-          community.mysql.mysql_query:
-            login_host: "{{ mysql_svc_ip.stdout }}"
-            login_port: "{{ mysql_svc_port.stdout }}"
-            login_user: "{{ mysqldb_user }}"
-            login_password: "{{ mysqldb_password }}"
-            login_db: "{{ mysqldb_name }}"
-            query: INSERT IGNORE INTO {{ mysqldb_name + '.services' }} (ip, serviceType, authType, auth)
-                  VALUES (%s, %s, %s ,'{"password":"{{ idrac_password | quote }}","username":"{{ idrac_username | quote }}"}')
-            positional_args:
-              - "{{ item }}"
-              - "{{ service_type }}"
-              - "{{ auth_type }}"
-          with_items: "{{ telemetry_idrac }}"
-          no_log: true
+          environment:
+            no_proxy: "{{ mysql_svc_ip.stdout }}"
+          block:
+            - name: Check if services table exists
+              community.mysql.mysql_query:
+                login_host: "{{ mysql_svc_ip.stdout }}"
+                login_port: "{{ mysql_svc_port.stdout }}"
+                login_user: "{{ mysqldb_user }}"
+                login_password: "{{ mysqldb_password }}"
+                query: "SHOW TABLES FROM {{ mysqldb_name }}"
+              register: services_table_exists
+              until: services_table_exists is not failed and services_table_exists.query_result[0] | length > 1
+              retries: "{{ db_retries }}"
+              delay: "{{ db_delay }}"
+              no_log: true
 
+            - name: Add iDRAC host in mysqlDB
+              community.mysql.mysql_query:
+                login_host: "{{ mysql_svc_ip.stdout }}"
+                login_port: "{{ mysql_svc_port.stdout }}"
+                login_user: "{{ mysqldb_user }}"
+                login_password: "{{ mysqldb_password }}"
+                login_db: "{{ mysqldb_name }}"
+                query: INSERT IGNORE INTO {{ mysqldb_name + '.services' }} (ip, serviceType, authType, auth)
+                      VALUES (%s, %s, %s ,'{"password":"{{ idrac_password | quote }}","username":"{{ idrac_username | quote }}"}')
+                positional_args:
+                  - "{{ item }}"
+                  - "{{ service_type }}"
+                  - "{{ auth_type }}"
+              with_items: "{{ telemetry_idrac }}"
+              register: add_idrac_to_db
+              until: add_idrac_to_db is not failed
+              retries: "{{ db_retries }}"
+              delay: "{{ db_delay }}"
+              no_log: true
       rescue:
         - name: Show failure msg
           ansible.builtin.fail:
-            msg: "Adding iDRAC credential details to mysqldb failed."
+            msg: "{{ mysqldb_insert_fail_msg }}"
 
 # Initiate iDRAC collection
     - name: Initiate telemetry collection
       when: telemetry_idrac is defined and (telemetry_idrac | length > 0)
       block:
         - name: Wait for idrac-telemetry pod to come to ready state
-          ansible.builtin.command: kubectl wait --for=condition=ready --timeout=10m -n "{{ namespace }}" pod -l app="{{ idrac_telemetry_k8s_name }}"
-          changed_when: false
+          block:
+            - name: Wait for idrac-telemetry pod to come to ready state
+              ansible.builtin.command: kubectl wait --for=condition=ready --timeout=10m -n "{{ namespace }}" pod -l app="{{ idrac_telemetry_k8s_name }}"
+              changed_when: false
+          rescue:
+            - name: Failed - idrac-telemetry pod is not running
+              ansible.builtin.fail:
+                msg: "{{ idrac_telemetry_pod_wait_fail_msg }}"
 
         - name: Get idrac-telemetry pod name
           ansible.builtin.command: kubectl get pods -n "{{ namespace }}" -l app="{{ idrac_telemetry_k8s_name }}" -o jsonpath="{.items[0].metadata.name}"

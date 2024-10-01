@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,9 +14,15 @@
 ---
 
 
-- name: Wait for timescale pod to come to ready state
-  ansible.builtin.command: kubectl wait --for=condition=ready --timeout=10m -n "{{ namespace }}" pod -l app="{{ timescaledb_k8s_name }}"
-  changed_when: false
+- name: Wait for mysqldb pod to come to ready state
+  block:
+    - name: Wait for timescale pod to come to ready state
+      ansible.builtin.command: kubectl wait --for=condition=ready --timeout=10m -n "{{ namespace }}" pod -l app="{{ timescaledb_k8s_name }}"
+      changed_when: false
+  rescue:
+    - name: Failed - timescaledb pod is not running
+      ansible.builtin.fail:
+        msg: "{{ timescaledb_pod_wait_fail_msg }}"
 
 - name: Get timescaledb pod name
   ansible.builtin.command: kubectl get pod -n "{{ namespace }}" -l app="{{ timescaledb_k8s_name }}" -o jsonpath="{.items[0].metadata.name}"
@@ -24,7 +30,7 @@
   changed_when: false
 
 - name: Initialize database
-  ansible.builtin.command: kubectl exec -it "{{ timescaledb_pod_name.stdout }}" -n "{{ namespace }}" ./cmd/initialize_timescaledb.sh
+  ansible.builtin.command: kubectl exec -it "{{ timescaledb_pod_name.stdout }}" -n "{{ namespace }}" ./cmd/timescalepump/initialize_timescaledb.sh
   changed_when: false
   register: status
   until: status is not failed

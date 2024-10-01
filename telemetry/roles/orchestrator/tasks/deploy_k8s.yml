@@ -1,4 +1,4 @@
-#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright © 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -12,7 +12,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-
 - name: Create kubespray directory "{{ kubespray_path }}"
   ansible.builtin.file:
     path: "{{ kubespray_path }}"
@@ -23,7 +22,7 @@
   block:
     - name: Get kubespray git repo tarball
       ansible.builtin.get_url:
-        url: "{{ offline_git_path }}/kubespray.tar.gz"
+        url: "{{ offline_git_path }}/{{ telemetry_package_map['kubespray'] }}.tar.gz"
         dest: "{{ kubespray_path }}"
         mode: "{{ permission_644 }}"
       failed_when: false
@@ -34,7 +33,7 @@
 
 - name: Untar kubespray git repo
   ansible.builtin.unarchive:
-    src: "{{ kubespray_path }}/kubespray.tar.gz"
+    src: "{{ kubespray_path }}/{{ telemetry_package_map['kubespray'] }}.tar.gz"
     dest: "{{ kubespray_path }}"
 
 - name: Create k8s_var from template
@@ -50,6 +49,10 @@
     --extra-vars "@{{ role_path }}/files/k8s_var.yml"
   args:
     chdir: "{{ kubespray_path }}/kubespray"
+  environment:
+    HTTP_PROXY: "{{ proxy[0].http_proxy | default('', true) }}"
+    HTTPS_PROXY: "{{ proxy[0].https_proxy | default('', true) }}"
+    NO_PROXY: "localhost,{{ cp_hostname }},*.{{ cp_domain_name }},{{ cp_ip_addresses | join(',') }},{{ hostvars['localhost']['pod_external_ip_range'] }},{{ hostvars['localhost']['k8s_service_addresses'] }},{{ hostvars['localhost']['k8s_pod_network_cidr'] }}" # noqa: yaml[line-length]
   register: k8s_install
   changed_when: k8s_install.changed
   failed_when: false
@@ -60,13 +63,16 @@
   register: kubectl_command_status
   failed_when: false
 
+- name: Kubespray error log if kubernetes installation not successful
+  ansible.builtin.lineinfile:
+    path: "{{ kubespray_log }}"
+    line: "{{ k8s_install.stdout_lines }}"
+    state: present
+    create: true
+    mode: "{{ permission_644 }}"
+  when: kubectl_command_status.rc != 0
+
 - name: Fail if Kubernetes installation not successful
   ansible.builtin.fail:
     msg: "{{ fail_msg_kubespray }}"
   when: kubectl_command_status.rc != 0
-
-- name: Cleanup "{{ kubespray_path }}"
-  ansible.builtin.command: "rm -rf {{ kubespray_path }}"
-  register: command_result
-  changed_when: command_result.changed
-  failed_when: false

@@ -78,7 +78,16 @@
                       secretKeyRef:
                         name: "{{ secrets_name }}"
                         key: timescaledb_password
+                  - name: POSTGRES_PASS
+                    valueFrom:
+                      secretKeyRef:
+                        name: "{{ secrets_name }}"
+                        key: timescaledb_password
                   - name: TIMESCALE_DB
                     value: "{{ timescaledb_name }}"
+                  - name: POSTGRES_HOST
+                    value: "{{ timescaledb_k8s_name }}"
+                  - name: POSTGRES_PORT
+                    value: "{{ timescaledb_port }}"
                 ports:
                   - containerPort: "{{ timescaledb_container_port }}"
