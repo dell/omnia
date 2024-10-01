@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -40,40 +40,97 @@
     xcat_installation_status: false
     validation_status: true
 
-- name: Check output of network table
+- name: Gathering service facts
+  ansible.builtin.service_facts:
+
+- name: Fetch network table entries
   ansible.builtin.command: "{{ xcat_path }}/lsdef -t network"
   changed_when: false
   failed_when: false
-  register: network_table_check
+  register: fetch_network
 
-- name: Restart postgresql and xcat services if xcat already installed
-  ansible.builtin.service:
-    name: "{{ item }}"
-    state: restarted
-    enabled: true
-  failed_when: false
-  with_items:
-    - postgresql
-    - xcatd
+- name: Try restart postgresql service if not running in Ubuntu
   when:
-    - network_table_check.stderr is defined
-    - xcat_connection_search_key in network_table_check.stderr | lower
+    - control_plane_os == control_plane_os_ubuntu
+    - fetch_network.rc != 0
+  block:
+    - name: Try restart postgresql service if not running in Ubuntu
+      ansible.builtin.systemd:
+        name: "{{ postgresql_service_ubuntu }}"
+        state: restarted
+      register: postgresql_restart
+      until: postgresql_restart is not failed
+      retries: "{{ service_retries }}"
+      when:
+        - postgresql_service_ubuntu in ansible_facts.services
+  rescue:
+    - name: Unable to start postgresql services
+      ansible.builtin.debug:
+        msg: "{{ postgresql_start_fail_msg }}"
+
+- name: Try restart postgresql service if not running in RHEL/Rocky
+  when:
+    - control_plane_os == control_plane_os_redhat or control_plane_os == control_plane_os_rocky
+    - fetch_network.rc != 0
+  block:
+    - name: Try restart postgresql service if not running in RHEL/Rocky
+      ansible.builtin.systemd:
+        name: "{{ postgresql_service_rhel }}"
+        state: restarted
+      register: postgresql_restart
+      until: postgresql_restart is not failed
+      retries: "{{ service_retries }}"
+      when:
+        - postgresql_service_rhel in ansible_facts.services
+  rescue:
+    - name: Unable to start postgresql services
+      ansible.builtin.debug:
+        msg: "{{ postgresql_start_fail_msg }}"
+
+- name: Try restart xcatd service if not running
+  block:
+    - name: Try restart xcatd service if not running
+      ansible.builtin.systemd:
+        name: xcatd
+        state: restarted
+      register: xcatd_restart
+      until: xcatd_restart is not failed
+      retries: "{{ service_retries }}"
+      when:
+        - xcatd_service in ansible_facts.services
+        - "'running' not in ansible_facts.services[xcatd_service].state"
+  rescue:
+    - name: Unable to start xcatd services
+      ansible.builtin.debug:
+        msg: "{{ xcat_start_fail_msg }}"
 
 - name: Gathering service facts
   ansible.builtin.service_facts:
 
-- name: Check output of site table
-  ansible.builtin.command: "{{ xcat_sbin_path }}/tabdump site"
+- name: Fetch network table entries
+  ansible.builtin.command: "{{ xcat_path }}/lsdef -t network"
   changed_when: false
   failed_when: false
-  register: site_table_check
+  register: fetch_network
 
-- name: Set xcat_installation_status to true
+- name: Set xcat_installation_status to true for RHEL/Rocky
   ansible.builtin.set_fact:
     xcat_installation_status: true
   when:
+    - control_plane_os == control_plane_os_redhat or control_plane_os == control_plane_os_rocky
     - xcatd_service in ansible_facts.services
-    - postgresql_service in ansible_facts.services
+    - postgresql_service_rhel in ansible_facts.services
     - "'running' in ansible_facts.services[xcatd_service].state"
-    - "'running' in ansible_facts.services[postgresql_service].state"
-    - "'#key,value' in site_table_check.stdout"
+    - "'running' in ansible_facts.services[postgresql_service_rhel].state"
+    - fetch_network.rc == 0
+
+- name: Set xcat_installation_status to true for Ubuntu
+  ansible.builtin.set_fact:
+    xcat_installation_status: true
+  when:
+    - control_plane_os == control_plane_os_ubuntu
+    - xcatd_service in ansible_facts.services
+    - postgresql_service_ubuntu in ansible_facts.services
+    - "'running' in ansible_facts.services[xcatd_service].state"
+    - "'running' in ansible_facts.services[postgresql_service_ubuntu].state"
+    - fetch_network.rc == 0

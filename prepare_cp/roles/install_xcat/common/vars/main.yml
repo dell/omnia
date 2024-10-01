@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -26,14 +26,17 @@ warning_wait_time: 30
 reprovision_warning_msg: "[WARNING] xcatd services are not running in the server. Re-provisioning of nodes will be skipped for the given inventory."
 control_plane_os_redhat: "redhat"
 control_plane_os_rocky: "rocky"
+control_plane_os_ubuntu: "ubuntu"
 xcat_path: /opt/xcat/bin
 xcat_sbin_path: /opt/xcat/sbin
-
-# Usage: package_installation.yml
-ansible_galaxy_collection:
-  - ansible.utils:2.12.0
-  - community.general:8.6.0
+xcatd_service: "xcatd.service"
+postgresql_service_rhel: "postgresql.service"
+postgresql_service_ubuntu: "postgresql"
+postgresql_start_fail_msg: "Failed to start postgresql services"
+xcat_start_fail_msg: "Failed to start xcatd services"
+service_retries: 3
 python_version: "{{ ansible_python_interpreter }}"
+
 # snmp_python_package: easysnmp
 postgres_python_package: psycopg2-binary
 requests_python_package: requests

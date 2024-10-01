@@ -15,12 +15,22 @@
 
 # Usage: prepare_cp_status
 inv_directory_path: "/opt/omnia/omnia_inventory"
-compute_servicetag_ip_filename: "compute_servicetag_ip"
-inv_file_path_list: "{{ inv_directory_path }}/{{ compute_servicetag_ip_filename }}"
+compute_hostname_ip_filename: "compute_hostname_ip"
+inv_file_path_list: "{{ inv_directory_path }}/{{ compute_hostname_ip_filename }}"
 xcatd_service: "xcatd.service"
 postgresql_service_rhel: "postgresql.service"
 postgresql_service_ubuntu: "postgresql"
-prepare_cp_execution_req: "Failed! Please run prepare_cp/prepare_cp.yml and then re-execute discovery/discovery.yml"
+prepare_cp_execution_req: "Failed. If run the discovery/discovery.yml playbook, please ensure that you run the prepare_cp/prepare_cp.yml playbook before
+executing the discovery/discovery.yml playbook. If you're encountering this issue while running the discovery_provision.yml playbook,
+please cleanup provision tasks by running the 'ansible-playbook utils/control_plane_cleanup.yml --tags provision'.
+After verifying your input files and control plane admin NIC configuration, re-run the playbook discovery_provision.yml."
+xcat_path: /opt/xcat/bin
+control_plane_os_redhat: "redhat"
+control_plane_os_rocky: "rocky"
+control_plane_os_ubuntu: "ubuntu"
+postgresql_start_fail_msg: "Failed to start postgresql services"
+xcat_start_fail_msg: "Failed to start xcatd services"
+service_retries: 3
 
 # Usage: pre_requisite.yml
 provision_config_filename: "{{ role_path }}/../../../input/provision_config.yml"
@@ -33,7 +43,6 @@ provision_config_cred_syntax_fail_msg: "Failed. Syntax errors present in provisi
 conf_file_mode: "0644"
 local_repo_config_file: "{{ role_path }}/../../../input/local_repo_config.yml"
 local_repo_config_syntax_fail_msg: "Failed. Syntax errors present in local_repo_config.yml. Fix errors and re-run playbook again."
-
 
 # Usage: Validate_provision_credentials.yml
 postgresdb_password_fail_msg: "Failed. postgresdb_password should contain only alphanumeric characters and minimum length 8 in provision_config.yml"

@@ -48,11 +48,3 @@
   with_items:
     - "{{ netaddr_pip_package }}"
     - "{{ pexpect_pip_package }}"
-
-- name: Install ansible galaxy collection ansible.utils
-  ansible.builtin.command: ansible-galaxy collection install "{{ item }}"
-  changed_when: true
-  register: ansible_collection_install
-  until: ansible_collection_install is not failed
-  retries: "{{ max_retries }}"
-  with_items: "{{ ansible_galaxy_collection }}"
