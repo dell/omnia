@@ -16,7 +16,7 @@
 
 - name: Inventory not provided
   ansible.builtin.fail:
-    msg: "{{ juptyerhub_empty_inventory_fail_msg }}"
+    msg: "{{ pytorch_empty_inventory_fail_msg }}"
   when:
     - groups['all'] is defined
     - (groups['all'] | length == 0)

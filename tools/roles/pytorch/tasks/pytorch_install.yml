@@ -18,8 +18,20 @@
   environment:
     http_proxy: "{{ http_proxy }}"
     https_proxy: "{{ https_proxy }}"
+    no_proxy: "{{ control_plane_hostname }},{{ admin_nic_ip }}"
   when: processing_unit == "cpu"
   block:
+    - name: Validate pytorch_cpu_image_package and pytorch_cpu_image_version
+      ansible.builtin.assert:
+        that:
+          - pytorch_cpu_image_package is defined
+          - pytorch_cpu_image_version is defined
+        fail_msg: "{{ pytorch_cpu_definition_fail_msg }}"
+
+    - name: Set pytorch_cpu_image
+      ansible.builtin.set_fact:
+        pytorch_cpu_image: "{{ pytorch_cpu_image_package }}:{{ pytorch_cpu_image_version }}"
+
     - name: Pull CPU container image
       ansible.builtin.command: "nerdctl pull {{ pytorch_cpu_image }}"
       changed_when: false
@@ -40,6 +52,7 @@
   environment:
     http_proxy: "{{ http_proxy }}"
     https_proxy: "{{ https_proxy }}"
+    no_proxy: "{{ control_plane_hostname }},{{ admin_nic_ip }}"
   when: processing_unit == "amd"
   block:
     - name: Pull AMD GPU container image
@@ -62,8 +75,20 @@
   environment:
     http_proxy: "{{ http_proxy }}"
     https_proxy: "{{ https_proxy }}"
+    no_proxy: "{{ control_plane_hostname }},{{ admin_nic_ip }}"
   when: processing_unit == "nvidia"
   block:
+    - name: Validate pytorch_nvidia_image_package and pytorch_nvidia_image_version
+      ansible.builtin.assert:
+        that:
+          - pytorch_nvidia_image_package is defined
+          - pytorch_nvidia_image_version is defined
+        fail_msg: "{{ pytorch_nvidia_definition_fail_msg }}"
+
+    - name: Set pytorch_nvidia_image
+      ansible.builtin.set_fact:
+        pytorch_nvidia_image: "{{ pytorch_nvidia_image_package }}:{{ pytorch_nvidia_image_version }}"
+
     - name: Pull NVIDIA GPU container image
       ansible.builtin.command: "nerdctl pull {{ pytorch_nvidia_image }}"
       changed_when: false
@@ -84,8 +109,20 @@
   environment:
     http_proxy: "{{ http_proxy }}"
     https_proxy: "{{ https_proxy }}"
+    no_proxy: "{{ control_plane_hostname }},{{ admin_nic_ip }}"
   when: processing_unit == "gaudi"
   block:
+    - name: Validate pytorch_gaudi_image_package and pytorch_gaudi_image_version
+      ansible.builtin.assert:
+        that:
+          - pytorch_gaudi_image_package is defined
+          - pytorch_gaudi_image_version is defined
+        fail_msg: "{{ pytorch_gaudi_definition_fail_msg }}"
+
+    - name: Set pytorch_gaudi_image
+      ansible.builtin.set_fact:
+        pytorch_gaudi_image: "{{ pytorch_gaudi_image_package }}:{{ pytorch_gaudi_image_version }}"
+
     - name: Pull GAUDI HPU container image
       ansible.builtin.command: "nerdctl pull {{ pytorch_gaudi_image }}"
       changed_when: false

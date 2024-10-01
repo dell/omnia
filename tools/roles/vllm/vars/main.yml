@@ -19,7 +19,21 @@ vllm_warning: "The vLLM container requires at least 60GB of storage. Additionall
 so please ensure that the necessary storage is available."
 installation_success_status: "vLLM succesfully installed"
 installation_failed_status: "Failed to install vLLM"
-vllm_python_version: "python3.9"
+
+# Validate inventory
+fail_no_node_kube_node: "Failed. vllm software is present in software_config.json. No node is part of kube_node group in inventory"
+fail_inv_format: "Failed. vllm software is present in software_config.json.
+Invalid inventory format, specify kube_control_plane and kube_node."
+fail_node_kube_control_plane: "Failed. vllm software is present in software_config.json.
+There should be exactly one entry for kube_control_plane in the inventory"
+vllm_empty_inventory_fail_msg: |
+  "Failed. Inventory not provided.
+  Please re-run the playbook with an inventory that includes the groups 'kube_control_plane' and 'kube_node' by using the -i inventory option"
+
+# For checking entry in software_config.json
+vllm_not_in_software_config: |
+  "vllm is not present in software_config.json.
+  Please mention vllm in software_config.json and execute vllm.yml again"
 
 # For env proxy setup
 local_repo_access_path: "/opt/omnia/offline/local_repo_access.yml"
@@ -28,8 +42,8 @@ local_repo_access_path: "/opt/omnia/offline/local_repo_access.yml"
 software_config_json_file: "{{ role_path }}/../../../input/software_config.json"
 software_config_parameters_fail_msg: "Failed. Please ensure cluster_os_type, cluster_os_verion, repo_config, softwares are defined in software_config.json"
 vllm_python_package:
-  - python3-pip
-  - python3.9-distutils
+  - "{{ vllm_python_version.split('.')[0] }}-pip"
+  - "{{ vllm_python_version }}-distutils"
 
 # vllm.json file path
 vllm_json_file: "{{ role_path }}/../../../input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/vllm.json"
@@ -44,6 +58,7 @@ error_check_pytorch_failed: "Failed to install dependency - pytorch"
 omnia_foler_path: "/opt/omnia"
 omnia_foler_stat: "directory"
 omnia_foler_mode: "0755"
+ubuntu_os: "ubuntu"
 
 # Usage: vllm_install.yml
 vllm_run_cmd_start: "nerdctl run -it --network=host --group-add=video --ipc=host --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --device /dev/kfd "

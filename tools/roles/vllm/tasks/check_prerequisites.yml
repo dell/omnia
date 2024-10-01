@@ -48,6 +48,7 @@
         vllm_amd_image_version: "{{ vllm_packages.ansible_facts.vllm_amd.cluster[0].tag }}"
         vllm_pytorch_cuda_version: "{{ vllm_packages.ansible_facts.vllm_nvidia.cluster[1].package }}"
         vllm_nvidia_package: "{{ vllm_packages.ansible_facts.vllm_nvidia.cluster[2].package }}"
+        vllm_python_version: "{{ vllm_packages.ansible_facts['vllm_nvidia']['cluster'] | selectattr('type', 'in', ['deb', 'rpm']) | selectattr('package', 'search', 'python') | map(attribute='package') | first }}"   # noqa: yaml[line-length]
 
     - name: Validate package details
       ansible.builtin.assert:
@@ -162,7 +163,7 @@
       changed_when: false
       failed_when: false
 
-    - name: Install Python 3.9
+    - name: Install {{ vllm_python_version }}
       ansible.builtin.package:
         name: "{{ vllm_python_version }}"
         state: present
@@ -170,13 +171,17 @@
       changed_when: true
       failed_when: false
 
-    - name: Install pip and python3.9 distutils
+    - name: Install pip and disutils for {{ vllm_python_version }}
       ansible.builtin.package:
         name: "{{ vllm_python_package }}"
         state: present
-      changed_when: true
-      failed_when: false
+      when: ansible_distribution | lower == ubuntu_os
 
+    - name: Ensure and install pip package
+      ansible.builtin.command:
+        cmd: "{{ vllm_python_version }} -m ensurepip"
+      changed_when: false
+      
     - name: Install pytorch
       ansible.builtin.command: "{{ vllm_python_version }} -m pip install torch==2.1.2 --upgrade --index-url https://download.pytorch.org/whl/cu121"
       changed_when: true

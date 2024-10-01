@@ -11,29 +11,18 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
 ---
 
 - name: Inventory not provided
   ansible.builtin.fail:
-    msg: "{{ juptyerhub_empty_inventory_fail_msg }}"
+    msg: "{{ mpijob_empty_inventory_fail_msg }}"
   when:
     - groups['all'] is defined
     - (groups['all'] | length == 0)
 
-- name: Validate kube_control_plane and kube_node group in inventory
+- name: Validate kube_control_plane group
   ansible.builtin.assert:
     that:
       - groups['kube_control_plane'] is defined
-      - groups['kube_node'] is defined
-    fail_msg: "{{ fail_inv_format }}"
-
-- name: Validate kube_control_plane group
-  ansible.builtin.assert:
-    that: "groups['kube_control_plane'] | length | int == 1"
+      - "groups['kube_control_plane'] | length | int == 1"
     fail_msg: "{{ fail_node_kube_control_plane }}"
-
-- name: Validate kube_node group
-  ansible.builtin.assert:
-    that: "groups['kube_node'] | length | int >= 1"
-    fail_msg: "{{ fail_no_node_kube_node }}"
