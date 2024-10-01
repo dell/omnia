@@ -55,7 +55,9 @@ Required","* Mandatory when ``cluster_os_type`` is rhel in ``softwares_config.js
 * When repo_config is ""partial"" or ""never"", the packages required for cluster which were coming from ``rhel_repo_url`` will not be downloaded.
 * The ``rhel_os_url`` is configured via proxy in compute nodes.
 
-* **Example**: If ``cluster_os_type`` is rhel, ``rhel_os_url`` might be ""- {url: ""http://crb.com/CRB/x86_64/os/"", gpgkey: ""http://crb.com/CRB/x86_64/os/RPM-GPG-KEY""}"""
+* **Example**: If ``cluster_os_type`` is rhel, ``rhel_os_url`` might be ""- {url: ""http://crb.com/CRB/x86_64/os/"", gpgkey: ""http://crb.com/CRB/x86_64/os/RPM-GPG-KEY""}""
+
+.. caution:: Omnia does not support adding a Red Hat subscription URL to the ``rhel_os_url`` parameter. Adding it results in an error during ``local_repo.yml`` playbook execution. For more information, `click here <../../../Troubleshooting/KnownIssues/RHEL/local_repo.html>`_."
 "**omnia_repo_url_rhel**
 
 ``JSON List``
