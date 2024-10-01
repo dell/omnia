@@ -77,3 +77,5 @@ The inventory file passed for ``reset_cluster_configuration.yml`` should follow 
         10.5.1.105
 
         10.5.1.106
+
+.. note:: After running the ``reset_cluster_configuration.yml`` playbook on a Kubernetes cluster, it is observed that some Kubernetes logs and configuration files are still present on the ``kube_control_plane``. For more information about this, `click here <../../Troubleshooting/KnownIssues/Common/Kubernetes.html>`_.
