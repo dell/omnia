@@ -2,8 +2,8 @@
 Intel®,"* Ethernet 10G 4P X710/I350 rNDC
 * Ethernet Converged Network Adapter X710
 * 25GbE Ethernet Network Adapter E810
-*  100GbE Ethernet Network Adapter E810
-* I350GbE Ethernet Controller",
+* 100GbE Ethernet Network Adapter E810
+* I350GbE Ethernet Controller",* 100GbE Ethernet Network Adapter E810
 NVIDIA ,"* ConnectX-5 Single Port 100 GbE QSFP+
 * ConnectX-5 Single Port 0 GbE QSFP
 * ConnectX-5 Single Port 56 GbE QSFP+
