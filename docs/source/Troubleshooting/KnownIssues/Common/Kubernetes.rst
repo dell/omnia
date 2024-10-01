@@ -114,3 +114,15 @@ Kubernetes
 **Potential Cause**: nvidia-container-toolkit is not installed on GPU nodes.
 
 **Resolution**: Install Kubernetes, download nvidia-container-toolkit, and perform the necessary configurations based on the OS running on the cluster.
+
+⦾ **After running the ``reset_cluster_configuration.yml`` playbook on a Kubernetes cluster, which should ideally delete all Kubernetes services and files, it is observed that some Kubernetes logs and configuration files are still present on the ``kube_control_plane``. However, these left-over files do not cause any issues for Kubernetes re-installation on the cluster. The files are present under the following directories:**
+
+* ``/var/log/containers/``
+* ``/sys/fs/cgroup/``
+* ``etc/system``
+* ``/run/systemd/transient/``
+* ``/tmp/releases``
+
+**Potential Cause**: When ``reset_cluster_configuration.yml`` is executed on a Kubernetes cluster, it triggers the Kubespray playbook ``kubernetes_sigs.kubespray.reset`` internally, which is responsible for removing Kubernetes configuration and services from the cluster. However, this Kubespray playbook doesn't delete all Kubernetes services and files, resulting in some files being left behind on the ``kube_control_plane``.
+
+**Workaround**: After running the ``reset_cluster_configuration.yml`` playbook on a Kubernetes cluster, users can choose to remove the files from the directories mentioned above if they wish to do so.
