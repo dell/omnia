@@ -12,17 +12,30 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+- name: Updating repos and installing python package
+  block:
+    - name: Update repos in Ubuntu
+      ansible.builtin.apt:
+        update_cache: true
+      register: update_repos
+      until: update_repos is not failed
+      retries: "{{ repo_retries }}"
+      delay: "{{ repo_delay }}"
+
+    - name: Install python packages
+      ansible.builtin.apt:
+        name: "{{ python_packages }}"
+        state: present
+  rescue:
+    - name: Failed to update repos
+      ansible.builtin.fail:
+        msg: "{{ update_repos_fail_msg }}"
 
 - name: Install packages
   environment:
     http_proxy: "{{ http_proxy }}"
     https_proxy: "{{ https_proxy }}"
   block:
-    - name: Install {{ python_version }}
-      ansible.builtin.package:
-        name: "{{ python_packages }}"
-        state: present
-
     - name: Install required ansible packages
       ansible.builtin.command:
         cmd: "{{ python_version }} -m pip install {{ ansible_name }}=={{ secure_ansible_version }} {{ cryptography_name }}=={{ cryptography_version }}"

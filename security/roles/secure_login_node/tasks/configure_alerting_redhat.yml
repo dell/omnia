@@ -12,16 +12,35 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+- name: Updating repos and installing python package
+  block:
+    - name: Update repos in RHEL/Rocky
+      ansible.builtin.dnf:
+        update_cache: true
+      register: update_repos
+      until: update_repos is not failed
+      retries: "{{ repo_retries }}"
+      delay: "{{ repo_delay }}"
+
+    - name: Install {{ python_version }}
+      ansible.builtin.dnf:
+        name: "{{ python_version }}"
+        state: present
+  rescue:
+    - name: Failed to update repos
+      ansible.builtin.fail:
+        msg: "{{ update_repos_fail_msg }}"
 
 - name: Install packages
   environment:
     http_proxy: "{{ http_proxy }}"
     https_proxy: "{{ https_proxy }}"
   block:
-    - name: Install {{ python_version }}
-      ansible.builtin.package:
-        name: "{{ python_version }}"
-        state: present
+
+    - name: Install pip for {{ python_version }}
+      ansible.builtin.command:
+        cmd: "{{ python_version }} -m ensurepip --upgrade"
+      changed_when: false
 
     - name: Install required ansible packages
       ansible.builtin.command:

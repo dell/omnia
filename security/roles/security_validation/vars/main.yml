@@ -23,7 +23,7 @@ hosts_file_dest: "/etc/hosts"
 hosts_file_mode: "0644"
 security_config_syntax_fail_msg: "Failed. Syntax errors present in security_config.yml. Fix errors and re-run playbook again."
 
-# Usage: fetch_inputs.yml
+# Usage: validate_input_params.yml
 authentication_system_success_msg: "authentication_system variable successfully validated"
 authentication_system_fail_msg: "Failed. authentication_system variable in security_config.yml should be either openldap or freeipa"
 min_length: 8
@@ -43,6 +43,9 @@ secure_login_node_fail_msg: "Failed. enable_secure_login_node should be either t
 secure_login_node_warning_msg: "[WARNING] enable_secure_login_node is true in security_config.yml and
 login group not provided with login node IP address in inventory. Skipping tasks for secure login node configuration"
 ubuntu_freeipa_support_fail_msg: "Failed. freeipa is not supported on ubuntu. Remove freeipa from software_config.json and rerun the playbook"
+proxy_env_fail_msg: "Failed. The values for http_proxy and https_proxy in the
+proxy variable of the site_config.yml should be set as environment variables http_proxy and https_proxy in the control plane.
+The no_proxy environment variable should include the control plane hostname and the admin network IP address."
 
 # Usage: fetch_security_inputs.yml
 max_failures_success_msg: "max_failures successfully validated"
