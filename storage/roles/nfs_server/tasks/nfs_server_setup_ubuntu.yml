@@ -34,14 +34,14 @@
     state: directory
     mode: "{{ nfs_share_dir_mode }}"
   loop: "{{ hostvars['127.0.0.1']['nfs_client_params'] }}"
-  when: item.server_ip == ansible_host
+  when: item.server_ip == ansible_host or hostvars['127.0.0.1']['admin_nic_ip'] in ansible_host
 
 - name: Adding NFS share entries in /etc/exports
   ansible.builtin.lineinfile:
     path: "{{ exports_file_path }}"
     line: "{{ item.server_share_path }} {{ hostvars['127.0.0.1']['admin_nic_subnet'] }}(rw,sync,no_root_squash)"
   with_items: "{{ hostvars['127.0.0.1']['nfs_client_params'] }}"
-  when: item.server_ip == ansible_host
+  when: item.server_ip == ansible_host or hostvars['127.0.0.1']['admin_nic_ip'] in ansible_host
 
 - name: Exporting the shared directories
   ansible.builtin.command: exportfs -r

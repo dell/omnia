@@ -14,17 +14,17 @@
 ---
 
 - name: Include Powervault variables
-  include_vars: "{{ role_path }}/../../control_plane/input_params/powervault_vars.yml"
+  ansible.builtin.include_vars: "{{ role_path }}/../../control_plane/input_params/powervault_vars.yml"
 
 - name: Set powervault username and password
-  set_fact:
+  ansible.builtin.set_fact:
     powervault_username: "{{ hostvars['127.0.0.1']['powervault_username'] }}"
     powervault_password: "{{ hostvars['127.0.0.1']['powervault_password'] }}"
     powervault_ip: "{{ hostvars['127.0.0.1']['powervault_ip'] }}"
   no_log: true
 
 - name: Get auth string
-  shell: >
+  ansible.builtin.shell: >
           set -o pipefail && \
           echo -n {{ powervault_username }}_{{ powervault_password }}  | sha256sum
   register: auth_string
@@ -32,58 +32,58 @@
   delegate_to: localhost
 
 - name: Get auth string
-  shell: echo -n {{ powervault_username }}_{{ powervault_password }}  | sha256sum
+  ansible.builtin.shell: echo -n {{ powervault_username }}_{{ powervault_password }}  | sha256sum
   register: port_auth_string
   changed_when: false
   delegate_to: localhost
   no_log: true
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: Get session key
-  uri:
+  ansible.builtin.uri:
     url: https://{{ powervault_ip }}/api/login/{{ port_auth_string.stdout | replace(" -", "") }}
     method: GET
     headers:
       {'datatype': 'json'}
-    validate_certs: no
+    validate_certs: false
   register: port_session_key
   delegate_to: localhost
 
 - name: Execute show system command
-  uri:
+  ansible.builtin.uri:
     url: https://{{ powervault_ip }}/api/show/system
     method: GET
     body_format: json
-    validate_certs: no
-    use_proxy: no
+    validate_certs: false
+    use_proxy: false
     timeout: 60
     headers:
       {'sessionKey': "{{ port_session_key.json.status[0].response }}", 'datatype':'json'}
   register: system_info
 
 - name: Get the product id
-  set_fact:
+  ansible.builtin.set_fact:
     pv_id: "{{ system_info.json.system[0]['product-id'] }}"
 
 - name: Verify the product id and model no. of device
-  assert:
+  ansible.builtin.assert:
     that: ("ME4" in pv_id)
     fail_msg: "{{ fail_iscsi_support }}"
 
 - name: Show ports
-  uri:
+  ansible.builtin.uri:
     url: https://{{ powervault_ip }}/api/show/ports
     method: GET
     body_format: json
-    validate_certs: no
-    use_proxy: no
+    validate_certs: false
+    use_proxy: false
     headers:
       {'sessionKey': "{{ port_session_key.json.status[0].response }}", 'datatype':'json'}
   register: show_ports
   delegate_to: localhost
 
 - name: Up ports
-  set_fact:
+  ansible.builtin.set_fact:
     up_port: "{{ up_port + [item.port] }}"
     target_id: "{{ item.get('target-id') }}"
   when: item.status == "Up"
@@ -92,18 +92,18 @@
     label: "{{ item.port }}"
 
 - name: Set ip
-  set_fact:
-    set_port_ip: "{{ set_port_ip+['{{ port_ip }}{{ temp|int }}'] }}"
-    temp: "{{ temp|int+t|int }}"
+  ansible.builtin.set_fact:
+    set_port_ip: "{{ set_port_ip + ['{{ port_ip }}{{ temp | int }}'] }}"
+    temp: "{{ temp | int + t | int }}"
   loop: "{{ up_port }}"
 
 - name: Assign ip to ports
-  uri:
-    url: https://{{ powervault_ip }}/api/set/host-parameters/gateway/{{ port_gateway }}/ip/{{ item.0 }}/netmask/{{ port_netmask }}/ports/{{ item.1 }}/prompt/yes/noprompt
+  ansible.builtin.uri:
+    url: https://{{ powervault_ip }}/api/set/host-parameters/gateway/{{ port_gateway }}/ip/{{ item.0 }}/netmask/{{ port_netmask }}/ports/{{ item.1 }}/prompt/yes/noprompt # noqa: yaml[line-length]
     method: GET
     body_format: json
-    validate_certs: no
-    use_proxy: no
+    validate_certs: false
+    use_proxy: false
     headers:
       {'sessionKey': "{{ port_session_key.json.status[0].response }}", 'datatype':'json'}
   register: set_ports

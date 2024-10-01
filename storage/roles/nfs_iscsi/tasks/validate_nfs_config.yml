@@ -14,22 +14,22 @@
 ---
 
 - name: Include variable file for powervault
-  include_vars:  "{{ role_path }}/vars/main.yml"
+  ansible.builtin.include_vars: "{{ role_path }}/vars/main.yml"
   no_log: true
 
 - name: Refresh ssh-key
-  command: ssh-keygen -R {{ inventory_hostname }}
+  ansible.builtin.command: ssh-keygen -R {{ inventory_hostname }}
   register: ping_result
   changed_when: false
   failed_when: false
 
 - name: Check for nfs node nic
-  command: nmcli device show {{ pv_nic }}
+  ansible.builtin.command: nmcli device show {{ pv_nic }}
   register: nic_output
   changed_when: false
   failed_when: false
 
 - name: Fail if wrong nic
-  fail:
+  ansible.builtin.fail:
     msg: "{{ nic_error }}"
   when: 'pv_nic in nic_output.stderr'

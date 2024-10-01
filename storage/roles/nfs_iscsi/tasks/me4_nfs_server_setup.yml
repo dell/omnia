@@ -14,32 +14,32 @@
 ---
 
 - name: Install nfs-utils
-  package:
+  ansible.builtin.package:
     name: nfs-utils
     state: present
 
 - name: Install firewalld
-  package:
+  ansible.builtin.package:
     name: firewalld
     state: present
 
 - name: Start and enable firewalld
-  service:
+  ansible.builtin.service:
     name: firewalld
     state: started
-    enabled: yes
+    enabled: true
 
 - name: Start and enable rpcbind and nfs-server service
-  service:
+  ansible.builtin.service:
     name: "{{ item }}"
     state: restarted
-    enabled: yes
+    enabled: true
   with_items:
     - rpcbind
     - nfs-server
 
 - name: Adding NFS share entries in /etc/exports for manager
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: "{{ exports_file_path }}"
     line: "{{ item.0.location }} {{ item.1 }}(rw,sync,no_root_squash)"
   with_nested:
@@ -47,30 +47,30 @@
     - "{{ groups['manager'] }}"
 
 - name: Adding NFS share entries in /etc/exports for compute
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: "{{ exports_file_path }}"
     line: "{{ item.0.location }} {{ item.1 }}(rw,sync,no_root_squash)"
   with_nested:
-      - "{{ pv_volumes }}"
-      - "{{ groups['compute'] }}"
+    - "{{ pv_volumes }}"
+    - "{{ groups['compute'] }}"
 
 - name: Adding NFS share entries in /etc/exports for compute
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: "{{ exports_file_path }}"
     line: "{{ item.0.location }} {{ item.1 }}(rw,sync,no_root_squash)"
   with_nested:
-      - "{{ pv_volumes }}"
-      - "{{ groups['login'] }}"
+    - "{{ pv_volumes }}"
+    - "{{ groups['login'] }}"
   when:
     - groups['login'] is defined
     - groups['login'] | length | int > 0
 
 - name: Exporting the shared directories
-  command: exportfs -ra
+  ansible.builtin.command: exportfs -ra
   changed_when: true
 
 - name: Configuring firewall
-  firewalld:
+  ansible.posix.firewalld:
     service: "{{ item }}"
     permanent: true
     state: enabled
@@ -78,5 +78,5 @@
     - "{{ nfs_services }}"
 
 - name: Reload firewalld
-  command: firewall-cmd --reload
+  ansible.builtin.command: firewall-cmd --reload
   changed_when: true
