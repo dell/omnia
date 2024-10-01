@@ -16,11 +16,13 @@
 # Usage: main.yml
 change_state_retries: 3
 change_state_retry_delay_seconds: 30
+slurm_user_deletion: 3
+slurm_user_deletion_retry_delay_seconds: 10
 
 slurm_conf_path: /etc/slurm/slurm.conf
 slurm_nfs_folder: /slurm
 bashrc_path: /etc/bashrc
-slurmd_servicepath: /usr/lib/systemd/system/slurmd.service
+slurm_uid: "6001"
 
 slurm_services:
   - slurmd
@@ -36,6 +38,10 @@ slurm_packages:
   - munge-devel
   - mariadb-server
   - mariadb-devel
+
+slurm_services_files:
+  - /usr/lib/systemd/system/slurmd.service
+  - /etc/systemd/system/slurmd.service
 
 slurm_common_files:
   - /etc/slurm

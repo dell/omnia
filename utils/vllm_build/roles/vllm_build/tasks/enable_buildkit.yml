@@ -13,57 +13,71 @@
 #  limitations under the License.
 ---
 
-- name: Create buildkit directory
-  ansible.builtin.file:
-    path: "{{ buildkit_dir }}"
-    state: directory
-    mode: "{{ dir_mode }}"
-
-- name: Clone buildkit repo
-  ansible.builtin.git:
-    repo: "{{ builldkit_repo }}"
-    dest: "{{ buildkit_dir }}"
-    single_branch: true
-    version: "{{ buildkit_version }}"
-
-- name: Execute make install
-  ansible.builtin.shell:
-    chdir: "{{ buildkit_dir }}"
-    cmd: "make && make install"
-  register: images_output
-  until: images_output is success
-  retries: "{{ image_retries }}"
-  delay: "{{ buildkit_delay }}"
+- name: Check buildkit created
+  ansible.builtin.command: nerdctl ps -f name=buildkitd
+  register: buildkit_container_check
   changed_when: false
+  failed_when: false
 
-- name: Execute make images
-  ansible.builtin.shell:
-    chdir: "{{ buildkit_dir }}"
-    cmd: "make && make install"
-  register: install_output
-  until: install_output is success
-  retries: "{{ image_retries }}"
-  delay: "{{ buildkit_delay }}"
-  changed_when: false
+- name: Enable buildkit
+  when: "'buildkit' not in buildkit_container_check.stdout"
+  environment:
+    http_proxy: "{{ proxy[0].http_proxy | default('', true) }}"
+    https_proxy: "{{ proxy[0].https_proxy | default('', true) }}"
+    HTTP_PROXY: "{{ proxy[0].http_proxy | default('', true) }}"
+    HTTPS_PROXY: "{{ proxy[0].https_proxy | default('', true) }}"
+  block:
+    - name: Create buildkit directory
+      ansible.builtin.file:
+        path: "{{ buildkit_dir }}"
+        state: directory
+        mode: "{{ dir_mode }}"
 
-- name: Get container ID for buildkitd
-  ansible.builtin.shell: >
-    set -o pipefail
-    && nerdctl ps -q -a -f name=buildkitd | head -n 1
-  register: buildkit_container_id
-  changed_when: false
+    - name: Clone buildkit repo
+      ansible.builtin.git:
+        repo: "{{ builldkit_repo }}"
+        dest: "{{ buildkit_dir }}"
+        single_branch: true
+        version: "{{ buildkit_version }}"
 
-- name: Stop buildkitd container
-  ansible.builtin.command: nerdctl stop {{ buildkit_container_id.stdout }}
-  when: buildkit_container_id.stdout is defined and buildkit_container_id.stdout != ''
-  changed_when: false
+    - name: Execute make install
+      ansible.builtin.shell:
+        chdir: "{{ buildkit_dir }}"
+        cmd: "make && make install"
+      register: images_output
+      until: images_output is success
+      retries: "{{ image_retries }}"
+      delay: "{{ delay_time }}"
+      changed_when: false
 
-- name: Remove buildkitd container
-  ansible.builtin.command: nerdctl rm {{ buildkit_container_id.stdout }}
-  when: buildkit_container_id.stdout is defined and buildkit_container_id.stdout != ''
-  changed_when: false
+    - name: Execute make images
+      ansible.builtin.shell:
+        chdir: "{{ buildkit_dir }}"
+        cmd: "make && make install"
+      register: install_output
+      until: install_output is success
+      retries: "{{ image_retries }}"
+      delay: "{{ delay_time }}"
+      changed_when: false
 
-- name: Run BuildKit container
-  ansible.builtin.command: >
-    nerdctl run -d --name buildkitd --privileged moby/buildkit:latest
-  changed_when: true
+    - name: Get container ID for buildkitd
+      ansible.builtin.shell: >
+        set -o pipefail
+        && nerdctl ps -q -a -f name=buildkitd | head -n 1
+      register: buildkit_container_id
+      changed_when: false
+
+    - name: Stop buildkitd container
+      ansible.builtin.command: nerdctl stop {{ buildkit_container_id.stdout }}
+      when: buildkit_container_id.stdout is defined and buildkit_container_id.stdout != ''
+      changed_when: false
+
+    - name: Remove buildkitd container
+      ansible.builtin.command: nerdctl rm {{ buildkit_container_id.stdout }}
+      when: buildkit_container_id.stdout is defined and buildkit_container_id.stdout != ''
+      changed_when: false
+
+    - name: Run BuildKit container
+      ansible.builtin.command: >
+        nerdctl run -d -e http_proxy -e HTTP_PROXY -e https_proxy -e HTTPS_PROXY -e no_proxy --name buildkitd --privileged moby/buildkit:latest
+      changed_when: true

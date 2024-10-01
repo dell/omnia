@@ -16,7 +16,7 @@
 - name: Check if virtual environment is active
   ansible.builtin.import_playbook: check_venv.yml
   when: not ( check_venv_executed | default(false) | bool )
-    
+
 - name: Warning and User confirmation for removing cluster
   hosts: localhost
   connection: local
@@ -34,14 +34,6 @@
   tags: slurm_cluster
   roles:
     - { role: remove_cluster/remove_slurm_cluster } # noqa: role-name[path]
-
-- name: Proceeding to remove csi powerscale driver
-  tags: k8s_cluster
-  hosts: kube_control_plane
-  connection: ssh
-  gather_facts: false
-  roles:
-    - { role: remove_cluster/remove_powerscale_driver } # noqa: role-name[path]
 
 - name: Proceeding to remove kubernets cluster
   tags: k8s_cluster

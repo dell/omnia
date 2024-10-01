@@ -36,7 +36,7 @@
 
 - name: Invoke python script
   ansible.builtin.command: |
-    {{ python_version }} {{ db_schema_utility }} {{ timescaledb_user }} {{ timescaledb_password }}
-    {{ timescale_svc_ip }} {{ timescale_svc_port.stdout }} {{ timescaledb_name }}
-    {{ metric_name }} {{ metric_value }} {{ start_timestamp  | quote }} {{ stop_timestamp | quote }} {{ filename }}
+          {{ python_version }} {{ db_schema_utility }} {{ timescaledb_user }} {{ timescaledb_password }}
+          {{ timescale_svc_ip }} {{ timescale_svc_port.stdout }} {{ timescaledb_name }}
+          {{ metric_name }} {{ metric_value }} {{ start_timestamp | quote }} {{ stop_timestamp | quote }} {{ filename }}
   changed_when: false

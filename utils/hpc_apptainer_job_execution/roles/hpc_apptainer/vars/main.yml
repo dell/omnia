@@ -37,7 +37,7 @@ omnia_config_syntax_fail_msg: "Failed. Syntax errors present in omnia_config.yml
 # Usage: package_installation.yml
 docker_repo_url: https://download.docker.com/linux/centos/docker-ce.repo
 docker_repo_dest: /etc/yum.repos.d/docker-ce.repo
-repo_permission: 0644
+repo_permission: "0644"
 max_retries: 20
 max_delay: 5
 docker_packages:
@@ -47,14 +47,13 @@ docker_packages:
 
 # Usage: configure_cluster.yml
 docker_certs_folder: "/etc/docker/certs.d/{{ cp_hostname }}:5001"
-directory_permissions: 0755
+directory_permissions: "0755"
 ca_cert_src: /etc/xcat/cert/ca.pem
 ca_cert_dest: "{{ docker_certs_folder }}/ca.crt"
 hosts_file_path: /etc/hosts
-file_permission: 0644
+file_permission: "0644"
 
 # Usage: download_docker_images.yml
-docker_galaxy_collection: community.docker:3.4.8
 python_version: "{{ ansible_python_interpreter }}" 
 docker_python_package: docker==6.1.3
 hpc_image_list: /opt/omnia/hpc_images.yml
@@ -63,5 +62,5 @@ docker_registry_failure_msg: "Failed to initiate docker-registry service."
 docker_pull_fail_msg: "Failed. Unable to pull the image_url of hpc_apptainer_image variable provided in the input hpc_apptainer_job_execution_config.yml."
 
 # Usage: get_hpc_images.yml
-apptainer_path_mode: 0777
+apptainer_path_mode: "0777"
 apptainer_sif_path: "{{ hpc_apptainer_path }}/{{ item.split('/')[-1] | replace(':', '_') }}.sif"

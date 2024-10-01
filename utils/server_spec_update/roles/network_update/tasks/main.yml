@@ -1,0 +1,38 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+- name: Update NIC details
+  when: add_network_status
+  block:
+    - name: Create Table for NIC Info
+      ansible.builtin.include_tasks: add_nic_db.yml
+
+    - name: Create NIC Metadata File
+      ansible.builtin.include_tasks: create_nic_metadata.yml
+
+    - name: Validate Input Parameters if Metadata Exists
+      when: metadata_status.stat.exists
+      ansible.builtin.include_tasks: validate_metadata_params.yml
+
+    - name: Update Metadata
+      ansible.builtin.include_tasks: update_nic_metadata.yml
+
+    - name: Create Files for Stanzas
+      ansible.builtin.file:
+        path: "{{ metadata_nicinfo_path }}"
+        state: touch
+        mode: "{{ file_perm }}"
+
+    - name: Update Additional NIC Info in xCAT Networks Table
+      ansible.builtin.include_tasks: update_new_nic_network.yml
