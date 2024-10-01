@@ -115,7 +115,7 @@ Kubernetes
 
 **Resolution**: Install Kubernetes, download nvidia-container-toolkit, and perform the necessary configurations based on the OS running on the cluster.
 
-⦾ **After running the ``reset_cluster_configuration.yml`` playbook on a Kubernetes cluster, which should ideally delete all Kubernetes services and files, it is observed that some Kubernetes logs and configuration files are still present on the ``kube_control_plane``. However, these left-over files do not cause any issues for Kubernetes re-installation on the cluster. The files are present under the following directories:**
+⦾ **After running the** ``reset_cluster_configuration.yml`` **playbook on a Kubernetes cluster, which should ideally delete all Kubernetes services and files, it is observed that some Kubernetes logs and configuration files are still present on the** ``kube_control_plane``. **However, these left-over files do not cause any issues for Kubernetes re-installation on the cluster. The files are present under the following directories:**
 
 * ``/var/log/containers/``
 * ``/sys/fs/cgroup/``
