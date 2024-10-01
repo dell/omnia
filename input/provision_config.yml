@@ -89,7 +89,7 @@ disk_partition:
 
 #### Mandatory
 # Timezone that needs to be set during OS provisioning.
-# Available timezones are provided in provision/roles/provision_validation/files/timezone.txt
+# Available timezones are provided in discovery/roles/discovery_validations/common/files/timezone.txt
 # Default: "GMT"
 # Few accepted values: EST,CET,MST,CST6CDT,PST8PDT
 timezone: "GMT"
@@ -108,8 +108,9 @@ language: "en-US"
 default_lease_time: "86400"
 
 #### Mandatory
-# The variable decides the NTP will be configured in the cluster by setting up NTP server in control plane.
-# If ntp_support is set to false, NTP will not be configured in the cluster.
-# In a proxy environment, setting up NTP server in control plane can result in failure due to unreachable public NTP pools and is not recommended.
-# Default value is true
+# The ntp_support variable controls whether the cluster will have a Network Time Protocol (NTP) server configured in the control plane.
+# If ntp_support is set to true, NTP server will be configured in the control plane and the time will be synchronized to the cluster nodes.
+# If ntp_support is set to false, NTP server will not be configured in the control plane and the time will not be synchronized to the cluster nodes.
+# In a proxy environment or environment with restricted network access, setting up NTP server in control plane can result in failure due to unreachable public NTP pools and is not recommended.
+# Default: true
 ntp_support: true

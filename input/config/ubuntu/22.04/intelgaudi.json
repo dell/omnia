@@ -40,6 +40,12 @@
         "package": "habanatools={{ intelgaudi_version }}",
         "type": "deb",
         "repo_name": "intelgaudi"
+      },
+      {
+        "package": "hccl_demo",
+        "type": "git",
+        "url": "https://github.com/HabanaAI/hccl_demo.git",
+        "version": "main"
       }
      ]
     },

@@ -12,11 +12,6 @@
         "repo_name": "jammy"
       },
       {
-        "package": "containerd.io=1.6.20-1",
-        "type": "deb",
-        "repo_name": "docker-ce-repo"
-      },
-      {
         "package": "docker-ce-cli=5:20.10.20~3-0~ubuntu-jammy",
         "type": "deb",
         "repo_name": "docker-ce-repo"
@@ -32,23 +27,23 @@
         "repo_name": "docker-ce-repo"
       },
       {
-        "package": "kubespray",
+        "package": "kubespray-v2.25.0",
         "type": "git",
         "url": "https://github.com/kubernetes-sigs/kubespray.git",
         "version": "v2.25.0"
       },
       {
-        "package": "kubectl",
+        "package": "kubectl-1.29.5",
         "type": "tarball",
         "url": "https://dl.k8s.io/release/v1.29.5/bin/linux/amd64/kubectl"
       },
       {
-        "package": "kubelet",
+        "package": "kubelet-1.29.5",
         "type": "tarball",
         "url": "https://dl.k8s.io/release/v1.29.5/bin/linux/amd64/kubelet"
       },
       {
-        "package": "kubeadm",
+        "package": "kubeadm-1.29.5",
         "type": "tarball",
         "url": "https://dl.k8s.io/release/v1.29.5/bin/linux/amd64/kubeadm"
       },
@@ -78,7 +73,7 @@
         "url": "https://github.com/containernetworking/plugins/releases/download/v1.3.0/cni-plugins-linux-amd64-v1.3.0.tgz"
       },
       {
-        "package": "runc.amd64",
+        "package": "runc.amd64-v1.1.12",
         "type": "tarball",
         "url": "https://github.com/opencontainers/runc/releases/download/v1.1.12/runc.amd64"
       },
@@ -208,6 +203,46 @@
         "type": "image"
       },
       {
+        "package": "kube-prometheus-stack-62.3.0",
+        "type": "tarball",
+        "url": "https://github.com/prometheus-community/helm-charts/releases/download/kube-prometheus-stack-62.3.0/kube-prometheus-stack-62.3.0.tgz"
+      },
+      {
+        "package": "quay.io/prometheus-operator/prometheus-operator",
+        "tag": "v0.76.0",
+        "type": "image"
+      },
+      {
+        "package": "registry.k8s.io/kube-state-metrics/kube-state-metrics",
+        "tag": "v2.13.0",
+        "type": "image"
+      },
+      {
+        "package": "quay.io/prometheus-operator/prometheus-config-reloader",
+        "tag": "v0.76.0",
+        "type": "image"
+      },
+      {
+        "package": "quay.io/prometheus/alertmanager",
+        "tag": "v0.27.0",
+        "type": "image"
+      },
+      {
+        "package": "quay.io/prometheus/node-exporter",
+        "tag": "v1.8.2",
+        "type": "image"
+      },
+      {
+        "package": "quay.io/prometheus/prometheus",
+        "tag": "v2.54.0",
+        "type": "image"
+      },
+      {
+        "package": "registry.k8s.io/ingress-nginx/kube-webhook-certgen",
+        "tag": "v20221220-controller-v1.5.1-58-g787ea74b6",
+        "type": "image"
+      },
+      {
         "package": "metric-exporter-daemonset",
         "type": "manifest",
         "url": "https://vault.habana.ai/artifactory/gaudi-metric-exporter/yaml/1.17.1/metric-exporter-daemonset.yaml"
@@ -221,6 +256,11 @@
         "package": "metric-exporter-serviceMonitor",
         "type": "manifest",
         "url": "https://vault.habana.ai/artifactory/gaudi-metric-exporter/yaml/1.17.1/metric-exporter-serviceMonitor.yaml"
+      },
+      {
+        "package": "vault.habana.ai/gaudi-metric-exporter/metric-exporter",
+        "tag": "1.17.1-40",
+        "type": "image"
       }
       ]
     }
