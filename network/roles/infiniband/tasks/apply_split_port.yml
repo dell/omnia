@@ -22,6 +22,7 @@
 
 # This block will execute when "Split Ready: no".
 - name: Configure switch to enable splitting
+  when: not split_ready_status
   block:
     - name: Apply changes for changing IB switch to split ready
       ansible.builtin.include_tasks: configure_split_ready.yml
@@ -36,13 +37,13 @@
       ansible.builtin.set_fact:
         ib_login_password: "{{ ib_admin_password }}"
       no_log: true
-  when: not split_ready_status
 
 - name: Fetch split status of IB switch # Check for "Split Ready: yes/no".
   ansible.builtin.include_tasks: ib_split_mode.yml
 
 # This block will execute when "Split Ready: yes"
 - name: Configuration switch for port splitting
+  when: split_ready_status
   block:
     - name: Fetch ports on IB switch before port splitting
       ansible.builtin.include_tasks: fetch_avail_ports.yml
@@ -51,6 +52,7 @@
       ansible.builtin.include_tasks: authenticate.yml
 
     - name: Split ports
+      when: ib_ports_list | default("", true) | length >= 1
       block:
         - name: Split ports for ndr switch
           ansible.builtin.include_tasks: split_port_ndr.yml
@@ -61,5 +63,3 @@
           ansible.builtin.include_tasks: split_port.yml
           with_items: "{{ ib_ports_list }}"
           when: ib_switch_type | lower == 'hdr' or ib_switch_type | lower == 'edr'
-      when: ib_ports_list | default("", true) | length >= 1
-  when: split_ready_status

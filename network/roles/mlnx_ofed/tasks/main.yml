@@ -17,6 +17,9 @@
   ansible.builtin.include_vars: "{{ role_path }}/../../../input/network_config.yml"
 
 - name: Install mlnx_ofed if not already installed
+  when:
+    - os_supported_rhel in ansible_facts['distribution'] | lower
+      or os_supported_rocky in ansible_facts['distribution'] | lower
   block:
     - name: Check status of openibd service
       ansible.builtin.command: systemctl status openibd
@@ -25,6 +28,7 @@
       register: openibd_status
 
     - name: Setup nfs-client if not already installed
+      when: "'Active: active' not in openibd_status.stdout"
       block:
         - name: Setup nfs client on nodes with infiniband support
           ansible.builtin.include_tasks: setup_nfs_client.yml
@@ -33,12 +37,6 @@
 
         - name: Install mlnx_ofed on redhat nodes
           ansible.builtin.include_tasks: install_mlnx_ofed.yml
-
-      when: "'Active: active' not in openibd_status.stdout"
-
-  when:
-    - os_supported_rhel in ansible_facts['distribution'] | lower
-      or os_supported_rocky in ansible_facts['distribution'] | lower
 
 - name: Install mlnx_ofed on leap nodes
   ansible.builtin.include_tasks: install_mlnx_leap.yml

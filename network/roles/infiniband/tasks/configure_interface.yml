@@ -13,7 +13,7 @@
 # limitations under the License.
 ---
 
-- name: Apply interface configuration for "{{ avail_port }}" port of IB - "{{ inventory_hostname }}"
+- name: Apply interface configuration for "{{ avail_port }}" port of IB - "{{ inventory_hostname }}" # noqa: name[template]
   ansible.builtin.uri:
     url: http://{{ inventory_hostname }}/admin/launch?script=json
     method: POST

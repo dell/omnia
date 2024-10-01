@@ -62,8 +62,8 @@
     commands: show system | grep "Current Type"
   register: model_type
   vars:
-    - ansible_ssh_user: "{{ ethernet_switch_username }}"
-      ansible_ssh_password: "{{ ethernet_switch_password }}"
+    ansible_ssh_user: "{{ ethernet_switch_username }}"
+    ansible_ssh_password: "{{ ethernet_switch_password }}"
 
 - name: Save switch model name
   ansible.builtin.set_fact:
@@ -114,6 +114,7 @@
   when: snmp_trap_destination | length > 1
 
 - name: Validate snmp parameters
+  when: snmp_enabled
   block:
     - name: Assert snmp trap destination address
       ansible.builtin.assert:
@@ -128,4 +129,3 @@
           - snmp_community_name | length > 1
         success_msg: "{{ snmp_community_success_msg }}"
         fail_msg: "{{ snmp_community_fail_msg }}"
-  when: snmp_enabled
