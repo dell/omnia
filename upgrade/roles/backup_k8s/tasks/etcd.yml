@@ -1,0 +1,135 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Install kubernetes pip module
+  ansible.builtin.pip:
+    name: "{{ k8s_pip_package }}"
+    state: present
+    executable: pip3
+
+- name: Get info for all Kubernetes services
+  kubernetes.core.k8s_info:
+    kind: Service
+  register: svc_info
+
+- name: Allocate static IP to all loadbalancer services
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: "{{ item.metadata.name }}"
+        namespace: "{{ item.metadata.namespace }}"
+      spec:
+        type: LoadBalancer
+        loadBalancerIP: "{{ item.status.loadBalancer.ingress[0].ip }}"
+  loop: "{{ svc_info.resources }}"
+  when: item.spec.type == 'LoadBalancer' and item.metadata.name in ['grafana', 'timescaledb']
+
+- name: Check existence of "{{ etcd_env_file }}"
+  ansible.builtin.stat:
+    path: "{{ etcd_env_file }}"
+  register: etcd_env_file_result
+
+- name: Fail if etcd env file does not exist
+  ansible.builtin.fail:
+    msg: "{{ etcd_file_fail_msg }}"
+  when: not etcd_env_file_result.stat.exists
+
+- name: Read the "{{ etcd_env_file }}"
+  ansible.builtin.command: cat "{{ etcd_env_file }}"
+  register: etcd_env
+  changed_when: false
+  no_log: true
+
+- name: Set environment variables as facts
+  ansible.builtin.set_fact:
+    env_vars: "{{ env_vars | default({}) | combine({item.split('=')[0]: item.split('=')[1]}) }}"
+  loop: "{{ etcd_env.stdout_lines }}"
+  when: item and '=' in item and not item.startswith('#')
+  no_log: true
+
+- name: Run etcdctl snapshot save command
+  ansible.builtin.command: >
+    etcdctl snapshot save {{ snapshot_db_name }}
+    --endpoints={{ env_vars.ETCD_ADVERTISE_CLIENT_URLS }}
+    --cacert={{ env_vars.ETCD_TRUSTED_CA_FILE }}
+    --cert={{ env_vars.ETCD_CERT_FILE }}
+    --key={{ env_vars.ETCD_KEY_FILE }}
+  register: snapshot_result
+  failed_when: false
+  changed_when: false
+
+- name: Check if etcd snapshot save was Successful
+  ansible.builtin.fail:
+    msg: "{{ etcd_snapshot_save_fail_msg }}"
+  when: snapshot_result.rc != 0
+
+- name: Run etcdctl snapshot status to check snapshot
+  ansible.builtin.command: etcdctl snapshot status {{ snapshot_db_name }}
+  register: snapshot_status
+  failed_when: false
+  changed_when: false
+
+- name: Check if etcd snapshot status was Successful
+  ansible.builtin.fail:
+    msg: "Backup of etcd snapshot status failed: {{ snapshot_status.stderr }}"
+  when: snapshot_status.rc != 0
+
+- name: Copy mount location data to k8s_backup_location folder
+  ansible.builtin.copy:
+    src: "{{ mount_location.rstrip('/') }}"
+    dest: "{{ k8s_backup_location }}"
+    mode: "{{ directory_mode }}"
+
+- name: Create manifests directory
+  ansible.builtin.file:
+    path: "{{ manifests_dir }}"
+    state: directory
+    mode: "{{ directory_mode }}"
+
+- name: Copy backup.sh file
+  ansible.builtin.copy:
+    src: "{{ backup_file_source }}"
+    dest: "{{ shell_script_file }}"
+    mode: "{{ file_mode }}"
+
+- name: Taking backup of manifest files
+  ansible.builtin.command: "{{ shell_script_file }}"
+  args:
+    chdir: "{{ manifests_dir }}"
+  register: shell_output
+  changed_when: false
+
+- name: Remove existing k8s tarball if it exists
+  ansible.builtin.file:
+    path: "{{ k8s_backup_location_tarball }}"
+    state: absent
+
+- name: Create a tarball of k8s backup location
+  community.general.archive:
+    path: "{{ k8s_backup_location }}"
+    dest: "{{ k8s_backup_location_tarball }}"
+    mode: "{{ file_permission }}"
+    format: gz
+
+- name: Show the created tarball name
+  ansible.builtin.debug:
+    msg: "Created tarball: {{ k8s_backup_location_tarball }} at {{ backup_location }}"
+
+- name: Display backup message
+  ansible.builtin.debug:
+    var: shell_output.stdout

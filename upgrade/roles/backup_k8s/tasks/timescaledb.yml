@@ -1,0 +1,76 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Get timescaledb pod name
+  ansible.builtin.command: kubectl get pod -n "{{ telemetry_namespace }}" -l app="{{ timescaledb_k8s_name }}" -o jsonpath="{.items[0].metadata.name}"
+  register: timescaledb_pod_name
+  changed_when: false
+  failed_when: false
+
+- name: Check if Pod Exists
+  ansible.builtin.command: kubectl get pod "{{ timescaledb_pod_name.stdout }}" -n "{{ telemetry_namespace }}" --no-headers
+  register: timescaledb_pod_check
+  changed_when: false
+  ignore_errors: true
+  no_log: true
+
+- name: Fail if Pod Does Not Exist
+  ansible.builtin.fail:
+    msg: "Pod '{{ timescaledb_pod_name }}' does not exist in namespace '{{ telemetry_namespace }}'"
+  when: timescaledb_pod_check.rc != 0
+
+- name: Get pod status
+  ansible.builtin.command: kubectl get pod  -n "{{ telemetry_namespace }}" "{{ timescaledb_pod_name.stdout }}" -o jsonpath='{.status.phase}'
+  register: timescaledb_pod_status
+  when: timescaledb_pod_check.rc == 0
+  failed_when: false
+  changed_when: false
+
+- name: Print pod status
+  ansible.builtin.debug:
+    msg: "The timescaledb pod status is {{ timescaledb_pod_status.stdout }}.Telemetry backup will be taken only when pod is in running state."
+
+- name: Fail if Pod is Not Running
+  ansible.builtin.fail:
+    msg: "Pod '{{ timescaledb_pod_name.stdout }}' is not running. Current status: {{ timescaledb_pod_status.stdout }}"
+  when: timescaledb_pod_status.stdout != 'Running'
+
+- name: Get external IP of timescaledb service
+  ansible.builtin.command: kubectl get svc "{{ timescaledb_k8s_name }}" -n "{{ telemetry_namespace }}" -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+  register: timescaledb_service_external_ip
+  failed_when: false
+  changed_when: false
+
+- name: Check database existence before taking backup
+  ansible.builtin.import_tasks: check_timescaldb_existence.yml
+
+- name: Timescaledb exists status
+  ansible.builtin.debug:
+    msg: "DB exist {{ timescaledb_backup_flag }}"
+
+- name: Dump database
+  ansible.builtin.command: kubectl exec -it "{{ timescaledb_pod_name.stdout }}" -n "{{ telemetry_namespace }}" -- pg_dump -d "postgres://{{ timescaledb_user }}:{{ timescaledb_password }}@{{ timescaledb_service_external_ip.stdout }}:5432/{{ database_name }}" --format=plain --quote-all-identifiers --no-tablespaces  --no-owner --no-privileges --file="{{ timescale_telemetry_backup_file }}" # noqa: yaml[line-length]
+  changed_when: false
+  register: dump_telemetry_result
+  when:
+    - "'running' in timescaledb_pod_status.stdout | lower"
+    - timescaledb_backup_flag | default(false)
+
+- name: Copy backup file from pod to local machine
+  ansible.builtin.command: kubectl cp "{{ telemetry_namespace }}"/{{ timescaledb_pod_name.stdout }}:"{{ timescale_telemetry_backup_file }}" "{{ k8s_backup_location }}/{{ timescale_telemetry_backup_file }}" # noqa: yaml[line-length]
+  changed_when: false
+  when:
+    - dump_telemetry_result.rc is defined
+    - dump_telemetry_result.rc==0

@@ -1,0 +1,74 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Get the installed omnia version
+  ansible.builtin.include_vars:
+    file: "{{ installed_omnia_path }}/.metadata/omnia_version"
+
+- name: Set current_omnia_version
+  ansible.builtin.set_fact:
+    current_omnia_version: "{{ omnia_version }}"
+
+- name: Get the upgrade omnia version
+  ansible.builtin.include_vars:
+    file: "../../../../.metadata/omnia_version"
+
+- name: Set upgrade_omnia_version
+  ansible.builtin.set_fact:
+    upgrade_omnia_version: "{{ omnia_version }}"
+
+- name: Print the omnia version fetched
+  ansible.builtin.debug:
+    msg: "current omnia version {{ current_omnia_version }} upgrade to  {{ upgrade_omnia_version }}"
+
+- name: Find directories in a specified path
+  find:
+    paths: "{{ role_path }}/templates/"
+    file_type: directory
+  register: found_dirs
+
+- name: Extract directory names
+  ansible.builtin.set_fact:
+    folder_names: "{{ found_dirs.files | map(attribute='path') | map('basename') | list | sort  }}"
+
+- name: Print the list of input version templates 
+  ansible.builtin.debug:
+    msg: "{{ folder_names }}"
+
+- name: set fact read_input_folder_backup_location
+  ansible.builtin.set_fact:
+    read_input_folder_backup_location: "/opt/omnia/upgrade_input/"
+
+- name: Ensure the destination directory exists
+  ansible.builtin.file:
+    path: "{{ read_input_folder_backup_location }}"
+    state: directory
+    mode: '0755'  # Adjust permissions as needed
+
+- name: Copy directory from installed_omnia_path/input to read_input_folder_backup_location using rsync
+  ansible.builtin.command:
+    cmd: >
+      rsync -av --delete "{{ installed_omnia_path }}/input" "{{ read_input_folder_backup_location }}"
+  args:
+    chdir: "{{ installed_omnia_path }}/input"
+
+- name: Read parameters in from previous version
+  ansible.builtin.include_tasks: generate_new_input_files.yml 
+  loop: "{{folder_names }}"
+  vars:
+      folder_name: "{{ item }}"
+      new_input_folder_backup_location: "/opt/omnia/{{ item }}"
+  when: >
+     current_omnia_version is version(item , '<')

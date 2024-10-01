@@ -14,7 +14,7 @@
 ---
 
 - name: Check input file is encrypted
-  ansible.builtin.command: cat {{ input_folder }}/{{ item.file }}
+  ansible.builtin.command: cat {{ new_input_folder_backup_location }}/{{ conf_list.file }}
   changed_when: false
   register: config_content
   no_log: true
@@ -26,16 +26,16 @@
 
 - name: Save vault key
   ansible.builtin.lineinfile:
-    path: "{{ input_folder }}/{{ item.vault_password_file }}"
+    path: "{{ new_input_folder_backup_location }}/{{ conf_list.vault_password_file }}"
     line: "{{ vault_key }}"
-    mode: "{{ vault_file_perm }}"
+    mode: "{{ file_perm }}"
     owner: root
     create: true
   when: "'$ANSIBLE_VAULT;' not in config_content.stdout"
 
-- name: Encrypt {{ item.file }}
+- name: Encrypt {{ conf_list.file }}
   ansible.builtin.command: >-
-    ansible-vault encrypt {{ input_folder }}/{{ item.file }}
-    --vault-password-file {{ input_folder }}/{{ item.vault_password_file }}
+    ansible-vault encrypt {{ new_input_folder_backup_location }}/{{ conf_list.file }}
+    --vault-password-file {{ new_input_folder_backup_location }}/{{ conf_list.vault_password_file }}
   changed_when: false
   when: "'$ANSIBLE_VAULT;' not in config_content.stdout"

@@ -12,8 +12,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-- name: Read parameters in from previous version of omnia 
-  ansible.builtin.include_tasks: parameter_based_input_file_generation.yml 
 
-- name: Moving new input files to a specified source input directory
-  ansible.builtin.include_tasks: sync_files_to_omnia_version.yml
+omnia161_venv_path: /opt/omnia/omnia161_venv
+venv_creation_failed: "Venv setup for Omnia 1.6.1 has failed"

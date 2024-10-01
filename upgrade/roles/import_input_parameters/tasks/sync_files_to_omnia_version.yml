@@ -12,8 +12,16 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-- name: Read parameters in from previous version of omnia 
-  ansible.builtin.include_tasks: parameter_based_input_file_generation.yml 
 
-- name: Moving new input files to a specified source input directory
-  ansible.builtin.include_tasks: sync_files_to_omnia_version.yml
+- name: Move the new input files to {{ upgrade_omnia_version }} source input directory
+  ansible.builtin.command:
+    cmd:  rsync -av "{{ read_input_folder_backup_location }}/input/." "{{ role_path }}/../../../input/"
+  register: mv_result
+  ignore_errors: yes  # Ignores errors if source directory is empty or not found
+
+- name: Remove the source directory if it still exists and is empty
+  ansible.builtin.file:
+    path: "{{ read_input_folder_backup_location }}"
+    state: absent
+  when: mv_result is succeeded  # Only attempt to remove if the move was successful
+

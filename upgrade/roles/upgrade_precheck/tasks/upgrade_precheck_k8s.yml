@@ -1,0 +1,193 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Set Kubernetes upgrade precheck flag to false
+  ansible.builtin.set_fact:
+    k8s_upgrade_precheck_flag: false
+
+- name: Initialize individual pods running status
+  ansible.builtin.set_fact:
+    upgrade_precheck_pod_status_report:
+      grafana_pod_running_status: false
+      loki_pod_running_status: false
+      mysqldb_pod_running_status: false
+      timescaledb_pod_running_status: false
+      idrac_telemetry_pod_running_status: false
+
+- name: Gather service facts
+  ansible.builtin.service_facts:
+
+- name: Check if etcd service is present in service facts
+  when: "'etcd.service' in ansible_facts.services"
+  block:
+    - name: Fail if etcd servce not running
+      ansible.builtin.fail:
+        msg: "{{ etcd_not_running }}"
+      when: "ansible_facts.services['etcd.service'].state != 'running'"
+
+    - name: Check if Kubernetes is deployed
+      ansible.builtin.command: kubectl
+      register: k8s_return_code
+      changed_when: false
+      failed_when: false
+
+    - name: Check for k8s cluster
+      when: k8s_return_code.rc== 0
+      block:
+        - name: Check basic sanity on Kubernetes cluster
+          ansible.builtin.command: kubectl get node
+          register: k8s_sanity_return_code
+          changed_when: false
+          failed_when: false
+
+        # Fail if kubectl command is working but kubectl get node command not working. Some issue in k8s cluster.
+        - name: Upgrade precheck - Kubernetes cluster basic sanity failed
+          ansible.builtin.fail:
+            msg: "{{ error_k8s_sanity }}"
+          when: >
+            k8s_sanity_return_code.rc!= 0
+
+        - name: Check for non Running pods
+          ansible.builtin.shell: >
+            set -o pipefail && \
+            kubectl get pods --all-namespaces --no-headers | grep -v "Running"
+          register: non_running_pod_list
+          failed_when: false
+          changed_when: false
+          until: non_running_pod_list.stdout_lines | length > 0
+          retries: "{{ max_attempts }}"
+          delay: "{{ wait_time }}"
+
+        - name: Upgrade precheck - Check for non running pods
+          ansible.builtin.fail:
+            msg: "{{ error_non_running_pods }} {{ non_running_pod_list.stdout_lines }}"
+          when: non_running_pod_list.stdout_lines | length > 0
+
+        # Check for individual pod grafana, loki, iDRAC telemetry, timescaledb and mysql db running status
+        - name: Validate in namespace {{ grafana_ns }}
+          block:
+            - name: Get grafana pod running status
+              ansible.builtin.shell: >
+                set -o pipefail && \
+                kubectl get pods -n {{ grafana_ns }} --no-headers | grep "Running" | grep {{ grafana_pod_selector }}
+              register: grafana_pod_status
+              failed_when: false
+              changed_when: false
+
+            - name: Set running status for grafana pod
+              ansible.builtin.set_fact:
+                upgrade_precheck_pod_status_report:
+                  "{{ upgrade_precheck_pod_status_report | combine({'grafana_pod_running_status': grafana_pod_status | length > 0}) }}"
+              when: grafana_pod_status.rc== 0
+
+            - name: Get loki pod running status
+              ansible.builtin.shell: >
+                set -o pipefail && \
+                kubectl get pods -n {{ grafana_ns }} --no-headers | grep "Running" | grep {{ loki_pod_selector }}
+              register: loki_pod_status
+              failed_when: false
+              changed_when: false
+
+            - name: Set running status for loki pod
+              ansible.builtin.set_fact:
+                upgrade_precheck_pod_status_report:
+                  "{{ upgrade_precheck_pod_status_report | combine({'loki_pod_running_status': loki_pod_status | length > 0}) }}"
+              when: loki_pod_status.rc== 0
+
+        - name: Validate in namespace {{ telemetry_visualizations_ns }}
+          block:
+            - name: Get mysqldb pod running status
+              ansible.builtin.shell: >
+                set -o pipefail && \
+                kubectl get pods -n {{ telemetry_visualizations_ns }} --no-headers | grep "Running" | grep {{ mysqldb_pod_selector }}
+              register: mysqldb_pod_status
+              failed_when: false
+              changed_when: false
+
+            - name: Set running status for mysqldb pod
+              ansible.builtin.set_fact:
+                upgrade_precheck_pod_status_report:
+                  "{{ upgrade_precheck_pod_status_report | combine({'mysqldb_pod_running_status': mysqldb_pod_status | length > 0}) }}"
+              when: mysqldb_pod_status.rc== 0
+
+            - name: Get timescaledb pod running status
+              ansible.builtin.shell: >
+                set -o pipefail && \
+                kubectl get pods -n {{ telemetry_visualizations_ns }} --no-headers | grep "Running" | grep {{ timescaledb_pod_selector }}
+              register: timescaledb_pod_status
+              failed_when: false
+              changed_when: false
+
+            - name: Set running status for timescaledb pod
+              ansible.builtin.set_fact:
+                upgrade_precheck_pod_status_report:
+                  "{{ upgrade_precheck_pod_status_report | combine({'timescaledb_pod_running_status': timescaledb_pod_status | length > 0}) }}"
+              when: timescaledb_pod_status.rc== 0
+
+            - name: Get iDRAC telemetry pods running status
+              ansible.builtin.shell: >
+                set -o pipefail && \
+                kubectl get pods -n {{ telemetry_visualizations_ns }} --no-headers | grep "Running" | grep {{ idrac_telemetry_pod_selector }}
+              register: idrac_telemetry_pod_status
+              failed_when: false
+              changed_when: false
+
+            - name: Set running status for iDRAC telemetry pod
+              ansible.builtin.set_fact:
+                upgrade_precheck_pod_status_report:
+                  "{{ upgrade_precheck_pod_status_report | combine({'idrac_telemetry_pod_running_status': idrac_telemetry_pod_status | length > 0}) }}"
+              when: idrac_telemetry_pod_status.rc== 0
+
+        # Check for services
+        - name: Get all LoadBalancer services details
+          ansible.builtin.command: >
+            kubectl get svc --all-namespaces -o \
+            jsonpath="{range .items[?(@.spec.type=='LoadBalancer')]}{.metadata.namespace}:{.metadata.name}:{.status.loadBalancer.ingress[*].ip}{'\n'}{end}"
+          register: lb_services
+          failed_when: false
+          changed_when: false
+
+        - name: Check for Load balancer service without External IPs assigned
+          ansible.builtin.set_fact:
+            improper_services: "{{ lb_services.stdout_lines | select('search', ':$') | list }}"
+
+        - name: Upgrade precheck - Check for Load balancer service without IPs assigned
+          ansible.builtin.fail:
+            msg: "{{ error_improper_service }} {{ improper_services }}"
+          when: >
+            improper_services | length > 0
+
+        # Check for PVCs
+        - name: Get all PVCs
+          ansible.builtin.command: >
+            kubectl get pvc --all-namespaces --no-headers -o custom-columns="NAMESPACE:.metadata.namespace,NAME:.metadata.name,STATUS:.status.phase"
+          register: all_pvcs
+          failed_when: false
+          changed_when: false
+
+        - name: Check for PVC not in bound state
+          ansible.builtin.set_fact:
+            non_bound_pvc: "{{ all_pvcs.stdout_lines | select('search', 'Pending|Lost') | list }}"
+
+        - name: Upgrade precheck - Check for unbound PVC issue
+          ansible.builtin.fail:
+            msg: "{{ error_unbound_pvc }} {{ non_bound_pvc }}"
+          when: >
+            non_bound_pvc | length > 0
+
+        # Playbook execution reaches this step indiactes Kubernetes upgrade precheck flag can be set to true.
+        - name: Set Kubernetes upgrade precheck flag to true based on report
+          ansible.builtin.set_fact:
+            k8s_upgrade_precheck_flag: true

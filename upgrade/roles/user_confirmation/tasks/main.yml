@@ -12,8 +12,18 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-- name: Read parameters in from previous version of omnia 
-  ansible.builtin.include_tasks: parameter_based_input_file_generation.yml 
 
-- name: Moving new input files to a specified source input directory
-  ansible.builtin.include_tasks: sync_files_to_omnia_version.yml
+- name: Upgrade Confirmation
+  ansible.builtin.pause:
+    prompt: "{{ user_confirmation_msg }}"
+  register: upgrade_confirmation_prompt
+  when:
+    - not (skip_confirmation | default(false) | bool)
+    - upgrade_confirmation is not defined
+
+- name: Check confirmation
+  ansible.builtin.fail:
+    msg: "Upgrade confirmation failed"
+  when:
+    - not upgrade_confirmation | default(false) | bool
+    - not upgrade_confirmation_prompt.user_input | default("") == "yes"

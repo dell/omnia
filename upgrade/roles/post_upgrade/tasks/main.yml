@@ -12,8 +12,15 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-- name: Read parameters in from previous version of omnia 
-  ansible.builtin.include_tasks: parameter_based_input_file_generation.yml 
 
-- name: Moving new input files to a specified source input directory
-  ansible.builtin.include_tasks: sync_files_to_omnia_version.yml
+- name: Update installed_version
+  ansible.builtin.lineinfile:
+    path: "{{ meta_path }}"
+    regexp: '^installed_version:(.*)$'
+    insertafter: "EOF"
+    state: present
+    line: 'installed_version: 1.7'
+
+- name: Print user message
+  ansible.builtin.debug:
+    msg: "{{ user_msg_upgrade.split('\n') }}"

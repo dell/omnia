@@ -1,0 +1,52 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Check whether to take a MYSQL db backup or not
+  block:
+    - name: Check if database exists
+      ansible.builtin.command: kubectl exec -n "{{ telemetry_namespace }}" "{{ mysql_pod_name.stdout }}" -- mysql -u "{{ mysqldb_user }}" -p"{{ mysqldb_password }}" -e "SHOW DATABASES LIKE '{{ mysqldb_name }}';" # noqa: yaml[line-length]
+      register: db_check_result
+      changed_when: false
+      when: mysql_pod_name is defined
+
+    - name: Display database existence result
+      ansible.builtin.debug:
+        msg: "Database '{{ mysqldb_name }}' exists."
+      when: db_check_result.stdout | length > 0
+
+    - name: Notify if database does not exist
+      ansible.builtin.fail:
+        msg: "Database '{{ mysqldb_name }}' does not exist. No backup to take"
+      changed_when: false
+      when: db_check_result.stdout | length == 0
+
+    - name: Check tables exists in the DB
+      ansible.builtin.command: kubectl exec -n "{{ telemetry_namespace }}" "{{ mysql_pod_name.stdout }}" -- mysql -u "{{ mysqldb_user }}" -p"{{ mysqldb_password }}" -D "{{ mysqldb_name }}" -e "SHOW TABLES;" # noqa: yaml[line-length]
+      register: show_tables_result
+      changed_when: false
+      when: db_check_result.stdout | length > 0
+
+    - name: Set fact for mysqldb_backup_flag
+      ansible.builtin.set_fact:
+        mysqldb_backup_flag: false
+
+    - name: Set facts for MYSQL DB
+      when:
+        - show_tables_result.stdout_lines is defined
+        - show_tables_result.stdout_lines | length > 0
+      block:
+        - name: Set mysqldb_backup_flag
+          ansible.builtin.set_fact:
+            mysqldb_backup_flag: true

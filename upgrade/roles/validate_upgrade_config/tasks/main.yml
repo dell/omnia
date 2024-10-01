@@ -17,22 +17,25 @@
     file: upgrade_config.yml
   changed_when: false
 
-- name: Validate old_input_location
+- name: Get stats of the install path
   ansible.builtin.stat:
-    path: "{{ old_input_location }}"
-  register: stat_input_result
+    path: "{{ installed_omnia_path }}"
+  register: installed_path_stat
 
-- name: Validate backup_location
-  ansible.builtin.stat:
+- name: Assert installed path is not empty
+  ansible.builtin.assert:
+    that:
+      - installed_omnia_path
+      - installed_path_stat.stat.isdir is defined and installed_path_stat.stat.isdir
+    fail_msg: "{{ valid_installed_path_msg }}"
+
+- name: Set backup_location if empty
+  ansible.builtin.set_fact:
+    backup_location: "{{ default_backup_location }}"
+  when: not backup_location
+
+- name: Ensure backup_location
+  ansible.builtin.file:
     path: "{{ backup_location }}"
-  register: stat_backup_result
-
-- name: Fail if old input directory does not exist
-  ansible.builtin.fail:
-    msg: "{{ validate_upgrade_config_input_fail_msg }}"
-  when: not stat_input_result.stat.exists
-
-- name: Fail if old backup directory does not exist
-  ansible.builtin.fail:
-    msg: "{{ validate_upgrade_config_backup_fail_msg }}"
-  when: not stat_backup_result.stat.exists
+    state: directory
+    mode: "{{ directory_mode }}"

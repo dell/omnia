@@ -13,46 +13,141 @@
 #  limitations under the License.
 ---
 
-- name: Remove k8s line from software_config.json
-  ansible.builtin.lineinfile:
-    path: "{{ role_path }}/../../../input/software_config.json"
-    regexp: '"name": "k8s"'
-    state: absent
-  when: scheduler_type == "slurm"
+- name: set fact import_input_parameters_new_config_file_array
+  ansible.builtin.set_fact:
+    import_input_parameters_new_config_file_array: []
 
-- name: Remove slurm line from software_config.json
-  ansible.builtin.lineinfile:
-    path: "{{ role_path }}/../../../input/software_config.json"
-    regexp: '"name": "slurm"'
-    state: absent
-  when: scheduler_type == "k8s"
+- name: Ensure the destination directory exists
+  ansible.builtin.file:
+    path: "{{ new_input_folder_backup_location }}"
+    state: directory
+    mode: '0755'  # Adjust permissions as needed
 
-- name: Remove openldap line from software_config.json
-  ansible.builtin.lineinfile:
-    path: "{{ role_path }}/../../../input/software_config.json"
-    regexp: '"name": "openldap"'
-    state: absent
-  when: not ldap_required
+- name: Run cat on config files
+  ansible.builtin.command: cat "{{ read_input_folder_backup_location }}/input/{{ cat_item.file }}"
+  changed_when: false
+  loop: "{{ import_input_parameters_config_file_array }}"
+  loop_control:
+    loop_var: cat_item
+  register: cat_output
+  no_log: true
 
-- name: Add freeipa line to software_config.json if freeipa_required is true
-  ansible.builtin.lineinfile:
-    path: "{{ role_path }}/../../../input/software_config.json"
-    line: '        {"name": "freeipa"},'
-    insertafter: '\['
-    firstmatch: true
-  when: freeipa_required
+- name: Read stdout into an array
+  ansible.builtin.set_fact:
+    stdout_array: "{{ cat_output.results | map(attribute='stdout') | list }}"
 
-- name: Add telemetry line to software_config.json, when omnia_telemetry_support is enabled
-  ansible.builtin.lineinfile:
-    path: "{{ role_path }}/../../../input/software_config.json"
-    line: '        {"name": "telemetry"},'
-    insertafter: '\['
-    firstmatch: true
-  when: omnia_telemetry_support
+- name: Construct new config files array
+  ansible.builtin.set_fact:
+    import_input_parameters_new_config_file_array: "{{ import_input_parameters_new_config_file_array + [{'file_entry': file_item.0, 'stdout': file_item.1}] }}"
+  loop: "{{ import_input_parameters_config_file_array | zip(stdout_array) | list }}"
+  loop_control:
+    loop_var: file_item
+  no_log: true
+
+- name: Store input files to be read
+  ansible.builtin.set_fact:
+    input_filenames: "{{ import_input_parameters_new_config_file_array | map(attribute='file_entry.file') | list }}"
+
+- name: Read config files
+  block:
+    - name: Decrypt config files
+      ansible.builtin.command: >-
+        ansible-vault decrypt {{ read_input_folder_backup_location }}/input/{{ decr_item.file_entry.file }}
+        --vault-password-file {{ read_input_folder_backup_location }}/input/{{ decr_item.file_entry.vault_password_file }}
+      loop: "{{ import_input_parameters_new_config_file_array }}"
+      loop_control:
+        loop_var: decr_item
+      when: "'$ANSIBLE_VAULT;' in decr_item.stdout"
+      no_log: true
+      changed_when: false
+
+    - name: Read existing parameters from input files
+      ansible.builtin.include_vars:
+        file: "{{ read_input_folder_backup_location }}/input/{{ item }}"
+      with_items: "{{ input_filenames }}"
+      changed_when: false
+
+  rescue:
+    - name: Failed to read Omnia old input config files
+      ansible.builtin.fail:
+        msg: "{{ read_parameters_failed_msg }}"
+
+  always:
+    - name: Check if vault password file exists
+      ansible.builtin.stat:
+        path: "{{ read_input_folder_backup_location }}/input/{{ vitem.vault_password_file }}"
+      register: vault_password_file_stat
+      loop: "{{ import_input_parameters_config_encrypt_array }}"
+      loop_control:
+        loop_var: vitem
+      changed_when: false
+
+    - name: Extract file names where stat.exists is true
+      ansible.builtin.set_fact:
+        vault_file_exists_list: "{{ vault_file_exists_list | default([]) + [{'file': item.vitem.file, 'vault_password_file': item.vitem.vault_password_file}] }}"
+      when: item.stat.exists
+      loop: "{{ vault_password_file_stat.results }}"
+
+    - name: Encrypt old input files 
+      ansible.builtin.command: >-
+        ansible-vault encrypt {{ read_input_folder_backup_location }}/input/{{ eitem.file }}
+        --vault-password-file {{ read_input_folder_backup_location }}/input/{{ eitem.vault_password_file }}
+      loop: "{{ vault_file_exists_list }}"
+      loop_control:
+        loop_var: eitem
+      changed_when: false
+
+- name: Set fact version
+  ansible.builtin.set_fact:
+    template_path: "{{ role_path }}/templates/{{ folder_name }}"
+
+- name: Folder name new_input_folder_backup_location
+  ansible.builtin.debug:
+    msg: "new_input_folder_backup_location used is {{ new_input_folder_backup_location }}"
+
+- name: Folder name template
+  ansible.builtin.debug:
+    msg: "Template used is {{ template_path }}"
 
 - name: Generate config files from templates
   ansible.builtin.template:
-    src: "{{ item.src }}"
-    dest: "{{ role_path }}/../../../input/{{ item.dest }}"
-    mode: "{{ input_file_perm }}"
+    src: "{{ template_path }}/{{ my_item.src }}"
+    dest: "{{ new_input_folder_backup_location }}/{{ my_item.dest }}"
+    mode: "{{ file_perm }}"
   loop: "{{ import_input_parameters_config_template_array }}"
+  loop_control:
+    loop_var: my_item
+
+- name: Encrypt config files
+  ansible.builtin.include_tasks: encrypt_input_file.yml
+  loop: "{{ input_config_files_array }}"
+  loop_control:
+    loop_var: conf_list
+  no_log: true
+
+- name: Ensure read_input_folder_backup_location directory is absent
+  file:
+    path: "{{ read_input_folder_backup_location }}"
+    state: absent
+  ignore_errors: yes  # Ignores errors if the directory does not exist
+
+- name: Ensure the destination directory exists
+  ansible.builtin.file:
+    path: "{{ read_input_folder_backup_location }}/input"
+    state: directory
+    mode: '0755'  # Adjust permissions as needed
+
+- name: Move contents from new_input_folder_backup_location to read_input_folder_backup_location
+  ansible.builtin.command:
+    cmd:  rsync -av "{{ new_input_folder_backup_location }}/." "{{ read_input_folder_backup_location }}/input/"
+  register: mv_result
+  ignore_errors: yes  # Ignores errors if source directory is empty or not found
+
+- name: Remove the temporary input directory if it still exists and is empty
+  ansible.builtin.file:
+    path: "{{ new_input_folder_backup_location }}"
+    state: absent
+  when: mv_result is succeeded  # Only attempt to remove if the move was successful
+  ignore_errors: yes  # Ignores errors if the source directory doesn't exist
+
+

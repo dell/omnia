@@ -12,20 +12,15 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-
-#***********************************************************************
-# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.                  
-# SIMPLY APPEND THE REQUIRD VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
-#***********************************************************************
-
 # Mandatory
-# This variable points to the input directory of the old Omnia 1.5 installation.
+# Full path to the currently installed Omnia source code directory
 # Example:
-# old_input_location: /root/omnia151/omnia/input
-old_input_location: ""
+# installed_omnia_path: /root/omnia_16/omnia
+installed_omnia_path: ""
 
-# Mandatory
-# This variable points to the directory where OmniaDB backups should be stored. This directory MUST exist before the upgrade.
+# Full path to the directory where temporary backups will be taken by the upgrade playbook.
+# Upgrade script will create the directory, if it doesn't exist.
+# This path can be any local path or mounted remote path
 # Example:
-# old_input_location: /root/omnia-backups
+# backup_location: /opt/omnia/backup_before_upgrade
 backup_location: ""
