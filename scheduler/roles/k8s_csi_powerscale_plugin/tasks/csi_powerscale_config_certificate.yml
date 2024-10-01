@@ -15,29 +15,21 @@
 
 - name: Empty certificate creation
   block:
-    - name: Create empty certificate yaml file
+    - name: Copy empty certificate yaml file
       ansible.builtin.copy:
         dest: "{{ empty_certificate_path }}"
-        content: |
-          apiVersion: v1
-          kind: Secret
-          metadata:
-            name: isilon-certs-0
-            namespace: isilon
-          type: Opaque
-          data:
-            cert-0: ""
-        mode: "0644"
+        src: "{{ empty_certificate_template_path }}"
+        mode: "{{ permission_644 }}"
 
-- name: Apply the Secret YAML to Kubernetes
-  block:
-    - name: Create empty certificate secret
-      ansible.builtin.command:
-        cmd: "kubectl apply -f {{ empty_certificate_path }}"
-      register: result
-      changed_when: result.changed
+    - name: Apply the Secret YAML to Kubernetes
+      block:
+        - name: Create empty certificate secret
+          ansible.builtin.command:
+            cmd: "kubectl apply -f {{ empty_certificate_path }}"
+          register: result
+          changed_when: result.changed
 
-  rescue:
-    - name: Empty certificate secret creation failure
-      ansible.builtin.fail:
-        msg: "{{ fail_msg_empty_certificate }}"
+      rescue:
+        - name: Empty certificate secret creation failure
+          ansible.builtin.fail:
+            msg: "{{ fail_msg_empty_certificate }}"

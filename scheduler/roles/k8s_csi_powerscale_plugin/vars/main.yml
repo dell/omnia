@@ -16,6 +16,7 @@
 # Usage: csi_powerscale_config_certificate.yml
 empty_certificate_path: "{{ csi_powerscale_path }}/empty_isilon-certs.yaml"
 fail_msg_empty_certificate: "Failed. Unable to create empty certificate."
+empty_certificate_template_path: "{{ role_path }}/files/empty_certificate_template.yml"
 
 # Usage: csi_powerscale_config_secret.yml, csi_powerscale_prereq.yml
 csi_powerscale_secret_path: "{{ csi_powerscale_path }}/csi_powerscale_secret.yaml"
@@ -27,9 +28,11 @@ csi_powerscale_path: "/opt/omnia/csi-driver-powerscale"
 csi_powerscale_git: "csi-powerscale.tar.gz"
 
 # Usage: csi_powerscale_install.yml
-fail_msg_csi_powerscale_driver: "Deployment of csi driver was not successful. Please review the deployment. Run playbook with -vvv for more details"
+fail_msg_csi_powerscale_driver: "Error. Deployment of csi driver was not successful. Please review the deployment. Run playbook with -vvv for more details"
 pass_msg_csi_powerscale_driver: "CSI Powerscale driver installation completed successfully."
 wait_time: 10
+max_attempts: 5
+isilon_ns: "isilon"
 
 # Usage: csi_powerscale_prereq.yml
 permission_644: "0644"
