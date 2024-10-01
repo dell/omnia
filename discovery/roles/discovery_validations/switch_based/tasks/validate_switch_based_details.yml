@@ -32,10 +32,10 @@
 
 - name: Create list of switch IPs
   ansible.builtin.set_fact:
-    switch_based_ip_list: "{{ switch_based_ip_list | default([]) }} + [ '{{ item.ip }}']"
+    switch_based_ip_list: "{{ switch_based_ip_list | default([]) + [item.ip] }}"
   with_items: "{{ switch_based_details }}"
 
-- name: Create list of switch IPs
+- name: Create list of switch IPs - Ensure unique
   ansible.builtin.set_fact:
     switch_based_ip_list: "{{ switch_based_ip_list | unique }}"
 

@@ -51,5 +51,3 @@ configeth_patch_path:
 # Usage: configure_postscripts.yml
 omnia_disable_repo_postscripts_path:
   - { src: "{{ role_path }}/../redhat/files/omnia_disable_repo", dest: "/install/postscripts/omnia_disable_repo", mode: "755" }
-otherpkgs_patch_file:
-  - { src: "{{ role_path }}/../redhat/files/otherpkgs_updated.patch", dest: "/install/postscripts/otherpkgs", mode: "755" }

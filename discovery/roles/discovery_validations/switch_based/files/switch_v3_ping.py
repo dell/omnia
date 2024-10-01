@@ -15,9 +15,19 @@
 import platform
 import subprocess
 import sys
+import ipaddress
 
 host = sys.argv[1]
 
+def validate_ip(host):
+    """
+    Returns True if host is a valid IP address.
+    """
+    try:
+        ipaddress.ip_address(host)
+        return True
+    except ValueError:
+        return False
 
 def ping():
     """
@@ -25,11 +35,14 @@ def ping():
     """
     # Option for the number of packets as a function of
     param = '-n' if platform.system().lower() == 'windows' else '-c'
-
+    # Validate the IP address
+    if not validate_ip(host):
+        sys.exit(f"'{host}' is not a valid IP address.")
     # Building the command. Ex: "ping -c 1 google.com"
     command = ['ping', param, '1', host]
 
     return subprocess.call(command) == 0
+
 
 
 ping_op = ping()

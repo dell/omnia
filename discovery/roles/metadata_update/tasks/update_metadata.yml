@@ -159,3 +159,11 @@
     insertafter: "EOF"
     state: present
     line: 'md_discovery_mech_switch_based: {{ discovery_mech_switch_based }}'
+
+- name: Update installed_version
+  ansible.builtin.lineinfile:
+    path: "{{ meta_path }}"
+    regexp: '^installed_version:(.*)$'
+    insertafter: "EOF"
+    state: present
+    line: 'installed_version: 1.7'

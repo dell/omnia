@@ -23,11 +23,3 @@
 - name: Configure postscripts for omnia_disable_repo
   ansible.builtin.command: "{{ xcat_path }}/chdef all -p postscripts=omnia_disable_repo"
   changed_when: true
-
-- name: Apply postscript otherpackages patches
-  ansible.posix.patch:
-    src: "{{ item.src }}"
-    dest: "{{ item.dest }}"
-    state: present
-  with_items: "{{ otherpkgs_patch_file }}"
-  when: proxy_status

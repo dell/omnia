@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -30,15 +30,13 @@
       - network_data.admin_network.netmask_bits | int <= 32
     fail_msg: "{{ fail_msg_admin_netmask_bits }}"
 
-- name: Set pxe nic static start and end ranges
+- name: Set pxe nic static, dynamic ranges and forwarders
   ansible.builtin.set_fact:
     pxe_nic_start_range: "{{ network_data.admin_network.static_range | split('-') | first }}"
     pxe_nic_end_range: "{{ network_data.admin_network.static_range | split('-') | last }}"
-
-- name: Set pxe nic dynamic start and end ranges
-  ansible.builtin.set_fact:
     pxe_nic_dynamic_start_range: "{{ network_data.admin_network.dynamic_range | split('-') | first }}"
     pxe_nic_dynamic_end_range: "{{ network_data.admin_network.dynamic_range | split('-') | last }}"
+    pxe_nic_forwarders: "{{ network_data.admin_network.DNS | default('', true) }}"
 
 - name: Validate if admin static ranges are valid
   ansible.builtin.assert:

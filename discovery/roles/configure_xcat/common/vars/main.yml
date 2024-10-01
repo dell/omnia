@@ -44,6 +44,9 @@ fail_bmc_nic: "Failed. Please provide proper bmc subnet."
 
 # Usage: configue_proxy.yml
 squid_proxy_conf_path: /etc/squid/squid.conf
+xcat_proxy_patch_file:
+  - { src: "{{ role_path }}/files/otherpkgs_updated.patch", dest: "/install/postscripts/otherpkgs", mode: "755" }
+  - { src: "{{ role_path }}/files/yum_updated.patch", dest: "/opt/xcat/lib/perl/xCAT/Yum.pm", mode: "755" }
 
 # Usage: configure_xcat_basic_details
 python_version: "3.9"

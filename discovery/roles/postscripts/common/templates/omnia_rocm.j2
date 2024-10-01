@@ -33,6 +33,9 @@ name=amdgpu
 baseurl=http://{{ admin_nic_ip }}:80/install{{ repo_store_path }}/cluster/yum/amdgpu/{{ amdgpu_version }}
 enabled=1
 gpgcheck=0
+{% if proxy_status %}
+proxy=_none_
+{% endif %}
 EOF
 
     dnf clean all
