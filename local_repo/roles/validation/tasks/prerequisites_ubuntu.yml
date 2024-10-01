@@ -13,19 +13,10 @@
 # limitations under the License.
 ---
 
-- name: Install community.general galaxy collection
-  ansible.builtin.command: ansible-galaxy collection install "{{ community_general_collection }}"
-  changed_when: true
-  register: community_general_collection
-  until: community_general_collection is not failed
-  retries: "{{ max_retries }}"
-
-- name: Install ansible galaxy collection {{ community_crypto_collection }}
-  ansible.builtin.command: ansible-galaxy collection install {{ community_crypto_collection }}
-  changed_when: true
-  register: community_crypto_collection
-  until: community_crypto_collection is not failed
-  retries: "{{ max_retries }}"
+- name: Delete apt.conf file
+  ansible.builtin.file:
+    path: "{{ apt_conf_dest }}"
+    state: absent
 
 - name: Update repo - Ubuntu
   ansible.builtin.command: apt update

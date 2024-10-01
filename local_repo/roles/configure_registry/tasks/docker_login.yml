@@ -17,10 +17,13 @@
   ansible.builtin.command: nerdctl login -u {{ docker_username }} -p {{ docker_password }}
   changed_when: true
   register: docker_login_output
+  retries: "{{ retry_count }}"
+  delay: "{{ delay_time }}"
+  until: docker_login_output.rc == 0
   failed_when: false
   no_log: true
 
 - name: Docker login check
   ansible.builtin.fail:
-    msg: "{{ docker_login_fail_msg }}"
-  when: docker_login_output is failed
+    msg: "{{ docker_login_fail_msg }} Error: {{ docker_login_output.stderr }}"
+  when: docker_login_output.rc != 0

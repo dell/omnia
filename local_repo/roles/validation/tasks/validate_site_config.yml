@@ -56,11 +56,15 @@
     - http_proxy_input_status
     - https_proxy_input_status
   block:
-    - name: Validate http_proxy and https_proxy configured as environment variables
+    - name: Validate http_proxy, https_proxy and no_proxy configured as environment variables
       ansible.builtin.assert:
         that:
+          - lookup('env', 'http_proxy') | length > 1
+          - lookup('env', 'https_proxy') | length > 1
+          - lookup('env', 'no_proxy') | length > 1
           - lookup('env', 'http_proxy') == proxy[0].http_proxy
           - lookup('env', 'https_proxy') == proxy[0].https_proxy
+          - cp_hostname in lookup('env', 'no_proxy')
         fail_msg: "{{ proxy_env_fail_msg }}"
 
     - name: Try updating repos in Ubuntu
@@ -69,6 +73,10 @@
         - name: Update repos in Ubuntu
           ansible.builtin.apt:
             update_cache: true
+          register: update_repos
+          until: update_repos is not failed
+          retries: "{{ repo_retries }}"
+          delay: "{{ repo_delay }}"
       rescue:
         - name: Failed to update repos
           ansible.builtin.fail:
@@ -82,6 +90,10 @@
         - name: Update repos in RHEL/Rocky
           ansible.builtin.dnf:
             update_cache: true
+          register: update_repos
+          until: update_repos is not failed
+          retries: "{{ repo_retries }}"
+          delay: "{{ repo_delay }}"
       rescue:
         - name: Failed to update repos
           ansible.builtin.fail:

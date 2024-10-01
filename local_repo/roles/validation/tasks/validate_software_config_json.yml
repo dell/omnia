@@ -23,7 +23,7 @@
 
 - name: Check that the software_config.json exists
   ansible.builtin.stat:
-    path: "{{ software_config_json_file }}"
+    path: "{{ sw_config_json_path }}"
   register: stat_result
 
 - name: Fail if software_config.json file doesn't exist
@@ -33,7 +33,7 @@
 
 - name: Check JSON syntax of software_config.json
   ansible.builtin.command:
-    cmd: "jq . {{ software_config_json_file }}"
+    cmd: "jq . {{ sw_config_json_path }}"
   register: json_check
   ignore_errors: true
   changed_when: true
@@ -45,7 +45,7 @@
 
 - name: Load software_config.json
   ansible.builtin.include_vars:
-    file: "{{ software_config_json_file }}"
+    file: "{{ sw_config_json_path }}"
     name: software_config
 
 - name: Assert cluster_os_type, cluster_os_version, repo_config and softwares

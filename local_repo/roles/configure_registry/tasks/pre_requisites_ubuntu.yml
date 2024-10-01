@@ -45,10 +45,16 @@
   until: download_nerdctl is not failed
   retries: "{{ max_retries }}"
 
+- name: Create nerdctl temp directory
+  ansible.builtin.file:
+    path: "{{ temp_download_dir }}/nerdctl"
+    state: directory
+    mode: "{{ directory_permissions }}"
+
 - name: Extract nerdctl archive
   ansible.builtin.unarchive:
     src: "{{ nerdctl_archive_dest }}"
-    dest: "{{ temp_download_dir }}"
+    dest: "{{ temp_download_dir }}/nerdctl/"
     mode: "{{ file_permission }}"
 
 - name: Make nerdctl executable
