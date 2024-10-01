@@ -75,7 +75,7 @@
         HCCL_COMM_ID: "{{ habana_extra['hccl_comm_id'] }}"
       ansible.builtin.shell: "cd {{ test_folder.path }} && python3 run_hccl_demo.py -clean --test all_reduce --nranks 8 --loop 1000 --node_id 0 --size 256m --ranks_per_node 8" # noqa: yaml[line-length]
       register: hccl_demo_all_reduce_single_node_test_result
-      failed_when: ((hccl_demo_all_gather_single_node_test_result.stdout | regex_search('.NW Bandwidth.*:(.*)MB\/s', '\\1') | first | int <= 254000) or (hccl_demo_all_gather_single_node_test_result.stdout | regex_search('.Algo Bandwidth.*:(.*)MB\/s', '\\1') | first | int <= 36000)) # noqa: yaml[line-length]
+      failed_when: ((hccl_demo_all_reduce_single_node_test_result.stdout | regex_search('.NW Bandwidth.*:(.*)MB\/s', '\\1') | first | int <= 255000) or (hccl_demo_all_reduce_single_node_test_result.stdout | regex_search('.Algo Bandwidth.*:(.*)MB\/s', '\\1') | first | int <= 146000)) # noqa: yaml[line-length]
       changed_when: false
 
     - name: Hccl_demo all_gather single node test

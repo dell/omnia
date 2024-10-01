@@ -47,6 +47,12 @@
   loop_control:
     loop_var: item
 
+- name: Check if the rocm offline repo exists
+  ansible.builtin.stat:
+    path: "{{ offline_rocm_directory }}/rocm/"
+  register: check_rocm_repo
+  when: rocm_input_status
+
 - name: Set amdgpu_config_status
   when: amdgpu_input_status
   block:
@@ -76,7 +82,10 @@
         amdgpu_config_status: false
 
 - name: Set rocm_config_status
-  when: rocm_input_status
+  when:
+    - rocm_input_status
+    - user_config.repo_config == 'always' or user_config.repo_config == 'partial'
+    - check_rocm_repo.stat.exists
   block:
     - name: Fetch rocm_version
       ansible.builtin.set_fact:
@@ -95,6 +104,28 @@
       ansible.builtin.set_fact:
         rocm_config_status: "{{ check_rocm_dir.stat.exists | ternary(true, false) }}"
 
+  rescue:
+    - name: Log an error message
+      ansible.builtin.debug:
+        msg: " {{ amdgpu_fail_msg }} "
+
+    - name: Set rocm_config_status to false
+      ansible.builtin.set_fact:
+        rocm_config_status: false
+
+- name: Set rocm_config_status
+  when:
+    - rocm_input_status
+    - user_config.repo_config == 'never' or user_config.repo_config == 'partial'
+    - not check_rocm_repo.stat.exists
+  block:
+    - name: Fetch rocm_version
+      ansible.builtin.set_fact:
+        rocm_version: "{{ user_config.amdgpu | selectattr('name', 'equalto', 'rocm') | map(attribute='version') | first }}"
+
+    - name: Set rocm_config_status to true
+      ansible.builtin.set_fact:
+        rocm_config_status: true
   rescue:
     - name: Log an error message
       ansible.builtin.debug:

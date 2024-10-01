@@ -22,14 +22,14 @@ intel_gaudi_kernel_module_to_load:
 
 # TODO: move to a central config file
 intel_habana_packages:
-  - habanalabs-dkms
-  - habanalabs-firmware
-  - habanalabs-firmware-tools
-  - habanalabs-graph
-  - habanalabs-qual
-  - habanalabs-rdma-core
-  - habanalabs-thunk
-  - habanatools
+  - "habanalabs-dkms={{ intelgaudi_version }}"
+  - "habanalabs-firmware={{ intelgaudi_version }}"
+  - "habanalabs-firmware-tools={{ intelgaudi_version }}"
+  - "habanalabs-graph={{ intelgaudi_version }}"
+  - "habanalabs-qual={{ intelgaudi_version }}"
+  - "habanalabs-rdma-core={{ intelgaudi_version }}"
+  - "habanalabs-thunk={{ intelgaudi_version }}"
+  - "habanatools={{ intelgaudi_version }}"
 
 # TODO: move to a central config file
 intel_apt_base_packages:
@@ -53,3 +53,4 @@ intel_apt_base_packages:
   - wget
 
 intel_bring_up_ports_script_path: "/opt/omnia/cronjobs/bring_up_ports.sh"
+file_permissions: "0755"

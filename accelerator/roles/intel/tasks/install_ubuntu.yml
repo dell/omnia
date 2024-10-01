@@ -23,6 +23,14 @@
       ansible.builtin.package_facts:
         manager: auto
 
+    - name: Set intelgaudi version
+      ansible.builtin.set_fact:
+        intelgaudi_version: "{{ item.version }}"
+      loop: "{{ software_config.softwares | default([]) }}"
+      when: "'intelgaudi' in item.name"
+      loop_control:
+        loop_var: item
+
     - name: Check if kernel supported
       ansible.builtin.fail:
         msg: "Kernel not supported"

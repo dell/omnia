@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -22,29 +22,48 @@
 - name: Reboot after installing GPU drivers
   ansible.builtin.reboot:
 
-- name: Install ROCm packages
-  ansible.builtin.package:
-    name: "{{ rocm_packages }}"
-    enablerepo: ROCm
-    state: present
-
-- name: Check if environment variables are set
-  ansible.builtin.command: echo $PATH
-  changed_when: false
-  failed_when: false
-  register: path_output
-
-- name: Perform Post Installation steps
-  when: "'rocm' not in path_output.stdout"
+- name: Verify Repo and Install ROCm packages
   block:
-    - name: Check current environment variables
-      ansible.builtin.shell: echo $PATH
-      changed_when: false
-      register: environment_output
+    - name: Install ROCm packages
+      ansible.builtin.package:
+        name: "{{ rocm_packages }}"
+        enablerepo: ROCm
+        state: present
 
-    - name: Replace PATH variable
-      ansible.builtin.lineinfile:
-        path: /etc/bashrc
-        regexp: '^PATH=*'
-        insertafter: EOF
-        line: 'PATH={{ environment_output.stdout }}:/opt/rocm/bin/'
+    - name: Check if environment variables are set
+      ansible.builtin.command: echo $PATH
+      changed_when: false
+      failed_when: false
+      register: path_output
+
+    - name: Perform Post Installation steps
+      when: "'rocm' not in path_output.stdout"
+      block:
+        - name: Check current environment variables
+          ansible.builtin.shell: echo $PATH
+          changed_when: false
+          register: environment_output
+
+        - name: Replace PATH variable
+          ansible.builtin.lineinfile:
+            path: /etc/bashrc
+            regexp: '^PATH=*'
+            insertafter: EOF
+            line: 'PATH={{ environment_output.stdout }}:/opt/rocm/bin/'
+
+        - name: Ensure rocm.conf exists and add library paths
+          ansible.builtin.copy:
+            dest: "{{ linker_dest_path }}"
+            content: |
+              /opt/rocm/lib
+              /opt/rocm/lib64
+            mode: "{{ file_permission }}"
+
+        - name: Run ldconfig to update dynamic linker bindings
+          ansible.builtin.command: ldconfig
+          changed_when: false
+  rescue:
+    - name: Warning, rocm repo not configured
+      ansible.builtin.pause:
+        prompt: "{{ rocm_warning_msg }}"
+        seconds: "{{ warning_time }}"

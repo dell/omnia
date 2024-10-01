@@ -29,22 +29,15 @@
   ansible.builtin.import_playbook: ../utils/update_user_repo.yml
   when: not ( hostvars['127.0.0.1']['update_user_repo_executed'] | default(false) | bool )
 
-# - name: Validate repo file and subscription
-#   hosts: all
-#   gather_facts: true
-#   roles:
-#     - repo_validation
-#   tags: amd, nvidia
-
 - name: Gather Cluster Facts
-  hosts: all
+  hosts: slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login, etcd
   gather_facts: true
   roles:
     - common
   tags: amd, nvidia, intel
 
 - name: Perform GPU driver and ROCm installation for AMD Accelerators
-  hosts: all
+  hosts: slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login, etcd
   gather_facts: true
   any_errors_fatal: true
   roles:
@@ -72,7 +65,7 @@
 #   tags: nvidia
 
 - name: Install Habana drivers on nodes
-  hosts: all
+  hosts: slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login, etcd
   gather_facts: true
   any_errors_fatal: true
   roles:
