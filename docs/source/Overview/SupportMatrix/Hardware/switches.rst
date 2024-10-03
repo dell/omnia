@@ -6,6 +6,8 @@ Switches
   :header-rows: 1
   :keepspace:
 
+.. versionadded:: 1.7
+    PowerSwitch Z9432-ON
 
 .. note::
 

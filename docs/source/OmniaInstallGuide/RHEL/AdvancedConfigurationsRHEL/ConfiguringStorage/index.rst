@@ -103,7 +103,7 @@ Run the playbook: ::
 * ``powervault_username`` and ``powervault_password`` are the credentials used to administrate the array.
 
 
-Configuring NFS server server connected to PowerVault
+Configuring NFS server connected to PowerVault
 ------------------------------------------------------
 
 To configure an NFS server, enter the following parameters in ``storage/nfs_server_input.yml``
@@ -134,7 +134,7 @@ Run the playbook: ::
     ansible-playbook nfs_sas.yml -i /root/inventory -e powervault_username="xxxxx" -e powervault_password="xxxxxx"
 
 * Where the ``inventory`` refers to a list of all nodes separated by a newline.
-* To set up NFS client services, `click here <../../OmniaCluster/Storage/NFS.html>`_
+* To set up NFS client services, `click here <../../OmniaCluster/BuildingCluster/Storage/NFS.html>`_
 
 
 

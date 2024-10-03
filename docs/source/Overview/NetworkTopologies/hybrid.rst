@@ -15,5 +15,5 @@ In a **Hybrid Setup**, the control plane and special nodes such as the head and 
 
 **Recommended discovery mechanism**
 
-* `mapping <../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/mappingfile.html>`_
-* `bmc <../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/bmc.html>`_
+* `mapping <../../OmniaInstallGuide/Ubuntu/Provision/DiscoveryMechanisms/mappingfile.html>`_
+* `bmc <../../OmniaInstallGuide/Ubuntu/Provision/DiscoveryMechanisms/bmc.html>`_

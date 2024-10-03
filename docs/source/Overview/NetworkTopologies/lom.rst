@@ -15,7 +15,7 @@ In a shared **LOM Setup**, the entire cluster network is shared between the iDRA
 
 **Recommended discovery mechanism**
 
-* `mapping <../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/mappingfile.html>`_
-* `bmc <../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/bmc.html>`_
-* `switch-based  <../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/switch-based.html>`_
+* `mapping <../../OmniaInstallGuide/Ubuntu/Provision/DiscoveryMechanisms/mappingfile.html>`_
+* `bmc <../../OmniaInstallGuide/Ubuntu/Provision/DiscoveryMechanisms/bmc.html>`_
+* `switch-based  <../../OmniaInstallGuide/Ubuntu/Provision/DiscoveryMechanisms/switch-based.html>`_
 

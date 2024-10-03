@@ -17,6 +17,6 @@ In a **Dedicated Setup**, all the cluster nodes (Head, Compute, and Login [optio
 
 **Recommended discovery mechanism**
 
-* `mapping <../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/mappingfile.html>`_
-* `bmc <../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/bmc.html>`_
+* `mapping <../../OmniaInstallGuide/Ubuntu/Provision/DiscoveryMechanisms/mappingfile.html>`_
+* `bmc <../../OmniaInstallGuide/Ubuntu/Provision/DiscoveryMechanisms/bmc.html>`_
 

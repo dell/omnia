@@ -1,11 +1,11 @@
 NFS
-____
+=====
 
 Network File System (NFS) is a networking protocol for distributed file sharing. A file system defines the way data in the form of files is stored and retrieved from storage devices, such as hard disk drives, solid-state drives and tape drives. NFS is a network file sharing protocol that defines the way files are stored and retrieved from storage devices across networks.
 
 .. note:: NFS is a mandatory feature for all clusters set up by Omnia. Omnia sets up the NFS server and mounts the NFS client when ``nfs_server`` value is true.
 
-**Pre requisites**
+**Prerequisites**
 
 * NFS is set up on Omnia clusters based on the inputs provided in ``input/storage_config.yml``.
 
@@ -20,7 +20,7 @@ Network File System (NFS) is a networking protocol for distributed file sharing.
     +-----------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 
-    .. image:: ../../../../images/nfs_flowchart.png
+    .. image:: ../../../../../images/nfs_flowchart.png
 
 
 
@@ -57,7 +57,7 @@ Network File System (NFS) is a networking protocol for distributed file sharing.
         - { server_ip: 198.168.0.2, server_share_path: "/mnt/share2", client_share_path: "/mnt/mount2", client_mount_options: "nosuid,rw,sync,hard", nfs_server: false, slurm_share: true, k8s_share: true }
 
 
-* Ensure that an NFS local repository is created by including ``{"name": "nfs"},`` in ``input/software_config.json``. For more information, `click here <../../CreateLocalRepo/index.html>`_.
+* Ensure that an NFS local repository is created by including ``{"name": "nfs"},`` in ``input/software_config.json``. For more information, `click here <../../../CreateLocalRepo/index.html>`_.
 * If the intended cluster will run Slurm, set the value of ``slurm_installation_type`` in ``input/omnia_config.yml`` to ``nfs_share``.
 * If an external NFS share is used, make sure that ``/etc/exports`` on the NFS server is populated with the same paths listed as ``server_share_path`` in the ``nfs_client_params`` in ``input/storage_config.yml``.
 * Omnia supports all NFS mount options. Without user input, the default mount options are ``nosuid,rw,sync,hard,intr``.
@@ -70,7 +70,7 @@ Run the ``storage.yml`` playbook : ::
     cd storage
     ansible-playbook storage.yml -i inventory
 
-Use the linked `inventory file <../../../samplefiles.html#inventory-file>`_ for the above playbook.
+Use the linked `inventory file <../../../../samplefiles.html#inventory-file>`_ for the above playbook.
 
 
 Post configuration, enable the following services (using this command: ``firewall-cmd --permanent --add-service=<service name>``) and then reload the firewall (using this command: ``firewall-cmd --reload``).
