@@ -13,9 +13,9 @@ To install multiple packages on cluster nodes in a bulk operation, the ``softwar
 To customize the software update, enter the following parameters in ``utils/software_update/software_update_config.yml``:
 
 .. csv-table:: Parameters for software_update_config.yml
-      :file: ../../Tables/software_update_config.csv
-      :header-rows: 1
-      :keepspace:
+    :file: ../Tables/software_update_config.csv
+    :header-rows: 1
+    :keepspace:
 
 To run the playbook, run the following commands: ::
 
