@@ -22,8 +22,7 @@ To set up IPA services for the NFS node in the target cluster, run the following
     cd utils/cluster
     ansible-playbook install_ipa_client.yml -i inventory -e kerberos_admin_password="" -e ipa_server_hostname="" -e domain_name="" -e ipa_server_ipadress=""
 
-Hostname requirements
-------------------------
+**Hostname requirements**
 
 * The hostname should not contain the following characters: , (comma), \. (period) or _ (underscore). However, the **domain name** is allowed with commas and periods.
 * The hostname cannot start or end with a hyphen (-).
