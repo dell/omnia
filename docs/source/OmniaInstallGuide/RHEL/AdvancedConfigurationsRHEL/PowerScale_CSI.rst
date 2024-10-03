@@ -237,31 +237,27 @@ To remove the PowerScale driver manually, do the following:
 
 1. Login to the ``kube_control_plane``.
 
-2. Use the following command to bring up the list of all deployments on your cluster: ::
-
-    kubectl get deployment -A
-
-3. Get the name of your deployment and run the following command to delete your deployment: ::
-
-    kubectl delete deployment <deployment name>
-
-4. Use the following command to get the name of your storageclass: ::
-
-    kubectl get storageclass
-
-5. Run the following command to delete your storageclass: ::
-
-    kubectl delete <storageclass name>
-
-6. Execute the following command to switch to the ``dell-csi-helm-installer`` directory: ::
+2. Execute the following command to switch to the ``dell-csi-helm-installer`` directory: ::
 
     cd /opt/omnia/csi-driver-powerscale/csi-powerscale/dell-csi-helm-installer
 
-7. Once you're inside the ``dell-csi-helm-installer`` directory, use the following command to trigger the ``csi-uninstall`` script: ::
+3. Once you're inside the ``dell-csi-helm-installer`` directory, use the following command to trigger the ``csi-uninstall`` script: ::
 
     ./csi-uninstall.sh --namespace isilon
 
-8. After running the previous command, the PowerScale driver is removed. But, the secret and the created PVC are not removed. Users needs to manually remove them from the ``isilon`` namespace.
+4. After running the previous command, the PowerScale driver is removed. But, the secret and the created PVC are not removed. If users want to remove them, they need to do it manually from the "isilon" namespace.
+
+5. If users don't want to use PowerScale anymore, they can remove the following as well:
+
+    a. Remove the PowerScale secret by executing the following commands one after the other:
+
+         i. ``kubectl delete secret isilon-creds -n isilon``
+
+         ii. ``kubectl delete secret isilon-certs-0 -n isilon``
+
+    b. Remove any custom user deployment and PVC that was using PowerScale storage class.
+
+    c. Remove the PowerScale storage class.
 
 .. note:: In case OneFS portal credential changes, users need to perform following steps to update the changes to the ``secret.yaml`` manually:
 
