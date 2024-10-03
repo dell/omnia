@@ -247,7 +247,7 @@ To remove the PowerScale driver manually, do the following:
 
 4. After running the previous command, the PowerScale driver is removed. But, the secret and the created PVC are not removed. If users want to remove them, they need to do it manually from the "isilon" namespace.
 
-5. If users don't want to use PowerScale anymore, remove the following as well:
+5. If users don't want to use PowerScale anymore, they can remove the following as well:
 
     a. Remove the PowerScale secret by executing the following commands one after the other:
 
