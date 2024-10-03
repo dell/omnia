@@ -88,6 +88,8 @@ Prerequisites
     * Snapshot: true
     * skipCertificateValidation: true
 
+.. note:: Once the PowerScale CSI driver has been deployed, the parameters in the ``values.yaml`` can't be changed. If the user wants to modify the ``values.yaml`` file, they must first uninstall the PowerScale CSI driver from the cluster and then re-install with the updated parameters.
+
 Installation Process
 ---------------------
 

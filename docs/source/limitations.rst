@@ -3,7 +3,7 @@ Limitations
 
 - Omnia supports adding only 1000 nodes when discovered via BMC.
 - Dell Technologies provides support to the Dell-developed modules of Omnia. All the other third-party tools deployed by Omnia are outside the support scope.
-- In a single node cluster, the login node and Slurm functionalities are not applicable. However, Omnia installs FreeIPA server and slurm on the single node.
+- In a single node cluster, the login node and Slurm functionalities are not applicable.
 - Omnia does not currently support Slurm on Ubuntu.
 - Containerized benchmark job execution is not supported on Slurm clusters.
 - FreeIPA server is not provided in the default Ubuntu repositories. OpenLDAP is provided as an alternative.
