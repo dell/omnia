@@ -2,7 +2,7 @@ Setup Kubeflow
 ---------------
 Kubeflow is an open-source platform for machine learning and MLOps on Kubernetes introduced by Google.
 
-.. note:: Omnia 1.6 does not support deploying both Kserve and Kubeflow in the same Kubernetes cluster. If Kserve is already deployed on the cluster and you wish to deploy Kubeflow, you must first remove Kserve by following the steps `here <kserve.html>`_.
+.. note:: Omnia 1.8 does not support deploying both Kserve and Kubeflow in the same Kubernetes cluster. If Kserve is already deployed on the cluster and you wish to deploy Kubeflow, you must first remove Kserve by following the steps `here <kserve.html>`_.
 
 **Prerequisite**
 

@@ -289,7 +289,7 @@ For more information on UCX configurations, `click here <../AdvancedConfiguratio
 
             {"name": "intel_benchmarks", "version": "2024.1.0"},
 
-For more information on Intel benchmarks, `click here <../Benchmarks/AutomatingOneAPI.html>`_.
+For more information on Intel benchmarks, `click here <../AdvancedConfigurationsRHEL/AutomatingOneAPI.html>`_.
 
 
 **AMD benchmarks**
@@ -298,7 +298,7 @@ For more information on Intel benchmarks, `click here <../Benchmarks/AutomatingO
 
             {"name": "amd_benchmarks"},
 
-For more information on AMD benchmarks, `click here <../Benchmarks/AutomatingOpenMPI.html>`_.
+For more information on AMD benchmarks, `click here <../AdvancedConfigurationsRHEL/AutomatingOpenMPI.html>`_.
 
 
 **Custom repositories**

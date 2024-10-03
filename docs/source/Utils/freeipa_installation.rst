@@ -1,5 +1,5 @@
 FreeIPA installation on the NFS node
--------------------------------------
+=====================================
 
 IPA services are used to provide account management and centralized authentication. If admin user intends to install the FreeIPA authentication on the NFS node (server connected to the storage devices), then the following playbook can be utilized.
 
@@ -22,7 +22,14 @@ To set up IPA services for the NFS node in the target cluster, run the following
     cd utils/cluster
     ansible-playbook install_ipa_client.yml -i inventory -e kerberos_admin_password="" -e ipa_server_hostname="" -e domain_name="" -e ipa_server_ipadress=""
 
-.. include:: ../Appendices/hostnamereqs.rst
+Hostname requirements
+------------------------
+
+* The hostname should not contain the following characters: , (comma), \. (period) or _ (underscore). However, the **domain name** is allowed with commas and periods.
+* The hostname cannot start or end with a hyphen (-).
+* No upper case characters are allowed in the hostname.
+* The hostname cannot start with a number.
+* The hostname and the domain name (that is: ``hostname00000x.domain.xxx``) cumulatively cannot exceed 64 characters. For example, if the ``node_name`` provided in ``input/provision_config.yml``
 
 .. note::
 
