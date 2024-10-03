@@ -251,11 +251,9 @@ To remove the PowerScale driver manually, do the following:
 
     a. Remove the PowerScale secret by executing the following commands one after the other:
 
-        ::
-            kubectl delete secret isilon-creds -n isilon
+         i. ``kubectl delete secret isilon-creds -n isilon``
 
-        ::
-            kubectl delete secret isilon-certs-0 -n isilon
+         ii. ``kubectl delete secret isilon-certs-0 -n isilon``
 
     b. Remove any custom user deployment and PVC that was using PowerScale storage class.
 
