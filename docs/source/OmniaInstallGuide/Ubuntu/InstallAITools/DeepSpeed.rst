@@ -14,7 +14,7 @@ Before deploying a DeepSpeed MPIJob, the following prerequisites must be fulfill
 
 3. Verify that the cluster nodes have sufficient allocatable resources for the ``hugepages-2Mi`` and ``Intel Gaudi accelerator``. To check the allocatable resources on all nodes, run: ::
 
-    kubectl describe <intel-gaudi-node-name> | grep -A 10 "Allocatable"
+    kubectl describe node <intel-gaudi-node-name> | grep -A 10 "Allocatable"
 
 4. [Optional] If required, you can adjust the resource parameters in the ``ds_configuration.yml`` file based on the availability of resources on the nodes.
 
