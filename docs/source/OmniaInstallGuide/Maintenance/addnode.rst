@@ -131,7 +131,7 @@ In the above examples, nodes 10.5.0.105 and 10.5.0.106 have been added to the cl
 
 .. note::
     * The ``[etcd]`` group only supports an odd number of servers in the group. Adding nodes to ``[etcd]`` groups is not supported in re-run scenarios.
-    * Do not change the kube_control_plane/slurm_control_node/auth_server in the existing inventory. Simply add the new node information in the kube_node/slurm_node group.
+    * Do not change the ``kube_control_plane``, ``slurm_control_node`` and/or ``auth_server`` in the existing inventory file. Simply add the new node information in the ``kube_node`` and/or ``slurm_node`` group.
     * When re-running ``omnia.yml`` to add a new node, ensure that the ``input/security_config.yml`` and ``input/omnia_config.yml`` are not edited between runs.
 
 2. Once the new node IPs have been provided in the inventory, you can install security tools (OpenLDAP, FreeIPA), job schedulers (Kubernetes, Slurm), and storage tools (NFS, BeeGFS) on the nodes by executing ``omnia.yml`` with the updated inventory file: ::

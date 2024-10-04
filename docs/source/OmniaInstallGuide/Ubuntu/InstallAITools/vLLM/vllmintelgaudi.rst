@@ -8,7 +8,7 @@ Before enabling the vLLM capabilities of the cluster running Intel Gaudi acceler
 
 1. Verify that the cluster nodes have sufficient allocatable resources for the ``hugepages-2Mi`` and ``Intel Gaudi accelerator``. To check the allocatable resources on all nodes, run: ::
 
-    kubectl describe <intel-gaudi-node-name> | grep -A 10 "Allocatable"
+    kubectl describe node <intel-gaudi-node-name> | grep -A 10 "Allocatable"
 
 2. [Optional] If required, you can adjust the resource parameters in the ``vllm_configuration.yml`` file based on the availability of resources on the nodes.
 
