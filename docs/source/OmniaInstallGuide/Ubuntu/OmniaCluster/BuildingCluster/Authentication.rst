@@ -159,7 +159,7 @@ Enter the following parameters in ``input/login_node_security_config.yml``.
 +-----------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 |**smtp_server**              | This parameter will be applicable only when ``alert_email_address`` is provided.                                                                                               |
 |      ``string``             | This variable contains the SMTP server details configured on the cluster, from where the email alerts would be sent in case of authentication failures.                        |
-|      Optional               | Currently, Omnia only supports configuration of a single SMTP server on the cluster.                                                                                           |
+|      Optional               | Currently, Omnia only supports configuration of a single SMTP server on the cluster. The SMTP server should be reachable from the ``login_node`` to receive the email alerts.  |
 |                             | **Example**: ::                                                                                                                                                                |
 |                             |       smtp_server:                                                                                                                                                             |
 |                             |         - { host: "smtp-server.domain.com", port: "25", sender_address: "alert@domain.com" }"                                                                                  |
