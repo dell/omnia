@@ -167,7 +167,8 @@ Enter the following parameters in ``input/login_node_security_config.yml``.
 +-----------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 |**alert_email_address**      | Email address used for sending alerts in case of authentication failure.   When blank, authentication failure alerts are disabled.                                             |
 |     ``string``              | User can mention comma-separated alert email addresses.                                                                                                                        |
-|      Optional               | **Example**: ``alert_email_address: "user1@domain.com,user2@domain.com"``                                                                                                      |
+|      Optional               | **Example**: ::                                                                                                                                                                |
+|                             |    alert_email_address: "user1@domain.com,user2@domain.com"                                                                                                                    |
 +-----------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 |**smtp_server**              | This parameter will be applicable only when ``alert_email_address`` is provided.                                                                                               |
 |      ``string``             | This variable contains the SMTP server details configured on the cluster, from where the email alerts would be sent in case of authentication failures.                        |
