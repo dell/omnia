@@ -37,7 +37,7 @@ PyTorch is a popular open-source deep learning framework, renowned for its dynam
 
 **Accessing PyTorch (CPU)**
 
-1. Verify that the PyTorch image present in container engine images: ::
+1. Verify that the PyTorch image is present in container engine images: ::
 
     nerdctl images
 
@@ -50,7 +50,7 @@ For more information, `click here <https://hub.docker.com/r/pytorch/pytorch/tags
 
 **Accessing PyTorch (AMD GPU)**
 
-1. Verify that the PyTorch image present in container engine images: ::
+1. Verify that the PyTorch image is present in container engine images: ::
 
     nerdctl images
 
@@ -62,7 +62,7 @@ For more information, `click here <https://rocm.docs.amd.com/projects/install-on
 
 **Accessing PyTorch (NVIDIA GPU)**
 
-1. Verify that the PyTorch image present in container engine images: ::
+1. Verify that the PyTorch image is present in container engine images: ::
 
     nerdctl images
 
@@ -74,7 +74,7 @@ For more information, `click here <https://catalog.ngc.nvidia.com/orgs/nvidia/co
 
 **Accessing PyTorch (Intel Gaudi accelerator)**
 
-1. Verify that the PyTorch image present in container engine images: ::
+1. Verify that the PyTorch image is present in container engine images: ::
 
     nerdctl images
 
