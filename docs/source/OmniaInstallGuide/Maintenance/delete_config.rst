@@ -26,21 +26,6 @@ Use this playbook to remove the Slurm and/or Kubernetes configuration and stop a
     [kube_node]
     10.5.0.102
     10.5.0.103
-
-    [auth_server]
-    10.5.0.101
-
-    [etcd]
-    10.5.0.110
-
-*Updated Kubernetes inventory with the new node information*
-::
-    [kube_control_plane]
-    10.5.0.101
-
-    [kube_node]
-    10.5.0.102
-    10.5.0.103
     10.5.0.105
     10.5.0.106
 
@@ -50,6 +35,12 @@ Use this playbook to remove the Slurm and/or Kubernetes configuration and stop a
     [etcd]
     10.5.0.110
 
+*New inventory for removing Kube nodes from the cluster*
+::
+
+    [kube_node]
+    10.5.0.102
+    10.5.0.103
 
 *Existing Slurm inventory*
 ::
@@ -59,21 +50,6 @@ Use this playbook to remove the Slurm and/or Kubernetes configuration and stop a
     [slurm_node]
     10.5.0.102
     10.5.0.103
-
-    [login]
-    10.5.0.104
-
-    [auth_server]
-    10.5.0.101
-
-*Updated Slurm inventory with the new node information*
-::
-    [slurm_control_node]
-    10.5.0.101
-
-    [slurm_node]
-    10.5.0.102
-    10.5.0.103
     10.5.0.105
     10.5.0.106
 
@@ -82,6 +58,12 @@ Use this playbook to remove the Slurm and/or Kubernetes configuration and stop a
 
     [auth_server]
     10.5.0.101
+
+*New inventory for removing Slurm nodes from the cluster*
+::
+    [slurm_node]
+    10.5.0.102
+    10.5.0.103
 
 * To run the playbook, run the following commands: ::
 
