@@ -80,5 +80,5 @@ For more information, `click here <https://catalog.ngc.nvidia.com/orgs/nvidia/co
 
 2. Use the container image per your needs: ::
 
-    nerdctl run -it --privileged -e HABANA_VISIBLE_DEVICES=all -e OMPI_MCA_btl_vader_single_copy_mechanism=none --cap-add=sys_nice --net=host --ipc=host vault.habana.ai/gaudi-docker/1.16.2/ubuntu22.04/habanalabs/pytorch-installer-2.3.1:latest
+    nerdctl run -it --privileged -e HABANA_VISIBLE_DEVICES=all -e OMPI_MCA_btl_vader_single_copy_mechanism=none --cap-add=sys_nice --net=host --ipc=host vault.habana.ai/gaudi-docker/1.17.1/ubuntu22.04/habanalabs/pytorch-installer-2.3.1:latest
 
