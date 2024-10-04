@@ -151,7 +151,7 @@ PowerScale driver installation doesn't create any storage class by default. User
       AccessZone: System
       AzServiceIP: <PowerScale SmartConnect hostname or PowerScale IP>
       Isipath: /ifs/data/csi/
-      RootClientEnab1ed: "true"
+      RootClientEnabled: "true"
       csi.storage.k8s.io/fstype: "nfs"
 
 .. note:: If PowerScale SmartConnect hostname is configured and the delegated host list is set up in the external DNS server, then the user can provide the PowerScale hostname for ``AzServiceIP``. Otherwise user can provide PowerScale IP address as well.
