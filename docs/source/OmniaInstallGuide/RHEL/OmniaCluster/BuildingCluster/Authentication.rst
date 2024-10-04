@@ -166,7 +166,7 @@ Enter the following parameters in ``input/login_node_security_config.yml``.
 |      Optional               |      **Default values**: ``180``                                                                                                                                               |
 +-----------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 |**alert_email_address**      | Email address used for sending alerts in case of authentication failure.   When blank, authentication failure alerts are disabled.                                             |
-|     ``string``              | User can mention comma-separated alert email addresses.                                                                                                                        |
+|     ``string``              | User can mention multiple comma-separated alert email addresses.                                                                                                               |
 |      Optional               | **Example**: ::                                                                                                                                                                |
 |                             |    alert_email_address: "user1@domain.com,user2@domain.com"                                                                                                                    |
 +-----------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
