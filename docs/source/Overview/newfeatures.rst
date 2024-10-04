@@ -33,7 +33,7 @@ New Features
 
 * Visualization of the Kubernetes and Intel Gaudi metrics using Grafana
 
-* CSI drivers for Kubernetes access to PowerScale (without SSL certificate)
+* CSI drivers for Kubernetes to access PowerScale storage with an option to enable the SmartConnect feature (without SSL certificates)
 
 * Added support for NVIDIA container toolkit for NVIDIA accelerators in a Kubernetes cluster
 
