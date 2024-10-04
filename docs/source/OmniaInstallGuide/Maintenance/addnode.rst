@@ -21,7 +21,7 @@ A new node can be provisioned using the following ways, based on the `discovery 
 
 2. Using **BMC** method:
 
-    * Update ``discover_ranges`` under ``bmc_network`` in ``input/network_spec.yml`` with the desired range of IPs to be discovered. For more information, `click here <../Ubuntu/Provision/provisionparams.html>`_.
+    * Update ``discover_ranges`` under ``bmc_network`` in ``input/network_spec.yml`` with the desired range of IPs to be discovered. For more information, `click here <../Ubuntu/Provision/provisionparams.html#id6>`_.
     * Run ``discovery_provision.yml`` ::
 
         ansible-playbook discovery_provision.yml
