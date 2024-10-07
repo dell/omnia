@@ -13,4 +13,3 @@ Limitations
 - The IP subnet 10.4.0.0 cannot be used for any networks on the Omnia cluster as it is reserved for Nerdctl.
 - Installation of vLLM and racadam via Omnia is not supported on Ubuntu 20.04.
 - The "desktop image" version of Ubuntu is not supported on the control plane.
-- Omnia does not allow users to perform downgrade operations, which means that once they have upgraded, they cannot revert back to a previous version of Omnia.
