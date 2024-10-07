@@ -47,18 +47,8 @@ Note the compatibility between cluster OS and control plane OS below:
         | RHEL [1]_           | RHEL               | Yes              |
         +---------------------+--------------------+------------------+
         |                     |                    |                  |
-        | RHEL [1]_           | Rocky              | Yes              |
-        +---------------------+--------------------+------------------+
-        |                     |                    |                  |
         | Rocky               | Rocky              | Yes              |
         +---------------------+--------------------+------------------+
-        |                     |                    |                  |
-        | RHEL                | Ubuntu             | No               |
-        +---------------------+--------------------+------------------+
-        |                     |                    |                  |
-        | Rocky               | Ubuntu             | No               |
-        +---------------------+--------------------+------------------+
-
 
 .. [1] Ensure that control planes running RHEL have an active subscription or are configured to access local repositories. The following repositories should be enabled on the control plane: **AppStream**, **BaseOS**.
 
@@ -71,7 +61,7 @@ Note the compatibility between cluster OS and control plane OS below:
 
              ip link show
 
-In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcfg-<nic name>`` using vi editor.
+In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcfg-<nic name>`` using vi editor for RHEL/Rocky Linux clusters.
 
 * When discovering nodes via a mapping file, all target nodes should be set up in PXE mode before running the playbook.
 

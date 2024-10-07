@@ -32,7 +32,7 @@ Before you run the provision tool
 
 * To provision the bare metal servers, download the following ISO to the control plane:
 
-    `Ubuntu <https://ubuntu.com/download/server>`_
+    `Ubuntu 22.04 <https://releases.ubuntu.com/jammy/>`_
 
 .. note:: Ensure the ISO provided has downloaded seamlessly (not corrupted). Verify the SHA checksum/ download size of the ISO file before provisioning to avoid future failures.
 
@@ -45,18 +45,7 @@ Note the compatibility between cluster OS and control plane OS below:
         |                     |                    |                  |
         | Ubuntu              | Ubuntu             | Yes              |
         +---------------------+--------------------+------------------+
-        |                     |                    |                  |
-        | Rocky               | Ubuntu             | No               |
-        +---------------------+--------------------+------------------+
-        |                     |                    |                  |
-        | RHEL                | Ubuntu             | No               |
-        +---------------------+--------------------+------------------+
-        |                     |                    |                  |
-        | Ubuntu              | RHEL               | No               |
-        +---------------------+--------------------+------------------+
-        |                     |                    |                  |
-        | Ubuntu              | Rocky              | No               |
-        +---------------------+--------------------+------------------+
+
 
 * Ensure that all connection names under the network manager match their corresponding device names.
 
@@ -68,7 +57,7 @@ Note the compatibility between cluster OS and control plane OS below:
 
              ip link show
 
-In the event of a mismatch, edit the file ``/etc/sysconfig/network-scripts/ifcfg-<nic name>`` using "vi editor".
+In the event of a mismatch, edit the file ``/etc/netplan/00-installer-config.yaml>`` using vi editor for Ubuntu clusters.
 
 * When discovering nodes via a mapping file, all target nodes should be set up in PXE mode before running the playbook.
 
