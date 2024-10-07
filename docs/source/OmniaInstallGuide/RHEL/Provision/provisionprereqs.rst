@@ -61,7 +61,7 @@ Note the compatibility between cluster OS and control plane OS below:
 
              ip link show
 
-In the event of a mismatch, edit the file  ``/etc/sysconfig/network-scripts/ifcfg-<nic name>`` using vi editor for RHEL/Rocky Linux clusters.
+In the event of a mismatch, edit the file ``/etc/sysconfig/network-scripts/ifcfg-<nic name>`` using the vi editor for RHEL/Rocky Linux clusters.
 
 * When discovering nodes via a mapping file, all target nodes should be set up in PXE mode before running the playbook.
 

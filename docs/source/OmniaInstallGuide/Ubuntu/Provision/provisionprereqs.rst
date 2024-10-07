@@ -57,7 +57,7 @@ Note the compatibility between cluster OS and control plane OS below:
 
              ip link show
 
-In the event of a mismatch, edit the file ``/etc/netplan/00-installer-config.yaml>`` using vi editor for Ubuntu clusters.
+In the event of a mismatch, edit the file ``/etc/netplan/00-installer-config.yaml`` using the vi editor for Ubuntu clusters.
 
 * When discovering nodes via a mapping file, all target nodes should be set up in PXE mode before running the playbook.
 
