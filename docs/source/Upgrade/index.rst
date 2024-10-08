@@ -3,6 +3,8 @@ Upgrade Omnia control plane
 
 To upgrade the Omnia version 1.6.1 to version 1.7 on your control plane, you can use the ``upgrade_cp.yml`` playbook in Omnia 1.7. This ensures that your control plane is running the latest version and includes any new features and improvements that are available.
 
+.. note:: After upgrading the Omnia control plane running on a `supported OS <../Overview/SupportMatrix/OperatingSystems/index.html>`_, the ``input/software_config.json`` file will revert to its default settings. This allows users to install the default software versions on a new cluster.
+
 **Tasks performed by the playbook**
 
 The ``upgrade_cp.yml`` playbook performs the following tasks:
@@ -17,7 +19,7 @@ The ``upgrade_cp.yml`` playbook performs the following tasks:
 
 **Pre-check before Upgrade**
 
-If you have deployed a telemetry service in your Kubernetes cluster, it is important to ensure that the cluster is running properly before you initiate the upgrade process. As part of the upgrade precheck, Omnia verifies if there are any issues with the cluster, such as non-running pods, LoadBalancer services without external IPs, or unbounded PVCs. If any of these issues are detected, you will need to address them before you can proceed with the upgrade.
+If you have deployed a telemetry service in your Kubernetes cluster, it is important to ensure that the cluster is running properly before you initiate the upgrade process. As part of the upgrade pre-check, Omnia verifies if there are any issues with the cluster, such as non-running pods, LoadBalancer services without external IPs, or unbounded PVCs. If any of these issues are detected, you will need to address them before you can proceed with the upgrade.
 
 **Steps to be performed for Upgrade**
 

@@ -1,7 +1,7 @@
-Uninstalling the provision tool
---------------------------------
+Uninstalling the control plane tools
+-------------------------------------------
 
-Use this script to undo all the changes made by the provision tool.
+Use this script to undo all the changes made on the control plane (configured local repositories, provision tool, and telemetry configurations).
 
 To run the script: ::
 
