@@ -1,7 +1,7 @@
 Uninstalling the control plane tools
 -------------------------------------------
 
-Use this script to undo all the changes made on the control plane (configured local repositories, provision tool, and telemetry configurations).
+Run this script to roll back all modifications made to the control plane, such as configured local repositories, provisioning tools, and telemetry configurations.
 
 To run the script: ::
 
