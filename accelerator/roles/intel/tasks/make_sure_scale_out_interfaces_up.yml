@@ -22,7 +22,7 @@
   when: not check_bring_up_script.stat.exists
   ansible.builtin.blockinfile:
     path: "{{ intel_bring_up_ports_script_path }}"
-    create: yes
+    create: true
     block: |
       #!/bin/bash
       /opt/habanalabs/qual/gaudi2/bin/manage_network_ifs.sh --up
@@ -31,13 +31,14 @@
         echo "One or more Gaudi 2 ports are down." >> /dev/stderr
         return 1
       fi
+
 - name: Change permission on bring_up_ports.sh file
-  file:
+  ansible.builtin.file:
     path: "{{ intel_bring_up_ports_script_path }}"
     state: file
     owner: root
     group: root
-    mode: 0755
+    mode: "{{ file_permissions }}"
 
 - name: Check for existing cron job
   ansible.builtin.shell: |
@@ -46,7 +47,7 @@
   args:
     executable: /bin/bash
   register: cron_job_check
-  ignore_errors: yes
+  failed_when: false
   changed_when: false
 
 - name: Create cronjob for bringing up Gaudi 2 ports
