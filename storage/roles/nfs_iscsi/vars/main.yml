@@ -15,14 +15,14 @@
 
 # vars file for nfs_iscsi
 
-#Usage: check_prerequisites.yml
+# Usage: check_prerequisites.yml
 nfs_node_group_fail_msg: "nfs_node group should contain exactly 1 node"
 nfs_node_group_success_msg: "nfs_node group check passed"
 config_filename: "omnia_config.yml"
 config_vaultname: .omnia_vault_key
 login_vars_filename: input_params/login_vars.yml
 vault_filename: input_params/.login_vault_key
-vault_file_perm: 0644
+vault_file_perm: "0644"
 pv_ip_undefined_msg: "Please give IP of powervault connected to nfs_node in omnia_config.yml"
 powervault_ip_success_msg: "Powervault IP is reachable."
 powervault_ip_failure_msg: "Powervault IP is not defined in omnia_config.yml or not reacheable."
@@ -40,7 +40,7 @@ nfs_services:
   - mountd
   - rpc-bind
   - nfs
-nfs_share_dir_mode: 0777
+nfs_share_dir_mode: "0777"
 
 # Usage: nfs_node_configure.yml
 pv_nic: "{{ powervault_server_nic }}"

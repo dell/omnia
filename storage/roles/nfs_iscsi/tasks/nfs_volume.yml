@@ -14,24 +14,24 @@
 ---
 
 - name: Refresh ssh keys
-  command: ssh-keygen -R {{ powervault_ip }}
+  ansible.builtin.command: ssh-keygen -R {{ powervault_ip }}
   changed_when: false
   tags: install
   failed_when: false
 
 - name: Validate authentication of username and password
-  command: ping -c1 {{ powervault_ip }}
+  ansible.builtin.command: ping -c1 {{ powervault_ip }}
   register: validate_login
   changed_when: false
   failed_when: false
 
 - name: Scan for getting the volume
-  command: rescan-scsi-bus.sh --forcerescan
+  ansible.builtin.command: rescan-scsi-bus.sh --forcerescan
   changed_when: false
   register: volume_pv
 
 - name: Assert if volume created or not
-  assert:
+  ansible.builtin.assert:
     that:
       - "' Model: ME4' in volume_pv.stdout in volume_pv.stdout"
     success_msg: "Volume is created"

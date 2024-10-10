@@ -13,30 +13,31 @@
 #  limitations under the License.
 ---
 
-- name: include base vars
-  include_vars: "{{ role_path }}/../../control_plane/input_params/base_vars.yml"
+- name: Include base vars
+  ansible.builtin.include_vars: "{{ role_path }}/../../control_plane/input_params/base_vars.yml"
 
-- block:
-  - name: Include variable file for powervault
-    include_vars: "{{ pv_nfs_file }}"
-
-  - block:
-    - name: Validate the nfs configuration
-      include_tasks: validate_nfs_config.yml
-
-    - name: Configure the server
-      include_tasks: nfs_node_configure.yml
-
-    - name: Configure the port of nfs_server
-      include_tasks: nfs_volume.yml
-
-    - name: Mount the partitions
-      include_tasks: mount_me4_partitions.yml
-
-    - name: Setup NFS server on the partitions
-      include_tasks: me4_nfs_server_setup.yml
-    when: powervault_protocol == 'iscsi'
-
+- name: Configuring and setup of NFS Server
   when:
     - powervault_support
     - hostvars['127.0.0.1']['nfs_node_status']
+  block:
+    - name: Include variable file for powervault
+      ansible.builtin.include_vars: "{{ pv_nfs_file }}"
+
+    - name: NFS Server Setp and configure - Block
+      when: powervault_protocol == 'iscsi'
+      block:
+        - name: Validate the nfs configuration
+          ansible.builtin.include_tasks: validate_nfs_config.yml
+
+        - name: Configure the server
+          ansible.builtin.include_tasks: nfs_node_configure.yml
+
+        - name: Configure the port of nfs_server
+          ansible.builtin.include_tasks: nfs_volume.yml
+
+        - name: Mount the partitions
+          ansible.builtin.include_tasks: mount_me4_partitions.yml
+
+        - name: Setup NFS server on the partitions
+          ansible.builtin.include_tasks: me4_nfs_server_setup.yml
