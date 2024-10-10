@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,10 @@
 # limitations under the License.
 ---
 
+- name: Check if virtual environment is active
+  ansible.builtin.import_playbook: ../utils/check_venv.yml
+  when: not ( hostvars['127.0.0.1']['check_venv_executed'] | default(false) | bool )
+
 - name: Include pre-requisites ethernet configuration
   hosts: localhost
   tasks:
@@ -25,8 +29,6 @@
   hosts: all
   gather_facts: false
   connection: network_cli
-  collections:
-    - dellemc.os10
   vars:
     ansible_network_os: dellemc.os10.os10
     ansible_command_timeout: 180

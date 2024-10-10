@@ -28,6 +28,6 @@
   ansible.builtin.include_tasks: snmp_config.yml
 
 - name: Save current switch configuration to startup-configuration
-  dellos10_command:
+  dellemc.os10.os10_command:
     commands: "copy running-configuration startup-configuration"
   when: save_changes_to_startup

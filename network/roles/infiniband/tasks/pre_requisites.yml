@@ -117,10 +117,6 @@
     name: "{{ common_pkg }}"
     state: present
 
-- name: Install ansible.utils galaxy collection
-  ansible.builtin.command: ansible-galaxy collection install "{{ utils_collection }}"
-  changed_when: true
-
 - name: Validate snmp trap destination address
   ansible.builtin.assert:
     that:

@@ -13,7 +13,7 @@
 # limitations under the License.
 ---
 
-- name: Apply configuration for- "{{ inventory_hostname }}" - "{{ item }}"
+- name: Apply configuration for- "{{ inventory_hostname }}" - "{{ item }}" # noqa: name[template]
   ansible.builtin.uri:
     url: http://{{ inventory_hostname }}/admin/launch?script=json
     method: POST
@@ -29,7 +29,7 @@
       }
   register: global_conf
 
-- name: Status check for - "{{ inventory_hostname }}" - "{{ item }}"
+- name: Status check for - "{{ inventory_hostname }}" - "{{ item }}" # noqa: name[template]
   ansible.builtin.fail:
     msg: "{{ global_conf.json }}"
   when:

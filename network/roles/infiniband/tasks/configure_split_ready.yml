@@ -13,7 +13,7 @@
 # limitations under the License.
 ---
 
-- name: Change switch to split ready on "{{ inventory_hostname }}"- This will take 4 mins
+- name: Change switch to split ready on "{{ inventory_hostname }}"- This will take 4 mins # noqa: name[template]
   ansible.builtin.command: "python3 {{ split_ready_loc }} {{ inventory_hostname }} {{ ib_username }} {{ ib_password }}"
   register: split_status
   no_log: true
