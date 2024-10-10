@@ -110,9 +110,6 @@ unreachable_kube_control_plane_fail_msg: "Failed. Unreachable node mentioned in 
 Re-run playbook with reachable kube_control_plane."
 ansible_collection_folder: "{{ omnia_collection_path[0] }}/ansible_collections/"
 kubespray_certificate_key_taskfile_path: "kubernetes_sigs/kubespray/roles/kubernetes/control-plane/tasks/kubeadm-setup.yml"
-ansible_galaxy_collection:
-  - ansible.utils:2.12.0
-  - community.general:8.6.0
 max_retries: 5
 
 # Usage: slurm_validations.yml
@@ -126,6 +123,7 @@ At least one slurm_node should be present in the inventory."
 slurm_node_validation_success_msg: "At least one slurm_node exists in the inventory"
 unreachable_slurm_control_node_fail_msg: "Failed. Unreachable node mentioned in inventory for slurm_control_node.
 Re-run playbook with reachable slurm_control_node."
+slurm_control_node_in_login_fail_msg: "Failed. Node mentioned in slurm_control_node group should not be present in login group"
 
 # Usage: install_packages.yml
 ansible_base_version: '2.9'
@@ -159,3 +157,13 @@ csi_driver_values_file_path_fail_msg: "Failed. csi_driver_values_file_path is no
 
 # Usage: csi_powerscale_driver_input_validation.yml
 csi_powerscale_secret_vaultname: ".csi_powerscale_secret_vault"
+fail_msg_isilon_clusters: "isilonClusters must be a valid list of powerscale details in secret.yaml file."
+fail_msg_cluster_name: "clusterName is not valid. Provide powerscale cluster name in secret.yaml file."
+fail_msg_user_name: "userName is not valid. Provide powerscale user name in secret.yaml file."
+fail_msg_password: "Password is not valid. Provide powerscale password in secret.yaml file."
+fail_msg_endpoint: "Endpoint is not valid. Provide powerscale IP or hostname in secret.yaml file."
+fail_msg_endpoint_port: "endpointPort is not valid. Provide valid port number in secret.yaml file."
+fail_msg_isdefault: "isDefault value should be true or false in secret.yaml file."
+fail_msg_skip_certificate_validation: "skipCertificateValidation must be true in secret.yaml file."
+fail_msg_isipath: "isiPath must be a valid Unix absolute path in secret.yaml file."
+fail_msg_isi_volume_path_permissions: "isiVolumePathPermissions must be a valid directory permission (example: 0777) in secret.yaml file."

@@ -31,14 +31,25 @@
 
 - name: Execute CSI driver installation script
   ansible.builtin.command:
-    cmd: "./csi-install.sh --namespace isilon --values {{ csi_powerscale_values_path }}"
+    cmd: "./csi-install.sh --namespace {{ isilon_ns }} --values {{ csi_powerscale_values_path }}"
     chdir: "{{ csi_powerscale_path }}/{{ csi_powerscale_git | regex_replace('\\.tar\\.gz$', '') }}/dell-csi-helm-installer"
   register: install_result
   failed_when: false
   changed_when: install_result.changed
 
+- name: Wait for csi driver installation completion
+  ansible.builtin.shell: >
+        set -o pipefail && \
+        kubectl get pod -n {{ isilon_ns }} --no-headers | grep -v "Running"
+  register: isilon_non_running_pods
+  failed_when: false
+  changed_when: false
+  until: isilon_non_running_pods.stdout_lines | length == 0
+  retries: "{{ max_attempts }}"
+  delay: "{{ wait_time }}"
+
 - name: Verify csi driver installation
   ansible.builtin.pause:
     seconds: "{{ wait_time }}"
     prompt: "{{ fail_msg_csi_powerscale_driver }}"
-  when: install_result.rc != 0
+  when: install_result.rc != 0 or isilon_non_running_pods.stdout_lines | length > 0

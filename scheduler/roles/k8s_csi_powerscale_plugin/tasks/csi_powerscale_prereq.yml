@@ -56,7 +56,8 @@
   ansible.builtin.command: cat "{{ hostvars['localhost']['csi_powerscale_driver_secret_file_path'] }}"
   changed_when: false
   register: config_content
-  delegate_to: 127.0.0.1
+  connection: local
+  delegate_to: localhost
 
 - name: Decrpyt secret file
   ansible.builtin.command: >-
@@ -64,7 +65,8 @@
     --vault-password-file {{ role_path }}/files/{{ csi_powerscale_secret_vaultname }}
   when: "'$ANSIBLE_VAULT;' in config_content.stdout"
   changed_when: true
-  delegate_to: 127.0.0.1
+  connection: local
+  delegate_to: localhost
 
 # Copy secret file to /opt/omnia
 - name: Copy secret file
@@ -80,7 +82,8 @@
     ansible-vault encrypt {{ hostvars['localhost']['csi_powerscale_driver_secret_file_path'] }}
     --vault-password-file {{ role_path }}/files/{{ csi_powerscale_secret_vaultname }}
   changed_when: false
-  delegate_to: 127.0.0.1
+  connection: local
+  delegate_to: localhost
 
 # Copy values file to /opt/omnia
 - name: Copy values file
@@ -95,7 +98,7 @@
   block:
     - name: Get csi-powerscale git tar
       ansible.builtin.get_url:
-        url: "{{ offline_git_path }}/{{ csi_powerscale_git }}"
+        url: "{{ hostvars['localhost']['offline_git_path'] }}/{{ csi_powerscale_git }}"
         dest: "{{ csi_powerscale_path }}/{{ csi_powerscale_git }}"
         mode: "{{ permission_644 }}"
 
@@ -103,17 +106,17 @@
       ansible.builtin.unarchive:
         src: "{{ csi_powerscale_path }}/{{ csi_powerscale_git }}"
         dest: "{{ csi_powerscale_path }}"
-        remote_src: yes
+        remote_src: true
 
     - name: Get dell/helm-charts git tar
       ansible.builtin.get_url:
-        url: "{{ offline_git_path }}/{{ helm_charts_git }}"
+        url: "{{ hostvars['localhost']['offline_git_path'] }}/{{ helm_charts_git }}"
         dest: "{{ csi_powerscale_path }}/csi-powerscale/{{ helm_charts_git }}"
         mode: "{{ permission_644 }}"
 
     - name: Get external-snapshotter git tar
       ansible.builtin.get_url:
-        url: "{{ offline_git_path }}/{{ external_snapshotter_git }}"
+        url: "{{ hostvars['localhost']['offline_git_path'] }}/{{ external_snapshotter_git }}"
         dest: "{{ csi_powerscale_path }}/csi-powerscale/{{ external_snapshotter_git }}"
         mode: "{{ permission_644 }}"
   rescue:
@@ -125,13 +128,13 @@
   ansible.builtin.unarchive:
     src: "{{ csi_powerscale_path }}/csi-powerscale/{{ helm_charts_git }}"
     dest: "{{ csi_powerscale_path }}/csi-powerscale"
-    remote_src: yes
+    remote_src: true
 
 - name: Extract dell/helm-charts tar file under csi-powerscale directory
   ansible.builtin.unarchive:
     src: "{{ csi_powerscale_path }}/csi-powerscale/{{ external_snapshotter_git }}"
     dest: "{{ csi_powerscale_path }}/csi-powerscale"
-    remote_src: yes
+    remote_src: true
 
 - name: Create isilon namespace
   ansible.builtin.command:

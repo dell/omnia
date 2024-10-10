@@ -1,4 +1,4 @@
-#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -64,9 +64,20 @@
   ansible.builtin.command: "kubectl apply -f {{ nvidia_runtime_dest }}"
   changed_when: true
 
+- name: Fetch helm path
+  block:
+    - name: Fetch helm path
+      ansible.builtin.command: whereis helm
+      changed_when: false
+      register: helm_full_path
+  rescue:
+    - name: Helm not installed
+      ansible.builtin.fail:
+        msg: "{{ helm_install_fail_msg }}"
+
 - name: Install nvidia-device-plugin
   ansible.builtin.command: >
-    helm install --namespace nvidia-device-plugin --create-namespace
+     {{ helm_full_path.stdout.split(' ')[1] }} install --namespace nvidia-device-plugin --create-namespace
      --generate-name --set runtimeClassName=nvidia --set migStrategy='{{ mig_strategy }}' --set gfd.enabled='{{ gpu_discovery_feature }}'
      '{{ nvidia_device_plugin_repo }}'
   changed_when: true
@@ -94,6 +105,7 @@
   block:
     - name: Label nodes with Gaudi
       ansible.builtin.command: "kubectl label nodes {{ item }} {{ node_label_for_habana_device_plugin }}=true --overwrite"
+      changed_when: true
       when: "hostvars[item]['node_has_gaudi'] | default(false)"
       loop: "{{ groups['kube_node'] | default([]) }}"
 
@@ -113,7 +125,7 @@
     - name: Install habana-device-plugin
       ansible.builtin.shell: |
         set -o pipefail
-        echo "{{ with_node_selector }}" | kubectl create -f - 
+        echo "{{ with_node_selector }}" | kubectl create -f -
       changed_when: true
       args:
         executable: /bin/bash
@@ -133,7 +145,7 @@
 # NFS CLIENT PROVISIONER
 - name: Start NFS Client Provisioner using NFS on manager node
   ansible.builtin.command: >
-    helm install nfs-omnia '{{ nfs_subdir_external_provisioner_repo }}'
+    {{ helm_full_path.stdout.split(' ')[1] }} nfs-omnia '{{ nfs_subdir_external_provisioner_repo }}'
      --set nfs.server='{{ hostvars['127.0.0.1']['k8s_nfs_server_ip'] }}'
      --set nfs.path="{{ hostvars['127.0.0.1']['k8s_server_share_path'] }}"
   changed_when: true

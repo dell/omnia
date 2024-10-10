@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,6 +16,10 @@
 # This playbook is used to configure slurm job based user access in compute nodes
 # The inventory queried in the below command is to be created by the user prior to running `omnia.yml`.
 # Command to execute: ansible-playbook job_based_user_access.yml -i inventory
+
+- name: Update Inventory with ansible_host information
+  ansible.builtin.import_playbook: ../utils/servicetag_host_mapping.yml
+  when: not ( hostvars['127.0.0.1']['update_inventory_executed'] | default(false) | bool )
 
 - name: Include omnia_config.yml variables
   hosts: localhost

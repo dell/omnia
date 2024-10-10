@@ -42,3 +42,5 @@ node_label_for_habana_device_plugin: "intel.com/gaudi.present"
 nfs_dir_mode: "0777"
 pod_wait_time: 300
 nfs_subdir_external_provisioner_repo: "{{ hostvars['localhost']['offline_tarball_path'] }}/nfs-subdir-external-provisioner-4.0.18.tar.gz"
+helm_install_fail_msg: "Failed to fetch helm path. Please verify helm installation and ensure the environment variable PATH is correctly set in the node.
+Re-run the playbook after verification."

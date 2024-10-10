@@ -62,3 +62,10 @@
   ansible.builtin.fail:
      msg: "{{ unreachable_slurm_control_node_fail_msg }}"
   when: unreachable_slurm_control_node | length >= 1
+
+- name: Verify slurm_control_node is not part of login group
+  ansible.builtin.fail:
+    msg: "{{ slurm_control_node_in_login_fail_msg }}"
+  when:
+    - login_node_required
+    - groups['slurm_control_node'][0] in groups['login']

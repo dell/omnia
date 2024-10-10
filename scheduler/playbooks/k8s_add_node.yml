@@ -77,7 +77,7 @@
     https_proxy: "{{ hostvars['localhost']['https_proxy'] }}"
     no_proxy: "localhost,127.0.0.1,{{ hostvars['localhost']['admin_nic_ip'] }},{{ hostvars['localhost']['k8s_service_addresses'] }},{{ hostvars['localhost']['k8s_pod_network_cidr'] }},{{ hostvars['localhost']['k8s_cni'] }},{{ hostvars['localhost']['control_plane_hostname'] }},{{ hostvars['localhost']['domain_name'] }}"   # noqa: yaml[line-length]
     additional_no_proxy: "{{ hostvars['localhost']['user_no_proxy'] if hostvars['localhost']['no_proxy_input_status'] else '' }}"   # noqa: yaml[line-length]
-    
+
 - name: Initiate add node
   when:
     - hostvars['127.0.0.1']['k8s_support']
