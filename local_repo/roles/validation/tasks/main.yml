@@ -18,6 +18,19 @@
     seconds: "{{ warning_wait_time_warning }}"
     prompt: "{{ warning_msg_local_repo }}"
 
+- name: Check /var mount use percentage
+  ansible.builtin.shell: |
+    set -o pipefail
+    df -h /var | awk 'FNR == 2 {print $5}' | tr -d '%'
+  register: var_mount_use_percentage
+  changed_when: false
+
+- name: Warning - local_repo may fail due to insufficient disk space
+  ansible.builtin.pause:
+    seconds: "{{ warning_wait_time_warning }}"
+    prompt: "{{ var_mount_overuse_msg }}"
+  when: var_mount_use_percentage.stdout | float >= var_mount_percentage_limit
+
 - name: Validate control plane OS
   ansible.builtin.include_tasks: validate_cp_os.yml
 

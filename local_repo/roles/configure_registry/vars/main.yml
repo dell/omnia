@@ -50,3 +50,7 @@ control_plane_os_ubuntu: "ubuntu"
 # Usage: set_environment.yml
 environment_file_path: "{{ role_path }}/templates/omnia_environment.j2"
 omnia_environment_path: "/etc/omnia_environment"
+
+# Usage: docker_login.yml
+docker_login_fail_msg: "Docker login failed. Please ensure the docker login credentials in the input/provision_config_credentials.yml are valid.
+If they are, this error can occur due to a pull limit issue or multiple requests. Please try running the playbook again after waiting for a while."
