@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-- name: Install required pip modules
-  ansible.builtin.command: "{{ python_version }} -m pip install -r {{ pip_modules_req_file }}"
-  changed_when: false
+
+- name: Apply xcat patches
+  ansible.posix.patch:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    state: present
+  with_items: "{{ xcat_patch_files }}"

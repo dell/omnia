@@ -22,7 +22,7 @@ compute_cpu_amd_filename: "compute_cpu_amd"
 compute_gpu_amd_filename: "compute_gpu_amd"
 compute_gpu_nvidia_filename: "compute_gpu_nvidia"
 compute_gpu_intel_filename: "compute_gpu_intel"
-compute_servicetag_ip_filename: "compute_servicetag_ip"
+compute_hostname_ip_filename: "compute_hostname_ip"
 
 # List of Filename
 inventory_file_name_list:
@@ -31,7 +31,7 @@ inventory_file_name_list:
   - "{{ compute_gpu_amd_filename }}"
   - "{{ compute_gpu_nvidia_filename }}"
   - "{{ compute_gpu_intel_filename }}"
-  - "{{ compute_servicetag_ip_filename }}"
+  - "{{ compute_hostname_ip_filename }}"
 
 # Filepaths
 inventory_file_path_list:
@@ -40,7 +40,7 @@ inventory_file_path_list:
   - "{{ inventory_directory_path }}/{{ compute_gpu_amd_filename }}"
   - "{{ inventory_directory_path }}/{{ compute_gpu_nvidia_filename }}"
   - "{{ inventory_directory_path }}/{{ compute_gpu_intel_filename }}"
-  - "{{ inventory_directory_path }}/{{ compute_servicetag_ip_filename }}"
+  - "{{ inventory_directory_path }}/{{ compute_hostname_ip_filename }}"
 
 # Permissions
 inventory_dir_mode: "644"
