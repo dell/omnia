@@ -14,6 +14,13 @@
 
 ---
 
+- name: Inventory not provided
+  ansible.builtin.fail:
+    msg: "{{ kserve_empty_inventory_fail_msg }}"
+  when:
+    - groups['all'] is defined
+    - (groups['all'] | length == 0)
+
 - name: Validate kube_control_plane and kube_node group in inventory
   ansible.builtin.assert:
     that:

@@ -25,6 +25,7 @@
   environment:
     http_proxy: "{{ http_proxy }}"
     https_proxy: "{{ https_proxy }}"
+    no_proxy: "{{ control_plane_hostname }},{{ admin_nic_ip }}"
   block:
     - name: Set empty image list
       ansible.builtin.set_fact:

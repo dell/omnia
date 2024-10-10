@@ -18,6 +18,21 @@
 installation_success_status: "Tensorflow succesfully installed"
 installation_failed_status: "Failed to install tensorflow"
 
+# Validate inventory
+fail_no_node_kube_node: "Failed. Tensorflow software is present in software_config.json. No node is part of kube_node group in inventory"
+fail_inv_format: "Failed. Tensorflow software is present in software_config.json.
+Invalid inventory format, specify kube_control_plane and kube_node."
+fail_node_kube_control_plane: "Failed. Tensorflow software is present in software_config.json.
+There should be exactly one entry for kube_control_plane in the inventory"
+tensorflow_empty_inventory_fail_msg: |
+ "Failed. Inventory not provided.
+  Please re-run the playbook with an inventory that includes the groups 'kube_control_plane' and 'kube_node' by using the -i inventory option"
+
+# For checking entry in software_config.json
+tensorflow_not_in_software_config: |
+  "tensorflow is not present in software_config.json.
+  Please mention tensorflow in software_config.json and execute tensorflow.yml again"
+
 # For env proxy setup
 local_repo_access_path: "/opt/omnia/offline/local_repo_access.yml"
 

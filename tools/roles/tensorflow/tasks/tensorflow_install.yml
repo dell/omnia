@@ -18,6 +18,7 @@
   environment:
     http_proxy: "{{ http_proxy }}"
     https_proxy: "{{ https_proxy }}"
+    no_proxy: "{{ control_plane_hostname }},{{ admin_nic_ip }}"
   when: processing_unit == "cpu"
   block:
     - name: Pull CPU container image
@@ -40,6 +41,7 @@
   environment:
     http_proxy: "{{ http_proxy }}"
     https_proxy: "{{ https_proxy }}"
+    no_proxy: "{{ control_plane_hostname }},{{ admin_nic_ip }}"
   when: processing_unit == "amd"
   block:
     - name: Pull AMD GPU container image
@@ -62,6 +64,7 @@
   environment:
     http_proxy: "{{ http_proxy }}"
     https_proxy: "{{ https_proxy }}"
+    no_proxy: "{{ control_plane_hostname }},{{ admin_nic_ip }}"
   when: processing_unit == "nvidia"
   block:
     - name: Pull NVIDIA GPU container image

@@ -1,16 +1,18 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
 ---
+
 local_repo_access_config_file: "/opt/omnia/offline/local_repo_access.yml"
 local_repo_config_file: "{{ role_path }}/../../../input/local_repo_config.yml"
 kubeflow_dir_path: "/opt/omnia/kubeflow"
@@ -26,3 +28,8 @@ v2_success: "MPIJob API version v2beta1 is present."
 v2_failure: "MPIJob API version v2beta1 is not present."
 tag_error: "Error: No tags provided! Please specify mpiv1 or mpiv2beta1 tag."
 deployment_failure_message: "Error: Ensure kubeflow is deployed first."
+
+fail_node_kube_control_plane: "Failed. There should be exactly one entry for kube_control_plane in the inventory"
+mpijob_empty_inventory_fail_msg: >
+ "Failed. Inventory not provided.
+  Please re-run the playbook with an inventory that includes the groups 'kube_control_plane' by using the -i inventory option"

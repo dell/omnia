@@ -35,11 +35,14 @@
         copy: false
         src: "{{ istio_tar_file_location }}"
         dest: /tmp/
+        extra_opts:
+          - "--one-top-level={{ istio_tar_file_name }}"
+          - "--strip-components=1"
       register: istio_unarchive_status
       changed_when: istio_unarchive_status.changed
 
     - name: Install Istio using istioctl
-      ansible.builtin.command: "/tmp/{{ istio_tar_file_name }}-{{ istio_version }}/bin/istioctl install --set profile=default -y"
+      ansible.builtin.command: "/tmp/{{ istio_tar_file_name }}/bin/istioctl install --set profile=default -y"
       register: istio_install_status
       changed_when: istio_install_status.changed
       failed_when: istio_install_status.rc != 0
@@ -78,7 +81,7 @@
 
     # Clean up istio local tar file and extracted folder
     - name: Cleanup istio Extracted folder
-      ansible.builtin.command: "rm -rf /tmp/{{ istio_tar_file_name }}-{{ istio_version }}"
+      ansible.builtin.command: "rm -rf /tmp/{{ istio_tar_file_name }}"
       register: command_result
       changed_when: command_result.changed
       failed_when: false
@@ -88,3 +91,4 @@
       register: command_result
       changed_when: command_result.changed
       failed_when: false
+
