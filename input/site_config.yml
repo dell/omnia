@@ -13,9 +13,11 @@
 #  limitations under the License.
 ---
 
-# Proxy configuration if control plane is behind a proxy environment for accessing internet
-# If proxy details are not provided, Omnia will assume direct internet connectivity is provided to control plane
-# Example:
+# Proxy configuration for the control plane if it is behind a proxy environment for internet access
+# If proxy details are not provided, Omnia assumes direct internet connectivity is available to the control plane
+# The values for http_proxy and https_proxy in the proxy variable should be set as environment variables http_proxy and https_proxy in the control plane.
+# The no_proxy environment variable should include the control plane hostname and the admin network IP address.
+# Example of providing proxy details:
 # proxy:
 #   - { http_proxy: "http://corporate-proxy:3128", https_proxy: "http://corporate-proxy:3128", no_proxy: "" }
 #

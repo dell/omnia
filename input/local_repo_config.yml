@@ -99,7 +99,7 @@ omnia_repo_url_rhel:
   - { url: "https://ltb-project.org/rpm/openldap25/$releasever/$basearch", gpgkey: ""}
   - { url: "https://nvidia.github.io/libnvidia-container/stable/rpm/$basearch", gpgkey: "https://nvidia.github.io/libnvidia-container/gpgkey"}
   - { url: "https://a2o.github.io/snoopy-packages/repo/centos/8/stable/", gpgkey: ""}
-  
+
 # Mandatory
 # This variable defines all the repo urls from where rpms will be downloaded for omnia features when cluster_os_type is rocky.
 # Making incorrect changes to this variable can cause omnia failure. Please edit cautiously.

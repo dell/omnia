@@ -22,16 +22,16 @@
     {"package": "wget", "type": "deb", "repo_name": "focal"},
     {"package": "acct", "type": "deb", "repo_name": "focal"},
     {"package": "python3.9", "type": "deb", "repo_name": "deadsnake-ppa"},
-    { 
-      "package": "ansible==7.7.0", 
+    {
+      "package": "ansible==7.7.0",
       "type": "pip_module"
     },
-    { 
-      "package": "cryptography==41.0.7", 
+    {
+      "package": "cryptography==41.0.7",
       "type": "pip_module"
     },
-    { 
-      "package": "jinja2==3.1.2", 
+    {
+      "package": "jinja2==3.1.2",
       "type": "pip_module"
     }
 
