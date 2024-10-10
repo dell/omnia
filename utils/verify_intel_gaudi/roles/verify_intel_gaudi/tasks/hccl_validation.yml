@@ -33,10 +33,10 @@
     suffix: omnia_gaudi_hccl_test
   register: test_folder
 
-- name: include vars from local_repo_access.yml file
+- name: Include vars from local_repo_access.yml file
   ansible.builtin.include_vars: "{{ local_repo_access_dest_path }}"
   delegate_to: localhost
-  delegate_facts: yes
+  delegate_facts: true
 
 - name: Get hccl_demo git repo tarball
   ansible.builtin.get_url:

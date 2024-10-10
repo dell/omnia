@@ -19,6 +19,21 @@
 # It's recommended to do extensive tests when installing a new Gaudi node.
 # This can be controlled using var: verify_intel_gaudi_with_sanity_test_only: false
 
+- name: Check if virtual environment is active
+  ansible.builtin.import_playbook: ../check_venv.yml
+  when: not ( check_venv_executed | default(false) | bool )
+
+- name: Include omnia config file
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  any_errors_fatal: true
+  tasks:
+    - name: Include omnia config file
+      ansible.builtin.include_role:
+        name: verify_intel_gaudi
+        tasks_from: include_omnia_config.yml
+
 - name: Verify Intel Gaudi installation
   hosts: kube_node
   gather_facts: true

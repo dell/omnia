@@ -19,3 +19,7 @@ rocm_packages:
 amdgpu_warning_msg: "ROCm will not be installed, AMDGPU drivers not found on the node.
 Run local_repo.yml with amdgpu software stack in software_config and reprovision the node."
 warning_time: 10
+rocm_warning_msg: "Unable to install ROCM on {{ ansible_host }} node. ROCm repository not configured on the node.
+Run local_repo.yml with rocm software stack in software_config or ROCm repo in user_repo_url."
+file_permission: "0644"
+linker_dest_path: "/etc/ld.so.conf.d/rocm.conf"

@@ -13,20 +13,15 @@
 #  limitations under the License.
 ---
 
-- name: Servicetag Host mapping
-  ansible.builtin.command: "{{ python }} {{ servicetag_host_mapping_script }} {{ role_path }} {{ file_path }} {{ ansible_inventory_sources }}"
-  register: servicetag_host_mapping_result
-  changed_when: true
-
-- name: Verify Error in Servicetag Host mapping
+- name: Inventory not provided
   ansible.builtin.fail:
-    msg: "{{ servicetag_host_mapping_result.stdout_lines[-1] }}"
-  when: servicetag_host_mapping_result is defined and 'Error' in servicetag_host_mapping_result.stdout
+    msg: "{{ empty_inventory_fail_msg }}"
+  when:
+    - groups['all'] is defined
+    - (groups['all'] | length == 0)
 
-- name: Clear facts
-  ansible.builtin.meta: clear_facts
-  changed_when: false
+- name: Check discovery_provision.yml execution status
+  ansible.builtin.include_tasks: check_provision_status.yml
 
-- name: Refresh inventory
-  ansible.builtin.meta: refresh_inventory
-  changed_when: false
+- name: Apply service tag mapping for inventory
+  ansible.builtin.include_tasks: service_tag_mapping.yml

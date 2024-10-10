@@ -25,6 +25,10 @@ usr_repo_config_template_src: "{{ role_path }}/templates/user_repo_config.j2"
 
 # Usage:update_software_repo_redhat.yml
 omnia_repo_config_template_src: "{{ role_path }}/templates/omnia_repo_config.j2"
+repo_retries: 5
+repo_delay: 10
+repo_update_failure_msg: "The playbook failed due to an error while running dnf makecache.
+     Please check user_repo_url and omnia_repo_url_redhat in local_repo_config.yml and ensure they are correct and reachable"
 
 # Usage:update_user_repo_redhat.yml,update_software_repo_redhat.yml
 os_type: "rhel"

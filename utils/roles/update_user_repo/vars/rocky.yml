@@ -25,6 +25,8 @@ usr_repo_config_template_src: "{{ role_path }}/templates/user_repo_config.j2"
 
 # Usage:update_software_repo_redhat.yml
 omnia_repo_config_template_src: "{{ role_path }}/templates/omnia_repo_config.j2"
+repo_retries: 5
+repo_delay: 10
 
 # Usage:update_user_repo_redhat.yml,update_software_repo_redhat.yml
 os_type: "rocky"

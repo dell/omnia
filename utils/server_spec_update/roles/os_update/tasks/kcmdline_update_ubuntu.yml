@@ -1,0 +1,42 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Take a backup of the grub file
+  ansible.builtin.copy:
+    src: "{{ grub_path }}"
+    dest: "{{ grub_path }}.bak"
+    mode: "{{ file_permission }}"
+    remote_src: true
+
+- name: Update kernel parameters on Ubuntu systems
+  when: cmdline_value != ""
+  block:
+    - name: Reading existing kernel parameters
+      ansible.builtin.shell: >
+        set -o pipefail && \
+        cat "{{ grub_path }}" | grep '^GRUB_CMDLINE_LINUX=' | cut -d'"' -f2
+      register: existing_grub_cmdline
+      changed_when: existing_grub_cmdline.rc != 0
+
+    - name: Adding grub_commandline_kernel to existing parameters
+      ansible.builtin.lineinfile:
+        path: "{{ grub_path }}"
+        regexp: '^GRUB_CMDLINE_LINUX='
+        line: 'GRUB_CMDLINE_LINUX="{{ existing_grub_cmdline.stdout }} {{ cmdline_value }} "'
+
+    - name: Update Grub configuration
+      ansible.builtin.command: sudo update-grub
+      register: output
+      changed_when: output.rc != 0

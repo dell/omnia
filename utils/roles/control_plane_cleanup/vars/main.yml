@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -64,16 +64,15 @@ xcat_del_files:
   - /opt/omnia/.bcm_roce
 
 omnia_dir: "/opt/omnia"
-file_permission: "754"
+file_permission: "755"
 xcat_path: /opt/xcat/bin
 xcat_sbin_path: /opt/xcat/sbin
-
-# Usage:clean_telemetry_setup.yml
 exports_path: /etc/exports
 exports_regexp:
   - "/install"
   - "/tftpboot"
-  - "/var/nfs_repo"
+
+# Usage:clean_telemetry_setup.yml
 crio_socket: /var/run/crio/crio.sock
 grafana_folders:
   - "{{ mount_location }}grafana"
@@ -93,6 +92,8 @@ docker_packages: "docker-ce docker-ce-cli docker-buildx-plugin"
 docker_del_files:
   - /var/lib/docker
   - /etc/yum.repos.d/docker-ce.repo
+  - /etc/systemd/system/docker.service.d/http-proxy.conf
+  - /etc/apt/sources.list.d/docker.list
 kube_folder_path: /root/.kube
 
 # Usage:include_telemetry_config.yml
@@ -105,7 +106,6 @@ vault_file_perm: '0644'
 local_repo_config_file: "{{ role_path }}/../../../input/local_repo_config.yml"
 local_repo_config_syntax_fail_msg: "Failed. Syntax errors present in local_repo_config.yml. Fix errors and re-run playbook again. Common syntax Errors:
 indentation errors, improper quotes, improper space or tab, missing colon, missing comma etc. "
-docker_list_path: "/etc/apt/sources.list.d/docker.list"
 
 # Usage: clean_nfs_server.yml
 storage_config_path: "{{ role_path }}/../../../input/storage_config.yml"

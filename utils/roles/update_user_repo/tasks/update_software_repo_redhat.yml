@@ -66,7 +66,7 @@
 
     - name: Configure omnia repositories
       ansible.builtin.template:
-        src: '"{{ omnia_repo_config_template_src }}"'
+        src: "{{ omnia_repo_config_template_src }}"
         dest: "{{ repo_path }}/omnia_repo_{{ item.0 + 1 }}{{ansible_date_time.iso8601_basic}}.repo"
         mode: "{{ file_permission }}"
       with_indexed_items: "{{ omnia_repo_url }}"
@@ -76,9 +76,20 @@
   ansible.builtin.command: dnf clean all
   changed_when: true
 
-- name: Update the yum repos cache
-  ansible.builtin.command: dnf makecache
-  changed_when: true
+- name: Execute update repos
+  block:
+    - name: Update yum repos cache
+      ansible.builtin.dnf:
+        update_cache: true
+      register: update_repos
+      until: update_repos is not failed
+      retries: "{{ repo_retries }}"
+      delay: "{{ repo_delay }}"
+
+  rescue:
+    - name: Update cache failure
+      ansible.builtin.fail:
+        msg: "{{ repo_update_failure_msg }}"
 
 - name: Run repolist command
   ansible.builtin.command: dnf repolist

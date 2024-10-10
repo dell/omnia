@@ -141,7 +141,7 @@
 
     - name: Configure omnia repositories
       ansible.builtin.template:
-        src: '"{{ omnia_repo_config_template_src }}"'
+        src: "{{ omnia_repo_config_template_src }}"
         dest: "{{ tmp_omnia_repo_path }}/omnia_repo{{ item.0 + 1 }}{{ansible_date_time.iso8601_basic}}.list"
         mode: "{{ file_permission }}"
       with_indexed_items: "{{ omnia_repo_url }}"
@@ -167,6 +167,10 @@
     - name: Update packages
       ansible.builtin.apt:
         update_cache: true
+      register: update_repos
+      until: update_repos is not failed
+      retries: "{{ repo_retries }}"
+      delay: "{{ repo_delay }}"
 
   rescue:
     - name: Update cache failure

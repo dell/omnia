@@ -149,6 +149,18 @@
       with_items: "{{ xcat_download_files }}"
       tags: downloads
 
+    - name: Remove /etc/exports entries
+      ansible.builtin.lineinfile:
+        path: "{{ exports_path }}"
+        regexp: "{{ item }}"
+        state: absent
+      with_items: "{{ exports_regexp }}"
+
+    - name: Exporting the shared directories
+      ansible.builtin.command: /usr/sbin/exportfs -r
+      changed_when: true
+      failed_when: false
+
 - name: Create omnia folder in opt folder
   ansible.builtin.file:
     path: "{{ omnia_dir }}"

@@ -39,6 +39,7 @@
     login_user: postgres
     query: SELECT node,status,admin_ip,service_tag,hostname FROM cluster.nodeinfo where (node!='control_plane') AND (admin_ip='{{ item }}');
     login_password: "{{ hostvars['localhost']['postgresdb_password'] }}"
+  become: true
   become_user: postgres
   register: ip_query_status
   with_items: "{{ ip_addresses }}"
@@ -50,6 +51,7 @@
     login_user: postgres
     query: SELECT node,status,admin_ip,service_tag,hostname FROM cluster.nodeinfo where (node!='control_plane') AND (service_tag='{{ item | upper }}' OR node='{{ item }}' OR hostname='{{ item }}'); # noqa: yaml[line-length]
     login_password: "{{ hostvars['localhost']['postgresdb_password'] }}"
+  become: true
   become_user: postgres
   register: non_ip_query_status
   with_items: "{{ non_ip_addresses }}"
@@ -150,6 +152,7 @@
     login_user: postgres
     query: DELETE FROM cluster.nodeinfo where ('{{ item.value.node }}'<>'control_plane') AND node='{{ item.value.node }}';
     login_password: "{{ hostvars['localhost']['postgresdb_password'] }}"
+  become: true
   become_user: postgres
   no_log: true
   register: query_status

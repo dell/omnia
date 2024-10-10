@@ -12,14 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
-- name: Add docker ansible-galaxy collection
-  ansible.builtin.command: ansible-galaxy collection install {{ docker_galaxy_collection }}
-  changed_when: true
-  register: ansible_collection_install
-  until: ansible_collection_install is not failed
-  retries: "{{ max_retries }}"
-
 - name: Install python docker
   ansible.builtin.command: "{{ python_version }} -m pip install {{ docker_python_package }}"
   changed_when: true

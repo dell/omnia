@@ -25,8 +25,8 @@ xcat_download_files:
   - /etc/apt/sources.list.d/xcat-core.list
   - /etc/apt/sources.list.d/xcat-dep.list
 nerdctl_del_files:
-  - /tmp/nerdctl-1.5.0-linux-amd64.tar.gz
-  - /tmp/bin/nerdctl
+  - /tmp/nerdctl-1.7.4-linux-amd64.tar.gz
+  - /tmp/nerdctl/
   - /opt/cni
   - /usr/local/bin/nerdctl
   - /var/lib/containerd/
@@ -34,6 +34,8 @@ nerdctl_del_files:
   - /var/lib/nerdctl/1935db59
   - /tmp/containerd.io_1.6.16-1_amd64.deb
   - /etc/omnia_environment
+  - /etc/systemd/system/containerd.service.d/http-proxy.conf
+  - /root/.docker/config.json
 offline_del_files:
   - /opt/omnia/offline/
   - /opt/omnia/ldap/

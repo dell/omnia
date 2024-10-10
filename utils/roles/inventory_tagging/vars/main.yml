@@ -14,7 +14,7 @@
 ---
 
 # Usage: main.yml
-python_version: "{{ ansible_python_interpreter }}" 
+python_version: "{{ ansible_python_interpreter }}"
 script_name: "{{ role_path }}/files/inventory_tagging.py"
 db_path: "{{ role_path }}/../../../discovery/roles/db_operations/files/"
 omnia_inventory_dir_path: "/opt/omnia/omnia_inventory"
@@ -26,7 +26,7 @@ inventory_files:
   - compute_gpu_nvidia
   - compute_gpu_amd
   - compute_gpu_intel
-  - compute_servicetag_ip
+  - compute_hostname_ip
 
 vendors:
   cpu:

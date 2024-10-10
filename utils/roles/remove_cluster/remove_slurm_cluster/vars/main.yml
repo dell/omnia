@@ -17,10 +17,10 @@
 slurm_inv_fail_msg: "Required slurm groups are not defined in inventory. Please check inventory format"
 slurm_not_exists: "Slurm services does not exist"
 slurm_nfs_folder: "/slurm"
-slurmd_servicepath: /usr/lib/systemd/system/slurmd.service
-slurmdbd_servicepath: /etc/systemd/system/slurmdbd.service
-slurmctld_servicepath: /etc/systemd/system/slurmctld.service
 bashrc_path: /etc/bashrc
+slurm_uid: "6001"
+slurm_user_deletion: 3
+slurm_user_deletion_retry_delay_seconds: 10
 
 check_slurm_services:
   - slurmctld
@@ -45,6 +45,14 @@ slurm_packages:
   - munge-devel
   - mariadb-server
   - mariadb-devel
+
+slurm_services_files:
+  - /usr/lib/systemd/system/slurmd.service
+  - /usr/lib/systemd/system/slurmdbd.service
+  - /usr/lib/systemd/system/slurmctld.service
+  - /etc/systemd/system/slurmd.service
+  - /etc/systemd/system/slurmdbd.service
+  - /etc/systemd/system/slurmctld.service
 
 slurm_common_files:
   - /etc/slurm

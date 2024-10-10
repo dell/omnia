@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,23 +13,18 @@
 # limitations under the License.
 ---
 
-- name: Fetch ansible-vault path
-  ansible.builtin.command: whereis ansible-vault
-  changed_when: false
-  register: ansible_vault_path
-
-- name: Check omnia_config.yml file is encrypted
+- name: Check if omnia config file is encrypted
   ansible.builtin.command: cat {{ omnia_config_filename }}
   changed_when: false
-  register: omnia_config_content
+  register: config_content
   no_log: true
 
 - name: Decrpyt omnia_config.yml
   ansible.builtin.command: >-
-    {{ ansible_vault_path.stdout.split(' ')[1] }} decrypt {{ omnia_config_filename }}
+    ansible-vault decrypt {{ omnia_config_filename }}
     --vault-password-file {{ omnia_vault_path }}
   changed_when: false
-  when: ansible_vault_search_key in omnia_config_content.stdout
+  when: "'$ANSIBLE_VAULT;' in config_content.stdout"
 
 - name: Include omnia_config.yml
   block:
@@ -46,7 +41,7 @@
 - name: Create ansible vault key
   ansible.builtin.set_fact:
     omnia_vault_key: "{{ lookup('password', '/dev/null chars=ascii_letters') }}"
-  when: ansible_vault_search_key not in omnia_config_content.stdout
+  when: ansible_vault_search_key not in config_content.stdout
 
 - name: Save vault key to omnia_vault_path
   ansible.builtin.lineinfile:
@@ -55,12 +50,11 @@
     mode: "{{ omnia_config_file_permission }}"
     owner: root
     create: true
-  when: ansible_vault_search_key not in omnia_config_content.stdout
+  when: ansible_vault_search_key not in config_content.stdout
 
-- name: Encrypt omnia_config.yml
+- name: Encrypt omnia config file
   ansible.builtin.command: >-
-    {{ ansible_vault_path.stdout.split(' ')[1] }} encrypt {{ omnia_config_filename }}
-    --vault-password-file {{ omnia_vault_path }}
+    ansible-vault encrypt {{ omnia_config_filename }} --vault-password-file {{ omnia_vault_path }}
   changed_when: false
 
 - name: Update omnia_config.yml permission
