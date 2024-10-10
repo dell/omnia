@@ -20,12 +20,22 @@
     - name: Get kubernetes installation status
       ansible.builtin.include_tasks: precheck.yml
 
+    - name: Fetch cp details
+      ansible.builtin.include_tasks: fetch_cp_details.yml
+
+    - name: Fetch k8s package names
+      ansible.builtin.include_tasks: read_telemetry_packages.yml
+
     - name: Install K8s on Control plane
       when: k8s_cp_installation_flag
       block:
         - name: Configure kubernetes on control plane if atleast one support value is true
           when: idrac_telemetry_support or omnia_telemetry_support or visualization_support
           block:
+            - name: Login to docker when credentials are given
+              ansible.builtin.include_tasks: docker_login.yml
+              when: docker_login
+
             - name: Configure container runtime
               ansible.builtin.import_tasks: container_runtime.yml
 

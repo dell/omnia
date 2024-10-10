@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,6 +17,10 @@
   ansible.builtin.set_fact:
     telemetry_validation_status: true
 
+- name: Set control_plane_os
+  ansible.builtin.set_fact:
+    control_plane_os: "{{ ansible_distribution | lower }}"
+
 - name: Read software config file
   ansible.builtin.include_tasks: read_software_config.yml
 
@@ -26,16 +30,23 @@
     - name: Validate telemetry_config.yml
       ansible.builtin.include_tasks: validate_telemetry_config.yml
 
-    - name: Include provision_config.yml for timezone
-      ansible.builtin.include_tasks: include_provision_config.yml
+    - name: Include variables for telemetry
       when: idrac_telemetry_support or omnia_telemetry_support or visualization_support
+      block:
+        - name: Validate site_config.yml
+          ansible.builtin.include_tasks: validate_site_config.yml
 
-    - name: Check pre-requisites for telemetry and visualizations
-      ansible.builtin.include_tasks: pre-requisites.yml
-      when: idrac_telemetry_support or omnia_telemetry_support or visualization_support
+        - name: Include provision_config.yml for timezone
+          ansible.builtin.include_tasks: include_provision_config.yml
 
-    - name: Create iDRAC inventory
-      ansible.builtin.include_tasks: create_idrac_inventory.yml
+        - name: Validate provision_config_credentials.yml
+          ansible.builtin.include_tasks: validate_provision_config_credentials.yml
+
+        - name: Check pre-requisites for telemetry and visualizations
+          ansible.builtin.include_tasks: pre-requisites.yml
+
+    - name: Validate iDRAC inventory
+      ansible.builtin.include_tasks: validate_idrac_inventory.yml
       when: idrac_telemetry_support
 
     - name: Set the docker version for slurm telemetry

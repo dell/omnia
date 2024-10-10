@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -48,6 +48,7 @@
     ds_url: "{{ timescale_svc_ip.stdout }}:{{ timescale_svc_port.stdout }}"
     user: "{{ timescaledb_user }}"
     sslmode: "disable"
+    use_proxy: false
     additional_json_data:
       postgresVersion: 12+
       timescaledb: true

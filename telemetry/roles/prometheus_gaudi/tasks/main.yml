@@ -13,8 +13,11 @@
 # limitations under the License.
 ---
 
-- name: Check if Gaudi Prometheus metric exporter need to be deployed
-  when: hostvars['127.0.0.1']['prometheus_gaudi_support']
+- name: Check if telemetry support is required
+  when: hostvars['127.0.0.1']['telemetry_entry_present']
   block:
-    - name: Deploy Gaudi metric exporter
-      ansible.builtin.import_tasks: deploy_gaudi_metric_exporter.yml
+    - name: Check if Gaudi Prometheus metric exporter need to be deployed
+      when: hostvars['127.0.0.1']['prometheus_gaudi_support']
+      block:
+        - name: Deploy Gaudi metric exporter
+          ansible.builtin.import_tasks: deploy_gaudi_metric_exporter.yml

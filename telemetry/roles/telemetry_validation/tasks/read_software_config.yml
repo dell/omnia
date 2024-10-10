@@ -40,6 +40,10 @@
       ansible.builtin.set_fact:
         cluster_os_type: "{{ software_config['cluster_os_type'] }}"
 
+    - name: Get cluster_os_version from software_config.json
+      ansible.builtin.set_fact:
+        cluster_os_version: "{{ software_config['cluster_os_version'] }}"
+
     - name: Load telemetry.json
       ansible.builtin.set_fact:
         telemetry_packages: "{{ lookup('file', telemetry_packages_file) | from_json }}"

@@ -11,40 +11,43 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 ---
 
-
-# Assuming Prometheus was deployed and name space monitoring was created
+- name: Get K8s pods
+  ansible.builtin.command: kubectl get pods --all-namespaces
+  changed_when: false
+  register: k8s_pods
 
 - name: Deploy Gaudi metric exporter daemonset
-  kubernetes.core.k8s:
-    definition: '{{ item }}'
-  with_items:
-    - '{{ lookup("url", "{{ gaudi_metric_exporter_daemonset_url }}", split_lines=False) | from_yaml_all | list }}'
-  when: item is not none
+  ansible.builtin.command: "kubectl apply -f {{ gaudi_metric_exporter_daemonset_url }}"
+  changed_when: true
+  when: "'metric-exporter-ds' not in k8s_pods.stdout"
+
+- name: Get K8s services
+  ansible.builtin.command: kubectl get service --all-namespaces
+  changed_when: false
+  register: k8s_services
 
 - name: Deploy Gaudi metric exporter service
-  kubernetes.core.k8s:
-    definition: '{{ item }}'
-  with_items:
-    - '{{ lookup("url", "{{ gaudi_metric_exporter_service_url }}", split_lines=False) | from_yaml_all | list }}'
-  when: item is not none
+  ansible.builtin.command: "kubectl apply -f {{ gaudi_metric_exporter_service_url }}"
+  changed_when: true
+  when: "'metric-exporter' not in k8s_services.stdout"
+
+- name: Get K8s servicemonitors
+  ansible.builtin.command: kubectl get servicemonitor --all-namespaces
+  changed_when: false
+  register: k8s_serviemonitors
 
 - name: Deploy Gaudi metric exporter service monitor
-  kubernetes.core.k8s:
-    definition: '{{ item }}'
-  with_items:
-    - '{{ lookup("url", "{{ gaudi_metric_exporter_serviceMonitor_url }}", split_lines=False) | from_yaml_all | list }}'
-  when: item is not none
+  ansible.builtin.command: "kubectl apply -f {{ gaudi_metric_exporter_servicemonitor_url }}"
+  changed_when: true
+  when: "'metric-exporter' not in k8s_serviemonitors.stdout"
 
-- name: Add label to the service monitor so it will be scraped by Prometheus
-  kubernetes.core.k8s:
-    state: patched
-    kind: ServiceMonitor
-    namespace: monitoring
-    name: metric-exporter
-    definition:
-      metadata:
-        labels:
-          release: monitoring
+- name: Add label to the ServiceMonitor so it will be scraped by Prometheus
+  ansible.builtin.command: >
+    kubectl patch servicemonitor metric-exporter
+    -n monitoring
+    --type='merge'
+    -p '{"metadata": {"labels": {"release": "prometheus"}}}'
+  changed_when: true
+  when: "'metric-exporter' not in k8s_serviemonitors.stdout"
