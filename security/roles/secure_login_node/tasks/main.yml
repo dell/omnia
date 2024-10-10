@@ -37,7 +37,6 @@
 - name: Configure security features
   when:
     - hostvars['127.0.0.1']['enable_secure_login_node']
-    - ansible_host in groups['login'][0]
   block:
     - name: Install Apparmor on Leap
       ansible.builtin.include_tasks: install_apparmor.yml

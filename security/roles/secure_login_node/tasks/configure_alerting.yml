@@ -16,16 +16,43 @@
 - name: Include local_repo_access.yml file
   ansible.builtin.include_vars: "{{ local_repo_access_path }}"
 
-- name: Install mailx and postfix
+- name: Install mailx and postfix for Rhel/Rocky
   ansible.builtin.package:
-    name: "{{ mail_packages }}"
+    name: "{{ mail_packages_redhat }}"
     state: present
+  when: ansible_distribution | lower in [redhat_os, rocky_os]
+
+- name: Install mailx and postfix for Ubuntu
+  ansible.builtin.package:
+    name: "{{ mail_packages_ubuntu }}"
+    state: present
+  when: ansible_distribution | lower == ubuntu_os
 
 - name: Start postfix service
   ansible.builtin.systemd:
     name: postfix
     state: started
     enabled: true
+
+- name: Load software_config.json
+  ansible.builtin.include_vars:
+    file: "{{ software_config_json_file }}"
+    name: software_config
+
+# set os_version from software_config.json file
+- name: Set facts for cluster
+  ansible.builtin.set_fact:
+    cluster_os_version: "{{ software_config.cluster_os_version }}"
+    cluster_os_type: "{{ software_config.cluster_os_type }}"
+
+- name: Load secure_login_node.json
+  ansible.builtin.set_fact:
+    secure_login_node_json: "{{ lookup('file', secure_login_node_packages_file) | from_json }}"
+
+# Extract python version from json file
+- name: Extract python version from software_config.json
+  ansible.builtin.set_fact:
+    python_version: "{{ secure_login_node_json['secure_login_node']['cluster'] | selectattr('type', 'in', ['deb', 'rpm']) | selectattr('package', 'search', 'python') | map(attribute='package') | first }}"  # noqa: yaml[line-length]
 
 - name: Install packages for os
   ansible.builtin.include_tasks: configure_alerting_{{ ansible_distribution | lower }}.yml

@@ -54,6 +54,8 @@
     enabled: false
   when:
     - "'telnet' in hostvars['127.0.0.1']['disable_services']"
+    - "'inetd' in ansible_facts.services"
+    - ansible_facts.services['inetd'].status in service_status
     - ansible_distribution | lower == ubuntu_os
 
 - name: Disabling telnet service 'Rhel/Rocky'
