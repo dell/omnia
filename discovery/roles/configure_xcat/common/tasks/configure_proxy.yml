@@ -13,9 +13,6 @@
 # limitations under the License.
 ---
 
-- name: Gathering service facts
-  ansible.builtin.service_facts:
-
 - name: Ensure admin subnet is present in squid.conf
   ansible.builtin.lineinfile:
     path: "{{ squid_proxy_conf_path }}"
@@ -41,12 +38,32 @@
         - { line: "cache_peer {{ proxy_host[0] }} parent {{ proxy_port[0] }} 0 no-query default", insertafter: "EOF" }
         - { line: "never_direct allow localnet", insertafter: "^http_access allow localnet" }
 
-- name: Start and enable squid service
+- name: Restart squid service if config changed
   ansible.builtin.service:
     name: squid
     state: restarted
     enabled: true
   when:
-    - configure_proxy_admin_subnet.changed or
-      configure_proxy_input.changed or
-      "'running' not in ansible_facts.services['squid.service'].state" # noqa: no-handler
+    - configure_proxy_admin_subnet.changed
+      or configure_proxy_input.changed
+
+- name: Gathering service facts
+  ansible.builtin.service_facts:
+
+- name: Restart squid service if not started
+  ansible.builtin.service:
+    name: squid
+    state: restarted
+    enabled: true
+  when: "'running' not in ansible_facts.services['squid.service'].state"
+
+- name: Apply xcat proxy patches
+  ansible.posix.patch:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    state: present
+  with_items: "{{ xcat_proxy_patch_file }}"
+  when:
+    - proxy_status
+    - control_plane_os in control_plane_os_redhat or
+      control_plane_os in control_plane_os_rocky

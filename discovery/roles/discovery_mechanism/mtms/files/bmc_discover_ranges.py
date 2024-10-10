@@ -12,14 +12,34 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-
+import re
 import sys
 import subprocess
 import calculate_ip_details
 
+class IPAddress:
+    def __init__(self, address):
+        self.address = address
+        self.validate()
+
+    def validate(self):
+        # Define regex patterns
+        cidr_pattern = r'^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$'
+        range_pattern = r'^(\d{1,3}\.){3}\d{1,3}-\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$'
+        valid_pattern = f'({cidr_pattern}|{range_pattern}|0.0.0.0)'
+
+        if not re.fullmatch(valid_pattern, self.address):
+            raise ValueError("Invalid IP range format")
+
+    def __str__(self):
+        return self.address
+
+
 if len(sys.argv) <= 3:
     bmc_dynamic_range = sys.argv[1]
     dynamic_stanza = sys.argv[2]
+
+
 # Pass proper variables
 if len(sys.argv) > 3:
     discovery_ranges = sys.argv[1]
@@ -28,7 +48,6 @@ if len(sys.argv) > 3:
     static_stanza = sys.argv[4]
     netmask_bits = sys.argv[5]
     bmc_static_range = sys.argv[6]
-
 
 def cal_ranges(start_ip, end_ip):
     """
@@ -72,8 +91,8 @@ def create_ranges_dynamic(bmc_mode):
 
           Calls:
               if range is valid, call the function run_bmc_discover, for running bmcdiscovery.
-       """
-    temp = bmc_dynamic_range.split('-')
+    """
+    temp = IPAddress(bmc_dynamic_range).address.split('-')
     start_ip = temp[0].split('.')
     end_ip = temp[1].split('.')
     output = cal_ranges(start_ip, end_ip)
@@ -93,7 +112,7 @@ def create_ranges_static(bmc_mode):
           Calls:
               if range is valid, call the function run_bmc_discover, for running bmcdiscovery.
        """
-    temp = bmc_static_range.split('-')
+    temp = IPAddress(bmc_static_range).address.split('-')
     start_ip = temp[0].split('.')
     end_ip = temp[1].split('.')
     output = cal_ranges(start_ip, end_ip)
@@ -115,7 +134,8 @@ def create_ranges_discovery(bmc_mode):
            """
     discover_range_list = discovery_ranges.split(',')
     for ip_range in discover_range_list:
-        temp = ip_range.split('-')
+        ip_obj = IPAddress(ip_range).address
+        temp = ip_obj.split('-')
         start_ip = temp[0].split('.')
         end_ip = temp[1].split('.')
         discover_subnet = calculate_ip_details.cal_ip_details(temp[0], netmask_bits)[1]

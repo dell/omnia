@@ -28,10 +28,6 @@ control_plane_os_fail_msg: "Failed. Control plane OS should be RHEL, Rocky or Ub
 root_user_name: "root"
 user_fail_msg: "Failed. Omnia playbooks should run as root user."
 
-# Usage: package_installation.yml
-ansible_galaxy_collection:
-  - ansible.utils:2.12.0
-  - community.general:8.6.0
 python_version: "{{ ansible_python_interpreter }}"
 # snmp_python_package: easysnmp
 postgres_python_package: psycopg2-binary
@@ -258,6 +254,9 @@ fail_cidr_ip_range: "Failed, Cidr overlaps with"
 # Usage: validate_site_config.yml
 site_config_file: "{{ role_path }}/../../../../input/site_config.yml"
 invalid_proxy_failure_msg: "Failed. Both http_proxy and https_proxy should be set for proxy variable provided in site_config.yml"
-proxy_env_fail_msg: "Failed. proxy values provided for http_proxy {{ proxy[0].http_proxy }} and https_proxy {{ proxy[0].https_proxy }} in site_config.yml
-should be set as environment variables http_proxy and https_proxy in control plane."
-update_repos_fail_msg: "Failed. Failed to update repos. Verify proxy configuration in control plane for acccessing internet."
+proxy_env_fail_msg: "Failed. The values for http_proxy {{ proxy[0].http_proxy }} and https_proxy {{ proxy[0].https_proxy }} in the
+proxy variable of the site_config.yml should be set as environment variables http_proxy and https_proxy in the control plane.
+The no_proxy environment variable should include the control plane hostname and the admin network IP address."
+update_repos_fail_msg: "Failed to update repos. Verify proxy configuration in control plane for acccessing internet."
+repo_retries: 5
+repo_delay: 10

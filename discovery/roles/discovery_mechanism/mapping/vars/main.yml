@@ -30,7 +30,3 @@ file_mode: "0644"
 # Usage: check_nodes_mapping.yml
 mapping_nodes_warning_msg: "[WARNING] Nodes provided in mapping file were already provisioned by omnia using other discovery mechanism."
 warning_wait_time: 10
-
-# Usage: set_provision_image_mapping.yml
-max_retries: 5
-xcat_sbin_path: /opt/xcat/sbin
