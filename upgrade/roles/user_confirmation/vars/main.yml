@@ -12,8 +12,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-- name: Read parameters in from previous version of omnia 
-  ansible.builtin.include_tasks: parameter_based_input_file_generation.yml 
 
-- name: Moving new input files to a specified source input directory
-  ansible.builtin.include_tasks: sync_files_to_omnia_version.yml
+user_confirmation_msg: "Telemetry service will be unavailable during upgrade execution. Only omnia 1.6.1 features supported on RHEL/Rocky 8.6/8.7.
+Are you sure you want to upgrade omnia control plane (OIM)? Type 'yes' to upgrade OIM."

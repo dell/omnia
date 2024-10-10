@@ -12,8 +12,15 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-- name: Read parameters in from previous version of omnia 
-  ansible.builtin.include_tasks: parameter_based_input_file_generation.yml 
 
-- name: Moving new input files to a specified source input directory
-  ansible.builtin.include_tasks: sync_files_to_omnia_version.yml
+- name: Check installed omnia version and version to be upgraded
+  ansible.builtin.include_tasks: upgrade_version_check.yml
+
+- name: Check supported OS on omnia control plane
+  ansible.builtin.include_tasks: upgrade_os_check.yml
+
+- name: Check local repo metadata file 
+  ansible.builtin.include_tasks: precheck_local_repo_access.yml
+
+- name: Check if kubernetes is installed and all PODs are running
+  ansible.builtin.include_tasks: upgrade_precheck_k8s.yml

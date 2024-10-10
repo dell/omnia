@@ -1,0 +1,65 @@
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Check if telemetry_metrics database exists before restore
+  ansible.builtin.command: >
+    kubectl exec "{{ timescaledb_pod_name.stdout }}"
+    -n "{{ telemetry_namespace }}"
+    -- psql -U {{ timescaledb_user }} -tc "SELECT 1 FROM pg_database WHERE datname='{{ timescaledb_name }}';"
+  register: check_database
+  changed_when: false
+
+- name: Create telemetry_metrics database for restore
+  ansible.builtin.command: >
+    kubectl exec "{{ timescaledb_pod_name.stdout }}"
+    -n "{{ telemetry_namespace }}"
+    -- psql -U {{ timescaledb_user }} -c "CREATE DATABASE {{ timescaledb_name }};"
+  when: check_database.stdout.find('1') == -1  # Create DB only if it doesn't exist
+  register: create_database
+  changed_when: create_database.rc == 0
+
+- name: Check if the telemetry_metrics backup file exists for restore
+  ansible.builtin.stat:
+    path: "{{ k8s_backup_location }}/{{ timescale_telemetry_backup_file }}"
+  register: telemetry_backup_file
+
+- name: Fail if the telemetry_metrics backup file is not present for restore
+  ansible.builtin.fail:
+    msg: "Backup file {{ k8s_backup_location }}/{{ timescale_telemetry_backup_file }} does not exist!"
+  when: not telemetry_backup_file.stat.exists
+
+- name: Restore telemetry_metrics database from backup location
+  ansible.builtin.shell: >
+    set -o pipefail && \
+    cat "{{ k8s_backup_location }}/{{ timescale_telemetry_backup_file }}" |
+    kubectl exec "{{ timescaledb_pod_name.stdout }}"
+    -n "{{ telemetry_namespace }}"
+    -- psql -U {{ timescaledb_user }} {{ timescaledb_name }}
+  register: restore_database
+  changed_when: restore_database.rc == 0
+
+- name: Verify metrics in telemetry_metrics database after restore
+  block:
+    - name: Count records in timeseries_metrics table
+      ansible.builtin.command: >
+        kubectl exec "{{ timescaledb_pod_name.stdout }}"
+        -n "{{ telemetry_namespace }}"
+        -- psql -U {{ timescaledb_user }} -d telemetry_metrics -c "SELECT COUNT(*) FROM timeseries_metrics;"
+      register: count_metrics
+      changed_when: false
+
+    - name: Display count of metrics
+      ansible.builtin.debug:
+        msg: "Count of metrics: {{ count_metrics }}"

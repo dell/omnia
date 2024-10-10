@@ -1,0 +1,106 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Wait for all pods to be Running before upgrade
+  ansible.builtin.command: 'kubectl get pods --all-namespaces | grep -v "Running" | awk "NR>1 {print $2}" | wc -l'
+  register: pod_count
+  until: pod_count.stdout == "0"
+  retries: 30
+  delay: 10
+  changed_when: false
+
+- name: Check if track_upgrade.txt contains kube_version
+  ansible.builtin.shell: "grep '{{ kube_version }}' {{ track_file_path }}"
+  register: track_file_check
+  no_log: true
+  ignore_errors: true
+
+- name: Upgrade K8s version to {{ kube_version }} on control plane, if not already upgraded
+  ansible.builtin.command: >
+      ansible-playbook {{ kubespray_path }}/kubespray-v2.25.0/upgrade-cluster.yml \
+      -i "{{ inv_path }}" \
+      --extra-vars "@{{ k8s_var_dest }}"
+  register: kubespray_results
+  args:
+    chdir: "{{ kubespray_path }}/kubespray-v2.25.0"
+  vars:
+    kube_version: "{{ kube_version }}"
+  when: track_file_check.rc != 0
+
+- name: Set kube_version variable after upgrade
+  ansible.builtin.set_fact:
+    upgraded_version: "{{ kube_version }}"
+  when: (kubespray_results is defined and kubespray_results.rc | default(-1) == 0)
+
+- name: Add kube_version to track_upgrade.txt file
+  ansible.builtin.lineinfile:
+    path: "{{ track_file_path }}"
+    line: "{{ kube_version }}"
+    create: yes
+
+- name: Wait for older dns-autoscaler pod to be pending
+  when: upgraded_version is defined and upgraded_version == 'v1.27.0'
+  block:
+    - name: Copy binaries to /usr/local/bin
+      ansible.builtin.copy:
+        src: "{{ bin_path }}/{{ item }}"
+        dest: "{{ local_bin_path }}/{{ item }}"
+        mode: "{{ copy_permission }}"
+      loop: "{{ binary_list }}"
+
+    - name: Get old dns-autoscaler pod
+      ansible.builtin.command: >
+        kubectl get pods -n kube-system -l k8s-app=dns-autoscaler 
+        --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[0].metadata.name}'
+      register: oldest_dns_autoscaler_pod
+
+    - name: Get new dns-autoscaler pod
+      ansible.builtin.command: >
+        kubectl get pods -n kube-system -l k8s-app=dns-autoscaler 
+        --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1].metadata.name}'
+      register: newest_dns_autoscaler_pod
+
+    - name: Check new dns-autoscaler pod status
+      ansible.builtin.command: >
+        kubectl get pod {{ newest_dns_autoscaler_pod.stdout }} -n kube-system -o jsonpath='{.status.phase}'
+      register: new_dns_autoscaler_status
+      until: new_dns_autoscaler_status.stdout == "Pending"
+      retries: 10
+      delay: 10
+
+    - name: Check old dns-autoscaler pod status
+      ansible.builtin.command: >
+        kubectl get pod {{ oldest_dns_autoscaler_pod.stdout }} -n kube-system -o jsonpath='{.status.phase}'
+      register: old_dns_autoscaler_status
+      until: old_dns_autoscaler_status.stdout == "Running"
+      retries: 10
+      delay: 10
+
+    - name: Wait for all other pods to be running
+      ansible.builtin.command: >
+        kubectl get pods --all-namespaces --field-selector=status.phase!=Running | 
+        grep -v "{{ newest_dns_autoscaler_pod.stdout }}" | 
+        awk 'NR>1 {print $2}' | wc -l
+      register: remaining_pod_count
+      retries: 30
+      delay: 10
+      until: remaining_pod_count.stdout == "0"
+      changed_when: false
+
+    - name: Delete the older dns-autoscaler pod
+      ansible.builtin.command: >
+        kubectl delete pod {{ oldest_dns_autoscaler_pod.stdout }} -n kube-system
+      when: 
+        - old_dns_autoscaler_status.stdout == "Running"
+        - remaining_pod_count.stdout | int == 0

@@ -1,0 +1,37 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Place modified telemetry.json in input folder - ubuntu/rocky
+  ansible.builtin.copy:
+    src: "{{ upgrade_telemetry_json_path_ubuntu_rocky }}"
+    dest: "{{ telemetry_json_path_ubuntu_rocky }}"
+    mode: "{{ file_permission }}"
+  when:
+    - control_plane_os in control_plane_os_ubuntu or
+      control_plane_os in control_plane_os_rocky
+
+- name: Place modified telemetry.json in input folder - rhel
+  ansible.builtin.copy:
+    src: "{{ upgrade_telemetry_json_path_rhel }}"
+    dest: "{{ telemetry_json_path_rhel }}"
+    mode: "{{ file_permission }}"
+  when: control_plane_os in control_plane_os_rhel
+
+- name: Download k8s packages for upgrade (This task may take 10-15 mins to complete)
+  ansible.builtin.command: "{{ run_local_repo }}"
+  register: result
+  no_log: true
+  until: result.rc == 0
+  retries: 3
+  delay: 5

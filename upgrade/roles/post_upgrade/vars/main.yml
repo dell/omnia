@@ -1,0 +1,36 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+meta_path: "/opt/omnia/.data/metadata.yml"
+
+user_msg_upgrade: |
+   "**************************************************************************************
+   upgrade_cp.yml is completed SUCCESSFULLY.
+   The omnia control plane(OIM) has been upgraded to Omnia {{ upgrade_omnia_version }}
+   ***************************************************************************************
+
+   Note:
+   1. Below software version is supported with /opt/omnia/omnia161_venv only:
+      Kubernetes - 1.26.12
+      KServe     - 0.11.2
+      Kubeflow   - 1.8.0
+      For above software versions activate omnia161_venv using command 
+           #source /opt/omnia/omnia161_venv/bin/activate
+      For Omnia 1.7 new features, activate omnia17_venv using command
+           #source /opt/omnia/omnia17_venv/bin/activate
+      
+
+   2. Omnia 1.7 new features are not supported on RHEL/Rocky 8.6 and 8.7
+      Use /opt/omnia/omnia161_venv only for RHEL/Rocky 8.6 and 8.7"
