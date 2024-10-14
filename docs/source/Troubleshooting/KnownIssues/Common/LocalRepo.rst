@@ -52,11 +52,6 @@ Local Repositories
 **Resolution**: Verify that the internet connectivity on control plane is stable and re-run the ``prepare_upgrade.yml`` playbook.
 
 
-⦾ **While executing local_repo.yml playbook, subgroup entries for applicable software is not validated during playbook execution.**
-
-**Resolution**: User must provide the software subgroup (if required) for the respective software in ``input/software_config.json``.
-
-
 ⦾ **The "TASK [configure_repos : Generate metadata for repositories]" fails during the execution of local_repo.yml on RHEL clusters if the Epel repository is unstable.**
 
 **Potential Cause**: If the external Epel repository link mentioned in ``omnia_repo_url_rhel`` is not stable, then it can cause failures in ``local_repo.yml`` playbook execution.
