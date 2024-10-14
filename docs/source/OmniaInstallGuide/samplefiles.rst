@@ -59,6 +59,7 @@ inventory file
             * For Slurm, all the applicable inventory groups are ``slurm_control_node``, ``slurm_node``, and ``login``.
             * For Kubernetes, all the applicable groups are ``kube_control_plane``, ``kube_node``, and ``etcd``.
             * The centralized authentication server inventory group, that is ``auth_server``, is common for both Slurm and Kubernetes.
+            * For secure login node functionality, ensure to add the ``login`` group in the provided inventory file.
 
 software_config.json for Ubuntu
 ---------------------------------

@@ -13,7 +13,7 @@ New Features
 
     * Software stack installation
 
-    * Accelerator status verification using HCCL, qual
+    * Accelerator status verification using "HCCL demo" and "hl_qual"
 
     * Inventory tagging for the Gaudi accelerators
 
