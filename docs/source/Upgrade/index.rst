@@ -5,7 +5,7 @@ To upgrade the Omnia version 1.6.1 to version 1.7 on your control plane, you can
 
 .. caution:: Do not reboot the control plane before initiating the upgrade process, as it leads to loss of telemetry data.
 
-.. note:: After upgrading the Omnia control plane running on a `supported OS <../Overview/SupportMatrix/OperatingSystems/index.html>`_, the ``input/software_config.json`` file will revert to its default settings. This allows users to install the default software versions on a new cluster.
+.. note:: After upgrading the Omnia control plane running on a `supported OS <../Overview/SupportMatrix/OperatingSystems/index.html>`_, the ``input/software_config.json`` file remains in its default state. This enables users to install the default software versions on a new cluster.
 
 **Tasks performed by the playbook**
 
