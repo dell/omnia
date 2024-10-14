@@ -29,7 +29,7 @@ Omnia deploys vLLM on both the ``kube_node`` and ``kube_control_plane``, using a
 
 * Update the ``/input/software_config.json`` file with the correct vLLM version required. The default value is ``vllm-v0.2.4`` for AMD container and ``vllm latest`` for NVidia.
 
-* Omnia deploys the vLLM pip installation for NVidia GPU, or ``embeddedllminfo/vllm-rocm:vllm-v0.2.4`` container image for AMD GPU.
+* Omnia deploys the vLLM pip installation for NVIDIA GPU, or ``embeddedllminfo/vllm-rocm:vllm-v0.2.4`` container image for AMD GPU.
 
 * **nerdctl** does not support mounting directories as devices because it is not a feature of containerd (nerdctl runtime). Individual files need to be attached while running nerdctl.
 
@@ -64,7 +64,7 @@ The default namespace is for deployment is ``vLLM``.
 
 1. Verify that the vLLM package is installed: ::
 
-        python3.9 -c "import vllm; print(vllm.__version__)"
+        python3.11 -c "import vllm; print(vllm.__version__)"
 
 2. Use the package within a python script as demonstrated in the sample below: ::
 
