@@ -96,7 +96,7 @@ Once user accounts are created, admins can enable password-less SSH for users to
 
 .. note:: Once user accounts are created on the auth server, use the accounts to login to the cluster nodes to reset the password and create a corresponding home directory.
 
-To customize your setup of password-less SSH, input custom parameters in ``input/passwordless_ssh_config.yml``.
+To customize your setup of password-less SSH, input custom parameters in ``input/passwordless_ssh_config.yml``:
 
 +-----------------------+--------------------------------------------------------------------------------------------------------------------+
 | Parameter             | Details                                                                                                            |

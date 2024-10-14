@@ -39,7 +39,6 @@ ______________________________________
    :header-rows: 1
    :keepspace:
 
-.. [1] Boolean parameters do not need to be passed with double or single quotes.
 
 Running the security role
 --------------------------
@@ -106,7 +105,7 @@ Once user accounts are created, admins can enable passwordless SSH for users to 
 
 .. note:: Once user accounts are created on the auth server, use the accounts to login to the cluster nodes to reset the password and create a corresponding home directory.
 
-To customize your setup of passwordless ssh, input parameters in ``input/passwordless_ssh_config.yml``.
+To customize your setup of passwordless ssh, input custom parameters in ``input/passwordless_ssh_config.yml``:
 
 +-----------------------+--------------------------------------------------------------------------------------------------------------------+
 | Parameter             | Details                                                                                                            |
