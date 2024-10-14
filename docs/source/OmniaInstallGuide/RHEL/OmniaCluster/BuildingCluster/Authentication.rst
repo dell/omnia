@@ -49,10 +49,10 @@ The wrapper playbook ``omnia.yml`` handles execution of the security or authenti
     cd security
     ansible-playbook security.yml -i inventory
 
-The inventory should contain auth_server as per the inventory file in `sample files <../../../samplefiles.html#inventory-file>`_. The inventory file is case-sensitive. Follow the format provided in the sample file link.
+The provided inventory should contain ``auth_server`` and ``login`` [optional] groups. The inventory file is case-sensitive. Follow the format provided in the `sample files <../../../samplefiles.html#inventory-file>`_.
 
-    * Do not include the IP of the control plane or local host as the ``auth_server group`` in the inventory file.
-    * To customize the security features on the login node, update the desired parameters in ``input/login_node_security_config.yml``.
+    * Do not include the IP of the control plane or local host in the ``auth_server`` group of the inventory file.
+    * For `secure login node functionality <Authentication.html#configuring-login-node-security>`_, ensure to add the ``login`` group in the provided inventory file. To customize the security features on the login node, update the desired parameters in ``input/login_node_security_config.yml``.
     * If a subsequent run of ``security.yml`` fails, the ``security_config.yml`` file will be unencrypted.
 
 .. note:: Installation of OpenLDAP server or FreeIPA server on Control Plane is not supported.
@@ -143,6 +143,8 @@ ________________________________
       {"name": "secure_login_node"}
 
 * Run ``local_repo.yml`` to create an offline repository of all utilities used to secure the login node. For more information, `click here. <../../CreateLocalRepo/index.html>`_
+
+* For secure login node functionality, ensure to add the ``login`` group in the provided inventory file.
 
 Enter the following parameters in ``input/login_node_security_config.yml``.
 
