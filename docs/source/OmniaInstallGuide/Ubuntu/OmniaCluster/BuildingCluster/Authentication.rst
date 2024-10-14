@@ -16,15 +16,15 @@ _______________________________
 
 * Run ``local_repo.yml`` to create offline repositories of OpenLDAP. For more information, `click here <../../CreateLocalRepo/localrepos.html>`_.
 
-* Enter the following parameters in ``input/security_config.yml``.
+* Enter the following parameters in ``input/security_config.yml``:
 
 .. csv-table:: Parameters for Authentication
-   :file: ../../../Tables/security_config.csv
+   :file: ../../../../Tables/security_config.csv
    :header-rows: 1
    :keepspace:
 
 .. csv-table:: Parameters for OpenLDAP configuration
-   :file: ../../../Tables/security_config_ldap.csv
+   :file: ../../../../Tables/security_config_ldap.csv
    :header-rows: 1
    :keepspace:
 
