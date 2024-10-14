@@ -14,4 +14,3 @@ This topic highlights the common known issues related to:
     Storage
     Telemetry
     AITools
-    Upgrade
