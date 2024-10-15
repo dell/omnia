@@ -101,7 +101,7 @@ software_config.json for Ubuntu
             {"name": "rocm", "version": "6.0" }
         ],
         "intelgaudi": [
-            {"name": "habana"}
+            {"name": "intel"}
         ],
         "vllm": [
             {"name": "vllm_amd"},

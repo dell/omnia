@@ -48,7 +48,7 @@ Input parameters for Local Repositories
             {"name": "rocm", "version": "6.0" }
         ],
         "intelgaudi": [
-            {"name": "habana"}
+            {"name": "intel"}
         ],
         "vllm": [
             {"name": "vllm_amd"},

@@ -35,11 +35,14 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
 
     ansible-playbook discovery_provision.yml
 
-.. note:: If the ``input/software_config.json`` has AMD ROCm, Intel Gaudi, and NVIDIA CUDA drivers mentioned, the AMD, Intel, and NVIDIA accelerator drivers are installed on the nodes post provisioning.
+.. note::
+
+    * If the ``input/software_config.json`` has AMD ROCm, Intel Gaudi, and NVIDIA CUDA drivers mentioned, the AMD, Intel, and NVIDIA accelerator drivers are installed on the nodes post provisioning.
+    * Omnia recommends to install the Intel Gaudi driver post provisioning using the ``accelerator.yml`` playbook in case the node has internet connectivity during provisioning. For more information, `click here <../AdvancedConfigurationsUbuntu/Habana_accelerator.html>`_.
 
 ``discovery_provision.yml`` runs in three stages that can be called individually:
 
-.. caution:: Always execute ``discovery_provision.yml`` within the ``omnia`` directory. That is, always change directories ( using ``cd omnia``) to the path where the playbook resides before running the playbook.
+.. caution:: Always execute ``discovery_provision.yml`` within the ``omnia`` directory. That is, always change directories (using ``cd omnia``) to the path where the playbook resides before running the playbook.
 
 **Stage 1: Preparing the control plane**
 

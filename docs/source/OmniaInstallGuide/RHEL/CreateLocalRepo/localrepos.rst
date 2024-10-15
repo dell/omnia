@@ -21,6 +21,8 @@ Configuring specific local repositories
 
         * A sample format is available `here. <InputParameters.html>`_
 
+.. note:: If ``amdgpu`` group and ``rocm`` subgroup is provided, the AMD GPU drivers are installed during the cluster provisioning process and the AMD ROCm software stack is installed during ``omnia.yml`` playbook execution.
+
 **CUDA**
 
     To install CUDA, include the following line under ``softwares`` in ``input/software_config.json``: ::

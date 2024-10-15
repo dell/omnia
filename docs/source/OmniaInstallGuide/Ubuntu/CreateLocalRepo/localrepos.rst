@@ -21,6 +21,8 @@ Configure specific local repositories
 
         * A sample format is available `here. <InputParameters.html>`_
 
+.. note:: If ``amdgpu`` group and ``rocm`` subgroup is provided, the AMD GPU drivers are installed during the cluster provisioning process and the AMD ROCm software stack is installed during ``omnia.yml`` playbook execution.
+
 **Intel Gaudi**
 
     To install Intel Gaudi, do the following:
@@ -36,19 +38,18 @@ Configure specific local repositories
             ::
 
                 "intelgaudi": [
-                                {"name": "habana"}
+                                {"name": "intel"}
                               ]
 
         * A sample format is available `here. <InputParameters.html>`_
 
-.. note:: If the ``habana`` subgroup is specified, the cluster provisioning process installs both the Intel Gaudi drivers and the habana software stack. However, if the subgroup is not mentioned, only the Intel Gaudi drivers are installed.
+.. note:: If ``intelgaudi`` group and ``intel`` subgroup is provided, the Intel Gaudi drivers are installed during the cluster provisioning process and the Intel software stack is installed during ``omnia.yml`` playbook execution.
 
 **CUDA**
 
     To install CUDA, include the following line under ``softwares`` in ``input/software_config.json``: ::
 
             {"name": "cuda", "version": "12.3.2"},
-
 
     For a list of repositories (and their types) configured for CUDA, view the ``input/config/<cluster_os_type>/<cluster_os_version>/cuda.json`` file. To customize your CUDA installation, update the file. URLs for different versions can be found `here <https://developer.nvidia.com/cuda-downloads>`_:
 
@@ -66,7 +67,7 @@ Configure specific local repositories
                 }
             }
 
-.. note:: If the package version is customized, ensure that the ``version`` value is updated in ``software_config.json```.
+.. note:: If the package version is customized, ensure that the ``version`` value is updated in ``software_config.json``.
 
 **OFED**
 
