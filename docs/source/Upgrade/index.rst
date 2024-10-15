@@ -5,7 +5,7 @@ To upgrade the Omnia version 1.6.1 to version 1.7 on your control plane, you can
 
 .. caution:: Do not reboot the control plane before initiating the upgrade process, as it leads to loss of telemetry data.
 
-.. note:: After upgrading the Omnia control plane running on a `supported OS <../Overview/SupportMatrix/OperatingSystems/index.html>`_, the ``input/software_config.json`` file remains in its default state. This enables users to install the default software versions on a new cluster.
+.. note:: After upgrading the Omnia control plane running on a `supported OS <../Overview/SupportMatrix/OperatingSystems/index.html>`_ (except RHEL/Rocky Linux 8.6 ans 8.8), the ``input/software_config.json`` file remains in its default state. This enables users to install the default software versions on a new cluster.
 
 **Tasks performed by the playbook**
 
@@ -53,7 +53,7 @@ To upgrade the Omnia control plane, do the following:
     |      Required               | * **Example**: ``/root/omnia161/omnia``                                                                                                         |
     |                             | .. note:: Verify that the directory has not been altered since the last execution of ``discovery_provision.yml`` and ``omnia.yml`` playbooks.   |
     +-----------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------+
-    | ``backup_location``         | * This variable points to the directory where OmniaDB backups should be stored during the upgrade process.                                      |
+    | ``backup_location``         | * This variable points to the directory where the Omnia control plane backup is stored during the upgrade process.                              |
     |    Optional                 | * This is an user-created directory and this must be created prior to running ``upgrade_cp.yml`` playbook.                                      |
     |                             | * If this directory is not created or provided by the user, Omnia stores the OmniaDB backup files at ``/opt/omnia/backup_before_upgrade``       |
     |                             | * **Example**: ``/root/omnia-backups``                                                                                                          |
@@ -77,7 +77,7 @@ To upgrade the Omnia control plane, do the following:
 
 .. caution::
 
-    If ``upgrade_cp.yml`` execution fails, you can restore your control plane to its older state using the ``restore_cp.yml`` playbook. To restore, do the following:
+    If ``upgrade_cp.yml`` execution fails, you can restore your control plane to its older state along with the old backed-up data, using the ``restore_cp.yml`` playbook. To restore, do the following:
 
         1. Activate the Omnia virtual environment using the ``source /opt/omnia/omnia161_venv/bin/activate`` command.
 
