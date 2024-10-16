@@ -82,6 +82,10 @@ To upgrade the Omnia control plane, do the following:
 
 Things to keep in mind after the control plane has been upgraded successfully:
 
+* To use Omnia 1.7 features, ensure to execute all the playbooks from within the Omnia 1.7 virtual environment. To activate the 1.7 virtual environment, use the following command: ::
+
+    source /opt/omnia/omnia17_venv/bin/activate
+
 * After upgrading your Omnia control plane to version 1.7, the new cluster configuration features added in this version won’t work with any of your existing clusters. These new features will only be available when you create new clusters on RHEL/Rocky Linux 8.8 or Ubuntu 22.04 platforms, using Omnia 1.7 source code.
 * The new cluster configuration features in Omnia 1.7 are not supported on RHEL/Rocky Linux 8.6 or 8.7. This means that even if you upgrade your Omnia control plane to version 1.7, these features won’t function on those platforms.
 * Post-upgrade to Omnia 1.7, if you want to use old 1.6.1 software versions of Kubernetes (1.26.12), KServe (0.11.2), Kubeflow (1.8.0), and MPI operator (0.4.0), then perform the following steps:
@@ -90,7 +94,7 @@ Things to keep in mind after the control plane has been upgraded successfully:
 
         source /opt/omnia/omnia161_venv/bin/activate
 
-    * Update the ``input/software_config.json`` file of Omnia 1.7 with the required software versions.
+    * Update the ``input/software_config.json`` file of Omnia 1.7 with the required software versions. [Optional] Omnia recommends to take a backup of the ``input/software_config.json`` and all other configurations files in case you want to switch to Omnia 1.7 at a later point of time.
 
     * Copy the ``<software_name>.json`` files (excluding Kubernetes) from the ``input/config/<cluster_os_type>/<cluster_os_version>`` folder in Omnia 1.6.1 and overwrite the existing files in the same directory of Omnia 1.7.
 
