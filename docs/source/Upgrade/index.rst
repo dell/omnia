@@ -78,7 +78,7 @@ To upgrade the Omnia control plane, do the following:
             cd upgrade
             ansible-playbook restore_cp.yml
 
-**Post upgrade**
+**Post Upgrade**
 
 Things to keep in mind after the control plane has been upgraded successfully:
 
@@ -92,5 +92,5 @@ Things to keep in mind after the control plane has been upgraded successfully:
 
     * Update the ``input/software_config.json`` file of Omnia 1.7 with the required software versions.
 
-    * Copy the ``<software_name>.json`` files (excluding Kubernetes) from the ``input/config/<cluster_os_type>/<cluster_os_version>`` folder in Omnia 1.6.1 and overwrite the existing files in the same directory in Omnia 1.7.
+    * Copy the ``<software_name>.json`` files (excluding Kubernetes) from the ``input/config/<cluster_os_type>/<cluster_os_version>`` folder in Omnia 1.6.1 and overwrite the existing files in the same directory of Omnia 1.7.
 
