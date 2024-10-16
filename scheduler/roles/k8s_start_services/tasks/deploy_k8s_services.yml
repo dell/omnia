@@ -26,6 +26,12 @@
   register: k8s_pods
   tags: init
 
+# Get deployed daemonset list
+- name: Get K8s daemonset
+  ansible.builtin.command: kubectl get ds --all-namespaces
+  changed_when: false
+  register: k8s_daemonset
+
 - name: Create directory for temp k8s files
   ansible.builtin.file:
     path: "{{ k8s_tmp_dir }}"
@@ -96,19 +102,22 @@
     -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/imagePullPolicy", "value":"IfNotPresent"}]'
   changed_when: true
 
+# LABEL NODES WITH GAUDI
+- name: Label nodes with Gaudi
+  ansible.builtin.command: "kubectl label nodes {{ item }} {{ node_label_for_habana_device_plugin }}=true --overwrite"
+  changed_when: true
+  when:
+    - hostvars['localhost']['is_gaudi_cluster'] is defined
+    - hostvars[item]['node_has_gaudi'] | default(false)
+  loop: "{{ groups['kube_node'] | default([]) }}"
+
 # HABANA PLUGIN
 - name: Deploy Habana Device plugin
   when:
-    - "'habanalabs-device-plugin-daemonset' not in k8s_pods.stdout"
+    - "'habanalabs-device-plugin-daemonset' not in k8s_daemonset.stdout"
     - k8s_version >= minimal_gaudi_k8s_version
     - hostvars['localhost']['is_gaudi_cluster'] is defined
   block:
-    - name: Label nodes with Gaudi
-      ansible.builtin.command: "kubectl label nodes {{ item }} {{ node_label_for_habana_device_plugin }}=true --overwrite"
-      changed_when: true
-      when: "hostvars[item]['node_has_gaudi'] | default(false)"
-      loop: "{{ groups['kube_node'] | default([]) }}"
-
     - name: Download habana-device-plugin yaml file
       ansible.builtin.uri:
         url: "{{ habana_device_plugin_yaml_url }}"
