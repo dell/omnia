@@ -5,14 +5,17 @@ To upgrade the Omnia version 1.6.1 to version 1.7 on your control plane, you can
 
 .. caution:: Do not reboot the control plane before initiating the upgrade process, as it leads to loss of telemetry data.
 
-.. note:: After upgrading the Omnia control plane running on a `supported OS <../Overview/SupportMatrix/OperatingSystems/index.html>`_ (except RHEL/Rocky Linux 8.6 and 8.8), the ``input/software_config.json`` file remains in its default state. This enables users to install the default software versions on a new cluster.
+.. note::
 
-**Tasks performed by the playbook**
+    * Before initiating upgrade, ensure that the control plane has a stable internet connection to avoid intermittent issues caused by poor network connectivity.
+    * After upgrading the Omnia control plane running on a `supported OS <../Overview/SupportMatrix/OperatingSystems/index.html>`_ (except RHEL/Rocky Linux 8.6 and 8.8), the ``input/software_config.json`` file remains in its default state. This enables users to install the default software versions on a new cluster.
+
+**Tasks performed by the** ``upgrade_cp.yml`` **playbook**
 
 The ``upgrade_cp.yml`` playbook performs the following tasks:
 
 * Validates whether upgrade can be performed on the Omnia control plane.
-* Takes backup of Kubernetes etcd, Omnia database, and telemetry pods in provided location.
+* Takes backup of the Kubernetes etcd database, TimescaleDB, and MySQLDB at the backup location specified by the user.
 * Regenerates the inventory files with hostname values.
 * Imports input parameters from provided source code path of already installed Omnia version.
 * Upgrades the software version for nerdctl and kubernetes on the control plane.
@@ -49,14 +52,14 @@ To upgrade the Omnia control plane, do the following:
 4. Update the ``omnia/upgrade/upgrade_config.yml`` file with the following details:
 
     +-----------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------+
-    | ``installed_omnia_path``    | * This variable points to the the path or location of the directory where the Omnia 1.6.1 source code is currently installed.                   |
+    | ``installed_omnia_path``    | * This variable points to the currently installed Omnia 1.6.1 source code directory.                                                            |
     |      Required               | * **Example**: ``/root/omnia161/omnia``                                                                                                         |
     |                             | .. note:: Verify that the directory has not been altered since the last execution of ``discovery_provision.yml`` and ``omnia.yml`` playbooks.   |
     +-----------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------+
     | ``backup_location``         | * This variable points to the directory where the Omnia control plane backup is stored during the upgrade process.                              |
-    |    Optional                 | * This is an user-created directory and this must be created prior to running ``upgrade_cp.yml`` playbook.                                      |
-    |                             | * If this directory is not created or provided by the user, Omnia stores the OmniaDB backup files at ``/opt/omnia/backup_before_upgrade``       |
-    |                             | * **Example**: ``/root/omnia-backups``                                                                                                          |
+    |    Optional                 | * User must create this directory before running ``upgrade_cp.yml`` playbook and provide the complete path of that directory.                   |
+    |                             | * If the specified directory doesn't exist, backups will be taken at ``/opt/omnia/backup_before_upgrade``                                       |
+    |                             | * **Example**: ``/opt/omnia/upgrade_backup``                                                                                                    |
     +-----------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------+
 
 5. Finally, execute the ``upgrade_cp.yml`` playbook using the following command: ::
@@ -64,20 +67,9 @@ To upgrade the Omnia control plane, do the following:
     cd upgrade
     ansible-playbook upgrade_cp.yml
 
-.. note::
-
-    * After upgrading your Omnia control plane to version 1.7, the new cluster configuration features added in this version won’t work with any of your existing clusters. These new features will only be available when you create new clusters on RHEL/Rocky Linux 8.8 or Ubuntu 22.04 platforms, using Omnia 1.7.
-    * The new cluster configuration features in Omnia 1.7 are not supported on RHEL/Rocky Linux 8.6 or 8.7. This means that even if you upgrade your Omnia control plane to version 1.7, these features won’t function on those platforms.
-    * After the upgrade, you need to activate the virtual environment using the ``source /opt/omnia/omnia161_venv/bin/activate`` command prior to installing the below software versions:
-
-        - Kubernetes 1.26.12
-        - KServe 0.11.2
-        - Kubeflow 1.8.0
-        - MPI operator 0.4.0
-
 .. caution::
 
-    If ``upgrade_cp.yml`` execution fails, you can restore your control plane to its older state along with the old backed-up data, using the ``restore_cp.yml`` playbook. To restore, do the following:
+    If ``upgrade_cp.yml`` execution fails, you can rollback to Kubernetes version 1.26.12 and restore the old backed-up data using the ``restore_cp.yml`` playbook. To restore, do the following:
 
         1. Activate the Omnia virtual environment using the ``source /opt/omnia/omnia161_venv/bin/activate`` command.
 
@@ -85,3 +77,20 @@ To upgrade the Omnia control plane, do the following:
 
             cd upgrade
             ansible-playbook restore_cp.yml
+
+**Post upgrade**
+
+Things to keep in mind after the control plane has been upgraded successfully:
+
+* After upgrading your Omnia control plane to version 1.7, the new cluster configuration features added in this version won’t work with any of your existing clusters. These new features will only be available when you create new clusters on RHEL/Rocky Linux 8.8 or Ubuntu 22.04 platforms, using Omnia 1.7 source code.
+* The new cluster configuration features in Omnia 1.7 are not supported on RHEL/Rocky Linux 8.6 or 8.7. This means that even if you upgrade your Omnia control plane to version 1.7, these features won’t function on those platforms.
+* Post-upgrade to Omnia 1.7, if you want to use old 1.6.1 software versions of Kubernetes (1.26.12), KServe (0.11.2), Kubeflow (1.8.0), and MPI operator (0.4.0), then perform the following steps:
+
+    * Activate the Omnia 1.6.1 virtual environment using the following command: ::
+
+        source /opt/omnia/omnia161_venv/bin/activate
+
+    * Update the ``input/software_config.json`` file of Omnia 1.7 with the required software versions.
+
+    * Copy the ``<software_name>.json`` files (excluding Kubernetes) from the ``input/config/<cluster_os_type>/<cluster_os_version>`` folder in Omnia 1.6.1 and overwrite the existing files in the same directory in Omnia 1.7.
+
