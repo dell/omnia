@@ -23,6 +23,7 @@
   ansible.builtin.blockinfile:
     path: "{{ intel_bring_up_ports_script_path }}"
     create: true
+    mode: "{{ file_permissions }}"
     block: |
       #!/bin/bash
       /opt/habanalabs/qual/gaudi2/bin/manage_network_ifs.sh --up

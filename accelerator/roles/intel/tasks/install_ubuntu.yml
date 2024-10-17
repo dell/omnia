@@ -47,6 +47,16 @@
         name: "{{ intel_habana_packages | list }}"
         update_cache: true
 
+    - name: Remove (old) Gaudi kernel modules if present
+      community.general.modprobe:
+        name: "{{ item }}"
+        state: absent
+      loop: "{{ intel_gaudi_kernel_module_to_load }}"
+
+    - name: Make sure dkms module is built for the current kernel
+      ansible.builtin.command: /usr/lib/dkms/dkms_autoinstaller start
+      changed_when: true
+
     - name: Add Gaudi kernel modules
       community.general.modprobe:
         name: "{{ item }}"
