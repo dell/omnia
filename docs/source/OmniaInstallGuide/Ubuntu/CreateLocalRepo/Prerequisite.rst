@@ -18,6 +18,7 @@ For example, ``controlplane.omnia.test`` is acceptable. ::
 .. note::
 
     * The ``user_registry`` in ``input/local_repo_config.yml`` supports only nerdctl and docker registries.
+    * If you define the ``cert_path`` variable, ensure that it points to the absolute path of the user registry certificate present on the Omnia control plane.
     * To avoid docker pull limits, provide docker credentials (``docker_username``, ``docker_password``) in ``input/provision_config_credentials.yml``.
 
 .. caution:: In order to download the software images from an user registry, the user needs to ensure that the ``user_registry`` address provided in ``input/local_repo_config.yml`` is accessible from the Omnia control plane. If the ``user_registry`` is not accessible from the control plane, Omnia will download all the software images listed in ``input/software_config.json`` to the Omnia-registry. Use the ``curl -k <user_registry>`` to check.
