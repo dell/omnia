@@ -98,5 +98,5 @@ Things to keep in mind after the control plane has been upgraded successfully:
 
     * [Optional] Omnia recommends to take a backup of the ``input/software_config.json`` and all other configurations files in case you want to switch to Omnia 1.7 at a later point of time.
 
-    * Copy the ``<software_name>.json`` files (excluding Kubernetes) from the ``input/config/<cluster_os_type>/<cluster_os_version>`` folder in Omnia 1.6.1 and overwrite the existing files in the same directory of Omnia 1.7.
+    * Copy the ``<software_name>.json`` files from the ``input/config/<cluster_os_type>/<cluster_os_version>`` folder in Omnia 1.6.1 and overwrite the existing files in the same directory of Omnia 1.7.
 
