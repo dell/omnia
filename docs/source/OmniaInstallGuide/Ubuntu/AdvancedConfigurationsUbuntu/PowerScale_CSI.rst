@@ -125,8 +125,8 @@ Installation Process
 Expected Results
 ------------------
 
-* After the successful execution of the ``omnia.yml`` playbook, the PowerScale CSI drivers are installed in the isilon namespace created on the nodes.
-* Along with PowerScale driver installation a storage class named **ps01** is also created. The details of the storage class is as follows: ::
+* After the successful execution of the ``omnia.yml`` playbook, the PowerScale CSI drivers are installed in the isilon namespace, created on the nodes.
+* Along with PowerScale driver installation a storage class named **ps01** is also created. The details of the storage class are as follows: ::
 
     apiVersion: storage.k8s.io/v1
     kind: StorageClass
