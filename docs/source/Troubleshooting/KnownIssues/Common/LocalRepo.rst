@@ -8,9 +8,9 @@ Local Repositories
 **Resolution**: Verify all connectivity and re-run the playbook.
 
 
-⦾ **Why does any script that installs software fail with "The checksum for <software repository path> did not match."**?
+⦾ **Why does any script that installs software fail with** ``The checksum for <software repository path> did not match.`` **error?**
 
-**Potential Cause**: A local repository for the software was not configured by ``local_repo.yml``.
+**Potential Cause**: A local repository for the software has not been configured by the ``local_repo.yml`` playbook.
 
 **Resolution**:
 
@@ -19,7 +19,7 @@ Local Repositories
     * Re-run the script to install the software.
 
 
-⦾ **Why does the task `configure registry: Start and enable nerdctl-registry service` fail with "Job for nerdctl-registry.service failed because the control process exited with error code"?**
+⦾ **Why does the** ``TASK [configure_registry : Start and enable nerdctl-registry service`` **fail with** ``Job for nerdctl-registry.service failed because the control process exited with error code`` **?**
 
 .. image:: ../../../images/nerdctlError.png
 
@@ -34,7 +34,7 @@ Local Repositories
     * Update ``input/provision_config_credentials.yml`` with the ``docker_username`` and ``docker_password``.
 
 
-⦾ **What to do if** ``local_repo.yml`` **execution fails with the following error:**
+⦾ **Why does the** ``TASK [parse_and_download : Get libssl package]`` **fail during** ``local_repo.yml`` **execution?**
 
 .. image:: ../../../images/local_repo_permissions_error.png
 
@@ -43,7 +43,7 @@ Local Repositories
 **Resolution**: Provide the required (read, write, and execute) permissions for the NFS share. Verify the permissions of NFS share from the root user of the control plane.
 
 
-⦾ **Why does the task ‘Parse and Download: Display Failed Packages’ fail while running** ``prepare_upgrade.yml`` **?**
+⦾ **Why does the** ``TASK [parse_and_download : Display Failed Packages`` **fail during** ``prepare_upgrade.yml`` **execution?**
 
 .. image:: ../../../images/upgrade_failed_packages.png
 
@@ -52,7 +52,7 @@ Local Repositories
 **Resolution**: Verify that the internet connectivity on control plane is stable and re-run the ``prepare_upgrade.yml`` playbook.
 
 
-⦾ **The "TASK [configure_repos : Generate metadata for repositories]" fails during the execution of** ``local_repo.yml`` **on RHEL clusters if the Epel repository is unstable.**
+⦾ **The** ``TASK [configure_repos : Generate metadata for repositories]`` **fails during the execution of** ``local_repo.yml`` **on RHEL clusters if the Epel repository is unstable.**
 
 **Potential Cause**: If the external Epel repository link mentioned in ``omnia_repo_url_rhel`` is not stable, then it can cause failures in ``local_repo.yml`` playbook execution.
 
