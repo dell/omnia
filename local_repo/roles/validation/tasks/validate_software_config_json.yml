@@ -76,7 +76,7 @@
 
 - name: Generate software names having subgroup
   ansible.builtin.set_fact:
-    subgroup_software_names: "{{ subgroup_software_names | default([]) + [item] }}"
+    subgroup_softwares: "{{ subgroup_softwares | default({}) | combine({item: software_config[item]}) }}"
   loop: "{{ software_names }}"
   when: item in software_config | dict2items | map(attribute='key') | list
   # noqa: var-naming[no-jinja]
@@ -192,6 +192,38 @@
       vars:
         failed_softwares: "{{ version_result.results | selectattr('msg', 'equalto', 'Assertion failed') | map(attribute='item.name') | list }}"
 
+- name: Check if k8s support is true
+  ansible.builtin.set_fact:
+    k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'k8s') | list | length > 0 }}"
+
+- name: Check virtual ENV
+  ansible.builtin.set_fact:
+    venv_path: "{{ lookup('ansible.builtin.env', 'VIRTUAL_ENV') }}"
+
+- name: Validate k8s_support variable
+  when: k8s_support
+  block:
+    - name: Extract k8s version
+      ansible.builtin.set_fact:
+        k8s_version: "{{ software_config.softwares | selectattr('name', 'equalto', 'k8s') | map(attribute='version') | first }}"
+      # noqa: var-naming[no-jinja]
+
+    - name: Fail if kubernetes version is other than 1.26.12 or omnia161_venv is not activated for RHEL/Rocky 8.6 or 8.7
+      ansible.builtin.fail:
+        msg: "{{ kube_version_on_unsupported_os }}"
+      when:
+        - cluster_os_type in ['rhel', 'rocky']
+        - cluster_os_version in ['8.6', '8.7']
+        - (omnia161_k8s_version not in k8s_version) or ('omnia161_venv' not in venv_path)
+
+    - name: Assert supported kubernetes version
+      ansible.builtin.assert:
+        that:
+          - k8s_version | default("", false) | length > 1
+          - "('omnia161_venv' in venv_path  and '{{ omnia161_k8s_version }}' in k8s_version) or ( 'omnia17_venv' in venv_path and '{{ omnia17_k8s_version }}' in k8s_version)" # noqa: yaml[line-length]
+        success_msg: "{{ success_msg_k8s_version }}"
+        fail_msg: "{{ fail_msg_k8s_version }}"
+
 - name: Update software versions from software_config.json (softwares)
   ansible.builtin.set_fact:
     "{{ item.name }}_version": "{{ item.version }}"
@@ -212,10 +244,10 @@
 
 - name: Update software versions from software_config.json (subgroup)
   ansible.builtin.include_tasks: validate_software_config_subgroup_json.yml
-  loop: "{{ subgroup_software_names }}"
+  with_dict: "{{ subgroup_softwares }}"
   loop_control:
-    loop_var: item
+    loop_var: subgroup
   vars:
-    subgroup_software_name: "{{ item }}"
+    subgroup_software_name: "{{ subgroup.key }}"
   when: subgroup_software_name is defined
   # noqa: var-naming[no-jinja]

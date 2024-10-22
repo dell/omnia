@@ -101,6 +101,12 @@ valid_repo_config:
   - 'partial'
   - 'never'
 
+omnia17_k8s_version: '1.29.5'
+omnia161_k8s_version: '1.26.12'
+success_msg_k8s_version: "Kubernetes Version Validated"
+fail_msg_k8s_version: "Failed. Kubernetes Version is unsupported or incorrect in software_config.json for this virtual environment. Supported versions for omnia17_venv: 1.29.5, and for omnia161_venv: 1.26.12." # noqa: yaml[line-length]
+kube_version_on_unsupported_os: "Failed. On RHEL/Rocky 8.6 or 8.7 OS, supported kubernetes version is 1.26.12 and suppported virtual environment is omnia161_venv only"
+
 # Usage: validate_local_repo_config.yml
 fail_msg_local_repo_config_file: "local_repo_config.yml file doesn't exist."
 local_repo_config_syntax_fail_msg: "Failed. Syntax errors present in local_repo_config.yml. Fix errors and re-run playbook again. Common syntax Errors:
@@ -124,7 +130,8 @@ user_registry_fail_msg: "Failed. Please ensure user_registry is non empty list a
 check if there is any indentation error in input/local_repo_config.yml"
 user_registry_fail_host_cert_path_msg: "Failed. Each item in user_registry should have 'host' and 'cert_path' keys defined"
 time_out: 30
-user_registry_msg: "The following user registries are not reachable: [{{ unreachable_registries | join(', ') }}]. If the user registry is not accessible from the control plane, Omnia will download all the images for the software listed in software_config.json."   # noqa: yaml[line-length] 
+user_registry_msg: "The following user registries are not reachable: [{{ unreachable_registries | join(', ') }}]. If the user registry is not accessible from the control plane, Omnia will download all the images for the software listed in software_config.json."   # noqa: yaml[line-length]
+cert_path_failure_msg: "Certificate file path {{ item.item.cert_path }} does not exist on the omnia control plane for host {{ item.item.host }}. Please verify that correct cert_path is given in input/local_repo_config.yml"  # noqa: yaml[line-length]
 
 # Usage: validate_user_repo_url.yml
 user_repo_url_fail_msg: "Failed. Please ensure user_repo_url is proper and should not have jinja variables.
@@ -148,6 +155,26 @@ manifest_properties_fail_msg: "Missing required properties for an item of type '
 shell_properties_fail_msg: "Missing required properties for an item of type 'shell' in the JSON file '{{ file_basename }}.json'."
 iso_properties_fail_msg: "Missing required properties for an item of type 'iso' in the JSON file '{{ file_basename }}.json'."
 validation_failure_msg: "Validation failed for JSON file: {{ json_file.path }}. Please ensure all properties are defined in all items based on type"
+subgroup_software_list:
+  bcm_roce:
+    - 'bcm_roce_libraries'
+  amdgpu:
+    - 'rocm'
+  intelgaudi:
+    - 'intel'
+  vllm:
+    - 'vllm_amd'
+    - 'vllm_nvidia'
+  pytorch:
+    - 'pytorch_cpu'
+    - 'pytorch_amd'
+    - 'pytorch_nvidia'
+    - 'pytorch_gaudi'
+  tensorflow:
+    - 'tensorflow_cpu'
+    - 'tensorflow_amd'
+    - 'tensorflow_nvidia'
+subgroup_software_name_fail_msg: "Please ensure valid software names are defined in subgroups in the software_config.json file."
 
 # Usage: validate_ubuntu_os_url.yml
 url_format_fail_msg: "Failed. Invalid format for ubuntu_os_url.
