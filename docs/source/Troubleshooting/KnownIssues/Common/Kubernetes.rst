@@ -62,12 +62,12 @@ Kubernetes
 3. Period (.): The period should be used only to delimit fields in a hostname (For example, dvader.empire.gov)
 
 
-⦾ **What to do if omnia.yml playbook execution fails with MetalLB, a load-balancer for bare metal Kubernetes cluster?**
+⦾ **What to do if** ``omnia.yml`` **playbook execution fails with MetalLB, a load-balancer for bare metal Kubernetes cluster?**
 
 **Resolution**: If your ``omnia.yml`` playbook execution fails while waiting for the MetalLB controller to be up and running, you need to wait for the MetalLB pods to come to running state and then re-run ``omnia.yml/scheduler.yml``.
 
 
-⦾ **omnia.yml or scheduler.yml playbook execution fails with the following error:**
+⦾ **Why does the** ``omnia.yml`` **or** ``scheduler.yml`` **playbook execution fails with a** ``Unable to retrieve file contents`` **error?**
 
 .. image:: ../../../images/kubespray_error.png
 
@@ -76,7 +76,7 @@ Kubernetes
 **Resolution**: Re-run ``prepare_cp.yml``.
 
 
-⦾ **NFS-client provisioner is in "ContainerCreating" or "CrashLoopBackOff" state.**
+⦾ **Why does the NFS-client provisioner go to a "ContainerCreating" or "CrashLoopBackOff" state?**
 
 .. image:: ../../../images/NFS_container_creating_error.png
 
@@ -89,7 +89,7 @@ Kubernetes
     * Ensure that ``storage.yml`` is executed on the same inventory which is being used for ``scheduler.yml``.
     * Ensure that ``server_share_path`` mentioned in ``storage_config.yml`` for ``k8s_share: true`` has an active nfs_server running on it.
 
-⦾ **Nfs-client provisioner is in "ContainerCreating" or "CrashLoopBackOff" state and "kubectl describe <pod_name>" shows the following output:**
+⦾ **If the Nfs-client provisioner is in "ContainerCreating" or "CrashLoopBackOff" state, why does the** ``kubectl describe <pod_name>`` **command show the following output?**
 
 .. image:: ../../../images/NFS_helm_23743.png
 
@@ -97,7 +97,7 @@ Kubernetes
 
 **Resolution**:
 
-    1. Wait for some time for the pods to come up. **OR**
+    1. Wait for some time for the pods to come up. **or**
     2. Do the following:
 
         * Run the following command to delete the pod: ::
@@ -107,7 +107,7 @@ Kubernetes
         * Post deletion, the pod will be restarted and it will come to running state.
 
 
-⦾ **Why does the nvidia-device-plugin pods in ContainerCreating status fails with "no runtime for "nvidia" in configured" error?**
+⦾ **Why does the nvidia-device-plugin pods in ContainerCreating status fail with a** ``no runtime for "nvidia" is configured`` **error?**
 
 .. image:: ../../../images/nvidia_noruntime.png
 

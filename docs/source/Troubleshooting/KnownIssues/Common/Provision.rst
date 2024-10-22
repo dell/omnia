@@ -8,7 +8,7 @@ Due to internal MAC ID conflicts on the target nodes, the MAC address will be li
 .. image:: ../../../images/MACConflict.png
 
 
-⦾ **Why does the task Assign admin NIC IP fail during discovery_provision.yml with errors?**
+⦾ **Why does we see** ``TASK [provision_validation : Failed - Assign admin nic IP]`` **while executing** ``discovery_provision.yml`` **playbook?**
 
 .. image:: ../../../images/AdminNICErrors.png
 
@@ -51,12 +51,12 @@ Due to internal MAC ID conflicts on the target nodes, the MAC address will be li
 * On the server, go to **BIOS Setup -> Network Settings -> PXE Device**. For each listed device (typically 4), configure an active NIC under ``PXE device settings``
 
 
-⦾ **discovery_provision.yml fails to check for duplicate disk_partition values in provision_config.yml**
+⦾ **The** ``discovery_provision.yml`` **playbook fails to check for duplicate** ``disk_partition`` **values in** ``input/provision_config.yml`` **.**
 
 **Resolution**: User needs to ensure that there are no duplicate entries for the same partition in provision_config.yml.
 
 
-⦾ **After executing disocvery_provision.yml, why does the node status in OmniaDB display "standingby"?**
+⦾ **After executing** ``disocvery_provision.yml`` **, why is the node status in OmniaDB being displayed as "standingby"?**
 
 **Resolution**: For any discovery mechanism other than switch-based, do the following:
 
@@ -71,7 +71,7 @@ Due to internal MAC ID conflicts on the target nodes, the MAC address will be li
     Where <node> refers to the node column in the OmniaDB, which has a “standingby” status.
 
 
-⦾ **Why does the discovery_provision.yml playbook execution fail at task: "Prepare_cp needs to be executed"?**
+⦾ **Why does the** ``discovery_provision.yml`` **playbook execution fail at task: "Prepare_cp needs to be executed"?**
 
 **Potential Cause**: Invalid input provided in ``network_spec.yml`` for ``admin_network`` or ``bmc_network`` fields.
 
@@ -83,7 +83,7 @@ Due to internal MAC ID conflicts on the target nodes, the MAC address will be li
         ansible-playbook discovery_provision.yml
 
 
-⦾ **While executing discovery_provision.yml playbook from the control plane, some of the cluster nodes fail to boot up and omniadb captures the node status as "failed".**
+⦾ **While executing** ``discovery_provision.yml`` **playbook from the control plane, some of the cluster nodes fail to boot up and omniadb captures the node status as "failed".**
 
 .. image:: ../../../images/waco_node_boot_failure.png
 

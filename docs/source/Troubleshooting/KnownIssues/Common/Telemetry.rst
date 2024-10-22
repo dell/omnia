@@ -1,7 +1,7 @@
 Telemetry
 ==========
 
-⦾ **Why does the task ‘loki: Start Docker Service’ fail at “Job for docker.service failed because the control process exited with error code” while running upgrade.yml?**
+⦾ **Why does the** ``TASK [loki : Start Docker Service`` **fail with** ``Job for docker.service failed because the control process exited with error code`` **while executing** ``upgrade.yml`` **playbook?**
 
 .. image:: ../../../images/loki_docker.png
 

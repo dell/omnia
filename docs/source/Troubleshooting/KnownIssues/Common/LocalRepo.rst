@@ -52,7 +52,7 @@ Local Repositories
 **Resolution**: Verify that the internet connectivity on control plane is stable and re-run the ``prepare_upgrade.yml`` playbook.
 
 
-⦾ **The** ``TASK [configure_repos : Generate metadata for repositories]`` **fails during the execution of** ``local_repo.yml`` **on RHEL clusters if the Epel repository is unstable.**
+⦾ **Why does the** ``TASK [configure_repos : Generate metadata for repositories]`` **fails during the execution of** ``local_repo.yml`` **on RHEL clusters, if the Epel repository is unstable?**
 
 **Potential Cause**: If the external Epel repository link mentioned in ``omnia_repo_url_rhel`` is not stable, then it can cause failures in ``local_repo.yml`` playbook execution.
 

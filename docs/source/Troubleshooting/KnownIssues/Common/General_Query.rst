@@ -1,7 +1,7 @@
 General Query
 ==============
 
-⦾ **Why does the task 'Gather facts from all the nodes' get stuck when re-running omnia.yml?**
+⦾ **Why does the** ``TASK [gather_facts_from_all_the_nodes]`` **get stuck while re-running** ``omnia.yml`` **playbook?**
 
 **Potential Cause**: Corrupted entries in the ``/root/.ansible/cp/`` folder. For more information on this issue, `check this out <https://github.com/ansible/ansible/issues/17349>`_!
 
@@ -17,10 +17,10 @@ Alternatively, run the task manually: ::
     ansible-playbook gather_facts_resolution.yml
 
 
-⦾ **What to do if omnia.yml execution fails with a "403: Forbidden" error when an NFS share is provided as the repo_store_path?**
+⦾ **What to do if** ``omnia.yml`` **execution fails with a** ``403: Forbidden`` **error when an NFS share is provided as the** ``repo_store_path`` **?**
 
 .. image:: ../../../images/omnia_NFS_403.png
 
-**Potential Cause**: For omnia.yml execution, the NFS share folder provided in repo_store_path must have 755 permissions.
+**Potential Cause**: For ``omnia.yml`` execution, the NFS share folder provided in ``repo_store_path`` must have 755 permissions.
 
-**Resolution**: Ensure that the NFS share folder provided as the repo_store_path has 755 permissions, and re-run ``omnia.yml``.
+**Resolution**: Ensure that the NFS share folder provided as the ``repo_store_path`` has 755 permissions, and re-run ``omnia.yml``.

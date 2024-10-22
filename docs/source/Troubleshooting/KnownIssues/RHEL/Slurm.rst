@@ -1,7 +1,7 @@
 Slurm
 ======
 
-⦾ **What to do if slurmd services do not start after running omnia.yml playbook?**
+⦾ **What to do if slurmd services do not start after executing** ``omnia.yml`` **playbook?**
 
 **Resolution**: Run the following command to manually restart slurmd services on the nodes ::
 
@@ -21,7 +21,7 @@ Slurm
 * Run ``systemctl status slurmd`` to manually restart the following service on all the cluster nodes.
 
 
-⦾ **What to do if new slurm node is not added to sinfo output of slurm control node when restart_slurm_services in omnia_config.yml is set to "false"?**
+⦾ **What to do if new slurm node is not added to sinfo output of slurm control node when** ``restart_slurm_services`` **in the** ``omnia_config.yml`` **is set to** ``false`` **?**
 
 **Resolution**:
 
@@ -48,7 +48,7 @@ Slurm
 2. Refer the ``/var/lib/log/slurmctld.log`` file for more information.
 
 
-⦾ **What causes the "Ports are Unavailable" error?**
+⦾ **What causes the** ``Ports are Unavailable`` **error?**
 
 **Potential Cause:** Slurm database connection fails.
 
@@ -72,13 +72,13 @@ Slurm
     systemctl restart slurmd on slurm_node
 
 
-⦾ **What to do if slurmctld services fails during omnia.yml execution, when slurm_installaton_type is nfs_share?**
+⦾ **What to do if slurmctld services fails during** ``omnia.yml`` **execution, when** ``slurm_installaton_type`` **is** ``nfs_share`` **?**
 
 **Potential Cause**: This issue may arise due to internal network issues.
 
 **Resolution**: Re-run the playbook with same configuration and verify the status of slurmctld service in the slurm control node.
 
-⦾ **Why does the "TASK: Install packages for slurm" fail with the following error message?**
+⦾ **Why does the** ``TASK: Install packages for slurm`` **fail with the following error message?**
 
 .. image:: ../../../images/slurm_epel.png
 

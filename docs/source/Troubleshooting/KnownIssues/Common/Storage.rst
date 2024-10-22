@@ -66,7 +66,7 @@ Storage
 .. image:: ../../../images/omnia_NFS_mount_fcfs.png
 
 
-⦾ **Why does the "BeeGFS-client" service fail?**
+⦾ **Why does the "BeeGFS-client" service fails?**
 
 **Potential Causes**:
 

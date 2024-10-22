@@ -1,7 +1,7 @@
 AI Tools
 =========
 
-⦾ **What to do if pulling the Kserve inference model fail with "Unable to fetch image "kserve/sklearnserver:v0.11.2": failed to resolve image to digest: Get "https://index.docker.io/v2/": dial tcp 3.219.239.5:443: i/o timeout."?**
+⦾ **What to do if pulling the Kserve inference model fails with** ``Unable to fetch image "kserve/sklearnserver:v0.11.2": failed to resolve image to digest: Get "https://index.docker.io/v2/": dial tcp 3.219.239.5:443: i/o timeout.`` **?**
 
 **Resolution**:
 
@@ -14,7 +14,7 @@ AI Tools
 For more information, `click here. <https://github.com/kserve/kserve/issues/3372>`_
 
 
-⦾ **What to do when Kubeflow pods are in 'ImagePullBackOff' or 'ErrImagePull' status after executing kubeflow.yml?**
+⦾ **What to do when Kubeflow pods are in 'ImagePullBackOff' or 'ErrImagePull' status after executing** ``kubeflow.yml`` **playbook?**
 
 **Potential Cause**: Your Docker pull limit has been exceeded. For more information, `click here. <https://www.docker.com/increase-rate-limits>`_
 
@@ -25,12 +25,12 @@ For more information, `click here. <https://github.com/kserve/kserve/issues/3372
 2. Re-execute ``kubeflow.yml`` after 8-9 hours
 
 
-⦾ **What to do when the JupyterHub or Prometheus UI is not accessible?**
+⦾ **What to do if the JupyterHub or Prometheus UI is not accessible?**
 
 **Resolution**: Run the command ``kubectl get pods  namespace default`` to ensure **nfs-client** pod and all Prometheus server pods are in the **Running** state.
 
 
-⦾ **What to do when JupyterHub pods are in 'ImagePullBackOff' or 'ErrImagePull' status after executing jupyterhub.yml:**
+⦾ **What to do if JupyterHub pods are in 'ImagePullBackOff' or 'ErrImagePull' status after executing** ``jupyterhub.yml`` **playbook?**
 
 **Potential Cause**: Your Docker pull limit has been exceeded. For more information, `click here <https://www.docker.com/increase-rate-limits>`_.
 
