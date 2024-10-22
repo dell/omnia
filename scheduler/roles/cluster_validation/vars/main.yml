@@ -38,11 +38,14 @@ config_vaultname: .omnia_vault_key
 vault_key_permission: "0644"
 min_length: 8
 max_length: 30
+omnia17_k8s_version: '1.29.5'
+omnia161_k8s_version: '1.26.12'
 omnia_config_syntax_fail_msg: "Failed. Syntax errors present in omnia_config.yml. Fix errors and re-run playbook again."
 fail_msg_mariadb_password: "maria_db password not given in correct format."
 success_msg_mariadb_password: "mariadb_password validated"
 success_msg_k8s_version: "Kubernetes Version Validated"
-fail_msg_k8s_version: "Failed. Kubernetes Version is unsupported or incorrect in software_config.json"
+fail_msg_k8s_version: "Failed. Kubernetes Version is unsupported or incorrect in software_config.json for this virtual environment. Supported versions for omnia17_venv: 1.29.5, and for omnia161_venv: 1.26.12." # noqa: yaml[line-length]
+kube_version_on_unsupported_os: "Failed. On RHEL/Rocky 8.6 or 8.7 OS, supported kubernetes version is 1.26.12 and suppported virtual environment is omnia161_venv only"
 success_msg_k8s_cni: "Kubernetes CNI Validated"
 fail_msg_k8s_cni: "Kubernetes CNI not correct."
 supported_topology_manager_policy: ['none', 'best-effort', 'restricted', 'single-numa-node']
@@ -124,6 +127,7 @@ slurm_node_validation_success_msg: "At least one slurm_node exists in the invent
 unreachable_slurm_control_node_fail_msg: "Failed. Unreachable node mentioned in inventory for slurm_control_node.
 Re-run playbook with reachable slurm_control_node."
 slurm_control_node_in_login_fail_msg: "Failed. Node mentioned in slurm_control_node group should not be present in login group"
+slurm_control_node_in_node_fail_msg: "Failed. Node mentioned in slurm_control_node group should not be present in slurm_node group"
 
 # Usage: install_packages.yml
 ansible_base_version: '2.9'
@@ -167,3 +171,5 @@ fail_msg_isdefault: "isDefault value should be true or false in secret.yaml file
 fail_msg_skip_certificate_validation: "skipCertificateValidation must be true in secret.yaml file."
 fail_msg_isipath: "isiPath must be a valid Unix absolute path in secret.yaml file."
 fail_msg_isi_volume_path_permissions: "isiVolumePathPermissions must be a valid directory permission (example: 0777) in secret.yaml file."
+fail_msg_api_call: "Please recheck powerscale username, password, endpoint and endpointPort details provided in secret.yaml and
+  values.yaml (if endpointPort is provided only in values.yaml) file. API call to powerscale was not successful"

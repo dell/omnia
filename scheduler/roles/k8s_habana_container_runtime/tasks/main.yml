@@ -23,17 +23,17 @@
       ansible.builtin.include_tasks: install_prerequisite_ubuntu.yml
       when:
         - accelerator_type is defined
-        - accelerator_type == "habana"
+        - accelerator_type == "intel"
 
     - name: Change containerd runtime for Habana k8s device plugin
       ansible.builtin.include_tasks: change_containerd_runtime.yml
       when:
         - accelerator_type is defined
-        - accelerator_type == "habana"
+        - accelerator_type == "intel"
 
     - name: Set fact for nodes with Gaudi
       ansible.builtin.set_fact:
         node_has_gaudi: true
       when:
         - accelerator_type is defined
-        - accelerator_type == "habana"
+        - accelerator_type == "intel"

@@ -19,10 +19,10 @@
   changed_when: true
   failed_when: false
 
-- name: Set fact when Habana software was detected
+- name: Set fact when Intel software was detected
   when: hlsmi_run.rc == 0
   ansible.builtin.set_fact:
-    accelerator_type: "habana"
+    accelerator_type: "intel"
 
 - name: Set fact for localhost
   ansible.builtin.set_fact:
@@ -31,4 +31,4 @@
   delegate_facts: true
   when:
     - accelerator_type is defined
-    - accelerator_type == "habana"
+    - accelerator_type == "intel"

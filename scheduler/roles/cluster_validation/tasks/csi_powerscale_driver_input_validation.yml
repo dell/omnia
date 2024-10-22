@@ -281,3 +281,7 @@
       - csi_powerscale_values_file.isiVolumePathPermissions is defined
       - csi_powerscale_values_file.isiVolumePathPermissions | length > 0
     msg: "Invalid isiVolumePathPermissions: {{ csi_powerscale_values_file.isiVolumePathPermissions }}. It must be valid octal mode in values.yaml file."
+
+- name: Validate powerscale ip and credential in secret.yaml file using API call to powerscale
+  ansible.builtin.include_tasks: csi_powerscale_driver_api_validation.yml
+  loop: "{{ clusters.isilonClusters }}"
