@@ -19,6 +19,8 @@ squid_proxy_conf_regxp: "^#(.*)http_access allow localnet"
 squid_proxy_conf_replace: "http_access allow localnet"
 repo_update_fail_msg: "Failed. Unable to run apt update.
 Please make sure all required repos are reachable. Remove or Update unreachable repos configured and re-run the playbook."
+repo_retries: 5
+repo_delay: 10
 
 # Usage: configure_proxy_redhat.yml
 nerdctl_registry_restart_fail_msg: "Unable to restart nerdctl-registry service. Please restart nerdctl-registry manually."

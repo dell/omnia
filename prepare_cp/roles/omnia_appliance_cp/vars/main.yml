@@ -17,5 +17,6 @@
 ansible_collection_req_file: "{{ role_path }}/files/requirements_collections.yml"
 python_version: "{{ ansible_python_interpreter }}"
 pip_modules_req_file: "{{ role_path }}/files/requirements_pip.txt"
+pip_modules_req_file_161: "{{ role_path }}/files/requirements_pip_161.txt"
 retry_count: 5
 ansible_collection_fail_msg: "Failed to install kubespray ansible-collection. Please try installing it manually or re-run the playbook again."
