@@ -66,7 +66,7 @@ Local Repositories
 
     - If any package required from the Epel repository is listed in the ``software_config.json`` file, it's advisable to either wait for the Epel repository to stabilize or host those Epel repository packages locally. Afterward, remove the Epel repository link from ``omnia_repo_url_rhel`` and provide the locally hosted URL for the Epel repository packages via the ``user_repo_url`` variable.
 
-⦾ **Why does** ``omnia.yml`` **execution fail during** the ``TASK [Kubernetes_sigs.kubesprate.container-engine/runc : Download_file | Create dest directory on node]`` **?**
+⦾ **Why does** ``omnia.yml`` **execution fail during the** ``TASK [Kubernetes_sigs.kubesprate.container-engine/runc : Download_file | Create dest directory on node]`` **?**
 
 **Potential Cause**: This issue may arise if the directory path specified as the ``repo_store_path`` in the ``input/local_repo_config.yml`` does not have 755 permissions.
 
