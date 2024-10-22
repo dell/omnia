@@ -1,7 +1,7 @@
 Virtual environment
 =====================
 
-⦾ **After executing prereq.sh script, why do I see the error displayed below?**
+⦾ **After executing** ``prereq.sh`` **script, why do I see the following error?**
 
 .. image:: ../../../images/virtual_env_1.png
     :width: 600pt

@@ -1,7 +1,7 @@
 Local Repository
 ===================
 
-⦾ **local_repo.yml playbook execution fails at the TASK [parse_and_download : Display Failed Packages]**
+⦾ **Why does the** ``local_repo.yml`` **playbook execution fail at** ``TASK [parse_and_download : Display Failed Packages]`` **?**
 
 .. image:: ../../../images/package_failure_local_repo.png
 

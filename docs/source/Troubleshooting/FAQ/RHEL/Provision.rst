@@ -12,7 +12,7 @@ Provision
    :header-rows: 1
    :keepspace:
 
-⦾ **Why do subscription errors occur on RHEL control planes when rhel_repo_local_path (in input/provision_config.yml) is not provided and control plane does not have an active subscription?**
+⦾ **Why do subscription errors occur on RHEL control plane when** ``rhel_repo_local_path`` **in** ``input/provision_config.yml`` **is not provided and control plane does not have an active subscription?**
 
 .. image:: ../../../images/SubscriptionErrors.png
 

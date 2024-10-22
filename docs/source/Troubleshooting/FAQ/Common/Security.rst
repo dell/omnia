@@ -8,7 +8,7 @@ Centralized authentication
 **Resolution**: Remove the whitespaces and re-run the LDIF file.
 
 
-⦾ **Why does the task: TASK [hostname_validation: Verify the domain name is not blank in hostname] fail?**
+⦾ **Why does the** ``TASK [hostname_validation : Verify the domain name is not blank in hostname]`` **fail?**
 
 **Potential Cause**: Hostname is not configured properly with the domain name, on the target node.
 

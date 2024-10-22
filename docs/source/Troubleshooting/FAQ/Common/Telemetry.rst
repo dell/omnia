@@ -1,7 +1,7 @@
 Telemetry
 ==========
 
-⦾ **Why does the task: 'Orchestrator: Deploy MetalLB IP Address pool' fail?**
+⦾ **Why does the** ``TASK [orchestrator : Deploy MetalLB IP Address pool]`` **fail?**
 
 .. image:: ../../../images/Metallb_Telemetry_Apptainer_fail.png
 
@@ -9,7 +9,7 @@ Telemetry
 
 **Resolution**: Clear the ``/var`` partition and retry ``telemetry.yml``.
 
-⦾ **Why does the task: [Telemetry]: TASK [grafana : Wait for grafana pod to come to ready state] fail with a timeout error?**
+⦾ **Why does the** ``TASK [grafana : Wait for grafana pod to come to ready state]`` **fail with a timeout error?**
 
 **Potential Cause**: Docker pull limit exceeded.
 
