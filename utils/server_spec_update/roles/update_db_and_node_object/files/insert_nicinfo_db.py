@@ -15,6 +15,9 @@
 import psycopg2 as pg
 from cryptography.fernet import Fernet
 
+"""
+This module contains functions for inserting NIC information into a database.
+"""
 
 def create_connection():
     with open('/opt/omnia/.postgres/.postgres_pass.key', 'rb') as passfile:
@@ -38,16 +41,16 @@ def create_connection():
 
 def check_presence_id(cursor, id):
     """
-         Check presence of bmc ip in DB.
-         Parameters:
-             cursor: Pointer to omniadb DB.
-             id: id whose presence we need to check in DB.
-         Returns:
-             bool: that gives true or false if the bmc ip is present in DB.
+        Check presence of bmc ip in DB.
+        Parameters:
+            cursor: Pointer to omniadb DB.
+            id: id whose presence we need to check in DB.
+        Returns:
+            bool: that gives true or false if the bmc ip is present in DB.
     """
 
-    query = f'''SELECT EXISTS(SELECT id FROM cluster.nicinfo WHERE id='{id}')'''
-    cursor.execute(query)
+    query = f'''SELECT EXISTS(SELECT id FROM cluster.nicinfo WHERE id=%s)'''
+    cursor.execute(query, (id,))
     output = cursor.fetchone()[0]
     return output
 
@@ -73,10 +76,11 @@ def insert_nic_info(ip, db_data):
         elif op:
             set_clause = ', '.join(f'{col} = COALESCE({col}, %({col})s)' if col != 'category' and col.endswith(
                 'ip') else f'{col} = %({col})s' for col in db_data.keys())
-            query = f"UPDATE cluster.nicinfo SET {set_clause} WHERE id = {id_no[0]}"
+            query = f"UPDATE cluster.nicinfo SET {set_clause} WHERE id=%(id)s"
+
             try:
                 print("DB data=", db_data)
-                cursor.execute(query, db_data)
+                cursor.execute(query, {**db_data, 'id': id_no[0]})
             except Exception as e:
                 print(e)
 

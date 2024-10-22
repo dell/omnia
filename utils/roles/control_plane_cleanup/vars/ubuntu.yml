@@ -37,7 +37,8 @@ nerdctl_del_files:
   - /etc/systemd/system/containerd.service.d/http-proxy.conf
   - /root/.docker/config.json
 offline_del_files:
-  - /opt/omnia/offline/
+  - /opt/omnia/offline/.data
+  - /opt/omnia/offline/download_package_status.csv
   - /opt/omnia/ldap/
   - /opt/omnia/nerdctl-registry/
   - /opt/containerd

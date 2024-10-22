@@ -23,6 +23,9 @@
 - name: Validate the input files and values
   ansible.builtin.include_tasks: validation.yml
 
+- name: Validate repos configured during provisioning
+  ansible.builtin.include_tasks: validate_repo.yml
+
 - name: Update repos on cluster for {{ cluster_os }}
   block:
     - name: Update user repos for nodes on {{ cluster_os }}
