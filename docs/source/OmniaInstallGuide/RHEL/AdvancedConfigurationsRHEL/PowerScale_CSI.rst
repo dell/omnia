@@ -125,36 +125,55 @@ Installation Process
 Expected Results
 ------------------
 
-* After the successful execution of the ``omnia.yml`` playbook, the PowerScale CSI drivers are installed on the nodes.
-* If there are errors during CSI driver installation, the whole ``omnia.yml`` playbook execution does not stop or fail. It pauses for 10 seconds with CSI driver installation failure error message and then proceeds with rest of the playbook execution.
+* After the successful execution of the ``omnia.yml`` playbook, the PowerScale CSI driver is deployed in the isilon namespace.
+* Along with PowerScale driver installation a storage class named **ps01** is also created. The details of the storage class are as follows: ::
+
+    apiVersion: storage.k8s.io/v1
+    kind: StorageClass
+    metadata:
+      name: ps01
+    provisioner: csi-isilon.dellemc.com
+    reclaimPolicy: Delete
+    allowVolumeExpansion: true
+    volumeBindingMode: Immediate
+    parameters:
+      AccessZone: < access zone mentioned in values.yaml file >
+      Isipath: < isipath mentioned in values.yaml file >
+      RootClientEnabled: "true"
+      csi.storage.k8s.io/fstype: "nfs"
+
+* If there are errors during CSI driver installation, the whole ``omnia.yml`` playbook execution does not stop or fail. It pauses for 30 seconds with CSI driver installation failure error message and then proceeds with rest of the playbook execution.
 * For an unsuccessful driver installation scenario, the user first needs to follow the manual removal steps mentioned below from the ``kube_control_plane``, and then re-run the ``omnia.yml`` playbook for CSI driver installation.
 
 Post installation
 -------------------
 
-**Create storage class**
+**[Optional] Create custom storage class**
 
-PowerScale driver installation doesn't create any storage class by default. Users need to create storage class manually post installation of the PowerScale CSI driver. A sample storage class manifest is available `here <https://github.com/dell/csi-powerscale/blob/main/samples/storageclass/isilon.yaml>`_. Use this sample manifest to create a ``StorageClass`` to provision storage; update the manifest as per the requirements.
+If user wants to create a custom storage class, they can do so by following the sample storage class `template <https://github.com/dell/csi-powerscale/blob/main/samples/storageclass/isilon.yaml>`_.
 
 *Sample storageclass template*: ::
 
     apiVersion: storage.k8s.io/v1
     kind: StorageClass
     metadata :
-      name: ps01
+      name: <storage class name>
     provisioner: csi-isilon.dellemc.com
     reclaimPolicy: Delete
     allowVolumeExpansion: true
     volumeBindingMode: Immediate
     parameters :
-      clusterName: omniacluster
+      clusterName: <powerscale cluster name > #optional
       AccessZone: System
-      AzServiceIP: <PowerScale SmartConnect hostname or PowerScale IP>
-      Isipath: /ifs/data/csi/
+      AzServiceIP: <PowerScale SmartConnect hostname or PowerScale IP> #optional
+      Isipath: <isipath configured in powerscale > #sample: /ifs/data/csi/
       RootClientEnabled: "true"
       csi.storage.k8s.io/fstype: "nfs"
 
-.. note:: If PowerScale SmartConnect hostname is configured and the delegated host list is set up in the external DNS server, then the user can provide the PowerScale hostname for ``AzServiceIP``. Otherwise user can provide PowerScale IP address as well.
+.. note::
+
+    * If PowerScale SmartConnect hostname is configured and the delegated host list is set up in the external DNS server, then the user can provide the PowerScale hostname for ``AzServiceIP``. Otherwise user can provide PowerScale IP address as well.
+    * If there are any changes to the storage class parameters in a PowerScale cluster, the user must update the existing storage class or create a new one as needed.
 
 **Apply storage class**
 

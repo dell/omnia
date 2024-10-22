@@ -125,7 +125,7 @@ Installation Process
 Expected Results
 ------------------
 
-* After the successful execution of the ``omnia.yml`` playbook, the PowerScale CSI drivers are installed in the isilon namespace, created on the nodes.
+* After the successful execution of the ``omnia.yml`` playbook, the PowerScale CSI driver is deployed in the isilon namespace.
 * Along with PowerScale driver installation a storage class named **ps01** is also created. The details of the storage class are as follows: ::
 
     apiVersion: storage.k8s.io/v1
@@ -138,7 +138,7 @@ Expected Results
     volumeBindingMode: Immediate
     parameters:
       AccessZone: < access zone mentioned in values.yaml file >
-      Isipath: < isipath access zone mentioned in values.yaml file >
+      Isipath: < isipath mentioned in values.yaml file >
       RootClientEnabled: "true"
       csi.storage.k8s.io/fstype: "nfs"
 
@@ -150,7 +150,7 @@ Post installation
 
 **[Optional] Create custom storage class**
 
-If user wants to create a custom storage class, they can do so by following the sample storage class manifest.
+If user wants to create a custom storage class, they can do so by following the sample storage class `template <https://github.com/dell/csi-powerscale/blob/main/samples/storageclass/isilon.yaml>`_.
 
 *Sample storageclass template*: ::
 
