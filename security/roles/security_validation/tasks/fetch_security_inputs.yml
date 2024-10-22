@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -47,14 +47,36 @@
     success_msg: "{{ session_timeout_success_msg }}"
     fail_msg: "{{ session_timeout_fail_msg }}"
 
-- name: Validate alert_email_address
-  ansible.builtin.assert:
-    that:
-      - email_search_key in alert_email_address
-      - alert_email_address | length < email_max_length
-    success_msg: "{{ alert_email_success_msg }}"
-    fail_msg: "{{ alert_email_fail_msg }}"
+- name: Validate email alerting inputs
   when: alert_email_address | length > 1
+  block:
+    - name: Set alert_email_list
+      ansible.builtin.set_fact:
+        alert_email_list: "{{ alert_email_address.split(',') }}"
+
+    - name: Validate alert_email_address
+      ansible.builtin.assert:
+        that:
+          - email_search_key in item
+          - item | length < email_max_length
+        success_msg: "{{ alert_email_success_msg }}"
+        fail_msg: "{{ alert_email_fail_msg }}"
+      with_items: "{{ alert_email_list }}"
+      when: alert_email_address | length > 1
+
+    - name: Validate smtp_server details when smtp_server is provided
+      ansible.builtin.assert:
+        that:
+          - smtp_server | list | length == 1
+          - smtp_server[0]['host'] is defined
+          - smtp_server[0]['port'] is defined
+          - smtp_server[0]['sender_address'] is defined
+          - smtp_server[0]['host'] | length > 1
+          - smtp_server[0]['port'] | length > 1
+          - smtp_server[0]['sender_address'] | length > 1
+          - email_search_key in smtp_server[0]['sender_address']
+        fail_msg: "{{ smtp_server_fail_msg }}"
+      when: alert_email_address | length > 1
 
 - name: Warning - alert_email_address is empty
   ansible.builtin.debug:

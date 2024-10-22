@@ -13,11 +13,17 @@
 # limitations under the License.
 ---
 
-- name: Get OpenLDAP local git repo status
-  ansible.builtin.uri:
-    url: "{{ offline_git_path }}/{{ ltb_git_repo_path }}.tar.gz"
-    return_content: false
-  register: ldap_repo_status
+- name: Verify OpenLDAP offline git repo
+  block:
+    - name: Get OpenLDAP local git repo status
+      ansible.builtin.uri:
+        url: "{{ offline_git_path }}/{{ ltb_git_repo_path }}.tar.gz"
+        return_content: false
+      register: ldap_repo_status
+  rescue:
+    - name: OpenLDAP local git repo not found
+      ansible.builtin.fail:
+        msg: "{{ ldap_repo_failure_msg }}"
 
 - name: Validate OpenLDAP local git repo
   ansible.builtin.assert:

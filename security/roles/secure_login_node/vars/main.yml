@@ -40,6 +40,10 @@ repo_delay: 10
 update_repos_fail_msg: "Failed to update repos. Verify internet availability on control plane."
 software_config_json_file: "{{ role_path }}/../../../input/software_config.json"
 secure_login_node_packages_file: "{{ role_path }}/../../../input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/secure_login_node.json"
+postfix_conf_path: /etc/postfix/main.cf
+ping_msg: "100% packet loss"
+smtp_server_reach_msg: "Failed. SMTP server is not reachable from login node. Please provide valid SMTP server host reachable in smtp_server variable
+of input/login_node_security_config.yml"
 
 # Usage: configure_alerting_ubuntu
 python_packages:
