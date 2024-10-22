@@ -11,7 +11,7 @@ kubeadm,Apache 2.0,Provides “fast paths” for creating Kubernetes clusters.,1
 etcd,Apache 2.0,Relational database used by Kubernetes,3.5.10
 kubectl,Apache 2.0,Command line tool for Kubernetes,1.29.5
 jupyterhub,BSD-3Clause New or Revised License,Multi-user hub,4.0.2
-kubeflow,Apache 2.0,Cloud Native platform for machine learning,1.8.0
+kubeflow,Apache 2.0,Cloud Native platform for machine learning,1.9.1-rc.2
 helm,Apache 2.0,Kubernetes Package Manager,3.12.3
 tensorflow,Apache 2.0,Tensorflow is a GPU accelerated tensor computational framework for Machine Learning.,2.1
 horovod,Apache 2.0,Distributed deep learning training framework for Tensorflow,0.21.1
@@ -95,6 +95,7 @@ ucx,BSD 3 Clause License,Benchmarks tools,1.15.0
 openmpi,3-clause BSD license,Benchmarks tools,4.1.6
 Pytorch,Apache 2.0,PyTorch is a GPU accelerated tensor computational framework for Machine Learning.,latest image
 Pytorch NVIDIA,NVIDIA DEEP LEARNING CONTAINER LICENSE,"The PyTorch NGC Container is optimized for GPU acceleration, and contains a validated set of libraries that enable and optimize GPU performance",23.12-py3
+Pytorch Intel Gaudi,,,2.4.0
 Tensorflow NVIDIA,NVIDIA DEEP LEARNING CONTAINER LICENSE,Tensorflow is a GPU accelerated tensor computational framework for Machine Learning.,23.12-tf2-py3
 Kustomize,Apache 2.0,Customization of kubernetes YAML configurations,5.0.3
 xilinx-device-plugin,Apache 2.0,he AMD-Xilinx device plugin for Kubernetes is a Daemonset deployed on the Kubernetes(k8s) cluster,1.3.0

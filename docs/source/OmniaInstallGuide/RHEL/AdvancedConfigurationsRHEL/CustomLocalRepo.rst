@@ -6,47 +6,53 @@ Use the local repository feature to create a customized set of local repositorie
 1. Ensure the ``custom`` entry is included in the ``software_config.json`` file. ::
 
     {
-        "cluster_os_type": "ubuntu",
-        "cluster_os_version": "22.04",
+        "cluster_os_type": "rhel",
+        "cluster_os_version": "8.8",
         "repo_config": "partial",
         "softwares": [
-            {"name": "k8s", "version":"1.26.12"},
-            {"name": "jupyter", "version": "3.2.0"},
-            {"name": "kubeflow", "version": "1.8"},
-            {"name": "openldap"},
-            {"name": "beegfs", "version": "7.2.6"},
-            {"name": "nfs"},
-            {"name": "kserve"},
-            {"name": "custom"},
             {"name": "amdgpu", "version": "6.0"},
             {"name": "cuda", "version": "12.3.2"},
             {"name": "ofed", "version": "24.01-0.3.3.1"},
-            {"name": "telemetry"},
-            {"name": "utils"},
-            {"name": "vllm"},
+            {"name": "freeipa"},
+            {"name": "openldap"},
+            {"name": "secure_login_node"},
+            {"name": "nfs"},
+            {"name": "beegfs", "version": "7.4.2"},
+            {"name": "slurm"},
+            {"name": "k8s", "version":"1.29.5"},
+            {"name": "jupyter"},
+            {"name": "kubeflow"},
+            {"name": "kserve"},
             {"name": "pytorch"},
-            {"name": "tensorflow"}
+            {"name": "tensorflow"},
+            {"name": "vllm"},
+            {"name": "telemetry"},
+            {"name": "intel_benchmarks", "version": "2024.1.0"},
+            {"name": "amd_benchmarks"},
+            {"name": "utils"},
+            {"name": "ucx", "version": "1.15.0"},
+            {"name": "openmpi", "version": "4.1.6"},
+            {"name": "csi_driver_powerscale", "version":"v2.11.0"}
         ],
-
         "amdgpu": [
             {"name": "rocm", "version": "6.0" }
         ],
-    	"vllm": [
-    		{"name": "vllm_amd", "version":"vllm-v0.2.4"},
-    		{"name": "vllm_nvidia", "version": "latest"}
-    	],
-    	"pytorch": [
-    		{"name": "pytorch_cpu", "version":"latest"},
-    		{"name": "pytorch_amd", "version":"latest"},
-    		{"name": "pytorch_nvidia", "version": "23.12-py3"}
-    	],
-    	"tensorflow": [
-    		{"name": "tensorflow_cpu", "version":"latest"},
-    		{"name": "tensorflow_amd", "version":"latest"},
-    		{"name": "tensorflow_nvidia", "version": "23.12-tf2-py3"}
-    	]
-
+        "vllm": [
+            {"name": "vllm_amd"},
+            {"name": "vllm_nvidia"}
+        ],
+        "pytorch": [
+            {"name": "pytorch_cpu"},
+            {"name": "pytorch_amd"},
+            {"name": "pytorch_nvidia"}
+        ],
+        "tensorflow": [
+            {"name": "tensorflow_cpu"},
+            {"name": "tensorflow_amd"},
+            {"name": "tensorflow_nvidia"}
+        ]
     }
+
 
 2. Create a ``custom.json`` file in the following directory: ``input/config/<cluster_os_type>/<cluster_os_version>`` to define the repositories. For example, For a cluster running RHEL 8.8, go to ``input/config/rhel/8.8/`` and create the file there. The file is a JSON list consisting of the package name, repository type, URL (optional), and version (optional). Below is a sample version of the file: ::
 
