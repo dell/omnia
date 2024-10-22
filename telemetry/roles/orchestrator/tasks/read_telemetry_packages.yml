@@ -21,12 +21,14 @@
   ansible.builtin.set_fact:
     telemetry_json: "{{ lookup('file', telemetry_json_file) | from_json }}"
 
-# This will task will create a map of <package name> and <package_name-version> which is used in k8s_var.yml.j2
-# telemetry_package_map = {
-#   "calicoctl": "calicoctl-v3.27.3",
-#   "etcd": "etcd-v3.5.12"
-#   ..
+# This task creates a mapping of package names and their corresponding versions.
+# The mapping is used in the k8s_var.yml.j2 template.
+# The mapping is in the format:
+# {
+#   "package_name": "package_name-version",
+#   ...
 # }
+
 - name: Create a mapping of package name and version
   ansible.builtin.set_fact:
     telemetry_package_map: "{{ telemetry_package_map | default({}) | combine({ ((item.package).rsplit('-', 1)[0]): item.package}) }}"
