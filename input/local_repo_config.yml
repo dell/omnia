@@ -73,7 +73,7 @@ ubuntu_os_url:
 
 # Mandatory when cluster_os_type is rhel in softwares_config.json
 # This variable will be ignored when cluster_os_type is ubuntu or rocky
-# User has to provide the code ready builder url inorder to download the packages
+# User has to provide the code ready builder url that should not have a RedHat subscription authentication inorder to download the packages
 # When repo_config is always, the given rhel_os_url will be configured in the control plane and packages required  for cluster will be downloaded
 # When repo_config is partial or never, the packages required for cluster which were coming from rhel_repo_url will not be downloaded.
 # and the rhel_os_url configured via proxy in compute nodes

@@ -22,7 +22,7 @@
         {"name": "rocm", "version": "6.0" }
     ],
    "intelgaudi": [
-        {"name": "habana"}
+        {"name": "intel"}
     ],
     "pytorch": [
         {"name": "pytorch_cpu"},

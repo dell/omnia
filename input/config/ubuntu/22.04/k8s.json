@@ -83,7 +83,7 @@
       "url": "https://vault.habana.ai/artifactory/docker-k8s-device-plugin/habana-k8s-device-plugin.yaml"
     },
     {
-      "package": "mpi-operator",
+      "package": "mpi-operator-v0.5.0",
       "type": "manifest",
       "url": "https://raw.githubusercontent.com/kubeflow/mpi-operator/v0.5.0/deploy/v2beta1/mpi-operator.yaml"
     },

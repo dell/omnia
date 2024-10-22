@@ -203,46 +203,46 @@
         "tag": "8.3.2",
         "type": "image"
       },
-     {
-        "package": "kube-prometheus-stack-62.3.0",
-        "type": "tarball",
-        "url": "https://github.com/prometheus-community/helm-charts/releases/download/kube-prometheus-stack-62.3.0/kube-prometheus-stack-62.3.0.tgz"
-    },
-    {
+      {
+          "package": "kube-prometheus-stack-62.3.0",
+          "type": "tarball",
+          "url": "https://github.com/prometheus-community/helm-charts/releases/download/kube-prometheus-stack-62.3.0/kube-prometheus-stack-62.3.0.tgz"
+      },
+      {
         "package": "quay.io/prometheus-operator/prometheus-operator",
         "tag": "v0.76.0",
         "type": "image"
-    },
-    {
+      },
+      {
         "package": "registry.k8s.io/kube-state-metrics/kube-state-metrics",
         "tag": "v2.13.0",
         "type": "image"
-    },
-    {
+      },
+      {
         "package": "quay.io/prometheus-operator/prometheus-config-reloader",
         "tag": "v0.76.0",
         "type": "image"
-    },
-    {
+      },
+      {
         "package": "quay.io/prometheus/alertmanager",
         "tag": "v0.27.0",
         "type": "image"
-    },
-    {
+      },
+      {
         "package": "quay.io/prometheus/node-exporter",
         "tag": "v1.8.2",
         "type": "image"
-    },
-    {
+      },
+      {
         "package": "quay.io/prometheus/prometheus",
         "tag": "v2.54.0",
         "type": "image"
-    },
-    {
+      },
+      {
         "package": "registry.k8s.io/ingress-nginx/kube-webhook-certgen",
         "tag": "v20221220-controller-v1.5.1-58-g787ea74b6",
         "type": "image"
-    } 
+      } 
     ]
   }
 }
