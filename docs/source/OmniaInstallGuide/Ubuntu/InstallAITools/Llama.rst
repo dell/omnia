@@ -1,9 +1,9 @@
 Deploying Dell Enterprise Pretrained model on the cluster
 ===========================================================
 
-This guide provides a step-by-step approach to deploy the pretrained model from `Dell Enterprise Hub <https://dell.huggingface.co/>`_. The Meta-Llama-3.1-8b-Instruct model will be deployed as a sample model on a ``kube_control_plane`` node, specifically optimized for ``NVIDIA platforms``. The model is containerized and validated to run seamlessly on the latest Dell hardware. By following this documentation, users can deploy the model, run inferences, or delete the service using a standalone Python script.
+This guide provides a step-by-step approach to deploy the pretrained model from `Dell Enterprise Hub <https://dell.huggingface.co/>`_. The Meta-Llama-3.1-8b-Instruct model will be deployed as a sample model on a ``kube_control_plane`` node, specifically optimized for **NVIDIA** platforms. The model is containerized and validated to run seamlessly on the latest Dell hardware. By following this documentation, users can deploy the model, run inferences, or delete the service using a standalone Python script.
 
-The python script is located in the ``omnia/example/ai_examples/dell_pretrained_model`` directory. The python script file is named ``dell_pretrained_model_nvidia.py``.
+The python script is located in the ``omnia/example/ai_examples/nvidia/dell_pretrained_model`` directory. The python script file is named ``dell_pretrained_model_nvidia.py``.
 
 Prerequisites
 --------------
@@ -26,7 +26,7 @@ Before deployment, the following prerequisites must be fulfilled:
 
 .. note:: If you're executing the script within the Omnia virtual environment, the requests module is already installed and available on the cluster. In case you run the script outside of the Omnia virtual environment, you might need to install the module manually.
 
-5 The ``dell_pretrained_model_nvidia.py`` file present in the ``omnia/example/ai_examples/dell_pretrained_model`` must be copied to the ``kube_control_plane`` from the control plane server.
+5 The ``dell_pretrained_model_nvidia.py`` file present in the ``omnia/example/ai_examples/nvidia/dell_pretrained_model`` must be copied to the ``kube_control_plane`` from the control plane server.
 
 
 Usage Instructions

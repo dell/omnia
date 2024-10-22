@@ -39,7 +39,7 @@ After you have completed all the prerequisites, do the following to deploy a Dee
 
 3. To create and apply the DeepSpeed configuration file, follow these steps:
 
-    a. Locate the ``ds_configuration.yml`` file in the ``examples/ai_examples/deepSpeed/`` folder.
+    a. Locate the ``ds_configuration.yml`` file in the ``examples/ai_examples/intel/deepSpeed/`` folder.
     b. Open the ``ds_configuration.yml`` file.
     c. Add the necessary details such as proxy settings, Hugging Face token, and allocated resources for the DeepSpeed MPIJob.
     d. After modifying the file, you have two choices:
