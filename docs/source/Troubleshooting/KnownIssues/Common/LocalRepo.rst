@@ -1,7 +1,7 @@
 Local Repositories
 ===================
 
-⦾ **Why does running local_repo.yml fail with connectivity errors?**
+⦾ **Why does running** ``local_repo.yml`` **fail with connectivity errors?**
 
 **Potential Cause**: The control plane was unable to reach a required online resource due to a network glitch.
 
@@ -34,7 +34,7 @@ Local Repositories
     * Update ``input/provision_config_credentials.yml`` with the ``docker_username`` and ``docker_password``.
 
 
-⦾ **What to do if local_repo.yml execution fails with the following error:**
+⦾ **What to do if** ``local_repo.yml`` **execution fails with the following error:**
 
 .. image:: ../../../images/local_repo_permissions_error.png
 
@@ -43,7 +43,7 @@ Local Repositories
 **Resolution**: Provide the required (read, write, and execute) permissions for the NFS share. Verify the permissions of NFS share from the root user of the control plane.
 
 
-⦾ **Why does the task ‘Parse and Download: Display Failed Packages’ fail while running prepare_upgrade.yml?**
+⦾ **Why does the task ‘Parse and Download: Display Failed Packages’ fail while running** ``prepare_upgrade.yml`` **?**
 
 .. image:: ../../../images/upgrade_failed_packages.png
 
@@ -52,7 +52,7 @@ Local Repositories
 **Resolution**: Verify that the internet connectivity on control plane is stable and re-run the ``prepare_upgrade.yml`` playbook.
 
 
-⦾ **The "TASK [configure_repos : Generate metadata for repositories]" fails during the execution of local_repo.yml on RHEL clusters if the Epel repository is unstable.**
+⦾ **The "TASK [configure_repos : Generate metadata for repositories]" fails during the execution of** ``local_repo.yml`` **on RHEL clusters if the Epel repository is unstable.**
 
 **Potential Cause**: If the external Epel repository link mentioned in ``omnia_repo_url_rhel`` is not stable, then it can cause failures in ``local_repo.yml`` playbook execution.
 
@@ -65,3 +65,9 @@ Local Repositories
     - If none of the packages are dependent on the Epel repository, users can remove the Epel repository URL from ``omnia_repo_url_rhel``.
 
     - If any package required from the Epel repository is listed in the ``software_config.json`` file, it's advisable to either wait for the Epel repository to stabilize or host those Epel repository packages locally. Afterward, remove the Epel repository link from ``omnia_repo_url_rhel`` and provide the locally hosted URL for the Epel repository packages via the ``user_repo_url`` variable.
+
+⦾ **Why does** ``omnia.yml`` **execution fail during** the ``TASK [Kubernetes_sigs.kubesprate.container-engine/runc : Download_file | Create dest directory on node]`` **?**
+
+**Potential Cause**: This issue may arise if the directory path specified as the ``repo_store_path`` in the ``input/local_repo_config.yml`` does not have 755 permissions.
+
+**Resolution**: Ensure that not only the ``omnia_repo`` folder, but also the entire ``repo_store_path``, has 755 permissions. For example, if you specify ``/root/omnia_repo`` as the ``repo_store_path``, the ``/root`` directory must also have 755 permissions.
