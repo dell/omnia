@@ -80,10 +80,10 @@
         path: "{{ intelgaudi_file_path }}"
       register: intelgaudi_file
 
-    - name: Check if habana repo exists
+    - name: Check if intel repo exists
       ansible.builtin.stat:
-        path: "{{ habana_file_path }}"
-      register: habana_file
+        path: "{{ intel_file_path }}"
+      register: intel_file
 
     - name: Generate and copy software repository configurations
       ansible.builtin.template:
@@ -103,7 +103,7 @@
         mode: "{{ repo_file_permission }}"
       loop: "{{ user_config.softwares + user_config.intelgaudi | default([]) }}"
       when: "(intelgaudi_name in item.name and intelgaudi_file.stat.exists)
-              or (habana_name in item.name and habana_file.stat.exists)"
+              or (intel_name in item.name and intel_file.stat.exists)"
       loop_control:
         loop_var: item
 
@@ -137,10 +137,10 @@
         path: "{{ intelgaudi_file_path }}"
       register: intelgaudi_file
 
-    - name: Check if habana repo exists
+    - name: Check if intel repo exists
       ansible.builtin.stat:
-        path: "{{ habana_file_path }}"
-      register: habana_file
+        path: "{{ intel_file_path }}"
+      register: intel_file
 
     - name: Generate and copy software repository configurations
       ansible.builtin.template:
@@ -160,7 +160,7 @@
         mode: "{{ repo_file_permission }}"
       loop: "{{ user_config.softwares + user_config.intelgaudi | default([]) }}"
       when: "(intelgaudi_name in item.name and intelgaudi_file.stat.exists)
-              or (habana_name in item.name and habana_file.stat.exists)"
+              or (intel_name in item.name and intel_file.stat.exists)"
       loop_control:
         loop_var: item
 
