@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,6 +16,9 @@
 - name: Check if virtual environment is active
   ansible.builtin.import_playbook: ../utils/check_venv.yml
   when: not ( check_venv_executed | default(false) | bool )
+
+- name: Update Inventory with ansible_host information
+  ansible.builtin.import_playbook: ../utils/servicetag_host_mapping.yml
 
 - name: Validate accelerator inputs
   hosts: localhost
@@ -64,7 +67,7 @@
 #       ansible.builtin.reboot:
 #   tags: nvidia
 
-- name: Install Habana drivers on nodes
+- name: Install Intel Gaudi drivers on nodes
   hosts: slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login, etcd
   gather_facts: true
   any_errors_fatal: true
