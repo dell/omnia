@@ -67,7 +67,7 @@ pytorch_amd_definition_fail_msg: |
 pytorch_nvidia_definition_fail_msg: |
   "Failed. NVIDIA GPU detected and pytorch_nvidia details is not defined in pytorch.json. Verify the pytorch.json and re-run the playbook."
 pytorch_gaudi_definition_fail_msg: |
-  "Failed. Intel GAUDI GPU detected and pytorch_gaudi details is not defined in pytorch.json. Verify the pytorch.json and re-run the playbook."
+  "Failed. Intel Gaudi GPU detected and pytorch_gaudi details is not defined in pytorch.json. Verify the pytorch.json and re-run the playbook."
 
 # Usage: pytorch_verify.yml
 example_src_file_path: "pytorch_example.py"

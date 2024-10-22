@@ -149,16 +149,6 @@
   when: crd_info.stdout | length > 0
   changed_when: false
 
-- name: Copy rendered YAML file to compute nodes
-  ansible.builtin.copy:
-    src: "{{ role_path }}/files/crd_mpijobs_kubeflow.yml"
-    dest: "{{ kubeflow_dir_path }}/kubeflow"
-    mode: "{{ file_permission }}"
-
-- name: Apply CRD YAML
-  ansible.builtin.command: kubectl apply -f "{{ kubeflow_dir_path }}/kubeflow/crd_mpijobs_kubeflow.yml"
-  changed_when: false
-
 - name: Change istio ingressgateway service from ClusterIP  to LoadBalancer
   ansible.builtin.replace:
     path: "{{ istio_ingressgateway_service_yaml_file_path }}"

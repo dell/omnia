@@ -45,7 +45,7 @@
   when: processing_unit == "nvidia"
   block:
     - name: Install vLLM package
-      ansible.builtin.command: "{{ vllm_python_version }} -m pip install {{ vllm_nvidia_package }}"
+      ansible.builtin.command: "{{ vllm_python_version }} -m pip install {{ vllm_nvidia_package }} {{ vllm_numpy_package }}"
       changed_when: false
       failed_when: false
       register: nvidia_deployment_output

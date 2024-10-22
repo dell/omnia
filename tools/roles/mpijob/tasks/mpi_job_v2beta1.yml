@@ -44,7 +44,7 @@
 
     - name: Download rendered YAML file to compute nodes
       ansible.builtin.get_url:
-        url: "{{ offline_manifest_path }}/mpi-operator.yaml"
+        url: "{{ offline_manifest_path }}/{{ hostvars['localhost']['mpi_operator'] }}.yaml"
         dest: "{{ kubeflow_dir_path }}/kubeflow/mpi-operator.yaml"
         mode: "{{ file_permission }}"
 
