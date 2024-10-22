@@ -26,7 +26,7 @@ Before deployment, the following prerequisites must be fulfilled:
 
 .. note:: If you're executing the script within the Omnia virtual environment, the requests module is already installed and available on the cluster. In case you run the script outside of the Omnia virtual environment, you might need to install the module manually.
 
-5 The ``dell_pretrained_model_nvidia.py`` file present in the ``omnia/example/ai_examples/nvidia/dell_pretrained_model`` must be copied to the ``kube_control_plane`` from the control plane server.
+5. The ``dell_pretrained_model_nvidia.py`` file present in the ``omnia/example/ai_examples/nvidia/dell_pretrained_model`` must be copied to the ``kube_control_plane`` from the control plane server.
 
 
 Usage Instructions
