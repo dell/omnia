@@ -118,11 +118,6 @@
         "url": "https://github.com/containernetworking/plugins/releases/download/v1.3.0/cni-plugins-linux-amd64-v1.3.0.tgz"
       },
       {
-        "package": "runc.amd64",
-        "type": "tarball",
-        "url": "https://github.com/opencontainers/runc/releases/download/v1.1.12/runc.amd64"
-      },
-      {
         "package": "nerdctl-v1.7.4",
         "type": "tarball",
         "url": "https://github.com/containerd/nerdctl/releases/download/v1.7.4/nerdctl-1.7.4-linux-amd64.tar.gz"

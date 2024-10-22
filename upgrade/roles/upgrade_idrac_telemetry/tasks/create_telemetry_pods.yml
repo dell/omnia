@@ -17,8 +17,10 @@
   ansible.builtin.include_role:
     name: "{{ timescaledb_role_path }}"
 
+# Task will execute only if timescaledb metrics data not present
 - name: Initiate the Telemetry DB restore
   ansible.builtin.include_tasks: timescale_db_restore.yml
+  when: not (omnia_telemetry_schema_flag or public_schema_flag)
 
 - name: Include idrac_telemetry vars
   ansible.builtin.include_vars:

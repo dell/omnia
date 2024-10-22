@@ -13,5 +13,27 @@
 #  limitations under the License.
 ---
 
+# Usage: create_older_venv.yml
 omnia161_venv_path: /opt/omnia/omnia161_venv
 venv_creation_failed: "Venv setup for Omnia 1.6.1 has failed"
+python_pip_modules:
+  - omsdk==1.2.513
+  - pysnmp==6.1.3
+  - psycopg2-binary
+  - requests
+  - pyarrow
+  - pandas
+  - passlib
+  - netaddr
+  - pexpect
+  - pyinstaller
+  - psutil
+  - commented-configparser
+  - iprange-python
+  - pyopenssl==21.0.0
+  - urllib3==1.26.5
+
+# Usage: main.yml
+omnia_inventory_dir: "/opt/omnia/omnia_inventory/"
+file_permission: "0644"
+upgrade_fail_msg: "Failed to upgrade. Execute restore_cp.yml to restore Omnia control plane state."

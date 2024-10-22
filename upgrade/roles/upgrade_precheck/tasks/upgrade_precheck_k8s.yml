@@ -17,6 +17,10 @@
   ansible.builtin.set_fact:
     k8s_upgrade_precheck_flag: false
 
+- name: Set k8s_backup_status to false by default
+  ansible.builtin.set_fact:
+    k8s_backup_status: false
+
 - name: Initialize individual pods running status
   ansible.builtin.set_fact:
     upgrade_precheck_pod_status_report:
@@ -30,7 +34,7 @@
   ansible.builtin.service_facts:
 
 - name: Check if etcd service is present in service facts
-  when: "'etcd.service' in ansible_facts.services"
+  when: "'etcd.service' in ansible_facts.services  and ansible_facts.services['etcd.service'].status == 'enabled'"
   block:
     - name: Fail if etcd servce not running
       ansible.builtin.fail:
@@ -149,6 +153,53 @@
                 upgrade_precheck_pod_status_report:
                   "{{ upgrade_precheck_pod_status_report | combine({'idrac_telemetry_pod_running_status': idrac_telemetry_pod_status | length > 0}) }}"
               when: idrac_telemetry_pod_status.rc== 0
+
+            - name: Check if Kubernetes is installed on the control plane
+              ansible.builtin.command: kubectl get pod -A
+              changed_when: false
+              register: kubectl_command_status
+              failed_when: false
+
+            - name: Check Kubernetes version installed on control plane
+              ansible.builtin.shell: |
+                set -o pipefail;
+                kubectl get nodes -o wide | awk 'NR==2 {print $5}'
+              register: kubernetes_version
+              changed_when: false
+              when: kubectl_command_status.rc == 0
+
+            - name: Set k8s_backup_status to true if k8s is installed and kube version is v1.26.12
+              ansible.builtin.set_fact:
+                k8s_backup_status: true
+              when: (kubectl_command_status.rc == 0) and (kubernetes_version is defined) and ("v1.26.12" in kubernetes_version.stdout)
+
+            - name: Include telemetry config vars
+              ansible.builtin.include_tasks: include_telemetry_config.yml
+
+            - name: Verify existence of DB data in mysql and timescaledb pod
+              when: k8s_backup_status
+              block:
+                - name: Set fact for mysqldb_backup_flag
+                  ansible.builtin.set_fact:
+                    mysqldb_backup_flag: false
+
+                - name: Set fact timescaledb_backup_flag
+                  ansible.builtin.set_fact:
+                    timescaledb_backup_flag: false
+
+                - name: Enable the backup flag based on the existence of the data in MySQL DB
+                  ansible.builtin.import_tasks: check_mysql_data_existence.yml
+                  when: mysqldb_pod_status.rc== 0
+
+                - name: Enable the backup flag based on the existence of the timescale DB
+                  ansible.builtin.import_tasks: check_timescaldb_existence.yml
+                  when: timescaledb_pod_status.rc== 0
+
+                - name: Warning - timescale DB has no data
+                  ansible.builtin.pause:
+                    prompt: "{{ backup_warning_msg }}"
+                    seconds: "{{ warning_wait_time }}"
+                  when: timescaledb_backup_flag is false and mysqldb_backup_flag is false
 
         # Check for services
         - name: Get all LoadBalancer services details

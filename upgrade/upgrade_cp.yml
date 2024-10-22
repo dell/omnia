@@ -12,13 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+
 - name: Check if virtual environment is active
   ansible.builtin.import_playbook: ../utils/check_venv.yml
   when: not ( check_venv_executed | default(false) | bool )
 
 - name: Steps to upgrade omnia control plane (OIM)
   hosts: localhost
-  connection: local
   vars:
     older_os_dict:
       redhat: ["8.6", "8.7"]

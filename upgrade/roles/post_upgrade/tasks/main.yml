@@ -19,7 +19,7 @@
     regexp: '^installed_version:(.*)$'
     insertafter: "EOF"
     state: present
-    line: 'installed_version: 1.7'
+    line: 'installed_version: "1.7"'
 
 - name: Print user message
   ansible.builtin.debug:

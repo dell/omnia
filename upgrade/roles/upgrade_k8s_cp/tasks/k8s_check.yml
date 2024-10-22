@@ -23,13 +23,19 @@
   failed_when: false
 
 - name: Check Kubernetes version installed on control plane
-  ansible.builtin.command: kubectl version | grep 'Server Version'
-  changed_when: false
+  ansible.builtin.shell: |
+    set -o pipefail;
+    kubectl get nodes -o wide | awk 'NR==2 {print $5}'
   register: kubernetes_version
-  failed_when: false
+  changed_when: false
   when: kubectl_command_status.rc == 0
+
+- name: Check if track_upgrade.txt exists
+  ansible.builtin.stat:
+    path: "{{  track_file_path }}"
+  register: file_status
 
 - name: Set k8s_cp_installed to true if k8s is installed and kube version is v1.26.12
   ansible.builtin.set_fact:
     k8s_cp_installed: true
-  when: kubectl_command_status.rc == 0 and "'v1.26.12' in kubernetes_version.stdout"
+  when: (kubectl_command_status.rc == 0 and "v1.26.12" in kubernetes_version.stdout) or (file_status.stat.exists and "v1.29.5" not in kubernetes_version.stdout)

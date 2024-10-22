@@ -13,7 +13,7 @@
 #  limitations under the License.
 
 ## File arrays
-# Usage: generate_new_input_files.yml 
+# Usage: generate_new_input_files.yml
 import_input_parameters_config_file_array:
   - file: "omnia_config.yml"
     vault_password_file: ".omnia_vault_key"
@@ -29,8 +29,21 @@ import_input_parameters_config_file_array:
     vault_password_file: ".security_vault.key"
   - file: "storage_config.yml"
     vault_password_file: ""
+  - file: "local_repo_config.yml"
+    vault_password_file: ""
   - file: "telemetry_config.yml"
     vault_password_file: ".telemetry_vault_key"
+  - file: "k8s_access_config.yml"
+    vault_password_file: ""
+  - file: "login_node_security_config.yml"
+    vault_password_file: ""
+  - file: "passwordless_ssh_config.yml"
+    vault_password_file: ""
+  - file: "roce_plugin_config.yml"
+    vault_password_file: ""
+  - file: "server_spec.yml"
+    vault_password_file: ""
+
 
 import_input_parameters_new_config_file_array: []
 
@@ -44,7 +57,7 @@ import_input_parameters_config_encrypt_array:
   - file: "telemetry_config.yml"
     vault_password_file: ".telemetry_vault_key"
 
-read_parameters_failed_msg: "Failed to read Omnia v1.5 input config files"
+read_parameters_failed_msg: "Failed to read Omnia installed input config files {{ failed_input_files }} Please check for any syntax errors. "
 
 import_input_parameters_config_template_array:
   - src: 'omnia_config.j2'
@@ -61,8 +74,21 @@ import_input_parameters_config_template_array:
     dest: 'storage_config.yml'
   - src: 'telemetry_config.j2'
     dest: 'telemetry_config.yml'
+  - src: 'local_repo_config.j2'
+    dest: 'local_repo_config.yml'
   - src: 'network_spec.j2'
     dest: 'network_spec.yml'
+  - src: 'k8s_access_config.j2'
+    dest: 'k8s_access_config.yml'
+  - src: 'login_node_security_config.j2'
+    dest: 'login_node_security_config.yml'
+  - src: 'passwordless_ssh_config.j2'
+    dest: 'passwordless_ssh_config.yml'
+  - src: 'roce_plugin_config.j2'
+    dest: 'roce_plugin_config.yml'
+  - src: 'server_spec.j2'
+    dest: 'server_spec.yml'
+
 
 file_perm: "0644"
 

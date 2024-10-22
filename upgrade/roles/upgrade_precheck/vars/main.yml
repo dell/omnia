@@ -30,18 +30,30 @@ omnia_upgrade_version_path: "../../../../.metadata/omnia_version"
 unsupported_os: "Current OS {{ ansible_distribution }} {{ ansible_distribution_version }} installed on the control plane
   is not supported for upgrade feature in Omnia v1.7. Upgrade is supported on RHEL/Rocky 8.6/8.7/8.8, Ubuntu 20.04/22.04."
 msg_supported_older_os: "After upgrade, new features are not supported on RHEL/Rocky 8.6/8.7"
+activate_supported_venv: "Failed. Upgrade is supported using omnia17_venv only on RHEL/Rocky 8.8 and ubuntu 22.04/20.04."
 
 # Usage: precheck_local_repo_access.yml
 local_repo_access_dest_path: "/opt/omnia/offline/local_repo_access.yml"
 local_repo_access_fail_msg: "Failed. {{ local_repo_access_dest_path }} does not exist."
 repo_config_metadata_file: "/opt/omnia/offline/.data/metadata.yml"
-repo_config_metadata_file_msg: "Failed. Local repo has not executed. Please follow documentation for fresh installation." 
+repo_config_metadata_file_msg: "Failed. Local repo has not executed. Please follow documentation for fresh installation."
 incorrect_repo_config_value_msg: "Failed. While omnia installation, local repo has not executed with valid repo_config value."
 
 # Usage: upgrade_precheck_k8s.yml
 etcd_not_running: "Upgrade Precheck Failed- etcd service is not running. Please fix etcd service first before initiating upgrade."
 grafana_ns: "grafana"
 telemetry_visualizations_ns: "telemetry-and-visualizations"
+mysqldb_name: "idrac_telemetrysource_services_db"
+database_name: "telemetry_metrics"
+timescaledb_k8s_name: timescaledb
+backup_warning_msg: "The database currently has no data. The database will be populated with fresh data after the upgrade."
+warning_wait_time: 30
+
+# Usage:include_telemetry_config.yml
+telemetry_config_file: "{{ installed_omnia_path }}/input/telemetry_config.yml"
+telemetry_vault_filename: "{{ installed_omnia_path }}/input/.telemetry_vault_key"
+telemetry_config_syntax_fail_msg: "Failed.Syntax errors present in telemetry_config.yml.Fix errors and re-run playbook again."
+vault_file_perm: '0644'
 
 grafana_pod_selector: "grafana-"
 loki_pod_selector: "loki-"

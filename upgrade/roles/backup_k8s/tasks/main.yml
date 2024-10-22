@@ -14,24 +14,21 @@
 ---
 
 - name: Backup for k8s
-  when: k8s_upgrade_precheck_flag
+  when: k8s_upgrade_precheck_flag and k8s_backup_status
   block:
-    - name: Include telemetry config vars
-      ansible.builtin.include_tasks: include_telemetry_config.yml
-
     - name: Create k8s_backup_location directory
       ansible.builtin.file:
         path: "{{ k8s_backup_location }}"
         state: directory
         mode: "{{ directory_mode }}"
-    
+
     - name: Backup MySQL db
       ansible.builtin.include_tasks: mysqldb.yml
-      when: upgrade_precheck_pod_status_report.mysqldb_pod_running_status
+      when: mysqldb_backup_flag
 
     - name: Backup timescale db
       ansible.builtin.include_tasks: timescaledb.yml
-      when: upgrade_precheck_pod_status_report.timescaledb_pod_running_status or upgrade_precheck_pod_status_report.idrac_telemetry_pod_running_status
-      
+      when: timescaledb_backup_flag
+
     - name: Backup etcd
       ansible.builtin.include_tasks: etcd.yml

@@ -34,20 +34,20 @@
     msg: "current omnia version {{ current_omnia_version }} upgrade to  {{ upgrade_omnia_version }}"
 
 - name: Find directories in a specified path
-  find:
+  ansible.builtin.find:
     paths: "{{ role_path }}/templates/"
     file_type: directory
   register: found_dirs
 
 - name: Extract directory names
   ansible.builtin.set_fact:
-    folder_names: "{{ found_dirs.files | map(attribute='path') | map('basename') | list | sort  }}"
+    folder_names: "{{ found_dirs.files | map(attribute='path') | map('basename') | list | sort }}"
 
-- name: Print the list of input version templates 
+- name: Print the list of input version templates
   ansible.builtin.debug:
     msg: "{{ folder_names }}"
 
-- name: set fact read_input_folder_backup_location
+- name: Set fact read_input_folder_backup_location
   ansible.builtin.set_fact:
     read_input_folder_backup_location: "/opt/omnia/upgrade_input/"
 
@@ -57,18 +57,23 @@
     state: directory
     mode: '0755'  # Adjust permissions as needed
 
-- name: Copy directory from installed_omnia_path/input to read_input_folder_backup_location using rsync
-  ansible.builtin.command:
-    cmd: >
-      rsync -av --delete "{{ installed_omnia_path }}/input" "{{ read_input_folder_backup_location }}"
-  args:
-    chdir: "{{ installed_omnia_path }}/input"
+- name: Copy directory from installed_omnia_path/input to read_input_folder_backup_location
+  ansible.posix.synchronize:
+    mode: push
+    src: "{{ installed_omnia_path }}/input"
+    dest: "{{ read_input_folder_backup_location }}"
+    rsync_opts:
+      - "-a"
+      - "-v"
+      - "--delete"
+  register: copy_result
+  changed_when: false
 
 - name: Read parameters in from previous version
-  ansible.builtin.include_tasks: generate_new_input_files.yml 
-  loop: "{{folder_names }}"
+  ansible.builtin.include_tasks: generate_new_input_files.yml
+  loop: "{{ folder_names }}"
   vars:
-      folder_name: "{{ item }}"
-      new_input_folder_backup_location: "/opt/omnia/{{ item }}"
+    folder_name: "{{ item }}"
+    new_input_folder_backup_location: "/opt/omnia/{{ item }}"
   when: >
      current_omnia_version is version(item , '<')

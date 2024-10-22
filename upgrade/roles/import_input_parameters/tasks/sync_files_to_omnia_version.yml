@@ -13,15 +13,20 @@
 #  limitations under the License.
 ---
 
-- name: Move the new input files to {{ upgrade_omnia_version }} source input directory
-  ansible.builtin.command:
-    cmd:  rsync -av "{{ read_input_folder_backup_location }}/input/." "{{ role_path }}/../../../input/"
+- name: Move the new input files to the source input directory for {{ upgrade_omnia_version }}
+  ansible.posix.synchronize:
+    mode: push
+    src: "{{ read_input_folder_backup_location }}/input/."
+    dest: "{{ role_path }}/../../../input/"
+    rsync_opts:
+      - "-a"
+      - "-v"
   register: mv_result
-  ignore_errors: yes  # Ignores errors if source directory is empty or not found
+  ignore_errors: true
+  changed_when: false
 
 - name: Remove the source directory if it still exists and is empty
   ansible.builtin.file:
     path: "{{ read_input_folder_backup_location }}"
     state: absent
   when: mv_result is succeeded  # Only attempt to remove if the move was successful
-

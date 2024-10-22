@@ -1,0 +1,114 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Wait for all pods to be Running after deploying k8s
+  ansible.builtin.shell: |
+    set -o pipefail;
+    kubectl get pods --all-namespaces | grep -v "Running" | awk 'NR>1 {print $2}' | wc -l
+  register: pod_count_before_restore
+  until: pod_count_before_restore.stdout == "0"
+  changed_when: false
+  retries: 30
+  delay: 10
+
+- name: Stop etcd service
+  ansible.builtin.systemd:
+    name: etcd
+    state: stopped
+
+- name: Stop kubelet service
+  ansible.builtin.systemd:
+    name: kubelet
+    state: stopped
+
+- name: Extract the last directory name from the mount location
+  ansible.builtin.set_fact:
+    mount_location_last_part: "{{ mount_location.rstrip('/') | basename }}"
+
+- name: Set base path from mount_location
+  ansible.builtin.set_fact:
+    base_dir_path: "{{ mount_location.rstrip('/') | dirname }}"
+
+- name: Delete existing mount_location
+  ansible.builtin.file:
+    state: absent
+    path: "{{ mount_location }}"
+
+- name: Copy k8s_backup_location to mount location data folder
+  ansible.builtin.copy:
+    src: "{{ k8s_backup_location }}/{{ mount_location_last_part }}"
+    dest: "{{ base_dir_path }}"
+    mode: "{{ directory_mode }}"
+
+- name: Delete etcd restore data dir if present already
+  ansible.builtin.file:
+    state: absent
+    path: "{{ etcd_restore_data_dir }}"
+
+- name: Restore etcd snapshot
+  ansible.builtin.command:
+    cmd: "etcdctl snapshot restore {{ snapshot_db_name }} --data-dir={{ etcd_restore_data_dir }}"
+  changed_when: false
+
+- name: Update etcd data dir in "{{ etcd_env_file }}"
+  ansible.builtin.replace:
+    path: "{{ etcd_env_file }}"
+    regexp: '^ETCD_DATA_DIR=.*'
+    replace: "ETCD_DATA_DIR={{ etcd_restore_data_dir }}"
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Start etcd service
+  ansible.builtin.systemd:
+    name: etcd
+    state: started
+    enabled: true
+
+- name: Start kubelet service
+  ansible.builtin.systemd:
+    name: kubelet
+    state: started
+    enabled: true
+
+- name: Please wait, kuberenetes etcd restoration is in-progress
+  ansible.builtin.wait_for:
+    timeout: "{{ etcd_wait_time }}"
+
+- name: Wait for all pods to be Running after restoring etcd
+  ansible.builtin.shell: |
+    set -o pipefail;
+    kubectl get pods --all-namespaces | grep -v "Running" | awk 'NR>1 {print $2}' | wc -l
+  register: pod_count_after_restore
+  until: pod_count_after_restore.stdout == "0"
+  changed_when: false
+  retries: 30
+  delay: 10
+
+- name: Get kube-proxy pod name
+  ansible.builtin.command: 'kubectl get pod -n "{{ kube_system_namespace }}" -l k8s-app=kube-proxy -o jsonpath="{.items[0].metadata.name}"'
+  register: kube_proxy_pod_name
+  changed_when: false
+  failed_when: false
+
+- name: Delete kube-proxy pod
+  ansible.builtin.command: 'kubectl delete pod "{{ kube_proxy_pod_name.stdout }}" -n "{{ kube_system_namespace }}"'
+  changed_when: false
+  failed_when: false
+
+- name: Wait for kube-proxy pod to come to ready state
+  ansible.builtin.command: 'kubectl wait --for=condition=ready --timeout=11m -n "{{ kube_system_namespace }}" pod -l k8s-app=kube-proxy'
+  changed_when: false

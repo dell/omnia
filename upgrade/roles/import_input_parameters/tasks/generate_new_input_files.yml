@@ -12,8 +12,16 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+- name: Set facts for local_repo_config include_vars
+  ansible.builtin.set_fact:
+    beegfs_version: ""
+    amdgpu_version: ""
+    rocm_version: ""
+    cluster_os_version: ""
+    os_release: ""
+    openldap_release: ""
 
-- name: set fact import_input_parameters_new_config_file_array
+- name: Set fact import_input_parameters_new_config_file_array
   ansible.builtin.set_fact:
     import_input_parameters_new_config_file_array: []
 
@@ -64,13 +72,21 @@
     - name: Read existing parameters from input files
       ansible.builtin.include_vars:
         file: "{{ read_input_folder_backup_location }}/input/{{ item }}"
+        name: "{{ item | basename | splitext | first }}_ns"
       with_items: "{{ input_filenames }}"
+      register: result
       changed_when: false
+      failed_when: result is failed
 
   rescue:
-    - name: Failed to read Omnia old input config files
-      ansible.builtin.fail:
-        msg: "{{ read_parameters_failed_msg }}"
+    - name: Check if any input files read failed
+      ansible.builtin.set_fact:
+        read_parameters_failed: true
+        failed_input_files: "{{ failed_input_files | default([]) + [item.item] }}"
+      when: item.failed
+      with_items: "{{ result.results }}"
+      loop_control:
+        label: "{{ item.item }}"
 
   always:
     - name: Check if vault password file exists
@@ -84,11 +100,11 @@
 
     - name: Extract file names where stat.exists is true
       ansible.builtin.set_fact:
-        vault_file_exists_list: "{{ vault_file_exists_list | default([]) + [{'file': item.vitem.file, 'vault_password_file': item.vitem.vault_password_file}] }}"
+        vault_file_exists_list: "{{ vault_file_exists_list | default([]) + [{'file': item.vitem.file, 'vault_password_file': item.vitem.vault_password_file}] }}" # noqa: yaml[line-length]
       when: item.stat.exists
       loop: "{{ vault_password_file_stat.results }}"
 
-    - name: Encrypt old input files 
+    - name: Encrypt old input files
       ansible.builtin.command: >-
         ansible-vault encrypt {{ read_input_folder_backup_location }}/input/{{ eitem.file }}
         --vault-password-file {{ read_input_folder_backup_location }}/input/{{ eitem.vault_password_file }}
@@ -96,6 +112,11 @@
       loop_control:
         loop_var: eitem
       changed_when: false
+
+- name: Check if read parameters failed
+  ansible.builtin.fail:
+    msg: "{{ read_parameters_failed_msg }}"
+  when: read_parameters_failed is defined and read_parameters_failed
 
 - name: Set fact version
   ansible.builtin.set_fact:
@@ -126,10 +147,10 @@
   no_log: true
 
 - name: Ensure read_input_folder_backup_location directory is absent
-  file:
+  ansible.builtin.file:
     path: "{{ read_input_folder_backup_location }}"
     state: absent
-  ignore_errors: yes  # Ignores errors if the directory does not exist
+  failed_when: false
 
 - name: Ensure the destination directory exists
   ansible.builtin.file:
@@ -138,16 +159,20 @@
     mode: '0755'  # Adjust permissions as needed
 
 - name: Move contents from new_input_folder_backup_location to read_input_folder_backup_location
-  ansible.builtin.command:
-    cmd:  rsync -av "{{ new_input_folder_backup_location }}/." "{{ read_input_folder_backup_location }}/input/"
+  ansible.posix.synchronize:
+    mode: push
+    src: "{{ new_input_folder_backup_location }}/."
+    dest: "{{ read_input_folder_backup_location }}/input/"
+    rsync_opts:
+      - "-a"
+      - "-v"
   register: mv_result
-  ignore_errors: yes  # Ignores errors if source directory is empty or not found
+  ignore_errors: true
+  changed_when: false
 
 - name: Remove the temporary input directory if it still exists and is empty
   ansible.builtin.file:
     path: "{{ new_input_folder_backup_location }}"
     state: absent
   when: mv_result is succeeded  # Only attempt to remove if the move was successful
-  ignore_errors: yes  # Ignores errors if the source directory doesn't exist
-
-
+  failed_when: false

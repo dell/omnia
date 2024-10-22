@@ -1,0 +1,60 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Check omnia_telemetry service status on node where it was running previously
+  ansible.builtin.service_facts:
+  register: service_status
+  delegate_to: "{{ item }}"
+  with_items: "{{ running_nodes }}"
+
+- name: Get list of nodes where service is running
+  ansible.builtin.set_fact:
+    not_running_nodes: "{{ not_running_nodes | default([]) + [item.item] }}"
+  when:
+    - "'omnia_telemetry.service' in item.ansible_facts.services and item.ansible_facts.services['omnia_telemetry.service'].state not in ['running', 'started']"
+  with_items: "{{ service_status.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Replace original binaries on all nodes as service failed to start
+  ansible.builtin.copy:
+    src: "{{ old_binary_files_path }}"
+    dest: "{{ omnia_telemetry_dest }}"
+    force: true
+    owner: root
+    group: root
+    mode: "{{ binary_mode }}"
+  delegate_to: "{{ item }}"
+  with_items: "{{ running_nodes }}"
+  when: not_running_nodes is defined and (not_running_nodes | length > 0)
+
+- name: Start omnia_telemetry service on nodes after replacing old binaries
+  ansible.builtin.service:
+    name: omnia_telemetry
+    state: started
+  delegate_to: "{{ item }}"
+  with_items: "{{ running_nodes }}"
+  when: not_running_nodes is defined and (not_running_nodes | length > 0)
+
+- name: Replace new binaries to /opt/omnia/telemetry if omnia_telemetry service started successfully on all nodes
+  ansible.posix.synchronize:
+    src: "{{ new_binaries_dir }}/"
+    dest: "{{ omnia_telemetry_dest }}/"
+    mode: push
+    rsync_opts:
+      - "-a"
+      - "-v"
+      - "-h"
+  when: (running_nodes is defined and (running_nodes | length == 0)) or (not_running_nodes is not defined) or (not_running_nodes is defined and (not_running_nodes | length == 0))

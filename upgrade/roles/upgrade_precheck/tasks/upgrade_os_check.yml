@@ -21,13 +21,13 @@
   ansible.builtin.set_fact:
     supported_os: false
     older_os: false
-  
+
 - name: Set supported OS
   ansible.builtin.set_fact:
     supported_os: true
   when:
     - (ansible_distribution | lower) in os_check_dict
-    - ansible_distribution_version in os_check_dict[(ansible_distribution | lower)] or 
+    - ansible_distribution_version in os_check_dict[(ansible_distribution | lower)] or
         ansible_distribution_version in older_os_dict[(ansible_distribution | lower)]
 
 - name: Fail if it is not supported OS
@@ -38,7 +38,7 @@
 - name: Set fact whether it is older OS
   ansible.builtin.set_fact:
     older_os: true
-  when: 
+  when:
     - (ansible_distribution | lower) in older_os_dict
     - ansible_distribution_version in older_os_dict[(ansible_distribution | lower)]
 
@@ -46,3 +46,14 @@
   ansible.builtin.debug:
     msg: "{{ msg_supported_older_os }}"
   when: older_os
+
+- name: Check virtual ENV
+  ansible.builtin.set_fact:
+    venv_path: "{{ lookup('ansible.builtin.env', 'VIRTUAL_ENV') }}"
+
+- name: Check activated venv for RHEL/Rocky 8.8 and ubuntu 22.04/20.04
+  ansible.builtin.fail:
+    msg: "{{ activate_supported_venv }}"
+  when: 
+    - not older_os
+    - "'omnia17_venv' not in venv_path"

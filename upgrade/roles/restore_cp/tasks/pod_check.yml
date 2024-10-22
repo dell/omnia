@@ -1,0 +1,73 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Check timescaledb pod running status
+  block:
+    - name: Get timescaledb pod name
+      ansible.builtin.command: kubectl get pod -n "{{ telemetry_namespace }}" -l app="{{ timescaledb_k8s_name }}" -o jsonpath="{.items[0].metadata.name}"
+      register: timescaledb_pod_name
+      changed_when: false
+      failed_when: false
+
+    - name: Check if timescaledb Pod Exists
+      ansible.builtin.command: kubectl get pod "{{ timescaledb_pod_name.stdout }}" -n "{{ telemetry_namespace }}" --no-headers
+      register: timescaledb_pod_check
+      changed_when: false
+      ignore_errors: true
+      no_log: true
+
+    - name: Get timescaledb pod status
+      ansible.builtin.command: kubectl get pod  -n "{{ telemetry_namespace }}" "{{ timescaledb_pod_name.stdout }}" -o jsonpath='{.status.phase}'
+      register: timescaledb_pod_status
+      when: timescaledb_pod_check.rc == 0
+      failed_when: false
+      changed_when: false
+
+- name: Check iDRAC telemetry pod running status
+  block:
+    - name: Get iDRAC telemetry pod name
+      ansible.builtin.command: kubectl get pod -n "{{ telemetry_namespace }}" -l app="{{ idrac_k8s_name }}" -o jsonpath="{.items[0].metadata.name}"
+      register: idrac_telemetry_pod_name
+      changed_when: false
+      failed_when: false
+
+    - name: Check if iDRAC telemetry Pod Exists
+      ansible.builtin.command: kubectl get pod "{{ idrac_telemetry_pod_name.stdout }}" -n "{{ telemetry_namespace }}" --no-headers
+      register: idrac_telemetry_pod_check
+      changed_when: false
+      ignore_errors: true
+      no_log: true
+
+    - name: Get iDRAC telemetry pod status
+      ansible.builtin.command: kubectl get pod  -n "{{ telemetry_namespace }}" "{{ idrac_telemetry_pod_name.stdout }}" -o jsonpath='{.status.phase}'
+      register: idrac_telemetry_pod_status
+      when: idrac_telemetry_pod_check.rc == 0
+      failed_when: false
+      changed_when: false
+
+- name: Set facts pods status flags
+  ansible.builtin.set_fact:
+    timescaledb_pod_status_flag: false
+    idrac_telemetry_pod_status_flag: false
+
+- name: Set fact timescaledb_pod_status_flag
+  ansible.builtin.set_fact:
+    timescale_pod_status_flag: true
+  when: timescaledb_pod_status.stdout is defined and timescaledb_pod_status.stdout == 'Running'
+
+- name: Set fact idrac_telemetry_pod_status_flag
+  ansible.builtin.set_fact:
+    idrac_telemetry_pod_status_flag: true
+  when: idrac_telemetry_pod_status.stdout is defined and idrac_telemetry_pod_status.stdout == 'Running'

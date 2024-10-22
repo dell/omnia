@@ -1,4 +1,4 @@
-# Copyright © 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -38,6 +38,12 @@
         virtualenv: "{{ omnia161_venv_path }}"
         virtualenv_command: "python3.9 -m venv"
 
+    - name: Create the .omnia file in the older venv
+      ansible.builtin.file:
+        path: "{{ omnia161_venv_path }}/.omnia"
+        state: touch
+        mode: "{{ file_permission }}"
+
     - name: Install pip packages
       ansible.builtin.pip:
         requirements: "{{ installed_omnia_path }}/prepare_cp/roles/omnia_appliance_cp/files/requirements_pip.txt"
@@ -46,9 +52,10 @@
 
     - name: Install pip packages
       ansible.builtin.pip:
-        name: "psycopg2-binary"
+        name: "{{ item }}"
         virtualenv: "{{ omnia161_venv_path }}"
         virtualenv_python: "{{ omnia161_venv_path }}/bin/python"
+      with_items: "{{ python_pip_modules }}"
 
     - name: Install the collections
       ansible.builtin.command: "{{ omnia161_venv_path }}/bin/ansible-galaxy collection install -r {{ role_path }}/files/requirements_venv161.yml -p {{ omnia161_venv_path }}" # noqa: yaml[line-length]

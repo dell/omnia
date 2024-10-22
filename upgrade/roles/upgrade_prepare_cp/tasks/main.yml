@@ -18,12 +18,12 @@
     control_plane_os: "{{ ansible_distribution | lower }}"
 
 - name: Prepare CP for proxy defaults
-  ansible.builtin.include_role: 
+  ansible.builtin.include_role:
     name: configure_proxy
 
 - name: Create telemetry binary with upgrad version
   ansible.builtin.include_role:
-    name: upgrade_omnia_telemetry
+    name: omnia_telemetry
     tasks_from: create_binary.yml
 
 - name: Update omnia_appliance required pip packages not supported OS
@@ -36,6 +36,26 @@
     name: omnia_appliance_cp
   when: not older_os
 
+- name: Prepare venv with required pip packages
+  ansible.builtin.command: "{{ ansible_python_interpreter }} -m pip install {{ item }}"
+  with_items: "{{ pip_packages }}"
+  changed_when: false
+
 - name: Regenerate inventory files
   ansible.builtin.include_role:
     name: inventory_tagging
+
+- name: Wait for compute_hostname file to generate
+  ansible.builtin.wait_for:
+    path: "{{ hostname_inv_path }}"
+    state: present
+    timeout: "{{ timeout_val }}"
+
+- name: Refresh inventory
+  ansible.builtin.meta: refresh_inventory
+  changed_when: false
+
+- name: Remove compute_servicetag_ip inventory file
+  ansible.builtin.file:
+    path: "{{ compute_servicetag_ip_path }}"
+    state: absent

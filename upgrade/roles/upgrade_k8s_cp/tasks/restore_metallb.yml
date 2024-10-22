@@ -24,17 +24,19 @@
 
 - name: Change svc type back to LoadBalancer
   kubernetes.core.k8s:
-      state: present
-      definition:
-        apiVersion: v1
-        kind: Service
-        metadata:
-          name: "{{ item.metadata.name }}"
-          namespace: "{{ item.metadata.namespace }}"
-        spec:
-          type: LoadBalancer
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: "{{ svc_item.metadata.name }}"
+        namespace: "{{ svc_item.metadata.namespace }}"
+      spec:
+        type: LoadBalancer
   loop: "{{ svc_info.resources }}"
-  when: item.spec.type == 'ClusterIP' and item.metadata.name in ['grafana', 'timescaledb']
+  loop_control:
+    loop_var: svc_item
+  when: svc_item.spec.type == 'ClusterIP' and svc_item.metadata.name in ['grafana', 'timescaledb']
 
 - name: Re-apply metallb pools.yaml
   kubernetes.core.k8s:
@@ -54,6 +56,13 @@
   ansible.builtin.file:
     path: "{{ track_file_path }}"
     state: absent
+
+- name: Copy binaries to /usr/local/bin
+  ansible.builtin.copy:
+    src: "{{ bin_path }}/{{ item }}"
+    dest: "{{ local_bin_path }}/{{ item }}"
+    mode: "{{ copy_permission }}"
+  loop: "{{ binary_list }}"
 
 - name: CONTROL PLANE UPGRADE COMPLETE !!
   ansible.builtin.debug:
