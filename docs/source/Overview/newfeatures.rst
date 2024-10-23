@@ -9,7 +9,7 @@ New Features
 
 * Kubernetes version upgraded to 1.29.5 (Previously 1.26.12)
 
-* Added support for Intel Gaudi 3 accelerators:
+* Added support for Intel Gaudi 3 accelerators: **(This is preliminary code and may change before official release)**
 
     * Software stack installation
 
