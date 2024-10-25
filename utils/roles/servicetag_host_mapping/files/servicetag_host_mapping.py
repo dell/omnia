@@ -63,33 +63,18 @@ def service_tag_host_mapping():
 
                 # Iterate content line by line
                 for line in lines:
-                    line = line.strip().lower()
+                    if 'Categories' not in line:
+                        line = line.strip().lower()
 
-                    if line == 'localhost':
-                        raise ValueError(f"localhost entry is an invalid entry in '{inventory_file_path}'")
+                        if line == 'localhost':
+                            raise ValueError(f"localhost entry is an invalid entry in '{inventory_file_path}'")
 
-                    # Check if the line have a service tag, node name or hostname but don't have ansible_host
-                    if line and line[0].isalnum() and "ansible_host=" not in line:
+                        # Check if the line have a service tag, node name or hostname but don't have ansible_host
+                        if line and line[0].isalnum() and "ansible_host=" not in line:
 
-                        # Query string: get host IP if service tag or node name is given
-                        query = "select admin_ip from cluster.nodeinfo where service_tag=%s or node=%s"
-                        params = (line.upper(), line)
-
-                        # Query execution
-                        cursor.execute(query, params)
-                        row = cursor.fetchone()
-
-                        if row:
-                            # Collect host ip if result is valid
-                            host_ip = row[0]
-                            # Append host IP to service tag/node name
-                            line = f"{line} ansible_host={host_ip}"
-                            # Mark content as modified
-                            is_content_modified = True
-                        else:
-                            # Query string get host IP if hostname is given
-                            query = "select admin_ip from cluster.nodeinfo where hostname=%s"
-                            params = (line,)
+                            # Query string: get host IP if service tag or node name is given
+                            query = "select admin_ip from cluster.nodeinfo where service_tag=%s or node=%s"
+                            params = (line.upper(), line)
 
                             # Query execution
                             cursor.execute(query, params)
@@ -98,10 +83,26 @@ def service_tag_host_mapping():
                             if row:
                                 # Collect host ip if result is valid
                                 host_ip = row[0]
-                                # Append host IP to hostname
+                                # Append host IP to service tag/node name
                                 line = f"{line} ansible_host={host_ip}"
                                 # Mark content as modified
                                 is_content_modified = True
+                            else:
+                                # Query string get host IP if hostname is given
+                                query = "select admin_ip from cluster.nodeinfo where hostname=%s"
+                                params = (line,)
+
+                                # Query execution
+                                cursor.execute(query, params)
+                                row = cursor.fetchone()
+
+                                if row:
+                                    # Collect host ip if result is valid
+                                    host_ip = row[0]
+                                    # Append host IP to hostname
+                                    line = f"{line} ansible_host={host_ip}"
+                                    # Mark content as modified
+                                    is_content_modified = True
 
 
                     # Append service tag string to result lines.

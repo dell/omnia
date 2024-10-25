@@ -50,6 +50,7 @@ class InventoryManager:
                 # Write the group name to the file
                 group_name = f"[{filename}]\n"
                 file.write(group_name)
+                file.flush()
 
     def get_cluster_details_db(self) -> List[Tuple[str, str, str, str, str, str]]:
         """
@@ -121,6 +122,7 @@ class InventoryManager:
             # Write the inventory file
             with open(inventory_file, 'w', encoding='utf-8') as configfile:
                 config.write(configfile, space_around_delimiters=False)
+                configfile.flush()
         except KeyError as e:
             logger.error("inventory_tagging:add_hostname_inventory: "
                          "Error adding hostname %s to inventory file %s. "

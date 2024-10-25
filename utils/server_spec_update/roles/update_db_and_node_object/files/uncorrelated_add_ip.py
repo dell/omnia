@@ -14,7 +14,12 @@
 
 import ipaddress
 import sys
+from psycopg2.extensions import AsIs
 
+"""
+    This module provides functionality for calculating and
+    validating the uncorrelated admin IP for a node.
+"""
 
 def cal_nic_ip(cursor, col, ip, end_ip):
     end_ip = ipaddress.IPv4Address(end_ip)
@@ -34,23 +39,21 @@ def cal_nic_ip(cursor, col, ip, end_ip):
                     "We have reached the end of ranges. Please do a cleanup and provide a wider nic_range, if more nodes needs to be discovered.")
 
         return str(nic_ip)
-
-
 def check_presence_ip(cursor, col, ip):
     """
-         Check presence of bmc ip in DB.
-         Parameters:
-             cursor: Pointer to omniadb DB.
-             col: the col name in the DB
-             ip: ip whose presence we need to check in DB.
-         Returns:
-             bool: that gives true or false if the bmc ip is present in DB.
+        Check presence of bmc ip in DB.
+        Parameters:
+            cursor: Pointer to omniadb DB.
+            col: the col name in the DB
+            ip: ip whose presence we need to check in DB.
+        Returns:
+            bool: that gives true or false if the bmc ip is present in DB.
     """
-
-    query = f'''SELECT EXISTS(SELECT {col}_ip FROM cluster.nicinfo WHERE {col}_ip='{ip}')'''
-    cursor.execute(query)
+    query = '''SELECT EXISTS(SELECT %s FROM cluster.nicinfo WHERE %s=%s)'''
+    cursor.execute(query, (AsIs(f"{col}_ip"), AsIs(f"{col}_ip"), str(ip)))
     output = cursor.fetchone()[0]
     return output
+
 
 
 def cal_uncorrelated_add_ip(cursor, col, nic_mode, nic_range):
@@ -73,8 +76,8 @@ def cal_uncorrelated_add_ip(cursor, col, nic_mode, nic_range):
     rows_exist = cursor.fetchone()[0]
     if nic_mode == "static":
         if rows_exist:
-            sql = f'''select {col}_ip from cluster.nicinfo where {col}_ip is not NULL ORDER BY {col}_ip  DESC LIMIT 1'''
-            cursor.execute(sql)
+            sql = f'''select %s from cluster.nicinfo where %s is not NULL ORDER BY %s  DESC LIMIT 1'''
+            cursor.execute(sql, (AsIs(f"{col}_ip"), AsIs(f"{col}_ip"), AsIs(f"{col}_ip")))
             last_nic_ip = cursor.fetchone()
             if last_nic_ip is None:
                 return str(start_nic_ip)
@@ -85,8 +88,8 @@ def cal_uncorrelated_add_ip(cursor, col, nic_mode, nic_range):
             return str(start_nic_ip)
     if nic_mode == "cidr":
         if rows_exist:
-            sql = f'''select {col}_ip from cluster.nicinfo where {col}_ip is not NULL ORDER BY {col}_ip  DESC LIMIT 1'''
-            cursor.execute(sql)
+            sql = f'''select %s from cluster.nicinfo where %s is not NULL ORDER BY %s  DESC LIMIT 1'''
+            cursor.execute(sql, (AsIs(f"{col}_ip"), AsIs(f"{col}_ip"), AsIs(f"{col}_ip")))
             last_nic_ip = cursor.fetchone()
             if last_nic_ip is None:
                 return str(start_nic_ip)

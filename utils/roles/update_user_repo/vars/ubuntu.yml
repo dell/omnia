@@ -37,3 +37,11 @@ repo_delay: 10
 
 # Usage:update_user_repo_ubuntu.yml,update_software_repo_ubuntu.yml
 os_type: "ubuntu"
+
+# Usage: validate_repo.yml
+omnia_cluster_repo_path: /etc/apt/sources.list.d/cluster-deb.list
+omnia_pip_conf_path: /etc/pip.conf
+omnia_cluster_repo_fail_msg: "Failed. The playbook failed because the Omnia cluster repository file {{ omnia_cluster_repo_path }} is missing from the node.
+This could be due to an issue during the OS installation. To resolve this, please reprovision the node and re-run the playbook."
+pip_conf_fail_msg: "Failed. The playbook failed because the Omnia pip config file {{ omnia_pip_conf_path }} is missing from the node.
+This could be due to an issue during the OS installation. To resolve this, please reprovision the node and re-run the playbook."

@@ -12,6 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+
 - name: Set control_plane_os
   ansible.builtin.set_fact:
     control_plane_os: "{{ ansible_distribution | lower }}"
@@ -21,16 +22,18 @@
   changed_when: false
   failed_when: false
 
-- name: Stop kubelet service
+- name: Stop kubelet and etcd service
   ansible.builtin.service:
-    name: kubelet
+    name: "{{ item }}"
     state: stopped
+  with_items: "{{ k8s_services }}"
   failed_when: false
 
-- name: Remove kubelet service
+- name: Remove kubelet and etcd service files
   ansible.builtin.file:
-    path: "/etc/systemd/system/kubelet.service"
+    path: "{{ item }}"
     state: absent
+  with_items: "{{ k8s_service_files }}"
   failed_when: false
 
 - name: Check if crictl is present
@@ -41,61 +44,67 @@
     get_mime: false
   register: crictl
 
-- name: Stop all cri containers
-  ansible.builtin.shell: "set -o pipefail && {{ bin_dir }}/crictl ps -q | xargs -r {{ bin_dir }}/crictl -t 60s stop -t {{ grace_period }}"
-  args:
-    executable: /bin/bash
-  register: remove_all_cri_containers
-  retries: 5
-  until: remove_all_cri_containers.rc == 0
-  delay: 5
-  when:
-    - crictl.stat.exists
-  failed_when: false
-  changed_when: true
-
-- name: Force remove all cri containers
-  ansible.builtin.command: "{{ bin_dir }}/crictl rm -a -f"
-  register: remove_all_cri_containers
-  retries: 5
-  until: remove_all_cri_containers.rc == 0
-  delay: 5
-  when:
-    - crictl.stat.exists
-  failed_when: false
-  changed_when: true
-
-- name: Stop all cri pods
-  ansible.builtin.shell: "set -o pipefail && {{ bin_dir }}/crictl pods -q | xargs -r {{ bin_dir }}/crictl -t 60s stop"
-  args:
-    executable: /bin/bash
-  register: remove_all_cri_containers
-  retries: 5
-  until: remove_all_cri_containers.rc == 0
-  delay: 5
-  when:
-    - crictl.stat.exists
-  failed_when: false
-  changed_when: true
-
-- name: Remove all cri pods
+- name: Remove crictl containers
+  when: crictl.stat.exists
   block:
+    - name: Stop all cri containers
+      ansible.builtin.shell: "set -o pipefail && {{ bin_dir }}/crictl ps -q | xargs -r {{ bin_dir }}/crictl -t 60s stop -t {{ grace_period }}"
+      args:
+        executable: /bin/bash
+      register: remove_all_cri_containers
+      retries: 5
+      until: remove_all_cri_containers.rc == 0
+      delay: 5
+      failed_when: false
+      changed_when: true
+
+    - name: Force remove all cri containers
+      ansible.builtin.command: "{{ bin_dir }}/crictl rm -a -f"
+      register: remove_all_cri_containers
+      retries: 5
+      until: remove_all_cri_containers.rc == 0
+      delay: 5
+      failed_when: false
+      changed_when: true
+
+    - name: Stop all cri pods
+      ansible.builtin.shell: "set -o pipefail && {{ bin_dir }}/crictl pods -q | xargs -r {{ bin_dir }}/crictl -t 60s stop"
+      args:
+        executable: /bin/bash
+      register: remove_all_cri_containers
+      retries: 5
+      until: remove_all_cri_containers.rc == 0
+      delay: 5
+      failed_when: false
+      changed_when: true
+
     - name: Force remove all cri pods
       ansible.builtin.command: "{{ bin_dir }}/crictl rmp -a -f"
       register: remove_all_cri_containers
       retries: 5
       until: remove_all_cri_containers.rc == 0
       delay: 5
-      when:
-        - crictl.stat.exists
       failed_when: false
       changed_when: true
-
   rescue:
     - name: Force remove all cri pods (rescue)
       ansible.builtin.shell: "set -o pipefail && ip netns list | cut -d' ' -f 1 | xargs -n1 ip netns delete && {{ bin_dir }}/crictl rmp -a -f"
       failed_when: false
       changed_when: true
+
+- name: Remove k8s bin file
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  with_items: "{{ k8s_bin_files }}"
+  failed_when: false
+
+- name: Remove k8s config file
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  with_items: "{{ k8s_del_files }}"
+  failed_when: false
 
 - name: Get container ID for buildkitd
   ansible.builtin.shell: >
@@ -116,11 +125,6 @@
   when: buildkit_container_id.stdout is defined and buildkit_container_id.stdout != ''
   changed_when: false
   failed_when: false
-
-- name: Remove kubernetes folder
-  ansible.builtin.file:
-    path: "{{ kube_folder_path }}"
-    state: absent
 
 - name: Remove runc package
   ansible.builtin.package:
@@ -192,3 +196,36 @@
   ansible.builtin.systemd:
     daemon_reload: true
   failed_when: false
+
+- name: Remove docker0 interface from firewall
+  ansible.builtin.command: firewall-cmd --remove-interface docker0
+  changed_when: true
+  failed_when: false
+
+- name: Remove docker0 nic
+  ansible.builtin.command: ip link delete docker0
+  changed_when: true
+  failed_when: false
+
+- name: Free control plane k8s by killing related processes
+  block:
+    - name: Check for Kubernetes-related processes occupying ports
+      ansible.builtin.shell: >
+        set -o pipefail && \
+        netstat -tulpn | grep 'kube'
+      register: kube_processes
+      changed_when: false
+      failed_when: false
+
+    - name: Extract PIDs of Kubernetes processes using ports
+      ansible.builtin.set_fact:
+        kube_pids: "{{ kube_processes.stdout_lines | map('regex_search', '\\s(\\d+)/', '\\1') | flatten }}"
+      when: kube_processes.stdout_lines | default("", true) | length > 1
+      failed_when: false
+
+    - name: Kill Kubernetes processes to free the ports
+      ansible.builtin.command: "kill -9 {{ item }}"
+      with_items: "{{ kube_pids }}"
+      when: kube_pids | default("", true) | length > 1
+      changed_when: false
+      failed_when: false

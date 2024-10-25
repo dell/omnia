@@ -12,23 +12,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+- name: Saving distribution of OS
+  ansible.builtin.set_fact:
+    compute_os: "{{ ansible_facts['distribution'] | lower }}"
+    compute_os_version: "{{ ansible_distribution_version }}"
 
-- name: Inventory not provided
-  ansible.builtin.fail:
-    msg: "{{ empty_inventory_fail_msg }}"
+- name: Validate inputs
   when:
-    - groups['all'] is defined
-    - (groups['all'] | length == 0)
-
-- name: Validate performance_profile_config.yml file
+    - compute_os == 'ubuntu'
+    - compute_os_version == '22.04'
   block:
-    - name: Validating performance_profile_config.yml
-      ansible.builtin.command: |
-        {{ python_version }} {{ validate_input_py }} {{ performance_profile_config_path }}
-      register: script_output
-      changed_when: false
-  rescue:
-    - name: Rescue block
+    - name: Inventory not provided
       ansible.builtin.fail:
-        msg: "{{ script_output.stderr }}"
-      when: script_output.stderr is defined
+        msg: "{{ empty_inventory_fail_msg }}"
+      when:
+        - groups['all'] is defined
+        - (groups['all'] | length == 0)
+
+    - name: Validate performance_profile_config.yml file
+      block:
+        - name: Validating performance_profile_config.yml
+          ansible.builtin.command: "{{ python_version }} {{ validate_input_py }} {{ performance_profile_config_path }}"
+          register: script_output
+          changed_when: false
+
+      rescue:
+        - name: Rescue block
+          ansible.builtin.fail:
+            msg: "{{ script_output.stderr }}"
+          when: script_output.stderr is defined
+
