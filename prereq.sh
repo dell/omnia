@@ -132,6 +132,7 @@ os_release_data="/etc/os-release"
 venv_location="/opt/omnia/omnia17_venv" # Do not give a trailing slash
 unsupported_os=false
 os_type="rhel"
+SELINUX_REBOOT_REQUIRED=false
 
 # Start
 get_os_info
@@ -139,7 +140,7 @@ get_os_info
 if [[ "$OS_ID" == "rhel" || "$OS_ID" == "rocky" ]]; then
     os_type="rhel"
     max_val=8.8
-    if (( $(echo "$OS_VERSION < $max_val" | bc -l) )); then
+    if awk "BEGIN { exit !($OS_VERSION < $max_val) }"; then
 	unsupported_os=true
     fi
 fi
@@ -147,7 +148,7 @@ fi
 if [[ "$OS_ID" == "ubuntu" ]]; then
     os_type="ubuntu"
     max_val=20.04
-    if (( $(echo "$OS_VERSION < $max_val" | bc -l) )); then
+    if awk "BEGIN { exit !($OS_VERSION < $max_val) }"; then
 	unsupported_os=true
     fi
 fi
@@ -193,21 +194,22 @@ else
     echo "----------------------"
     if [[ "$OS_ID" == "ubuntu" ]]; then
         echo "Operating System: $OS_ID"
-        check_ubuntu22="$(cat $os_release_data | grep 'VERSION_ID="22.04"' | wc -l)"
-        check_ubuntu20="$(cat $os_release_data | grep 'VERSION_ID="20.04"' | wc -l)"
         apt install software-properties-common -y
         apt-add-repository ppa:deadsnakes/ppa -y
     	if [ $? -eq 0 ]; then
-            echo "Add repo with signing failed"
-	    allow_unauth_apt="--allow-unauthenticated"
-        fi
-        if [[ "$check_ubuntu22" == "1" ]]; then
-            echo "Adding repo for jammy $OS_ID $OS_VERSION"
-            echo "deb [trusted=yes] http://ppa.launchpad.net/deadsnakes/ppa/ubuntu jammy main" > /etc/apt/sources.list.d/deadsnakes-ppa.list
-        elif [[ "$check_ubuntu20" == "1" ]]; then
-            echo "Adding repo for focal $OS_ID $OS_VERSION"
-            echo "deb [trusted=yes] http://ppa.launchpad.net/deadsnakes/ppa/ubuntu focal main" > /etc/apt/sources.list.d/deadsnakes-ppa.list
-        fi
+            echo "Added repo successfully with GPG key"
+	else
+            check_ubuntu22="$(cat $os_release_data | grep 'VERSION_ID="22.04"' | wc -l)"
+            check_ubuntu20="$(cat $os_release_data | grep 'VERSION_ID="20.04"' | wc -l)"
+	    allow_unauth_apt="--allow-unauthenticated" 
+            if [[ "$check_ubuntu22" == "1" ]]; then
+               echo "Adding repo for jammy $OS_ID $OS_VERSION"
+               echo "deb [trusted=yes] http://ppa.launchpad.net/deadsnakes/ppa/ubuntu jammy main" > /etc/apt/sources.list.d/deadsnakes-ppa.list
+            elif [[ "$check_ubuntu20" == "1" ]]; then
+               echo "Adding repo for focal $OS_ID $OS_VERSION"
+               echo "deb [trusted=yes] http://ppa.launchpad.net/deadsnakes/ppa/ubuntu focal main" > /etc/apt/sources.list.d/deadsnakes-ppa.list
+            fi
+	fi
         apt update
         apt install python$python_version -y $allow_unauth_apt
     else
@@ -242,7 +244,7 @@ echo ""
 if [ "$VIRTUAL_ENV" != "$venv_location" ]; then
     echo "Omnia virtual environment not activated in $venv_location"
     if [ ! -f "$venv_location/bin/activate" ]; then
-       $venv_py -m venv $venv_location --prompt omnia
+       $venv_py -m venv $venv_location --prompt omnia17
     fi
     echo "Activating the Omnia virtual environment .."
     source $venv_location/bin/activate
@@ -346,7 +348,7 @@ echo -e "${NC}"
 # Show SELinux reboot message if necessary
 if [[ "$SELINUX_REBOOT_REQUIRED" == "true" ]]; then
     echo -e "${RED}"
-    echo "SELinux was disabled. Please reboot the system before proceeding with playbook execution!"
+    echo "SELinux has been disabled. Please reboot the system, unless it is an upgrade or restore scenario, before proceeding with the playbook execution !"
     echo -e "${NC}"
 fi
 
@@ -358,6 +360,13 @@ if [[ "$OS_ID" == "rhel" || "$OS_ID" == "rocky" ]]; then
         echo -e "Warning:Running Omnia $install_omnia_version on an unsupported OS ${OS_ID} ${VERSION_ID} may lead to failures in subsequent playbooks. To prevent such issues, please use a supported OS ${OS_ID} 8.8 ."
     fi
 elif [[ "$OS_ID" == "ubuntu" ]]; then
+   if [ -e /var/log/installer/media-info ]; then
+       media_info=$(cat /var/log/installer/media-info)
+       if [[ ! $media_info == *"Ubuntu-Server"* ]]; then
+       	    echo -e "${YELLOW}Warning: Omnia supports only server edition of Ubuntu. Running Omnia on a non-server edition of Ubuntu may lead to failures in subsequent playbooks.
+To prevent such issues, please use the Server edition of Ubuntu.${NC}"
+       fi
+   fi
    if [[ "$VERSION_ID" != "22.04" ]]; then
      echo -e "Warning:Running Omnia $install_omnia_version on an unsupported OS ${OS_ID} ${VERSION_ID} may lead to failures in subsequent playbooks. To prevent such issues, please use a supported OS ${OS_ID} 22.04 ."
    fi
