@@ -45,6 +45,15 @@
         name: mpijob
         tasks_from: mpi_job_v1.yml
 
+- name: Fetch MPI operator package
+  hosts: localhost
+  tags: mpiv2beta1
+  tasks:
+    - name: Fetch mpi-operator package from k8s.json
+      ansible.builtin.include_role:
+        name: mpijob
+        tasks_from: fetch_software_config.yml
+
 - name: Configure MPI operator v2beta1
   hosts: kube_control_plane
   tags: mpiv2beta1

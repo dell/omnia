@@ -13,23 +13,33 @@
 #  limitations under the License.
 ---
 
+# Usage: mpi_job_v2beta1.yml
 local_repo_access_config_file: "/opt/omnia/offline/local_repo_access.yml"
 local_repo_config_file: "{{ role_path }}/../../../input/local_repo_config.yml"
 kubeflow_dir_path: "/opt/omnia/kubeflow"
 file_permission: 755
-offline_manifest_crd_path: "{{ hostvars['localhost']['offline_manifest_path'] }}/mpi-operator.yaml"
 
+# Usage: mpi_job_v1.yml
 retry_count: 3
 time_delay: 10
 pause_time: 5
 v1_success: "MPIJob API version v1 is present."
 v1_failure: "MPIJob API version v1 is not present."
+
+# Usage: mpi_job_v2beta1.yml
 v2_success: "MPIJob API version v2beta1 is present."
 v2_failure: "MPIJob API version v2beta1 is not present."
+
+# Usage: verify_kubeflow.yml
 tag_error: "Error: No tags provided! Please specify mpiv1 or mpiv2beta1 tag."
 deployment_failure_message: "Error: Ensure kubeflow is deployed first."
 
+# Usage: inv_check.yml
 fail_node_kube_control_plane: "Failed. There should be exactly one entry for kube_control_plane in the inventory"
 mpijob_empty_inventory_fail_msg: >
  "Failed. Inventory not provided.
   Please re-run the playbook with an inventory that includes the groups 'kube_control_plane' by using the -i inventory option"
+
+# Usage: fetch_software_config.yml
+software_config_json_file: "{{ role_path }}/../../../input/software_config.json"
+k8s_packages_file: "{{ role_path }}/../../../input/config/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/k8s.json"
