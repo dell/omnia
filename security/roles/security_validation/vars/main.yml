@@ -38,9 +38,9 @@ fail_msg_directory_manager_password: "Failed. Incorrect format provided for dire
 success_msg_kerberos_admin_password: "kerberos_admin_password successfully validated"
 fail_msg_kerberos_admin_password: "Failed. Incorrect format provided for kerberos_admin_password"
 input_config_failure_msg: "Failed. Since, authentication_system is freeipa, provide few additional parameters in input/security_config.yml."
-secure_login_node_success_msg: "enable_secure_login_node successfully validated"
+secure_login_node_success_msg: "secure_login_node present in input/software_config.json."
 secure_login_node_fail_msg: "Failed. enable_secure_login_node should be either true or false"
-secure_login_node_warning_msg: "[WARNING] enable_secure_login_node is true in security_config.yml and
+secure_login_node_warning_msg: "[WARNING] secure_login_node present in input/software_config.json and
 login group not provided with login node IP address in inventory. Skipping tasks for secure login node configuration"
 ubuntu_freeipa_support_fail_msg: "Failed. freeipa is not supported on ubuntu. Remove freeipa from software_config.json and rerun the playbook"
 proxy_env_fail_msg: "Failed. The values for http_proxy and https_proxy in the
@@ -76,6 +76,8 @@ restrict_program_support_success_msg: "restrict_program_support successfully val
 restrict_program_support_failure_msg: "Failed. Accepted values are true or false."
 restrict_softwares_success_msg: "restrict_softwares successfully validated"
 restrict_softwares_failure_msg: "Warning. Values should be comma separated. The supported services are telnet,lpd,bluetooth,rlogin,rexec."
+smtp_server_fail_msg: "Failed. smtp_server details are mandatory when alert_email_address provide in login_node_security_config.yml.
+Provide SMTP server host, port and sender_address with single SMTP server details for sending alert email."
 
 # Usage: fetch_ldap_client_inputs.yml
 ldap_client_config_failure_msg: "LDAP Client Input parameters cannot be empty when ldap_reqired is set to true"
@@ -112,7 +114,8 @@ ltb_git_repo_path: "ansible-role-ldaptoolbox-openldap"
 file_permission: "0644"
 openldap_software_failure_msg: "Failed, OpenLDAP software stack is not present in software_config.json file.
 Update openldap software stack in software_config.json and execute local_repo.yml."
-ldap_repo_failure_msg: "Failed, Local repo not present for OpenLDAP. Execute local_repo.yml again."
+ldap_repo_failure_msg: "Failed. The OpenLDAP repository is missing. Please run the local_repo.yml playbook to download the required OpenLDAP packages.
+Once the playbook has been successfully executed, you can rerun the original playbook."
 
 # fetch_software_config.yml
 software_config_json_file: "{{ role_path }}/../../../input/software_config.json"

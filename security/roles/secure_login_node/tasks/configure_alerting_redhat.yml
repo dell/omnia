@@ -91,4 +91,4 @@
   ansible.builtin.cron:
     name: Auth failure alerting
     special_time: hourly
-    job: "{{ ansible_playbook_path.stdout.split(' ')[1] }} {{ alerting_file_path }} -e 'alert_email_address={{ hostvars['127.0.0.1']['alert_email_address'] }}'"
+    job: "{{ ansible_playbook_path.stdout.split(' ')[1] }} {{ alerting_file_path }} -e 'alert_email_address={{ hostvars['localhost']['alert_email_address'] }}' -e 'smtp_sender_address={{ hostvars['localhost']['smtp_server'][0]['sender_address'] }}'" # noqa: yaml[line-length]

@@ -16,7 +16,18 @@
 - name: Include local_repo_access.yml file
   ansible.builtin.include_vars: "{{ local_repo_access_path }}"
 
-- name: Install mailx and postfix for Rhel/Rocky
+- name: Test reachablility of SMTP server
+  ansible.builtin.command: ping -c3 {{ hostvars['localhost']['smtp_server'][0]['host'] }}
+  changed_when: false
+  failed_when: false
+  register: smtp_server_reachability
+
+- name: Verify SMTP server reachability
+  ansible.builtin.fail:
+    msg: "{{ smtp_server_reach_msg }}"
+  when: ping_msg in smtp_server_reachability.stdout
+
+- name: Install mailx and postfix for RHEL/Rocky
   ansible.builtin.package:
     name: "{{ mail_packages_redhat }}"
     state: present
@@ -33,6 +44,24 @@
     name: postfix
     state: started
     enabled: true
+
+- name: Configure postfix for smtp server
+  ansible.builtin.lineinfile:
+    path: "{{ postfix_conf_path }}"
+    line: "{{ item.line }}"
+    regexp: "{{ item.regexp }}"
+    state: present
+  register: postfix_config
+  with_items:
+    - { regexp: "^relayhost*", line: "relayhost = {{ hostvars['localhost']['smtp_server'][0]['host'] }}:{{ hostvars['localhost']['smtp_server'][0]['port'] }}" }
+    - { regexp: "^myorigin*", line: "myorigin = {{ hostvars['localhost']['smtp_server'][0]['sender_address'] }}" }
+
+- name: Restart postfix service
+  ansible.builtin.systemd:
+    name: postfix
+    state: restarted
+    enabled: true
+  when: postfix_config.results[0]['changed'] or postfix_config.results[1]['changed']
 
 - name: Load software_config.json
   ansible.builtin.include_vars:
