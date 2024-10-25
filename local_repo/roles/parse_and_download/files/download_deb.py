@@ -40,8 +40,8 @@ def process_deb_package(package, repo_store_path, status_file_path, cluster_os_t
     elif cluster_name == 'intelgaudi':
         deb_directory = os.path.join(repo_store_path, 'cluster', 'apt', 'intelgaudi',
                 version_variables.get('intelgaudi_version', ''))
-    elif cluster_name == 'habana':
-        deb_directory = os.path.join(repo_store_path, 'cluster', 'apt', 'habana',
+    elif cluster_name == 'intel':
+        deb_directory = os.path.join(repo_store_path, 'cluster', 'apt', 'intel',
                 version_variables.get('intelgaudi_version', ''))
     else:
         deb_directory = os.path.join(repo_store_path, 'cluster', cluster_os_type, cluster_os_version, 'deb')

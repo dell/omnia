@@ -31,6 +31,10 @@
   loop_control:
     loop_var: item
 
+- name: Initialize unreachable user registry
+  ansible.builtin.set_fact:
+    unreachable_registries: ""
+
 - name: Check if user registry is reachable from control plane
   ansible.builtin.uri:
     url: "https://{{ item.host }}"
@@ -52,3 +56,26 @@
     prompt: "{{ user_registry_msg }}"
     seconds: "{{ warning_wait_time_warning }}"
   when: unreachable_registries | default("", true) | length > 0
+
+- name: Check if cert_path is a valid file path
+  ansible.builtin.stat:
+    path: "{{ item.cert_path }}"
+  register: cert_path_status
+  loop: "{{ user_registry }}"
+  loop_control:
+    loop_var: item
+  when:
+    - item.cert_path is defined
+    - item.cert_path | length > 0
+
+- name: Fail if cert_path does not exist
+  ansible.builtin.fail:
+    msg: " {{ cert_path_failure_msg }}"
+  loop: "{{ cert_path_status.results }}"
+  loop_control:
+    loop_var: item
+  when:
+    - item.stat is defined
+    - not item.stat.exists
+    - item.item.cert_path | length > 0
+    - cert_path_status.results is defined
