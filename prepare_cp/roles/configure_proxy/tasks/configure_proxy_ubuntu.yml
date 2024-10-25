@@ -18,6 +18,10 @@
     - name: Apt update
       ansible.builtin.apt:
         update_cache: true
+      register: update_repos
+      until: update_repos is not failed
+      retries: "{{ repo_retries }}"
+      delay: "{{ repo_delay }}"
   rescue:
     - name: Failed to update repo
       ansible.builtin.fail:
