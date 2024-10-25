@@ -67,6 +67,7 @@ Execute the ``storage.yml`` playbook: ::
 
 Use the linked `inventory file <../../../../samplefiles.html#inventory-file>`_ for the above playbook.
 
+.. note:: To run the ``storage.yml`` playbook independently from the ``omnia.yml`` playbook on Intel Gaudi nodes, start by executing the ``performance_profile.yml`` playbook. Once that’s done, you can run the ``storage.yml`` playbook separately.
 
 Post configuration, enable the following services (using this command: ``firewall-cmd --permanent --add-service=<service name>``) and then reload the firewall (using this command: ``firewall-cmd --reload``).
 

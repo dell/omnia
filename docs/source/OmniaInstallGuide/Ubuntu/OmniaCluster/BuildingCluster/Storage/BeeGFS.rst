@@ -70,4 +70,6 @@ If ``omnia.yml`` is not leveraged to set up BeeGFS, execute the ``storage.yml`` 
     cd storage
     ansible-playbook storage.yml -i inventory
 
+.. note:: To run the ``storage.yml`` playbook independently from the ``omnia.yml`` playbook on Intel Gaudi nodes, start by executing the ``performance_profile.yml`` playbook. Once that’s done, you can run the ``storage.yml`` playbook separately.
+
 

@@ -28,6 +28,8 @@ Optionally, you can initiate only telemetry using the below command: ::
 
 .. note::
 
+    * To run the ``telemetry.yml`` playbook independently from the ``omnia.yml`` playbook on Intel Gaudi nodes, start by executing the ``performance_profile.yml`` playbook. Once that’s done, you can run the ``telemetry.yml`` playbook separately.
+
     * Depending on the type of telemetry initiated, include the following possible groups in the inventory:
 
         * omnia_telemetry: ``slurm_control_node``, ``slurm_node``, ``login``, ``kube_control_plane``, ``kube_node``, ``etcd``, ``auth_server``

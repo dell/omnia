@@ -36,6 +36,8 @@ The wrapper playbook ``omnia.yml`` handles execution of the security or authenti
     cd security
     ansible-playbook security.yml -i inventory
 
+.. note:: To run the ``security.yml`` playbook independently from the ``omnia.yml`` playbook on Intel Gaudi nodes, start by executing the ``performance_profile.yml`` playbook. Once that’s done, you can run the ``security.yml`` playbook separately.
+
 The provided inventory should contain ``auth_server`` and ``login`` [optional] groups. The inventory file is case-sensitive. Follow the format provided in the `sample files <../../../samplefiles.html#inventory-file>`_.
 
     * Do not include the IP of the control plane or local host in the ``auth_server`` group of the inventory file.

@@ -18,6 +18,8 @@ Cluster formation
     v. ``rocm_installation.yml``: This playbook sets up the `ROCm platform for AMD GPU accelerators <AMD_ROCm.html>`_.
     vi. ``performance_profile.yml``: This playbook is located in the ``utils/performance_profile`` directory and it enables you to optimize system performance for specific workloads. For more information, see `Performance profile configuration <../../../../Utils/tuneD.html>`_.
 
+.. note:: To run the ``scheduler.yml``, ``security.yml``, ``telemetry.yml``, or ``storage.yml`` playbook independently from the ``omnia.yml`` playbook on Intel Gaudi nodes, start by executing the ``performance_profile.yml`` playbook. Once that’s done, you can run the respective playbooks separately.
+
 To run ``omnia.yml``: ::
 
         ansible-playbook omnia.yml -i inventory
