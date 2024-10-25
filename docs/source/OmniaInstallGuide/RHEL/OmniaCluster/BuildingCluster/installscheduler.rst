@@ -20,7 +20,6 @@ Cluster formation
     iv. ``telemetry.yml``: This playbook sets up `Omnia telemetry and/or iDRAC telemetry <../../../../Telemetry/index.html>`_. It also installs `Grafana <https://grafana.com/>`_ and `Loki <https://grafana.com/oss/loki/>`_ as Kubernetes pods.
     v. ``rocm_installation.yml``: This playbook sets up the `ROCm platform for AMD GPU accelerators <AMD_ROCm.html>`_.
 
-
 To run ``omnia.yml``: ::
 
         ansible-playbook omnia.yml -i inventory
