@@ -95,6 +95,7 @@ ucx,BSD 3 Clause License,Benchmarks tools,1.15.0
 openmpi,3-clause BSD license,Benchmarks tools,4.1.6
 Pytorch,Apache 2.0,PyTorch is a GPU accelerated tensor computational framework for Machine Learning.,latest image
 Pytorch NVIDIA,NVIDIA DEEP LEARNING CONTAINER LICENSE,"The PyTorch NGC Container is optimized for GPU acceleration, and contains a validated set of libraries that enable and optimize GPU performance",23.12-py3
+Pytorch Intel ,HABANA LABS SYNAPSEAI® SOFTWARE SUITE OUTBOUND SOFTWARE LICENSE AGREEMENT,The Intel® Gaudi® software is integrated with PyTorch and optimized for Intel Gaudi AI accelerator.,
 Tensorflow NVIDIA,NVIDIA DEEP LEARNING CONTAINER LICENSE,Tensorflow is a GPU accelerated tensor computational framework for Machine Learning.,23.12-tf2-py3
 Kustomize,Apache 2.0,Customization of kubernetes YAML configurations,5.0.3
 xilinx-device-plugin,Apache 2.0,he AMD-Xilinx device plugin for Kubernetes is a Daemonset deployed on the Kubernetes(k8s) cluster,1.3.0
