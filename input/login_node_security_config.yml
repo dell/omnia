@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -43,8 +43,18 @@ session_timeout: 180
 
 # Email address used for sending alerts in case of authentication failure
 # If this variable is left blank, authentication failure alerts will be disabled.
-# Currently, only one email ID is accepted in this field
+# Multiple email address can be provided by comma separated values
+# Example: alert_email_address: "user1@domain.com,user2@domain.com"
 alert_email_address: ""
+
+# This variable will be applicable only when alert_email_address is provided
+# SMTP server details in the cluster to sent email alerts
+# Supported only single SMTP server configuration
+# Example:
+# smtp_server: 
+#   - { host: "smtp-server.domain.com", port: "25", sender_address: "alert@domain.com" }"
+smtp_server: 
+  - { host: "", port: "", sender_address: "" }
 
 # This variable mentions the users to whom the access will be provided
 # format of user shall be username@ip or username 
