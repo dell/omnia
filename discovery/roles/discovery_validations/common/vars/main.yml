@@ -181,6 +181,8 @@ node_name should not contain _ or . or space or node- as it might result in issu
 ubuntu_kernel_fail_msg: "Failed. ubuntu_kernel_flavor should be either hwe or generic"
 ubuntu22_version: "22.04"
 ntp_support_fail_msg: "Failed. ntp_support in provision_config.yml should be either true or false"
+disk_partition_success_msg: "disk_partition successfully validated"
+disk_partition_fail_msg: "Failed. Duplicate disk_partition values present in provision_config.yml."
 
 # Usage: validate_domain_name.yml
 domain_name_success_msg: "domain_name successfully validated"

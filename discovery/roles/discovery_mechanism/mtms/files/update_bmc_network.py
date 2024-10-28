@@ -11,29 +11,26 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
+
+"""
+This module provides functionality for updating the xCAT networks table
+with details of various BMC discovery ranges inserted as a network.
+"""
+
 import re
 import subprocess
 import sys
 import calculate_ip_details
 
-class IPAddress:
-    def __init__(self, address):
-        self.address = address
-        self.validate()
-
-    def validate(self):
-        # Define regex patterns
-        cidr_pattern = r'^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$'
-        range_pattern = r'^(\d{1,3}\.){3}\d{1,3}-\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$'
-        valid_pattern = f'({cidr_pattern}|{range_pattern}|0.0.0.0)'
-
-        if not re.fullmatch(valid_pattern, self.address):
-            raise ValueError("Invalid IP range format")
-
-    def __str__(self):
-        return self.address
-
-
+def validate(ip_range):
+    # Define regex patterns
+    cidr_pattern = r'^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$'
+    range_pattern = r'^(\d{1,3}\.){3}\d{1,3}-\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$'
+    valid_pattern = f'({cidr_pattern}|{range_pattern}|0.0.0.0)'
+    ip_range = ip_range.strip()
+    if not re.fullmatch(valid_pattern, ip_range):
+        raise ValueError("Invalid IP range format")
+    return ip_range
 
 discovery_ranges = sys.argv[1]
 netmask_bits = sys.argv[2]
@@ -64,19 +61,17 @@ def update_networks_table():
     """
     ip_ranges = discovery_ranges.split(',')
     for ip_range in ip_ranges:
-        ip_obj = IPAddress(ip_range)
-        start_ip, end_ip = ip_obj.address.split('-')
+        ip_obj = validate(ip_range)
+        start_ip, end_ip = ip_obj.split('-')
         details = calculate_ip_details.cal_ip_details(start_ip, netmask_bits)
         netmask = details[0]
         subnet = details[1]
         network_name = create_network_name("bmc_network", subnet)
-        command = f"/opt/xcat/bin/chdef -t network -o {network_name} net={subnet} mask={netmask} staticrange={start_ip}-{end_ip}"
-        command_list = command.split()
+        command = ["/opt/xcat/bin/chdef", "-t", "network", "-o", network_name, f"net={subnet}", f"mask={netmask}", f"staticrange={start_ip}-{end_ip}"]
         try:
-            subprocess.run(command_list, capture_output=True, check=True)
+            subprocess.run(command, capture_output=True, check=True)
         except subprocess.CalledProcessError as e:
             print(f"Error: {e}")
-
 
 
 update_networks_table()

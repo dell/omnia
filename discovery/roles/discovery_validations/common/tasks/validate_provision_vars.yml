@@ -54,6 +54,13 @@
     success_msg: "{{ default_lease_time_success_msg }}"
     fail_msg: "{{ default_lease_time_fail_msg }}"
 
+- name: Assert that disk_partition does not have duplicate entries
+  ansible.builtin.assert:
+    that:
+      - disk_partition | map(attribute='mount_point')| list | unique | length == disk_partition | map(attribute='mount_point')| list | length
+    success_msg: "{{ disk_partition_success_msg }}"
+    fail_msg: "{{ disk_partition_fail_msg }}"
+
 - name: Convert timezone.txt to linux format
   ansible.builtin.command: dos2unix {{ role_path }}/files/timezone.txt
   failed_when: false
