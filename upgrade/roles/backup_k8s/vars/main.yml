@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,12 +13,6 @@
 # limitations under the License.
 ---
 
-# Usage:include_telemetry_config.yml
-telemetry_config_file: "{{ installed_omnia_path }}/input/telemetry_config.yml"
-telemetry_vault_filename: "{{ installed_omnia_path }}/input/.telemetry_vault_key"
-telemetry_config_syntax_fail_msg: "Failed.Syntax errors present in telemetry_config.yml.Fix errors and re-run playbook again."
-vault_file_perm: '0644'
-
 # Usage: main.yml
 k8s_backup_location: "{{ backup_location }}/k8s"
 file_permission: '0644'
@@ -29,6 +23,10 @@ database_name: "telemetry_metrics"
 telemetry_namespace: "telemetry-and-visualizations"
 timescaledb_k8s_name: timescaledb
 timescale_telemetry_backup_file: "telemetry_tsdb_dump.sql"
+idrac_telemetry_path: "/go/src/github.com/telemetry-reference-tools/omnia_timescaledb.tar.gz"
+postgresql_pod_data: "/var/lib/postgresql/data"
+idrac_mnt_tar: "{{ mount_location }}/iDRAC-Telemetry-Reference-Tools/omnia_timescaledb.tar.gz"
+file_mode: "0644"
 
 # Usage: mysqldb.yml
 mysqldb_k8s_name: mysqldb

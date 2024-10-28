@@ -1,0 +1,43 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# This config file will be used for deploying k8s roce plugin.
+# Roce plugin is supported only on Ubuntu OS.
+
+
+# Define network interfaces with their respective IP ranges which should be assigned inside the pod in this dictionary
+# Number of entries in this dictionary should be equal to number of bcm roce interfaces which must be used for roce pod.
+# VLAN nics are not supported for roce plugin deployment
+# A limit of 8 roce interfaces is supported by the rocepod deployed.
+# name (Mandatory): The name of the interface of the roce nic
+# range (Mandatory): The IP range for this interface which should be assigned inside rocepod. It is specified in CIDR notation.
+# range_start (Optional): This specifies the starting IP address within the defined range for assigning IPs to network interfaces.
+# range_end (Optional): This specifies the ending IP address within the defined range for assigning IPs to network interfaces.
+# gateway (Optional): This specifies the IP address of the gateway for the network.
+# route (Optional): This specifies additional routing rules for the network interface. Routes determine the paths that packets take to reach specific networks or hosts.
+# Omnia does not validate the inputs, it is user's responsibility to provide inputs for the required parameters.
+# Eg: If user wants to restrict the IP range, range_start and range_end should be provided with range.
+# Eg2: If gateway is to be set, then user should provide gateway and route along with range.
+interfaces: # Value auto populated by Omnia upgrade script
+{% for interface in roce_plugin_config_ns.interfaces %}
+- name: {{ interface.name }}
+  range: {{ interface.range }}
+  range_start: {{ interface.range_start | default('') }}
+  range_end: {{ interface.range_end | default('') }}
+  gateway: {{ interface.gateway | default('') }}
+  route: {{ interface.route | default('') }}
+{% endfor %}
+
+

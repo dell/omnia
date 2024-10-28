@@ -38,6 +38,7 @@
         loadBalancerIP: "{{ item.status.loadBalancer.ingress[0].ip }}"
   loop: "{{ svc_info.resources }}"
   when: item.spec.type == 'LoadBalancer' and item.metadata.name in ['grafana', 'timescaledb']
+  no_log: true
 
 - name: Check existence of "{{ etcd_env_file }}"
   ansible.builtin.stat:

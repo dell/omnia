@@ -53,24 +53,32 @@
   failed_when: false
   changed_when: false
 
-- name: Check database existence before taking backup
-  ansible.builtin.import_tasks: check_timescaldb_existence.yml
-
-- name: Timescaledb exists status
-  ansible.builtin.debug:
-    msg: "DB exist {{ timescaledb_backup_flag }}"
-
 - name: Dump database
   ansible.builtin.command: kubectl exec -it "{{ timescaledb_pod_name.stdout }}" -n "{{ telemetry_namespace }}" -- pg_dump -d "postgres://{{ timescaledb_user }}:{{ timescaledb_password }}@{{ timescaledb_service_external_ip.stdout }}:5432/{{ database_name }}" --format=plain --quote-all-identifiers --no-tablespaces  --no-owner --no-privileges --file="{{ timescale_telemetry_backup_file }}" # noqa: yaml[line-length]
   changed_when: false
   register: dump_telemetry_result
   when:
     - "'running' in timescaledb_pod_status.stdout | lower"
-    - timescaledb_backup_flag | default(false)
 
-- name: Copy backup file from pod to local machine
+- name: Copy backup file from pod to "{{ k8s_backup_location }}"
   ansible.builtin.command: kubectl cp "{{ telemetry_namespace }}"/{{ timescaledb_pod_name.stdout }}:"{{ timescale_telemetry_backup_file }}" "{{ k8s_backup_location }}/{{ timescale_telemetry_backup_file }}" # noqa: yaml[line-length]
   changed_when: false
   when:
-    - dump_telemetry_result.rc is defined
-    - dump_telemetry_result.rc==0
+    - dump_telemetry_result is defined
+    - dump_telemetry_result.rc == 0
+
+- name: Create tar of timescaledb pod data
+  ansible.builtin.shell: >
+    set -o pipefail && \
+    kubectl exec "{{ timescaledb_pod_name.stdout }}"
+    -n "{{ telemetry_namespace }}" -- tar -czf "{{ idrac_telemetry_path }}" -C "{{ postgresql_pod_data }}" .
+  register: timescaledb_tar
+  changed_when: timescaledb_tar.rc == 0
+  when: timescaledb_pod_check.rc == 0
+
+- name: Copy timescaledb_data tar file to k8s_backup_location
+  ansible.builtin.copy:
+    src: "{{ idrac_mnt_tar }}"
+    dest: "{{ k8s_backup_location }}"
+    mode: "{{ file_mode }}"
+  when: timescaledb_tar.rc == 0

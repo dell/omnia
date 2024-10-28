@@ -12,21 +12,44 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-- name: Place modified telemetry.json in input folder - ubuntu/rocky
+- name: Take backup of original telemetry.json file - Ubuntu/Rocky
   ansible.builtin.copy:
-    src: "{{ upgrade_telemetry_json_path_ubuntu_rocky }}"
-    dest: "{{ telemetry_json_path_ubuntu_rocky }}"
+    src: "{{ telemetry_json_path_ubuntu_rocky }}"
+    dest: "{{ telemetry_backup_path }}"
     mode: "{{ file_permission }}"
   when:
     - control_plane_os in control_plane_os_ubuntu or
       control_plane_os in control_plane_os_rocky
+
+- name: Take backup of original telemetry.json file - RHEL
+  ansible.builtin.copy:
+    src: "{{ telemetry_json_path_rhel }}"
+    dest: "{{ telemetry_backup_path }}"
+    mode: "{{ file_permission }}"
+  when: control_plane_os in control_plane_os_as_rhel
+
+- name: Place modified telemetry.json in input folder - ubuntu
+  ansible.builtin.copy:
+    src: "{{ upgrade_telemetry_json_path_ubuntu }}"
+    dest: "{{ telemetry_json_path_ubuntu_rocky }}"
+    mode: "{{ file_permission }}"
+  when:
+    - control_plane_os in control_plane_os_ubuntu
+
+- name: Place modified telemetry.json in input folder - rocky
+  ansible.builtin.copy:
+    src: "{{ upgrade_telemetry_json_path_rocky }}"
+    dest: "{{ telemetry_json_path_ubuntu_rocky }}"
+    mode: "{{ file_permission }}"
+  when:
+    - control_plane_os in control_plane_os_rocky
 
 - name: Place modified telemetry.json in input folder - rhel
   ansible.builtin.copy:
     src: "{{ upgrade_telemetry_json_path_rhel }}"
     dest: "{{ telemetry_json_path_rhel }}"
     mode: "{{ file_permission }}"
-  when: control_plane_os in control_plane_os_rhel
+  when: control_plane_os in control_plane_os_as_rhel
 
 - name: Download k8s packages for upgrade (This task may take 10-15 mins to complete)
   ansible.builtin.command: "{{ run_local_repo }}"
@@ -35,3 +58,25 @@
   until: result.rc == 0
   retries: 3
   delay: 5
+  changed_when: false
+
+- name: Place back original telemetry.json file - Ubuntu/Rocky
+  ansible.builtin.copy:
+    src: "{{ original_telemetry_bk }}"
+    dest: "{{ telemetry_json_path_ubuntu_rocky }}"
+    mode: "{{ file_permission }}"
+  when:
+    - control_plane_os in control_plane_os_ubuntu or
+      control_plane_os in control_plane_os_rocky
+
+- name: Place back original telemetry.json file - RHEL
+  ansible.builtin.copy:
+    src: "{{ original_telemetry_bk }}"
+    dest: "{{ telemetry_json_path_rhel }}"
+    mode: "{{ file_permission }}"
+  when: control_plane_os in control_plane_os_as_rhel
+
+- name: Delete backup
+  ansible.builtin.file:
+    path: "{{  original_telemetry_bk }}"
+    state: absent

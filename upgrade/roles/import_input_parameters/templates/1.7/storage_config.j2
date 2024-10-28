@@ -19,6 +19,7 @@
 #***********************************************************************
 
 # -----------------------------NFS------------------------------------------------
+
 # USER have to mount EXTERNAL NFS server, omnia will mount NFS client when nfs_server value is false.
 # omnia will setup NFS server and mount NFS client when nfs_server value is true.
 # This variable is used for creating NFS share on slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login, etcd nodes
@@ -42,45 +43,47 @@
 # - { server_ip: 198.168.0.2, server_share_path: "/mnt/share2", client_share_path: "/mnt/mount2", client_mount_options: "nosuid,rw,sync,hard", nfs_server: false , slurm_share: true, k8s_share: false}
 
 nfs_client_params: # Value auto populated by Omnia upgrade script
-{% for params in nfs_client_params %}
+{% for params in storage_config_ns.nfs_client_params %}
 {% if params.server_ip is not none and params.server_share_path is not none and params.client_share_path is not none and params.client_mount_options is not none %}
-- { server_ip: "{{ params.server_ip }}", server_share_path: "{{ params.server_share_path }}", client_share_path: "{{ params.client_share_path }}", client_mount_options: "{{ params.client_mount_options }}", nfs_server: "{{ params.nfs_server }}", k8s_share: "{{ params.k8s_share }}", slurm_share: "{{ params.slurm_share }}" }
+- { server_ip: "{{ params.server_ip }}", server_share_path: "{{ params.server_share_path }}", client_share_path: "{{ params.client_share_path }}", client_mount_options: "{{ params.client_mount_options }}", nfs_server: {{ params.nfs_server | lower | regex_replace('["\']', '') }}, k8s_share: {{ params.k8s_share | lower | regex_replace('["\']', '') }}, slurm_share: {{ params.slurm_share | lower | regex_replace('["\']', '') }} }
 {% endif %}
 {% endfor %}
+
+# ----------------------------BEEGFS---------------------------------------------------
 
 # This variable is used if user has RDMA-capable network hardware (e.g., InfiniBand)
 # Accepted values: true or false
 # Default value: false
 # To enable support for remote direct memory access (RDMA), set this value to true
-beegfs_rdma_support: {{ beegfs_rdma_support | lower | regex_replace('["\']', '') }} # Value auto populated by Omnia upgrade script
+beegfs_rdma_support: {{ storage_config_ns.beegfs_rdma_support | lower | regex_replace('["\']', '') }} # Value auto populated by Omnia upgrade script
 
 # This variable if there are separate OFED kernel modules installed
 # Add path for kernel module
 # Default value is "/usr/src/ofa_kernel/default/include"
 # Please make sure this path is present on your nodes, else give appropriate path before execution
-beegfs_ofed_kernel_modules_path: "{{ beegfs_ofed_kernel_modules_path }}" # Value auto populated by Omnia upgrade script
+beegfs_ofed_kernel_modules_path: "{{ storage_config_ns.beegfs_ofed_kernel_modules_path }}" # Value auto populated by Omnia upgrade script
 
 # This variable is used for taking BeeGFS management server IP
 # Provide IP of beegfs management server
 # Required field
-beegfs_mgmt_server: "{{ beegfs_mgmt_server }}" # Value auto populated by Omnia upgrade script
+beegfs_mgmt_server: "{{ storage_config_ns.beegfs_mgmt_server }}" # Value auto populated by Omnia upgrade script
 
 # Beegfs-client file system mount location
 # Default value is "/mnt/beegfs"
 # Make sure beegfs_unmount_client value is true, for changing BeeGFS mounts location
-beegfs_mounts: "{{ beegfs_mounts }}" # Value auto populated by Omnia upgrade script
+beegfs_mounts: "{{ storage_config_ns.beegfs_mounts }}" # Value auto populated by Omnia upgrade script
 
 # The value of beegfs_unmount_client should be true, if there is a change in beegfs_mounts value or beegfs_client_version
 # Accepted values: true or false
 # Default value: false
 # changing this value to true will unmount running instance of BeeGFS client
-beegfs_unmount_client: {{ beegfs_unmount_client | lower | regex_replace('["\']', '') }} # Value auto populated by Omnia upgrade script
+beegfs_unmount_client: {{ storage_config_ns.beegfs_unmount_client | lower | regex_replace('["\']', '') }} # Value auto populated by Omnia upgrade script
 
 # For installing different version of BeeGFS client than the version which is already running on the BeeGFS cluster
 # Accepted values: true or false
 # Default value: false
 # If there is a need for installing different version of BeeGFS client then make this variable to true
-beegfs_version_change: {{ beegfs_version_change | lower | regex_replace('["\']', '') }} # Value auto populated by Omnia  upgrade script
+beegfs_version_change: {{ storage_config_ns.beegfs_version_change | lower | regex_replace('["\']', '') }} # Value auto populated by Omnia  upgrade script
 
 # Beegfs secret storage file or authentication file
 # Required for Beegfs version >= 7.2.7
@@ -88,4 +91,4 @@ beegfs_version_change: {{ beegfs_version_change | lower | regex_replace('["\']',
 # Accepted value: Path along with filename for secret stoarge file configured
 # on beegfs server
 # If this is not provided, beegfs installation will fail
-beegfs_secret_storage_filepath: "{{ beegfs_secret_storage_filepath }}" # Value auto populated by Omnia upgrade script
+beegfs_secret_storage_filepath: "{{ storage_config_ns.beegfs_secret_storage_filepath }}" # Value auto populated by Omnia upgrade script

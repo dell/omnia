@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+
 # main.yml
 telemetry_config_file: "{{ installed_omnia_path }}/input/telemetry_config.yml"
 telemetry_vault_filename: "{{ installed_omnia_path }}/input/.telemetry_vault_key"
@@ -27,13 +28,17 @@ input_dir_path: "{{ role_path }}/../../../input/upgrade_software_config.json"
 file_permission: "0644"
 
 # download_k8s_pkgs.yml
+upgrade_telemetry_json_path_ubuntu: "../files/{{ control_plane_os }}/{{ control_plane_os_version }}/telemetry_{{ k8s_version }}.json"
+upgrade_telemetry_json_path_rocky: "../files/{{ control_plane_os }}/telemetry_{{ k8s_version }}.json"
+upgrade_telemetry_json_path_rhel: "../files/rhel/telemetry_{{ k8s_version }}.json"
 telemetry_json_path_ubuntu_rocky: "{{ role_path }}/../../../input/config/{{ control_plane_os }}/{{ control_plane_os_version }}/telemetry.json"
 telemetry_json_path_rhel: "{{ role_path }}/../../../input/config/rhel/{{ control_plane_os_version }}/telemetry.json"
 control_plane_os_ubuntu: "ubuntu"
 control_plane_os_rocky: "rocky"
 control_plane_os_rhel: "redhat"
-upgrade_telemetry_json_path_ubuntu_rocky: "../files/{{ control_plane_os }}/telemetry_{{ k8s_version }}.json"
-upgrade_telemetry_json_path_rhel: "../files/rhel/telemetry_{{ k8s_version }}.json"
+telemetry_backup_path: "../files/"
+original_telemetry_bk: "../files/telemetry.json"
+control_plane_os_as_rhel: "rhel"
 run_local_repo: "ansible-playbook {{ role_path }}/../../../local_repo/local_repo.yml -e sw_config_json_path={{ input_dir_path }}"
 
 # metallb_cleanup.yml
@@ -56,7 +61,7 @@ inventory_grps:
     - 'kube_node'
     - 'etcd'
     - 'k8s_cluster'
-kube_version_list_v1.29.5:
+kube_version_list_v1_29_5: # noqa: var-naming[pattern]
     - v1.27.0
     - v1.28.0
     - v1.29.5
@@ -69,12 +74,14 @@ inv_path: "{{ installed_omnia_path }}/telemetry/roles/orchestrator/files/k8s_inv
 pods_state_fail_msg: "Not all pods are in running state. Ensure all pods are running and re-run upgrade_cp.yml"
 nodes_output_fail_msg: "Node is not in ready state. Ensure the node is healthy and re-run upgrade_cp.yml"
 track_file_path: "{{ role_path }}/files/track_upgrade.txt"
+k8s_upgrade_failed_msg: "Failed to upgrade Kubernetes on control plane. Please execute upgrade/restore_cp.yml to restore Kubernetes version to v1.26.12 on control plane and re-run upgrade_cp.yml" # noqa: yaml[line-length]
+binary_package_list: ['crictl']
 
 user_msg_upgrade: |
 
    ***************************************************************************************************************************************************
    Kubernetes Upgrade on Control Plane is sequential in nature. Upgrade will happen from v1.26.12 -> v1.27.0 -> v1.28.0 -> v1.29.5
-   
+
    The upgrade process will take approx. 15-20 minutes to complete.
    ****************************************************************************************************************************************************
 

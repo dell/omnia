@@ -13,18 +13,20 @@
 # limitations under the License.
 ---
 - name: Stop all running containers
-  shell: |
+  ansible.builtin.shell: |
     for container_id in $(nerdctl ps -q); do
       nerdctl stop $container_id
     done
   args:
     executable: /bin/bash
+  changed_when: false
 
 - name: Remove old nerdctl binary
   ansible.builtin.file:
-    path: "{{ nerdctl.binary_files_path }}"
+    path: "{{ item }}"
     state: absent
   changed_when: false
+  with_items: "{{ nerdctl.binary_files_path }}"
 
 - name: Remove old nerdctl binary from tmp directory
   ansible.builtin.file:
@@ -59,8 +61,9 @@
     path: "{{ nerdctl.folder_dest }}"
     mode: "{{ nerdctl.folder_permission }}"
 
-- name: Move nerdctl to /usr/local/bin
+- name: Move nerdctl to system bin directory
   ansible.builtin.copy:
     src: "{{ nerdctl.folder_dest }}"
-    dest: "{{ nerdctl.executable_dest }}"
+    dest: "{{ item }}"
     mode: preserve
+  with_items: "{{ nerdctl.executable_dest }}"

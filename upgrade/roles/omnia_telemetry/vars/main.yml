@@ -1,0 +1,40 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Usage: python_package_installation.yml
+python_version: "{{ ansible_python_interpreter }}"
+pyinstaller_python_package: pyinstaller
+psutil_python_package: psutil
+
+# Usage: telemetry_binary_creation.yml
+temp_download_dir: "/tmp"
+max_retries: 10
+directory_permissions: "0755"
+upgrade_folder_path: "{{ temp_download_dir }}/upgrade"
+telemetry_binary:
+  dist_path: "{{ upgrade_folder_path }}/telemetry/dist"
+  build_path: "{{ upgrade_folder_path }}/telemetry/build"
+  spec_path: "{{ upgrade_folder_path }}/telemetry/"
+  binary_name: omnia_telemetry
+  python_file_path: "{{ role_path }}/../../../prepare_cp/roles/omnia_telemetry_cp/files"
+
+# Usage: replace_and_start.yml
+binary_files_path: "{{ upgrade_folder_path }}/telemetry/dist/omnia_telemetry"
+omnia_telemetry_dest: "/opt/omnia/telemetry"
+binary_mode: "0500"
+
+# Usage: check_and_revert.yml
+old_binary_files_path: "/opt/omnia/telemetry/dist/omnia_telemetry"
+new_binaries_dir: "{{ upgrade_folder_path }}/telemetry"

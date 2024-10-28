@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,6 +28,9 @@ tsdb_pod: "timescaledb"
 timescaledb_name: "telemetry_metrics"
 mysqldb_pod: "mysqldb"
 mysqldb_table: "idrac_telemetrysource_services_db.services"
+python_pip_packages:
+  - omsdk==1.2.513
+  - pysnmp==6.1.3
 
 # Usage: k8s_secrets.yml
 # namespace: telemetry-and-visualizations
@@ -39,3 +42,23 @@ timezone_file_path: "{{ playbook_dir }}/../telemetry/roles/telemetry_validation/
 idrac_deployment_file: "{{ role_path }}/../../../telemetry/roles/idrac_telemetry/tasks/idrac_telemetry_deployment.yml"
 k8s_backup_location: "{{ backup_location }}/k8s"
 timescale_telemetry_backup_file: "telemetry_tsdb_dump.sql"
+idrac_reference_tools_folder: "{{ mount_location }}/iDRAC-Telemetry-Reference-Tools"
+
+python_version: "{{ ansible_python_interpreter }}"
+db_schema_utility: "{{ role_path }}/../../../telemetry/roles/omnia_telemetry_prepare_cp/files/omnia_telemetry_schema_creation.py"
+timescaledb_container_port: 5432
+
+# Usage: reconfig_timescaledb_data.yml
+idrac_telemetry_path: "/go/src/github.com/telemetry-reference-tools/omnia_timescaledb.tar.gz"
+postgresql_pod_data: "/var/lib/postgresql/data"
+timescaledb_mnt: "{{ mount_location }}/timescaledb"
+timescaledb_mnt_tar: "{{ mount_location }}/timescaledb/omnia_timescaledb.tar.gz"
+idrac_mnt_tar: "{{ mount_location }}/iDRAC-Telemetry-Reference-Tools/omnia_timescaledb.tar.gz"
+timescaledb_container_volume_mount: "/spec/template/spec/containers/0/volumeMounts/1/mountPath"
+timescaledb_host_mount: "/var/lib/postgresql/data"
+backup_tsdb_tar: "{{ k8s_backup_location }}/omnia_timescaledb.tar.gz"
+file_mode: "0644"
+database_name: "telemetry_metrics"
+timescaledb_k8s_name: timescaledb
+retry_count: 5
+delay_pod: 30

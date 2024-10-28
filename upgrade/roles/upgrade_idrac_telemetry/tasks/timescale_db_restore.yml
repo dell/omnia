@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -30,36 +30,83 @@
   register: create_database
   changed_when: create_database.rc == 0
 
+- name: Get external IP of timescaledb service
+  ansible.builtin.command: kubectl get svc "{{ tsdb_pod }}" -n "{{ telemetry_namespace }}" -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+  register: timescaledb_service_external_ip
+  failed_when: false
+  changed_when: false
+
 - name: Check if the telemetry_metrics backup file exists for restore
   ansible.builtin.stat:
     path: "{{ k8s_backup_location }}/{{ timescale_telemetry_backup_file }}"
   register: telemetry_backup_file
 
-- name: Fail if the telemetry_metrics backup file is not present for restore
-  ansible.builtin.fail:
-    msg: "Backup file {{ k8s_backup_location }}/{{ timescale_telemetry_backup_file }} does not exist!"
+- name: Print debug and create omnia telemetry schema if the telemetry_metrics backup file is not present for restore
   when: not telemetry_backup_file.stat.exists
-
-- name: Restore telemetry_metrics database from backup location
-  ansible.builtin.shell: >
-    set -o pipefail && \
-    cat "{{ k8s_backup_location }}/{{ timescale_telemetry_backup_file }}" |
-    kubectl exec "{{ timescaledb_pod_name.stdout }}"
-    -n "{{ telemetry_namespace }}"
-    -- psql -U {{ timescaledb_user }} {{ timescaledb_name }}
-  register: restore_database
-  changed_when: restore_database.rc == 0
-
-- name: Verify metrics in telemetry_metrics database after restore
   block:
-    - name: Count records in timeseries_metrics table
-      ansible.builtin.command: >
-        kubectl exec "{{ timescaledb_pod_name.stdout }}"
-        -n "{{ telemetry_namespace }}"
-        -- psql -U {{ timescaledb_user }} -d telemetry_metrics -c "SELECT COUNT(*) FROM timeseries_metrics;"
-      register: count_metrics
-      changed_when: false
-
-    - name: Display count of metrics
+    - name: Message user that tsdb backup file does not exists
       ansible.builtin.debug:
-        msg: "Count of metrics: {{ count_metrics }}"
+        msg: "Backup file {{ k8s_backup_location }}/{{ timescale_telemetry_backup_file }} does not exist!"
+
+    - name: Dump file does not exist , Invoke python utility to create schema and table omnia_telemetry schema
+      ansible.builtin.command: |
+        {{ python_version }} {{ db_schema_utility }} {{ timescaledb_user }} {{ timescaledb_password }}
+        {{ timescaledb_service_external_ip.stdout }} {{ timescaledb_container_port }} {{ timescaledb_name }}
+      changed_when: false
+      no_log: true
+
+- name: Restore when tsdb backup file exists
+  when: telemetry_backup_file.stat.exists
+  block:
+    - name: Copy telemetry_tsdb_dump.sql dump file to the timescaledb pod
+      ansible.builtin.shell: >
+        set -o pipefail && \
+        kubectl cp "{{ k8s_backup_location }}/{{ timescale_telemetry_backup_file }}"
+        "{{ telemetry_namespace }}/{{ timescaledb_pod_name.stdout }}:/tmp/telemetry_tsdb_dump.sql"
+      register: copy_backup
+      changed_when: copy_backup.rc == 0
+
+    - name: Restore telemetry_metrics database from backup file
+      ansible.builtin.shell: >
+        set -o pipefail && \
+        kubectl exec "{{ timescaledb_pod_name.stdout }}"
+        -n "{{ telemetry_namespace }}" -- psql -U {{ timescaledb_user }} {{ timescaledb_name }}
+        -f /tmp/telemetry_tsdb_dump.sql
+      register: restore_database
+      changed_when: restore_database.rc == 0
+
+    - name: Verify metrics in telemetry_metrics database after restore
+      when:
+        - upgrade_precheck_pod_status_report.idrac_telemetry_pod_running_status is false
+        - upgrade_precheck_pod_status_report.timescaledb_pod_running_status is true
+        - upgrade_precheck_pod_status_report.mysqldb_pod_running_status is false
+      block:
+        - name: Count records in timeseries_metrics table
+          ansible.builtin.command: >
+            kubectl exec "{{ timescaledb_pod_name.stdout }}"
+            -n "{{ telemetry_namespace }}"
+            -- psql -U {{ timescaledb_user }} -d telemetry_metrics -c "SELECT COUNT(*) FROM omnia_telemetry.metrics;"
+          register: count_metrics
+          changed_when: false
+
+        - name: Display count of metrics
+          ansible.builtin.debug:
+            msg: "Count of metrics: {{ count_metrics.stdout }}"
+
+    - name: Verify metrics in telemetry_metrics database after restore
+      when:
+        - upgrade_precheck_pod_status_report.idrac_telemetry_pod_running_status is true
+        - upgrade_precheck_pod_status_report.timescaledb_pod_running_status is true
+        - upgrade_precheck_pod_status_report.mysqldb_pod_running_status is true
+      block:
+        - name: Count records in timeseries_metrics table
+          ansible.builtin.command: >
+            kubectl exec "{{ timescaledb_pod_name.stdout }}"
+            -n "{{ telemetry_namespace }}"
+            -- psql -U {{ timescaledb_user }} -d telemetry_metrics -c "SELECT COUNT(*) FROM public.timeseries_metrics;"
+          register: count_metrics
+          changed_when: false
+
+        - name: Display count of metrics
+          ansible.builtin.debug:
+            msg: "Count of metrics: {{ count_metrics.stdout }}"

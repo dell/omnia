@@ -18,12 +18,12 @@
   changed_when: false
   failed_when: false
 
-- name: Deleting the timescale DB service
-  ansible.builtin.command: kubectl delete service "{{ tsdb_pod }}" -n "{{ telemetry_namespace }}"
-  changed_when: false
-  failed_when: false
-
 - name: Deleting the iDRAC telemetry pods
   ansible.builtin.command: kubectl delete deployment "{{ idrac_telemetry_pod }}" -n "{{ telemetry_namespace }}"
   changed_when: false
   failed_when: false
+
+- name: Delete iDRAC reference tools telemetry folder
+  ansible.builtin.file:
+    path: "{{ idrac_reference_tools_folder }}"
+    state: absent

@@ -42,16 +42,7 @@
     msg: "Pod '{{ mysql_pod_name.stdout }}' is not running. Current status: {{ pod_status.stdout }}"
   when: pod_status.stdout != 'Running'
 
-- name: Check data exist in MySQL db before taking backup
-  ansible.builtin.import_tasks: check_mysql_data_existence.yml
-
-- name: Fail if tables is not present in the MySQL DB
-  ansible.builtin.fail:
-    msg: "Tables are not present in the MySQL DB: {{ show_tables_result.stderr }}"
-  when: mysqldb_backup_flag is false
-
 - name: Backup for MYSQL Database
-  when: mysqldb_backup_flag
   block:
     - name: Backup MySQL Database
       ansible.builtin.command:

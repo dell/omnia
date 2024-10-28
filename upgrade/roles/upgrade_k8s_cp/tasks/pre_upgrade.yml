@@ -47,7 +47,7 @@
 
 - name: Set kube_version_var dynamically
   ansible.builtin.set_fact:
-    kube_version_var: "kube_version_list_{{ k8s_version }}"
+    kube_version_var: "kube_version_list_{{ k8s_version | replace('.', '_') }}"
 
 - name: Set the version list variable dynamically
   ansible.builtin.set_fact:
@@ -62,6 +62,21 @@
   ansible.builtin.set_fact:
     cp_ip_addresses: "{{ ip_output.stdout | regex_findall('inet\\s([0-9.]+)') }}"
 
+- name: Check if /usr/bin/crictl exists
+  ansible.builtin.stat:
+    path: "{{ crictl_dest }}/crictl"
+  register: crictl_status
+
+- name: If crictl binary exists copy to /usr/local/bin
+  ansible.builtin.copy:
+    src: "{{ crictl_dest }}/{{ item }}"
+    dest: "{{ ctr_pkg_dest }}/{{ item }}"
+    mode: "{{ copy_permission }}"
+  loop: "{{ binary_package_list }}"
+  when: crictl_status.stat.exists
+  loop_control:
+    loop_var: item
+
 - name: Copy crictl package to /usr/bin
   ansible.builtin.copy:
     src: "{{ crictl_src }}"
@@ -71,13 +86,15 @@
 - name: Create track_upgrade.txt file
   ansible.builtin.file:
     path: "{{ track_file_path }}"
+    mode: "{{ file_permission }}"
     state: touch
-  ignore_errors: true
+  failed_when: false
 
-- name: Render vars file - k8s_var.yml for kube version {{ kube_version }}
+- name: Render vars file - k8s_var.yml for kube version
   ansible.builtin.template:
     src: "{{ k8s_var_src }}"
     dest: "{{ k8s_var_dest }}"
+    mode: "{{ file_permission }}"
   with_items: "{{ version_list_to_use }}"
   loop_control:
     loop_var: kube_version
@@ -87,7 +104,7 @@
     msg: "{{ user_msg_upgrade.split('\n') }}"
 
 - name: K8s upgrade tasks
-  include_tasks: upgrade_k8s.yml
+  ansible.builtin.include_tasks: upgrade_k8s.yml
   loop: "{{ version_list_to_use }}"
   loop_control:
-    loop_var: kube_version
+    loop_var: kubernetes_version

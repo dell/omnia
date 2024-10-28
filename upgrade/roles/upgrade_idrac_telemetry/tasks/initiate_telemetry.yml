@@ -15,7 +15,7 @@
 
 # Include and initialize variables
 - name: Initiate telemetry process if idrac_support is enabled
-  when: idrac_telemetry_support is true
+  when: idrac_telemetry_support is true and 'idrac' in groups
   block:
     - name: Initialize variables
       ansible.builtin.set_fact:

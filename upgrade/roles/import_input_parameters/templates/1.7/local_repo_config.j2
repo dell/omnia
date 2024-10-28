@@ -1,0 +1,158 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+#***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.                  
+# SIMPLY APPEND THE REQUIRD VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
+#***********************************************************************
+
+# Mandatory
+# All the offline repository data for omnia stack will be stored at this path.
+# Please make sure assigned partition has enough space.
+# Ensure 755 permission is given to repo_store_path if user intends to use nfs share mount for repo_store_path
+# Default: /omnia_repo
+repo_store_path: "{{ local_repo_config_ns.repo_store_path }}" # Value auto populated by Omnia upgrade script
+
+# Optional
+# This variable accepts the repository urls of the user which contains the packages required for the cluster.
+# always: In this case, Omnia creates a local repo on the Control plane hosting all the packages required for the cluster. 
+# User should make sure required disk space is available.
+# partial: In this case, Omnia creates a local repo on the Control Plane hosting packages not part of user's repository.
+# never: In this case, Omnia does not create a local repo. All the packages are directly downloaded on the cluster.
+# This variable accepts repo url and gpgkey
+# url: defines the baseurl for the repository
+# gpgkey: defines gpgkey for the repository
+# If gpgkey is empty then gpgcheck will be disabled for that repository
+# This variable should not have jinja variables in it.
+# In Ubuntu OS, it is mandatory to provide gpgkey for the user repositories. In case there is no gpgkey associated with the repo
+# and user leaves the gpgkey field empty (gpgkey: "" ), omnia configures the repository as a trusted source and the user is solely
+# responsible in maintaining the security.
+# Example:
+# user_repo_url:
+#   - {url: "http://user_repo.com/x86_64/os/",gpgkey: "http://user_repo.com/x86_64/os/RPM-GPG-KEY"}
+user_repo_url:  # Value auto populated by Omnia upgrade script
+{% if local_repo_config_ns.user_repo_url %}
+{% for item in local_repo_config_ns.user_repo_url %}
+{% if item.url is not none and item.gpgkey is not none %}
+  - { url: "{{ item.url }}", gpgkey: "{{ item.gpgkey }}" }
+{% endif %}
+{% endfor %}
+{% endif %}
+
+# Optional
+# This variable accepts the registry url along with port of the user which contains the images required for cluster.
+# always: In this case, Omnia creates a local registry on the Control plane hosting all the images required for the cluster. 
+# User should make sure required disk space is available.
+# partial: In this case, Omnia creates a local registry on the Control Plane hosting images not part of user's registry.
+# never: In this case, Omnia does not create a local registry. All the images are directly downloaded on the cluster.
+# This variable accepts host and cert_path
+# host: defines the url and port for registry
+# cert_path: defines the absolute path of the certificates for each registry.
+# If cert_path is empty, insecure registry will be configured.
+# Example:
+# user_registry:
+#   - { host: 10.11.0.100:5001, cert_path: "/home/ca.crt" }
+#   - { host: registryhostname.registry.test, cert_path: "" }
+user_registry:        # Value auto populated by Omnia upgrade script
+{% if local_repo_config_ns.user_registry %}
+{% for item in local_repo_config_ns.user_registry %}
+{% if item.host is not none  and item.cert_path is not none  %}
+  - { host: {{ item.host }} , cert_path: "{{ item.cert_path }}" }
+{% endif %}
+{% endfor %}
+{% endif %}
+
+# Mandatory when cluster_os_type is ubuntu in softwares_config.json
+# This variable will be ignored when cluster_os_type is rhel or rocky
+# This variables defines the repos to be configured on all the compute nodes
+# When repo_config is always, partial or never, the given ubuntu_os_url configured via proxy in compute nodes
+# Online ubuntu_os_url for Ubuntu 22.04 is http://in.archive.ubuntu.com/ubuntu
+# Online ubuntu_os_url for Ubuntu 20.04 is http://archive.ubuntu.com/ubuntu
+# Example: 
+# When cluster_os_type is Ubuntu 22.04
+# ubuntu_os_url: "http://in.archive.ubuntu.com/ubuntu"
+ubuntu_os_url: {{ local_repo_config_ns.ubuntu_os_url }}     # Value auto populated by Omnia upgrade script
+
+# Mandatory when cluster_os_type is rhel in softwares_config.json
+# This variable will be ignored when cluster_os_type is ubuntu or rocky
+# User has to provide the code ready builder url that should not have a RedHat subscription authentication inorder to download the packages 
+# When repo_config is always, the given rhel_os_url will be configured in the control plane and packages required  for cluster will be downloaded
+# When repo_config is partial or never, the packages required for cluster which were coming from rhel_repo_url will not be downloaded.
+# and the rhel_os_url configured via proxy in compute nodes
+# Example:
+# rhel_os_url:
+#   - {url: "http://crb.com/CRB/x86_64/os/", gpgkey: "http://crb.com/CRB/x86_64/os/RPM-GPG-KEY"}
+rhel_os_url:       # Value auto populated by Omnia upgrade script
+{% if local_repo_config_ns.rhel_os_url %}
+{% for item in local_repo_config_ns.rhel_os_url %}
+{% if item.url is not none and item.gpgkey is not none %}
+  - { url: "{{ item.url }}", gpgkey: "{{ item.gpgkey }}" }
+{% endif %}
+{% endfor %}
+{% endif %}
+
+### ADVANCE CONFIGURATIONS FOR LOCAL REPO ###
+# Mandatory
+# This variable defines all the repo urls from where rpms will be downloaded for omnia features when cluster_os_type is rhel.
+# Making incorrect changes to this variable can cause omnia failure. Please edit cautiously.
+# 'url' defines the baseurl for the repository
+# 'gpgkey' defines gpgkey for the repository
+# If 'gpgkey' is kept empty then gpgcheck=0 for that repository
+omnia_repo_url_rhel:              # Value auto populated by Omnia upgrade script
+  - { url: "https://download.docker.com/linux/centos/$releasever/$basearch/stable", gpgkey: "https://download.docker.com/linux/centos/gpg" }
+  - { url: "https://repo.radeon.com/rocm/rhel8/{{ local_repo_config_ns.rocm_version | default('{{ rocm_version }}') }}/main", gpgkey: "https://repo.radeon.com/rocm/rocm.gpg.key" }
+  - { url: "https://download.fedoraproject.org/pub/epel/8/Everything/$basearch", gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-8" }
+  - { url: "https://repo.radeon.com/amdgpu/{{ local_repo_config_ns.amdgpu_version | default('{{ amdgpu_version }}')}}/rhel/{{ local_repo_config_ns.cluster_os_version | default('{{ cluster_os_version }}')}}/main/x86_64", gpgkey: "https://repo.radeon.com/rocm/rocm.gpg.key" }
+  - { url: "https://www.beegfs.io/release/beegfs_{{ local_repo_config_ns.beegfs_version| default('{{ beegfs_version }}')}}/dists/rhel8", gpgkey: "https://www.beegfs.io/release/beegfs_{{ local_repo_config_ns.beegfs_version | default('{{ beegfs_version }}')}}/gpg/GPG-KEY-beegfs" }
+  - { url: "https://yum.repos.intel.com/oneapi", gpgkey: "https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB" }
+  - { url: "https://ltb-project.org/rpm/openldap25/$releasever/$basearch", gpgkey: ""}
+  - { url: "https://nvidia.github.io/libnvidia-container/stable/rpm/$basearch", gpgkey: "https://nvidia.github.io/libnvidia-container/gpgkey"}
+  - { url: "https://a2o.github.io/snoopy-packages/repo/centos/8/stable/", gpgkey: ""}
+
+# Mandatory
+# This variable defines all the repo urls from where rpms will be downloaded for omnia features when cluster_os_type is rocky.
+# Making incorrect changes to this variable can cause omnia failure. Please edit cautiously.
+# 'url' defines the baseurl for the repository
+# 'gpgkey' defines gpgkey for the repository
+# If 'gpgkey' is kept empty then gpgcheck=0 for that repository
+omnia_repo_url_rocky:       # Value auto populated by Omnia upgrade script
+  - { url: "https://download.docker.com/linux/centos/$releasever/$basearch/stable", gpgkey: "https://download.docker.com/linux/centos/gpg" }
+  - { url: "https://repo.radeon.com/rocm/rhel8/{{ local_repo_config_ns.rocm_version | default('{{ rocm_version }}') }}/main", gpgkey: "https://repo.radeon.com/rocm/rocm.gpg.key" }
+  - { url: "https://download.fedoraproject.org/pub/epel/8/Everything/$basearch", gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-8" }
+  - { url: "https://repo.radeon.com/amdgpu/{{ local_repo_config_ns.amdgpu_version | default('{{ amdgpu_version }}')}}/rhel/{{ local_repo_config_ns.cluster_os_version | default('{{ cluster_os_version }}')}}/main/x86_64", gpgkey: "https://repo.radeon.com/rocm/rocm.gpg.key" }
+  - { url: "https://www.beegfs.io/release/beegfs_{{ local_repo_config_ns.beegfs_version | default('{{ beegfs_version }}')}}/dists/rhel8", gpgkey: "https://www.beegfs.io/release/beegfs_{{ local_repo_config_ns.beegfs_version | default('{{ beegfs_version }}')}}/gpg/GPG-KEY-beegfs" }
+  - { url: "https://yum.repos.intel.com/oneapi", gpgkey: "https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB" }
+  - { url: "https://ltb-project.org/rpm/openldap25/$releasever/$basearch", gpgkey: ""}
+  - { url: "http://dl.rockylinux.org/$contentdir/$releasever/PowerTools/$basearch/os/", gpgkey: ""}
+  - { url: "https://nvidia.github.io/libnvidia-container/stable/rpm/$basearch", gpgkey: "https://nvidia.github.io/libnvidia-container/gpgkey"}
+  - { url: "https://a2o.github.io/snoopy-packages/repo/centos/8/stable/", gpgkey: ""}
+
+# Mandatory
+# This variable defines all the repo urls from where deb packages will be downloaded for omnia features when cluster_os_type is ubuntu.
+# Making incorrect changes to this variable can cause omnia failure. Please edit cautiously.
+# 'url' defines the baseurl for the repository
+# 'gpgkey' defines gpgkey for the repository
+# If 'gpgkey' is kept empty then gpgcheck=0 for that repository
+# 'publickey' defines publickey for the repository, if 'gpgkey' is not available for that repository
+omnia_repo_url_ubuntu:      # Value auto populated by Omnia upgrade script
+  - { url: "https://download.docker.com/linux/ubuntu {{ local_repo_config_ns.os_release | default('{{ os_release }}')}} stable", gpgkey: "https://download.docker.com/linux/ubuntu/gpg" }
+  - { url: "https://repo.radeon.com/rocm/apt/{{ local_repo_config_ns.rocm_version | default('{{ rocm_version }}') }} {{ local_repo_config_ns.os_release | default('{{ os_release }}')}} main", gpgkey: "https://repo.radeon.com/rocm/rocm.gpg.key" }
+  - { url: "https://www.beegfs.io/release/beegfs_{{ local_repo_config_ns.beegfs_version | default('{{ beegfs_version }}')}} {{ local_repo_config_ns.os_release | default('{{ os_release }}') }} non-free", gpgkey: "https://www.beegfs.io/release/beegfs_{{ local_repo_config_ns.beegfs_version | default('{{ beegfs_version }}')}}/gpg/GPG-KEY-beegfs" }
+  - { url: "https://repo.radeon.com/amdgpu/{{ local_repo_config_ns.amdgpu_version | default('{{ amdgpu_version }}')}}/ubuntu {{ local_repo_config_ns.os_release | default('{{ os_release }}')}} main", gpgkey: "https://repo.radeon.com/rocm/rocm.gpg.key" }
+  - { url: "https://ltb-project.org/debian/openldap25/{{ local_repo_config_ns.openldap_release | default('{{ openldap_release }}')}} {{ local_repo_config_ns.openldap_release | default('{{ openldap_release }}')}} main", publickey: "https://ltb-project.org/documentation/_static/RPM-GPG-KEY-LTB-project" }
+  - { url: "https://nvidia.github.io/libnvidia-container/stable/deb/amd64 /", gpgkey: "https://nvidia.github.io/libnvidia-container/gpgkey" }
+  - { url: "http://ppa.launchpad.net/deadsnakes/ppa/ubuntu {{ local_repo_config_ns.os_release | default('{{ os_release }}')}} main", gpgkey: "" }
+  - { url: "https://a2o.github.io/snoopy-packages/repo/ubuntu {{ local_repo_config_ns.os_release | default('{{ os_release }}')}} stable", publickey: "https://a2o.github.io/snoopy-packages/snoopy-packages-key.pub" }
+  - { url: "https://vault.habana.ai/artifactory/debian {{ local_repo_config_ns.os_release | default('{{ os_release }}')}} main", publickey: "https://vault.habana.ai/artifactory/api/gpg/key/public" }

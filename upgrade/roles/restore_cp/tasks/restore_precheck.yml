@@ -1,0 +1,55 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Check if the etcd backup file exists
+  ansible.builtin.stat:
+    path: "{{ snapshot_db_name }}"
+  register: check_etcd_backup
+
+- name: Check if the k8s backup tarball exists
+  ansible.builtin.stat:
+    path: "{{ k8s_backup_location_tarball }}"
+  register: check_k8s_tarball
+
+- name: Check if the mysqldb backup file exists
+  ansible.builtin.stat:
+    path: "{{ k8s_backup_location }}/{{ mysqldb_local_backup_file }}"
+  register: check_mysqldb_backup_file
+
+- name: Check if the timescaledb backup file exists
+  ansible.builtin.stat:
+    path: "{{ k8s_backup_location }}/{{ timescale_telemetry_backup_file }}"
+  register: check_timescaledb_backup_file
+
+- name: Check for k8s tarball existence
+  when: not check_etcd_backup.stat.exists
+  block:
+    - name: Fail if snapshot does not exist and if k8s tarball exist
+      ansible.builtin.fail:
+        msg: "{{ k8s_tarball_file_fail_msg }}"
+      when:
+        - check_k8s_tarball.stat.exists
+
+- name: Fail if etcd backup file does not exist
+  ansible.builtin.fail:
+    msg: "{{ etcd_file_fail_msg }}"
+  when:
+    - not check_etcd_backup.stat.exists
+    - not check_k8s_tarball.stat.exists
+
+- name: Check if omnia_inventory is present
+  ansible.builtin.stat:
+    path: "{{ backup_location }}/omnia_inventory"
+  register: omnia_inv_stat
