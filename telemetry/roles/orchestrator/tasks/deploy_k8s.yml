@@ -44,11 +44,11 @@
 
 - name: K8s installation on control plane (Wait 10 mins for kubernetes installation to complete)
   ansible.builtin.command: >
-    ansible-playbook {{ kubespray_path }}/kubespray/cluster.yml \
+    ansible-playbook {{ kubespray_path }}/{{ telemetry_package_map['kubespray'] }}/cluster.yml \
     -i {{ role_path }}/files/k8s_inv.ini \
     --extra-vars "@{{ role_path }}/files/k8s_var.yml"
   args:
-    chdir: "{{ kubespray_path }}/kubespray"
+    chdir: "{{ kubespray_path }}/{{ telemetry_package_map['kubespray'] }}"
   environment:
     HTTP_PROXY: "{{ proxy[0].http_proxy | default('', true) }}"
     HTTPS_PROXY: "{{ proxy[0].https_proxy | default('', true) }}"

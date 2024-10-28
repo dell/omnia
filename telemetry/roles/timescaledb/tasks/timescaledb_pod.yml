@@ -56,7 +56,7 @@
                 volumeMounts:
                   - mountPath: /go/src/github.com/telemetry-reference-tools
                     name: telemetry-reference-tools
-                  - mountPath: /var/lib/postgresql/
+                  - mountPath: /var/lib/postgresql/data
                     name: timescaledb-pvc
                   - mountPath: /etc/localtime
                     name: timezone
