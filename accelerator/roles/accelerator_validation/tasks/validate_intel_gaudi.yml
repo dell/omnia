@@ -43,7 +43,7 @@
   loop: "{{ user_config.gaudi | default([]) }}"
   when:
     - intel_gaudi_input_status
-    - "'habana' in item.name"
+    - "'intel' in item.name"
   loop_control:
     loop_var: item
 
