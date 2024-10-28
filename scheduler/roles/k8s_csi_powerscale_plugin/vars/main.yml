@@ -31,13 +31,18 @@ csi_powerscale_git: "csi-powerscale.tar.gz"
 fail_msg_csi_powerscale_driver: "Error. Deployment of csi driver was not successful. Please review the deployment. Run playbook with -vvv for more details"
 pass_msg_csi_powerscale_driver: "CSI Powerscale driver installation completed successfully."
 wait_time: 10
+warning_wait_time: 30
 max_attempts: 5
 isilon_ns: "isilon"
+async_time: 180
+poll_time: 10
 
 # Usage: csi_powerscale_prereq.yml
 permission_644: "0644"
 owner_value: "root"
 group_value: "root"
+powerscale_ns: "isilon"
+powerscale_pod_indcator: "isilon-"
 csi_powerscale_values_path: "{{ csi_powerscale_path }}/values.yaml"
 fail_msg_download: "Failed to get required dependencies. Make sure to verify entries in csi_driver_powerscale.json and run local_repo.yml first."
 helm_charts_git: "helm-charts.tar.gz"
@@ -46,3 +51,5 @@ k8s_not_deployed: "Failed, Kubernetes is not deployed on the cluster. Run omnia.
 helm_not_deployed: "Failed, Helm is not deployed on the cluster."
 csi_powerscale_secret_vaultname: ".csi_powerscale_secret_vault"
 vault_key_permission: "0644"
+warning_msg_already_deployed: "Powerscale will not be deployed. Existing powerscale deployment is already present on the cluster.
+ Please remove the existing powerscale deployment first using steps mentioned in omnia document and rerun playbook to install powerscale."

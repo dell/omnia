@@ -19,11 +19,14 @@
     - name: Fetch required files to kube control plane
       ansible.builtin.include_tasks: csi_powerscale_prereq.yml
 
-    - name: Configure secret
-      ansible.builtin.include_tasks: csi_powerscale_config_secret.yml
+    - name: Deploy powerscale if not already deployed
+      when: not powerscale_already_deployed
+      block:
+        - name: Configure secret
+          ansible.builtin.include_tasks: csi_powerscale_config_secret.yml
 
-    - name: Configure certificate
-      ansible.builtin.include_tasks: csi_powerscale_config_certificate.yml
+        - name: Configure certificate
+          ansible.builtin.include_tasks: csi_powerscale_config_certificate.yml
 
-    - name: Install powerscale driver
-      ansible.builtin.include_tasks: csi_powerscale_install.yml
+        - name: Install powerscale driver
+          ansible.builtin.include_tasks: csi_powerscale_install.yml

@@ -35,6 +35,7 @@
 - name: Set facts for cluster
   ansible.builtin.set_fact:
     cluster_os_type: "{{ software_config.cluster_os_type }}"
+    cluster_os_version: "{{ software_config.cluster_os_version }}"
 
 - name: Check if slurm support is required
   ansible.builtin.fail:
@@ -43,7 +44,7 @@
     - slurm_support is true
     - cluster_os_type == compute_os_ubuntu
 
-- name: Check if csi powerscale driver installation is required 
+- name: Check if csi powerscale driver installation is required
   ansible.builtin.set_fact:
     csi_driver_powerscale_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'csi_driver_powerscale') | list | length > 0 }}"
 
@@ -111,6 +112,30 @@
     - name: Load k8s.json
       ansible.builtin.set_fact:
         k8s_packages_json: "{{ lookup('file', k8s_packages_file) | from_json }}"
+
+    - name: Extract and set facts for tarball URLs
+      ansible.builtin.set_fact:
+        kubeadm_package: "kubeadm"
+        kubectl_package: "kubectl"
+        kubelet_package: "kubelet"
+        crictl_package: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'cri') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        calicoctl_package: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'calicoctl') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        calico_crds_package: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'calicocrds') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        cni_package: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'cni') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        nerdctl_package: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'nerdctl') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        runc_package: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'runc') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        etcd_package: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'etcd') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        containerd_package: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'containerd') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        helm_package: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'helm') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        mpi_operator: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'manifest') | selectattr('package', 'search', 'mpi') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+
+    - name: Conditional logic for kubeadm, kubectl, and kubelet packages # noqa: no-jinja-when
+      ansible.builtin.set_fact:
+        kubeadm_package: "kubeadm-{{ hostvars['localhost']['k8s_version'] }}"
+        kubectl_package: "kubectl-{{ hostvars['localhost']['k8s_version'] }}"
+        kubelet_package: "kubelet-{{ hostvars['localhost']['k8s_version'] }}"
+      when: k8s_version != '{{ omnia161_k8s_version }}'
+
   rescue:
     - name: Unable to fetch k8s version
       ansible.builtin.fail:

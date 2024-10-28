@@ -74,4 +74,3 @@
     path: "{{ ansible_collection_folder }}{{ kubespray_certificate_key_taskfile_path }}"
     insertafter: "- name: Set kubeadm certificate key"
     line: "  no_log: true"
-

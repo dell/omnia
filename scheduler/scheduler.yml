@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 - name: Update Inventory with ansible_host information
   ansible.builtin.import_playbook: ../utils/servicetag_host_mapping.yml
   when: not ( hostvars['127.0.0.1']['update_inventory_executed'] | default(false) | bool )
@@ -66,6 +65,18 @@
   roles:
     - k8s_habana_container_runtime
 
+- name: Install nvidia-container-toolkit on nodes with Nvidia GPU
+  hosts: kube_control_plane, kube_node, etcd
+  gather_facts: false
+  roles:
+    - k8s_nvidia_container_toolkit
+
+- name: Install Plugin only when one of nodes with AMD GPU
+  hosts: kube_control_plane, kube_node, etcd
+  gather_facts: false
+  roles:
+    - k8s_amd
+
 - name: Prepare kube control plane and kube nodes for kubernetes services installations
   hosts: kube_control_plane, kube_node
   gather_facts: false
@@ -92,12 +103,6 @@
   gather_facts: false
   roles:
     - k8s_csi_powerscale_plugin
-
-- name: Install nvidia-container-toolkit on nodes with Nvidia GPU
-  hosts: kube_control_plane, kube_node, etcd
-  gather_facts: false
-  roles:
-    - k8s_nvidia_container_toolkit
 
 - name: Apply common Slurm installation and config
   hosts: slurm_control_node, slurm_node, login

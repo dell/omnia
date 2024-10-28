@@ -15,26 +15,26 @@
 
 - name: Define variables
   ansible.builtin.set_fact:
-    install_nvidia_container_toolkit: false
+    install_amd_plugin: false
 
-- name: Check if nvidia gpu is present
+- name: Verify if the node has amd gpu accelerator
   ansible.builtin.shell: >
     set -o pipefail && \
-    lspci | grep -i nvidia
+    lspci | grep "Display controller: Advanced Micro Devices, Inc. \[AMD/ATI\] \| Processing accelerators: Advanced Micro Devices, Inc. \[AMD/ATI\]"
   register: lspci_status
   changed_when: false
   failed_when: false
 
-- name: Update nvidia container toolkit install status
+- name: Update amd gpu accelerator status
   ansible.builtin.set_fact:
-    install_nvidia_container_toolkit: true
-  when: "'NVIDIA' in lspci_status.stdout"
+    install_amd_plugin: true
+  when: lspci_status.stdout | length > 0
 
 - name: Set fact for localhost
   ansible.builtin.set_fact:
-    is_nvidia_cluster: true
+    is_amd_cluster: true
   delegate_to: localhost
   delegate_facts: true
   when:
-    - install_nvidia_container_toolkit is defined
-    - install_nvidia_container_toolkit is true
+    - install_amd_plugin is defined
+    - install_amd_plugin is true

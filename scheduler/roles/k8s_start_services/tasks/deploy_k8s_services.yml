@@ -59,17 +59,6 @@
   ansible.builtin.command: "kubectl apply -f {{ k8s_dashboard_loadbalancer_file_dest }}"
   changed_when: true
 
-# NVIDIA PLUGIN
-- name: Copy nvidia_runtime_class.yml file
-  ansible.builtin.copy:
-    src: "{{ nvidia_runtime_source }}"
-    dest: "{{ nvidia_runtime_dest }}"
-    mode: "{{ file_mode }}"
-
-- name: Create RuntimeClass for nvidia-plugin
-  ansible.builtin.command: "kubectl apply -f {{ nvidia_runtime_dest }}"
-  changed_when: true
-
 - name: Fetch helm path
   block:
     - name: Fetch helm path
@@ -81,26 +70,53 @@
       ansible.builtin.fail:
         msg: "{{ helm_install_fail_msg }}"
 
-- name: Install nvidia-device-plugin
-  ansible.builtin.command: >
-     {{ helm_full_path.stdout.split(' ')[1] }} install --namespace nvidia-device-plugin --create-namespace
-     --generate-name --set runtimeClassName=nvidia --set migStrategy='{{ mig_strategy }}' --set gfd.enabled='{{ gpu_discovery_feature }}'
-     '{{ nvidia_device_plugin_repo }}'
-  changed_when: true
+# NVIDIA PLUGIN
+- name: Deploy Nvidia Device plugin
   when:
     - "'nvidia-device-plugin' not in k8s_pods.stdout"
+    - hostvars['localhost']['is_nvidia_cluster'] is defined
+  block:
+    - name: Copy nvidia_runtime_class.yml file
+      ansible.builtin.copy:
+        src: "{{ nvidia_runtime_source }}"
+        dest: "{{ nvidia_runtime_dest }}"
+        mode: "{{ file_mode }}"
+
+    - name: Create RuntimeClass for nvidia-plugin
+      ansible.builtin.command: "kubectl apply -f {{ nvidia_runtime_dest }}"
+      changed_when: true
+
+    - name: Install nvidia-device-plugin
+      ansible.builtin.command: >
+        {{ helm_full_path.stdout.split(' ')[1] }} install --namespace nvidia-device-plugin --create-namespace
+        --generate-name --set runtimeClassName=nvidia --set migStrategy='{{ mig_strategy }}' --set gfd.enabled='{{ gpu_discovery_feature }}'
+        '{{ nvidia_device_plugin_repo }}'
+      changed_when: true
 
 # ROCM PLUGIN
 - name: Deploy ROCm Device plugin
-  ansible.builtin.command: "kubectl create -f '{{ rocm_device_plugin_yaml_url }}'"
-  changed_when: true
-  when: "'amdgpu-device-plugin-daemonset' not in k8s_pods.stdout"
+  when:
+    - "'amdgpu-device-plugin-daemonset' not in k8s_pods.stdout"
+    - hostvars['localhost']['is_amd_cluster'] is defined
+  block:
+    - name: Deploy ROCm Device plugin
+      ansible.builtin.command: "kubectl create -f '{{ rocm_device_plugin_yaml_url }}'"
+      changed_when: true
 
-- name: Patch DaemonSet with updated imagePullPolicy
-  ansible.builtin.command: >
-    kubectl patch daemonset amdgpu-device-plugin-daemonset -n kube-system --type='json'
-    -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/imagePullPolicy", "value":"IfNotPresent"}]'
+    - name: Patch DaemonSet with updated imagePullPolicy
+      ansible.builtin.command: >
+        kubectl patch daemonset amdgpu-device-plugin-daemonset -n kube-system --type='json'
+        -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/imagePullPolicy", "value":"IfNotPresent"}]'
+      changed_when: true
+
+# LABEL NODES WITH GAUDI
+- name: Label nodes with Gaudi
+  ansible.builtin.command: "kubectl label nodes {{ item }} {{ node_label_for_habana_device_plugin }}=true --overwrite"
   changed_when: true
+  when:
+    - hostvars['localhost']['is_gaudi_cluster'] is defined
+    - hostvars[item]['node_has_gaudi'] | default(false)
+  loop: "{{ groups['kube_node'] | default([]) }}"
 
 # LABEL NODES WITH GAUDI
 - name: Label nodes with Gaudi
@@ -154,7 +170,7 @@
 # NFS CLIENT PROVISIONER
 - name: Start NFS Client Provisioner using NFS on manager node
   ansible.builtin.command: >
-    {{ helm_full_path.stdout.split(' ')[1] }} nfs-omnia '{{ nfs_subdir_external_provisioner_repo }}'
+    {{ helm_full_path.stdout.split(' ')[1] }} install nfs-omnia '{{ nfs_subdir_external_provisioner_repo }}'
      --set nfs.server='{{ hostvars['127.0.0.1']['k8s_nfs_server_ip'] }}'
      --set nfs.path="{{ hostvars['127.0.0.1']['k8s_server_share_path'] }}"
   changed_when: true

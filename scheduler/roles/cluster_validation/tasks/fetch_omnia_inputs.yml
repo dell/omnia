@@ -99,14 +99,26 @@
     fail_msg: "{{ restart_services_failure_msg }}"
   when: slurm_support
 
+- name: Check virtual ENV
+  ansible.builtin.set_fact:
+    venv_path: "{{ lookup('ansible.builtin.env', 'VIRTUAL_ENV') }}"
+
 - name: Validate k8s_support variable
   when: k8s_support
   block:
-    - name: Assert kubernetes version
+    - name: Fail if kubernetes version is other than 1.26.12 or omnia161_venv is not activated for RHEL/Rocky 8.6 or 8.7
+      ansible.builtin.fail:
+        msg: "{{ kube_version_on_unsupported_os }}"
+      when:
+        - cluster_os_type in ['rhel', 'rocky']
+        - cluster_os_version in ['8.6', '8.7']
+        - (omnia161_k8s_version not in k8s_version) or ('omnia161_venv' not in venv_path)
+
+    - name: Assert supported kubernetes version
       ansible.builtin.assert:
         that:
-          - k8s_version | default("", true) | length > 1
-          - "'1.29.5' in k8s_version"
+          - k8s_version | default("", false) | length > 1
+          - "('omnia161_venv' in venv_path  and '{{ omnia161_k8s_version }}' in k8s_version) or ( 'omnia17_venv' in venv_path and '{{ omnia17_k8s_version }}' in k8s_version)" # noqa: yaml[line-length]
         success_msg: "{{ success_msg_k8s_version }}"
         fail_msg: "{{ fail_msg_k8s_version }}"
 
