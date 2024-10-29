@@ -33,8 +33,8 @@ Virtual environment
 
 **Resolution**: Use the ``prereq.sh`` script to set up the Omnia virtual environment and install Ansible on the control plane. Activate the virtual environment following the steps provided `here <../../../OmniaInstallGuide/Ubuntu/Prereq.sh/index.html>`_ and then execute the playbooks.
 
-⦾ **Why does executing an Omnia playbook outside the** ``/root/omnia`` **folder lead to failure?**
+⦾ **Why does executing an Omnia playbook outside the git cloned Omnia repository folder lead to failure?**
 
-**Potential Cause**: Omnia does not support execution of playbooks outside of the ``/root/omnia`` folder.
+**Potential Cause**: Omnia does not support execution of playbooks outside of the git cloned Omnia repository folder.
 
-**Resolution**: Ensure to execute all playbooks from inside the ``/root/omnia`` folder.
+**Resolution**: Ensure to execute all playbooks from inside the git cloned Omnia repository folder.
