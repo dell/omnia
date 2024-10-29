@@ -26,3 +26,9 @@ Telemetry
         systemctl status docker
 
 After performing all the above steps, re-run ``upgrade.yml`` playbook.
+
+⦾ **Why does the telemetry service fail on a compute node and the Telemetry database remains empty after** ``omnia.yml`` **execution?**
+
+**Potential Cause**: This issue is encountered when there is a mismatch of libc version between the control plane and the compute node.
+
+**Resolution**: To ensure proper functioning of the telemetry service, ensure that the same libc version is present on the control plane and the compute nodes.
