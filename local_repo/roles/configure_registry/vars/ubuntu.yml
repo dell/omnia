@@ -14,8 +14,10 @@
 ---
 
 # Usage: pre_requisites_ubuntu.yml
-containerd_url: "https://download.docker.com/linux/ubuntu/dists/{{ ansible_distribution_release }}/pool/stable/amd64/containerd.io_1.6.16-1_amd64.deb"
-containerd_deb_dest: "/{{ temp_download_dir }}/containerd.io_1.6.16-1_amd64.deb"
+containerd_str: "containerd.io"
+containerd_version: '1.6.16-1'
+containerd_url: "https://download.docker.com/linux/ubuntu/dists/{{ ansible_distribution_release }}/pool/stable/amd64/containerd.io_{{ containerd_version }}_amd64.deb"
+containerd_deb_dest: "{{ temp_download_dir }}/containerd.io_{{ containerd_version }}_amd64.deb"
 nerdctl_url: "https://github.com/containerd/nerdctl/releases/download/v1.7.4/nerdctl-full-1.7.4-linux-amd64.tar.gz"
 nerdctl_archive_dest: "{{ temp_download_dir }}/nerdctl-1.7.4-linux-amd64.tar.gz"
 nerdctl_folder_dest: "{{ temp_download_dir }}/nerdctl/bin/nerdctl"

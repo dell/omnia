@@ -25,6 +25,27 @@
     state: absent
   with_items: "{{ conflicting_packages }}"
 
+- name: Install python rpm interface
+  ansible.builtin.dnf:
+    name: python3-rpm
+    state: present
+
+- name: Gather the package facts
+  ansible.builtin.package_facts:
+    manager: rpm
+  no_log: true
+
+- name: Check whether containerd.io version
+  ansible.builtin.set_fact:
+    higher_containerd_version: true
+  when: (containerd_str in ansible_facts.packages) and (ansible_facts.packages[containerd_str][0]['version'] is ansible.builtin.version(containerd_version, '>'))
+
+- name: Warning prompt if containerd is downgrading
+  ansible.builtin.pause:
+   seconds: 20
+   prompt: "Higher version of {{ containerd_str }} {{ ansible_facts.packages['containerd.io'][0]['version'] }} already present, Proceed with downgrading to {{ containerd_version }} ?"
+  when: higher_containerd_version is defined and higher_containerd_version
+
 # Install Pre-requisites
 # Download and Install containerd
 - name: Download containerd.io RPM
@@ -40,6 +61,7 @@
   ansible.builtin.dnf:
     name: "{{ containerd_rpm_dest }}"
     state: present
+    allow_downgrade: true
     disable_gpg_check: true
 
 - name: Start containerd

@@ -81,10 +81,3 @@
     dest: "{{ omnia_inv_path }}"
     mode: "{{ file_permission }}"
   when: omnia_inv_stat.stat.exists
-
-- name: Set installed_version as 1.6.1
-  ansible.builtin.lineinfile:
-    path: "{{ meta_path }}"
-    regexp: '^installed_version:(.*)$'
-    state: present
-    line: 'installed_version: "1.6.1"'

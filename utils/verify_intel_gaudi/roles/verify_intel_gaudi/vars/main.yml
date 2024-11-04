@@ -23,7 +23,6 @@ omnia_config_file_permission: '0644'
 
 verify_intel_gaudi_device_pattern: "Processing accelerators: Habana Labs Ltd."
 gaudi2_pci_vendor_device_class: "1da3:1020:1200"
-gaudi3_pci_vendor_device_class: "1da3:1060:1200"
 
 verify_intel_gaudi_habana_tests:
   log_level_all: "4"

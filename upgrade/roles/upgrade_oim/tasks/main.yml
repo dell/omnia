@@ -30,39 +30,34 @@
   ansible.builtin.include_role:
     name: import_input_parameters
 
-- name: Upgrade software on Omnia control plane
+- name: Upgrade services and packages of prepare cp on OIM
+  ansible.builtin.include_role:
+    name: upgrade_prepare_cp
+
+- name: Upgrade services and packages of discovery on OIM
+  ansible.builtin.include_role:
+    name: upgrade_discovery
+
+- name: Stop telemetry service
+  ansible.builtin.include_role:
+    name: omnia_telemetry
+    tasks_from: stop_omnia_telemetry.yml
+
+- name: Upgrade packages required for local repo - nerdctl
+  ansible.builtin.include_role:
+    name: upgrade_local_repo
+
+- name: Packages to be updated on supported OS
+  when: not older_os
   block:
-    - name: Upgrade services and packages of prepare cp on OIM
-      ansible.builtin.include_role:
-        name: upgrade_prepare_cp
-
-    - name: Upgrade services and packages of discovery on OIM
-      ansible.builtin.include_role:
-        name: upgrade_discovery
-
-    - name: Stop telemetry service
-      ansible.builtin.include_role:
-        name: omnia_telemetry
-        tasks_from: stop_omnia_telemetry.yml
-
-    - name: Upgrade packages required for local repo - nerdctl
-      ansible.builtin.include_role:
-        name: upgrade_local_repo
-
     - name: Upgrade kubernetes on omnia control plane (OIM)
       ansible.builtin.include_role:
         name: upgrade_k8s_cp
-      when: not older_os
 
-    - name: Upgrade omnia_telemetry binary
-      ansible.builtin.include_role:
-        name: omnia_telemetry
+- name: Upgrade omnia_telemetry binary
+  ansible.builtin.include_role:
+    name: omnia_telemetry
 
-    - name: Upgrade iDRAC telemetry role 
-      ansible.builtin.include_role:
-        name: upgrade_idrac_telemetry
-
-  rescue:
-    - name: Failed to upgrade Omnia control plane
-      ansible.builtin.fail:
-        msg: "{{ upgrade_fail_msg }}"
+- name: Upgrade iDRAC telemetry role 
+  ansible.builtin.include_role:
+    name: upgrade_idrac_telemetry

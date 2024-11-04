@@ -81,9 +81,9 @@ topology_manager_scope: "container"
 #----------------------------VERIFY INTEL GAUDI INSTALLATION------------------------------------------------------
 
 # It's recommended to do extensive tests hl_qual and hccl when installing a new Gaudi node. This takes around 20mins.
-# To do that during provisioning this variable has to be set to true.
-# By default  no tests are run
-run_intel_gaudi_tests: false
+# To do that during provisioning this variable has to be set to false. By default only sanity tests are run on gaudi
+# nodes and this takes around 2 mins.
+verify_intel_gaudi_with_sanity_test_only: true
 
 #----------------------------CSI Driver------------------------------------------------------
 # Following csi powerscale driver input variables are mandatory only if csi_driver_powerscale entry is present in software_config.json

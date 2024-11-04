@@ -4,8 +4,9 @@
     {
          "package": "kubeflow",
          "type": "git",
-         "url": "https://github.com/kubeflow/manifests.git",
-         "version": "v1.9.1-rc.2"
+         "url": "https://github.com/kubeflow/manifests.git"
+ ,
+         "version": "v1.9.0"
     },
     {
         "package": "kustomize",
@@ -15,11 +16,6 @@
     {
         "package": "ghcr.io/dexidp/dex",
         "tag": "v2.39.1",
-        "type": "image"
-    },
-    {
-        "package": "ghcr.io/dexidp/dex",
-        "tag": "v2.35.0",
         "type": "image"
     },
     {
@@ -180,53 +176,18 @@
      },
      {
          "package": "docker.io/kubeflowkatib/pytorch-mnist-cpu",
-         "tag": "latest",
+         "tag": "v0.17.0",
          "type": "image"
      },
      {
-        "package": "docker.io/kubeflowkatib/pytorch-mnist",
-        "tag": "v1beta1-45c5727",
-        "type": "image"
-     },
-     {
          "package": "docker.io/kubeflownotebookswg/jupyter-scipy",
-         "tag": "v1.9.1",
+         "tag": "v1.9.0",
          "type": "image"
      },
      {
          "package": "docker.io/busybox",
          "tag": "latest",
          "type": "image"
-     },
-     {
-        "package": "docker.io/busybox",
-        "tag": "1.28",
-        "type": "image"
-     },
-     {
-        "package": "docker.io/busybox",
-        "tag": "1.34.1",
-        "type": "image"
-     },
-     {
-        "package": "docker.io/bentoml/fraud_detection",
-        "tag": "o5smnagbncigycvj",
-        "type": "image"
-     },
-     {
-        "package": "docker.io/istio/install-cni",
-        "tag": "1.22.1",
-        "type": "image"
-     },
-     {
-        "package": "docker.io/istio/pilot",
-        "tag": "1.22.1",
-        "type": "image"
-     },
-     {
-        "package": "docker.io/istio/proxyv2",
-        "tag": "1.22.1",
-        "type": "image"
      },
      {
          "package": "gcr.io/kubeflow-images-public/profile-controller",
@@ -255,22 +216,12 @@
      },
      {
          "package": "docker.io/kserve/kserve-controller",
-         "tag": "v0.13.1",
+         "tag": "v0.13.0",
          "type": "image"
      },
      {
-        "package": "docker.io/kserve/huggingfaceserver",
-        "tag": "v0.13.1",
-        "type": "image"
-     },
-     {
-        "package": "docker.io/kserve/storage-initializer",
-        "tag": "v0.13.1",
-        "type": "image"
-     },
-     {
          "package": "docker.io/kserve/xgbserver",
-         "tag": "v0.13.1",
+         "tag": "v0.13.0",
          "type": "image"
      },
      {
@@ -290,17 +241,17 @@
      },
      {
          "package": "docker.io/kserve/sklearnserver",
-         "tag": "v0.13.1",
+         "tag": "v0.13.0",
          "type": "image"
      },
      {
          "package": "docker.io/kserve/pmmlserver",
-         "tag": "v0.13.1",
+         "tag": "v0.13.0",
          "type": "image"
      },
      {
          "package": "docker.io/kserve/paddleserver",
-         "tag": "v0.13.1",
+         "tag": "v0.13.0",
          "type": "image"
      },
      {
@@ -310,7 +261,7 @@
      },
      {
          "package": "docker.io/kserve/lgbserver",
-         "tag": "v0.13.1",
+         "tag": "v0.13.0",
          "type": "image"
      },
      {
@@ -322,11 +273,6 @@
          "package": "quay.io/bentoml/yatai-image-builder",
          "tag": "1.2.28",
          "type": "image"
-     },
-     {
-        "package": "quay.io/bentoml/yatai-deployment",
-        "tag": "1.1.21",
-        "type": "image"
      },
      {
          "package": "quay.io/oauth2-proxy/oauth2-proxy",
@@ -369,21 +315,6 @@
          "type": "image"
      },
      {
-        "package": "docker.io/postgres",
-        "tag": "12-alpine",
-        "type": "image"
-     },
-     {
-        "package": "docker.io/postgres",
-        "tag": "14.7-alpine",
-        "type": "image"
-     },
-     {
-        "package": "docker.io/postgres",
-        "tag": "latest",
-        "type": "image"
-     },
-     {
          "package": "quay.io/argoproj/argocli",
          "tag": "latest",
          "type": "image"
@@ -420,13 +351,8 @@
      },
      {
          "package": "quay.io/aipipeline/pipelineloop-webhook",
-         "tag": "nightly",
+         "tag": "1.9.2",
          "type": "image"
-     },
-     {
-        "package": "quay.io/aipipeline/pipelineloop-controller",
-        "tag": "nightly",
-        "type": "image"
      },
      {
          "package": "gcr.io/kubebuilder/kube-rbac-proxy",
@@ -484,6 +410,11 @@
          "type": "image"
      },
      {
+         "package": "docker.io/kubeflowkatib/suggestion-optuna",
+         "tag": "v0.17.0",
+         "type": "image"
+     },
+     {
          "package": "docker.io/kubeflowkatib/suggestion-enas",
          "tag": "v0.17.0",
          "type": "image"
@@ -505,7 +436,7 @@
      },
      {
          "package": "docker.io/kserve/kserve-controller",
-         "tag": "v0.13.1",
+         "tag": "v0.13.0",
          "type": "image"
      },
      {
@@ -520,7 +451,7 @@
      },
      {
          "package": "docker.io/kubeflownotebookswg/poddefaults-webhook",
-         "tag": "v1.9.1",
+         "tag": "v1.9.0",
          "type": "image"
      },
      {
@@ -535,12 +466,12 @@
      },
      {
          "package": "docker.io/kubeflownotebookswg/centraldashboard",
-         "tag": "v1.9.1",
+         "tag": "v1.9.0",
          "type": "image"
      },
      {
          "package": "docker.io/kubeflownotebookswg/jupyter-web-app",
-         "tag": "v1.9.1",
+         "tag": "v1.9.0",
          "type": "image"
      },
      {
@@ -635,12 +566,12 @@
      },
      {
          "package": "docker.io/kubeflownotebookswg/tensorboard-controller",
-         "tag": "v1.9.1",
+         "tag": "v1.9.0",
          "type": "image"
      },
      {
          "package": "docker.io/kubeflownotebookswg/tensorboards-web-app",
-         "tag": "v1.9.1",
+         "tag": "v1.9.0",
          "type": "image"
      },
      {
@@ -650,17 +581,17 @@
      },
      {
          "package": "docker.io/kubeflownotebookswg/notebook-controller",
-         "tag": "v1.9.1",
+         "tag": "v1.9.0",
          "type": "image"
      },
      {
          "package": "docker.io/kubeflownotebookswg/kfam",
-         "tag": "v1.9.1",
+         "tag": "v1.9.0",
          "type": "image"
      },
      {
          "package": "docker.io/kubeflownotebookswg/profile-controller",
-         "tag": "v1.9.1",
+         "tag": "v1.9.0",
          "type": "image"
      },
      {
@@ -675,12 +606,17 @@
      },
      {
          "package": "docker.io/kubeflownotebookswg/tensorboards-web-app",
-         "tag": "v1.9.1",
+         "tag": "v1.9.0",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/mariadb",
+         "tag": "latest",
          "type": "image"
      },
      {
          "package": "docker.io/kubeflownotebookswg/pvcviewer-controller",
-         "tag": "v1.9.1",
+         "tag": "v1.9.0",
          "type": "image"
      },
      {
@@ -689,18 +625,8 @@
          "type": "image"
      },
      {
-        "package": "gcr.io/ml-pipeline/workflow-controller",
-        "tag": "v3.3.8-license-compliance",
-        "type": "image"
-     },
-     {
-        "package": "gcr.io/ml-pipeline/workflow-controller",
-        "tag": "v3.4.17-license-compliance",
-        "type": "image"
-     },
-     {
          "package": "docker.io/kubeflownotebookswg/volumes-web-app",
-         "tag": "v1.9.1",
+         "tag": "v1.9.0",
          "type": "image"
      },
      {

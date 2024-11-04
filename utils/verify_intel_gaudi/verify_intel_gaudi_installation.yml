@@ -14,10 +14,10 @@
 ---
 
 # This playbook need to be called during the default omnia provisioning
-# of newly installed Gaudi devices. This will make sure the device will function properly
+# of Gaudi devices. This will make sure the device will function properly
 # and help early detection of HW/SW missing requirements.
 # It's recommended to do extensive tests when installing a new Gaudi node.
-# This can be controlled using var: run_intel_gaudi_tests: true
+# This can be controlled using var: verify_intel_gaudi_with_sanity_test_only: false
 
 - name: Check if virtual environment is active
   ansible.builtin.import_playbook: ../check_venv.yml

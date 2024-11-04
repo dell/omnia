@@ -15,26 +15,9 @@
 
 - name: Initialise node accelerator status
   ansible.builtin.set_fact:
-    node_has_gaudi2: false
-    node_has_gaudi3: false
+    node_has_accelerator: false
 
-- name: Check if the node has Gaudi3
-  ansible.builtin.shell: |
-    set -o pipefail
-    lspci -n -d {{ gaudi3_pci_vendor_device_class }}
-  register: lspci_output
-  changed_when: false
-  failed_when: false
-  args:
-    executable: /bin/bash
-
-- name: Update node accelerator status
-  ansible.builtin.set_fact:
-    node_has_gaudi3: true
-  when: lspci_output.stdout | length > 0
-
-
-- name: Check if the node has Gaudi2
+- name: Check node has Gaudi2 or not
   ansible.builtin.shell: |
     set -o pipefail
     lspci -n -d {{ gaudi2_pci_vendor_device_class }}
@@ -43,32 +26,20 @@
   failed_when: false
   args:
     executable: /bin/bash
-  when: node_has_gaudi3 == false
 
 - name: Update node accelerator status
   ansible.builtin.set_fact:
-    node_has_gaudi2: true
-  when: node_has_gaudi3 == false and lspci_output.stdout | length > 0
+    node_has_accelerator: true
+  when: lspci_output.stdout | length > 0
 
-- name: Set run_intel_gaudi_tests parameter
+- name: Set verify_intel_gaudi_with_sanity_test_only parameter
   ansible.builtin.set_fact:
-    run_intel_gaudi_tests: "{{ hostvars['localhost']['run_intel_gaudi_tests'] }}"
+    verify_intel_gaudi_with_sanity_test_only: "{{ hostvars['localhost']['verify_intel_gaudi_with_sanity_test_only'] }}"
 
-- name: Verify hl-qual on Gaudi3 nodes
-  ansible.builtin.include_tasks: hlqual_gaudi3_validation.yml
-  when: node_has_gaudi3 and  run_intel_gaudi_tests
+- name: Verify hl-qual on Gaudi nodes
+  ansible.builtin.include_tasks: hlqual_validation.yml
+  when: node_has_accelerator
 
-- name: Verify hl-qual on Gaudi2 nodes
-  ansible.builtin.include_tasks: hlqual_gaudi2_validation.yml
-  when: node_has_gaudi2 and run_intel_gaudi_tests
-
-
-- name: Verify hccl on Gaudi2 nodes
-  ansible.builtin.include_tasks: hccl_gaudi2_validation.yml
-  when: node_has_gaudi2 and run_intel_gaudi_tests
-
-- name: Verify hccl on Gaudi3 nodes
-  ansible.builtin.include_tasks: hccl_gaudi3_validation.yml
-  when: node_has_gaudi3 and run_intel_gaudi_tests
-
-
+- name: Verify hccl on Gaudi nodes
+  ansible.builtin.include_tasks: hccl_validation.yml
+  when: node_has_accelerator

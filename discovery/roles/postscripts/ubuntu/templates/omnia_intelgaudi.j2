@@ -13,8 +13,8 @@ cron_job_for_scale_out_interfaces() {
 
 echo "Set cron job for Gaudi scale out interfaces" >> /var/log/xcat/xcat.log
 
-if [ ! -f /opt/habanalabs/qual/gaudi2/bin/manage_network_ifs.sh ] && [ ! -f /opt/habanalabs/qual/gaudi3/bin/manage_network_ifs.sh ] ; then
-  echo "File manage_network_ifs.sh not found, stop setting." >> /var/log/xcat/xcat.log
+if [ ! -f /opt/habanalabs/qual/gaudi2/bin/manage_network_ifs.sh ] ; then
+  echo "File /opt/habanalabs/qual/gaudi2/bin/manage_network_ifs.sh not found, stop setting." >> /var/log/xcat/xcat.log
   return 1
 fi
 
@@ -26,17 +26,10 @@ script_to_run="$base_dir/bring_up_ports.sh"
 
 cat <<'EOF' > $script_to_run
 #!/bin/bash
-gaudi_ver="gaudi2"
-output=$(lspci -n -d 1da3:1060:1200)
-output_len=${#output}
-if [ $output_len -gt 0 ]; then
-  gaudi_ver="gaudi3"
-fi
-cmd="/opt/habanalabs/qual/$gaudi_ver/bin/manage_network_ifs.sh --up"
-$cmd
+/opt/habanalabs/qual/gaudi2/bin/manage_network_ifs.sh --up
 RET_CODE=$?
 if [ "${RET_CODE}" -eq "1" ]; then
-  echo "One or more Gaudi ports are down." >> /dev/stderr
+  echo "One or more Gaudi 2 ports are down." >> /dev/stderr
   return 1
 fi
 EOF

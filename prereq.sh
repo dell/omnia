@@ -348,7 +348,7 @@ echo -e "${NC}"
 # Show SELinux reboot message if necessary
 if [[ "$SELINUX_REBOOT_REQUIRED" == "true" ]]; then
     echo -e "${RED}"
-    echo "SELinux has been disabled. Please reboot the system, unless it is an upgrade or restore scenario, before proceeding with the playbook execution !"
+    echo "SELinux has been successfully disabled. Please reboot the system before proceeding. However, if you are upgrading or restoring the control plane, avoid rebooting to prevent the loss of telemetry data."
     echo -e "${NC}"
 fi
 

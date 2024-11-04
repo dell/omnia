@@ -1,0 +1,169 @@
+# Copyright 2024 Intel Corporation.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Checking for the right amount of HPU devices
+  ansible.builtin.shell: |
+    set -o pipefail
+    lspci | grep "{{ verify_intel_gaudi_device_pattern }}" | wc -l
+  args:
+    executable: /bin/bash
+  register: hpu_dev
+  failed_when: ( hpu_dev.stdout != "8" )
+  changed_when: false
+
+- name: Setting python version used for the test runs
+  ansible.builtin.set_fact:
+    pver: "{{ '.'.join(ansible_python_version.split('.')[0:2]) }}"
+
+- name: Create test folder
+  ansible.builtin.tempfile:
+    state: directory
+    suffix: omnia_gaudi_hccl_test
+  register: test_folder
+
+- name: Include vars from local_repo_access.yml file
+  ansible.builtin.include_vars: "{{ local_repo_access_dest_path }}"
+  delegate_to: localhost
+  delegate_facts: true
+
+- name: Get hccl_demo git repo tarball
+  ansible.builtin.get_url:
+    url: "{{ hostvars['localhost']['offline_git_path'] }}/hccl_demo.tar.gz"
+    dest: "{{ test_folder.path }}"
+    mode: "{{ verify_intel_gaudi_habana_tests['targz_permission'] }}"
+
+- name: Untar hccl_demo git repo
+  ansible.builtin.unarchive:
+    src: "{{ test_folder.path }}/hccl_demo.tar.gz"
+    dest: "{{ test_folder.path }}"
+    remote_src: true
+
+- name: Set hccl_demo untar folder
+  ansible.builtin.set_fact:
+    hccl_demo_untar_folder: "{{ test_folder.path }}/hccl_demo"
+
+- name: Build hccl_demo
+  ansible.builtin.shell: |
+    set -o pipefail
+    make clean
+  args:
+    executable: /bin/bash
+    chdir: "{{ hccl_demo_untar_folder }}"
+  changed_when: true
+
+- name: Run hccl_demo all_reduce single node test
+  environment:
+    __python_cmd: "python{{ pver }}"
+    LOG_LEVEL_ALL: "{{ verify_intel_gaudi_habana_tests['log_level_all'] }}"
+    ENABLE_CONSOLE: "{{ verify_intel_gaudi_habana_tests['enable_console'] }}"
+    HABANA_LOGS: "{{ verify_intel_gaudi_habana_tests['habana_logs'] }}"
+    GC_KERNEL_PATH: "{{ verify_intel_gaudi_habana_tests['gc_kernel_path'] }}"
+    HABANA_SCAL_BIN_PATH: "{{ verify_intel_gaudi_habana_tests['habana_scal_bin_path'] }}"
+    HABANA_PLUGINS_LIB_PATH: "{{ verify_intel_gaudi_habana_tests['habana_plugins_lib_path'] }}"
+    DATA_LOADER_AEON_LIB_PATH: "{{ verify_intel_gaudi_habana_tests['data_loader_aeon_lib_path'] }}"
+    RDMA_CORE_ROOT: "{{ verify_intel_gaudi_habana_tests['rdma_core_root'] }}"
+    RDMA_CORE_LIB: "{{ verify_intel_gaudi_habana_tests['rdma_core_lib'] }}"
+    HCCL_COMM_ID: "{{ verify_intel_gaudi_habana_extra['hccl_comm_id'] }}"
+  ansible.builtin.shell: |
+    set -o pipefail
+    python3 run_hccl_demo.py -clean --test all_reduce --nranks 8 --loop 1000 --node_id 0 --size 256m --ranks_per_node 8
+  args:
+    executable: /bin/bash
+    chdir: "{{ hccl_demo_untar_folder }}"
+  register: hccl_demo_all_reduce_single_node_test_result
+  failed_when: >
+    (hccl_demo_all_reduce_single_node_test_result.stdout | regex_search('.NW Bandwidth.*:(.*)GB\/s','\\1') | first | float <= 255) or
+    (hccl_demo_all_reduce_single_node_test_result.stdout | regex_search('.Algo Bandwidth.*:(.*)GB\/s','\\1') | first | float <= 146)
+  changed_when: true
+
+- name: Run hccl_demo all_gather single node test
+  environment:
+    __python_cmd: "python{{ pver }}"
+    LOG_LEVEL_ALL: "{{ verify_intel_gaudi_habana_tests['log_level_all'] }}"
+    ENABLE_CONSOLE: "{{ verify_intel_gaudi_habana_tests['enable_console'] }}"
+    HABANA_LOGS: "{{ verify_intel_gaudi_habana_tests['habana_logs'] }}"
+    GC_KERNEL_PATH: "{{ verify_intel_gaudi_habana_tests['gc_kernel_path'] }}"
+    HABANA_SCAL_BIN_PATH: "{{ verify_intel_gaudi_habana_tests['habana_scal_bin_path'] }}"
+    HABANA_PLUGINS_LIB_PATH: "{{ verify_intel_gaudi_habana_tests['habana_plugins_lib_path'] }}"
+    DATA_LOADER_AEON_LIB_PATH: "{{ verify_intel_gaudi_habana_tests['data_loader_aeon_lib_path'] }}"
+    RDMA_CORE_ROOT: "{{ verify_intel_gaudi_habana_tests['rdma_core_root'] }}"
+    RDMA_CORE_LIB: "{{ verify_intel_gaudi_habana_tests['rdma_core_lib'] }}"
+    HCCL_COMM_ID: "{{ verify_intel_gaudi_habana_extra['hccl_comm_id'] }}"
+  ansible.builtin.shell: |
+    set -o pipefail
+    python3 run_hccl_demo.py -clean --test all_gather --nranks 8 --loop 1000 --node_id 0 --size 4m --ranks_per_node 8
+  args:
+    executable: /bin/bash
+    chdir: "{{ hccl_demo_untar_folder }}"
+  register: hccl_demo_all_gather_single_node_test_result
+  failed_when: >
+    (hccl_demo_all_gather_single_node_test_result.stdout | regex_search('.NW Bandwidth.*:(.*)GB\/s','\\1') | first | float <= 254) or
+    (hccl_demo_all_gather_single_node_test_result.stdout | regex_search('.Algo Bandwidth.*:(.*)GB\/s','\\1') | first | float <= 36)
+  changed_when: true
+
+- name: Run hccl_demo reduce_scatter single node test
+  environment:
+    __python_cmd: "python{{ pver }}"
+    LOG_LEVEL_ALL: "{{ verify_intel_gaudi_habana_tests['log_level_all'] }}"
+    ENABLE_CONSOLE: "{{ verify_intel_gaudi_habana_tests['enable_console'] }}"
+    HABANA_LOGS: "{{ verify_intel_gaudi_habana_tests['habana_logs'] }}"
+    GC_KERNEL_PATH: "{{ verify_intel_gaudi_habana_tests['gc_kernel_path'] }}"
+    HABANA_SCAL_BIN_PATH: "{{ verify_intel_gaudi_habana_tests['habana_scal_bin_path'] }}"
+    HABANA_PLUGINS_LIB_PATH: "{{ verify_intel_gaudi_habana_tests['habana_plugins_lib_path'] }}"
+    DATA_LOADER_AEON_LIB_PATH: "{{ verify_intel_gaudi_habana_tests['data_loader_aeon_lib_path'] }}"
+    RDMA_CORE_ROOT: "{{ verify_intel_gaudi_habana_tests['rdma_core_root'] }}"
+    RDMA_CORE_LIB: "{{ verify_intel_gaudi_habana_tests['rdma_core_lib'] }}"
+    HCCL_COMM_ID: "{{ verify_intel_gaudi_habana_extra['hccl_comm_id'] }}"
+  ansible.builtin.shell: |
+    set -o pipefail
+    python3 run_hccl_demo.py -clean --test reduce_scatter --nranks 8 --loop 1000 --node_id 0 --size 64m
+  args:
+    executable: /bin/bash
+    chdir: "{{ hccl_demo_untar_folder }}"
+  register: hccl_demo_reduce_scatter_single_node_test_result
+  failed_when: >
+    (hccl_demo_reduce_scatter_single_node_test_result.stdout | regex_search('.NW Bandwidth.*:(.*)GB\/s','\\1') | first | float <= 253) or
+    (hccl_demo_reduce_scatter_single_node_test_result.stdout | regex_search('.Algo Bandwidth.*:(.*)GB\/s','\\1') | first | float <= 285)
+  changed_when: true
+
+- name: Run hccl_demo all2all single node test
+  environment:
+    __python_cmd: "python{{ pver }}"
+    LOG_LEVEL_ALL: "{{ verify_intel_gaudi_habana_tests['log_level_all'] }}"
+    ENABLE_CONSOLE: "{{ verify_intel_gaudi_habana_tests['enable_console'] }}"
+    HABANA_LOGS: "{{ verify_intel_gaudi_habana_tests['habana_logs'] }}"
+    GC_KERNEL_PATH: "{{ verify_intel_gaudi_habana_tests['gc_kernel_path'] }}"
+    HABANA_SCAL_BIN_PATH: "{{ verify_intel_gaudi_habana_tests['habana_scal_bin_path'] }}"
+    HABANA_PLUGINS_LIB_PATH: "{{ verify_intel_gaudi_habana_tests['habana_plugins_lib_path'] }}"
+    DATA_LOADER_AEON_LIB_PATH: "{{ verify_intel_gaudi_habana_tests['data_loader_aeon_lib_path'] }}"
+    RDMA_CORE_ROOT: "{{ verify_intel_gaudi_habana_tests['rdma_core_root'] }}"
+    RDMA_CORE_LIB: "{{ verify_intel_gaudi_habana_tests['rdma_core_lib'] }}"
+    HCCL_COMM_ID: "{{ verify_intel_gaudi_habana_extra['hccl_comm_id'] }}"
+  ansible.builtin.shell: |
+    set -o pipefail
+    python3 run_hccl_demo.py -clean --test all2all --nranks 8 --loop 1000 --node_id 0 --size 4m --ranks_per_node 8
+  args:
+    executable: /bin/bash
+    chdir: "{{ hccl_demo_untar_folder }}"
+  register: hccl_demo_all2all_single_node_test_result
+  failed_when: >
+    (hccl_demo_all2all_single_node_test_result.stdout | regex_search('.NW Bandwidth.*:(.*)GB\/s','\\1') | first | float <= 253) or
+    (hccl_demo_all2all_single_node_test_result.stdout | regex_search('.Algo Bandwidth.*:(.*)GB\/s','\\1') | first | float <= 285)
+  changed_when: true
+
+- name: Remove hccl_demo directory
+  ansible.builtin.file:
+    state: absent
+    path: "{{ test_folder.path }}"

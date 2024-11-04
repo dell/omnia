@@ -1,0 +1,224 @@
+# Copyright 2024 Intel Corporation.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Verify hl-qual
+  hosts: GPU_node
+  vars:
+    ansible_become: true
+    ansible_become_user: root
+
+    habana_tests:
+      log_level_all: "4"
+      enable_console: "true"
+      habana_logs: "/var/log/habana_logs"
+      gc_kernel_path: "/usr/lib/habanalabs/libtpc_kernels.so"
+      habana_scal_bin_path: "/opt/habanalabs/engines_fw"
+      habana_plugins_lib_path: "/opt/habanalabs/habana_plugins"
+      data_loader_aeon_lib_path: "/usr/lib/habanalabs/libaeon.so"
+      rdma_core_root: "/opt/habanalabs/rdma-core/src"
+      rdma_core_lib: "/opt/habanalabs/rdma-core/src/build/lib"
+  tasks:
+    - name: Setting python version used for the test runs
+      ansible.legacy.set_fact:
+        pver: "{{ '.'.join(ansible_python_version.split('.')[0:2]) }}"
+
+    - name: Recursively change ownership of habana_logs directory
+      ansible.builtin.file:
+        path: "{{ habana_tests['habana_logs'] }}"
+        state: directory
+        recurse: true
+        mode: '0777'
+
+    - name: Hl_qual hardware sanity check test
+      environment:
+        __python_cmd: "python{{ pver }}"
+        LOG_LEVEL_ALL: "{{ habana_tests['log_level_all'] }}"
+        ENABLE_CONSOLE: "{{ habana_tests['enable_console'] }}"
+        HABANA_LOGS: "{{ habana_tests['habana_logs'] }}"
+        GC_KERNEL_PATH: "{{ habana_tests['gc_kernel_path'] }}"
+        HABANA_SCAL_BIN_PATH: "{{ habana_tests['habana_scal_bin_path'] }}"
+        HABANA_PLUGINS_LIB_PATH: "{{ habana_tests['habana_plugins_lib_path'] }}"
+        DATA_LOADER_AEON_LIB_PATH: "{{ habana_tests['data_loader_aeon_lib_path'] }}"
+      ansible.builtin.shell: "cd /opt/habanalabs/qual/gaudi2/bin && ./hl_qual -gaudi2 -c all -rmod parallel -f2 -l extreme -t 60 -dis_mon"
+      register: sanity_test_result
+      failed_when: "'FAILED' in sanity_test_result.stdout"
+      changed_when: false
+
+    - name: Hl_qual memory bandwidth test
+      environment:
+        __python_cmd: "python{{ pver }}"
+        LOG_LEVEL_ALL: "{{ habana_tests['log_level_all'] }}"
+        ENABLE_CONSOLE: "{{ habana_tests['enable_console'] }}"
+        HABANA_LOGS: "{{ habana_tests['habana_logs'] }}"
+      ansible.builtin.shell: "cd /opt/habanalabs/qual/gaudi2/bin && ./hl_qual -c all -rmod parallel -mb -memOnly -gaudi2 -dis_mon"
+      register: memory_bandwidth_test_result
+      failed_when: "'FAILED' in memory_bandwidth_test_result.stdout"
+      changed_when: false
+
+    - name: Hl_qual pci bandwidth test
+      environment:
+        __python_cmd: "python{{ pver }}"
+        LOG_LEVEL_ALL: "{{ habana_tests['log_level_all'] }}"
+        ENABLE_CONSOLE: "{{ habana_tests['enable_console'] }}"
+        HABANA_LOGS: "{{ habana_tests['habana_logs'] }}"
+      ansible.builtin.shell: "cd /opt/habanalabs/qual/gaudi2/bin && ./hl_qual -c all -rmod serial -mb -b -pciOnly -sramOnly -gaudi2 -dis_mon"
+      register: pci_bandwidth_test_result
+      failed_when: "'FAILED' in pci_bandwidth_test_result.stdout"
+      changed_when: false
+
+    - name: Hl_qual serdes base test
+      environment:
+        __python_cmd: "python{{ pver }}"
+        LOG_LEVEL_ALL: "{{ habana_tests['log_level_all'] }}"
+        ENABLE_CONSOLE: "{{ habana_tests['enable_console'] }}"
+        HABANA_LOGS: "{{ habana_tests['habana_logs'] }}"
+      ansible.builtin.shell: "cd /opt/habanalabs/qual/gaudi2/bin && ./hl_qual -gaudi2 -c all -rmod parallel -i 50 -nic_base -test_type pairs -dis_mon"
+      register: serdes_base_test_result
+      failed_when: "'FAILED' in serdes_base_test_result.stdout"
+      changed_when: false
+
+    - name: Hl_qual serdes base allreduce test
+      environment:
+        __python_cmd: "python{{ pver }}"
+        LOG_LEVEL_ALL: "{{ habana_tests['log_level_all'] }}"
+        ENABLE_CONSOLE: "{{ habana_tests['enable_console'] }}"
+        HABANA_LOGS: "{{ habana_tests['habana_logs'] }}"
+      ansible.builtin.shell: "cd /opt/habanalabs/qual/gaudi2/bin && ./hl_qual -gaudi2 -c all -rmod parallel -i 50 -ep 100 -nic_base -test_type allreduce -dis_mon" # noqa: yaml[line-length]
+      register: serdes_base_allreduce_test_result
+      failed_when: "'FAILED' in serdes_base_allreduce_test_result.stdout"
+      changed_when: false
+
+    - name: Unload habanalabs kernel module
+      community.general.modprobe:
+        name: habanalabs
+        state: absent
+
+    - name: Load habanalabs kernel module with timeout_locked param
+      community.general.modprobe:
+        name: habanalabs
+        state: present
+        params: 'timeout_locked=0'
+
+    - name: Bring DOWN all Gaudi2 NICs
+      ansible.builtin.shell: "cd /opt/habanalabs/qual/gaudi2/bin && ./manage_network_ifs.sh --down"
+      changed_when: false
+
+    - name: Bring UP all Gaudi2 NICs
+      ansible.builtin.shell: "cd /opt/habanalabs/qual/gaudi2/bin && ./manage_network_ifs.sh --up"
+      changed_when: false
+
+    - name: Retry until HPUs NICs are ready
+      ansible.builtin.shell: |
+        set -o pipefail
+        cd /opt/habanalabs/qual/gaudi2/bin && ./manage_network_ifs.sh --status | grep down | wc -l
+      register: result
+      until: (result.stdout == "0")
+      retries: 5
+      delay: 5
+      changed_when: false
+
+    - name: Hl_qual HBM DMA stress test
+      environment:
+        __python_cmd: "python{{ pver }}"
+        LOG_LEVEL_ALL: "{{ habana_tests['log_level_all'] }}"
+        ENABLE_CONSOLE: "{{ habana_tests['enable_console'] }}"
+        HABANA_LOGS: "{{ habana_tests['habana_logs'] }}"
+        GC_KERNEL_PATH: "{{ habana_tests['gc_kernel_path'] }}"
+        HABANA_SCAL_BIN_PATH: "{{ habana_tests['habana_scal_bin_path'] }}"
+        HABANA_PLUGINS_LIB_PATH: "{{ habana_tests['habana_plugins_lib_path'] }}"
+        DATA_LOADER_AEON_LIB_PATH: "{{ habana_tests['data_loader_aeon_lib_path'] }}"
+      ansible.builtin.shell: "cd /opt/habanalabs/qual/gaudi2/bin && ./hl_qual -gaudi2 -c all -rmod parallel -i 1 -hbm_dma_stress -dis_mon"
+      register: hbm_dma_stress_test_result
+      failed_when: "'FAILED' in hbm_dma_stress_test_result.stdout"
+      changed_when: false
+
+    - name: Hl_qual HBM TPC stress test
+      environment:
+        __python_cmd: "python{{ pver }}"
+        LOG_LEVEL_ALL: "{{ habana_tests['log_level_all'] }}"
+        ENABLE_CONSOLE: "{{ habana_tests['enable_console'] }}"
+        HABANA_LOGS: "{{ habana_tests['habana_logs'] }}"
+        GC_KERNEL_PATH: "{{ habana_tests['gc_kernel_path'] }}"
+        HABANA_SCAL_BIN_PATH: "{{ habana_tests['habana_scal_bin_path'] }}"
+        HABANA_PLUGINS_LIB_PATH: "{{ habana_tests['habana_plugins_lib_path'] }}"
+        DATA_LOADER_AEON_LIB_PATH: "{{ habana_tests['data_loader_aeon_lib_path'] }}"
+      ansible.builtin.shell: "cd /opt/habanalabs/qual/gaudi2/bin && ./hl_qual -gaudi2 -c all -rmod parallel -i 1 -hbm_tpc_stress -dis_mon"
+      register: hbm_tpc_stress_test_result
+      failed_when: "'FAILED' in hbm_tpc_stress_test_result.stdout"
+      changed_when: false
+
+    - name: Hl_qual power stress test
+      environment:
+        __python_cmd: "python{{ pver }}"
+        LOG_LEVEL_ALL: "{{ habana_tests['log_level_all'] }}"
+        ENABLE_CONSOLE: "{{ habana_tests['enable_console'] }}"
+        HABANA_LOGS: "{{ habana_tests['habana_logs'] }}"
+        GC_KERNEL_PATH: "{{ habana_tests['gc_kernel_path'] }}"
+        HABANA_SCAL_BIN_PATH: "{{ habana_tests['habana_scal_bin_path'] }}"
+        HABANA_PLUGINS_LIB_PATH: "{{ habana_tests['habana_plugins_lib_path'] }}"
+        DATA_LOADER_AEON_LIB_PATH: "{{ habana_tests['data_loader_aeon_lib_path'] }}"
+      ansible.builtin.shell: "cd /opt/habanalabs/qual/gaudi2/bin && ./hl_qual -gaudi2 -c all -rmod parallel -s -t 120"
+      register: power_stress_test_result
+      failed_when: "'FAILED' in power_stress_test_result.stdout"
+      changed_when: false
+
+    - name: Hl_qual EDP stress test
+      environment:
+        __python_cmd: "python{{ pver }}"
+        LOG_LEVEL_ALL: "{{ habana_tests['log_level_all'] }}"
+        ENABLE_CONSOLE: "{{ habana_tests['enable_console'] }}"
+        HABANA_LOGS: "{{ habana_tests['habana_logs'] }}"
+        GC_KERNEL_PATH: "{{ habana_tests['gc_kernel_path'] }}"
+        HABANA_SCAL_BIN_PATH: "{{ habana_tests['habana_scal_bin_path'] }}"
+        HABANA_PLUGINS_LIB_PATH: "{{ habana_tests['habana_plugins_lib_path'] }}"
+        DATA_LOADER_AEON_LIB_PATH: "{{ habana_tests['data_loader_aeon_lib_path'] }}"
+      ansible.builtin.shell: "cd /opt/habanalabs/qual/gaudi2/bin && ./hl_qual -gaudi2 -c all -rmod parallel -t 40 -e -Tw 3 -Ts 1"
+      register: edp_stress_test_result
+      failed_when: "'FAILED' in edp_stress_test_result.stdout"
+      changed_when: false
+
+    - name: Hl_qual e2e concurrency test
+      environment:
+        __python_cmd: "python{{ pver }}"
+        LOG_LEVEL_ALL: "{{ habana_tests['log_level_all'] }}"
+        ENABLE_CONSOLE: "{{ habana_tests['enable_console'] }}"
+        HABANA_LOGS: "{{ habana_tests['habana_logs'] }}"
+        GC_KERNEL_PATH: "{{ habana_tests['gc_kernel_path'] }}"
+        HABANA_SCAL_BIN_PATH: "{{ habana_tests['habana_scal_bin_path'] }}"
+        HABANA_PLUGINS_LIB_PATH: "{{ habana_tests['habana_plugins_lib_path'] }}"
+        DATA_LOADER_AEON_LIB_PATH: "{{ habana_tests['data_loader_aeon_lib_path'] }}"
+        RDMA_CORE_ROOT: "{{ habana_tests['rdma_core_root'] }}"
+        RDMA_CORE_LIB: "{{ habana_tests['rdma_core_lib'] }}"
+      ansible.builtin.shell: "cd /opt/habanalabs/qual/gaudi2/bin && ./hl_qual -gaudi2 -c all -rmod parallel -t 30 -dis_mon -e2e_concurrency -disable_ports 8,22,23 -enable_ports_check int" # noqa: yaml[line-length]
+      register: e2e_concurrency_test_result
+      failed_when: "'FAILED' in e2e_concurrency_test_result.stdout"
+      changed_when: false
+
+    - name: Hl_qual SER test
+      environment:
+        __python_cmd: "python{{ pver }}"
+        LOG_LEVEL_ALL: "{{ habana_tests['log_level_all'] }}"
+        ENABLE_CONSOLE: "{{ habana_tests['enable_console'] }}"
+        HABANA_LOGS: "{{ habana_tests['habana_logs'] }}"
+        GC_KERNEL_PATH: "{{ habana_tests['gc_kernel_path'] }}"
+        HABANA_SCAL_BIN_PATH: "{{ habana_tests['habana_scal_bin_path'] }}"
+        HABANA_PLUGINS_LIB_PATH: "{{ habana_tests['habana_plugins_lib_path'] }}"
+        DATA_LOADER_AEON_LIB_PATH: "{{ habana_tests['data_loader_aeon_lib_path'] }}"
+        RDMA_CORE_ROOT: "{{ habana_tests['rdma_core_root'] }}"
+        RDMA_CORE_LIB: "{{ habana_tests['rdma_core_lib'] }}"
+      ansible.builtin.shell: "cd /opt/habanalabs/qual/gaudi2/bin && ./hl_qual -gaudi2 -c all -rmod parallel -dis_mon -ser"
+      register: ser_test_result
+      failed_when: "'FAILED' in ser_test_result.stdout"
+      changed_when: false
