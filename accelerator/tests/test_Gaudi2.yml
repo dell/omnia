@@ -45,7 +45,7 @@
       ansible.builtin.command:
         argv:
           - "ansible-playbook"
-          - "test_Gaudi_hlqual_validation.yml"
+          - "test_Gaudi2_hlqual_validation.yml"
           - "-i"
           - "{{ inventory }}"
       changed_when: false
@@ -62,7 +62,7 @@
       ansible.builtin.command:
         argv:
           - "ansible-playbook"
-          - "test_Gaudi_hccl_validation.yml"
+          - "test_Gaudi2_hccl_validation.yml"
           - "-i"
           - "{{ inventory }}"
       changed_when: false
