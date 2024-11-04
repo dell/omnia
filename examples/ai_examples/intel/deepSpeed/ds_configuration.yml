@@ -14,23 +14,19 @@ spec:
       template:
         spec:
           containers:
-            - image: vault.habana.ai/gaudi-docker/1.17.1/ubuntu22.04/habanalabs/pytorch-installer-2.3.1:latest
+            - image: vault.habana.ai/gaudi-docker/1.18.0/ubuntu22.04/habanalabs/pytorch-installer-2.4.0:latest
               name: gaudi-llm-ds-ft-launcher
               env:
                 - name: HF_HOME
-                  value: /storage/models
+                  value: /storage/huggingface
                 - name: http_proxy
                   value: ""
                 - name: https_proxy
                   value: ""
-                - name: HTTP_PROXY
-                  value: ""
-                - name: HTTPS_PROXY
-                  value: ""
                 - name: no_proxy
-                  value: ""
+                  value: "127.0.0.1,localhost"
                 - name: LLM_MODEL
-                  value: meta-llama/Meta-Llama-3-70B-Instruct
+                  value: "meta-llama/Meta-Llama-3.1-8B-Instruct"
                 - name: NUM_HPU
                   value: "8"
                 - name: NUM_EPOCHS
@@ -49,11 +45,12 @@ spec:
 
                   git clone  https://github.com/huggingface/optimum-habana /optimum-habana;
                   cd /optimum-habana;
-                  git checkout v1.12.0;
+                  git checkout v1.13.2;
                   sed -i '194s|deepspeed|deepspeed --force_multi|' optimum/habana/distributed/distributed_runner.py;
                   pip install .;
                   pip install -r examples/language-modeling/requirements.txt;
-                  pip install git+https://github.com/HabanaAI/DeepSpeed.git@1.16.2;
+                  pip install git+https://github.com/HabanaAI/DeepSpeed.git@1.18.0;
+
                   mpirun --npernode 1 \
                     --tag-output \
                     --allow-run-as-root \
@@ -68,7 +65,7 @@ spec:
                     bash -i -c '
                     git clone  https://github.com/huggingface/optimum-habana /optimum-habana
                     cd /optimum-habana
-                    git checkout v1.12.0
+                    git checkout v1.13.2
                     hf_home_var="os.environ[\"HF_HOME\"] = \"${HF_HOME}\""
                     token_var="os.environ[\"HUGGING_FACE_HUB_TOKEN\"] = \"${HUGGING_FACE_HUB_TOKEN}\""
                     https_var="os.environ[\"https_proxy\"] = \"${https_proxy}\""
@@ -82,41 +79,40 @@ spec:
 
                     pip install .
                     pip install -r examples/language-modeling/requirements.txt
-                    pip install git+https://github.com/HabanaAI/DeepSpeed.git@1.16.2
+                    pip install git+https://github.com/HabanaAI/DeepSpeed.git@1.18.0
                     ';
 
                     cd /optimum-habana/examples/language-modeling/;
-                    python3 ../gaudi_spawn.py --hostfile=$HOSTSFILE --use_deepspeed --world_size $N_CARDS  run_lora_clm.py \
-                    --model_name_or_path $LLM_MODEL \
-                    --deepspeed llama2_ds_zero3_config.json \
+                    python ../gaudi_spawn.py --hostfile=$HOSTSFILE --use_deepspeed --world_size $N_CARDS  run_lora_clm.py --model_name_or_path $LLM_MODEL \
                     --dataset_name tatsu-lab/alpaca \
                     --bf16 True \
-                    --output_dir ./lora_out \
-                    --num_train_epochs 2 \
-                    --max_seq_len 2048 \
-                    --per_device_train_batch_size 10 \
-                    --per_device_eval_batch_size 10 \
-                    --gradient_checkpointing \
-                    --evaluation_strategy epoch \
-                    --eval_delay 2 \
-                    --save_strategy no \
-                    --learning_rate 0.0018 \
-                    --warmup_ratio 0.03 \
-                    --lr_scheduler_type "cosine" \
+                    --output_dir ./model_lora_llama_ddp \
+                    --num_train_epochs $NUM_EPOCHS \
+                    --per_device_train_batch_size 8 \
+                    --gradient_accumulation_steps 2 \
+                    --evaluation_strategy "no" \
+                    --save_strategy "no" \
+                    --learning_rate 3e-4 \
+                    --warmup_ratio  0.03 \
+                    --lr_scheduler_type "constant" \
+                    --max_grad_norm  0.3 \
                     --logging_steps 1 \
-                    --dataset_concatenation \
-                    --attn_softmax_bf16 True \
                     --do_train \
                     --do_eval \
                     --use_habana \
                     --use_lazy_mode \
-                    --pipelining_fwd_bwd \
                     --throughput_warmup_steps 3 \
-                    --lora_rank 4 \
-                    --lora_target_modules "q_proj" "v_proj" "k_proj" "o_proj" \
+                    --lora_rank=8 \
+                    --lora_alpha=16 \
+                    --lora_dropout=0.05 \
+                    --lora_target_modules "q_proj" "v_proj" \
+                    --dataset_concatenation \
+                    --max_seq_length 512 \
+                    --ddp_bucket_cap_mb 50 \
+                    --adam_epsilon 1e-08 \
                     --validation_split_percentage 4 \
-                    --use_flash_attention True \
-                    --flash_attention_causal_mask True
+                    --low_cpu_mem_usage True;
+
               volumeMounts:
                 - name: datasets
                   mountPath: /storage
@@ -131,17 +127,17 @@ spec:
         spec:
           hostIPC: true
           containers:
-            - image: vault.habana.ai/gaudi-docker/1.17.1/ubuntu22.04/habanalabs/pytorch-installer-2.3.1:latest
+            - image: vault.habana.ai/gaudi-docker/1.18.0/ubuntu22.04/habanalabs/pytorch-installer-2.4.0:latest
               name: gaudi-llm-ds-ft-worker
               resources:
                 limits:
                   habana.ai/gaudi: 8
-                  memory: 400Gi
-                  hugepages-2Mi: 95000Mi
+                  memory: 250Gi
+                  hugepages-2Mi: 312600Mi
                 requests:
                   habana.ai/gaudi: 8
-                  memory: 400Gi
-                  hugepages-2Mi: 95000Mi
+                  memory: 250Gi
+                  hugepages-2Mi: 312600Mi
               volumeMounts:
                 - name: datasets
                   mountPath: /storage

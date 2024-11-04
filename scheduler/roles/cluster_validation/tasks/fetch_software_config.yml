@@ -17,6 +17,9 @@
   ansible.builtin.set_fact:
     k8s_support: false
     slurm_support: false
+    set_intel_config_status: false
+    set_intel_input_status: false
+    set_intelgaudi_input_status: false
 
 - name: Load software_config.json
   ansible.builtin.include_vars:
@@ -140,6 +143,70 @@
     - name: Unable to fetch k8s version
       ansible.builtin.fail:
         msg: "{{ k8s_version_fail_msg }}"
+
+- name: Get intelgaudi input status
+  ansible.builtin.set_fact:
+    set_intelgaudi_input_status: true
+  loop: "{{ software_config.softwares | default([]) }}"
+  when:
+    - "'intelgaudi' in item.name"
+  loop_control:
+    loop_var: item
+
+- name: Set set_intel_config_status
+  when: set_intelgaudi_input_status
+  block:
+    - name: Fetch intelgaudi_version
+      ansible.builtin.set_fact:
+        intelgaudi_version: "{{ software_config.softwares | selectattr('name', 'equalto', 'intelgaudi') | map(attribute='version') | first }}"
+  rescue:
+    - name: Failed - Intel gaudi version check
+      ansible.builtin.fail:
+        msg: "{{ intelgaudi_version_warning_msg }}"
+
+- name: Set intel input status
+  ansible.builtin.set_fact:
+    set_intel_input_status: true    
+  loop: "{{ software_config.intelgaudi | default([]) }}"
+  when: "set_intelgaudi_input_status and 'intel' in item.name"
+  loop_control:
+    loop_var: item
+
+- name: Intel Gaudi will not be installed
+  ansible.builtin.pause:
+    prompt: "{{ intel_gaudi_input_fail_msg }}"
+    seconds: "{{ warning_time }}"
+  when:
+    - set_intelgaudi_input_status
+    - not set_intel_input_status
+
+- name: Set set_intel_config_status
+  when: set_intel_input_status
+  block:
+    - name: Set intel_directory
+      ansible.builtin.set_fact:
+        intel_directory: "{{ offline_intel_directory }}/intel/{{ intelgaudi_version }}/"
+
+    - name: Check intel_directory exists or not
+      ansible.builtin.stat:
+        path: "{{ intel_directory }}"
+      register: check_intel_dir
+
+    - name: Warning - Please wait, This task will take few seconds
+      ansible.builtin.pause:
+        seconds: "{{ warning_time }}"
+        prompt: "{{ intel_gaudi_repo_fail_msg }}"
+      when: not check_intel_dir.stat.exists
+
+    - name: Set set_intel_config_status to true
+      ansible.builtin.set_fact:
+        set_intel_config_status: true
+      when: check_intel_dir.stat.exists
+  rescue:
+    - name: Intel Gaudi repo is not configured 
+      ansible.builtin.pause:
+        seconds: "{{ warning_wait_time }}"
+        prompt: "{{ intel_gaudi_repo_fail_msg }}"
 
 - name: Local local_repo_access.yml file
   ansible.builtin.include_vars: "{{ local_repo_access_dest_path }}"

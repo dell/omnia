@@ -158,6 +158,14 @@
         dest: "{{ csi_powerscale_path }}/csi-powerscale"
         remote_src: true
 
+    - name: Transfer storage class template to kube_control_plane
+      ansible.builtin.template:
+        src: ps_storage_class.j2
+        dest: "{{ csi_powerscale_path }}/ps_storage_class.yml"
+        owner: "{{ owner_value }}"
+        group: "{{ group_value }}"
+        mode: "{{ permission_644 }}"
+
     - name: Create isilon namespace
       ansible.builtin.command:
         cmd: "kubectl create ns isilon"

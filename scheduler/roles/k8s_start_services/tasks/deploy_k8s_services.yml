@@ -118,15 +118,6 @@
     - hostvars[item]['node_has_gaudi'] | default(false)
   loop: "{{ groups['kube_node'] | default([]) }}"
 
-# LABEL NODES WITH GAUDI
-- name: Label nodes with Gaudi
-  ansible.builtin.command: "kubectl label nodes {{ item }} {{ node_label_for_habana_device_plugin }}=true --overwrite"
-  changed_when: true
-  when:
-    - hostvars['localhost']['is_gaudi_cluster'] is defined
-    - hostvars[item]['node_has_gaudi'] | default(false)
-  loop: "{{ groups['kube_node'] | default([]) }}"
-
 # HABANA PLUGIN
 - name: Deploy Habana Device plugin
   when:

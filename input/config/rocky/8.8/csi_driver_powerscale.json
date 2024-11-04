@@ -5,7 +5,7 @@
         "package": "csi-powerscale",
         "url": "https://github.com/dell/csi-powerscale.git",
         "type": "git",
-        "version": "release-2.11.0"
+        "version": "v2.11.0"
       },
       {
         "package": "external-snapshotter",

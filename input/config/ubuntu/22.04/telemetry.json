@@ -245,21 +245,21 @@
       {
         "package": "metric-exporter-daemonset",
         "type": "manifest",
-        "url": "https://vault.habana.ai/artifactory/gaudi-metric-exporter/yaml/1.17.1/metric-exporter-daemonset.yaml"
+        "url": "https://vault.habana.ai/artifactory/gaudi-metric-exporter/yaml/1.18.0/metric-exporter-daemonset.yaml"
       },
       {
         "package": "metric-exporter-service",
         "type": "manifest",
-        "url": "https://vault.habana.ai/artifactory/gaudi-metric-exporter/yaml/1.17.1/metric-exporter-service.yaml"
+        "url": "https://vault.habana.ai/artifactory/gaudi-metric-exporter/yaml/1.18.0/metric-exporter-service.yaml"
       },
       {
         "package": "metric-exporter-serviceMonitor",
         "type": "manifest",
-        "url": "https://vault.habana.ai/artifactory/gaudi-metric-exporter/yaml/1.17.1/metric-exporter-serviceMonitor.yaml"
+        "url": "https://vault.habana.ai/artifactory/gaudi-metric-exporter/yaml/1.18.0/metric-exporter-serviceMonitor.yaml"
       },
       {
         "package": "vault.habana.ai/gaudi-metric-exporter/metric-exporter",
-        "tag": "1.17.1-40",
+        "tag": "1.18.0-524",
         "type": "image"
       }
       ]
