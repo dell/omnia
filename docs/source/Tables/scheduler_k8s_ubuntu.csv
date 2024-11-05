@@ -59,7 +59,7 @@
 * **Default value**: ``container``
 
 **Example**: ``topology_manager_scope: ""container""``"
-"**verify_intel_gaudi_with_sanity_test_only**
+"**run_intel_gaudi_tests**
 
      ``boolean``
 
@@ -68,4 +68,4 @@
 * Accepted values are ``true`` or ``false``.
 * **Default value**: ``false``
 
-**Example**: ``verify_intel_gaudi_with_sanity_test_only: ""false""``"
+**Example**: ``run_intel_gaudi_tests: ""false""``"
