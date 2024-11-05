@@ -7,7 +7,7 @@ Prerequisites
 
 3. Ensure that the control plane needs is internet-capable with Git installed. If Git is not installed, use the below command to install it. ::
 
-    dnf install git -y
+    apt install git -y
 
 4. Clone the Omnia repository from GitHub on to the control plane server using the following command: ::
 

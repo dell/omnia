@@ -161,7 +161,7 @@ Configure specific local repositories
 
             {"name": "beegfs", "version": "7.4.2"},
 
-    For information on deploying BeeGFS after setting up the cluster, `click here <../OmniaCluster/BuidingCluster/Storage/BeeGFS.html>`_.
+    For information on deploying BeeGFS after setting up the cluster, `click here <../OmniaCluster/BuildingCluster/Storage/BeeGFS.html>`_.
 
 **NFS**
 
@@ -169,7 +169,7 @@ Configure specific local repositories
 
             {"name": "nfs"},
 
-    For information on deploying NFS after setting up the cluster, `click here <../OmniaCluster/BuidingCluster/Storage/NFS.html>`_.
+    For information on deploying NFS after setting up the cluster, `click here <../OmniaCluster/BuildingCluster/Storage/NFS.html>`_.
 
 **Kubernetes**
 

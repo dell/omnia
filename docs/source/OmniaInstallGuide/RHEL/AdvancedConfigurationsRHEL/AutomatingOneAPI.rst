@@ -7,7 +7,7 @@ This topic explains how to automatically update servers for MPI jobs.
 
 **Pre-requisites**
 
-* A local repository has been set up by listing ``{"name": "intel_benchmarks", "version": "2024.1.0"},`` in ``input/software_config.json`` and running ``local_repo.yml``. For more information, `click here. <../LocalRepo/index.html>`_
+* A local repository has been set up by listing ``{"name": "intel_benchmarks", "version": "2024.1.0"},`` in ``input/software_config.json`` and running ``local_repo.yml``. For more information, `click here. <../CreateLocalRepo/index.html>`_
 * ``discovery_provision.yml`` playbook has been executed.
 * Verify that the target nodes are in the ``booted`` state. For more information, `click here <../Provision/ViewingDB.html>`_.
 * The cluster has been set up with Slurm. For more information, `click here <../OmniaCluster/BuildingCluster/install_slurm.html>`_.
