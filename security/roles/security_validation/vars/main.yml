@@ -126,10 +126,6 @@ Please give one of them in software_config.json and execute local_repo.yml again
 freeipa_and_openldap_true_fail_msg: "Both freeipa and openldap are present in software_config.json.
 Please give only one of them in software_config.json"
 compute_os_ubuntu: "ubuntu"
-ipa_support_wait_time: 30
-ipa_support_warning: "Skipping the configuration of the secure login node
-because the software_config.json file does not contain either 'freeipa' or 'openldap' as the authentication system.
-To enable the configuration of the secure login node, please provide either 'freeipa' or 'openldap' in the software_config.json file."
 
 # secure_login_node_prereq.yml
 snoopy_package: "install-snoopy"

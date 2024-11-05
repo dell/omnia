@@ -46,13 +46,6 @@
     msg: "{{ freeipa_and_openldap_true_fail_msg }}"
   when: freeipa_support and openldap_support
 
-- name: Warn if secure login is not required
-  ansible.builtin.pause:
-    seconds: "{{ ipa_support_wait_time }}"
-    prompt: "{{ ipa_support_warning }}"
-  when: not (freeipa_support or openldap_support)
-  failed_when: false
-
 - name: Set facts for authentication system
   ansible.builtin.set_fact:
     authentication_system: "{{ 'openldap' if openldap_support else 'freeipa' if freeipa_support }}"
