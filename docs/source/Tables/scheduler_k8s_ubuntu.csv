@@ -64,8 +64,8 @@
      ``boolean``
 
      Optional      ","* If value is ``true``, Omnia performs a sanity test on the nodes containing Intel Gaudi accelerators. It uses the `Habana Collective Communications Library (HCCL) <https://docs.habana.ai/en/latest/API_Reference_Guides/HCCL_APIs/index.html>`_ and `Qualification tool <https://docs.habana.ai/en/latest/Management_and_Monitoring/Qualification_Library/index.html>`_. Approx time taken for the sanity test is 2-3 minutes (depending on the internet speed) for each node.
-* If value is ``false``, Omnia performs extensive tests using the same packages mentioned above and the approx time taken for each node is approximately 30 minutes (depending on the internet speed).
+* If value is ``false``, Omnia does not perform any sanity tests on the nodes.
 * Accepted values are ``true`` or ``false``.
-* **Default value**: ``true``
+* **Default value**: ``false``
 
-**Example**: ``verify_intel_gaudi_with_sanity_test_only: ""true""``"
+**Example**: ``verify_intel_gaudi_with_sanity_test_only: ""false""``"
