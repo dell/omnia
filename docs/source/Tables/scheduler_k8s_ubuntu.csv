@@ -63,7 +63,7 @@
 
      ``boolean``
 
-     Optional      ","* If value is ``true``, Omnia performs validation tests on the nodes containing Intel Gaudi accelerators. It uses the `Habana Collective Communications Library (HCCL) <https://docs.habana.ai/en/latest/API_Reference_Guides/HCCL_APIs/index.html>`_ and `Qualification tool <https://docs.habana.ai/en/latest/Management_and_Monitoring/Qualification_Library/index.html>`_. Approx time taken for the sanity test is 2-3 minutes (depending on the internet speed) for each node.
+     Optional      ","* If value is ``true``, Omnia performs validation tests on the nodes containing Intel Gaudi accelerators. It uses the `Habana Collective Communications Library (HCCL) <https://docs.habana.ai/en/latest/API_Reference_Guides/HCCL_APIs/index.html>`_ and `Qualification tool <https://docs.habana.ai/en/latest/Management_and_Monitoring/Qualification_Library/index.html>`_. Approx time taken for the validation test is 2-3 minutes (depending on the internet speed) for each node.
 * If value is ``false``, Omnia does not perform any validation tests on the nodes.
 * Accepted values are ``true`` or ``false``.
 * **Default value**: ``false``
