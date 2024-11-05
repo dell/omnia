@@ -9,7 +9,7 @@ Advanced configurations for Ubuntu clusters
     k8s_plugin_roce_nic
     KubernetesAccess
     ConfiguringSwitches/index
-    ConfiguringSwitches/index
+    ConfiguringStorage/index
     IPruleassignment
     AdditionalNIC
     ROCm_accelerator
