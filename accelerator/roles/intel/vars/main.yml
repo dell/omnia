@@ -51,6 +51,7 @@ intel_apt_base_packages:
   - numactl
   - unzip
   - wget
+  - libopenmpi3
 
 intel_bring_up_ports_script_path: "/opt/omnia/cronjobs/bring_up_ports.sh"
 file_permissions: "0755"

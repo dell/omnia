@@ -36,6 +36,7 @@ verify_intel_gaudi_habana_tests:
   data_loader_aeon_lib_path: "/usr/lib/habanalabs/libaeon.so"
   rdma_core_root: "/opt/habanalabs/rdma-core/src"
   rdma_core_lib: "/opt/habanalabs/rdma-core/src/build/lib"
+  habanalabs_hlthunk_tests_bin_path: "/opt/habanalabs/src/hl-thunk/tests"
   targz_permission: "644"
 
 verify_intel_gaudi_habana_extra:

@@ -34,6 +34,7 @@
     HABANA_SCAL_BIN_PATH: "{{ verify_intel_gaudi_habana_tests['habana_scal_bin_path'] }}"
     HABANA_PLUGINS_LIB_PATH: "{{ verify_intel_gaudi_habana_tests['habana_plugins_lib_path'] }}"
     DATA_LOADER_AEON_LIB_PATH: "{{ verify_intel_gaudi_habana_tests['data_loader_aeon_lib_path'] }}"
+    HABANALABS_HLTHUNK_TESTS_BIN_PATH: "{{ verify_intel_gaudi_habana_tests['habanalabs_hlthunk_tests_bin_path'] }}"
   ansible.builtin.shell: |
     set -o pipefail
     ./hl_qual -gaudi2 -c all -rmod parallel -f2 -l extreme -t 60 -dis_mon
@@ -50,6 +51,7 @@
     LOG_LEVEL_ALL: "{{ verify_intel_gaudi_habana_tests['log_level_all'] }}"
     ENABLE_CONSOLE: "{{ verify_intel_gaudi_habana_tests['enable_console'] }}"
     HABANA_LOGS: "{{ verify_intel_gaudi_habana_tests['habana_logs'] }}"
+    HABANALABS_HLTHUNK_TESTS_BIN_PATH: "{{ verify_intel_gaudi_habana_tests['habanalabs_hlthunk_tests_bin_path'] }}"
   ansible.builtin.shell: |
     set -o pipefail
     ./hl_qual -c all -rmod parallel -mb -memOnly -gaudi2 -dis_mon
@@ -66,9 +68,10 @@
     LOG_LEVEL_ALL: "{{ verify_intel_gaudi_habana_tests['log_level_all'] }}"
     ENABLE_CONSOLE: "{{ verify_intel_gaudi_habana_tests['enable_console'] }}"
     HABANA_LOGS: "{{ verify_intel_gaudi_habana_tests['habana_logs'] }}"
+    HABANALABS_HLTHUNK_TESTS_BIN_PATH: "{{ verify_intel_gaudi_habana_tests['habanalabs_hlthunk_tests_bin_path'] }}"
   ansible.builtin.shell: |
     set -o pipefail
-    ./hl_qual -c all -rmod serial -mb -b -pciOnly -sramOnly -gaudi2 -dis_mon
+    ./hl_qual -c all -rmod serial -mb -b -pciOnly -gaudi2 -dis_mon
   args:
     executable: /bin/bash
     chdir: /opt/habanalabs/qual/gaudi2/bin
@@ -82,6 +85,7 @@
     LOG_LEVEL_ALL: "{{ verify_intel_gaudi_habana_tests['log_level_all'] }}"
     ENABLE_CONSOLE: "{{ verify_intel_gaudi_habana_tests['enable_console'] }}"
     HABANA_LOGS: "{{ verify_intel_gaudi_habana_tests['habana_logs'] }}"
+    HABANALABS_HLTHUNK_TESTS_BIN_PATH: "{{ verify_intel_gaudi_habana_tests['habanalabs_hlthunk_tests_bin_path'] }}"
   ansible.builtin.shell: |
     set -o pipefail
     ./hl_qual -gaudi2 -c all -rmod parallel -i 50 -nic_base -test_type pairs -dis_mon
@@ -98,6 +102,7 @@
     LOG_LEVEL_ALL: "{{ verify_intel_gaudi_habana_tests['log_level_all'] }}"
     ENABLE_CONSOLE: "{{ verify_intel_gaudi_habana_tests['enable_console'] }}"
     HABANA_LOGS: "{{ verify_intel_gaudi_habana_tests['habana_logs'] }}"
+    HABANALABS_HLTHUNK_TESTS_BIN_PATH: "{{ verify_intel_gaudi_habana_tests['habanalabs_hlthunk_tests_bin_path'] }}"
   ansible.builtin.shell: |
     set -o pipefail
     ./hl_qual -gaudi2 -c all -rmod parallel -i 50 -ep 100 -nic_base -test_type allreduce -dis_mon
@@ -161,6 +166,7 @@
     HABANA_SCAL_BIN_PATH: "{{ verify_intel_gaudi_habana_tests['habana_scal_bin_path'] }}"
     HABANA_PLUGINS_LIB_PATH: "{{ verify_intel_gaudi_habana_tests['habana_plugins_lib_path'] }}"
     DATA_LOADER_AEON_LIB_PATH: "{{ verify_intel_gaudi_habana_tests['data_loader_aeon_lib_path'] }}"
+    HABANALABS_HLTHUNK_TESTS_BIN_PATH: "{{ verify_intel_gaudi_habana_tests['habanalabs_hlthunk_tests_bin_path'] }}"
   ansible.builtin.shell: |
     set -o pipefail
     ./hl_qual -gaudi2 -c all -rmod parallel -i 1 -hbm_dma_stress -dis_mon
@@ -181,6 +187,7 @@
     HABANA_SCAL_BIN_PATH: "{{ verify_intel_gaudi_habana_tests['habana_scal_bin_path'] }}"
     HABANA_PLUGINS_LIB_PATH: "{{ verify_intel_gaudi_habana_tests['habana_plugins_lib_path'] }}"
     DATA_LOADER_AEON_LIB_PATH: "{{ verify_intel_gaudi_habana_tests['data_loader_aeon_lib_path'] }}"
+    HABANALABS_HLTHUNK_TESTS_BIN_PATH: "{{ verify_intel_gaudi_habana_tests['habanalabs_hlthunk_tests_bin_path'] }}"
   ansible.builtin.shell: |
     set -o pipefail
     ./hl_qual -gaudi2 -c all -rmod parallel -i 1 -hbm_tpc_stress -dis_mon
@@ -201,6 +208,7 @@
     HABANA_SCAL_BIN_PATH: "{{ verify_intel_gaudi_habana_tests['habana_scal_bin_path'] }}"
     HABANA_PLUGINS_LIB_PATH: "{{ verify_intel_gaudi_habana_tests['habana_plugins_lib_path'] }}"
     DATA_LOADER_AEON_LIB_PATH: "{{ verify_intel_gaudi_habana_tests['data_loader_aeon_lib_path'] }}"
+    HABANALABS_HLTHUNK_TESTS_BIN_PATH: "{{ verify_intel_gaudi_habana_tests['habanalabs_hlthunk_tests_bin_path'] }}"
   ansible.builtin.shell: |
     set -o pipefail
     ./hl_qual -gaudi2 -c all -rmod parallel -s -t 120 -dis_mon
@@ -221,6 +229,7 @@
     HABANA_SCAL_BIN_PATH: "{{ verify_intel_gaudi_habana_tests['habana_scal_bin_path'] }}"
     HABANA_PLUGINS_LIB_PATH: "{{ verify_intel_gaudi_habana_tests['habana_plugins_lib_path'] }}"
     DATA_LOADER_AEON_LIB_PATH: "{{ verify_intel_gaudi_habana_tests['data_loader_aeon_lib_path'] }}"
+    HABANALABS_HLTHUNK_TESTS_BIN_PATH: "{{ verify_intel_gaudi_habana_tests['habanalabs_hlthunk_tests_bin_path'] }}"
   ansible.builtin.shell: |
     set -o pipefail
     ./hl_qual -gaudi2 -c all -rmod parallel -t 40 -e -Tw 3 -Ts 1 -dis_mon
@@ -243,9 +252,10 @@
     DATA_LOADER_AEON_LIB_PATH: "{{ verify_intel_gaudi_habana_tests['data_loader_aeon_lib_path'] }}"
     RDMA_CORE_ROOT: "{{ verify_intel_gaudi_habana_tests['rdma_core_root'] }}"
     RDMA_CORE_LIB: "{{ verify_intel_gaudi_habana_tests['rdma_core_lib'] }}"
+    HABANALABS_HLTHUNK_TESTS_BIN_PATH: "{{ verify_intel_gaudi_habana_tests['habanalabs_hlthunk_tests_bin_path'] }}"
   ansible.builtin.shell: |
     set -o pipefail
-    ./hl_qual -gaudi2 -c all -rmod parallel -t 30 -dis_mon -e2e_concurrency -disable_ports 8,22,23 -enable_ports_check int
+    ./hl_qual -gaudi2 -c all -rmod parallel -t 30 -dis_mon -e2e_concurrency -disable_ports 8,22,23
   args:
     executable: /bin/bash
     chdir: /opt/habanalabs/qual/gaudi2/bin
@@ -265,6 +275,7 @@
     DATA_LOADER_AEON_LIB_PATH: "{{ verify_intel_gaudi_habana_tests['data_loader_aeon_lib_path'] }}"
     RDMA_CORE_ROOT: "{{ verify_intel_gaudi_habana_tests['rdma_core_root'] }}"
     RDMA_CORE_LIB: "{{ verify_intel_gaudi_habana_tests['rdma_core_lib'] }}"
+    HABANALABS_HLTHUNK_TESTS_BIN_PATH: "{{ verify_intel_gaudi_habana_tests['habanalabs_hlthunk_tests_bin_path'] }}"
   ansible.builtin.shell: |
     set -o pipefail
     ./hl_qual -gaudi2 -c all -rmod parallel -dis_mon -ser
