@@ -9,7 +9,7 @@ For example, ``controlplane.omnia.test`` is acceptable. ::
 
     hostnamectl set-hostname controlplane.omnia.test
 
-2. To set up persistent offline local repositories, (if the parameter ``repo_config`` in ``input/software_config`` is set to ``always``), `click here <https://help.ubuntu.com/community/Debmirror>`_.
+2. To set up persistent offline local repositories, (if the parameter ``repo_config`` in ``input/software_config.json`` is set to ``always``), `click here <https://help.ubuntu.com/community/Debmirror>`_.
 
 .. note:: The above link explains how to build a mirror on an Ubuntu 20.04 server. Adapt the steps and scripts as required for other versions of Ubuntu OS.
 
