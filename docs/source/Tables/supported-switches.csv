@@ -1,4 +1,4 @@
-﻿Switch make and type,Supported models ,Models validated with current version of Omnia
+﻿Switch make and type,Models supported by Omnia,Models validated with current version of Omnia
 NVIDIA InfiniBand Switches,"* NVIDIA MQM8700-HS2F Quantum HDR InfiniBand Switch 40 QSFP56
 * NVIDIA QUANTUM-2 QM9700","* NVIDIA MQM8700-HS2F Quantum HDR InfiniBand Switch 40 QSFP56
 * NVIDIA QUANTUM-2 QM9700"
@@ -8,9 +8,11 @@ Dell Networking Switches,"* PowerSwitch S3048-ON
 * PowerSwitch N3248TE-ON
 * PowerSwitch S4148
 * PowerSwitch Z9664F
-* PowerSwitch Z9432-ON","* PowerSwitch S3048-ON
+* PowerSwitch Z9432-ON
+* PowerSwitch Z9864F-ON","* PowerSwitch S3048-ON
 * PowerSwitch S5232F-ON
 * PowerSwitch Z9264F-ON
 * PowerSwitch N3248TE-ON
 * PowerSwitch S4148
-* PowerSwitch Z9432-ON"
+* PowerSwitch Z9432-ON
+* PowerSwitch Z9864F-ON"

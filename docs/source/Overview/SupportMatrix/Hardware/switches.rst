@@ -8,6 +8,7 @@ Switches
 
 .. versionadded:: 1.7
     PowerSwitch Z9432-ON
+    PowerSwitch Z9864F-ON
 
 .. note::
 
