@@ -1,0 +1,19 @@
+﻿Software ,Disc utilization (size)
+AMD ROCM,4 GB
+CUDA,3.1 GB
+Intel Gaudi driver,345 MB
+OFED,286 MB
+OpenLDAP,5 MB
+Secure login node,70 MB
+NFS,NA [1]_
+BeeGFS,19 MB
+Kubernetes,5 GB
+Jupyterhub,3 GB
+Kubeflow,107 GB
+Kserve,22 GB
+Pytorch,145 GB
+Tensorflow,68 GB
+vLLM,108 GB
+Telemetry,4 GB
+UCX,3 MB
+OpenMPI,17 MB

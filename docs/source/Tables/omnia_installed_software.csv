@@ -1,55 +1,56 @@
 ﻿OSS Title,License Name/Version #,Description,Version
 Slurm Workload manager,GNU General Public License,HPC Workload Manager,20.11.9
-Kubernetes Controllers,Apache-2.0,HPC Workload Manager,1.26.12
+Kubernetes Controllers,Apache 2.0,HPC Workload Manager,1.29.5
 MariaDB,GPL 2.0,Relational database used by Slurm,10.3
-Docker CE,Apache-2.0,Docker Service,20.10.2
-NVidia container runtime,Apache-2.0,Nvidia container runtime library,3.4.2
+Docker CE,Apache 2.0,Docker Service,20.10.2
+NVIDIA container runtime,"Apache 2.0, GPL-3.0, LGPL-3.0",NVIDIA container runtime library,1.16.1
+habanalabs-container-runtime,Apache 2.0,Intel Habana container runtime library,1.18.0-524
 Python-pip,MIT License,Python Package,24
-kubelet,Apache-2.0,"Provides external, versioned ComponentConfig API types for configuring the kubelet",1.26.12
-kubeadm,Apache-2.0,Provides “fast paths” for creating Kubernetes clusters.,1.26.12
-etcd,Apache-2.0,Relational database used by Kubernetes,3.5.10
-kubectl,Apache-2.0,Command line tool for Kubernetes,1.26.12
+kubelet,Apache 2.0,"Provides external, versioned ComponentConfig API types for configuring the kubelet",1.29.5
+kubeadm,Apache 2.0,Provides “fast paths” for creating Kubernetes clusters.,1.29.5
+etcd,Apache 2.0,Relational database used by Kubernetes,3.5.10
+kubectl,Apache 2.0,Command line tool for Kubernetes,1.29.5
 jupyterhub,BSD-3Clause New or Revised License,Multi-user hub,4.0.2
-kubeflow,Apache-2.0,Cloud Native platform for machine learning,1.8.0
-helm,Apache-2.0,Kubernetes Package Manager,3.12.3
-tensorflow,Apache-2.0,Tensorflow is a GPU accelerated tensor computational framework for Machine Learning.,2.1
-horovod,Apache-2.0,Distributed deep learning training framework for Tensorflow,0.21.1
+kubeflow,Apache 2.0,Cloud Native platform for machine learning,1.9.1-rc.2
+helm,Apache 2.0,Kubernetes Package Manager,3.12.3
+tensorflow,Apache 2.0,Tensorflow is a GPU accelerated tensor computational framework for Machine Learning.,2.1
+horovod,Apache 2.0,Distributed deep learning training framework for Tensorflow,0.21.1
 MPI,3Clause BSD License,HPC library,0.2.3
-spark,Apache-2.0,Unified engine for large-scale data analytics.,2.4.7
-coreDNS,Apache-2.0,DNS server that chains plugins,1.9.3
-cni,Apache-2.0,Networking for Linux containers,1.4.0
+spark,Apache 2.0,Unified engine for large-scale data analytics.,2.4.7
+coreDNS,Apache 2.0,DNS server that chains plugins,1.9.3
+cni,Apache 2.0,Networking for Linux containers,1.4.0
 dellemc.openmanage,GNU-General Public License v3.0,"It is a systems management and monitoring application that provides a comprehensive view of the Dell EMC servers, chassis, storage, and network switches on the enterprise network",4.4.0
 dellemc.os10,GNU-General Public License v3.0,It provides networking hardware abstraction through a common set of APIs,1.1.1
 community.general ansible,GNU-General Public License v3.0,The collection is a part of the Ansible package and includes many modules and plugins supported by Ansible community which are not part of more specialized community collections.,4.8.7
-cri-o,Apache-2.0,Container service,1.21
+cri-o,Apache 2.0,Container service,1.21
 OpenSM,GNU General Public License 2,InfiniBand compliant Subnet Manager.,3.3.21
-omsdk,Apache-2.0,Dell EMC OpenManage Python SDK (OMSDK) is a python library that helps developers and customers to automate the lifecycle management of PowerEdge Servers,1.2.456
+omsdk,Apache 2.0,Dell EMC OpenManage Python SDK (OMSDK) is a python library that helps developers and customers to automate the lifecycle management of PowerEdge Servers,1.2.456
 freeipa,GNU General Public License v3,Authentication system used on the login node,4.9
 bind-dyndb-ldap,GNU General Public License v2,LDAP driver for BIND9. It allows you to read data and also write data back (DNS Updates) to an LDAP backend.,11.1
 prometheus-slurm-exporter,GNU General Public License v3,Prometheus collector and exporter for metrics extracted from the Slurm resource scheduling system.,0.20.0
-prometheus,Apache-2.0,"Open-source monitoring system with a dimensional data model, flexible query language, efficient time series database and modern alerting approach.",2.23.0
+prometheus,Apache 2.0,"Open-source monitoring system with a dimensional data model, flexible query language, efficient time series database and modern alerting approach.",2.23.0
 singularity,BSD License,It is a container platform,3.8.0
 loki,GNU AFFERO GENERAL PUBLIC LICENSE v3.0,Loki is a log aggregation system designed to store and query logs from all your applications and infrastructure,2.4.1
-promtail,Apache-2.0,Promtail is an agent which ships the contents of local logs to a private Grafana Loki instance,2.4.1
-Kube prometheus stack,Apache-2.0,"Kube Prometheus Stack is a collection of Kubernetes manifests, Grafana dashboards, and Prometheus rules.",25.0.0
+promtail,Apache 2.0,Promtail is an agent which ships the contents of local logs to a private Grafana Loki instance,2.4.1
+Kube prometheus stack,Apache 2.0,"Kube Prometheus Stack is a collection of Kubernetes manifests, Grafana dashboards, and Prometheus rules.",25.0.0
 mailx,MIT License,mailx is a Unix utility program for sending and receiving mail.,12.5
 xorriso,GPL 3.0,It can load the management information of existing ISO images and it writes the session results to optical media or to filesystem objects,1.4.8
-openshift-restclient-python,Apache-2.0,A python library for interacting with OpenShift via the OpenShift client binary,0.13.2
+openshift-restclient-python,Apache 2.0,A python library for interacting with OpenShift via the OpenShift client binary,0.13.2
 grafana,GNU AFFERO GENERAL PUBLIC LICENSE,Grafana is the open source analytics & monitoring solution for every database.,8.3.2
 kubernetes.core,GPL 3.0,Performs CRUD operations on K8s objects,2.2.3
 community.grafana,GPL 3.0,Technical Support for open source grafana.,1.3
-activemq,Apache-2.0,"Most popular multi protocol, message broker.",5.10.0
+activemq,Apache 2.0,"Most popular multi protocol, message broker.",5.10.0
 golang,BSD-3-Clause License,"Go is a statically typed, compiled programming language designed at Google.",1.17
 mysql,GPL 2.0,MySQL is an open-source relational database management system.,8
 postgresSQL,PostgresSQL License,"PostgreSQL, also known as Postgres, is a free and open-source relational database management system emphasizing extensibility and SQL compliance.","10.15, 12, 10.21"
-idrac-telemetry-reference tools,Apache-2.0,Reference toolset for PowerEdge telemetry metric collection and integration with analytics and visualization solutions.,0.1
+idrac-telemetry-reference tools,Apache 2.0,Reference toolset for PowerEdge telemetry metric collection and integration with analytics and visualization solutions.,0.1
 nsfcac/grafana-plugin,MIT License,Machine Learning Framework,2.1.0
 jansson,MIT License,"C library for encoding, decoding and manipulating JSON data",2.14
 libjwt,Mozilla Public License-2.0 License,JWT C Library,1.12.0
 389-ds,GPL,Light weight directory access protocol,2.4.7
 apparmor,GNU General Public License,Controls access based on paths of the program files,3.0.3
 snoopy,GPL 2.0,Snoopy is a small library that logs all program executions on your Linux/BSD system,2.4.15
-timescaledb,Apache-2.0,"TimescaleDB is a time-series SQL database providing fast analytics, scalability, with automated data management on a proven storage engine.",2.6.0
+timescaledb,Apache 2.0,"TimescaleDB is a time-series SQL database providing fast analytics, scalability, with automated data management on a proven storage engine.",2.6.0
 Beegfs-Client,GPLv2,BeeGFS is a high-performance parallel file system with easy management. The distributed metadata architecture of BeeGFS has been designed to provide the scalability and flexibility that is required to run today’s and tomorrow’s most demanding HPC applications.,7.4.2
 Lmod,MIT License,"An Environment Module System based on Lua, Reads TCL Modules, Supports a Software Hierarchy","8.4.28-1.1, 8.2.7"
 Lua,MIT License,"Lua is a lightweight, high-level, multi-paradigm programming language designed primarily for embedded use in applications.",5.3.4
@@ -63,23 +64,23 @@ ansible.utils ansible collection,GPL 3.0,"Ansible Collection with utilities to e
 pandas,BSD-3-Clause License,"pandas is a fast, powerful, flexible and easy to use open source data analysis and manipulation tool, built on top of the Python programming language.",2.2.1
 python3-netaddr,BSD License,A Python library for representing and manipulating network addresses.,0.8.0
 psycopg2-binary,GNU Lesser General Public License,Psycopg is the most popular PostgreSQL database adapter for the Python programming language.,2.9.5
-python.requests,Apache-2.0,Makes HTTP requests simpler and more human-friendly.,2.28.1
+python.requests,Apache 2.0,Makes HTTP requests simpler and more human-friendly.,2.28.1
 apptainer,BSD 3-Clause License,Apptainer: Application containers for Linux,1.2
-metallb,Apache-2.0,A network load-balancer implementation for Kubernetes using standard routing protocols,1.3
+metallb,Apache 2.0,A network load-balancer implementation for Kubernetes using standard routing protocols,1.3
 smartmontools,GNU GPL,Official read only mirror of the smartmontools project SVN,7.4
 pyinstaller,"GNU General Public License, Apache 2.0",Freeze (package) Python programs into stand-alone executables,6
 psutil,BSD 3-Clause License,Cross-platform lib for process and system monitoring in Python,05:09:05
 LDAP ToolBox,GNU General Public License v3.0 ,OpenLDAP server installation,2.5.16
-squid - ubuntu 20.04,Apache License 2.0,http proxy server,4.1
-squid - ubuntu 22.04,Apache License 2.0,http proxy server,5.7
-squid,Apache License 2.0,http proxy server,4.15
+squid - ubuntu 20.04,Apache 2.0,http proxy server,4.1
+squid - ubuntu 22.04,Apache 2.0,http proxy server,5.7
+squid,Apache 2.0,http proxy server,4.15
 jq,MIT License,Software for verifying syntax of json files,1.7.1
 community.crypto ansible collection,GNU General Public License v3.0,The community.crypto collection for Ansible.,2.14.0
-pyopenssl,Apache License 2.0,pyOpenSSL is a rather thin wrapper around (a subset of) the OpenSSL library.,24.1.0
+pyopenssl,Apache 2.0,pyOpenSSL is a rather thin wrapper around (a subset of) the OpenSSL library.,24.1.0
 urllib3,MIT License,"urllib3 is a powerful, user-friendly HTTP client for python",2.2.1
-containerd,Apache License 2.0,An open and reliable container runtime,1.6.13-3.1
-nerdctl,Apache License 2.0,Omnia Local Registry,1.5.0
-kubespray collection,Apache License 2.0,Deploy a Production Ready Kubernetes Cluster,v2.23.2
+containerd,Apache 2.0,An open and reliable container runtime,1.6.13-3.1
+nerdctl,Apache 2.0,Omnia Local Registry,1.5.0
+kubespray collection,Apache 2.0,Deploy a Production Ready Kubernetes Cluster,v2.23.2
 cryptography,"Apache Software License, BSD License (Apache-2.0 OR BSD-3-Clause)",cryptography is a package designed to expose cryptographic primitives and recipes to Python developers.,41.0.1
 jmespath,MIT License,JMESPath is a query language for JSON.,1.0.1
 MarkupSafe,BSD-3-Clause,Safely add untrusted strings to HTML/XML markup.,2.1.3
@@ -87,14 +88,17 @@ netaddr,BSD License,A Python library for representing and manipulating network a
 pbr,Apache Software License,Python Build Reasonableness. Mirror of code maintained at opendev.org.,5.11.1
 ruamel.yaml,MIT License,It is a YAML 1.2 loader/dumper package for Python.,0.17.31
 ruamel.yaml.clib,MIT License,It is the C based reader/scanner and emitter for ruamel.yaml,0.2.8
-Kserve,Apache License 2.0,"Deploys Kserve as inference platform on K8s cluster. Kserve installation installs dependencies istio1.17.0, certificate manager (1.13.0) and  Knative(1.11.0) ",0.11.2
-pyarrow,Apache License 2.0,Discovery provisioning,15.0.2
-vllm,Apache License 2.0,A high-throughput and memory-efficient inference and serving engine for LLMs,0.4.0
+Kserve,Apache 2.0,"Deploys Kserve as inference platform on K8s cluster. Kserve installation installs dependencies istio1.17.0, certificate manager (1.13.0) and  Knative(1.11.0) ",0.11.2
+pyarrow,Apache 2.0,Discovery provisioning,15.0.2
+vllm,Apache 2.0,A high-throughput and memory-efficient inference and serving engine for LLMs,0.4.0
 ucx,BSD 3 Clause License,Benchmarks tools,1.15.0
 openmpi,3-clause BSD license,Benchmarks tools,4.1.6
-Pytorch,Apache-2.0,PyTorch is a GPU accelerated tensor computational framework for Machine Learning.,latest image
-Pytorch Nvidia,NVIDIA DEEP LEARNING CONTAINER LICENSE,"The PyTorch NGC Container is optimized for GPU acceleration, and contains a validated set of libraries that enable and optimize GPU performance",23.12-py3
-Tensorflow Nvidia,NVIDIA DEEP LEARNING CONTAINER LICENSE,Tensorflow is a GPU accelerated tensor computational framework for Machine Learning.,23.12-tf2-py3
-Kustomize,Apache License 2.0,Customization of kubernetes YAML configurations,5.0.3
-xilinx-device-plugin,Apache License 2.0,he AMD-Xilinx device plugin for Kubernetes is a Daemonset deployed on the Kubernetes(k8s) cluster,1.3.0
-nfs-subdir-external-provisioner,Apache License 2.0,Dynamic sub-dir volume provisioner on a remote NFS server.,4.0.18
+Pytorch,Apache 2.0,PyTorch is a GPU accelerated tensor computational framework for Machine Learning.,latest image
+Pytorch NVIDIA,NVIDIA DEEP LEARNING CONTAINER LICENSE,"The PyTorch NGC Container is optimized for GPU acceleration, and contains a validated set of libraries that enable and optimize GPU performance",23.12-py3
+Pytorch Intel ,HABANA LABS SYNAPSEAI SOFTWARE SUITE OUTBOUND SOFTWARE LICENSE AGREEMENT,The Intel Gaudi software is integrated with PyTorch and optimized for Intel Gaudi AI accelerator.,2.4.0
+Tensorflow NVIDIA,NVIDIA DEEP LEARNING CONTAINER LICENSE,Tensorflow is a GPU accelerated tensor computational framework for Machine Learning.,23.12-tf2-py3
+Kustomize,Apache 2.0,Customization of kubernetes YAML configurations,5.0.3
+xilinx-device-plugin,Apache 2.0,he AMD-Xilinx device plugin for Kubernetes is a Daemonset deployed on the Kubernetes(k8s) cluster,1.3.0
+nfs-subdir-external-provisioner,Apache 2.0,Dynamic sub-dir volume provisioner on a remote NFS server.,4.0.18
+calico,Apache 2.0,"Calico is an open-source networking and security solution for containers and microservices, widely used in Kubernetes for efficient networking and robust security.",3.25.2
+flannel,Apache 2.0,Flannel is a simple and easy-to-configure network fabric for containers. It is part of the Kubernetes ecosystem and primarily used to provide a network overlay that connects containers across multiple nodes.,0.22.0

@@ -13,7 +13,7 @@ THE INFORMATION IN THIS PUBLICATION IS PROVIDED "AS-IS." DELL MAKES NO REPRESENT
 Scope of the document
 ----------------------
 
-This document covers the security features supported by Omnia 1.6.
+This document covers the security features supported by Omnia 1.7.
 
 Document references
 --------------------

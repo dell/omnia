@@ -1,67 +1,55 @@
 New Features
 ============
 
-* OS enablement
+* Omnia now executes exclusively within a virtual environment created by the ``prereq.sh`` script
 
-    * Ubuntu 22.04.3 LTS with GA kernel and HWE kernel support
+* Python version upgraded to 3.11 (Previously 3.9)
 
-    * Ubuntu 20.04.6 LTS
+* Ansible version upgraded to 9.5.1 (Previously 7.7.0)
 
-* Enablement for AI
+* Kubernetes version upgraded to 1.29.5 (Previously 1.26.12)
 
-    * Install AMD ROCm SDK on host OS
+* Added support for Intel Gaudi 3 accelerators: **(This is preliminary code and may change before official release)**
 
-    * Install Vanilla Kubernetes stack v1.26
+    * Software stack installation
 
-    * Install GPU device plugin for Kubernetes
+    * Accelerator status verification using "HCCL demo" and "hl_qual"
 
-        - GPU device plugin for AMD
-        - GPU device plugin for NVIDIA
+    * Inventory tagging for the Gaudi accelerators
 
-    * Submit Kubernetes jobs as a non-admin user
+    * Monitoring for the Gaudi accelerators via:
 
-    * Install Kubeflow
+        * Omnia telemetry
+        * iDRAC telemetry
+        * Kubernetes telemetry via Prometheus exporter
 
-    * Install vLLM Inference platform
+* AI tools:
 
-    * Install Kserve Inference platform
+    * DeepSpeed and Kubeflow as part of Intel Gaudi AI stack
+    * Parity for Kserve, Tensorflow, and Jupyterhub
+    * vLLM enablement on clusters containing Intel Gaudi nodes
 
-    * Install Jupyter Notebook
+* Sample playbook for a pre-trained Generative AI model - Llama 3.1
 
-    * Install PyTorch
+* Visualization of the Kubernetes and Intel Gaudi metrics using Grafana
 
-    * Install TensorFlow
+* CSI drivers for Kubernetes to access PowerScale storage with an option to enable the SmartConnect feature (without SSL certificates)
 
-* Additional Features
+* Added support for NVIDIA container toolkit for NVIDIA accelerators in a Kubernetes cluster
 
-    * Offline package repo and image registry creation
+* Added support for corporate proxy on RHEL, Rocky Linux, and Ubuntu clusters
 
-    * Classless IP Addressing
+* Set OS Kernel command-line parameters and/or configure additional NICs on the nodes using a single playbook
 
-        * Additional NIC configuration
-        * IP rule assignment
+* The internal OpenLDAP server can now be configured as a proxy server
 
-    * LDAP client and server configuration
 
-    * One-off Utility to add or remove a node
 
-    * HPC/AI cluster inventory partitioning
 
-        - CPU inventory
-        - AMD GPU inventory
-        - NVIDIA GPU inventory
 
-    * Smoother Omnia upgrades on the control plane
 
-    * Slurm in configless or NFS in RHEL/Rocky Linux
 
-    * OpenMPI and UCX installation in share partition
 
-    * Utility to add/modify Kernel command-line parameters
-
-    * Install Kubernetes plugin for the RoCE NIC
-
-    * Update kernels using the software update utility
 
 
 

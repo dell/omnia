@@ -1,5 +1,5 @@
 Alternate method to install the AMD ROCm platform
---------------------------------------------------
+=====================================================
 
 The accelerator role allows users to  set up the `AMD ROCm <https://rocm.docs.amd.com/projects/install-on-linux/en/latest/>`_ platform. This tools allow users to unlock the potential of installed AMD GPUs.
 
