@@ -21,6 +21,10 @@ ansible_cfg_dest:
   - { path: "{{ playbook_dir }}/telemetry/ansible.cfg", log_path: "/var/log/omnia/omnia_telemetry.log", regexp: "/var/log/omnia.log" }
   - { path: "{{ playbook_dir }}/platforms/ansible.cfg", log_path: "/var/log/omnia/omnia_platforms.log", regexp: "/var/log/omnia.log" }
 
+# Usage: include_local_repo_config.yml
+local_repo_config_file: "{{ role_path }}/../../../input/local_repo_config.yml"
+local_repo_config_syntax_fail_msg: "Failed. Syntax errors present in local_repo_config.yml. Fix errors and re-run playbook again."
+
 # Usage: fetch_software_config.yml
 software_config_json_file: "{{ role_path }}/../../../input/software_config.json"
 local_repo_access_dest_path: "/opt/omnia/offline/local_repo_access.yml"
@@ -31,6 +35,11 @@ fail_msg_ucx_version: "Failed. ucx version is not provided in software_config.js
 success_msg_openmpi_version: "Success. openmpi version is mentioned."
 fail_msg_openmpi_version: "Failed. openmpi version is not provided in software_config.json. Please include openmpi version in input/software_config.json and rerun the playbook." # noqa: yaml[line-length]
 compute_os_ubuntu: "ubuntu"
+intel_gaudi_input_fail_msg: "Warning, software_config.json does not have the intel software stack. Intel stack will not be configured."
+intel_gaudi_repo_fail_msg: "Failed, local_repo.yml is not executed for downloading Intel Gaudi driver packages."
+warning_time : 30
+offline_intel_directory: "{{ repo_store_path }}/cluster/apt"
+intelgaudi_version_warning_msg: "Failed, Intel Gaudi version not found."
 
 # Usage: fetch_omnia_inputs.yml
 config_filename: "omnia_config.yml"

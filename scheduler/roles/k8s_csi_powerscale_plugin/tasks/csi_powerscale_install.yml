@@ -55,3 +55,18 @@
     seconds: "{{ warning_wait_time }}"
     prompt: "{{ fail_msg_csi_powerscale_driver }}"
   when: isilon_non_running_pods.stdout_lines | length > 0
+
+- name: Create powerscale storage class if deployment was successful
+  ansible.builtin.command:
+    cmd: "kubectl apply -f ps_storage_class.yml"
+    chdir: "{{ csi_powerscale_path }}"
+  register: sc_command_result
+  failed_when: false
+  changed_when: sc_command_result.changed
+  when: isilon_non_running_pods.stdout_lines | length == 0
+
+- name: Remove ps_storage_class.yml file
+  ansible.builtin.file:
+    path: "{{ csi_powerscale_path }}/ps_storage_class.yml"
+    state: absent
+    force: true

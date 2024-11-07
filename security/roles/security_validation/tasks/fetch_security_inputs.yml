@@ -111,6 +111,15 @@
     success_msg: "{{ allow_deny_success_msg }}"
     fail_msg: "{{ allow_deny_fail_msg }}"
 
+- name: Pause for 15 seconds after warning
+  ansible.builtin.pause:
+    seconds: "{{ warning_wait_time_warning }}"
+    prompt: "{{ root_user_absence }}"
+  when:
+    - "user_list is defined and user_list | length > 1"
+    - "'root' not in user_list"
+    - "allow_deny == 'allow'"
+
 - name: Initialize variables for restrict_softwares
   ansible.builtin.set_fact:
     restrict_program_status: false

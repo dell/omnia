@@ -15,5 +15,5 @@
 
 - name: Install habana container runtime package
   ansible.builtin.apt:
-    name: habanalabs-container-runtime
+    name: "habanalabs-container-runtime={{ intelgaudi_version }}"
     update_cache: true

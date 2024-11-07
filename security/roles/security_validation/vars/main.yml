@@ -56,6 +56,8 @@ lockout_duration_success_msg: "lockout_duration successfully validated"
 lockout_duration_fail_msg: "Failed. Incorrect lockout_duration value in login_node_security_config.yml"
 session_timeout_success_msg: "session_timeout successfully validated"
 session_timeout_fail_msg: "Failed. Incorrect session_timeout value in login_node_security_config.yml"
+root_user_absence: "Warning: root user not provide in allow list of user. 'root' will not have the privilege to access the login node."
+warning_wait_time_warning: 15
 max_failures_default_value: 3
 failure_reset_interval_min_value: 30
 failure_reset_interval_max_value: 60

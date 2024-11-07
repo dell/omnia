@@ -49,7 +49,7 @@ xcat_proxy_patch_file:
   - { src: "{{ role_path }}/files/yum_updated.patch", dest: "/opt/xcat/lib/perl/xCAT/Yum.pm", mode: "755" }
 
 # Usage: configure_xcat_basic_details
-python_version: "3.9"
+python_version: "{{ ansible_python_interpreter }}"
 network_spec_path: "{{ role_path }}/../../../../input/network_spec.yml"
 path_db: "{{ role_path }}/../../db_operations/files"
 delete_misc_networks: "{{ role_path }}/../common/files/delete_networks.py"

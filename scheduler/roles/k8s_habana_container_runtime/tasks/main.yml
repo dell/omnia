@@ -19,17 +19,17 @@
     - name: Check Intel Gaudi device for nodes
       ansible.builtin.include_tasks: check_prerequisite.yml
 
-    - name: Install prerequisite
-      ansible.builtin.include_tasks: install_prerequisite_ubuntu.yml
+    - name: Install Intel Gaudi device for nodes
       when:
         - accelerator_type is defined
         - accelerator_type == "intel"
+        - hostvars['localhost']['set_intel_config_status'] 
+      block:
+        - name: Install prerequisite
+          ansible.builtin.include_tasks: install_prerequisite_ubuntu.yml
 
-    - name: Change containerd runtime for Habana k8s device plugin
-      ansible.builtin.include_tasks: change_containerd_runtime.yml
-      when:
-        - accelerator_type is defined
-        - accelerator_type == "intel"
+        - name: Change containerd runtime for Intel Gaudi k8s device plugin
+          ansible.builtin.include_tasks: change_containerd_runtime.yml
 
     - name: Set fact for nodes with Gaudi
       ansible.builtin.set_fact:

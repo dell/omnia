@@ -53,3 +53,7 @@ csi_powerscale_secret_vaultname: ".csi_powerscale_secret_vault"
 vault_key_permission: "0644"
 warning_msg_already_deployed: "Powerscale will not be deployed. Existing powerscale deployment is already present on the cluster.
  Please remove the existing powerscale deployment first using steps mentioned in omnia document and rerun playbook to install powerscale."
+
+# Usage: template ps_storage_class.j2
+ps_isipath: "{{ hostvars['localhost']['csi_powerscale_values_file']['isiPath'] }}"
+ps_access_zone: "{{ hostvars['localhost']['csi_powerscale_values_file']['isiAccessZone'] }}"
