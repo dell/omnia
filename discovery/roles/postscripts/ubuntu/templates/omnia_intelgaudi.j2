@@ -70,7 +70,7 @@ if [[ $gaudi_check_processing_xlr8r == *"Habana Labs Ltd"* ]]; then
     echo "deb [trusted=yes] http://{{ admin_nic_ip }}:80/install{{ repo_store_path }}/cluster/apt/intelgaudi/{{ intelgaudi_version }} ./" >> /etc/apt/sources.list.d/intelgaudi.list
 
     sudo apt-get update
-    sudo apt install dkms libelf-dev -y
+    sudo apt install libopenmpi3 dkms libelf-dev -y
     sudo apt install linux-headers-$(uname -r) -y
 
     sudo apt install -y habanalabs-dkms \
@@ -89,7 +89,7 @@ if [[ $gaudi_check_processing_xlr8r == *"Habana Labs Ltd"* ]]; then
 
     # make sure Gaudi scale out interfaces are up after rebooting
     cron_job_for_scale_out_interfaces
-    
+
   fi
   echo "-----------------------------" >> /var/log/xcat/xcat.log
 fi
