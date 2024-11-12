@@ -13,9 +13,9 @@ New Features
 
     * Software stack installation
 
-    * Accelerator status verification using "HCCL demo" and "hl_qual"
+    * Accelerator status verification using `HCCL <https://docs.habana.ai/en/latest/API_Reference_Guides/HCCL_APIs/index.html>`_ and `hl_qual <https://docs.habana.ai/en/latest/Management_and_Monitoring/Qualification_Library/index.html>`_
 
-    * Inventory tagging for the Gaudi accelerators
+    * Inventory tagging for the Gaudi accelerators (``compute_gpu_intel``)
 
     * Monitoring for the Gaudi accelerators via:
 

@@ -12,6 +12,8 @@ PowerVault Storage
 | ME5          | ME5012, ME5024, ME5084    | ME5012, ME5024, ME5084                         |
 +--------------+---------------------------+------------------------------------------------+
 
+.. note:: For more information on PowerVault configuration using Omnia, `click here <../../../OmniaInstallGuide/Ubuntu/AdvancedConfigurationsUbuntu/ConfiguringStorage/index.html#configuring-storage>`_.
+
 BOSS Controller Cards
 ----------------------
 

@@ -1,11 +1,11 @@
-Network Topology: LAN on motherboard (LOM) Setup
-==================================================
+Network Topology: Shared LAN on motherboard (LOM) Setup
+=========================================================
 
 .. note:: The following diagram is for representational purposes only.
 
 .. image:: ../../images/LOM_NT.png
 
-In a shared **LOM Setup**, the entire cluster network is shared between the iDRAC and the cluster nodes.
+In a **Shared LOM setup**, the Administration and BMC logical networks share the same ethernet segment and physical connection.
 
 * **Public Network (Blue line)**: This indicates the external public network which is connected to the internet. NIC2 of the Control plane, and Login node [optional] is connected to the public network.
 
