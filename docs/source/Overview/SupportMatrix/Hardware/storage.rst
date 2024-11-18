@@ -12,7 +12,7 @@ PowerVault Storage
 | ME5          | ME5012, ME5024, ME5084    | ME5012, ME5024, ME5084                         |
 +--------------+---------------------------+------------------------------------------------+
 
-.. note:: For more information on PowerVault configuration using Omnia, `click here <../../../OmniaInstallGuide/Ubuntu/AdvancedConfigurationsUbuntu/ConfiguringStorage/index.html#configuring-storage>`_.
+.. note:: Omnia supports configuration of RAID levels, volumes, pool, and SNMP on PowerVault devices. For more information on PowerVault configuration using Omnia, `click here <../../../OmniaInstallGuide/Ubuntu/AdvancedConfigurationsUbuntu/ConfiguringStorage/index.html#configuring-storage>`_.
 
 BOSS Controller Cards
 ----------------------
@@ -26,6 +26,8 @@ BOSS Controller Cards
 +-----------------------------------------------------+-----------------------------------------------------+
 | Dell Boot Optimized Storage Solution-S2 (BOSS-S2)   | Dell Boot Optimized Storage Solution-S2 (BOSS-S2)   |
 +-----------------------------------------------------+-----------------------------------------------------+
+
+.. note:: Omnia does not support virtual drive configuration for BOSS cards. A virtual drive is present by default on the BOSS card, but if it is missing, the user must manually create one before running the ``discovery_provision.yml`` playbook.
 
 PowerScale Storage
 ----------------------
