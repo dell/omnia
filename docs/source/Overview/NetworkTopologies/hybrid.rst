@@ -1,5 +1,5 @@
-Network Topology: Hybrid setup
-=============================
+Network Topology: Hybrid Setup
+=================================
 
 .. note:: The following diagram is for representational purposes only.
 

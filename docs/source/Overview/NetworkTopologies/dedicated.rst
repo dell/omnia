@@ -1,5 +1,5 @@
 Network Topology: Dedicated Setup
-=================================
+====================================
 
 .. note:: The following diagram is for representational purposes only.
 
