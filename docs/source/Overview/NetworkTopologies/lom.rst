@@ -13,7 +13,7 @@ In a **Shared LOM setup**, the Administration and BMC logical networks share the
 
 * **IB / Additional Ethernet Network (Yellow line)**: This indicates the Infiniband (IB) or the additional ethernet network used by applications on the cluster nodes to communicate among each other, using Mellanox or high-speed ethernet switch. Control plane connectivity is optional for this switch.
 
-.. note:: Omnia supports classless IP addressing, which allows the Admin network, BMC network, Public network, and the Additional network to be assigned different subnets. However, the Admin and BMC networks must be on the same subnet.
+.. note:: Omnia supports classless IP addressing, which allows the Admin network, BMC network, Public network, and the Additional network to be assigned different subnets. However, the Admin and BMC networks must be on the same subnet (represented by the ``netmask_bits`` parameter in the ``input/network_spec.yml`` file).
 
 **Recommended discovery mechanism**
 
