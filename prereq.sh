@@ -42,7 +42,7 @@ else
     echo "----------------------"
     echo "INSTALLING PYTHON 3.9:"
     echo "----------------------"
-    dnf install python39 -y
+    dnf install python39 python3-pip -y
     fi
 fi
 echo "--------------"
