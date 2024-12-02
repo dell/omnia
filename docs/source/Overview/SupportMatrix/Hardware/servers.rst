@@ -9,7 +9,7 @@ PowerEdge Intel servers
       :header-rows: 1
       :keepspace:
 
-.. note::  Since Cloud Enclosures only support shared LOM connectivity, it is recommended that BMC or switch-based methods of discovery are used.
+.. note::  Since C-Series servers only support shared LOM connectivity, it is recommended to use BMC or switch-based server `discovery mechanisms <../../../OmniaInstallGuide/Ubuntu/Provision/DiscoveryMechanisms/index.html>`_.
 
 PowerEdge AMD servers
 -------------------------
