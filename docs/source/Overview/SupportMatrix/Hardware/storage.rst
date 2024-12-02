@@ -6,10 +6,10 @@ PowerVault Storage
 
 +--------------+---------------------------+------------------------------------------------+
 | Storage Type | Models supported by Omnia | Models validated with current version of Omnia |
-+==============+===========================+==============+=================================+
-| ME4          | ME4084, ME4024, ME4012    | ME4084, ME4024, ME4012                         |
++==============+===========================+================================================+
+| ME4          | ME4084, ME4024, ME4012    |                                                |
 +--------------+---------------------------+------------------------------------------------+
-| ME5          | ME5012, ME5024, ME5084    | ME5012, ME5024, ME5084                         |
+| ME5          | ME5012, ME5024, ME5084    |                                                |
 +--------------+---------------------------+------------------------------------------------+
 
 .. note:: Omnia supports configuration of RAID levels, volumes, pool, and SNMP on PowerVault devices. For more information on PowerVault configuration using Omnia, `click here <../../../OmniaInstallGuide/Ubuntu/AdvancedConfigurationsUbuntu/ConfiguringStorage/index.html#configuring-storage>`_.
