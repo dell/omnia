@@ -92,3 +92,7 @@ Slurm
     * While installing Slurm, Omnia recommends users to proceed with ``always`` or ``partial`` scenarios of ``repo_config`` in ``input/software_config.json``.
     * If the user still wants to proceed with the ``never`` scenario, they must wait for the EPEL8 repositories to be reachable and then re-run the ``local_repo.yml`` playbook to download and install the Slurm packages.
     * If the user doesn't want to wait, they can change ``repo_config`` in ``input/software_config.json`` to ``always`` or ``partial``, execute ``control_plane_cleanup.yml``, and then re-run ``local_repo.yml`` to download the Slurm packages. After the packages are downloaded successfully, users need to provision the cluster and run ``omnia.yml`` to install the slurm packages on the cluster nodes.
+
+⦾ **Why does the** `Slurm pam module <https://slurm.schedmd.com/pam_slurm_adopt.html>`_ **fail to initialize while setting a Slurm cluster in either configless or NFS mode?**
+
+**Resolution**: This is a known issue, and Omnia team is actively working on a solution.
