@@ -57,7 +57,6 @@ k8s_cni: "calico"
 # Mandatory Field
 pod_external_ip_range: ""
 
-###------ADVANCE CONFIGURATIONS FOR KUBERNETES------
 # Kubernetes internal network for services.
 # This network must be unused in your network infrastructure.
 # Default value is "10.233.0.0/18"
@@ -68,3 +67,33 @@ k8s_service_addresses: "10.233.0.0/18"
 # This network must be unused in your network infrastructure.
 # Default value is "10.233.64.0/18"
 k8s_pod_network_cidr: "10.233.64.0/18"
+
+# Kubernetes Topology manager policies.
+# It can either be "none" or "best-effort" or "restricted" or "single-numa-node".
+# Default value assigned is "none".
+topology_manager_policy: "none"
+
+# Kubernetes Topology manager scope.
+# It can either be "container" or "pod".
+# Default value assigned is "container".
+topology_manager_scope: "container"
+
+#----------------------------VERIFY INTEL GAUDI INSTALLATION------------------------------------------------------
+
+# It's recommended to do extensive tests hl_qual and hccl when installing a new Gaudi node. This takes around 20mins.
+# To do that during provisioning this variable has to be set to true.
+# By default  no tests are run
+run_intel_gaudi_tests: false
+
+#----------------------------CSI Driver------------------------------------------------------
+# Following csi powerscale driver input variables are mandatory only if csi_driver_powerscale entry is present in software_config.json
+
+# Absolute file path for the secret.yaml file.
+# User need to download secret.yaml file and fill required data in secret file. Provided the path of the secret file here.
+
+csi_powerscale_driver_secret_file_path: ""
+
+# File path for the values.yml file which will contain the Powerscale driver configuration parameters. 
+# User need to download values.yaml file and fill required data in values.yaml file. Provided the path of the values.yaml file here.
+# mention configurable values
+csi_powerscale_driver_values_file_path: ""

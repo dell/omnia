@@ -100,3 +100,5 @@ lmod_packages:
 grafana_conf_path: "/opt/omnia/.data/grafana_svc_details.ini"
 min_length_grafana: 5
 dnf_conf_path: /etc/dnf/dnf.conf
+time_delay: 10
+retry_count: 5

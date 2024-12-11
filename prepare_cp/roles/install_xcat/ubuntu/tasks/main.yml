@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,12 +24,11 @@
 - name: Configure genesis
   ansible.builtin.include_tasks: configure_genesis.yml
 
-- name: Config network
-  ansible.builtin.include_tasks: config_network.yml
+- name: Apply xcat patch
+  ansible.builtin.include_tasks: apply_xcat_patch.yml
 
 - name: Configure dhcp
   ansible.builtin.include_tasks: configure_dhcp.yml
 
 - name: Configure postgres
   ansible.builtin.include_tasks: configure_postgres.yml
-

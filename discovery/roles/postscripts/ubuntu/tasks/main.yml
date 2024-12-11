@@ -28,3 +28,7 @@
 - name: Configure RoCE postscripts
   ansible.builtin.include_tasks: configure_roce.yml
   when: roce_config_status
+
+- name: Configure Intel Gaudi postscripts
+  ansible.builtin.include_tasks: configure_intelgaudi.yml
+  when: intelgaudi_config_status

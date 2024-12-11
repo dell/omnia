@@ -18,6 +18,9 @@
     ansible_collection_used: false
     scheduler_validation_status: true
 
+- name: Include local_repo variables
+  ansible.builtin.include_tasks: include_local_repo_config.yml
+
 - name: Fetch software_config.json and local repo access variables
   ansible.builtin.include_tasks: fetch_software_config.yml
 

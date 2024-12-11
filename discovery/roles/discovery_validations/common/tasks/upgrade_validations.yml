@@ -93,7 +93,7 @@
   block:
     - name: Encrypt provision_config_credentials.yml
       ansible.builtin.command: >-
-        {{ ansible_vault_path.stdout.split(' ')[1] }} encrypt {{ provision_credentials_config_filename }}
+        ansible-vault encrypt {{ provision_credentials_config_filename }}
         --vault-password-file {{ provision_credentials_vault_path }}
       changed_when: false
       tags: init

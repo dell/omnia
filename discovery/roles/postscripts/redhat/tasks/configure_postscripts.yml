@@ -21,5 +21,5 @@
   with_items: "{{ omnia_disable_repo_postscripts_path }}"
 
 - name: Configure postscripts for omnia_disable_repo
-  ansible.builtin.command: chdef all -p postscripts=omnia_disable_repo
+  ansible.builtin.command: "{{ xcat_path }}/chdef all -p postscripts=omnia_disable_repo"
   changed_when: true

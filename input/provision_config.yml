@@ -13,10 +13,10 @@
 #  limitations under the License.
 ---
 
-#***********************************************************************
+# ***********************************************************************
 # DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.
 # SIMPLY APPEND THE REQUIRED VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
-#***********************************************************************
+# ***********************************************************************
 
 #### Mandatory
 # Path where user has placed the iso image that needs to be provisioned on target nodes.
@@ -89,7 +89,7 @@ disk_partition:
 
 #### Mandatory
 # Timezone that needs to be set during OS provisioning.
-# Available timezones are provided in provision/roles/provision_validation/files/timezone.txt
+# Available timezones are provided in discovery/roles/discovery_validations/common/files/timezone.txt
 # Default: "GMT"
 # Few accepted values: EST,CET,MST,CST6CDT,PST8PDT
 timezone: "GMT"
@@ -106,3 +106,11 @@ language: "en-US"
 # Default: 86400
 # Max: 31536000
 default_lease_time: "86400"
+
+#### Mandatory
+# The ntp_support variable controls whether the cluster will have a Network Time Protocol (NTP) server configured in the control plane.
+# If ntp_support is set to true, NTP server will be configured in the control plane and the time will be synchronized to the cluster nodes.
+# If ntp_support is set to false, NTP server will not be configured in the control plane and the time will not be synchronized to the cluster nodes.
+# In a proxy environment or environment with restricted network access, setting up NTP server in control plane can result in failure due to unreachable public NTP pools and is not recommended.
+# Default: true
+ntp_support: true

@@ -7,11 +7,12 @@
         {"name": "bcm_roce", "version": "229.2.61.0"},
         {"name": "openldap"},
         {"name": "nfs"},
-        {"name": "k8s", "version":"1.26.12"},
+        {"name": "k8s", "version":"1.29.5"},
         {"name": "roce_plugin"},
         {"name": "jupyter"},
         {"name": "pytorch"},
-        {"name": "tensorflow"}
+        {"name": "tensorflow"},
+        {"name": "intelgaudi", "version": "1.18.0-524"}
     ],
 
     "bcm_roce": [
@@ -20,10 +21,14 @@
    "amdgpu": [
         {"name": "rocm", "version": "6.0" }
     ],
+   "intelgaudi": [
+        {"name": "intel"}
+    ],
     "pytorch": [
         {"name": "pytorch_cpu"},
         {"name": "pytorch_amd"},
-        {"name": "pytorch_nvidia"}
+        {"name": "pytorch_nvidia"},
+        {"name": "pytorch_gaudi"}
     ],
     "tensorflow": [
         {"name": "tensorflow_cpu"},

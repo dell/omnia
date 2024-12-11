@@ -1,0 +1,79 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License
+
+---
+
+- name: When iDRAC pods are running, upgrade iDRAC and timscale DB pods
+  when:
+    - upgrade_precheck_pod_status_report.idrac_telemetry_pod_running_status is true
+    - upgrade_precheck_pod_status_report.timescaledb_pod_running_status is true
+    - upgrade_precheck_pod_status_report.mysqldb_pod_running_status is true
+  block:
+    - name: Pods of iDRAC are running, set telemetry entry present to true
+      ansible.builtin.set_fact:
+        telemetry_entry_present: true
+
+    - name: Include telemetry_config vars
+      ansible.builtin.include_tasks: include_telemetry_vars.yml
+
+    - name: Install required pip packages
+      ansible.builtin.pip:
+        name: "{{ item }}"
+      with_items: "{{ python_pip_packages }}"
+
+    - name: Prepare the iDRAC inventory from mysql db
+      ansible.builtin.include_tasks: create_idrac_inventory.yml
+
+    # Mounting timescaledb with correct mount path
+    - name: Backup timescaledb data files to host_path
+      ansible.builtin.include_tasks: reconfig_timescaledb_data.yml
+
+    - name: Checking the timescaledb metrics status
+      ansible.builtin.include_role:
+        name: upgrade_precheck
+        tasks_from: check_timescaldb_existence.yml
+
+    - name: Delete the TSDB and iDRAC telemetry pods
+      ansible.builtin.include_tasks: delete_idrac_pods.yml
+
+    - name: Include provision_config to refer timezone
+      ansible.builtin.include_tasks: include_provision_config.yml
+
+    - name: Span the iDRAC and timescale DB pods
+      ansible.builtin.include_tasks: create_telemetry_pods.yml
+
+- name: When only omnia telemetry is running, upgrade timescale DB
+  when:
+    - upgrade_precheck_pod_status_report.idrac_telemetry_pod_running_status is false
+    - upgrade_precheck_pod_status_report.timescaledb_pod_running_status is true
+    - upgrade_precheck_pod_status_report.mysqldb_pod_running_status is false
+  block:
+    - name: Pods of omnia telemetry are running, set telemetry entry present to true
+      ansible.builtin.set_fact:
+        telemetry_entry_present: true
+
+    - name: Include telemetry_config vars
+      ansible.builtin.include_tasks: include_telemetry_vars.yml
+ 
+    # Mounting timescaledb with correct mount path
+    - name: Backup timescaledb data files to host_path
+      ansible.builtin.include_tasks: reconfig_timescaledb_data.yml
+
+    - name: Checking the timescaledb metrics status
+      ansible.builtin.include_role:
+        name: upgrade_precheck
+        tasks_from: check_timescaldb_existence.yml    
+
+    - name: Spin the timescale DB pod
+      ansible.builtin.include_tasks: upgrade_tsdb.yml

@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -15,9 +15,10 @@
 - name: Fetching container files
   hosts: localhost
   tasks:
-  - name: Include vars file
-    include_vars: "pod_details.yml"
+    - name: Include vars file
+      ansible.builtin.include_vars: "pod_details.yml"
 
-  - name: Copying files from container env
-    command: "kubectl cp {{ pod_name }}:{{ container_file_location | regex_replace('^\\/', '') }} {{ local_folder_location }} -n {{ namespace }} -c {{ container_name }}"
-    changed_when: true
+    - name: Copying files from container env
+      ansible.builtin.command: "kubectl cp {{ pod_name }}:{{ container_file_location | regex_replace('^\\/', '') }}
+      {{ local_folder_location }} -n {{ namespace }} -c {{ container_name }}"
+      changed_when: true

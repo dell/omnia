@@ -42,7 +42,13 @@ rocm_postscripts_path:
 # Usage: configure_postscripts.yml
 omnia_ubuntu_postscripts_path:
   - { src: "{{ role_path }}/../ubuntu/templates/omnia_ubuntu.j2", dest: "/install/postscripts/omnia_ubuntu", mode: "755" }
+xcat_path: /opt/xcat/bin
+xcat_sbin_path: /opt/xcat/sbin
 
 # Usage: configure_roce.yml
 roce_postscripts_path:
   - { src: "{{ role_path }}/../ubuntu/templates/omnia_roce.j2", dest: "/install/postscripts/omnia_roce", mode: "755" }
+
+# Usage: configure_intelgaudi.yml
+intelgaudi_postscripts_path:
+  - { src: "{{ role_path }}/../ubuntu/templates/omnia_intelgaudi.j2", dest: "/install/postscripts/omnia_intelgaudi", mode: "755" }

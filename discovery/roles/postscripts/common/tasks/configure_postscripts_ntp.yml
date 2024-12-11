@@ -13,10 +13,19 @@
 # limitations under the License.
 ---
 
-- name: Setup ntp
-  ansible.builtin.command: makentp
-  changed_when: true
+- name: Configure NTP
+  block:
+    - name: Setup NTP
+      ansible.builtin.command: "{{ xcat_path }}/makentp"
+      changed_when: true
+      async: "{{ async_time }}"
+      poll: "{{ poll_time }}"
 
-- name: Configure postscripts for ntp
-  ansible.builtin.command: chdef all -p postscripts=setupntp
-  changed_when: true
+    - name: Configure postscripts for NTP
+      ansible.builtin.command: "{{ xcat_path }}/chdef all -p postscripts=setupntp"
+      changed_when: true
+  rescue:
+    - name: Warning - Failed to configure NTP
+      ansible.builtin.pause:
+        prompt: "{{ setup_ntp_warning_msg }}"
+        seconds: "{{ warning_time }}"

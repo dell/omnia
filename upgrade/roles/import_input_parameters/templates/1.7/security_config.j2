@@ -1,0 +1,88 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+#***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.                  
+# SIMPLY APPEND THE REQUIRED VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
+#***********************************************************************
+
+# This variable is used to accept the domain name the user intends to configure
+# This variable is a mandatory requirement of both FreeIPA and OpenLDAP Client
+# Eg: ipa.test
+# This field is mandatory for both OpenLDAP and FreeIPA Authentication
+# For FreeIPA - the format is omnia.test
+# For OpenLDAP - if dc=omnia,dc=test, Provide omnia.test
+# For OpenLDAP - If dc=dell,dc=omnia,dc=com Provide dell.omnia.com
+domain_name: "{{ security_config_ns.domain_name }}" # Value auto populated by Omnia upgrade script
+
+# ---------------------------FreeIPA---------------------------
+# A Kerberos realm is the domain over which a Kerberos authentication server has the authority to authenticate a user, host or service.
+# A realm name is often, but not always the upper case version of the name of the DNS domain over which it presides
+realm_name: "{{ security_config_ns.realm_name }}" # Value auto populated by Omnia upgrade script
+
+# The directory server operations require an administrative user.
+# This user is referred to as the Directory Manager and has full access to the Directory for system management tasks
+# and will be added to the instance of directory server created for IPA.
+# The password must be at least 8 characters long
+# The password must not contain -,\, ',"
+directory_manager_password: "{{ security_config_ns.directory_manager_password }}" # Value auto populated by Omnia upgrade script
+
+# kerberos_admin_password used by IPA admin user in Rocky OS and used by 389-ds for kerberos admin password in leap OS
+# The IPA server requires an administrative user, named 'admin'.
+# This user is a regular system account used for IPA server administration
+# The password must be at least 8 characters long
+# The password must not contain -,\, ',"
+kerberos_admin_password: "{{ security_config_ns.kerberos_admin_password }}" # Value auto populated by Omnia upgrade script
+
+# ---------------------------OpenLDAP---------------------------
+# Connection Type can be TLS, SSL
+# If TLS is given, valid server certificates are mandatory
+# If SSL is provided, then secure OpenLDAP connection occurs on the port 636
+ldap_connection_type: "{{ security_config_ns.ldap_connection_type }}" # Value auto populated by Omnia upgrade script
+
+# These variables accept Certificate file Paths
+# Make sure certificate is present in the path provided
+# The certificate should have .pem or .crt extension.
+# The certificate key should have .key extension
+# These variable are optional i.e. if not provided, self signed certificates will be created
+# The variables accepts values as follows
+# Certificate Authority(CA) issued certificate file path
+tls_ca_certificate: "{{ security_config_ns.tls_ca_certificate }}" # Value auto populated by Omnia upgrade script
+# OpenLDAP Certificate file path
+tls_certificate: "{{ security_config_ns.tls_certificate }}"
+# OpenLDAP Certificate key file path
+tls_certificate_key: "{{ security_config_ns.tls_certificate_key }}"
+
+# OpenLDAP server is configured using three admin users for configuration, database, and monitor
+# By default the user for configuration and database is admin
+# Monitor admin username is not to be provided as it is by default set to "monitor"
+# It is mandatory to provide password for the admin users
+# Update this variable if these users are different from admin
+# The password must be at least 8 characters long
+# The password must not contain -,\, ',"
+openldap_db_username: "{{ security_config_ns.openldap_db_username }}"
+openldap_db_password: "{{ security_config_ns.openldap_db_password }}"
+openldap_config_username: "{{ security_config_ns.openldap_config_username }}"
+openldap_config_password: "{{ security_config_ns.openldap_config_password }}"
+openldap_monitor_password: "{{ security_config_ns.openldap_monitor_password }}"
+
+# OpenLDAP server is configured using organizations
+# These organizations and its units are necessary for user creation and group mapping 
+# Eg. openldap_organization: "omnia", openldap_organizational_unit: "People"
+# Here user belongs to Omnia organization and is part of People unit
+# The default values are openldap_organization: "omnia", openldap_organizational_unit: "People"
+# Variables can be updated based om user requirements
+openldap_organization: "{{ security_config_ns.openldap_organization }}"
+openldap_organizational_unit: "{{ security_config_ns.openldap_organizational_unit }}"

@@ -4,111 +4,111 @@
       {
         "package": "istio",
         "type": "tarball",
-        "url": "https://github.com/istio/istio/releases/download/1.17.0/istio-1.17.0-linux-amd64.tar.gz"
+        "url": "https://github.com/istio/istio/releases/download/1.20.4/istio-1.20.4-linux-amd64.tar.gz"
       },
       {
         "package": "docker.io/istio/proxyv2",
-        "tag": "1.17.0",
+        "tag": "1.20.4",
         "type": "image"
       },
       {
         "package": "docker.io/istio/pilot",
-        "tag": "1.17.0",
+        "tag": "1.20.4",
         "type": "image"
       },
       {
         "package": "knative_serving_crds_manifest",
         "type": "manifest",
-        "url": "https://github.com/knative/serving/releases/download/knative-v1.11.0/serving-crds.yaml"
+        "url": "https://github.com/knative/serving/releases/download/knative-v1.13.1/serving-crds.yaml"
       },
       {
         "package": "knative_serving_core_manifest",
         "type": "manifest",
-        "url": "https://github.com/knative/serving/releases/download/knative-v1.11.0/serving-core.yaml"
+        "url": "https://github.com/knative/serving/releases/download/knative-v1.13.1/serving-core.yaml"
       },
       {
         "package": "gcr.io/knative-releases/knative.dev/serving/cmd/queue",
-        "digest": "987f53e3ead58627e3022c8ccbb199ed71b965f10c59485bab8015ecf18b44af",
+        "digest": "e52286fc4843470383e917abc9c1b0c8d10f585c4274c57b612279869bc86f0d",
         "type": "image"
       },
        {
         "package": "gcr.io/knative-releases/knative.dev/serving/cmd/activator",
-        "digest": "6b98eed95dd6dcc3d957e673aea3d271b768225442504316d713c08524f44ebe",
+        "digest": "21f8e11a44bf1e260602d30e6762a3dc433c608d1dd0e309c0ff89728e71901d",
         "type": "image"
       },
       {
         "package": "gcr.io/knative-releases/knative.dev/serving/cmd/autoscaler",
-        "digest": "5b52cc9aa521ee236645db57f19b70f2a0e8f6ef27dfa9181409a0f96406e2ad",
+        "digest": "34796e9f760bb67065c6f101296513b38d04d39d11888e919692ac46fa6dc7c2",
         "type": "image"
       },
       {
         "package": "gcr.io/knative-releases/knative.dev/serving/cmd/controller",
-        "digest": "b11dbcba050eac9084edd021b7e0eee16b39c9e397b245bc4227266af1893404",
+        "digest": "53d9aa4d2c7a82f5a01202e386f7503b21839cbe2e5e62f1e9bda2aa5f11b518",
         "type": "image"
       },
       {
         "package": "gcr.io/knative-releases/knative.dev/serving/cmd/webhook",
-        "digest": "7b138c73fcaaf0b9bb2d414b8a89a780f8c09371d24c6f57969be1694acf4aaa",
+        "digest": "700c69915dc7cd86dffb61c26b0ba34427fab809de1e3344589dd955b6440882",
         "type": "image"
       },
       {
         "package": "knative_net_istio_manifest",
         "type": "manifest",
-        "url": "https://github.com/knative/net-istio/releases/download/knative-v1.11.0/net-istio.yaml"
+        "url": "https://github.com/knative/net-istio/releases/download/knative-v1.13.1/net-istio.yaml"
       },
       {
         "package": "gcr.io/knative-releases/knative.dev/net-istio/cmd/controller",
-        "digest": "27e7beb7c62036216fc464fb2181e56b030158ad4ceb57a7de172f54b4fe43db",
+        "digest": "a5b041ba3c9ea40198b2331617bd1571942961c1416ef683b4de8ef162755a88",
         "type": "image"
       },
       {
         "package": "gcr.io/knative-releases/knative.dev/net-istio/cmd/webhook",
-        "digest": "0cdef272e39c57971ce9977765f164dd8e3abb9395a4f60e7a4160d57dcc09f2",
+        "digest": "f066376eee17505d14881b7635a7ca7531fce0f30cf968232fc0a93adc952ed5",
         "type": "image"
       },
       {
         "package": "cert_manager_manifest",
         "type": "manifest",
-        "url": "https://github.com/cert-manager/cert-manager/releases/download/v1.13.0/cert-manager.yaml"
+        "url": "https://github.com/cert-manager/cert-manager/releases/download/v1.14.5/cert-manager.yaml"
       },
       {
         "package": "quay.io/jetstack/cert-manager-cainjector",
-        "tag": "v1.13.0",
+        "tag": "v1.14.5",
         "type": "image"
       },
       {
         "package": "quay.io/jetstack/cert-manager-controller",
-        "tag": "v1.13.0",
+        "tag": "v1.14.5",
         "type": "image"
       },
       {
         "package": "quay.io/jetstack/cert-manager-webhook",
-        "tag": "v1.13.0",
+        "tag": "v1.14.5",
         "type": "image"
       },
       {
         "package": "kserve_manifest",
         "type": "manifest",
-        "url": "https://github.com/kserve/kserve/releases/download/v0.11.2/kserve.yaml"
+        "url": "https://github.com/kserve/kserve/releases/download/v0.13.0/kserve.yaml"
       },
       {
         "package": "docker.io/kserve/kserve-controller",
-        "tag": "v0.11.2",
+        "tag": "v0.13.0",
         "type": "image"
       },
       {
         "package": "docker.io/kserve/storage-initializer",
-        "tag": "v0.11.2",
+        "tag": "v0.13.0",
         "type": "image"
       },
       {
         "package": "docker.io/kserve/router",
-        "tag": "v0.11.2",
+        "tag": "v0.13.0",
         "type": "image"
       },
       {
         "package": "docker.io/kserve/agent",
-        "tag": "v0.11.2",
+        "tag": "v0.13.0",
         "type": "image"
       },
       {
@@ -119,7 +119,7 @@
       {
         "package": "kserve_runtimes_manifest",
         "type": "manifest",
-        "url": "https://github.com/kserve/kserve/releases/download/v0.11.2/kserve-runtimes.yaml"
+        "url": "https://github.com/kserve/kserve/releases/download/v0.13.0/kserve-cluster-resources.yaml"
       },
       {
         "package": "docker.io/seldonio/mlserver",
@@ -128,7 +128,7 @@
       },
       {
         "package": "docker.io/kserve/sklearnserver",
-        "tag": "v0.11.2",
+        "tag": "v0.13.0",
         "type": "image"
       }
     ]

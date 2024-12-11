@@ -12,10 +12,20 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+
+- name: Set Linux max user instance
+  ansible.builtin.command: "sysctl fs.inotify.max_user_instances={{ max_user_instances }}"
+  changed_when: false
+
+- name: Set Linux max watches
+  ansible.builtin.command: "sysctl fs.inotify.max_user_watches={{ max_user_watches }}"
+  changed_when: false
+
 - name: Pull images for always case
   environment:
     http_proxy: "{{ http_proxy }}"
     https_proxy: "{{ https_proxy }}"
+    no_proxy: "{{ control_plane_hostname }},{{ admin_nic_ip }}"
   block:
     - name: Set empty image list
       ansible.builtin.set_fact:

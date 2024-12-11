@@ -36,7 +36,7 @@
 
    - name: Decrpyt variable file
      ansible.legacy.shell: >-
-       {{ ansible_vault_path.stdout.split(' ')[1] }} decrypt {{ omnia_config_file }}
+       ansible-vault decrypt {{ omnia_config_file }}
        --vault-password-file {{ omnia_vault_key }}
      when: "'$ANSIBLE_VAULT;' in config_content.stdout"
      changed_when: false
@@ -51,7 +51,7 @@
 
    - name: Encrypt variable file
      ansible.legacy.shell: >-
-       {{ ansible_vault_path.stdout.split(' ')[1] }} encrypt {{ omnia_config_file }}
+       ansible-vault encrypt {{ omnia_config_file }}
        --vault-password-file {{ omnia_vault_key }}
      changed_when: false
      when: "'$ANSIBLE_VAULT;' in config_content.stdout"
@@ -132,7 +132,7 @@
 
    - name: Decrpyt variable file
      ansible.legacy.shell: >-
-       {{ ansible_vault_path.stdout.split(' ')[1] }} decrypt {{ omnia_config_file }}
+       ansible-vault decrypt {{ omnia_config_file }}
        --vault-password-file {{ omnia_vault_key }}
      when: "'$ANSIBLE_VAULT;' in config_content.stdout"
      changed_when: false
@@ -147,7 +147,7 @@
 
    - name: Encrypt variable file
      ansible.legacy.shell: >-
-       {{ ansible_vault_path.stdout.split(' ')[1] }} encrypt {{ omnia_config_file }}
+       ansible-vault encrypt {{ omnia_config_file }}
        --vault-password-file {{ omnia_vault_key }}
      changed_when: false
      when: "'$ANSIBLE_VAULT;' in config_content.stdout"

@@ -47,3 +47,14 @@
     success_msg: "{{ domain_name_success_msg }}"
     fail_msg: "{{ domain_name_fail_msg }}"
   when: authentication_system == 'openldap' or authentication_system == 'freeipa'
+
+- name: Validate http_proxy, https_proxy and no_proxy configured as environment variables
+  ansible.builtin.assert:
+    that:
+      - lookup('env', 'http_proxy') | length > 1
+      - lookup('env', 'https_proxy') | length > 1
+      - lookup('env', 'no_proxy') | length > 1
+      - control_plane_hostname in lookup('env', 'no_proxy')
+      - admin_nic_ip in lookup('env', 'no_proxy')
+    fail_msg: "{{ proxy_env_fail_msg }}"
+  when: proxy_status

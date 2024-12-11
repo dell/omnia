@@ -17,8 +17,8 @@
 
 input_params_folder: "../input"
 Control_plane_dir: "../"
-CUDA_validation_script_path: test_CUDA_validation.yml 
-ROCm_vars_file_path: test_vars/test_CUDA_vars.yml 
+CUDA_validation_script_path: test_CUDA_validation.yml
+ROCm_vars_file_path: test_vars/test_CUDA_vars.yml
 CUDA_verify_code: test_cuda_code.cu
 inventory: ../inventory
 cuda_inventory: ../cuda_inventory

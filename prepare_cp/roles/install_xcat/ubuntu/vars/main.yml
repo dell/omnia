@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -61,6 +61,7 @@ xcat_services_ubuntu:
 postgresql_conf_dir_ubuntu: /etc/systemd/system/postgresql@.service.d
 postgresql_conf_dest_ubuntu: "{{ postgresql_conf_dir_ubuntu }}/postgresql.conf"
 pg_hba_conf_path: /etc/postgresql/{{ psql_version }}/main/pg_hba.conf
+postgres_set_password_fail_msg: "Failed to set Postgresql password for user postgres."
 
 # Usage: configure_rsyslog.yml
 rsyslog_dest: /etc/rsyslog.conf
@@ -80,7 +81,7 @@ omshell_script_dest: /usr/bin/omshell
 omshell_untar_dest: "{{ role_path }}/../ubuntu/files"
 untar_omshell_fail_msg: "Failed. Unable to untar {{ omshell_tar_src }}.
 {{ omshell_tar_src }} not downloaded successfully during prereq.sh or while cloning the github repository.
-Please re-run pre_req.sh again and verify the file is downloaded successfully."
+Please re-run prereq.sh again and verify the file is downloaded successfully."
 
 # Usage: configure_genesis.yml
 control_plane_arch: x86_64
@@ -96,7 +97,8 @@ xcat_genesis_tar_deb_file: "{{ xcat_genesis_deb_dir }}/xcat-genesis-base-deb-x86
 xcat_genesis_deb_file: "{{ xcat_genesis_deb_dir }}/xcat-genesis-base-amd64_2.16.4-snap202308211541_all.deb"
 untar_genesis_deb_fail_msg: "Failed. Unable to untar {{ xcat_genesis_tar_deb_file }}.
 {{ xcat_genesis_tar_deb_file }} not downloaded successfully during prereq.sh or while cloning the github repository.
-Please re-run pre_req.sh again and verify the file is downloaded successfully."
+Please re-run prereq.sh again and verify the file is downloaded successfully."
+xcat_sbin_path: /opt/xcat/sbin
 
 # Usage: configure_postgres.yml
 postgres_file_path: "/opt/omnia/.postgres/"
@@ -104,9 +106,7 @@ directory_permissions: "0600"
 utility_path: "{{ role_path }}/files/encrypt_pwd.py"
 encrypted_file_path: "/opt/omnia/.postgres/.encrypted_pwd"
 
-# Usage: config_network.yml
-config_nw_path: "/install/postscripts"
-config_nw_script_path: "/install/postscripts/confignetwork"
-config_nw_check_key: if [ $is_redhat -eq 1 ] || [ $is_debian -eq 1 ]
-config_nw_patch_path:
-  - { src: "{{ role_path }}/../common/files/confignetwork.patch", dest: "{{ config_nw_path }}/confignetwork.patch", mode: "755" }
+# Usage: apply_xcat_patch.yml
+xcat_patch_files:
+  - { src: "{{ role_path }}/../common/files/confignetwork.patch", dest: "/install/postscripts/confignetwork" }
+  - { src: "{{ role_path }}/../common/files/ddns.patch", dest: "/opt/xcat/lib/perl/xCAT_plugin/ddns.pm" }

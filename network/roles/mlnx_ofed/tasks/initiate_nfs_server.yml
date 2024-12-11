@@ -28,11 +28,10 @@
 
 # Setup nfs server when nfs_mlnx_ofed status is set to true
 - name: Setup NFS Server for Rhel compute nodes
+  when: nfs_mlnx_ofed is true
   block:
     - name: Setup nfs server on localhost
       ansible.builtin.include_tasks: setup_nfs_server.yml
 
     - name: Setup mlnx_repo on localhost
       ansible.builtin.include_tasks: setup_mlnx_ofed_repo.yml
-
-  when: nfs_mlnx_ofed is true

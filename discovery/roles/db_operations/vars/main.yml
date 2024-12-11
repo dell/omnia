@@ -14,5 +14,5 @@
 ---
 
 # Usage: cp_details_db.yml
-python_version: "python3.9"
+python_version: "{{ ansible_python_interpreter }}"
 cp_db_utility_path: "{{ role_path }}/files/add_cp_db.py"

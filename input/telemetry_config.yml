@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -31,6 +31,21 @@ omnia_telemetry_support: false
 # This variable is used to enable visualizations on grafana
 # Accepted values:  true or false
 visualization_support: false
+
+# This variable signifies support for k8s metric collection and Kube Prometheus deployment on kube_control_plane
+# Accepted values:  true or false
+k8s_prometheus_support: false
+
+# This variable denotes the time interval for prometheus to collect metrics for targets
+# This variable accepts input in seconds
+# Default value is 15
+prometheus_scrape_interval: 15
+
+# This variable signifies the support for Intel Gaudi habana Metric collection using Gaudi Prometheus metric exporter.
+# k8s_prometheus_support must be true for this metric support.
+# prometheus_gaudi_support is only available for cluster_os_type: ubuntu and cluster_os_version: 22.04 in software_config.json
+# Accepted values:  true or false 
+prometheus_gaudi_support: false
 
 ##### BELOW VARIABLES ARE MANDATORY IF telemetry ENTRY is PRESENT in software_config.json AND EITHER idrac_telemetry_support OR omnia_telemetry_support OR visualization_support IS true
 ###-----CONFIGURATIONS FOR KUBERNETES ON CONTROL PLANE FOR TELEMETRY SUPPORT------

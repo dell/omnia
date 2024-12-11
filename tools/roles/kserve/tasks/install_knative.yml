@@ -66,6 +66,16 @@
             knative_namespace_flag: true
           when: knative_command_output.stdout | int >= 2
 
+    - name: Wait for Knative webhook service to be ready
+      ansible.builtin.command: >
+        kubectl wait --for=condition=available --timeout=600s deployment/webhook -n knative-serving
+      register: knative_webhook_status
+      retries: "{{ max_attempts }}"
+      delay: "{{ wait_time }}"
+      until: knative_webhook_status.rc == 0
+      changed_when: false
+      failed_when: knative_webhook_status.rc != 0
+
     # knative net-istio
     - name: Apply knative net-istio manifest
       ansible.builtin.command: kubectl apply -f {{ manifest_local_path }}/knative_net_istio_manifest.yaml

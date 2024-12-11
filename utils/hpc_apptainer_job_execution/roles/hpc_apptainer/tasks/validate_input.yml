@@ -28,7 +28,7 @@
 
 - name: Validate hpc_apptainer_path
   ansible.builtin.assert:
-    that: 
+    that:
       - hpc_apptainer_path | default("", true) | length > 1
     quiet: true
     fail_msg: "{{ apptainer_path_fail_msg }}"

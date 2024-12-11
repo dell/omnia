@@ -28,4 +28,12 @@
   register: docker_result
   until: docker_result is succeeded
   retries: "{{ package_retry }}"
-  delay: "{{ delay_loki }}"
+  delay: "{{ delay_time }}"
+
+- name: Configure proxy environment variables for docker
+  ansible.builtin.include_tasks: configure_docker_proxy.yml
+  when: proxy_status
+
+- name: Login to docker when credentials are given
+  ansible.builtin.include_tasks: docker_login.yml
+  when: docker_login

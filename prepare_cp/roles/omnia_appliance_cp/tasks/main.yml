@@ -13,17 +13,17 @@
 # limitations under the License.
 ---
 
-- name: Install kubespray collection
-  block:
-    - name: Install kubespray ansible-collection
-      ansible.builtin.command: "ansible-galaxy install -r {{ ansible_collection_req_file }}"
-      retries: "{{ retry_count }}"
-      changed_when: false
-  rescue:
-    - name: Failed to install kubespray ansible-collection
-      ansible.builtin.debug:
-        msg: "{{ ansible_collection_fail_msg }}"
+- name: Check virtual ENV
+  ansible.builtin.set_fact:
+    venv_path: "{{ lookup('ansible.builtin.env', 'VIRTUAL_ENV') }}"
 
-- name: Install required pip modules
+- name: Install required pip modules for omnia1.6.1 venv
+  when: "'omnia161_venv' in venv_path"
+  ansible.builtin.command: "{{ python_version }} -m pip install -r {{ pip_modules_req_file_161 }}"
+  changed_when: false
+
+- name: Install required pip modules for omnia1.7 venv
+  when: "'omnia17_venv' in venv_path"
   ansible.builtin.command: "{{ python_version }} -m pip install -r {{ pip_modules_req_file }}"
   changed_when: false
+

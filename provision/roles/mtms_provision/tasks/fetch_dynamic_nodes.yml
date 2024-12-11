@@ -16,7 +16,7 @@
 - name: Fetch nodes with dynamic IP's
   ansible.builtin.shell: |
       set -o pipefail && \
-      lsdef | grep "node-" | sed -e 's/\s.*$//'
+      {{ xcat_path }}/lsdef | grep "node-" | sed -e 's/\s.*$//'
   changed_when: false
   failed_when: false
   register: dynamic_nodes

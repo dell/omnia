@@ -68,21 +68,26 @@
     success_msg: "{{ server_domain_name_success_msg }}"
     fail_msg: "{{ server_domain_name_fail_msg }}"
 
-- name: Fetch hostname of the server
+- name: Read hostname of control plane
   ansible.builtin.command: hostname
   changed_when: false
-  register: machine_hostname
+  register: hostname_result
+
+- name: Set fact for the cp hostname and domain name
+  ansible.builtin.set_fact:
+    cp_hostname: "{{ hostname_result.stdout }}"
+    cp_domain_name: "{{ domain_name }}"
 
 - name: Remove hosts file entry of control plane
   ansible.builtin.lineinfile:
     path: "{{ hosts_file_path }}"
-    regexp: "^(.*){{ machine_hostname.stdout }}"
+    regexp: "^(.*){{ cp_hostname }}"
     state: absent
 
 - name: Add hosts file entry
   ansible.builtin.lineinfile:
     path: "{{ hosts_file_path }}"
-    line: "{{ pxe_nic_ip }} {{ machine_hostname.stdout }}"
+    line: "{{ pxe_nic_ip }} {{ cp_hostname }}"
     state: present
     create: true
     mode: "{{ hosts_file_mode }}"

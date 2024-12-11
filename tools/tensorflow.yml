@@ -17,12 +17,29 @@
   ansible.builtin.import_playbook: ../utils/servicetag_host_mapping.yml
   when: not ( hostvars['127.0.0.1']['update_inventory_executed'] | default(false) | bool )
 
+- name: Inventory Check
+  hosts: localhost
+  tasks:
+    - name: Set flag to indicate check_venv.yml has been executed
+      ansible.builtin.set_fact:
+        check_venv_executed: true
+
+    - name: Check entry in software_config json
+      ansible.builtin.include_role:
+        name: tensorflow
+        tasks_from: check_software_config_file.yml
+
+    - name: Check inventory format
+      ansible.builtin.include_role:
+        name: tensorflow
+        tasks_from: inv_check.yml
+
 - name: Update Repositories/Registries on nodes
   ansible.builtin.import_playbook: ../utils/update_user_repo.yml
   when: not ( hostvars['127.0.0.1']['update_user_repo_executed'] | default(false) | bool )
 
 - name: Installing tensorflow
-  hosts: kube_node, kube_control_node
+  hosts: kube_node, kube_control_plane
   gather_facts: false
   roles:
     - tensorflow

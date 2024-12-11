@@ -120,14 +120,6 @@
     cmd: chmod a+x "{{ kustomize_binary_path }}"
   changed_when: false
 
-- name: Set Linux max user instance
-  ansible.builtin.command: "sysctl fs.inotify.max_user_instances={{ max_user_instances }}"
-  changed_when: false
-
-- name: Set Linux max watches
-  ansible.builtin.command: "sysctl fs.inotify.max_user_watches={{ max_user_watches }}"
-  changed_when: false
-
 - name: Replace value of jupyter-web secure cookies
   ansible.builtin.lineinfile:
     path: "{{ jw_app }}"
@@ -155,16 +147,6 @@
 - name: Delete CRD
   ansible.builtin.command: kubectl delete crd mpijobs.kubeflow.org
   when: crd_info.stdout | length > 0
-  changed_when: false
-
-- name: Copy rendered YAML file to compute nodes
-  ansible.builtin.copy:
-    src: "{{ role_path }}/files/crd_mpijobs_kubeflow.yml"
-    dest: "{{ kubeflow_dir_path }}/kubeflow"
-    mode: "{{ file_permission }}"
-
-- name: Apply CRD YAML
-  ansible.builtin.command: kubectl apply -f "{{ kubeflow_dir_path }}/kubeflow/crd_mpijobs_kubeflow.yml"
   changed_when: false
 
 - name: Change istio ingressgateway service from ClusterIP  to LoadBalancer

@@ -43,24 +43,6 @@
     group: root
     owner: root
 
-- name: Add kubernetes and grafana ansible-galaxy collection
-  ansible.builtin.command: ansible-galaxy collection install "{{ item }}"
-  with_items: "{{ collections_name }}"
-  changed_when: false
-
-- name: Install PyYAML using pip3
-  ansible.builtin.pip:
-    name: PyYAML
-    state: present
-    executable: pip3
-    extra_args: --ignore-installed
-
-- name: Install openshift using pip3
-  ansible.builtin.pip:
-    name: openshift
-    state: present
-    executable: pip3
-
 - name: Create grafana namespace
   kubernetes.core.k8s:
     api_version: v1

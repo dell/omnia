@@ -17,21 +17,28 @@ min_retries: 3
 max_retries: 10
 min_delay: 10
 wait_time: 30
-retry_count: 3
+retry_count: 5
 
 ubuntu_os: "ubuntu"
 # Container runtime configuration
-runc_url: "{{ offline_tarball_path }}/runc.amd64.tar.gz"
+runc_url: "{{ offline_tarball_path }}/{{ telemetry_package_map['runc.amd64'] }}.tar.gz"
 runc_dest: "/usr/local/bin/runc"
 runc_permission: "+x"
 
-crictl_url: "{{ offline_tarball_path }}/cri-tools-v1.26.1.tar.gz"
-crictl_archive_dest: /tmp/cri-tools-v1.26.1.tar.gz
-crictl_dest: /usr/local/bin/
+software_config_file: "{{ role_path }}/../../../input/software_config.json"
+telemetry_json_file: "{{ role_path }}/../../../input/config/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/telemetry.json"
+crictl_url: "{{ offline_tarball_path }}/{{ telemetry_package_map['cri-tools'] }}.tar.gz"
+crictl_archive_dest: "/tmp/{{ telemetry_package_map['cri-tools'] }}.tar.gz"
+crictl_dest: /usr/bin/
 crictl_permission: "+x"
 cri_socket: "unix:///var/run/containerd/containerd.sock"
 permission_644: "0644"
-kubespray_path: "/opt/omnia/kubespray"
+kubespray_path: "/opt/omnia/{{ telemetry_package_map['kubespray'] }}"
+kubespray_log: "/var/log/omnia/kubespray_omnia.log"
+
+dir_mode: "755"
+containerd_service_dest: "/etc/systemd/system/containerd.service.d"
+containerd_http_proxy_conf_src: "{{ role_path }}/templates/containerd_http_proxy_conf.j2"
 
 # Usage: k8s_secrets.yml
 namespace: telemetry-and-visualizations
@@ -39,7 +46,7 @@ secrets_name: credentials
 mysqldb_secrets_name: mysqldb-credentials
 
 # Usage: firewalld_config.yml
-k8s_master_ports:
+k8s_cp_ports:
   - 6443/tcp
   - 2379-2380/tcp
   - 10250/tcp
@@ -62,12 +69,16 @@ nerdctl_registry_restart_fail_msg: "nerdctl-registry service failed to restart"
 # helm
 helm_stable_repo_url: https://charts.helm.sh/stable
 # dashboard
-k8s_dashboard_yaml_url: https://raw.githubusercontent.com/kubernetes/dashboard/v2.2.0/aio/deploy/recommended.yaml
+k8s_dashboard_yaml_url: https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml
 k8s_dashboard_admin_file_dest: /opt/omnia/k8s_dashboard_admin.yaml
 k8s_dashboard_admin_file_mode: "0655"
 
 fail_msg_kubespray_not_found: "Kubespray git tar file not found in local repo."
-fail_msg_kubespray: "kubernetes installation on control plane failed."
+fail_msg_kubespray: "Kubernetes installation on the control plane failed.
+This can be due to a Docker pull issue or any other issues that occurred during the execution of the local_repo.yml playbook.
+For detailed error logs, refer to the {{ kubespray_log }} file.
+To resolve the issue, review the error logs and address any pull or execution issues. Then, re-run the playbook after verifying the error."
+
 # Containerd configuration required by K8s on Control plane installation with deploy_container_engine value as false
 containerd_bin_dir: "/usr/bin"
 bin_dir: "/usr/local/bin"
@@ -107,3 +118,8 @@ containerd_runc_runtime:
   options:
     systemdCgroup: "{{ containerd_use_systemd_cgroup | ternary('true', 'false') }}"
     binaryName: "{{ bin_dir }}/runc"
+
+# Usage: docker_login.yml
+docker_login_fail_msg: "Docker login failed. Please ensure the docker login credentials in the input/provision_config_credentials.yml are valid.
+If they are, this error can occur due to a pull limit issue or multiple requests. Please try running the playbook again after waiting for a while."
+

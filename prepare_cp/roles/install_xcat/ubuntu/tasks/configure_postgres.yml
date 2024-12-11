@@ -98,22 +98,35 @@
     pg_hba_conf_update: "{{ pg_hba_conf_content.content | b64decode | regex_search('^local\\s+all\\s+postgres\\s+md5', multiline=True) is not none }}"
 
 - name: Check pg_hba_conf_update status
-  when: pg_hba_conf_update == false
+  when: not pg_hba_conf_update
   block:
+    # Set PostgreSQL password for postgres user
     - name: Set PostgreSQL password for postgres user
       become: true
       become_user: postgres
-      ansible.builtin.shell: "echo \"ALTER USER postgres WITH PASSWORD '{{ postgresdb_password }}';\" | psql"
+      ansible.builtin.shell: |
+        set -o pipefail && \
+        echo "ALTER USER postgres WITH PASSWORD '{{ postgresdb_password }}';" | psql
       no_log: true
+      changed_when: false
+      register: postgresdb_config
 
-    - name: Replace peer to md5 in pg_hba.conf
+    - name: Replace peer with md5 in pg_hba.conf
       ansible.builtin.replace:
         path: "{{ pg_hba_conf_path }}"
         regexp: "^local(.*)all(.*)postgres(.*)"
-        replace: "local    all            postgres                                md5"
+        replace: "local   all             postgres                                md5"
       register: pg_hba_conf_update
 
-- name: Restart postgresql service
+  rescue:
+    - name: Failed to set PostgreSQL password for postgres user
+      when:
+        - postgresdb_config.module_error is defined
+        - postgresdb_config.module_error | length > 0
+      ansible.builtin.fail:
+        msg: "{{ postgres_set_password_fail_msg }} Error: {{ postgresdb_config.module_error }}"
+
+- name: Restart PostgreSQL service
   ansible.builtin.systemd:
     name: "postgresql@{{ psql_version }}-main.service"
     state: restarted

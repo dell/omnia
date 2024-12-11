@@ -15,3 +15,8 @@
 
 # Usage: validate_amd.yml
 offline_rocm_directory: "{{ repo_store_path }}/cluster/apt"
+
+# Usage: validate_intel_gaudi.yml
+offline_intelgaudi_directory: "{{ repo_store_path }}/cluster/apt"
+offline_gaudi_directory: "{{ repo_store_path }}/cluster/{{ control_plane_os }}/{{ control_plane_os_version }}/deb"
+gaudi_search_pattern: "habanalabs*.deb"

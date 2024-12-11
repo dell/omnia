@@ -1,0 +1,74 @@
+# Copyright 2024 Intel Corporation.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Initialise node accelerator status
+  ansible.builtin.set_fact:
+    node_has_gaudi2: false
+    node_has_gaudi3: false
+
+- name: Check if the node has Gaudi3
+  ansible.builtin.shell: |
+    set -o pipefail
+    lspci -n -d {{ gaudi3_pci_vendor_device_class }}
+  register: lspci_output
+  changed_when: false
+  failed_when: false
+  args:
+    executable: /bin/bash
+
+- name: Update node accelerator status
+  ansible.builtin.set_fact:
+    node_has_gaudi3: true
+  when: lspci_output.stdout | length > 0
+
+
+- name: Check if the node has Gaudi2
+  ansible.builtin.shell: |
+    set -o pipefail
+    lspci -n -d {{ gaudi2_pci_vendor_device_class }}
+  register: lspci_output
+  changed_when: false
+  failed_when: false
+  args:
+    executable: /bin/bash
+  when: node_has_gaudi3 == false
+
+- name: Update node accelerator status
+  ansible.builtin.set_fact:
+    node_has_gaudi2: true
+  when: node_has_gaudi3 == false and lspci_output.stdout | length > 0
+
+- name: Set run_intel_gaudi_tests parameter
+  ansible.builtin.set_fact:
+    run_intel_gaudi_tests: "{{ hostvars['localhost']['run_intel_gaudi_tests'] }}"
+
+- name: Verify hl-qual on Gaudi3 nodes
+  ansible.builtin.include_tasks: hlqual_gaudi3_validation.yml
+  when: node_has_gaudi3 and  run_intel_gaudi_tests
+
+- name: Verify hl-qual on Gaudi2 nodes
+  ansible.builtin.include_tasks: hlqual_gaudi2_validation.yml
+  when: node_has_gaudi2 and run_intel_gaudi_tests
+
+
+- name: Verify hccl on Gaudi2 nodes
+  ansible.builtin.include_tasks: hccl_gaudi2_validation.yml
+  when: node_has_gaudi2 and run_intel_gaudi_tests
+
+- name: Verify hccl on Gaudi3 nodes
+  ansible.builtin.include_tasks: hccl_gaudi3_validation.yml
+  when: node_has_gaudi3 and run_intel_gaudi_tests
+
+

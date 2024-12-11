@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,34 +13,34 @@
 # limitations under the License.
 ---
 
+- name: Check if virtual environment is active
+  ansible.builtin.import_playbook: ../utils/check_venv.yml
+  when: not ( check_venv_executed | default(false) | bool )
+
+- name: Update Inventory with ansible_host information
+  ansible.builtin.import_playbook: ../utils/servicetag_host_mapping.yml
+
 - name: Validate accelerator inputs
   hosts: localhost
   gather_facts: true
   connection: local
   roles:
     - accelerator_validation
-  tags: amd, nvidia
+  tags: amd, nvidia, intel
 
 - name: Update Repositories/Registries on nodes
   ansible.builtin.import_playbook: ../utils/update_user_repo.yml
   when: not ( hostvars['127.0.0.1']['update_user_repo_executed'] | default(false) | bool )
 
-# - name: Validate repo file and subscription
-#   hosts: all
-#   gather_facts: true
-#   roles:
-#     - repo_validation
-#   tags: amd, nvidia
-
 - name: Gather Cluster Facts
-  hosts: all
+  hosts: slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login, etcd
   gather_facts: true
   roles:
     - common
-  tags: amd, nvidia
+  tags: amd, nvidia, intel
 
 - name: Perform GPU driver and ROCm installation for AMD Accelerators
-  hosts: all
+  hosts: slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login, etcd
   gather_facts: true
   any_errors_fatal: true
   roles:
@@ -66,3 +66,14 @@
 #     - name: Reboot node
 #       ansible.builtin.reboot:
 #   tags: nvidia
+
+- name: Install Intel Gaudi drivers on nodes
+  hosts: slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login, etcd
+  gather_facts: true
+  any_errors_fatal: true
+  roles:
+    - intel
+  tags: intel
+
+- name: Import playbook to set performance profile on nodes
+  ansible.builtin.import_playbook: "../utils/performance_profile/performance_profile.yml"

@@ -13,5 +13,7 @@
 #  limitations under the License.
 ---
 
-validate_upgrade_config_input_fail_msg: "Input directory invalid, check upgrade_config.yml"
-validate_upgrade_config_backup_fail_msg: "Backup directory invalid, check upgrade_config.yml"
+default_backup_location: "/opt/omnia/backup_before_upgrade"
+valid_installed_path_msg: "Please provide a valid path for 'installed_omnia_path' in the upgrade_config.yml file
+     and re-run the upgrade_cp.yml playbook."
+directory_mode: "0755"

@@ -78,6 +78,9 @@
 - name: Validate domain_name
   ansible.builtin.include_tasks: validate_domain_name.yml
 
+- name: Validate site_config.yml
+  ansible.builtin.include_tasks: validate_site_config.yml
+
 - name: Validate OFED and CUDA repo
   ansible.builtin.include_tasks: validate_ofed_cuda_repo.yml
 
@@ -87,13 +90,16 @@
 - name: Validate Broadcom repo
   ansible.builtin.include_tasks: validate_broadcom_repo.yml
 
+- name: Validate Intel Gaudi repo
+  ansible.builtin.include_tasks: validate_intelgaudi_repo.yml
+
 # Encrypt provision_config_credentials.yml after all the validations are successful
 
 - name: Encrypt config file once validations are successful
   block:
     - name: Encrypt provision_config_credentials.yml
       ansible.builtin.command: >-
-        {{ ansible_vault_path.stdout.split(' ')[1] }} encrypt {{ provision_credentials_config_filename }}
+        ansible-vault encrypt {{ provision_credentials_config_filename }}
         --vault-password-file {{ provision_credentials_vault_path }}
       changed_when: false
       tags: init

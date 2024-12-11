@@ -13,6 +13,19 @@
 # limitations under the License.
 ---
 
+- name: Set control_plane_os
+  ansible.builtin.set_fact:
+    control_plane_os: "{{ ansible_distribution | lower }}"
+
+- name: Fetch cp details
+  ansible.builtin.include_tasks: fetch_cp_details.yml
+
+- name: Validate site_config.yml
+  ansible.builtin.include_tasks: validate_site_config.yml
+
+- name: Validate provision_config_credentials.yml
+  ansible.builtin.include_tasks: validate_provision_config_credentials.yml
+
 - name: Run prerequisite
   ansible.builtin.include_tasks: prereq_{{ ansible_distribution | lower }}.yml
 

@@ -36,12 +36,6 @@
       ansible.builtin.fail:
         msg: "{{ provision_config_syntax_fail_msg }} Error: {{ include_provision_config.message }}"
 
-- name: Fetch ansible-vault path
-  ansible.builtin.command: whereis ansible-vault
-  changed_when: false
-  register: ansible_vault_path
-  tags: init
-
 - name: Check provision_credentials_config.yml file is encrypted
   ansible.builtin.command: cat {{ provision_credentials_config_filename }}
   changed_when: false
@@ -51,7 +45,7 @@
 
 - name: Decrpyt provision_credentials_config.yml
   ansible.builtin.command: >-
-    {{ ansible_vault_path.stdout.split(' ')[1] }} decrypt {{ provision_credentials_config_filename }}
+    ansible-vault decrypt {{ provision_credentials_config_filename }}
     --vault-password-file {{ provision_credentials_vault_path }}
   changed_when: false
   when: ansible_vault_search_key in provision_credentials_config_content.stdout

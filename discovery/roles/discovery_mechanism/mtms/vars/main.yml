@@ -19,6 +19,7 @@ dhcp_timeout: 600
 dhcp_timeout_msg: "[WARNING] Waiting for 10 minutes before starting dynamic discovery"
 static_dynamic_fail_msg: "Failed. No BMC found for both static and dynamic IP's. Please check the ranges again."
 dhcp_path: "/var/lib/dhcpd/dhcpd.leases"
+xcat_path: /opt/xcat/bin
 
 # Usage: bmc_discover_ranges.yml
 discover_ip_file: "/opt/omnia/discover.stanzas"
@@ -30,7 +31,7 @@ stanza_paths:
   - "{{ discover_ip_file }}"
   - "{{ static_ip_file }}"
   - "{{ dynamic_ip_file }}"
-file_perm: 0644
+file_perm: "0644"
 bmcdiscover_python: "{{ role_path }}/../mtms/files/bmc_discover_ranges.py"
 
 # Usage: update_xcat_network_discovery_range.yml

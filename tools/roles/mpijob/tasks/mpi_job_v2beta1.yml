@@ -1,0 +1,73 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Setup MPIv2beta1 Operator
+  tags:
+    - mpiv2beta1
+  block:
+    - name: Check if Kubeflow training operator is present
+      ansible.builtin.command: kubectl get deployment -n kubeflow training-operator
+      register: check_training_operator
+      changed_when: false
+
+    - name: Remove Kubeflow training operator
+      ansible.builtin.shell: |
+        set -o pipefail && \
+        cd /opt/omnia/kubeflow/kubeflow && \
+        /opt/omnia/kustomize/kustomize build apps/training-operator/upstream/overlays/kubeflow | kubectl delete -f -
+      when: check_training_operator.rc == 0
+      register: remove_training_operator_result
+      retries: "{{ retry_count }}"
+      delay: "{{ time_delay }}"
+      until: remove_training_operator_result.rc == 0
+      changed_when: false
+
+    - name: Include local repo access variable file
+      ansible.builtin.include_vars:
+        file: "{{ local_repo_access_config_file }}"
+
+    - name: Include local_repo_config.yml vars
+      ansible.builtin.include_vars:
+        file: "{{ local_repo_config_file }}"
+
+    - name: Download rendered YAML file to compute nodes
+      ansible.builtin.get_url:
+        url: "{{ offline_manifest_path }}/{{ hostvars['localhost']['mpi_operator'] }}.yaml"
+        dest: "{{ kubeflow_dir_path }}/kubeflow/mpi-operator.yaml"
+        mode: "{{ file_permission }}"
+
+    - name: Install MPI Operator
+      ansible.builtin.command: kubectl apply -f "{{ kubeflow_dir_path }}/kubeflow/mpi-operator.yaml" --server-side --force-conflicts
+      failed_when: false
+      changed_when: false
+
+    - name: Warning - Please wait, This task will take few seconds
+      ansible.builtin.pause:
+        seconds: "{{ pause_time }}"
+
+    - name: Verify MPIJob API version
+      ansible.builtin.command: kubectl explain mpijob --api-version=kubeflow.org/v2beta1
+      register: kubectl_explain_output
+      changed_when: false
+
+    - name: Check if MPIJob API version v2beta1 is present
+      ansible.builtin.debug:
+        msg: "{{ v2_success }}"
+      when: kubectl_explain_output.rc == 0
+
+    - name: Fail if MPIJob API version v2beta1 is not present
+      ansible.builtin.fail:
+        msg: "{{ v2_failure }}"
+      when: kubectl_explain_output.rc != 0

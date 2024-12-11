@@ -1,3 +1,20 @@
+{% set ipam_fields = [] %}
+{% if item.1.range %}
+  {% set _ =  ipam_fields.append('"range": "' ~ item.1.range ~ '"') %}
+{% endif %}
+{% if item.1.range_start %}
+  {% set _ =  ipam_fields.append('"range_start": "' ~ item.1.range_start ~ '"') %}
+{% endif %}
+{% if item.1.range_end %}
+  {% set _ =  ipam_fields.append('"range_end": "' ~ item.1.range_end ~ '"') %}
+{% endif %}
+{% if item.1.route %}
+  {% set _ =  ipam_fields.append('"routes": [{ "dst": "' ~ item.1.route ~ '" }]') %}
+{% endif %}
+{% if item.1.gateway %}
+  {% set _ =  ipam_fields.append('"gateway": "' ~ item.1.gateway ~ '"') %}
+{% endif %}
+
 apiVersion: "k8s.cni.cncf.io/v1"
 kind: NetworkAttachmentDefinition
 metadata:
@@ -11,10 +28,7 @@ spec:
       "mode": "bridge",
       "ipam": {
         "type": "whereabouts",
-        "range": "{{ item.1.range }}",
-        "routes": [
-          { "dst": "0.0.0.0/0" }
-        ],
-        "gateway": "{{ item.1.gateway }}"
+        {% if ipam_fields | length > 0 %}{{ ipam_fields | join(',\n        ') }}{% endif %}
+        
       }
     }'

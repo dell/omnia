@@ -13,44 +13,52 @@
 #  limitations under the License.
 
 ## File arrays
-# Usage: read_parameters.yml
+# Usage: generate_new_input_files.yml
 import_input_parameters_config_file_array:
   - file: "omnia_config.yml"
     vault_password_file: ".omnia_vault_key"
   - file: "provision_config.yml"
-    vault_password_file: ".provision_vault_key"
+    vault_password_file: ""
+  - file: "provision_config_credentials.yml"
+    vault_password_file: ".provision_credential_vault_key"
+  - file: "network_spec.yml"
+    vault_password_file: ""
   - file: "network_config.yml"
     vault_password_file: ""
   - file: "security_config.yml"
     vault_password_file: ".security_vault.key"
   - file: "storage_config.yml"
     vault_password_file: ""
+  - file: "local_repo_config.yml"
+    vault_password_file: ""
   - file: "telemetry_config.yml"
     vault_password_file: ".telemetry_vault_key"
-  - file: "accelerator_config.yml"
+  - file: "k8s_access_config.yml"
     vault_password_file: ""
   - file: "login_node_security_config.yml"
     vault_password_file: ""
   - file: "passwordless_ssh_config.yml"
     vault_password_file: ""
-  - file: "rhsm_config.yml"
+  - file: "roce_plugin_config.yml"
     vault_password_file: ""
+  - file: "server_spec.yml"
+    vault_password_file: ""
+
 
 import_input_parameters_new_config_file_array: []
 
 import_input_parameters_config_encrypt_array:
   - file: "omnia_config.yml"
     vault_password_file: ".omnia_vault_key"
-  - file: "provision_config.yml"
-    vault_password_file: ".provision_vault_key"
+  - file: "provision_config_credentials.yml"
+    vault_password_file: ".provision_credential_vault_key"
   - file: "security_config.yml"
     vault_password_file: ".security_vault.key"
   - file: "telemetry_config.yml"
     vault_password_file: ".telemetry_vault_key"
 
-read_parameters_failed_msg: "Failed to read Omnia v1.5 input config files"
+read_parameters_failed_msg: "Failed to read Omnia installed input config files {{ failed_input_files }} Please check for any syntax errors. "
 
-# Usage: generate_new_input_files.yml
 import_input_parameters_config_template_array:
   - src: 'omnia_config.j2'
     dest: 'omnia_config.yml'
@@ -66,77 +74,35 @@ import_input_parameters_config_template_array:
     dest: 'storage_config.yml'
   - src: 'telemetry_config.j2'
     dest: 'telemetry_config.yml'
+  - src: 'local_repo_config.j2'
+    dest: 'local_repo_config.yml'
   - src: 'network_spec.j2'
     dest: 'network_spec.yml'
-
-input_file_perm: "0644"
-
-## Template variables
-# Usage: omnia_config.j2
-import_input_parameters_restart_slurm_services: true
-import_input_parameters_k8s_service_addresses: "10.233.0.0/18"
-
-# Usage: network_spec.j2, set_network_spec_variables.yml
-import_input_parameters_admin_network_netmask_bits: "16"
-import_input_parameters_admin_network_static_range: ""
-import_input_parameters_admin_network_dynamic_range: ""
-import_input_parameters_admin_network_correlation_to_admin: true
-import_input_parameters_admin_network_admin_uncorrelated_node_start_ip: ""
-import_input_parameters_admin_network_network_gateway: ""
-import_input_parameters_admin_network_dns: ""
-import_input_parameters_admin_network_mtu: "1500"
-import_input_parameters_admin_network_vlan: ""
-
-bmc_network_nic: ""
-import_input_parameters_bmc_network_netmask_bits: ""
-import_input_parameters_bmc_network_static_range: ""
-import_input_parameters_bmc_network_discover_range: ""
-import_input_parameters_bmc_network_dynamic_range: ""
-import_input_parameters_bmc_network_reassignment_to_static: true
-import_input_parameters_bmc_network_network_gateway: ""
-import_input_parameters_bmc_network_mtu: "1500"
-import_input_parameters_bmc_network_vlan: ""
-
-import_input_parameters_ib_network1_netmask_bits: "16"
-import_input_parameters_ib_network1_cidr: ""
-import_input_parameters_ib_network1_static_range: ""
-import_input_parameters_ib_network1_network_gateway: ""
-import_input_parameters_ib_network1_mtu: "1500"
-import_input_parameters_ib_network1_vlan: "1"
-
-import_input_parameters_thor_network1_netmask_bits: "20"
-import_input_parameters_thor_network1_cidr: "10.10.16.0"
-import_input_parameters_thor_network1_static_range: ""
-import_input_parameters_thor_network1_network_gateway: ""
-import_input_parameters_thor_network1_mtu: "1500"
-import_input_parameters_thor_network1_vlan: ""
-
-import_input_parameters_thor_network2_netmask_bits: "20"
-import_input_parameters_thor_network2_cidr: ""
-import_input_parameters_thor_network2_static_range: "10.10.1.1-10.10.15.254"
-import_input_parameters_thor_network2_network_gateway: ""
-import_input_parameters_thor_network2_mtu: "1500"
-import_input_parameters_thor_network2_vlan: "1"
-
-# Usage: provision_config.j2
-import_input_parameters_enable_switch_based: false
-
-# Usage: security_config.j2
-import_input_parameters_tls_certificate: ""
-import_input_parameters_tls_certificate_key: ""
-import_input_parameters_user_home_dir: "/home"
-import_input_parameters_openldap_db_username: "admin"
-import_input_parameters_openldap_db_password: ""
-import_input_parameters_openldap_config_username: "admin"
-import_input_parameters_openldap_config_password: ""
-import_input_parameters_openldap_monitor_password: ""
-import_input_parameters_openldap_organization: "omnia"
-import_input_parameters_openldap_organizational_unit: "People"
+  - src: 'k8s_access_config.j2'
+    dest: 'k8s_access_config.yml'
+  - src: 'login_node_security_config.j2'
+    dest: 'login_node_security_config.yml'
+  - src: 'passwordless_ssh_config.j2'
+    dest: 'passwordless_ssh_config.yml'
+  - src: 'roce_plugin_config.j2'
+    dest: 'roce_plugin_config.yml'
+  - src: 'server_spec.j2'
+    dest: 'server_spec.yml'
 
 
-## Messages displayed to user
+file_perm: "0644"
+
 # Usage: import_input_parameters.yml
 import_input_parameters_successful_msg: "Prepare upgrade completed. Kindly confirm migrated values and provide input for newly introduced values."
 
-# Usage: encrypt_1_5_inputs.yml
-vault_file_perm: '0644'
+
+input_folder: "{{ role_path }}/../../../input"
+input_config_files_array:
+  - file: "omnia_config.yml"
+    vault_password_file: ".omnia_vault_key"
+  - file: "provision_config_credentials.yml"
+    vault_password_file: ".provision_credential_vault_key"
+  - file: "security_config.yml"
+    vault_password_file: ".security_vault.key"
+  - file: "telemetry_config.yml"
+    vault_password_file: ".telemetry_vault_key"

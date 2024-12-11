@@ -324,4 +324,4 @@ mellanox_switch_interface_config:
 # When set to true, it will save the switch's running configuration to the startup configuration file
 # after the role applies its configuration. This will allow the configuration to persist after a
 # restart or power failure.
-save_changes_to_startup: false
+save_changes_to_startup: false  

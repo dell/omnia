@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ Module to gather gpu related metrics
 import math
 import data_collector_nvidia_gpu
 import data_collector_amd_gpu
+import data_collector_gaudi
 import utility
 import prerequisite
 
@@ -98,6 +99,38 @@ class GPUMetricCollector:
         else:
             self.gpu_metric_output_dict["gpu_utilization:average"] = utility.Result.NO_DATA.value
 
+    def get_gaudi_metrics(self):
+        '''
+        This method collects all the gaudi metrics
+        '''
+        # run hl-smi command and store output in a variable
+        gaudi_metrics_cmd_output = data_collector_gaudi.get_gaudi_metrics_output()
+
+        # get temperature details for Gaudi
+        gpu_temp = data_collector_gaudi.get_gaudi_temp(gaudi_metrics_cmd_output)
+        if gpu_temp is not None:
+            for index, item in enumerate(gpu_temp):
+                self.gpu_metric_output_dict["gpu_temperature:gpu" + str(index)] = str(item)
+                self.gpu_unit["gpu_temperature"] = "C"
+        else:
+            self.gpu_metric_output_dict["gpu_temperature:gpu"] = utility.Result.NO_DATA.value
+
+        # get utilization details for Gaudi
+        gpu_util = data_collector_gaudi.get_gaudi_utilization(gaudi_metrics_cmd_output)
+        if gpu_util is not None:
+            for index, item in enumerate(gpu_util):
+                self.gpu_metric_output_dict["gpu_utilization:gpu" + str(index)] = str(item)
+                self.gpu_unit["gpu_utilization"] = "percent"
+        else:
+            self.gpu_metric_output_dict["gpu_utilization:gpu"] = utility.Result.NO_DATA.value
+
+        # get average of utilization of all Gaudi in the system
+        gpu_avg_util = data_collector_gaudi.get_gaudi_avg_utilization(gaudi_metrics_cmd_output)
+        if gpu_avg_util is not None:
+            self.gpu_metric_output_dict["gpu_utilization:average"] = str(gpu_avg_util)
+            self.gpu_unit["gpu_utilization"] = "percent"
+        else:
+            self.gpu_metric_output_dict["gpu_utilization:average"] = utility.Result.NO_DATA.value
     def metric_collector(self, aggregation_level):
         '''
         This method collects all the gpu metric parameters.
@@ -109,8 +142,12 @@ class GPUMetricCollector:
         if prerequisite.dict_component_existence['amdgpu']:
             self.get_amd_metrics()
 
+        # Run only when gaudi present
+        if prerequisite.dict_component_existence['intelgaudi']:
+            self.get_gaudi_metrics()
+
         if prerequisite.dict_component_existence['nvidiagpu'] is False and prerequisite.dict_component_existence[
-            'amdgpu'] is False:
+            'amdgpu'] is False and prerequisite.dict_component_existence['intelgaudi'] is False:
             self.gpu_metric_output_dict["gpu_temperature"] = utility.Result.NO_DATA.value
             self.gpu_metric_output_dict["gpu_utilization"] = utility.Result.NO_DATA.value
             self.gpu_metric_output_dict["gpu_utilization:average"] = utility.Result.NO_DATA.value

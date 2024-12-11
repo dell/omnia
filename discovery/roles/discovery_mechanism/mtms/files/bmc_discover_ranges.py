@@ -12,14 +12,33 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+"""
+This module provides functionality for running BMC discovery on a range of IP addresses.
+"""
 
+import re
 import sys
 import subprocess
 import calculate_ip_details
 
+
+def validate(ip_range):
+    # Define regex patterns
+    cidr_pattern = r'^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$'
+    range_pattern = r'^(\d{1,3}\.){3}\d{1,3}-\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$'
+    valid_pattern = f'({cidr_pattern}|{range_pattern}|0.0.0.0)'
+    ip_range = ip_range.strip()
+
+    if not re.fullmatch(valid_pattern, ip_range):
+        raise ValueError("Invalid IP range format")
+    return ip_range
+
 if len(sys.argv) <= 3:
     bmc_dynamic_range = sys.argv[1]
+    bmc_dynamic_range = validate(bmc_dynamic_range)
     dynamic_stanza = sys.argv[2]
+
+
 # Pass proper variables
 if len(sys.argv) > 3:
     discovery_ranges = sys.argv[1]
@@ -28,7 +47,7 @@ if len(sys.argv) > 3:
     static_stanza = sys.argv[4]
     netmask_bits = sys.argv[5]
     bmc_static_range = sys.argv[6]
-
+    bmc_static_range = validate(bmc_static_range)
 
 def cal_ranges(start_ip, end_ip):
     """
@@ -72,7 +91,7 @@ def create_ranges_dynamic(bmc_mode):
 
           Calls:
               if range is valid, call the function run_bmc_discover, for running bmcdiscovery.
-       """
+    """
     temp = bmc_dynamic_range.split('-')
     start_ip = temp[0].split('.')
     end_ip = temp[1].split('.')
@@ -115,7 +134,8 @@ def create_ranges_discovery(bmc_mode):
            """
     discover_range_list = discovery_ranges.split(',')
     for ip_range in discover_range_list:
-        temp = ip_range.split('-')
+        ip_obj = validate(ip_range)
+        temp = ip_obj.split('-')
         start_ip = temp[0].split('.')
         end_ip = temp[1].split('.')
         discover_subnet = calculate_ip_details.cal_ip_details(temp[0], netmask_bits)[1]
@@ -146,15 +166,13 @@ def run_bmc_discover(final_range, stanza_path, bmc_mode):
           Proper stanza file with results of bmcdiscovery, else it gets timed out.
 
     """
-    command_list = ""
+
     if bmc_mode == "static" or bmc_mode == "discovery":
-        command = f"bmcdiscover --range {final_range} -z"
-        command_list = command.split()
+        command = ["/opt/xcat/bin/bmcdiscover", "--range", final_range, "-z"]
     elif bmc_mode == "dynamic":
-        command = f"bmcdiscover --range {final_range} -z -w"
-        command_list = command.split()
+        command = ["/opt/xcat/bin/bmcdiscover", "--range", final_range, "-z", "-w"]
     try:
-        node_objs = subprocess.run(command_list, capture_output=True, timeout=600)
+        node_objs = subprocess.run(command, capture_output=True, timeout=600, check=True)
         with open(stanza_path, 'r+') as f:
             f.write(node_objs.stdout.decode())
     except subprocess.TimeoutExpired:

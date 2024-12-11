@@ -24,6 +24,7 @@ common_packages_xcat:
   - unzip
   - bzip2
   - tar
+  - chrony
 common_packages_provision:
   - python3-netaddr
   - openssl
@@ -108,7 +109,8 @@ doxcat_patch_path:
   - { src: "{{ role_path }}/../common/files/doxcat.patch", dest: "{{ xcat_bin_path }}/doxcat.patch", mode: "755" }
 untar_genesis_fail_msg: "Failed. Unable to untar {{ xcat_genesis_tar_file }}.
 {{ xcat_genesis_tar_file }} not downloaded successfully during prereq.sh or while cloning the github repository.
-Please re-run pre_req.sh again and verify the file is downloaded successfully."
+Please re-run prereq.sh again and verify the file is downloaded successfully."
+xcat_sbin_path: /opt/xcat/sbin
 
 # Usage: configure_postgres.yml
 xcat_services:
@@ -118,6 +120,7 @@ xcat_services:
   - snmpd
 postgresql_conf_dir: /etc/systemd/system/postgresql.service.d
 postgresql_conf_dest: "{{ postgresql_conf_dir }}/postgresql.conf"
+postgres_set_password_fail_msg: "Failed to set Postgresql password for user- postgres."
 
 # Usage: configure_postgres.yml
 pg_hba_conf_path: /var/lib/pgsql/data/pg_hba.conf

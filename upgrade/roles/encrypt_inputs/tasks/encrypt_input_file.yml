@@ -1,4 +1,4 @@
-#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -12,11 +12,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-
-- name: Fetch ansible-vault path
-  ansible.builtin.command: whereis ansible-vault
-  changed_when: false
-  register: ansible_vault_path
 
 - name: Check input file is encrypted
   ansible.builtin.command: cat {{ input_folder }}/{{ item.file }}
@@ -40,7 +35,7 @@
 
 - name: Encrypt {{ item.file }}
   ansible.builtin.command: >-
-    {{ ansible_vault_path.stdout.split(' ')[1] }} encrypt {{ input_folder }}/{{ item.file }}
+    ansible-vault encrypt {{ input_folder }}/{{ item.file }}
     --vault-password-file {{ input_folder }}/{{ item.vault_password_file }}
   changed_when: false
   when: "'$ANSIBLE_VAULT;' not in config_content.stdout"

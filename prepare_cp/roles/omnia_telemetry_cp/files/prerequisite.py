@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -67,6 +67,17 @@ def check_amd_gpu_existence():
     else:
         dict_component_existence["amdgpu"] = False
 
+def check_gaudi_existence():
+    '''
+    Method to check whether Gaudi is present
+    '''
+    gaudi_output = invoke_commands.call_command_with_pipe\
+        ("lspci|grep \"Processing accelerators: Habana Labs Ltd.\"")
+    if (gaudi_output is not None) and len(gaudi_output)>0:
+        dict_component_existence["intelgaudi"] = True
+    else:
+        dict_component_existence["intelgaudi"] = False
+
 def check_beegfs_existence():
     '''
     Method to check whether beegfs is present
@@ -101,5 +112,6 @@ def check_component_existence():
 
     check_nvidia_gpu_existence()
     check_amd_gpu_existence()
+    check_gaudi_existence()
     check_beegfs_existence()
     check_smartctl_existence()

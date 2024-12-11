@@ -1,0 +1,110 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Create kubespray directory "{{ kubespray_path }}"
+  ansible.builtin.file:
+    path: "{{ kubespray_path }}"
+    state: directory
+    mode: "{{ file_permission }}"
+
+- name: Get kubespray git repo
+  block:
+    - name: Get kubespray git repo tarball
+      ansible.builtin.get_url:
+        url: "{{ offline_git_path }}/kubespray-v2.25.0.tar.gz"
+        dest: "{{ kubespray_path }}"
+        mode: "{{ file_permission }}"
+      failed_when: false
+  rescue:
+    - name: Fail if unable to get kubespray tar file from local repo
+      ansible.builtin.fail:
+        msg: "{{ fail_msg_kubespray_not_found }}"
+
+- name: Untar kubespray git repo
+  ansible.builtin.unarchive:
+    src: "{{ kubespray_path }}/kubespray-v2.25.0.tar.gz"
+    dest: "{{ kubespray_path }}"
+
+- name: Add collections path in kubespray ansible.cfg
+  community.general.ini_file:
+    path: "{{ kubespray_path }}/kubespray-v2.25.0/ansible.cfg"
+    section: defaults
+    option: collections_path
+    value: "$VIRTUAL_ENV"
+    mode: "{{ file_permission }}"
+    backup: true
+
+- name: Set kube_version_var dynamically
+  ansible.builtin.set_fact:
+    kube_version_var: "kube_version_list_{{ k8s_version | replace('.', '_') }}"
+
+- name: Set the version list variable dynamically
+  ansible.builtin.set_fact:
+    version_list_to_use: "{{ lookup('vars', kube_version_var) }}"
+
+- name: Gather all IP addresses
+  ansible.builtin.command: ip -4 addr show
+  register: ip_output
+  changed_when: false
+
+- name: Extract IP addresses
+  ansible.builtin.set_fact:
+    cp_ip_addresses: "{{ ip_output.stdout | regex_findall('inet\\s([0-9.]+)') }}"
+
+- name: Check if /usr/bin/crictl exists
+  ansible.builtin.stat:
+    path: "{{ crictl_dest }}/crictl"
+  register: crictl_status
+
+- name: If crictl binary exists copy to /usr/local/bin
+  ansible.builtin.copy:
+    src: "{{ crictl_dest }}/{{ item }}"
+    dest: "{{ ctr_pkg_dest }}/{{ item }}"
+    mode: "{{ copy_permission }}"
+  loop: "{{ binary_package_list }}"
+  when: crictl_status.stat.exists
+  loop_control:
+    loop_var: item
+
+- name: Copy crictl package to /usr/bin
+  ansible.builtin.copy:
+    src: "{{ crictl_src }}"
+    dest: "{{ crictl_dest }}"
+    mode: "{{ copy_permission }}"
+
+- name: Create track_upgrade.txt file
+  ansible.builtin.file:
+    path: "{{ track_file_path }}"
+    mode: "{{ file_permission }}"
+    state: touch
+  failed_when: false
+
+- name: Render vars file - k8s_var.yml for kube version
+  ansible.builtin.template:
+    src: "{{ k8s_var_src }}"
+    dest: "{{ k8s_var_dest }}"
+    mode: "{{ file_permission }}"
+  with_items: "{{ version_list_to_use }}"
+  loop_control:
+    loop_var: kube_version
+
+- name: SEQUENTIAL KUBERNETES UPGRADE ON CONTROL PLANE
+  ansible.builtin.debug:
+    msg: "{{ user_msg_upgrade.split('\n') }}"
+
+- name: K8s upgrade tasks
+  ansible.builtin.include_tasks: upgrade_k8s.yml
+  loop: "{{ version_list_to_use }}"
+  loop_control:
+    loop_var: kubernetes_version

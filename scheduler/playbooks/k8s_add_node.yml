@@ -27,10 +27,15 @@
     kube_network_plugin: "{{ hostvars['localhost']['k8s_cni'] }}"
     kube_service_addresses: "{{ hostvars['localhost']['k8s_service_addresses'] }}"
     kube_pods_subnet: "{{ hostvars['localhost']['k8s_pod_network_cidr'] }}"
-    metallb_enabled: true
-    metallb_speaker_enabled: true
     kube_proxy_strict_arp: true
     kube_proxy_mode: 'iptables'
+    kubelet_custom_flags: "{% if hostvars['localhost']['topology_manager_policy'] != 'none' %}
+      --topology-manager-policy={{ hostvars['localhost']['topology_manager_policy'] }}
+      --topology-manager-scope={{ hostvars['localhost']['topology_manager_scope'] }}
+                          {% endif %}"
+    metallb_enabled: true
+    metallb_speaker_enabled: true
+    metallb_namespace: "metallb-system"
     metallb_config:
       address_pools:
         primary:
@@ -54,22 +59,24 @@
           - host: https://mirror.gcr.io
             capabilities: ["pull", "resolve"]
             skip_verify: false
-    kubeadm_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/kubeadm.tar.gz"
-    kubectl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/kubectl.tar.gz"
-    kubelet_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/kubelet.tar.gz"
-    crictl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/cri-tools-v1.26.1.tar.gz"
-    calicoctl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/calicoctl-v3.25.2.tar.gz"
-    calico_crds_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/calicocrds-v3.25.2.tar.gz"
-    cni_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/cni-plugins-v1.3.0.tar.gz"
-    nerdctl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/nerdctl-v1.5.0.tar.gz"
-    runc_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/runc.amd64.tar.gz"
+    kubeadm_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/{{ hostvars['localhost']['kubeadm_package'] }}.tar.gz"
+    kubectl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/{{ hostvars['localhost']['kubectl_package'] }}.tar.gz"
+    kubelet_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/{{ hostvars['localhost']['kubelet_package'] }}.tar.gz"
+    crictl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/{{ hostvars['localhost']['crictl_package'] }}.tar.gz"
+    calicoctl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/{{ hostvars['localhost']['calicoctl_package'] }}.tar.gz"
+    calico_crds_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/{{ hostvars['localhost']['calico_crds_package'] }}.tar.gz"
+    cni_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/{{ hostvars['localhost']['cni_package'] }}.tar.gz"
+    nerdctl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/{{ hostvars['localhost']['nerdctl_package'] }}.tar.gz"
+    runc_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/{{ hostvars['localhost']['runc_package'] }}.tar.gz"
     docker_rh_repo_base_url: ""
     docker_rh_repo_gpgkey: ""
-    etcd_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/etcd-v3.5.10.tar.gz"
-    containerd_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/containerd-1.7.5.tar.gz"
-    helm_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/helm-v3.12.3.tar.gz"
+    etcd_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/{{ hostvars['localhost']['etcd_package'] }}.tar.gz"
+    containerd_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/{{ hostvars['localhost']['containerd_package'] }}.tar.gz"
+    helm_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/{{ hostvars['localhost']['helm_package'] }}.tar.gz"
     http_proxy: "{{ hostvars['localhost']['http_proxy'] }}"
     https_proxy: "{{ hostvars['localhost']['https_proxy'] }}"
+    no_proxy: "localhost,127.0.0.1,{{ hostvars['localhost']['admin_nic_ip'] }},{{ hostvars['localhost']['k8s_service_addresses'] }},{{ hostvars['localhost']['k8s_pod_network_cidr'] }},{{ hostvars['localhost']['k8s_cni'] }},{{ hostvars['localhost']['control_plane_hostname'] }},{{ hostvars['localhost']['domain_name'] }}"   # noqa: yaml[line-length]
+    additional_no_proxy: "{{ hostvars['localhost']['user_no_proxy'] if hostvars['localhost']['no_proxy_input_status'] else '' }}"   # noqa: yaml[line-length]
 
 - name: Initiate add node
   when:
@@ -85,9 +92,14 @@
     kube_network_plugin: "{{ hostvars['localhost']['k8s_cni'] }}"
     kube_service_addresses: "{{ hostvars['localhost']['k8s_service_addresses'] }}"
     kube_pods_subnet: "{{ hostvars['localhost']['k8s_pod_network_cidr'] }}"
+    kubelet_custom_flags: "{% if hostvars['localhost']['topology_manager_policy'] != 'none' %}
+      --topology-manager-policy={{ hostvars['localhost']['topology_manager_policy'] }}
+      --topology-manager-scope={{ hostvars['localhost']['topology_manager_scope'] }}
+                          {% endif %}"
+    kube_proxy_strict_arp: true
     metallb_enabled: true
     metallb_speaker_enabled: true
-    kube_proxy_strict_arp: true
+    metallb_namespace: "metallb-system"
     metallb_config:
       address_pools:
         primary:
@@ -111,19 +123,21 @@
           - host: https://mirror.gcr.io
             capabilities: ["pull", "resolve"]
             skip_verify: false
-    kubeadm_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/kubeadm.tar.gz"
-    kubectl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/kubectl.tar.gz"
-    kubelet_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/kubelet.tar.gz"
-    crictl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/cri-tools-v1.26.1.tar.gz"
-    calicoctl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/calicoctl-v3.25.2.tar.gz"
-    calico_crds_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/calicocrds-v3.25.2.tar.gz"
-    cni_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/cni-plugins-v1.3.0.tar.gz"
-    nerdctl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/nerdctl-v1.5.0.tar.gz"
-    runc_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/runc.amd64.tar.gz"
+    kubeadm_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/{{ hostvars['localhost']['kubeadm_package'] }}.tar.gz"
+    kubectl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/{{ hostvars['localhost']['kubectl_package'] }}.tar.gz"
+    kubelet_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/{{ hostvars['localhost']['kubelet_package'] }}.tar.gz"
+    crictl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/{{ hostvars['localhost']['crictl_package'] }}.tar.gz"
+    calicoctl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/{{ hostvars['localhost']['calicoctl_package'] }}.tar.gz"
+    calico_crds_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/{{ hostvars['localhost']['calico_crds_package'] }}.tar.gz"
+    cni_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/{{ hostvars['localhost']['cni_package'] }}.tar.gz"
+    nerdctl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/{{ hostvars['localhost']['nerdctl_package'] }}.tar.gz"
+    runc_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/{{ hostvars['localhost']['runc_package'] }}.tar.gz"
     docker_rh_repo_base_url: ""
     docker_rh_repo_gpgkey: ""
-    etcd_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/etcd-v3.5.10.tar.gz"
-    containerd_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/containerd-1.7.5.tar.gz"
-    helm_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/helm-v3.12.3.tar.gz"
+    etcd_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/{{ hostvars['localhost']['etcd_package'] }}.tar.gz"
+    containerd_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/{{ hostvars['localhost']['containerd_package'] }}.tar.gz"
+    helm_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/{{ hostvars['localhost']['helm_package'] }}.tar.gz"
     http_proxy: "{{ hostvars['localhost']['http_proxy'] }}"
     https_proxy: "{{ hostvars['localhost']['https_proxy'] }}"
+    no_proxy: "localhost,127.0.0.1,{{ hostvars['localhost']['admin_nic_ip'] }},{{ hostvars['localhost']['k8s_service_addresses'] }},{{ hostvars['localhost']['k8s_pod_network_cidr'] }},{{ hostvars['localhost']['control_plane_hostname'] }},{{ hostvars['localhost']['domain_name'] }}"   # noqa: yaml[line-length]
+    additional_no_proxy: "{{ hostvars['localhost']['user_no_proxy'] if hostvars['localhost']['no_proxy_input_status'] else '' }}"   # noqa: yaml[line-length]

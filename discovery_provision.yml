@@ -12,6 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+- name: Check if virtual environment is active
+  ansible.builtin.import_playbook: utils/check_venv.yml
+  when: not ( check_venv_executed | default(false) | bool )
+
+- name: Check if package manager is not locked
+  ansible.builtin.import_playbook: utils/check_package_lock.yml
+  when: not ( hostvars['127.0.0.1']['apt_lock_status'] | default(false) | bool )
+
+- name: Set flag
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Set flag to indicate check_venv.yml has been executed
+      ansible.builtin.set_fact:
+        check_venv_executed: true
+
+    - name: Set flag to indicate check_package_lock.yml has been executed
+      ansible.builtin.set_fact:
+        apt_lock_status: true
 
 - name: Validate discovery parameters                            # noqa:role-name[path]
   hosts: localhost

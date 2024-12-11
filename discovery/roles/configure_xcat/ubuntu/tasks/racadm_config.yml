@@ -19,11 +19,18 @@
     state: directory
     mode: "{{ file_permission }}"
 
-- name: Fetch racadm package
-  ansible.builtin.get_url:
-    url: "{{ racadm_tar_url }}"
-    dest: "{{ racadm_tar_dest }}"
-    mode: "{{ file_permission }}"
-  register: download_racadm
-  until: download_racadm is not failed
-  retries: "{{ max_retries }}"
+- name: Download racadm
+  block:
+    - name: Fetch racadm package
+      ansible.builtin.get_url:
+        url: "{{ racadm_tar_url }}"
+        dest: "{{ racadm_tar_dest }}"
+        mode: "{{ file_permission }}"
+      register: download_racadm
+      until: download_racadm is not failed
+      retries: "{{ max_retries }}"
+  rescue:
+    - name:  Warning - Failed to download racadm package
+      ansible.builtin.pause:
+        prompt: "{{ download_racadm_warning_msg }}"
+        seconds: "{{ warning_time }}"

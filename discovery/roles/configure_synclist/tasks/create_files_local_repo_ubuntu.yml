@@ -75,6 +75,16 @@
         path: "{{ rocm_file_path }}"
       register: rocm_file
 
+    - name: Check if intelgaudi repo exists
+      ansible.builtin.stat:
+        path: "{{ intelgaudi_file_path }}"
+      register: intelgaudi_file
+
+    - name: Check if intel repo exists
+      ansible.builtin.stat:
+        path: "{{ intel_file_path }}"
+      register: intel_file
+
     - name: Generate and copy software repository configurations
       ansible.builtin.template:
         src: "{{ repo_config_template_src }}"
@@ -83,6 +93,17 @@
       loop: "{{ user_config.softwares + user_config.amdgpu | default([]) }}"
       when: "(beegfs_name in item.name and beegfs_file.stat.exists) or (amdgpu_name in item.name and amdgpu_file.stat.exists)
               or (rocm_name in item.name and rocm_file.stat.exists)"
+      loop_control:
+        loop_var: item
+
+    - name: Generate and copy software repository configurations for Intel Gaudi
+      ansible.builtin.template:
+        src: "{{ repo_config_template_intelgaudi_src }}"
+        dest: "{{ repo_config_file_intelgaudi }}"
+        mode: "{{ repo_file_permission }}"
+      loop: "{{ user_config.softwares + user_config.intelgaudi | default([]) }}"
+      when: "(intelgaudi_name in item.name and intelgaudi_file.stat.exists)
+              or (intel_name in item.name and intel_file.stat.exists)"
       loop_control:
         loop_var: item
 
@@ -111,6 +132,16 @@
         path: "{{ rocm_file_path }}"
       register: rocm_file
 
+    - name: Check if intelgaudi repo exists
+      ansible.builtin.stat:
+        path: "{{ intelgaudi_file_path }}"
+      register: intelgaudi_file
+
+    - name: Check if intel repo exists
+      ansible.builtin.stat:
+        path: "{{ intel_file_path }}"
+      register: intel_file
+
     - name: Generate and copy software repository configurations
       ansible.builtin.template:
         src: "{{ repo_config_template_src }}"
@@ -118,7 +149,18 @@
         mode: "{{ repo_file_permission }}"
       loop: "{{ user_config.softwares + user_config.amdgpu | default([]) }}"
       when: "(beegfs_name in item.name and beegfs_file.stat.exists) or (amdgpu_name in item.name and amdgpu_file.stat.exists)
-             or (rocm_name in item.name and rocm_file.stat.exists)"
+              or (rocm_name in item.name and rocm_file.stat.exists)"
+      loop_control:
+        loop_var: item
+
+    - name: Generate and copy software repository configurations for Intel Gaudi
+      ansible.builtin.template:
+        src: "{{ repo_config_template_intelgaudi_src }}"
+        dest: "{{ repo_config_file_intelgaudi }}"
+        mode: "{{ repo_file_permission }}"
+      loop: "{{ user_config.softwares + user_config.intelgaudi | default([]) }}"
+      when: "(intelgaudi_name in item.name and intelgaudi_file.stat.exists)
+              or (intel_name in item.name and intel_file.stat.exists)"
       loop_control:
         loop_var: item
 

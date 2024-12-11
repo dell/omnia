@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -30,10 +30,10 @@ selinux_warning: "Warning! SELinux status is disabled by user. No SELinux policy
 telemetry_config_file: "{{ role_path }}/../../../input/telemetry_config.yml"
 fail_msg_telemetry_config_file: "telemetry_config.yml file doesn't exist."
 pip_packages:
-  - openshift
-  - omsdk
-  - PyMySQL
-mysqldb_collection_name: community.mysql:3.7.2
+  - omsdk==1.2.513
+  - PyMySQL==1.1.1
+  - pysnmp==6.1.3
+  - kubernetes==30.1.0
 retry_count: 3
 rhel_epel_repo8: https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
 max_retries: 20
@@ -51,24 +51,32 @@ idrac_telemetry_support_fail_msg: "Failed. idrac_telemetry_support only accepts 
 omnia_telemetry_support_fail_msg: "Failed. omnia_telemetry_support accepts boolean value true or false"
 visualization_support_success_msg: "visualization_support_ validated"
 visualization_support_fail_msg: "Failed. visualization_support accepts boolean value true or false"
+k8s_prometheus_support_success_msg: "k8s_prometheus_support validated"
+k8s_prometheus_support_fail_msg: "Failed. k8s_prometheus_support accepts boolean value true or false"
+prometheus_gaudi_support_success_msg: "prometheus_gaudi_support validated"
+prometheus_gaudi_support_fail_msg: "Failed. prometheus_gaudi_support accepts boolean value true or false"
 idrac_omnia_telemetry_support_false_warn_time: 10
 pause_time_15: 15
 warning_telemetry_support_false: "Warning. telemetry entry is present in software_config.json, but all telemetry support categories \
-(idrac_telemetry_support, omnia_telemetry_support and visualization_support) are false in input/telemetry_config.yml. \
-omnia does not deploy telemetry feature if none of the support category is true."
-idrac_omnia_telemetry_support_warn_msg: "Warning. Both idrac_telemetry_support and omnia_telemetry_support are false"
+(idrac_telemetry_support, omnia_telemetry_support, visualization_support, k8s_prometheus_support and prometheus_gaudi_support) are false  \
+in input/telemetry_config.yml. omnia does not deploy telemetry feature if none of the support category is true."
+idrac_omnia_telemetry_support_warn_msg: "Warning. idrac_telemetry_support, omnia_telemetry_support, \
+k8s_prometheus_support and prometheus_gaudi_support are set to false"
 vault_filename: "{{ role_path }}/../../../input/.telemetry_vault_key"
 login_vars_fail_msg: "Username/password validation in telemetry_config.yml failed. Please check the requirements."
+# K8s Input validation
+invalid_k8s_cni: "Invalid k8s_cni entry in telemetry_config.yml. Enter either calico or flannel"
+invalid_pod_external_ip_range: "Invalid pod_external_ip_range in telemetry_config.yml."
+invalid_k8s_service_addresses: "Invalid k8s_service_addresses in telemetry_config.yml."
+invalid_k8s_pod_network_cidr: "Invalid k8s_pod_network_cidr in telemetry_config.yml."
 
 # Usage: validate_idrac_telemetry.yml
 min_length_idrac: 3
 max_length: 30
-fail_timezone_msg: "Failed. Incorrect timezone provided. Please check the file timezone.txt in provision/roles/provision_validation/files/timezone.txt folder"
+fail_timezone_msg: "Failed. Incorrect timezone provided. Please check the file timezone.txt in discovery/roles/discovery_validations/common/files/ folder."
 idrac_credentials_fail_msg: "idrac_username and idrac_password must be provided in telemetry_config.yml."
-idrac_inventory_msg: "idrac group is not present in inventory file. Playbook will check for /opt/omnia/provisioned_idrac_inventory"
-idarc_inventory_path: "/opt/omnia/provisioned_idrac_inventory"
-idrac_file_status: "There is no inventory present under /opt/omnia/provisioned_idrac_inventory.
-                    Please provide inventory with idrac group or create an inventory /opt/omnia/provisioned_idrac_inventory"
+idrac_inventory_msg: "Failed. The inventory containing idrac groups must be provided when idrac_telemetry_support is set to true \
+                      in telemetry_config.yml playbook."
 idrac_exec_msg: "Since the absence of idrac group in inventory and existence of /opt/omnia/provisioned_idrac_inventory file.
                    iDRAC telemetry execution will be skipped"
 advanced_vars_fail_msg: "Please give correct inputs for advanced configurations (mysqldb credentials) for idrac telemetry in telemetry_config.yml.
@@ -99,6 +107,21 @@ software_config.json and omnia_telemetry_support is true."
 slurm_control_node_group_fail_msg: "slurm_control_node group should contain exactly 1 node in inventory"
 slurm_node_group_fail_msg: "slurm_node group should contain atleast 1 node in inventory"
 
+# Usage: validate_k8s_prometheus_prometheus_gaudi.yml
+k8s_prom_gaudi_inventory_fail_msg: "Inventory comprising kube_control_plane, kube_node and etcd groups should be passed  \
+when k8s_prometheus_support or prometheus_gaudi_support is true in telemetry_config.yml."
+prometheus_scrape_interval_fail_msg: "Failed. prometheus_scrape_interval accepts integer values greater than 0"
+
+# Usage: validate_prometheus_gaudi.yaml
+fail_msg_k8s_prometheus_support_false: "Failed. k8s_prometheus_support must be true when prometheus_gaudi_support is true in telemetry_config.yml."
+fail_msg_prometheus_gaudi_support: "Failed. prometheus_gaudi_support is only available for cluster_os_type: ubuntu and cluster_os_version: 22.04. \
+Please update prometheus_gaudi_support to false in telemetry_config.yml."
+
+# Usage: validate_k8s_setup.yml
+k8s_error_message: "No such file or directory"
+k8s_cluster_fail_msg: "Failed. k8s cluster setup not found. Hence k8s prometheus or prometheus gaudi will not be deployed. \
+Please run scheduler/scheduler.yml to setup k8s cluster"
+
 # Usage: set_docker_os.yml
 docker_rocky_os: "8.5"
 slurm_telemetry_dockerfile_path: "{{ playbook_dir }}/roles/slurm_telemetry/files/Dockerfile"
@@ -108,8 +131,27 @@ fail_msg_grafana_credentials: "Failed. Incorrect grafana_username or grafana_pas
 mount_validation_msg: "Make sure mount location value is not null"
 min_length_grafana: 5
 
-# K8s Input validation
-invalid_k8s_cni: "Invalid k8s_cni entry in telemetry_config.yml. Enter either calico or flannel"
-invalid_pod_external_ip_range: "Invalid pod_external_ip_range in telemetry_config.yml."
-invalid_k8s_service_addresses: "Invalid k8s_service_addresses in telemetry_config.yml."
-invalid_k8s_pod_network_cidr: "Invalid k8s_pod_network_cidr in telemetry_config.yml."
+# Usage: validate_site_config.yml
+site_config_file: "{{ role_path }}/../../../input/site_config.yml"
+invalid_proxy_failure_msg: "Failed. Both http_proxy and https_proxy should be set for proxy variable provided in site_config.yml"
+proxy_env_fail_msg: "Failed. The values for http_proxy {{ proxy[0].http_proxy }} and https_proxy {{ proxy[0].https_proxy }} in the
+proxy variable of the site_config.yml should be set as environment variables http_proxy and https_proxy in the control plane.
+The no_proxy environment variable should include the control plane hostname and the admin network IP address."
+update_repos_fail_msg: "Failed to update repos. Verify proxy configuration in control plane for acccessing internet."
+control_plane_os_redhat: "redhat"
+control_plane_os_rocky: "rocky"
+control_plane_os_ubuntu: "ubuntu"
+repo_retries: 5
+repo_delay: 10
+dnf_conf_path: "/etc/dnf/dnf.conf"
+
+# Usage: validate_provision_config_credentials.yml
+docker_password_fail_msg: "docker password must be mentioned when docker_username is defined."
+warning_wait_time: 30
+warning_msg_docker_username_password_incomplete: "[WARNING] Docker credentials not provided in provision_config_credentials.yml.
+Proceeding without docker credentials."
+provision_config_credentials_filename: "{{ role_path }}/../../../input/provision_config_credentials.yml"
+provision_credentials_vault_path: "{{ role_path }}/../../../input/.provision_credential_vault_key"
+ansible_vault_search_key: "$ANSIBLE_VAULT;"
+provision_config_credentials_syntax_fail_msg: "Failed. Syntax errors present in provision_config_credentials.yml. Fix errors and re-run playbook again."
+conf_file_mode: "0644"

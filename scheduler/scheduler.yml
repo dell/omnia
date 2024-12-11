@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 - name: Update Inventory with ansible_host information
   ansible.builtin.import_playbook: ../utils/servicetag_host_mapping.yml
   when: not ( hostvars['127.0.0.1']['update_inventory_executed'] | default(false) | bool )
@@ -60,6 +59,24 @@
 - name: Add nodes to kubernetes cluster
   ansible.builtin.import_playbook: "{{ playbook_dir }}/playbooks/k8s_add_node.yml"
 
+- name: Prepare habana container runtime
+  hosts: kube_node
+  gather_facts: false
+  roles:
+    - k8s_habana_container_runtime
+
+- name: Install nvidia-container-toolkit on nodes with Nvidia GPU
+  hosts: kube_control_plane, kube_node, etcd
+  gather_facts: false
+  roles:
+    - k8s_nvidia_container_toolkit
+
+- name: Install Plugin only when one of nodes with AMD GPU
+  hosts: kube_control_plane, kube_node, etcd
+  gather_facts: false
+  roles:
+    - k8s_amd
+
 - name: Prepare kube control plane and kube nodes for kubernetes services installations
   hosts: kube_control_plane, kube_node
   gather_facts: false
@@ -71,6 +88,21 @@
   gather_facts: false
   roles:
     - k8s_start_services
+
+- name: CSI powerscale image pulling
+  hosts: kube_node, kube_control_plane
+  tasks:
+    - name: Pull images
+      ansible.builtin.include_role:
+        name: k8s_csi_powerscale_plugin
+        tasks_from: csi_powerscale_image_pull.yml
+      when: hostvars['127.0.0.1']['csi_driver_powerscale_precheck_pass'] | default(false) | bool
+
+- name: Install CSI powerscale plugin on kube control nodes
+  hosts: kube_control_plane
+  gather_facts: false
+  roles:
+    - k8s_csi_powerscale_plugin
 
 - name: Apply common Slurm installation and config
   hosts: slurm_control_node, slurm_node, login

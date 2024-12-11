@@ -34,43 +34,43 @@
       changed_when: false
 
     - name: Cleanup node info from dhcp
-      ansible.builtin.command: makedhcp -d -a
+      ansible.builtin.command: "{{ xcat_sbin_path }}/makedhcp -d -a"
       when: ("running" in xcat_status.stdout)
       failed_when: false
       changed_when: false
 
     - name: Fetch all the osimage
-      ansible.builtin.command: lsdef -t osimage
+      ansible.builtin.command: "{{ xcat_path }}/lsdef -t osimage"
       register: os_image_list
       failed_when: false
       changed_when: false
 
     - name: Remove the OS images
-      ansible.builtin.command: rmdef -t osimage {{ item.split(' ')[0] }}
+      ansible.builtin.command: "{{ xcat_path }}/rmdef -t osimage {{ item.split(' ')[0] }}"
       with_items: "{{ os_image_list.stdout_lines }}"
       failed_when: false
       changed_when: false
 
     - name: Clean host entries of switch
-      ansible.builtin.command: makehosts -d switch
+      ansible.builtin.command: "{{ xcat_sbin_path }}/makehosts -d switch"
       when: ("running" in xcat_status.stdout)
       failed_when: false
       changed_when: false
 
     - name: Clean host entries of nodes
-      ansible.builtin.command: makehosts -d all
+      ansible.builtin.command: "{{ xcat_sbin_path }}/makehosts -d all"
       when: ("running" in xcat_status.stdout)
       failed_when: false
       changed_when: false
 
     - name: Cleanup node info from tftpboot
-      ansible.builtin.command: rmdef all
+      ansible.builtin.command: "{{ xcat_path }}/rmdef all"
       when: ("running" in xcat_status.stdout)
       failed_when: false
       changed_when: false
 
     - name: Cleanup node info from DNS
-      ansible.builtin.command: makedns -n
+      ansible.builtin.command: "{{ xcat_sbin_path }}/makedns -n"
       when: ("running" in xcat_status.stdout)
       failed_when: false
       changed_when: false
@@ -148,6 +148,18 @@
         state: absent
       with_items: "{{ xcat_download_files }}"
       tags: downloads
+
+    - name: Remove /etc/exports entries
+      ansible.builtin.lineinfile:
+        path: "{{ exports_path }}"
+        regexp: "{{ item }}"
+        state: absent
+      with_items: "{{ exports_regexp }}"
+
+    - name: Exporting the shared directories
+      ansible.builtin.command: /usr/sbin/exportfs -r
+      changed_when: true
+      failed_when: false
 
 - name: Create omnia folder in opt folder
   ansible.builtin.file:

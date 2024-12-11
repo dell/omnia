@@ -8,6 +8,7 @@ echo "---------------------------" >> /var/log/xcat/xcat.log
 echo "Started installing omnia packages" >> /var/log/xcat/xcat.log
 echo "Configure Proxy" >> /var/log/xcat/xcat.log
 
+echo "Acquire::http::Proxy::{{ admin_nic_ip }} \"DIRECT\";" >> /etc/apt/apt.conf
 echo "Acquire::http::Proxy \"http://{{ admin_nic_ip }}:3128\";" >> /etc/apt/apt.conf
 echo "Acquire::https::Proxy \"http://{{ admin_nic_ip }}:3128\";" >> /etc/apt/apt.conf
 apt clean
@@ -28,11 +29,14 @@ if [[ "$check_ubuntu22" == "1" ]]
 then
     echo "Installing racadm" >> /var/log/xcat/xcat.log
     wget "http://{{ admin_nic_ip }}:80/install{{ repo_store_path }}/cluster/tarball/racadm.tar.gz" -O /tmp/racadm.tar.gz
-    tar -zxvf /tmp/racadm.tar.gz -C /tmp
-    cd /tmp/iDRACTools/racadm && echo "y" | bash install_racadm.sh
+    racadm_url_status=$?
+    if [ $racadm_url_status -eq 0 ]; then
+        tar -zxvf /tmp/racadm.tar.gz -C /tmp
+        cd /tmp/iDRACTools/racadm && echo "y" | bash install_racadm.sh
+    fi
 fi
 
-echo "{{ admin_nic_ip }} {{ control_plane_hostname }}" >> /etc/hosts
+echo "{{ admin_nic_ip }} {{ cp_hostname }}" >> /etc/hosts
 
 echo "Installed omnia packages" >> /var/log/xcat/xcat.log
 echo "---------------------------" >> /var/log/xcat/xcat.log

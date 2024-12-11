@@ -21,15 +21,25 @@ ansible_cfg_dest:
   - { path: "{{ playbook_dir }}/telemetry/ansible.cfg", log_path: "/var/log/omnia/omnia_telemetry.log", regexp: "/var/log/omnia.log" }
   - { path: "{{ playbook_dir }}/platforms/ansible.cfg", log_path: "/var/log/omnia/omnia_platforms.log", regexp: "/var/log/omnia.log" }
 
+# Usage: include_local_repo_config.yml
+local_repo_config_file: "{{ role_path }}/../../../input/local_repo_config.yml"
+local_repo_config_syntax_fail_msg: "Failed. Syntax errors present in local_repo_config.yml. Fix errors and re-run playbook again."
+
 # Usage: fetch_software_config.yml
 software_config_json_file: "{{ role_path }}/../../../input/software_config.json"
 local_repo_access_dest_path: "/opt/omnia/offline/local_repo_access.yml"
+k8s_version_fail_msg: "Failed, Ensure version of k8s is mentioned in software_config.json"
 k8s_packages_file: "{{ role_path }}/../../../input/config/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/k8s.json"
 success_msg_ucx_version: "Success. ucx version is mentioned."
 fail_msg_ucx_version: "Failed. ucx version is not provided in software_config.json. Please include ucx version in input/software_config.json and rerun the playbook." # noqa: yaml[line-length]
 success_msg_openmpi_version: "Success. openmpi version is mentioned."
 fail_msg_openmpi_version: "Failed. openmpi version is not provided in software_config.json. Please include openmpi version in input/software_config.json and rerun the playbook." # noqa: yaml[line-length]
 compute_os_ubuntu: "ubuntu"
+intel_gaudi_input_fail_msg: "Warning, software_config.json does not have the intel software stack. Intel stack will not be configured."
+intel_gaudi_repo_fail_msg: "Failed, local_repo.yml is not executed for downloading Intel Gaudi driver packages."
+warning_time : 30
+offline_intel_directory: "{{ repo_store_path }}/cluster/apt"
+intelgaudi_version_warning_msg: "Failed, Intel Gaudi version not found."
 
 # Usage: fetch_omnia_inputs.yml
 config_filename: "omnia_config.yml"
@@ -37,13 +47,22 @@ config_vaultname: .omnia_vault_key
 vault_key_permission: "0644"
 min_length: 8
 max_length: 30
+omnia17_k8s_version: '1.29.5'
+omnia161_k8s_version: '1.26.12'
 omnia_config_syntax_fail_msg: "Failed. Syntax errors present in omnia_config.yml. Fix errors and re-run playbook again."
 fail_msg_mariadb_password: "maria_db password not given in correct format."
 success_msg_mariadb_password: "mariadb_password validated"
 success_msg_k8s_version: "Kubernetes Version Validated"
-fail_msg_k8s_version: "Failed. Kubernetes Version is unsupported or incorrect in software_config.json"
+fail_msg_k8s_version: "Failed. Kubernetes Version is unsupported or incorrect in software_config.json for this virtual environment. Supported versions for omnia17_venv: 1.29.5, and for omnia161_venv: 1.26.12." # noqa: yaml[line-length]
+kube_version_on_unsupported_os: "Failed. On RHEL/Rocky 8.6 or 8.7 OS, supported kubernetes version is 1.26.12 and suppported virtual environment is omnia161_venv only"
 success_msg_k8s_cni: "Kubernetes CNI Validated"
 fail_msg_k8s_cni: "Kubernetes CNI not correct."
+supported_topology_manager_policy: ['none', 'best-effort', 'restricted', 'single-numa-node']
+success_msg_k8s_toplogy_manager_policy: "topology_manager_policy validated"
+fail_msg_k8s_toplogy_manager_policy: "topology_manager_policy can either be 'none' or 'best-effort' or 'restricted' or 'single-numa-node' in omnia_config.yml"
+supported_topology_manager_scope: ['pod', 'container']
+success_msg_k8s_toplogy_manager_scope: "topology_manager_scope validated"
+fail_msg_k8s_toplogy_manager_scope: "topology_manager_scope can either be 'pod' or 'container' in omnia_config.yml"
 success_msg_pod_external_ip_range: "pod_external_ip_range validated"
 fail_msg_pod_external_ip_range: "pod_external_ip_range is not given in correct format in omnia_config.yml"
 success_msg_k8s_service_addresses: "k8s_service_addresses validated"
@@ -101,8 +120,9 @@ etcd group in inventory must have atleast one node and total node count must be 
 etcd_node_validation_success_msg: "etcd should have odd number of nodes in the inventory"
 unreachable_kube_control_plane_fail_msg: "Failed. Unreachable node mentioned in inventory for kube_control_plane.
 Re-run playbook with reachable kube_control_plane."
-ansible_collection_folder: "/root/.ansible/collections/ansible_collections/"
+ansible_collection_folder: "{{ omnia_collection_path[0] }}/ansible_collections/"
 kubespray_certificate_key_taskfile_path: "kubernetes_sigs/kubespray/roles/kubernetes/control-plane/tasks/kubeadm-setup.yml"
+max_retries: 5
 
 # Usage: slurm_validations.yml
 invalid_slurm_inventory_fail_msg: "Failed. slurm software is present in software_config.json.
@@ -115,6 +135,8 @@ At least one slurm_node should be present in the inventory."
 slurm_node_validation_success_msg: "At least one slurm_node exists in the inventory"
 unreachable_slurm_control_node_fail_msg: "Failed. Unreachable node mentioned in inventory for slurm_control_node.
 Re-run playbook with reachable slurm_control_node."
+slurm_control_node_in_login_fail_msg: "Failed. Node mentioned in slurm_control_node group should not be present in login group"
+slurm_control_node_in_node_fail_msg: "Failed. Node mentioned in slurm_control_node group should not be present in slurm_node group"
 
 # Usage: install_packages.yml
 ansible_base_version: '2.9'
@@ -134,3 +156,29 @@ multiple_login_node_fail_msg: "Failed. Currently only one login node supported i
 warning_wait_time: 10
 login_node_warning_msg: "[WARNING] login group with ip for login node not present in the inventory.
 Proceeding execution with provided nodes"
+
+# Usage: Fetch_software_config.yml
+csi_driver_powerscale_packages_file: >-
+  {{ role_path }}/../../../input/config/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/csi_driver_powerscale.json
+
+# Usage: fetch_omnia_inputs.yml
+csi_driver_secret_file_path_success_msg: "Success. csi_driver_secret_file_path is valid in omnia_config.yml"
+csi_driver_secret_file_path_fail_msg: "Failed. csi_driver_secret_file_path is not valid in omnia_config.yml. Please verify the path."
+
+csi_driver_values_file_path_success_msg: "Success. csi_driver_values_file_path is valid in omnia_config.yml"
+csi_driver_values_file_path_fail_msg: "Failed. csi_driver_values_file_path is not valid in omnia_config.yml. Please verify the path."
+
+# Usage: csi_powerscale_driver_input_validation.yml
+csi_powerscale_secret_vaultname: ".csi_powerscale_secret_vault"
+fail_msg_isilon_clusters: "isilonClusters must be a valid list of powerscale details in secret.yaml file."
+fail_msg_cluster_name: "clusterName is not valid. Provide powerscale cluster name in secret.yaml file."
+fail_msg_user_name: "userName is not valid. Provide powerscale user name in secret.yaml file."
+fail_msg_password: "Password is not valid. Provide powerscale password in secret.yaml file."
+fail_msg_endpoint: "Endpoint is not valid. Provide powerscale IP or hostname in secret.yaml file."
+fail_msg_endpoint_port: "endpointPort is not valid. Provide valid port number in secret.yaml file."
+fail_msg_isdefault: "isDefault value should be true or false in secret.yaml file."
+fail_msg_skip_certificate_validation: "skipCertificateValidation must be true in secret.yaml file."
+fail_msg_isipath: "isiPath must be a valid Unix absolute path in secret.yaml file."
+fail_msg_isi_volume_path_permissions: "isiVolumePathPermissions must be a valid directory permission (example: 0777) in secret.yaml file."
+fail_msg_api_call: "Please recheck powerscale username, password, endpoint and endpointPort details provided in secret.yaml and
+  values.yaml (if endpointPort is provided only in values.yaml) file. API call to powerscale was not successful"

@@ -26,9 +26,13 @@ telemetry_vault_filename: "{{ role_path }}/../../../../input/.telemetry_vault_ke
 telemetry_config_syntax_fail_msg: "Failed.Syntax errors present in telemetry_config.yml.Fix errors and re-run playbook again."
 timescaledb_credentials_fail_msg: "Please provide timescaledb credentials in telemetry_config.yml"
 
+python_version: "{{ ansible_python_interpreter.split('/')[-1] }}"
 # Usage: install_packages.yml
+control_plane_os_redhat: "redhat"
+control_plane_os_rocky: "rocky"
+
 devel_packages:
-  - python39-devel
+  - "{{ python_version }}-devel"
   - postgresql-devel
 python_package:
   - psycopg2-binary
@@ -40,5 +44,4 @@ timescaledb_service_failure_msg: "TimescaleDB is not running. Run telemetry.yml/
 timescaledb_k8s_name: timescaledb
 namespace: telemetry-and-visualizations
 timescaledb_name: telemetry_metrics
-python_version: python3.9
 db_schema_utility: "{{ role_path }}/files/dump_data_from_db.py"

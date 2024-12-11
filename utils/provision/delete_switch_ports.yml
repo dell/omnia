@@ -17,12 +17,12 @@
   hosts: localhost
   connection: local
   vars:
-   switch_ports_undefined: "Failed.Please provide switch_ports for the switch_ip in the switch inventory"
-   switch_ports_empty: "Failed. Please provide switch_ports details to be deleted in switch inventory"
-   fail_switch_inventory: "Failed. Please provide proper switch details in switch_based_deletion_config.yml"
-   delete_ports: delete_ports.py
-   python_version: "python3.9"
-   ping_file_path: "{{ playbook_dir }}/../../provision/roles/provision_validation/files/switch_v3_ping.py"
+    switch_ports_undefined: "Failed.Please provide switch_ports for the switch_ip in the switch inventory"
+    switch_ports_empty: "Failed. Please provide switch_ports details to be deleted in switch inventory"
+    fail_switch_inventory: "Failed. Please provide proper switch details in switch_based_deletion_config.yml"
+    delete_ports: delete_ports.py
+    python_version: "{{ ansible_python_interpreter }}"
+    ping_file_path: "{{ playbook_dir }}/../../discovery/roles/discovery_validations/switch_based/files/switch_v3_ping.py"
   tasks:
     - name: Include vars
       ansible.builtin.include_vars: switch_based_deletion_config.yml
@@ -44,10 +44,11 @@
           ansible.builtin.command: |
             {{ python_version }} {{ ping_file_path }} {{ item.ip }}
           with_items: "{{ switch_based_details }}"
+          changed_when: true
 
         - name: Fail if switch_port not defined
           ansible.builtin.fail:
-            msg:  "{{ switch_ports_undefined }}"
+            msg: "{{ switch_ports_undefined }}"
           when: item.delete_ports is not defined
           with_items: "{{ switch_based_details }}"
 
@@ -66,3 +67,4 @@
       ansible.builtin.command: |
         {{ python_version }} {{ delete_ports }} {{ item.ip }} {{ item.delete_ports }}
       with_items: "{{ switch_based_details }}"
+      changed_when: true

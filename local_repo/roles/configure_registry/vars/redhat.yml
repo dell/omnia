@@ -23,9 +23,14 @@ conflicting_packages:
   - containers-common
 containerd_url: "https://download.docker.com/linux/centos/8/x86_64/stable/Packages/containerd.io-1.6.16-3.1.el8.x86_64.rpm"
 containerd_rpm_dest: "/{{ temp_download_dir }}/containerd.io-1.6.16-3.1.el8.x86_64.rpm"
-nerdctl_url: "https://github.com/containerd/nerdctl/releases/download/v1.5.0/nerdctl-1.5.0-linux-amd64.tar.gz"
-nerdctl_archive_dest: "{{ temp_download_dir }}/nerdctl-1.5.0-linux-amd64.tar.gz"
-nerdctl_folder_dest: "{{ temp_download_dir }}/nerdctl"
+nerdctl_url: "{{ 'https://github.com/containerd/nerdctl/releases/download/v1.5.0/nerdctl-1.5.0-linux-amd64.tar.gz' if (ansible_distribution_version in ['8.6', '8.7']) else 'https://github.com/containerd/nerdctl/releases/download/v1.7.4/nerdctl-1.7.4-linux-amd64.tar.gz' }}"
+nerdctl_archive_dest: "{{ temp_download_dir }}/{{ 'nerdctl-1.5.0-linux-amd64.tar.gz' if (ansible_distribution_version in ['8.6', '8.7']) else 'nerdctl-1.7.4-linux-amd64.tar.gz' }}"
+nerdctl_folder_dest: "{{ temp_download_dir }}/nerdctl/nerdctl"
 nerdctl_folder_permission: "+x"
 nerdctl_executable_dest: "/usr/local/bin/"
 max_retries: 10
+cni_download_dir: "/opt/cni"
+cni_bin_download_dir: "/opt/cni/bin"
+cni_url: "https://github.com/containernetworking/plugins/releases/download/v1.4.0/cni-plugins-linux-amd64-v1.4.0.tgz"
+cni_archive_dest: "{{ cni_bin_download_dir }}/cni-plugins-linux-amd64-v1.4.0.tgz"
+cni_mode: "u+rwx,go+rx"

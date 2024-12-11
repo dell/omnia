@@ -20,7 +20,7 @@
     MANPATH: "{{ xcat_manpath_env }}"
     PERL_BADLANG: "{{ perl_badlang_env }}"
   ansible.builtin.command: |
-    {{ python_version }} {{ delete_node_info }} {{ item.value.node }} {{ inv_file_folder }} {{ item.value.service_tag }}
+    {{ python_version }} {{ delete_node_info }} {{ item.value.node }} {{ inv_file_folder }}
   failed_when: false
   changed_when: false
 

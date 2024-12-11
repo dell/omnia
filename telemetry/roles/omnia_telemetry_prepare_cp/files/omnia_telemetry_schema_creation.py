@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,27 +21,40 @@
 '''
 
 import sys
+import argparse
 import psycopg2
 
-dbuser = sys.argv[1]
-dbpwd = sys.argv[2]
-dbhost = sys.argv[3]
-dbport = sys.argv[4]
-dbtelemetry = sys.argv[5]
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Dump data from the database to a CSV file.")
+    parser.add_argument("user", type=str, help="Username for the database")
+    parser.add_argument("password", type=str, help="Password for the database")
+    parser.add_argument("host", type=str, help="Hostname for the database")
+    parser.add_argument("port", type=str, help="Port number for the database")
+    parser.add_argument("dbname", type=str, help="Name of the database")
+    args = parser.parse_args()
+    return args
+
+def validate_inputs(value):
+
+    if value.strip():
+        return value
+    else:
+        raise ValueError("Value cannot be empty")
 
 def db_connect():
-    '''
-    This module creates Database Connection
-    '''
-    conn = None
-    connection_string = f"postgres://{dbuser}:{dbpwd}@{dbhost}:{dbport}/{dbtelemetry}".format(
-        dbuser = dbuser, dbpwd = dbpwd, dbhost = dbhost, dbport = dbport, dbtelemetry = dbtelemetry)
+    """Creates a secure database connection."""
     try:
-        conn = psycopg2.connect(connection_string)
+        conn = psycopg2.connect(
+            user=user,
+            password=password,
+            host=host,
+            port=port,
+            dbname=dbname
+        )
         if conn is not None:
             conn.autocommit = True
     except Exception as ex:
-        sys.exit('Failed to connect to timescaledb')
+        sys.exit(f"Failed to connect to timescaledb: {ex}")
     return conn
 
 def db_schema(conn):
@@ -79,6 +92,17 @@ def db_table(conn):
     cursor = conn.cursor()
     cursor.execute(sql_query)
     cursor.close()
+
+args = parse_arguments()
+
+try:
+    user = validate_inputs(args.user)
+    password = validate_inputs(args.password)
+    host = validate_inputs(args.host)
+    port = validate_inputs(args.port)
+    dbname = validate_inputs(args.dbname)
+except Exception as ex:
+    sys.exit(f"Failed to parse arguments: {ex}")
 
 def main():
     '''

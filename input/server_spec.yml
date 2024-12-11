@@ -1,17 +1,43 @@
 ---
 Categories:
   - group-1:
-    - network:
-      - ensp0:
-          nicnetwork: "thor_network1"
-          nictypes: "ethernet"
-      - ensp0.5:
-          nicnetwork: "thor_network2"
-          nictypes: "vlan"
-          nicdevices: "ensp0"
+      - network:
+          - ensp0:
+              nicnetwork: "nic_network1"
+              nictypes: "ethernet"
+          - ensp0.5:
+              nicnetwork: "nic_network2"
+              nictypes: "vlan"
+              nicdevices: "ensp0"
+      - os:
+          - kernel:
+              - cmdline: ""
 
   - group-2:
-    - network:
-      - eno1:
-          nicnetwork: "thor_network1"
-          nictypes: "ethernet"
+      - network:
+          - eno1:
+              nicnetwork: "nic_network1"
+              nictypes: "ethernet"
+
+#**********************************************************************
+# Following are the templates for providing additional network and OS details.
+# Users may include the `os` or `network` sections individually if only one 
+# of them needs to be configured, or both together as well.
+# 
+# - Use space (' ') as a delimiter in case of multiple parameters for cmdline.
+#**********************************************************************
+#
+# Example for configuring only network settings:
+# Categories:
+#   - group-1:
+#       - network:
+#           - eno1:
+#               nicnetwork: "nic_network1"
+#               nictypes: "ethernet"
+#
+# Example for configuring only OS settings:
+# Categories:
+#   - group-2:
+#       - os:
+#           - kernel:
+#               - cmdline: "iommu=pt intel_iommu=off pci=realloc=off processor.max_cstate=0 intel_idle.max_cstate=0 intel_pstate=disable"

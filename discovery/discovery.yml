@@ -13,6 +13,14 @@
 # limitations under the License.
 ---
 
+- name: Check if virtual environment is active
+  ansible.builtin.import_playbook: ../utils/check_venv.yml
+  when: not ( hostvars['127.0.0.1']['check_venv_executed'] | default(false) | bool )
+
+- name: Check if package manager is not locked
+  ansible.builtin.import_playbook: ../utils/check_package_lock.yml
+  when: not ( hostvars['127.0.0.1']['apt_lock_status'] | default(false) | bool )
+
 - name: Validate discovery parameters
   hosts: localhost
   connection: local
@@ -27,12 +35,20 @@
         name: discovery_validations/common
         tasks_from: validation_status_check.yml  # noqa: role-name[path]
 
+    - name: Discovery roles of control plane for provisioning
+      ansible.builtin.include_role:
+        name: db_operations
+
+    - name: Enter control_plane details in cluster.nodeinfo table
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}/../utils/server_spec_update/roles/network_update"    # noqa: role-name[path]
+        tasks_from: add_nic_db.yml
+      when: add_network_status
+
 - name: Discovery roles of control plane for provisioning
   hosts: localhost
   connection: local
   roles:
-    - role: db_operations
-    - role: ../server_spec_update/roles/create_nicinfo_db  # noqa: role-name[path]
     - role: configure_xcat/common          # noqa: role-name[path]
     - role: configure_synclist
     - role: discovery_mechanism/common     # noqa: role-name[path]
