@@ -70,4 +70,4 @@ Local Repositories
 
 **Potential Cause**: This issue may arise if the directory path specified as the ``repo_store_path`` in the ``input/local_repo_config.yml`` does not have 755 permissions.
 
-**Resolution**: Ensure that not only the ``omnia_repo`` folder, but also the entire ``repo_store_path``, has 755 permissions. For example, if you specify ``/root/omnia_repo`` as the ``repo_store_path``, the ``/root`` directory must also have 755 permissions.
+**Resolution**: Ensure that not only the ``omnia_repo`` folder, but also the entire ``repo_store_path``, has 755 permissions. For example, if you specify ``/root/opt/omnia_repo`` as the ``repo_store_path``, the ``/root`` directory also must have 755 permissions.
