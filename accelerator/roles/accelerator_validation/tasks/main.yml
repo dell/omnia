@@ -37,7 +37,7 @@
 
 - name: Check if both intel_gaudi_config_status and amdgpu_config_status are false
   ansible.builtin.fail:
-    msg: " {{ driver_not_found_msg }} "
+    msg: "{{ driver_not_found_msg }}"
   when: >
     hostvars['localhost']['intel_gaudi_config_status'] is defined and
     hostvars['localhost']['amdgpu_config_status'] is defined and

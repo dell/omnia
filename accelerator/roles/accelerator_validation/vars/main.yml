@@ -32,5 +32,6 @@ local_repo_config_syntax_fail_msg: "Failed. Syntax errors present in local_repo_
 intel_gaudi_input_fail_msg: "Failed, software_config.json does not have the intelgaudi software stack."
 intel_gaudi_repo_fail_msg: "Failed, local_repo.yml is not executed for downloading Intel Gaudi driver packages."
 
-# Usage accelerator_validation/main.yml
-driver_not_found_msg: "Both intel_gaudi_config_status and amdgpu_config_status are false. The playbook will fail."
+# Usage: main.yml
+driver_not_found_msg: |
+  "Please ensure that either 'intelgaudi' or 'amdgpu' is included in 'software_config.json' and then run 'accelerator.yml' to install GPU drivers."

@@ -47,11 +47,6 @@
   loop_control:
     loop_var: item
 
-- name: Display failure message if Intel Gaudi software stack is not present
-  ansible.builtin.debug:
-    msg: "{{ intel_gaudi_input_fail_msg }}"
-  when: not intel_gaudi_input_status
-
 - name: Set intel_gaudi_config_status
   when: intel_gaudi_input_status
   block:
