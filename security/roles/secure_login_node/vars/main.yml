@@ -48,6 +48,7 @@ of input/login_node_security_config.yml"
 # Usage: configure_alerting_ubuntu
 python_packages:
   - "{{ python_version }}"
+  - "{{ python_version }}-venv"
   - "{{ python_version }}-distutils"
   - "{{ python_version.split('.')[0] }}-pip"
 

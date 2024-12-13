@@ -8,7 +8,7 @@
   },
   "rocm": {
     "cluster": [
-      {"package": "rocm-hip-sdk{{ rocm_version }}*", "type": "rpm", "repo_name": "rocm"}
+      {"package": "rocm", "type": "rpm", "repo_name": "rocm"}
     ]
   }
 }

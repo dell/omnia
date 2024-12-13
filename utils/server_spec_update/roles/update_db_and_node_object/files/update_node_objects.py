@@ -13,7 +13,7 @@
 #  limitations under the License.
 
 import subprocess
-import sys
+import sys, os
 import yaml
 import time
 
@@ -21,7 +21,7 @@ db_path = sys.argv[2]
 sys.path.insert(0, db_path)
 import omniadb_connection
 
-network_spec_file_path = sys.argv[1]
+network_spec_file_path = os.path.abspath(sys.argv[1])
 
 with open(network_spec_file_path, "r") as file:
     data = yaml.safe_load(file)
@@ -79,7 +79,7 @@ def update_node_obj():
                         sql_query_network = f"SELECT {network_name}_device FROM cluster.nicinfo WHERE id = %s"
                         cursor.execute(sql_query_network, (row[0],))
                         primary_nic = cursor.fetchone()
- 
+
                         if primary_nic[0]:
                             command = ["/opt/xcat/bin/chdef", node_name, f"nictypes.{primary_nic[0]}=ethernet"]
                             subprocess.run(command)

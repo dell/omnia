@@ -16,7 +16,7 @@
 '''
 Module to gather gaudi metrics
 '''
-
+import shlex
 import common_parser
 import invoke_commands
 import common_logging
@@ -90,7 +90,8 @@ def get_gpu_health_power(gaudi_metrics_cmd_output):
         return None,None
     gaudi_power_limit_list = []
     for pci in gaudi_pci_list:
-        cmd = "hl-smi -q -d POWER -i " + pci
+        pci = shlex.quote(pci).strip("'\"")
+        cmd = ["hl-smi", "-q", "-d", "POWER", "-i", pci]
         '''
         grep "Power Limit" cannot work in the systemd process
         so just find the first "Power Limit" and use the substring

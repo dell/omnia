@@ -3,7 +3,7 @@
     "cluster_os_version": "22.04",
     "repo_config": "partial",
     "softwares": [
-        {"name": "amdgpu", "version": "6.0"},
+        {"name": "amdgpu", "version": "6.2"},
         {"name": "bcm_roce", "version": "229.2.61.0"},
         {"name": "openldap"},
         {"name": "nfs"},
@@ -19,7 +19,7 @@
         {"name": "bcm_roce_libraries", "version": "229.2.61.0"}
     ],
    "amdgpu": [
-        {"name": "rocm", "version": "6.0" }
+        {"name": "rocm", "version": "6.2" }
     ],
     "intelgaudi": [
         {"name": "intel"}

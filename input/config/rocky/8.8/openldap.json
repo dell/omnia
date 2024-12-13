@@ -8,7 +8,8 @@
       { "package": "ansible-role-ldaptoolbox-openldap",
         "type": "git",
         "url": "https://github.com/ltb-project/ansible-role-ldaptoolbox-openldap.git",
-        "version": "main"
+        "version": "main",
+        "commit": "c906a6a3b095f87b5fdcec6f8a884c7dc4876ac5"
       }
     ]
   }

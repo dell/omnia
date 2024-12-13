@@ -34,25 +34,26 @@ def fetch_nic_metadata_params(metadata_path):
 def validate_nic_metadata_params(network_data, md_data):
     """
     Validates the network details in the NIC metadata file against the server specification data.
-    
+
     Args:
         network_data (dict): A dictionary containing the network details in the NIC metadata file.
         category_data (dict): A dictionary containing the server specification data.
-    
+
     Returns:
         None
     """
-    for net_key,net_value in network_data.items():
-        if net_key not in ['admin_network', 'bmc_network']:
-            if net_key in md_data.keys():
-                if('CIDR' in net_value.keys()):
-                    if(net_value['CIDR'] != md_data['nic_metadata']['md_'+net_key+'_CIDR']):
-                        sys.exit("md_"+net_key+"_CIDR"+" provided during previous execution is different from the value provided in current execution")
-                if('static_range' in net_value.keys()):
-                    if(net_value['static_range'] != md_data['nic_metadata']['md_'+net_key+'_static_range']):
-                        sys.exit("md_"+net_key+"_static_range"+" provided during previous execution is different from the value provided in current execution")
-                if(net_value['netmask_bits'] != md_data['nic_metadata']['md_'+net_key+'_netmask_bits']):
-                    sys.exit("md_"+net_key+"_netmask_bits"+" provided during previous execution is different from the value provided in current execution")
+    if network_data:
+        for net_key,net_value in network_data.items():
+            if net_key not in ['admin_network', 'bmc_network']:
+                if net_key in md_data.keys():
+                    if('CIDR' in net_value.keys()):
+                        if(net_value['CIDR'] != md_data['nic_metadata']['md_'+net_key+'_CIDR']):
+                            sys.exit("md_"+net_key+"_CIDR"+" provided during previous execution is different from the value provided in current execution")
+                    if('static_range' in net_value.keys()):
+                        if(net_value['static_range'] != md_data['nic_metadata']['md_'+net_key+'_static_range']):
+                            sys.exit("md_"+net_key+"_static_range"+" provided during previous execution is different from the value provided in current execution")
+                    if(net_value['netmask_bits'] != md_data['nic_metadata']['md_'+net_key+'_netmask_bits']):
+                        sys.exit("md_"+net_key+"_netmask_bits"+" provided during previous execution is different from the value provided in current execution")
 
 def main():
     """
@@ -62,7 +63,7 @@ def main():
     fetches the metadata data from the NIC metadata file, validates the metadata
     data against the network data, and returns nothing.
     """
-    nic_md_file_path = sys.argv[1]
+    nic_md_file_path = os.path.abspath(sys.argv[1])
     network_string = os.environ.get('net_data')
     network_data = json.loads(network_string)
     md_data = fetch_nic_metadata_params(nic_md_file_path)

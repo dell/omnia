@@ -3,9 +3,6 @@
 [slurm_control_node]
 node1
 
-[slurmdbd]
-node2
-
 [slurm_node]
 node3
 node4

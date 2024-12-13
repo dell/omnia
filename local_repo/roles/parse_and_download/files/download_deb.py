@@ -1,7 +1,8 @@
 import subprocess
-import os
+import os, shlex
 from jinja2 import Template
 from common_utility import update_status
+import distro
 
 def process_deb_package(package, repo_store_path, status_file_path, cluster_os_type, cluster_os_version, repo_config, version_variables, cluster_name):
     """
@@ -20,10 +21,16 @@ def process_deb_package(package, repo_store_path, status_file_path, cluster_os_t
     package_template = Template(package.get('package', None))  # Use Jinja2 Template for package
     # Render the packages, substituting Jinja variables if present
     package_name = package_template.render(**version_variables)
+    package_name = shlex.quote(package_name).strip("'\"")
+
     print(f"Processing DEB: {package_name}, Repo Name: {repo_name}, Repo Config: {repo_config}")
     user_apt_conf_path= "/etc/apt/user_apt.conf"
     # Specify the repository names that should be skipped
-    skip_repos = ['focal','jammy']
+    os_version = distro.version()
+    if os_version != cluster_os_version:
+        skip_repos = ['focal','jammy','deadsnake-ppa']
+    else:
+        skip_repos = ['focal','jammy']
     download_flag = False
     omnia_always = ['amdgpu', 'intelgaudi', 'cuda', 'ofed']
 
@@ -45,6 +52,8 @@ def process_deb_package(package, repo_store_path, status_file_path, cluster_os_t
                 version_variables.get('intelgaudi_version', ''))
     else:
         deb_directory = os.path.join(repo_store_path, 'cluster', cluster_os_type, cluster_os_version, 'deb')
+
+    deb_directory = shlex.quote(deb_directory).strip("'\"")
 
     # Default status value
     status = "Skipped"
@@ -79,6 +88,7 @@ def process_deb_package(package, repo_store_path, status_file_path, cluster_os_t
                 # Download each dependency
                 if repo_name not in ['ldap','intelgaudi']:
                     for dependency in dependencies:
+                        dependency = shlex.quote(dependency).strip("'")
                         download_dependency_command = ['apt-get', 'download', dependency, '-o', f'Dir::Cache={deb_directory}']
                         try:
                             subprocess.run(download_dependency_command, check=True)
@@ -93,7 +103,7 @@ def process_deb_package(package, repo_store_path, status_file_path, cluster_os_t
                     # Update user defined apt cache
                     subprocess.run(['apt-get', 'update', '-c', user_apt_conf_path], check=True)
                     subprocess.run(['apt-cache', 'show', package_name, '-c', user_apt_conf_path], check=True)
-                    split_package_name = package_name.split('=')[0]
+                    split_package_name = package_name.split('=')[0].strip("'\"")
                     # Check if the package is installed
                     result = subprocess.run(['dpkg', '-l', split_package_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
                     if result.stdout.strip():
@@ -130,6 +140,7 @@ def process_deb_package(package, repo_store_path, status_file_path, cluster_os_t
 
                 if repo_name not in ['ldap','intelgaudi']:
                     for dependency in dependencies:
+                        dependency = shlex.quote(dependency).strip("'")
                         download_dependency_command = ['apt-get', 'download', dependency, '-o', f'Dir::Cache={deb_directory}']
                         try:
                             # Checking flag if package is downloaded

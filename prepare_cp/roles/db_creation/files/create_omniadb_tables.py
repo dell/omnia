@@ -12,20 +12,23 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-
 import sys
+
 db_path = sys.argv[1]
 sys.path.insert(0, db_path)
 import omniadb_connection
 import psycopg2
 from cryptography.fernet import Fernet
 
+key_file_path = '/opt/omnia/.postgres/.postgres_pass.key'
+pass_file_path = '/opt/omnia/.postgres/.encrypted_pwd'
+
 def create_db():
-    with open('/opt/omnia/.postgres/.postgres_pass.key', 'rb') as passfile:
+    with open(key_file_path, 'rb') as passfile:
         key = passfile.read()
     fernet = Fernet(key)
 
-    with open('/opt/omnia/.postgres/.encrypted_pwd', 'rb') as datafile:
+    with open(pass_file_path, 'rb') as datafile:
         encrypted_file_data = datafile.read()
     decrypted_pwd = fernet.decrypt(encrypted_file_data).decode()
     conn = None

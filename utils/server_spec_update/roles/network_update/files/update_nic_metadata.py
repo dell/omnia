@@ -29,13 +29,14 @@ def insert_nic_metadata_params(network_data, metadata_path):
         None
     """
     nic_info = {'nic_metadata': {}}
-    for net_key,net_value in network_data.items():
-        if(net_key not in ['admin_network', 'bmc_network']):
-            if('CIDR' in net_value.keys()):
-                nic_info['nic_metadata']['md_'+net_key+'_CIDR'] = net_value['CIDR']
-            if('static_range' in net_value.keys()):
-                nic_info['nic_metadata']['md_'+net_key+'_static_range'] = net_value['static_range']
-            nic_info['nic_metadata']['md_'+net_key+'_netmask_bits'] = net_value['netmask_bits']
+    if network_data:
+        for net_key,net_value in network_data.items():
+            if(net_key not in ['admin_network', 'bmc_network']):
+                if('CIDR' in net_value.keys()):
+                    nic_info['nic_metadata']['md_'+net_key+'_CIDR'] = net_value['CIDR']
+                if('static_range' in net_value.keys()):
+                    nic_info['nic_metadata']['md_'+net_key+'_static_range'] = net_value['static_range']
+                nic_info['nic_metadata']['md_'+net_key+'_netmask_bits'] = net_value['netmask_bits']
 
     with open(metadata_path, 'w+') as file:
         yaml.dump(nic_info, file, default_flow_style=False)
@@ -50,7 +51,7 @@ def main():
     Returns:
         None
     """
-    nic_md_file_path = sys.argv[1]
+    nic_md_file_path = os.path.abspath(sys.argv[1])
     network_string = os.environ.get('net_data')
     network_data = json.loads(network_string)
     insert_nic_metadata_params(network_data, nic_md_file_path)

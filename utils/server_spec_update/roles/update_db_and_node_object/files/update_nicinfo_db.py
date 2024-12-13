@@ -12,19 +12,30 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-import sys
+import sys, os
 import yaml
 import ipaddress
 import uncorrelated_add_ip
 import correlation_admin_add_nic
 import insert_nicinfo_db
 
-server_spec_file_path = sys.argv[1]
+def validate_input(value):
+    """
+    Validates the input value.
+    Raises:
+        ValueError: If the value is empty.
+    """
+    if value:
+        return value
+
+    raise ValueError("Node details cannot be empty")
+
+server_spec_file_path = os.path.abspath(sys.argv[1])
 category_nm = sys.argv[2]
-metadata_path = sys.argv[3]
+metadata_path = os.path.abspath(sys.argv[3])
 admin_static_range = sys.argv[4]
 admin_nb = sys.argv[5]
-node_detail = sys.argv[6]
+node_detail = validate_input(sys.argv[6])
 
 with open(server_spec_file_path, "r") as file:
     data = yaml.safe_load(file)
@@ -100,4 +111,3 @@ def update_db_nicinfo():
 
 
 update_db_nicinfo()
-

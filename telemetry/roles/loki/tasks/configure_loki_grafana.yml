@@ -14,7 +14,7 @@
 ---
 
 - name: Wait for grafana pod to come to ready state
-  block:    
+  block:
     - name: Wait for grafana pod to come to ready state
       ansible.builtin.command: kubectl wait --for=condition=ready --timeout="{{ pod_timeout }}" -n "{{ grafana_namespace }}" pod -l app="{{ grafana_k8s_name }}"
       changed_when: false
@@ -24,7 +24,7 @@
         msg: "{{ grafana_pod_wait_fail_msg }}"
 
 - name: Wait for loki pod to come to ready state
-  block:    
+  block:
     - name: Wait for loki pod to come to ready state
       ansible.builtin.command: kubectl wait --for=condition=ready --timeout={{ pod_timeout }} -n "{{ grafana_namespace }}" pod -l app="{{ loki_k8s_name }}"
       changed_when: false

@@ -13,10 +13,10 @@
 # limitations under the License.
 ---
 
-#***********************************************************************
-# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.                  
+# ***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.
 # SIMPLY APPEND THE REQUIRED VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
-#***********************************************************************
+# ***********************************************************************
 
 # This variable is used to enable iDRAC telemetry support
 # Accepted values:  true or false
@@ -44,11 +44,11 @@ prometheus_scrape_interval: 15
 # This variable signifies the support for Intel Gaudi habana Metric collection using Gaudi Prometheus metric exporter.
 # k8s_prometheus_support must be true for this metric support.
 # prometheus_gaudi_support is only available for cluster_os_type: ubuntu and cluster_os_version: 22.04 in software_config.json
-# Accepted values:  true or false 
+# Accepted values:  true or false
 prometheus_gaudi_support: false
 
 ##### BELOW VARIABLES ARE MANDATORY IF telemetry ENTRY is PRESENT in software_config.json AND EITHER idrac_telemetry_support OR omnia_telemetry_support OR visualization_support IS true
-###-----CONFIGURATIONS FOR KUBERNETES ON CONTROL PLANE FOR TELEMETRY SUPPORT------
+# ##-----CONFIGURATIONS FOR KUBERNETES ON CONTROL PLANE FOR TELEMETRY SUPPORT------
 # These addresses will be used by Loadbalancer for assigning External IPs to K8s services running on control plane
 # Make sure the IP range is not assigned to any node in the cluster.
 # If admin_nic network provided in network_spec.yml is in 10.11.0.0 network, then pod_external_ip_range should be in same netwwork like "10.11.0.60-10.11.0.70"
@@ -62,7 +62,7 @@ pod_external_ip_range: ""
 # Default value assigned is "calico".
 k8s_cni: "calico"
 
-###------ADVANCE CONFIGURATIONS FOR KUBERNETES------
+# ##------ADVANCE CONFIGURATIONS FOR KUBERNETES------
 # Kubernetes internal network for services.
 # This network must be unused in your network infrastructure.
 # Default value is "10.233.0.0/18"

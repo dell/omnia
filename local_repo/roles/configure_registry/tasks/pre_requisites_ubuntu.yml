@@ -24,9 +24,33 @@
   until: download_containerd is not failed
   retries: "{{ max_retries }}"
 
+- name: Install python apt interface
+  ansible.builtin.apt:
+    name: python3-apt
+    state: present
+
+- name: Gather the package facts
+  ansible.builtin.package_facts:
+    manager: apt
+  no_log: true
+
+- name: Check whether containerd.io version
+  ansible.builtin.set_fact:
+    higher_containerd_version: true
+  when: (containerd_str in ansible_facts.packages) and (ansible_facts.packages[containerd_str][0]['version']
+    is ansible.builtin.version(containerd_version, '>'))
+
+- name: Warning prompt if containerd is downgrading
+  ansible.builtin.pause:
+    seconds: 20
+    prompt: "Higher version of {{ containerd_str }} {{ ansible_facts.packages['containerd.io'][0]['version'] }} already present,
+      Proceeding with downgrade to {{ containerd_version }}."
+  when: higher_containerd_version is defined and higher_containerd_version
+
 - name: Install containerd.io
   ansible.builtin.apt:
     deb: "{{ containerd_deb_dest }}"
+    allow_downgrade: true
     state: present
 
 - name: Start containerd systemd service

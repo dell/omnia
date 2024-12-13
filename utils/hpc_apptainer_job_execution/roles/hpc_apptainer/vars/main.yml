@@ -54,7 +54,7 @@ hosts_file_path: /etc/hosts
 file_permission: "0644"
 
 # Usage: download_docker_images.yml
-python_version: "{{ ansible_python_interpreter }}" 
+python_version: "{{ ansible_python_interpreter }}"
 docker_python_package: docker==6.1.3
 hpc_image_list: /opt/omnia/hpc_images.yml
 docker_registry_port: 5001

@@ -111,8 +111,10 @@ hashing_python_file: "{{ role_path }}/files/generate_hash.py"
 python_version: "{{ ansible_python_interpreter }}"
 
 # Usage: ldap_prereq.yml
+openldap_packages_file: "{{ role_path }}/../../../input/config/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/openldap.json"
 ldap_dir: "/opt/omnia/ldap"
 ltb_git_repo_path: "ansible-role-ldaptoolbox-openldap"
+ldap_git_dir: "/opt/omnia/ldap/ansible-role-ldaptoolbox-openldap"
 file_permission: "0644"
 openldap_software_failure_msg: "Failed, OpenLDAP software stack is not present in software_config.json file.
 Update openldap software stack in software_config.json and execute local_repo.yml."
@@ -126,6 +128,10 @@ Please give one of them in software_config.json and execute local_repo.yml again
 freeipa_and_openldap_true_fail_msg: "Both freeipa and openldap are present in software_config.json.
 Please give only one of them in software_config.json"
 compute_os_ubuntu: "ubuntu"
+ipa_support_wait_time: 30
+ipa_support_warning: "Skipping the configuration of the secure login node
+because the software_config.json file does not contain either 'freeipa' or 'openldap' as the authentication system.
+To enable the configuration of the secure login node, please provide either 'freeipa' or 'openldap' in the software_config.json file."
 
 # secure_login_node_prereq.yml
 snoopy_package: "install-snoopy"

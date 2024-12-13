@@ -15,6 +15,23 @@
 
 - name: Verify Repo and Install ROCm packages
   block:
+    - name: Local local_repo_access.yml file
+      ansible.builtin.include_vars: "{{ local_repo_access_path }}"
+
+    - name: Check if the ROCm preference source file exists
+      ansible.builtin.stat:
+        path: "{{ rocm_prefrence_src }}"
+      register: rocm_preference_src_stat
+
+    - name: Create ROCm preference file
+      ansible.builtin.template:
+        src: "{{ rocm_prefrence_src }}"
+        dest: "{{ rocm_prefrence_dst }}"
+        mode: "{{ prefrence_file_mode }}"
+      when:
+        - ansible_distribution | lower in ubuntu_os
+        - not rocm_preference_src_stat.stat.exists
+
     - name: Install ROCm packages
       ansible.builtin.package:
         name: "{{ rocm_packages }}"

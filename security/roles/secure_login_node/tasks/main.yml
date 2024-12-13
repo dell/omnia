@@ -36,6 +36,7 @@
 
 - name: Configure security features
   when:
+    - hostvars['127.0.0.1'].freeipa_support or hostvars['127.0.0.1'].openldap_support
     - hostvars['127.0.0.1']['enable_secure_login_node']
   block:
     - name: Install Apparmor on Leap

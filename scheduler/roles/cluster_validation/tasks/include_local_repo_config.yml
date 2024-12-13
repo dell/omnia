@@ -23,4 +23,3 @@
     - name: Failed to local_repo_config.yml
       ansible.builtin.fail:
         msg: "{{ local_repo_config_syntax_fail_msg }} Error: {{ include_local_repo_config.message }}"
-

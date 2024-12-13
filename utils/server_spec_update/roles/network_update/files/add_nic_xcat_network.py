@@ -13,7 +13,7 @@
 #  limitations under the License.
 
 import subprocess
-import sys
+import sys, os
 import yaml
 
 nic_info = {}
@@ -21,8 +21,8 @@ cal_path = sys.argv[1]
 sys.path.insert(0, cal_path)
 import calculate_ip_details
 
-network_spec_path = sys.argv[2]
-metadata_nic_info_path = sys.argv[3]
+network_spec_path = os.path.abspath(sys.argv[2])
+metadata_nic_info_path = os.path.abspath(sys.argv[3])
 with open(network_spec_path, "r") as file:
     data = yaml.safe_load(file)
 

@@ -33,7 +33,6 @@
     node_has_gaudi3: true
   when: lspci_output.stdout | length > 0
 
-
 - name: Check if the node has Gaudi2
   ansible.builtin.shell: |
     set -o pipefail
@@ -62,7 +61,6 @@
   ansible.builtin.include_tasks: hlqual_gaudi2_validation.yml
   when: node_has_gaudi2 and run_intel_gaudi_tests
 
-
 - name: Verify hccl on Gaudi2 nodes
   ansible.builtin.include_tasks: hccl_gaudi2_validation.yml
   when: node_has_gaudi2 and run_intel_gaudi_tests
@@ -70,5 +68,3 @@
 - name: Verify hccl on Gaudi3 nodes
   ansible.builtin.include_tasks: hccl_gaudi3_validation.yml
   when: node_has_gaudi3 and run_intel_gaudi_tests
-
-

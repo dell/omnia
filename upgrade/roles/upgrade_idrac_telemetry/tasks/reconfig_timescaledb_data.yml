@@ -84,4 +84,3 @@
         path: "{{ idrac_mnt_tar }}"
         state: absent
       when: timescaledb_tar.stat.exists
-

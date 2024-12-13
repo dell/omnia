@@ -55,9 +55,7 @@ xcat_del_files:
   - "/opt/omnia/static.stanzas"
   - "/opt/omnia/discover.stanzas"
   - "/opt/omnia/dynamic_ip_list"
-  - /tmp/certs.d/
-  - /tmp/conf
-  - /tmp/repos
+  - "/opt/omnia/syncfiles"
   - /opt/omnia/telemetry
   - /opt/omnia/temp_pxe_file.csv
   - /opt/omnia/.postgres/

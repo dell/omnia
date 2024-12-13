@@ -17,6 +17,16 @@
   ansible.builtin.import_playbook: check_venv.yml
   when: not ( check_venv_executed | default(false) | bool )
 
+- name: Validate whether cross-os is present
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  tasks:
+    - name: Validate cluster and control plane OS versions
+      ansible.builtin.include_role:
+        name: update_user_repo
+        tasks_from: check_os_versions.yml
+
 - name: Update repo and registry
   hosts: slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login, etcd
   roles:

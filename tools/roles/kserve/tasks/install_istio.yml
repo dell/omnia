@@ -91,4 +91,3 @@
       register: command_result
       changed_when: command_result.changed
       failed_when: false
-

@@ -45,7 +45,7 @@ spec:
 
                   git clone  https://github.com/huggingface/optimum-habana /optimum-habana;
                   cd /optimum-habana;
-                  git checkout v1.13.2;
+                  git checkout v1.14.1;
                   sed -i '194s|deepspeed|deepspeed --force_multi|' optimum/habana/distributed/distributed_runner.py;
                   pip install .;
                   pip install -r examples/language-modeling/requirements.txt;
@@ -65,17 +65,17 @@ spec:
                     bash -i -c '
                     git clone  https://github.com/huggingface/optimum-habana /optimum-habana
                     cd /optimum-habana
-                    git checkout v1.13.2
+                    git checkout v1.14.1
                     hf_home_var="os.environ[\"HF_HOME\"] = \"${HF_HOME}\""
                     token_var="os.environ[\"HUGGING_FACE_HUB_TOKEN\"] = \"${HUGGING_FACE_HUB_TOKEN}\""
                     https_var="os.environ[\"https_proxy\"] = \"${https_proxy}\""
                     http_var="os.environ[\"http_proxy\"] = \"${http_proxy}\""
                     no_proxy_var="os.environ[\"no_proxy\"] = \"${no_proxy}\""
-                    sed -i "59i\\${https_var}" examples/language-modeling/run_lora_clm.py
-                    sed -i "60i\\${http_var}" examples/language-modeling/run_lora_clm.py
-                    sed -i "61i\\${hf_home_var}" examples/language-modeling/run_lora_clm.py
-                    sed -i "62i\\${token_var}" examples/language-modeling/run_lora_clm.py
-                    sed -i "63i\\${no_proxy_var}" examples/language-modeling/run_lora_clm.py
+                    sed -i "56i\\${https_var}" examples/language-modeling/run_lora_clm.py
+                    sed -i "57i\\${http_var}" examples/language-modeling/run_lora_clm.py
+                    sed -i "58i\\${hf_home_var}" examples/language-modeling/run_lora_clm.py
+                    sed -i "59i\\${token_var}" examples/language-modeling/run_lora_clm.py
+                    sed -i "60i\\${no_proxy_var}" examples/language-modeling/run_lora_clm.py
 
                     pip install .
                     pip install -r examples/language-modeling/requirements.txt

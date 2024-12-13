@@ -163,6 +163,26 @@ if [ "$unsupported_os" = true ]; then
 	venv_location="/opt/omnia/omnia161_venv" # Do not give a trailing slash
 fi
 
+install_omnia_version=$(grep "omnia_version:" ".metadata/omnia_version" | cut -d ':' -f 2 | tr -d ' ')
+if [[ "$OS_ID" == "rhel" || "$OS_ID" == "rocky" ]]; then
+    if [[ "$VERSION_ID" != "8.8" ]]; then
+        echo -e "Warning: Running Omnia $install_omnia_version on an unsupported OS ${OS_ID} ${VERSION_ID} may lead to failures in subsequent playbooks. To prevent such issues, please use a supported OS ${OS_ID} 8.8 ."
+    fi
+elif [[ "$OS_ID" == "ubuntu" ]]; then
+   if [ -e /var/log/installer/media-info ]; then
+       media_info=$(cat /var/log/installer/media-info)
+       if [[ ! $media_info == *"Ubuntu-Server"* ]]; then
+       	    echo -e "${YELLOW}Warning: Omnia supports only server edition of Ubuntu. Running Omnia on a non-server edition of Ubuntu may lead to failures in subsequent playbooks.
+To prevent such issues, please use the Server edition of Ubuntu.${NC}"
+       fi
+   fi
+   if [[ "$VERSION_ID" != "22.04" ]]; then
+     echo -e "Warning: Running Omnia $install_omnia_version on an unsupported OS ${OS_ID} ${VERSION_ID} may lead to failures in subsequent playbooks. To prevent such issues, please use a supported OS ${OS_ID} 22.04 ."
+   fi
+else
+    echo "WARNING: Unsupported OS ${OS_ID}"
+fi
+
 # Check if already is a different activated venv
 if [ -n "$VIRTUAL_ENV" ]; then
     if [ "$VIRTUAL_ENV" != "$venv_location" ]; then
@@ -348,32 +368,11 @@ echo -e "${NC}"
 # Show SELinux reboot message if necessary
 if [[ "$SELINUX_REBOOT_REQUIRED" == "true" ]]; then
     echo -e "${RED}"
-    echo "SELinux has been disabled. Please reboot the system, unless it is an upgrade or restore scenario, before proceeding with the playbook execution !"
+    echo "SELinux has been successfully disabled. Please reboot the system before proceeding. However, if you are upgrading or restoring the control plane, avoid rebooting to prevent the loss of telemetry data."
     echo -e "${NC}"
 fi
 
 # Check if the OS version is unsupported and print a warning message
-install_omnia_version=$(grep "omnia_version:" ".metadata/omnia_version" | cut -d ':' -f 2 | tr -d ' ')
-
-if [[ "$OS_ID" == "rhel" || "$OS_ID" == "rocky" ]]; then
-    if [[ "$VERSION_ID" != "8.8" ]]; then
-        echo -e "Warning:Running Omnia $install_omnia_version on an unsupported OS ${OS_ID} ${VERSION_ID} may lead to failures in subsequent playbooks. To prevent such issues, please use a supported OS ${OS_ID} 8.8 ."
-    fi
-elif [[ "$OS_ID" == "ubuntu" ]]; then
-   if [ -e /var/log/installer/media-info ]; then
-       media_info=$(cat /var/log/installer/media-info)
-       if [[ ! $media_info == *"Ubuntu-Server"* ]]; then
-       	    echo -e "${YELLOW}Warning: Omnia supports only server edition of Ubuntu. Running Omnia on a non-server edition of Ubuntu may lead to failures in subsequent playbooks.
-To prevent such issues, please use the Server edition of Ubuntu.${NC}"
-       fi
-   fi
-   if [[ "$VERSION_ID" != "22.04" ]]; then
-     echo -e "Warning:Running Omnia $install_omnia_version on an unsupported OS ${OS_ID} ${VERSION_ID} may lead to failures in subsequent playbooks. To prevent such issues, please use a supported OS ${OS_ID} 22.04 ."
-   fi
-else
-    echo "WARNING: Unsupported OS ${OS_ID}"
-fi
-
 
 echo -e "${BLUE}"
 echo "Download the ISO file required to provision in the control plane."
