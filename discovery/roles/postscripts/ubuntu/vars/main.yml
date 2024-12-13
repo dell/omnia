@@ -52,3 +52,7 @@ roce_postscripts_path:
 # Usage: configure_intelgaudi.yml
 intelgaudi_postscripts_path:
   - { src: "{{ role_path }}/../ubuntu/templates/omnia_intelgaudi.j2", dest: "/install/postscripts/omnia_intelgaudi", mode: "755" }
+
+# Usage: configure_postbootscripts.yml
+omnia_ssh_check_postbootscripts_path:
+  - { src: "{{ role_path }}/../ubuntu/templates/omnia_ssh_check.j2", dest: "/install/postscripts/omnia_ssh_check", mode: "755" }

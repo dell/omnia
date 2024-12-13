@@ -15,11 +15,14 @@
 import psycopg2 as pg
 from cryptography.fernet import Fernet
 
-with open('/opt/omnia/.postgres/.postgres_pass.key', 'rb') as passfile:
+key_file_path = '/opt/omnia/.postgres/.postgres_pass.key'
+pass_file_path = '/opt/omnia/.postgres/.encrypted_pwd'
+
+with open(key_file_path, 'rb') as passfile:
     key = passfile.read()
 fernet = Fernet(key)
 
-with open('/opt/omnia/.postgres/.encrypted_pwd', 'rb') as datafile:
+with open(pass_file_path, 'rb') as datafile:
     encrypted_file_data = datafile.read()
 decrypted_pwd = fernet.decrypt(encrypted_file_data).decode()
 
@@ -34,7 +37,6 @@ def create_connection():
     )
     conn.autocommit = True
     return conn
-
 
 def create_connection_xcatdb():
     # Create database connection

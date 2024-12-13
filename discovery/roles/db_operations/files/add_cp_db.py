@@ -23,7 +23,7 @@ pxe_mac_address = sys.argv[3]
 cp_hostname = sys.argv[4]
 bmc_default = "0.0.0.0"
 if num_args == 5:
-    bmc_nic_ip = sys.argv[5] 
+    bmc_nic_ip = sys.argv[5]
 else:
     bmc_nic_ip = "0.0.0.0"
 

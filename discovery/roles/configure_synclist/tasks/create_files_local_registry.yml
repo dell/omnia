@@ -20,12 +20,12 @@
 
 - name: Remove existing temp certificate directory for default registries
   ansible.builtin.file:
-    path: "/tmp/certs.d/"
+    path: "{{ syncfiles_dir }}/certs.d/"
     state: absent
 
 - name: Create temp certificate directory for registry configurations
   ansible.builtin.file:
-    path: "/tmp/certs.d/_default"
+    path: "{{ syncfiles_dir }}/certs.d/_default"
     state: directory
     recurse: true
     mode: "{{ dir_permission }}"
@@ -33,5 +33,5 @@
 - name: Create hosts.toml file for all registry items
   ansible.builtin.template:
     src: "{{ config_omnia_registry_src_path }}"
-    dest: "/tmp/certs.d/_default/hosts.toml"
+    dest: "{{ syncfiles_dir }}/certs.d/_default/hosts.toml"
     mode: "{{ file_permission }}"

@@ -59,7 +59,10 @@ def update_networks_table():
       Returns:
        an updated networks table with details of various bmc discovery ranges inserted as a network.
     """
-    ip_ranges = discovery_ranges.split(',')
+    ip_ranges = []
+    if discovery_ranges:
+        ip_ranges = discovery_ranges.split(',')
+
     for ip_range in ip_ranges:
         ip_obj = validate(ip_range)
         start_ip, end_ip = ip_obj.split('-')

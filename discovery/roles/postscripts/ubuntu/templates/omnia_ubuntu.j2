@@ -32,10 +32,12 @@ then
     racadm_url_status=$?
     if [ $racadm_url_status -eq 0 ]; then
         tar -zxvf /tmp/racadm.tar.gz -C /tmp
+        apt install libargtable2-0 -y
         cd /tmp/iDRACTools/racadm && echo "y" | bash install_racadm.sh
     fi
 fi
 
+echo "127.0.0.1 localhost" >> /etc/hosts
 echo "{{ admin_nic_ip }} {{ cp_hostname }}" >> /etc/hosts
 
 echo "Installed omnia packages" >> /var/log/xcat/xcat.log
