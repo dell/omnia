@@ -1,7 +1,7 @@
 Intel Gaudi accelerators
 ==========================
 
-⦾ **Why does the** ``hl-smi`` **commands fail to detect the Intel Gaudi drivers installed during provisioning?**
+⦾ **Why does the** ``hl-smi`` **command fail to detect the Intel Gaudi drivers installed during provisioning?**
 
 .. image:: ../../../images/intel_known_issue.png
 
@@ -11,10 +11,10 @@ Intel Gaudi accelerators
 
 ⦾ **Why does the power stress test using** `Habana Labs Qualification Tool (hl_qual) <https://docs.habana.ai/en/latest/Management_and_Monitoring/Qualification_Library/index.html>`_ **fail for nodes with Intel Gaudi 3 accelerators?**
 
-**Resolution**: This is a known issue, and Intel is actively working on a solution.
+**Resolution**: This is a known issue, and fix is expected in the upcoming Intel firmware release.
 
 ⦾ **Why are only 7 Intel accelerators displayed after a cluster reboot?**
 
 **Potential Cause**: This issue occurs when the initialization of High Bandwidth Memory (HBM) fails for Intel Gaudi accelerators, often due to factors like low voltage or memory limitations.
 
-**Resolution**: This is a known issue, and Intel is actively working on a solution.
+**Resolution**: This is a known issue, and fix is expected in the upcoming Intel firmware release.
