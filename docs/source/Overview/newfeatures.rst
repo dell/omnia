@@ -23,15 +23,15 @@ New Features
         * iDRAC telemetry
         * Kubernetes telemetry via Prometheus exporter
 
-* AI tools:
+    * Visualization of the Kubernetes telemetry and Intel Gaudi accelerator metrics using Grafana
 
-    * DeepSpeed and Kubeflow as part of Intel Gaudi AI stack
-    * Parity for Kserve, Tensorflow, and Jupyterhub
-    * vLLM enablement on clusters containing Intel Gaudi nodes
+    * AI tools enablement:
+
+        * DeepSpeed
+        * Kubeflow
+        * vLLM
 
 * Sample playbook for a pre-trained Generative AI model - Llama 3.1
-
-* Visualization of the Kubernetes and Intel Gaudi metrics using Grafana
 
 * CSI drivers for Kubernetes to access PowerScale storage with an option to enable the SmartConnect feature (without SSL certificates)
 
