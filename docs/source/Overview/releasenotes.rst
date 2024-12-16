@@ -14,7 +14,7 @@ Releases
 
 * Pre-enablement for Intel Gaudi 3 accelerators:
 
-    * Software stack installation
+    * Software stack installation (See the `support matrix <SupportMatrix/omniainstalledsoftware.html>`_ for the supported Intel firmware version)
 
     * Accelerator status verification using `HCCL <https://docs.habana.ai/en/latest/API_Reference_Guides/HCCL_APIs/index.html>`_ and `hl_qual <https://docs.habana.ai/en/latest/Management_and_Monitoring/Qualification_Library/index.html>`_
 
