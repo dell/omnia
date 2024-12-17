@@ -9,14 +9,14 @@ Configure specific local repositories
 
             ::
 
-                {"name": "amdgpu", "version": "6.0"},
+                {"name": "amdgpu", "version": "6.2.2"},
 
         * Add the following line below the ``softwares`` section:
 
             ::
 
                 "amdgpu": [
-                                {"name": "rocm", "version": "6.0" }
+                                {"name": "rocm", "version": "6.2.2"}
                           ]
 
         * A sample format is available `here. <InputParameters.html>`_
@@ -101,17 +101,17 @@ Configure specific local repositories
 
         * Include the following line under ``softwares`` in ``input/software_config.json``: ::
 
-            {"name": "bcm_roce", "version": "229.2.61.0"}
+            {"name": "bcm_roce", "version": "230.2.54.0"}
 
         * Add the following line below the ``softwares`` section: ::
 
             "bcm_roce": [
-                        {"name": "bcm_roce_libraries", "version": "229.2.61.0"}
+                        {"name": "bcm_roce_libraries", "version": "230.2.54.0"}
                         ],
 
         * A sample format is available `here <InputParameters.html>`_.
 
-    For a list of repositories (and their types) configured for RoCE, view the ``input/config/ubuntu/<cluster_os_verison>/bcm_roce.json``. ::
+    For a list of repositories (and their types) configured for RoCE, view the ``input/config/ubuntu/<cluster_os_verison>/bcm_roce.json``. Provide the local paths or URL for the RoCE driver and libraries in the ``bcm_roce.json`` file. A sample format is given below: ::
 
         {
           "bcm_roce": {
@@ -119,7 +119,7 @@ Configure specific local repositories
               {
                 "package": "bcm_roce_driver_{{ bcm_roce_version }}",
                 "type": "tarball",
-                "url": "",
+                "url": "https://dl.dell.com/FOLDER12115883M/1/Bcom_LAN_230.2.54.0_NXE_Linux_Drivers_230.2.54.0.tar.gz",
                 "path": ""
               }
             ]
@@ -129,7 +129,7 @@ Configure specific local repositories
               {
                 "package": "bcm_roce_source_{{ bcm_roce_libraries_version }}",
                 "type": "tarball",
-                "url": "",
+                "url": "https://dl.dell.com/FOLDER12115885M/1/Bcom_LAN_230.2.54.0_NXE_Linux_Source_230.2.54.0.tar.gz",
                 "path": ""
               },
               {"package": "libelf-dev", "type": "deb", "repo_name": "jammy"},
@@ -152,6 +152,7 @@ Configure specific local repositories
 
 .. note::
 
+    * If you have a single ``.tar.gz`` file (often called a tarball) for the Broadcom RoCE driver, you must add the same in both the ``bcm_roce`` section and the ``bcm_roce_libraries`` section of the ``bcm_roce.json`` file.
     * The RoCE driver is only supported on Ubuntu clusters.
     * The only accepted URL for the RoCE driver is from the Dell support site. For more information on downloading drivers, `click here <https://www.dell.com/support/kbdoc/en-in/000183911/how-to-download-and-install-dell-drivers>`_.
 

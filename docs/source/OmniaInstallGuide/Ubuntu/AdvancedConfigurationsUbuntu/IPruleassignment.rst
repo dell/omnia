@@ -3,7 +3,10 @@ IP rule assignment
 
 This playbook is used for updating IP rule of the additional configured NICs.
 
-.. note:: ``ip_rule_assignment`` is only supported for clusters running on Ubuntu OS.
+.. note::
+
+    * ``ip_rule_assignment`` is only supported for clusters running on Ubuntu OS.
+    * Assigning an IP rule is not supported for VLAN NICs using the ``ip_rule_assignment.yml`` playbook. If you want to assign an IP rule to your VLAN NIC, `click here <IPruleassignment.html#assign-an-ip-rule-to-a-vlan-nic>`_.
 
 **Prerequisites**
 
@@ -49,3 +52,24 @@ This playbook is used for updating IP rule of the additional configured NICs.
 For an example inventory template, go to ``omnia/examples/ip_rule_inv_template``.
 
 .. note:: To implement IP rule changes, user must reboot the nodes.
+
+Assign an IP rule to a VLAN NIC
+---------------------------------
+
+To assign an IP rule to a VLAN NIC, do the following:
+
+1. Find your VLAN NIC name by executing the following command: ::
+
+    nmcli connection show
+
+2. Use the VLAN NIC name from the above command output to configure the IP rule using the following command. Here, ``100`` is the metric value and ``192.168.1.100`` is the IP of the configured VLAN NIC. ::
+
+    nmcli connection modify <vlan-nic-name> ipv4.routing-rules "priority <100> from <192.168.1.100> table <100>" ipv4.route-table <100> ipv4.route-metric <100>
+
+3. Configure the gateway using the following command: ::
+
+    nmcli connection modify <vlan-nic-name> ipv4.gateway <192.168.1.1>
+
+4. After you are done configuring the IP rule and the gateway, use the following command to activate the VLAN NIC: ::
+
+    nmcli connection up <vlan-nic-name>

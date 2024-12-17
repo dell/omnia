@@ -18,9 +18,9 @@ Input parameters for Local Repositories
         "cluster_os_version": "22.04",
         "repo_config": "partial",
         "softwares": [
-            {"name": "amdgpu", "version": "6.0"},
+            {"name": "amdgpu", "version": "6.2.2"},
             {"name": "cuda", "version": "12.3.2"},
-            {"name": "bcm_roce", "version": "229.2.61.0"},
+            {"name": "bcm_roce", "version": "230.2.54.0"},
             {"name": "ofed", "version": "24.01-0.3.3.1"},
             {"name": "openldap"},
             {"name": "secure_login_node"},
@@ -42,10 +42,10 @@ Input parameters for Local Repositories
         ],
 
         "bcm_roce": [
-            {"name": "bcm_roce_libraries", "version": "229.2.61.0"}
+            {"name": "bcm_roce_libraries", "version": "230.2.54.0"}
         ],
         "amdgpu": [
-            {"name": "rocm", "version": "6.0" }
+            {"name": "rocm", "version": "6.2.2" }
         ],
         "intelgaudi": [
             {"name": "intel"}
