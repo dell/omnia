@@ -12,7 +12,7 @@ Required","* Password set for the root account of target nodes during provisioni
 
 Required","* Password set for the postgresDB on target nodes during provisioning.
 * Length >= 8 characters
-* Password must not contain -,\, ',"""
+* The password must only contain alphanumeric characters."
 "**bmc_username**
 
 ``string``

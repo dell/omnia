@@ -153,7 +153,7 @@ Configure specific local repositories
 .. note::
 
     * The RoCE driver is only supported on Ubuntu clusters.
-    * The only accepted URL for the RoCE driver is from the `Dell support <https://www.dell.com/support/home/en-us>`_ site.
+    * The only accepted URL for the RoCE driver is from the Dell support site. For more information on downloading drivers, `click here <https://www.dell.com/support/kbdoc/en-in/000183911/how-to-download-and-install-dell-drivers>`_.
 
 **BeeGFS**
 

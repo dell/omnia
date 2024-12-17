@@ -9,13 +9,13 @@ New Features
 
 * Kubernetes version upgraded to 1.29.5 (Previously 1.26.12)
 
-* Added support for Intel Gaudi 3 accelerators: **(This is preliminary code and may change before official release)**
+* Pre-enablement for Intel Gaudi 3 accelerators:
 
-    * Software stack installation
+    * Software stack installation (See the `support matrix <SupportMatrix/omniainstalledsoftware.html>`_ for the supported Intel firmware version)
 
-    * Accelerator status verification using "HCCL demo" and "hl_qual"
+    * Accelerator status verification using `HCCL <https://docs.habana.ai/en/latest/API_Reference_Guides/HCCL_APIs/index.html>`_ and `hl_qual <https://docs.habana.ai/en/latest/Management_and_Monitoring/Qualification_Library/index.html>`_
 
-    * Inventory tagging for the Gaudi accelerators
+    * Inventory tagging for the Gaudi accelerators (``compute_gpu_intel``)
 
     * Monitoring for the Gaudi accelerators via:
 
@@ -23,15 +23,15 @@ New Features
         * iDRAC telemetry
         * Kubernetes telemetry via Prometheus exporter
 
-* AI tools:
+    * Visualization of the Kubernetes telemetry and Intel Gaudi accelerator metrics using Grafana
 
-    * DeepSpeed and Kubeflow as part of Intel Gaudi AI stack
-    * Parity for Kserve, Tensorflow, and Jupyterhub
-    * vLLM enablement on clusters containing Intel Gaudi nodes
+    * AI tools enablement:
+
+        * DeepSpeed
+        * Kubeflow
+        * vLLM
 
 * Sample playbook for a pre-trained Generative AI model - Llama 3.1
-
-* Visualization of the Kubernetes and Intel Gaudi metrics using Grafana
 
 * CSI drivers for Kubernetes to access PowerScale storage with an option to enable the SmartConnect feature (without SSL certificates)
 

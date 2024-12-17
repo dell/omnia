@@ -4,14 +4,16 @@ Kubernetes Controllers,Apache 2.0,HPC Workload Manager,1.29.5
 MariaDB,GPL 2.0,Relational database used by Slurm,10.3
 Docker CE,Apache 2.0,Docker Service,20.10.2
 NVIDIA container runtime,"Apache 2.0, GPL-3.0, LGPL-3.0",NVIDIA container runtime library,1.16.1
-habanalabs-container-runtime,Apache 2.0,Intel Habana container runtime library,1.18.0-524
+habanalabs-container-runtime,Apache 2.0,"Intel Habana container runtime library
+
+.. note:: This is preliminary code and may change before official release.",1.18.0-524
 Python-pip,MIT License,Python Package,24
 kubelet,Apache 2.0,"Provides external, versioned ComponentConfig API types for configuring the kubelet",1.29.5
 kubeadm,Apache 2.0,Provides “fast paths” for creating Kubernetes clusters.,1.29.5
 etcd,Apache 2.0,Relational database used by Kubernetes,3.5.10
 kubectl,Apache 2.0,Command line tool for Kubernetes,1.29.5
 jupyterhub,BSD-3Clause New or Revised License,Multi-user hub,4.0.2
-kubeflow,Apache 2.0,Cloud Native platform for machine learning,1.9.1-rc.2
+kubeflow,Apache 2.0,Cloud Native platform for machine learning,1.9.1
 helm,Apache 2.0,Kubernetes Package Manager,3.12.3
 tensorflow,Apache 2.0,Tensorflow is a GPU accelerated tensor computational framework for Machine Learning.,2.1
 horovod,Apache 2.0,Distributed deep learning training framework for Tensorflow,0.21.1

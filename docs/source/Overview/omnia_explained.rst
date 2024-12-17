@@ -22,3 +22,5 @@ Components of an HPC Omnia cluster are:
 * **Head node**: In an HPC cluster, the head node is nothing but the ``slurm_control_node`` used to manage slurm jobs on the cluster.
 * **Compute nodes**: In an HPC cluster, a compute node is nothing but a ``slurm_node``.
 * **[Optional] Login node**: In Omnia, a login node serves as an extra layer of authentication. Users are required to authenticate themselves through this additional login node, which is configured by Omnia. This setup allows the cluster administrator to limit direct access to the head node (also referred to as ``slurm_control_node``) by users. The login node acts as a gateway for users to securely access the cluster.
+
+.. note:: If a login node is not present in a Slurm cluster, then only users with access to the head node can submit Slurm jobs.

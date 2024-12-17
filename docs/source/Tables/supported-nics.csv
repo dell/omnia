@@ -13,7 +13,9 @@ NVIDIA ,"* ConnectX-5 Single Port 100 GbE QSFP+
 * ConnectX-7 NDR/NDR200 Adaptor
 * Network Adapter (10 Gb)","* ConnectX-6 Single Port VPI HDR QSFP
 * ConnectX-6 Single Port VPI HDR 100 QSFP
-* ConnectX-7 NDR/NDR200 Adaptor"
+* ConnectX-7 NDR/NDR200 Adaptor
+
+.. note:: The latest firmware for Connect X6 and X7 models has not been validated."
 Broadcom ,"* 10GBASE-T Ethernet
 * Gigabit Ethetnet BCM5720
 * Adv Dual 10GBASE-t Ethernet

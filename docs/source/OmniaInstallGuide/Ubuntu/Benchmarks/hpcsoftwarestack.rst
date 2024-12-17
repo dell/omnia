@@ -1,7 +1,7 @@
 Containerized HPC benchmark execution
 --------------------------------------
 
-Use this playbook to download docker images and pull images onto cluster nodes using `apptainer <https://apptainer.org/docs/user/main/index.html/>`_.
+Use this playbook to download docker images and pull images onto cluster nodes using `apptainer <https://apptainer.org/docs/user/main/>`_.
 
 1. Ensure that the cluster has been `provisioned by the provision tool. <../../InstallationGuides/InstallingProvisionTool/index.html>`_ and the `cluster has been set up using omnia.yml. <../../InstallationGuides/BuildingClusters/index.html>`_
 
