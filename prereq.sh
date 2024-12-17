@@ -47,7 +47,7 @@ install_ansible() {
     echo "----------------------------------------------------------"
     echo "INSTALLING ANSIBLE $ansible_version IN THE OMNIA VIRTUAL ENVIRONMENT:"
     echo "----------------------------------------------------------"
-    $venv_py -m pip install ansible=="$ansible_version" #--force-reinstall or --ignore-installed is not required
+    $venv_py -m pip install ansible=="$ansible_version" ansible-core=="$ansible_core_version" #--force-reinstall or --ignore-installed is not required
 }
 
 disable_selinux() {
@@ -124,6 +124,7 @@ copy_config() {
 
 # Default settings
 ansible_version="9.5.1"
+ansible_core_version="2.16.13"
 python_version="3.11"
 py_major_version="3"
 py_minor_version="11"
@@ -156,6 +157,7 @@ fi
 if [ "$unsupported_os" = true ]; then
 	echo "Unsupported OS for Omnia v1.7 software stack. Creating venv for Omnia v1.6.1 software stack."
 	ansible_version="7.7.0"
+ 	ansible_core_version="2.14.12"
 	python_version="39" # RHEL-8.8 onwards and ubuntu-20.04 onwards this is '3.9'
 	py_major_version="3"
 	py_minor_version="9"
