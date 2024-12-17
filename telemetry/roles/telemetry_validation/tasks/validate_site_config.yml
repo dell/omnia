@@ -87,7 +87,7 @@
       when:
         - control_plane_os in control_plane_os_redhat or
           control_plane_os in control_plane_os_rocky
-      block:        
+      block:
         - name: Add proxy to dnf.conf in RockyLinux OS if http_proxy is defined
           community.general.ini_file:
             path: "{{ dnf_conf_path }}"

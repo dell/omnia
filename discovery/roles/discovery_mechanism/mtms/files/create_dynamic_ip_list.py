@@ -14,7 +14,7 @@
 
 import re
 import ipaddress
-import sys
+import sys, os
 from ipaddress import IPv4Address
 import subprocess
 
@@ -26,7 +26,7 @@ password = sys.argv[4]
 
 ip_list = []
 valid_ip_list = []
-dhcp_file_path = sys.argv[5]
+dhcp_file_path = os.path.abspath(sys.argv[5])
 dynamic_ip_path = "/opt/omnia/dynamic_ip_list"
 
 
@@ -42,13 +42,13 @@ def create_temp_ip_list():
 
     # declaring the regex pattern for IP addresses
     pattern = re.compile(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})')
-
-    # extracting the IP addresses
-    for line in fstring:
-        if pattern.search(line) is not None:
-            ip = IPv4Address(pattern.search(line)[0])
-            ip_list.append(ip)
-            ip = ipaddress.ip_address(f'{ip}')
+    if fstring:
+        # extracting the IP addresses
+        for line in fstring:
+            if pattern.search(line) is not None:
+                ip = IPv4Address(pattern.search(line)[0])
+                ip_list.append(ip)
+                ip = ipaddress.ip_address(f'{ip}')
 
     file.close()
     extract_possible_bmc_ip()

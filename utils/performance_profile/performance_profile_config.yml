@@ -13,8 +13,8 @@
 # limitations under the License.
 ---
 # This configuration file is used to set up performance tuning for an Intel Gaudi GPU.
-# It specifies a performance profile and allows to modify or add system parameters 
-# using various plugins such as sysctl, cpu, disk etc. Users can provide multiple 
+# It specifies a performance profile and allows to modify or add system parameters
+# using various plugins such as sysctl, cpu, disk etc. Users can provide multiple
 # parameters under each plugin. If there is no need to modify the profile, the
 # 'performance_profile_plugin' section can be left blank.
 
@@ -22,5 +22,5 @@ intel_gpu:
   performance_profile: "accelerator-performance"
   performance_profile_plugin:
     sysctl:
-      - vm.nr_hugepages : 156300
+      - vm.nr_hugepages: 156300
   reboot_required: false

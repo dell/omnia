@@ -49,7 +49,7 @@ def call_command(command, pipe = False, output=''):
             common_logging.log_error('invoke_commands:call_command', f"Error : {output.stderr} Command : {command} ")
         else:
             common_logging.log_error('invoke_commands:call_command', f"Error output in: {command}")
-       
+
     except subprocess.TimeoutExpired:
         common_logging.log_error('invoke_commands:call_command',
                                  f"Command invocation timeout: {command}")
@@ -92,9 +92,8 @@ def run_command(command):
             str or None: The output of the command or None if an error occurred.
        """
     try:
-        command = command.split()
         output = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                universal_newlines=True, check=False)
+                                universal_newlines=True, check=True)
 
         return output.stdout.strip() if output.stdout else None
     except Exception as exc:

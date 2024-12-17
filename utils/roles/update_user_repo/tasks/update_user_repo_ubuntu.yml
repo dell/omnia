@@ -143,3 +143,23 @@
         src: "{{ tmp_user_repo_path }}/"
         dest: "{{ repo_path }}/"
         mode: "{{ file_permission }}"
+
+- name: Set fact for dist
+  ansible.builtin.set_fact:
+    dist: "{{ hostvars['127.0.0.1']['distro'] }}"
+
+- name: Configure deadsnakes PPA repository (Cross-OS)
+  when: hostvars['127.0.0.1']['os_no_match'] | bool
+  block:
+    - name: Add deadsnake repo to apt sources list # noqa risky-file-permissions
+      ansible.builtin.lineinfile:
+        path: "{{ sources_repo_path }}"
+        line: "{{ deadsnake_repo }}"
+        create: true
+        state: present
+      become: true
+
+    - name: Update apt package cache
+      ansible.builtin.apt:
+        update_cache: true
+      become: true

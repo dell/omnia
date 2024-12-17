@@ -19,13 +19,13 @@ Categories:
               nicnetwork: "nic_network1"
               nictypes: "ethernet"
 
-#**********************************************************************
+# **********************************************************************
 # Following are the templates for providing additional network and OS details.
-# Users may include the `os` or `network` sections individually if only one 
+# Users may include the `os` or `network` sections individually if only one
 # of them needs to be configured, or both together as well.
-# 
+#
 # - Use space (' ') as a delimiter in case of multiple parameters for cmdline.
-#**********************************************************************
+# **********************************************************************
 #
 # Example for configuring only network settings:
 # Categories:

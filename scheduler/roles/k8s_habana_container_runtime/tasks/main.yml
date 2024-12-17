@@ -23,7 +23,7 @@
       when:
         - accelerator_type is defined
         - accelerator_type == "intel"
-        - hostvars['localhost']['set_intel_config_status'] 
+        - hostvars['localhost']['set_intel_config_status']
       block:
         - name: Install prerequisite
           ansible.builtin.include_tasks: install_prerequisite_ubuntu.yml

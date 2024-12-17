@@ -13,10 +13,10 @@
 # limitations under the License.
 ---
 
-#***********************************************************************
-# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.                  
+# ***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.
 # SIMPLY APPEND THE REQUIRD VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
-#***********************************************************************
+# ***********************************************************************
 
 # Path to directory hosting ansible config file (ansible.cfg file)
 # Default value is "/etc/ansible"
@@ -43,7 +43,7 @@ slurm_installation_type: "configless"
 # Default value is true
 restart_slurm_services: true
 
-#----------------------------K8S------------------------------------------------------
+# ----------------------------K8S------------------------------------------------------
 
 # Kubernetes SDN network.
 # It can either be "calico" or "flannel".
@@ -78,14 +78,14 @@ topology_manager_policy: "none"
 # Default value assigned is "container".
 topology_manager_scope: "container"
 
-#----------------------------VERIFY INTEL GAUDI INSTALLATION------------------------------------------------------
+# ----------------------------VERIFY INTEL GAUDI INSTALLATION------------------------------------------------------
 
 # It's recommended to do extensive tests hl_qual and hccl when installing a new Gaudi node. This takes around 20mins.
 # To do that during provisioning this variable has to be set to true.
 # By default  no tests are run
 run_intel_gaudi_tests: false
 
-#----------------------------CSI Driver------------------------------------------------------
+# ----------------------------CSI Driver------------------------------------------------------
 # Following csi powerscale driver input variables are mandatory only if csi_driver_powerscale entry is present in software_config.json
 
 # Absolute file path for the secret.yaml file.
@@ -93,7 +93,7 @@ run_intel_gaudi_tests: false
 
 csi_powerscale_driver_secret_file_path: ""
 
-# File path for the values.yml file which will contain the Powerscale driver configuration parameters. 
+# File path for the values.yml file which will contain the Powerscale driver configuration parameters.
 # User need to download values.yaml file and fill required data in values.yaml file. Provided the path of the values.yaml file here.
 # mention configurable values
 csi_powerscale_driver_values_file_path: ""

@@ -166,7 +166,7 @@
 
 - name: Set intel input status
   ansible.builtin.set_fact:
-    set_intel_input_status: true    
+    set_intel_input_status: true
   loop: "{{ software_config.intelgaudi | default([]) }}"
   when: "set_intelgaudi_input_status and 'intel' in item.name"
   loop_control:
@@ -203,7 +203,7 @@
         set_intel_config_status: true
       when: check_intel_dir.stat.exists
   rescue:
-    - name: Intel Gaudi repo is not configured 
+    - name: Intel Gaudi repo is not configured
       ansible.builtin.pause:
         seconds: "{{ warning_wait_time }}"
         prompt: "{{ intel_gaudi_repo_fail_msg }}"

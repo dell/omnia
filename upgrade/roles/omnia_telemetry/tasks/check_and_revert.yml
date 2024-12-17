@@ -28,27 +28,33 @@
   loop_control:
     label: "{{ item.item }}"
 
-- name: Replace original binaries on all nodes as service failed to start
-  ansible.builtin.copy:
-    src: "{{ old_binary_files_path }}"
-    dest: "{{ omnia_telemetry_dest }}"
-    force: true
-    owner: root
-    group: root
-    mode: "{{ binary_mode }}"
-  delegate_to: "{{ item }}"
-  with_items: "{{ running_nodes }}"
-  when: not_running_nodes is defined and (not_running_nodes | length > 0)
 
-- name: Start omnia_telemetry service on nodes after replacing old binaries
-  ansible.builtin.service:
-    name: omnia_telemetry
-    state: started
-  delegate_to: "{{ item }}"
-  with_items: "{{ running_nodes }}"
+- name: Warning and revert old binary if service is failed to start
   when: not_running_nodes is defined and (not_running_nodes | length > 0)
+  block:
+    - name: Warning if omnia_telemetry service is failed to start on any one node
+      ansible.builtin.debug:
+        msg: "{{ warning_msg_omnia_telemetry.split('\n') }}"
 
-- name: Replace new binaries to /opt/omnia/telemetry if omnia_telemetry service started successfully on all nodes
+    - name: Replace original binaries on all nodes as service failed to start
+      ansible.builtin.copy:
+        src: "{{ old_binary_files_path }}"
+        dest: "{{ omnia_telemetry_dest }}"
+        force: true
+        owner: root
+        group: root
+        mode: "{{ binary_mode }}"
+      delegate_to: "{{ item }}"
+      with_items: "{{ running_nodes }}"
+
+    - name: Start omnia_telemetry service on nodes after replacing old binaries
+      ansible.builtin.service:
+        name: omnia_telemetry
+        state: started
+      delegate_to: "{{ item }}"
+      with_items: "{{ running_nodes }}"
+
+- name: Replace new binaries to /opt/omnia/telemetry
   ansible.posix.synchronize:
     src: "{{ new_binaries_dir }}/"
     dest: "{{ omnia_telemetry_dest }}/"
@@ -57,4 +63,3 @@
       - "-a"
       - "-v"
       - "-h"
-  when: (running_nodes is defined and (running_nodes | length == 0)) or (not_running_nodes is not defined) or (not_running_nodes is defined and (not_running_nodes | length == 0))

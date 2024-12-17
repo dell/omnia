@@ -39,6 +39,7 @@ python_package:
   - requests==2.31.0
   - pyopenssl==21.0.0
   - urllib3==1.26.5
+  - distro==1.9.0
 dpkg_package: "dpkg-dev"
 apt_conf_dest: /etc/apt/apt.conf
 
@@ -105,7 +106,7 @@ omnia17_k8s_version: '1.29.5'
 omnia161_k8s_version: '1.26.12'
 success_msg_k8s_version: "Kubernetes Version Validated"
 fail_msg_k8s_version: "Failed. Kubernetes Version is unsupported or incorrect in software_config.json for this virtual environment. Supported versions for omnia17_venv: 1.29.5, and for omnia161_venv: 1.26.12." # noqa: yaml[line-length]
-kube_version_on_unsupported_os: "Failed. On RHEL/Rocky 8.6 or 8.7 OS, supported kubernetes version is 1.26.12 and suppported virtual environment is omnia161_venv only"
+kube_version_on_unsupported_os: "Failed. On RHEL/Rocky 8.6 or 8.7 OS, supported kubernetes version is 1.26.12 and suppported virtual environment is omnia161_venv only"  # noqa: yaml[line-length]
 
 # Usage: validate_local_repo_config.yml
 fail_msg_local_repo_config_file: "local_repo_config.yml file doesn't exist."

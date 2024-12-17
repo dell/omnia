@@ -27,6 +27,13 @@
     - name: Include vars for {{ control_plane_os }}
       ansible.builtin.include_vars: "{{ role_path }}/vars/{{ control_plane_os }}.yml"
 
+    - name: Create syncfiles directory
+      ansible.builtin.file:
+        path: "{{ syncfiles_dir }}"
+        state: directory
+        mode: "{{ dir_permission }}"
+        recurse: true
+
     - name: Include vars
       ansible.builtin.include_vars: "{{ role_path }}/vars/main.yml"
 

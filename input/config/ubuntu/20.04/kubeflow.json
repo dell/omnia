@@ -5,7 +5,7 @@
          "package": "kubeflow",
          "type": "git",
          "url": "https://github.com/kubeflow/manifests.git",
-         "version": "v1.9.1-rc.2"
+         "version": "v1.9.1"
     },
     {
         "package": "kustomize",
@@ -190,7 +190,7 @@
      },
      {
          "package": "docker.io/kubeflownotebookswg/jupyter-scipy",
-         "tag": "v1.9.1",
+         "tag": "v1.9.2",
          "type": "image"
      },
      {
@@ -410,7 +410,7 @@
      },
      {
          "package": "gcr.io/tfx-oss-public/ml_metadata_store_server",
-         "tag": "1.5.0",
+         "tag": "1.14.0",
          "type": "image"
      },
      {
@@ -510,17 +510,17 @@
      },
      {
          "package": "gcr.io/ml-pipeline/frontend",
-         "tag": "2.2.0",
+         "tag": "2.3.0",
          "type": "image"
      },
      {
          "package": "gcr.io/ml-pipeline/visualization-server",
-         "tag": "2.2.0",
+         "tag": "2.3.0",
          "type": "image"
      },
      {
          "package": "docker.io/kubeflownotebookswg/poddefaults-webhook",
-         "tag": "v1.9.1",
+         "tag": "v1.9.2",
          "type": "image"
      },
      {
@@ -530,17 +530,17 @@
      },
      {
          "package": "gcr.io/ml-pipeline/cache-server",
-         "tag": "2.2.0",
+         "tag": "2.3.0",
          "type": "image"
      },
      {
          "package": "docker.io/kubeflownotebookswg/centraldashboard",
-         "tag": "v1.9.1",
+         "tag": "v1.9.2",
          "type": "image"
      },
      {
          "package": "docker.io/kubeflownotebookswg/jupyter-web-app",
-         "tag": "v1.9.1",
+         "tag": "v1.9.2",
          "type": "image"
      },
      {
@@ -575,7 +575,7 @@
      },
      {
          "package": "docker.io/kserve/kserve-controller",
-         "tag": "v0.13.0",
+         "tag": "v0.13.1",
          "type": "image"
      },
      {
@@ -600,7 +600,7 @@
      },
      {
          "package": "gcr.io/ml-pipeline/metadata-envoy",
-         "tag": "2.2.0",
+         "tag": "2.3.0",
          "type": "image"
      },
      {
@@ -610,7 +610,7 @@
      },
      {
          "package": "gcr.io/ml-pipeline/metadata-writer",
-         "tag": "2.2.0",
+         "tag": "2.3.0",
          "type": "image"
      },
      {
@@ -620,47 +620,47 @@
      },
      {
          "package": "gcr.io/ml-pipeline/api-server",
-         "tag": "2.2.0",
+         "tag": "2.3.0",
          "type": "image"
      },
      {
          "package": "gcr.io/ml-pipeline/persistenceagent",
-         "tag": "2.2.0",
+         "tag": "2.3.0",
          "type": "image"
      },
      {
          "package": "gcr.io/ml-pipeline/scheduledworkflow",
-         "tag": "2.2.0",
+         "tag": "2.3.0",
          "type": "image"
      },
      {
          "package": "docker.io/kubeflownotebookswg/tensorboard-controller",
-         "tag": "v1.9.1",
+         "tag": "v1.9.2",
          "type": "image"
      },
      {
          "package": "docker.io/kubeflownotebookswg/tensorboards-web-app",
-         "tag": "v1.9.1",
+         "tag": "v1.9.2",
          "type": "image"
      },
      {
          "package": "docker.io/kubeflow/training-operator",
-         "tag": "v1-9e52eb7",
+         "tag": "v1-04f9f13",
          "type": "image"
      },
      {
          "package": "docker.io/kubeflownotebookswg/notebook-controller",
-         "tag": "v1.9.1",
+         "tag": "v1.9.2",
          "type": "image"
      },
      {
          "package": "docker.io/kubeflownotebookswg/kfam",
-         "tag": "v1.9.1",
+         "tag": "v1.9.2",
          "type": "image"
      },
      {
          "package": "docker.io/kubeflownotebookswg/profile-controller",
-         "tag": "v1.9.1",
+         "tag": "v1.9.2",
          "type": "image"
      },
      {
@@ -675,12 +675,12 @@
      },
      {
          "package": "docker.io/kubeflownotebookswg/tensorboards-web-app",
-         "tag": "v1.9.1",
+         "tag": "v1.9.2",
          "type": "image"
      },
      {
          "package": "docker.io/kubeflownotebookswg/pvcviewer-controller",
-         "tag": "v1.9.1",
+         "tag": "v1.9.2",
          "type": "image"
      },
      {
@@ -700,12 +700,12 @@
      },
      {
          "package": "docker.io/kubeflownotebookswg/volumes-web-app",
-         "tag": "v1.9.1",
+         "tag": "v1.9.2",
          "type": "image"
      },
      {
          "package": "gcr.io/ml-pipeline/viewer-crd-controller",
-         "tag": "2.2.0",
+         "tag": "2.3.0",
          "type": "image"
      }
    ]

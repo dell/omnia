@@ -12,7 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-import sys
+import sys, os
 import yaml
 import subprocess
 
@@ -20,7 +20,7 @@ db_path = sys.argv[1]
 sys.path.insert(0, db_path)
 import omniadb_connection
 
-network_spec_path = sys.argv[2]
+network_spec_path = os.path.abspath(sys.argv[2])
 nw_names = []
 omnia_nw_names = []
 

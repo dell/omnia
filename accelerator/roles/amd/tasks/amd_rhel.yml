@@ -17,7 +17,7 @@
   ansible.builtin.package:
     name: amdgpu-dkms
     enablerepo: amd_gpu
-    state: present
+    state: latest # noqa package-latest
 
 - name: Reboot after installing GPU drivers
   ansible.builtin.reboot:
@@ -28,7 +28,7 @@
       ansible.builtin.package:
         name: "{{ rocm_packages }}"
         enablerepo: ROCm
-        state: present
+        state: latest # noqa package-latest
 
     - name: Check if environment variables are set
       ansible.builtin.command: echo $PATH

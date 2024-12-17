@@ -26,4 +26,3 @@
   when: "'omnia17_venv' in venv_path"
   ansible.builtin.command: "{{ python_version }} -m pip install -r {{ pip_modules_req_file }}"
   changed_when: false
-

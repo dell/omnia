@@ -20,8 +20,9 @@ end_ip=sys.argv[2]
 
 start_ip = ipaddress.ip_address(start_ip)
 end_ip = ipaddress.ip_address(end_ip)
-ip_range = ipaddress.summarize_address_range(start_ip, end_ip)
-count = 0
-for subnet in ip_range:
-    count += subnet.num_addresses
-print(count)
+if start_ip and end_ip:
+    ip_range = ipaddress.summarize_address_range(start_ip, end_ip)
+    count = 0
+    for subnet in ip_range:
+        count += subnet.num_addresses
+    print(count)

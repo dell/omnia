@@ -41,4 +41,3 @@
           ansible.builtin.fail:
             msg: "{{ script_output.stderr }}"
           when: script_output.stderr is defined
-

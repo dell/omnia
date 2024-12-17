@@ -12,10 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 - name: Check if virtual environment is active
   ansible.builtin.import_playbook: ../check_venv.yml
   when: not ( hostvars['127.0.0.1']['check_venv_executed'] | default(false) | bool )
+
+- name: Inventory Check
+  hosts: localhost
+  tasks:
+    - name: Check inventory file exists
+      ansible.builtin.include_role:
+        name: update_network_manager
+        tasks_from: check_inventory
 
 - name: Update network manager
   hosts: all

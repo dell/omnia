@@ -21,3 +21,7 @@ warning_wait_time: 30
 nic_configuration_file_path: "/etc/network/interfaces.d/{{ item.nic_name }}"
 nic_config_warning_msg: "nic configuration file not found for {{ nic_configuration_file_path }}
  Make sure that nic_name given in inventory is valid and server_spec_update.yml should be executed before ip_rule_assignment.yml"
+invalid_nic_name: "Failed, invalid nic name provided in inventory"
+
+# Usage: check_inventory.yml
+inventory_not_provided: "Failed. Inventory not provided. Re-run playbook with inventory by providing -i inventory."
