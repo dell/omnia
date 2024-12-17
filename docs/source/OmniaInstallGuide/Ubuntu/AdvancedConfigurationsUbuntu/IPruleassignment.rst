@@ -6,7 +6,7 @@ This playbook is used for updating IP rule of the additional configured NICs.
 .. note::
 
     * ``ip_rule_assignment`` is only supported for clusters running on Ubuntu OS.
-    * Assigning an IP rule is not supported for VLAN NICs using the ``ip_rule_assignment.yml`` playbook. If you want to assign an IP rule to your VLAN NIC, `click here <>`_.
+    * Assigning an IP rule is not supported for VLAN NICs using the ``ip_rule_assignment.yml`` playbook. If you want to assign an IP rule to your VLAN NIC, `click here <IPruleassignment.html#assign-an-ip-rule-to-a-vlan-nic>`_.
 
 **Prerequisites**
 
