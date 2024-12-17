@@ -20,7 +20,7 @@ Input parameters for Local Repositories
             "cluster_os_version": "8.8",
             "repo_config": "partial",
             "softwares": [
-                {"name": "amdgpu", "version": "6.0"},
+                {"name": "amdgpu", "version": "6.2.2"},
                 {"name": "cuda", "version": "12.3.2"},
                 {"name": "ofed", "version": "24.01-0.3.3.1"},
                 {"name": "freeipa"},
@@ -46,7 +46,7 @@ Input parameters for Local Repositories
             ],
 
             "amdgpu": [
-                {"name": "rocm", "version": "6.0" }
+                {"name": "rocm", "version": "6.2.2" }
             ],
             "vllm": [
                 {"name": "vllm_amd"},
