@@ -120,7 +120,7 @@ If you encounter image download failures while executing ``local_repo.yml``, do 
 
         Else, do the following:
 
-            a. Restart control-plane and check curl command output again.
+            a. Restart the OIM and check curl command output again.
             b. Re-run ``local_repo.yml``.
 
     5. Run the following command:
