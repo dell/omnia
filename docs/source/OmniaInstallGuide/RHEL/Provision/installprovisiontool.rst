@@ -44,13 +44,13 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
 .. caution:: Always execute ``discovery_provision.yml`` within the ``omnia`` directory. That is, always change directories (``cd omnia``) to the path where the playbook resides before running the playbook.
 
 
-**Stage 1: Preparing the control plane**
+**Stage 1: Preparing the OIM**
 
     * Installs required tool packages.
     * Verifies and updates firewall settings.
     * Installs xCAT.
     * Configures Omnia databases basis ``input/network_spec.yml``.
-    * Creates empty inventory files in the control plane at ``/opt/omnia/omnia_inventory/``. These inventory files will be filled with information of compute node service tag post provisioning based on type of CPUs and GPUs they have. The inventory files are:
+    * Creates empty inventory files on the OIM at ``/opt/omnia/omnia_inventory/``. These inventory files will be filled with information of compute node service tag post provisioning based on type of CPUs and GPUs they have. The inventory files are:
 
         * ``compute_cpu_amd``
         * ``compute_cpu_intel``
@@ -80,7 +80,7 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
 
     * PostgreSQL database is set up with all relevant cluster information such as MAC IDs, hostname, admin IP, BMC IPs etc.
 
-    * Configures the control plane with NTP services for cluster  node synchronization.
+    * Configures the OIM with NTP services for cluster  node synchronization.
 
 
     To call this playbook individually, run::
@@ -119,11 +119,11 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
 
 .. caution::
 
-    * Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect. If the new environment variables still do not come into effect, enable manually using: ::
+    * Once xCAT is installed, restart your SSH session to the OIM to ensure that the newly set up environment variables come into effect. If the new environment variables still do not come into effect, enable manually using: ::
 
              source /etc/profile.d/xcat.sh
 
-    * To avoid breaking the passwordless SSH channel on the control plane, do not run ``ssh-keygen`` commands post execution of ``discovery_provision.yml`` to create a new key.
+    * To avoid breaking the password-less SSH channel on the OIM, do not run ``ssh-keygen`` commands post execution of ``discovery_provision.yml`` to create a new key.
     * Do not delete the following directories:
         - ``/root/xcat``
         - ``/root/xcat-dbback``

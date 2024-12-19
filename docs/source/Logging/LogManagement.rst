@@ -25,4 +25,4 @@ With the above settings:
 
     * Data upto 4 weeks old is backed up. Any log backup older than four weeks will be deleted.
 
-.. caution:: Since these logs take up ``/var`` space, sufficient space must be allocated to ``/var`` partition if it's created. If ``/var`` partition space fills up, control plane might crash.
+.. caution:: Since these logs take up ``/var`` space, sufficient space must be allocated to ``/var`` partition if it's created. If ``/var`` partition space fills up, OIM might crash.

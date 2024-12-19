@@ -51,7 +51,7 @@ Kubernetes
 
 ⦾ **Why does the 'Initialize Kubeadm' task fail with 'nnode.Registration.name: Invalid value: \"<Host name>\"'?**
 
-**Potential Cause**: The control plane does not support hostnames with an underscore in it, such as 'mgmt_station'.
+**Potential Cause**: The OIM does not support hostnames with an underscore in it, such as 'mgmt_station'.
 
 **Resolution**: As defined in RFC 822, the only legal characters are the following:
 

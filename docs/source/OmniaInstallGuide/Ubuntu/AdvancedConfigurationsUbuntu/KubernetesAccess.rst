@@ -3,7 +3,7 @@ Granting Kubernetes access
 
 Omnia grants Kubernetes node access to users defined on the ``kube_control_plane`` using the ``k8s_access.yml`` playbook.
 
-**Prerequisites**
+**Prerequisite**
 
 * Ensure that the Kubernetes cluster is up and running.
 

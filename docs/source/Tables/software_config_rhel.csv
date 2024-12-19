@@ -16,12 +16,12 @@ Required","* The OS Version that will be provisoned on compute nodes.
 ``string``
 
 Required","* The type of offline configuration user needs.
-* When the value is set to ``always``, Omnia creates a local repository/registry on the Control plane hosting all the packages/images required for the cluster.
-* When the value is set to ``partial``, Omnia creates a local repository/registry on the Control plane hosting all the packages/images except those listed in the ``user_repo_url/user_registry`` in ``input/local_repo_config.yml``.
+* When the value is set to ``always``, Omnia creates a local repository/registry on the OIM hosting all the packages/images required for the cluster.
+* When the value is set to ``partial``, Omnia creates a local repository/registry on the OIM hosting all the packages/images except those listed in the ``user_repo_url/user_registry`` in ``input/local_repo_config.yml``.
 * When the value is set to ``never``, Omnia does not create a local repository/registry. All the packages/images are directly downloaded on the cluster.
 .. note::
   * After ``local_repo.yml`` has run, the value of ``repo_config`` in ``input/software_config.json`` cannot be updated without running the `control_plane_cleanup.yml <../../Maintenance/cleanup.html>`_ script first.
-  * Irrespective of the value of ``repo_config``, all local repositories that are not available as images, debian packages, or RPMs will be downloaded and configured locally on the control plane. Additionally, AMD GPU drivers, CUDA, and OFED are also downloaded by default if they are mentioned in the ``input/software_config.json``.
+  * Irrespective of the value of ``repo_config``, all local repositories that are not available as images, debian packages, or RPMs will be downloaded and configured locally on the OIM. Additionally, AMD GPU drivers, CUDA, and OFED are also downloaded by default if they are mentioned in the ``input/software_config.json``.
 
 * **Accepted values**:
 

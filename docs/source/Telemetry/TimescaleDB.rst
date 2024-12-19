@@ -3,7 +3,7 @@ Timescale DB
 
 **Accessing the timescale DB**
 
-1. Check the IP of the control plane (``ifconfig``): ::
+1. Check the IP of the OIM (``ifconfig``): ::
 
     3: eno8403: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP group default qlen 1000 link/ether b4:45:06:eb:da:4e brd ff:ff:ff:ff:ff:ff
     inet 198.168.0.11/24 brd 198.168.0.255 scope global dynamic noprefixroute eno8403 validlft 30884289sec preferred_lft 30884289sec ínet6 fe80::b645:6ff:feeb:da4e/64 scope link noprefixroute validlft forever preferredlft forever

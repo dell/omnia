@@ -17,7 +17,7 @@ Provision
 
 .. image:: ../../../images/PXEBootFail.png
 
-1. Rectify any probable causes like incorrect/unavailable credentials (``switch_snmp3_username`` and ``switch_snmp3_password`` provided in ``input/provision_config.yml``), network glitches, having multiple NICs with the same IP address as the control plane, or incorrect switch IP/port details.
+1. Rectify any probable causes like incorrect/unavailable credentials (``switch_snmp3_username`` and ``switch_snmp3_password`` provided in ``input/provision_config.yml``), network glitches, having multiple NICs with the same IP address as the OIM, or incorrect switch IP/port details.
 2. Run the clean up script by: ::
 
      cd utils
@@ -42,18 +42,18 @@ Provision
 
 .. image:: ../../../images/UserLoginError.png
 
-**Potential Cause**: SSH key on the control plane may be outdated.
+**Potential Cause**: SSH key on the OIM may be outdated.
 
 **Resolution**:
 
    * Refresh the key using ``ssh-keygen -R <hostname/server IP>``.
    * Retry login.
 
-⦾ **Why is the node status stuck at 'powering-on' or 'powering-off' after a control plane reboot?**
+⦾ **Why is the node status stuck at 'powering-on' or 'powering-off' after a OIM reboot?**
 
-**Potential Cause**: The nodes were powering off or powering on during the control plane reboot/shutdown.
+**Potential Cause**: The nodes were powering off or powering on during the OIM reboot/shutdown.
 
-**Resolution**: In the case of a planned shutdown, ensure that the control plane is shut down after the compute nodes. When powering back up, the control plane should be powered on and xCAT services resumed before bringing up the compute nodes. In short, have the control plane as the first node up and the last node down.
+**Resolution**: In the case of a planned shutdown, ensure that the OIM is shut down after the compute nodes. When powering back up, the OIM should be powered on and xCAT services resumed before bringing up the compute nodes. In short, have the OIM as the first node up and the last node down.
 
 For more information, `click here <https://github.com/xcat2/xcat-core/issues/7374>`_
 

@@ -12,9 +12,9 @@ Due to internal MAC ID conflicts on the target nodes, the MAC address will be li
 
 .. image:: ../../../images/AdminNICErrors.png
 
-**Potential Cause:** Omnia validates the admin NIC IP on the control plane. If the user has not assigned an admin NIC IP in case of dedicated network interface type, an error message is returned. There is a parsing logic that is being applied on the blank IP and hence, the error displays twice.
+**Potential Cause:** Omnia validates the admin NIC IP on the OIM. If the user has not assigned an admin NIC IP in case of dedicated network interface type, an error message is returned. There is a parsing logic that is being applied on the blank IP and hence, the error displays twice.
 
-**Resolution**: Ensure a control plane IP is assigned to the admin NIC.
+**Resolution**: Ensure a OIM IP is assigned to the admin NIC.
 
 
 ⦾ **Why are some target servers not reachable after PXE booting them?**
@@ -46,7 +46,7 @@ Due to internal MAC ID conflicts on the target nodes, the MAC address will be li
 
 * Create a Non-RAID or virtual disk on the server.
 
-* Check if other systems except for the control plane have ``xcatd`` running. If yes, then stop the xCAT service using the following commands: ``systemctl stop xcatd``.
+* Check if other systems except for the OIM have ``xcatd`` running. If yes, then stop the xCAT service using the following commands: ``systemctl stop xcatd``.
 
 * On the server, go to **BIOS Setup -> Network Settings -> PXE Device**. For each listed device (typically 4), configure an active NIC under ``PXE device settings``
 
@@ -83,7 +83,7 @@ Due to internal MAC ID conflicts on the target nodes, the MAC address will be li
         ansible-playbook discovery_provision.yml
 
 
-⦾ **While executing** ``discovery_provision.yml`` **playbook from the control plane, some of the cluster nodes fail to boot up and omniadb captures the node status as "failed".**
+⦾ **While executing** ``discovery_provision.yml`` **playbook from the OIM, some of the cluster nodes fail to boot up and omniadb captures the node status as "failed".**
 
 .. image:: ../../../images/waco_node_boot_failure.png
 

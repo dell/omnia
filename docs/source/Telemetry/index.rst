@@ -55,7 +55,7 @@ To modify how data is collected from the cluster, modify the variables in ``omni
 .. note::
     * Currently, changing the ``grafana_username`` and ``grafana_password`` values is not supported via ``telemetry.yml``.
     * The passed inventory should have an idrac group, if ``idrac_telemetry_support`` is true.
-    * If ``omnia_telemetry_support`` is true, then the inventory should have control plane and cluster node groups (as specified in the sample files) along with optional login group.
+    * If ``omnia_telemetry_support`` is true, then the inventory should have OIM and cluster node groups (as specified in the sample files) along with optional login group.
     * Rocky Linux 8.7 is not compatible with the Kubernetes installed by ``telemetry.yml`` due to known issues with cri-o. For more information, `click here <https://github.com/cri-o/cri-o/issues/6197>`_.
     * If a subsequent run of ``telemetry.yml`` fails, the ``telemetry_config.yml`` file will be unencrypted.
 

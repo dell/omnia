@@ -1,9 +1,9 @@
 Download custom packages/images to the cluster
 ===============================================
 
-**Download packages/images to the control plane registry**
+**Download packages/images to the OIM registry**
 
-To download packages/images to the control plane registry/repository, ``local_repo.yml`` should be executed.
+To download packages/images to the OIM registry/repository, ``local_repo.yml`` should be executed.
 
 Follow the steps below to download packages/images:
 
@@ -54,7 +54,7 @@ Follow the steps below to download packages/images:
                 ]
             }
 
-    3. Execute the following command to download required images from internet to control plane:
+    3. Execute the following command to download required images from internet to OIM:
 
         ::
 
@@ -77,18 +77,18 @@ Follow the steps below to download packages/images:
             10.8.0.2
             10.8.0.3
 
-    2. Execute the following command to pull images from control plane to the desired nodes:
+    2. Execute the following command to pull images from OIM to the desired nodes:
 
         ::
 
             cd utils
             ansible-playbook pull_images_to_nodes.yml -i imagepull_inventory.ini
 
-.. note:: Since the nodes are behind the proxy, they don't have direct internet access. Only the control plane has direct access to the public internet.
-          Nodes can connect to the internet via the control plane by setting the ``http_proxy`` and ``https_proxy`` environment variables, in the following format: ::
+.. note:: Since the nodes are behind the proxy, they don't have direct internet access. Only the OIM has direct access to the public internet.
+          Nodes can connect to the internet via the OIM by setting the ``http_proxy`` and ``https_proxy`` environment variables, in the following format: ::
 
-              export http_proxy=http://<Host IP address of control plane>:3128
-              export https_proxy=http://<Host IP address of control plane>:3128
+              export http_proxy=http://<Host IP address of OIM>:3128
+              export https_proxy=http://<Host IP address of OIM>:3128
 
           Example: ::
 

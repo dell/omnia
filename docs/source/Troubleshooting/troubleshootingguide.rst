@@ -34,7 +34,7 @@ Checking and updating encrypted parameters
         ansible-vault edit provision_config_credentials.yml --vault-password-file .provision_credential_vault_key
 
 
-Checking pod status on the control plane
+Checking pod status from the OIM
 --------------------------------------------
    * Use this command to get a list of all available pods: ``kubectl get pods -A``
    * Check the status of any specific pod by running: ``kubectl describe pod <pod name> -n <namespace name>``

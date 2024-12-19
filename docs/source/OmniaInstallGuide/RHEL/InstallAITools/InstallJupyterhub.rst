@@ -39,7 +39,7 @@ Using Jupyterhub helm chart (version 3.2.0), Omnia installs Jupyterhub (version 
 
 **Accessing the Jupyterhub GUI**
 
-1. Login to kube control plane and verify that the Jupyterhub service is running.
+1. Login to the ``kube_control_plane`` and verify that the Jupyterhub service is running.
 2. Find the IP address of the Jupyterhub service using:
 
         ::
