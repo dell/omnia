@@ -72,8 +72,8 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
 
     ::
 
-        cd prepare_cp
-        ansible-playbook prepare_cp.yml
+        cd prepare_oim
+        ansible-playbook prepare_oim.yml
 
 **Stage 2: Discovering the nodes**
 
@@ -100,7 +100,7 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
 
 .. note::
 
-    * If you are using ``switch_based`` discovery mechanism, you do not need to run ``provision.yml`` playbook. Run ``prepare_cp.yml`` and ``discovery.yml`` and then manually boot the nodes in PXE mode.
+    * If you are using ``switch_based`` discovery mechanism, you do not need to run ``provision.yml`` playbook. Run ``prepare_oim.yml`` and ``discovery.yml`` and then manually boot the nodes in PXE mode.
 
     * After executing ``discovery_provision.yml`` playbook, user can check the log file available at ``/var/log/omnia.log`` for more information.
 

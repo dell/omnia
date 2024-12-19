@@ -30,7 +30,7 @@ Cluster deployment logs,/var/log/xcat/cluster.log,Logs deployment  messages from
 Server Network Logs,/var/log/omnia/server_spec_update.log,Server network log,This log is configured by Default.
 Local Repository Logs,/var/log/omnia/local_repo.log,Local repository log,This log is configured by Default.
 Discovery Logs,/var/log/omnia/discovery.log,Discovery log,This log is configured by Default.
-Prepare OIM Logs,/var/log/omnia/prepare_cp.log,Preparing OIM log,This log is configured by Default.
+Prepare OIM Logs,/var/log/omnia/prepare_oim.log,Preparing OIM log,This log is configured by Default.
 Tools Logs,/var/log/omnia/tools.log,Tools log,This log is configured by Default.
 Upgrade Logs,/var/log/omnia/upgrade.log,Upgrade log,This log is configured by Default.
 IP Rule Assignment Logs,/var/log/omnia/ip_rule_assignment.log,IP rule assignment log,This log is configured by Default.

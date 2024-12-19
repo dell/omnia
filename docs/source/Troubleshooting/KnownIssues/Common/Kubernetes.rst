@@ -71,9 +71,9 @@ Kubernetes
 
 .. image:: ../../../images/kubespray_error.png
 
-**Potential Cause**: This error occurs when the Kubespray collection is not installed during the execution of ``prepare_cp.yml``.
+**Potential Cause**: This error occurs when the Kubespray collection is not installed during the execution of ``prepare_oim.yml``.
 
-**Resolution**: Re-run ``prepare_cp.yml``.
+**Resolution**: Re-run ``prepare_oim.yml``.
 
 
 ⦾ **Why does the NFS-client provisioner go to a "ContainerCreating" or "CrashLoopBackOff" state?**

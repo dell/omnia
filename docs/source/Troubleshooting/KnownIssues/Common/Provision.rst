@@ -71,7 +71,7 @@ Due to internal MAC ID conflicts on the target nodes, the MAC address will be li
     Where <node> refers to the node column in the OmniaDB, which has a “standingby” status.
 
 
-⦾ **Why does the** ``discovery_provision.yml`` **playbook execution fail at task: "Prepare_cp needs to be executed"?**
+⦾ **Why does the** ``discovery_provision.yml`` **playbook execution fail at task: "prepare_oim needs to be executed"?**
 
 **Potential Cause**: Invalid input provided in ``network_spec.yml`` for ``admin_network`` or ``bmc_network`` fields.
 
