@@ -1,7 +1,7 @@
 Upgrade Omnia OIM
 ==============================
 
-To upgrade the Omnia version 1.6.1 to version 1.7 on your OIM, you can use the ``upgrade_cp.yml`` playbook in Omnia 1.7. This ensures that your OIM is running the latest version and includes any new features and improvements that are available.
+To upgrade the Omnia version 1.6.1 to version 1.7 on your OIM, you can use the ``upgrade_oim.yml`` playbook in Omnia 1.7. This ensures that your OIM is running the latest version and includes any new features and improvements that are available.
 
 .. caution:: Do not reboot the OIM before initiating the upgrade process, as it leads to loss of telemetry data.
 
@@ -10,9 +10,9 @@ To upgrade the Omnia version 1.6.1 to version 1.7 on your OIM, you can use the `
     * Before initiating upgrade, ensure that the OIM has a stable internet connection to avoid intermittent issues caused by poor network connectivity.
     * After upgrading the Omnia OIM running on a `supported OS <../Overview/SupportMatrix/OperatingSystems/index.html>`_ (except RHEL/Rocky Linux 8.6 and 8.8), the ``input/software_config.json`` file remains in its default state. This enables users to install the default software versions on a new cluster.
 
-**Tasks performed by the** ``upgrade_cp.yml`` **playbook**
+**Tasks performed by the** ``upgrade_oim.yml`` **playbook**
 
-The ``upgrade_cp.yml`` playbook performs the following tasks:
+The ``upgrade_oim.yml`` playbook performs the following tasks:
 
 * Validates whether upgrade can be performed on the Omnia OIM.
 * Takes backup of the Kubernetes etcd database, TimescaleDB, and MySQLDB at the backup location specified by the user.
@@ -57,26 +57,26 @@ To upgrade the Omnia OIM, do the following:
     |                             | .. note:: Verify that the directory has not been altered since the last execution of ``discovery_provision.yml`` and ``omnia.yml`` playbooks.   |
     +-----------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------+
     | ``backup_location``         | * This variable points to the directory where the Omnia OIM backup is stored during the upgrade process.                                        |
-    |    Optional                 | * User must create this directory before running ``upgrade_cp.yml`` playbook and provide the complete path of that directory.                   |
+    |    Optional                 | * User must create this directory before running ``upgrade_oim.yml`` playbook and provide the complete path of that directory.                  |
     |                             | * If the specified directory doesn't exist, backups will be taken at ``/opt/omnia/backup_before_upgrade``                                       |
     |                             | * **Example**: ``/opt/omnia/upgrade_backup``                                                                                                    |
     +-----------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------+
 
-5. Finally, execute the ``upgrade_cp.yml`` playbook using the following command: ::
+5. Finally, execute the ``upgrade_oim.yml`` playbook using the following command: ::
 
     cd upgrade
-    ansible-playbook upgrade_cp.yml
+    ansible-playbook upgrade_oim.yml
 
 .. caution::
 
-    If ``upgrade_cp.yml`` execution fails, you can rollback to Kubernetes version 1.26.12 and restore the old backed-up data using the ``restore_cp.yml`` playbook. To restore, do the following:
+    If ``upgrade_oim.yml`` execution fails, you can rollback to Kubernetes version 1.26.12 and restore the old backed-up data using the ``restore_oim.yml`` playbook. To restore, do the following:
 
         1. Activate the Omnia virtual environment using the ``source /opt/omnia/omnia161_venv/bin/activate`` command.
 
-        2. Execute the ``restore_cp.yml`` playbook using the following command: ::
+        2. Execute the ``restore_oim.yml`` playbook using the following command: ::
 
             cd upgrade
-            ansible-playbook restore_cp.yml
+            ansible-playbook restore_oim.yml
 
 **Post Upgrade**
 

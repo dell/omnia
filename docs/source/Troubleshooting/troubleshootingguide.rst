@@ -111,7 +111,7 @@ If you encounter image download failures while executing ``local_repo.yml``, do 
 
             ::
 
-                curl -k https://<cp_hostname>:5001/v2/_catalog
+                curl -k https://<OIM_hostname>:5001/v2/_catalog
 
         Expected outputs:
 
@@ -127,14 +127,14 @@ If you encounter image download failures while executing ``local_repo.yml``, do 
 
             ::
 
-                openssl s_client -showcerts -connect <cp_hostname>:5001
+                openssl s_client -showcerts -connect <OIM_hostname>:5001
 
         Expected output:
 
         .. image:: ../images/image_failure_output_s5.png
 
         * Verify that the certificate is valid and ``CN=private_registry``.
-        * Certificate shown by this command output should be the same as output present at ``/etc/containerd/certs.d/<cp_hostname>5001/ca.crt``.
+        * Certificate shown by this command output should be the same as output present at ``/etc/containerd/certs.d/<OIM_hostname>5001/ca.crt``.
 
         If no certificate is visible on screen, run the following command:
 
