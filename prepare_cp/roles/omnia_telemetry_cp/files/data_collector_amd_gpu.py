@@ -128,7 +128,7 @@ def get_gpu_health_driver():
     '''
     This method collects amd gpu driver health from rocm query output
     '''
-    amd_metrics_query = "/opt/rocm/bin/rocm-smi --showdriverversion --csv"
+    amd_metrics_query = "/opt/rocm/bin/rocm-smi --showdriverversion --csv -t"
     command_result = invoke_commands.run_command(amd_metrics_query)
     list_info = invoke_commands.run_command("/opt/rocm/bin/rocm-smi -i --csv")
     gpu_driver = {}
@@ -137,7 +137,7 @@ def get_gpu_health_driver():
             command_result_df = common_parser.get_df_format(command_result)
             gpu_util_list = common_parser.get_col_from_df(command_result_df, 'Driver version')
             list_info_df = common_parser.get_df_format(list_info)
-            gpu_list = common_parser.get_col_from_df(list_info_df, 'GPU ID')
+            gpu_list = common_parser.get_col_from_df(list_info_df, 'Device ID')
             for index,item in enumerate(gpu_list):
                 gpu_driver[index] = gpu_util_list[0]
             return gpu_driver

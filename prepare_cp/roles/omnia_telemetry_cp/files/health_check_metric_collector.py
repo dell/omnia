@@ -24,6 +24,7 @@ from collections import defaultdict
 import utility
 import data_collector_nvidia_gpu
 import data_collector_amd_gpu
+import data_collector_amd_proc_acc
 import data_collector_gaudi
 import prerequisite
 
@@ -120,7 +121,7 @@ class HealthCheckMetricCollector:
         health_metrics['gpu_pcie'] = data_collector_amd_gpu.get_gpu_health_pcie()
 
         # get pmu health details for AMD GPU
-        health_metrics['gpu_pmu'] = data_collector_amd_gpu.get_gpu_health_nvlink()
+        health_metrics['gpu_pmu'] = data_collector_amd_gpu.get_gpu_health_pmu()
 
         # get power health details for AMD GPU
         gpu_power_max,gpu_power_avg = data_collector_amd_gpu.get_gpu_health_power()
@@ -129,6 +130,37 @@ class HealthCheckMetricCollector:
 
         # get thermal health details for AMD GPU
         health_metrics['gpu_thermal'] = data_collector_amd_gpu.get_gpu_health_thermal()
+
+        self.gpu_health_metrics(health_metrics)
+
+    def get_amd_proc_acc_metrics(self):
+        '''
+        This method collects all the amd gpu health metrics
+        '''
+        health_metrics = defaultdict(list)
+        # This function is same as in data_collector_amd_gpu
+        # get driver health details for AMD GPU
+        health_metrics['gpu_driver'] = data_collector_amd_gpu.get_gpu_health_driver()
+        
+        # This function is same as in data_collector_amd_gpu
+        # get nvlink health details for AMD GPU
+        health_metrics['gpu_nvlink'] = data_collector_amd_gpu.get_gpu_health_nvlink()
+
+        # This function is same as in data_collector_amd_gpu
+        # get pcie health details for AMD GPU
+        health_metrics['gpu_pcie'] = data_collector_amd_gpu.get_gpu_health_pcie()
+
+        # This function is same as in data_collector_amd_gpu
+        # get pmu health details for AMD GPU
+        health_metrics['gpu_pmu'] = data_collector_amd_gpu.get_gpu_health_pmu()
+
+        # get power health details for AMD GPU
+        gpu_power_max,gpu_power_avg = data_collector_amd_proc_acc.get_gpu_health_power()
+        health_metrics['gpu_power_max'] = gpu_power_max
+        health_metrics['gpu_power_avg'] = gpu_power_avg
+
+        # get thermal health details for AMD GPU
+        health_metrics['gpu_thermal'] = data_collector_amd_proc_acc.get_gpu_health_thermal()
 
         self.gpu_health_metrics(health_metrics)
 
@@ -317,10 +349,12 @@ class HealthCheckMetricCollector:
         # Run only when amd gpu present
         if prerequisite.dict_component_existence['amdgpu']:
             self.get_amd_metrics()
+        if prerequisite.dict_component_existence['amd_proc_acc']:
+            self.get_amd_proc_acc_metrics()
         # Run only when gaudi present
         if prerequisite.dict_component_existence['intelgaudi']:
             self.get_gaudi_metrics()
-        if prerequisite.dict_component_existence['nvidiagpu'] is False and prerequisite.dict_component_existence['amdgpu'] is False and prerequisite.dict_component_existence['intelgaudi'] is False:
+        if prerequisite.dict_component_existence['nvidiagpu'] is False and prerequisite.dict_component_existence['amdgpu'] is False and prerequisite.dict_component_existence['amd_proc_acc'] and prerequisite.dict_component_existence['intelgaudi'] is False:
             self.health_check_metric_output_dict["gpu_health_driver"] = \
                 utility.Result.UNKNOWN.value
             self.health_check_metric_output_dict["gpu_health_nvlink"] = \
