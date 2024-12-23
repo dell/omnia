@@ -83,7 +83,7 @@ def call_command_with_pipe(command):
                 return None
     return output.stdout.strip() if output else None
 
-def run_command(command):
+def run_command(command, output=''):
     """
         Call a command using subprocess and return the output or log errors using syslog.
         Args:
@@ -92,8 +92,13 @@ def run_command(command):
             str or None: The output of the command or None if an error occurred.
        """
     try:
-        output = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                universal_newlines=True, check=True)
+        # Split the command by space into a list of tokens
+        list_command_split_by_space_quote = common_parser.split_by_space_and_quote(command)
+        output = subprocess.run(list_command_split_by_space_quote,input=output, \
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, \
+                                timeout=float(utility.dict_telemetry_ini \
+                                              ["metric_collection_timeout"]), \
+                                                universal_newlines=True, check=True)
 
         return output.stdout.strip() if output.stdout else None
     except Exception as exc:

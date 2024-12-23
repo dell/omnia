@@ -165,6 +165,7 @@ if [ "$unsupported_os" = true ]; then
 	venv_location="/opt/omnia/omnia161_venv" # Do not give a trailing slash
 fi
 
+# Check if the OS version is unsupported and print a warning message
 install_omnia_version=$(grep "omnia_version:" ".metadata/omnia_version" | cut -d ':' -f 2 | tr -d ' ')
 if [[ "$OS_ID" == "rhel" || "$OS_ID" == "rocky" ]]; then
     if [[ "$VERSION_ID" != "8.8" ]]; then
@@ -373,8 +374,6 @@ if [[ "$SELINUX_REBOOT_REQUIRED" == "true" ]]; then
     echo "SELinux has been successfully disabled. Please reboot the system before proceeding. However, if you are upgrading or restoring the control plane, avoid rebooting to prevent the loss of telemetry data."
     echo -e "${NC}"
 fi
-
-# Check if the OS version is unsupported and print a warning message
 
 echo -e "${BLUE}"
 echo "Download the ISO file required to provision in the control plane."

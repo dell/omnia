@@ -18,6 +18,7 @@ Module to gather gpu related metrics
 import math
 import data_collector_nvidia_gpu
 import data_collector_amd_gpu
+import data_collector_amd_proc_acc
 import data_collector_gaudi
 import utility
 import prerequisite
@@ -99,6 +100,43 @@ class GPUMetricCollector:
         else:
             self.gpu_metric_output_dict["gpu_utilization:average"] = utility.Result.NO_DATA.value
 
+    def get_amd_proc_acc_metrics(self):
+        '''
+        This method collects all the AMD gpu metrics
+        '''
+        # get temperature details for AMD GPU
+        gpu_temp = data_collector_amd_proc_acc.get_amd_gpu_temp()
+        if gpu_temp is not None:
+            for keys, values in gpu_temp.items():
+                for index, value in enumerate(values):
+                    if not math.isnan(float(value)):
+                        self.gpu_metric_output_dict['gpu_temperature:' + keys + ':gpu' + str(index)] = str(value)
+                        self.gpu_unit['gpu_temperature:' + keys] = "C"
+                    else:
+                        self.gpu_metric_output_dict[
+                            'gpu_temperature:' + keys + ':gpu' + str(index)] = utility.Result.NO_DATA.value
+        else:
+            self.gpu_metric_output_dict["gpu_temperature:gpu"] = utility.Result.NO_DATA.value
+
+        # This function is same as in data_collector_amd_gpu
+        # get utilization details for AMD GPU
+        gpu_util = data_collector_amd_gpu.get_amd_gpu_utilization()
+        if gpu_util is not None:
+            for index, item in enumerate(gpu_util):
+                self.gpu_metric_output_dict["gpu_utilization:gpu" + str(index)] = str(item)
+                self.gpu_unit["gpu_utilization:gpu"] = "percent"
+        else:
+            self.gpu_metric_output_dict["gpu_utilization:gpu"] = utility.Result.NO_DATA.value
+
+        # This function is same as in data_collector_amd_gpu
+        # get average of utilization of all GPUs in the system
+        gpu_avg_util = data_collector_amd_gpu.get_amd_gpu_avg_utilization(gpu_util)
+        if gpu_avg_util is not None:
+            self.gpu_metric_output_dict["gpu_utilization:average"] = str(gpu_avg_util)
+            self.gpu_unit["gpu_utilization:average"] = "percent"
+        else:
+            self.gpu_metric_output_dict["gpu_utilization:average"] = utility.Result.NO_DATA.value
+
     def get_gaudi_metrics(self):
         '''
         This method collects all the gaudi metrics
@@ -141,13 +179,15 @@ class GPUMetricCollector:
         # Run only when amd gpu present
         if prerequisite.dict_component_existence['amdgpu']:
             self.get_amd_metrics()
-
+        # Run only when amd processing accelerator present
+        if prerequisite.dict_component_existence['amd_proc_acc']:
+            self.get_amd_proc_acc_metrics()
         # Run only when gaudi present
         if prerequisite.dict_component_existence['intelgaudi']:
             self.get_gaudi_metrics()
 
         if prerequisite.dict_component_existence['nvidiagpu'] is False and prerequisite.dict_component_existence[
-            'amdgpu'] is False and prerequisite.dict_component_existence['intelgaudi'] is False:
+            'amdgpu'] is False and prerequisite.dict_component_existence['amd_proc_acc'] is False and prerequisite.dict_component_existence['intelgaudi'] is False:
             self.gpu_metric_output_dict["gpu_temperature"] = utility.Result.NO_DATA.value
             self.gpu_metric_output_dict["gpu_utilization"] = utility.Result.NO_DATA.value
             self.gpu_metric_output_dict["gpu_utilization:average"] = utility.Result.NO_DATA.value
