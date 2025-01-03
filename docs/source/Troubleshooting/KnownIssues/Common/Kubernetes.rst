@@ -64,6 +64,8 @@ Kubernetes
 
 ⦾ **What to do if** ``omnia.yml`` **playbook execution fails with MetalLB, a load-balancer for bare metal Kubernetes cluster?**
 
+**Potential Cause**: This failure is caused due to an issue with Kubespray, a third-party software. For more information about this issue, `click here <https://github.com/kubernetes-sigs/kubespray/issues/11847>`_.
+
 **Resolution**: If your ``omnia.yml`` playbook execution fails while waiting for the MetalLB controller to be up and running, you need to wait for the MetalLB pods to come to running state and then re-run ``omnia.yml/scheduler.yml``.
 
 
