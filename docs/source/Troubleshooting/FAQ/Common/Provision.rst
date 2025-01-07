@@ -21,7 +21,7 @@ Provision
 2. Run the clean up script by: ::
 
      cd utils
-     ansible-playbook control_plane_cleanup.yml
+     ansible-playbook oim_cleanup.yml
 
 3. Re-run the provision tool (``ansible-playbook discovery_provision.yml``).
 

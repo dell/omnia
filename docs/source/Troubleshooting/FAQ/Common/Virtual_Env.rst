@@ -19,7 +19,7 @@ Virtual environment
 
 * To verify that the virtual environment is active, check if the following prompt is displayed: ::
 
-    (omnia) [root@<control_plane_name> omnia]#
+    (omnia) [root@<oim_name> omnia]#
 
 
 ⦾ **While executing any Omnia playbook, why do I encounter a "Command not found" or "Command 'ansible-playbook' not found" error?**

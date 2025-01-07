@@ -41,7 +41,7 @@ The local repository feature helps create offline repositories on the OIM, which
 
 .. note::
 
-    * After ``local_repo.yml`` has run, the value of ``repo_config`` in ``input/software_config.json`` cannot be updated without running the `control_plane_cleanup.yml <../../Maintenance/cleanup.html>`_ script first.
+    * After ``local_repo.yml`` has run, the value of ``repo_config`` in ``input/software_config.json`` cannot be updated without running the `oim_cleanup.yml <../../Maintenance/cleanup.html>`_ script first.
 
     * To configure additional local repositories after running ``local_repo.yml``, update ``software_config.json`` and re-run ``local_repo.yml``.
 

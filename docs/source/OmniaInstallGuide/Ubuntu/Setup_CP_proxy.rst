@@ -37,12 +37,12 @@ OIM proxy configuration is now available for Omnia users. This means that the OI
 
        export http_proxy=http://<Corporate_proxy>:<port>
        export https_proxy=http://<Corporate_proxy>:<port>
-       export no_proxy="<Control_plane_hostname>","<Admin_Network_IP>"
+       export no_proxy="<OIM_hostname>","<Admin_Network_IP>"
 
     * For persistent proxy, update the ``/etc/environment`` or ``/root/.bashrc`` with the proxy environment details. ::
 
         http_proxy=http://<Corporate_proxy>:<port>
         https_proxy=http://<Corporate_proxy>:<port>
-        no_proxy="<Control_plane_hostname>","<Admin_Network_IP>"
+        no_proxy="<OIM_hostname>","<Admin_Network_IP>"
 
 .. caution:: You must configure the proxy environment variables on the OIM before running any Omnia playbooks.

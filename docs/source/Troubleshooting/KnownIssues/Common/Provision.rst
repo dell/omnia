@@ -75,11 +75,11 @@ Due to internal MAC ID conflicts on the target nodes, the MAC address will be li
 
 **Potential Cause**: Invalid input provided in ``network_spec.yml`` for ``admin_network`` or ``bmc_network`` fields.
 
-**Resolution**: Perform a cleanup using ``control_plane_cleanup.yml`` with ``--tags provision`` & then re-run the ``discovery_provision.yml`` playbook. Execute the following command:
+**Resolution**: Perform a cleanup using ``oim_cleanup.yml`` with ``--tags provision`` & then re-run the ``discovery_provision.yml`` playbook. Execute the following command:
 
     ::
 
-        ansible-playbook utils/control_plane_cleanup.yml --tags provision
+        ansible-playbook utils/oim_cleanup.yml --tags provision
         ansible-playbook discovery_provision.yml
 
 

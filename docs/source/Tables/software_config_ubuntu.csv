@@ -28,7 +28,7 @@ Required","* The type of offline configuration user needs.
 * When the value is set to ``never``, Omnia does not create a local repository/registry. All the packages/images are directly downloaded on the cluster.
 
 .. note::
-  * After ``local_repo.yml`` has run, the value of ``repo_config`` in ``input/software_config.json`` cannot be updated without running the `control_plane_cleanup.yml <../../Maintenance/cleanup.html>`_ script first.
+  * After ``local_repo.yml`` has run, the value of ``repo_config`` in ``input/software_config.json`` cannot be updated without running the `oim_cleanup.yml <../../Maintenance/cleanup.html>`_ script first.
   * Irrespective of the value of ``repo_config``, all local repositories that are not available as images, debian packages, or RPMs will be downloaded and configured locally on the OIM. Additionally, AMD GPU drivers, Intel Gaudi drivers, CUDA, and OFED are downloaded by default if they are mentioned in the ``input/software_config.json``.
 
 * **Accepted values**:

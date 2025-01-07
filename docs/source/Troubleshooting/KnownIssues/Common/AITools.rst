@@ -20,7 +20,9 @@ For more information, `click here. <https://github.com/kserve/kserve/issues/3372
 
 **Resolution**:
 
-1. Delete Kubeflow deployment by executing the following command in kube_control_plane: ``kfctl delete -V -f /root/k8s/omnia-kubeflow/kfctl_k8s_istio.v1.0.2.yaml``
+1. Delete Kubeflow deployment by executing the following command from the ``kube_control_plane``: ::
+
+ kfctl delete -V -f /root/k8s/omnia-kubeflow/kfctl_k8s_istio.v1.0.2.yaml
 
 2. Re-execute ``kubeflow.yml`` after 8-9 hours
 

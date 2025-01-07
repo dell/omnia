@@ -11,15 +11,15 @@ Omnia grants Kubernetes node access to users defined on the ``kube_control_plane
 
 * Update the variable ``user_name``, in the ``input/k8s_access_config.yml`` file with a comma-separated list of users.
 
-    +---------------+--------------------------------------------------------------------------------------------+
-    | Parameter     | Details                                                                                    |
-    +===============+============================================================================================+
-    | **user_name** | * A comma-separated list of users to whom access must be granted.                          |
-    |               | * Every user defined here must have a home directory configured on the kube_control_plane. |
-    | ``String``    |                                                                                            |
-    |               | * **Sample values**: ``user1`` or ``user1,user2,user3``.                                   |
-    | Required      |                                                                                            |
-    +---------------+--------------------------------------------------------------------------------------------+
+    +---------------+------------------------------------------------------------------------------------------------+
+    | Parameter     | Details                                                                                        |
+    +===============+================================================================================================+
+    | **user_name** | * A comma-separated list of users to whom access must be granted.                              |
+    |               | * Every user defined here must have a home directory configured on the ``kube_control_plane``. |
+    | ``String``    |                                                                                                |
+    |               | * **Sample values**: ``user1`` or ``user1,user2,user3``.                                       |
+    | Required      |                                                                                                |
+    +---------------+------------------------------------------------------------------------------------------------+
 
 * Verify that all intended users have a home directory (in the format ``/home/<user_name>``) set up on the ``kube_control_plane``.
 
