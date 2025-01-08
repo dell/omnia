@@ -146,6 +146,7 @@ If ``idrac_telemetry_support`` and ``visualisation_support`` is set to true, Par
     MetricInfo
     TimescaleDB
     Prometheus_k8s
+    Gaudi_metrics
 
 
 

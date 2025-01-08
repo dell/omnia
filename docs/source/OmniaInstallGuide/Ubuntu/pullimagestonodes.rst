@@ -41,7 +41,7 @@ Follow the steps below to download packages/images:
 
             {"name": "custom_image"}
 
-    4. Enter the required softwares in ``software_config.json`` for which ``<software_name>.json`` file is created, based on the OS type and version running on the cluster. For example,
+    4. Enter the required softwares in ``software_config.json`` for which ``<software_name>.json`` file is created, based on the OS type and version running on the cluster. For example:
 
         ::
 

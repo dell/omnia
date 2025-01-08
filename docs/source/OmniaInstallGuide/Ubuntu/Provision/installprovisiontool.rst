@@ -7,8 +7,8 @@ Edit the ``input/provision_config.yml``, ``input/provision_config.yml``, and ``i
 
     .. image:: ../../../images/BMC_PXE_Settings.png
 
-[Optional] Configurations managed by the provision tool
----------------------------------------------------------
+[Optional] Additional configurations handled by the provision tool
+-----------------------------------------------------------------------
 
 **Using multiple versions of a given OS**
 
@@ -40,9 +40,12 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
     * If the ``input/software_config.json`` has AMD ROCm, Intel Gaudi, and NVIDIA CUDA drivers mentioned, the AMD, Intel, and NVIDIA accelerator drivers are installed on the nodes post provisioning.
     * Omnia recommends to install the Intel Gaudi driver post provisioning using the ``accelerator.yml`` playbook in case the node has internet connectivity during provisioning. For more information, `click here <../AdvancedConfigurationsUbuntu/Habana_accelerator.html>`_.
 
-``discovery_provision.yml`` runs in three stages that can be called individually:
+Stages of the provision tool
+-----------------------------
 
 .. caution:: Always execute ``discovery_provision.yml`` within the ``omnia`` directory. That is, always change directories (using ``cd omnia``) to the path where the playbook resides before running the playbook.
+
+The provision tool, invoked by the ``discovery_provision.yml`` playbook, runs in three stages that can be called individually:
 
 **Stage 1: Preparing the OIM**
 
@@ -84,7 +87,7 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
     * Configures the OIM with NTP services for cluster  node synchronization.
 
 
-    To call this playbook individually, run::
+    To call this playbook individually, run: ::
 
         cd discovery
         ansible-playbook discovery.yml
@@ -118,7 +121,7 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
 
     * Post execution of ``discovery_provision.yml``, IPs/hostnames cannot be re-assigned by changing the mapping file. However, the addition of new nodes is supported as explained `here <../../Maintenance/addnode.html>`_.
 
-    * Default Python is installed during provisioning on Ubuntu cluster nodes. For Ubuntu 22.04, Python 3.10 is installed. For Ubuntu 20.04, Python 3.8 is installed.
+    * Default Python is installed during provisioning on Ubuntu cluster nodes. For Ubuntu 22.04, Python 3.11 is installed. For Ubuntu 20.04, Python 3.8 is installed.
 
 .. caution::
 

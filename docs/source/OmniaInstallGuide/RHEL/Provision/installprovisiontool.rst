@@ -7,8 +7,8 @@ Edit the ``input/provision_config.yml``, ``input/provision_config.yml``, and ``i
 
     .. image:: ../../../images/BMC_PXE_Settings.png
 
-[Optional] Configurations managed by the provision tool
---------------------------------------------------------------
+[Optional] Additional configurations handled by the provision tool
+-------------------------------------------------------------------------
 
 **Using multiple versions of a given OS**
 
@@ -39,10 +39,12 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
 
 .. note:: If the ``input/software_config.json`` has AMD ROCm and NVIDIA CUDA drivers mentioned, the AMD and NVIDIA accelerator drivers are installed on the nodes post provisioning.
 
-``discovery_provision.yml`` runs in three stages that can be called individually:
+Stages of the provision tool
+-----------------------------
 
-.. caution:: Always execute ``discovery_provision.yml`` within the ``omnia`` directory. That is, always change directories (``cd omnia``) to the path where the playbook resides before running the playbook.
+.. caution:: Always execute ``discovery_provision.yml`` within the ``omnia`` directory. That is, always change directories (using ``cd omnia``) to the path where the playbook resides before running the playbook.
 
+The provision tool, invoked by the ``discovery_provision.yml`` playbook, runs in three stages that can be called individually:
 
 **Stage 1: Preparing the OIM**
 
@@ -92,7 +94,7 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
 
     * The intended operating system and version is provisioned on the primary disk partition on the nodes. If a BOSS Controller card is available on the target node, the operating system is provisioned on the boss controller disks.
 
-    To call this playbook individually, run::
+    To call this playbook individually, run: ::
 
         cd provision
         ansible-playbook provision.yml
@@ -102,8 +104,6 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
     * If you are using ``switch_based`` discovery mechanism, you do not need to run ``provision.yml`` playbook. Run ``prepare_oim.yml`` and ``discovery.yml`` and then manually boot the nodes in PXE mode.
 
     * After executing ``discovery_provision.yml`` playbook, user can check the log file available at ``/var/log/omnia.log`` for more information.
-
-    * racadm and ipmitool are installed on all target nodes except Ubuntu 20.04.
 
     * Ansible playbooks by default run concurrently on 5 nodes. To change this, update the ``forks`` value in ``ansible.cfg`` present in the respective playbook directory.
 
