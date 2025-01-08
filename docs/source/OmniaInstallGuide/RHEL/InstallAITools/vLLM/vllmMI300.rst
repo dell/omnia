@@ -10,11 +10,11 @@ Follow the below steps to setup the vLLM:
 
 1. **Build vLLM**
 
-Run the ``vllm_build.yml`` playbook using
+    * Update the ``admin-nic-IP`` in the ``vllm_k8s_config.yml`` file located inside the ``omnia/utils/vllm_build`` directory.
 
-::
+    * Run the ``vllm_build.yml`` playbook using: ::
 
-    ansible-playbook vllm_build.yml
+        ansible-playbook vllm_build.yml
 
 2. **Verify vLLM**
 

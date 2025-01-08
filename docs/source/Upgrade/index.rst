@@ -9,6 +9,9 @@ To upgrade the Omnia version 1.6.1 to version 1.7 on your OIM, you can use the `
 
     * Before initiating upgrade, ensure that the OIM has a stable internet connection to avoid intermittent issues caused by poor network connectivity.
     * After upgrading the Omnia OIM running on a `supported OS <../Overview/SupportMatrix/OperatingSystems/index.html>`_ (except RHEL/Rocky Linux 8.6 and 8.8), the ``input/software_config.json`` file remains in its default state. This enables users to install the default software versions on a new cluster.
+    * While upgrading your OIM from Omnia 1.6.1 to version 1.7, ensure that the cryptography version on the login nodes is also updated to 44.0.0. This is necessary to address a security vulnerability reported by the cryptography software. To update the cryptography version, run the following command: ::
+
+        pip install cryptography==44.0.0
 
 **Tasks performed by the** ``upgrade_oim.yml`` **playbook**
 
