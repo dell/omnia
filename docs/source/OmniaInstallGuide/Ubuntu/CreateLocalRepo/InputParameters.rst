@@ -37,7 +37,7 @@ Input parameters for Local Repositories
             {"name": "telemetry"},
             {"name": "ucx", "version": "1.15.0"},
             {"name": "openmpi", "version": "4.1.6"},
-            {"name": "intelgaudi", "version": "1.18.0-524"},
+            {"name": "intelgaudi", "version": "1.19.0-561"},
             {"name": "csi_driver_powerscale", "version":"v2.11.0"}
         ],
 

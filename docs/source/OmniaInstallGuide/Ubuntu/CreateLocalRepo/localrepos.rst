@@ -31,7 +31,7 @@ Configure specific local repositories
 
             ::
 
-                {"name": "intelgaudi", "version": "1.18.0-524"},
+                {"name": "intelgaudi", "version": "1.19.0-561"},
 
         * Add the following line below the ``softwares`` section:
 
