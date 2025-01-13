@@ -34,7 +34,7 @@ spec:
         app: vllm-llama-app
     spec:
       containers:
-        - image: vault.habana.ai/gaudi-docker/1.19.0/ubuntu22.04/habanalabs/pytorch-installer-2.5.1:latest
+        - image: vault.habana.ai/gaudi-docker/1.19.1/ubuntu22.04/habanalabs/pytorch-installer-2.5.1:latest
           name: vllm-llama-openai
           imagePullPolicy: Always
           workingDir: /root

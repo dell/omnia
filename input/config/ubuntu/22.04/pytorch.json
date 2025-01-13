@@ -46,7 +46,7 @@
 
     "cluster": [
       {
-        "package": "vault.habana.ai/gaudi-docker/1.19.0/ubuntu22.04/habanalabs/pytorch-installer-2.5.1",
+        "package": "vault.habana.ai/gaudi-docker/1.19.1/ubuntu22.04/habanalabs/pytorch-installer-2.5.1",
         "tag": "latest",
         "type": "image"
       }

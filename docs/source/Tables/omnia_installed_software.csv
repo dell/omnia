@@ -6,7 +6,7 @@ Docker CE,Apache 2.0,Docker Service,20.10.2
 NVIDIA container runtime,"Apache 2.0, GPL-3.0, LGPL-3.0",NVIDIA container runtime library,1.16.1
 habanalabs-container-runtime,Apache 2.0,"Intel Habana container runtime library
 
-.. note:: This is preliminary code and may change before official release.",1.19.0-561
+.. note:: This is preliminary code and may change before official release.",1.19.1-26
 Python-pip,MIT License,Python Package,24
 kubelet,Apache 2.0,"Provides external, versioned ComponentConfig API types for configuring the kubelet",1.29.5
 kubeadm,Apache 2.0,Provides “fast paths” for creating Kubernetes clusters.,1.29.5

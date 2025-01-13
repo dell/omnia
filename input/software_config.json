@@ -12,7 +12,7 @@
         {"name": "jupyter"},
         {"name": "pytorch"},
         {"name": "tensorflow"},
-        {"name": "intelgaudi", "version": "1.19.0-561"}
+        {"name": "intelgaudi", "version": "1.19.1-26"}
     ],
 
     "bcm_roce": [
