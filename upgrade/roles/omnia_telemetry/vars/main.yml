@@ -28,7 +28,7 @@ telemetry_binary:
   build_path: "{{ upgrade_folder_path }}/telemetry/build"
   spec_path: "{{ upgrade_folder_path }}/telemetry/"
   binary_name: omnia_telemetry
-  python_file_path: "{{ role_path }}/../../../prepare_cp/roles/omnia_telemetry_cp/files"
+  python_file_path: "{{ role_path }}/../../../prepare_oim/roles/omnia_telemetry_oim/files"
 
 # Usage: replace_and_start.yml
 binary_files_path: "{{ upgrade_folder_path }}/telemetry/dist/omnia_telemetry"

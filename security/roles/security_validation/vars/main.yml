@@ -44,8 +44,8 @@ secure_login_node_warning_msg: "[WARNING] secure_login_node present in input/sof
 login group not provided with login node IP address in inventory. Skipping tasks for secure login node configuration"
 ubuntu_freeipa_support_fail_msg: "Failed. freeipa is not supported on ubuntu. Remove freeipa from software_config.json and rerun the playbook"
 proxy_env_fail_msg: "Failed. The values for http_proxy and https_proxy in the
-proxy variable of the site_config.yml should be set as environment variables http_proxy and https_proxy in the control plane.
-The no_proxy environment variable should include the control plane hostname and the admin network IP address."
+proxy variable of the site_config.yml should be set as environment variables http_proxy and https_proxy in the Omnia Infrastructure Manager.
+The no_proxy environment variable should include the Omnia Infrastructure Manager hostname and the admin network IP address."
 
 # Usage: fetch_security_inputs.yml
 max_failures_success_msg: "max_failures successfully validated"

@@ -26,7 +26,7 @@
 # Values should be entered in JSON format only.
 # If mount_option values are empty, NFS client will be mounted with these values "nosuid,rw,sync,hard,intr"
 # Its mandatory to provide atleast one entry in nfs_client_params
-# If user wants to setup NFS server on control plane "localhost" can be mentioned as server_ip or admin_nic_ip of control plane also can be provided.
+# If user wants to setup NFS server on Omnia Infrastructure Manager "localhost" can be mentioned as server_ip or admin_nic_ip of Omnia Infrastructure Manager also can be provided.
 # For the server which must be used as k8s server share for NFS external provisioner must be given k8s_share as true
 # For the server which must be used as slurm share, slurm_share must be given as true
 # For benchmarks, either slurm_share or k8s_share will be used. Higher precedence will be given to slurm_share

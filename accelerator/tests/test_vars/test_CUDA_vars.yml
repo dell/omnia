@@ -16,7 +16,7 @@
 # vars file for test_CUDA.yml file
 
 input_params_folder: "../input"
-Control_plane_dir: "../"
+oim_dir: "../"
 CUDA_validation_script_path: test_CUDA_validation.yml
 ROCm_vars_file_path: test_vars/test_CUDA_vars.yml
 CUDA_verify_code: test_cuda_code.cu

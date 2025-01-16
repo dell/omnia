@@ -13,12 +13,12 @@
 # limitations under the License.
 ---
 
-- name: Set control_plane_os
+- name: Set oim_os
   ansible.builtin.set_fact:
-    control_plane_os: "{{ ansible_distribution | lower }}"
+    oim_os: "{{ ansible_distribution | lower }}"
 
-- name: Fetch cp details
-  ansible.builtin.include_tasks: fetch_cp_details.yml
+- name: Fetch oim details
+  ansible.builtin.include_tasks: fetch_oim_details.yml
 
 - name: Validate site_config.yml
   ansible.builtin.include_tasks: validate_site_config.yml

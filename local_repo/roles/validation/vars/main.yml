@@ -43,11 +43,11 @@ python_package:
 dpkg_package: "dpkg-dev"
 apt_conf_dest: /etc/apt/apt.conf
 
-# Usage: validate_cp_os.yml
-control_plane_os_redhat: "redhat"
-control_plane_os_rocky: "rocky"
-control_plane_os_ubuntu: "ubuntu"
-control_plane_os_fail_msg: "Failed. Control plane OS should be RHEL, Rocky or Ubuntu."
+# Usage: validate_oim_os.yml
+oim_os_redhat: "redhat"
+oim_os_rocky: "rocky"
+oim_os_ubuntu: "ubuntu"
+oim_os_fail_msg: "Failed. Omnia Infrastructure Manager OS should be RHEL, Rocky or Ubuntu."
 root_user_name: "root"
 user_fail_msg: "Failed. Omnia playbooks should run as root user."
 warning_wait_time_warning: 15
@@ -81,7 +81,7 @@ cluster_os_version_fail_msg_rhel: "Failed. The supported values of cluster_os_ve
 cluster_os_version_fail_msg_rocky: "Failed. The supported values of cluster_os_version is 8.6,8.7 and 8.8 when cluster_os_type is rocky"
 cluster_os_version_fail_msg_ubuntu: "Failed. The supported values of cluster_os_version is 20.04 and 22.04 when cluster_os_type is ubuntu"
 repo_config_fail_msg: "Failed. The supported values of repo_config is always, partial and never"
-cross_os_support_fail_msg: "Cross-OS is not supported: control_plane_os '{{ control_plane_os }}' does not match cluster_os_type '{{ cluster_os_type }}'"
+cross_os_support_fail_msg: "Cross-OS is not supported: oim_os '{{ oim_os }}' does not match cluster_os_type '{{ cluster_os_type }}'"
 valid_cluster_os_type:
   - 'rhel'
   - 'rocky'
@@ -131,8 +131,8 @@ user_registry_fail_msg: "Failed. Please ensure user_registry is non empty list a
 check if there is any indentation error in input/local_repo_config.yml"
 user_registry_fail_host_cert_path_msg: "Failed. Each item in user_registry should have 'host' and 'cert_path' keys defined"
 time_out: 30
-user_registry_msg: "The following user registries are not reachable: [{{ unreachable_registries | join(', ') }}]. If the user registry is not accessible from the control plane, Omnia will download all the images for the software listed in software_config.json."   # noqa: yaml[line-length]
-cert_path_failure_msg: "Certificate file path {{ item.item.cert_path }} does not exist on the omnia control plane for host {{ item.item.host }}. Please verify that correct cert_path is given in input/local_repo_config.yml"  # noqa: yaml[line-length]
+user_registry_msg: "The following user registries are not reachable: [{{ unreachable_registries | join(', ') }}]. If the user registry is not accessible from the Omnia Infrastructure Manager, Omnia will download all the images for the software listed in software_config.json."   # noqa: yaml[line-length]
+cert_path_failure_msg: "Certificate file path {{ item.item.cert_path }} does not exist on the Omnia Infrastructure Manager for host {{ item.item.host }}. Please verify that correct cert_path is given in input/local_repo_config.yml"  # noqa: yaml[line-length]
 
 # Usage: validate_user_repo_url.yml
 user_repo_url_fail_msg: "Failed. Please ensure user_repo_url is proper and should not have jinja variables.
@@ -242,8 +242,8 @@ server_domain_name_blank_msg: "Failed. domain_name is not set in hostname. It sh
 site_config_file: "{{ role_path }}/../../../input/site_config.yml"
 invalid_proxy_failure_msg: "Failed. Both http_proxy and https_proxy should be set for proxy variable provided in site_config.yml"
 proxy_env_fail_msg: "Failed. The values for http_proxy {{ proxy[0].http_proxy }} and https_proxy {{ proxy[0].https_proxy }} in the
-proxy variable of the site_config.yml should be set as environment variables http_proxy and https_proxy in the control plane.
-The no_proxy environment variable should include the control plane hostname and the admin network IP address."
-update_repos_fail_msg: "Failed to update repos. Verify proxy configuration in control plane for acccessing internet."
+proxy variable of the site_config.yml should be set as environment variables http_proxy and https_proxy in the Omnia Infrastructure Manager.
+The no_proxy environment variable should include the Omnia Infrastructure Manager hostname and the admin network IP address."
+update_repos_fail_msg: "Failed to update repos. Verify proxy configuration in Omnia Infrastructure Manager for acccessing internet."
 repo_retries: 5
 repo_delay: 10

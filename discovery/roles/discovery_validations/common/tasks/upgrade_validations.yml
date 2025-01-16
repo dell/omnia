@@ -26,11 +26,11 @@
   ansible.builtin.include_vars: "{{ item }}"
   with_items: "{{ provision_validation_vars }}"
 
-- name: Validate control plane OS
-  ansible.builtin.include_tasks: validate_cp_os.yml
+- name: Validate Omnia Infrastructure Manager OS
+  ansible.builtin.include_tasks: validate_oim_os.yml
 
-- name: Include vars for {{ control_plane_os }}
-  ansible.builtin.include_vars: "{{ role_path }}/vars/{{ control_plane_os }}.yml"
+- name: Include vars for {{ oim_os }}
+  ansible.builtin.include_vars: "{{ role_path }}/vars/{{ oim_os }}.yml"
 
 - name: Include provision configuration variables
   ansible.builtin.include_tasks: include_provision_config.yml
@@ -51,7 +51,7 @@
   ansible.builtin.include_tasks: assign_network_interface.yml
 
 - name: Validate the nic parameters
-  ansible.builtin.include_tasks: validate_cp_nic.yml
+  ansible.builtin.include_tasks: validate_oim_nic.yml
 
 - name: Validate network spec input
   ansible.builtin.include_tasks: validate_network_spec.yml

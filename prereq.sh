@@ -278,7 +278,7 @@ if [ "$VIRTUAL_ENV" != "$venv_location" ]; then
         echo "Failed to activate virtual environment."
         echo "Please manually activate the virtual environment at $venv_location
 and install the required package ansible-$ansible_version via pip,
-before executing playbooks in control plane"
+before executing playbooks in Omnia Infrastructure Manager"
         exit 1
     fi
 else
@@ -371,14 +371,14 @@ echo -e "${NC}"
 # Show SELinux reboot message if necessary
 if [[ "$SELINUX_REBOOT_REQUIRED" == "true" ]]; then
     echo -e "${RED}"
-    echo "SELinux has been successfully disabled. Please reboot the system before proceeding. However, if you are upgrading or restoring the control plane, avoid rebooting to prevent the loss of telemetry data."
+    echo "SELinux has been successfully disabled. Please reboot the system before proceeding. However, if you are upgrading or restoring the Omnia Infrastructure Manager, avoid rebooting to prevent the loss of telemetry data."
     echo -e "${NC}"
 fi
 
 echo -e "${BLUE}"
-echo "Download the ISO file required to provision in the control plane."
+echo "Download the ISO file required to provision in the Omnia Infrastructure Manager."
 echo ""
-echo "Please configure all the NICs and set the hostname for the control plane in the format hostname.domain_name. Eg: controlplane.omnia.test"
+echo "Please configure all the NICs and set the hostname for the Omnia Infrastructure Manager in the format hostname.domain_name. Eg: oimnode.omnia.test"
 echo ""
 echo "Once IP and hostname is set, provide inputs in input/local_repo_config.yml & input/software_config.json and execute the playbook local_repo/local_repo.yml to created offline repositories."
 echo ""

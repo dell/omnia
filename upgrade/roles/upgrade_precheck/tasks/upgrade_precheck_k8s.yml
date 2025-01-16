@@ -154,13 +154,13 @@
                   "{{ upgrade_precheck_pod_status_report | combine({'idrac_telemetry_pod_running_status': idrac_telemetry_pod_status | length > 0}) }}"
               when: idrac_telemetry_pod_status.rc== 0
 
-            - name: Check if Kubernetes is installed on the control plane
+            - name: Check if Kubernetes is installed on the Omnia Infrastructure Manager
               ansible.builtin.command: kubectl get pod -A
               changed_when: false
               register: kubectl_command_status
               failed_when: false
 
-            - name: Check Kubernetes version installed on control plane
+            - name: Check Kubernetes version installed on Omnia Infrastructure Manager
               ansible.builtin.shell: |
                 set -o pipefail;
                 kubectl get nodes -o wide | awk 'NR==2 {print $5}'

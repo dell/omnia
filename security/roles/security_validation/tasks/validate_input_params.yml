@@ -54,7 +54,7 @@
       - lookup('env', 'http_proxy') | length > 1
       - lookup('env', 'https_proxy') | length > 1
       - lookup('env', 'no_proxy') | length > 1
-      - control_plane_hostname in lookup('env', 'no_proxy')
+      - oim_hostname in lookup('env', 'no_proxy')
       - admin_nic_ip in lookup('env', 'no_proxy')
     fail_msg: "{{ proxy_env_fail_msg }}"
   when: proxy_status

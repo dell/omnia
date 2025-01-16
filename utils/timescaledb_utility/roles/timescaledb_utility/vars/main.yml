@@ -28,8 +28,8 @@ timescaledb_credentials_fail_msg: "Please provide timescaledb credentials in tel
 
 python_version: "{{ ansible_python_interpreter.split('/')[-1] }}"
 # Usage: install_packages.yml
-control_plane_os_redhat: "redhat"
-control_plane_os_rocky: "rocky"
+oim_os_redhat: "redhat"
+oim_os_rocky: "rocky"
 
 devel_packages:
   - "{{ python_version }}-devel"

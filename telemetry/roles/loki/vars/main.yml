@@ -66,7 +66,7 @@ docker_gpg_url: https://download.docker.com/linux/ubuntu/gpg
 repo_retries: 5
 repo_delay: 10
 docker_update_repos_fail_msg: "Failed to update the docker repositories. Please ensure that the docker repositories are accessible
-from the control plane and re-run the playbook."
+from the Omnia Infrastructure Manager and re-run the playbook."
 clean_apt_cache_fail_msg: "Failed to clean the apt cache. Please ensure there are no lock files present and try running the playbook again."
 
 # Usage: configure_docker_proxy.yml

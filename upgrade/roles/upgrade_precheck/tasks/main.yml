@@ -16,7 +16,7 @@
 - name: Check installed omnia version and version to be upgraded
   ansible.builtin.include_tasks: upgrade_version_check.yml
 
-- name: Check supported OS on omnia control plane
+- name: Check supported OS on Omnia Infrastructure Manager
   ansible.builtin.include_tasks: upgrade_os_check.yml
 
 - name: Check local repo metadata file

@@ -67,8 +67,8 @@
     insertafter: EOF
     line: "{{ item.line }}"
   with_items:
-    - { line: 'control_plane_hostname: "{{ cp_hostname }}"' }
-    - { line: 'domain_name: "{{ cp_domain_name }}"' }
+    - { line: 'oim_hostname: "{{ oim_hostname }}"' }
+    - { line: 'domain_name: "{{ oim_domain_name }}"' }
     - { line: 'proxy_status: false' }
     - { line: 'no_proxy_input_status: false' }
     - { line: 'user_no_proxy: ""' }

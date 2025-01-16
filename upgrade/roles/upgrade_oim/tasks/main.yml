@@ -12,7 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-- name: Backup DB and Kubernetes cluster on Omnia Control Plane
+- name: Backup DB and Kubernetes cluster on Omnia Infrastructure Manager
   ansible.builtin.include_role:
     name: backup_k8s
 
@@ -30,11 +30,11 @@
   ansible.builtin.include_role:
     name: import_input_parameters
 
-- name: Upgrade software on Omnia control plane
+- name: Upgrade software on Omnia Infrastructure Manager
   block:
-    - name: Upgrade services and packages of prepare cp on OIM
+    - name: Upgrade services and packages of prepare oim on OIM
       ansible.builtin.include_role:
-        name: upgrade_prepare_cp
+        name: upgrade_prepare_oim
 
     - name: Upgrade services and packages of discovery on OIM
       ansible.builtin.include_role:
@@ -49,9 +49,9 @@
       ansible.builtin.include_role:
         name: upgrade_local_repo
 
-    - name: Upgrade kubernetes on omnia control plane (OIM)
+    - name: Upgrade kubernetes on Omnia Infrastructure Manager
       ansible.builtin.include_role:
-        name: upgrade_k8s_cp
+        name: upgrade_k8s_oim
       when: not older_os
 
     - name: Upgrade omnia_telemetry binary
@@ -62,7 +62,11 @@
       ansible.builtin.include_role:
         name: upgrade_idrac_telemetry
 
+    - name: Upgrade control_plane to oim in omniadb and xcat
+      ansible.builtin.include_role:
+        name: cp_to_oim
+
   rescue:
-    - name: Failed to upgrade Omnia control plane
+    - name: Failed to upgrade Omnia Infrastructure Manager
       ansible.builtin.fail:
         msg: "{{ upgrade_fail_msg }}"

@@ -35,7 +35,7 @@
   ansible.builtin.set_fact:
     unreachable_registries: ""
 
-- name: Check if user registry is reachable from control plane
+- name: Check if user registry is reachable from Omnia Infrastructure Manager
   ansible.builtin.uri:
     url: "https://{{ item.host }}"
     validate_certs: false

@@ -25,9 +25,9 @@ xcat_sbin_path: /opt/xcat/sbin
 
 # Usage: pre_requisites.yml
 xcat_connection_search_key: "connection failure"
-xcat_status_fail_msg: "Failed. xCAT services are not running. Please run provision.yml or prepare_cp.yml to install xCAT."
-control_plane_os_redhat: "redhat"
-control_plane_os_rocky: "rocky"
+xcat_status_fail_msg: "Failed. xCAT services are not running. Please run provision.yml or prepare_oim.yml to install xCAT."
+oim_os_redhat: "redhat"
+oim_os_rocky: "rocky"
 
 # Usage: create_osimage.yml
 osimage_search_key: install-compute

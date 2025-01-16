@@ -22,7 +22,7 @@
   connection: local
   gather_facts: true
   tasks:
-    - name: Validate cluster and control plane OS versions
+    - name: Validate cluster and Omnia Infrastructure Manager OS versions
       ansible.builtin.include_role:
         name: update_user_repo
         tasks_from: check_os_versions.yml

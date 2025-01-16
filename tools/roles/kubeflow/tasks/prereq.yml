@@ -97,7 +97,7 @@
     dest: "{{ kubeflow_dir_path }}"
     mode: "{{ file_permission }}"
 
-- name: Setup kubeflow repo to control plane
+- name: Setup kubeflow repo to Omnia Infrastructure Manager
   ansible.builtin.unarchive:
     src: "{{ kubeflow_dir_path }}/{{ kubeflow_git_repo_path }}.tar.gz"
     dest: "{{ kubeflow_dir_path }}"
@@ -109,7 +109,7 @@
     dest: "{{ kustomize_dir }}"
     mode: "{{ file_permission }}"
 
-- name: Setup kustomize repo to control plane
+- name: Setup kustomize repo to Omnia Infrastructure Manager
   ansible.builtin.unarchive:
     src: "{{ kustomize_dir }}/{{ kustomize_git_repo_path }}.tar.gz"
     dest: "{{ kustomize_dir }}"

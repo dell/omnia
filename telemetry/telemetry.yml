@@ -57,12 +57,12 @@
     - idrac_telemetry
     - grafana_config
 
-- name: Prepare CP for Telemetry
+- name: Prepare OIM for Telemetry
   hosts: localhost
   connection: local
   gather_facts: false
   roles:
-    - omnia_telemetry_prepare_cp
+    - omnia_telemetry_prepare_oim
   tags: omnia_telemetry
 
 - name: Install Omnia Telemetry

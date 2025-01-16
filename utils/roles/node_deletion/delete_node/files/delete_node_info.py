@@ -15,14 +15,14 @@
 #!/usr/bin/env python3.11
 
 '''
-    This module contains tasks required to delete node details from control plane- DB and inventory files
+    This module contains tasks required to delete node details from Omnia Infrastructure Manager- DB and inventory files
 '''
 
 import sys
 import subprocess
 import os
 
-def delete_node_info_from_cp(nodename):
+def delete_node_info_from_oim(nodename):
     '''
     This modules deletes node object
     '''
@@ -47,7 +47,7 @@ def delete_node_info_from_cp(nodename):
         temp = subprocess.run(command, shell=False, check=True)
 
     except subprocess.CalledProcessError as e:
-        print(f"delete_node_info_from_cp: {e}")
+        print(f"delete_node_info_from_oim: {e}")
 
 
 
@@ -80,5 +80,5 @@ def delete_node_info_from_inventory_files(inv_file_folder, nodeinfo):
 
 
 if __name__ == '__main__':
-    delete_node_info_from_cp(sys.argv[1])
+    delete_node_info_from_oim(sys.argv[1])
     delete_node_info_from_inventory_files(os.path.abspath(sys.argv[2]), sys.argv[1])
