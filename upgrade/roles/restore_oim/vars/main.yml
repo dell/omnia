@@ -120,7 +120,7 @@ max_delay: 10
 timescaledb_file_fail_msg: "Backup file {{ k8s_backup_location }}/{{ timescale_telemetry_backup_file }} does not exist!"
 timescaledb_restore_success_msg: "Timescaledb restored successfully"
 python_version: "{{ ansible_python_interpreter }}"
-db_schema_utility: "{{ installed_omnia_path }}/telemetry/roles/omnia_telemetry_prepare_oim/files/omnia_telemetry_schema_creation.py"
+db_schema_utility: "{{ installed_omnia_path }}/telemetry/roles/omnia_telemetry_prepare_cp/files/omnia_telemetry_schema_creation.py"
 
 # Usage: main.yml
 omnia_inv_path: /opt/omnia/omnia_inventory/

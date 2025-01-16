@@ -46,7 +46,7 @@
 
     - name: Install pip packages
       ansible.builtin.pip:
-        requirements: "{{ installed_omnia_path }}/prepare_cp/roles/omnia_appliance_oim/files/requirements_pip.txt"
+        requirements: "{{ installed_omnia_path }}/prepare_cp/roles/omnia_appliance_cp/files/requirements_pip.txt"
         virtualenv: "{{ omnia161_venv_path }}"
         virtualenv_python: "{{ omnia161_venv_path }}/bin/python"
 

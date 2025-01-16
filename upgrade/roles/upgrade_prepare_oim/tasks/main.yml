@@ -28,7 +28,7 @@
 
 - name: Update omnia_appliance required pip packages not supported OS
   ansible.builtin.pip:
-    requirements: "{{ installed_omnia_path }}/prepare_cp/roles/omnia_appliance_oim/files/requirements_pip.txt"
+    requirements: "{{ installed_omnia_path }}/prepare_cp/roles/omnia_appliance_cp/files/requirements_pip.txt"
   when: older_os
 
 - name: Update omnia_appliance required pip packages if supported OS
