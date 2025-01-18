@@ -25,8 +25,8 @@
     file: "{{ software_config_json_file }}"
     name: user_config
 
-- name: Include vars for {{ control_plane_os }}
-  ansible.builtin.include_vars: "{{ role_path }}/vars/{{ control_plane_os }}.yml"
+- name: Include vars for {{ oim_os }}
+  ansible.builtin.include_vars: "{{ role_path }}/vars/{{ oim_os }}.yml"
 
 - name: Get Intel Gaudi status
   ansible.builtin.set_fact:

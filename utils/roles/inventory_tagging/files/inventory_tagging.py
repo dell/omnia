@@ -100,7 +100,7 @@ class InventoryManager:
         """
         try:
             # Read Content of file if it exist
-            if os.path.exists(inventory_file):
+            if os.path.exists(os.path.abspath(inventory_file)):
                 with open(os.path.abspath(inventory_file), 'r', encoding='utf-8') as file:
                     lines = file.readlines()
             else:

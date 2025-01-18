@@ -24,11 +24,11 @@
     paths: "{{ tmp_keyrings_path }}"
     file_type: file
   register: keyring_files
-  when: control_plane_os in "ubuntu"
+  when: oim_os in "ubuntu"
 
 - name: Copy synclist in xcat folder
   vars:
-    is_keyring_not_empty: "{{ keyring_files.matched > 0 if control_plane_os == 'ubuntu' else False }}"
+    is_keyring_not_empty: "{{ keyring_files.matched > 0 if oim_os == 'ubuntu' else False }}"
   ansible.builtin.template:
     src: "{{ synclists_src_path }}"
     dest: "{{ synclists_dest_path }}"

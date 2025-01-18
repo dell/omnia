@@ -19,7 +19,7 @@
     - /root/omnia/provision/tests/test_vars/test_mac_gathering_vars.yml
     - /root/omnia/input/provision_config.yml
   tasks:
-    - name: Validate SNMP installation on control plane
+    - name: Validate SNMP installation on Omnia Infrastructure Manager
       block:
         - name: Identify the presence of SNMP
           ansible.legacy.shell: 'ps -C snmpd'

@@ -14,8 +14,8 @@
 ---
 
 # Usage: initiate_monitor_status.yml
-control_plane_os_redhat: "redhat"
-control_plane_os_rocky: "rocky"
+oim_os_redhat: "redhat"
+oim_os_rocky: "rocky"
 psql_devel_packages:
   - postgresql-devel
   - python3-devel

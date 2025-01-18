@@ -31,14 +31,14 @@
   ansible.builtin.set_fact:
     cluster_os_version: "{{ software_config.cluster_os_version }}"
 
-- name: Set fact for control plane OS version
+- name: Set fact for Omnia Infrastructure Manager OS version
   ansible.builtin.set_fact:
-    cp_os_version: "{{ ansible_distribution_version | lower }}"
+    oim_os_version: "{{ ansible_distribution_version | lower }}"
 
 - name: Set flag if os versions donot match
   ansible.builtin.set_fact:
     os_no_match: true
-  when: cluster_os_version != cp_os_version
+  when: cluster_os_version != oim_os_version
 
 - name: Set distro to jammy (Ubuntu 22 OS)
   ansible.builtin.set_fact:

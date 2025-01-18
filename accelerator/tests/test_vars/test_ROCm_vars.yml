@@ -16,7 +16,7 @@
 # vars file for test_ROCm.yml file
 
 input_params_folder: "../input_params"
-Control_plane_dir: "../"
+oim_dir: "../"
 ROCm_validation_script_path: test_ROCm_validation.yml
 ROCm_vars_file_path: /test_vars/test_ROCm_vars.yml
 ROCm_verify_code: test_ROCm_code.cpp

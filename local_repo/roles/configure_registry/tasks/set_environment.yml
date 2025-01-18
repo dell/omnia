@@ -20,7 +20,7 @@
 
 - name: Extract IP addresses
   ansible.builtin.set_fact:
-    cp_ip_addresses: "{{ ip_output.stdout | regex_findall('inet\\s([0-9.]+)') }}"
+    oim_ip_addresses: "{{ ip_output.stdout | regex_findall('inet\\s([0-9.]+)') }}"
 
 - name: Set omnia environment variable file
   ansible.builtin.template:

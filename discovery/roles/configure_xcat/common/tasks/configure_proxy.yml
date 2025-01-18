@@ -65,5 +65,5 @@
   with_items: "{{ xcat_proxy_patch_file }}"
   when:
     - proxy_status
-    - control_plane_os in control_plane_os_redhat or
-      control_plane_os in control_plane_os_rocky
+    - oim_os in oim_os_redhat or
+      oim_os in oim_os_rocky

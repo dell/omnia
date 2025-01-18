@@ -14,13 +14,13 @@
 ---
 - name: Saving distribution and version of OS
   ansible.builtin.set_fact:
-    control_plane_os: "{{ ansible_distribution | lower }}"
-    control_plane_os_version: "{{ ansible_distribution_version | lower }}"
+    oim_os: "{{ ansible_distribution | lower }}"
+    oim_os_version: "{{ ansible_distribution_version | lower }}"
 
 - name: Install development packages
   when:
-    - control_plane_os in control_plane_os_redhat or
-      control_plane_os in control_plane_os_rocky
+    - oim_os in oim_os_redhat or
+      oim_os in oim_os_rocky
   ansible.builtin.package:
     name: "{{ item }}"
     state: present

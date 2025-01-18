@@ -44,7 +44,7 @@
     dest: "{{ ldap_dir }}"
     mode: "{{ file_permission }}"
 
-- name: Setup LTB repo to control plane
+- name: Setup LTB repo to Omnia Infrastructure Manager
   ansible.builtin.unarchive:
     src: "{{ ldap_dir }}/{{ ltb_git_repo_path }}.tar.gz"
     dest: "{{ ldap_dir }}"

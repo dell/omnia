@@ -18,7 +18,7 @@
   environment:
     http_proxy: "{{ http_proxy }}"
     https_proxy: "{{ https_proxy }}"
-    no_proxy: "{{ control_plane_hostname }},{{ admin_nic_ip }}"
+    no_proxy: "{{ oim_hostname }},{{ admin_nic_ip }}"
   when: processing_unit == "cpu"
   block:
     - name: Validate pytorch_cpu_image_package and pytorch_cpu_image_version
@@ -52,7 +52,7 @@
   environment:
     http_proxy: "{{ http_proxy }}"
     https_proxy: "{{ https_proxy }}"
-    no_proxy: "{{ control_plane_hostname }},{{ admin_nic_ip }}"
+    no_proxy: "{{ oim_hostname }},{{ admin_nic_ip }}"
   when: processing_unit == "amd"
   block:
     - name: Pull AMD GPU container image
@@ -75,7 +75,7 @@
   environment:
     http_proxy: "{{ http_proxy }}"
     https_proxy: "{{ https_proxy }}"
-    no_proxy: "{{ control_plane_hostname }},{{ admin_nic_ip }}"
+    no_proxy: "{{ oim_hostname }},{{ admin_nic_ip }}"
   when: processing_unit == "nvidia"
   block:
     - name: Validate pytorch_nvidia_image_package and pytorch_nvidia_image_version
@@ -109,7 +109,7 @@
   environment:
     http_proxy: "{{ http_proxy }}"
     https_proxy: "{{ https_proxy }}"
-    no_proxy: "{{ control_plane_hostname }},{{ admin_nic_ip }}"
+    no_proxy: "{{ oim_hostname }},{{ admin_nic_ip }}"
   when: processing_unit == "gaudi"
   block:
     - name: Validate pytorch_gaudi_image_package and pytorch_gaudi_image_version

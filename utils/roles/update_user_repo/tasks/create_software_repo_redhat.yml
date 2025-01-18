@@ -20,7 +20,7 @@
       - item.version | default("",true) | length>0
     fail_msg: "{{ version_invalid_fail_msg }} {{ item.name }}"
 
-- name: Check software repo exists in  omnia repo  on ControlPlane
+- name: Check software repo exists in  omnia repo  on Omnia Infrastructure Manager
   ansible.builtin.stat:
     path: "{{ cluster_software_path }}/{{ item.name }}/{{ item.version }}"
   register: check_path_stat
@@ -37,7 +37,7 @@
   changed_when: false
   failed_when: check_repo_url.stderr!=''
 
-- name: Create repo file if software version exists on CP
+- name: Create repo file if software version exists on OIM
   ansible.builtin.template:
     src: "{{ repo_config_template_src }}"
     dest: "{{ repo_path }}/{{ item.name }}-{{ item.version }}-repo.repo"

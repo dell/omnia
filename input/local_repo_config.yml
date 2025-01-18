@@ -27,9 +27,9 @@ repo_store_path: "/opt/omnia_repo"
 
 # Optional
 # This variable accepts the repository urls of the user which contains the packages required for the cluster.
-# always: In this case, Omnia creates a local repo on the Control plane hosting all the packages required for the cluster.
+# always: In this case, Omnia creates a local repo on the Omnia Infrastructure Manager hosting all the packages required for the cluster.
 # User should make sure required disk space is available.
-# partial: In this case, Omnia creates a local repo on the Control Plane hosting packages not part of user's repository.
+# partial: In this case, Omnia creates a local repo on the Omnia Infrastructure Manager hosting packages not part of user's repository.
 # never: In this case, Omnia does not create a local repo. All the packages are directly downloaded on the cluster.
 # This variable accepts repo url and gpgkey
 # url: defines the baseurl for the repository
@@ -46,9 +46,9 @@ user_repo_url:
 
 # Optional
 # This variable accepts the registry url along with port of the user which contains the images required for cluster.
-# always: In this case, Omnia creates a local registry on the Control plane hosting all the images required for the cluster.
+# always: In this case, Omnia creates a local registry on the Omnia Infrastructure Manager hosting all the images required for the cluster.
 # User should make sure required disk space is available.
-# partial: In this case, Omnia creates a local registry on the Control Plane hosting images not part of user's registry.
+# partial: In this case, Omnia creates a local registry on the Omnia Infrastructure Manager hosting images not part of user's registry.
 # never: In this case, Omnia does not create a local registry. All the images are directly downloaded on the cluster.
 # This variable accepts host and cert_path
 # host: defines the url and port for registry
@@ -74,7 +74,7 @@ ubuntu_os_url:
 # Mandatory when cluster_os_type is rhel in softwares_config.json
 # This variable will be ignored when cluster_os_type is ubuntu or rocky
 # User has to provide the code ready builder url that should not have a RedHat subscription authentication inorder to download the packages
-# When repo_config is always, the given rhel_os_url will be configured in the control plane and packages required  for cluster will be downloaded
+# When repo_config is always, the given rhel_os_url will be configured in the Omnia Infrastructure Manager and packages required  for cluster will be downloaded
 # When repo_config is partial or never, the packages required for cluster which were coming from rhel_repo_url will not be downloaded.
 # and the rhel_os_url configured via proxy in compute nodes
 # Example:

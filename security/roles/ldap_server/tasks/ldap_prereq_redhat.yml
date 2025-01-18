@@ -41,7 +41,7 @@
       no_log: true
       when: not openldap_status
 
-    - name: Copy Certificate to control plane for client setup
+    - name: Copy Certificate to Omnia Infrastructure Manager for client setup
       ansible.builtin.fetch:
         src: "{{ tls_certificates_directory_path }}/{{ rhel_cert_file }}"
         dest: "{{ tls_cert_path }}"
@@ -69,7 +69,7 @@
         - "{{ hostvars['127.0.0.1']['tls_certificate_key'] }}"
       when: not openldap_status
 
-    - name: Copy Certificate to control plane for client setup
+    - name: Copy Certificate to Omnia Infrastructure Manager for client setup
       ansible.builtin.copy:
         src: "{{ hostvars['127.0.0.1']['tls_ca_certificate'] }}"
         dest: "{{ tls_cert_path }}"

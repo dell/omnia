@@ -38,7 +38,7 @@ then
 fi
 
 echo "127.0.0.1 localhost" >> /etc/hosts
-echo "{{ admin_nic_ip }} {{ cp_hostname }}" >> /etc/hosts
+echo "{{ admin_nic_ip }} {{ oim_hostname }}" >> /etc/hosts
 
 echo "Installed omnia packages" >> /var/log/xcat/xcat.log
 echo "---------------------------" >> /var/log/xcat/xcat.log

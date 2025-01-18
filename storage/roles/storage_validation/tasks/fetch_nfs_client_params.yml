@@ -126,9 +126,9 @@
     - item.server_ip == "localhost" or
       item.server_ip == admin_nic_ip
 
-- name: Setting up the NFS server on the control plane - {{ admin_nic_ip }}
+- name: Setting up the NFS server on the Omnia Infrastructure Manager - {{ admin_nic_ip }}
   ansible.builtin.pause:
-    prompt: "{{ cp_nfs_server_warning_msg }}"
+    prompt: "{{ oim_nfs_server_warning_msg }}"
     seconds: "{{ warning_wait_time }}"
   when:
     - nfs_server_support

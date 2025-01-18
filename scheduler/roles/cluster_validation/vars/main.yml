@@ -15,7 +15,7 @@
 
 # Usage: main.yml
 omnia_log_path: /var/log/omnia
-cp_path: "/root/.ansible/cp/"
+oim_path: "/root/.ansible/oim/"
 ansible_cfg_src: "{{ playbook_dir }}/ansible.cfg"
 ansible_cfg_dest:
   - { path: "{{ playbook_dir }}/telemetry/ansible.cfg", log_path: "/var/log/omnia/omnia_telemetry.log", regexp: "/var/log/omnia.log" }

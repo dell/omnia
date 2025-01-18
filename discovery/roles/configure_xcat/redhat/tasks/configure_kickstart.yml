@@ -26,11 +26,11 @@
     regexp: '^lang ks_language'
     replace: 'lang {{ language }}'
 
-- name: Update control plane IP in /etc/hosts of compute node
+- name: Update Omnia Infrastructure Manager IP in /etc/hosts of compute node
   ansible.builtin.lineinfile:
     path: "{{ xcat_rhel8_post_script }}"
     insertafter: "EOF"
     state: present
     line: |
       echo "127.0.0.1 localhost" >> /etc/hosts
-      echo "{{ admin_nic_ip }} {{ cp_hostname }}" >> /etc/hosts
+      echo "{{ admin_nic_ip }} {{ oim_hostname }}" >> /etc/hosts

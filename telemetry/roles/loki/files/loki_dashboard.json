@@ -25,7 +25,7 @@
   "links": [],
   "panels": [
     {
-      "datasource": "control-plane-loki",
+      "datasource": "oim-node-loki",
       "gridPos": {
         "h": 8,
         "w": 24,
@@ -48,7 +48,7 @@
         {
           "datasource": {
             "type": "loki",
-            "uid": "control-plane-loki"
+            "uid": "oim-node-loki"
           },
           "expr": "{filename=\"/var/log/omnia.log\",job=\"Omnia logs\"}",
           "queryType": "randomWalk",
@@ -59,7 +59,7 @@
       "type": "logs"
     },
     {
-      "datasource": "control-plane-loki",
+      "datasource": "oim-node-loki",
       "gridPos": {
         "h": 8,
         "w": 24,
@@ -82,7 +82,7 @@
         {
           "datasource": {
             "type": "loki",
-            "uid": "control-plane-loki"
+            "uid": "oim-node-loki"
           },
           "expr": "{filename=\"/var/log/messages\",job=\"syslog\"}",
           "queryType": "randomWalk",

@@ -64,12 +64,12 @@
           - lookup('env', 'no_proxy') | length > 1
           - lookup('env', 'http_proxy') == proxy[0].http_proxy
           - lookup('env', 'https_proxy') == proxy[0].https_proxy
-          - cp_hostname in lookup('env', 'no_proxy')
+          - oim_hostname in lookup('env', 'no_proxy')
           - admin_nic_ip in lookup('env', 'no_proxy')
         fail_msg: "{{ proxy_env_fail_msg }}"
 
     - name: Try updating repos in Ubuntu
-      when: control_plane_os in control_plane_os_ubuntu
+      when: oim_os in oim_os_ubuntu
       block:
         - name: Update repos in Ubuntu
           ansible.builtin.apt:
@@ -85,8 +85,8 @@
 
     - name: Try updating repos in RHEL/Rocky
       when:
-        - control_plane_os in control_plane_os_redhat or
-          control_plane_os in control_plane_os_rocky
+        - oim_os in oim_os_redhat or
+          oim_os in oim_os_rocky
       block:
         - name: Update repos in RHEL/Rocky
           ansible.builtin.dnf:
