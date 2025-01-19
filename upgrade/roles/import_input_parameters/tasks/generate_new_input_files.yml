@@ -1,0 +1,178 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+- name: Set facts for local_repo_config include_vars
+  ansible.builtin.set_fact:
+    beegfs_version: ""
+    amdgpu_version: ""
+    rocm_version: ""
+    cluster_os_version: ""
+    os_release: ""
+    openldap_release: ""
+
+- name: Set fact import_input_parameters_new_config_file_array
+  ansible.builtin.set_fact:
+    import_input_parameters_new_config_file_array: []
+
+- name: Ensure the destination directory exists
+  ansible.builtin.file:
+    path: "{{ new_input_folder_backup_location }}"
+    state: directory
+    mode: '0755'  # Adjust permissions as needed
+
+- name: Run cat on config files
+  ansible.builtin.command: cat "{{ read_input_folder_backup_location }}/input/{{ cat_item.file }}"
+  changed_when: false
+  loop: "{{ import_input_parameters_config_file_array }}"
+  loop_control:
+    loop_var: cat_item
+  register: cat_output
+  no_log: true
+
+- name: Read stdout into an array
+  ansible.builtin.set_fact:
+    stdout_array: "{{ cat_output.results | map(attribute='stdout') | list }}"
+
+- name: Construct new config files array
+  ansible.builtin.set_fact:
+    import_input_parameters_new_config_file_array: "{{ import_input_parameters_new_config_file_array + [{'file_entry': file_item.0, 'stdout': file_item.1}] }}"
+  loop: "{{ import_input_parameters_config_file_array | zip(stdout_array) | list }}"
+  loop_control:
+    loop_var: file_item
+  no_log: true
+
+- name: Store input files to be read
+  ansible.builtin.set_fact:
+    input_filenames: "{{ import_input_parameters_new_config_file_array | map(attribute='file_entry.file') | list }}"
+
+- name: Read config files
+  block:
+    - name: Decrypt config files
+      ansible.builtin.command: >-
+        ansible-vault decrypt {{ read_input_folder_backup_location }}/input/{{ decr_item.file_entry.file }}
+        --vault-password-file {{ read_input_folder_backup_location }}/input/{{ decr_item.file_entry.vault_password_file }}
+      loop: "{{ import_input_parameters_new_config_file_array }}"
+      loop_control:
+        loop_var: decr_item
+      when: "'$ANSIBLE_VAULT;' in decr_item.stdout"
+      no_log: true
+      changed_when: false
+
+    - name: Read existing parameters from input files
+      ansible.builtin.include_vars:
+        file: "{{ read_input_folder_backup_location }}/input/{{ item }}"
+        name: "{{ item | basename | splitext | first }}_ns"
+      with_items: "{{ input_filenames }}"
+      register: result
+      changed_when: false
+      failed_when: result is failed
+
+  rescue:
+    - name: Check if any input files read failed
+      ansible.builtin.set_fact:
+        read_parameters_failed: true
+        failed_input_files: "{{ failed_input_files | default([]) + [item.item] }}"
+      when: item.failed
+      with_items: "{{ result.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+  always:
+    - name: Check if vault password file exists
+      ansible.builtin.stat:
+        path: "{{ read_input_folder_backup_location }}/input/{{ vitem.vault_password_file }}"
+      register: vault_password_file_stat
+      loop: "{{ import_input_parameters_config_encrypt_array }}"
+      loop_control:
+        loop_var: vitem
+      changed_when: false
+
+    - name: Extract file names where stat.exists is true
+      ansible.builtin.set_fact:
+        vault_file_exists_list: "{{ vault_file_exists_list | default([]) + [{'file': item.vitem.file, 'vault_password_file': item.vitem.vault_password_file}] }}" # noqa: yaml[line-length]
+      when: item.stat.exists
+      loop: "{{ vault_password_file_stat.results }}"
+
+    - name: Encrypt old input files
+      ansible.builtin.command: >-
+        ansible-vault encrypt {{ read_input_folder_backup_location }}/input/{{ eitem.file }}
+        --vault-password-file {{ read_input_folder_backup_location }}/input/{{ eitem.vault_password_file }}
+      loop: "{{ vault_file_exists_list }}"
+      loop_control:
+        loop_var: eitem
+      changed_when: false
+
+- name: Check if read parameters failed
+  ansible.builtin.fail:
+    msg: "{{ read_parameters_failed_msg }}"
+  when: read_parameters_failed is defined and read_parameters_failed
+
+- name: Set fact version
+  ansible.builtin.set_fact:
+    template_path: "{{ role_path }}/templates/{{ folder_name }}"
+
+- name: Folder name new_input_folder_backup_location
+  ansible.builtin.debug:
+    msg: "new_input_folder_backup_location used is {{ new_input_folder_backup_location }}"
+
+- name: Folder name template
+  ansible.builtin.debug:
+    msg: "Template used is {{ template_path }}"
+
+- name: Generate config files from templates
+  ansible.builtin.template:
+    src: "{{ template_path }}/{{ my_item.src }}"
+    dest: "{{ new_input_folder_backup_location }}/{{ my_item.dest }}"
+    mode: "{{ file_perm }}"
+  loop: "{{ import_input_parameters_config_template_array }}"
+  loop_control:
+    loop_var: my_item
+
+- name: Encrypt config files
+  ansible.builtin.include_tasks: encrypt_input_file.yml
+  loop: "{{ input_config_files_array }}"
+  loop_control:
+    loop_var: conf_list
+  no_log: true
+
+- name: Ensure read_input_folder_backup_location directory is absent
+  ansible.builtin.file:
+    path: "{{ read_input_folder_backup_location }}"
+    state: absent
+  failed_when: false
+
+- name: Ensure the destination directory exists
+  ansible.builtin.file:
+    path: "{{ read_input_folder_backup_location }}/input"
+    state: directory
+    mode: '0755'  # Adjust permissions as needed
+
+- name: Move contents from new_input_folder_backup_location to read_input_folder_backup_location
+  ansible.posix.synchronize:
+    mode: push
+    src: "{{ new_input_folder_backup_location }}/."
+    dest: "{{ read_input_folder_backup_location }}/input/"
+    rsync_opts:
+      - "-a"
+      - "-v"
+  register: mv_result
+  ignore_errors: true
+  changed_when: false
+
+- name: Remove the temporary input directory if it still exists and is empty
+  ansible.builtin.file:
+    path: "{{ new_input_folder_backup_location }}"
+    state: absent
+  when: mv_result is succeeded  # Only attempt to remove if the move was successful
+  failed_when: false

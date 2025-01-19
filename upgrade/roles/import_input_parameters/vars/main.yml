@@ -1,0 +1,108 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+## File arrays
+# Usage: generate_new_input_files.yml
+import_input_parameters_config_file_array:
+  - file: "omnia_config.yml"
+    vault_password_file: ".omnia_vault_key"
+  - file: "provision_config.yml"
+    vault_password_file: ""
+  - file: "provision_config_credentials.yml"
+    vault_password_file: ".provision_credential_vault_key"
+  - file: "network_spec.yml"
+    vault_password_file: ""
+  - file: "network_config.yml"
+    vault_password_file: ""
+  - file: "security_config.yml"
+    vault_password_file: ".security_vault.key"
+  - file: "storage_config.yml"
+    vault_password_file: ""
+  - file: "local_repo_config.yml"
+    vault_password_file: ""
+  - file: "telemetry_config.yml"
+    vault_password_file: ".telemetry_vault_key"
+  - file: "k8s_access_config.yml"
+    vault_password_file: ""
+  - file: "login_node_security_config.yml"
+    vault_password_file: ""
+  - file: "passwordless_ssh_config.yml"
+    vault_password_file: ""
+  - file: "roce_plugin_config.yml"
+    vault_password_file: ""
+  - file: "server_spec.yml"
+    vault_password_file: ""
+
+
+import_input_parameters_new_config_file_array: []
+
+import_input_parameters_config_encrypt_array:
+  - file: "omnia_config.yml"
+    vault_password_file: ".omnia_vault_key"
+  - file: "provision_config_credentials.yml"
+    vault_password_file: ".provision_credential_vault_key"
+  - file: "security_config.yml"
+    vault_password_file: ".security_vault.key"
+  - file: "telemetry_config.yml"
+    vault_password_file: ".telemetry_vault_key"
+
+read_parameters_failed_msg: "Failed to read Omnia installed input config files {{ failed_input_files }} Please check for any syntax errors. "
+
+import_input_parameters_config_template_array:
+  - src: 'omnia_config.j2'
+    dest: 'omnia_config.yml'
+  - src: 'provision_config.j2'
+    dest: 'provision_config.yml'
+  - src: 'provision_config_credentials.j2'
+    dest: 'provision_config_credentials.yml'
+  - src: 'network_config.j2'
+    dest: 'network_config.yml'
+  - src: 'security_config.j2'
+    dest: 'security_config.yml'
+  - src: 'storage_config.j2'
+    dest: 'storage_config.yml'
+  - src: 'telemetry_config.j2'
+    dest: 'telemetry_config.yml'
+  - src: 'local_repo_config.j2'
+    dest: 'local_repo_config.yml'
+  - src: 'network_spec.j2'
+    dest: 'network_spec.yml'
+  - src: 'k8s_access_config.j2'
+    dest: 'k8s_access_config.yml'
+  - src: 'login_node_security_config.j2'
+    dest: 'login_node_security_config.yml'
+  - src: 'passwordless_ssh_config.j2'
+    dest: 'passwordless_ssh_config.yml'
+  - src: 'roce_plugin_config.j2'
+    dest: 'roce_plugin_config.yml'
+  - src: 'server_spec.j2'
+    dest: 'server_spec.yml'
+
+
+file_perm: "0644"
+
+# Usage: import_input_parameters.yml
+import_input_parameters_successful_msg: "Prepare upgrade completed. Kindly confirm migrated values and provide input for newly introduced values."
+
+
+input_folder: "{{ role_path }}/../../../input"
+input_config_files_array:
+  - file: "omnia_config.yml"
+    vault_password_file: ".omnia_vault_key"
+  - file: "provision_config_credentials.yml"
+    vault_password_file: ".provision_credential_vault_key"
+  - file: "security_config.yml"
+    vault_password_file: ".security_vault.key"
+  - file: "telemetry_config.yml"
+    vault_password_file: ".telemetry_vault_key"
