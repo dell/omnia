@@ -1,0 +1,42 @@
+# Copyright 2024 Intel Corporation.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# This playbook need to be called during the default omnia provisioning
+# of newly installed Gaudi devices. This will make sure the device will function properly
+# and help early detection of HW/SW missing requirements.
+# It's recommended to do extensive tests when installing a new Gaudi node.
+# This can be controlled using var: run_intel_gaudi_tests: true
+
+- name: Check if virtual environment is active
+  ansible.builtin.import_playbook: ../check_venv.yml
+  when: not ( check_venv_executed | default(false) | bool )
+
+- name: Include omnia config file
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  any_errors_fatal: true
+  tasks:
+    - name: Include omnia config file
+      ansible.builtin.include_role:
+        name: verify_intel_gaudi
+        tasks_from: include_omnia_config.yml
+
+- name: Verify Intel Gaudi installation
+  hosts: kube_node
+  gather_facts: true
+  any_errors_fatal: true
+  roles:
+    - verify_intel_gaudi

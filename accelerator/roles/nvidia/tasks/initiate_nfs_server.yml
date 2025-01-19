@@ -14,6 +14,7 @@
 ---
 
 - name: Setup NFS Server when cuda offline path is given
+  when: local_installer
   block:
 
     - name: Include vars file of inventory role
@@ -39,6 +40,7 @@
 
 # Setup nfs server when nfs_cuda status is set to true
     - name: Setup NFS Server with cuda toolkit
+      when: nfs_cuda is true
       block:
         - name: Setup nfs server on localhost
           ansible.builtin.include_tasks: setup_nfs_server.yml
@@ -48,7 +50,3 @@
             src: "{{ cuda_toolkit_path }}"
             dest: "{{ cuda_filepath }}"
             mode: "{{ cuda_nfs_permissions }}"
-
-      when: nfs_cuda is true
-
-  when: local_installer

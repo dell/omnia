@@ -15,14 +15,14 @@
 
 # Docker images to be downloaded in all target nodes using apptainer to create sif file
 # Example for single image
-# hpc_apptainer_image: 
+# hpc_apptainer_image:
 #   - { image_url: "docker.io/intel/oneapi-hpckit:latest" }
 # Example for multiple images
-# hpc_apptainer_image: 
+# hpc_apptainer_image:
 #   - { image_url: "docker.io/intel/oneapi-hpckit:latest" }
 #   - { image_url: "docker.io/tensorflow/tensorflow:latest" }
 # If provided docker credentials in omnia_config.yml, it will be used for downloading docker images
-hpc_apptainer_image: 
+hpc_apptainer_image:
   - { image_url: "" }
 
 # Path to directory for storing apptainer sif files in cluster nodes

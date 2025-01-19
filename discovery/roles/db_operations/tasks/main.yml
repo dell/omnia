@@ -13,5 +13,5 @@
 # limitations under the License.
 ---
 
-- name: Enter control_plane details in cluster.nodeinfo table
-  ansible.builtin.include_tasks: cp_details_db.yml
+- name: Enter oim details in cluster.nodeinfo table
+  ansible.builtin.include_tasks: oim_details_db.yml

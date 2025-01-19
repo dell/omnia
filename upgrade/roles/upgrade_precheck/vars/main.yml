@@ -1,0 +1,75 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Usage: upgrade_version_check
+unsupported_omnia_version: "Current installed version is below v1.6.1 and sequential upgrade is supported from Omnia v1.6.1 only.
+  Please use upgrade functionality from Omnia 1.6.1 source code to upgrade to v1.6.1"
+omnia_version_file_absent: "Omnia version file is not present in provided installed omnia path.
+  Please provide correct omnia installed source code path and re-run upgrade_oim.yml"
+discovery_execution_req: "discovery_and_provsion.yml is not executed on the Omnia Infrastructure Manager, Please follow documentation for fresh installation."
+already_upgraded: "Current installed omnia version is same as version to be upgraded."
+
+meta_path: "/opt/omnia/.data/metadata.yml"
+installed_omnia_version_path: "{{ installed_omnia_path }}/.metadata/omnia_version"
+omnia_upgrade_version_path: "../../../../.metadata/omnia_version"
+
+
+# Usage: upgrade_os_check
+unsupported_os: "Current OS {{ ansible_distribution }} {{ ansible_distribution_version }} installed on the Omnia Infrastructure Manager
+  is not supported for upgrade feature in Omnia v1.7. Upgrade is supported on RHEL/Rocky 8.6/8.7/8.8, Ubuntu 20.04/22.04."
+msg_supported_older_os: "After upgrade, new features are not supported on RHEL/Rocky 8.6/8.7"
+activate_supported_venv: "Failed. Upgrade is supported using omnia17_venv only on RHEL/Rocky 8.8 and ubuntu 22.04/20.04."
+
+# Usage: precheck_local_repo_access.yml
+local_repo_access_dest_path: "/opt/omnia/offline/local_repo_access.yml"
+local_repo_access_fail_msg: "Failed. {{ local_repo_access_dest_path }} does not exist."
+repo_config_metadata_file: "/opt/omnia/offline/.data/metadata.yml"
+repo_config_metadata_file_msg: "Failed. Local repo has not executed. Please follow documentation for fresh installation."
+incorrect_repo_config_value_msg: "Failed. While omnia installation, local repo has not executed with valid repo_config value."
+
+# Usage: upgrade_precheck_k8s.yml
+etcd_not_running: "Upgrade Precheck Failed- etcd service is not running. Please fix etcd service first before initiating upgrade."
+grafana_ns: "grafana"
+telemetry_visualizations_ns: "telemetry-and-visualizations"
+mysqldb_name: "idrac_telemetrysource_services_db"
+database_name: "telemetry_metrics"
+timescaledb_k8s_name: timescaledb
+backup_warning_msg: "The database currently has no data. The database will be populated with fresh data after the upgrade."
+warning_wait_time: 30
+
+# Usage:include_telemetry_config.yml
+telemetry_config_file: "{{ installed_omnia_path }}/input/telemetry_config.yml"
+telemetry_vault_filename: "{{ installed_omnia_path }}/input/.telemetry_vault_key"
+telemetry_config_syntax_fail_msg: "Failed.Syntax errors present in telemetry_config.yml.Fix errors and re-run playbook again."
+vault_file_perm: '0644'
+
+grafana_pod_selector: "grafana-"
+loki_pod_selector: "loki-"
+timescaledb_pod_selector: "timescaledb-"
+idrac_telemetry_pod_selector: "idrac-telemetry-"
+mysqldb_pod_selector: "mysqldb-"
+
+error_non_running_pods: "Upgrade precheck failed. There are non running pods present in the cluster.
+  All pods should be in running state before initiating upgrade task.
+  Please fix these pods first before initiatiing upgrade task. List of non running pods: "
+error_unbound_pvc: "Upgrade precheck failed: There should not be any unbounded PVCs before initiatiing upgrade task.
+  Unbounded PVC found: "
+error_improper_service: "Upgrade precheck failed: Some LoadBalancer services do not have external IPs assigned.
+  Please fix the mentioned services first before initiatiing upgrade task: "
+error_k8s_sanity: "Upgrade precheck failed in kubernetes sanity check. 'kubectl get node' command failed. Review the kubernetes cluster.
+  Please fix the kubernetes cluster first before initiatiing upgrade task."
+
+max_attempts: 3
+wait_time: 5

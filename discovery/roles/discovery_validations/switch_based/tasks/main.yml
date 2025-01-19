@@ -24,6 +24,6 @@
 
     - name: Validate switch snmp v3 details
       ansible.builtin.include_tasks: validate_switch_snmp_params.yml
-    
+
     - name: Validate bmc details status
       ansible.builtin.include_tasks: validate_bmc_details_status.yml

@@ -1,0 +1,77 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Check if omnia version file path is present
+  ansible.builtin.stat:
+    path: "{{ installed_omnia_version_path }}"
+  register: file_status
+
+- name: Report omnia_version file absence
+  ansible.builtin.fail:
+    msg: "{{ omnia_version_file_absent }}"
+  when: not file_status.stat.exists
+
+- name: Get the omnia version
+  ansible.builtin.include_vars:
+    file: "{{ installed_omnia_version_path }}"
+
+- name: Set target omnia version vars
+  ansible.builtin.set_fact:
+    installed_omnia_version: "{{ omnia_version | string }}"
+
+- name: Print the omnia version fetched
+  ansible.builtin.debug:
+    msg: Version at {{ installed_omnia_path }} is {{ installed_omnia_version }}
+
+- name: Get the omnia version to be upgraded
+  ansible.builtin.include_vars:
+    file: "{{ omnia_upgrade_version_path }}"
+
+- name: Set upgrade_omnia_version
+  ansible.builtin.set_fact:
+    upgrade_omnia_version: "{{ omnia_version | string }}"
+
+- name: Check fetched omnia version and version to be upgraded is same
+  ansible.builtin.fail:
+    msg: "{{ already_upgraded }}"
+  when: installed_omnia_version == upgrade_omnia_version
+
+- name: Assert if >= v1.6.1
+  ansible.builtin.assert:
+    that:
+      - installed_omnia_version is version('1.6.1', '>=')
+    fail_msg: "{{ unsupported_omnia_version }}"
+
+- name: Check discovery metadata file status
+  ansible.builtin.stat:
+    path: "{{ meta_path }}"
+  register: metadata_status
+
+- name: Discovery_and_provision.yml not executed
+  ansible.builtin.fail:
+    msg: "{{ discovery_execution_req }}"
+  when: not metadata_status.stat.exists
+
+- name: Include the metadata file
+  when: metadata_status.stat.exists
+  block:
+    - name: Include metadata.yml file
+      ansible.builtin.include_vars: "{{ meta_path }}"
+      no_log: true
+
+    - name: Check installed omnia version and version to be upgraded is same
+      ansible.builtin.fail:
+        msg: "{{ already_upgraded }}"
+      when: installed_version is defined and installed_version in upgrade_omnia_version

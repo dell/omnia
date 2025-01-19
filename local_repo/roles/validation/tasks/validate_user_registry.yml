@@ -30,3 +30,52 @@
   loop: "{{ user_registry }}"
   loop_control:
     loop_var: item
+
+- name: Initialize unreachable user registry
+  ansible.builtin.set_fact:
+    unreachable_registries: ""
+
+- name: Check if user registry is reachable from Omnia Infrastructure Manager
+  ansible.builtin.uri:
+    url: "https://{{ item.host }}"
+    validate_certs: false
+    timeout: "{{ time_out }}"
+  register: https_registry_reachable
+  failed_when: false
+  loop: "{{ user_registry }}"
+  loop_control:
+    loop_var: item
+
+- name: Set facts for reachable and unreachable registries
+  ansible.builtin.set_fact:
+    reachable_registries: "{{ https_registry_reachable.results | selectattr('status', 'equalto', 200) | map(attribute='item.host') | list }}"
+    unreachable_registries: "{{ https_registry_reachable.results | selectattr('status', 'ne', 200) | map(attribute='item.host') | list }}"
+
+- name: Warning - Display unreachable registries
+  ansible.builtin.pause:
+    prompt: "{{ user_registry_msg }}"
+    seconds: "{{ warning_wait_time_warning }}"
+  when: unreachable_registries | default("", true) | length > 0
+
+- name: Check if cert_path is a valid file path
+  ansible.builtin.stat:
+    path: "{{ item.cert_path }}"
+  register: cert_path_status
+  loop: "{{ user_registry }}"
+  loop_control:
+    loop_var: item
+  when:
+    - item.cert_path is defined
+    - item.cert_path | length > 0
+
+- name: Fail if cert_path does not exist
+  ansible.builtin.fail:
+    msg: " {{ cert_path_failure_msg }}"
+  loop: "{{ cert_path_status.results }}"
+  loop_control:
+    loop_var: item
+  when:
+    - item.stat is defined
+    - not item.stat.exists
+    - item.item.cert_path | length > 0
+    - cert_path_status.results is defined

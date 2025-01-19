@@ -13,9 +13,9 @@
 # limitations under the License.
 ---
 
-- name: Collect cp files from ansible directory
+- name: Collect oim files from ansible directory
   ansible.builtin.find:
-    paths: "{{ cp_path }}"
+    paths: "{{ oim_path }}"
     hidden: true
     recurse: true
     file_type: any
@@ -23,7 +23,7 @@
   failed_when: false
   delegate_to: localhost
 
-- name: Remove cp files from ansible directory
+- name: Remove oim files from ansible directory
   ansible.builtin.file:
     path: "{{ item.path }}"
     state: absent

@@ -19,8 +19,8 @@
       - 'no shutdown'
     parents: ['interface vlan1']
   vars:
-    - ansible_ssh_user: "{{ ethernet_switch_username }}"
-      ansible_ssh_password: "{{ ethernet_switch_password }}"
+    ansible_ssh_user: "{{ ethernet_switch_username }}"
+    ansible_ssh_password: "{{ ethernet_switch_password }}"
   when: item.value.admin == 'up'
 
 - name: Bring vlan interface down
@@ -29,6 +29,6 @@
       - 'shutdown'
     parents: ['interface vlan1']
   vars:
-    - ansible_ssh_user: "{{ ethernet_switch_username }}"
-      ansible_ssh_password: "{{ ethernet_switch_password }}"
+    ansible_ssh_user: "{{ ethernet_switch_username }}"
+    ansible_ssh_password: "{{ ethernet_switch_password }}"
   when: item.value.admin == 'down'

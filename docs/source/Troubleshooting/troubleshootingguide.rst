@@ -10,12 +10,12 @@ Connecting to internal databases
 ------------------------------------
 * TimescaleDB
     * Start a bash session within the timescaledb pod: ``kubectl exec -it pod/timescaledb-0 -n telemetry-and-visualizations -- /bin/bash``
-    * Connect to psql: ``psql -U <postgres_username>``
-    * Connect to database: ``\c telemetry_metrics``
+    * Connect to psql using the ``psql -u <postgres_username>`` command.
+    * Connect to database using the ``\c telemetry_metrics`` command.
 * MySQL DB
-    * Start a bash session within the mysqldb pod: ``kubectl exec -it pod/mysqldb-0 -n telemetry-and-visualizations -- /bin/bash``
-    * Connect to mysql: ``mysql -U <mysqldb_username> -p <mysqldb_password>``
-    * Connect to database: ``USE idrac_telemetrysource_services_db``
+    * Start a bash session within the mysqldb pod using the ``kubectl exec -it pod/mysqldb-0 -n telemetry-and-visualizations -- /bin/bash`` command.
+    * Connect to mysql using the ``mysql -u <mysqldb_username>`` command and provide password when prompted.
+    * Connect to database using the ``USE idrac_telemetrysource_services_db`` command.
 
 Checking and updating encrypted parameters
 -----------------------------------------------

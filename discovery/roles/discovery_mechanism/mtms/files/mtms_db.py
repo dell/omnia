@@ -14,7 +14,7 @@
 
 
 import ipaddress
-import sys
+import sys, os
 import warnings
 import correlation_admin_bmc
 import modify_network_details
@@ -29,14 +29,14 @@ bmc_static_range = sys.argv[2]
 bmc_static_subnet = sys.argv[3]
 bmc_dynamic_range = sys.argv[4]
 bmc_dynamic_subnet = bmc_static_subnet
-static_stanza_path = sys.argv[5]
-dynamic_stanza_path = sys.argv[6]
+static_stanza_path = os.path.abspath(sys.argv[5])
+dynamic_stanza_path = os.path.abspath(sys.argv[6])
 node_name = sys.argv[7]
 domain_name = sys.argv[8]
 admin_static_range = sys.argv[9]
 admin_subnet = sys.argv[10]
 netmask_bits = sys.argv[11]
-discover_stanza_path = sys.argv[12]
+discover_stanza_path = os.path.abspath(sys.argv[12])
 correlation_status = sys.argv[13]
 uncorrelated_admin_start_ip = ipaddress.IPv4Address(sys.argv[14])
 discovery_mechanism = "mtms"

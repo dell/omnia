@@ -1,46 +1,56 @@
-{ 
+{
 
-  "pytorch": { 
+  "pytorch": {
 
     "cluster": []
 
   },
   "pytorch_cpu": {
-    "cluster": [ 
-      { 
+    "cluster": [
+      {
         "package": "docker.io/pytorch/pytorch",
         "tag": "latest",
         "type": "image"
       }
-    ]    
+    ]
   },
-  "pytorch_amd": { 
+  "pytorch_amd": {
 
-    "cluster": [ 
-      { 
+    "cluster": [
+      {
         "package": "docker.io/rocm/pytorch",
         "tag": "latest",
-        "type": "image" 
+        "type": "image"
       }
     ]
 
   },
-  "pytorch_nvidia": { 
+  "pytorch_nvidia": {
 
-    "cluster": [ 	
-      { 
+    "cluster": [
+      {
         "package": "nvcr.io/nvidia/pytorch",
         "tag": "23.12-py3",
         "type": "image"
-      
+
       },
       {
         "package": "nvidia-container-toolkit",
-        "type": "deb", 
+        "type": "deb",
         "repo_name": "nvidia-container-toolkit"
       }
     ]
 
-  }
+  },
+  "pytorch_gaudi": {
 
+    "cluster": [
+      {
+        "package": "vault.habana.ai/gaudi-docker/1.18.0/ubuntu22.04/habanalabs/pytorch-installer-2.4.0",
+        "tag": "latest",
+        "type": "image"
+      }
+    ]
+
+}
 }

@@ -1,0 +1,25 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Usage: main.yml
+warning_msg: "Warning: cmdline_value is empty for {{ inventory_hostname }}. No kernel command-line parameters will be set for this node."
+
+# Usage: kcmdline_update_redhat.yml kcmdline_update_rocky.yml kcmdline_update_ubuntu.yml
+grub_path: /etc/default/grub
+file_permission: "0755"
+
+# Usage: reboot_nodes.yml
+reboot_fail_msg: "Failed. Nodes should be rebooted manually."
+reboot_warning_msg: "[WARNING] - NODES WILL BE REBOOTED. IF NODES ARE IN USE, YOU CAN ABORT THE TASK AND REBOOT MANUALLY LATER."
+warning_wait_time: 60

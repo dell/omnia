@@ -31,9 +31,19 @@
   ansible.builtin.set_fact:
     os_release: "{{ ansible_distribution_release }}"
 
-- name: Clean apt cache
-  ansible.builtin.apt:
-    autoclean: true
+- name: Try cleaning apt cache in Ubuntu
+  block:
+    - name: Clean apt cache
+      ansible.builtin.apt:
+        autoclean: true
+      register: clean_apt_cache
+      until: clean_apt_cache is not failed
+      retries: "{{ repo_retries }}"
+      delay: "{{ repo_delay }}"
+  rescue:
+    - name: Failed to clean apt cache
+      ansible.builtin.fail:
+        msg: "{{ clean_apt_cache_fail_msg }}"
 
 - name: Configure Omnia Repositories
   ansible.builtin.template:
@@ -48,9 +58,19 @@
     mode: "{{ file_mode }}"
   changed_when: false
 
-- name: Update apt cache
-  ansible.builtin.apt:
-    update_cache: true
+- name: Try updating repos in Ubuntu
+  block:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+      register: update_repos
+      until: update_repos is not failed
+      retries: "{{ repo_retries }}"
+      delay: "{{ repo_delay }}"
+  rescue:
+    - name: Failed to update repos
+      ansible.builtin.fail:
+        msg: "{{ docker_update_repos_fail_msg }}"
 
 - name: Get epoch number of docker-ce/docker-ce-cli
   ansible.builtin.shell: "set -o pipefail && apt-cache show docker-ce | grep 'Version: 5:24.0.4' | awk '{print $2}'"
@@ -74,4 +94,12 @@
   register: docker_result
   until: docker_result is succeeded
   retries: "{{ package_retry }}"
-  delay: "{{ delay_loki }}"
+  delay: "{{ delay_time }}"
+
+- name: Configure proxy environment variables for docker
+  ansible.builtin.include_tasks: configure_docker_proxy.yml
+  when: proxy_status
+
+- name: Login to docker when credentials are given
+  ansible.builtin.include_tasks: docker_login.yml
+  when: docker_login

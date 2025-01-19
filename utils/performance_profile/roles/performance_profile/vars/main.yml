@@ -1,0 +1,41 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Usage: main.yml
+
+setup_performance_profile_path: "{{ role_path }}/tasks/setup_performance_profile.yml"
+
+# Usage: validate_inputs.yml
+
+empty_inventory_fail_msg: "Failed. inventory not provided. Re-run playbook with inventory providing -i inventory."
+python_version: "{{ ansible_python_interpreter }}"
+validate_input_py: "{{ role_path }}/files/validate_input.py"
+
+# Usage: setup_performance_profile.yml
+
+reboot_node_file_path: "{{ role_path }}/tasks/reboot_node.yml"
+performance_profile_config_path: "{{ playbook_dir }}/performance_profile_config.yml"
+tuned_conf_template_path: "{{ role_path }}/templates/tuned.conf.j2"
+performance_profile_name: "{{ intel_gpu.performance_profile }}"
+performance_profile_plugins: "{{ intel_gpu.performance_profile_plugin }}"
+default_profile_path: "/usr/lib/tuned/{{ performance_profile_name }}"
+profile_doesnt_exist_msg: "performance profile {{ performance_profile_name }} does not exist."
+modified_profile_path: "/etc/tuned/{{ performance_profile_name }}"
+modified_profile_permissions: '0755'
+modified_tuned_conf_path: "{{ modified_profile_path }}/tuned.conf"
+modified_tuned_conf_permissions: '0644'
+
+# Usage: reboot_node.yml
+reboot_fail_msg: "Failed. Nodes should be rebooted manually."

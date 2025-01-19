@@ -13,18 +13,19 @@
 # limitations under the License.
 ---
 
-#***********************************************************************
-# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.                  
+# ***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.
 # SIMPLY APPEND THE REQUIRD VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
-#***********************************************************************
+# ***********************************************************************
 
 # Mandatory, when package_list is not provided
 # This variable contains the list of software group mentioned in software_config.json
 # Example:
 # softwares_list:
 #   - custom
-# In above case, user is required to create custom.json under input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/custom.json, Eg: input/config/ubuntu/22.04/custom.json file.
-# This json should contain the list of packages, either .deb(Ubuntu) or .rpm(RHEL/Rocky) that should be installed on remote nodes.  
+# In above case, user is required to create custom.json >
+# under input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/custom.json, Eg: input/config/ubuntu/22.04/custom.json file.
+# This json should contain the list of packages, either .deb(Ubuntu) or .rpm(RHEL/Rocky) that should be installed on remote nodes.
 softwares_list:
 
 # Mandatory, when softwares_list is not provided

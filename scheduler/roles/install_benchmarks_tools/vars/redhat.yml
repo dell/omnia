@@ -14,5 +14,7 @@
 
 ---
 # Usage: prerequisite_ucx.yml, prerequisite_openmpi.yml
-gcc_package_names: gcc-c++
+gcc_package_names:
+  - gcc-c++
+  - make
 clang_package: clang

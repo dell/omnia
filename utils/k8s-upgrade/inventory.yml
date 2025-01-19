@@ -3,6 +3,6 @@ all:
     manager:
       hosts:
         compute104.omnia.local:
-    compute: 
+    compute:
       hosts:
         compute105.omnia.local:

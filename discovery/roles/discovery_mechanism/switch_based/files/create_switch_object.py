@@ -45,37 +45,38 @@ def create_switch_object(conn,switch_ip,switch_snmp_username,switch_snmp_passwor
     """
 
     cursor = conn.cursor()
-    for ip in switch_ip:
-        # Check for existing entries of switch_ip
-        sql = f"select exists(select switch_ip from cluster.switchinfo where switch_ip='{ip}')"
-        cursor.execute(sql)
-        output_switch_ip = cursor.fetchone()[0]
-
-        if not output_switch_ip:
-            # Generate switch_name
-            sql = '''select id from cluster.switchinfo ORDER BY id DESC LIMIT 1'''
+    if switch_ip:
+        for ip in switch_ip:
+            # Check for existing entries of switch_ip
+            sql = f"select exists(select switch_ip from cluster.switchinfo where switch_ip='{ip}')"
             cursor.execute(sql)
-            id_number = cursor.fetchone()
-            if id_number is None:
-                id_number = [0]
-            switch_id = int(id_number[0]) + 1
-            switch_name = switch_name_prefix + str(switch_id)
+            output_switch_ip = cursor.fetchone()[0]
 
-            omniadb_connection.insert_switch_info(cursor,switch_name,ip)
+            if not output_switch_ip:
+                # Generate switch_name
+                sql = '''select id from cluster.switchinfo ORDER BY id DESC LIMIT 1'''
+                cursor.execute(sql)
+                id_number = cursor.fetchone()
+                if id_number is None:
+                    id_number = [0]
+                switch_id = int(id_number[0]) + 1
+                switch_name = switch_name_prefix + str(switch_id)
 
-            # Create switch object
-            command = ["chdef", switch_name, f"ip={ip}", f"groups={switch_group}"]
-            subprocess.run(command)
+                omniadb_connection.insert_switch_info(cursor,switch_name,ip)
 
-            # Update xcat switches table with switch credentials
-            command = ["tabch", f"switch={switch_name}", f"switches.snmpversion={switch_snmp_version}", f"switches.username={switch_snmp_username}", f"switches.password={switch_snmp_password}", f"switches.auth={switch_auth_type}"]
-            subprocess.run(command)
+                # Create switch object
+                command = ["/opt/xcat/bin/chdef", switch_name, f"ip={ip}", f"groups={switch_group}"]
+                subprocess.run(command)
 
-            print(f"Created node object for switch: {switch_name}")
+                # Update xcat switches table with switch credentials
+                command = ["/opt/xcat/sbin/tabch", f"switch={switch_name}", f"switches.snmpversion={switch_snmp_version}", f"switches.username={switch_snmp_username}", f"switches.password={switch_snmp_password}", f"switches.auth={switch_auth_type}"]
+                subprocess.run(command)
+
+                print(f"Created node object for switch: {switch_name}")
     cursor.close()
 
 def main():
-   
+
    # Fetch input arguments
    switch_ip = sys.argv[1:-3]
    switch_snmp_username = sys.argv[-3]

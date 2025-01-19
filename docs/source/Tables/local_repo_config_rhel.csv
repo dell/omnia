@@ -1,0 +1,108 @@
+﻿Parameter,Details
+"**repo_store_path**
+
+``string``
+
+Required","* The intended file path for offline repository data.
+* Ensure the disk partition has enough space.
+* Ensure that 755 permission is given to ``repo_store_path`` if user intends to use nfs share mount for ``repo_store_path``. 
+
+**Default value**:  ``""/opt/omnia_repo""``"
+"**user_repo_url**
+
+``JSON List``
+
+Optional","* This variable accepts the repository urls of the user which contains the packages required for the cluster.
+
+* When ``repo_config`` is always, the given list will be configured on the control plane and packages required for cluster will be downloaded into a local repository.
+
+* When ``repo_config`` is partial, a local repository is created on the control plane containing packages that are not part of the user's repository.
+
+* When ``repo_config`` is never, no local repository is created and packages are downloaded on all cluster nodes.
+
+* 'url' defines the baseurl for the repository.
+
+* 'gpgkey' defines gpgkey for the repository. If 'gpgkey' is omitted then   gpgcheck=0 is set for that repository.
+
+* **Sample value**: ``- {url: ""http://crb.com/CRB/x86_64/os/"",gpgkey: ""http://crb.com/CRB/x86_64/os/RPM-GPG-KEY""}``"
+"**user_registry**
+
+``JSON List``
+
+Optional","* This variable accepts the registry url along with port of the user which contains the images required for cluster.
+
+* When ``repo_config`` is always, the list given in ``user_registry`` will be configured on the control plane and packages required for cluster will be downloaded into a local repository. If the same repository is available in both the ``user_repo_url`` and the ``user_registry``, the repository will be configured using the values in ``user_registry``.
+
+* When ``repo_config`` is partial, a local registry is created on the control plane containing packages that are not part of the ``user_registry``. Images listed in ``user_registry`` are directly configured as a mirror on compute nodes. Compute nodes are expected to connect to the URLs in the ``user_registry`` via http_proxy.
+
+* When ``repo_config`` is never, no local registry is created and packages/images are downloaded on all cluster nodes.
+
+* 'host' defines the URL and path to the registry.
+
+* 'cert_path' defines the absolute path where the security certificates for each registry. If this path is not provided, insecure registries are configured.
+
+* **Sample value**: ::
+
+   - { host: 10.11.0.100:5001, cert_path: ""/home/ca.crt"" }
+   - { host: registryhostname.registry.test, cert_path: """" }"
+"**rhel_os_url**
+
+``string``
+
+Required","* Mandatory when ``cluster_os_type`` is rhel in ``softwares_config.json``.
+* User has to provide the code ready builder url in order to download the packages.
+* When ``repo_config`` is ""always"", the given ``rhel_os_url`` will be configured in the control plane and packages required for cluster will be downloaded.
+* When repo_config is ""partial"" or ""never"", the packages required for cluster which were coming from ``rhel_repo_url`` will not be downloaded.
+* The ``rhel_os_url`` is configured via proxy in compute nodes.
+
+* **Example**: If ``cluster_os_type`` is rhel, ``rhel_os_url`` might be ""- {url: ""http://crb.com/CRB/x86_64/os/"", gpgkey: ""http://crb.com/CRB/x86_64/os/RPM-GPG-KEY""}""
+
+.. caution:: Omnia does not support adding a Red Hat subscription URL to the ``rhel_os_url`` parameter. Adding it results in an error during ``local_repo.yml`` playbook execution. For more information, `click here <../../../Troubleshooting/KnownIssues/RHEL/local_repo.html>`_."
+"**omnia_repo_url_rhel**
+
+``JSON List``
+
+Required","* A list of all the repo urls from where rpms will be downloaded for Omnia features on RHEL clusters.
+* 'url' defines the baseurl for the repository.
+* 'gpgkey' defines gpgkey for the repository. If 'gpgkey' is omitted, then gpgcheck=0 is set for that repository
+* This value is not validated by Omnia. Any errors can cause Omnia to fail.
+* Ensure that all URLs listed below are reachable to the control plane.
+
+**Default value**: ::
+
+       - { url: ""https://download.docker.com/linux/centos/$releasever/$basearch/stable"", gpgkey: ""https://download.docker.com/linux/centos/gpg"" }
+       - { url: ""https://repo.radeon.com/rocm/rhel8/{{ rocm_version }}/main"", gpgkey: ""https://repo.radeon.com/rocm/rocm.gpg.key"" }
+       - { url: ""https://download.fedoraproject.org/pub/epel/8/Everything/$basearch"", gpgkey: ""https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-8"" }
+       - { url: ""https://repo.radeon.com/amdgpu/{{ amdgpu_version }}/rhel/{{ cluster_os_version }}/main/x86_64"", gpgkey: ""https://repo.radeon.com/rocm/rocm.gpg.key"" }
+       - { url: ""https://www.beegfs.io/release/beegfs_{{beegfs_version}}/dists/rhel8"", gpgkey: ""https://www.beegfs.io/release/beegfs_{{beegfs_version}}/gpg/GPG-KEY-beegfs"" }
+       - { url: ""https://yum.repos.intel.com/oneapi"", gpgkey: ""https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB"" }
+       - { url: ""https://ltb-project.org/rpm/openldap25/$releasever/$basearch"", gpgkey: """"}
+"
+"**omnia_repo_url_rocky**
+
+``JSON List``
+
+Required","* A list of all the repo urls from where rpms will be downloaded for Omnia features on Rocky clusters.
+* 'url' defines the baseurl for the repository.
+* 'gpgkey' defines gpgkey for the repository. If 'gpgkey' is omitted, then gpgcheck=0 is set for that repository
+* This value is not validated by Omnia. Any errors can cause Omnia to fail.
+* Ensure that all URLs listed below are reachable to the control plane.
+
+**Default value**: ::
+
+         - { url: ""https://download.docker.com/linux/centos/$releasever/$basearch/stable"", gpgkey: ""https://download.docker.com/linux/centos/gpg"" }
+         - { url: ""https://repo.radeon.com/rocm/rhel8/{{ rocm_version }}/main"", gpgkey: ""https://repo.radeon.com/rocm/rocm.gpg.key"" }
+         - { url: ""https://download.fedoraproject.org/pub/epel/8/Everything/$basearch"", gpgkey: ""https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-8"" }
+         - { url: ""https://repo.radeon.com/amdgpu/{{ amdgpu_version }}/rhel/{{ cluster_os_version }}/main/x86_64"", gpgkey: ""https://repo.radeon.com/rocm/rocm.gpg.key"" }
+         - { url: ""https://www.beegfs.io/release/beegfs_{{beegfs_version}}/dists/rhel8"", gpgkey: ""https://www.beegfs.io/release/beegfs_{{beegfs_version}}/gpg/GPG-KEY-beegfs"" }
+         - { url: ""https://yum.repos.intel.com/oneapi"", gpgkey: ""https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB"" }
+         - { url: ""https://ltb-project.org/rpm/openldap25/$releasever/$basearch"", gpgkey: """"}
+         - { url: ""http://dl.rockylinux.org/$contentdir/$releasever/PowerTools/$basearch/os/"", gpgkey: """"}
+
+
+
+
+
+
+
+"

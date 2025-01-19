@@ -1,0 +1,60 @@
+﻿Variables,Details
+"**k8s_cni**
+
+     ``string``
+
+     Required  ","* Kubernetes SDN network.
+* Required when ``scheduler_type: ""k8s""``
+                                 
+     Choices:                    
+                                 
+     * ``""calico""``  <-   default
+     * ``""flannel""`` 
+        "
+"**pod_external_ip_range**
+
+     ``string``
+
+     Required       ","* These addresses will be used by Loadbalancer for assigning External IPs to K8s services
+* Make sure the IP range is not assigned to any node in the cluster.
+* **Sample values**: ""10.11.0.100-10.11.0.150"" , ""10.11.0.0/16""                            "
+"**ansible_config_file_path**
+
+     ``string``
+
+     Required           ","* Path to directory hosting ansible config file (ansible.cfg file)
+* This directory is on the host running ansible, if ansible is installed   using dnf
+* If ansible is installed using pip, this path should be set                        
+* **Default value**: ``/etc/ansible``                                           "
+"**k8s_service_addresses**
+
+     ``string``
+
+     Optional      ","* Kubernetes internal network for services.
+* This network must be unused in your network infrastructure.
+* **Default value**: ""10.233.0.0/18"" "
+"**k8s_pod_network_cidr**
+
+     ``string``
+
+     Optional      ","* Kubernetes pod network CIDR for internal network. When used, it will assign IP addresses from this range to individual pods.
+* This network must be unused in your network infrastructure.
+* **Default value**: ""10.233.64.0/18"""
+"**topology_manager_policy**
+
+     ``string``
+
+     Optional      ","* Kubernetes Topology manager policies.
+* Accepted values are ``none``, ``best-effort``, ``restricted``, or ``single-numa-node``.
+* **Default value**: ``none``
+
+**Example**: ``topology_manager_policy: ""none""``"
+"**topology_manager_scope**
+
+     ``string``
+
+     Optional      ","* Kubernetes Topology manager scope.
+* Accepted values are ``container`` or ``pod``.
+* **Default value**: ``container``
+
+**Example**: ``topology_manager_scope: ""container""``"

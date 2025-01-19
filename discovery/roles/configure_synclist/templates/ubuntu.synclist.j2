@@ -1,11 +1,16 @@
+{{ syncfiles_dir }}/repos/* -> /etc/apt/sources.list.d/*
+{{ syncfiles_dir }}/conf/pip.conf -> /etc/pip.conf
+
 {% if repo_config == "always" %}
-/tmp/certs.d/* -> /etc/containerd/certs.d/*
+{{ syncfiles_dir }}/certs.d/* -> /etc/containerd/certs.d/*
 /etc/containerd/certs.d/{{ hostname_result.stdout }}:{{ nerdctl_registry_port }}/ca.crt -> /opt/omnia/registry/certs.d/{{ hostname_result.stdout }}:{{ nerdctl_registry_port }}/ca.crt
 {% endif %}
 
 {% if repo_config == "partial" %}
-/tmp/keyrings/* -> /etc/apt/keyrings/*
-/tmp/certs.d/* -> /etc/containerd/certs.d/*
+{% if is_keyring_not_empty %}
+{{ syncfiles_dir }}/keyrings/* -> /etc/apt/keyrings/*
+{% endif %}
+{{ syncfiles_dir }}/certs.d/* -> /etc/containerd/certs.d/*
 /etc/containerd/certs.d/{{ hostname_result.stdout }}:{{ nerdctl_registry_port }}/ca.crt -> /opt/omnia/registry/certs.d/{{ hostname_result.stdout }}:{{ nerdctl_registry_port }}/ca.crt
 {% if user_registry is defined and user_registry is not none and user_registry | length > 0 %}
 {% for registry in user_registry %}
@@ -17,9 +22,11 @@
 {% endif %}
 
 {% if repo_config == "never" %}
-/tmp/keyrings/* -> /etc/apt/keyrings/*
+{% if is_keyring_not_empty %}
+{{ syncfiles_dir }}/keyrings/* -> /etc/apt/keyrings/*
+{% endif %}
 {% if user_registry is defined and user_registry is not none and user_registry | length > 0 %}
-/tmp/certs.d/* -> /etc/containerd/certs.d/*
+{{ syncfiles_dir }}/certs.d/* -> /etc/containerd/certs.d/*
 {% for registry in user_registry %}
 {% if registry.cert_path is defined and registry.cert_path != "" %}
 {{ registry.cert_path }} -> /opt/omnia/registry/certs.d/{{ registry.host }}/ca.crt
@@ -27,6 +34,3 @@
 {% endfor %}
 {% endif %}
 {% endif %}
-
-/tmp/repos/* -> /etc/apt/sources.list.d/*
-/tmp/conf/pip.conf -> /etc/pip.conf

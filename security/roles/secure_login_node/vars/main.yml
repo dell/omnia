@@ -18,8 +18,11 @@ sshd_conf_file: /etc/ssh/sshd_config
 
 # Usage: configure_alerting.yml
 community_general_collection: "{{ offline_ansible_galaxy_collection_path }}/community.general:4.4.0.tar.gz"
-mail_packages:
+mail_packages_redhat:
   - mailx
+  - postfix
+mail_packages_ubuntu:
+  - mailutils
   - postfix
 alerting_file_path: /root/auth_failure_check.yml
 hosts_file_mode: "0644"
@@ -27,17 +30,27 @@ local_repo_access_path: "/opt/omnia/offline/local_repo_access.yml"
 ansible_name: "ansible"
 secure_ansible_version: "7.7.0"
 cryptography_name: "cryptography"
-cryptography_version: "41.0.7"
+cryptography_version: "44.0.0"
 jinja_name: "jinja2"
 jinja_version: "3.1.2"
 ansible_galaxy_path: "community.general.tar.gz"
 file_mode: "0644"
+repo_retries: 5
+repo_delay: 10
+update_repos_fail_msg: "Failed to update repos. Verify internet availability on Omnia Infrastructure Manager."
+software_config_json_file: "{{ role_path }}/../../../input/software_config.json"
+secure_login_node_packages_file: "{{ role_path }}/../../../input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/secure_login_node.json"
+postfix_conf_path: /etc/postfix/main.cf
+ping_msg: "100% packet loss"
+smtp_server_reach_msg: "Failed. SMTP server is not reachable from login node. Please provide valid SMTP server host reachable in smtp_server variable
+of input/login_node_security_config.yml"
 
 # Usage: configure_alerting_ubuntu
 python_packages:
-  - python3.9
-  - python3.9-distutils
-  - python3-pip
+  - "{{ python_version }}"
+  - "{{ python_version }}-venv"
+  - "{{ python_version }}-distutils"
+  - "{{ python_version.split('.')[0] }}-pip"
 
 # Usage: install_snoopy.yml
 snoopy_packages:

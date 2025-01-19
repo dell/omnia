@@ -34,8 +34,8 @@
           - '{{ item.key }} mode Eth {{ item.value.fanout }}'
         parents: ['port-group {{ port_prefix + port_group }}']
       vars:
-        - ansible_ssh_user: "{{ ethernet_switch_username }}"
-          ansible_ssh_password: "{{ ethernet_switch_password }}"
+        ansible_ssh_user: "{{ ethernet_switch_username }}"
+        ansible_ssh_password: "{{ ethernet_switch_password }}"
       register: eth_port_status
   rescue:
     - name: Status msg when port is already splitted with different breakout value

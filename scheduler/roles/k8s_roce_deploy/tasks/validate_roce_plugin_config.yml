@@ -19,7 +19,7 @@
 - name: Ensure all interfaces have name defined
   ansible.builtin.assert:
     that:
-      - interfaces | map(attribute='name') | select('defined') | list | length == interfaces | length
+      - interfaces | selectattr('name', 'defined') | selectattr('name', 'string') | length == interfaces | length
     fail_msg: "{{ name_definition_fail_msg }}"
     success_msg: "{{ name_definition_success_msg }}"
 
@@ -33,7 +33,7 @@
 - name: Ensure all interfaces have range defined
   ansible.builtin.assert:
     that:
-      - interfaces | map(attribute='range') | select('defined') | list | length == interfaces | length
+      - interfaces | selectattr('range', 'defined') | selectattr('range', 'string') | length == interfaces | length
     fail_msg: "{{ range_definition_fail_msg }}"
     success_msg: "{{ range_definition_success_msg }}"
 

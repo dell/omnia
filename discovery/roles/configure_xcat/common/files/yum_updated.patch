@@ -1,0 +1,10 @@
+--- /opt/xcat/lib/perl/xCAT/Yum.pm	2024-09-10 07:39:16.390507177 -0400
++++ /opt/xcat/lib/perl/xCAT/Yum_updated.pm	2024-09-10 07:31:39.687474283 -0400
+@@ -61,6 +61,7 @@
+     print $yumrepofile "name=xCAT configured yum repository for $yumurl\n";
+     print $yumrepofile "baseurl=$yumurl\n";
+     print $yumrepofile "enabled=1\n";
++    print $yumrepofile "proxy=_none_\n";
+     print $yumrepofile "gpgcheck=0\n\n";
+ }	
+ 

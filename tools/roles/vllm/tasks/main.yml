@@ -13,6 +13,20 @@
 #  limitations under the License.
 ---
 
+# Supported OS check
+- name: Load software_config.json
+  ansible.builtin.include_vars:
+    file: "{{ software_config_json_file }}"
+    name: software_config
+
+- name: Display warning if cluster OS is not a supported OS for vllm
+  ansible.builtin.pause:
+    seconds: "{{ wait_time }}"
+    prompt: "{{ unsupported_os_msg }}"
+  when:
+    - (software_config.cluster_os_type == 'ubuntu' and software_config.cluster_os_version != '22.04') or
+      (software_config.cluster_os_type == 'rhel' and software_config.cluster_os_version != '8.8')
+
 # Initial variables
 - name: Initialize vllm_prerequisite_status
   ansible.builtin.set_fact:

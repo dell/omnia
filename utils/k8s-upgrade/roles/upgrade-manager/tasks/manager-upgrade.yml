@@ -1,6 +1,6 @@
 ---
 - name: "Upgrade Manager"
-  when: inventory_hostname in groups["manager"] 
+  when: inventory_hostname in groups["manager"]
   block:
     - name: "Get the installed packages facts"
       ansible.builtin.package_facts:
@@ -8,30 +8,30 @@
 
     - name: "Print kubernetes packages version"
       ansible.builtin.debug:
-        msg: 
+        msg:
           - "{{ ansible_facts.packages.kubelet[0].version }}"
           - "{{ ansible_facts.packages.kubeadm[0].version }}"
           - "{{ ansible_facts.packages.kubectl[0].version }}"
-    
+
     - name: "Remove version lock from kubernetes packages"
       community.general.yum_versionlock:
         state: absent
-        name: 
+        name:
           - "{{ item }}"
       with_items: "{{ versionlock_k8s_packages }}"
 
-    - name: "Drain cluster master node -> {{ inventory_hostname }}"
+    - name: "Drain cluster head node -> {{ inventory_hostname }}"
       ansible.builtin.shell: |
         kubectl drain {{ inventory_hostname }} --ignore-daemonsets --delete-local-data
       register: drain_node_register
       changed_when: drain_node_register.rc != 0
-    
+
     - name: "Verify the upgrade plan"
       ansible.builtin.shell: |
         kubeadm upgrade plan --allow-experimental-upgrades --ignore-preflight-errors=all
       register: upgrade_plan_register
       changed_when: upgrade_plan_register.rc != 0
-    
+
     - name: "Upgrade Manager Node Packages with version {{ item }}"
       ansible.builtin.yum:
         name: "{{ item }}"
@@ -44,14 +44,14 @@
         kubeadm config images pull
       register: pull_images_register
       changed_when: pull_images_register != 0
-    
+
     - name: "Upgrading k8s cluster to {{ item }}"
       ansible.builtin.shell: |
         kubeadm upgrade apply v"{{ item }}" --allow-experimental-upgrades --ignore-preflight-errors=all --force --yes
       register: upgrade_register
       changed_when: upgrade_register != 0
       failed_when: "'FAILED' in upgrade_register.stderr"
-    
+
     - name: "Reload Daemon and kubelet"
       ansible.builtin.systemd:
         state: restarted
@@ -64,13 +64,13 @@
       register: uncordon_register
       changed_when: uncordon_register != 0
 
-    - name: Wait for all control-plane pods become created
+    - name: Wait for all oim-node pods become created
       ansible.builtin.shell: "kubectl get po --namespace=kube-system --selector tier=control-plane --output=jsonpath='{.items[*].metadata.name}'"
-      register: control_plane_pods_created
-      until: item in control_plane_pods_created.stdout
+      register: oim_pods_created
+      until: item in oim_pods_created.stdout
       retries: "{{ retries_count }}"
       delay: "{{ delay_time }}"
-      changed_when: control_plane_pods_created != 0
+      changed_when: oim_pods_created != 0
       with_items:
         - etcd
         - kube-apiserver
@@ -79,7 +79,7 @@
 
     - name: "Print updated kubernetes packages version"
       ansible.builtin.debug:
-        msg: 
+        msg:
           - "{{ ansible_facts.packages.kubelet[0].version }}"
           - "{{ ansible_facts.packages.kubeadm[0].version }}"
           - "{{ ansible_facts.packages.kubectl[0].version }}"
@@ -87,14 +87,14 @@
     - name: "Add version lock on kubernetes packages from being updated"
       community.general.yum_versionlock:
         state: present
-        name: 
+        name:
           - "{{ item }}"
       with_items: "{{ versionlock_k8s_packages }}"
-    
+
     - name: "Clean metadata and update yum modules"
-      ansible.builtin.shell: yum clean metadata && yum clean all && yum makecache 
+      ansible.builtin.shell: yum clean metadata && yum clean all && yum makecache
       changed_when: true
-      
+
     - name: "Success Message"
       ansible.builtin.debug:
-        msg: "SUCCESS! Your cluster are upgraded to {{ item }}. Enjoy!" 
+        msg: "SUCCESS! Your cluster are upgraded to {{ item }}. Enjoy!"

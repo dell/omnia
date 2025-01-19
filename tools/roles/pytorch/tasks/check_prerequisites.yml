@@ -41,40 +41,41 @@
 - name: Set packages variables
   when: pytorch_packages.ansible_facts
   block:
-    - name: Assign image pull commands
+    - name: Assign pytorch_cpu image pull commands
       ansible.builtin.set_fact:
-        pytorch_cpu_image_package: "{{ pytorch_packages.ansible_facts.pytorch_cpu.cluster[0].package }}"
-        pytorch_cpu_image_version: "{{ pytorch_packages.ansible_facts.pytorch_cpu.cluster[0].tag }}"
-        pytorch_amd_image_package: "{{ pytorch_packages.ansible_facts.pytorch_amd.cluster[0].package }}"
-        pytorch_amd_image_version: "{{ pytorch_packages.ansible_facts.pytorch_amd.cluster[0].tag }}"
+        pytorch_cpu_image_package: "{{ pytorch_packages.ansible_facts.pytorch_cpu.cluster[item_index1].package }}"
+        pytorch_cpu_image_version: "{{ pytorch_packages.ansible_facts.pytorch_cpu.cluster[item_index1].tag }}"
+      when: pytorch_packages.ansible_facts.pytorch_cpu.cluster[item_index1].tag is defined
+      loop: "{{ pytorch_packages.ansible_facts.pytorch_cpu.cluster }}"
+      loop_control:
+        index_var: item_index1
 
-    - name: Assign NVIDIA image pull commands
+    - name: Assign pytorch_amd image pull commands
       ansible.builtin.set_fact:
-        pytorch_nvidia_image_package: "{{ pytorch_packages.ansible_facts.pytorch_nvidia.cluster[item_index].package }}"
-        pytorch_nvidia_image_version: "{{ pytorch_packages.ansible_facts.pytorch_nvidia.cluster[item_index].tag }}"
-      when: pytorch_packages.ansible_facts.pytorch_nvidia.cluster[item_index].tag is defined
+        pytorch_amd_image_package: "{{ pytorch_packages.ansible_facts.pytorch_amd.cluster[item_index2].package }}"
+        pytorch_amd_image_version: "{{ pytorch_packages.ansible_facts.pytorch_amd.cluster[item_index2].tag }}"
+      when: pytorch_packages.ansible_facts.pytorch_amd.cluster[item_index2].tag is defined
+      loop: "{{ pytorch_packages.ansible_facts.pytorch_amd.cluster }}"
+      loop_control:
+        index_var: item_index2
+
+    - name: Assign pytorch_gaudi image pull commands
+      ansible.builtin.set_fact:
+        pytorch_gaudi_image_package: "{{ pytorch_packages.ansible_facts.pytorch_gaudi.cluster[item_index3].package }}"
+        pytorch_gaudi_image_version: "{{ pytorch_packages.ansible_facts.pytorch_gaudi.cluster[item_index3].tag }}"
+      when: pytorch_packages.ansible_facts.pytorch_gaudi.cluster[item_index3].tag is defined
+      loop: "{{ pytorch_packages.ansible_facts.pytorch_gaudi.cluster }}"
+      loop_control:
+        index_var: item_index3
+
+    - name: Assign pytorch_nvidia image pull commands
+      ansible.builtin.set_fact:
+        pytorch_nvidia_image_package: "{{ pytorch_packages.ansible_facts.pytorch_nvidia.cluster[item_index4].package }}"
+        pytorch_nvidia_image_version: "{{ pytorch_packages.ansible_facts.pytorch_nvidia.cluster[item_index4].tag }}"
+      when: pytorch_packages.ansible_facts.pytorch_nvidia.cluster[item_index4].tag is defined
       loop: "{{ pytorch_packages.ansible_facts.pytorch_nvidia.cluster }}"
       loop_control:
-        index_var: item_index
-
-    - name: Combine the pythorch image and version
-      ansible.builtin.set_fact:
-        pytorch_cpu_image: "{{ pytorch_cpu_image_package }}:{{ pytorch_cpu_image_version }}"
-        pytorch_amd_image: "{{ pytorch_amd_image_package }}:{{ pytorch_amd_image_version }}"
-        pytorch_nvidia_image: "{{ pytorch_nvidia_image_package }}:{{ pytorch_nvidia_image_version }}"
-
-    - name: Validate image pull commands
-      ansible.builtin.assert:
-        that:
-          - pytorch_cpu_image is defined
-          - pytorch_amd_image is defined
-          - pytorch_nvidia_image is defined
-
-    - name: Assign image pull commands
-      ansible.builtin.set_fact:
-        cpu_image_run_cmd: "nerdctl run -it --rm -v /opt/omnia/:/workspace/ {{ pytorch_cpu_image }} python ./pytorch_example.py"
-        nvidia_image_run_cmd: "nerdctl run --gpus all -it --rm -v /opt/omnia/:/workspace/ {{ pytorch_nvidia_image }} python ./pytorch_example.py"
-        amd_run_cmd_end: " --group-add video --ipc=host --shm-size 8G -v /opt/omnia/:/var/lib/jenkins {{ pytorch_amd_image }} python ./pytorch_example.py"
+        index_var: item_index4
 
 - name: Initialize processing_unit
   ansible.builtin.set_fact:
@@ -104,6 +105,17 @@
       ansible.builtin.set_fact:
         processing_unit: "nvidia"
       when: nvidia_gpu.rc == 0
+
+    - name: Check Gaudi HPU
+      ansible.builtin.command: hl-smi
+      register: gaudi_gpu
+      changed_when: true
+      failed_when: false
+
+    - name: Modify processing_unit_gaudi
+      ansible.builtin.set_fact:
+        processing_unit: "gaudi"
+      when: gaudi_gpu.rc == 0
 
 - name: Check and create omnia folder
   block:
@@ -138,6 +150,22 @@
 - name: Check prerequisites (AMD)
   when: processing_unit == "amd"
   block:
+    - name: Validate pytorch_amd_image_package and pytorch_amd_image_version
+      ansible.builtin.assert:
+        that:
+          - pytorch_amd_image_package is defined
+          - pytorch_amd_image_version is defined
+        fail_msg: "{{ pytorch_amd_definition_fail_msg }}"
+
+    - name: Set pytorch_amd_image
+      ansible.builtin.set_fact:
+        pytorch_amd_image: "{{ pytorch_amd_image_package }}:{{ pytorch_amd_image_version }}"
+
+    - name: Set amd_run_cmd_start and amd_run_cmd_end
+      ansible.builtin.set_fact:
+        amd_run_cmd_start: "nerdctl run -it --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --device=/dev/kfd "
+        amd_run_cmd_end: " --group-add video --ipc=host --shm-size 8G -v /opt/omnia/:/var/lib/jenkins {{ pytorch_amd_image }} python ./pytorch_example.py"
+
     - name: List files in /dev/dri
       ansible.builtin.command: ls /dev/dri
       register: dri_files

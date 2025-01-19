@@ -13,6 +13,10 @@
 #  limitations under the License.
 ---
 
+- name: Update Inventory with ansible_host information
+  ansible.builtin.import_playbook: ../utils/servicetag_host_mapping.yml
+  when: not ( hostvars['127.0.0.1']['update_inventory_executed'] | default(false) | bool )
+
 - name: Validations for Intel benchmark
   hosts: localhost
   gather_facts: true

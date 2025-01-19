@@ -1,0 +1,99 @@
+# Copyright 2024 Intel Corporation.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Set default intel gaudi status
+  ansible.builtin.set_fact:
+    habana_config_status: false
+    habana_input_status: false
+    intel_gaudi_config_status: false
+    intel_gaudi_input_status: false
+
+- name: Load software_config.json
+  ansible.builtin.include_vars:
+    file: "{{ software_config_json_file }}"
+    name: user_config
+
+- name: Include vars for {{ oim_os }}
+  ansible.builtin.include_vars: "{{ role_path }}/vars/{{ oim_os }}.yml"
+
+- name: Get Intel Gaudi status
+  ansible.builtin.set_fact:
+    intel_gaudi_input_status: true
+  loop: "{{ user_config.softwares | default([]) }}"
+  when:
+    - "'intelgaudi' in item.name"
+  loop_control:
+    loop_var: item
+
+- name: Get habana status only if intel gaudi is present gaudi_status is true
+  ansible.builtin.set_fact:
+    habana_input_status: true
+  loop: "{{ user_config.gaudi | default([]) }}"
+  when:
+    - intel_gaudi_input_status
+    - "'intel' in item.name"
+  loop_control:
+    loop_var: item
+
+- name: Set intel_gaudi_config_status
+  when: intel_gaudi_input_status
+  block:
+    - name: Fetch intelgaudi_version
+      ansible.builtin.set_fact:
+        intelgaudi_version: "{{ user_config.softwares | selectattr('name', 'equalto', 'intelgaudi') | map(attribute='version') | first }}"
+
+    - name: Set intelgaudi_version
+      ansible.builtin.set_fact:
+        intelgaudi_directory: "{{ offline_intelgaudi_directory }}/intelgaudi/{{ intelgaudi_version }}/"
+
+    - name: Set gaudi_directory
+      ansible.builtin.set_fact:
+        gaudi_directory: "{{ intelgaudi_directory }}"
+
+    - name: Check gaudi_directory exists or not
+      ansible.builtin.stat:
+        path: "{{ gaudi_directory }}"
+      register: check_gaudi_dir
+
+    - name: Set intel_gaudi_config_status to true
+      ansible.builtin.set_fact:
+        intel_gaudi_config_status: true
+      when: check_gaudi_dir.stat.exists
+
+  rescue:
+    - name: Intel Gaudi not found
+      ansible.builtin.debug:
+        msg: "{{ intel_gaudi_repo_fail_msg }}"
+      when: not check_gaudi_dir.stat.exists
+
+- name: Set habana_config_status
+  when: habana_config_status
+  block:
+
+    - name: Check driver packages inside offline_gaudi_directory
+      ansible.builtin.find:
+        paths: "{{ offline_gaudi_directory }}"
+        patterns: "{{ gaudi_search_pattern }}"
+      register: check_driver_packages
+
+    - name: Set habana_config_status to true
+      ansible.builtin.set_fact:
+        habana_config_status: true
+      when: check_driver_packages.matched > 0
+  rescue:
+    - name: Intel Gaudi driver packages not found
+      ansible.builtin.debug:
+        msg: "{{ intel_gaudi_repo_fail_msg }}"
+      when: check_driver_packages.matched == 0

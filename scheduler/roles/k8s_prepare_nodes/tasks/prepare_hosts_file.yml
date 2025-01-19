@@ -23,6 +23,11 @@
   register: short_hostname
   changed_when: false
 
+- name: Set 'ip' variable for kube_control_plane, kube_node, and etcd groups
+  ansible.builtin.set_fact:
+    ip: "{{ ansible_host | default(inventory_hostname) }}"
+  when: "'kube_control_plane' in groups or 'kube_node' in groups or 'etcd' in groups"
+
 - name: Set facts for node hostname and ip
   ansible.builtin.set_fact:
     node_ip: "{{ ansible_host }}"

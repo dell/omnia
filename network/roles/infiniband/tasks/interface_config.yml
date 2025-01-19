@@ -19,6 +19,10 @@
     default_desc: "{{ 'port ' + item.key.split(' ')[1] }}"
 
 - name: Changes for split ports
+  when:
+    - 'ib_port + " " not in ports_avail or
+       split_port1 in ports_avail or
+       split_port2 in ports_avail'
   block:
     - name: Initialize port and description with "{{ item.key + '/1' }}"
       ansible.builtin.set_fact:
@@ -35,12 +39,9 @@
 
     - name: Apply changes on "{{ avail_port }}"
       ansible.builtin.include_tasks: configure_interface.yml
-  when:
-    - 'ib_port + " " not in ports_avail or
-       split_port1 in ports_avail or
-       split_port2 in ports_avail'
 
 - name: Changes for unsplit ports
+  when: 'ib_port + " " in ports_avail'
   block:
     - name: Initialize port & description with "{{ item.key }}"
       ansible.builtin.set_fact:
@@ -49,4 +50,3 @@
 
     - name: Apply changes on "{{ avail_port }}"
       ansible.builtin.include_tasks: configure_interface.yml
-  when: 'ib_port + " " in ports_avail'

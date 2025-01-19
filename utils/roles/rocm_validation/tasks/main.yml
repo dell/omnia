@@ -15,7 +15,7 @@
 
 - name: Saving distribution of os
   ansible.builtin.set_fact:
-    control_plane_os: "{{ ansible_distribution | lower }}"
+    oim_os: "{{ ansible_distribution | lower }}"
 
 - name: Include local_repo variables
   ansible.builtin.include_tasks: include_local_repo_config.yml

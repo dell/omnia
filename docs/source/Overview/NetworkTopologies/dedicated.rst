@@ -1,20 +1,24 @@
 Network Topology: Dedicated Setup
-=================================
+====================================
 
-.. image:: ../../images/omnia_network_Dedicated.jpg
+.. note:: The following diagram is for representational purposes only.
 
-In a **Dedicated Setup**, all the cluster nodes (head, login, and compute) have dedicated iDRAC connection.
+.. image:: ../../images/Dedicated_NT.png
 
-* **Public Network (Blue line)**: This indicates the iDRAC network which is connected to the external public network.
+In a **Dedicated Setup**, all the cluster nodes (Head, Compute, and Login [optional]) have dedicated iDRAC connection.
 
-* **iDRAC Network (Red line)**: This indicates the private iDRAC network used by the control plane to control the cluster nodes using out-of-band management.
+* **Public Network (Blue line)**: This indicates the external public network which is connected to the internet. NIC2 of the Control plane, Head node, and Login node [optional] is connected to the public network.
 
-* **Cluster Network (Green line)**: This indicates the admin network utilized by Omnia to provision the cluster nodes.
+* **BMC Network (Red line)**: This indicates the private BMC (iDRAC) network used by the control plane to control the cluster nodes using out-of-band management.
 
-* **IB Network (Yellow line)**: The network used by the applications on the cluster nodes to communicate among each other.
+* **Admin Network (Green line)**: This indicates the admin network utilized by Omnia to provision the cluster nodes. NIC1 of all the nodes are connected to the private switch.
+
+* **IB / Additional Ethernet Network (Yellow line)**: This indicates the Infiniband (IB) or the additional ethernet network used by applications on the cluster nodes to communicate among each other, using Mellanox or high-speed ethernet switch. Control plane connectivity is optional for this switch.
+
+.. note:: Omnia supports classless IP addressing, which allows the Admin network, BMC network, Public network, and the Additional network to be assigned different subnets. However, the Admin and BMC networks must be on the same subnet (represented by the ``netmask_bits`` parameter in the ``input/network_spec.yml`` file).
 
 **Recommended discovery mechanism**
 
-* `mapping <../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/mappingfile.html>`_
-* `bmc <../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/bmc.html>`_
+* `mapping <../../OmniaInstallGuide/Ubuntu/Provision/DiscoveryMechanisms/mappingfile.html>`_
+* `bmc <../../OmniaInstallGuide/Ubuntu/Provision/DiscoveryMechanisms/bmc.html>`_
 

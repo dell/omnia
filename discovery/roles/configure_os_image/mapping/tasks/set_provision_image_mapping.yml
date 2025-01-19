@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,13 +16,16 @@
 - name: Task for set osimage to node object for mapping
   block:
     - name: Set osimage to node object for mapping
-      ansible.builtin.command: nodeset {{ mapping_node_group }} osimage={{ hostvars['localhost']['provision_os_image'] }}
-      changed_when: true
+      ansible.builtin.command: "{{ python_version }} {{ nodeset_nodes_py }} {{ db_operations_file_path }} {{ hostvars['localhost']['provision_os_image'] }}"
+      changed_when: false
       register: set_osimage_mapping
 
-    - name: Installation status for mapping
+    - name: Status for nodeset command
       ansible.builtin.debug:
-        msg: "{{ mapping_xcat_install_success_msg }}"
+        msg: "{{ set_osimage_mapping.stdout }} {{ mapping_xcat_install_success_msg }}"
+      when:
+        - set_osimage_mapping.stdout is defined
+        - set_osimage_mapping.stdout | length > 0
   rescue:
     - name: Verify set node object is successful for mapping
       ansible.builtin.debug:

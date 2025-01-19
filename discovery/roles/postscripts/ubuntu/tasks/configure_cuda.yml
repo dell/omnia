@@ -54,7 +54,7 @@
 
 - name: Set cuda gpg key
   ansible.builtin.set_fact:
-    cuda_gpg_key: "{{ cuda_gpg_file.files[0].path.split('/')[-1]  }}"
+    cuda_gpg_key: "{{ cuda_gpg_file.files[0].path.split('/')[-1] }}"
     cuda_debs_folder: "{{ cuda_gpg_file.files[0].path.split('/')[-2] }}"
 
 - name: Copy CUDA script to postscripts

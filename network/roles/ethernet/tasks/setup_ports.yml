@@ -22,8 +22,8 @@
     commands: "{{ os10_config }}"
   when: os10_config is defined
   vars:
-    - ansible_ssh_user: "{{ ethernet_switch_username }}"
-      ansible_ssh_password: "{{ ethernet_switch_password }}"
+    ansible_ssh_user: "{{ ethernet_switch_username }}"
+    ansible_ssh_password: "{{ ethernet_switch_password }}"
 
 - name: Set empty dictionary if ethernet_ports not defined
   ansible.builtin.set_fact:

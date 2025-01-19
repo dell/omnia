@@ -16,4 +16,4 @@ delay_time: 20
 versionlock_k8s_packages:
   - "kubelet*"
   - "kubectl*"
-  - "kubeadm*"  
+  - "kubeadm*"

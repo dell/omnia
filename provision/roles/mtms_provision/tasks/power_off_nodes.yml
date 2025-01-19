@@ -16,7 +16,7 @@
 - name: Task to power off the nodes for BMC
   block:
     - name: Power off the node - {{ item }}
-      ansible.builtin.command: rpower {{ item }} off
+      ansible.builtin.command: "{{ xcat_path }}/rpower {{ item }} off"
       changed_when: true
       register: power_off_status
   rescue:

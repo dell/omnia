@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -23,14 +23,35 @@
     auth_failure_info_file: "{{ alert_file_path }}/auth_failure_{{ ansible_date_time.iso8601_basic_short }}.txt"
     auth_failure_mail_subject: "Alert - Authentication Failure"
     auth_failure_mail_body: "Attached the authentication failure report"
-    auth_failure_mail_sender: omnia-alert
     file_mode: 644
+    ubuntu_os: "ubuntu"
+    redhat_os: "redhat"
+    rocky_os: "rocky"
   tasks:
-    - name: Check auth failure in last {{ auth_failure_check_time }} minutes
-      ansible.builtin.shell: journalctl -u sshd --since "{{ auth_failure_check_time }} minutes ago" | grep "{{ auth_failure_search_key }}"
+    - name: Set ssh_service_name for RHEL/Rocky
+      ansible.builtin.set_fact:
+        ssh_service_name: sshd
+      when: ansible_distribution | lower in [redhat_os, rocky_os]
+
+    - name: Set ssh_service_name for Ubuntu
+      ansible.builtin.set_fact:
+        ssh_service_name: ssh
+      when: ansible_distribution | lower in ubuntu_os
+
+    - name: Set alert_email_list
+      ansible.builtin.set_fact:
+        alert_email_list: "{{ alert_email_address.split(',') }}"
+
+    - name: Check auth failure in last {{ auth_failure_check_time }} minutes  # noqa name[template]
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          journalctl -u {{ ssh_service_name  }} --since "{{ auth_failure_check_time }} minutes ago" | grep "{{ auth_failure_search_key }}"
       changed_when: false
       failed_when: false
       register: auth_failure_check
+      args:
+        executable: /bin/bash
 
     - name: Create alerting log directory
       ansible.builtin.file:
@@ -50,10 +71,11 @@
       community.general.mail:
         subject: "{{ auth_failure_mail_subject }}"
         body: "{{ auth_failure_mail_body }}"
-        sender: "{{ auth_failure_mail_sender }}"
-        to: "{{ alert_email_address }}"
+        sender: "{{ smtp_sender_address }}"
+        to: "{{ item }}"
         attach:
           - "{{ auth_failure_info_file }}"
+      with_items: "{{ alert_email_list }}"
       when: auth_failure_search_key in auth_failure_check.stdout
 
     - name: Delete the authentication failure info file

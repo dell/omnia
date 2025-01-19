@@ -31,8 +31,7 @@ success_snmp_trap_dest: "SNMP trap destination IP validated"
 fail_snmp_trap_dest: "Failed. Incorrect SNMP trap destination IP format provided in base_address.yml"
 common_pkg:
   - python3-netaddr
-utils_collection: ansible.utils:2.5.2
-pip_version: pip3.8
+python_version: "{{ ansible_python_interpreter }}"
 success_valid_msg: "Success, Input parameters validated successfully"
 fail_valid_msg:
   - '|____________________________________________________________________________________________________________________________________|'

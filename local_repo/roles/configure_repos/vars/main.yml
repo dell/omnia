@@ -14,9 +14,9 @@
 ---
 
 # Usage: main.yml
-control_plane_os_redhat: "redhat"
-control_plane_os_rocky: "rocky"
-control_plane_os_ubuntu: "ubuntu"
+oim_os_redhat: "redhat"
+oim_os_rocky: "rocky"
+oim_os_ubuntu: "ubuntu"
 software_config_default: "omnia_default"
 
 # Usage: configure_repos_rhel.yml

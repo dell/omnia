@@ -1,0 +1,42 @@
+---
+Categories:  # Value auto populated by Omnia upgrade script
+{% for category in server_spec_ns.Categories %}
+{% for group, group_content in category.items() %}
+  - {{ group }}:
+{% for item in group_content %}
+      - network:
+{% for network in item.network %}
+{% for network_key, network_content in network.items() %}
+          - {{ network_key }}:
+{% for key, value in network_content.items() %}
+              {{ key }}: "{{ value }}"
+{% endfor %}
+{% endfor %}
+
+{% endfor %}
+{% endfor %}
+{% endfor %}
+{% endfor %}
+
+#**********************************************************************
+# Following are the templates for providing additional network and OS details.
+# Users may include the `os` or `network` sections individually if only one 
+# of them needs to be configured, or both together as well.
+# 
+# - Use space (' ') as a delimiter in case of multiple parameters for cmdline.
+#**********************************************************************
+#
+# Example for configuring only network settings:
+# Categories:
+#   - group-1:
+#       - network:
+#           - eno1:
+#               nicnetwork: "nic_network1"
+#               nictypes: "ethernet"
+#
+# Example for configuring only OS settings:
+# Categories:
+#   - group-2:
+#       - os:
+#           - kernel:
+#               - cmdline: "iommu=pt intel_iommu=off pci=realloc=off processor.max_cstate=0 intel_idle.max_cstate=0 intel_pstate=disable"

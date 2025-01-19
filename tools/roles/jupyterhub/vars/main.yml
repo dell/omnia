@@ -45,3 +45,6 @@ fail_msg_jupyter_software_config: "jupyter entry is not present in software_conf
 fail_inv_format: "Both 'kube_control_plane' and 'kube_node' groups should be defined in inventory"
 fail_node_kube_control_plane: "Single node should be part of kube_control_plane group in inventory"
 fail_no_node_kube_node: "No node is part of kube_node group in inventory"
+juptyerhub_empty_inventory_fail_msg: >
+ "Failed. Inventory not provided.
+  Please re-run the playbook with an inventory that includes the groups 'kube_control_plane' and 'kube_node' by using the -i inventory option"

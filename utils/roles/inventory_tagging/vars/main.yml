@@ -14,8 +14,25 @@
 ---
 
 # Usage: main.yml
-python_version: python3.9
+python_version: "{{ ansible_python_interpreter }}"
 script_name: "{{ role_path }}/files/inventory_tagging.py"
 db_path: "{{ role_path }}/../../../discovery/roles/db_operations/files/"
 omnia_inventory_dir_path: "/opt/omnia/omnia_inventory"
 inventory_files_creation_msg: "Inventory files created at '/opt/omnia/omnia_inventory/'"
+commentedconfigparser_python_package: "commented-configparser"
+inventory_files:
+  - compute_cpu_intel
+  - compute_cpu_amd
+  - compute_gpu_nvidia
+  - compute_gpu_amd
+  - compute_gpu_intel
+  - compute_hostname_ip
+
+vendors:
+  cpu:
+    intel: compute_cpu_intel
+    amd: compute_cpu_amd
+  gpu:
+    nvidia: compute_gpu_nvidia
+    amd: compute_gpu_amd
+    intel: compute_gpu_intel

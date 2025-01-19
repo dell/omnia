@@ -52,7 +52,7 @@
 
     - name: Configure user repositories
       ansible.builtin.template:
-        src: '"{{ usr_repo_config_template_src }}"'
+        src: "{{ usr_repo_config_template_src }}"
         dest: "{{ repo_path }}/a_user_repo{{ item.0 + 1 }}{{ansible_date_time.iso8601_basic}}.repo"
         mode: "{{ file_permission }}"
       with_indexed_items: "{{ user_repo_url }}"

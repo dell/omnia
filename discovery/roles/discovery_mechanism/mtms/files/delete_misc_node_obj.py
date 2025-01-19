@@ -41,7 +41,7 @@ def extract_nodes():
             op = cursor.fetchone()[0]
             if op:
                 print(op)
-                command = f"rmdef {node[0]}"
+                command = f"/opt/xcat/bin/rmdef {node[0]}"
                 command_list = command.split()
                 subprocess.run(command_list, capture_output=True)
 

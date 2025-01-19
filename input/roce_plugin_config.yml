@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -35,47 +35,47 @@ interfaces:
     range: 192.168.1.0/24
     range_start:
     range_end:
-    gateway: 192.168.1.1
-    route: 192.168.1.0/24
+    gateway:
+    route:
   - name: eth2
     range: 192.168.2.0/24
     range_start:
     range_end:
-    gateway: 
+    gateway:
     route:
   - name: eth3
     range: 192.168.3.0/24
     range_start:
     range_end:
-    gateway: 
+    gateway:
     route:
   - name: eth4
     range: 192.168.4.0/24
     range_start:
     range_end:
-    gateway: 
+    gateway:
     route:
   - name: eth5
     range: 192.168.5.0/24
     range_start:
     range_end:
-    gateway: 
+    gateway:
     route:
   - name: eth6
     range: 192.168.6.0/24
     range_start:
     range_end:
-    gateway: 
+    gateway:
     route:
   - name: eth7
     range: 192.168.7.0/24
     range_start:
     range_end:
-    gateway: 
+    gateway:
     route:
   - name: eth8
     range: 192.168.8.0/24
     range_start:
     range_end:
-    gateway: 
+    gateway:
     route:

@@ -12,7 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-import sys
+import sys, os
 import pandas as pd
 import ipaddress
 
@@ -21,7 +21,7 @@ sys.path.insert(0, db_path)
 
 import omniadb_connection
 
-pxe_mapping_path = sys.argv[2]
+pxe_mapping_path = os.path.abspath(sys.argv[2])
 domain_name = sys.argv[3]
 discovery_mechanism = "mapping"
 admin_mac = []

@@ -21,8 +21,8 @@ csv_file_mode: "0644"
 
 # Usage: run_python_script.yml
 python_script_path: "{{ role_path }}/files/parse_and_download.py"
-python_version: "python3.9"
-user_json_path: "{{ role_path }}/../../../input/software_config.json"
+python_version: "{{ ansible_python_interpreter }}"
+sw_config_json_path: "{{ role_path }}/../../../input/software_config.json"
 local_repo_config_path: "{{ role_path }}/../../../input/local_repo_config.yml"
 status_file_path: "/opt/omnia/offline/download_package_status.csv"
 yum_repos_path: "/etc/yum.repos.d"
@@ -40,8 +40,8 @@ max_retries: 10
 parse_message: "{{ software_name }}.json parsed. Status can be checked at /opt/omnia/offline/download_package_status.csv"
 
 # Usage: main.yml
-control_plane_os_redhat: "redhat"
-control_plane_os_rocky: "rocky"
+oim_os_redhat: "redhat"
+oim_os_rocky: "rocky"
 
 # Usage: create_metadata.yml
 meta_dest: "/opt/omnia/offline/.data"

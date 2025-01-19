@@ -5,9 +5,11 @@ Module to handle downloading and processing image packages.
 import subprocess
 from jinja2 import Template
 from common_utility import update_status
-import requests
+import requests, shlex
 
-def process_image_tag_package(package_name, repo_config, nerdctl_registry_host, image_tag):
+json_headers = "application/vnd.oci.image.index.v1+json"
+
+def process_image_tag_package(package_name, repo_config, nerdctl_registry_host, image_tag, crt_file_path):
     """
     Process an image package with tag.
 
@@ -18,11 +20,16 @@ def process_image_tag_package(package_name, repo_config, nerdctl_registry_host, 
         image_tag: Tag value of image to be pulled.
     """
     print(f"Processing Image Package: {package_name}, Tag: {image_tag}")
+
+    package_name = shlex.quote(package_name).strip("'\"")
+    image_tag = shlex.quote(image_tag).strip("'\"")
+    nerdctl_registry_host = shlex.quote(nerdctl_registry_host).strip("'\"")
+
     # Check if image exists in omnia_local_registry
     try:
-        headers = {"Accept": "application/vnd.oci.image.index.v1+json"}
+        headers = {"Accept": json_headers}
         url = f"https://{nerdctl_registry_host}/v2/{package_name.split('/', 1)[-1]}/manifests/{image_tag}"
-        response = requests.get(url, headers=headers, verify=False)
+        response = requests.get(url, headers=headers, verify=crt_file_path)
         if response.status_code == 200:
             print(f"Image {package_name}:{image_tag} exists in the registry {nerdctl_registry_host}.")
             return "Success"
@@ -53,7 +60,7 @@ def process_image_tag_package(package_name, repo_config, nerdctl_registry_host, 
         print(f"Exception occured while trying to access registry {nerdctl_registry_host}.")
         return "Failed"
 
-def process_image_digest_package(package_name, repo_config, nerdctl_registry_host, image_digest, new_tag):
+def process_image_digest_package(package_name, repo_config, nerdctl_registry_host, image_digest, new_tag, crt_file_path):
     """
     Process an image package with digest.
 
@@ -66,22 +73,39 @@ def process_image_digest_package(package_name, repo_config, nerdctl_registry_hos
     """
     print(f"Processing Image Package: {package_name}, Digest: {image_digest}")
     # Check if image exists in omnia_local_registry
+
+    nerdctl_registry_host = shlex.quote(nerdctl_registry_host).strip("'\"")
+    package_name = shlex.quote(package_name).strip("'\"")
+    new_tag = shlex.quote(new_tag).strip("'\"")
+    image_digest = shlex.quote(image_digest).strip("'\"")
+
+
     try:
-        headers = {"Accept": "application/vnd.oci.image.index.v1+json"}
+        headers = {"Accept": json_headers}
         url = f"https://{nerdctl_registry_host}/v2/{package_name.split('/', 1)[-1]}/manifests/{new_tag}"
-        response = requests.get(url, headers=headers, verify=False)
+        response = requests.get(url, headers=headers, verify=crt_file_path)
         if response.status_code == 200:
             print(f"Image {package_name}:{new_tag} exists in the registry {nerdctl_registry_host}.")
             return "Success"
         else:
             pull_command = ["nerdctl", "pull", f"{package_name}@sha256:{image_digest}"]
+            pull_command_all_platforms = ["nerdctl", "pull", f"{package_name}@sha256:{image_digest}", "--all-platforms"]
             tag_command = ["nerdctl", "tag", f"{package_name}@sha256:{image_digest}", f"{nerdctl_registry_host}/{package_name.split('/', 1)[-1]}:{new_tag}"]
             push_command = ["nerdctl", "push", f"{nerdctl_registry_host}/{package_name.split('/', 1)[-1]}:{new_tag}"]
             try:
                 subprocess.run(pull_command, check=True)
                 subprocess.run(tag_command, check=True)
-                subprocess.run(push_command, check=True)
-                return "Success"
+                push_command_output = subprocess.run(push_command, capture_output=True, text=True)
+                if push_command_output.returncode == 0:
+                    return "Success"
+                else:
+                    if "failed to create a tmp single-platform image" in push_command_output.stderr:
+                        subprocess.run(pull_command_all_platforms, check=True)
+                        subprocess.run(tag_command, check=True)
+                        subprocess.run(push_command, check=True)
+                        return "Success"
+                    else:
+                        raise subprocess.CalledProcessError(returncode=1, cmd="failed to push image to private registry")
             except subprocess.CalledProcessError as e:
                 return "Failed"
     except Exception as err:
@@ -101,15 +125,21 @@ def check_image_in_registry(image_name, image_version, user_registries):
     Returns:
         bool: True if the image exists in any of the user's registries, False otherwise.
     """
+    image_name = shlex.quote(image_name).strip("'\"")
+    image_version = shlex.quote(image_version).strip("'\"")
+
     if user_registries is not None and len(user_registries) > 0:
         for registry in user_registries:
             try:
                 host = registry.get("host")
+                cert_file_path = registry.get("cert_path").strip()
+                cert_file_path = cert_file_path if cert_file_path else False
+
                 print(f"Checking for image: {image_name}:{image_version} in registry {host}.")
                 # Check if the image with the specified tag/digest exists
-                headers = {"Accept": "application/vnd.oci.image.index.v1+json"}
+                headers = {"Accept": json_headers}
                 url = f"https://{host}/v2/{image_name.split('/', 1)[-1]}/manifests/{image_version}"
-                response = requests.get(url, headers=headers, verify=False)
+                response = requests.get(url, headers=headers, verify=cert_file_path)
                 if response.status_code == 200:
                     print(f"Image {image_name}:{image_version} exists in the registry {host}.")
                     return True
@@ -124,7 +154,7 @@ def check_image_in_registry(image_name, image_version, user_registries):
         return False
 
 
-def process_image_package(package, repo_config, nerdctl_registry_host, status_file_path, version_variables, user_registries, software_names):
+def process_image_package(package, repo_config, nerdctl_registry_host, status_file_path, version_variables, user_registries, software_names, openssl_cert_path):
     """
     Process an image package.
 
@@ -135,6 +165,7 @@ def process_image_package(package, repo_config, nerdctl_registry_host, status_fi
         status_file_path: Path to the status file.
         version_variables: Variables for rendering version template.
     """
+
     package_name = package['package']
     package_type = package['type']
 
@@ -162,11 +193,11 @@ def process_image_package(package, repo_config, nerdctl_registry_host, status_fi
         # Render the tag, substituting Jinja variables if present
         image_tag = tag_template.render(**version_variables)
         if repo_config == "always":
-            status = process_image_tag_package(package_name, repo_config, nerdctl_registry_host, image_tag)
+            status = process_image_tag_package(package_name, repo_config, nerdctl_registry_host, image_tag, openssl_cert_path)
         if repo_config == "partial":
             image_skip_status = check_image_in_registry(package_name, image_tag, user_registries)
             if not image_skip_status:
-                status = process_image_tag_package(package_name, repo_config, nerdctl_registry_host, image_tag)
+                status = process_image_tag_package(package_name, repo_config, nerdctl_registry_host, image_tag, openssl_cert_path)
             else:
                 status = "Skipped"
         if repo_config == "never":
@@ -175,16 +206,16 @@ def process_image_package(package, repo_config, nerdctl_registry_host, status_fi
 
     if process_image_digest is True:
         if repo_config == "always":
-            status = process_image_digest_package(package_name, repo_config, nerdctl_registry_host, image_digest, new_tag)
+            status = process_image_digest_package(package_name, repo_config, nerdctl_registry_host, image_digest, new_tag, openssl_cert_path)
         if repo_config == "partial":
             image_skip_status = check_image_in_registry(package_name, "sha256:" + image_digest, user_registries)
             if not image_skip_status:
-                status = process_image_digest_package(package_name, repo_config, nerdctl_registry_host, image_digest, new_tag)
+                status = process_image_digest_package(package_name, repo_config, nerdctl_registry_host, image_digest, new_tag, openssl_cert_path)
             else:
                 status = "Skipped"
         if repo_config == "never":
             status = "Skipped"
         complete_package_name = package_name + "@sha256:" + image_digest
-    
+
     # Update the status
     update_status(complete_package_name, package_type, status, status_file_path)

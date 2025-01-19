@@ -27,7 +27,7 @@
 - name: Check IB nic availability
   block:
     - name: Check IB nic availability
-      ansible.builtin.shell: "ip a | grep -o ' ib.'"
+      ansible.builtin.shell: "ip a | grep -o ' ib.'" # noqa: risky-shell-pipe
       changed_when: false
       register: ib_nics
 
