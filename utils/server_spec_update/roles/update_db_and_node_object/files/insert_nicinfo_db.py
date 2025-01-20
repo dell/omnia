@@ -19,12 +19,15 @@ from cryptography.fernet import Fernet
 This module contains functions for inserting NIC information into a database.
 """
 
+key_file_path = '/opt/omnia/.postgres/.postgres_pass.key'
+pass_file_path = '/opt/omnia/.postgres/.encrypted_pwd'
+
 def create_connection():
-    with open('/opt/omnia/.postgres/.postgres_pass.key', 'rb') as passfile:
+    with open(key_file_path, 'rb') as passfile:
         key = passfile.read()
     fernet = Fernet(key)
 
-    with open('/opt/omnia/.postgres/.encrypted_pwd', 'rb') as datafile:
+    with open(pass_file_path, 'rb') as datafile:
         encrypted_file_data = datafile.read()
     decrypted_pwd = fernet.decrypt(encrypted_file_data).decode()
     # Create database connection

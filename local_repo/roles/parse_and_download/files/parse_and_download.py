@@ -61,7 +61,7 @@ def load_software_config_json(software_names, cluster_os_type, cluster_os_versio
 # Example function to process a package
 def process_package(package, repo_store_path,status_file_path,cluster_os_type,
         cluster_os_version, repo_config, version_variables,
-        nerdctl_registry_host, user_registries, cluster_name, software_names):
+        nerdctl_registry_host, user_registries, cluster_name, software_names, openssl_cert_path):
     """
     Function to process a package
     Args:
@@ -82,13 +82,13 @@ def process_package(package, repo_store_path,status_file_path,cluster_os_type,
     process_by_package_type(package_name, package_type, package,
             repo_store_path, status_file_path, cluster_os_type, cluster_os_version,
             repo_config, version_variables, nerdctl_registry_host,
-            user_registries, cluster_name, software_names)
+            user_registries, cluster_name, software_names, openssl_cert_path)
 
 # Type-specific processing function
 def process_by_package_type(package_name, package_type, package,
         repo_store_path, status_file_path, cluster_os_type, cluster_os_version,
         repo_config, version_variables, nerdctl_registry_host,
-        user_registries, cluster_name, software_names):
+        user_registries, cluster_name, software_names, openssl_cert_path):
     """
     Function to process based on package type
     Args:
@@ -126,7 +126,7 @@ def process_by_package_type(package_name, package_type, package,
     elif package_type == 'image':
         download_image.process_image_package(package, repo_config,
                 nerdctl_registry_host, status_file_path,
-                version_variables, user_registries, software_names)
+                version_variables, user_registries, software_names, openssl_cert_path)
     elif package_type == 'ansible_galaxy_collection':
         download_common.process_ansible_galaxy_collection(package,
                 repo_store_path, status_file_path)
@@ -222,6 +222,7 @@ def main():
     status_file_path = os.environ.get('STATUS_FILE_PATH')
     nerdctl_registry_host = os.environ.get('NERDCTL_REGISTRY_HOST')
     software_name = os.environ.get('SOFTWARE_NAME')
+    openssl_cert_path = os.environ.get('OPENSSL_CERT_PATH')
 
     # Load data from software_config.json
     user_data = load_user_json(user_json_path)
@@ -282,7 +283,7 @@ def main():
                 for package in cluster_info['cluster']:
                     process_package(package, repo_store_path, status_file_path,
                             cluster_os_type,cluster_os_version, repo_config, version_variables,
-                            nerdctl_registry_host, user_registries, cluster_name, software_names)
+                            nerdctl_registry_host, user_registries, cluster_name, software_names, openssl_cert_path)
                 print()
 
     if cluster_os_type == 'rhel' or cluster_os_type == 'rocky':

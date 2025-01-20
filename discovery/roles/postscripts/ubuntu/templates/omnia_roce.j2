@@ -12,17 +12,77 @@ if [[ -n $thor_check ]]
 then
     echo "starting RoCE Installation" >> /var/log/xcat/xcat.log
     # Download the roce_src tar file
-    wget "http://{{ admin_nic_ip }}:80/install{{ repo_store_path }}/cluster/tarball/{{ roce_package_name }}"
+    wget --quiet --show-progress "http://{{ admin_nic_ip }}:80/install{{ repo_store_path }}/cluster/tarball/{{ roce_package_name }}"
     # Extract the contents of the tar file
     extracted_driver_name=$(tar -tzf "{{ roce_package_name }}" | head -n 1)
     tar -xvzf "{{ roce_package_name }}"
+
+    OS_VERSION=$(lsb_release -ds | cut -d ' ' -f 2)
+    OS_VERSION_MAJOR=$(lsb_release -rs)
+    echo "OS VERSION: '$OS_VERSION'" >> /var/log/xcat/xcat.log
+
+    ROCE_VERSION=$(echo "$extracted_driver_name" | grep -oP '\d+' | head -n 1)
+    echo "RoCE Major Version: $ROCE_VERSION" >> /var/log/xcat/xcat.log
+
     # install the L2, RoCE, and Peer Memory Direct (GPU direct) drivers
-    sudo apt install -y "$(find ./$extracted_driver_name/ -name "netxtreme-peer-mem-dkms*.deb")"
+    echo "starting RoCE netxtreme-peer-mem-dkms Installation" >> /var/log/xcat/xcat.log
+
+    # Search for .deb files using full OS version
+    echo "Searching for files matching OS version: $OS_VERSION" >> /var/log/xcat/xcat.log
+    FILES=$(find ./$extracted_driver_name/ -wholename ".*$OS_VERSION*/netxtreme-peer-mem-dkms*.deb")
+
+    # If files are found for the full OS version, move to RoCE version check
+    if [[ -n $FILES ]]; then
+        echo "Files found for full OS version: $OS_VERSION"
+        echo -e "Files:\n$FILES"
+        # Proceed to check for RoCE version
+    elif [[ -z $FILES ]]; then
+        echo "No files found for OS version $OS_VERSION. Searching for major version: $OS_VERSION_MAJOR"
+        # Search for OS major version
+        FILES=$(find ./$extracted_driver_name/ -wholename ".*$OS_VERSION_MAJOR*/netxtreme-peer-mem-dkms*.deb")
+        if [[ -n $FILES ]]; then
+            echo "Files found for major version: $OS_VERSION_MAJOR"
+            echo -e "Files:\n$FILES"
+            # Proceed to check for RoCE version
+        elif [[ -z $FILES ]]; then
+            echo "No files found for major version $OS_VERSION_MAJOR. Searching for generic netxtreme-peer-mem-dkms debian files."
+            # Search for any generic .deb files
+            FILES=$(find ./$extracted_driver_name/ -name "netxtreme-peer-mem-dkms*.deb")
+            if [[ -n $FILES ]]; then
+                echo "Generic files found"
+                echo -e "Files:\n$FILES"
+            fi
+        fi
+    fi
+
+    if [[ -n $FILES ]]; then
+        # Now search for files matching RoCE version
+        MATCHED_FILE=$(echo "$FILES" | grep -E "netxtreme-peer-mem-dkms.*$ROCE_VERSION.*\.deb" | tail -n 1)
+
+        # If a matching file is found, install it
+        if [[ -n $MATCHED_FILE ]]; then
+            echo "Installing RoCE - $ROCE_VERSION match : $MATCHED_FILE" >> /var/log/xcat/xcat.log
+            sudo apt install -y "$MATCHED_FILE"
+            echo "Completed Installation Process."
+        else
+            echo "No netxtreme-peer-mem-dkms debian file found matching ROCE version $ROCE_VERSION ." >> /var/log/xcat/xcat.log
+            echo "Installing all : $FILES" >> /var/log/xcat/xcat.log
+            for file in $FILES; do
+                sudo apt install -y "$file"
+            done
+        fi
+        echo "Completed RoCE netxtreme-peer-mem-dkms Installation" >> /var/log/xcat/xcat.log
+    else
+        echo -e "RoCE installation failed. \n Exiting as no debian files found for netxtreme-peer-mem-dkms criteria." >> /var/log/xcat/xcat.log
+        exit 1
+    fi
+
+
     # Download the roce_Drivers tar file
     sudo apt install -y linux-headers-"$(uname -r)"
     sudo apt install -y libelf-dev gcc make libtool autoconf librdmacm-dev rdmacm-utils infiniband-diags ibverbs-utils perftest ethtool libibverbs-dev rdma-core strace
     if [ "{{ roce_src_package_name }}" != "omnia_default" ]; then
-        wget "http://{{ admin_nic_ip }}:80/install{{ repo_store_path }}/cluster/tarball/{{ roce_src_package_name }}"
+        wget --quiet --show-progress "http://{{ admin_nic_ip }}:80/install{{ repo_store_path }}/cluster/tarball/{{ roce_src_package_name }}"
         extracted_source_name=$(tar -tzf "{{ roce_src_package_name }}" | head -n 1)
         tar -xvzf "{{ roce_src_package_name }}"
         find ./$extracted_source_name/ -name "*netxtreme-bnxt_en*.tar.*" -exec sh -c '
@@ -38,6 +98,8 @@ then
             fi
         ' {} \;
         # compile and install the RoCE library
+        echo "Installing RoCE library" >> /var/log/xcat/xcat.log
+
         find ./$extracted_source_name/ -name "*libbnxt_re*.tar.*" -exec sh -c '
             # Extract the tar file
             tar -xvzf "$0" -C "$(dirname "$0")"

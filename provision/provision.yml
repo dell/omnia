@@ -21,11 +21,11 @@
   ansible.builtin.import_playbook: ../utils/check_package_lock.yml
   when: not ( hostvars['127.0.0.1']['apt_lock_status'] | default(false) | bool )
 
-- name: Prepare control plane for provisioning nodes
+- name: Prepare Omnia Infrastructure Manager for provisioning nodes
   hosts: localhost
   connection: local
   roles:
     - role: provision_validation
-    - role: ../prepare_cp/roles/pre_requisite  # noqa: role-name[path]
+    - role: ../prepare_oim/roles/pre_requisite  # noqa: role-name[path]
     - role: mapping_provision
     - role: mtms_provision

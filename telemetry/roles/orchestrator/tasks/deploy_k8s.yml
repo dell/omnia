@@ -36,13 +36,22 @@
     src: "{{ kubespray_path }}/{{ telemetry_package_map['kubespray'] }}.tar.gz"
     dest: "{{ kubespray_path }}"
 
+- name: Add collections path in kubespray ansible.cfg
+  community.general.ini_file:
+    path: "{{ kubespray_cfg_path }}"
+    section: defaults
+    option: collections_path
+    value: "$VIRTUAL_ENV"
+    mode: "{{ permission_644 }}"
+    backup: true
+
 - name: Create k8s_var from template
   ansible.builtin.template:
     src: k8s_var.yml.j2
     dest: "{{ role_path }}/files/k8s_var.yml"
     mode: "{{ permission_644 }}"
 
-- name: K8s installation on control plane (Wait 10 mins for kubernetes installation to complete)
+- name: K8s installation on Omnia Infrastructure Manager (Wait 10 mins for kubernetes installation to complete)
   ansible.builtin.command: >
     ansible-playbook {{ kubespray_path }}/{{ telemetry_package_map['kubespray'] }}/cluster.yml \
     -i {{ role_path }}/files/k8s_inv.ini \
@@ -52,7 +61,7 @@
   environment:
     HTTP_PROXY: "{{ proxy[0].http_proxy | default('', true) }}"
     HTTPS_PROXY: "{{ proxy[0].https_proxy | default('', true) }}"
-    NO_PROXY: "localhost,{{ cp_hostname }},*.{{ cp_domain_name }},{{ cp_ip_addresses | join(',') }},{{ hostvars['localhost']['pod_external_ip_range'] }},{{ hostvars['localhost']['k8s_service_addresses'] }},{{ hostvars['localhost']['k8s_pod_network_cidr'] }}" # noqa: yaml[line-length]
+    NO_PROXY: "localhost,{{ oim_hostname }},*.{{ oim_domain_name }},{{ oim_ip_addresses | join(',') }},{{ hostvars['localhost']['pod_external_ip_range'] }},{{ hostvars['localhost']['k8s_service_addresses'] }},{{ hostvars['localhost']['k8s_pod_network_cidr'] }}" # noqa: yaml[line-length]
   register: k8s_install
   changed_when: k8s_install.changed
   failed_when: false

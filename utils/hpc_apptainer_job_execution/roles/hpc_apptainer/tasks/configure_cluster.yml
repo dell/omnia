@@ -13,10 +13,10 @@
 # limitations under the License.
 ---
 
-- name: Set cp_hostname and cp_ip
+- name: Set oim_hostname and oim_ip
   ansible.builtin.set_fact:
-    cp_hostname: "{{ hostvars['127.0.0.1'].cp_hostname }}"
-    cp_ip: "{{ hostvars['127.0.0.1'].cp_ip }}"
+    oim_hostname: "{{ hostvars['127.0.0.1'].oim_hostname }}"
+    oim_ip: "{{ hostvars['127.0.0.1'].oim_ip }}"
 
 - name: Create ca cert directory
   ansible.builtin.file:
@@ -30,9 +30,9 @@
     dest: "{{ ca_cert_dest }}"
     mode: preserve
 
-- name: Add control plane information to node
+- name: Add Omnia Infrastructure Manager information to node
   ansible.builtin.lineinfile:
     path: "{{ hosts_file_path }}"
-    line: "{{ cp_ip }} {{ cp_hostname }}"
+    line: "{{ oim_ip }} {{ oim_hostname }}"
     state: present
     mode: "{{ file_permission }}"

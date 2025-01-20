@@ -19,10 +19,10 @@ user_msg_upgrade: "{{ unsupported_os_user_msg_upgrade if ansible_distribution_ve
 
 supported_os_user_msg_upgrade: |
    "**************************************************************************************
-   upgrade_cp.yml is completed SUCCESSFULLY.
-   The omnia control plane(OIM) has been upgraded to Omnia {{ upgrade_omnia_version }}
-   
-   This has not upgraded any software version on compute nodes. 
+   upgrade_oim.yml is completed SUCCESSFULLY.
+   The Omnia Infrastructure Manager has been upgraded to Omnia {{ upgrade_omnia_version }}
+
+   This has not upgraded any software version on compute nodes.
    ***************************************************************************************
 
    Note:
@@ -34,21 +34,20 @@ supported_os_user_msg_upgrade: |
       Kubernetes - 1.26.12
       KServe     - 0.11.2
       Kubeflow   - 1.8.0
-      For above software versions 
+      For above software versions-
         1. Activate omnia161_venv using command #source /opt/omnia/omnia161_venv/bin/activate
         2. Replace k8s.json, kserve.json, kubeflow.json in input/config/<os_distribution>/<os_version> from omnia 1.6.1 source"
-      
 
 unsupported_os_user_msg_upgrade: |
    "**************************************************************************************
-   upgrade_cp.yml is completed SUCCESSFULLY.
-   The omnia control plane(OIM) has been upgraded to Omnia {{ upgrade_omnia_version }}
-   
-   This has not upgraded any software version on compute nodes. 
+   upgrade_oim.yml is completed SUCCESSFULLY.
+   The Omnia Infrastructure Manager has been upgraded to Omnia {{ upgrade_omnia_version }}
+
+   This has not upgraded any software version on compute nodes.
    ***************************************************************************************
 
    Note:
    1. RHEL/Rocky 8.6 or 8.7 are unsupported OS for Omnia 1.7.
    2. To execute Omnia 1.7 playbook, activate omnia161_venv using command
-           #source /opt/omnia/omnia161_venv/bin/activate      
+           #source /opt/omnia/omnia161_venv/bin/activate
    3. Omnia 1.7 new features are not supported on RHEL/Rocky 8.6 or 8.7."

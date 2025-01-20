@@ -86,32 +86,32 @@
     msg: "{{ language_fail_msg }}"
   when: '"en-US" not in language'
 
-- name: Assert provision_os for RHEL control plane
+- name: Assert provision_os for RHEL Omnia Infrastructure Manager
   ansible.builtin.assert:
     that:
       - provision_os | lower == os_supported_rhel
     success_msg: "{{ provision_os_success_msg }}"
     fail_msg: "{{ provision_os_fail_msg }}"
   when:
-    - control_plane_os in control_plane_os_redhat
+    - oim_os in oim_os_redhat
 
-- name: Assert provision_os for Rocky control plane
+- name: Assert provision_os for Rocky Omnia Infrastructure Manager
   ansible.builtin.assert:
     that:
       - provision_os | lower == os_supported_rocky
     success_msg: "{{ provision_os_success_msg }}"
     fail_msg: "{{ provision_os_fail_msg }}"
   when:
-    - control_plane_os in control_plane_os_rocky
+    - oim_os in oim_os_rocky
 
-- name: Assert provision_os for Ubuntu control plane
+- name: Assert provision_os for Ubuntu Omnia Infrastructure Manager
   ansible.builtin.assert:
     that:
       - provision_os | lower == os_supported_ubuntu
     success_msg: "{{ provision_os_success_msg }}"
     fail_msg: "{{ provision_os_fail_msg }}"
   when:
-    - control_plane_os in control_plane_os_ubuntu
+    - oim_os in oim_os_ubuntu
 
 - name: Set supported_os_version_status to true - rhel/rocky
   ansible.builtin.set_fact:

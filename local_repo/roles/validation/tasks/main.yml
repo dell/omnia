@@ -31,8 +31,8 @@
     prompt: "{{ var_mount_overuse_msg }}"
   when: var_mount_use_percentage.stdout | float >= var_mount_percentage_limit
 
-- name: Validate control plane OS
-  ansible.builtin.include_tasks: validate_cp_os.yml
+- name: Validate Omnia Infrastructure Manager OS
+  ansible.builtin.include_tasks: validate_oim_os.yml
 
 - name: Validate domain_name
   ansible.builtin.include_tasks: validate_domain_name.yml

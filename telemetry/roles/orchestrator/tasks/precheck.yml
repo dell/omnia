@@ -15,16 +15,16 @@
 
 - name: Set kubernetes install flag to false
   ansible.builtin.set_fact:
-    k8s_cp_installation_flag: false
+    k8s_oim_installation_flag: false
 
-- name: Check if kubernetes on control plane is already installed
+- name: Check if kubernetes on Omnia Infrastructure Manager is already installed
   ansible.builtin.command: kubectl get pod -A
   changed_when: false
   register: kubectl_command_status
   failed_when: false
 
-# k8s_cp_installation_flag value true denotes kubernetes is not installed and need to be installed.
+# k8s_oim_installation_flag value true denotes kubernetes is not installed and need to be installed.
 - name: Set kubernetes install flag to true
   ansible.builtin.set_fact:
-    k8s_cp_installation_flag: true
+    k8s_oim_installation_flag: true
   when: kubectl_command_status.rc != 0

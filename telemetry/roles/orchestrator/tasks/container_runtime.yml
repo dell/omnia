@@ -40,7 +40,7 @@
     owner: root
     mode: "{{ permission_644 }}"
 
-# Containerd configuration required by K8s on Control plane installation with deploy_container_engine value as false
+# Containerd configuration required by K8s on Omnia Infrastructure Manager installation with deploy_container_engine value as false
 - name: Containerd | Generate default base_runtime_spec
   register: ctr_oci_spec
   ansible.builtin.command: "{{ containerd_bin_dir }}/ctr oci spec"

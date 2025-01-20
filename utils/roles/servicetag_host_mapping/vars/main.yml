@@ -26,9 +26,9 @@ omnia_postgres_path: /opt/omnia/.postgres
 xcatd_service: "xcatd.service"
 postgresql_service_rhel: "postgresql.service"
 postgresql_service_ubuntu: "postgresql"
-control_plane_os_redhat: "redhat"
-control_plane_os_rocky: "rocky"
-control_plane_os_ubuntu: "ubuntu"
+oim_os_redhat: "redhat"
+oim_os_rocky: "rocky"
+oim_os_ubuntu: "ubuntu"
 xcat_path: /opt/xcat/bin
 postgres_install_fail_msg: |
   "Failed. postgresql or xcatd services not running.

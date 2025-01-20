@@ -65,7 +65,7 @@
 
     - name: Include telemetry_config vars
       ansible.builtin.include_tasks: include_telemetry_vars.yml
- 
+
     # Mounting timescaledb with correct mount path
     - name: Backup timescaledb data files to host_path
       ansible.builtin.include_tasks: reconfig_timescaledb_data.yml
@@ -73,7 +73,7 @@
     - name: Checking the timescaledb metrics status
       ansible.builtin.include_role:
         name: upgrade_precheck
-        tasks_from: check_timescaldb_existence.yml    
+        tasks_from: check_timescaldb_existence.yml
 
     - name: Spin the timescale DB pod
       ansible.builtin.include_tasks: upgrade_tsdb.yml

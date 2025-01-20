@@ -20,10 +20,10 @@
 - name: Firewall config for non ubuntu os
   when: ubuntu_os not in os_distribution
   block:
-    - name: Open k8s ports in the control plane
+    - name: Open k8s ports in the Omnia Infrastructure Manager
       ansible.builtin.command: "firewall-cmd --permanent --add-port={{ item }}"
       changed_when: true
-      with_items: '{{ k8s_cp_ports }}'
+      with_items: '{{ k8s_oim_ports }}'
 
     - name: Open calico UDP ports on the firewall
       ansible.builtin.command: "firewall-cmd --permanent --add-port={{ item }}/udp"

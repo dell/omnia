@@ -19,7 +19,16 @@
     state: directory
     recurse: true
 
+- name: Check if {{ syncfiles_dir }}/keyrings is not empty # noqa: name[template]
+  ansible.builtin.find:
+    paths: "{{ tmp_keyrings_path }}"
+    file_type: file
+  register: keyring_files
+  when: oim_os in "ubuntu"
+
 - name: Copy synclist in xcat folder
+  vars:
+    is_keyring_not_empty: "{{ keyring_files.matched > 0 if oim_os == 'ubuntu' else False }}"
   ansible.builtin.template:
     src: "{{ synclists_src_path }}"
     dest: "{{ synclists_dest_path }}"

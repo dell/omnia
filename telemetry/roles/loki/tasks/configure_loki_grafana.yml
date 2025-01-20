@@ -14,7 +14,7 @@
 ---
 
 - name: Wait for grafana pod to come to ready state
-  block:    
+  block:
     - name: Wait for grafana pod to come to ready state
       ansible.builtin.command: kubectl wait --for=condition=ready --timeout="{{ pod_timeout }}" -n "{{ grafana_namespace }}" pod -l app="{{ grafana_k8s_name }}"
       changed_when: false
@@ -24,7 +24,7 @@
         msg: "{{ grafana_pod_wait_fail_msg }}"
 
 - name: Wait for loki pod to come to ready state
-  block:    
+  block:
     - name: Wait for loki pod to come to ready state
       ansible.builtin.command: kubectl wait --for=condition=ready --timeout={{ pod_timeout }} -n "{{ grafana_namespace }}" pod -l app="{{ loki_k8s_name }}"
       changed_when: false
@@ -66,7 +66,7 @@
   block:
     - name: Create loki datasource in grafana
       community.grafana.grafana_datasource:
-        name: control-plane-loki
+        name: oim-node-loki
         grafana_url: "http://{{ grafana_svc_ip.stdout }}:{{ grafana_svc_port.stdout }}"
         grafana_user: "{{ grafana_username }}"
         grafana_password: "{{ grafana_password }}"

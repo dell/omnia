@@ -36,4 +36,4 @@ python_pip_modules:
 # Usage: main.yml
 omnia_inventory_dir: "/opt/omnia/omnia_inventory/"
 file_permission: "0644"
-upgrade_fail_msg: "Failed to upgrade. Execute restore_cp.yml to restore Omnia control plane state."
+upgrade_fail_msg: "Failed to upgrade. Execute restore_oim.yml to restore Omnia Infrastructure Manager state."

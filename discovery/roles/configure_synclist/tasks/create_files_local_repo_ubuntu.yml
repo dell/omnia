@@ -27,12 +27,12 @@
 - name: Create repos for compute nodes
   when: repo_config == 'partial'
   block:
-    - name: Remove /tmp/keyrings directory if already exists
+    - name: Remove {{ syncfiles_dir }}/keyrings directory if already exists # noqa: name[template]
       ansible.builtin.file:
         path: "{{ tmp_keyrings_path }}"
         state: absent
 
-    - name: Create /tmp/keyrings directory
+    - name: Create {{ syncfiles_dir }}/keyrings directory # noqa: name[template]
       ansible.builtin.file:
         path: "{{ tmp_keyrings_path }}"
         state: directory
@@ -169,12 +169,12 @@
   when: repo_config == 'never'
   block:
 
-    - name: Remove /tmp/keyrings directory if already exists
+    - name: Remove {{ syncfiles_dir }}/keyrings directory if already exists # noqa: name[template]
       ansible.builtin.file:
         path: "{{ tmp_keyrings_path }}"
         state: absent
 
-    - name: Create /tmp/keyrings directory
+    - name: Create {{ syncfiles_dir }}/keyrings directory # noqa: name[template]
       ansible.builtin.file:
         path: "{{ tmp_keyrings_path }}"
         state: directory

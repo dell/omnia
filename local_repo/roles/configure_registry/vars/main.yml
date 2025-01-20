@@ -43,9 +43,9 @@ retry_count: "5"
 delay_time: "10"
 
 # Usage: main.yml
-control_plane_os_redhat: "redhat"
-control_plane_os_rocky: "rocky"
-control_plane_os_ubuntu: "ubuntu"
+oim_os_redhat: "redhat"
+oim_os_rocky: "rocky"
+oim_os_ubuntu: "ubuntu"
 
 # Usage: set_environment.yml
 environment_file_path: "{{ role_path }}/templates/omnia_environment.j2"

@@ -69,7 +69,7 @@
 - name: Tag and push docker image to local registry
   community.docker.docker_image:
     name: "{{ item.image_url }}"
-    repository: "{{ cp_hostname }}:{{ docker_registry_port }}/{{ item.image_url }}"
+    repository: "{{ oim_hostname }}:{{ docker_registry_port }}/{{ item.image_url }}"
     push: true
     source: local
   with_items: "{{ hpc_apptainer_image }}"
@@ -82,7 +82,7 @@
 - name: Add docker image name to list
   ansible.builtin.lineinfile:
     path: "{{ hpc_image_list }}"
-    line: "{{ cp_hostname }}:{{ docker_registry_port }}/{{ item.image_url }}"
+    line: "{{ oim_hostname }}:{{ docker_registry_port }}/{{ item.image_url }}"
     state: present
     create: true
     mode: "{{ file_permission }}"

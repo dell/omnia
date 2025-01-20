@@ -32,7 +32,7 @@
       community.postgresql.postgresql_query:
         db: omniadb
         login_user: postgres
-        query: SELECT status FROM cluster.nodeinfo where (node!='control_plane') AND (admin_ip='{{ item }}');
+        query: SELECT status FROM cluster.nodeinfo where (node!='oim') AND (admin_ip='{{ item }}');
         login_password: "{{ hostvars['localhost']['postgresdb_password'] }}"
       become: true
       become_user: postgres
@@ -52,7 +52,7 @@
       community.postgresql.postgresql_query:
         db: omniadb
         login_user: postgres
-        query: SELECT status FROM cluster.nodeinfo where (node!='control_plane') AND (service_tag='{{ item | upper }}' OR node='{{ item }}' OR hostname='{{ item }}'); # noqa: yaml[line-length]
+        query: SELECT status FROM cluster.nodeinfo where (node!='oim') AND (service_tag='{{ item | upper }}' OR node='{{ item }}' OR hostname='{{ item }}'); # noqa: yaml[line-length]
         login_password: "{{ hostvars['localhost']['postgresdb_password'] }}"
       become: true
       become_user: postgres
@@ -89,7 +89,7 @@
   community.postgresql.postgresql_query:
     db: omniadb
     login_user: postgres
-    query: SELECT hostname,status,admin_ip FROM cluster.nodeinfo where (node!='control_plane') AND (admin_ip='{{ item }}');
+    query: SELECT hostname,status,admin_ip FROM cluster.nodeinfo where (node!='oim') AND (admin_ip='{{ item }}');
     login_password: "{{ hostvars['localhost']['postgresdb_password'] }}"
   become: true
   become_user: postgres
@@ -101,7 +101,7 @@
   community.postgresql.postgresql_query:
     db: omniadb
     login_user: postgres
-    query: SELECT hostname,status,admin_ip FROM cluster.nodeinfo where (node!='control_plane') AND (service_tag='{{ item | upper }}' OR node='{{ item }}' OR hostname='{{ item }}'); # noqa: yaml[line-length]
+    query: SELECT hostname,status,admin_ip FROM cluster.nodeinfo where (node!='oim') AND (service_tag='{{ item | upper }}' OR node='{{ item }}' OR hostname='{{ item }}'); # noqa: yaml[line-length]
     login_password: "{{ hostvars['localhost']['postgresdb_password'] }}"
   become: true
   become_user: postgres

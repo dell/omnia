@@ -16,7 +16,7 @@
 # vars file for test_ethernet.yml file
 
 input_params_folder: "../../input"
-Control_plane_dir: "../"
+oim_dir: "../"
 ethernet_validation_script_path: test_ethernet_validation.yml 
 Ethernet_vars_file_path: test_vars/test_ethernet_vars.yml
 inventory: ../inventory 

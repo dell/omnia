@@ -18,11 +18,11 @@
 
 - name: Configure Cluster Repositories for RHEL/Rocky
   ansible.builtin.include_tasks: cluster_repo_config.yml
-  when: control_plane_os in control_plane_os_redhat or control_plane_os in control_plane_os_rocky
+  when: oim_os in oim_os_redhat or oim_os in oim_os_rocky
 
 - name: Configure Cluster Repositories for Ubuntu
   ansible.builtin.include_tasks: apt_conf_config.yml
-  when: control_plane_os in control_plane_os_ubuntu
+  when: oim_os in oim_os_ubuntu
 
 - name: Execute python script to Download Packages
   ansible.builtin.include_tasks: run_python_script_{{ ansible_distribution | lower }}.yml
@@ -32,11 +32,11 @@
 
 - name: Configure repositories to /etc/yum.repos.d
   ansible.builtin.include_tasks: yum_repo_config.yml
-  when: control_plane_os in control_plane_os_redhat or control_plane_os in control_plane_os_rocky
+  when: oim_os in oim_os_redhat or oim_os in oim_os_rocky
 
 - name: Configure repositories to /etc/apt/sources.list.d
   ansible.builtin.include_tasks: sources_list_config.yml
-  when: control_plane_os in control_plane_os_ubuntu
+  when: oim_os in oim_os_ubuntu
 
 - name: Create metadata file
   ansible.builtin.include_tasks: create_metadata.yml

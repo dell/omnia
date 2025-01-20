@@ -12,7 +12,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-import sys
+import re
+import sys, os
 import warnings
 import ipaddress
 import correlation_admin_bmc
@@ -23,7 +24,7 @@ sys.path.insert(0, db_path)
 
 import omniadb_connection
 
-dynamic_stanza_path = sys.argv[1]
+dynamic_stanza_path = os.path.abspath(sys.argv[1])
 node_name = sys.argv[2]
 domain_name = sys.argv[3]
 pxe_subnet = sys.argv[4]

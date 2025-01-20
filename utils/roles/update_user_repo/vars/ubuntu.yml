@@ -15,6 +15,8 @@
 
 # Usage: update_user_repo_ubuntu.yml,update_software_repo_ubuntu.yml,create_software_repo_ubuntu.yml
 repo_path: "/etc/apt/sources.list.d/"
+sources_repo_path: "/etc/apt/sources.list.d/deadsnakes-ppa.list"
+deadsnake_repo: "deb [trusted=yes] http://ppa.launchpad.net/deadsnakes/ppa/ubuntu {{ dist }} main"
 
 # Usage: create_software_repo_ubuntu.yml
 repo_config_template_src: "{{ role_path }}/templates/repo_config_template_ubuntu.j2"

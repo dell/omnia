@@ -18,7 +18,7 @@ tarball,manifest,ansible-galaxy collection.
 """
 
 import subprocess
-import os
+import os, shlex
 import sys
 import tarfile
 from jinja2 import Template
@@ -34,9 +34,11 @@ def process_pip_package(package, repo_store_path, status_file_path):
         repo_store_path: Path to the repository store.
         status_file_path: Path to the status file.
     """
-    
+
     python_version = os.path.basename(sys.executable)
     package_name = package['package']
+    package_name = shlex.quote(package_name).strip("'\"")
+
     version = package.get('version', None)
     package_type = package['type']
     print(f"Processing Pip Package: {package_name}, Version: {version}")
@@ -44,6 +46,7 @@ def process_pip_package(package, repo_store_path, status_file_path):
     # Assuming you have a specific path to store pip packages
     pip_modules_directory = os.path.join(repo_store_path, 'cluster', 'pip_module')
     os.makedirs(pip_modules_directory, exist_ok=True)  # Ensure the directory exists
+    pip_modules_directory = shlex.quote(pip_modules_directory).strip("'\"")
 
     # Pip specific processing logic goes here
     # ...
@@ -77,8 +80,14 @@ def process_git_package(package, repo_store_path, status_file_path):
     """
 
     package_name = package['package']
+    package_name = shlex.quote(package_name).strip("'\"")
+
     url = package.get('url', None)
+    url = shlex.quote(url).strip("'\"")
+
     version = package.get('version', None)
+    version = shlex.quote(version).strip("'\"")
+
     package_type = package['type']
     print(f"Processing Git Package: {package_name}, URL: {url}, Version: {version}")
 
@@ -87,11 +96,12 @@ def process_git_package(package, repo_store_path, status_file_path):
     os.makedirs(git_modules_directory, exist_ok=True)  # Ensure the directory exists
 
     clone_directory = os.path.join(git_modules_directory, package_name)
+    clone_directory = shlex.quote(clone_directory).strip("'\"")
     tarball_path = os.path.join(git_modules_directory, f'{package_name}.tar.gz')
 
     try:
         # Using wget to check if the URL exists (returns 0 for success, non-zero for failure)
-        subprocess.run(['wget', '-q', '--spider', '--tries=1', url], check=True)
+        subprocess.run(['wget', '-q', "--spider", '--tries=1', url], check=True)
         # Clone the repository only if it doesn't exist
         if not os.path.exists(clone_directory):
             clone_command = ['git', 'clone', '--branch', version, url, clone_directory]
@@ -137,14 +147,15 @@ def process_tarball_package(package, repo_store_path, status_file_path, version_
         url = url_template.render(**version_variables)
     if 'path' in package:
         path = package['path']
-    
+
     print(f"Processing Tarball Package: {package_name}, URL: {url}, Path: {path}")
+    url = shlex.quote(url).strip("'\"")
 
     if path is not None and len(path) > 1:
         if os.path.isfile(path):
             path_support = True
             url_support = False
-    
+
     # Creating the local path to save the tarball
     tarball_directory = os.path.join(repo_store_path, 'cluster', 'tarball')
 
@@ -153,6 +164,7 @@ def process_tarball_package(package, repo_store_path, status_file_path, version_
 
     # Use the package name for the tarball filename
     tarball_path = os.path.join(tarball_directory, f"{package_name}.tar.gz")
+    tarball_path = shlex.quote(tarball_path).strip("'\"")
 
     if path_support == False and url_support == True:
         try:
@@ -202,6 +214,7 @@ def process_manifest_package(package,repo_store_path, status_file_path):
     """
     package_name = package['package']
     url = package.get('url', None)
+    url = shlex.quote(url).strip("'\"")
     package_type = package['type']
     print(f"Processing Manifest Package: {package_name}, URL: {url}")
 
@@ -285,11 +298,16 @@ def process_ansible_galaxy_collection(package, repo_store_path, status_file_path
     """
     package_name = package['package']
     version = package.get('version', None)
+
+    package_name = shlex.quote(package_name).strip("'\"")
+    version = shlex.quote(version).strip("'\"")
+
     package_type = package['type']
     print(f"Processing Ansible Galaxy Collection Package: {package_name}, Version: {version}")
 
     # Assuming you have a specific path to store Ansible Galaxy Collections
     galaxy_collections_directory = os.path.join(repo_store_path, 'cluster', 'ansible_galaxy_collection')
+    galaxy_collections_directory = shlex.quote(galaxy_collections_directory).strip("'\"")
     os.makedirs(galaxy_collections_directory, exist_ok=True)  # Ensure the directory exists
 
     # Check if the tarball already exists
@@ -355,7 +373,7 @@ def process_iso_package(package, repo_store_path, status_file_path, cluster_os_t
     print(f"Processing iso Package to directory: {iso_directory}")
 
     os.makedirs(iso_directory, exist_ok=True)
-    
+
     if path_support == False and url_support == True:
         try:
             download_file_name = url.split('/')

@@ -18,7 +18,7 @@
   connection: local
   gather_facts: false
   vars:
-    cp_path: "/root/.ansible/cp/"
+    oim_path: "/root/.ansible/oim/"
   tasks:
     - name: Include gather_facts playbook
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../scheduler/roles/cluster_validation/tasks/gather_fact_resolution.yml"

@@ -18,10 +18,10 @@
     path: "{{ temp_pxe_file_path }}"
     state: absent
 
-- name: Remove spaces from the mapping file
-  ansible.builtin.shell: >
+- name: Remove leading/trailing spaces and tabs from the mapping file (but preserve column structure)
+  ansible.builtin.shell: |
     set -o pipefail && \
-    tr -d ' ' < "{{ pxe_mapping_file_path }}" > "{{ temp_pxe_file_path }}"
+    sed 's/^[[:space:]]*//g' "{{ pxe_mapping_file_path }}" | sed 's/[[:space:]]*$//g' > "{{ temp_pxe_file_path }}"
   changed_when: false
   failed_when: false
 

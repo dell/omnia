@@ -54,6 +54,6 @@
 - name: Check activated venv for RHEL/Rocky 8.8 and ubuntu 22.04/20.04
   ansible.builtin.fail:
     msg: "{{ activate_supported_venv }}"
-  when: 
+  when:
     - not older_os
     - "'omnia17_venv' not in venv_path"

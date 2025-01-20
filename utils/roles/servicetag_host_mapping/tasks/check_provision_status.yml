@@ -13,9 +13,9 @@
 #  limitations under the License.
 ---
 
-- name: Set control_plane_os
+- name: Set oim_os
   ansible.builtin.set_fact:
-    control_plane_os: "{{ ansible_distribution | lower }}"
+    oim_os: "{{ ansible_distribution | lower }}"
 
 - name: Initialize variables
   ansible.builtin.set_fact:
@@ -39,7 +39,7 @@
   ansible.builtin.set_fact:
     discovery_provision_status: true
   when:
-    - control_plane_os == control_plane_os_redhat or control_plane_os == control_plane_os_rocky
+    - oim_os == oim_os_redhat or oim_os == oim_os_rocky
     - xcatd_service in ansible_facts.services
     - postgresql_service_rhel in ansible_facts.services
     - "'running' in ansible_facts.services[xcatd_service].state"
@@ -51,7 +51,7 @@
   ansible.builtin.set_fact:
     discovery_provision_status: true
   when:
-    - control_plane_os == control_plane_os_ubuntu
+    - oim_os == oim_os_ubuntu
     - xcatd_service in ansible_facts.services
     - postgresql_service_ubuntu in ansible_facts.services
     - "'running' in ansible_facts.services[xcatd_service].state"

@@ -45,7 +45,7 @@ timescale_telemetry_backup_file: "telemetry_tsdb_dump.sql"
 idrac_reference_tools_folder: "{{ mount_location }}/iDRAC-Telemetry-Reference-Tools"
 
 python_version: "{{ ansible_python_interpreter }}"
-db_schema_utility: "{{ role_path }}/../../../telemetry/roles/omnia_telemetry_prepare_cp/files/omnia_telemetry_schema_creation.py"
+db_schema_utility: "{{ role_path }}/../../../telemetry/roles/omnia_telemetry_prepare_oim/files/omnia_telemetry_schema_creation.py"
 timescaledb_container_port: 5432
 
 # Usage: reconfig_timescaledb_data.yml

@@ -17,7 +17,7 @@ This module provides functionality for running BMC discovery on a range of IP ad
 """
 
 import re
-import sys
+import sys, os
 import subprocess
 import calculate_ip_details
 
@@ -36,15 +36,15 @@ def validate(ip_range):
 if len(sys.argv) <= 3:
     bmc_dynamic_range = sys.argv[1]
     bmc_dynamic_range = validate(bmc_dynamic_range)
-    dynamic_stanza = sys.argv[2]
+    dynamic_stanza = os.path.abspath(sys.argv[2])
 
 
 # Pass proper variables
 if len(sys.argv) > 3:
     discovery_ranges = sys.argv[1]
-    discover_stanza = sys.argv[2]
+    discover_stanza = os.path.abspath(sys.argv[2])
     bmc_static_subnet = sys.argv[3]
-    static_stanza = sys.argv[4]
+    static_stanza = os.path.abspath(sys.argv[4])
     netmask_bits = sys.argv[5]
     bmc_static_range = sys.argv[6]
     bmc_static_range = validate(bmc_static_range)

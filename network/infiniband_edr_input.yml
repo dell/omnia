@@ -12,10 +12,10 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-#***********************************************************************
-# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.                  
+# ***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.
 # SIMPLY APPEND THE REQUIRD VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
-#***********************************************************************
+# ***********************************************************************
 
 # Default configurations written for :
   # ----Switch-IB(TM) 2 based EDR InfiniBand 1U Switch, 36 QSFP28 ports----
@@ -36,7 +36,7 @@
 
 # This variable is used for enabling split port functionality on IB switch
 # Accepted values are true or false
-# Default value is false 
+# Default value is false
 enable_split_port: false
 
 # This variable is used for taking list of ports to be splitted

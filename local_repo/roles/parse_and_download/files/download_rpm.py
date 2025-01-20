@@ -3,7 +3,7 @@ Module to handle download processes for rpm and debian packages
 """
 import subprocess
 import re
-import os
+import os, shlex
 from jinja2 import Template
 from common_utility import update_status
 
@@ -25,6 +25,7 @@ def process_rpm_package(package, repo_store_path, status_file_path, cluster_os_t
     package_template = Template(package.get('package', None))  # Use Jinja2 Template for package
     # Render the packages, substituting Jinja variables if present
     package_name = package_template.render(**version_variables)
+    package_name = shlex.quote(package_name).strip("'\"")
     print(f"Processing RPM: {package_name},Repo Name: {repo_name},Repo Config: {repo_config}")
 
     # Specify the repository names that should be skipped
@@ -45,6 +46,8 @@ def process_rpm_package(package, repo_store_path, status_file_path, cluster_os_t
     else:
         rpm_directory = os.path.join(repo_store_path, 'cluster', cluster_os_type, cluster_os_version, 'rpm')
 
+    # shlex quote rpm_directory
+    rpm_directory = shlex.quote(rpm_directory).strip("'\"")
 
     # Default status value
     status = "Skipped"
@@ -109,6 +112,7 @@ def process_rpm_package(package, repo_store_path, status_file_path, cluster_os_t
 
                 # Step 3: Check if each dependency is available in user repos
                 for dependency in dependencies:
+                    dependency = shlex.quote(dependency).strip("'\"")
                     try:
                         subprocess.run(['dnf', 'list', 'available', dependency, '--disablerepo=omnia_repo*'], check=True)
                         # If the command succeeds, the dependency is available in user repos

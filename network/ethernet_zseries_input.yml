@@ -12,10 +12,10 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-#***********************************************************************
-# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.                  
+# ***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.
 # SIMPLY APPEND THE REQUIRD VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
-#***********************************************************************
+# ***********************************************************************
 
 # ---Default configurations written for Dell PowerSwitch Z9264F-ON---
 # ---Change the configurations as per the switch model to avoid failures---
@@ -42,71 +42,71 @@ snmp_community_name: "public"
 # By default, all ports are brought up in admin UP state
 ethernet_ports:
     port 1/1/1:
-      fanout: "{{ breakout_value }}"
+        fanout: "{{ breakout_value }}"
     port 1/1/3:
-      fanout: "{{ breakout_value }}"
+        fanout: "{{ breakout_value }}"
     port 1/1/5:
-      fanout: "{{ breakout_value }}"
+        fanout: "{{ breakout_value }}"
     port 1/1/7:
-      fanout: "{{ breakout_value }}"
+        fanout: "{{ breakout_value }}"
     port 1/1/9:
-      fanout: "{{ breakout_value }}"
+        fanout: "{{ breakout_value }}"
     port 1/1/11:
-      fanout: "{{ breakout_value }}"
+        fanout: "{{ breakout_value }}"
     port 1/1/13:
-      fanout: "{{ breakout_value }}"
+        fanout: "{{ breakout_value }}"
     port 1/1/15:
-      fanout: "{{ breakout_value }}"
+        fanout: "{{ breakout_value }}"
     port 1/1/17:
-      fanout: "{{ breakout_value }}"
+        fanout: "{{ breakout_value }}"
     port 1/1/19:
-      fanout: "{{ breakout_value }}"
+        fanout: "{{ breakout_value }}"
     port 1/1/21:
-      fanout: "{{ breakout_value }}"
+        fanout: "{{ breakout_value }}"
     port 1/1/23:
-      fanout: "{{ breakout_value }}"
+        fanout: "{{ breakout_value }}"
     port 1/1/25:
-      fanout: "{{ breakout_value }}"
+        fanout: "{{ breakout_value }}"
     port 1/1/27:
-      fanout: "{{ breakout_value }}"
+        fanout: "{{ breakout_value }}"
     port 1/1/29:
-      fanout: "{{ breakout_value }}"
+        fanout: "{{ breakout_value }}"
     port 1/1/31:
-      fanout: "{{ breakout_value }}"
+        fanout: "{{ breakout_value }}"
     port 1/1/33:
-      fanout: "{{ breakout_value }}"
+        fanout: "{{ breakout_value }}"
     port 1/1/35:
-      fanout: "{{ breakout_value }}"
+        fanout: "{{ breakout_value }}"
     port 1/1/37:
-      fanout: "{{ breakout_value }}"
+        fanout: "{{ breakout_value }}"
     port 1/1/39:
-      fanout: "{{ breakout_value }}"
+        fanout: "{{ breakout_value }}"
     port 1/1/41:
-      fanout: "{{ breakout_value }}"
+        fanout: "{{ breakout_value }}"
     port 1/1/43:
-      fanout: "{{ breakout_value }}"
+        fanout: "{{ breakout_value }}"
     port 1/1/45:
-      fanout: "{{ breakout_value }}"
+        fanout: "{{ breakout_value }}"
     port 1/1/47:
-      fanout: "{{ breakout_value }}"
+        fanout: "{{ breakout_value }}"
     port 1/1/49:
-      fanout: "{{ breakout_value }}"
+        fanout: "{{ breakout_value }}"
     port 1/1/51:
-      fanout: "{{ breakout_value }}"
+        fanout: "{{ breakout_value }}"
     port 1/1/53:
-      fanout: "{{ breakout_value }}"
+        fanout: "{{ breakout_value }}"
     port 1/1/55:
-      fanout: "{{ breakout_value }}"
+        fanout: "{{ breakout_value }}"
     port 1/1/57:
-      fanout: "{{ breakout_value }}"
+        fanout: "{{ breakout_value }}"
     port 1/1/59:
-      fanout: "{{ breakout_value }}"
+        fanout: "{{ breakout_value }}"
     port 1/1/61:
-      fanout: "{{ breakout_value }}"
+        fanout: "{{ breakout_value }}"
     port 1/1/63:
-      fanout: "{{ breakout_value }}"
+        fanout: "{{ breakout_value }}"
     vlan 1:
-      admin: up
+        admin: up
 
 # save_changes_to_startup is a boolean flag. By default, this option is set to false.
 # When set to true, it will save the switch's running configuration to the startup configuration file

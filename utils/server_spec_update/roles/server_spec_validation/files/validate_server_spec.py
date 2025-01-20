@@ -84,7 +84,7 @@ def validate_network_details(network_data, category_data):
                         sys.exit("Failed, nicnetwork details missing in server spec.")
 
                     if net_val['nicnetwork'] not in network_data.keys():
-                        sys.exit("Invalid network name provided in server spec.")                                                                             
+                        sys.exit("Invalid network name provided in server spec.")
 
                     if 'nictypes' not in net_val or not net_val['nictypes']:
                         sys.exit("Failed, nictypes details missing in server spec.")
@@ -107,7 +107,7 @@ def validate_network_details(network_data, category_data):
                             sys.exit("Failed, cmdline variable is missing in server spec.")
                         if 'cmdline' not in ker_val[0] :
                             sys.exit("Failed, cmdline not defined")
-    
+
 def main():
     """
     This function is the main entry point of the program. It takes in a network specification file path as a command line argument and retrieves network data from an environment variable. It then fetches server specification data from the network specification file and validates the network details against the server specification data.
@@ -118,7 +118,7 @@ def main():
     Returns:
     - None
     """
-    network_spec_file_path = sys.argv[1]
+    network_spec_file_path = os.path.abspath(sys.argv[1])
     network_string = os.environ.get('net_data')
     network_data = json.loads(network_string)
     category_data = fetch_server_spec_data(network_spec_file_path)

@@ -37,7 +37,7 @@
   community.postgresql.postgresql_query:
     db: omniadb
     login_user: postgres
-    query: SELECT node,status,admin_ip,service_tag,hostname FROM cluster.nodeinfo where (node!='control_plane') AND (admin_ip='{{ item }}');
+    query: SELECT node,status,admin_ip,service_tag,hostname FROM cluster.nodeinfo where (node!='oim') AND (admin_ip='{{ item }}');
     login_password: "{{ hostvars['localhost']['postgresdb_password'] }}"
   become: true
   become_user: postgres
@@ -49,7 +49,7 @@
   community.postgresql.postgresql_query:
     db: omniadb
     login_user: postgres
-    query: SELECT node,status,admin_ip,service_tag,hostname FROM cluster.nodeinfo where (node!='control_plane') AND (service_tag='{{ item | upper }}' OR node='{{ item }}' OR hostname='{{ item }}'); # noqa: yaml[line-length]
+    query: SELECT node,status,admin_ip,service_tag,hostname FROM cluster.nodeinfo where (node!='oim') AND (service_tag='{{ item | upper }}' OR node='{{ item }}' OR hostname='{{ item }}'); # noqa: yaml[line-length]
     login_password: "{{ hostvars['localhost']['postgresdb_password'] }}"
   become: true
   become_user: postgres
@@ -150,7 +150,7 @@
   community.postgresql.postgresql_query:
     db: omniadb
     login_user: postgres
-    query: DELETE FROM cluster.nodeinfo where ('{{ item.value.node }}'<>'control_plane') AND node='{{ item.value.node }}';
+    query: DELETE FROM cluster.nodeinfo where ('{{ item.value.node }}'<>'oim') AND node='{{ item.value.node }}';
     login_password: "{{ hostvars['localhost']['postgresdb_password'] }}"
   become: true
   become_user: postgres

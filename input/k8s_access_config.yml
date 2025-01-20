@@ -13,10 +13,10 @@
 #  limitations under the License.
 ---
 
-#***********************************************************************
+# ***********************************************************************
 # DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.
 # SIMPLY APPEND THE REQUIRD VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
-#***********************************************************************
+# ***********************************************************************
 
 # This variable accepts the usernames for which k8s access needs to be setup
 # Eg1. user_name: "user1"

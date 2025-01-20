@@ -135,13 +135,13 @@
       - repo_config in valid_repo_config
     fail_msg: "{{ repo_config_fail_msg }}"
 
-- name: Validate control_plane_os with cluster_os_type
+- name: Validate oim_os with cluster_os_type
   ansible.builtin.fail:
     msg: "{{ cross_os_support_fail_msg }}"
   when:
-    - (control_plane_os == 'ubuntu' and cluster_os_type != 'ubuntu') or
-      (control_plane_os == 'rocky' and cluster_os_type != 'rocky') or
-      (control_plane_os == 'redhat' and cluster_os_type != 'rhel')
+    - (oim_os == 'ubuntu' and cluster_os_type != 'ubuntu') or
+      (oim_os == 'rocky' and cluster_os_type != 'rocky') or
+      (oim_os == 'redhat' and cluster_os_type != 'rhel')
 
 - name: Generate software JSON file patterns
   ansible.builtin.set_fact:
